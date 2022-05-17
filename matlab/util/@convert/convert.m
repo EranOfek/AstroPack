@@ -19,8 +19,7 @@
 %     By : Eran O. Ofek                    Aug 2016
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Reliable: 2
-%--------------------------------------------------------------------------
-
+%
 % #functions (autogen)
 % angular - Convert angular units Package: @convert Description: Convert angular units.
 % conversion -

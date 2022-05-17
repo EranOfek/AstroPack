@@ -11,10 +11,15 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
     %            'Object' - Object in the Solar system on which the JD
     %                   was measured. Default is 'Ear'.
     %            'CooUnits' - RA,Dec coordinates units. Default is 'rad'.
+    %            'VelOutUnits' - 'cm/s' | 'm/s' | 'km/s' | 'au/day' | ...
+    %                   Default is 'cm/s'.
     % Output : - Barycentric JD (TDB).
-    %          - Barycentric velocity in Equatorial J2000.0 frame.
+    %          - Barycentric velocity in Equatorial J2000.0 frame
+    %            Default units [cm/s]. Control the output units using the
+    %            VelOutUnits argument.
     % Author : Eran Ofek (May 2022)
     % Example: [BJD, BVel] = celestial.time.barycentricJD(2451545,1,1)
+    %          [BJD, BVel] = celestial.time.barycentricJD(2451545,1,1,'VelOutUnits','au/day')
     
     arguments
         JD
@@ -24,6 +29,7 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
         Args.RefEllipsoid   = 'WGS84';
         Args.Object         = 'Ear';
         Args.CooUnits       = 'rad';
+        Args.VelOutUnits    = 'cm/s';
     end
     
     warning('not tested')
@@ -64,4 +70,9 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
    
     BJD  = JD + DelJD;
     BVel = ObjVel;
+    
+    if ~strcmp(BVel,'cm/s')
+        BVel = convert.velocity('cm/s',Args.VelOutUnits, BVel);
+    end
+    
 end
