@@ -179,7 +179,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.SubDir = '';  % no sub dir
         Args.BasePath = '/last02w/data1/archive'; %'/raid/eran/archive'; %'/euler/archive';
 
-        Args.CCDSEC                           = [];  % which CCDSEC to analuze - empty foe entire image
+        Args.CCDSEC                           = [];  % which CCDSEC to analuze - empty foe entire image  [xmin xmax ymin ymax]
         Args.CalibImages CalibImages          = [];
         Args.Dark                             = []; % [] - do nothing
         Args.Flat                             = []; % [] - do nothing
