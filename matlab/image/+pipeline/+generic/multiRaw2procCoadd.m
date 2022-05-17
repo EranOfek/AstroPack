@@ -179,6 +179,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.SubDir = '';  % no sub dir
         Args.BasePath = '/last02w/data1/archive'; %'/raid/eran/archive'; %'/euler/archive';
 
+        Args.CCDSEC                           = [];  % which CCDSEC to analuze - empty foe entire image
         Args.CalibImages CalibImages          = [];
         Args.Dark                             = []; % [] - do nothing
         Args.Flat                             = []; % [] - do nothing
@@ -321,7 +322,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         %[SubImage,CCDSEC,Center,NooverlapCCDSEC,NewNoOverlap,Nxy] = partition_subimage(
         
 %tic;
-        AI = AstroImage(FilesList, Args.AstroImageReadArgs{:});
+        AI = AstroImage(FilesList, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
 %toc
 
 
