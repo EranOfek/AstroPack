@@ -12,7 +12,7 @@ function Result = isSuccessWCS(Obj)
    
     Nobj = numel(Obj);
     Result = false(size(Obj));
-    for Iobj=1:1:!Nobj
+    for Iobj=1:1:Nobj
         Result(Iobj) = Obj(Iobj).WCS.Success;
     end
     

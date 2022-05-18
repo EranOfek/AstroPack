@@ -68,8 +68,15 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     % get JD
     JD = julday(AllSI(:,1));
     
-    % merge catalogs
-    % note that the merging works only on columns of AllSI !!!
+    % merge catalogs % note that the merging works only on columns of AllSI !!!
+    % In principle mergeCatalogs can work on all sub images simoultanouly
+    % however, if one of the ephocs in one of the sub images is missing
+    % then it will fail.
+    % To avoid this problem we are calling imProc.match.mergeCatalogs in a
+    % loop
+    
+    %NsubImages = size(AllSI,2);
+    %for Isi=1:1:NsubImages
     [MergedCat, MatchedS, ResultSubIm.ResZP, ResultSubIm.ResVar, ResultSubIm.FitMotion] = imProc.match.mergeCatalogs(AllSI,...
                                                                                                             Args.mergeCatalogsArgs{:},...
                                                                                                             'MergedMatchMergedCat',Args.MergedMatchMergedCat);
