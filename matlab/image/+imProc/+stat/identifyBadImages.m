@@ -58,7 +58,7 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
         Args.ThresholdACFnpix       = 0.8;
         Args.ThresholdACFdist       = 0.3;
         Args.ThresholdMaxDistACF    = 6;
-        Args.ThresholdVal           = 10000;
+        Args.ThresholdVal           = 5000;
         Args.MaxFracAboveVal        = 0.3;
         Args.MaxPixAboveACF         = 20;
         
