@@ -148,6 +148,9 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
 
     for Ifields=1:1:Nfields
         MatchedS(Ifields) = MatchedSources;
+        
+        % imProc.astrometry.isSuccessWCS(Obj(:,Ifields));
+        
         [MatchedS(Ifields), Matched(Ifields,:)] = MatchedS(Ifields).unifiedCatalogsIntoMatched(Obj(:,Ifields),...
                                                          'CooType',Args.CooType,...
                                                          'Radius',Args.Radius,...
