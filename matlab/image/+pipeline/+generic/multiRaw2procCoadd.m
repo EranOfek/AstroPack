@@ -33,6 +33,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     %            'BasePath' - Base path in which to store the data.
     %                   Default is '/last02w/data1/archive'.
     %
+    
+    %
+    %            ---- Basic calibration arguments ---
     %            'CalibImages' - A CalibImages object containing the dark
     %                   and flat images. If empty, will attempt using the
     %                   'Dark','Flat','Fringe' arguments. DEfault is [].
@@ -45,20 +48,29 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     %            'Fringe' - An AstroImage containing the fringe image. This
     %                   argument is suprceeded by 'CalibImages'.
     %                   Default is [].
+    %
+    %            ---- Image partitioning arguments ---
+    %            'CCDSEC' - A one line CCDSEC [Xmin Xmax Ymin Ymax] of section of
+    %                   images on which to run the code on all the images.
+    %                   Only these sections will be read into memory and
+    %                   processed. If empty, read the tntire image.
+    %                   Default is [].
     %            'SubImageSizeXY' - Approximate [X, Y] size of sub images.
     %                   The output images will have approximately this size.
     %                   Default is [1600 1600].
     %            'OverlapXY' - Approximate overlpa in [X,Y] between sub
     %                   images. Default is [64 64].
+    %            --- Identify bad images arguments ---
     %            'IdentifyBadImagesCCDSEC' - Bad images udentification is
     %                   done in a small section of the full image defined by this
     %                   CCDSEC [Xmin Xmax Ymin Ymax].
     %                   Default is [3001 4000 3001 4000].
+    %
+    %            --- Reading images arguments ---            
     %            'AstroImageReadArgs' - A cell array of additional
     %                   arguments to pass to the AstroImage constructor when
     %                   reading images. Default is {}.
-    %            'ImageSizeXY' - Image size [X, Y]. If empty, get from the
-    %                   header of the first image. Default is [].
+    %
     %            --- Photometry/Astrometry related ---
     %            'backgroundArgs' - A cell array of additional arguments to
     %                   pass to the imProc.background.background function.
@@ -99,12 +111,16 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     %                                             'FLUX_APER', 'FLUXERR_APER',...
     %                                             'MAG_APER', 'MAGERR_APER',...
     %                                             'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'}
-    %            '
-    %            got here...
-%       
-%         Args.findMeasureSourcesArgs cell      = {};
+    %            'findMeasureSourcesArgs' - A cell array of additional arguments to
+    %                   pass to the source finding and measuring function
+    %                   imProc.sources.findMeasureSources.
+    %                   Default is {}.
+    %            'photometricZPArgs' - A cell array of addotional arguments
+    %                   to pass to the imProc.calib.photometricZP function.
+    %                   Default is {}.
+    %
+    %            'Scale' - Pixel scale of image
 %         
-%         Args.photometricZPArgs cell           = {};
 %         
 %         % Astrometry
 %         Args.Scale                            = 1.25;
@@ -190,7 +206,6 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.IdentifyBadImagesCCDSEC          = [3001 4000 3001 4000];
         
         Args.AstroImageReadArgs cell          = {};
-        Args.ImageSizeXY                      = []; % if empty, get size from first image header
         
         Args.SameField logical                = true;
         Args.CatName                          = 'GAIAEDR3';
@@ -287,44 +302,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
 %         [SizeY, SizeX] = AI(1).sizeImage;
     else
         % FileList is a cell array of images
-% tic;
-%         OutN = FITS.get_keys(FilesList{1}, {'NAXIS1','NAXIS2'});
-%         SizeX = real(str2doubleq(OutN{1}));
-%         SizeY = real(str2doubleq(OutN{2}));
-%     
-%         [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap] = imUtil.cut.subimage_grid([SizeX, SizeY], 'SubSizeXY',[1600 1600],...
-%                                                                                                'OverlapXY',[64 64]);
-% 
-%         Nccdsec = size(CCDSEC,1);
-%         for Iim=1:1:numel(FilesList)
-%             for Iccdsec=1:1:Nccdsec
-%                 if Iccdsec==1
-%                     ReadHeader = true;
-%                 else
-%                     ReadHeader = false;
-%                 end
-%                 AI(Iim,Iccdsec) = AstroImage(FilesList{Iim}, Args.AstroImageReadArgs{:}, 'CCDSEC',CCDSEC(Iccdsec,:),'ReadHeader',ReadHeader);
-%                 if Iccdsec>1
-%                     AI(Iim,Iccdsec).HeaderData = AI(Iim,1).HeaderData;
-%                 end
-%             end
-%         end
-% toc
-
                                                                                          
-%         
-%         
-%         [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap] = imUtil.cut.subimage_grid([SizeX, SizeY], 'SubSizeXY',Args.SubImageSizeXY,...
-%                                                                                                'OverlapXY',Args.OverlapXY);
-%                                                                                          
-%         
-    
-        %[SubImage,CCDSEC,Center,NooverlapCCDSEC,NewNoOverlap,Nxy] = partition_subimage(
-        
-%tic;
         AI = AstroImage(FilesList, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
-%toc
-
 
         % add ProjName to header
         if Args.AddProjName2Header
