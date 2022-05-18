@@ -5,8 +5,8 @@ function Result = BigDbTestRaDecPart1()
     % 
     DatabaseName = 'unittest';
     TableName = 'table_f_part2'; 
-    Cols = 52;
-    BatchSize = 200;
+    Cols = 53;
+    BatchSize = 200000;
     Pid = feature('getpid');
     
     MsgLogger.getSingleton().setLogLevel(LogLevel.Debug);
@@ -29,6 +29,7 @@ function Result = BigDbTestRaDecPart1()
     for i=1:BatchSize
         Data(i).f_ra = 180 * (i / BatchSize);
         Data(i).f_dec = 180 * (i / BatchSize);
+        Data(i).f_time = 1.0;
         for Col=1:50
             ColName = sprintf('fdouble%03d', Col);
             Data(i).(ColName) = x;
@@ -41,16 +42,18 @@ function Result = BigDbTestRaDecPart1()
             
     BatchCounter = 1;
     RowCount = 0;
-    ItersPerPartition = 10;
-    
-    SqlText = sprintf('SELECT MAX(pk1) FROM %s', TableName);
-    Q.query(SqlText);
-    pk_start = Q.getColumn('max');
-               
+    ItersPerPartition = 100;
+      
+    Loop = 1;
     while true
        
-        Q.createPartition(sprintf('table_f_part1_%d', pk_start), 'Type', 'range', ...
-            'RangeStart', pk_start, 'RangeEnd', pk_start + ItersPerPartition*BatchSize);
+        SqlText = sprintf('SELECT MAX(pk1) FROM %s', TableName);
+        Q.query(SqlText);
+        pk_start = Q.getColumn('max') + 1;
+        pk_end = pk_start + ItersPerPartition*BatchSize;
+        io.msgLog(LogLevel.Test, 'pk_start = %d, pk_end = %d', pk_start, pk_end);
+        
+        Q.createPartition(sprintf('table_f_part1_%d', pk_start), 'Type', 'range', 'RangeStart', pk_start, 'RangeEnd', pk_end);
 
         for Iter=1:ItersPerPartition
                     
@@ -62,9 +65,15 @@ function Result = BigDbTestRaDecPart1()
 
             t1 = tic;
             Q.insert([], 'CsvFileName', CsvFileName);        
-            io.msgLog(LogLevel.Test, '[%05d] RowCount=%d, insert %d x %d: %0.5f sec', BatchCounter, RowCount, BatchSize, Cols, toc(t1));
+            io.msgLog(LogLevel.Test, '[%05d] Iter=%d, RowCount=%d, insert %d x %d: %0.5f sec', BatchCounter, Iter, RowCount, BatchSize, Cols, toc(t1));
 
+            %pk_start = pk_start + BatchSize;
             BatchCounter = BatchCounter + 1;
+        end
+        
+        Loop = Loop + 1;
+        if Loop > 3
+            %break;
         end
     end
        
