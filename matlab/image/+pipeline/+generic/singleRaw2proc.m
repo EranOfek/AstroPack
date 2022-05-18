@@ -153,6 +153,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         
         Args.AddPSF logical                   = false;
         Args.constructPSFArgs cell            = {};
+        Args.PsfPhot logical                  = false;
         
         Args.SaveFileName                     = [];  % full path or ImagePath object
         Args.CreateNewObj logical             = false;
@@ -388,6 +389,12 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
             [SI] = imProc.psf.constructPSF(SI, Args.constructPSFArgs{:});
             % add PSF FWHM to header
             imProc.psf.fwhm(SI);
+            
+            if Args.PsfPhot
+                % PSF photometry
+                [ResPSF, SI] = imProc.sources.psfFitPhot(SI, 'CreateNewObj',false);                                   
+            end
+            
         end
         
         
