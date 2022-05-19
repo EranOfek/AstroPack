@@ -172,8 +172,10 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     % verify that median(CubeSum) is around 1
     % otherwise there is excess flux somewhere
     MedCubeSum = median(CubeSum);
-    if Nim==0 || MedCubeSum<Args.MedianCubeSumRange(1) || MedCubeSum>Args.MedianCubeSumRange(2)
-        warning('Median of the flux normalized cube sum is not 1');
+    if Nim==0 
+        % || MedCubeSum<Args.MedianCubeSumRange(1) || MedCubeSum>Args.MedianCubeSumRange(2)
+        % warning('Median of the flux normalized cube sum is not 1');
+        warning('No candidate PSF stars found');
         FlagSelected = [];
         Mean         = [];
         Var          = [];
