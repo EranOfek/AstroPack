@@ -160,22 +160,30 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     Args.Norm = reshape(Args.Norm, 1,1, Ncube);  % put Norm in 3rd dim
     ShiftedCube = ShiftedCube.*Args.Norm;
     
+        
     % remove sources with non unity flux (maybe neighboors?)
     CubeSum = squeeze(sum(ShiftedCube,[1 2]));
+    
+    % remove sources with MedianCubeSumRange different than ~1
+    FlagSelected = CubeSum>Args.CubeSumRange(1) & CubeSum<Args.CubeSumRange(2);
+    ShiftedCube  = ShiftedCube(:,:,FlagSelected);
+    Nim = sum(FlagSelected);
+    
     % verify that median(CubeSum) is around 1
     % otherwise there is excess flux somewhere
     MedCubeSum = median(CubeSum);
-    if MedCubeSum<Args.MedianCubeSumRange(1) || MedCubeSum>Args.MedianCubeSumRange(2)
+    if Nim==0 || MedCubeSum<Args.MedianCubeSumRange(1) || MedCubeSum>Args.MedianCubeSumRange(2)
         warning('Median of the flux normalized cube sum is not 1');
         FlagSelected = [];
         Mean         = [];
         Var          = [];
         FlagGood     = [];
         GoodCounter  = 0;
+        Nim          = 0;
     else
         % remove sources with MedianCubeSumRange different than ~1
-        FlagSelected = CubeSum>Args.CubeSumRange(1) & CubeSum<Args.CubeSumRange(2);
-        ShiftedCube  = ShiftedCube(:,:,FlagSelected);
+        %FlagSelected = CubeSum>Args.CubeSumRange(1) & CubeSum<Args.CubeSumRange(2);
+        %ShiftedCube  = ShiftedCube(:,:,FlagSelected);
         
         % cutout summation
         switch lower(Args.SumMethod)
