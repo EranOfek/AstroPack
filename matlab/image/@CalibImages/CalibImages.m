@@ -314,13 +314,13 @@ classdef CalibImages < Component
                 end
                 ArgsAI    = cell(1, 1+Nprod.*2);
                 I         = 1;
-                ArgsAI{I} = Files.name;
+                ArgsAI{I} = fullfile(Files.folder,Files.name);
 
                 for Iprod=1:1:Nprod
                     I = I + 1;
                     ArgsAI{I} = Args.(Field){Iprod};
                     I = I + 1;
-                    ArgsAI{I} = strrep(Files.name, Args.ImageProduct, Args.(Field){Iprod});
+                    ArgsAI{I} = strrep(fullfile(Files.folder,Files.name), Args.ImageProduct, Args.(Field){Iprod});
                 end
                 Obj.Bias = AstroImage(ArgsAI{:});
             end
@@ -341,13 +341,13 @@ classdef CalibImages < Component
                 end
                 ArgsAI    = cell(1, 1+Nprod.*2);
                 I         = 1;
-                ArgsAI{I} = Files.name;
+                ArgsAI{I} = fullfile(Files.folder,Files.name);
 
                 for Iprod=1:1:Nprod
                     I = I + 1;
                     ArgsAI{I} = Args.(Field){Iprod};
                     I = I + 1;
-                    ArgsAI{I} = strrep(Files.name, Args.ImageProduct, Args.(Field){Iprod});
+                    ArgsAI{I} = strrep(fullfile(Files.folder,Files.name), Args.ImageProduct, Args.(Field){Iprod});
                 end
                 Obj.Flat = AstroImage(ArgsAI{:});
             end
@@ -683,6 +683,9 @@ classdef CalibImages < Component
             for Iim=1:1:Nobj
                 Iobj = min(Iim, Nobj);
                 % Note taht CreateNewObj was already done (if needed)
+                if isemptyImage(Obj(Iobj).Bias)
+                    error('Bias image is empty');
+                end
                 Result(Iim) = imProc.dark.debias(Result(Iim), Obj(Iobj).Bias, 'CreateNewObj',false, Args.debiasArgs{:});
             end
         end
@@ -783,6 +786,9 @@ classdef CalibImages < Component
             for Iim=1:1:Nobj
                 Iobj = min(Iim, Nobj);
                 % Note taht CreateNewObj was already done (if needed)
+                if isemptyImage(Obj(Iobj).Flat)
+                    error('Flat image is empty');
+                end
                 Result(Iim) = imProc.flat.deflat(Result(Iim), Obj(Iobj).Flat, 'CreateNewObj',false, Args.deflatArgs{:});
             end
             
@@ -987,7 +993,7 @@ classdef CalibImages < Component
                                                                      'DefBitDict', BitDictionary(Args.BitDictinaryName) );
                 end
             end
-            
+                        
             % subtract bias
             Result = Obj.debias(Result, 'debiasArgs',Args.debiasArgs, 'CreateNewObj',false');
             
