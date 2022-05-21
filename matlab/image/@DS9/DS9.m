@@ -473,10 +473,11 @@ classdef DS9 < handle
     end
     
     methods  % AI and InfoAI utilities
-        function Obj = addAI(Obj, ImageAI, FileName, Frame)
+        function Obj = addAI(Obj, Image, FileName, Frame)
             % Add an AstroImage to AI and InfoAI properties
             % Input  : - A DS9 object.
-            %          - An AstroImage object.
+            %          - An AstroImage object, or a FITS file name, or cell
+            %            array of file names.
             %          - A file name, or a cell array of file names.
             %            Each file name corresponds to an AstroImage
             %            element.
@@ -493,11 +494,20 @@ classdef DS9 < handle
             
             arguments
                 Obj
-                ImageAI AstroImage
+                Image
                 FileName   = [];
                 Frame      = [];
             end
            
+            if ischar(Image)
+                Image = {Image};
+            end
+            if isa(Image, 'AstroImage')
+                ImageAI = Image;
+            else
+                ImageAI = AstroImage(Image);
+            end
+            
             if ischar(FileName)
                 FileName = {FileName};
             end
@@ -528,8 +538,8 @@ classdef DS9 < handle
                         
         end
             
-        function Obj = remAI(Obj, ID, Frame, Window)
-            % Remove entries from InfoAI property in the DS9 object
+        function Obj = deleteAI(Obj, ID, Frame, Window)
+            % Delete entries from InfoAI property in the DS9 object
             % Input  : - A DS9 object.
             %          - Entry number in the InfoAI propery.
             %            If empty, select by frame number and window name.
@@ -588,15 +598,15 @@ classdef DS9 < handle
     
     methods % open, exit, mode
         % open ds9
-        function open(Obj, Args)
+        function open(Obj, New, Args)
             % Open ds9 dispaly window and set mode to region
             % Input  : - A DS9 object.
+            %          - A logical indicating if to open a new
+            %            window if ds9 window already exist.
+            %            If true, then will shift focus to the new
+            %            window.
+            %            Default is false.
             %          * ...,key,val,...
-            %            'New' - A logical indicating if to open a new
-            %                   window if ds9 window already exist.
-            %                   If true, then will shift focus to the new
-            %                   window.
-            %                   Default is false.
             %            'Wait' - Wait after open the ds9 window.
             %                   Default is 3 [s].
             % Output : null
@@ -609,14 +619,14 @@ classdef DS9 < handle
             
             arguments
                 Obj
-                Args.New logical   = false;
+                New logical        = false;
                 Args.Wait          = 3;
             end
             
-            if DS9.isOpen && ~Args.New
+            if DS9.isOpen && ~New
                 % do nothing - already open
                 fprintf('ds9 is already open - Using existing window\n');
-                fprintf('   To open a new ds9 window use open(''New'',true)\n');
+                fprintf('   To open a new ds9 window use open(Obj, true)\n');
             else
                 [~,ListOld]   = Obj.getAllWindows;
                 [Status, Res] = system('ds9&');
@@ -964,9 +974,7 @@ classdef DS9 < handle
                     Obj.frame(Frame(Iim));
                     Obj.xpaset('%s %s',Args.ImType, Image{Iim});
                     if Args.PopAI
-                        Nai = numel(Obj.AI);
-                        Obj.AI(Nai+1) = AstroImage(Image{Iim}));
-                        Obj.InfoAI(Nai+1) = struct('Win',Obj.MethodXPA, 'Frame', Frame(Iim), 'FileName',FileName);
+                        Obj = addAI(Obj, Image{Iim}, Image{Iim}, Frame(Iim));
                     end
                 elseif isa(Image, 'AstroImage')
                     FileName = tempname;
@@ -974,9 +982,7 @@ classdef DS9 < handle
                     Obj.frame(Frame(Iim));
                     Obj.xpaset('fits %s', FileName);
                     if Args.PopAI
-                        Nai = numel(Obj.AI);
-                        Obj.AI(Nai+1) = Image(Iim);
-                        Obj.InfoAI(Nai+1) = struct('Win',Obj.MethodXPA, 'Frame', Frame(Iim), 'FileName',FileName);
+                        Obj = addAI(Obj, Image{Iim}, FileName, Frame(Iim));
                     end
                     
                 else
@@ -986,6 +992,12 @@ classdef DS9 < handle
         end
         
     end
+    
+    
+    
+    
+    
+    
     
     
     % Frame methods
