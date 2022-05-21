@@ -1,5 +1,6 @@
-% A static class to control and manipulate ds9
-% Description: A static class for intearction with the ds9 display.
+% A class to control and manipulate ds9
+%   This class (DS9) suppose to replace the ds9 class
+% Description: A class for intearction with the ds9 display.
 %              This include functions to load images, change their
 %              properties, create and plot region files, printing, image
 %              examination, interaction with SIM content and more.
@@ -157,8 +158,8 @@ classdef DS9 < handle
     end
     
     methods (Static) % ID utilities
-        function [Result,AllMethods] = getAllXPA
-            % get all active ds9 methods and names
+        function [Result,AllMethods] = getAllWindows
+            % get all active ds9 windows methods and names
             % This can be used to identify the names of active ds9
             % To change the ds9 display used by the DS( object, set its
             % MethodXPA propery to the ds9 method you want to use.
@@ -169,7 +170,7 @@ classdef DS9 < handle
             %            from the xpa info.
             %          - A cell array of all ds9 method names.
             % Author : Eran Ofek (May 2022)
-            % Example: DS9.getAllXPA
+            % Example: DS9.getAllWindows
             
             String = 'xpaget ds9 xpa info';
             [~,Answer] = system(String);
@@ -305,7 +306,7 @@ classdef DS9 < handle
             
             if ~UsePS
                 try
-                    Ans = DS9.getAllXPA;
+                    Ans = DS9.getAllWindows;
                     Number = numel(Ans);
                 catch
                     Number = 0;
@@ -323,6 +324,44 @@ classdef DS9 < handle
                     % open
                     Number = 1;
                 end
+            end
+            
+        end
+        
+        function Result = parseOutput(String, OutType)
+            % parse xpaget output string into array of strings/numbers
+            % Input  : - A string
+            %          - Output type:
+            %            'cell' - Seperate the input string by \s (space
+            %                   char) and return a cell array of the
+            %                   seperated strings.
+            %            'num' - Seperate the input string by \s (space
+            %                   char) and return the seperated strings
+            %                   converted to array of numbers. NaN if not
+            %                   convertable.
+            %            Default is 'cell'.
+            % Output : - The seperated string in a cell of strings or
+            %            numeric array format.
+            % Author : Eran Ofek (May 2022)
+            % Example: Result = parseOutput(String, 'num');
+            
+            arguments
+                String
+                OutType     = 'cell';
+            end
+            
+            SpStr = regexp(String,'\s','split');
+            % remove empty
+            Flag  = ~cellfun(@isempty,SpStr);
+            SpStr = SpStr(Flag);
+            
+            switch lower(OutType)
+                case 'cell'
+                    Result = SpStr;
+                case 'num'
+                    Result = str2double(SpStr);
+                otherwise
+                    error('Unknown OutType option');
             end
             
         end
@@ -363,22 +402,22 @@ classdef DS9 < handle
             Ans=ds9.system('xpaget %s %s',Obj.MethodXPA, Command);
         end
     
-        function List = selectMethodXPA(Obj, Id)
+        function List = selectWindow(Obj, Id)
             % select/focus on one of the open ds9 windows by running number
             % Input  : - A DS9 object.
             %          - A running index for the ds9 window.
             %            If Inf use last entry.
             %            Default is 1.
-            % Output : - The first output argument of DS9.getAllXPA
+            % Output : - The first output argument of DS9.getAllWindows
             % Author : Eran Ofek (May 2022)
-            % Example: D = DS9; List = selectMethodXPA(D)
+            % Example: D = DS9; List = selectWindow(D)
             
             arguments
                 Obj
                 Id = 1;
             end
             
-            List = DS9.getAllXPA;
+            List = DS9.getAllWindows;
             if isinf(Id)
                 Obj.MethodXPA = List(end).Method;
             else
@@ -387,12 +426,12 @@ classdef DS9 < handle
             
         end
          
-        function [Result, ChangeResult] = isExistMethodXPA(Obj, ChangeIfNotExist)
+        function [Result, ChangeResult] = isWindowExist(Obj, ChangeIfNotExist)
             % Check if the current MethodXPA in the DS9 object exist/open.
             % Input  : - A DS9 object.
             %          - A logical indicating what to do if the the ds9
             %            window doesn't exist. If false do nothing.
-            %            If true, then will call selectMethodXPA that will
+            %            If true, then will call selectWindow that will
             %            shift the focus to the first listed ds9 window.
             %            The existsence of such window will be indicated in
             %            the second output argument.
@@ -401,7 +440,7 @@ classdef DS9 < handle
             %          - If changed window this is a logical indicating if
             %            the new window exist. 
             % Author : Eran Ofek (May 2022)
-            % D = DS9; R = isExistMethodXPA(D);
+            % D = DS9; R = isWindowExist(D);
             
             arguments
                 Obj
@@ -409,14 +448,14 @@ classdef DS9 < handle
             end
             
             if Obj.isOpen
-                All    = DS9.getAllXPA;
+                All    = DS9.getAllWindows;
                 Result = any(strcmp({All.Method}, Obj.MethodXPA));
                 ChangeResult = true;
 
                 if ChangeIfNotExist
-                    Obj.selectMethodXPA;
+                    Obj.selectWindow;
                     if nargout>1
-                        [~, ChangeResult] = isExistMethodXPA(Obj, false);
+                        [~, ChangeResult] = isWindowExist(Obj, false);
                     end
                 end
             else
@@ -426,7 +465,6 @@ classdef DS9 < handle
             
         end
     end
-    
     
     methods % open, exit, mode
         % open ds9
@@ -460,10 +498,10 @@ classdef DS9 < handle
                 fprintf('ds9 is already open - Using existing window\n');
                 fprintf('   To open a new ds9 window use open(''New'',true)\n');
             else
-                [~,ListOld]   = Obj.getAllXPA;
+                [~,ListOld]   = Obj.getAllWindows;
                 [Status, Res] = system('ds9&');
                 pause(1);
-                [~,ListNew]   = Obj.getAllXPA;
+                [~,ListNew]   = Obj.getAllWindows;
                 % identify new window
                 Diff = setdiff(ListNew, ListOld);
                 if numel(Diff)==1
@@ -472,7 +510,7 @@ classdef DS9 < handle
                     error('Number of different windows is not 1');
                 end
                 
-                Obj.selectMethodXPA(Inf);
+                Obj.selectWindow(Inf);
                 if (Status~=0)
                     warning('Can not open ds9');
                 else
@@ -520,14 +558,14 @@ classdef DS9 < handle
             end
             
             if isnumeric(Id)
-                [~,List] = Obj.getAllXPA;
+                [~,List] = Obj.getAllWindows;
                 Name = List(Id);
             else
                 Name = Id;
             end
             
             % check if Id exist
-            [Exist, ~] = isExistMethodXPA(Obj, true);
+            [Exist, ~] = isWindowExist(Obj, true);
             
             %DS9.system('xpaset -p ds9 exit');
             if Exist
@@ -539,12 +577,165 @@ classdef DS9 < handle
         
     end
     
+    methods  % frame related methods
+        function Result = frame(Obj, Frame)
+            % Set (xpaset) the current ds9 window frame number
+            % Input  : - A DS9 object.
+            %          - A string or a number to pass to the xpaset after
+            %            the frame command. I.e., will execute:
+            %            xpaset -p <WindowName> frame <input arg>
+            %            If empty, then will return the cuurent frame
+            %            number. Default is [].
+            % Output : - The number of the current active frame.
+            % Author : Eran Ofek (May 2022)
+            % Ref    : http://ds9.si.edu/doc/ref/xpa.html#frame
+            % Example: D = DS9;
+            %          R = D.frame      % only return current frame number
+            %          R = D.frame(2)   % goto frame 2
+            %          R = D.frame('center') % center current frame
+            %          R = D.frame('clear') % clear current frame
+            %          R = D.frame('delete') % delete current frame
+            %          R = D.frame('new') % create new frame
+            %          R = D.frame('new rgb') % create new rgb frame
+            %          R = D.frame('reset') % reset current frame
+            %          R = D.frame('refresh') % refresh current frame
+            %          R = D.frame('hide') % hide current frame
+            %          R = D.frame('first') % goto first frame
+            %          R = D.frame('prev') % goto previous frame
+            %          R = D.frame('last') % goto last frame
+            %          R = D.frame('next') % goto next frame
+            %          R = D.frame('match wcs') % 
+            %          R = D.frame('lock wcs') % 
+                        
+            arguments
+                Obj
+                Frame   = [];
+            end
+            
+            if ~isempty(Frame)
+                if ischar(Frame)
+                    String = sprintf('frame %s',Frame);
+                elseif isnumeric(Frame)
+                    String = sprintf('frame %d',Frame);
+                else
+                    error('Unknown Frame type input - must be numeric or char array');
+                end
+                Obj.xpaset(String);
+            end
+            
+            % get current frame number
+            OutStr = Obj.xpaget('frame');
+            Result = DS9.parseOutput(OutStr, 'num');
+                                     
+        end
+        
+        function [N, ID, ActiveID] = nframe(Obj)
+            % Return the number of available frames in current ds9 window
+            % Input  : - A DS9 object.
+            % Output : - Number of frames.
+            %          - Vector of IDs of all frames
+            %          - Vector of IDs of all active frames
+            % Author : Eran Ofek (May 2022)
+            % See also: frame method.
+            % Example: D = DS9; [R,ID,AID] = D.nframe
+            
+            OutStr = Obj.xpaget('frame all');
+            ID     = DS9.parseOutput(OutStr, 'num');
+            N      = numel(ID);
+            
+            if nargout>2
+                OutStr = Obj.xpaget('frame active');
+                ActiveID     = DS9.parseOutput(OutStr, 'num');
+            end
+            
+        end
+        
+        function clearFrame(Obj, ID)
+            % clear frame, by ID or curreny
+            %   After the clear is done then will return to the starting point frame
+            % Input  : - A DS9 object.
+            %          - A vector of frame numbers to clear.
+            %            If empty, clear current frame.
+            %            If Inf or char array, then clear all frames.
+            %            Default is [].
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9; D.clearFrame;
+            %          D.clearFrame(2);
+            %          D.clearFrame('all');
+            
+            arguments
+                Obj
+                ID     = [];
+            end
+            
+            if ~isempty(ID)
+                % current ID
+                CurID = Obj.frame;
+
+                if ischar(ID) || isinf(ID)
+                    % clear all
+                    [~,ID] = Obj.nframe;
+                end
+                
+                Nid = numel(ID);
+                % move to frame to clear
+                for I=1:1:Nid
+                    Obj.frame(ID(I));
+                    Obj.frame('clear');
+                end
+                
+                % return to original frame
+                Obj.frame(CurID);
+            else
+                Obj.frame('clear');
+            end
+        end
+        
+        function deleteFrame(Obj, ID)
+            % delete frame, by ID or curreny
+            %   After the clear is done then will NOT return to the starting point frame
+            % Input  : - A DS9 object.
+            %          - A vector of frame numbers to delete.
+            %            If empty, clear current frame.
+            %            If Inf or char array, then delete all frames.
+            %            Default is [].
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9; D.deleteFrame;
+            %          D.deleteFrame(2);
+            %          D.deleteFrame('all');
+            
+            arguments
+                Obj
+                ID     = [];
+            end
+            
+            if ~isempty(ID)
+                if ischar(ID) || isinf(ID)
+                    % clear all
+                    [~,ID] = Obj.nframe;
+                end
+                
+                Nid = numel(ID);
+                % move to frame to clear
+                for I=1:1:Nid
+                    Obj.frame(ID(I));
+                    Obj.frame('delete');
+                end
+            else
+                Obj.frame('delete');
+            end
+           
+        end
+    end
+    
     % Frame methods
     % (frame, delete_frame, clear_frame, disp, load, load1, disp, write2fits, write2sim)
     methods (Static)
         
         % set/get frame
-        function Answer=frame(FrameNumber)
+        function Answer=frame1(FrameNumber)
             % Set ds9 frame
             % Package: @ds9
             % Input  : - If not given than only get the current frame
