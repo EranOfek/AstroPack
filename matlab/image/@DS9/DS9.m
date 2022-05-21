@@ -143,12 +143,14 @@ classdef DS9 < handle
 
             % O.S. added test for ds9 working window
             
-            if nargin==0
-                ds9.open;
-            else
-                ds9.disp(Image,varargin{:});
-                clear Obj; % Output Object Not Assigned, therefore need to clear it
-            end
+            Obj.open;
+            
+%             if nargin==0
+%                 ds9.open;
+%             else
+%                 ds9.disp(Image,varargin{:});
+%                 clear Obj; % Output Object Not Assigned, therefore need to clear it
+%             end
         end
         
     end
@@ -731,7 +733,7 @@ classdef DS9 < handle
     end
     
     methods  % load and display images
-        function disp1(Obj, Image, Frame, Args)
+        function disp(Obj, Image, Frame, Args)
             % load and display images
     
             arguments
@@ -802,6 +804,40 @@ classdef DS9 < handle
                 Obj.xpaset('url %s',URL{Iurl});
             end
             
+        end
+        
+        function load(Obj, Image, Frame)
+            %
+            
+            arguments
+                Obj
+                Image
+                Frame                    = [];
+                Args.UseRegExp logical   = false;
+                Args.PopAI logical       = true;
+            end
+            
+            
+            
+            if ischar(Image)
+                Image = io.files.filelist(Image, Args.UseRegExp);
+            end
+            
+            Nim = numel(Image);
+            if isempty(Frame)
+                % open a new frame
+                Frame = Obj.frame('new');
+            end
+                
+            if numel(Frame)==1 && Nim>1
+                Frame = (Frame:1:Frame+Nim-1);
+            end
+            
+            if iscell(Image)
+                % a cell array of files
+            else
+                
+            end
         end
         
     end
@@ -999,7 +1035,7 @@ classdef DS9 < handle
         end
         
         % display images in all formats
-        function disp(Images, Frame, Args)
+        function disp1(Images, Frame, Args)
             % Display images in ds9 (use ds9 for short cut)
             % Package: @ds9
             % Description: Display images in ds9
