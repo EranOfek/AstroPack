@@ -97,6 +97,7 @@
 classdef DS9 < handle
     properties
         MethodXPA              = 'ds9';   % Index of current active ID - 
+        Frame
         InfoAI                    % struct with:
                                   % .Image - An AstroImage
                                   % .Win - Display window
