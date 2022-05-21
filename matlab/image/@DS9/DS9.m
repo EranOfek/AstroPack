@@ -730,6 +730,42 @@ classdef DS9 < handle
         end
     end
     
+    methods  % load and display images
+        function disp(Obj, Image, Frame, Args)
+            % load and display images
+    
+            arguments
+                Obj
+                Image
+                Frame
+                Args
+            end
+            
+            
+            if ischar(Image)
+                Image = {Image};
+            end
+            if iscell(Image)
+                IsURL = www.isURL(Image);
+                if all(IsURL)
+                    % display by a URL
+                    % ...
+                else
+                    if any(IsURL)
+                        error('Either all names are URL or non')
+                    else
+                        % assume a local file name
+                        % ...
+                    end
+                end
+            else
+                % assume a local file name
+                % ...
+            end 
+        end
+    end
+    
+    
     % Frame methods
     % (frame, delete_frame, clear_frame, disp, load, load1, disp, write2fits, write2sim)
     methods (Static)
