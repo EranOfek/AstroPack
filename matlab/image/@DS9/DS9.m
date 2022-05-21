@@ -97,8 +97,11 @@
 classdef DS9 < handle
     properties
         MethodXPA              = 'ds9';   % Index of current active ID - 
-        AI AstroImage
-        TableAI                   % [Index in AI,   Index in DisplayID,   Buffer] 
+        InfoAI                    % struct with:
+                                  % .Image - An AstroImage
+                                  % .Win - Display window
+                                  % .Frame - Frame number
+                                  % .FileName - File name
         
     end
         
@@ -468,6 +471,101 @@ classdef DS9 < handle
         end
     end
     
+    methods  % AI and InfoAI utilities
+        function Obj = addAI(Obj, ImageAI, FileName, Frame)
+            % Add an AstroImage to AI and InfoAI properties
+            % Input  : - A DS9 object.
+            %          - An AstroImage object.
+            %          - A file name, or a cell array of file names.
+            %            Each file name corresponds to an AstroImage
+            %            element.
+            %            If empty, then generate a file name using
+            %            tempname. Default is [].
+            %          - A vector of frame indices, corresponding to the
+            %            AstroImage elements.
+            %            If empty (and AstroImage input is a scalar), then
+            %            use the current frame number. Default is [].
+            % Output : - An updated DS9 object with the .AI and .InfoAI
+            %            properties updated.
+            % Author : Eran Ofek (May 2022)
+            % Example: 
+            
+            arguments
+                Obj
+                ImageAI AstroImage
+                FileName   = [];
+                Frame      = [];
+            end
+           
+            if ischar(FileName)
+                FileName = {FileName};
+            end
+                        
+            Nim = numel(ImageAI);
+            if isempty(Frame)
+                if Nim==1
+                    % get current frame number;
+                    Frame = Obj.frame;
+                else
+                    error('If frame number is empty, the ImageAI must be a scalar');
+                end
+            end
+            
+            for Iim=1:1:Nim
+                Nai = numel(Obj.AI);
+                I   = Nai + 1;   % new AI
+
+                Obj.InfoAI(I)          = ImageAI(Iim);
+                Obj.InfoAI(I).Win      = Obj.MethodXPA;
+                if isempty(FileName)
+                    Obj.InfoAI(I).FileName = tempname;
+                else
+                    Obj.InfoAI(I).FileName = FileName{Iim};
+                end
+                Obj.InfoAI(I).Frame    = Frame(Iim);
+            end
+                        
+        end
+            
+        function Obj = remAI(Obj, ID, Frame, Window)
+            %
+           
+            if isempty(ID)
+                % remove InfoAI entry using Frame and Window
+                if isempty(Window)
+                    % use current window
+                    Window = Obj.MethodSXP;
+                end
+                if ischar(Frame) || isinf(Frame)
+                    % get all frame numbers
+                    [~,Frame] = Obj.nframe;
+                end
+                Nf  = numel(Frame);
+                Nai = numel(Obj.InfoAI);
+                FlagDel = false(Nai,1);
+                for Iai=1:1:Nai
+                    Flag = (Obj.InfoAI(Iai).Frame == Frame);
+                    switch sum(Flag)
+                        case 0
+                            % not found
+                        case 1
+                            % remove Iai
+                            FlagDel(Iai) = true; 
+                        otherwise
+                            error('InfoAI contains more than one entry per frame');
+                    end
+                end
+                
+            else
+                % remove by ID entry
+                Nai = numel(Obj.InfoAI);
+                FlagDel = (1:1:Nai)==ID;
+                
+            end
+            Obj.InfoAI = Obj.InfoAI(~FlagDel);
+        end
+    end
+    
     methods % open, exit, mode
         % open ds9
         function open(Obj, Args)
@@ -733,38 +831,38 @@ classdef DS9 < handle
     end
     
     methods  % load and display images
-        function disp(Obj, Image, Frame, Args)
-            % load and display images
-    
-            arguments
-                Obj
-                Image
-                Frame
-                Args
-            end
-            
-            
-            if ischar(Image)
-                Image = {Image};
-            end
-            if iscell(Image)
-                IsURL = www.isURL(Image);
-                if all(IsURL)
-                    % display by a URL
-                    % ...
-                else
-                    if any(IsURL)
-                        error('Either all names are URL or non')
-                    else
-                        % assume a local file name
-                        % ...
-                    end
-                end
-            else
-                % assume a local file name
-                % ...
-            end 
-        end
+%         function disp(Obj, Image, Frame, Args)
+%             % load and display images
+%     
+%             arguments
+%                 Obj
+%                 Image
+%                 Frame
+%                 Args
+%             end
+%             
+%             
+%             if ischar(Image)
+%                 Image = {Image};
+%             end
+%             if iscell(Image)
+%                 IsURL = www.isURL(Image);
+%                 if all(IsURL)
+%                     % display by a URL
+%                     % ...
+%                 else
+%                     if any(IsURL)
+%                         error('Either all names are URL or non')
+%                     else
+%                         % assume a local file name
+%                         % ...
+%                     end
+%                 end
+%             else
+%                 % assume a local file name
+%                 % ...
+%             end 
+%         end
         
         function url(Obj, URL, Frame)
             % Display FITS files in URL links
@@ -806,21 +904,28 @@ classdef DS9 < handle
             
         end
         
-        function load(Obj, Image, Frame)
+        function load(Obj, Image, Frame, Args)
             %
             
             arguments
                 Obj
-                Image
+                Image   % Image, matrix, AstroImage\
+               
                 Frame                    = [];
                 Args.UseRegExp logical   = false;
                 Args.PopAI logical       = true;
+                Args.ImType              = 'fits';  % ['fits' | 'gif']
+                Args.DataProp            = 'Image';
             end
             
             
             
             if ischar(Image)
                 Image = io.files.filelist(Image, Args.UseRegExp);
+            end
+            
+            if isnumeric(Image)
+                Image = {Image};
             end
             
             Nim = numel(Image);
@@ -833,10 +938,30 @@ classdef DS9 < handle
                 Frame = (Frame:1:Frame+Nim-1);
             end
             
-            if iscell(Image)
-                % a cell array of files
-            else
-                
+            for Iim=1:1:Nim
+                if iscell(Image)
+                    % a cell array of files or a numeric images
+                    Obj.frame(Frame(Iim));
+                    Obj.xpaset('%s %s',Args.ImType, Image{Iim});
+                    if Args.PopAI
+                        Nai = numel(Obj.AI);
+                        Obj.AI(Nai+1) = AstroImage(Image{Iim}));
+                        Obj.InfoAI(Nai+1) = struct('Win',Obj.MethodXPA, 'Frame', Frame(Iim), 'FileName',FileName);
+                    end
+                elseif isa(Image, 'AstroImage')
+                    FileName = tempname;
+                    Image{Iim}.write1(FileName, Args.DataProp);
+                    Obj.frame(Frame(Iim));
+                    Obj.xpaset('fits %s', FileName);
+                    if Args.PopAI
+                        Nai = numel(Obj.AI);
+                        Obj.AI(Nai+1) = Image(Iim);
+                        Obj.InfoAI(Nai+1) = struct('Win',Obj.MethodXPA, 'Frame', Frame(Iim), 'FileName',FileName);
+                    end
+                    
+                else
+                    error('Unknown image type option');
+                end
             end
         end
         
@@ -962,7 +1087,7 @@ classdef DS9 < handle
         end
         
         % Load a FITS image into ds9 frame
-        function [Frame,CurFile]=load(FitsFile,FrameNumber)
+        function [Frame,CurFile]=loadA(FitsFile,FrameNumber)
             % Load a FITS image into ds9 frame
             % Package: @ds9
             % Description: Load a FITS image into ds9 frame
