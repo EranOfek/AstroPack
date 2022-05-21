@@ -528,7 +528,26 @@ classdef DS9 < handle
         end
             
         function Obj = remAI(Obj, ID, Frame, Window)
-            %
+            % Remove entries from InfoAI property in the DS9 object
+            % Input  : - A DS9 object.
+            %          - Entry number in the InfoAI propery.
+            %            If empty, select by frame number and window name.
+            %            Default is []
+            %          - A vector of frame numbers to remove.
+            %            Default is 1.
+            %          - A window name to remove. If empty, use active
+            %            window.
+            % Output : - An updated DS9 object with the selected entries
+            %            removed from the InfoAI propery.
+            % Author : Eran Ofek (May 2022)
+            % Example: 
+            
+            arguments
+                Obj
+                ID        = [];
+                Frame     = 1;
+                Window    = [];
+            end
            
             if isempty(ID)
                 % remove InfoAI entry using Frame and Window
