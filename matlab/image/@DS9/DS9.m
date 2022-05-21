@@ -731,7 +731,7 @@ classdef DS9 < handle
     end
     
     methods  % load and display images
-        function disp(Obj, Image, Frame, Args)
+        function disp1(Obj, Image, Frame, Args)
             % load and display images
     
             arguments
@@ -763,6 +763,47 @@ classdef DS9 < handle
                 % ...
             end 
         end
+        
+        function url(Obj, URL, Frame)
+            % Display FITS files in URL links
+            % Input  : - A DS9 object.
+            %          - A char array containing a URL link or a cell array
+            %            of URLs.
+            %          - Frame number or a vector of frame numbers in which
+            %            to load the images. If empty, open a new frame.
+            %            Default is [].
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9;
+            %          D.url(URL)
+            
+            arguments
+                Obj
+                URL
+                Frame            = [];
+            end
+           
+            if ischar(URL)
+                URL = {URL};
+            end
+            Nurl = numel(URL);
+            
+            if isempty(Frame)
+                % open a new frame
+                Frame = Obj.frame('new');
+            end
+                
+            if numel(Frame)==1 && Nurl>1
+                Frame = (Frame:1:Frame+Nurl-1);
+            end
+            
+            for Iurl=1:1:Nurl
+                Obj.frame(Frame(Iurl));
+                Obj.xpaset('url %s',URL{Iurl});
+            end
+            
+        end
+        
     end
     
     
@@ -937,7 +978,7 @@ classdef DS9 < handle
             
         end
         
-        function Frame=url(URL, FrameNumber)
+        function Frame=url1(URL, FrameNumber)
             % Load FITS file from a URL
             % Package: @ds9
             % Description: Load FITS file from a URL.
