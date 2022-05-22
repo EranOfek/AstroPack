@@ -613,12 +613,15 @@ classdef DS9 < handle
             
         end
         
-        function mode(Obj, Mode)
+        function Result = mode(Obj, Mode)
             % Set ds9 mode
-            % Input  : - ds9 mode.
+            % Input  : - A DS9 object.
+            %          - ds9 mode:
             %            none|region|crosshair|colorbar|pan|zoom|rotate|catalog|examine.
+            %            If empty, then return mode state.
+            %            If Inf show a message with all possible modes.
             %            Default is 'region'.
-            % Output : null
+            % Output : - If mode is [], then will return the mode state.
             % Author : Eran Ofek (May 2022)
             
             arguments
@@ -626,7 +629,19 @@ classdef DS9 < handle
                 Mode = 'region';
             end
             
-            Obj.xpaset('mode %s',Mode);
+            Result = [];
+            if isempty(Mode)
+                % get current Mode
+                Str    = Obj.xpaget('mode');
+                Result = regexprep(Str,'\n','');
+            else
+                if isinf(Mode)
+                    % show all possible modes
+                    fprintf('Possible modes: [none|region|crosshair|colorbar|pan|zoom|rotate|catalog|examine|3d]\n');
+                else
+                    Obj.xpaset('mode %s',Mode);
+                end
+            end
         end
         
         function exit(Obj, Id)
@@ -869,7 +884,7 @@ classdef DS9 < handle
             % Output : null
             % Author : Eran Ofek (May 2022)
             % Example: D = DS9;
-            %          D.url(URL)
+            %          D.url(URL);
             
             arguments
                 Obj
@@ -898,6 +913,76 @@ classdef DS9 < handle
             
         end
         
+        function [ImageName, AI] = loadPrep(Obj, Image, Args)
+            %
+            
+            arguments
+                Obj
+                Image
+                Args.UseRegExp logical    = false;
+                Args.PopAI logical        = true;
+                Args.ImType               = 'fits';
+                Args.DataProp             = 'Image';
+                Args.FileName             = {};  % use tempname
+            end
+            
+            if ischar(Args.FileName)
+                Args.FileName = {Args.FileName};
+            end
+            
+            if ischar(Image)
+                Image = io.files.filelist(Image, Args.UseRegExp);
+            end
+            
+            if isnumeric(Image)
+                Image = {Image};
+            end
+            
+            Nim = numel(Image);
+            
+            ImageName = cell(1,Nim);
+            for Iim=1:1:Nim
+                % get file name in which to save the image
+                % will use this if Image is not a file name
+                if isempty(Args.FileName)
+                    FileName = tempname;
+                else
+                    FileName = Args.FileName{Iim};
+                end
+                if iscell(Image)
+                    if isnumeric(Image{Iim})
+                        % matrix image
+                        % save to FITS file on disk
+                        FITS.writeSimpleFITS(Image{Iim}, FileName);
+                        ImageName{Iim} = FileName;
+                        if Args.PopAI
+                            AI(Iim) = AstroImage;
+                            AI(Iim).Image = Image{Iim};
+                        end
+                    elseif ischar(Image{Iim})
+                        % image name
+                        ImageName{Iim} = Image{Iim};
+                        if Args.PopAI
+                            AI(Iim) = AstroImage(Image{Iim});
+                        end
+                    else
+                        error('Unknown Image formation option');
+                    end
+                elseif isa(Image, 'AstroImage')
+                    % AstroImage
+                    FITS.writeSimpleFITS(Image(Iim).(DataProp), FileName, 'Header',Image(Iim).HeaderData.Data);
+                    ImageName{Iim} = FileName;
+                    if Iim==1 && Args.PopAI
+                        AI = Image;
+                    end
+                else
+                    error('Unknown Image formation option');
+                end
+                    
+                
+            end
+        end
+        
         function load(Obj, Image, Frame, Args)
             %
             
@@ -905,7 +990,7 @@ classdef DS9 < handle
                 Obj
                 Image   % Image, matrix, AstroImage\
                
-                Frame                    = [];
+                Frame                    = [];  % if emoty use current frame, or 1 if not exist
                 Args.UseRegExp logical   = false;
                 Args.PopAI logical       = true;
                 Args.ImType              = 'fits';  % ['fits' | 'gif']
@@ -932,9 +1017,26 @@ classdef DS9 < handle
                 Frame = (Frame:1:Frame+Nim-1);
             end
             
+            if numel(Frame)>1 && Nim~=numel(Frame)
+                error('Number if frames must be one or equal to the number of images');
+            end
+            
             for Iim=1:1:Nim
                 if iscell(Image)
                     % a cell array of files or a numeric images
+                    if isnumeric(Image{Iim})
+                        % image is a matrix
+                        % save image to disk
+                        
+                        % load
+                        
+                    elseif ischar(Image{Iim})
+                        % Image name
+                        
+                    else
+                        error('Unknown Image type option');
+                    end
+                        
                     Obj.frame(Frame(Iim));
                     Obj.xpaset('%s %s',Args.ImType, Image{Iim});
                     if Args.PopAI
