@@ -61,9 +61,22 @@ function Result = unitTest()
     D.deleteFrame(2)
     D.deleteFrame('all');
     
+    % zoom
+    D.exit
     D.load(rand(100,100));
     FN = D.save2fits;
     delete(FN);
+    
+    D = DS9(rand(100,100),1);
+    D.load(rand(100,100),2);
+    D.zoom(5)
+    D.zoom(-0.5)
+    D.zoom(4,true)
+    D.zoom   % zoom to fit
+    D.zoom('to 5')
+    D.zoom('in')
+    D.zoom('out',2)
+    
     
 	io.msgStyle(LogLevel.Test, '@passed', 'ds9 test passed');
 	Result = true;

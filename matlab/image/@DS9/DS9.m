@@ -1085,6 +1085,89 @@ classdef DS9 < handle
         end
     end
     
+    methods % zoom, pan, rotate, ...
+        function zoom(Obj, Zoom, All)
+            % Apply zoom to ds9 frame
+            % Input  : - A DS9 object.
+            %          - Zoom level:
+            %            Use positve numbers to use absolute zoom level.
+            %            Use negative numbers to use zoom relative to current zoom level.
+            %            Use NaN for .zoom to fit'.
+            %            Use string for a zoom string - e.g., 'to fit', 'in', 'out', 'open', 'close'.
+            %          - Either a vector of frame indices on which to apply
+            %            the zoom level (the same zoom for all frames in
+            %            the current ds9 window),
+            %            or a logical indicatig if to apply the zoom to all
+            %            frames (true), or only the current frame (false).
+            %            Default is false.
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,100),1);
+            %          D.load(rand(100,100),2);
+            %          D.zoom(5)
+            %          D.zoom(-0.5)
+            %          D.zoom(4,true)
+            %          D.zoom   % zoom to fit
+            %          D.zoom('to 5')
+            %          D.zoom('out',2)
+            
+            arguments
+                Obj
+                Zoom        = [];
+                All         = false;   % or vector of numbers
+            end
+            
+            if islogical(All)
+                if All
+                    % apply zoom to all frames
+                    [~, VecFrame] = Obj.nframe;
+                else
+                    VecFrame = NaN;
+                end
+            else
+                VecFrame = All;
+            end
+                
+            Nframe = numel(VecFrame);
+            for Iframe=1:1:Nframe
+                if isnan(VecFrame(Iframe))
+                    % apply zoom to current frame
+                    % do nothing
+                else
+                    Obj.frame(VecFrame(Iframe)); 
+                end
+                    
+                if isempty(Zoom)
+                    % zoom to fit
+                    Obj.xpaset('zoom to fit');
+                else
+                    if isnumeric(Zoom)
+                        if Zoom>0
+                            % absolute zoom "to zoom"
+                            if numel(Zoom)==1
+                                Obj.xpaset('zoom to %f', Zoom);
+                            else
+                                Obj.xpaset('zoom to %f %f', Zoom);
+                            end
+                        else
+                            % relative zoom
+                            if numel(Zoom)==1
+                                Obj.xpaset('zoom %f', abs(Zoom));
+                            else
+                                Obj.xpaset('zoom %f %f', abs(Zoom));
+                            end
+                        end
+                    elseif ischar(Zoom) || isstring(Zoom)
+                        Obj.xpaset('zoom %s', Zoom);
+                    else
+                        error('Unkown zoom option');
+                    end
+                end
+            end
+        end
+        
+        
+    end
     
     
     
@@ -1251,7 +1334,7 @@ classdef DS9 < handle
         end
         
         % Set image zoom
-        function Val = zoom(varargin)
+        function Val = zoom1(varargin)
             % Set the zoom of an image in ds9
             % Package: @ds9
             % Description: Set the zoom of an image in ds9
