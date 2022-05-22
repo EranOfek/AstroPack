@@ -1049,424 +1049,51 @@ classdef DS9 < handle
         
     end
     
-    
-    
-    
-    
-    
-    
-    
-    % Frame methods
-    % (frame, delete_frame, clear_frame, disp, load, load1, disp, write2fits, write2sim)
-    methods (Static)
-        
-        % set/get frame
-        function Answer=frame1(FrameNumber)
-            % Set ds9 frame
-            % Package: @ds9
-            % Input  : - If not given than only get the current frame
-            %            number. If numeric then set frame number.
-            %            Alternatively, if a string than set to frame name.
-            %            Possible names: 'first'|'prev'|'next'|'last'
-            %            Additional possibilities include:
-            %            'hide'|'move first'|'move last'|'move back'|
-            %            'move forward'|'match wcs'|'lock wcs'|...
-            % Output : - Current frame number.
-            % Reliable: 2
-            if (nargin==0)
-                % get frame number
-                Answer = ds9.system('xpaget ds9 frame frameno');
-            else
-                % set frame number
-                if ischar(FrameNumber)
-                    % string frame
-                    ds9.system('xpaset -p ds9 frame %s',FrameNumber);
-                else
-                    % numeric frame
-                    ds9.system('xpaset -p ds9 frame frameno %d',FrameNumber);
-                end
-                
-                % get current frame number if needed
-                if (nargout>0)
-                    Answer = ds9.system('xpaget ds9 frame frameno');
-                end
-            end
-            pause(0.2);
-        end
-        
-        % delete frame
-        function delete_frame(FrameNumber)
-            % Delete frames from ds9
-            % Package: @ds9
-            % Description: Delete frame number, some frames or all frames
-            %              from ds9.
-            % Input  : - Vector of frames to delete.
-            %            If empty then delete current frame. Default.
-            %            If Inf then delete all frames.
-            % Output : null
-            % Example: ds9.delete_frame(Inf)
-            % Reliable: 2
-           
-
-             if (nargin==0)
-                FrameNumber = [];
-             end
-            
-            if (isempty(FrameNumber))
-                % delete current frame
-                ds9.system('xpaset -p ds9 frame delete');
-            else
-                if (isinf(FrameNumber))
-                    % get all frame numbers
-                    Ans = ds9.system('xpaget ds9 frame all');
-                    Frames = regexp(Ans,' ','split');
-                    Frames = Frames(1:end-1);
-                    FrameNumber = cellfun(@str2double,Frames);
-                end
-                
-                % delete requested frames
-                Nf = numel(FrameNumber);
-                for If=1:1:Nf
-                    ds9.system('xpaset -p ds9 frame frameno %d',FrameNumber(If));
-                    ds9.system('xpaset -p ds9 frame delete');
-                end
-                
-            end
-        end
-              
-        % clear frame
-        function clear_frame(FrameNumber)
-            % Clear frames from ds9
-            % Package: @ds9
-            % Description: Clear frame number, some frames or all frames
-            %              from ds9.
-            % Input  : - Vector of frames to clear.
-            %            If empty then clear current frame. Default.
-            %            If Inf then clear all frames.
-            % Output : null
-            % Example: ds9.clear_frame(Inf)
-            % Reliable: 2
-           
-            if (nargin==0)
-                FrameNumber = [];
-            end
-                
-            
-            if (isempty(FrameNumber))
-                % clear current frame
-                ds9.system('xpaset -p ds9 frame clear');
-            else
-                if (isinf(FrameNumber))
-                    % get all frame numbers
-                    Ans = ds9.system('xpaget ds9 frame all');
-                    Frames = regexp(Ans,' ','split');
-                    Frames = Frames(1:end-1);
-                    FrameNumber = cellfun(@str2double,Frames);
-                end
-                
-                % delete requested frames
-                Nf = numel(FrameNumber);
-                for If=1:1:Nf
-                    ds9.system('xpaset -p ds9 frame frameno %d',FrameNumber(If));
-                    ds9.system('xpaset -p ds9 frame clear');
-                end
-                
-            end
-        end
-        
-        % Load a FITS image into ds9 frame
-        function [Frame,CurFile]=loadA(FitsFile,FrameNumber)
-            % Load a FITS image into ds9 frame
-            % Package: @ds9
-            % Description: Load a FITS image into ds9 frame
-            % Input  : - FITS file name. This is either a fits file name
-            %            in the current directory or a full path to the
-            %            file name.
-            %          - Frame number.
-            %            Default is 'next'.
-            % Output : - Current frame number
-            %          - Current fits file name
-            % Author : Eran Ofek
-            
-            arguments
-                FitsFile
-                FrameNumber = 'next';
-            end
-            
-            Frame = ds9.frame(FrameNumber);
-            
-            % check if file name contains directory seperator
-            if contains(FitsFile, filesep)
-                % file name contains directory seperator
-                % Assume that FitsFile is a full path
-                % do nothing
-            else
-                % Assume FitsFile is not a full path
-                FitsFile = sprintf('%s%s%s',pwd,filesep,FitsFile);
-            end
-            
-            % load FITS file
-            ds9.system('xpaset -p ds9 file %s',FitsFile);
-            
-            if (nargout>1)
-                CurFile = ds9.system('xpaget ds9 file');
-            end
-
-        end
-        
-        % Load a FITS image into ds9 frame number 1
-        function [Frame,CurFile]=load1(FitsFile)
-            % Load a FITS image into ds9 frame number 1
-            % Package: @ds9
-            % Description: Load a FITS image into ds9 frame number 1
-            % Input  : - Fits file name
-            % Output : - Current frame number
-            %          - Current fits file name
-            % Reliable: 2
-            [Frame,CurFile] = ds9.load(FitsFile, 1);
-            
-        end
-        
-        function Frame=url1(URL, FrameNumber)
-            % Load FITS file from a URL
-            % Package: @ds9
-            % Description: Load FITS file from a URL.
-            % Input  : - URL string.
-            %          - Frame number.
-            %            Default is 'next'.
-            % Output : - Frame number.
-            % Example: ds9.url(URL);
-            % Reliable: 2
-            
-            arguments
-                URL
-                FrameNumber = 'next';
-            end
-           
-            Frame = ds9.frame(FrameNumber);
-            ds9.system('xpaset -p ds9 url %s',URL);
-        end
-        
-        % display images in all formats
-        function disp1(Images, Frame, Args)
-            % Display images in ds9 (use ds9 for short cut)
-            % Package: @ds9
-            % Description: Display images in ds9
-            %              For shortcut use the ds9 constructor
-            %              (see examples).
-            % Input  : - Images to display. One of the following:
-            %            1. String containing a single FITS image name.
-            %            2. String with wild cards and ranges for multiple
-            %               FITS images.
-            %            3. Cell array of FITS image names.
-            %            4. A matrix.
-            %            5. A cube (display a cube).
-            %            6. Cell array of matrices.
-            %            7. A SIM object.
-            %          - Frame number, or vector of frames. Default is 1.
+    methods  % read image from ds9
+        function FileName = save(Obj, FileName, Args)
+            % Save current ds9 frame to FITS file
+            % Input  : - A DS9 object.
+            %          - A file name. Default is to generate a file name 
+            %            using tempname.
             %          * ...,key,val,...
-            %            'Scale' - See ds9.scale. Default is 'mode zscale'.
-            %            'CMap'  - See ds9.cmap. Default is [].
-            %            'Colorbar' - See ds9.colorbar. Default is 'no'.
-            %            'Orient'- See ds9.orient. Default is [].
-            %            'Rotate'- See ds9.rotate. Default is [].
-            %            'Zoom'  - See ds9.zoom. Default is 1.
-            % Output : null
-            % Example: ds9.disp(rand(100,100),1,'Zoom',2)
-            %          ds9.disp(rand(100,100),1,'Zoom',2);
-            %          ds9.disp(Sim(1:3));
-            %          ds9.disp('MyFitsImage.fits');
-            %          ds9.disp('Images*.fits');
-            % Reliable: 2
+            %            'Type' - Image type to save - one of the following options:
+            %                   [fits|rgbimage|rgbcube|mecube|mosaic|mosaicimage].
+            %                   [eps|gif|tiff|jpeg|png]
+            %                   Default is 'fits'.
+            %            'Jquality' - jpeg quality. Default is 75.
+            % Output : - Saved file name.
+            % Author : Eran Ofek (May 2022)
+            % Example: D=DS9(rand(100,100)); FN = D.save; delete(FN)
             
             arguments
-                Images
-                Frame                       = 1;
-                Args.KeepPars(1,1) logical  = false;
-                Args.Scale                  = 'mode zscale';
-                Args.CMap                   = [];
-                Args.Colorbar               = 'no';
-                Args.Orient                 = [];
-                Args.Rotate                 = [];
-                Args.Zoom                   = 1;
-                Args.ImageField             = 'Image'; % 'Im' for SIM
-            end
-            ImageField = SIM.ImageField;
-            
-            % open ds9
-            if ds9.isopen
-                if Args.KeepPars && isempty(Args.Zoom)
-                    % read parameters
-                    % FFU - add additional parameters
-                    Args.Zoom = ds9.zoom;
-                end
-            else
-                ds9.open;
-            end
-
-            
-            IsFits = false;
-            
-            % prepare cell array of string (FITS images)
-            if (ischar(Images))
-                [~,List] = io.files.create_list(Images,NaN);
-                IsFits = true;
-                Nim = numel(List);
+                Obj
+                FileName         = tempname;
+                Args.Type        = 'fits';
+                Args.Jquality    = 75;
             end
             
-            % prepare cell array of matrices
-            if (isnumeric(Images))
-                List   = {Images};
-                IsFits = false;
-                Nim    = numel(List);
+            switch lower(Args.Type)
+                case {'fits','rgbimage','rgbcube','mecube','mosaic','mosaicimage'}
+                    Obj.xpaset('save %s %s', Args.Type, FileName);
+                case {'eps','gif','tiff','png'}
+                    Obj.xpaset('saveimage %s %s', Args.Type, FileName);
+                case {'jpeg','jpg'}
+                    Obj.xpaset('saveimage jpeg %s %d', FileName, Args.Juality);
+                otherwise
+                    error('Unknown Type option');
             end
-            
-            if isa(Images,'SIM') || isa(Images,'AstroImage') || isa(Images,'ImageComponent')
-                IsFits = false;
-                Nim    = numel(Images);
-            end
-            
-%             if (imCl.isimCl(Images))
-%                 %List   = Images;  %.(ImageField);
-%                 IsFits = false;
-%                 Nim = numel(Images);
-%             end
-            
-            
-            % create tmp file names
-            IsTmp   = false;
-            
-            if (~IsFits)
-                % create tmp image
-                IsTmp     = true;
-                for Iim=1:1:Nim
-                    TmpName = sprintf('%s.fits',tempname);
-                    % create FITS files
-                    %fitswrite_my(List{Iim},TmpName);
-                    if isa(Images,'SIM')
-                        % to fix a problem - delete the PCOUNT and GCOUNT
-                        % header keywords
-                        %Images(Iim) = delete_key(Images(Iim),{'PCOUNT','GCOUNT','PSCALET1','PSCALET2'});
-                        Images(Iim) = delete_key(Images(Iim),{'EXTVER','PCOUNT','GCOUNT','PSCALET1','PSCALET2',...
-                            'XTENSION','TTYPE1','TFORM1','TTYPE2','TFORM2','TTYPE3','TFORM3'}); % Na'ama, 20180831, to display fits.fz (fpacked) images
-                        
-                        
-                        Nkey = size(Images(Iim).Header,1);
-                        Bl   = cell(Nkey,1);
-                        [Bl{1:Nkey}] = deal(' ');
-                        Images(Iim).Header = [Images(Iim).Header(:,1:2),  Bl];
-                        FITS.write(Images(Iim).(ImageField),TmpName,'Header',Images(Iim).Header);
-                    elseif isa(Images,'AstroImage')
-                        % FFU - need to fix header?
-                        FITS.write(Images(Iim).(Args.ImageField), TmpName, 'Header',Images(Iim).Header);
-                        
-                    elseif isa(Images,'ImageComponent')
-                        % no header
-                        FITS.write(Images(Iim).(Args.ImageField), TmpName);
-                        
-                    else
-                        FITS.write(List{Iim},TmpName);
-                    end
-                    List{Iim} = TmpName;
-                end
-            end
-           
-            if (isempty(Frame))
-                Frame = (1:1:Nim).';
-            end
-            if (~ischar(Frame))
-                Frame = Frame(:).*ones(Nim,1);
-            end
-            
-            for Iim=1:1:Nim
-                % for each image
-               
-                if (ischar(Frame))
-                    ds9.load(List{Iim},Frame);
-                else
-                    ds9.load(List{Iim},Frame(Iim));
-                end
-                
-                % set image properties
-                if (~isempty(Args.Scale))
-                    ds9.scale(Args.Scale);
-                end
-                if (~isempty(Args.CMap))
-                    ds9.cmap(Args.CMap);
-                end
-                if (~isempty(Args.Colorbar))
-                    ds9.colorbar(Args.Colorbar);
-                end
-                if (~isempty(Args.Orient))
-                    ds9.orient(Args.Orient);
-                end
-                if (~isempty(Args.Rotate))
-                    ds9.rotate(Args.Rotate);
-                end
-                if (~isempty(Args.Zoom))
-                    ds9.zoom(Args.Zoom);
-                end
-                   
-               
-            end
-            
-            if (IsTmp)
-                io.files.delete_cell(List);
-            end
-            pause(0.2);
-            
         end
-        
-        % save ds9 frame to FITS file
-        function read2fits(FileName)
-            % Save a ds9 frame to FITS image
-            % Package: @ds9
-            % Description: Save a ds9 frame to FITS image
-            % Input  : - FITS file name to save.
-            % Output : null
-            % Example: ds9.tofits('try.fits');
-            % Reliable:
-            
-            % Read entire image from ds9
-            Answer  = ds9.system('xpaset -p ds9 save %s',FileName);
-        end
-        
-        % save ds9 frame to SIM image
-        function Sim=read2sim
-            % Save a ds9 frame in a SIM object
-            % Package: @ds9
-            % Description: Save a ds9 frame in a SIM object
-            % Input  : null.
-            % Output : - A SIM object.
-            % Eaxmple: S=ds9.read2sim;
-            % Reliable: 2
-            
-            % Read entire image from ds9
-            TmpName = sprintf('%s.fits',tempname);
-            Answer  = ds9.system('xpaset -p ds9 save %s',TmpName);
-            %Sim     = image2sim(TmpName);
-            Sim     = FITS.read2sim(TmpName);
-            delete(TmpName);
-        end
-        
-        function Result = read2AstroImage
-            % Save a ds9 frame in an AstroImage object
-            % Package: @ds9
-            % Description: Save a ds9 frame in a SIM object
-            % Input  : null.
-            % Output : - An AstroImage object.
-            % Eaxmple: S=ds9.read2AstroImage;
-            % Reliable: 2
-            
-            % Read entire image from ds9
-            TmpName = sprintf('%s.fits',tempname);
-            Answer  = ds9.system('xpaset -p ds9 save %s',TmpName);
-            %Sim     = image2sim(TmpName);
-            Result  = AstroImage(TmpName);
-            delete(TmpName);
-        end
-        
     end
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     % Frame properties methods
     % (scale, cmap, colorbar, orient, pan, rotate, zoom, header)

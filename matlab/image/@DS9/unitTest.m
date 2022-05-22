@@ -61,6 +61,9 @@ function Result = unitTest()
     D.deleteFrame(2)
     D.deleteFrame('all');
     
+    D.load(rand(100,100));
+    FN = D.save2fits;
+    delete(FN);
     
 	io.msgStyle(LogLevel.Test, '@passed', 'ds9 test passed');
 	Result = true;
