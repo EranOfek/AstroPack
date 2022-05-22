@@ -39,53 +39,23 @@ classdef DS9 < handle
         
     % Constructor method (display)
     methods
-        function Obj = DS9(Image,varargin)
-            % Display images in ds9
-            % Package: @ds9
-            % Description: Display images in ds9 (constructor).
-            %              See also ds9.disp.
-            % Input  : - Images to display. One of the following:
-            %            1. String containing a single FITS image name.
-            %            2. String with wild cards and ranges for multiple
-            %               FITS images.
-            %            3. Cell array of FITS image names.
-            %            4. A matrix.
-            %            5. A cube (display a cube).
-            %            6. Cell array of matrices.
-            %            7. A SIM object.
-            %            8. An AstroImage object.
-            %          * A vector of frames (see 'Frame') in which to load
-            %            the images into followed by ...,key,val,... pairs,
-            %            or just the ...,key,val,... pairs.
-            %            'Frame' - Frame indices or frame parameters
-            %                      (e.g., 'next'). Default is (1:N), where
-            %                      N is the number of images to display.
-            %            'Scale' - See ds9.scale. Default is 'mode zscale'.
-            %            'CMap'  - See ds9.cmap. Default is [].
-            %            'Colorbar' - See ds9.colorbar. Default is 'no'.
-            %            'Orient'- See ds9.orient. Default is [].
-            %            'Rotate'- See ds9.rotate. Default is [].
-            %            'Zoom'  - See ds9.zoom. Default is 1.
+        function Obj = DS9(varargin)
+            % Create a DS9 object and open a ds9 window (if not exist)
+            %   Use load method to display images.
+            %   Use open method to open additional ds9 windows.
+            % Input  : * Arbitrary number of arguments that will be passed
+            %            to the disp method.
             % Output : null
-            % Example: ds9(rand(100,100),1,'Zoom',2)
-            %          ds9(rand(100,100),'Zoom',2);
-            %          ds9(Sim(1:3));
-            %          ds9('MyFitsImage.fits');
-            %          ds9('Images*.fits');
-            % Reliable: 2
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9;
+            %          D = DS9(rand(100,100),1)
             
-            % ds9_disp(Image,varargin{:});
-
-            % O.S. added test for ds9 working window
             
             Obj.open;
             
-%             if nargin==0
-%                 ds9.open;
-%             else
-%                 ds9.disp(Image,varargin{:});
-%                 clear Obj; % Output Object Not Assigned, therefore need to clear it
-%             end
+            if nargin>0
+                Obj.load(varargin{:});
+            end
         end
         
     end
@@ -315,6 +285,107 @@ classdef DS9 < handle
         end
         
     end
+   
+    methods (Static)  % utility functions
+        function [ImageName, AI] = loadPrep(Obj, Image, Args)
+            % An internal utility function for the load command
+            % Input  : - A DS9 object.
+            %          - An image, or images. One of the following:
+            %            1. An AstroImage array.
+            %            2. A file name with wild cards.
+            %            3. A cell array of file names.
+            %            4. A matrix or a cell array of matrices.
+            %          * ...,key,val,...
+            %            'UseRegExp' - A logical indicating if to use
+            %                   regular expressions when interpreting a
+            %                   singel file name. If false, will use only
+            %                   wild cards. Default is false.
+            %            'DataProp' - A data property in the AstroImage
+            %                   from which to read the image.
+            %                   Options are: 'Image', 'Back', 'Var', 'Mask', 'PSF.
+            %                   Default is 'Image'.
+            %            'FileName' - A cell array of optional file names
+            %                   in which to write the FITS images.
+            %                   If empty, use tempname to generate file
+            %                   names.
+            %                   Default is {}.
+            % Output : - The name of the FITS file name containing the image.
+            %          - An AstroImage object containing the images.
+            %            Created only if second argument is requested.
+            % Author : Eran Ofek (May 2022)
+            
+            arguments
+                Obj
+                Image
+                Args.UseRegExp logical    = false;
+                Args.DataProp             = 'Image';
+                Args.FileName             = {};  % use tempname
+            end
+            
+            if nargout>1
+                PopAI = true;
+            else
+                PopAI = false;
+            end
+            
+            if ischar(Args.FileName)
+                Args.FileName = {Args.FileName};
+            end
+            
+            if ischar(Image)
+                Image = io.files.filelist(Image, Args.UseRegExp);
+            end
+            
+            if isnumeric(Image)
+                Image = {Image};
+            end
+            
+            Nim = numel(Image);
+            
+            ImageName = cell(1,Nim);
+            for Iim=1:1:Nim
+                % get file name in which to save the image
+                % will use this if Image is not a file name
+                if isempty(Args.FileName)
+                    FileName = tempname;
+                else
+                    FileName = Args.FileName{Iim};
+                end
+                if iscell(Image)
+                    if isnumeric(Image{Iim})
+                        % matrix image
+                        % save to FITS file on disk
+                        FITS.writeSimpleFITS(Image{Iim}, FileName);
+                        ImageName{Iim} = FileName;
+                        if PopAI
+                            AI(Iim) = AstroImage;
+                            AI(Iim).Image = Image{Iim};
+                        end
+                    elseif ischar(Image{Iim})
+                        % image name
+                        ImageName{Iim} = Image{Iim};
+                        if PopAI
+                            AI(Iim) = AstroImage(Image{Iim});
+                        end
+                    else
+                        error('Unknown Image formation option');
+                    end
+                elseif isa(Image, 'AstroImage')
+                    % AstroImage
+                    FITS.writeSimpleFITS(Image(Iim).(DataProp), FileName, 'Header',Image(Iim).HeaderData.Data);
+                    ImageName{Iim} = FileName;
+                    if Iim==1 && PopAI
+                        AI = Image;
+                    end
+                else
+                    error('Unknown Image formation option');
+                end
+                    
+                
+            end
+        end
+    end
+    
     
     methods % xpaget/xpaset
         function xpaset(Obj, Command, varargin)
@@ -469,10 +540,10 @@ classdef DS9 < handle
             end
             
             for Iim=1:1:Nim
-                Nai = numel(Obj.AI);
+                Nai = numel(Obj.InfoAI);
                 I   = Nai + 1;   % new AI
 
-                Obj.InfoAI(I)          = ImageAI(Iim);
+                Obj.InfoAI(I).Image    = ImageAI(Iim);
                 Obj.InfoAI(I).Win      = Obj.MethodXPA;
                 if isempty(FileName)
                     Obj.InfoAI(I).FileName = tempname;
@@ -840,38 +911,6 @@ classdef DS9 < handle
     end
     
     methods  % load and display images
-%         function disp(Obj, Image, Frame, Args)
-%             % load and display images
-%     
-%             arguments
-%                 Obj
-%                 Image
-%                 Frame
-%                 Args
-%             end
-%             
-%             
-%             if ischar(Image)
-%                 Image = {Image};
-%             end
-%             if iscell(Image)
-%                 IsURL = www.isURL(Image);
-%                 if all(IsURL)
-%                     % display by a URL
-%                     % ...
-%                 else
-%                     if any(IsURL)
-%                         error('Either all names are URL or non')
-%                     else
-%                         % assume a local file name
-%                         % ...
-%                     end
-%                 end
-%             else
-%                 % assume a local file name
-%                 % ...
-%             end 
-%         end
         
         function url(Obj, URL, Frame)
             % Display FITS files in URL links
@@ -913,104 +952,81 @@ classdef DS9 < handle
             
         end
         
-        function [ImageName, AI] = loadPrep(Obj, Image, Args)
-            %
-            
-            arguments
-                Obj
-                Image
-                Args.UseRegExp logical    = false;
-                Args.PopAI logical        = true;
-                Args.ImType               = 'fits';
-                Args.DataProp             = 'Image';
-                Args.FileName             = {};  % use tempname
-            end
-            
-            if ischar(Args.FileName)
-                Args.FileName = {Args.FileName};
-            end
-            
-            if ischar(Image)
-                Image = io.files.filelist(Image, Args.UseRegExp);
-            end
-            
-            if isnumeric(Image)
-                Image = {Image};
-            end
-            
-            Nim = numel(Image);
-            
-            ImageName = cell(1,Nim);
-            for Iim=1:1:Nim
-                % get file name in which to save the image
-                % will use this if Image is not a file name
-                if isempty(Args.FileName)
-                    FileName = tempname;
-                else
-                    FileName = Args.FileName{Iim};
-                end
-                if iscell(Image)
-                    if isnumeric(Image{Iim})
-                        % matrix image
-                        % save to FITS file on disk
-                        FITS.writeSimpleFITS(Image{Iim}, FileName);
-                        ImageName{Iim} = FileName;
-                        if Args.PopAI
-                            AI(Iim) = AstroImage;
-                            AI(Iim).Image = Image{Iim};
-                        end
-                    elseif ischar(Image{Iim})
-                        % image name
-                        ImageName{Iim} = Image{Iim};
-                        if Args.PopAI
-                            AI(Iim) = AstroImage(Image{Iim});
-                        end
-                    else
-                        error('Unknown Image formation option');
-                    end
-                elseif isa(Image, 'AstroImage')
-                    % AstroImage
-                    FITS.writeSimpleFITS(Image(Iim).(DataProp), FileName, 'Header',Image(Iim).HeaderData.Data);
-                    ImageName{Iim} = FileName;
-                    if Iim==1 && Args.PopAI
-                        AI = Image;
-                    end
-                else
-                    error('Unknown Image formation option');
-                end
-                    
-                
-            end
-        end
-        
         function load(Obj, Image, Frame, Args)
-            %
+            % Load an image into ds9 display.
+            %   Also optionaly populate the InfoAI property.
+            % Input  : - A DS9 object.
+            %          - An image, or images. One of the following:
+            %            1. An AstroImage array.
+            %            2. A file name with wild cards.
+            %            3. A cell array of file names.
+            %            4. A matrix or a cell array of matrices.
+            %          - Array of frame numbers in which to display the
+            %            images. If scalar will build the array starting
+            %            with the provided number (steps of 1).
+            %            If Inf, open a new frame.
+            %            If empty, use the current frame.
+            %            Default is [].
+            %          * ...,key,val,...
+            %            'UseRegExp' - A logical indicating if to use
+            %                   regular expressions when interpreting a
+            %                   singel file name. If false, will use only
+            %                   wild cards. Default is false.
+            %            'DataProp' - A data property in the AstroImage
+            %                   from which to read the image.
+            %                   Options are: 'Image', 'Back', 'Var', 'Mask', 'PSF.
+            %                   Default is 'Image'.
+            %            'PopAI' - A logical indicating if to populate the
+            %                   InfoAI property. If true, then an
+            %                   AstroImage containing the images will be
+            %                   loaded into the InfoAI property.
+            %                   Default is true.
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D=DS9; D.disp(rand(10,10));
             
             arguments
                 Obj
-                Image   % Image, matrix, AstroImage\
-               
-                Frame                    = [];  % if emoty use current frame, or 1 if not exist
+                Image                           % Image, matrix, AstroImage\
+                Frame                    = [];  % if empty use current frame, or 1 if not exist, Inf for new frame
                 Args.UseRegExp logical   = false;
                 Args.PopAI logical       = true;
-                Args.ImType              = 'fits';  % ['fits' | 'gif']
                 Args.DataProp            = 'Image';
             end
             
-            
-            
             if ischar(Image)
-                Image = io.files.filelist(Image, Args.UseRegExp);
-            end
-            
-            if isnumeric(Image)
                 Image = {Image};
             end
+           
+            if iscellstr(Image)
+                FileName = Image;
+                IsURL    = www.isURL(FileName);
+            else
+                FileName = {};
+                IsURL    = false;
+            end
             
-            Nim = numel(Image);
+            if Args.PopAI
+                [ImageName, AI] = DS9.loadPrep(Obj, Image, 'UseRegExp', Args.UseRegExp,...
+                                                       'DataProp',Args.DataProp,...
+                                                       'FileName',FileName);
+            else
+                [ImageName] = DS9.loadPrep(Obj, Image, 'UseRegExp', Args.UseRegExp,...
+                                                       'DataProp',Args.DataProp,...
+                                                       'FileName',FileName);
+                AI = [];
+            end
+            
+            Nim = numel(ImageName);
             if isempty(Frame)
-                % open a new frame
-                Frame = Obj.frame('new');
+                % use the current frame
+                Frame = Obj.frame;
+            else
+                if isinf(Frame)
+                    Frame = Obj.frame('new');
+                else
+                    Frame = Obj.frame(Frame);
+                end
             end
                 
             if numel(Frame)==1 && Nim>1
@@ -1021,39 +1037,13 @@ classdef DS9 < handle
                 error('Number if frames must be one or equal to the number of images');
             end
             
+            if ~isempty(AI)
+                Obj = addAI(Obj, AI, ImageName, Frame);
+            end
+            
             for Iim=1:1:Nim
-                if iscell(Image)
-                    % a cell array of files or a numeric images
-                    if isnumeric(Image{Iim})
-                        % image is a matrix
-                        % save image to disk
-                        
-                        % load
-                        
-                    elseif ischar(Image{Iim})
-                        % Image name
-                        
-                    else
-                        error('Unknown Image type option');
-                    end
-                        
-                    Obj.frame(Frame(Iim));
-                    Obj.xpaset('%s %s',Args.ImType, Image{Iim});
-                    if Args.PopAI
-                        Obj = addAI(Obj, Image{Iim}, Image{Iim}, Frame(Iim));
-                    end
-                elseif isa(Image, 'AstroImage')
-                    FileName = tempname;
-                    Image{Iim}.write1(FileName, Args.DataProp);
-                    Obj.frame(Frame(Iim));
-                    Obj.xpaset('fits %s', FileName);
-                    if Args.PopAI
-                        Obj = addAI(Obj, Image{Iim}, FileName, Frame(Iim));
-                    end
-                    
-                else
-                    error('Unknown image type option');
-                end
+                Obj.frame(Frame(Iim));
+                Obj.xpaset('fits %s', ImageName{Iim});
             end
         end
         

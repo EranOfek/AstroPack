@@ -11,6 +11,8 @@ function Result = unitTest()
     
     % create a DS9 object
     D = DS9;
+    D.exit;
+    D = DS9(rand(100,100),1);
     % open a window
     D.open
     % open another window
