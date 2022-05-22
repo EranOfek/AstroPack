@@ -1,4 +1,12 @@
 
+
+select * from table_f_part2 where pk1 >= 32000001 and pk1 <= 3200000100
+
+explain select * from table_f_part2 where f_dec = 0.0018
+
+select count(*) from table_f_part2 where f_ra = 0.0009
+
+
 COPY table_f_part2 (f_ra,f_dec,f_time,fdouble001,fdouble002,fdouble003,fdouble004,fdouble005,fdouble006,fdouble007,fdouble008,fdouble009,fdouble010,fdouble011,fdouble012,fdouble013,fdouble014,fdouble015,fdouble016,fdouble017,fdouble018,fdouble019,fdouble020,fdouble021,fdouble022,fdouble023,fdouble024,fdouble025,fdouble026,fdouble027,fdouble028,fdouble029,fdouble030,fdouble031,fdouble032,fdouble033,fdouble034,fdouble035,fdouble036,fdouble037,fdouble038,fdouble039,fdouble040,fdouble041,fdouble042,fdouble043,fdouble044,fdouble045,fdouble046,fdouble047,fdouble048,fdouble049,fdouble050) FROM '/var/samba/pgshare/BigDbTestPart1_45357.csv' DELIMITER ',' CSV HEADER;
 
 CREATE TABLE table_f_part1_1801 PARTITION OF table_f_part2 FOR VALUES FROM (1801.000000) TO (3800.000000)
