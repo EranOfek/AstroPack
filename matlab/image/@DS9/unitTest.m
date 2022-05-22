@@ -23,6 +23,30 @@ function Result = unitTest()
     D.isOpen
     
     % switch ds9 window
+    D.Frame=1;
+    D.Frame=2;
+    pause(0.5)
+    if D.nframe~=2
+        error('Number of frames suppose to be 2');
+    end
+    R = D.frame('delete') % delete current frame
+    if D.Frame~=1
+        error('Frame number was supposed to be 1');
+    end
+    
+    R = D.frame('center') % center current frame
+    R = D.frame('clear') % clear current frame
+    R = D.frame('new') % create new frame
+    R = D.frame('new rgb') % create new rgb frame
+    R = D.frame('reset') % reset current frame
+    R = D.frame('refresh') % refresh current frame
+    R = D.frame('hide') % hide current frame
+    R = D.frame('first') % goto first frame
+    R = D.frame('prev') % goto previous frame
+    R = D.frame('last') % goto last frame
+    R = D.frame('next') % goto next frame
+    R = D.frame('match wcs') % 
+    R = D.frame('lock wcs') % 
     
     
 	io.msgStyle(LogLevel.Test, '@passed', 'ds9 test passed');

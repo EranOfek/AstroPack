@@ -15,89 +15,20 @@
 % Reliable: 2
 %--------------------------------------------------------------------------
 %
-% #functions (autogen)
-% blink - Set to blink display mode Package: @ds9
-% clear_frame - Clear frames from ds9 Package: @ds9 Description: Clear frame number, some frames or all frames from ds9.
-% cmap - Set the color map of an image in ds9 Package: @ds9 Description: Set the color map of an image in ds9
-% colorbar - set the colorbar of an ds9 image Package: @ds9 description: set the colorbar of an ds9 image
-% construct_command - Construct an arguments string for ds9 command Package: @ds9
-% coo2xy - Convert RA/Dec to X/Y (image) using ds9 tools Package: @ds9
-% delete_frame - Delete frames from ds9 Package: @ds9 Description: Delete frame number, some frames or all frames from ds9.
-% delete_region - Delete all regions from ds9 frame Package: @ds9 Description: Delete all regions from ds9 frame
-% disp - Display images in ds9 (use ds9 for short cut) Package: @ds9 Description: Display images in ds9 For shortcut use the ds9 constructor (see examples).
-% ds9 - Display images in ds9 Package: @ds9 Description: Display images in ds9 (constructor). See also ds9.disp.
-% dss - Get a DSS sky image from stsci Package: @ds9 Description: Get a DSS sky image from stsci.
-% exit - exit ds9 Package: @ds9
-% frame - Set ds9 frame Package: @ds9
-% getbox - Get the pixel values in a specified box region Package: @ds9 getbox function                                                          ds9 Description: Get from the ds9 display the pixel values in a specified
-% getcoo - Interactively get the coordinates (WCS) Package: @ds9 Description: Interactively get the coordinates (WCS) and value of the pixel selected by the mouse (left click) or by clicking any character on the ds9 display.
-% getpos - Get X,Y position and pixel value Package: @ds9 Description: Get X,Y position and pixel value in clicked position.
-% ginput - Interactively get the coordinates (X/Y or WCS) Package: @ds9 Description: Interactively get the coordinates (X/Y or WCS) and value of the pixel selected by the mouse (left click) or by clicking any character on the ds9 display.
-% header - Description: Display FITS header dialaog
-% iline - Interactively plot a line Package: @ds9 Description: Interactively plot a line in ds9 between two points defined by mouse left clicks. Also return the interpolated values in the image
-% imark - Interactive plot symbols Package: @ds9 Description: Interactive plot symbols in right click coordinates. Use 'q' click to abort. Click 'c' to switch to circle plotting, and
-% imexam - ds9 image examination utility Package: @ds9 Description: Interactive image examination in ds9.
-% ipoly - Interactively plot a polygon Package: @ds9 Description: Interactively plot a polygon. Verteces are defined by mouse or keybord clicks. 'q' to finish and abort.
-% isopen - Check if ds9 is open (linux/mac only) Package: @ds9
-% line_lt - Plot multiple lines based on X,Y,length,theta Package: @ds9 Description: Plot multiple lines based on X,Y,length,theta
-% line_xy - Plot a broken line Package: @ds9 Description: Plot a broken line (curve) in ds9 image.
-% load - Load a FITS image into ds9 frame Package: @ds9 Description: Load a FITS image into ds9 frame
-% load1 - Load a FITS image into ds9 frame number 1 Package: @ds9 Description: Load a FITS image into ds9 frame number 1
-% load_region - load regions file name into current ds9 frame Package: @ds9 Description: load regions file name into current ds9 frame.
-% lock_wcs - Lock all images WCS to current frame Package: @ds9 Description: Lock all images WCS to current frame.
-% lock_xy - Lock all images x/y coordinayes to current frame Package: @ds9 Description: Lock all images x/y coordinayes to current frame.
-% match_colorbar - Match the intensity colorbar of all frames to the current frame Package: @ds9 Description: Match the intensity colorbar of all frames to the current frame.
-% match_scale - Match the intensity scale of all frames to the current frame Package: @ds9 Description: Match the intensity scale of all frames to the current frame.
-% match_scalelimits - Match the intensity scalelimits of all frames to the current frame Package: @ds9 Description: Match the intensity scalelimits of all frames to the current frame.
-% match_wcs - Match the WCS coordinates of all frames to the current frame Package: @ds9 Description: Match the WCS coordinates of all frames to the current frame.
-% match_xy - Match the image coordinates of all frames to the current frame Package: @ds9 Description: Match the image coordinates of all frames to the current frame.
-% mode - Set ds9 mode Package: @ds9
-% nearcat - Get the nearest source in a SIM/AstCat object Package: @ds9 Description: Get the nearest source in a SIM/AstCat object to the clicked position.
-% nearestcat - Get the nearest source in a SIM/AstCat object Package: @ds9 Description: Get the nearest source in a SIM/AstCat object to the clicked position.
-% nedlink - Open NED link for clicked position Package: @ds9 Description: Click on a position in an image displayed in ds9 and this program will open the NED coordinate search web page for the coordinates.
-% open - Open ds9 dispaly window if not exist already and set mode to region Package: @ds9
-% orient - Set the x/y orientation of an image in ds9 Package: @ds9 Description: Set the x/y orientation of an image in ds9
-% pan - Set the pan (cursor location) of an image in ds9 Package: @ds9 Description: Set the pan (cursor location) of an image in ds9
-% plot - Generate and plot a region file from a list of coordinates Package: @ds9 Description: Generate and plot a region file from a list of coordinates. This is like the function ds9.write_region with
-% plotXY - Example: ds9.plotXY([X, Y],[], 'wo','MarkerSize',18,'Marker','s', 'CooType','icrs'); ds9.plotXY(AstroCatalog, 'ro', 'MarkerSize',18, 'ColNameX','X','ColNameY','Y'); ds9.plotXY(AstroCatalog, 'go', 'MarkerSize',18, 'CooType','sphere');
-% plotc - Generate and plot a region file from a list of celestial coordinates Package: @ds9
-% psprint - Print a postscript file into current directory Package: @ds9 Description: Print a postscript file into current directory.
-% read2AstroImage - Save a ds9 frame in an AstroImage object Package: @ds9 Description: Save a ds9 frame in a SIM object
-% read2fits - Save a ds9 frame to FITS image Package: @ds9 Description: Save a ds9 frame to FITS image
-% read2sim - Save a ds9 frame in a SIM object Package: @ds9 Description: Save a ds9 frame in a SIM object
-% rotate - Set the rotation of an image in ds9 Package: @ds9 Description: Set the rotation of an image in ds9
-% save_region - Save regions into a file Package: @ds9 Description: Save regions into a file.
-% scale - Set the intensity scale of an image in ds9 Package: @ds9 Description: Set the intensity scale of an image in ds9
-% sdsscat - Get SDSS catalog near clicked position Package: @ds9 Description: Get SDSS catalog near clicked position
-% sdssnavi - Open SDSS navigator for clicked position Package: @ds9 Description: Click on a position in an image displayed in ds9 and this program will open the SDSS navigator web page for the coordinates.
-% simval - Interactively get values from SIM images Package: @ds9 Description: Interactively get values from SIM images (image, background, error, weight and mask) at clicked positions. Click 'q' to abort.
-% single - Set to single image display mode Package: @ds9
-% supported - Return true if ds9 is supported (currently only Linux and Mac)
-% system - Construct and execute an xpa command Package: @ds9
-% text - plot text to ds9 current frame Package: @ds9 Description: plot text to ds9 current frame in image coordinates position.
-% tile - Set the tile the display mode of ds9 Package: @ds9 Description: Set the tile the display mode of ds9.
-% url - Load FITS file from a URL Package: @ds9 Description: Load FITS file from a URL.
-% write_region - Write a regions file for a list of coordinates and properties Package: @ds9 Description: Write a regions file for a list of coordinates and properties.
-% xpaget - Execute an xpaget command Package: @ds9
-% xpahelp - Open the XPA command help web page Package: @ds9
-% xpaset - Execute an xpaset command Package: @ds9
-% xy2coo - Convert RA/Dec to X/Y (image) using ds9 tools Package: @ds9
-% zoom - Set the zoom of an image in ds9 Package: @ds9 Description: Set the zoom of an image in ds9
-% #/functions (autogen)
 %
-
-
 % BUGS & ISSUES:
 % If ds9.open does not display the image - see possible problem/solution:
 %       https://docs.google.com/document/d/1Q2qI25B9DlF2i7IbWdmPPt3sn3TL0Eq0P5HEaYI6HfM/edit#
 %       Fix a contradiction in the matlab libraries, that cause a problem running system commands:
 %       sudo mv /usr/local/MATLAB/R2020b/sys/os/glnxa64/libstdc++.so.6 /usr/local/MATLAB/R2020b/sys/os/glnxa64/libstdc++.so.6.orig
+%
+%
 
 
 classdef DS9 < handle
     properties
         MethodXPA              = 'ds9';   % Index of current active ID - 
-        Frame
+        Frame                  = [];
         InfoAI                    % struct with:
                                   % .Image - An AstroImage
                                   % .Win - Display window
@@ -160,7 +91,18 @@ classdef DS9 < handle
     end
     
     methods % setters/getters
+        function Val = get.Frame(Obj)
+            % getter for the DS9 Frame property
+           
+            Val = Obj.frame;
+            Obj.Frame = Val;
+        end
         
+        function Obj = set.Frame(Obj, Val)
+            % setter for the DS9 Frame property
+           
+            Obj.frame(Val);
+        end
     end
     
     methods (Static) % ID utilities
@@ -304,7 +246,7 @@ classdef DS9 < handle
             %            window is open. Default is false.
             % Output : The numer of open ds9 windoes.
             % Author : Eran Ofek (May 2022)
-            % Example: DS9.isopen
+            % Example: DS9.isOpen
             
             arguments
                 UsePS logical    = false;
@@ -424,10 +366,14 @@ classdef DS9 < handle
             end
             
             List = DS9.getAllWindows;
-            if isinf(Id)
-                Obj.MethodXPA = List(end).Method;
+            if isempty(List)
+                Obj.MethodXPA = [];
             else
-                Obj.MethodXPA = List(Id).Method;
+                if isinf(Id)
+                    Obj.MethodXPA = List(end).Method;
+                else
+                    Obj.MethodXPA = List(Id).Method;
+                end
             end
             
         end
@@ -598,7 +544,7 @@ classdef DS9 < handle
     
     methods % open, exit, mode
         % open ds9
-        function open(Obj, New, Args)
+        function Found = open(Obj, New, Args)
             % Open ds9 dispaly window and set mode to region
             % Input  : - A DS9 object.
             %          - A logical indicating if to open a new
@@ -609,7 +555,7 @@ classdef DS9 < handle
             %          * ...,key,val,...
             %            'Wait' - Wait after open the ds9 window.
             %                   Default is 3 [s].
-            % Output : null
+            % Output : - A logical indicating if a new window was opened.
             % Author : Eran Ofek (May 2022)
             % Problems: The command ds9 is not recognized by the bash interpreter, try adding an alias
             %           to the bash profile using ‘vim .bash_profile’ adding the following line to the
@@ -620,9 +566,12 @@ classdef DS9 < handle
             arguments
                 Obj
                 New logical        = false;
-                Args.Wait          = 3;
+                Args.Wait          = 1;
+                Args.Timeout       = 5;
             end
+            SEC_IN_DAY = 86400;
             
+            Found = false;
             if DS9.isOpen && ~New
                 % do nothing - already open
                 fprintf('ds9 is already open - Using existing window\n');
@@ -630,21 +579,34 @@ classdef DS9 < handle
             else
                 [~,ListOld]   = Obj.getAllWindows;
                 [Status, Res] = system('ds9&');
-                pause(1);
-                [~,ListNew]   = Obj.getAllWindows;
-                % identify new window
-                Diff = setdiff(ListNew, ListOld);
-                if numel(Diff)==1
-                    Obj.MethodXPA = Diff{1};
-                else
-                    error('Number of different windows is not 1');
+                Tstart = now;
+                Found  = false;
+                while ~Found && ((now-Tstart).*SEC_IN_DAY)<Args.Timeout
+                    pause(Args.Wait);
+                    [~,ListNew]   = Obj.getAllWindows;
+                    if numel(ListOld) == (numel(ListNew)-1)
+                        % identify new window
+                        Diff = setdiff(ListNew, ListOld);
+                        if numel(Diff)==1
+                            Obj.MethodXPA = Diff{1};
+                            Found         = true;
+                        else
+                            error('Number of different windows is not 1');
+                        end
+                    else
+                        Obj.MethodXPA = [];
+                    end
                 end
                 
-                Obj.selectWindow(Inf);
+                List = [];
+                Tstart = now;
+                while isempty(List) && ((now-Tstart).*SEC_IN_DAY)<Args.Timeout
+                    pause(Args.Wait);
+                    List = Obj.selectWindow(Inf);
+                end
+                
                 if (Status~=0)
                     warning('Can not open ds9');
-                else
-                    pause(Args.Wait);
                 end
                 Obj.mode('region');
             end
@@ -702,7 +664,9 @@ classdef DS9 < handle
                 Obj.xpaset('exit');
             end
             
-                        
+            pause(1);
+            Obj.selectWindow(Inf)
+              
         end
         
     end
