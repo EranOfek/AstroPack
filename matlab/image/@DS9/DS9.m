@@ -1314,6 +1314,38 @@ classdef DS9 < handle
                 ScaleType = Obj.xpaget('scale');
             end
         end
+        
+        function cmapInvert(Obj, Val, Frame)
+            % invert colormap of frames in a ds9 window
+            % Input  : - A DS9 object.
+            %          - A logical indicating if invert is yes (true)
+            %            or no (false). Default is true.
+            %          - Either a vector of frame indices on which to apply
+            %            the scale (the same scale or quantile for all frames in
+            %            the current ds9 window),
+            %            or a logical indicatig if to apply the zoom to all
+            %            frames (true), or only the current frame (false).
+            %            If empty, apply to all frames.
+            %            Default is [].
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D=DS9(rand(100,100));
+            %          D.cmapInvert
+            
+            arguments
+                Obj
+                Val logical     = true;
+                Frame           = [];
+            end
+            
+            if Val
+                Invert = 'yes';
+            else
+                Invert = 'no';
+            end
+            Obj.xpasetFrame(Frame, 'cmap invert %s', Invert)
+            
+        end
     end
     
     
@@ -1328,32 +1360,7 @@ classdef DS9 < handle
     % Frame properties methods
     % (scale, cmap, colorbar, orient, pan, rotate, zoom, header)
     methods (Static)
-        % Scale image intensity
-        function scale1(varargin)
-            % Set the intensity scale of an image in ds9
-            % Package: @ds9
-            % Description: Set the intensity scale of an image in ds9
-            % Input  : * Arbitrary number of arguments to pass to the ds9
-            %            scale command.
-            %            Default is 'mode zscale'.
-            % Output : null
-            % Example: ds9.scale('linear')
-            %          ds9.scale('log',100)
-            %          ds9.scale('log 100');
-            %          ds9.scale('limits',1520,1900)
-           % Reliable: 2
-            if (nargin==0)
-                Mode = 'mode zscale';
-            else
-                Mode = '';
-            end
-            
-            Mode = ds9.construct_command(Mode,varargin{:});
-            
-            ds9.system('xpaset -p ds9 scale %s',Mode);
-            pause(0.2);
-            
-        end
+       
         
         % Set image color map
         function cmap(varargin)

@@ -88,6 +88,10 @@ function Result = unitTest()
     [L,ST] = D.scale;
     D.scale([0 0.5]);
     
+    % cmapInvert
+    D.cmapInvert
+    
+    
 	io.msgStyle(LogLevel.Test, '@passed', 'ds9 test passed');
 	Result = true;
 end

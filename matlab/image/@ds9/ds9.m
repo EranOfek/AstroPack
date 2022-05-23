@@ -1,6 +1,5 @@
-% A class to control and manipulate ds9
-%   This class (DS9) suppose to replace the ds9 class
-% Description: A class for intearction with the ds9 display.
+% A static class to control and manipulate ds9
+% Description: A static class for intearction with the ds9 display.
 %              This include functions to load images, change their
 %              properties, create and plot region files, printing, image
 %              examination, interaction with SIM content and more.
@@ -14,112 +13,150 @@
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Reliable: 2
 %--------------------------------------------------------------------------
+
+% #functions (autogen)
+% blink - Set to blink display mode Package: @ds9
+% clear_frame - Clear frames from ds9 Package: @ds9 Description: Clear frame number, some frames or all frames from ds9.
+% cmap - Set the color map of an image in ds9 Package: @ds9 Description: Set the color map of an image in ds9
+% colorbar - set the colorbar of an ds9 image Package: @ds9 description: set the colorbar of an ds9 image
+% construct_command - Construct an arguments string for ds9 command Package: @ds9
+% coo2xy - Convert RA/Dec to X/Y (image) using ds9 tools Package: @ds9
+% delete_frame - Delete frames from ds9 Package: @ds9 Description: Delete frame number, some frames or all frames from ds9.
+% delete_region - Delete all regions from ds9 frame Package: @ds9 Description: Delete all regions from ds9 frame
+% disp - Display images in ds9 (use ds9 for short cut) Package: @ds9 Description: Display images in ds9 For shortcut use the ds9 constructor (see examples).
+% ds9 - Display images in ds9 Package: @ds9 Description: Display images in ds9 (constructor). See also ds9.disp.
+% dss - Get a DSS sky image from stsci Package: @ds9 Description: Get a DSS sky image from stsci.
+% exit - exit ds9 Package: @ds9
+% frame - Set ds9 frame Package: @ds9
+% getbox - Get the pixel values in a specified box region Package: @ds9 getbox function                                                          ds9 Description: Get from the ds9 display the pixel values in a specified
+% getcoo - Interactively get the coordinates (WCS) Package: @ds9 Description: Interactively get the coordinates (WCS) and value of the pixel selected by the mouse (left click) or by clicking any character on the ds9 display.
+% getpos - Get X,Y position and pixel value Package: @ds9 Description: Get X,Y position and pixel value in clicked position.
+% ginput - Interactively get the coordinates (X/Y or WCS) Package: @ds9 Description: Interactively get the coordinates (X/Y or WCS) and value of the pixel selected by the mouse (left click) or by clicking any character on the ds9 display.
+% header - Description: Display FITS header dialaog
+% iline - Interactively plot a line Package: @ds9 Description: Interactively plot a line in ds9 between two points defined by mouse left clicks. Also return the interpolated values in the image
+% imark - Interactive plot symbols Package: @ds9 Description: Interactive plot symbols in right click coordinates. Use 'q' click to abort. Click 'c' to switch to circle plotting, and
+% imexam - ds9 image examination utility Package: @ds9 Description: Interactive image examination in ds9.
+% ipoly - Interactively plot a polygon Package: @ds9 Description: Interactively plot a polygon. Verteces are defined by mouse or keybord clicks. 'q' to finish and abort.
+% isopen - Check if ds9 is open (linux/mac only) Package: @ds9
+% line_lt - Plot multiple lines based on X,Y,length,theta Package: @ds9 Description: Plot multiple lines based on X,Y,length,theta
+% line_xy - Plot a broken line Package: @ds9 Description: Plot a broken line (curve) in ds9 image.
+% load - Load a FITS image into ds9 frame Package: @ds9 Description: Load a FITS image into ds9 frame
+% load1 - Load a FITS image into ds9 frame number 1 Package: @ds9 Description: Load a FITS image into ds9 frame number 1
+% load_region - load regions file name into current ds9 frame Package: @ds9 Description: load regions file name into current ds9 frame.
+% lock_wcs - Lock all images WCS to current frame Package: @ds9 Description: Lock all images WCS to current frame.
+% lock_xy - Lock all images x/y coordinayes to current frame Package: @ds9 Description: Lock all images x/y coordinayes to current frame.
+% match_colorbar - Match the intensity colorbar of all frames to the current frame Package: @ds9 Description: Match the intensity colorbar of all frames to the current frame.
+% match_scale - Match the intensity scale of all frames to the current frame Package: @ds9 Description: Match the intensity scale of all frames to the current frame.
+% match_scalelimits - Match the intensity scalelimits of all frames to the current frame Package: @ds9 Description: Match the intensity scalelimits of all frames to the current frame.
+% match_wcs - Match the WCS coordinates of all frames to the current frame Package: @ds9 Description: Match the WCS coordinates of all frames to the current frame.
+% match_xy - Match the image coordinates of all frames to the current frame Package: @ds9 Description: Match the image coordinates of all frames to the current frame.
+% mode - Set ds9 mode Package: @ds9
+% nearcat - Get the nearest source in a SIM/AstCat object Package: @ds9 Description: Get the nearest source in a SIM/AstCat object to the clicked position.
+% nearestcat - Get the nearest source in a SIM/AstCat object Package: @ds9 Description: Get the nearest source in a SIM/AstCat object to the clicked position.
+% nedlink - Open NED link for clicked position Package: @ds9 Description: Click on a position in an image displayed in ds9 and this program will open the NED coordinate search web page for the coordinates.
+% open - Open ds9 dispaly window if not exist already and set mode to region Package: @ds9
+% orient - Set the x/y orientation of an image in ds9 Package: @ds9 Description: Set the x/y orientation of an image in ds9
+% pan - Set the pan (cursor location) of an image in ds9 Package: @ds9 Description: Set the pan (cursor location) of an image in ds9
+% plot - Generate and plot a region file from a list of coordinates Package: @ds9 Description: Generate and plot a region file from a list of coordinates. This is like the function ds9.write_region with
+% plotXY - Example: ds9.plotXY([X, Y],[], 'wo','MarkerSize',18,'Marker','s', 'CooType','icrs'); ds9.plotXY(AstroCatalog, 'ro', 'MarkerSize',18, 'ColNameX','X','ColNameY','Y'); ds9.plotXY(AstroCatalog, 'go', 'MarkerSize',18, 'CooType','sphere');
+% plotc - Generate and plot a region file from a list of celestial coordinates Package: @ds9
+% psprint - Print a postscript file into current directory Package: @ds9 Description: Print a postscript file into current directory.
+% read2AstroImage - Save a ds9 frame in an AstroImage object Package: @ds9 Description: Save a ds9 frame in a SIM object
+% read2fits - Save a ds9 frame to FITS image Package: @ds9 Description: Save a ds9 frame to FITS image
+% read2sim - Save a ds9 frame in a SIM object Package: @ds9 Description: Save a ds9 frame in a SIM object
+% rotate - Set the rotation of an image in ds9 Package: @ds9 Description: Set the rotation of an image in ds9
+% save_region - Save regions into a file Package: @ds9 Description: Save regions into a file.
+% scale - Set the intensity scale of an image in ds9 Package: @ds9 Description: Set the intensity scale of an image in ds9
+% sdsscat - Get SDSS catalog near clicked position Package: @ds9 Description: Get SDSS catalog near clicked position
+% sdssnavi - Open SDSS navigator for clicked position Package: @ds9 Description: Click on a position in an image displayed in ds9 and this program will open the SDSS navigator web page for the coordinates.
+% simval - Interactively get values from SIM images Package: @ds9 Description: Interactively get values from SIM images (image, background, error, weight and mask) at clicked positions. Click 'q' to abort.
+% single - Set to single image display mode Package: @ds9
+% supported - Return true if ds9 is supported (currently only Linux and Mac)
+% system - Construct and execute an xpa command Package: @ds9
+% text - plot text to ds9 current frame Package: @ds9 Description: plot text to ds9 current frame in image coordinates position.
+% tile - Set the tile the display mode of ds9 Package: @ds9 Description: Set the tile the display mode of ds9.
+% url - Load FITS file from a URL Package: @ds9 Description: Load FITS file from a URL.
+% write_region - Write a regions file for a list of coordinates and properties Package: @ds9 Description: Write a regions file for a list of coordinates and properties.
+% xpaget - Execute an xpaget command Package: @ds9
+% xpahelp - Open the XPA command help web page Package: @ds9
+% xpaset - Execute an xpaset command Package: @ds9
+% xy2coo - Convert RA/Dec to X/Y (image) using ds9 tools Package: @ds9
+% zoom - Set the zoom of an image in ds9 Package: @ds9 Description: Set the zoom of an image in ds9
+% #/functions (autogen)
 %
-%
+
+
 % BUGS & ISSUES:
 % If ds9.open does not display the image - see possible problem/solution:
 %       https://docs.google.com/document/d/1Q2qI25B9DlF2i7IbWdmPPt3sn3TL0Eq0P5HEaYI6HfM/edit#
 %       Fix a contradiction in the matlab libraries, that cause a problem running system commands:
 %       sudo mv /usr/local/MATLAB/R2020b/sys/os/glnxa64/libstdc++.so.6 /usr/local/MATLAB/R2020b/sys/os/glnxa64/libstdc++.so.6.orig
-%
-%
 
 
-classdef DS9 < handle
-    properties
-        MethodXPA              = 'ds9';   % Index of current active ID - 
-        Frame                  = [];
-        InfoAI                    % struct with:
-                                  % .Image - An AstroImage
-                                  % .Win - Display window
-                                  % .Frame - Frame number
-                                  % .FileName - File name
-        
-    end
-        
+classdef ds9 < handle
+    
+    
+    % A static class
+    
     % Constructor method (display)
     methods
-        function Obj = DS9(varargin)
-            % Create a DS9 object and open a ds9 window (if not exist)
-            %   Use load method to display images.
-            %   Use open method to open additional ds9 windows.
-            % Input  : * Arbitrary number of arguments that will be passed
-            %            to the disp method.
+        function Obj = ds9(Image,varargin)
+            % Display images in ds9
+            % Package: @ds9
+            % Description: Display images in ds9 (constructor).
+            %              See also ds9.disp.
+            % Input  : - Images to display. One of the following:
+            %            1. String containing a single FITS image name.
+            %            2. String with wild cards and ranges for multiple
+            %               FITS images.
+            %            3. Cell array of FITS image names.
+            %            4. A matrix.
+            %            5. A cube (display a cube).
+            %            6. Cell array of matrices.
+            %            7. A SIM object.
+            %            8. An AstroImage object.
+            %          * A vector of frames (see 'Frame') in which to load
+            %            the images into followed by ...,key,val,... pairs,
+            %            or just the ...,key,val,... pairs.
+            %            'Frame' - Frame indices or frame parameters
+            %                      (e.g., 'next'). Default is (1:N), where
+            %                      N is the number of images to display.
+            %            'Scale' - See ds9.scale. Default is 'mode zscale'.
+            %            'CMap'  - See ds9.cmap. Default is [].
+            %            'Colorbar' - See ds9.colorbar. Default is 'no'.
+            %            'Orient'- See ds9.orient. Default is [].
+            %            'Rotate'- See ds9.rotate. Default is [].
+            %            'Zoom'  - See ds9.zoom. Default is 1.
             % Output : null
-            % Author : Eran Ofek (May 2022)
-            % Example: D = DS9;
-            %          D = DS9(rand(100,100),1)
+            % Example: ds9(rand(100,100),1,'Zoom',2)
+            %          ds9(rand(100,100),'Zoom',2);
+            %          ds9(Sim(1:3));
+            %          ds9('MyFitsImage.fits');
+            %          ds9('Images*.fits');
+            % Reliable: 2
             
+            % ds9_disp(Image,varargin{:});
+
+            % O.S. added test for ds9 working window
             
-            Obj.open;
-            
-            if nargin>0
-                Obj.load(varargin{:});
-            end
-        end
-        
-    end
-    
-    methods % setters/getters
-        function Val = get.Frame(Obj)
-            % getter for the DS9 Frame property
-           
-            Val = Obj.frame;
-            Obj.Frame = Val;
-        end
-        
-        function Obj = set.Frame(Obj, Val)
-            % setter for the DS9 Frame property
-           
-            Obj.frame(Val);
-        end
-    end
-    
-    methods (Static) % ID utilities
-        function [Result,AllMethods] = getAllWindows
-            % get all active ds9 windows methods and names
-            % This can be used to identify the names of active ds9
-            % To change the ds9 display used by the DS( object, set its
-            % MethodXPA propery to the ds9 method you want to use.
-            % Output : - A structure array with element per each ds9 window
-            %            currently open, and the fields:
-            %            .Method
-            %            .Name
-            %            from the xpa info.
-            %          - A cell array of all ds9 method names.
-            % Author : Eran Ofek (May 2022)
-            % Example: DS9.getAllWindows
-            
-            String = 'xpaget ds9 xpa info';
-            [~,Answer] = system(String);
-            IsError    = DS9.isxpaError(Answer);
-            if IsError
-                Result = struct('Method',{}, 'Name',{});
-                AllMethods = {};
+            if nargin==0
+                ds9.open;
             else
-                Name   = regexp(Answer,'XPA_NAME:\s+(?<Name>\w+)','names');
-                Method = regexp(Answer,'XPA_METHOD:\s+(?<Method>\w+\:\w+)','names');
-            
-                if numel(Name)==numel(Method)
-                    %
-                    for I=1:1:numel(Name)
-                        Result(I).Method = Method(I).Method;
-                        Result(I).Name   = Name(I).Name;
-                    end
-                else
-                    Answer
-                    error('Number of ds9 names not equal to number of ds9 methods');
-                end
-                
-                AllMethods = {Result.Method};
+                ds9.disp(Image,varargin{:});
+                clear Obj; % Output Object Not Assigned, therefore need to clear it
             end
         end
         
     end
     
-    methods (Static) % xpa commands construction and execuation
+    
+    
+    % Static methods for ds9
+    % Basic methods (system, command construction, open, exit,...)
+    methods (Static)
+        
         % execute xpa command
-        function [Answer,Status,IsError] = system(String,varargin)
+        function [Answer,Status] = system(String,varargin)
             % Construct and execute an xpa command
             % Package: @ds9
             % Input  : - String to execute. The string may include any
@@ -148,10 +185,6 @@ classdef DS9 < handle
                 end
                 error('Command: %s failed - Answer: %s',String,Answer);
                 
-            end
-            
-            if nargout>2
-                IsError = DS9.isxpaError(Answer);
             end
         end
 
@@ -186,6 +219,26 @@ classdef DS9 < handle
             
         end
         
+        % xpaset
+        function xpaset(Command)
+            % Execute an xpaset command
+            % Package: @ds9
+            % Input  : - The command to follow the 'xpaset -p ds9'.
+            % Output : null
+            % Reliable: 2
+            ds9.system('xpaset -p ds9 %s',Command);
+        end
+        
+        % xpaget
+        function Ans = xpaget(Command)
+            % Execute an xpaget command
+            % Package: @ds9
+            % Input  : - The command to follow the 'xpaget ds9'.
+            % Output : - Return output.
+            % Reliable: 2
+            Ans=ds9.system('xpaget ds9 %s',Command);
+        end
+        
         % xpa help
         function xpahelp
             % Open the XPA command help web page
@@ -194,1142 +247,508 @@ classdef DS9 < handle
             % Output : null
             % Example: ds9.xpahelp
             % Reliable: 2
+           
             web('http://ds9.si.edu/doc/ref/xpa.html');
             
         end
         
-        % is error
-        function Result = isxpaError(String)
-            % Check if xpa anser is an error 
-            % Input  : - A string returned by xpaget
-            % Output : - A logical indicating if an error
-            % Author : Eran Ofek (May 2022)
-            % Example: Result = DS9.isxpaError('XPA$ERROR no 'xpaget' access points match template: ds9');
-            Result = contains(String, 'XPA$ERROR');
-        end
-    
         % check if ds9 is open
-        function Number = isOpen(UsePS)
-            % Return the number of open ds9 windows
-            % Input  : - A logical indicating if to use the xpaaccess
-            %            (false) or the ps (true) to determine if a ds9
-            %            window is open. Default is false.
-            % Output : The numer of open ds9 windoes.
-            % Author : Eran Ofek (May 2022)
-            % Example: DS9.isOpen
-            
-            arguments
-                UsePS logical    = false;
-            end
-            
-            if ~UsePS
-                try
-                    Ans = DS9.getAllWindows;
-                    Number = numel(Ans);
-                catch
-                    Number = 0;
-                end
+        function IsOpen = isopen
+            % Check if ds9 is open (linux/mac only)
+            % Package: @ds9
+            % Input  : null
+            % Output : A logical flag indicating if ds9 is open for the
+            %          user.
+            % Example: ds9.isopen
+            % Reliable: 2
+            if (ismac)
+                Status = system('ps -A | grep ds9 | grep -v grep  > /dev/null');
             else
-                if (ismac)
-                    Status = system('ps -A | grep ds9 | grep -v grep  > /dev/null');
-                else
-                    Status = system('ps -xug | grep ds9 | grep -v grep  > /dev/null');
-                end
-                if (Status==1)
-                    % not open
-                    Number = 0;
-                else
-                    % open
-                    Number = 1;
-                end
+                Status = system('ps -xug | grep ds9 | grep -v grep  > /dev/null');
+            end
+            if (Status==1)
+                % not open
+                IsOpen = false;
+            else
+                % open
+                IsOpen = true;
             end
             
         end
         
-        function Result = parseOutput(String, OutType)
-            % parse xpaget output string into array of strings/numbers
-            % Input  : - A string
-            %          - Output type:
-            %            'cell' - Seperate the input string by \s (space
-            %                   char) and return a cell array of the
-            %                   seperated strings.
-            %            'num' - Seperate the input string by \s (space
-            %                   char) and return the seperated strings
-            %                   converted to array of numbers. NaN if not
-            %                   convertable.
-            %            Default is 'cell'.
-            % Output : - The seperated string in a cell of strings or
-            %            numeric array format.
-            % Author : Eran Ofek (May 2022)
-            % Example: Result = parseOutput(String, 'num');
-            
-            arguments
-                String
-                OutType     = 'cell';
-            end
-            
-            SpStr = regexp(String,'\s','split');
-            % remove empty
-            Flag  = ~cellfun(@isempty,SpStr);
-            SpStr = SpStr(Flag);
-            
-            switch lower(OutType)
-                case 'cell'
-                    Result = SpStr;
-                case 'num'
-                    Result = str2double(SpStr);
-                otherwise
-                    error('Unknown OutType option');
-            end
-            
-        end
-        
-    end
-   
-    methods (Static)  % utility functions
-        function [ImageName, AI] = loadPrep(Obj, Image, Args)
-            % An internal utility function for the load command
-            % Input  : - A DS9 object.
-            %          - An image, or images. One of the following:
-            %            1. An AstroImage array.
-            %            2. A file name with wild cards.
-            %            3. A cell array of file names.
-            %            4. A matrix or a cell array of matrices.
-            %          * ...,key,val,...
-            %            'UseRegExp' - A logical indicating if to use
-            %                   regular expressions when interpreting a
-            %                   singel file name. If false, will use only
-            %                   wild cards. Default is false.
-            %            'DataProp' - A data property in the AstroImage
-            %                   from which to read the image.
-            %                   Options are: 'Image', 'Back', 'Var', 'Mask', 'PSF.
-            %                   Default is 'Image'.
-            %            'FileName' - A cell array of optional file names
-            %                   in which to write the FITS images.
-            %                   If empty, use tempname to generate file
-            %                   names.
-            %                   Default is {}.
-            % Output : - The name of the FITS file name containing the image.
-            %          - An AstroImage object containing the images.
-            %            Created only if second argument is requested.
-            % Author : Eran Ofek (May 2022)
-            
-            arguments
-                Obj
-                Image
-                Args.UseRegExp logical    = false;
-                Args.DataProp             = 'Image';
-                Args.FileName             = {};  % use tempname
-            end
-            
-            if nargout>1
-                PopAI = true;
-            else
-                PopAI = false;
-            end
-            
-            if ischar(Args.FileName)
-                Args.FileName = {Args.FileName};
-            end
-            
-            if ischar(Image)
-                Image = io.files.filelist(Image, Args.UseRegExp);
-            end
-            
-            if isnumeric(Image)
-                Image = {Image};
-            end
-            
-            Nim = numel(Image);
-            
-            ImageName = cell(1,Nim);
-            for Iim=1:1:Nim
-                % get file name in which to save the image
-                % will use this if Image is not a file name
-                if isempty(Args.FileName)
-                    FileName = tempname;
-                else
-                    FileName = Args.FileName{Iim};
-                end
-                if iscell(Image)
-                    if isnumeric(Image{Iim})
-                        % matrix image
-                        % save to FITS file on disk
-                        FITS.writeSimpleFITS(Image{Iim}, FileName);
-                        ImageName{Iim} = FileName;
-                        if PopAI
-                            AI(Iim) = AstroImage;
-                            AI(Iim).Image = Image{Iim};
-                        end
-                    elseif ischar(Image{Iim})
-                        % image name
-                        ImageName{Iim} = Image{Iim};
-                        if PopAI
-                            AI(Iim) = AstroImage(Image{Iim});
-                        end
-                    else
-                        error('Unknown Image formation option');
-                    end
-                elseif isa(Image, 'AstroImage')
-                    % AstroImage
-                    FITS.writeSimpleFITS(Image(Iim).(DataProp), FileName, 'Header',Image(Iim).HeaderData.Data);
-                    ImageName{Iim} = FileName;
-                    if Iim==1 && PopAI
-                        AI = Image;
-                    end
-                else
-                    error('Unknown Image formation option');
-                end
-                    
-                
-            end
-        end
-    end
-    
-    
-    methods % xpaget/xpaset
-        function xpaset(Obj, Command, varargin)
-            % Execute an xpaset command
-            % Input  : - A DS9 object.
-            %          - The command to follow the 'xpaset -p ds9'.
-            %            This string may also include printf control
-            %            characters like %s.
-            %          * An arbitrary number of input arguments that will
-            %            be inserted to the control characters in the second
-            %            input argument.
-            % Output : null
-            % Author : Eran Ofek (May 2022)
-            % Example: Obj.xpaset('mode %s',Mode);
-            
-            Command = sprintf(Command,varargin{:});
-            ds9.system('xpaset -p %s %s',Obj.MethodXPA, Command);
-        end
-        
-        function xpasetFrame(Obj, Frame, Command, varargin)
-            % Execute xpaset for multiple frames
-            % Input  : - A DS9 object.
-            %          - A vector of frames on which to operate the xpaset
-            %            command. If empty, or false use current frame.
-            %            If 'all' or true apply to all frames in current window.
-            %          - The command to follow the 'xpaset -p ds9'.
-            %            This string may also include printf control
-            %            characters like %s.
-            %          * An arbitrary number of input arguments that will
-            %            be inserted to the control characters in the second
-            %            input argument.
-            % Output : null
-            % Author : Eran Ofek (May 2022)
-            % Example: D = DS9(rand(100,100),1);
-            %          D.load(rand(200,200),2)
-            %          D.xpasetFrame(true,'zoom to 2')
-            %          D.xpasetFrame(true,'zoom to 4')
-           
-            if isempty(Frame)
-                % use current frame
-                Frame = Obj.frame;
-            end
-            if ischar(Frame)
-                % use all frames
-                [~,Frame] = Obj.nframe;
-            elseif islogical(Frame)
-                if Frame
-                    % use all frames
-                    [~,Frame] = Obj.nframe;
-                else
-                    % use current frame
-                    Frame = Obj.frame;
-                end
-            else
-                % do nothing
-            end
-            
-            % get current frame
-            CurFrame = Obj.frame;
-            
-            Nframe = numel(Frame);
-            for Iframe=1:1:Nframe
-                Obj.frame(Frame(Iframe));
-                Obj.xpaset(Command,varargin{:});
-            end
-            
-            % back to original frame
-            Obj.frame(CurFrame);
-        end
-        
-        function Ans = xpaget(Obj, Command, varargin)
-            % Execute an xpaget command
-            % Input  : - A DS9 object.
-            %          - The command to follow the 'xpaget ds9'.
-            %            This string may also include printf control
-            %            characters like %s.
-            %          * An arbitrary number of input arguments that will
-            %            be inserted to the control characters in the second
-            %            input argument.
-            % Output : - Return output.
-            % Author : Eran Ofek (May 2022)
-            
-            Command = sprintf(Command,varargin{:});
-            Ans = ds9.system('xpaget %s %s',Obj.MethodXPA, Command);
-            Ans = regexprep(Ans, '\n$','');  % remove the \n at the end of the result string  
-        end
-    
-        function List = selectWindow(Obj, Id)
-            % select/focus on one of the open ds9 windows by running number
-            % Input  : - A DS9 object.
-            %          - A running index for the ds9 window.
-            %            If Inf use last entry.
-            %            Default is 1.
-            % Output : - The first output argument of DS9.getAllWindows
-            % Author : Eran Ofek (May 2022)
-            % Example: D = DS9; List = selectWindow(D)
-            
-            arguments
-                Obj
-                Id = 1;
-            end
-            
-            List = DS9.getAllWindows;
-            if isempty(List)
-                Obj.MethodXPA = [];
-            else
-                if isinf(Id)
-                    Obj.MethodXPA = List(end).Method;
-                else
-                    Obj.MethodXPA = List(Id).Method;
-                end
-            end
-            
-        end
-         
-        function [Result, ChangeResult] = isWindowExist(Obj, ChangeIfNotExist)
-            % Check if the current MethodXPA in the DS9 object exist/open.
-            % Input  : - A DS9 object.
-            %          - A logical indicating what to do if the the ds9
-            %            window doesn't exist. If false do nothing.
-            %            If true, then will call selectWindow that will
-            %            shift the focus to the first listed ds9 window.
-            %            The existsence of such window will be indicated in
-            %            the second output argument.
-            % Output : - A logical indicating if the Method property in the
-            %            DS9 object is a valid/exist ds9 window.
-            %          - If changed window this is a logical indicating if
-            %            the new window exist. 
-            % Author : Eran Ofek (May 2022)
-            % D = DS9; R = isWindowExist(D);
-            
-            arguments
-                Obj
-                ChangeIfNotExist logical   = false;
-            end
-            
-            if Obj.isOpen
-                All    = DS9.getAllWindows;
-                Result = any(strcmp({All.Method}, Obj.MethodXPA));
-                ChangeResult = true;
-
-                if ChangeIfNotExist
-                    Obj.selectWindow;
-                    if nargout>1
-                        [~, ChangeResult] = isWindowExist(Obj, false);
-                    end
-                end
-            else
-                ChangeResult = false;
-                Result       = false;
-            end
-            
-        end
-    end
-    
-    methods  % AI and InfoAI utilities
-        function Obj = addAI(Obj, Image, FileName, Frame)
-            % Add an AstroImage to AI and InfoAI properties
-            % Input  : - A DS9 object.
-            %          - An AstroImage object, or a FITS file name, or cell
-            %            array of file names.
-            %          - A file name, or a cell array of file names.
-            %            Each file name corresponds to an AstroImage
-            %            element.
-            %            If empty, then generate a file name using
-            %            tempname. Default is [].
-            %          - A vector of frame indices, corresponding to the
-            %            AstroImage elements.
-            %            If empty (and AstroImage input is a scalar), then
-            %            use the current frame number. Default is [].
-            % Output : - An updated DS9 object with the .AI and .InfoAI
-            %            properties updated.
-            % Author : Eran Ofek (May 2022)
-            % Example: 
-            
-            arguments
-                Obj
-                Image
-                FileName   = [];
-                Frame      = [];
-            end
-           
-            if ischar(Image)
-                Image = {Image};
-            end
-            if isa(Image, 'AstroImage')
-                ImageAI = Image;
-            else
-                ImageAI = AstroImage(Image);
-            end
-            
-            if ischar(FileName)
-                FileName = {FileName};
-            end
-                        
-            Nim = numel(ImageAI);
-            if isempty(Frame)
-                if Nim==1
-                    % get current frame number;
-                    Frame = Obj.frame;
-                else
-                    error('If frame number is empty, the ImageAI must be a scalar');
-                end
-            end
-            
-            for Iim=1:1:Nim
-                Nai = numel(Obj.InfoAI);
-                I   = Nai + 1;   % new AI
-
-                Obj.InfoAI(I).Image    = ImageAI(Iim);
-                Obj.InfoAI(I).Win      = Obj.MethodXPA;
-                if isempty(FileName)
-                    Obj.InfoAI(I).FileName = tempname;
-                else
-                    Obj.InfoAI(I).FileName = FileName{Iim};
-                end
-                Obj.InfoAI(I).Frame    = Frame(Iim);
-            end
-                        
-        end
-            
-        function Obj = deleteAI(Obj, ID, Frame, Window)
-            % Delete entries from InfoAI property in the DS9 object
-            % Input  : - A DS9 object.
-            %          - Entry number in the InfoAI propery.
-            %            If empty, select by frame number and window name.
-            %            If 'all' - delete for all frames in window.
-            %            Default is []
-            %          - A vector of frame numbers to remove.
-            %            Default is 1.
-            %          - A window name to remove. If empty, use active
-            %            window.
-            % Output : - An updated DS9 object with the selected entries
-            %            removed from the InfoAI propery.
-            % Author : Eran Ofek (May 2022)
-            % Example: 
-            
-            arguments
-                Obj
-                ID        = [];
-                Frame     = 1;
-                Window    = [];
-            end
-           
-            if isempty(ID)
-                % remove InfoAI entry using Frame and Window
-                if isempty(Window)
-                    % use current window
-                    Window = Obj.MethodXPA;
-                end
-                if ischar(Frame) || isinf(Frame)
-                    % get all frame numbers
-                    [~,Frame] = Obj.nframe;
-                end
-                Nf  = numel(Frame);
-                Nai = numel(Obj.InfoAI);
-                FlagDel = false(Nai,1);
-                for Iai=1:1:Nai
-                    if ischar(Frame)
-                        % delete for all frames in window
-                        Flag = strcmp({Obj.InfoAI(Iai).Win}, Window);
-                    else
-                        Flag = (Obj.InfoAI(Iai).Frame == Frame) & strcmp({Obj.InfoAI(Iai).Win}, Window);
-                    end
-                    switch sum(Flag)
-                        case 0
-                            % not found
-                        case 1
-                            % remove Iai
-                            FlagDel(Iai) = true; 
-                        otherwise
-                            error('InfoAI contains more than one entry per frame');
-                    end
-                end
-                
-            else
-                % remove by ID entry
-                Nai = numel(Obj.InfoAI);
-                FlagDel = (1:1:Nai)==ID;
-                
-            end
-            Obj.InfoAI = Obj.InfoAI(~FlagDel);
-        end
-        
-        function AI = getAI(Obj, Frame, Window)
-            % get the AstroImage stored in the InfoAI property for a given window/frame
-            % Input  : - A DS9 object.
-            %          - Frame index. If empty, use current frame.
-            %            Default is [].
-            %          - ds9 window name. If empty, use current window.
-            %            Default is [].
-            % Output : - An AstroImage object found in the InfoAI property
-            %            that corresponds to the requested frame and window.
-            % Author : Eran Ofek (May 2022)
-            
-            arguments
-                Obj
-                Frame   = [];
-                Window  = [];
-            end
-           
-            if isempty(Window)
-                % get current window
-                Window = Obj.MethodXPA;
-            end
-            if isempty(Frame)
-                % get current frame
-                Frame = Obj.frame;
-            end
-            
-            Flag = strcmp({Obj.InfoAI.Win}, Window) & [Obj.InfoAI.Frame]==Frame;
-            switch sum(Flag)
-                case 0
-                    % not found
-                    AI = [];
-                case 1
-                    AI = Obj.InfoAI(Flag).Image;
-                otherwise
-                    error('More than one image corresponding to window=%s and frame=%d was found in InfoAI',Window, Frame);
-            end
-            
-        end
-    end
-    
-    methods % open, exit, mode
         % open ds9
-        function Found = open(Obj, New, Args)
-            % Open ds9 dispaly window and set mode to region
-            % Input  : - A DS9 object.
-            %          - A logical indicating if to open a new
-            %            window if ds9 window already exist.
-            %            If true, then will shift focus to the new
-            %            window.
-            %            Default is false.
-            %          * ...,key,val,...
-            %            'Wait' - Wait after open the ds9 window.
-            %                   Default is 3 [s].
-            % Output : - A logical indicating if a new window was opened.
-            % Author : Eran Ofek (May 2022)
+        function open
+            % Open ds9 dispaly window if not exist already and set mode to region
+            % Package: @ds9
+            % Input  : null
+            % Output : null
             % Problems: The command ds9 is not recognized by the bash interpreter, try adding an alias
             %           to the bash profile using ‘vim .bash_profile’ adding the following line to the
             %           profile ‘alias ds9="open -a /Applications/SAOImageDS9.app/Contents/MacOS/ds9"
-            % Example: DS9.open
+            % Example: ds9.open
             % Reliable: 2
-            
-            arguments
-                Obj
-                New logical        = false;
-                Args.Wait          = 1;
-                Args.Timeout       = 5;
-            end
-            SEC_IN_DAY = 86400;
-            
-            Found = false;
-            if DS9.isOpen && ~New
+            Wait = 3;  % s
+            if ds9.isopen
                 % do nothing - already open
-                fprintf('ds9 is already open - Using existing window\n');
-                fprintf('   To open a new ds9 window use open(Obj, true)\n');
+                fprintf('ds9 is already open\n');
             else
-                [~,ListOld]   = Obj.getAllWindows;
                 [Status, Res] = system('ds9&');
-                Tstart = now;
-                Found  = false;
-                while ~Found && ((now-Tstart).*SEC_IN_DAY)<Args.Timeout
-                    pause(Args.Wait);
-                    [~,ListNew]   = Obj.getAllWindows;
-                    if numel(ListOld) == (numel(ListNew)-1)
-                        % identify new window
-                        Diff = setdiff(ListNew, ListOld);
-                        if numel(Diff)==1
-                            Obj.MethodXPA = Diff{1};
-                            Found         = true;
-                        else
-                            error('Number of different windows is not 1');
-                        end
-                    else
-                        Obj.MethodXPA = [];
-                    end
-                end
-                
-                List = [];
-                Tstart = now;
-                while isempty(List) && ((now-Tstart).*SEC_IN_DAY)<Args.Timeout
-                    pause(Args.Wait);
-                    List = Obj.selectWindow(Inf);
-                end
-                
                 if (Status~=0)
                     warning('Can not open ds9');
+                else
+                    pause(Wait);
                 end
-                Obj.mode('region');
+            
             end
+            ds9.mode('region');
             
         end
         
-        function Result = mode(Obj, Mode)
+        % mode
+        function mode(Mode)
             % Set ds9 mode
-            % Input  : - A DS9 object.
-            %          - ds9 mode:
+            % Package: @ds9
+            % Input  : - ds9 mode.
             %            none|region|crosshair|colorbar|pan|zoom|rotate|catalog|examine.
-            %            If empty, then return mode state.
-            %            If Inf show a message with all possible modes.
             %            Default is 'region'.
-            % Output : - If mode is [], then will return the mode state.
-            % Author : Eran Ofek (May 2022)
+            % Output : null
             
-            arguments
-                Obj
+            if (nargin==0)
                 Mode = 'region';
             end
             
-            Result = [];
-            if isempty(Mode)
-                % get current Mode
-                Str    = Obj.xpaget('mode');
-                Result = regexprep(Str,'\n','');
-            else
-                if isinf(Mode)
-                    % show all possible modes
-                    fprintf('Possible modes: [none|region|crosshair|colorbar|pan|zoom|rotate|catalog|examine|3d]\n');
-                else
-                    Obj.xpaset('mode %s',Mode);
-                end
-            end
+            ds9.system('xpaset -p ds9 mode %s',Mode);
         end
         
-        function exit(Obj, Id)
+        % exit ds9
+        function exit
             % exit ds9
-            % Input  : - A DS9 object.
-            %          - A MethodXPA name (ds9 window name).
-            %            If empty, use current active window.
-            %            Default is [].
+            % Package: @ds9
+            % Input  : null
             % Output : null
-            % Author : Eran Ofek (May 2022)
-            % Example: D = DS9; D.exit;
-            
-            arguments
-                Obj
-                Id    = [];
-            end
-            
-            if isempty(Id)
-                % use current MethodXPA
-                Id = Obj.MethodXPA;
-            else
-                Obj.MethodXPA = Id;
-            end
-            
-            Obj = Obj.deleteAI([], 'all', Obj.MethodXPA);
-            
-            % check if Id exist
-            [Exist, ~] = isWindowExist(Obj, true);
-            
-            %DS9.system('xpaset -p ds9 exit');
-            if Exist
-                Obj.xpaset('exit');
-            end
-            
-            pause(1);
-            Obj.selectWindow(Inf)
-              
-            
+            % Reliable: 2
+            ds9.system('xpaset -p ds9 exit');
         end
         
     end
     
-    methods  % frame related methods
-        function Result = frame(Obj, Frame)
-            % Set (xpaset) the current ds9 window frame number
-            % Input  : - A DS9 object.
-            %          - A string or a number to pass to the xpaset after
-            %            the frame command. I.e., will execute:
-            %            xpaset -p <WindowName> frame <input arg>
-            %            If empty, then will return the cuurent frame
-            %            number. Default is [].
-            % Output : - The number of the current active frame.
-            % Author : Eran Ofek (May 2022)
-            % Ref    : http://ds9.si.edu/doc/ref/xpa.html#frame
-            % Example: D = DS9;
-            %          R = D.frame      % only return current frame number
-            %          R = D.frame(2)   % goto frame 2
-            %          R = D.frame('center') % center current frame
-            %          R = D.frame('clear') % clear current frame
-            %          R = D.frame('delete') % delete current frame
-            %          R = D.frame('new') % create new frame
-            %          R = D.frame('new rgb') % create new rgb frame
-            %          R = D.frame('reset') % reset current frame
-            %          R = D.frame('refresh') % refresh current frame
-            %          R = D.frame('hide') % hide current frame
-            %          R = D.frame('first') % goto first frame
-            %          R = D.frame('prev') % goto previous frame
-            %          R = D.frame('last') % goto last frame
-            %          R = D.frame('next') % goto next frame
-            %          R = D.frame('match wcs') % 
-            %          R = D.frame('lock wcs') % 
-                        
-            arguments
-                Obj
-                Frame   = [];
-            end
-            
-            if ~isempty(Frame)
-                if ischar(Frame)
-                    String = sprintf('frame %s',Frame);
-                elseif isnumeric(Frame)
-                    String = sprintf('frame %d',Frame);
+    % Frame methods
+    % (frame, delete_frame, clear_frame, disp, load, load1, disp, write2fits, write2sim)
+    methods (Static)
+        
+        % set/get frame
+        function Answer=frame(FrameNumber)
+            % Set ds9 frame
+            % Package: @ds9
+            % Input  : - If not given than only get the current frame
+            %            number. If numeric then set frame number.
+            %            Alternatively, if a string than set to frame name.
+            %            Possible names: 'first'|'prev'|'next'|'last'
+            %            Additional possibilities include:
+            %            'hide'|'move first'|'move last'|'move back'|
+            %            'move forward'|'match wcs'|'lock wcs'|...
+            % Output : - Current frame number.
+            % Reliable: 2
+            if (nargin==0)
+                % get frame number
+                Answer = ds9.system('xpaget ds9 frame frameno');
+            else
+                % set frame number
+                if ischar(FrameNumber)
+                    % string frame
+                    ds9.system('xpaset -p ds9 frame %s',FrameNumber);
                 else
-                    error('Unknown Frame type input - must be numeric or char array');
+                    % numeric frame
+                    ds9.system('xpaset -p ds9 frame frameno %d',FrameNumber);
                 end
-                Obj.xpaset(String);
+                
+                % get current frame number if needed
+                if (nargout>0)
+                    Answer = ds9.system('xpaget ds9 frame frameno');
+                end
             end
-            
-            % get current frame number
-            OutStr = Obj.xpaget('frame');
-            Result = DS9.parseOutput(OutStr, 'num');
-                                     
+            pause(0.2);
         end
         
-        function [N, ID, ActiveID] = nframe(Obj)
-            % Return the number of available frames in current ds9 window
-            % Input  : - A DS9 object.
-            % Output : - Number of frames.
-            %          - Vector of IDs of all frames
-            %          - Vector of IDs of all active frames
-            % Author : Eran Ofek (May 2022)
-            % See also: frame method.
-            % Example: D = DS9; [R,ID,AID] = D.nframe
-            
-            OutStr = Obj.xpaget('frame all');
-            ID     = DS9.parseOutput(OutStr, 'num');
-            N      = numel(ID);
-            
-            if nargout>2
-                OutStr = Obj.xpaget('frame active');
-                ActiveID     = DS9.parseOutput(OutStr, 'num');
-            end
-            
-        end
-        
-        function clearFrame(Obj, ID)
-            % clear frame, by ID or curreny
-            %   After the clear is done then will return to the starting point frame
-            % Input  : - A DS9 object.
-            %          - A vector of frame numbers to clear.
-            %            If empty, clear current frame.
-            %            If Inf or char array, then clear all frames.
-            %            Default is [].
+        % delete frame
+        function delete_frame(FrameNumber)
+            % Delete frames from ds9
+            % Package: @ds9
+            % Description: Delete frame number, some frames or all frames
+            %              from ds9.
+            % Input  : - Vector of frames to delete.
+            %            If empty then delete current frame. Default.
+            %            If Inf then delete all frames.
             % Output : null
-            % Author : Eran Ofek (May 2022)
-            % Example: D = DS9; D.clearFrame;
-            %          D.clearFrame(2);
-            %          D.clearFrame('all');
-            
-            arguments
-                Obj
-                ID     = [];
-            end
-            
-            if ~isempty(ID)
-                % current ID
-                CurID = Obj.frame;
+            % Example: ds9.delete_frame(Inf)
+            % Reliable: 2
+           
 
-                if ischar(ID) || isinf(ID)
-                    % clear all
-                    [~,ID] = Obj.nframe;
-                end
-                
-                Nid = numel(ID);
-                % move to frame to clear
-                for I=1:1:Nid
-                    Obj.frame(ID(I));
-                    Obj.frame('clear');
-                end
-                
-                % return to original frame
-                Obj.frame(CurID);
+             if (nargin==0)
+                FrameNumber = [];
+             end
+            
+            if (isempty(FrameNumber))
+                % delete current frame
+                ds9.system('xpaset -p ds9 frame delete');
             else
-                Obj.frame('clear');
+                if (isinf(FrameNumber))
+                    % get all frame numbers
+                    Ans = ds9.system('xpaget ds9 frame all');
+                    Frames = regexp(Ans,' ','split');
+                    Frames = Frames(1:end-1);
+                    FrameNumber = cellfun(@str2double,Frames);
+                end
+                
+                % delete requested frames
+                Nf = numel(FrameNumber);
+                for If=1:1:Nf
+                    ds9.system('xpaset -p ds9 frame frameno %d',FrameNumber(If));
+                    ds9.system('xpaset -p ds9 frame delete');
+                end
+                
             end
         end
-        
-        function deleteFrame(Obj, ID)
-            % delete frame, by ID or curreny
-            %   After the clear is done then will NOT return to the starting point frame
-            % Input  : - A DS9 object.
-            %          - A vector of frame numbers to delete.
-            %            If empty, clear current frame.
-            %            If Inf or char array, then delete all frames.
-            %            Default is [].
+              
+        % clear frame
+        function clear_frame(FrameNumber)
+            % Clear frames from ds9
+            % Package: @ds9
+            % Description: Clear frame number, some frames or all frames
+            %              from ds9.
+            % Input  : - Vector of frames to clear.
+            %            If empty then clear current frame. Default.
+            %            If Inf then clear all frames.
             % Output : null
-            % Author : Eran Ofek (May 2022)
-            % Example: D = DS9; D.deleteFrame;
-            %          D.deleteFrame(2);
-            %          D.deleteFrame('all');
-            
-            arguments
-                Obj
-                ID     = [];
-            end
-            
-            if ~isempty(ID)
-                if ischar(ID) || isinf(ID)
-                    % clear all
-                    [~,ID] = Obj.nframe;
-                end
-                
-                Nid = numel(ID);
-                % move to frame to clear
-                for I=1:1:Nid
-                    Obj.frame(ID(I));
-                    Obj.frame('delete');
-                end
-            else
-                Obj.frame('delete');
-            end
+            % Example: ds9.clear_frame(Inf)
+            % Reliable: 2
            
+            if (nargin==0)
+                FrameNumber = [];
+            end
+                
+            
+            if (isempty(FrameNumber))
+                % clear current frame
+                ds9.system('xpaset -p ds9 frame clear');
+            else
+                if (isinf(FrameNumber))
+                    % get all frame numbers
+                    Ans = ds9.system('xpaget ds9 frame all');
+                    Frames = regexp(Ans,' ','split');
+                    Frames = Frames(1:end-1);
+                    FrameNumber = cellfun(@str2double,Frames);
+                end
+                
+                % delete requested frames
+                Nf = numel(FrameNumber);
+                for If=1:1:Nf
+                    ds9.system('xpaset -p ds9 frame frameno %d',FrameNumber(If));
+                    ds9.system('xpaset -p ds9 frame clear');
+                end
+                
+            end
         end
-    end
-    
-    methods  % load and display images
         
-        function url(Obj, URL, Frame)
-            % Display FITS files in URL links
-            % Input  : - A DS9 object.
-            %          - A char array containing a URL link or a cell array
-            %            of URLs.
-            %          - Frame number or a vector of frame numbers in which
-            %            to load the images. If empty, open a new frame.
-            %            Default is [].
-            % Output : null
-            % Author : Eran Ofek (May 2022)
-            % Example: D = DS9;
-            %          D.url(URL);
+        % Load a FITS image into ds9 frame
+        function [Frame,CurFile]=load(FitsFile,FrameNumber)
+            % Load a FITS image into ds9 frame
+            % Package: @ds9
+            % Description: Load a FITS image into ds9 frame
+            % Input  : - FITS file name. This is either a fits file name
+            %            in the current directory or a full path to the
+            %            file name.
+            %          - Frame number.
+            %            Default is 'next'.
+            % Output : - Current frame number
+            %          - Current fits file name
+            % Author : Eran Ofek
             
             arguments
-                Obj
+                FitsFile
+                FrameNumber = 'next';
+            end
+            
+            Frame = ds9.frame(FrameNumber);
+            
+            % check if file name contains directory seperator
+            if contains(FitsFile, filesep)
+                % file name contains directory seperator
+                % Assume that FitsFile is a full path
+                % do nothing
+            else
+                % Assume FitsFile is not a full path
+                FitsFile = sprintf('%s%s%s',pwd,filesep,FitsFile);
+            end
+            
+            % load FITS file
+            ds9.system('xpaset -p ds9 file %s',FitsFile);
+            
+            if (nargout>1)
+                CurFile = ds9.system('xpaget ds9 file');
+            end
+
+        end
+        
+        % Load a FITS image into ds9 frame number 1
+        function [Frame,CurFile]=load1(FitsFile)
+            % Load a FITS image into ds9 frame number 1
+            % Package: @ds9
+            % Description: Load a FITS image into ds9 frame number 1
+            % Input  : - Fits file name
+            % Output : - Current frame number
+            %          - Current fits file name
+            % Reliable: 2
+            [Frame,CurFile] = ds9.load(FitsFile, 1);
+            
+        end
+        
+        function Frame=url(URL, FrameNumber)
+            % Load FITS file from a URL
+            % Package: @ds9
+            % Description: Load FITS file from a URL.
+            % Input  : - URL string.
+            %          - Frame number.
+            %            Default is 'next'.
+            % Output : - Frame number.
+            % Example: ds9.url(URL);
+            % Reliable: 2
+            
+            arguments
                 URL
-                Frame            = [];
+                FrameNumber = 'next';
             end
            
-            if ischar(URL)
-                URL = {URL};
-            end
-            Nurl = numel(URL);
-            
-            if isempty(Frame)
-                % open a new frame
-                Frame = Obj.frame('new');
-            end
-                
-            if numel(Frame)==1 && Nurl>1
-                Frame = (Frame:1:Frame+Nurl-1);
-            end
-            
-            for Iurl=1:1:Nurl
-                Obj.frame(Frame(Iurl));
-                Obj.xpaset('url %s',URL{Iurl});
-            end
-            
+            Frame = ds9.frame(FrameNumber);
+            ds9.system('xpaset -p ds9 url %s',URL);
         end
         
-        function load(Obj, Image, Frame, Args)
-            % Load an image into ds9 display.
-            %   Also optionaly populate the InfoAI property.
-            % Input  : - A DS9 object.
-            %          - An image, or images. One of the following:
-            %            1. An AstroImage array.
-            %            2. A file name with wild cards.
-            %            3. A cell array of file names.
-            %            4. A matrix or a cell array of matrices.
-            %          - Array of frame numbers in which to display the
-            %            images. If scalar will build the array starting
-            %            with the provided number (steps of 1).
-            %            If Inf, open a new frame.
-            %            If empty, use the current frame.
-            %            Default is [].
+        % display images in all formats
+        function disp(Images, Frame, Args)
+            % Display images in ds9 (use ds9 for short cut)
+            % Package: @ds9
+            % Description: Display images in ds9
+            %              For shortcut use the ds9 constructor
+            %              (see examples).
+            % Input  : - Images to display. One of the following:
+            %            1. String containing a single FITS image name.
+            %            2. String with wild cards and ranges for multiple
+            %               FITS images.
+            %            3. Cell array of FITS image names.
+            %            4. A matrix.
+            %            5. A cube (display a cube).
+            %            6. Cell array of matrices.
+            %            7. A SIM object.
+            %          - Frame number, or vector of frames. Default is 1.
             %          * ...,key,val,...
-            %            'UseRegExp' - A logical indicating if to use
-            %                   regular expressions when interpreting a
-            %                   singel file name. If false, will use only
-            %                   wild cards. Default is false.
-            %            'DataProp' - A data property in the AstroImage
-            %                   from which to read the image.
-            %                   Options are: 'Image', 'Back', 'Var', 'Mask', 'PSF.
-            %                   Default is 'Image'.
-            %            'PopAI' - A logical indicating if to populate the
-            %                   InfoAI property. If true, then an
-            %                   AstroImage containing the images will be
-            %                   loaded into the InfoAI property.
-            %                   Default is true.
+            %            'Scale' - See ds9.scale. Default is 'mode zscale'.
+            %            'CMap'  - See ds9.cmap. Default is [].
+            %            'Colorbar' - See ds9.colorbar. Default is 'no'.
+            %            'Orient'- See ds9.orient. Default is [].
+            %            'Rotate'- See ds9.rotate. Default is [].
+            %            'Zoom'  - See ds9.zoom. Default is 1.
             % Output : null
-            % Author : Eran Ofek (May 2022)
-            % Example: D=DS9; D.disp(rand(10,10));
+            % Example: ds9.disp(rand(100,100),1,'Zoom',2)
+            %          ds9.disp(rand(100,100),1,'Zoom',2);
+            %          ds9.disp(Sim(1:3));
+            %          ds9.disp('MyFitsImage.fits');
+            %          ds9.disp('Images*.fits');
+            % Reliable: 2
             
             arguments
-                Obj
-                Image                           % Image, matrix, AstroImage\
-                Frame                    = [];  % if empty use current frame, or 1 if not exist, Inf for new frame
-                Args.UseRegExp logical   = false;
-                Args.PopAI logical       = true;
-                Args.DataProp            = 'Image';
+                Images
+                Frame                       = 1;
+                Args.KeepPars(1,1) logical  = false;
+                Args.Scale                  = 'mode zscale';
+                Args.CMap                   = [];
+                Args.Colorbar               = 'no';
+                Args.Orient                 = [];
+                Args.Rotate                 = [];
+                Args.Zoom                   = 1;
+                Args.ImageField             = 'Image'; % 'Im' for SIM
+            end
+            ImageField = SIM.ImageField;
+            
+            % open ds9
+            if ds9.isopen
+                if Args.KeepPars && isempty(Args.Zoom)
+                    % read parameters
+                    % FFU - add additional parameters
+                    Args.Zoom = ds9.zoom;
+                end
+            else
+                ds9.open;
+            end
+
+            
+            IsFits = false;
+            
+            % prepare cell array of string (FITS images)
+            if (ischar(Images))
+                [~,List] = io.files.create_list(Images,NaN);
+                IsFits = true;
+                Nim = numel(List);
             end
             
-            if ischar(Image)
-                Image = {Image};
-            end
-           
-            if iscellstr(Image)
-                FileName = Image;
-                IsURL    = www.isURL(FileName);
-            else
-                FileName = {};
-                IsURL    = false;
+            % prepare cell array of matrices
+            if (isnumeric(Images))
+                List   = {Images};
+                IsFits = false;
+                Nim    = numel(List);
             end
             
-            if Args.PopAI
-                [ImageName, AI] = DS9.loadPrep(Obj, Image, 'UseRegExp', Args.UseRegExp,...
-                                                       'DataProp',Args.DataProp,...
-                                                       'FileName',FileName);
-            else
-                [ImageName] = DS9.loadPrep(Obj, Image, 'UseRegExp', Args.UseRegExp,...
-                                                       'DataProp',Args.DataProp,...
-                                                       'FileName',FileName);
-                AI = [];
+            if isa(Images,'SIM') || isa(Images,'AstroImage') || isa(Images,'ImageComponent')
+                IsFits = false;
+                Nim    = numel(Images);
             end
             
-            Nim = numel(ImageName);
-            if isempty(Frame)
-                % use the current frame
-                Frame = Obj.frame;
-            else
-                if isinf(Frame)
-                    Frame = Obj.frame('new');
-                else
-                    Frame = Obj.frame(Frame);
+%             if (imCl.isimCl(Images))
+%                 %List   = Images;  %.(ImageField);
+%                 IsFits = false;
+%                 Nim = numel(Images);
+%             end
+            
+            
+            % create tmp file names
+            IsTmp   = false;
+            
+            if (~IsFits)
+                % create tmp image
+                IsTmp     = true;
+                for Iim=1:1:Nim
+                    TmpName = sprintf('%s.fits',tempname);
+                    % create FITS files
+                    %fitswrite_my(List{Iim},TmpName);
+                    if isa(Images,'SIM')
+                        % to fix a problem - delete the PCOUNT and GCOUNT
+                        % header keywords
+                        %Images(Iim) = delete_key(Images(Iim),{'PCOUNT','GCOUNT','PSCALET1','PSCALET2'});
+                        Images(Iim) = delete_key(Images(Iim),{'EXTVER','PCOUNT','GCOUNT','PSCALET1','PSCALET2',...
+                            'XTENSION','TTYPE1','TFORM1','TTYPE2','TFORM2','TTYPE3','TFORM3'}); % Na'ama, 20180831, to display fits.fz (fpacked) images
+                        
+                        
+                        Nkey = size(Images(Iim).Header,1);
+                        Bl   = cell(Nkey,1);
+                        [Bl{1:Nkey}] = deal(' ');
+                        Images(Iim).Header = [Images(Iim).Header(:,1:2),  Bl];
+                        FITS.write(Images(Iim).(ImageField),TmpName,'Header',Images(Iim).Header);
+                    elseif isa(Images,'AstroImage')
+                        % FFU - need to fix header?
+                        FITS.write(Images(Iim).(Args.ImageField), TmpName, 'Header',Images(Iim).Header);
+                        
+                    elseif isa(Images,'ImageComponent')
+                        % no header
+                        FITS.write(Images(Iim).(Args.ImageField), TmpName);
+                        
+                    else
+                        FITS.write(List{Iim},TmpName);
+                    end
+                    List{Iim} = TmpName;
                 end
             end
-                
-            if numel(Frame)==1 && Nim>1
-                Frame = (Frame:1:Frame+Nim-1);
+           
+            if (isempty(Frame))
+                Frame = (1:1:Nim).';
             end
-            
-            if numel(Frame)>1 && Nim~=numel(Frame)
-                error('Number if frames must be one or equal to the number of images');
-            end
-            
-            if ~isempty(AI)
-                Obj = addAI(Obj, AI, ImageName, Frame);
+            if (~ischar(Frame))
+                Frame = Frame(:).*ones(Nim,1);
             end
             
             for Iim=1:1:Nim
-                Obj.frame(Frame(Iim));
-                Obj.xpaset('fits %s', ImageName{Iim});
+                % for each image
+               
+                if (ischar(Frame))
+                    ds9.load(List{Iim},Frame);
+                else
+                    ds9.load(List{Iim},Frame(Iim));
+                end
+                
+                % set image properties
+                if (~isempty(Args.Scale))
+                    ds9.scale(Args.Scale);
+                end
+                if (~isempty(Args.CMap))
+                    ds9.cmap(Args.CMap);
+                end
+                if (~isempty(Args.Colorbar))
+                    ds9.colorbar(Args.Colorbar);
+                end
+                if (~isempty(Args.Orient))
+                    ds9.orient(Args.Orient);
+                end
+                if (~isempty(Args.Rotate))
+                    ds9.rotate(Args.Rotate);
+                end
+                if (~isempty(Args.Zoom))
+                    ds9.zoom(Args.Zoom);
+                end
+                   
+               
             end
+            
+            if (IsTmp)
+                io.files.delete_cell(List);
+            end
+            pause(0.2);
+            
         end
         
-    end
-    
-    methods  % read image from ds9
-        function FileName = save(Obj, FileName, Args)
-            % Save current ds9 frame to FITS file
-            % Input  : - A DS9 object.
-            %          - A file name. Default is to generate a file name 
-            %            using tempname.
-            %          * ...,key,val,...
-            %            'Type' - Image type to save - one of the following options:
-            %                   [fits|rgbimage|rgbcube|mecube|mosaic|mosaicimage].
-            %                   [eps|gif|tiff|jpeg|png]
-            %                   Default is 'fits'.
-            %            'Jquality' - jpeg quality. Default is 75.
-            % Output : - Saved file name.
-            % Author : Eran Ofek (May 2022)
-            % Example: D=DS9(rand(100,100)); FN = D.save; delete(FN)
-            
-            arguments
-                Obj
-                FileName         = tempname;
-                Args.Type        = 'fits';
-                Args.Jquality    = 75;
-            end
-            
-            switch lower(Args.Type)
-                case {'fits','rgbimage','rgbcube','mecube','mosaic','mosaicimage'}
-                    Obj.xpaset('save %s %s', Args.Type, FileName);
-                case {'eps','gif','tiff','png'}
-                    Obj.xpaset('saveimage %s %s', Args.Type, FileName);
-                case {'jpeg','jpg'}
-                    Obj.xpaset('saveimage jpeg %s %d', FileName, Args.Juality);
-                otherwise
-                    error('Unknown Type option');
-            end
-        end
-    end
-    
-    methods % zoom, pan, rotate, ...
-        function zoom(Obj, Zoom, All)
-            % Apply zoom to ds9 frame
-            % Input  : - A DS9 object.
-            %          - Zoom level:
-            %            Use positve numbers to use absolute zoom level.
-            %            Use negative numbers to use zoom relative to current zoom level.
-            %            Use NaN for .zoom to fit'.
-            %            Use string for a zoom string - e.g., 'to fit', 'in', 'out', 'open', 'close'.
-            %          - Either a vector of frame indices on which to apply
-            %            the zoom level (the same zoom for all frames in
-            %            the current ds9 window),
-            %            or a logical indicatig if to apply the zoom to all
-            %            frames (true), or only the current frame (false).
-            %            Default is false.
+        % save ds9 frame to FITS file
+        function read2fits(FileName)
+            % Save a ds9 frame to FITS image
+            % Package: @ds9
+            % Description: Save a ds9 frame to FITS image
+            % Input  : - FITS file name to save.
             % Output : null
-            % Author : Eran Ofek (May 2022)
-            % Example: D = DS9(rand(100,100),1);
-            %          D.load(rand(100,100),2);
-            %          D.zoom(5)
-            %          D.zoom(-0.5)
-            %          D.zoom(4,true)
-            %          D.zoom   % zoom to fit
-            %          D.zoom('to 5')
-            %          D.zoom('out',2)
+            % Example: ds9.tofits('try.fits');
+            % Reliable:
             
-            arguments
-                Obj
-                Zoom        = [];
-                All         = false;   % or vector of numbers
-            end
-            
-            if isempty(Zoom)
-                % zoom to fit
-                Obj.xpasetFrame(All, 'zoom to fit');
-            else
-                if isnumeric(Zoom)
-                    if Zoom>0
-                        % absolute zoom "to zoom"
-                        if numel(Zoom)==1
-                            Obj.xpasetFrame(All, 'zoom to %f', Zoom);
-                        else
-                            Obj.xpasetFrame(All, 'zoom to %f %f', Zoom);
-                        end
-                    else
-                        % relative zoom
-                        if numel(Zoom)==1
-                            Obj.xpasetFrame(All, 'zoom %f', abs(Zoom));
-                        else
-                            Obj.xpasetFrame(All, 'zoom %f %f', abs(Zoom));
-                        end
-                    end
-                elseif ischar(Zoom) || isstring(Zoom)
-                    Obj.xpasetFrame(All, 'zoom %s', Zoom);
-                else
-                    error('Unkown zoom option');
-                end
-            end
+            % Read entire image from ds9
+            Answer  = ds9.system('xpaset -p ds9 save %s',FileName);
         end
         
-        function [Limits,ScaleType] = scale(Obj, Val, Frame, Args)
-            % Set the scale limits and function for ds9 frames
-            % Input  : - A DS9 object.
-            %          - Either a vector of [lower upper] limit of the scaling in
-            %            units of the image pixel values, or a string
-            %            containing some specific scale xpa/ds9 command
-            %            (see examples).
-            %            If the 'IsQuantile' argument is true, then the
-            %            limits will be interpreted as quantiles.
-            %            If empty, only return arguments (do not use
-            %            xpaset). Default is [].
-            %          - Either a vector of frame indices on which to apply
-            %            the scale (the same scale or quantile for all frames in
-            %            the current ds9 window),
-            %            or a logical indicatig if to apply the zoom to all
-            %            frames (true), or only the current frame (false).
-            %            If empty, apply to all frames.
-            %            Default is [].
-            %          * ...,key,val,...
-            %            'IsQuantile' - A logical indicating if to
-            %                   interpret the limits as quantiles.
-            %                   The quantiles will be translated to limits
-            %                   using the images stored in the InfoAI
-            %                   property.
-            %                   Default is false.
-            % Output : - Return a two elements vector of limits for the current frame only.
-            %          - Scale type (e.g., 'linear').
-            % Author : Eran Ofek (May 2022)
-            % Example: D = DS9(rand(100,100));
-            %          [L,ST] = D.scale;
-            %          D.scale([0 0.5])
-           
-            arguments
-                Obj
-                Val                        = [];
-                Frame                      = [];
-                Args.IsQuantile logical    = false;
-                Args.Window                = [];
-            end
+        % save ds9 frame to SIM image
+        function Sim=read2sim
+            % Save a ds9 frame in a SIM object
+            % Package: @ds9
+            % Description: Save a ds9 frame in a SIM object
+            % Input  : null.
+            % Output : - A SIM object.
+            % Eaxmple: S=ds9.read2sim;
+            % Reliable: 2
             
-            if ~isempty(Val)
-                if Args.IsQuantile
-                    AI = Obj.getAI(Args.Frame, Args.Window);
-                    Q1 = imProc.stat.quantile(Val(1));
-                    Q2 = imProc.stat.quantile(Val(2));
-                    Val = [Q1(:), Q2(:)];
-                end
-
-                if isnumeric(Val)
-                    % Val containing limits
-                    switch numel(Val)
-                        case 2
-                            % [lower upper] limits
-                            String = sprintf('limits %f %f',Val);
-                        otherwise
-                            error('scale 2nd argument must contain 1 or 2 elements');
-                    end
-                elseif ischar(Val) || isstring(Val)
-                    String = Val;
-                else
-                    error('Unknown scale value option');
-                end
-                Obj.xpasetFrame(Frame, 'scale %s', String);
-            end
-            
-            StrLimits = Obj.xpaget('scale limits');
-            Limits    = split(StrLimits, ' ');
-            Limits    = str2double(Limits);
-            Limits    = Limits(:).';
-            
-            if nargout>1
-                ScaleType = Obj.xpaget('scale');
-            end
+            % Read entire image from ds9
+            TmpName = sprintf('%s.fits',tempname);
+            Answer  = ds9.system('xpaset -p ds9 save %s',TmpName);
+            %Sim     = image2sim(TmpName);
+            Sim     = FITS.read2sim(TmpName);
+            delete(TmpName);
         end
+        
+        function Result = read2AstroImage
+            % Save a ds9 frame in an AstroImage object
+            % Package: @ds9
+            % Description: Save a ds9 frame in a SIM object
+            % Input  : null.
+            % Output : - An AstroImage object.
+            % Eaxmple: S=ds9.read2AstroImage;
+            % Reliable: 2
+            
+            % Read entire image from ds9
+            TmpName = sprintf('%s.fits',tempname);
+            Answer  = ds9.system('xpaset -p ds9 save %s',TmpName);
+            %Sim     = image2sim(TmpName);
+            Result  = AstroImage(TmpName);
+            delete(TmpName);
+        end
+        
     end
-    
-    
-    
-    
-    
-    
-    
-    
-    
     
     % Frame properties methods
     % (scale, cmap, colorbar, orient, pan, rotate, zoom, header)
     methods (Static)
         % Scale image intensity
-        function scale1(varargin)
+        function scale(varargin)
             % Set the intensity scale of an image in ds9
             % Package: @ds9
             % Description: Set the intensity scale of an image in ds9
@@ -1481,7 +900,7 @@ classdef DS9 < handle
         end
         
         % Set image zoom
-        function Val = zoom1(varargin)
+        function Val = zoom(varargin)
             % Set the zoom of an image in ds9
             % Package: @ds9
             % Description: Set the zoom of an image in ds9
