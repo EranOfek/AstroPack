@@ -739,13 +739,8 @@ classdef DS9 < handle
             if isempty(Id)
                 % use current MethodXPA
                 Id = Obj.MethodXPA;
-            end
-            
-            if isnumeric(Id)
-                [~,List] = Obj.getAllWindows;
-                Name = List(Id);
             else
-                Name = Id;
+                Obj.MethodXPA = Id;
             end
             
             % check if Id exist
