@@ -1431,60 +1431,41 @@ classdef DS9 < handle
         end
     end
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    % printing methods
-    % (psprint)
-    methods (Static)
-        % print, psprint
-        function psprint(FileName,Resolution,Color,Level)
-            % Print a postscript file into current directory
-            % Package: @ds9
-            % Description: Print a postscript file into current directory.
+    methods   % printing
+        function print(Obj, FileName,Resolution,Color,Level)
+            % Print current frame into a postscript file in current directory
             % Input  : - PS file name.
             %          - Resolution. Default is 150.
             %          - Color. Default is 'cmyk'.
             %          - PS level. Default is 2.
             % Output : null
-            % Reliable: 2
-            
-            Def.Resolution = 150;
-            Def.Color      = 'cmyk';
-            Def.Level      = 2;
-            if (nargin==1)
-                Resolution = Def.Resolution;
-                Color      = Def.Color;
-                Level      = Def.Level;
-            elseif (nargin==2)
-                Color      = Def.Color;
-                Level      = Def.Level;
-            elseif (nargin==3)
-                Level      = Def.Level;
-            elseif (nargin==4)
-                % do nothing
-            else
-                error('Illegal number of input arguments: ds9.print(FileName,[Resolution,Color,Level])');
+            % Author : Eran Ofek (May 2022)
+
+            arguments
+                Obj
+                FileName
+                Resolution  = 150;
+                Color       = 'cmyk';
+                Leve        = 2;
             end
             FileName = sprintf('%s%s%s',pwd,filesep,FileName);  % to print in current directory
-            ds9.system('xpaset -p ds9 print destination file');
-            ds9.system('xpaset -p ds9 print filename %s',FileName);
-            ds9.system('xpaset -p ds9 print resolution %d',Resolution);
-            ds9.system('xpaset -p ds9 print color %s',Color);
-            ds9.system('xpaset -p ds9 print level %d',Level);
-            ds9.system('xpaset -p ds9 print');
-            
+            Obj.xpaset('print destination file');
+            Obj.xpaset('print filename %s',FileName);
+            Obj.xpaset('print resolution %d',Resolution);
+            Obj.xpaset('print color %s',Color);
+            Obj.xpaset('print level %d',Level);
+            Obj.xpaset('print');
         end
         
     end
+    
+    
+    
+    
+    % got here
+    
+    
+    
     
     % Region methods
     % (write_region, load_region, delete_region, save_region, plot, text)
