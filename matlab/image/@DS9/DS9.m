@@ -560,6 +560,7 @@ classdef DS9 < handle
             % Input  : - A DS9 object.
             %          - Entry number in the InfoAI propery.
             %            If empty, select by frame number and window name.
+            %            If 'all' - delete for all frames in window.
             %            Default is []
             %          - A vector of frame numbers to remove.
             %            Default is 1.
@@ -581,7 +582,7 @@ classdef DS9 < handle
                 % remove InfoAI entry using Frame and Window
                 if isempty(Window)
                     % use current window
-                    Window = Obj.MethodSXP;
+                    Window = Obj.MethodXPA;
                 end
                 if ischar(Frame) || isinf(Frame)
                     % get all frame numbers
@@ -591,7 +592,12 @@ classdef DS9 < handle
                 Nai = numel(Obj.InfoAI);
                 FlagDel = false(Nai,1);
                 for Iai=1:1:Nai
-                    Flag = (Obj.InfoAI(Iai).Frame == Frame);
+                    if ischar(Frame)
+                        % delete for all frames in window
+                        Flag = strcmp({Obj.InfoAI(Iai).Win}, Window);
+                    else
+                        Flag = (Obj.InfoAI(Iai).Frame == Frame) & strcmp({Obj.InfoAI(Iai).Win}, Window);
+                    end
                     switch sum(Flag)
                         case 0
                             % not found
