@@ -1386,6 +1386,32 @@ classdef DS9 < handle
             Obj.xpasetFrame(Frame, Command);
             
         end
+        
+        % orient
+        % rotate to
+        
+        function [CurXY, CurCoo] = pan(Obj, Val, CooSys)
+            % Controls the current image cursor location for the current frame
+            % Input  : - A DS9 object.
+           
+            arguments
+                Obj
+                Val      = [];
+                CooSys   = 'image';
+            end
+            
+            if ~isempty(Val)
+                Obj.xpaset('pan %f %f %s',Val(1), Val(2), CooSys);
+            end
+            
+            if nargout>0
+                CurXY = Obj.xpaget('pan');
+                if nargout>1
+                    CurCoo = Obj.xpaget('pan wcs icrs');
+                end
+            end
+            
+        end
     end
     
     
@@ -1404,33 +1430,8 @@ classdef DS9 < handle
        
         
         
-        % Set image orientation
-        function orient(varargin)
-            % Set the x/y orientation of an image in ds9
-            % Package: @ds9
-            % Description: Set the x/y orientation of an image in ds9
-            % Input  : * Arbitrary number of arguments to pass to the ds9
-            %            orient command.
-            %            Default is 'none'.
-            % Output : null
-            % Example: ds9.orient('x')
-            %          ds9.orient('xy')
-            % Reliable: 2
-            if (nargin==0)
-                Mode = 'none';
-            else
-                Mode = '';
-            end
-            
-            Mode = ds9.construct_command(Mode,varargin{:});
-            
-            ds9.system('xpaset -p ds9 orient %s',Mode);
-            pause(0.2);
-            
-        end
-        
         % Set image pan
-        function pan(varargin)
+        function pan1(varargin)
             % Set the pan (cursor location) of an image in ds9
             % Package: @ds9
             % Description: Set the pan (cursor location) of an image in ds9
