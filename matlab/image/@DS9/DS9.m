@@ -1477,43 +1477,7 @@ classdef DS9 < handle
             
         end
         
-        % Set image zoom
-        function Val = zoom1(varargin)
-            % Set the zoom of an image in ds9
-            % Package: @ds9
-            % Description: Set the zoom of an image in ds9
-            % Input  : * Arbitrary number of arguments to pass to the ds9
-            %            zoom command. If the first argument is a number
-            %            than the word "to" will be added (absolute zoom).
-            %            Default is 'to to 1', unless nargin>0, and in this
-            %            case will only return the zoom value.
-            % Output : - Zoom vale.
-            % Example: ds9.zoom(2,4)
-            %          ds9.zoom('in')
-            % Reliable: 2
-            
-            if nargout>0 && nargin==0
-                % return the zoom value
-                Val = ds9.system('xpaget ds9 zoom');
-            else
-                if (nargin==0)
-                    Mode = 'to 1';
-                else
-                    if (isnumeric(varargin{1}))
-                        Mode = 'to ';
-                    else
-                        Mode = '';
-                    end
-                end
-
-
-                Mode = ds9.construct_command(Mode,varargin{:});
-                ds9.system('xpaset -p ds9 zoom %s',Mode);
-                pause(0.2);
-            end
-            
-        end
-        
+    
         % header display
         function header(varargin)
             % Description: Display FITS header dialaog
