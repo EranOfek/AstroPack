@@ -1306,9 +1306,10 @@ classdef DS9 < handle
             end
             
             StrLimits = Obj.xpaget('scale limits');
-            Limits    = split(StrLimits, ' ');
-            Limits    = str2double(Limits);
-            Limits    = Limits(:).';
+            %Limits    = split(StrLimits, ' ');
+            %Limits    = str2double(Limits);
+            %Limits    = Limits(:).';
+            Limits    = DS9.parseOutput(StrLimits, 'num');
             
             if nargout>1
                 ScaleType = Obj.xpaget('scale');
@@ -1389,10 +1390,24 @@ classdef DS9 < handle
         
         % orient
         % rotate to
+        % header
         
         function [CurXY, CurCoo] = pan(Obj, Val, CooSys)
             % Controls the current image cursor location for the current frame
             % Input  : - A DS9 object.
+            %          - A two element vector of cursor absolute position [X Y] or
+            %            [Long Lat] (in deg) coordinates.
+            %          - Coordinate system: 'image' | 'fk4' | 'icrs'.
+            %            'image' is for x and y pixel position.
+            %            Default is 'image'.
+            % Output : - [X, Y] pixel image position of cursor.
+            %          - [RA Dec] in deg for cursor position.
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,100));
+            %          [a,b]=D.pan
+            %          [a,b]=D.pan([100 100])
+            %          D.pan('to 100 100'); % another way to control absolute position
+            %          D.pan('100 100'); % relatuve position
            
             arguments
                 Obj
@@ -1401,13 +1416,15 @@ classdef DS9 < handle
             end
             
             if ~isempty(Val)
-                Obj.xpaset('pan %f %f %s',Val(1), Val(2), CooSys);
+                Obj.xpaset('pan to %f %f %s',Val(1), Val(2), CooSys);
             end
             
             if nargout>0
                 CurXY = Obj.xpaget('pan');
+                CurXY = DS9.parseOutput(CurXY, 'num');
                 if nargout>1
                     CurCoo = Obj.xpaget('pan wcs icrs');
+                    CurCoo = DS9.parseOutput(CurCoo, 'num');
                 end
             end
             
@@ -1424,78 +1441,6 @@ classdef DS9 < handle
     
     
     
-    % Frame properties methods
-    % (scale, cmap, colorbar, orient, pan, rotate, zoom, header)
-    methods (Static)
-       
-        
-        
-        % Set image pan
-        function pan1(varargin)
-            % Set the pan (cursor location) of an image in ds9
-            % Package: @ds9
-            % Description: Set the pan (cursor location) of an image in ds9
-            % Input  : * Arbitrary number of arguments to pass to the ds9
-            %            pan command.
-            %            Default is 'to 0 0 image'.
-            % Output : null
-            % Example: ds9.pan('200 200 image')
-            % Reliable: 2
-            if (nargin==0)
-                Mode = 'to 0 0 image';
-            else
-                Mode = '';
-            end
-            
-            Mode = ds9.construct_command(Mode,varargin{:});
-            
-            ds9.system('xpaset -p ds9 pan %s',Mode);
-            pause(0.2);
-            
-        end
-        
-        % Set image rotate
-        function rotate(varargin)
-            % Set the rotation of an image in ds9
-            % Package: @ds9
-            % Description: Set the rotation of an image in ds9
-            % Input  : * Arbitrary number of arguments to pass to the ds9
-            %            rotate command.
-            %            Default is ''.
-            % Output : null
-            % Example: ds9.rotate('to',45)
-            % Reliable: 2
-            if (nargin==0)
-                Mode = '';
-            else
-                Mode = '';
-            end
-            
-            Mode = ds9.construct_command(Mode,varargin{:});
-            
-            ds9.system('xpaset -p ds9 rotate %s',Mode);
-            pause(0.2);
-            
-        end
-        
-    
-        % header display
-        function header(varargin)
-            % Description: Display FITS header dialaog
-            % Input  : - Parameters to fits header dialaog.
-            %            Default is ''.
-            % Output : null
-            % Example: ds9.header(1)
-            %          ds9.header('save',1,'foo.txt')
-            %          ds9.header('close')
-            % Reliable: 2
-            Mode = '';
-            Mode = ds9.construct_command(Mode,varargin{:});
-            ds9.system('xpaset -p ds9 header %s',Mode);
-            
-        end
-        
-    end
     
     % printing methods
     % (psprint)
