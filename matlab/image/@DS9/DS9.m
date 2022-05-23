@@ -405,6 +405,44 @@ classdef DS9 < handle
             ds9.system('xpaset -p %s %s',Obj.MethodXPA, Command);
         end
         
+        function xpasetFrame(Obj, Frame, Command, varargin)
+            % Execute xpaset for multiple frames
+            % Input  : - A DS9 object.
+            %          - A vector of frames on which to operate the xpaset
+            %            command. If empty, use current frame.
+            %            If 'all' apply to all frames in current window.
+            %          - The command to follow the 'xpaset -p ds9'.
+            %            This string may also include printf control
+            %            characters like %s.
+            %          * An arbitrary number of input arguments that will
+            %            be inserted to the control characters in the second
+            %            input argument.
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: Obj.xpaset('mode %s',Mode);
+           
+            if isempty(Frame)
+                % use current frame
+                Frame = Obj.frame;
+            end
+            if ischar(Frame)
+                % use all frames
+                [~,Frame] = Obj.nframe;
+            end
+            
+            % get current frame
+            CurFrame = Obj.frame;
+            
+            Nframe = numel(Frame);
+            for Iframe=1:1:Nframe
+                Obj.frame(Frame(Iframe));
+                Obj.xpaset(Command,varargin{:});
+            end
+            
+            % back to original frame
+            Obj.frame(CurFrame);
+        end
+        
         function Ans = xpaget(Obj, Command, varargin)
             % Execute an xpaget command
             % Input  : - A DS9 object.
@@ -1210,7 +1248,34 @@ classdef DS9 < handle
             end
         end
         
-        
+        function scale(Obj, Val, Args)
+            %
+           
+            arguments
+                Obj
+                Val
+                Args.IsQuantile logical    = false;
+                Args.Frame                 = [];
+                Argw.Window                = [];
+            end
+            
+            if isnumeric(Val)
+                % Val containing limits
+                switch numel(Val)
+                    case 2
+                        % [lower upper] limits
+                        String = sprintf('limits %f %f',Val);
+                    case 1
+                        % only upper limit
+                        % lower limit selected by mode
+                        
+                    otherwise
+                        error('scale 2nd argument must contain 1 or 2 elements');
+                end
+                        
+            % AI = getAI(Obj, Frame, Window)
+            end
+        end
     end
     
     
@@ -1226,7 +1291,7 @@ classdef DS9 < handle
     % (scale, cmap, colorbar, orient, pan, rotate, zoom, header)
     methods (Static)
         % Scale image intensity
-        function scale(varargin)
+        function scale1(varargin)
             % Set the intensity scale of an image in ds9
             % Package: @ds9
             % Description: Set the intensity scale of an image in ds9
