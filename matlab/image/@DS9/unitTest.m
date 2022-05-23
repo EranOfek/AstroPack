@@ -91,6 +91,10 @@ function Result = unitTest()
     % cmapInvert
     D.cmapInvert
     
+    % colorbar control
+    D.colorbar
+            
+    
     
 	io.msgStyle(LogLevel.Test, '@passed', 'ds9 test passed');
 	Result = true;

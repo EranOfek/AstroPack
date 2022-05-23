@@ -1346,7 +1346,48 @@ classdef DS9 < handle
             Obj.xpasetFrame(Frame, 'cmap invert %s', Invert)
             
         end
+        
+        function colorbar(Obj, Val, Frame)
+            % Control ds9 window colorbar
+            % Input  : - A DS9 object.
+            %          - Either a logical indicating if to add (true) or
+            %            remove (false) the color bar, or a string that
+            %            will be appended after the colorbar command (e.g.,
+            %            'fontsize 14').
+            %            Default is false.
+            %          - Either a vector of frame indices on which to apply
+            %            the scale (the same scale or quantile for all frames in
+            %            the current ds9 window),
+            %            or a logical indicatig if to apply the zoom to all
+            %            frames (true), or only the current frame (false).
+            %            If empty, apply to all frames.
+            %            Default is [].
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(200,200));
+            %          D.colorbar
+            
+            arguments
+                Obj
+                Val       = false;
+                Frame     = [];
+            end
+            
+            if islogical(Val)
+                if Val
+                    Command = 'yes';
+                else
+                    Command = 'no';
+                end
+            else
+                Command = Val;
+            end
+            Command = sprintf('colorbar %s',Command);
+            Obj.xpasetFrame(Frame, Command);
+            
+        end
     end
+    
     
     
     
@@ -1362,57 +1403,6 @@ classdef DS9 < handle
     methods (Static)
        
         
-        % Set image color map
-        function cmap(varargin)
-            % Set the color map of an image in ds9
-            % Package: @ds9
-            % Description: Set the color map of an image in ds9
-            % Input  : * Arbitrary number of arguments to pass to the ds9
-            %            cmap command.
-            %            Default is 'invert yes'.
-            % Output : null
-            % Example: ds9.cmap('Heat')
-            %          ds9.cmap Heat
-            %          ds9.cmap('value',5)
-            %          ds9.cmap('cmap','match');
-            % Reliable: 2
-            if (nargin==0)
-                Mode = 'invert yes';
-            else
-                Mode = '';
-            end
-            
-            Mode = ds9.construct_command(Mode,varargin{:});
-            
-            ds9.system('xpaset -p ds9 cmap %s',Mode);
-            pause(0.2);
-
-        end
-        
-        % Set image colorbar
-        function colorbar(varargin)
-            % set the colorbar of an ds9 image
-            % Package: @ds9
-            % description: set the colorbar of an ds9 image
-            % Input  : * Arbitrary number of arguments to pass to the ds9
-            %            colorbar command.
-            %            Default is 'no'.
-            % Output : null
-            % Example: ds9.colorbar('vertical')
-            %          ds9.colorbar('size',20)
-            % Reliable: 2
-            if (nargin==0)
-                Mode = 'no';
-            else
-                Mode = '';
-            end
-            
-            Mode = ds9.construct_command(Mode,varargin{:});
-            
-            ds9.system('xpaset -p ds9 colorbar %s',Mode);
-            pause(0.2);
-            
-        end
         
         % Set image orientation
         function orient(varargin)
