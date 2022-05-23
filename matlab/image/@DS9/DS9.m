@@ -282,6 +282,51 @@ classdef DS9 < handle
                     error('Unknown OutType option');
             end
             
+        end        
+       
+        function [Color, Marker, FullColor] = parseColorSymbol(ColorSymbolStr)
+            % Parse a color symbol (plot) string into color and symbol
+            % Input  : - A color symbol string (e.g., 'ro')
+            % Output : - Color (on letter)
+            %          - Marker
+            %          - Full color name
+            % Author : Eran Ofek (May 2022)
+            % Example: [a,b,c]=DS9.parseColorSymbol('ro')
+            
+            if contains(ColorSymbolStr, 'o')
+                Marker = 'o';
+            elseif contains(ColorSymbolStr, 's')
+                Marker = 's';
+            else
+                Marker = 'o';
+            end
+            if contains(ColorSymbolStr, 'r')
+                FullColor = 'red';
+                Color     = 'r';
+            elseif contains(ColorSymbolStr, 'b')
+                FullColor = 'blue';
+                Color     = 'b';
+            elseif contains(ColorSymbolStr, 'g')
+                FullColor = 'green';
+                Color     = 'g';
+            elseif contains(ColorSymbolStr, 'k')
+                FullColor = 'black';
+                Color     = 'k';
+            elseif contains(ColorSymbolStr, 'w')
+                FullColor = 'white';
+                Color     = 'w';
+            elseif contains(ColorSymbolStr, 'm')
+                FullColor = 'magenta';
+                Color     = 'm';
+            elseif contains(ColorSymbolStr, 'c')
+                FullColor = 'cyan';
+                Color     = 'c';
+            elseif contains(ColorSymbolStr, 'y')
+                FullColor = 'yellow';
+                Color     = 'y';
+            else
+                FullColor = 'red';
+            end
         end
         
     end
@@ -1446,7 +1491,7 @@ classdef DS9 < handle
                 FileName
                 Resolution  = 150;
                 Color       = 'cmyk';
-                Leve        = 2;
+                Level       = 2;
             end
             FileName = sprintf('%s%s%s',pwd,filesep,FileName);  % to print in current directory
             Obj.xpaset('print destination file');
@@ -1458,7 +1503,6 @@ classdef DS9 < handle
         end
         
     end
-    
     
     methods (Static)  % region files (Static): regionWrite
         % construct a region file
@@ -1803,7 +1847,7 @@ classdef DS9 < handle
         end
         
         % plot regions
-        function plot(varargin)
+        function FileName = plot(X, Y, ColorSymbol, Args)
             % Generate and plot a region file from a list of coordinates
             % Package: @ds9
             % Description: Generate and plot a region file from a list of
@@ -1822,74 +1866,106 @@ classdef DS9 < handle
             %            Alternatively, the first argument is X coordinate,
             %            the second is Y coordinate and the rest as before.
             % Output : null
-            % Example: ds9.plot([1000 1000]);
-            %          ds9.plot([1020 1010],'Marker','s','Size',[10 10 45]);
-            %          ds9.plot([900 900],'rs');
-            %          ds9.plot(950,950);
-            %          ds9.plot(950,950,'rs','size',[20 20 0]);
-            %          ds9.plot(1000,1020,'ro','Text','Object X');
-            %          ds9.plot(Sim);   % plot circles around AstCat object
-            % Reliable: 2
-            DeleteFile = true;
+            % Example: D = DS9(rand(100,100));
+            %          D.plot(X, Y, 'ro')
+            %          D.plot([X, Y],[] 'ro')
+            %          D.plot(RA, Dec, 'ro', 'Coo','icrs')
+            %          D.plotc(RA, Dec, 'ro')
+            %          D.plot(AC, {'X','Y'}, 'ro')
+            %          D.plot(AC, {}, 'ro')
+            %          D.plot(AC, {'RA','Dec'}, 'ro', 'Coo','icrs')
+            %          D.plot(AC, {}, 'ro', 'Coo','icrs')
             
-            Narg = numel(varargin);
-            if (Narg>1)
-                if (isnumeric(varargin{2}))
-                    % treating ds9.plot(1,1,'o',...) like input
-                    X = varargin{1};
-                    Y = varargin{2};
-                    varargin = varargin(2:end);
-                    varargin{1} = [X,Y];
-                    Narg = Narg - 1;
-                end
+            
+            arguments 
+                X
+                Y
+                ColorSymbol          = 'ro';  % color, symbol
                 
-                if ((Narg.*0.5)==floor(Narg.*0.5))
-                    % treating ds9.plot([1 1],'rs',...) like input
-                    
-                    Size = 10;
-                    if (~isempty(strfind(varargin{2},'o')))
-                        Marker = 'o';
-                    elseif (~isempty(strfind(varargin{2},'s')))
-                        Marker = 's';
-                        Size   = [10 10 0];
-                    else
-                        Marker = 'o';
-                    end
-                    if (~isempty(strfind(varargin{2},'r')))
-                        Color = 'red';
-                    elseif (~isempty(strfind(varargin{2},'b')))
-                        Color = 'blue';
-                    elseif (~isempty(strfind(varargin{2},'g')))
-                        Color = 'green';
-                    elseif (~isempty(strfind(varargin{2},'k')))
-                        Color = 'black';
-                    elseif (~isempty(strfind(varargin{2},'w')))
-                        Color = 'white';
-                    elseif (~isempty(strfind(varargin{2},'m')))
-                        Color = 'magenta';
-                    elseif (~isempty(strfind(varargin{2},'c')))
-                        Color = 'cyan';
-                    elseif (~isempty(strfind(varargin{2},'y')))
-                        Color = 'yellow';
-                    else
-                        Color = 'red';
-                    end
-                    varargin = varargin([1, 3:end]);
-                    if any(strcmpi(varargin,'size'))
-                        % Size already in varargin
-                        varargin = [varargin, {'Marker',Marker,'Color',Color}];
-                    else
-                        % Size is not in varargin - use default
-                        varargin = [varargin, {'Marker',Marker,'Color',Color,'Size',Size}];
+                Args.Coo             = 'image';  % 'image' | 'icrs'
+                Args.Size            = [];  % default is [10 10] or [10 10 0]
+                Args.FileName        = tempname;  % use temp file name
+                Args.Append          = false;
+                Args.Units           = 'deg';     % for 'image' this is always pix!
+                Args.Marker          = 'circle';  % 'circle'|'box'|...
+                Args.Color           = 'red';
+                Args.Width           = 1;
+                Args.Text            = '';
+                Args.Font            = 'helvetica';  %'helvetica 16 normal'
+                Args.FontSize        = 16;
+                Args.FontStyle       = 'normal';
+                Args.ColNameX        = AstroCatalog.DefNamesX; %{'X','X1','X_IMAGE','XWIN_IMAGE','X1','X_PEAK','XPEAK','x'};
+                Args.ColNameY        = AstroCatalog.DefNamesY;
+                Args.ColNameRA       = AstroCatalog.DefNamesRA;
+                Args.ColNameDec      = AstroCatalog.DefNamesDec;
+                
+                Args.DeleteFile logical = true;
+            end
+            
+            
+            
+            if isnumeric(X)
+                if isempty(Y)
+                    Y = X(:,2);
+                    X = X(:,1);
+                end
+                Cat = [X Y];
+            else
+                Cat = X;
+                if isempty(Y)
+                    % use Args default
+                else
+                    switch lower(Args.Coo)
+                        case 'image'
+                            Args.ColNameX = Y{1};
+                            Args.ColNameY = Y{2};
+                        otherwise
+                            Args.ColNameRA  = Y{1};
+                            Args.ColNameDec = Y{2};
                     end
                 end
             end
                 
-            FileName = ds9.write_region(varargin{:});
-            ds9.load_region(FileName);
+            if ~isempty(ColorSymbol)
+                [~,Marker,Args.Color]=DS9.parseColorSymbol(ColorSymbol);
+                if isempty(Args.MarkerSIze)
+                    switch Marker
+                        case 'o'
+                            Args.Size       = [10 10];
+                            Args.Marker     = 'circle';
+                        case 's'
+                            Args.Size       = [10 10 0];
+                            Args.Marker     = 'box';
+                        otherwise
+                            % do nothing
+                    end
+                end
+            end
+                
+            Obj.regionWrite(Cat, 'Coo',Args.Coo,...
+                                 'Size',Args.Size,...
+                                 'Marker',Args.Marker,...
+                                 'Color',Args.Color,...
+                                 'FileName',Args.FileName,...
+                                 'Append',false,...
+                                 'Units',Args.Units,...
+                                 'Width',Args.Width,...
+                                 'Text',Args.Text,...
+                                 'Font',Args.Font,...
+                                 'FontSize',Args.FontSize,...
+                                 'FontStyle',Args.FontStyle,...
+                                 'ColNameX',Args.ColNameX,...
+                                 'ColNameY',Args.ColNameY,...
+                                 'ColNameRA',Args.ColNameRA,...
+                                 'ColNameDec',Args.ColNameDec);
+                                     
+                    
+            Obj.regionLoad(Args.FileName);
             if (DeleteFile)
-                delete(FileName);
+                delete(Args.FileName);
                 FileName = [];
+            else
+                FileName = Args.FileName;
             end
             
         end
