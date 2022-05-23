@@ -76,7 +76,7 @@ function [G, Gdot] = topocentricVector(JD_UT1, GeoPos, Args)
         if nargout>1
             W = 7.2921151467e-5;  % [rad/s]
             RotRot = [-sin(LAST), -cos(LAST), 0; cos(LAST), -sin(LAST), 0; 0, 0, 0];
-            Gdot = W.*RotRot.*RotXY*GeocCart;
+            Gdot = W.*RotRot.*RotXY*GeocCart.';
             if Args.Convert2ecliptic
                 G = RotMatEq2Ec * G;
             end
@@ -85,7 +85,7 @@ function [G, Gdot] = topocentricVector(JD_UT1, GeoPos, Args)
                 case 'date'
                     % do nothing
                 case 'j2000'
-                    RotP = celestial.coo.rotm_coo('pd');
+                    RotP = celestial.coo.rotm_coo('pd', 2451545.5); % check if correct!
                     Gdot    = RotP * Gdot;
                 otherwise
                     error('Unknown Equinox option');

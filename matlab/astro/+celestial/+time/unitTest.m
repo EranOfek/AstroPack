@@ -30,8 +30,13 @@ function Result = unitTest()
     jd_str2vec = celestial.time.date2jd(vec_vec);
     
     assert(abs(jd_str2date-jd_str2vec)<1e-16);
-
     
+    JD = 2451500;
+    BJD = celestial.time.barycentricJD(JD,0,0,'Object','Ear','GeoPos',[0,0,0]);
+    Delt = BJD-JD;
+    DeltAstropy = 0.0032572676399179193;
+
+    assert(abs(Delt-DeltAstropy)<1e-5);
     
     func_unitTest();
     
