@@ -418,7 +418,8 @@ classdef DS9 < handle
             % Author : Eran Ofek (May 2022)
             
             Command = sprintf(Command,varargin{:});
-            Ans=ds9.system('xpaget %s %s',Obj.MethodXPA, Command);
+            Ans = ds9.system('xpaget %s %s',Obj.MethodXPA, Command);
+            Ans = regexprep(Ans, '\n$','');  % remove the \n at the end of the result string  
         end
     
         function List = selectWindow(Obj, Id)
@@ -617,6 +618,45 @@ classdef DS9 < handle
             end
             Obj.InfoAI = Obj.InfoAI(~FlagDel);
         end
+        
+        function AI = getAI(Obj, Frame, Window)
+            % get the AstroImage stored in the InfoAI property for a given window/frame
+            % Input  : - A DS9 object.
+            %          - Frame index. If empty, use current frame.
+            %            Default is [].
+            %          - ds9 window name. If empty, use current window.
+            %            Default is [].
+            % Output : - An AstroImage object found in the InfoAI property
+            %            that corresponds to the requested frame and window.
+            % Author : Eran Ofek (May 2022)
+            
+            arguments
+                Obj
+                Frame   = [];
+                Window  = [];
+            end
+           
+            if isempty(Window)
+                % get current window
+                Window = Obj.MethodXPA;
+            end
+            if isempty(Frame)
+                % get current frame
+                Frame = Obj.frame;
+            end
+            
+            Flag = strcmp({Obj.InfoAI.Win}, Window) & [Obj.InfoAI.Frame]==Frame;
+            switch sum(Flag)
+                case 0
+                    % not found
+                    AI = [];
+                case 1
+                    AI = Obj.InfoAI(Flag).Image;
+                otherwise
+                    error('More than one image corresponding to window=%s and frame=%d was found in InfoAI',Window, Frame);
+            end
+            
+        end
     end
     
     methods % open, exit, mode
@@ -743,6 +783,8 @@ classdef DS9 < handle
                 Obj.MethodXPA = Id;
             end
             
+            Obj = Obj.deleteAI([], 'all', Obj.MethodXPA);
+            
             % check if Id exist
             [Exist, ~] = isWindowExist(Obj, true);
             
@@ -754,6 +796,7 @@ classdef DS9 < handle
             pause(1);
             Obj.selectWindow(Inf)
               
+            
         end
         
     end
