@@ -48,6 +48,8 @@ function Result = BigDbTestRaDecPart1()
     RowsPerPartition = ItersPerPartition * BatchSize;
     
     Loop = 1;
+    TotalTime = 0;
+    TotalCount = 0;
     while true
        
         PartList = Q.getPartitionTree();
@@ -88,8 +90,12 @@ function Result = BigDbTestRaDecPart1()
             end
 
             t1 = tic;
-            Q.insert([], 'CsvFileName', CsvFileName);        
-            io.msgLog(LogLevel.Test, '[%05d] Iter=%d, RowCount=%d, insert %d x %d: %0.5f sec', BatchCounter, Iter, RowCount, BatchSize, Cols, toc(t1));
+            Q.insert([], 'CsvFileName', CsvFileName);   
+            elapsed = toc(t1);
+            TotalTime = TotalTime + elapsed;
+            TotalCount = TotalCount + 1;
+            Aver = TotalTime / TotalCount;
+            io.msgLog(LogLevel.Test, '[%05d] Iter=%d, RowCount=%d, insert %d x %d: %0.5f sec, InsertCount: %d, Aver: %0.5f sec', BatchCounter, Iter, RowCount, BatchSize, Cols, elapsed, TotalCount, Aver);
 
             %pk_start = pk_start + BatchSize;
             BatchCounter = BatchCounter + 1;
