@@ -1460,24 +1460,15 @@ classdef DS9 < handle
     end
     
     
-    
-    
-    % got here
-    
-    
-    
-    
-    % Region methods
-    % (write_region, load_region, delete_region, save_region, plot, text)
-    methods (Static)
+    methods (Static)  % region files (Static): regionWrite
         % construct a region file
-        function FileName=write_region(Cat, Args)
+        function FileName=regionWrite(Cat, Args)
             % Write a regions file for a list of coordinates and properties
-            % Package: @ds9
             % Description: Write a regions file for a list of coordinates
             %              and properties.
             % Input  : - A two column matrix of coordinates [X,Y] or
-            %            [RA,Dec] (degrees), or an AstCat object.
+            %            [RA,Dec] (degrees), or an
+            %            AstroCatalog or AstCat object.
             %            The AstCat object coordinates column names are
             %            defined by the 'ColName...' argumenents.
             %            For RA/Dec units must be degrees.
@@ -1547,10 +1538,9 @@ classdef DS9 < handle
             %                         Default is
             %                         {'Dec','DEC','Mean_Dec','Median_Dec','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DEJ2000','Declination'};
             % Output : - Region file name.
-            % See also: ds9.plot
-            % Example: FileName=write_region(Cat);
-            %          write_region([X,Y],'Marker','s','Color','cyan')
-            % Reliable: 2
+            % See also: DS9.plot
+            % Example: FileName=DS9.regionWrite(Cat);
+            %          DS9.regionWrite([X,Y],'Marker','s','Color','cyan')
             
             arguments
                 Cat
@@ -1580,14 +1570,13 @@ classdef DS9 < handle
                end
             end
             
-            
             IsXY = false;
             switch lower(Args.Coo)
              case 'image'
                 CooUnits    = '';
                 IsXY        = true;
                 Args.Units = 'pix';
-             case 'fk5'
+             case {'fk5','icrs','fk4'}
                 CooUnits = '"';
              otherwise
                 error('Coo units is not supported');
@@ -1737,67 +1726,73 @@ classdef DS9 < handle
             pause(0.2);
             
         end
-        
+    end
+    
+    methods % region files: regionLoad, regionDelete, regionSave
         % load regions from file
-        function load_region(FileName)
+        function FileName = regionLoad(Obj, FileName)
             % load regions file name into current ds9 frame
-            % Package: @ds9
             % Description: load regions file name into current ds9 frame.
-            % Input  : - FileName. If file name does not contains the
+            % Input  : - A DS9 object.
+            %          - FileName. If file name does not contains the
             %            full path then assume the file is in the current
             %            directory.
-            % Output : null
-            % Example: ds9.load_region('A.reg')
-            % Reliable: 2
+            % Output : Full File name used.
+            % Author : Eran Ofek (Jan 2011)
+            % Example: D.regionLoad('A.reg')
             
             % check if FileName contains directory name
-            if (isempty(strfind(FileName,filesep)))
+            if ~contains(FileName,filesep)
                 % File Name without dir
                 % add pwd to file name
                 FileName = sprintf('%s%s%s',pwd,filesep,FileName);
             end
             
-            ds9.system('xpaset -p ds9 regions load %s',FileName);
+            Obj.xpaset('regions load %s',FileName);
         end
         
         % delete regions from frame
-        function delete_region
-            % Delete all regions from ds9 frame
-            % Package: @ds9
+        function regionDelete(Obj)
+            % Delete all regions from current ds9 frame
             % Description: Delete all regions from ds9 frame
-            % Input  : null
+            % Input  : - A DS9 object.
             % Output : null
-            % Example: ds9.delete_region
+            % Example: D.regionDelete
             % Reliable: 2
             
-            ds9.system('xpaset -p ds9 regions delete all');
+            Obj.xpaset('regions delete all');
         end
         
         % save regions to file
-        function save_region(FileName)
-            % Save regions into a file
-            % Package: @ds9
-            % Description: Save regions into a file.
-            % Input  : FileName. If file name does not contains the
+        function regionSave(Obj, FileName)
+            % Save regions in current ds9 frame into a file
+            % Input  : - A DS9 object.
+            %          - FileName. If file name does not contains the
             %            full path then save it in the current
             %            directory. Default is 'ds9.reg'.
             % Output : null
-            % Example: ds9.save_region
-            % Reliable: 2
+            % Author : Eran Ofek (Jan 2011)
+            % Example: D.regionSave
             
-            if (nargin==0)
+            arguments
+                Obj
                 FileName = 'ds9.reg';
             end
-            
+      
             % check if FileName contains directory name
-            if (isempty(strfind(FileName,filesep)))
+            if ~contains(FileName,filesep)
                 % File Name without dir
                 % add pwd to file name
                 FileName = sprintf('%s%s%s',pwd,filesep,FileName);
             end
-            ds9.system('xpaset -p ds9 regions save %s',FileName);
+            Obj.xpaset('regions save %s',FileName);
         end
-        
+    end
+    
+    
+    % got here
+    
+    methods (Static)
         function plotc(varargin)
             % Generate and plot a region file from a list of celestial coordinates [RA, Dec]
             % Package: @ds9
