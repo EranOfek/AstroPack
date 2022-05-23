@@ -61,6 +61,12 @@ function Result = unitTest()
     D.deleteFrame(2)
     D.deleteFrame('all');
     
+    % xpasetFrame
+    D = DS9(rand(100,100),1);
+    D.load(rand(200,200),2)
+    D.xpasetFrame(true,'zoom to 2')
+    D.xpasetFrame(true,'zoom to 4')
+    
     % zoom
     D.exit
     D.load(rand(100,100));
@@ -77,6 +83,10 @@ function Result = unitTest()
     D.zoom('in')
     D.zoom('out',2)
     
+    % scale
+    D = DS9(rand(100,100));
+    [L,ST] = D.scale;
+    D.scale([0 0.5]);
     
 	io.msgStyle(LogLevel.Test, '@passed', 'ds9 test passed');
 	Result = true;

@@ -409,8 +409,8 @@ classdef DS9 < handle
             % Execute xpaset for multiple frames
             % Input  : - A DS9 object.
             %          - A vector of frames on which to operate the xpaset
-            %            command. If empty, use current frame.
-            %            If 'all' apply to all frames in current window.
+            %            command. If empty, or false use current frame.
+            %            If 'all' or true apply to all frames in current window.
             %          - The command to follow the 'xpaset -p ds9'.
             %            This string may also include printf control
             %            characters like %s.
@@ -419,7 +419,10 @@ classdef DS9 < handle
             %            input argument.
             % Output : null
             % Author : Eran Ofek (May 2022)
-            % Example: Obj.xpaset('mode %s',Mode);
+            % Example: D = DS9(rand(100,100),1);
+            %          D.load(rand(200,200),2)
+            %          D.xpasetFrame(true,'zoom to 2')
+            %          D.xpasetFrame(true,'zoom to 4')
            
             if isempty(Frame)
                 % use current frame
@@ -428,6 +431,16 @@ classdef DS9 < handle
             if ischar(Frame)
                 % use all frames
                 [~,Frame] = Obj.nframe;
+            elseif islogical(Frame)
+                if Frame
+                    % use all frames
+                    [~,Frame] = Obj.nframe;
+                else
+                    % use current frame
+                    Frame = Obj.frame;
+                end
+            else
+                % do nothing
             end
             
             % get current frame
@@ -1199,81 +1212,106 @@ classdef DS9 < handle
                 All         = false;   % or vector of numbers
             end
             
-            if islogical(All)
-                if All
-                    % apply zoom to all frames
-                    [~, VecFrame] = Obj.nframe;
-                else
-                    VecFrame = NaN;
-                end
+            if isempty(Zoom)
+                % zoom to fit
+                Obj.xpasetFrame(All, 'zoom to fit');
             else
-                VecFrame = All;
-            end
-                
-            Nframe = numel(VecFrame);
-            for Iframe=1:1:Nframe
-                if isnan(VecFrame(Iframe))
-                    % apply zoom to current frame
-                    % do nothing
-                else
-                    Obj.frame(VecFrame(Iframe)); 
-                end
-                    
-                if isempty(Zoom)
-                    % zoom to fit
-                    Obj.xpaset('zoom to fit');
-                else
-                    if isnumeric(Zoom)
-                        if Zoom>0
-                            % absolute zoom "to zoom"
-                            if numel(Zoom)==1
-                                Obj.xpaset('zoom to %f', Zoom);
-                            else
-                                Obj.xpaset('zoom to %f %f', Zoom);
-                            end
+                if isnumeric(Zoom)
+                    if Zoom>0
+                        % absolute zoom "to zoom"
+                        if numel(Zoom)==1
+                            Obj.xpasetFrame(All, 'zoom to %f', Zoom);
                         else
-                            % relative zoom
-                            if numel(Zoom)==1
-                                Obj.xpaset('zoom %f', abs(Zoom));
-                            else
-                                Obj.xpaset('zoom %f %f', abs(Zoom));
-                            end
+                            Obj.xpasetFrame(All, 'zoom to %f %f', Zoom);
                         end
-                    elseif ischar(Zoom) || isstring(Zoom)
-                        Obj.xpaset('zoom %s', Zoom);
                     else
-                        error('Unkown zoom option');
+                        % relative zoom
+                        if numel(Zoom)==1
+                            Obj.xpasetFrame(All, 'zoom %f', abs(Zoom));
+                        else
+                            Obj.xpasetFrame(All, 'zoom %f %f', abs(Zoom));
+                        end
                     end
+                elseif ischar(Zoom) || isstring(Zoom)
+                    Obj.xpasetFrame(All, 'zoom %s', Zoom);
+                else
+                    error('Unkown zoom option');
                 end
             end
         end
         
-        function scale(Obj, Val, Args)
-            %
+        function [Limits,ScaleType] = scale(Obj, Val, Frame, Args)
+            % Set the scale limits and function for ds9 frames
+            % Input  : - A DS9 object.
+            %          - Either a vector of [lower upper] limit of the scaling in
+            %            units of the image pixel values, or a string
+            %            containing some specific scale xpa/ds9 command
+            %            (see examples).
+            %            If the 'IsQuantile' argument is true, then the
+            %            limits will be interpreted as quantiles.
+            %            If empty, only return arguments (do not use
+            %            xpaset). Default is [].
+            %          - Either a vector of frame indices on which to apply
+            %            the scale (the same scale or quantile for all frames in
+            %            the current ds9 window),
+            %            or a logical indicatig if to apply the zoom to all
+            %            frames (true), or only the current frame (false).
+            %            If empty, apply to all frames.
+            %            Default is [].
+            %          * ...,key,val,...
+            %            'IsQuantile' - A logical indicating if to
+            %                   interpret the limits as quantiles.
+            %                   The quantiles will be translated to limits
+            %                   using the images stored in the InfoAI
+            %                   property.
+            %                   Default is false.
+            % Output : - Return a two elements vector of limits for the current frame only.
+            %          - Scale type (e.g., 'linear').
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,100));
+            %          [L,ST] = D.scale;
+            %          D.scale([0 0.5])
            
             arguments
                 Obj
-                Val
+                Val                        = [];
+                Frame                      = [];
                 Args.IsQuantile logical    = false;
-                Args.Frame                 = [];
-                Argw.Window                = [];
+                Args.Window                = [];
             end
             
-            if isnumeric(Val)
-                % Val containing limits
-                switch numel(Val)
-                    case 2
-                        % [lower upper] limits
-                        String = sprintf('limits %f %f',Val);
-                    case 1
-                        % only upper limit
-                        % lower limit selected by mode
-                        
-                    otherwise
-                        error('scale 2nd argument must contain 1 or 2 elements');
+            if ~isempty(Val)
+                if Args.IsQuantile
+                    AI = Obj.getAI(Args.Frame, Args.Window);
+                    Q1 = imProc.stat.quantile(Val(1));
+                    Q2 = imProc.stat.quantile(Val(2));
+                    Val = [Q1(:), Q2(:)];
                 end
-                        
-            % AI = getAI(Obj, Frame, Window)
+
+                if isnumeric(Val)
+                    % Val containing limits
+                    switch numel(Val)
+                        case 2
+                            % [lower upper] limits
+                            String = sprintf('limits %f %f',Val);
+                        otherwise
+                            error('scale 2nd argument must contain 1 or 2 elements');
+                    end
+                elseif ischar(Val) || isstring(Val)
+                    String = Val;
+                else
+                    error('Unknown scale value option');
+                end
+                Obj.xpasetFrame(Frame, 'scale %s', String);
+            end
+            
+            StrLimits = Obj.xpaget('scale limits');
+            Limits    = split(StrLimits, ' ');
+            Limits    = str2double(Limits);
+            Limits    = Limits(:).';
+            
+            if nargout>1
+                ScaleType = Obj.xpaget('scale');
             end
         end
     end
