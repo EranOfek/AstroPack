@@ -145,7 +145,7 @@ function runPipeLAST(DataNumber, Args)
         end
           
         % get all files waiting for processing
-        SciFiles = dir(Args.NewFilesDir);
+        SciFiles = dir(fullfile(Args.NewFilesDir,Args.SearchStr));
         SciFiles = SciFiles(~[SciFiles.isdir]);
         % convert file names to ImagePath 
         IP       = ImagePath.parseFileName({SciFiles.name});
