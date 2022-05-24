@@ -254,7 +254,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.DeleteVarBeforeCoadd logical     = true;
         
         Args.AddProjName2Header logical       = true;
-                
+        Args.AddFieldID2Header logical        = true;
         
         % save products
         Args.SaveAll               = [];  % empty - check individuals
@@ -314,9 +314,16 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                 AI(Ifile).HeaderData.replaceVal('PROJNAME',SplitStr{1});
             end
         end
-                
-            
-
+        
+        % ADd FieldID to header
+        if Args.AddFieldID2Header
+            Nfile = numel(AI);
+            for Ifile=1:1:Nfile
+                [~,FileNameStr] = fileparts(FilesList{Ifile});
+                SplitStr = split(FileNameStr,'_');
+                AI(Ifile).HeaderData.replaceVal('FIELDID',SplitStr{4});
+            end
+        end        
     end
         
     

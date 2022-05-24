@@ -365,7 +365,7 @@ classdef ImagePath < Base %Component
                 Obj(Iobj).setTime();
 
                 % Format numeric fields
-                StrFieldID  = Obj(Iobj).formatNumeric(Obj(Iobj).FieldID, Obj(Iobj).FormatFieldID);                   
+                StrFieldID  = Obj(Iobj).formatNumeric(Obj(Iobj).FieldID, Obj(Iobj).FormatFieldID); 
                 StrCounter  = Obj(Iobj).formatNumeric(Obj(Iobj).Counter, Obj(Iobj).FormatCounter);            
                 StrCCDID    = Obj(Iobj).formatNumeric(Obj(Iobj).CCDID, Obj(Iobj).FormatCCDID);
                 StrCropID   = Obj(Iobj).formatNumeric(Obj(Iobj).CropID, Obj(Iobj).FormatCropID);
@@ -861,17 +861,17 @@ classdef ImagePath < Base %Component
         function Result = formatNumeric(Obj, Value, Format)
             % connvert numeric to string
             
-            if isnumeric(Value) && ~isempty(Format)
-                if isnan(Value)
-                    Result = '';
-                else
-                    Result = sprintf(Format, Value);
-                end
-            else
-                if strcmpi(Value,'nan')
+            if ischar(Value)
+                if strcmpi(Value, 'nan')
                     Result = '';
                 else
                     Result = Value;
+                end
+            else
+                if isempty(Format)
+                    Result = '';
+                else
+                    Result = sprintf(Format, Value);
                 end
             end
 
