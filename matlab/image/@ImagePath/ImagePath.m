@@ -1245,7 +1245,7 @@ classdef ImagePath < Base %Component
                 if Args.AutoSubDir
                     % automatically set the SubDir directory : +1 to
                     % largest existing dir
-                    FullPath = Obj(Iprod).genPath;
+                    FullPath = ObjIP(Iprod).genPath;
                     if isfolder(FullPath)
                         Dir      = fullfile(FullPath, '..');
                         FL       = dir(Dir);
