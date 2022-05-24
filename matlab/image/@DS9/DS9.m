@@ -2151,77 +2151,131 @@ classdef DS9 < handle
         end
         
     end
-    
-    
-    
-    % got here
-    
-    % Tile methods
-    methods (Static)
+        
+    methods    % Tile methods
         % Set the tile display mode
-        function tile(Par)
+        function tile(Obj, Val, Gap)
             % Set the tile the display mode of ds9
             % Package: @ds9
             % Description: Set the tile the display mode of ds9.
             % Input  : - Either a string to pass to the tile command,
-            %            or this is a vector of the number of columns and
-            %            rows in the tile display (i.e., layout command)
-            %            Alternatively a third element may be provided with
-            %            the grid gap (in pixels).
-            %            Default is [3,2].
+            %            or a logical:
+            %            true - change to tile mode
+            %            false - change to single mode
+            %            [] - toggle tile mode
+            %            Two element vector - [X Y] tiles
+            %            Default is [].
+            %          - Gap between tiles.
+            %            If empty, use no gap default.
+            %            Default is [].
             % Output : null
-            % Example: ds9.tile([3 3 10])
-            %          ds9.tile('grid direction x')
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,1000,1);
+            %          D.load(rand(100,100),2)
+            %          D.tile(true)
+            %          D.tile(false)
+            %          D.tile([2 1])
+            %          D.tile([2 1],30)
+            %          D.tile  % toggle
+            %          D.tile  % toggle
             
-            if (nargin==0)
-                Par = [3 2];
+            arguments
+                Obj
+                Val = [];
+                Gap = [];
             end
             
-            if (ischar(Par))
-                ds9.system('xpaset -p ds9 tile %s',Par);
-            else
-                if (numel(Par)==2)
-                    ds9.system('xpaset -p ds9 tile grid layout %d %d',Par(1),Par(2));
-                elseif (numel(Par)==3)
-                    ds9.system('xpaset -p ds9 tile grid layout %d %d',Par(1),Par(2));
-                    ds9.system('xpaset -p ds9 tile grid gap %d',Par(3));
-                else
-                    error('Numeric parameter may contain 2 or 3 values [Col, Rows, Gaps]');
+            if isempty(Val)
+                % get tile mode
+                Res = Obj.xpaget('tile');
+                switch lower(Res)
+                    case 'no'
+                        Val = true;
+                    case 'yes'
+                        Val = false;
+                    otherwise
+                        error('tile command returned an unknown option');
                 end
             end
-            ds9.system('xpaset -p ds9 tile');
-            
-        end
-        
-        function single
-            % Set to single image display mode
-            % Package: @ds9
-            % Input  : null
-            % Output : null
-            % Example: ds9.single
-            % Reliable: 2
-            
-            ds9.system('xpaset -p ds9 single');
-            
-        end
-        
-        function blink(Interval)
-            % Set to blink display mode
-            % Package: @ds9
-            % Input  : - Time interval. Default is 0.5s.
-            % Output : null
-            % Example: ds9.blink
-            % Reliable: 2
-        
-            if (nargin==0)
-                Interval = 0.5;
+                
+            if ischar(Val)
+                Obj.xpaset('tile %s',Val);
+            elseif islogical(Val)
+                if Val
+                    Obj.xpaset('tile yes');
+                else
+                    Obj.xpaset('single');
+                end
+            else
+                % numeric vector
+                Obj.xpaset('tile grid layout %d %d', Val(1), Val(2));
+                if ~isempty(Gap)
+                    Obj.xpaset('tile grid gap %d', Gap);
+                end
+                Obj.xpaset('tile');
             end
             
-            ds9.system('xpaset -p ds9 blink interval %f',Interval);
-            ds9.system('xpaset -p ds9 blink');
-            fprintf('To stop blink mode - execute: ds9.single\n');
             
         end
+        
+        function blink(Obj, Par)
+            % Blink all active frames
+            % Input  : - Blink toggle, state, or interval.
+            %            If empty - toggle blink state.
+            %            If logical - change to true/false blink state.
+            %            If numeric - set the interval to the numeric
+            %            value, and start blinking.
+            %            Default is [].
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,100));
+            %          D.load(rand(100,100));
+            %          D.blink
+            %          D.blink
+            %          D.blink(1)
+            %          D.blink(0.2)
+            %          D.blink(false)
+        
+            arguments
+                Obj
+                Par   = [];   % toggle, logical, interval
+            end
+            
+            if isempty(Par)
+                % blink toggle - get state
+                Res = Obj.xpaget('blink');
+                switch lower(Res)
+                    case 'yes'
+                        Par = false;
+                    case 'no'
+                        Par = true;
+                    otherwise
+                        error('tile command returned an unknown option');
+                end
+            end
+            
+            Interval = [];
+            if isnumeric(Par)
+                Interval = Par;
+                Par      = true;
+            end
+            
+            if ~isempty(Interval)
+                Obj.xpaset('blink interval %f',Interval);
+            end
+            
+            if Par
+                Obj.xpaset('blink yes');
+            else
+                Obj.xpaset('blink no');
+            end
+        end
+        
+        % got here
+        
+        
+        
+        
         
         % array
         

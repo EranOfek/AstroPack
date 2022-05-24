@@ -112,6 +112,28 @@ function Result = unitTest()
     D.plotText(30,30,'Hello')
     D.plotText(30,50,'Hello','FontSize',30, 'Color','blue')
     
+    % tile/single
+    D.exit
+    D = DS9(rand(100,1000,1);
+    D.load(rand(100,100),2)
+    D.tile(true)
+    D.tile(false)
+    D.tile([2 1])
+    D.tile([2 1],30)
+    D.tile  % toggle
+    D.tile  % toggle
+    
+    % blink
+    D.exit
+    D = DS9(rand(100,100));
+    D.load(rand(100,100));
+    D.blink
+    D.blink
+    D.blink(1)
+    D.blink(0.2)
+    D.blink(false)
+    
+    
     
 	io.msgStyle(LogLevel.Test, '@passed', 'ds9 test passed');
 	Result = true;
