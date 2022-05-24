@@ -18,7 +18,7 @@ classdef ImagePath < Base %Component
     properties       
         % These fields are the input parameters for getPath() and getFileName()
         
-        ProjName        = '';           % Examples: “ULTRASAT”, “LAST.1.12.4” (LAST node=1, mount=12, camera=4)
+        ProjName        = '';           % Examples: 'ULTRASAT', 'LAST.1.12.4' (LAST node=1, mount=12, camera=4)
         Time            = [];           % Empty: current time, Numeric: time as JD, char: YYYY-MM-DDTHH:MM:SS.FFF, cell: {YYYY, MM, DD}
         TimeZone        = 2;            % Bias in hours, to generate folder name                
         Filter          = 'clear';      % Filter name
