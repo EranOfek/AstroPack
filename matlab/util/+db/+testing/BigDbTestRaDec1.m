@@ -3,9 +3,9 @@ function Result = BigDbTestRaDec1()
     % You need to have configuration file with database user and password:
     % config/local/Database.DbConnections.UnitTest.yml
     % 
-    DatabaseName = 'perftest';
-    TableName = 'table_f_radec0';   %'big_table2';
-    Cols = 4;
+    DatabaseName = 'unittest';
+    TableName = 'table_f_radec1';   %'big_table2';
+    Cols = 52;  %4;
     BatchSize = 200000;
     PidPk = 0;
     UseIntPk = true;
@@ -36,16 +36,13 @@ function Result = BigDbTestRaDec1()
     % Prepare data
     Data = struct;
     ColNames = {};
-    %ColNames{end+1} = 'pk1';
-    for Col=1:Cols
-        if UnitTestDb
-            ColNames{end+1} = sprintf('fdouble%02d', Col);
-        else
-            ColNames{end+1} = sprintf('fdouble%03d', Col);
-        end
+    ColNames{end+1} = 'f_ra';
+    ColNames{end+1} = 'f_dec';
+    for Col=1:50
+        ColNames{end+1} = sprintf('fdouble%03d', Col);
     end    
     
-    ColNames = { 'f_ra', 'f_dec', 'fdouble001', 'fdouble001' };
+    %ColNames = { 'f_ra', 'f_dec', 'fdouble001', 'fdouble001' };
     
     
     x = 0.001;
@@ -53,8 +50,11 @@ function Result = BigDbTestRaDec1()
         %Data(i).recid = '_';
         %Data(i).pk1 = ''; %Pk1;
         %Data(i).pk2 = 0;
-        for Col=1:Cols
-            Data(i).(ColNames{Col}) = x; %Col;
+        Data(i).f_ra = 180 * (i / BatchSize);
+        Data(i).f_dec = 180 * (i / BatchSize);
+        for Col=1:50
+            ColName = sprintf('fdouble%03d', Col);
+            Data(i).(ColName) = x; %Col;
             x = x + 1;
         end
     end
