@@ -1,4 +1,3 @@
-%--------------------------------------------------------------------------
 % File:    DbRecord.m
 % Class:   DbRecord
 % Title:   Data container that holds struct array of database table rows.
@@ -10,9 +9,7 @@
 % DbRecord - Data container that holds struct array of database table data.
 % Used with DbQuery.insert(), select(), etc.
 % Construct DbRecord before calling DbQuery.insert().
-%
 %--------------------------------------------------------------------------
-
 %#docgen
 %
 % Methods:
@@ -52,16 +49,21 @@ classdef DbRecord < Base
     methods % Constructor
         function Obj = DbRecord(Data, Args)
             % Constructor
-            % Input   : Data - struct array, table, cell array, matrix,
-            %                  AstroTable, AstroCatalog, AstroHeader.
-            %                  CSV: If type is char, load data from CSV file, header
-            %                  line with field names is required.
-            %           Args.ColNames - char comma separated, or cell array
-            % Output  : New instance of DbRecord object
+            % Input   : - struct array, table, cell array, matrix,
+            %             AstroTable, AstroCatalog, AstroHeader.
+            %             CSV: If type is char, it specifies file name.
+            %                  Load data from CSV file, header line with 
+            %                  field names is required.
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:            			            
+            %             'ColNames' - list of column names, char comma separated, or cell
+            %                          array. Required when Data is Cell or Matrix.
+            % Output  : - New instance of DbRecord object
+            % Author  : Chen Tishler (2021)
             % Example : MyRec = db.DbRecord(Mat, 'FieldA,FieldB');
             %           MyRec = db.DbRecord('csvfile.csv');
             arguments
-                Data = [];
+                Data = [];           % Input data
                 Args.ColNames = [];  % Required when Data is Cell or Matrix
             end
             
@@ -122,6 +124,7 @@ classdef DbRecord < Base
         
         function delete(Obj)
             % Destructor
+            % Internally called by Matlab when the object is destroyed.
             %io.msgLog(LogLevel.Debug, 'DbRecord deleted: %s', Obj.Uuid);
         end
     end
@@ -130,19 +133,23 @@ classdef DbRecord < Base
     methods % Main functions
         
         function Result = getFieldNames(Obj)
-            % Get list of field names, properties ending with '_' are excluded
-            % Input   : -
-            % Output  : cell-array of field-names
+            % Get list of field names of the currently stored struct array.
+            % Properties ending with '_' are excluded (they are used internally).
+            % Input   : - DbRecord object
+            % Output  : - cell-array of field-names
+            % Author  : Chen Tishler (2021)
             % Example : FieldNames = Obj.getFieldNames()
             Result = fieldnames(Obj.Data);
         end
         
         
         function merge(Obj, Stru)
-            % Merge input struct array with current data
-            % Usefull for example when we constructed from matrix and need key fields
-            % Input   : Stru - Struct array to merge into Obj.Data
+            % Merge input struct array with current data.
+            % Usefull when we constructed DbRecrord from matrix and need string key field.
+            % Input   : - DbRecord object
+            %           Stru - Struct array to merge into Obj.Data
             % Output  : -
+            % Author  : Chen Tishler (2021)
             % Example : Obj.merge(MyStructArray)
             FieldList = fieldnames(Stru);
             StruRows = numel(Stru);
@@ -160,9 +167,11 @@ classdef DbRecord < Base
         
         
         function Result = newKey(Obj)
-            % Generate unique id, as Uuid or SerialStr (more compact and fast)
-            % Input   : -
-            % Output  : New Uuid or SerialStr
+            % Generate unique id, as Uuid or SerialStr (more compact and fast).
+            % See Component.newUuid() and Component.newSerialStr()
+            % Input   : - DbRecord object
+            % Output  : - New Uuid or SerialStr (char)
+            % Author  : Chen Tishler (2021)
             % Example : Key = Obj.newKey()
             if Obj.UseUuid
                 Result = Component.newUuid();
@@ -174,12 +183,13 @@ classdef DbRecord < Base
     end
     
     
-    methods % Convert2...
+    methods % Convert2... - Conversion functions
                                   
         function Result = convert2table(Obj)
-            % Convert record(s) to table
-            % Input   : -
-            % Output  : Table
+            % Convert Obj.Data to table
+            % Input   : - DbRecord object
+            % Output  : - Table
+            % Author  : Chen Tishler (2021)
             % Example : Tab = Obj.convert2table()
             if ~isempty(Obj.Data)
                 Result = struct2table(Obj.Data);
@@ -192,10 +202,11 @@ classdef DbRecord < Base
 
         
         function Result = convert2cell(Obj)
-            % Convert record(s) to cell
-            % Note that we need to transpose it
-            % Input   : -
-            % Output  : Cell-array
+            % Convert Obj.Data to cell array
+            % Note that we need to transpose the output of struct2cell().
+            % Input   : - DbRecord object
+            % Output  : - Cell-array
+            % Author  : Chen Tishler (2021)
             % Example : Cell = Obj.convert2cell()
             if ~isempty(Obj.Data)
                 Result = squeeze(struct2cell(Obj.Data))';
@@ -208,10 +219,11 @@ classdef DbRecord < Base
 
 
         function Result = convert2mat(Obj)
-            % Convert record(s) to matrix, non-numeric fields are
-            % Note that we need to transpose it
-            % Input   : -
-            % Output  : Matrix
+            % Convert Obj.Data to matrix, fails if there are non-numeric fields.
+            % Note that we need to transpose the output of struct2cell().
+            % Input   : - DbRecord object
+            % Output  : - Matrix
+            % Author  : Chen Tishler (2021)
             % Example : Mat = Obj.convert2mat()
             if ~isempty(Obj.Data)
                 Result = cell2mat(squeeze(struct2cell(Obj.Data)))';
@@ -224,9 +236,10 @@ classdef DbRecord < Base
 
         
         function Result = convert2AstroTable(Obj)
-            % Convert record(s) to AstroTable
-            % Input   : -
-            % Output  : AstroTable object
+            % Convert Obj.Data to AstroTable
+            % Input   : - DbRecord object
+            % Output  : - AstroTable object
+            % Author  : Chen Tishler (2021)
             % Example : AT = Obj.convert2AstroTable()
             if ~isempty(Obj.Data)
                 Mat = cell2mat(squeeze(struct2cell(Obj.Data)))';
@@ -240,9 +253,10 @@ classdef DbRecord < Base
 
         
         function Result = convert2AstroCatalog(Obj)
-            % Convert record(s) to AstroCatalog
-            % Input   : -
-            % Output  : AstroCatalog object
+            % Convert Obj.Data to AstroCatalog
+            % Input   : - DbRecord object
+            % Output  : - AstroCatalog object
+            % Author  : Chen Tishler (2021)
             % Example : AC = Obj.convert2AstroCatalog()
             if ~isempty(Obj.Data)
                 Mat = cell2mat(squeeze(struct2cell(Obj.Data)))';
@@ -256,9 +270,10 @@ classdef DbRecord < Base
            
         
         function Result = convert2AstroHeader(Obj)
-            % Convert record(s) to AstroCatalog
-            % Input   : -
-            % Output  : AstroCatalog object
+            % Convert Obj.Data to AstroCatalog
+            % Input   : - DbRecord object
+            % Output  : - AstroCatalog object
+            % Author  : Chen Tishler (2021)
             % Example : AC = Obj.convert2AstroCatalog()
             if ~isempty(Obj.Data)
                 for n=1:numel(Obj.Data)
@@ -275,10 +290,12 @@ classdef DbRecord < Base
         
         
         function Result = convert2(Obj, OutType)
-            % Convert Obj.Data struct array to given OutType
-            % Input   : OutType: 'table', 'cell', 'mat', 'astrotable', 'astrocatalog',
+            % Convert Obj.Data to given OutType
+            % Input   : - DbRecord object
+            %           - OutType: 'table', 'cell', 'mat', 'astrotable', 'astrocatalog',
             %           'astroheader'
-            % Output  : Table/Cell-array/Matrix/AstroTable/AstroCatalog
+            % Output  : - Table/Cell-array/Matrix/AstroTable/AstroCatalog
+            % Author  : Chen Tishler (2021)
             % Example : Mat = Obj.conevrt2('mat')
             OutType = lower(OutType);
             if strcmp(OutType, 'table')
@@ -300,11 +317,13 @@ classdef DbRecord < Base
                     
                         
         function Result = writeCsv(Obj, FileName)
-            % Write Obj.Data struct array to CSV file
-            % @Todo - Use MEX optimized version, (to be complted)
-            % Input   : FileName - CSV output fle name
-            % Output  : true on sucess
-            % Example : Obj.writeCsv('/tmp/data1.csv', 'Header', @TBD)
+            % Write Obj.Data to CSV file.
+            % @Todo - Use MEX optimized version, (to be completed)
+            % Input   : - DbRecord object
+            %           - FileName - CSV output fle name
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
+            % Example : Obj.writeCsv('/tmp/data1.csv')
             if ~isempty(Obj.Data)
                 Table = struct2table(Obj.Data);
             else
@@ -313,16 +332,18 @@ classdef DbRecord < Base
             writetable(Table, FileName);
             Result = true;
             
-            % Use MEX version which is x30 faster than MATLAB version
+            % @Todo: Use MEX version which is x30 faster than MATLAB version
             %mex_WriteMatrix2(FileName, Rec.Data, '%.5f', ',', 'w+', Args.Header, Obj.Data);
         end
         
         
         function Result = readCsv(Obj, FileName)
-            % Read from CSV file to Obj.Data struct-array
+            % Read CSV file to Obj.Data struct-array
             % @Todo - Use MEX optimized version? (need to develop)
-            % Input   : FileName - CSV input file name
-            % Output  : true on success, data will be loaded to Obj.Data
+            % Input   : - DbRecord object
+            %           - FileName - CSV input file name
+            % Output  : - true on success, data will be loaded to Obj.Data
+            % Author  : Chen Tishler (2021)
             % Example : Rec.readCsv('/tmp/data1.csv')
             Table = readtable(FileName);
             Obj.Data = table2struct(Table);
@@ -331,10 +352,11 @@ classdef DbRecord < Base
         
         
         function Result = getRowCount(Obj)
-            % Get numer of rows in Data struct array
-            % Input:   -
-            % Output:  Number of rows in Obj.Data
-            % Example: Count = Obj.getRowCount()
+            % Get number of rows in Obj.Data struct array
+            % Input   : - DbRecord object
+            % Output  : - Number of rows in Obj.Data
+            % Author  : Chen Tishler (2021)
+            % Example : Count = Obj.getRowCount()
             Result = numel(Obj.Data);
         end
             

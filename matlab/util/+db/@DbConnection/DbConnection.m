@@ -1,4 +1,3 @@
-%--------------------------------------------------------------------------
 % File:    DbConnection.m
 % Class:   DbConnection
 % Title:   Internal class used by DbQuery for database connection (using Java 'Connection' class)
@@ -7,10 +6,10 @@
 %--------------------------------------------------------------------------
 % Usage:
 %
-% This class is intenally used by DbQuery.
-% Use the static function getDbConnection() to get or create DbConnection
-% object, settings will be loaded from YAML configuration file, in 
-% config/ or config/local/ folder.
+% This class is used **INTERNALLY* by DbQuery.
+% Use the static function getDbConnection() to get an existing, or create 
+% a new DbConnection object, settings will be loaded from the YAML 
+% configuration file, in config/ or config/local/ folder.
 % See more details in DbQuery documentation.
 %
 % Example:
@@ -23,7 +22,6 @@
 %
 % 1. Need to implement reconnection support in case of server disconnect.
 %
-
 %#docgen
 %
 % Methods:
@@ -45,9 +43,7 @@ classdef DbConnection < Component
     
     % Properties
     properties (SetAccess = public)
-        
-        % Database alias from Config.Data.Database.Items
-        Db              = 'UnitTest'    % Alias
+        Db              = 'UnitTest'       % Database alias from Config.Data.Database.Items
         
         % Connection details provided by user
         % All values should be loaded from Config
@@ -62,15 +58,10 @@ classdef DbConnection < Component
         MountSharePath  = '' %             % Path to shared folder from client
         
         % Internal data and flags
-        IsOpen = false                  % True if connection is open
-        
-        % Objects
+        IsOpen          = false         % True if connection is open
         Driver          = []            % DbDriver used by this connection
-        
-        % Java objects
-        JavaConn        = []            % Java Connection object, returned by connect()
-        JavaMetadata    = []            % Metadata
-
+        JavaConn        = []            % [Java object] Java Connection object, returned by connect()
+        JavaMetadata    = []            % [Java object] Metadata
     end
     
     %--------------------------------------------------------
@@ -78,34 +69,37 @@ classdef DbConnection < Component
         
         function Obj = DbConnection(Args)
             % Constructor
-            % Input:
-            %       'DriverName'      - Currently only 'postgres' is supported
-            %       'Host'            - Network host name or IP address
-            %       'DatabaseName'    - Database name, i.e. 'unittest'
-            %       'UserName'        - Database user name
-            %       'Password'        - Database user password
-            %       'Port             - Port number, default is 5432
-            %       'DriverUrl'       - Connection string
-            %       'ServerSharePath' - Path to shared server folder (use NFS)
-            %
-            % Example:
-            %   % Connection from configuration
-            %   Conn = DbConnection('Db', 'UnitTest')
+            % Input : -
+            %         * Pairs of ...,key,val,...
+            %           The following keys are available:                        
+            %           'DriverName'      - Currently only 'postgres' is supported
+            %           'Host'            - Network host name or IP address
+            %           'DatabaseName'    - Database name, i.e. 'unittest'
+            %           'UserName'        - Database user name
+            %           'Password'        - Database user password
+            %           'Port             - Port number, default is 5432
+            %           'DriverUrl'       - Connection string ('jdbc:postgresql://localhost:5432/pipeline')
+            %           'ServerSharePath' - Path to shared server folder (use NFS)
+            % Output  : New DbConnection object
+            % Author  : Chen Tishler (2021)
+            % Example :
+            %           % Create connection from configuration file Database.DbConnections.UnitTest.yml
+            %           Conn = DbConnection('Db', 'UnitTest')
             %
             arguments
                 % Use to specify database alias from Config.Data.Database.Items
-                Args.Db = ''
-                Args.UseConfig = true
+                Args.Db = ''            % Database alias
+                Args.UseConfig = true   % True to use configuration file, otherwise Args are used
                 
                 % Allow user to set value explicitly, when not empty they
                 % override the values loaded from configuration
-                Args.DriverName         = 'postgres' %
+                Args.DriverName         = 'postgres' % Driver name
                 Args.Host               % Network host name or IP address
                 Args.DatabaseName       % Database name, i.e. 'unittest'
                 Args.UserName           % Database user name
                 Args.Password           % Database user password
                 Args.Port               % Port number, default is 5432
-                Args.DriverUrl          %
+                Args.DriverUrl          % Driver connection string (
                 Args.ServerSharePath    %
             end
             
@@ -148,13 +142,13 @@ classdef DbConnection < Component
             
             % Register
             db.DbConnection.getDbConnection('', 'DbConn', Obj, 'Register', true);
-
             Obj.msgLog(LogLevel.Debug, 'created: %s, uuid: %s', Obj.Db, Obj.Uuid);
         end
         
                 
         function delete(Obj)
             % Destructor
+            % Internally called by Matlab when the object is destroyed.
             Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
         end
     end
@@ -164,13 +158,13 @@ classdef DbConnection < Component
         
         function Result = open(Obj)
             % Connect to database specified by Host:Port:Database as UserName/Password
-            % Input   : -
-            % Output  : true on success
+            % Input   : - DbConnection object
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
             % Example : Obj.open()
             
             %PerfLog = io.FuncLog('DbConnection.open');
             Obj.msgLog(LogLevel.Info, 'open');
-            Result = false;
             
             % Already open
             if Obj.IsOpen
@@ -228,8 +222,9 @@ classdef DbConnection < Component
         
         function Result = close(Obj)
             % Disconnect from database
-            % Input   : -
-            % Output  : true on success
+            % Input   : - DbConnection object
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
             % Example : Obj.close()
             
             Obj.msgLog(LogLevel.Info, 'close');
@@ -248,25 +243,26 @@ classdef DbConnection < Component
         
         function Result = newQuery(Obj)
             % Create new DbQuery instance linked to this connection
-            % Input   : -
-            % Output  : DbQuery object lnked to Obj DbConnection
+            % Input   : - DbConnection object
+            % Output  : - New DbQuery object lnked to Obj DbConnection
+            % Author  : Chen Tishler (2021)
             % Example : Q = Obj.newQuery()
             Result = db.DbQuery(Obj);
         end
         
         
         function Result = isSharedPathAvail(Obj)
-            % Check if shared folder is available between server and client
-            % Input   :
-            % Output  :
-            % Examlpe :
+            % Check if shared folder is available between server and client, by calling isfolder()
+            % Input   : - DbConnection object
+            % Output  : - true if shared folder is available
+            % Author  : Chen Tishler (2021)
+            % Examlpe : Avail = isSharedPathAvail()
             Result = false;
             if ~isempty(Obj.ServerSharePath) && ~isempty(Obj.MountSharePath)
                 if isfolder(Obj.MountSharePath)
                     Result = true;
                 end
-            end
-            
+            end            
         end
         
     end
@@ -276,11 +272,14 @@ classdef DbConnection < Component
                
         function Result = getDbConnection(Alias, Args)
             % Search global (singleton) map of DbConnection for the specified connection key
-            % Input   : Alias - Database alias (i.e. name of configuration file, like 'unittest')
-            %           'create'   - true to create new DbConnection object
-            %           'register' - true to register the object specified in 'DbConn' argument  
-            %           'DbConn'   -
-            % Output  : DbConection object handle
+            % Input   : - Database alias (i.e. name of configuration file, like 'unittest')
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:                        
+            %             'create'   - true to create new DbConnection object
+            %             'register' - true to register the object specified in 'DbConn' argument  
+            %             'DbConn'   -
+            % Output  : - DbConection object handle
+            % Author  : Chen Tishler (2021)
             % Examlpe : Conn = DbConnection.getDbConnection('unittest')
             % Note    : Since persistent data is visible only inside this function,
             %           we call the function with different option for find and to
@@ -329,13 +328,14 @@ classdef DbConnection < Component
 
     methods(Static)
         function Result = findFieldIC(Struct, FieldName)
-            % Search struct field name, ignore case.
+            % Search struct field name, ignore case. Used internally by DbConnection.
             % Used to search configuration files that may not have the exact
             % case as the specified alias (i.e. 'UnitTest' and 'unittest')
-            % Input:   - Struct - data of type 'struct'
-            %            FieldName - field name to look for
-            % Output:  - Actual field name that exists in class
-            % Example: - Alias = db.DbConnection.findFieldIC(Obj.Config.Data.Database.DbConnections, Obj.Db);
+            % Input   : - Data of type 'struct'
+            %           - Field name to look for
+            % Output  : - Actual field name that exists in class
+            % Author  : Chen Tishler (2021)
+            % Example : Alias = db.DbConnection.findFieldIC(Obj.Config.Data.Database.DbConnections, Obj.Db);
             
             Result = '';
             List = fieldnames(Struct);
