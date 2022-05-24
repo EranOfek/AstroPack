@@ -1,3 +1,14 @@
+%
+% Modify Postgres data directory:
+%
+% sudo systemctl stop postgresql
+% sudo systemctl status postgresql
+%
+% sudo nano /etc/postgresql/14/main/postgresql.conf
+% Edit the 'data_directory' setting.
+%
+% sudo systemctl start postgresql
+% sudo systemctl status postgresql
 
 function Result = BigDbTestRaDecPart1()
     % You need to have configuration file with database user and password:
@@ -53,7 +64,7 @@ function Result = BigDbTestRaDecPart1()
     while true
        
         PartList = Q.getPartitionTree();
-        if numel(PartList) == 0
+        if numel(PartList) < 2
             SqlText = sprintf('SELECT MAX(pk1) FROM %s', TableName);
             Q.query(SqlText);
             pk_max = Q.getColumn('max');
