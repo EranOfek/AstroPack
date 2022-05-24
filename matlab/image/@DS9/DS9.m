@@ -2152,7 +2152,7 @@ classdef DS9 < handle
         
     end
         
-    methods    % Tile methods
+    methods    % Tile/blink methods
         % Set the tile display mode
         function tile(Obj, Val, Gap)
             % Set the tile the display mode of ds9
@@ -2270,7 +2270,9 @@ classdef DS9 < handle
                 Obj.xpaset('blink no');
             end
         end
-        
+    end
+    
+    methods
         % got here
         
         
@@ -2282,7 +2284,6 @@ classdef DS9 < handle
         % bin
         % block
         
-        % blink
         
         % crop
         
