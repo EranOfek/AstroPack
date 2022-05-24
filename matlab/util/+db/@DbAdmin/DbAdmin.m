@@ -1,14 +1,12 @@
-%--------------------------------------------------------------------------
 % File:    DbAdmin.m
 % Class:   DbAdmin
 % Title:   Database administrator utils for PostgreSQL, based on DbQuery
 % Author:  Chen Tishler
 % Created: December 2021
-%--------------------------------------------------------------------------
-% For documentation see files in +db/doc/
+% Note:    For more documentation see .md files in +db/doc/
 %
 %--------------------------------------------------------------------------
-
+%
 %#docgen
 %
 % Methods:
@@ -57,30 +55,32 @@ classdef DbAdmin < Component
 
         % Constructor
         function Obj = DbAdmin(Args)
-            % Create new DbAdmin obeject
+            % Create new DbAdmin object
+            % Input   : -
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:            		            
+            %             'DbQuery'   - DbQuery object used for connection to database
+            %             'DbCon'     - DbConnection  object used for connection to database 
             %
-            % Input:
-            %    'DbQuery'   - DbQuery object used for connection to database
-            %    'DbCon'     - DbConnection  object used for connection to database 
+            %             These arguments are used when DbQuery and DbCon are not set:
+            %             'Host'      - Host name
+            %             'Database'  - Database name
+            %             'UserName'  - User name
+            %             'Password'  - Password
+            %             'Port'      - Port number
             %
-            % These arguments are used when DbQuery and DbCon are not set:
-            %    'Host'      - Host name
-            %    'Database'  - Database name
-            %    'UserName'  - User name
-            %    'Password'  - Password
-            %    'Port'      - Port number
-            %
-            % Output: New DbAdmin object
-            %
-            % Examples:
+            % Output  : - New DbAdmin object
+            % Author  : Chen Tishler (2021)
+            % Example :
             %   % Create query object for 'UnitTest' database alias 'UnitTest'
+            %   % Configuration is loaded from config/Database.DbConnections.UnitTest.yml
             %   Q = DbAdmin('UnitTest')
             %
             arguments
                 Args.DbQuery       = []        % DbQuery object
                 Args.DbCon         = []        % DbConnection object
                 
-                % These arguments are used when DbQuery and DbCon are not set:
+                % These arguments are used when both DbQuery and DbCon are NOT set:
                 Args.Host          = ''        % Host name or IP address
                 Args.Port          = 5432      % Port number
                 Args.DatabaseName  = ''        % Use 'postgres' to when creating databases or for general
@@ -115,6 +115,7 @@ classdef DbAdmin < Component
 
         function delete(Obj)
             % Destructor            
+            % Internally called by Matlab when the object is destroyed.
             Obj.clear();
             Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
         end
@@ -127,10 +128,14 @@ classdef DbAdmin < Component
         function Result = createDatabase(Obj, Args)
             % Create database, from .XLSX or .SQL file
             %
-            % Input : 'XlsxFileName'  - .xlsx file from Google Sheets - Specify XLSX file
-            %         'SqlFileName'   - .sql file name - Specify SQL script to run
+            % Input : - DbAdmin object
+            %         * Pairs of ...,key,val,...
+            %           The following keys are available:            			            
+            %           'XlsxFileName' - .xlsx file from Google Sheets - Specify XLSX file
+            %           'SqlFileName'  - .sql file name - Specify SQL script to run
             %
-            % Output  :  true on success
+            % Output  : true on success
+            % Author  : Chen Tishler (2021)
             % Example : -
             % Instructions:
             %    1. Download database definition from Google Sheet by selecting
@@ -173,19 +178,22 @@ classdef DbAdmin < Component
         
         function Result = createConnectionConfig(Obj, Args)
             % Create database connection in config/local/Database.DbConnections.UnitTest.yml
-            % Input :
-            %    'FileName'        = ''                %
-            %    'DatabaseName'    = ''                %
-            %    'Host'            = 'localhost'       % Host name or IP address
-            %    'Port'            = 5432              %
-            %    'DriverName'      = 'postgres'        % Driver name
-            %    'UserName'        = ''                % Login user
-            %    'Password'        = ''                % Login password
-            %    'ServerSharePath' = '' %              % Path to shared folder on the server, for COPY statements
-            %    'MountSharePath'  = ''
-            %    'WinMountSharePath'  = ''
-            % Output   :  Configuration file name on success
-            % Example  : db.DbAdmin.createConnectionConfig('DatabaseName', 'unittest5', 'Host', 'gauss', 'Port', 5432, 'UserName', 'admin', 'Password', 'Passw0rd');
+            % Input : - DbAdmin object
+            %         * Pairs of ...,key,val,...
+            %           The following keys are available:            			            
+            %           'FileName'        = ''                %
+            %           'DatabaseName'    = ''                %
+            %           'Host'            = 'localhost'       % Host name or IP address
+            %           'Port'            = 5432              %
+            %           'DriverName'      = 'postgres'        % Driver name
+            %           'UserName'        = ''                % Login user
+            %           'Password'        = ''                % Login password
+            %           'ServerSharePath' = '' %              % Path to shared folder on the server, for COPY statements
+            %           'MountSharePath'  = ''
+            %           'WinMountSharePath'  = ''
+            % Output : - Configuration file name on success
+            % Author : Chen Tishler (2021)
+            % Example: db.DbAdmin.createConnectionConfig('DatabaseName', 'unittest5', 'Host', 'gauss', 'Port', 5432, 'UserName', 'admin', 'Password', 'Passw0rd');
             % Database.DbConnections.UnitTest.yml
             
             arguments
@@ -227,18 +235,21 @@ classdef DbAdmin < Component
                 if isfile(Args.FileName)
                     Result = Args.FileName;
                 end
-            end
-            
+            end            
         end
               
         
         function Result = createTable(Obj, Args)
             % Create database table, @Todo
-            % Input   : 'SqlText'       - 
-            %           'SqlFileName'   -
-            %           'TableName'     -
-            %           'PrimaryKeyDef' - 
+            % Input   : - DbAdmin object
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:            			                        
+            %             'SqlText'       - SQL text to execute
+            %             'SqlFileName'   - File name of SQL script to execute
+            %             'TableName'     - Table name, if not specified, Obj.TableName is used
+            %             'PrimaryKeyDef' - Definition of primary key (SQL)
             % Output  : true on success
+            % Author  : Chen Tishler (2021)
             % Example : db.DbAdmin.createTable('unittest', )
             % Refs    : https://www.postgresql.org/docs/8.0/sql-createuser.html
             % SQL     : [DROP TABLE IF EXISTS customers CASCADE;]
@@ -280,13 +291,15 @@ classdef DbAdmin < Component
         
         function Result = addColumn(Obj, TableName, ColumnName, DataType, ColumnDef)
             % Add single or multiple columns to table
-            % Input   : TableName  - Table name
-            %           ColumnName - Column name
-            %           DataType   - Data field type, INTEGER, etc. see
-            %                        https://www.postgresql.org/docs/current/datatype.html
-            %           ColumnDef  - Additional text for column definition, i.e. DEFAULT ...
+            % Input   : - DbAdmin object
+            %           - Table name
+            %           - Column name
+            %           - DataType   - Data field type, INTEGER, etc. see
+            %             https://www.postgresql.org/docs/current/datatype.html
+            %           - Additional text for column definition, i.e. DEFAULT ...
             %
             % Output  : true on success
+            % Author  : Chen Tishler (2021)
             % Example : Obj.addColumn('master_table', 'MyColA', 'INTEGER', 'DEFAULT 0')
             % Refs    : https://www.postgresqltutorial.com/postgresql-add-column/
             % SQL     : ALTER TABLE table_name
@@ -320,18 +333,19 @@ classdef DbAdmin < Component
             end
             
             Result = Obj.exec(SqlText);
-
         end
 
         
         function Result = addIndex(Obj, TableName, IndexName, IndexDef)
             % Add single index to table, may include one or multiple fields
-            % Input   : TableName - Table name to be altered
-            %           IndexName - Unique index name, usually composed as
-            %                       TableName_idx_FieldNames, for example 'master_table_idx_FDouble2'
-            %           IndexDef  - Index definition text with list of fields, for example: 'USING btree (FDouble2)'
+            % Input   : - DbAdmin object
+            %           - Table name to be altered
+            %           - Unique index name, usually composed as TableName_idx_FieldNames, 
+            %             for example 'master_table_idx_FDouble2'
+            %           - Index definition text with list of fields, for example: 'USING btree (FDouble2)'
             %
-            % Output  : true on sucess
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
             % Example : addIndex('master_table', 'master_table_idx_FDouble2', 'USING btree (FDouble2)');
             % Refs    : https://www.postgresql.org/docs/9.1/sql-createindex.html
             %           https://www.postgresqltutorial.com/postgresql-indexes/postgresql-create-index/
@@ -354,8 +368,9 @@ classdef DbAdmin < Component
 
         function Result = getDbList(Obj)
             % Get list of databases
-            % Input   : -
-            % Output  : Cell array with list of databases
+            % Input   : - DbAdmin object
+            % Output  : - Cell array with list of databases
+            % Author  : Chen Tishler (2021)
             % Example : List = Obj.getTablesList()
             % Refs    : https://www.postgresqltutorial.com/postgresql-list-users/
             
@@ -366,8 +381,10 @@ classdef DbAdmin < Component
         
         function Result = isDatabaseExist(Obj, DbName)
             % Check if the specified database exists
-            % Input   : DbName - database name to check for
-            % Output  : true if exists
+            % Input   : - DbAdmin object
+            %           - DbName - database name to check for
+            % Output  : - true if exists
+            % Author  : Chen Tishler (2021)
             % Example : Obj.isDatabaseExist('my_database_name')
             % Refs    : https://www.postgresqltutorial.com/postgresql-list-users/
             
@@ -396,7 +413,6 @@ classdef DbAdmin < Component
         % of entities, but now there are only roles. Any role can act as a user,
         % a group, or both.
         %
-        %
         % Database roles are conceptually completely separate from operating
         % system users. In practice it might be convenient to maintain a
         % correspondence, but this is not required. Database roles are global
@@ -419,11 +435,15 @@ classdef DbAdmin < Component
                 
         function Result = addUser(Obj, UserName, Password, Args)
             % Add database user
-            % Input   : UserName       - User name
-            %           Password       - Pasword string
-            %           'DatabaseName' - If specified user will be granted only for this database
-            %           'Permission'   - 'read', 'write', 'full'
+            % Input   : - DbAdmin object
+            %           - User name
+            %           - Password string
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:            			            
+            %             'DatabaseName' - If specified user will be granted only for this database
+            %             'Permission'   - 'read', 'write', 'full'
             % Output  : true on sucess
+            % Author  : Chen Tishler (2021)
             % Example : db.DbAdmin.addUser('robert', 'pass123')
             % Refs    : https://www.postgresql.org/docs/8.0/sql-createuser.html
             %           https://stackoverflow.com/questions/760210/how-do-you-create-a-read-only-user-in-postgresql
@@ -480,8 +500,10 @@ classdef DbAdmin < Component
             % the user and other objects such as tables. Use pgAdmin to remove users
             % and dependecies.
             %
-            % Input   : UserName to remove
-            % Output  : true on success
+            % Input   : - DbAdmin object
+            %           - UserName to remove
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
             % Example : db.DbAdmin.removeUser('robert')
             % Refs    : https://www.postgresql.org/docs/9.4/sql-dropuser.html
             % SQL     : DROP USER [ IF EXISTS ] name [, ...]
@@ -496,9 +518,11 @@ classdef DbAdmin < Component
         
         
         function Result = getUserList(Obj)
-            % Get database users list
-            % Input   : -
-            % Output  : Cell array with names of database users
+            % Get database users list. 
+            % Note that users are per server, and may be used with multiple databases.
+            % Input   : - DbAdmin object
+            % Output  : - Cell array with names of database users
+            % Author  : Chen Tishler (2021)
             % Example : List = Obj.getTablesList()
             % Refs    : https://www.postgresqltutorial.com/postgresql-list-users/
             
@@ -528,8 +552,10 @@ classdef DbAdmin < Component
         
         function Result = setConn(Obj, Conn)
             % Set connection data from the specified DbConnection object
-            % Input   : Conn - DbConnection object
-            % Output  : true on success
+            % Input   : - DbAdmin object
+            %           - Conn - DbConnection object
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
             % Example : Obj.setConn(DbCon);
             
             Obj.Conn = Conn;
@@ -544,8 +570,10 @@ classdef DbAdmin < Component
         
         function Result = exec(Obj, SqlText)
             % Execute SQL statement, by calling Obj.Query.exec()
-            % Input   : SqlText - Statement text, char
-            % Output  : true on success
+            % Input   : - DbAdmin object
+            %           - SqlText - Statement text, char
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
             % Example : Obj.exec('DROP USER IF EXISTS user1')
             Result = Obj.Query.exec(SqlText);
         end
@@ -555,10 +583,12 @@ classdef DbAdmin < Component
             % Convert XLSX file downloaded from Google Drive to SQL file, using xlsx2sql.py
             % Note: Requires ULTRASAT repository and ULTRASAT_PATH environment
             %       var to be set correctly.
-            % Note: python3 (python3.exe on Windows) should be on system PATH
-            % Input:   XlsFileName
-            % Output:  true on success
-            % Example: db.DbQuery.xlsx2sql('c:\temp\_xls\unittest.xlsx')
+            % Note: python3 (python3.exe on Windows) should be on PATH ('System' PATH on Windows)
+            % Input   : - DbAdmin object
+            %           - XlsFileName
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
+            % Example : db.DbQuery.xlsx2sql('c:\temp\_xls\unittest.xlsx')
             arguments
                 Obj             % 
                 XlsxFileName    %
@@ -641,15 +671,19 @@ classdef DbAdmin < Component
         
         function Result = runPsql(Obj, Args)
             % Run the 'psql' external utility with command line parameters.
-            % Input   : 'Host'          - Host name or IP address to connect
-            %           'Port'          - Port number, 0 to use default
-            %           'DatabaseName'  - Database name, use 'postgres' to when creating databases or for general
-            %           'UserName'      - User name
-            %           'Password'      - Password
-            %           'SqlFileName'   - SQL file name to be executed
-            %           'Params'        - Additional parameters for command line            
+            % Input   : - DbAdmin object
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:            			            
+            %             'Host'          - Host name or IP address to connect
+            %             'Port'          - Port number, 0 to use default
+            %             'DatabaseName'  - Database name, use 'postgres' to when creating databases or for general
+            %             'UserName'      - User name
+            %             'Password'      - Password
+            %             'SqlFileName'   - SQL file name to be executed
+            %             'Params'        - Additional parameters for command line            
             %
-            % Output  : true on success
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
             % Example : db.DbAdmin.runPsql(
             %               'psql -h gauss -p 5432 -U admin -W -d postgres -f unittest_postgres.sql')
             % Note    : psql (psql.exe on Windows) must be on the system PATH
@@ -753,7 +787,8 @@ classdef DbAdmin < Component
         function Result = startGui()
             % Run gui utility process - @TODO - Not completed - DO NOT USE!
             % Input   : -
-            % Output  : true on success
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
             % Example : db.DbAdmin.startGui
 
             Result = false;

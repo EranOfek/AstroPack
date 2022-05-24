@@ -1,4 +1,3 @@
-%--------------------------------------------------------------------------
 % File:    DbDriver.m
 % Class:   DbDriver
 % Title:   Internaly used by DbConnection to load JDBC driver.
@@ -7,10 +6,13 @@
 %--------------------------------------------------------------------------
 % Description:
 %
-% Database Driver Class, currently supports PostgreSQL
-% DbDriver is used **internally** by DbConnection, and SHOULD NOT be
+% Database Driver Class, currently supports PostgreSQL.
+% DbDriver is used **INTERNALLY** by DbConnection, and SHOULD NOT be
 % accessed by the user.
-% We currently use postgresql-42.3.1.jar
+% DbDriver is based on Java package, current version is postgresql-42.3.1.jar
+%
+% We copy the jar file from its original loation in the repository
+% to a target folder that is added by javaclasspath().
 %
 % The native MATLAB database functions require installation of MATLAB
 % Database Toolbox. To avoid dependency on it, we implement our database
@@ -22,15 +24,15 @@
 %       https://jdbc.postgresql.org/download.html
 %
 % There should be only one driver object for each database type.
-% For example, when working with Postgress, we need only one DbDriver for
-% it. We hold a persistent ComponentMap of all created DbDriver objects with
+% For example, when working with Postgres, we need only one DbDriver for
+% it. We hold a 'persistent' ComponentMap of all created DbDriver objects with
 % the database type (i.e. 'postgres') as the key.
 %
 % Usage:
 %   Drv = DbDriver.getDbDriver('postgres');
 %   Drv.loadDriver();
 %--------------------------------------------------------------------------
-
+%
 %#docgen
 %
 % Methods:
@@ -50,28 +52,24 @@ classdef DbDriver < Component
     % Database Driver Class, internally used by DbConnection
     
     % Properties
-    properties (SetAccess = public)
-        
-        % Connection details
-        DatabaseType = 'postgres'   % Currently we support only Postgres
-        
-        % Driver Java package file (.jar)
-        PostgresJar = 'postgresql-42.3.1.jar'
-        
-        % We copy the jar file from its original loation in the repository
-        % to a target folder that is added by javaclasspath()
-        IsLoaded = false            % True when driver is open
-        
-        % Java objects
-        JavaDriver = []             % Java Driver object, returned by org.postgresql.Driver
+    properties (SetAccess = public)        
+        DatabaseType  = 'postgres'               % Database type, currently only Postgres is supported.
+        PostgresJar   = 'postgresql-42.3.1.jar'  % Driver Java package file (.jar)       
+        IsLoaded      = false                    % True when driver is loaded (open)
+        JavaDriver    = []                       % Java Driver object, returned by org.postgresql.Driver
     end
     
     %--------------------------------------------------------
     methods % Constructor
         function Obj = DbDriver(Args)
             % Constructor, currently only 'postgres' is supported
-            % Input   : 'DatabaseType' - currently only 'postgres' is supported
-            % Output  : New instance to DbDriver
+            % Input   : -
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:            
+            %             'DatabaseType' - Database driver type, currently 'postgres' is
+            %             supported.
+            % Output  : New instance of DbDriver
+            % Author  : Chen Tishler (2021)
             % Example : drv = DbDriver()
             arguments
                 Args.DatabaseType = 'postgres'
@@ -87,7 +85,8 @@ classdef DbDriver < Component
         
         
         function delete(Obj)
-            % Destructor, unload driver from memory
+            % Destructor, unload driver from memory.
+            % Internally called by Matlab when the object is destroyed.
             Obj.msgLog(LogLevel.Debug, 'deleted started: %s', Obj.Uuid);
             Obj.unloadDriver();
             Obj.msgLog(LogLevel.Debug, 'deleted: %s', Obj.Uuid);
@@ -98,10 +97,13 @@ classdef DbDriver < Component
     methods % Connect, disconnect
                         
         function Result = loadDriver(Obj)
-            % Load database driver library
-            % Calls copyDriverFile() to copy the library file to target folder
-            % Input   : -
-            % Output  : true if loaded successfully
+            % Load Java database driver library to memory.
+            % Calls copyDriverFile() to copy the library file to target folder.
+            % It is required because in some cases loading the jar file from
+            % its location in the repository fails.
+            % Input   : - DbDriver object
+            % Output  : - true if loaded successfully
+            % Author  : Chen Tishler (2021)
             % Example : drv.loadDriver()
             % Ref     : https://stackoverflow.com/questions/2698159/how-can-i-access-a-postgresql-database-from-matlab-with-without-matlabs-database
             Obj.msgLog(LogLevel.Info, 'loadDriver');
@@ -137,9 +139,10 @@ classdef DbDriver < Component
                 
         
         function Result = unloadDriver(Obj)
-            % Unload database driver
-            % Input   : -
-            % Output  : true if unloaded successfully
+            % Unload database driver from memory.
+            % Input   : - DbDriver object
+            % Output  : - true if unloaded successfully
+            % Author  : Chen Tishler (2021)
             % Example : drv.unloadDriver()
             Obj.msgLog(LogLevel.Info, 'unloadDriver');
             if Obj.IsLoaded
@@ -155,27 +158,16 @@ classdef DbDriver < Component
             end
             Result = true;
         end
-        
-                
-        % @Todo:
-        function Result = validateConfig(Obj)
-            % NOT IMPLEMENTED YET
-            % Validate that we have all configuration params that we need
-            
-            % @Todo: replace with real params
-            % assert(~isempty(Obj.Config.Data.System.EnvFolders.ROOT));
-            
-            Result = true;
-        end
     end
     
     
     methods(Static) % getDbDriver - Static Singleton
         
         function Result = getDbDriver(varargin)
-            % Get singleton Map object that maps database type to DbDriver object
-            % Input   : Optional - database type as string, currently only 'postgres' is supported
-            % Output  : Instance of DbDriver object
+            % Get singleton Map object that maps database type to DbDriver object.
+            % Input   : - [Optional] database type as string, currently only 'postgres' is supported
+            % Output  : - Instance of DbDriver object
+            % Author  : Chen Tishler (2021)
             % Example : Driver = db.DbDriver.getDbDriver('postgres')
             persistent Map
             if isempty(Map)
