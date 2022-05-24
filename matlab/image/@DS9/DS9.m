@@ -1836,18 +1836,18 @@ classdef DS9 < handle
     
     % got here
     
-    methods (Static)
-        function plotc(varargin)
+    methods  % plot catalogs 
+        function FileName = plotc(Obj,varargin)
             % Generate and plot a region file from a list of celestial coordinates [RA, Dec]
-            % Package: @ds9
-            % Input  : * see ds9.plot(...,'Coo','fk5')
+            % Input  : * see Obj.plot(...,'Coo','fk5')
+            % Output : - A region file name.
+            % Author : Eran Ofek (May 2022)
             
-            ds9.plot(varargin{:},'Coo','fk5');
-            
+            FileName = Obj.plot(varargin{:},'Coo','fk5');
         end
         
         % plot regions
-        function FileName = plot(X, Y, ColorSymbol, Args)
+        function FileName = plot(Obj, X, Y, ColorSymbol, Args)
             % Generate and plot a region file from a list of coordinates
             % Package: @ds9
             % Description: Generate and plot a region file from a list of
@@ -1876,8 +1876,8 @@ classdef DS9 < handle
             %          D.plot(AC, {'RA','Dec'}, 'ro', 'Coo','icrs')
             %          D.plot(AC, {}, 'ro', 'Coo','icrs')
             
-            
             arguments 
+                Obj
                 X
                 Y
                 ColorSymbol          = 'ro';  % color, symbol
@@ -1901,11 +1901,12 @@ classdef DS9 < handle
                 
                 Args.DeleteFile logical = true;
             end
-            
-            
-            
+                        
             if isnumeric(X)
                 if isempty(Y)
+                    if size(X,2)<2
+                        error('If second input argument is empty, then first input must be an AstroCatalog, or a matrix with at least two columns');
+                    end
                     Y = X(:,2);
                     X = X(:,1);
                 end
@@ -1928,7 +1929,7 @@ classdef DS9 < handle
                 
             if ~isempty(ColorSymbol)
                 [~,Marker,Args.Color]=DS9.parseColorSymbol(ColorSymbol);
-                if isempty(Args.MarkerSIze)
+                if isempty(Args.Size)
                     switch Marker
                         case 'o'
                             Args.Size       = [10 10];
@@ -1942,7 +1943,7 @@ classdef DS9 < handle
                 end
             end
                 
-            Obj.regionWrite(Cat, 'Coo',Args.Coo,...
+            DS9.regionWrite(Cat, 'Coo',Args.Coo,...
                                  'Size',Args.Size,...
                                  'Marker',Args.Marker,...
                                  'Color',Args.Color,...
@@ -1958,10 +1959,9 @@ classdef DS9 < handle
                                  'ColNameY',Args.ColNameY,...
                                  'ColNameRA',Args.ColNameRA,...
                                  'ColNameDec',Args.ColNameDec);
-                                     
                     
             Obj.regionLoad(Args.FileName);
-            if (DeleteFile)
+            if Args.DeleteFile
                 delete(Args.FileName);
                 FileName = [];
             else
@@ -1969,102 +1969,11 @@ classdef DS9 < handle
             end
             
         end
-        
-        function plotXY(Cat, MarkerColor, Args)
-            %
-            % Example:
-            %          ds9.plotXY([X, Y],[], 'wo','MarkerSize',18,'Marker','s', 'CooType','icrs');
-            %          ds9.plotXY(AstroCatalog, 'ro', 'MarkerSize',18, 'ColNameX','X','ColNameY','Y');
-            %          ds9.plotXY(AstroCatalog, 'go', 'MarkerSize',18, 'CooType','sphere');
-        
-            arguments
-                Cat
-                MarkerColor        = [];
-                Args.MarkerSize    = 20;
-                Args.MarkerUnits   = 'pix';
-                Args.Color         = 'r';
-                Args.Marker        = 'o';       % 'o','s'
-                Args.Coo           = 'image';   % 'image'|'fk5','icrs'
-                Args.Width         = 1;
-                Args.Text          = '';
-                Args.Font          = 'helvetica';  %'helvetica 16 normal'
-                Args.FontSize      = 16;
-                Args.FontStyle     = 'normal';
-                Args.ColNameX      = AstroCatalog.DefNamesX;
-                Args.ColNameY      = AstroCatalog.DefNamesY;
-                Args.ColNameRA     = AstroCatalog.DefNamesRA;
-                Args.ColNameDec    = AstroCatalog.DefNamesDec;
-            end
-            
-            if isnumeric(Cat)
-                % do nothing - Cat is in the correct format
-            else
-                if isa(Cat, 'AstroImage')
-                    CatData = Cat.CatData;
-                elseif isa(Cat, 'AstroCatalog')
-                    CatData = Cat;
-                else
-                    error('Unknown Cat format option');
-                end
+   
                 
-                switch lower(Args.CooType)
-                    case {'image','pix'}
-                        Cat = getXY(CatData, 'ColX',Args.ColNameX, 'ColY',Args.ColNameY);
-                    case {'icrs','fk5'}
-                        Cat = getLonLat(CatData, 'deg', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec);
-                    case 'sphere'
-                        Cat = getLonLat(CatData, 'deg', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec);
-                        Args.CooType = 'icrs';
-                    otherwise
-                        error('Unknown CooType option');
-                end
-            end
-            
-            if ~isempty(MarkerColor)
-                Args.Color  = MarkerColor(1);
-                Args.Marker = MarkerColr{2};
-            end
-            switch lower(Args.Color)
-                case {'r','red'}
-                    Args.Color = 'red';
-                case {'b','blue'}
-                    Args.Color = 'blue';
-                case {'w','white'}
-                    Args.Color = 'white';
-                case {'g','green'}
-                    Args.Color = 'green';
-                case {'k','black'}
-                    Args.Color = 'black';
-                case {'y','yellow'}
-                    Args.Color = 'yellow';
-                otherwise
-                    error('Unknown Color option');
-            end
-            switch lower(Args.Marker)
-                case {'o','circle'}
-                    Args.Marker = 'circle';
-                case {'s','box'}
-                    Args.Marker = 'box';
-                otherwise
-                    error('Unknown Marker option');
-            end
-            
-            varargin = {'Coo',Args.Coo, 'Units','deg', 'Color',Args.Color, 'Marker',Args.Marker,...
-                        'Size',Args.Size, 'Width',Args.Width,...
-                        'Text',Args.Text, 'Font',Args.Font, 'FontSize', Args.FontSize, 'FontStyle',Args.FontStyle,...
-                        'ColNameX',Args.ColNameX, 'ColNameY',Args.ColNameY,...
-                        'ColNameRA',Args.ColNameRA, 'ColNameDec',Args.ColNameDec};
-            
-            
-            FileName = ds9.write_region(Cat, varargin{:});
-            ds9.load_region(FileName);
-            if (DeleteFile)
-                delete(FileName);
-                FileName = [];
-            end
-                      
-        end
-                
+        
+        
+        
         % plot line by x/y coordinates
         function line_xy(X,Y,varargin)
             % Plot a broken line
