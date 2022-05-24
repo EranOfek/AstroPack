@@ -708,7 +708,13 @@ classdef ImagePath < Base %Component
             % Output : - An array of Sun altitude (deg) for each image
             %            entry.
             % Author : Eran Ofek (May 2022)
-           
+            % Example: % delete all images taken when the Sun is up
+            %          List=io.files.filelist('LAST*.fits');                         
+            %          IP=ImagePath.parseFileName(List);
+            %          SA=IP.sunAlt;
+            %          I=find(SA>0);
+            %          for ii=1:numel(I), delete(IP(I(ii)).genFile); end    
+            
             arguments
                 Obj
                 Args.GeoPos    = [35 30];
