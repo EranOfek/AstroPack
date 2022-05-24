@@ -1832,10 +1832,7 @@ classdef DS9 < handle
             Obj.xpaset('regions save %s',FileName);
         end
     end
-    
-    
-    % got here
-    
+        
     methods  % plot catalogs 
         function FileName = plotc(Obj,varargin)
             % Generate and plot a region file from a list of celestial coordinates [RA, Dec]
@@ -2048,45 +2045,48 @@ classdef DS9 < handle
             end
             
         end
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        function line_lt(X,Y,Length,Theta,varargin)
-            % Plot multiple lines based on X,Y,length,theta
-            % Package: @ds9
+       
+        function plotLineSlope(Obj, X,Y,Theta,Length,varargin)
+            % Plot multiple lines based on X,Y,theta,length
             % Description: Plot multiple lines based on X,Y,length,theta
             % Input  : - Vector of X starting points.
+            %            Each one of the first 4 input args may be a scalar
+            %            or a vector.
             %          - Vector of Y starting points.
-            %          - Vector of line lengths.
             %          - Vector of line angles [deg] measured from X-axis.
-            %          * Additional parameters to pass to ds9.write_region
+            %          - Vector of line lengths.
+            %          * Additional parameters to pass to DS9/regionWrite
             %            function. The first argument may be a plot-like
             %            color indicator.
-            % Output : null
-            % Example: ds9.line_lt(400,1900,100,10)
-            %          ds9.line_lt(400,1900,100,10,'g','Width',3)
-            %          ds9.line_lt([400,450],[1900,1910],[100,200],[10,45])
+            % Output : - FileName for the region file.
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,100));
+            %          D.plotLineSlope(10,10,100,100,'r-','Width',4)
+            %          D.plotLineSlope(10,10,[0;10;20],100,'r-','Width',4)
             
             Xend = X + Length.*cosd(Theta);
             Yend = Y + Length.*sind(Theta);
+                        
+            NXe = numel(Xend);
+            NYe = numel(Yend);
+            NX  = numel(X);
+            NY  = numel(Y);
+            NT  = numel(Theta);
+            NL  = numel(Length);
             
-            N = numel(X);
+            N = max([NX, NY, NT, NL]);
             for I=1:1:N
                 % for each line
-                ds9.line_xy([X(I), Xend(I)],[Y(I), Yend(I)],varargin{:});
+                Ix  = min(I,NX);
+                Iy  = min(I,NY);
+                Ixe = min(I,NXe);
+                Iye = min(I,NYe);
+                Obj.plotLine([X(Ix), Xend(Ixe)],[Y(Iy), Yend(Iye)],varargin{:});
             end
         end
         
         % plot text
-        function text(X,Y,Text,varargin)
+        function  plotText(Obj,X,Y,Text,Args)
             % plot text to ds9 current frame
             % Package: @ds9
             % Description: plot text to ds9 current frame in image
@@ -2100,6 +2100,9 @@ classdef DS9 < handle
             %          - Text.
             %          * Arbitrary number of ...,key,val,... pairs.
             %            The following keywords are available:
+            %             'Coo'     - Coordinate system: 'image'|'fk5'.
+            %                         If 'fk5' units are deg.
+            %                         Default is 'image'.
             %             'Color'   - A string or a cell array of strings
             %                         of marker colors
             %                         ('red'|'blue'|'green'|'black'|
@@ -2110,27 +2113,24 @@ classdef DS9 < handle
             %             'Font'    - Font type. Default is 'helvetica'.
             %             'FontSize'- Font size. Default is 16.
             %             'FontStyle'-Font style. Default is 'normal'.
-            %             'Coo'     - Coordinate system: 'image'|'fk5'.
-            %                         Default is 'image'.
-            %
             % Output : null
-            % see also: ds9.plot, ds9.write_region
-            % Example: ds9.text(700,900,'Hello');
-            %          ds9.text(700,980.1,'Hello','color','cyan');
-            %          ds9.text(149.41455,69.758364,'Star','Coo','fk5'); % deg
-            %          ds9.text('9:56:31.559','+69:49:27.60','Object','Color','blue')
-            % Reliable: 2
-            
-            
+            % Example: D = DS9(rand(100,100));
+            %          D.plotText(30,30,'Hello')
+            %          D.plotText(30,50,'Hello','FontSize',30, 'Color','blue')
+
+            arguments
+                Obj
+                X
+                Y
+                Text
+                Args.Coo         = 'image';
                 
-            
-            DefV.Color               = 'red';
-            DefV.Width               = 1;
-            DefV.Font                = 'helvetica';  %'helvetica 16 normal'
-            DefV.FontSize            = 16;
-            DefV.FontStyle           = 'normal';
-            DefV.Coo                 = 'image';
-            InPar = InArg.populate_keyval(DefV,varargin,mfilename);
+                Args.Color       = 'red';
+                Args.Width       = 1;
+                Args.Font        = 'helvetica';  %'helvetica 16 normal'
+                Args.FontSize    = 16;
+                Args.FontStyle   = 'normal';
+            end
             
             if (ischar(X))
                 InPar.Coo = 'fk5';
@@ -2140,20 +2140,21 @@ classdef DS9 < handle
             end
             
             if (IsSexagesimal)
-                ds9.system('echo "%s; text %s %s # color=%s width=%d font={%s %d %s} text={%s}" | xpaset ds9 regions',...
-                                InPar.Coo,X,Y,InPar.Color,InPar.Width,InPar.Font,InPar.FontSize,InPar.FontStyle,Text);
+                DS9.system('echo "%s; text %s %s # color=%s width=%d font={%s %d %s} text={%s}" | xpaset ds9 regions',...
+                                Args.Coo,X,Y,Args.Color,Args.Width,Args.Font,Args.FontSize,Args.FontStyle,Text);
             else
                 
-                ds9.system('echo "%s; text %f %f # color=%s width=%d font={%s %d %s} text={%s}" | xpaset ds9 regions',...
-                            InPar.Coo,X,Y,InPar.Color,InPar.Width,InPar.Font,InPar.FontSize,InPar.FontStyle,Text);
+                DS9.system('echo "%s; text %f %f # color=%s width=%d font={%s %d %s} text={%s}" | xpaset ds9 regions',...
+                            Args.Coo,X,Y,Args.Color,Args.Width,Args.Font,Args.FontSize,Args.FontStyle,Text);
             end
-        
             pause(0.2);
-            
         end
         
-        
     end
+    
+    
+    
+    % got here
     
     % Tile methods
     methods (Static)

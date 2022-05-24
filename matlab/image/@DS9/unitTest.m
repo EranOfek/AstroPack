@@ -103,7 +103,14 @@ function Result = unitTest()
     % plotLine
     D.plotLine([1 10],[1 20])
     D.plotLine([1 20],[1 50],'g-','Width',3)
+   
+    % plotLineSlope
+    D.plotLineSlope(10,10,100,100,'r-','Width',4)
+    D.plotLineSlope(10,10,[0;10;20],100,'r-','Width',4)
             
+    % plotText
+    D.plotText(30,30,'Hello')
+    D.plotText(30,50,'Hello','FontSize',30, 'Color','blue')
     
     
 	io.msgStyle(LogLevel.Test, '@passed', 'ds9 test passed');
