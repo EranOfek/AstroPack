@@ -57,7 +57,7 @@ fdouble048 REAL DEFAULT 0,
 fdouble049 REAL DEFAULT 0,
 fdouble050 REAL DEFAULT 0
 
-);
+) PARTITION BY RANGE (f_time);
 
 create index table_f_radec1_idx_p_ra_dec on table_f_radec1 using spgist(p_ra_dec);
 
