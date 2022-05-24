@@ -698,6 +698,33 @@ classdef ImagePath < Base %Component
                 Obj(Iobj).(Prop) = Val;
             end
         end
+        
+        function [SunAlt] = sunAlt(Obj, Args)
+            % Calculate Sun Altitude for images in ImagePath object
+            % Input  : - An ImagePath object
+            %          * ...,key,val,...
+            %            'GeoPos' - Geodetic position [Lon, Lat] in deg.
+            %                   Default is [35 30].
+            % Output : - An array of Sun altitude (deg) for each image
+            %            entry.
+            % Author : Eran Ofek (May 2022)
+           
+            arguments
+                Obj
+                Args.GeoPos    = [35 30];
+            end
+            
+            RAD = 180./pi;
+            
+            VecJD    = [Obj.Time];
+            VecJD    = VecJD(:);
+            LST      = celestial.time.lst(VecJD, Args.GeoPos(1)./RAD);  % frac of day
+            [RA,Dec] = celestial.SolarSys.suncoo(VecJD, 'j'); % [rad]
+            HA       = LST.*2.*pi - RA;                       % [rad]
+            [SunAz,SunAlt] = celestial.coo.hadec2azalt(HA, Dec, Args.GeoPos(2)./RAD); % [rad]
+            SunAlt   = SunAlt.*RAD; 
+            
+        end
     end
     
     methods % raed/write from stuct
