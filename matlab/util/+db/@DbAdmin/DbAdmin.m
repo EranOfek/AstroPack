@@ -1,9 +1,9 @@
 %--------------------------------------------------------------------------
-% File:    DbAdmin.m.
-% Class:   DbAdmin.
-% Title:   Database administrator utils for PostgreSQL, based on DbQuery.
-% Author:  Chen Tishler.
-% Created: December 2021.
+% File:    DbAdmin.m
+% Class:   DbAdmin
+% Title:   Database administrator utils for PostgreSQL, based on DbQuery
+% Author:  Chen Tishler
+% Created: December 2021
 %--------------------------------------------------------------------------
 % PostgreSQL V14 - Installation instructions for Linux:
 %
@@ -33,7 +33,6 @@
 %    setConn - Input: Conn - Output: true on success Example: Obj.setConn(DbCon);
 %
 % Methods: Static
-%    help - Show MLX manual
 %    startGui - Run gui utility - @TODO - Currently DO NOT USE Input: - Output: - Example: db.DbAdmin.startGui
 %
 % Methods: Hidden
@@ -764,12 +763,12 @@ classdef DbAdmin < Component
     
     
     methods(Static) % Unit-Tests
-
-        function help
-            % Show MLX manual
-            tools.os.class_mlx(mfilename('fullpath'))
-        end
-        
+%
+        help
+%             % Show MLX manual
+%             tools.os.class_mlx(mfilename('fullpath'))
+%         end
+%
         Result = unitTest()
             % Unit-Test
 
