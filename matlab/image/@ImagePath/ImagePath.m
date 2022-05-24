@@ -1224,8 +1224,7 @@ classdef ImagePath < Base %Component
                 % odd number of SetProp
                 error('Number of elements in SetProp argument must be even (key,val)');
             end            
-            
-            
+                        
             Nprod = numel(ObjProduct);
             ObjIP = ImagePath(Nprod);
             for Iprod=1:1:Nprod
