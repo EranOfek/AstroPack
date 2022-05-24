@@ -175,6 +175,7 @@ function runPipeLAST(DataNumber, Args)
             % execute the pipeline
             Counter = Counter + 1;
             tic;
+            %%%% problem: FieldID is wrong
             pipeline.generic.multiRaw2procCoadd(ListImagesFull, 'CalibImages',CI, Args.multiRaw2procCoaddArgs{:}, 'SubDir',sprintf('%d',Counter), 'BasePath', Args.BaseArchive);
             toc
             
