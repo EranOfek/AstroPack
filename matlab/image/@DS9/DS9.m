@@ -1928,9 +1928,9 @@ classdef DS9 < handle
             end
                 
             if ~isempty(ColorSymbol)
-                [~,Marker,Args.Color]=DS9.parseColorSymbol(ColorSymbol);
+                [~,Args.Marker,Args.Color]=DS9.parseColorSymbol(ColorSymbol);
                 if isempty(Args.Size)
-                    switch Marker
+                    switch Args.Marker
                         case 'o'
                             Args.Size       = [10 10];
                             Args.Marker     = 'circle';
@@ -1970,70 +1970,94 @@ classdef DS9 < handle
             
         end
    
-                
-        
-        
-        
         % plot line by x/y coordinates
-        function line_xy(X,Y,varargin)
-            % Plot a broken line
-            % Package: @ds9
+        function FileName = plotLine(Obj, X, Y, ColorSymbol, Args)
+            % Plot a line, broken line, or a polygon
             % Description: Plot a broken line (curve) in ds9 image.
-            % Input  : - Vector of X.
-            %          - Vector of Y.
-            %          * Additional parameters to pass to ds9.write_region
-            %            function. The first argument may be a plot-like
-            %            color indicator.
-            % Output : null
-            % Example: ds9.line_xy([356 400],[2000 2100],'Color','green')
-            %          ds9.line_xy([356 400],[2000 2100],'r')
-            %          ds9.line_xy([356 400],[2000 2100],'w','width',3)
-            %          ds9.line_xy([360,400,500],[2000 2010 2100])
-            % Reliable: 2
-
+            % Input  : - A DS9 object.
+            %          - Vector of X points of the line verteces.
+            %          - Vector of Y points of the line verteces.
+            %          - Color and symbol string. Symbol ignored.
+            %            Default is 'r-'.
+            %            'FileName' - Output region file name.
+            %                         Default is tempname.
+            %            'Append'   - Append region file to an existing
+            %                         region file. Default is false.
+            %            'Coo'      - Coordinates type: 'image'|'fk5'.
+            %                         Default is 'image' (i.e., pixels).
+            %            'Units'    - If 'Coo' is 'fk5' than this specify
+            %                         if the input coordinates are in 'deg'
+            %                         or 'rad'. Default is 'deg'.
+            %             'Width'   - A scalar or a vector of markers
+            %                         width. Default is 1.
+            %             'Text'    - Text to plot with marker.
+            %                         Default is ''.
+            %             'Font'    - Font type. Default is 'helvetica'.
+            %             'FontSize'- Font size. Default is 16.
+            %             'FontStyle'-Font style. Default is 'normal'.
+            %             'DeleteFile' - A logical indicating if to delete
+            %                   region file after useage.
+            %                   Default is true.
+            % Output : - Region file path and name.
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,100))
+            %          D.plotLine([1 10],[1 20])
+            %          D.plotLine([1 20],[1 50],'g-','Width',3)
             
-            DeleteFile = true;
-            
-            Narg  = numel(varargin);
-            Color = 'red';
-            if ~(Narg.*0.5==floor(Narg.*0.5))
-                % assume 3rd parameter is a color indicator
+            arguments
+                Obj
+                X
+                Y
+                ColorSymbol                 = 'r-';
                 
-                if (~isempty(strfind(varargin{1},'r')))
-                    Color = 'red';
-                elseif (~isempty(strfind(varargin{1},'b')))
-                    Color = 'blue';
-                elseif (~isempty(strfind(varargin{1},'g')))
-                    Color = 'green';
-                elseif (~isempty(strfind(varargin{1},'k')))
-                    Color = 'black';
-                elseif (~isempty(strfind(varargin{1},'w')))
-                    Color = 'white';
-                elseif (~isempty(strfind(varargin{1},'m')))
-                    Color = 'magenta';
-                elseif (~isempty(strfind(varargin{1},'c')))
-                    Color = 'cyan';
-                elseif (~isempty(strfind(varargin{1},'y')))
-                    Color = 'yellow';
-                else
-                    Color = 'red';
-                end
-                varargin = varargin(2:end);
+                Args.FileName        = tempname;  % use temp file name
+                Args.Append          = false;
+                Args.Coo             = 'image';   % 'image'|'fk5'
+                Args.Units           = 'deg';     % for 'image' this is always pix!
+                Args.Width           = 1;
+                Args.Text            = '';
+                Args.Font            = 'helvetica';  %'helvetica 16 normal'
+                Args.FontSize        = 16;
+                Args.FontStyle       = 'normal';
+                
+                Args.DeleteFile logical     = true;
             end
-            
+                            
+            [~,~,Color] = DS9.parseColorSymbol(ColorSymbol);
+              
             X1 = X(1:end-1);
             Y1 = Y(1:end-1);
             X2 = X(2:end);
             Y2 = Y(2:end);
             
-            FileName = ds9.write_region([X1(:), Y1(:)],'Color',Color,varargin{:},'Marker','line','Size',[X1(:), Y1(:), X2(:), Y2(:)]);
-            ds9.load_region(FileName);
-            if (DeleteFile)
+            FileName = DS9.regionWrite([X1(:), Y1(:)],'Color',Color,'Marker','line','Size',[X1(:), Y1(:), X2(:), Y2(:)],...
+                                                      'FileName',Args.FileName,...
+                                                      'Append',Args.Append,...
+                                                      'Coo',Args.Coo,...
+                                                      'Units',Args.Units,...
+                                                      'Width',Args.Width,...
+                                                      'Text',Args.Text,...
+                                                      'Font',Args.Font,...
+                                                      'FontSize',Args.FontSize,...
+                                                      'FontStyle',Args.FontStyle);
+                                                      
+            Obj.regionLoad(FileName);
+            if Args.DeleteFile
                 delete(FileName);
                 FileName = [];
             end
             
         end
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
         function line_lt(X,Y,Length,Theta,varargin)
             % Plot multiple lines based on X,Y,length,theta

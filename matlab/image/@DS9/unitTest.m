@@ -93,6 +93,16 @@ function Result = unitTest()
     
     % colorbar control
     D.colorbar
+    
+    % plot
+    D.plot(50,50)
+    D.plot(rand(100,2).*100,[],'rs')
+    D.plot(rand(100,2).*100,[],'ws','size',3)
+    D.regionDelete;
+    
+    % plotLine
+    D.plotLine([1 10],[1 20])
+    D.plotLine([1 20],[1 50],'g-','Width',3)
             
     
     
