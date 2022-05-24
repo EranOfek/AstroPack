@@ -99,7 +99,7 @@ function [Val, Key, Comment, Nfound] = getValBySynonym(CellHeader, KeySynonym, A
         Comment = CellHeader{IndCell, Args.ColComment};
         
         % convert to number
-        if Args.Val2Num
+        if Args.Val2Num && ischar(Val)
             MatchedND = regexp(Val, '[^\d]', 'match');
             if isempty(MatchedND)
                 %ValNum  = str2double(Val);
