@@ -45,7 +45,7 @@ function [Mean,Var,FlagGood,GoodCounter]=mean_sigclip(Data,Dim,Args)
 arguments
     Data
     Dim                              = [];
-    Args.MeanFun                     = @mean;
+    Args.MeanFun                     = @tools.math.stat.nanmean;
     Args.StdFun                      = @tools.math.stat.nanstd;  %@imUtil.background.rstdL1; %'rstd';
     Args.Nsigma(1,2)                 = [5 5];
     Args.MaxIter(1,1)                = 2;
