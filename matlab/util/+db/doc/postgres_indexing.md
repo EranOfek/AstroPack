@@ -411,3 +411,32 @@ creation order of the rows within it, to match the key’s order. Keys on genera
 sequence numbers or created data are best candidates for BRIN index.
 
 
+### Partial Index
+
+https://www.gojek.io/blog/the-postgres-performance-tuning-manual-indexes
+
+Postgres supports an index over a subset of the rows of a table 
+(known as a partial index). It’s often the best way to index our data 
+if we want to repeatedly analyse rows that match a given WHERE clause. 
+Let us see how we can enhance the performance of Postgres using partial 
+indexing.
+
+
+### Hash Index
+
+https://hakibenita.com/postgresql-hash-index
+
+https://dba.stackexchange.com/questions/259477/hash-index-vs-btree-index-performance-on-inserts-and-updates
+
+https://devcenter.heroku.com/articles/postgresql-indexes
+
+
+### Data Folder Structure
+
+https://www.postgresql.org/docs/current/storage-file-layout.html
+
+
+### Performance - More
+
+https://devcenter.heroku.com/categories/postgres-performance
+
