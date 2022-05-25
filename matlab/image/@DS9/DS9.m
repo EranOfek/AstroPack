@@ -2384,13 +2384,130 @@ classdef DS9 < handle
             end
            
         end
+                
+    end
+    
+    
+    methods   % xy2coo, coo2xy
+        function [CooX,CooY] = coo2xy(Obj,RA,Dec,Args)
+            % Convert RA/Dec to X/Y (image) using ds9 tools
+            % Input  : - A DS9 object.
+            %          - J2000.0 RA [sexagesimal string, rad or deg]
+            %            See 'CooUnits'. Default is 'deg'.
+            %          - J2000.0 Dec
+            %          * ...,key,val,...
+            %            'CooType' - Output coordinate type: {'image'|'physical'}.
+            %                   Default is 'image'.
+            %            'CooUnits' - Input coordinates units 'rad'|'deg'
+            %                   Default is 'deg'.
+            %            'Frame' - Frame index. If empty, use current
+            %                   frame. Default is [].
+            % Output : - X [pix].
+            %          - Y [pix].
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,100));
+            %          [a,b]=D.coo2xy(1, 3)
+           
+            arguments
+                Obj
+                RA
+                Dec
+                Args.CooType   = 'image';
+                Args.CooUnits  = 'deg';
+                Args.Frame     = [];
+            end
+            RAD = 180./pi;
+            
+            if isempty(Args.Frame)
+                FrameChanged = false;
+            else
+                CurFrame = Obj.Frame;
+                if Args.Frame~=CurFrame
+                    Obj.frame(Args.Frame);
+                    FrameChanged = true;
+                end
+            end
+            
+            if ischar(RA) && ischar(Dec)
+                RA  = celestial.coo.convertdms(RA, 'gH','d');
+                Dec = celestial.coo.convertdms(Dec, 'gD','D');
+            else
+                switch lower(Args.CooUnits)
+                    case 'rad'
+                        RA  = RA./RAD;
+                        Dec = Dec./RAD;
+                end
+            end
+            
+            N    = numel(RA);
+            CooX = nan(size(RA));
+            CooY = nan(size(Dec));
+            for I=1:1:N
+                %--- set coordinates of crosshair ---
+                Obj.xpaset('crosshair %f %f wcs icrs',RA(I),Dec(I));
+                
+                %--- get Coordinates of crosshair ---
+                CooStr = Obj.xpaget('crosshair %s',Args.CooType);
+                CooXY = DS9.parseOutput(CooStr, 'num');
+                
+                CooX(I) = CooXY(1);
+                CooY(I) = CooXY(2);
+                
+            end
+            Obj.xpaset('mode pointer');
+
+            if FrameChanged
+                % return to original frame
+                Obj.frame(CurFrame);
+            end
+            
+        end
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
         % got here
         
         
+        function [RA,Dec]=xy2coo(X,Y,CooType)
+            % Convert RA/Dec to X/Y (image) using ds9 tools
+            % Package: @ds9
+            % Input  : - X
+            %          - Y
+            %          - Output coordinate type: {'fk4'|'fk5'|'icrs'}.
+            %            Default is 'icrs.
+            % Output : - RA [deg].
+            %          - Dec [deg].
+           
+            if (nargin<3)
+                CooType = 'icrs';
+            end
+            N    = numel(X);
+            RA = zeros(N,1);
+            Dec = zeros(N,1);
+            for I=1:1:N
+                %--- set coordinates of crosshair ---
+                ds9.system(sprintf('xpaset -p ds9 crosshair %f %f image',X(I),Y(I)));
+                %--- get Coordinates of crosshair ---
+                CooIm = ds9.system(sprintf('xpaget ds9 crosshair wcs %s',CooType));
+                %[CooX(I), CooY(I)] = strread(CooIm,'%f %f',1); %,'headerlines',4);
+                Cell = textscan(CooIm,'%f %f'); %,'headerlines',4);
+                RA(I) = Cell{1};
+                Dec(I) = Cell{2};
+            end
+            ds9.system(sprintf('xpaset -p ds9 mode pointer'));
+
+        end
+        
+        
+    
     end
-    
-    
     
     methods
 %         function dss(Obj, RA, Dec, Size, Args)
@@ -2486,7 +2603,6 @@ classdef DS9 < handle
 %                 
 %         end
         
-        % got here
         
         
         
@@ -2619,170 +2735,9 @@ classdef DS9 < handle
         
     end % methods
         
-    % lock and match methods
-    % (lock_wcs, lock_xy, match_wcs, match_xy, match_scale, match_scalelimits)
-    methods (Static)
-       
-        
-        % lock by image coordinates
-        function lock_xy(Par)
-            % Lock all images x/y coordinayes to current frame
-            % Package: @ds9
-            % Description: Lock all images x/y coordinayes to current frame.
-            % Input  : - true|false. If not given than toggle.
-            % Output : null
-           
-            if (nargin==0)
-                % get lock status
-                Ans = ds9.system('xpaget ds9 lock frame image');
-                switch lower(Ans(1:4))
-                    case 'imag'
-                        % toggle off
-                        Par = false;
-                    
-                    otherwise
-                        Par = true;
-                        %error('Unknonw Answer from xpaget lock frame image');
-                end
-            end
-            %ds9.system('xpaset -p ds9 lock frame image');
-            if (Par)
-                ds9.system('xpaset -p ds9 lock frame image');
-            else
-                ds9.system('xpaset -p ds9 lock frame none');
-            end
-                        
-        end
-        
-        
-        % match by wcs coordinates
-        function match_wcs
-            % Match the WCS coordinates of all frames to the current frame
-            % Package: @ds9
-            % Description: Match the WCS coordinates of all frames to the
-            %              current frame.
-            % Input  : null
-            % Output : null
-            
-            ds9.system('xpaset -p ds9 match frame wcs');
-        end
-        
-        % match by image coordinates
-        function match_xy
-            % Match the image coordinates of all frames to the current frame
-            % Package: @ds9
-            % Description: Match the image coordinates of all frames to the
-            %              current frame.
-            % Input  : null
-            % Output : null
-            
-            ds9.system('xpaset -p ds9 match frame image');
-        end
- 
-        % match by intensity scale
-        function match_scale
-            % Match the intensity scale of all frames to the current frame
-            % Package: @ds9
-            % Description: Match the intensity scale of all frames to the
-            %              current frame.
-            % Input  : null
-            % Output : null
-            
-            ds9.system('xpaset -p ds9 match scale');
-        end
-            
-        % match by intensity scale
-        function match_scalelimits
-            % Match the intensity scalelimits of all frames to the current frame
-            % Package: @ds9
-            % Description: Match the intensity scalelimits of all frames to
-            %              the current frame.
-            % Input  : null
-            % Output : null
-            
-            ds9.system('xpaset -p ds9 match scalelimits');
-        end
-        
-        % match by intensity scale
-        function match_colorbar
-            % Match the intensity colorbar of all frames to the current frame
-            % Package: @ds9
-            % Description: Match the intensity colorbar of all frames to
-            %              the current frame.
-            % Input  : null
-            % Output : null
-            
-            ds9.system('xpaset -p ds9 match colorbar');
-        end
 
-        
-    end % methods
-        
     
-    % xy2coo, coo2xy
-    methods (Static)
-        function [CooX,CooY]=coo2xy(RA,Dec,CooType)
-            % Convert RA/Dec to X/Y (image) using ds9 tools
-            % Package: @ds9
-            % Input  : - RA [deg].
-            %          - Dec [deg].
-            %          - Output coordinate type: {'image'|'physical'}.
-            %            Default is 'image.
-            % Output : - X [pix].
-            %          - Y [pix].
-           
-            if (nargin<3)
-                CooType = 'image';
-            end
-            N    = numel(RA);
-            CooX = zeros(N,1);
-            CooY = zeros(N,1);
-            for I=1:1:N
-                %--- set coordinates of crosshair ---
-                ds9.system(sprintf('xpaset -p ds9 crosshair %f %f wcs icrs',RA(I),Dec(I)));
-                %--- get Coordinates of crosshair ---
-                CooIm = ds9.system(sprintf('xpaget ds9 crosshair %s',CooType));
-                %[CooX(I), CooY(I)] = strread(CooIm,'%f %f',1); %,'headerlines',4);
-                Cell = textscan(CooIm,'%f %f'); %,'headerlines',4);
-                CooX(I) = Cell{1};
-                CooY(I) = Cell{2};
-            end
-            ds9.system(sprintf('xpaset -p ds9 mode pointer'));
 
-        end
-        
-        function [RA,Dec]=xy2coo(X,Y,CooType)
-            % Convert RA/Dec to X/Y (image) using ds9 tools
-            % Package: @ds9
-            % Input  : - X
-            %          - Y
-            %          - Output coordinate type: {'fk4'|'fk5'|'icrs'}.
-            %            Default is 'icrs.
-            % Output : - RA [deg].
-            %          - Dec [deg].
-           
-            if (nargin<3)
-                CooType = 'icrs';
-            end
-            N    = numel(X);
-            RA = zeros(N,1);
-            Dec = zeros(N,1);
-            for I=1:1:N
-                %--- set coordinates of crosshair ---
-                ds9.system(sprintf('xpaset -p ds9 crosshair %f %f image',X(I),Y(I)));
-                %--- get Coordinates of crosshair ---
-                CooIm = ds9.system(sprintf('xpaget ds9 crosshair wcs %s',CooType));
-                %[CooX(I), CooY(I)] = strread(CooIm,'%f %f',1); %,'headerlines',4);
-                Cell = textscan(CooIm,'%f %f'); %,'headerlines',4);
-                RA(I) = Cell{1};
-                Dec(I) = Cell{2};
-            end
-            ds9.system(sprintf('xpaset -p ds9 mode pointer'));
-
-        end
-        
-        
-    end
     
     % Interactive control and information (mouse)
     % (ginput, getpos, getcoo, getbox)
