@@ -75,10 +75,11 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     % To avoid this problem we are calling imProc.match.mergeCatalogs in a
     % loop
     
-    %NsubImages = size(AllSI,2);
-    %for Isi=1:1:NsubImages
+    % continue only for fields for which all visits astrometry is good
+    FlagGoodAstrometry = all(imProc.astrometry.isSuccessWCS(AllSI));
     [MergedCat, MatchedS, ResultSubIm.ResZP, ResultSubIm.ResVar, ResultSubIm.FitMotion] = imProc.match.mergeCatalogs(AllSI,...
                                                                                                             Args.mergeCatalogsArgs{:},...
+                                                                                                            'FlagGood',FlagGoodAstrometry,...
                                                                                                             'MergedMatchMergedCat',Args.MergedMatchMergedCat);
     
     % search for asteroids - proper motion channel

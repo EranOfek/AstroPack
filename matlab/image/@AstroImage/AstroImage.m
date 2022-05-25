@@ -668,17 +668,19 @@ classdef AstroImage < Component
             
         end
         
-        function Result = sizeCatalog(Obj)
+        function [Nrow,Ncol] = sizeCatalog(Obj)
             % Return the number of sources in the CatData.Catalog property.
             % Input  : - An AstroImage object.
-            % Output : - The number of sources in the catalog
+            % Output : - The number of sources in each catalog.
+            %          - The number of columns in each catalog.
             % Author : Eran Ofek (May 2022)
             % Example: AI = AstroImage; sizeCatalog(AI)
             
             Nobj = numel(Obj);
-            Result = nan(size(Obj));
+            Nrow = nan(size(Obj));
+            Ncol = nan(size(Obj));
             for Iobj=1:1:Nobj
-                Result(Iobj) = size(Obj(Iobj).CatData.Catalog,1);
+                [Nrow(Iobj), Ncol(Iobj)] = size(Obj(Iobj).CatData.Catalog);
             end
                 
         end

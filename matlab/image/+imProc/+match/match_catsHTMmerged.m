@@ -57,6 +57,7 @@ function Result = match_catsHTMmerged(Obj, Args)
     end
     
     Nobj = numel(Obj);
+    Igood = 0;
     for Iobj=1:1:Nobj
         if isa(Obj, 'AstroImage')
             Cat = Obj(Iobj).CatData;
@@ -65,47 +66,49 @@ function Result = match_catsHTMmerged(Obj, Args)
             Cat = Obj(Iobj);
         end
         
-        if Iobj==1 || ~Args.SameField
-            [CircX, CircY, CircR] = Cat.boundingCircle('OutUnits','rad', 'CooType','sphere');
-            CatH  = catsHTM.cone_search(Args.MergedCatName, CircX, CircY, CircR, 'RadiusUnits','rad', 'Con',Args.Con, 'OutType','astrocatalog');
-            
-            MaxSearchRadius = max(CatH.Catalog(:,Args.MergedCatRadiusCol));
-        end
-        
-        
-        % Cat need to be sorted
-        Cat.sortrows('Dec');
-        % match CatH against the Cat
-        % catH must be the ref catalog
-        ResInd = imProc.match.matchReturnIndices(Cat, CatH, 'CooType','sphere',...
-                                                            'Radius',MaxSearchRadius,...
-                                                            'RadiusUnits','arcsec');
-        
-        % Merged Mask bits for each source
-        % For each source in the ref catalog (CatH), if there is a matching
-        % source within the search radius, then add the bit mask of the ref
-        % source to that of the Cat source.
-        % The addition is 
-        FlagNaN = ResInd.Obj2_Dist > CatH.Catalog(:,Args.MergedCatRadiusCol);
-        ResInd.Obj2_IndInObj1(FlagNaN) = NaN;
-        MergedCatFlag = zeros(numel(ResInd.Obj1_IndInObj2),1);
-        Nref = numel(ResInd.Obj2_IndInObj1);
-        for Iref=1:1:Nref
-            if ~isnan(ResInd.Obj2_IndInObj1(Iref))
-                IndCat = ResInd.Obj2_IndInObj1(Iref);
-                MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), double(CatH.Catalog(Iref,Args.MergedCatMaskCol)));
+        if ~isemptyCatalog(Cat)
+            Igood = Igood + 1;
+            if Igood==1 || ~Args.SameField
+                [CircX, CircY, CircR] = Cat.boundingCircle('OutUnits','rad', 'CooType','sphere');
+                CatH  = catsHTM.cone_search(Args.MergedCatName, CircX, CircY, CircR, 'RadiusUnits','rad', 'Con',Args.Con, 'OutType','astrocatalog');
+
+                MaxSearchRadius = max(CatH.Catalog(:,Args.MergedCatRadiusCol));
+            end
+
+
+            % Cat need to be sorted
+            Cat.sortrows('Dec');
+            % match CatH against the Cat
+            % catH must be the ref catalog
+            ResInd = imProc.match.matchReturnIndices(Cat, CatH, 'CooType','sphere',...
+                                                                'Radius',MaxSearchRadius,...
+                                                                'RadiusUnits','arcsec');
+
+            % Merged Mask bits for each source
+            % For each source in the ref catalog (CatH), if there is a matching
+            % source within the search radius, then add the bit mask of the ref
+            % source to that of the Cat source.
+            % The addition is 
+            FlagNaN = ResInd.Obj2_Dist > CatH.Catalog(:,Args.MergedCatRadiusCol);
+            ResInd.Obj2_IndInObj1(FlagNaN) = NaN;
+            MergedCatFlag = zeros(numel(ResInd.Obj1_IndInObj2),1);
+            Nref = numel(ResInd.Obj2_IndInObj1);
+            for Iref=1:1:Nref
+                if ~isnan(ResInd.Obj2_IndInObj1(Iref))
+                    IndCat = ResInd.Obj2_IndInObj1(Iref);
+                    MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), double(CatH.Catalog(Iref,Args.MergedCatMaskCol)));
+                end
+            end
+
+            % Insert column to catalog
+            Cat = insertCol(Cat, MergedCatFlag, Args.ColPos, Args.FlagColNames, '');
+
+            if isa(Obj, 'AstroImage')
+                Result(Iobj).CatData = Cat;
+            else
+                Result(Iobj) = Cat;
             end
         end
-     
-        % Insert column to catalog
-        Cat = insertCol(Cat, MergedCatFlag, Args.ColPos, Args.FlagColNames, '');
-        
-        if isa(Obj, 'AstroImage')
-            Result(Iobj).CatData = Cat;
-        else
-            Result(Iobj) = Cat;
-        end
-        
     end
 
 end
