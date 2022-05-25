@@ -127,106 +127,107 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                          'PhotCat',cell(Nfields,1)); % ini ResultCoadd struct
     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
     for Ifields=1:1:Nfields
-        ResultCoadd(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.(Args.ColX),1,1), 2, 'omitnan');
-        ResultCoadd(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.(Args.ColY),1,1), 2, 'omitnan');
-    
-        ShiftXY = cumsum([0 0; -[ResultCoadd(Ifields).ShiftX, ResultCoadd(Ifields).ShiftY]]);
-        
-        % Check that all images have astrometric solution
-        FlagGoodWCS = imProc.astrometry.isSuccessWCS(AllSI(:,Ifields));
-        
-        % no need to transform WCS - as this will be dealt later on
-        % 'ShiftXY',ShiftXY,...
-        % 'RefWCS',AllSI(1,Ifields).WCS,...
-        RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGoodWCS,Ifields), ShiftXY,...
-                                                 'TransWCS',false,...
-                                                 'FillValues',0,...
-                                                 'ReplaceNaN',true,...
-                                                 'CreateNewObj',~Args.ReturnRegisteredAllSI);
-        
-        
+        if ~isempty(MatchedS(Ifields).Data)
+            ResultCoadd(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.(Args.ColX),1,1), 2, 'omitnan');
+            ResultCoadd(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.(Args.ColY),1,1), 2, 'omitnan');
 
-        % use sigma clipping...
-        % 1. NOTE that the mean image is returned so that the effective gain
-        % is now Gain/Nimages
-        % 2. RegisteredImages has no header so no JD...
-        
-        [Coadd(Ifields), ResultCoadd(Ifields).CoaddN] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
-                                                                                             'Cube',PreAllocCube,...
-                                                                                             'StackMethod',Args.StackMethod);
-        
-        
-        % Background
-        Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:},...
-                                                                      'SubSizeXY',Args.BackSubSizeXY);
-    
-        
-        % Mask Source noise dominated pixels
-        Coadd(Ifields) = imProc.mask.maskSourceNoise(Coadd(Ifields), 'Factor',1, 'CreateNewObj',false);
-        
-        % Source finding
-        Coadd(Ifields) = imProc.sources.findMeasureSources(Coadd(Ifields), Args.findMeasureSourcesArgs{:},...
-                                                   'RemoveBadSources',true,...
-                                                   'ZP',Args.ZP,...
-                                                   'ColCell',Args.ColCell,...
-                                                   'Threshold',Args.Threshold,...
-                                                   'CreateNewObj',false);
-                                           
-        % Estimate PSF
-        [Coadd(Ifields), Summary] = imProc.psf.constructPSF(Coadd(Ifields), Args.constructPSFArgs{:});
-        
+            ShiftXY = cumsum([0 0; -[ResultCoadd(Ifields).ShiftX, ResultCoadd(Ifields).ShiftY]]);
 
-        % PSF photometry
-        [ResPSF, Coadd(Ifields)] = imProc.sources.psfFitPhot(Coadd(Ifields), 'CreateNewObj',false);                                   
+            % Check that all images have astrometric solution
+            FlagGoodWCS = imProc.astrometry.isSuccessWCS(AllSI(:,Ifields));
 
-        % astrometry    
-        % Note that if available, will use the "X" & "Y" positions produced
-        % by the PSF photometry
-        MeanJD = mean(JD);
-        [ResultCoadd(Ifields).AstrometricFit, Coadd(Ifields), AstrometricCat] = imProc.astrometry.astrometryRefine(Coadd(Ifields), Args.astrometryRefineArgs{:},...
-                                                                                                'WCS',AllSI(1,Ifields).WCS,...
-                                                                                                'EpochOut',MeanJD,...
-                                                                                                'Scale',Args.Scale,...
-                                                                                                'CatName',Args.CatName,...
-                                                                                                'Tran',Args.Tran,...
-                                                                                                'CreateNewObj',false);
+            % no need to transform WCS - as this will be dealt later on
+            % 'ShiftXY',ShiftXY,...
+            % 'RefWCS',AllSI(1,Ifields).WCS,...
+            RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGoodWCS,Ifields), ShiftXY,...
+                                                     'TransWCS',false,...
+                                                     'FillValues',0,...
+                                                     'ReplaceNaN',true,...
+                                                     'CreateNewObj',~Args.ReturnRegisteredAllSI);
 
-        % add PSF FWHM to header - after astrometry, beacuse WCS is needed
-        imProc.psf.fwhm(Coadd(Ifields));
-        
-        % photometric calibration
-        % change to PSF phot...
-        %CatColNameMag            = 'MAG_APER_3';
-        %CatColNameMagErr   = 'MAGERR_APER_3';
-        
-        [Coadd(Ifields), ResultCoadd(Ifields).ZP, ResultCoadd(Ifields).PhotCat] = imProc.calib.photometricZP(Coadd(Ifields),...
-                                                                                                    'CreateNewObj',false,...
-                                                                                                    'MagZP',Args.ZP,...
-                                                                                                    'CatName',AstrometricCat,...
-                                                                                                    Args.photometricZPArgs{:});
-        
-        % Add GlobalMotion information to header
-        % calculate tracking rate information
-        if Args.AddGlobalMotion
-            RelTimeDay            = JD-mean(JD);
-            Par                   = polyfit(RelTimeDay, ShiftXY(:,1),1);
-            GlobalMotion.ResidX   = ShiftXY(:,1) - polyval(Par, RelTimeDay);
-            GlobalMotion.StdX     = std(GlobalMotion.ResidX);
-            GlobalMotion.RateX    = Par(1)./SEC_DAY;
-            Par                   = polyfit(RelTimeDay, ShiftXY(:,2),1);
-            GlobalMotion.ResidY   = ShiftXY(:,2) - polyval(Par, RelTimeDay);
-            GlobalMotion.StdY     = std(GlobalMotion.ResidY);
-            GlobalMotion.RateY    = Par(1)./SEC_DAY;
 
-            Coadd(Ifields).HeaderData.insertKey({'GM_RATEX',GlobalMotion.RateX,''});
-            Coadd(Ifields).HeaderData.insertKey({'GM_STDX',GlobalMotion.StdX,''});
-            Coadd(Ifields).HeaderData.insertKey({'GM_RATEY',GlobalMotion.RateY,''});
-            Coadd(Ifields).HeaderData.insertKey({'GM_STDY',GlobalMotion.StdY,''});
+
+            % use sigma clipping...
+            % 1. NOTE that the mean image is returned so that the effective gain
+            % is now Gain/Nimages
+            % 2. RegisteredImages has no header so no JD...
+
+            [Coadd(Ifields), ResultCoadd(Ifields).CoaddN] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
+                                                                                                 'Cube',PreAllocCube,...
+                                                                                                 'StackMethod',Args.StackMethod);
+
+
+            % Background
+            Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:},...
+                                                                          'SubSizeXY',Args.BackSubSizeXY);
+
+
+            % Mask Source noise dominated pixels
+            Coadd(Ifields) = imProc.mask.maskSourceNoise(Coadd(Ifields), 'Factor',1, 'CreateNewObj',false);
+
+            % Source finding
+            Coadd(Ifields) = imProc.sources.findMeasureSources(Coadd(Ifields), Args.findMeasureSourcesArgs{:},...
+                                                       'RemoveBadSources',true,...
+                                                       'ZP',Args.ZP,...
+                                                       'ColCell',Args.ColCell,...
+                                                       'Threshold',Args.Threshold,...
+                                                       'CreateNewObj',false);
+
+            % Estimate PSF
+            [Coadd(Ifields), Summary] = imProc.psf.constructPSF(Coadd(Ifields), Args.constructPSFArgs{:});
+
+
+            % PSF photometry
+            [ResPSF, Coadd(Ifields)] = imProc.sources.psfFitPhot(Coadd(Ifields), 'CreateNewObj',false);                                   
+
+            % astrometry    
+            % Note that if available, will use the "X" & "Y" positions produced
+            % by the PSF photometry
+            MeanJD = mean(JD);
+            [ResultCoadd(Ifields).AstrometricFit, Coadd(Ifields), AstrometricCat] = imProc.astrometry.astrometryRefine(Coadd(Ifields), Args.astrometryRefineArgs{:},...
+                                                                                                    'WCS',AllSI(1,Ifields).WCS,...
+                                                                                                    'EpochOut',MeanJD,...
+                                                                                                    'Scale',Args.Scale,...
+                                                                                                    'CatName',Args.CatName,...
+                                                                                                    'Tran',Args.Tran,...
+                                                                                                    'CreateNewObj',false);
+
+            % add PSF FWHM to header - after astrometry, beacuse WCS is needed
+            imProc.psf.fwhm(Coadd(Ifields));
+
+            % photometric calibration
+            % change to PSF phot...
+            %CatColNameMag            = 'MAG_APER_3';
+            %CatColNameMagErr   = 'MAGERR_APER_3';
+
+            [Coadd(Ifields), ResultCoadd(Ifields).ZP, ResultCoadd(Ifields).PhotCat] = imProc.calib.photometricZP(Coadd(Ifields),...
+                                                                                                        'CreateNewObj',false,...
+                                                                                                        'MagZP',Args.ZP,...
+                                                                                                        'CatName',AstrometricCat,...
+                                                                                                        Args.photometricZPArgs{:});
+
+            % Add GlobalMotion information to header
+            % calculate tracking rate information
+            if Args.AddGlobalMotion
+                RelTimeDay            = JD-mean(JD);
+                Par                   = polyfit(RelTimeDay, ShiftXY(:,1),1);
+                GlobalMotion.ResidX   = ShiftXY(:,1) - polyval(Par, RelTimeDay);
+                GlobalMotion.StdX     = std(GlobalMotion.ResidX);
+                GlobalMotion.RateX    = Par(1)./SEC_DAY;
+                Par                   = polyfit(RelTimeDay, ShiftXY(:,2),1);
+                GlobalMotion.ResidY   = ShiftXY(:,2) - polyval(Par, RelTimeDay);
+                GlobalMotion.StdY     = std(GlobalMotion.ResidY);
+                GlobalMotion.RateY    = Par(1)./SEC_DAY;
+
+                Coadd(Ifields).HeaderData.insertKey({'GM_RATEX',GlobalMotion.RateX,''});
+                Coadd(Ifields).HeaderData.insertKey({'GM_STDX',GlobalMotion.StdX,''});
+                Coadd(Ifields).HeaderData.insertKey({'GM_RATEY',GlobalMotion.RateY,''});
+                Coadd(Ifields).HeaderData.insertKey({'GM_STDY',GlobalMotion.StdY,''});
+            end
+
+
         end
-
-        
     end
-    
     
     
     % plot for LAST pipeline paper
