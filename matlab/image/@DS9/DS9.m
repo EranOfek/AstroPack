@@ -660,6 +660,7 @@ classdef DS9 < handle
             %            If 'all' - delete for all frames in window.
             %            Default is []
             %          - A vector of frame numbers to remove.
+            %            If empty, use current frame.
             %            Default is 1.
             %          - A window name to remove. If empty, use active
             %            window.
@@ -675,6 +676,10 @@ classdef DS9 < handle
                 Window    = [];
             end
            
+            if isempty(Frame)
+                Frame = Obj.frame;
+            end
+            
             if isempty(ID)
                 % remove InfoAI entry using Frame and Window
                 if isempty(Window)
@@ -746,10 +751,10 @@ classdef DS9 < handle
                 case 0
                     % not found
                     AI = [];
-                case 1
-                    AI = Obj.InfoAI(Flag).Image;
                 otherwise
-                    error('More than one image corresponding to window=%s and frame=%d was found in InfoAI',Window, Frame);
+                    % use latest
+                    Ind = find(Flag, 1, 'last');
+                    AI = Obj.InfoAI(Ind).Image;
             end
             
         end
@@ -2875,7 +2880,43 @@ classdef DS9 < handle
         
     end 
         
-
+    methods  % header
+        function header(Obj, Par)
+            % Display header of current ds9 frame in a window
+            % Input  : - A DS9 object.
+            %          - Addition string argument.
+            %            E.g., '2', 'close'
+            %            Default is ''.
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,100));
+            %          D.header;
+            %          D.header('close');
+            
+            arguments
+                Obj
+                Par   = '';
+            end
+            
+            Obj.xpaset('header %s',Par);
+            
+        end
+        
+        function [Val, Key] = getVal(Obj, Key, varargin)
+            % Apply getVal on header of AstroImage available for the current frame.
+            % Input  : - A DS9 object.
+            %          - Header Keyword name.
+            %          * Additional arguments to pass to
+            %            AstroHeader/getVal. Default is {}.
+            % Output : - Key value.
+            %          - Key name.
+            % Author : Eran Ofek (May 2022)
+            % Example: D.getVal('NAXIS1')
+           
+            AI         = Obj.getAI;
+            [Val, Key] = AI.HeaderData.getVal(Key, varargin{:});
+        end
+    end
     
 
     
