@@ -3584,130 +3584,7 @@ classdef DS9 < handle
     
     % Interactive ploting
     % (imark, iline, ipoly)
-    methods (Static)
-        
-        % Interactive marker plot
-        function [X,Y,Val]=imark(varargin)
-            % Interactive plot symbols
-            % Package: @ds9
-            % Description: Interactive plot symbols in right click
-            %              coordinates. Use 'q' click to abort.
-            %              Click 'c' to switch to circle plotting, and
-            %              's' for box plotting.
-            % Input  : * Any of the additional marker type parameters of
-            %            the ds9.plot function. I.e., the arguments
-            %            following the X,Y coordinates.
-            % Output : - Vector of clicked X positions.
-            %          - Vector of clicked Y positions.
-            %          - Vector of values in clicked positions.
-            % Example: ds9.imark;
-            %          ds9.imark('Marker','s','Size',[10 10 45]);
-            %          ds9.imark('rs');
-            %          ds9.imark('rs','size',[20 20 0]);
-            %          ds9.imark('ro','Text','Object X');
-            % Reliable: 2
-        
-            Cont = true;
-            while Cont
-                
-                [X,Y,Val,Key]=ds9.getpos(1,'any');
-                Marker = [];
-                
-                switch Key{1}
-                    case 'q'
-                        % abort
-                        Cont = false;
-                    otherwise
-                        switch lower(Key{1})
-                            case '<1>'
-                                % left click - mark with previous marker
-                                Cont = true;
-                            case 'c'
-                                % plot circle
-                                Marker = 'o';
-                            case 's'
-                                Marker = 's';
-                            otherwise
-                                % abort
-                                Cont = true;
-                        end
-                end
-                   
-                % plot
-                if (Cont)
-                    if (isempty(Marker))
-                        ds9.plot(X,Y,varargin{:});
-                    else
-                        % use user-defined marker
-                        ds9.plot(X,Y,varargin{:},'Marker',Marker);
-                    end
-                end
-                
-            end
-        end
-        
-        function [X,Y,ValLine,LineX,LineY]=iline(varargin)
-            % Interactively plot a line
-            % Package: @ds9
-            % Description: Interactively plot a line in ds9 between two
-            %              points defined by mouse left clicks.
-            %              Also return the interpolated values in the image
-            %              along the line.
-            % Input  : * Any of the additional marker type parameters of
-            %            the ds9.plot function. I.e., the arguments
-            %            following the X,Y coordinates.
-            % Output : - X coordinates of start and end points.
-            %          - Y coordinates of start and end points.
-            %          - Interpolated image values along the line.
-            %          - X coordinates along the line.
-            %          - Y coordinates along the line.
-            % Example: [X,Y,ValLine,LineX,LineY]=ds9.iline;
-            % Reliabel: 2
-            
-            InterpMethod = 'linear';
-            
-            fprintf('Click on two points using mouse left click or any keyboard key\n');
-            [X,Y,~,~]=ds9.getpos(2,'any');
-            ds9.plot(1,1,varargin{:},'Size',[X(1), Y(1), X(2), Y(2)],'Marker','line');
-            if (nargout>2)
-                % get values along the line
-                
-                [MatVal,MatX,MatY]=ds9.getbox([min(X), max(X), min(Y), max(Y)],'section');
-                
-                Dist       = tools.math.geometry.plane_dist(X(1),Y(1),X(2),Y(2));
-                RoundDist  = round(Dist);
-                LineX      = (X(1):(X(2)-X(1))./RoundDist:X(2)).';
-                LineY      = (Y(1):(Y(2)-Y(1))./RoundDist:Y(2)).';
-                ValLine = interp2(MatX,MatY,MatVal,LineX,LineY,InterpMethod);
-            end
-                
-        end
-        
-        function [X,Y]=ipoly(varargin)
-            % Interactively plot a polygon
-            % Package: @ds9
-            % Description: Interactively plot a polygon. Verteces are
-            %              defined by mouse or keybord clicks.
-            %              'q' to finish and abort.
-            % Input  : * Any of the additional marker type parameters of
-            %            the ds9.plot function. I.e., the arguments
-            %            following the X,Y coordinates.
-            % Output : - X coordinates of verteces.
-            %          - Y coordinates of verteces.
-            % Example: [x,y]=ds9.ipoly;
-            % Reliable: 2
-            
-            [X,Y]=ds9.getpos;
-            X(end+1) = X(1);
-            Y(end+1) = Y(1);
-            N = numel(X);
-            for I=1:1:N-1
-                ds9.plot(1,1,varargin{:},'Size',[X(I), Y(I), X(I+1), Y(I+1)],'Marker','line');
-            end
-            
-        end
-                    
-    end % methods
+   
     
     % Interactive coordinates to image in browser
     methods (Static)
@@ -3749,7 +3626,7 @@ classdef DS9 < handle
             Link = Link{1};
         end
 
-           function [RA,Dec,Link]=nedlink(Browser)
+        function [RA,Dec,Link]=nedlink(Browser)
             % Open NED link for clicked position
             % Package: @ds9
             % Description: Click on a position in an image displayed in ds9 and this
