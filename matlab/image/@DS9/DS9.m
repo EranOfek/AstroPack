@@ -2273,7 +2273,7 @@ classdef DS9 < handle
     
     methods  % lock and match
         % lock by wcs coordinates
-        function lock(Obj, Par, System)
+        function lock(Obj, Par, System, Command)
             % Lock frames image/wcs/scale/scalelimits/colorbar
             % Input  : - A DS9 object.
             %          - A logical indicating if to set lock true/false.
@@ -2295,16 +2295,17 @@ classdef DS9 < handle
            
             arguments
                 Obj
-                Par    = [];
-                System = 'image';
+                Par     = [];
+                System  = 'image';
+                Command = 'lock';      %for internal use only (see match)
             end
-                       
+            
             if ischar(Par)
                 Obj.xpaset(Par);
             else
                 if isempty(Par)
                     % toggle lock - get state
-                    Res = Obj.xpaget('lock frame');
+                    Res = Obj.xpaget('%s frame',Command);
                     switch lower(Res)
                         case 'none'
                             Par = true;
@@ -2316,35 +2317,72 @@ classdef DS9 < handle
                 if Par
                     switch lower(System)
                         case 'image'
-                            Obj.xpaset('lock frame image');
+                            Obj.xpaset('%s frame image',Command);
                         case {'icrs','fk4','fk5','sphere','wcs'}
-                            Obj.xpaset('lock frame wcs');
+                            Obj.xpaset('%s frame wcs',Command);
                         case 'scale'
-                            Obj.xpaset('lock scale yes');
+                            Obj.xpaset('%s scale yes',Command);
                         case 'colorbar'
-                            Obj.xpaset('lock colorbar yes');
+                            Obj.xpaset('%s colorbar yes',Command);
                         case 'scalelimits'
-                            Obj.xpaset('lock scalelimits yes');
+                            Obj.xpaset('%s scalelimits yes',Command);
                         otherwise
                             error('Unknown System option');
                     end
                 else
                     switch lower(System)
                         case 'image'
-                            Obj.xpaset('lock frame none');
+                            Obj.xpaset('%s frame none',Command);
                         case {'icrs','fk4','fk5','sphere','wcs'}
-                            Obj.xpaset('lock frame none');
+                            Obj.xpaset('%s frame none',Command);
                         case 'scale'
-                            Obj.xpaset('lock scale no');
+                            Obj.xpaset('%s scale no',Command);
                         case 'colorbar'
-                            Obj.xpaset('lock colorbar no');
+                            Obj.xpaset('%s colorbar no',Command);
                         case 'scalelimits'
-                            Obj.xpaset('lock scalelimits no');
+                            Obj.xpaset('%s scalelimits no',Command);
                         otherwise
                             error('Unknown System option');
                     end
                 end
             end
+        end
+        
+        function match(Obj, System)
+            % match frames image/wcs/scale/scalelimits/colorbar
+            % Input  : - A DS9 object.
+            %          - System to match - either 'image' | 'wcs'.
+            %            Default is 'image'.
+            %            Alternatively, this can be a string to pass after
+            %            the match command (e.g., 'scale',
+            %            'scalelimits','colorbar','block','smooth','axes','bin',...).
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,100));
+            %          D.load(rand(100,100),2);
+            %          D.tile
+            %          D.zoom(5,'all')
+            %          D.match
+           
+            arguments
+                Obj
+                System  = 'image';
+            end
+            
+            Command = 'match';
+            
+            switch lower(System)
+                case {'fk5','fk4','icrs'}
+                    System = 'wcs';
+            end
+            
+            switch lower(System)
+                case {'image','wcs'}
+                    Obj.xpaset('%s frame %s',Command, System);
+                otherwise
+                    Obj.xpaset('%s %s',Command, System);
+            end
+           
         end
         
         % got here
