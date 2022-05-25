@@ -50,6 +50,9 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         Args.photometricZPArgs cell           = {};                                                              
         Args.ReturnRegisteredAllSI logical    = true; % false;  % if true it means that AllSI will be modified and contain the registered images
           
+        Args.RemoveHighBackImages logical     = true;   % remove images which background differ from median back by 'HighBackNsigma' sigma
+        Args.HighBackNsigma                   = 3;
+        
         Args.ColX                             = 'X1';   % used for shift estimate
         Args.ColY                             = 'Y1';
         Args.StackMethod                      = 'sigmaclip';        
@@ -136,10 +139,20 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
             % Check that all images have astrometric solution
             FlagGoodWCS = imProc.astrometry.isSuccessWCS(AllSI(:,Ifields));
 
+            % Remove Images with high background
+            if Args.RemoveHighBackImages
+                MedBack = imProc.stat.median(RegisteredImages);
+                FlagGoodBack = MedBack < (median(MedBack) + Args.HighBackNsigma.*tools.math.stat.rstd(MedBack));
+
+                FlagGood = FlagGoodWCS & FlagGoodBack;
+            else
+                FlagGood = FlagGoodWCS;
+            end
+            
             % no need to transform WCS - as this will be dealt later on
             % 'ShiftXY',ShiftXY,...
             % 'RefWCS',AllSI(1,Ifields).WCS,...
-            RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGoodWCS,Ifields), ShiftXY,...
+            RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), ShiftXY,...
                                                      'TransWCS',false,...
                                                      'FillValues',0,...
                                                      'ReplaceNaN',true,...
