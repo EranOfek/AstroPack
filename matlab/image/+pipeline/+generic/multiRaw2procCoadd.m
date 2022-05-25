@@ -482,14 +482,15 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                           'CropID_FromInd',false,...
                                                           'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir','', 'PathLevel','proc'});
     
-    writeProduct(IP, Coadd, 'Save', Args.SaveCoaddIm || Args.SaveCoaddMask || Args.SaveCoaddCat,...
+    FlagGood = ~isemptyImage(Coadd);
+    writeProduct(IP(FlagGood), Coadd(FlagGood), 'Save', Args.SaveCoaddIm || Args.SaveCoaddMask || Args.SaveCoaddCat,...
                             'SaveFields', DataProp([Args.SaveCoaddIm, Args.SaveCoaddMask, Args.SaveCoaddCat, false]));
       
     % save MergedCat
-    writeProduct(IP, MergedCat, 'Save',Args.SaveMatchCat, 'Product','Cat', 'Level','merged', 'WriteFunArgs', {'FileType','fits'}, 'SaveFields',{'Cat'});
+    writeProduct(IP(FlagGood), MergedCat(FlagGood), 'Save',Args.SaveMatchCat, 'Product','Cat', 'Level','merged', 'WriteFunArgs', {'FileType','fits'}, 'SaveFields',{'Cat'});
     
     % Save MatchedS
-    writeProduct(IP, MatchedS, 'Save',Args.SaveMatchMat, 'Product','MergedMat', 'Level','merged', 'WriteFunArgs', {'FileType','hdf5'}, 'SaveFields',{'Cat'}, 'FileType','hdf5');
+    writeProduct(IP(FlagGood), MatchedS(FlagGood), 'Save',Args.SaveMatchMat, 'Product','MergedMat', 'Level','merged', 'WriteFunArgs', {'FileType','hdf5'}, 'SaveFields',{'Cat'}, 'FileType','hdf5');
     
     % save Asteroids MAT file
     writeProduct(IP(1), ResultAsteroids, 'Save',Args.SaveAsteroids, 'Product','Asteroids', 'Level','proc');

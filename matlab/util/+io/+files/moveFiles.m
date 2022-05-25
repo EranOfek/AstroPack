@@ -52,7 +52,7 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
     if ischar(SourceFiles)
         SourceFiles = {SourceFiles};
     end
-    if ischar(DesteFiles)
+    if ischar(DestFiles)
         DestFiles = {DestFiles};
     end   
     
@@ -64,7 +64,7 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
     Destination = cell(1, Nfile);
     for Ifile=1:1:Nfile
         Source      = sprintf('%s%s%s', SourcePath, filesep, SourceFiles{Ifile});
-        Destination{Ifile} = sprintf('%s%s%s', DestPath, filesep, DestFiles{Iim});
+        Destination{Ifile} = sprintf('%s%s%s', DestPath, filesep, DestFiles{Ifile});
         % make sure diirectory exist
         if ~ischar(DestPath) && Args.MkDir
             mkdir(DestPath{Ifile});
