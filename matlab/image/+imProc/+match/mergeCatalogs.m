@@ -21,6 +21,9 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %            'RadiusUnits' - Search radius units. Default is 'arcsec'.
     %            'JD' - A vector of JD. If empty, use AstroImage header, if
     %                   not AstroImage set to 1:Nepochs.
+    %            'FlagGood' - A vector of logical which length is equal to
+    %                   the number of columns in the input AstroImage.
+    %                   If entry has false then it will not be processed.
     %            'RelPhot' - Logical indicating if to apply relative phot.
     %                   calibration to the magnitudes. Default is true.
     %            'RelPhotAlgo' - Relative photometry algorithm:
@@ -112,6 +115,8 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
         Args.RadiusUnits             = 'arcsec';
         Args.JD                      = [];  % if empty, use header, if no header use 1:N
         
+        Args.FlagGood logical        = true;
+        
         Args.RelPhot logical         = true;
         Args.RelPhotAlgo             = 'meddiff'; %'lsq';
         Args.fitPolyHyp logical      = true;
@@ -146,63 +151,51 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
         JD = Args.JD;
     end
 
-    for Ifields=1:1:Nfields
-        MatchedS(Ifields) = MatchedSources;
-        
-        % check if WCS is good - only if CooType is 'sphere'
-        %FlagGoodWCS = ~strcmp(Args.CooType, 'sphere') | imProc.astrometry.isSuccessWCS(Obj(:,Ifields));
-        
-        [MatchedS(Ifields), Matched(Ifields,:)] = MatchedS(Ifields).unifiedCatalogsIntoMatched(Obj(:,Ifields),...
-                                                         'CooType',Args.CooType,...
-                                                         'Radius',Args.Radius,...
-                                                         'RadiusUnits',Args.RadiusUnits,...
-                                                         'MatchedColums',Args.MatchedColums,...
-                                                         'JD',JD(:),...
-                                                         Args.unifiedSourcesCatalogArgs{:});
-                                                     
-                                                     
-                                                     
-        
-%         [~, ~, Matched(Ifields,:)] = imProc.match.unifiedSourcesCatalog(Obj(:,Ifields), 'CooType',Args.CooType,...
-%                                                          'Radius',Args.Radius,...
-%                                                          'RadiusUnits',Args.RadiusUnits,...
-%                                                          Args.unifiedSourcesCatalogArgs{:});
-%                                                      
-%         MatchedS(Ifields) = MatchedSources;
-%         MatchedS(Ifields).addMatrix(Matched(Ifields,:), Args.MatchedColums);
-%         % populate JD
-%         MatchedS(Ifields).JD = JD;  
-        
-        % image 2 image X shift (pix)
-        %Summary(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.X,1,1), 2, 'omitnan');
-        %Summary(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.Y,1,1), 2, 'omitnan');
+    FlagGood = true(1, Nfields) & Args.FlagGood(:).';
     
-        % relative photometry
-        if Args.RelPhot
-            switch lower(Args.RelPhotAlgo)
-                case 'lsq'
-                    warning('apply ZP in this case is partial in code');
-                    [ResZP(Ifields), MatchedS(Ifields)] = lcUtil.zp_lsq(MatchedS(Ifields), 'MagField',Args.MagCalibColName, 'MagErrField',Args.MagCalibErrColName);
-                case 'meddiff'
-                    
-                    %error('meddff is not available yet');
-                    [ResZP(Ifields)] = lcUtil.zp_meddiff(MatchedS(Ifields), 'MagField',Args.MagCalibColName, 'MagErrField',Args.MagCalibErrColName);
-                otherwise
-                    error('Unknown RelPhotAlgo option');
-            end
-            
-            % apply ZP to all Magnitudes...
-            [MatchedS(Ifields) ,ApplyToMagField] = applyZP(MatchedS(Ifields), ResZP(Ifields).FitZP, 'FieldZP','FitZP', 'ApplyToMagField','MAG_', 'Operator',@plus);
-           
-        else
-            ResZP = [];
-        end
-        
-        % lcUtil.fitPolyHyp
-        if Args.fitPolyHyp
-            [ResVar(Ifields).Result] = lcUtil.fitPolyHyp(MatchedS(Ifields), 'MagFieldNames',Args.MagCalibColName, 'PolyDeg',Args.PolyDeg, 'SubtractMeanT',true,'NormT',true);
-        end
+    
+    
+    for Ifields=1:1:Nfields
+        if FlagGood(Ifields)
+            MatchedS(Ifields) = MatchedSources;
 
+            % check if WCS is good - only if CooType is 'sphere'
+            %FlagGoodWCS = ~strcmp(Args.CooType, 'sphere') | imProc.astrometry.isSuccessWCS(Obj(:,Ifields));
+
+            [MatchedS(Ifields), Matched(Ifields,:)] = MatchedS(Ifields).unifiedCatalogsIntoMatched(Obj(:,Ifields),...
+                                                             'CooType',Args.CooType,...
+                                                             'Radius',Args.Radius,...
+                                                             'RadiusUnits',Args.RadiusUnits,...
+                                                             'MatchedColums',Args.MatchedColums,...
+                                                             'JD',JD(:),...
+                                                             Args.unifiedSourcesCatalogArgs{:});
+
+            % relative photometry
+            if Args.RelPhot
+                switch lower(Args.RelPhotAlgo)
+                    case 'lsq'
+                        warning('apply ZP in this case is partial in code');
+                        [ResZP(Ifields), MatchedS(Ifields)] = lcUtil.zp_lsq(MatchedS(Ifields), 'MagField',Args.MagCalibColName, 'MagErrField',Args.MagCalibErrColName);
+                    case 'meddiff'
+
+                        %error('meddff is not available yet');
+                        [ResZP(Ifields)] = lcUtil.zp_meddiff(MatchedS(Ifields), 'MagField',Args.MagCalibColName, 'MagErrField',Args.MagCalibErrColName);
+                    otherwise
+                        error('Unknown RelPhotAlgo option');
+                end
+
+                % apply ZP to all Magnitudes...
+                [MatchedS(Ifields) ,ApplyToMagField] = applyZP(MatchedS(Ifields), ResZP(Ifields).FitZP, 'FieldZP','FitZP', 'ApplyToMagField','MAG_', 'Operator',@plus);
+
+            else
+                ResZP = [];
+            end
+
+            % lcUtil.fitPolyHyp
+            if Args.fitPolyHyp
+                [ResVar(Ifields).Result] = lcUtil.fitPolyHyp(MatchedS(Ifields), 'MagFieldNames',Args.MagCalibColName, 'PolyDeg',Args.PolyDeg, 'SubtractMeanT',true,'NormT',true);
+            end
+        end
     end    
     
     % fit proper motion
@@ -226,87 +219,88 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %FunType   = str2func(class(MatchedS(1).getMatrix(Args.ColNameFlags)));
     
     
-    for Ifields=1:1:Nfields    
-        ColNames = cell(1, NumCol);
-        ColUnits = cell(1, NumCol);
-        Cat      = zeros(MatchedS(Ifields).Nsrc, NumCol);
-        if Args.FitPM
-            ColNames(1:NumColPM) = {'RA','Dec','Nobs', 'Noutlier', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_TdistProb'};
-            ColUnits(1:NumColPM) = {'deg','deg','', '', 'deg','deg','deg/day','deg/day',''};
-            
-            Cat(:,1)       = FitMotion(Ifields).RA.ParH1(1,:).';
-            Cat(:,2)       = FitMotion(Ifields).Dec.ParH1(1,:).';
-            Cat(:,3)       = FitMotion(Ifields).RA.Nobs(:);
-            Cat(:,4)       = FitMotion(Ifields).RA.Noutlier(:);
-            Cat(:,5)       = FitMotion(Ifields).RA.StdResid_H0(:);
-            Cat(:,6)       = FitMotion(Ifields).Dec.StdResid_H0(:);
-            Cat(:,7)       = FitMotion(Ifields).RA.ParH1(2,:).';
-            Cat(:,8)       = FitMotion(Ifields).Dec.ParH1(2,:).';
-            Cat(:,9)       = (1 - (1 - FitMotion(Ifields).RA.StudentT_ProbH1).*(1 - FitMotion(Ifields).Dec.StudentT_ProbH1)).';
-            
-            %Cat(:,8)       = (FitMotion(Ifields).RA.DeltaChi2 + FitMotion(Ifields).Dec.DeltaChi2).';
-            Icol = NumColPM;
-        else
-            Icol = 0;
-        end
-        
-        Icol = Icol + 1;
-        Cols(Ifields).Flags = combineFlags(MatchedS(Ifields),'FlagsNameDic',Args.ColNameFlags, 'FlagsType',@uint32);
-        Cat(:,Icol) = Cols(Ifields).Flags.(Args.ColNameFlags)(:);
-        ColNames{Icol} = Args.ColNameFlags;
-        ColUnits{Icol} = '';
-        
-        
-        for Istat=1:1:Nstat
-            Cols(Ifields).Stat.(Args.ColNamesStat{Istat}) = statSummary(MatchedS(Ifields),...
-                                                                        'FieldNameDic',Args.ColNamesStat{Istat},...
-                                                                        'FunInd',Args.FunIndStat{Istat});
-            
-            StatFieldNames = fieldnames(Cols(Ifields).Stat.(Args.ColNamesStat{Istat}));
-            NstatFN = numel(StatFieldNames);
-            for IstatFN=1:1:NstatFN
-                Icol           = Icol + 1;
-                Cat(:,Icol)    = Cols(Ifields).Stat.(Args.ColNamesStat{Istat}).(StatFieldNames{IstatFN})(:);
-                ColNames{Icol} = sprintf('%s_%s',StatFieldNames{IstatFN}, Args.ColNamesStat{Istat});
-                ColUnits{Icol} = MatchedS(Ifields).getUnits(Args.ColNamesStat{Istat});
-            end
-        end
+    for Ifields=1:1:Nfields  
+        if FlagGood(Ifields)
+            ColNames = cell(1, NumCol);
+            ColUnits = cell(1, NumCol);
+            Cat      = zeros(MatchedS(Ifields).Nsrc, NumCol);
+            if Args.FitPM
+                ColNames(1:NumColPM) = {'RA','Dec','Nobs', 'Noutlier', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_TdistProb'};
+                ColUnits(1:NumColPM) = {'deg','deg','', '', 'deg','deg','deg/day','deg/day',''};
 
-        
-        for Iall=1:1:Nall
-            Cols(Ifields).All.(Args.ColNamesAll{Iall}) = MatchedS(Ifields).getMatrix(Args.ColNamesAll{Iall}).';
-            
-            Cat(:,Icol+1:Icol+Nepochs) = Cols(Ifields).All.(Args.ColNamesAll{Iall});
-            %Icol = Icol + Ncol;
-            for IcolEp=1:1:Nepochs
-                Icol = Icol + 1;
-                ColNames{Icol} = sprintf('Epoch%03d_%s',IcolEp, Args.ColNamesAll{Iall});
-                ColUnits{Icol} = MatchedS(Ifields).getUnits(Args.ColNamesAll{Iall});
+                Cat(:,1)       = FitMotion(Ifields).RA.ParH1(1,:).';
+                Cat(:,2)       = FitMotion(Ifields).Dec.ParH1(1,:).';
+                Cat(:,3)       = FitMotion(Ifields).RA.Nobs(:);
+                Cat(:,4)       = FitMotion(Ifields).RA.Noutlier(:);
+                Cat(:,5)       = FitMotion(Ifields).RA.StdResid_H0(:);
+                Cat(:,6)       = FitMotion(Ifields).Dec.StdResid_H0(:);
+                Cat(:,7)       = FitMotion(Ifields).RA.ParH1(2,:).';
+                Cat(:,8)       = FitMotion(Ifields).Dec.ParH1(2,:).';
+                Cat(:,9)       = (1 - (1 - FitMotion(Ifields).RA.StudentT_ProbH1).*(1 - FitMotion(Ifields).Dec.StudentT_ProbH1)).';
+
+                %Cat(:,8)       = (FitMotion(Ifields).RA.DeltaChi2 + FitMotion(Ifields).Dec.DeltaChi2).';
+                Icol = NumColPM;
+            else
+                Icol = 0;
             end
-        end
-       
-        if Args.fitPolyHyp
-            % ResVar
-            Icol           = Icol + 1;
-            Cat(:,Icol)    = ResVar(Ifields).Result(end).ResidStd(:);
-            ColNames{Icol} = 'StdPoly';
-            ColUnits{Icol} = 'mag';
-            Icol           = Icol + 1;
-            Cat(:,Icol)    = ResVar(Ifields).Result(end).DeltaChi2(:);
-            ColNames{Icol} = 'PolyDeltaChi2';
+
+            Icol = Icol + 1;
+            Cols(Ifields).Flags = combineFlags(MatchedS(Ifields),'FlagsNameDic',Args.ColNameFlags, 'FlagsType',@uint32);
+            Cat(:,Icol) = Cols(Ifields).Flags.(Args.ColNameFlags)(:);
+            ColNames{Icol} = Args.ColNameFlags;
             ColUnits{Icol} = '';
+
+
+            for Istat=1:1:Nstat
+                Cols(Ifields).Stat.(Args.ColNamesStat{Istat}) = statSummary(MatchedS(Ifields),...
+                                                                            'FieldNameDic',Args.ColNamesStat{Istat},...
+                                                                            'FunInd',Args.FunIndStat{Istat});
+
+                StatFieldNames = fieldnames(Cols(Ifields).Stat.(Args.ColNamesStat{Istat}));
+                NstatFN = numel(StatFieldNames);
+                for IstatFN=1:1:NstatFN
+                    Icol           = Icol + 1;
+                    Cat(:,Icol)    = Cols(Ifields).Stat.(Args.ColNamesStat{Istat}).(StatFieldNames{IstatFN})(:);
+                    ColNames{Icol} = sprintf('%s_%s',StatFieldNames{IstatFN}, Args.ColNamesStat{Istat});
+                    ColUnits{Icol} = MatchedS(Ifields).getUnits(Args.ColNamesStat{Istat});
+                end
+            end
+
+
+            for Iall=1:1:Nall
+                Cols(Ifields).All.(Args.ColNamesAll{Iall}) = MatchedS(Ifields).getMatrix(Args.ColNamesAll{Iall}).';
+
+                Cat(:,Icol+1:Icol+Nepochs) = Cols(Ifields).All.(Args.ColNamesAll{Iall});
+                %Icol = Icol + Ncol;
+                for IcolEp=1:1:Nepochs
+                    Icol = Icol + 1;
+                    ColNames{Icol} = sprintf('Epoch%03d_%s',IcolEp, Args.ColNamesAll{Iall});
+                    ColUnits{Icol} = MatchedS(Ifields).getUnits(Args.ColNamesAll{Iall});
+                end
+            end
+
+            if Args.fitPolyHyp
+                % ResVar
+                Icol           = Icol + 1;
+                Cat(:,Icol)    = ResVar(Ifields).Result(end).ResidStd(:);
+                ColNames{Icol} = 'StdPoly';
+                ColUnits{Icol} = 'mag';
+                Icol           = Icol + 1;
+                Cat(:,Icol)    = ResVar(Ifields).Result(end).DeltaChi2(:);
+                ColNames{Icol} = 'PolyDeltaChi2';
+                ColUnits{Icol} = '';
+            end
+
+            MergedCat(Ifields).Catalog  = Cat;
+            MergedCat(Ifields).ColNames = ColNames;
+            MergedCat(Ifields).ColUnits = ColUnits;
+            MergedCat(Ifields).sortrows('Dec');
+
+            % FFU: search for asteroids
+            % imProc.asteroids.searchAsteroids_pmCat
+
+            % FFU: match to external catalogs
         end
-        
-        MergedCat(Ifields).Catalog  = Cat;
-        MergedCat(Ifields).ColNames = ColNames;
-        MergedCat(Ifields).ColUnits = ColUnits;
-        MergedCat(Ifields).sortrows('Dec');
-                
-        % FFU: search for asteroids
-        % imProc.asteroids.searchAsteroids_pmCat
-        
-        % FFU: match to external catalogs
-        
     end
     
     if Args.MergedMatchMergedCat

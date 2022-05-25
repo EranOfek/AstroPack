@@ -95,22 +95,25 @@ function [Result,ResInd] = insertColFromMatched_matchIndices(Obj, Matched, ResIn
             MatchedI = Matched(Iobj);
         end
             
-        if CalcResInd
-            ResInd(Iobj) = imProc.match.matchReturnIndices(ObjI, MatchedI, 'Radius',Args.Radius, 'RadiusUnits',Args.RadiusUnits, 'CooType',Args.CooType,...
-                                                                           Args.matchReturnIndicesArgs{:});
-            
-        end
-    
-        if Ncols>0
-            DD       = selectRows(MatchedI, ResInd(Iobj).Obj1_IndInObj2, 'CreateNewObj',true);
-            [DataCols, Units] = getCol(DD, Args.Col2copy);
+        % verify the catalogs are not empty
+        if ~isemptyCatalog(ObjI) && ~isemptyCatalog(MatchedI)
+            if CalcResInd
+                ResInd(Iobj) = imProc.match.matchReturnIndices(ObjI, MatchedI, 'Radius',Args.Radius, 'RadiusUnits',Args.RadiusUnits, 'CooType',Args.CooType,...
+                                                                               Args.matchReturnIndicesArgs{:});
 
-            if isa(Result, 'AstroImage')
-                insertCol(Result(Iobj).CatData, DataCols, Args.InsertPos, Args.Col2copy, Units);
-            else
-                insertCol(Result(Iobj), DataCols, Args.InsertPos, Args.Col2copy, Units);
             end
-        end        
+
+            if Ncols>0
+                DD       = selectRows(MatchedI, ResInd(Iobj).Obj1_IndInObj2, 'CreateNewObj',true);
+                [DataCols, Units] = getCol(DD, Args.Col2copy);
+
+                if isa(Result, 'AstroImage')
+                    insertCol(Result(Iobj).CatData, DataCols, Args.InsertPos, Args.Col2copy, Units);
+                else
+                    insertCol(Result(Iobj), DataCols, Args.InsertPos, Args.Col2copy, Units);
+                end
+            end        
+        end
         
     end
     

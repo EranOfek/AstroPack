@@ -216,116 +216,120 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         % select columns from CatPM
         [Nsrc, Ncol] = sizeCatalog(CatPM(Icat));
     
-        PM           = CatPM(Icat).getCol({Args.ColNamePM_RA, Args.ColNamePM_Dec});
-        PM_TdistProb = CatPM(Icat).getCol(Args.ColNamePM_TdistProb);
-        Nobs         = CatPM(Icat).getCol(Args.ColNameNobs);
-        Noutlier     = CatPM(Icat).getCol(Args.ColNameNoutlier);
-        DecFlags     = CatPM(Icat).getCol(Args.ColNameFlags);
-        InfoSN       = CatPM(Icat).getCol({Args.ColNameMeanSN, Args.ColNameStdSN});  % [Mean, Std]
-        
-        
-        TotPM        = sqrt(sum(PM.^2, 2));  % total PM [deg/day]
-        ExpectedNobs = Nepochs .* TotPM.*Args.TimeSpan./(2.*Args.PM_Radius);
-        
-        % remove sources with some selected flags
-        if isemptyBitDict(Args.BitDict)
-            Flags(Icat).Flags        = true(Nsrc,1);
-            Flags(Icat).Flags_HighSN = true(Nsrc,1);
-        else
-            % true if good candidate
-            Flags(Icat).Flags         = ~findBit(Args.BitDict, DecFlags, Args.RemoveBitNames, 'Method','any');
-            Flags(Icat).Flags_HighSN  = ~findBit(Args.BitDict, DecFlags, Args.HighSNBitNames, 'Method','any');
-            Flags(Icat).Flags_HighSN  = Flags(Icat).Flags_HighSN | InfoSN(:,1)>Args.SN_HighSN;
-        end
-        
-        % Flag sources with large number of outliers in H1 (PM hypothesis)
-        Flags(Icat).Flag_Outlier      = Noutlier <= Args.H1_NoutlierLimit;
-        
-        % FLAGS for good asteroid candidates
-        Flags(Icat).Tdist  = ((PM_TdistProb >  Args.Nobs_TdistProb(1,2) & Nobs>Args.Nobs_TdistProb(1,1)) | (PM_TdistProb>Args.Nobs_TdistProb(2,2) & Nobs>Args.Nobs_TdistProb(2,1)));
-        %    Args.Nobs_TdistProb               = [5 0.995; 3 0.9999]; %     ((PM_TdistProb > 0.995 & Nobs>5) | (PM_TdistProb>0.9999 & Nobs>3));   % NEW
-        
-        Flags(Icat).LowStdSN = InfoSN(:,2)>Args.MinStdSN;
-        % Args.MinStdSN                     = 0.4;   % NEW
-        
-        Flags(Icat).Nobs   = Nobs<(ExpectedNobs);
-        Flags(Icat).All    = Flags(Icat).Flags & ...
-                             Flags(Icat).Flags_HighSN & ...
-                             Flags(Icat).Tdist & ...
-                             Flags(Icat).Nobs & ...
-                             Flags(Icat).LowStdSN & ...
-                             Flags(Icat).Flag_Outlier;
-        
-        % Number of asteroid candidates
-        AstInd   = find(Flags(Icat).All);
-        NastCand = numel(AstInd);
-        
-        % Linking objects
-        % Since PM epoch is the same for all objects
-        % this involves only comparing the position of sources
-        [RA, Dec] = CatPM(Icat).getLonLat('rad', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec); % [rad]
-        % select only the asteroid candidates
-        CandRA  = RA(Flags(Icat).All);
-        CandDec = Dec(Flags(Icat).All);
-        
-        LinkedAstIndex       = 0;
-        LinkedColumn         = nan(Nsrc, 1);  % nan - no PM | negative/unique(not necessely continous) - asteroid w/o links | >0 - asteroid with links
-        LinkedColumn(AstInd) = -(1:1:numel(AstInd));
-        if NastCand>1
-            for Icand=1:1:NastCand
-                Dist = celestial.coo.sphere_dist_fast(CandRA(Icand), CandDec(Icand), CandRA, CandDec);
-                Dist(Icand) = NaN;
+        % verify that there are sources in the catalog
+        if Nsrc>1
 
-                FlagLink = Dist < LinkingRadiusRad;
-                if sum(FlagLink)>0
-                    % found a match for asteroid 
-                    LinkedAstIndex = LinkedAstIndex + 1;
+            PM           = CatPM(Icat).getCol({Args.ColNamePM_RA, Args.ColNamePM_Dec});
+            PM_TdistProb = CatPM(Icat).getCol(Args.ColNamePM_TdistProb);
+            Nobs         = CatPM(Icat).getCol(Args.ColNameNobs);
+            Noutlier     = CatPM(Icat).getCol(Args.ColNameNoutlier);
+            DecFlags     = CatPM(Icat).getCol(Args.ColNameFlags);
+            InfoSN       = CatPM(Icat).getCol({Args.ColNameMeanSN, Args.ColNameStdSN});  % [Mean, Std]
 
-                    % mark the linked sources as the same asteroid (same
-                    % index)
-                    LinkedColumn(AstInd(Icand))    = LinkedAstIndex;
-                    LinkedColumn(AstInd(FlagLink)) = LinkedAstIndex;
+
+            TotPM        = sqrt(sum(PM.^2, 2));  % total PM [deg/day]
+            ExpectedNobs = Nepochs .* TotPM.*Args.TimeSpan./(2.*Args.PM_Radius);
+
+            % remove sources with some selected flags
+            if isemptyBitDict(Args.BitDict)
+                Flags(Icat).Flags        = true(Nsrc,1);
+                Flags(Icat).Flags_HighSN = true(Nsrc,1);
+            else
+                % true if good candidate
+                Flags(Icat).Flags         = ~findBit(Args.BitDict, DecFlags, Args.RemoveBitNames, 'Method','any');
+                Flags(Icat).Flags_HighSN  = ~findBit(Args.BitDict, DecFlags, Args.HighSNBitNames, 'Method','any');
+                Flags(Icat).Flags_HighSN  = Flags(Icat).Flags_HighSN | InfoSN(:,1)>Args.SN_HighSN;
+            end
+
+            % Flag sources with large number of outliers in H1 (PM hypothesis)
+            Flags(Icat).Flag_Outlier      = Noutlier <= Args.H1_NoutlierLimit;
+
+            % FLAGS for good asteroid candidates
+            Flags(Icat).Tdist  = ((PM_TdistProb >  Args.Nobs_TdistProb(1,2) & Nobs>Args.Nobs_TdistProb(1,1)) | (PM_TdistProb>Args.Nobs_TdistProb(2,2) & Nobs>Args.Nobs_TdistProb(2,1)));
+            %    Args.Nobs_TdistProb               = [5 0.995; 3 0.9999]; %     ((PM_TdistProb > 0.995 & Nobs>5) | (PM_TdistProb>0.9999 & Nobs>3));   % NEW
+
+            Flags(Icat).LowStdSN = InfoSN(:,2)>Args.MinStdSN;
+            % Args.MinStdSN                     = 0.4;   % NEW
+
+            Flags(Icat).Nobs   = Nobs<(ExpectedNobs);
+            Flags(Icat).All    = Flags(Icat).Flags & ...
+                                 Flags(Icat).Flags_HighSN & ...
+                                 Flags(Icat).Tdist & ...
+                                 Flags(Icat).Nobs & ...
+                                 Flags(Icat).LowStdSN & ...
+                                 Flags(Icat).Flag_Outlier;
+
+            % Number of asteroid candidates
+            AstInd   = find(Flags(Icat).All);
+            NastCand = numel(AstInd);
+
+            % Linking objects
+            % Since PM epoch is the same for all objects
+            % this involves only comparing the position of sources
+            [RA, Dec] = CatPM(Icat).getLonLat('rad', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec); % [rad]
+            % select only the asteroid candidates
+            CandRA  = RA(Flags(Icat).All);
+            CandDec = Dec(Flags(Icat).All);
+
+            LinkedAstIndex       = 0;
+            LinkedColumn         = nan(Nsrc, 1);  % nan - no PM | negative/unique(not necessely continous) - asteroid w/o links | >0 - asteroid with links
+            LinkedColumn(AstInd) = -(1:1:numel(AstInd));
+            if NastCand>1
+                for Icand=1:1:NastCand
+                    Dist = celestial.coo.sphere_dist_fast(CandRA(Icand), CandDec(Icand), CandRA, CandDec);
+                    Dist(Icand) = NaN;
+
+                    FlagLink = Dist < LinkingRadiusRad;
+                    if sum(FlagLink)>0
+                        % found a match for asteroid 
+                        LinkedAstIndex = LinkedAstIndex + 1;
+
+                        % mark the linked sources as the same asteroid (same
+                        % index)
+                        LinkedColumn(AstInd(Icand))    = LinkedAstIndex;
+                        LinkedColumn(AstInd(FlagLink)) = LinkedAstIndex;
+                    end
                 end
             end
-        end
-        
-        if Args.AddLinkingCol
-            CatPM(Icat).insertCol(LinkedColumn, Inf, Args.LinkingColName, '');
-        end
-        
-        
-        % extract cutouts centered on asteroids candidates
-        if ~isempty(Args.Images) 
-            % for eack linked source
-            find(LinkedColumn == 0);
-            UniquAst = unique(LinkedColumn);
-            UniquAst = UniquAst(~isnan(UniquAst));
-            Nunique  = numel(UniquAst);
-            for Iun=1:1:Nunique
-                % for each unique asteroid
-                % extract a cutout from Args.Images
-            
-                Iast = find(LinkedColumn==UniquAst(Iun));
-                
-                Icrop = Icrop + 1;
-                
-                AstCrop(Icrop).FieldIndex     = Icat;
-                AstCrop(Icrop).AstIndex       = UniquAst(Iun);
-                
-                AstCrop(Icrop).RA             = RA(Iast(1));   % [rad]
-                AstCrop(Icrop).Dec            = Dec(Iast(1));  % [rad]
-                [AstCrop(Icrop).Stamps, Info] = cropLonLat(Args.Images(:, Icat), AstCrop(Icrop).RA, AstCrop(Icrop).Dec,...
-                                                                'CooUnits','rad',...
-                                                                'HalfSizeXY',Args.HalfSizeXY,...
-                                                                Args.cropLonLatArgs{:});
-                AstCrop(Icrop).X              = Info.X;
-                AstCrop(Icrop).Y              = Info.Y;
-                AstCrop(Icrop).CCDSEC         = Info.CCDSEC;
-                % asteroid selected lines from CatPM
-                AstCrop(Icrop).IndexOfAstInCatPM = Iast;
-                AstCrop(Icrop).SelectedCatPM  = CatPM(Icat).selectRows(Iast);
-                AstCrop(Icrop).JD             = Args.JD;
-                
+
+            if Args.AddLinkingCol
+                CatPM(Icat).insertCol(LinkedColumn, Inf, Args.LinkingColName, '');
+            end
+
+
+            % extract cutouts centered on asteroids candidates
+            if ~isempty(Args.Images) 
+                % for eack linked source
+                find(LinkedColumn == 0);
+                UniquAst = unique(LinkedColumn);
+                UniquAst = UniquAst(~isnan(UniquAst));
+                Nunique  = numel(UniquAst);
+                for Iun=1:1:Nunique
+                    % for each unique asteroid
+                    % extract a cutout from Args.Images
+
+                    Iast = find(LinkedColumn==UniquAst(Iun));
+
+                    Icrop = Icrop + 1;
+
+                    AstCrop(Icrop).FieldIndex     = Icat;
+                    AstCrop(Icrop).AstIndex       = UniquAst(Iun);
+
+                    AstCrop(Icrop).RA             = RA(Iast(1));   % [rad]
+                    AstCrop(Icrop).Dec            = Dec(Iast(1));  % [rad]
+                    [AstCrop(Icrop).Stamps, Info] = cropLonLat(Args.Images(:, Icat), AstCrop(Icrop).RA, AstCrop(Icrop).Dec,...
+                                                                    'CooUnits','rad',...
+                                                                    'HalfSizeXY',Args.HalfSizeXY,...
+                                                                    Args.cropLonLatArgs{:});
+                    AstCrop(Icrop).X              = Info.X;
+                    AstCrop(Icrop).Y              = Info.Y;
+                    AstCrop(Icrop).CCDSEC         = Info.CCDSEC;
+                    % asteroid selected lines from CatPM
+                    AstCrop(Icrop).IndexOfAstInCatPM = Iast;
+                    AstCrop(Icrop).SelectedCatPM  = CatPM(Icat).selectRows(Iast);
+                    AstCrop(Icrop).JD             = Args.JD;
+
+                end
             end
         end
     end

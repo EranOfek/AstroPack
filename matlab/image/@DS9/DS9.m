@@ -1832,10 +1832,7 @@ classdef DS9 < handle
             Obj.xpaset('regions save %s',FileName);
         end
     end
-    
-    
-    % got here
-    
+        
     methods  % plot catalogs 
         function FileName = plotc(Obj,varargin)
             % Generate and plot a region file from a list of celestial coordinates [RA, Dec]
@@ -1928,9 +1925,9 @@ classdef DS9 < handle
             end
                 
             if ~isempty(ColorSymbol)
-                [~,Marker,Args.Color]=DS9.parseColorSymbol(ColorSymbol);
+                [~,Args.Marker,Args.Color]=DS9.parseColorSymbol(ColorSymbol);
                 if isempty(Args.Size)
-                    switch Marker
+                    switch Args.Marker
                         case 'o'
                             Args.Size       = [10 10];
                             Args.Marker     = 'circle';
@@ -1970,99 +1967,126 @@ classdef DS9 < handle
             
         end
    
-                
-        
-        
-        
         % plot line by x/y coordinates
-        function line_xy(X,Y,varargin)
-            % Plot a broken line
-            % Package: @ds9
+        function FileName = plotLine(Obj, X, Y, ColorSymbol, Args)
+            % Plot a line, broken line, or a polygon
             % Description: Plot a broken line (curve) in ds9 image.
-            % Input  : - Vector of X.
-            %          - Vector of Y.
-            %          * Additional parameters to pass to ds9.write_region
-            %            function. The first argument may be a plot-like
-            %            color indicator.
-            % Output : null
-            % Example: ds9.line_xy([356 400],[2000 2100],'Color','green')
-            %          ds9.line_xy([356 400],[2000 2100],'r')
-            %          ds9.line_xy([356 400],[2000 2100],'w','width',3)
-            %          ds9.line_xy([360,400,500],[2000 2010 2100])
-            % Reliable: 2
-
+            % Input  : - A DS9 object.
+            %          - Vector of X points of the line verteces.
+            %          - Vector of Y points of the line verteces.
+            %          - Color and symbol string. Symbol ignored.
+            %            Default is 'r-'.
+            %            'FileName' - Output region file name.
+            %                         Default is tempname.
+            %            'Append'   - Append region file to an existing
+            %                         region file. Default is false.
+            %            'Coo'      - Coordinates type: 'image'|'fk5'.
+            %                         Default is 'image' (i.e., pixels).
+            %            'Units'    - If 'Coo' is 'fk5' than this specify
+            %                         if the input coordinates are in 'deg'
+            %                         or 'rad'. Default is 'deg'.
+            %             'Width'   - A scalar or a vector of markers
+            %                         width. Default is 1.
+            %             'Text'    - Text to plot with marker.
+            %                         Default is ''.
+            %             'Font'    - Font type. Default is 'helvetica'.
+            %             'FontSize'- Font size. Default is 16.
+            %             'FontStyle'-Font style. Default is 'normal'.
+            %             'DeleteFile' - A logical indicating if to delete
+            %                   region file after useage.
+            %                   Default is true.
+            % Output : - Region file path and name.
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,100))
+            %          D.plotLine([1 10],[1 20])
+            %          D.plotLine([1 20],[1 50],'g-','Width',3)
             
-            DeleteFile = true;
-            
-            Narg  = numel(varargin);
-            Color = 'red';
-            if ~(Narg.*0.5==floor(Narg.*0.5))
-                % assume 3rd parameter is a color indicator
+            arguments
+                Obj
+                X
+                Y
+                ColorSymbol                 = 'r-';
                 
-                if (~isempty(strfind(varargin{1},'r')))
-                    Color = 'red';
-                elseif (~isempty(strfind(varargin{1},'b')))
-                    Color = 'blue';
-                elseif (~isempty(strfind(varargin{1},'g')))
-                    Color = 'green';
-                elseif (~isempty(strfind(varargin{1},'k')))
-                    Color = 'black';
-                elseif (~isempty(strfind(varargin{1},'w')))
-                    Color = 'white';
-                elseif (~isempty(strfind(varargin{1},'m')))
-                    Color = 'magenta';
-                elseif (~isempty(strfind(varargin{1},'c')))
-                    Color = 'cyan';
-                elseif (~isempty(strfind(varargin{1},'y')))
-                    Color = 'yellow';
-                else
-                    Color = 'red';
-                end
-                varargin = varargin(2:end);
+                Args.FileName        = tempname;  % use temp file name
+                Args.Append          = false;
+                Args.Coo             = 'image';   % 'image'|'fk5'
+                Args.Units           = 'deg';     % for 'image' this is always pix!
+                Args.Width           = 1;
+                Args.Text            = '';
+                Args.Font            = 'helvetica';  %'helvetica 16 normal'
+                Args.FontSize        = 16;
+                Args.FontStyle       = 'normal';
+                
+                Args.DeleteFile logical     = true;
             end
-            
+                            
+            [~,~,Color] = DS9.parseColorSymbol(ColorSymbol);
+              
             X1 = X(1:end-1);
             Y1 = Y(1:end-1);
             X2 = X(2:end);
             Y2 = Y(2:end);
             
-            FileName = ds9.write_region([X1(:), Y1(:)],'Color',Color,varargin{:},'Marker','line','Size',[X1(:), Y1(:), X2(:), Y2(:)]);
-            ds9.load_region(FileName);
-            if (DeleteFile)
+            FileName = DS9.regionWrite([X1(:), Y1(:)],'Color',Color,'Marker','line','Size',[X1(:), Y1(:), X2(:), Y2(:)],...
+                                                      'FileName',Args.FileName,...
+                                                      'Append',Args.Append,...
+                                                      'Coo',Args.Coo,...
+                                                      'Units',Args.Units,...
+                                                      'Width',Args.Width,...
+                                                      'Text',Args.Text,...
+                                                      'Font',Args.Font,...
+                                                      'FontSize',Args.FontSize,...
+                                                      'FontStyle',Args.FontStyle);
+                                                      
+            Obj.regionLoad(FileName);
+            if Args.DeleteFile
                 delete(FileName);
                 FileName = [];
             end
             
         end
-        
-        function line_lt(X,Y,Length,Theta,varargin)
-            % Plot multiple lines based on X,Y,length,theta
-            % Package: @ds9
+       
+        function plotLineSlope(Obj, X,Y,Theta,Length,varargin)
+            % Plot multiple lines based on X,Y,theta,length
             % Description: Plot multiple lines based on X,Y,length,theta
             % Input  : - Vector of X starting points.
+            %            Each one of the first 4 input args may be a scalar
+            %            or a vector.
             %          - Vector of Y starting points.
-            %          - Vector of line lengths.
             %          - Vector of line angles [deg] measured from X-axis.
-            %          * Additional parameters to pass to ds9.write_region
+            %          - Vector of line lengths.
+            %          * Additional parameters to pass to DS9/regionWrite
             %            function. The first argument may be a plot-like
             %            color indicator.
-            % Output : null
-            % Example: ds9.line_lt(400,1900,100,10)
-            %          ds9.line_lt(400,1900,100,10,'g','Width',3)
-            %          ds9.line_lt([400,450],[1900,1910],[100,200],[10,45])
+            % Output : - FileName for the region file.
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,100));
+            %          D.plotLineSlope(10,10,100,100,'r-','Width',4)
+            %          D.plotLineSlope(10,10,[0;10;20],100,'r-','Width',4)
             
             Xend = X + Length.*cosd(Theta);
             Yend = Y + Length.*sind(Theta);
+                        
+            NXe = numel(Xend);
+            NYe = numel(Yend);
+            NX  = numel(X);
+            NY  = numel(Y);
+            NT  = numel(Theta);
+            NL  = numel(Length);
             
-            N = numel(X);
+            N = max([NX, NY, NT, NL]);
             for I=1:1:N
                 % for each line
-                ds9.line_xy([X(I), Xend(I)],[Y(I), Yend(I)],varargin{:});
+                Ix  = min(I,NX);
+                Iy  = min(I,NY);
+                Ixe = min(I,NXe);
+                Iye = min(I,NYe);
+                Obj.plotLine([X(Ix), Xend(Ixe)],[Y(Iy), Yend(Iye)],varargin{:});
             end
         end
         
         % plot text
-        function text(X,Y,Text,varargin)
+        function  plotText(Obj,X,Y,Text,Args)
             % plot text to ds9 current frame
             % Package: @ds9
             % Description: plot text to ds9 current frame in image
@@ -2076,6 +2100,9 @@ classdef DS9 < handle
             %          - Text.
             %          * Arbitrary number of ...,key,val,... pairs.
             %            The following keywords are available:
+            %             'Coo'     - Coordinate system: 'image'|'fk5'.
+            %                         If 'fk5' units are deg.
+            %                         Default is 'image'.
             %             'Color'   - A string or a cell array of strings
             %                         of marker colors
             %                         ('red'|'blue'|'green'|'black'|
@@ -2086,27 +2113,23 @@ classdef DS9 < handle
             %             'Font'    - Font type. Default is 'helvetica'.
             %             'FontSize'- Font size. Default is 16.
             %             'FontStyle'-Font style. Default is 'normal'.
-            %             'Coo'     - Coordinate system: 'image'|'fk5'.
-            %                         Default is 'image'.
-            %
             % Output : null
-            % see also: ds9.plot, ds9.write_region
-            % Example: ds9.text(700,900,'Hello');
-            %          ds9.text(700,980.1,'Hello','color','cyan');
-            %          ds9.text(149.41455,69.758364,'Star','Coo','fk5'); % deg
-            %          ds9.text('9:56:31.559','+69:49:27.60','Object','Color','blue')
-            % Reliable: 2
-            
-            
-                
-            
-            DefV.Color               = 'red';
-            DefV.Width               = 1;
-            DefV.Font                = 'helvetica';  %'helvetica 16 normal'
-            DefV.FontSize            = 16;
-            DefV.FontStyle           = 'normal';
-            DefV.Coo                 = 'image';
-            InPar = InArg.populate_keyval(DefV,varargin,mfilename);
+            % Example: D = DS9(rand(100,100));
+            %          D.plotText(30,30,'Hello')
+            %          D.plotText(30,50,'Hello','FontSize',30, 'Color','blue')
+
+            arguments
+                Obj
+                X
+                Y
+                Text
+                Args.Coo         = 'image';
+                Args.Color       = 'red';
+                Args.Width       = 1;
+                Args.Font        = 'helvetica';  %'helvetica 16 normal'
+                Args.FontSize    = 16;
+                Args.FontStyle   = 'normal';
+            end
             
             if (ischar(X))
                 InPar.Coo = 'fk5';
@@ -2116,94 +2139,326 @@ classdef DS9 < handle
             end
             
             if (IsSexagesimal)
-                ds9.system('echo "%s; text %s %s # color=%s width=%d font={%s %d %s} text={%s}" | xpaset ds9 regions',...
-                                InPar.Coo,X,Y,InPar.Color,InPar.Width,InPar.Font,InPar.FontSize,InPar.FontStyle,Text);
+                DS9.system('echo "%s; text %s %s # color=%s width=%d font={%s %d %s} text={%s}" | xpaset ds9 regions',...
+                                Args.Coo,X,Y,Args.Color,Args.Width,Args.Font,Args.FontSize,Args.FontStyle,Text);
             else
                 
-                ds9.system('echo "%s; text %f %f # color=%s width=%d font={%s %d %s} text={%s}" | xpaset ds9 regions',...
-                            InPar.Coo,X,Y,InPar.Color,InPar.Width,InPar.Font,InPar.FontSize,InPar.FontStyle,Text);
+                DS9.system('echo "%s; text %f %f # color=%s width=%d font={%s %d %s} text={%s}" | xpaset ds9 regions',...
+                            Args.Coo,X,Y,Args.Color,Args.Width,Args.Font,Args.FontSize,Args.FontStyle,Text);
             end
-        
             pause(0.2);
-            
         end
         
-        
     end
-    
-    % Tile methods
-    methods (Static)
+        
+    methods    % Tile/blink methods
         % Set the tile display mode
-        function tile(Par)
+        function tile(Obj, Val, Gap)
             % Set the tile the display mode of ds9
             % Package: @ds9
             % Description: Set the tile the display mode of ds9.
             % Input  : - Either a string to pass to the tile command,
-            %            or this is a vector of the number of columns and
-            %            rows in the tile display (i.e., layout command)
-            %            Alternatively a third element may be provided with
-            %            the grid gap (in pixels).
-            %            Default is [3,2].
+            %            or a logical:
+            %            true - change to tile mode
+            %            false - change to single mode
+            %            [] - toggle tile mode
+            %            Two element vector - [X Y] tiles
+            %            Default is [].
+            %          - Gap between tiles.
+            %            If empty, use no gap default.
+            %            Default is [].
             % Output : null
-            % Example: ds9.tile([3 3 10])
-            %          ds9.tile('grid direction x')
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,1000,1);
+            %          D.load(rand(100,100),2)
+            %          D.tile(true)
+            %          D.tile(false)
+            %          D.tile([2 1])
+            %          D.tile([2 1],30)
+            %          D.tile  % toggle
+            %          D.tile  % toggle
             
-            if (nargin==0)
-                Par = [3 2];
+            arguments
+                Obj
+                Val = [];
+                Gap = [];
             end
             
-            if (ischar(Par))
-                ds9.system('xpaset -p ds9 tile %s',Par);
-            else
-                if (numel(Par)==2)
-                    ds9.system('xpaset -p ds9 tile grid layout %d %d',Par(1),Par(2));
-                elseif (numel(Par)==3)
-                    ds9.system('xpaset -p ds9 tile grid layout %d %d',Par(1),Par(2));
-                    ds9.system('xpaset -p ds9 tile grid gap %d',Par(3));
-                else
-                    error('Numeric parameter may contain 2 or 3 values [Col, Rows, Gaps]');
+            if isempty(Val)
+                % get tile mode
+                Res = Obj.xpaget('tile');
+                switch lower(Res)
+                    case 'no'
+                        Val = true;
+                    case 'yes'
+                        Val = false;
+                    otherwise
+                        error('tile command returned an unknown option');
                 end
             end
-            ds9.system('xpaset -p ds9 tile');
-            
-        end
-        
-        function single
-            % Set to single image display mode
-            % Package: @ds9
-            % Input  : null
-            % Output : null
-            % Example: ds9.single
-            % Reliable: 2
-            
-            ds9.system('xpaset -p ds9 single');
-            
-        end
-        
-        function blink(Interval)
-            % Set to blink display mode
-            % Package: @ds9
-            % Input  : - Time interval. Default is 0.5s.
-            % Output : null
-            % Example: ds9.blink
-            % Reliable: 2
-        
-            if (nargin==0)
-                Interval = 0.5;
+                
+            if ischar(Val)
+                Obj.xpaset('tile %s',Val);
+            elseif islogical(Val)
+                if Val
+                    Obj.xpaset('tile yes');
+                else
+                    Obj.xpaset('single');
+                end
+            else
+                % numeric vector
+                Obj.xpaset('tile grid layout %d %d', Val(1), Val(2));
+                if ~isempty(Gap)
+                    Obj.xpaset('tile grid gap %d', Gap);
+                end
+                Obj.xpaset('tile');
             end
             
-            ds9.system('xpaset -p ds9 blink interval %f',Interval);
-            ds9.system('xpaset -p ds9 blink');
-            fprintf('To stop blink mode - execute: ds9.single\n');
             
         end
+        
+        function blink(Obj, Par)
+            % Blink all active frames
+            % Input  : - Blink toggle, state, or interval.
+            %            If empty - toggle blink state.
+            %            If logical - change to true/false blink state.
+            %            If numeric - set the interval to the numeric
+            %            value, and start blinking.
+            %            Default is [].
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,100));
+            %          D.load(rand(100,100));
+            %          D.blink
+            %          D.blink
+            %          D.blink(1)
+            %          D.blink(0.2)
+            %          D.blink(false)
+        
+            arguments
+                Obj
+                Par   = [];   % toggle, logical, interval
+            end
+            
+            if isempty(Par)
+                % blink toggle - get state
+                Res = Obj.xpaget('blink');
+                switch lower(Res)
+                    case 'yes'
+                        Par = false;
+                    case 'no'
+                        Par = true;
+                    otherwise
+                        error('tile command returned an unknown option');
+                end
+            end
+            
+            Interval = [];
+            if isnumeric(Par)
+                Interval = Par;
+                Par      = true;
+            end
+            
+            if ~isempty(Interval)
+                Obj.xpaset('blink interval %f',Interval);
+            end
+            
+            if Par
+                Obj.xpaset('blink yes');
+            else
+                Obj.xpaset('blink no');
+            end
+        end
+    end
+    
+    methods  % lock and match
+        % lock by wcs coordinates
+        function lock(Obj, Par, System)
+            % Lock frames image/wcs/scale/scalelimits/colorbar
+            % Input  : - A DS9 object.
+            %          - A logical indicating if to set lock true/false.
+            %            If empty, then toggle lock.
+            %            If char, then append to the lock command and use
+            %            xpaset to execute.
+            %            Default is empty.
+            %          - System to lock: 'image' | 'wcs' | 'scale' |
+            %                            'scalelimits' | 'colorbar'
+            %            Default is 'image'.
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,100));
+            %          D.load(rand(100,100),2);
+            %          D.tile
+            %          D.zoom(5,'all')
+            %          D.lock
+            %          D.lock
+           
+            arguments
+                Obj
+                Par    = [];
+                System = 'image';
+            end
+                       
+            if ischar(Par)
+                Obj.xpaset(Par);
+            else
+                if isempty(Par)
+                    % toggle lock - get state
+                    Res = Obj.xpaget('lock frame');
+                    switch lower(Res)
+                        case 'none'
+                            Par = true;
+                        otherwise
+                            Par = false;
+                    end
+                end
+
+                if Par
+                    switch lower(System)
+                        case 'image'
+                            Obj.xpaset('lock frame image');
+                        case {'icrs','fk4','fk5','sphere','wcs'}
+                            Obj.xpaset('lock frame wcs');
+                        case 'scale'
+                            Obj.xpaset('lock scale yes');
+                        case 'colorbar'
+                            Obj.xpaset('lock colorbar yes');
+                        case 'scalelimits'
+                            Obj.xpaset('lock scalelimits yes');
+                        otherwise
+                            error('Unknown System option');
+                    end
+                else
+                    switch lower(System)
+                        case 'image'
+                            Obj.xpaset('lock frame none');
+                        case {'icrs','fk4','fk5','sphere','wcs'}
+                            Obj.xpaset('lock frame none');
+                        case 'scale'
+                            Obj.xpaset('lock scale no');
+                        case 'colorbar'
+                            Obj.xpaset('lock colorbar no');
+                        case 'scalelimits'
+                            Obj.xpaset('lock scalelimits no');
+                        otherwise
+                            error('Unknown System option');
+                    end
+                end
+            end
+        end
+        
+        % got here
+        
+        
+    end
+    
+    
+    
+    methods
+%         function dss(Obj, RA, Dec, Size, Args)
+%             %
+%             % Example: D = DS9;
+%             %          D.dss('m31',[],30)
+%             
+%             error('bug')
+%             
+%             arguments
+%                 Obj
+%                 RA
+%                 Dec
+%                 Size             = [30 30];
+%                 Args.SizeUnits   = 'arcmin';
+%                 Args.Survey      = '1b';
+%                 Args.Frame       = Inf;   % [] - curreny, Inf - new
+%                 Args.Server      = 'sao';  % 'stsci' | 'eso' | 'sao'
+%                 
+%             end
+%             
+%             if numel(Size)==1
+%                 Size = [Size, Size];
+%             end
+            
+%             
+%             switch lower(Args.Server)
+%                 case {'stsci'}
+%                     Server   = 'dssstsci';
+%                     % poss2ukstu_red|poss2ukstu_ir|poss2ukstu_blue | poss1_blue|poss1_red]
+%                     switch lower(Args.Survey)
+%                         case '1b'
+%                             Survey = 'poss1_blue';
+%                         case '1r'
+%                             Survey = 'poss1_red';
+%                         case '2b'
+%                             Survey = 'poss2ukstu_blue';
+%                         case '2r'
+%                             Survey = 'poss2ukstu_red';
+%                         case '2i'
+%                             Survey = 'poss2ukstu_ir';
+%                         otherwise
+%                             error('Unwknon Survey option');
+%                     end
+%                 case {'eso'}
+%                     Server   = 'dsseso';
+%                     % 'DSS1|DSS2-red|DSS2-blue|DSS2-infrared
+%                     switch lower(Args.Survey)
+%                         case '1b'
+%                             Survey = 'DSS1';
+%                         case '1r'
+%                             Survey = 'DSS1';
+%                         case '2b'
+%                             Survey = 'DSS2-blue';
+%                         case '2r'
+%                             Survey = 'DSS2-red';
+%                         case '2i'
+%                             Survey = 'DSS-infrared';
+%                         otherwise
+%                             error('Unwknon Survey option');
+%                     end
+%                 case {'sao'}
+%                     Server   = 'dsssao';
+%                     Survey   = [];
+%                 otherwise
+%                     error('Unknown Server option');
+%             end
+%             
+%             if isempty(Args.Frame)
+%                 Obj.xpaset('%s frame current', Server)
+%             else
+%                 if isinf(Args.Frame)
+%                     % do nothing - will open a new frame
+%                 else
+%                     % move to frame
+%                     Obj.frame(Args.Frame);
+%                     Obj.xpaset('%s frame current')
+%                 end
+%             end
+%             
+%             if ~isempty(Survey)
+%                 Obj.xpaset('%s survey %s',Server, Survey);
+%             end
+%             
+%             Obj.xpaset('%s size %f %f %s',Server, Size(1), Size(2), Args.SizeUnits);
+%             
+%             if isempty(Dec)
+%                 % assume object name
+%                 Obj.xpaset('%s %s',Server, RA);
+%             else
+%                 Obj.xpaset('%s %s %s',Server, celestial.coo.convertdms(RA, 'd', 'SH'), celestial.coo.convertdms(Dec, 'd', 'SD'));
+%             end
+%                 
+%         end
+        
+        % got here
+        
+        
+        
+        
         
         % array
         
         % bin
         % block
         
-        % blink
         
         % crop
         
@@ -2216,7 +2471,7 @@ classdef DS9 < handle
         % Set grid
         
         % dssstsci
-        function dss(RA,Dec,Size,Band,Frame,Save)
+        function dss1(RA,Dec,Size,Band,Frame,Save)
             % Get a DSS sky image from stsci
             % Package: @ds9
             % Description: Get a DSS sky image from stsci.
@@ -2329,34 +2584,7 @@ classdef DS9 < handle
     % lock and match methods
     % (lock_wcs, lock_xy, match_wcs, match_xy, match_scale, match_scalelimits)
     methods (Static)
-            
-        % lock by wcs coordinates
-        function lock_wcs(Par)
-            % Lock all images WCS to current frame
-            % Package: @ds9
-            % Description: Lock all images WCS to current frame.
-            % Input  : - true|false. If not given than toggle.
-            % Output : null
-           
-            if (nargin==0)
-                % get lock status
-                Ans = ds9.system('xpaget ds9 lock frame wcs');
-                switch lower(Ans(1:3))
-                    case 'wcs'
-                        % toggle off
-                        Par = false;
-                    otherwise
-                        Par = true;
-                end
-            end
-            %ds9.system('xpaset -p ds9 lock frame wcs');
-            if (Par)
-                ds9.system('xpaset -p ds9 lock frame wcs');
-            else
-                ds9.system('xpaset -p ds9 lock frame none');
-            end
-                        
-        end
+       
         
         % lock by image coordinates
         function lock_xy(Par)

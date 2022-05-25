@@ -99,15 +99,20 @@ function [Val, Key, Comment, Nfound] = getValBySynonym(CellHeader, KeySynonym, A
         Comment = CellHeader{IndCell, Args.ColComment};
         
         % convert to number
-        if Args.Val2Num
-            %ValNum  = str2double(Val);
-            ValNum  = real(str2doubleq(Val));  % faster
-            if isnan(ValNum) && ~strcmpi(Val,'nan')
-                % string
-                % do nothing
+        if Args.Val2Num && ischar(Val)
+            MatchedND = regexp(Val, '[^\d]', 'match');
+            if isempty(MatchedND)
+                %ValNum  = str2double(Val);
+                ValNum  = real(str2doubleq(Val));  % faster
+                if isnan(ValNum) && ~strcmpi(Val,'nan')
+                    % string
+                    % do nothing
+                else
+                    % number
+                    Val = ValNum;
+                end
             else
-                % number
-                Val = ValNum;
+                % can't convert
             end
         end
         

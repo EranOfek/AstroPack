@@ -93,7 +93,54 @@ function Result = unitTest()
     
     % colorbar control
     D.colorbar
+    
+    % plot
+    D.plot(50,50)
+    D.plot(rand(100,2).*100,[],'rs')
+    D.plot(rand(100,2).*100,[],'ws','size',3)
+    D.regionDelete;
+    
+    % plotLine
+    D.plotLine([1 10],[1 20])
+    D.plotLine([1 20],[1 50],'g-','Width',3)
+   
+    % plotLineSlope
+    D.plotLineSlope(10,10,100,100,'r-','Width',4)
+    D.plotLineSlope(10,10,[0;10;20],100,'r-','Width',4)
             
+    % plotText
+    D.plotText(30,30,'Hello')
+    D.plotText(30,50,'Hello','FontSize',30, 'Color','blue')
+    
+    % tile/single
+    D.exit
+    D = DS9(rand(100,1000,1);
+    D.load(rand(100,100),2)
+    D.tile(true)
+    D.tile(false)
+    D.tile([2 1])
+    D.tile([2 1],30)
+    D.tile  % toggle
+    D.tile  % toggle
+    
+    % blink
+    D.exit
+    D = DS9(rand(100,100));
+    D.load(rand(100,100));
+    D.blink
+    D.blink
+    D.blink(1)
+    D.blink(0.2)
+    D.blink(false)
+    
+    % lock
+    D = DS9(rand(100,100));
+    D.load(rand(100,100),2);
+    D.tile
+    D.zoom(5,'all')
+    D.lock
+    D.lock
+    
     
     
 	io.msgStyle(LogLevel.Test, '@passed', 'ds9 test passed');
