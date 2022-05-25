@@ -2124,7 +2124,6 @@ classdef DS9 < handle
                 Y
                 Text
                 Args.Coo         = 'image';
-                
                 Args.Color       = 'red';
                 Args.Width       = 1;
                 Args.Font        = 'helvetica';  %'helvetica 16 normal'
@@ -2273,98 +2272,98 @@ classdef DS9 < handle
     end
     
     methods
-        function dss(Obj, RA, Dec, Size, Args)
-            %
-            % Example: D = DS9;
-            %          D.dss('m31',[],30)
+%         function dss(Obj, RA, Dec, Size, Args)
+%             %
+%             % Example: D = DS9;
+%             %          D.dss('m31',[],30)
+%             
+%             error('bug')
+%             
+%             arguments
+%                 Obj
+%                 RA
+%                 Dec
+%                 Size             = [30 30];
+%                 Args.SizeUnits   = 'arcmin';
+%                 Args.Survey      = '1b';
+%                 Args.Frame       = Inf;   % [] - curreny, Inf - new
+%                 Args.Server      = 'sao';  % 'stsci' | 'eso' | 'sao'
+%                 
+%             end
+%             
+%             if numel(Size)==1
+%                 Size = [Size, Size];
+%             end
             
-            error('bug')
-            
-            arguments
-                Obj
-                RA
-                Dec
-                Size             = [30 30];
-                Args.SizeUnits   = 'arcmin';
-                Args.Survey      = '1b';
-                Args.Frame       = Inf;   % [] - curreny, Inf - new
-                Args.Server      = 'sao';  % 'stsci' | 'eso' | 'sao'
-                
-            end
-            
-            if numel(Size)==1
-                Size = [Size, Size];
-            end
-            
-            
-            switch lower(Args.Server)
-                case {'stsci'}
-                    Server   = 'dssstsci';
-                    % poss2ukstu_red|poss2ukstu_ir|poss2ukstu_blue | poss1_blue|poss1_red]
-                    switch lower(Args.Survey)
-                        case '1b'
-                            Survey = 'poss1_blue';
-                        case '1r'
-                            Survey = 'poss1_red';
-                        case '2b'
-                            Survey = 'poss2ukstu_blue';
-                        case '2r'
-                            Survey = 'poss2ukstu_red';
-                        case '2i'
-                            Survey = 'poss2ukstu_ir';
-                        otherwise
-                            error('Unwknon Survey option');
-                    end
-                case {'eso'}
-                    Server   = 'dsseso';
-                    % 'DSS1|DSS2-red|DSS2-blue|DSS2-infrared
-                    switch lower(Args.Survey)
-                        case '1b'
-                            Survey = 'DSS1';
-                        case '1r'
-                            Survey = 'DSS1';
-                        case '2b'
-                            Survey = 'DSS2-blue';
-                        case '2r'
-                            Survey = 'DSS2-red';
-                        case '2i'
-                            Survey = 'DSS-infrared';
-                        otherwise
-                            error('Unwknon Survey option');
-                    end
-                case {'sao'}
-                    Server   = 'dsssao';
-                    Survey   = [];
-                otherwise
-                    error('Unknown Server option');
-            end
-            
-            if isempty(Args.Frame)
-                Obj.xpaset('%s frame current', Server)
-            else
-                if isinf(Args.Frame)
-                    % do nothing - will open a new frame
-                else
-                    % move to frame
-                    Obj.frame(Args.Frame);
-                    Obj.xpaset('%s frame current')
-                end
-            end
-            
-            if ~isempty(Survey)
-                Obj.xpaset('%s survey %s',Server, Survey);
-            end
-            
-            Obj.xpaset('%s size %f %f %s',Server, Size(1), Size(2), Args.SizeUnits);
-            
-            if isempty(Dec)
-                % assume object name
-                Obj.xpaset('%s %s',Server, RA);
-            else
-                Obj.xpaset('%s %s %s',Server, celestial.coo.convertdms(RA, 'd', 'SH'), celestial.coo.convertdms(Dec, 'd', 'SD'));
-            end
-                
-        end
+%             
+%             switch lower(Args.Server)
+%                 case {'stsci'}
+%                     Server   = 'dssstsci';
+%                     % poss2ukstu_red|poss2ukstu_ir|poss2ukstu_blue | poss1_blue|poss1_red]
+%                     switch lower(Args.Survey)
+%                         case '1b'
+%                             Survey = 'poss1_blue';
+%                         case '1r'
+%                             Survey = 'poss1_red';
+%                         case '2b'
+%                             Survey = 'poss2ukstu_blue';
+%                         case '2r'
+%                             Survey = 'poss2ukstu_red';
+%                         case '2i'
+%                             Survey = 'poss2ukstu_ir';
+%                         otherwise
+%                             error('Unwknon Survey option');
+%                     end
+%                 case {'eso'}
+%                     Server   = 'dsseso';
+%                     % 'DSS1|DSS2-red|DSS2-blue|DSS2-infrared
+%                     switch lower(Args.Survey)
+%                         case '1b'
+%                             Survey = 'DSS1';
+%                         case '1r'
+%                             Survey = 'DSS1';
+%                         case '2b'
+%                             Survey = 'DSS2-blue';
+%                         case '2r'
+%                             Survey = 'DSS2-red';
+%                         case '2i'
+%                             Survey = 'DSS-infrared';
+%                         otherwise
+%                             error('Unwknon Survey option');
+%                     end
+%                 case {'sao'}
+%                     Server   = 'dsssao';
+%                     Survey   = [];
+%                 otherwise
+%                     error('Unknown Server option');
+%             end
+%             
+%             if isempty(Args.Frame)
+%                 Obj.xpaset('%s frame current', Server)
+%             else
+%                 if isinf(Args.Frame)
+%                     % do nothing - will open a new frame
+%                 else
+%                     % move to frame
+%                     Obj.frame(Args.Frame);
+%                     Obj.xpaset('%s frame current')
+%                 end
+%             end
+%             
+%             if ~isempty(Survey)
+%                 Obj.xpaset('%s survey %s',Server, Survey);
+%             end
+%             
+%             Obj.xpaset('%s size %f %f %s',Server, Size(1), Size(2), Args.SizeUnits);
+%             
+%             if isempty(Dec)
+%                 % assume object name
+%                 Obj.xpaset('%s %s',Server, RA);
+%             else
+%                 Obj.xpaset('%s %s %s',Server, celestial.coo.convertdms(RA, 'd', 'SH'), celestial.coo.convertdms(Dec, 'd', 'SD'));
+%             end
+%                 
+%         end
         
         % got here
         
