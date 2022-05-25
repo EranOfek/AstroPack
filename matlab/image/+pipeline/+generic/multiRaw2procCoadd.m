@@ -192,7 +192,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     arguments
         FilesList                                               % Cell array, regexp, or AstroIamge
-        Args.SubDir = '';  % no sub dir
+        Args.SubDir = NaN;  % NaN- autosubdir; '' no sub dir
         Args.BasePath = '/last02w/data1/archive'; %'/raid/eran/archive'; %'/euler/archive';
 
         Args.CCDSEC                           = [];  % which CCDSEC to analuze - empty foe entire image  [xmin xmax ymin ymax]
@@ -408,14 +408,21 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
     
     % Save individual proc images
+    AutoSubDir = false;
     if isnumeric(Args.SubDir)
-        Args.SubDir = str2double(Args.SubDir);
+        if isnan(Args.SubDir)
+            AutoSubDir = true;
+        else
+            Args.SubDir = str2double(Args.SubDir);
+        end
     end
+    
+    
     DataProp = {'Image','Mask','Cat','PSF'};
     IP = ImagePath.generateImagePathFromProduct(AllSI, 'PropFromHeader',true,...
                                                           'DataDirFromProjName',true,...
                                                           'CropID_FromInd',false,...
-                                                          'AutoSubDir',true,...
+                                                          'AutoSubDir',AutoSubDir,...
                                                           'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir',''});
     
                                                       
@@ -479,6 +486,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     DataProp = {'Image','Mask','Cat','PSF'};
     IP = ImagePath.generateImagePathFromProduct(Coadd, 'PropFromHeader',true,...
                                                           'DataDirFromProjName',true,...
+                                                          'AutoSubDir',AutoSubDir,...
                                                           'CropID_FromInd',false,...
                                                           'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir','', 'PathLevel','proc'});
     

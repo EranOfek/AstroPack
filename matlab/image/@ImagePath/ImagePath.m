@@ -1213,9 +1213,9 @@ classdef ImagePath < Base %Component
             
             arguments
                 ObjProduct
-                Args.PropFromHeader logical    = true;
-                Args.CropID_FromInd logical    = false;
-                Args.SetProp cell              = {'Product','Image'};   % overide header
+                Args.PropFromHeader logical      = true;
+                Args.CropID_FromInd logical      = false;
+                Args.SetProp cell                = {'Product','Image'};   % overide header
                 Args.DataDirFromProjName logical = false;
                 Args.AutoSubDir logical          = true;
             end
@@ -1228,6 +1228,7 @@ classdef ImagePath < Base %Component
                         
             Nprod = numel(ObjProduct);
             ObjIP = ImagePath(Nprod);
+            CopySubDirFromPrevious = false;
             for Iprod=1:1:Nprod
                 if Args.PropFromHeader
                     ObjIP(Iprod).readFromHeader(ObjProduct(Iprod));  
@@ -1242,20 +1243,21 @@ classdef ImagePath < Base %Component
                     ObjIP(Iprod).DataDir = ObjIP.ProjName;
                 end
                 
-                if Args.AutoSubDir
+                if Args.AutoSubDir && ~CopySubDirFromPrevious
                     % automatically set the SubDir directory : +1 to
                     % largest existing dir
                     FullPath = ObjIP(Iprod).genPath;
+                    FullPath = strrep(FullPath,sprintf('%sNaN%s',filesep,filesep),'');
+                    
                     if isfolder(FullPath)
-                        Dir      = fullfile(FullPath, '..');
-                        FL       = dir(Dir);
-                        Flag     = [FL.isdir]';
+                        FL       = dir(FullPath);
+                        Flag     = [FL.isdir]' & ~strcmp({FL.name}.','.') & ~strcmp({FL.name}.','..');
                         FL       = FL(Flag);
                         if isempty(FL)
                             % no dirs
                             ObjIP(Iprod).SubDir = '1';
                         else
-                            Max = max(str2double({FL.folder}));
+                            Max = max(str2double({FL.name}));
                             if isnan(Max)
                                 ObjIP(Iprod).SubDir = '1';
                             else
@@ -1265,6 +1267,10 @@ classdef ImagePath < Base %Component
                         
                     else
                         ObjIP(Iprod).SubDir = '1';
+                    end
+                else
+                    if CopySubDirFromPrevious
+                        ObjIP(Iprod).SubDir = ObjIP(Iprod-1).SubDir;
                     end
                 end
                     
