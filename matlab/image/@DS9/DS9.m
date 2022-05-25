@@ -56,6 +56,8 @@ classdef DS9 < handle
             if nargin>0
                 Obj.load(varargin{:});
             end
+            D.scale('zscale');
+            D.colorbar(false);
         end
         
     end
@@ -2509,231 +2511,339 @@ classdef DS9 < handle
     
     end
     
-    methods
-%         function dss(Obj, RA, Dec, Size, Args)
-%             %
-%             % Example: D = DS9;
-%             %          D.dss('m31',[],30)
-%             
-%             error('bug')
-%             
-%             arguments
-%                 Obj
-%                 RA
-%                 Dec
-%                 Size             = [30 30];
-%                 Args.SizeUnits   = 'arcmin';
-%                 Args.Survey      = '1b';
-%                 Args.Frame       = Inf;   % [] - curreny, Inf - new
-%                 Args.Server      = 'sao';  % 'stsci' | 'eso' | 'sao'
-%                 
-%             end
-%             
-%             if numel(Size)==1
-%                 Size = [Size, Size];
-%             end
+    methods   % dss, skyview, vla, nvss
+        function skyNVSS(Obj, RA, Dec, Size, Args)
+            % Display NVSS (VLA radio) image in ds9
+            % Input : - A DS9 object.
+            %          - J2000.0 RA - Numerical value in deg, or
+            %            sexagesimal string.
+            %            If Dec, is empty, then this will be interpreted as
+            %            object name (e.g., 'm31').
+            %          - J2000.0 Dec (like RA, but for Dec).
+            %            Default is [].
+            %          - Image size [Width, height].
+            %            Default is 30 (default units are arcmin).
+            %          * ...,key,val,...
+            %            'SizeUnits' - Size units for image size.
+            %                   Default is 'arcmin'.
+            %            'Frame' - Frame index in which to display the
+            %                   image. If Inf, open a new frame.
+            %                   If empty, use current frame.
+            %                   Default is Inf.
+            %            'Server' - For internal use. Default is 'nvss'.
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9;
+            %          D.dss('m31',[],30)
+            %          D.dss('12:00:00','+21:10:10',10,'Frame',[])
+            %          D.dss(1,1)  % deg
             
-%             
-%             switch lower(Args.Server)
-%                 case {'stsci'}
-%                     Server   = 'dssstsci';
-%                     % poss2ukstu_red|poss2ukstu_ir|poss2ukstu_blue | poss1_blue|poss1_red]
-%                     switch lower(Args.Survey)
-%                         case '1b'
-%                             Survey = 'poss1_blue';
-%                         case '1r'
-%                             Survey = 'poss1_red';
-%                         case '2b'
-%                             Survey = 'poss2ukstu_blue';
-%                         case '2r'
-%                             Survey = 'poss2ukstu_red';
-%                         case '2i'
-%                             Survey = 'poss2ukstu_ir';
-%                         otherwise
-%                             error('Unwknon Survey option');
-%                     end
-%                 case {'eso'}
-%                     Server   = 'dsseso';
-%                     % 'DSS1|DSS2-red|DSS2-blue|DSS2-infrared
-%                     switch lower(Args.Survey)
-%                         case '1b'
-%                             Survey = 'DSS1';
-%                         case '1r'
-%                             Survey = 'DSS1';
-%                         case '2b'
-%                             Survey = 'DSS2-blue';
-%                         case '2r'
-%                             Survey = 'DSS2-red';
-%                         case '2i'
-%                             Survey = 'DSS-infrared';
-%                         otherwise
-%                             error('Unwknon Survey option');
-%                     end
-%                 case {'sao'}
-%                     Server   = 'dsssao';
-%                     Survey   = [];
-%                 otherwise
-%                     error('Unknown Server option');
-%             end
-%             
-%             if isempty(Args.Frame)
-%                 Obj.xpaset('%s frame current', Server)
-%             else
-%                 if isinf(Args.Frame)
-%                     % do nothing - will open a new frame
-%                 else
-%                     % move to frame
-%                     Obj.frame(Args.Frame);
-%                     Obj.xpaset('%s frame current')
-%                 end
-%             end
-%             
-%             if ~isempty(Survey)
-%                 Obj.xpaset('%s survey %s',Server, Survey);
-%             end
-%             
-%             Obj.xpaset('%s size %f %f %s',Server, Size(1), Size(2), Args.SizeUnits);
-%             
-%             if isempty(Dec)
-%                 % assume object name
-%                 Obj.xpaset('%s %s',Server, RA);
-%             else
-%                 Obj.xpaset('%s %s %s',Server, celestial.coo.convertdms(RA, 'd', 'SH'), celestial.coo.convertdms(Dec, 'd', 'SD'));
-%             end
-%                 
-%         end
-        
-        
-        
-        
-        
-        
-        % array
-        
-        % bin
-        % block
-        
-        
-        % crop
-        
-        % crosshair
-        
-        % cursor
-        
-        % get data
-        
-        % Set grid
-        
-        % dssstsci
-        function dss1(RA,Dec,Size,Band,Frame,Save)
-            % Get a DSS sky image from stsci
-            % Package: @ds9
-            % Description: Get a DSS sky image from stsci.
-            % Input  : - J2000 RA [radians, [H M S], or sexagesimal string],
-            %            or object name (object name if Dec is empty).
-            %          - J2000 Dec [radians, [sign D M S], or sexagesimal
-            %            string]. If empty then assume that the first
-            %            argument is object name.
-            %          - Image size in arcsec. Default is [900 900].
-            %          - Band: 'red2'|'blue2'|'ir2'|'red1'|'blue1'|...
-            %                  'quickv'|'gsc1'|'gsc2'.
-            %            Default is 'red2'.
-            %          - Frame number: 'new'|'current'. Default is 'new'.
-            %          - Save. Defaukt is false.
+            arguments
+                Obj
+                RA
+                Dec              = [];
+                Size             = [30 30];
+                Args.SizeUnits   = 'arcmin';
+                Args.Survey      = []
+                Args.Frame       = Inf;   % [] - curreny, Inf - new
+                Args.Server      = 'nvss';
+            end
             
-            Def.Dec   = [];
-            Def.Size  = [900 900];
-            Def.Band  = 'red2';
-            Def.Frame = 'new';
-            Def.Save  = false;
-            if (nargin==1)
-                Dec     = Def.Dec;
-                Size    = Def.Size;
-                Band    = Def.Band;
-                Frame   = Def.Frame;
-                Save    = Def.Save;
-            elseif (nargin==2)
-                Size    = Def.Size;
-                Band    = Def.Band;
-                Frame   = Def.Frame;
-                Save    = Def.Save;
-            elseif (nargin==3)
-                Band    = Def.Band;
-                Frame   = Def.Frame;
-                Save    = Def.Save;
-            elseif (nargin==4)
-                Frame   = Def.Frame;
-                Save    = Def.Save;
-            elseif (nargin==5)
-                Save    = Def.Save;
-            elseif (nargin==6)
-                % do nothing
+            if numel(Size)==1
+                Size = [Size, Size];
+            end
+            
+            if isempty(Args.Frame)
+                Obj.xpaset('%s frame current', Args.Server)
             else
-                error('Illegal number of input arguments: dss(RA,[Dec,Size,Band,Frame,Save]');
+                if isinf(Args.Frame)
+                    % do nothing - will open a new frame
+                else
+                    % move to frame
+                    Obj.frame(Args.Frame);
+                    Obj.xpaset('%s frame current',Args.Server)
+                end
             end
-                
-            if (isempty(Dec))
-                % Assume RA contains object name
-                ds9.system('xpaset -p ds9 dssstsci %s',RA);
+            
+            Obj.xpaset('%s size %f %f %s',Args.Server, Size(1), Size(2), Args.SizeUnits);
+            
+            if ~isempty(Args.Survey)
+                Obj.xpaset('%s survey %s',Args.Server, Args.Survey);
+            end
+            
+            if isempty(Dec)
+                % assume object name
+                Obj.xpaset('%s %s',Args.Server, RA);
             else
-                RA  = celestial.coo.convertdms(RA,'gH','SH');
-                Dec = celestial.coo.convertdms(Dec,'gD','SD');
-                ds9.system('xpaset -p ds9 dssstsci coord %s %s sexagesimal',RA,Dec);
+                if isnumeric(RA)
+                    RA = celestial.coo.convertdms(RA, 'd', 'SH');
+                end
+                if isnumeric(Dec)
+                    Dec = celestial.coo.convertdms(Dec, 'd', 'SD');
+                end
+                Obj.xpaset('%s %s %s',Args.Server, RA, Dec);
+            end
+        end
+
+        function skyDSS(Obj, RA, Dec, Size, Args)
+            % Display DSS (Digitized Sky Survey) image in ds9
+            % Input  : - A DS9 object.
+            %          - J2000.0 RA - Numerical value in deg, or
+            %            sexagesimal string.
+            %            If Dec, is empty, then this will be interpreted as
+            %            object name (e.g., 'm31').
+            %          - J2000.0 Dec (like RA, but for Dec).
+            %            Default is [].
+            %          - Image size [Width, height].
+            %            Default is 30 (default units are arcmin).
+            %          * ...,key,val,...
+            %            'SizeUnits' - Size units for image size.
+            %                   Default is 'arcmin'.
+            %            'Frame' - Frame index in which to display the
+            %                   image. If Inf, open a new frame.
+            %                   If empty, use current frame.
+            %                   Default is Inf.
+            %            'Server' - ['sao'] | 'stsci' | 'eso'.
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9;
+            %          D.skyDSS('m31',[],30)
+            %          D.skyDSS('12:00:00','+21:10:10',10,'Frame',[])
+            %          D.skyDSS(1,1)  % deg
+            
+            arguments
+                Obj
+                RA
+                Dec              = [];
+                Size             = [30 30];
+                Args.SizeUnits   = 'arcmin';
+                Args.Survey      = '1b';
+                Args.Frame       = Inf;   % [] - curreny, Inf - new
+                Args.Server      = 'sao';  % 'stsci' | 'eso' | 'sao'
             end
             
-            if (numel(Size)==1)
-                Size = [Size Size];
+            switch lower(Args.Server)
+                case {'stsci'}
+                    Server   = 'dssstsci';
+                    % poss2ukstu_red|poss2ukstu_ir|poss2ukstu_blue | poss1_blue|poss1_red]
+                    switch lower(Args.Survey)
+                        case '1b'
+                            Survey = 'poss1_blue';
+                        case '1r'
+                            Survey = 'poss1_red';
+                        case '2b'
+                            Survey = 'poss2ukstu_blue';
+                        case '2r'
+                            Survey = 'poss2ukstu_red';
+                        case '2i'
+                            Survey = 'poss2ukstu_ir';
+                        otherwise
+                            error('Unwknon Survey option');
+                    end
+                case {'eso'}
+                    Server   = 'dsseso';
+                    % 'DSS1|DSS2-red|DSS2-blue|DSS2-infrared
+                    switch lower(Args.Survey)
+                        case '1b'
+                            Survey = 'DSS1';
+                        case '1r'
+                            Survey = 'DSS1';
+                        case '2b'
+                            Survey = 'DSS2-blue';
+                        case '2r'
+                            Survey = 'DSS2-red';
+                        case '2i'
+                            Survey = 'DSS-infrared';
+                        otherwise
+                            error('Unwknon Survey option');
+                    end
+                case {'sao'}
+                    Server   = 'dsssao';
+                    Survey   = [];
+                otherwise
+                    error('Unknown Server option');
             end
-            ds9.system('xpaset -p ds9 dssstsci size %d %d arcsec');
             
-            if (Save)
-                ds9.system('xpaset -p ds9 dssstsci save yes');
-            else
-                ds9.system('xpaset -p ds9 dssstsci save no');
-            end
-            
-            % frame
-            ds9.system('xpaset -p ds9 dssstsci frame %s',Frame);
-            
-            % band
-            Translation = {'red2','poss2ukstu_red';...
-                           'ir2','poss2ukstu_ir';...
-                           'blue2','poss2ukstu_blue';...
-                           'red1','poss1_red';...
-                           'blue1','poss1_blue';...
-                           'quickv','quickv';...
-                           'gsc1','phase2_gsc1';...
-                           'gsc2','phase2_gsc2'};
-            Iband = find(strcmp(Translation(:,1),Band));
-            if (isempty(Iband))
-                error('Illegal band name');
-            end
-            Band = Translation{Iband,2};
-            ds9.system('xpaset -p ds9 dssstsci survey %s',Band);
-            
-            % get image
-            ds9.system('xpaset -p ds9 dssstsci');
+            Obj.skyNVSS(RA, Dec, Size, 'SizeUnits',Args.SizeUnits,...
+                                       'Survey',Survey,...
+                                       'Frame',Args.Frame,...
+                                       'Server',Server);
             
         end
+           
+        function skyFIRST(Obj, RA, Dec, Size, Args)
+            % Display FIRST (VLA radio) image in ds9
+            % Input : - A DS9 object.
+            %          - J2000.0 RA - Numerical value in deg, or
+            %            sexagesimal string.
+            %            If Dec, is empty, then this will be interpreted as
+            %            object name (e.g., 'm31').
+            %          - J2000.0 Dec (like RA, but for Dec).
+            %            Default is [].
+            %          - Image size [Width, height].
+            %            Default is 30 (default units are arcmin).
+            %          * ...,key,val,...
+            %            'SizeUnits' - Size units for image size.
+            %                   Default is 'arcmin'.
+            %            'Frame' - Frame index in which to display the
+            %                   image. If Inf, open a new frame.
+            %                   If empty, use current frame.
+            %                   Default is Inf.
+            %            'Survey' - ['first'] | 'stripe82'
+            %            'Server' - For internal use. Default is 'nvss'.
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9;
+            %          D.skyFIRST('m51',[],30)
+            %          D.skyFIRST('12:00:00','+21:10:10',10,'Frame',[])
+            %          D.skyFIRST(1,1)  % deg
+            
+            arguments
+                Obj
+                RA
+                Dec              = [];
+                Size             = [30 30];
+                Args.SizeUnits   = 'arcmin';
+                Args.Survey      = 'first';  % 'first' | 'stripe82'
+                Args.Frame       = Inf;   % [] - curreny, Inf - new
+                Args.Server      = 'vla';
+            end
+            
+            Obj.skyNVSS(RA, Dec, Size, 'SizeUnits',Args.SizeUnits,...
+                                       'Survey',Args.Survey,...
+                                       'Frame',Args.Frame,...
+                                       'Server','vla');
+        end
         
-        % dsssao
-        % dsseso
-        % dssstsci
-        % nvss
-        % vlas
-        % vo
-        % 2mass
-        % skyview
-        % url
+        function skyVLSS(Obj, RA, Dec, Size, Args)
+            % Display VLSS (VLA radio) image in ds9
+            % Input : - A DS9 object.
+            %          - J2000.0 RA - Numerical value in deg, or
+            %            sexagesimal string.
+            %            If Dec, is empty, then this will be interpreted as
+            %            object name (e.g., 'm31').
+            %          - J2000.0 Dec (like RA, but for Dec).
+            %            Default is [].
+            %          - Image size [Width, height].
+            %            Default is 30 (default units are arcmin).
+            %          * ...,key,val,...
+            %            'SizeUnits' - Size units for image size.
+            %                   Default is 'arcmin'.
+            %            'Frame' - Frame index in which to display the
+            %                   image. If Inf, open a new frame.
+            %                   If empty, use current frame.
+            %                   Default is Inf.
+            %            'Server' - For internal use. Default is 'vlss'.
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9;
+            %          D.skyVLSS('m51',[],30)
+            %          D.skyVLSS('12:00:00','+21:10:10',10,'Frame',[])
+            %          D.skyVLSS(1,1)  % deg
+            
+            arguments
+                Obj
+                RA
+                Dec              = [];
+                Size             = [30 30];
+                Args.SizeUnits   = 'arcmin';
+                Args.Frame       = Inf;   % [] - curreny, Inf - new
+                Args.Server      = 'vlss';
+            end
+            
+            Obj.skyNVSS(RA, Dec, Size, 'SizeUnits',Args.SizeUnits,...
+                                       'Survey',[],...
+                                       'Frame',Args.Frame,...
+                                       'Server','vlss');
+        end
         
-        % catalog
+        function sky2MASS(Obj, RA, Dec, Size, Args)
+            % Display 2MASS (NIR) image in ds9
+            % Input : - A DS9 object.
+            %          - J2000.0 RA - Numerical value in deg, or
+            %            sexagesimal string.
+            %            If Dec, is empty, then this will be interpreted as
+            %            object name (e.g., 'm31').
+            %          - J2000.0 Dec (like RA, but for Dec).
+            %            Default is [].
+            %          - Image size [Width, height].
+            %            Default is 30 (default units are arcmin).
+            %          * ...,key,val,...
+            %            'SizeUnits' - Size units for image size.
+            %                   Default is 'arcmin'.
+            %            'Frame' - Frame index in which to display the
+            %                   image. If Inf, open a new frame.
+            %                   If empty, use current frame.
+            %                   Default is Inf.
+            %            'Server' - For internal use. Default is '2mass'.
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9;
+            %          D.sky2MASS('m51',[],30)
+            %          D.sky2MASS('12:00:00','+21:10:10',10,'Frame',[])
+            %          D.sky2MASS(1,1)  % deg
+            
+            arguments
+                Obj
+                RA
+                Dec              = [];
+                Size             = [30 30];
+                Args.SizeUnits   = 'arcmin';
+                Args.Frame       = Inf;   % [] - curreny, Inf - new
+                Args.Server      = 'vlss';
+            end
+            
+            Obj.skyNVSS(RA, Dec, Size, 'SizeUnits',Args.SizeUnits,...
+                                       'Survey',[],...
+                                       'Frame',Args.Frame,...
+                                       'Server','2mass');
+        end
         
+        function skyView(Obj, RA, Dec, Size, Args)
+            % Display an image from the skyview collection in ds9
+            % Input : - A DS9 object.
+            %          - J2000.0 RA - Numerical value in deg, or
+            %            sexagesimal string.
+            %            If Dec, is empty, then this will be interpreted as
+            %            object name (e.g., 'm31').
+            %          - J2000.0 Dec (like RA, but for Dec).
+            %            Default is [].
+            %          - Image size [Width, height].
+            %            Default is 30 (default units are arcmin).
+            %          * ...,key,val,...
+            %            'SizeUnits' - Size units for image size.
+            %                   Default is 'arcmin'.
+            %            'Frame' - Frame index in which to display the
+            %                   image. If Inf, open a new frame.
+            %                   If empty, use current frame.
+            %                   Default is Inf.
+            %            'Survey' - Default is 'sdssg'.
+            %            'Server' - For internal use. Default is 'skyview'.
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9;
+            %          D.sky2MASS('m51',[],30)
+            %          D.sky2MASS('12:00:00','+21:10:10',10,'Frame',[])
+            %          D.sky2MASS(1,1)  % deg
+            
+            arguments
+                Obj
+                RA
+                Dec              = [];
+                Size             = [30 30];
+                Args.SizeUnits   = 'arcmin';
+                Args.Frame       = Inf;   % [] - curreny, Inf - new
+                Args.Survey      = 'sdssg';
+                Args.Server      = 'skyview';
+            end
+            
+            Obj.skyNVSS(RA, Dec, Size, 'SizeUnits',Args.SizeUnits,...
+                                       'Survey',[],...
+                                       'Frame',Args.Frame,...
+                                       'Server','skyview');
+        end
         
-        % header
-        
-        % iexem
-        
-    end % methods
+    end 
         
 
     

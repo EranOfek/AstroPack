@@ -149,7 +149,23 @@ function Result = unitTest()
     D.match
     D.match
     
+    % skyNVSS
+    D = DS9;
+    D.skyNVSS('m51',[],30)
+    D.skyNVSS('12:00:00','+21:10:10',10,'Frame',[])
+    D.skyNVSS(1,1)  % deg
     
+    % skyDSS
+    D = DS9;
+    D.skyDSS('m31',[],30)
+    D.skyDSS('12:00:00','+21:10:10',10,'Frame',[])
+    D.skyDSS(1,1)  % deg
+    
+    % skyFIRST
+    D = DS9;
+    D.skyFIRST('m51',[],30)
+    D.skyFIRST('12:00:00','+21:10:10',10,'Frame',[])
+    D.skyFIRST(1,1)  % deg
     
 	io.msgStyle(LogLevel.Test, '@passed', 'ds9 test passed');
 	Result = true;
