@@ -133,6 +133,14 @@ function Result = unitTest()
     D.blink(0.2)
     D.blink(false)
     
+    % lock
+    D = DS9(rand(100,100));
+    D.load(rand(100,100),2);
+    D.tile
+    D.zoom(5,'all')
+    D.lock
+    D.lock
+    
     
     
 	io.msgStyle(LogLevel.Test, '@passed', 'ds9 test passed');

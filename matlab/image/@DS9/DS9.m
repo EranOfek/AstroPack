@@ -2271,6 +2271,89 @@ classdef DS9 < handle
         end
     end
     
+    methods  % lock and match
+        % lock by wcs coordinates
+        function lock(Obj, Par, System)
+            % Lock frames image/wcs/scale/scalelimits/colorbar
+            % Input  : - A DS9 object.
+            %          - A logical indicating if to set lock true/false.
+            %            If empty, then toggle lock.
+            %            If char, then append to the lock command and use
+            %            xpaset to execute.
+            %            Default is empty.
+            %          - System to lock: 'image' | 'wcs' | 'scale' |
+            %                            'scalelimits' | 'colorbar'
+            %            Default is 'image'.
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,100));
+            %          D.load(rand(100,100),2);
+            %          D.tile
+            %          D.zoom(5,'all')
+            %          D.lock
+            %          D.lock
+           
+            arguments
+                Obj
+                Par    = [];
+                System = 'image';
+            end
+                       
+            if ischar(Par)
+                Obj.xpaset(Par);
+            else
+                if isempty(Par)
+                    % toggle lock - get state
+                    Res = Obj.xpaget('lock frame');
+                    switch lower(Res)
+                        case 'none'
+                            Par = true;
+                        otherwise
+                            Par = false;
+                    end
+                end
+
+                if Par
+                    switch lower(System)
+                        case 'image'
+                            Obj.xpaset('lock frame image');
+                        case {'icrs','fk4','fk5','sphere','wcs'}
+                            Obj.xpaset('lock frame wcs');
+                        case 'scale'
+                            Obj.xpaset('lock scale yes');
+                        case 'colorbar'
+                            Obj.xpaset('lock colorbar yes');
+                        case 'scalelimits'
+                            Obj.xpaset('lock scalelimits yes');
+                        otherwise
+                            error('Unknown System option');
+                    end
+                else
+                    switch lower(System)
+                        case 'image'
+                            Obj.xpaset('lock frame none');
+                        case {'icrs','fk4','fk5','sphere','wcs'}
+                            Obj.xpaset('lock frame none');
+                        case 'scale'
+                            Obj.xpaset('lock scale no');
+                        case 'colorbar'
+                            Obj.xpaset('lock colorbar no');
+                        case 'scalelimits'
+                            Obj.xpaset('lock scalelimits no');
+                        otherwise
+                            error('Unknown System option');
+                    end
+                end
+            end
+        end
+        
+        % got here
+        
+        
+    end
+    
+    
+    
     methods
 %         function dss(Obj, RA, Dec, Size, Args)
 %             %
@@ -2501,34 +2584,7 @@ classdef DS9 < handle
     % lock and match methods
     % (lock_wcs, lock_xy, match_wcs, match_xy, match_scale, match_scalelimits)
     methods (Static)
-            
-        % lock by wcs coordinates
-        function lock_wcs(Par)
-            % Lock all images WCS to current frame
-            % Package: @ds9
-            % Description: Lock all images WCS to current frame.
-            % Input  : - true|false. If not given than toggle.
-            % Output : null
-           
-            if (nargin==0)
-                % get lock status
-                Ans = ds9.system('xpaget ds9 lock frame wcs');
-                switch lower(Ans(1:3))
-                    case 'wcs'
-                        % toggle off
-                        Par = false;
-                    otherwise
-                        Par = true;
-                end
-            end
-            %ds9.system('xpaset -p ds9 lock frame wcs');
-            if (Par)
-                ds9.system('xpaset -p ds9 lock frame wcs');
-            else
-                ds9.system('xpaset -p ds9 lock frame none');
-            end
-                        
-        end
+       
         
         % lock by image coordinates
         function lock_xy(Par)
