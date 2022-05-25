@@ -55,9 +55,8 @@ classdef DS9 < handle
             
             if nargin>0
                 Obj.load(varargin{:});
+                
             end
-            D.scale('zscale');
-            D.colorbar(false);
         end
         
     end
@@ -334,7 +333,7 @@ classdef DS9 < handle
     end
    
     methods (Static)  % utility functions
-        function [ImageName, AI] = loadPrep(Obj, Image, Args)
+        function [ImageName, AI] = loadPrep(Image, Args)
             % An internal utility function for the load command
             % Input  : - A DS9 object.
             %          - An image, or images. One of the following:
@@ -362,7 +361,6 @@ classdef DS9 < handle
             % Author : Eran Ofek (May 2022)
             
             arguments
-                Obj
                 Image
                 Args.UseRegExp logical    = false;
                 Args.DataProp             = 'Image';
@@ -1123,6 +1121,9 @@ classdef DS9 < handle
             %                   AstroImage containing the images will be
             %                   loaded into the InfoAI property.
             %                   Default is true.
+            %            'Scale' - set scale. If empty do nothing.
+            %                   Default is 'zscale'.
+            %            'Colorbar' - set colorbar. Default is false.
             % Output : null
             % Author : Eran Ofek (May 2022)
             % Example: D=DS9; D.disp(rand(10,10));
@@ -1134,6 +1135,8 @@ classdef DS9 < handle
                 Args.UseRegExp logical   = false;
                 Args.PopAI logical       = true;
                 Args.DataProp            = 'Image';
+                Args.Scale               = 'zscale';
+                Args.Colorbar logical    = false;
             end
             
             if ischar(Image)
@@ -1149,11 +1152,11 @@ classdef DS9 < handle
             end
             
             if Args.PopAI
-                [ImageName, AI] = DS9.loadPrep(Obj, Image, 'UseRegExp', Args.UseRegExp,...
+                [ImageName, AI] = DS9.loadPrep(Image, 'UseRegExp', Args.UseRegExp,...
                                                        'DataProp',Args.DataProp,...
                                                        'FileName',FileName);
             else
-                [ImageName] = DS9.loadPrep(Obj, Image, 'UseRegExp', Args.UseRegExp,...
+                [ImageName] = DS9.loadPrep(Image, 'UseRegExp', Args.UseRegExp,...
                                                        'DataProp',Args.DataProp,...
                                                        'FileName',FileName);
                 AI = [];
@@ -1187,6 +1190,10 @@ classdef DS9 < handle
                 Obj.frame(Frame(Iim));
                 Obj.xpaset('fits %s', ImageName{Iim});
             end
+            if ~isempty(Args.Scale)
+                Obj.scale(Args.Scale);
+            end
+            Obj.colorbar(Args.Colorbar);
         end
         
     end
@@ -2389,7 +2396,6 @@ classdef DS9 < handle
                 
     end
     
-    
     methods   % xy2coo, coo2xy
         function [CooX,CooY] = coo2xy(Obj,RA,Dec,Args)
             % Convert RA/Dec to X/Y (image) using ds9 tools
@@ -2432,12 +2438,12 @@ classdef DS9 < handle
             
             if ischar(RA) && ischar(Dec)
                 RA  = celestial.coo.convertdms(RA, 'gH','d');
-                Dec = celestial.coo.convertdms(Dec, 'gD','D');
+                Dec = celestial.coo.convertdms(Dec, 'gD','d');
             else
                 switch lower(Args.CooUnits)
                     case 'rad'
-                        RA  = RA./RAD;
-                        Dec = Dec./RAD;
+                        RA  = RA.*RAD;
+                        Dec = Dec.*RAD;
                 end
             end
             
@@ -2465,50 +2471,74 @@ classdef DS9 < handle
             
         end
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        % got here
-        
-        
-        function [RA,Dec]=xy2coo(X,Y,CooType)
+        function [RA,Dec] = xy2coo(Obj,X,Y,Args)
             % Convert RA/Dec to X/Y (image) using ds9 tools
-            % Package: @ds9
-            % Input  : - X
-            %          - Y
-            %          - Output coordinate type: {'fk4'|'fk5'|'icrs'}.
-            %            Default is 'icrs.
-            % Output : - RA [deg].
-            %          - Dec [deg].
+            % Input  : - A DS9 object.
+            %          - X (pix).
+            %          - Y (pix).
+            %          * ...,key,val,...
+            %            'CooType' - Input coordinate type: {'image'|'physical'}.
+            %                   Default is 'image'.
+            %            'CooUnits' - Output coordinates units 'rad'|'deg'
+            %                   Default is 'deg'.
+            %            'Frame' - Frame index. If empty, use current
+            %                   frame. Default is [].
+            % Output : - J2000.0 RA in 'CooUnits' units.
+            %          - J2000.0 Dec 
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9(rand(100,100));
+            %          [a,b]=D.xy2coo(1, 3)
            
-            if (nargin<3)
-                CooType = 'icrs';
+            arguments
+                Obj
+                X
+                Y
+                Args.CooType   = 'image';
+                Args.CooUnits  = 'deg';
+                Args.Frame     = [];
             end
+            RAD = 180./pi;
+            
+            if isempty(Args.Frame)
+                FrameChanged = false;
+            else
+                CurFrame = Obj.Frame;
+                if Args.Frame~=CurFrame
+                    Obj.frame(Args.Frame);
+                    FrameChanged = true;
+                end
+            end
+            
             N    = numel(X);
-            RA = zeros(N,1);
-            Dec = zeros(N,1);
+            RA   = nan(size(X));
+            Dec  = nan(size(X));
             for I=1:1:N
                 %--- set coordinates of crosshair ---
-                ds9.system(sprintf('xpaset -p ds9 crosshair %f %f image',X(I),Y(I)));
+                Obj.xpaset('crosshair %f %f image',X(I),Y(I));
+                
                 %--- get Coordinates of crosshair ---
-                CooIm = ds9.system(sprintf('xpaget ds9 crosshair wcs %s',CooType));
-                %[CooX(I), CooY(I)] = strread(CooIm,'%f %f',1); %,'headerlines',4);
-                Cell = textscan(CooIm,'%f %f'); %,'headerlines',4);
-                RA(I) = Cell{1};
-                Dec(I) = Cell{2};
+                CooStr = Obj.xpaget('crosshair wcs'); % %s',Args.CooType);
+                CooRD = DS9.parseOutput(CooStr, 'num');
+                
+                RA(I)  = CooRD(1);
+                Dec(I) = CooRD(2);
+                
             end
-            ds9.system(sprintf('xpaset -p ds9 mode pointer'));
+            switch lower(Args.CooUnits)
+                case 'rad'
+                    RA  = RA./RAD;
+                    Dec = Dec./RAD;
+            end
+            
+            Obj.xpaset('mode pointer');
 
+            if FrameChanged
+                % return to original frame
+                Obj.frame(CurFrame);
+            end
+            
         end
         
-        
-    
     end
     
     methods   % dss, skyview, vla, nvss
@@ -2848,6 +2878,10 @@ classdef DS9 < handle
 
     
 
+    
+    
+    
+    
     
     % Interactive control and information (mouse)
     % (ginput, getpos, getcoo, getbox)
