@@ -206,8 +206,11 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                                                                                                     'CreateNewObj',false);
 
             % add PSF FWHM to header - after astrometry, beacuse WCS is needed
+            try
             imProc.psf.fwhm(Coadd(Ifields));
-
+            catch
+                'a'
+            end
             % photometric calibration
             % change to PSF phot...
             %CatColNameMag            = 'MAG_APER_3';
