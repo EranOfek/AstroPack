@@ -720,15 +720,16 @@ classdef DS9 < handle
             Obj.InfoAI = Obj.InfoAI(~FlagDel);
         end
         
-        function AI = getAI(Obj, Frame, Window)
+        function [AI,Ind] = getAI(Obj, Frame, Window)
             % get the AstroImage stored in the InfoAI property for a given window/frame
             % Input  : - A DS9 object.
             %          - Frame index. If empty, use current frame.
             %            Default is [].
             %          - ds9 window name. If empty, use current window.
             %            Default is [].
-            % Output : - An AstroImage object found in the InfoAI property
+            % Output : - An AstroImage object handle found in the InfoAI property
             %            that corresponds to the requested frame and window.
+            %          - Index of image in InfoAI.
             % Author : Eran Ofek (May 2022)
             
             arguments
@@ -750,13 +751,46 @@ classdef DS9 < handle
             switch sum(Flag)
                 case 0
                     % not found
-                    AI = [];
+                    AI  = [];
+                    Ind = [];
                 otherwise
                     % use latest
                     Ind = find(Flag, 1, 'last');
                     AI = Obj.InfoAI(Ind).Image;
             end
             
+        end
+        
+        function Obj = popFieldsAI(Obj, Frame, Window, Args)
+            %
+            
+            arguments
+                Obj
+                Frame                            = [];
+                Window                           = [];
+                Args.backgroundArgs cell         = {};
+                Args.findMeasureSourcesArgs cell = {};
+            end
+            
+            [AI, Ind] = getAI(Obj, Frame, Window);
+            
+            % background
+            AI = imProc.background.background(AI, Args.backgroundArgs{:});
+            
+            % source find
+            AI = imProc.sources.findMeasureSources(AI, Args.findMeasureSourcesArgs{:});
+            
+            
+            % astrometry
+            
+            % PSF phot
+            
+            % match external catalog
+            
+            
+            
+            
+            Obj.InfoAI(Ind).Image = AI;
         end
     end
     
@@ -1660,13 +1694,20 @@ classdef DS9 < handle
                 X = col_get(Cat,ColNameX);
                 Y = col_get(Cat,ColNameY);
             elseif isa(Cat, 'AstroCatalog')
-               if IsXY
-                   [X, Y] = getXY(Cat, 'ColX', Args.ColNameX, 'ColY', Args.ColNameY);
-               else
-                   [X, Y] = getLonLat(Cat, 'deg', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec);
-                   Args.Units = 'deg';
-               end
+                if IsXY
+                    [X, Y] = getXY(Cat, 'ColX', Args.ColNameX, 'ColY', Args.ColNameY);
+                else
+                    [X, Y] = getLonLat(Cat, 'deg', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec);
+                    Args.Units = 'deg';
+                end
                 
+            elseif isa(Cat, 'AstroImage')
+                if IsXY
+                    [X, Y] = getXY(Cat.CatData, 'ColX', Args.ColNameX, 'ColY', Args.ColNameY);
+                else
+                    [X, Y] = getLonLat(Cat.CatData, 'deg', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec);
+                    Args.Units = 'deg';
+                end
             else
                 % Assume Cat is a two column matrix [X,Y]
                 X = Cat(:,1);
@@ -1896,7 +1937,7 @@ classdef DS9 < handle
             arguments 
                 Obj
                 X
-                Y
+                Y                    = [];
                 ColorSymbol          = 'ro';  % color, symbol
                 
                 Args.Coo             = 'image';  % 'image' | 'icrs'
@@ -3162,198 +3203,8 @@ classdef DS9 < handle
     
     
     
-    % Interactive control and information (mouse)
-    % (ginput, getpos, getcoo, getbox)
-    methods (Static)
-        
-        
-        function [CooX,CooY,Value,Key]=getpos(varargin)
-            % Get X,Y position and pixel value
-            % Package: @ds9
-            % Description: Get X,Y position and pixel value in clicked
-            %              position.
-            % Input  : - Operation mode:
-            %            If numeric than will return after the user clicked
-            %            the specified number of times.
-            %            if 'q' than will return if the user clicked 'q'.
-            %            Default is 'q'.
-            %          - Operation mode:
-            %            'any'   - will return after any character or left click is
-            %                      pressed (default).
-            %            'key'   - will return after any character is pressed.
-            %            'mouse' - will return after mouse left click is pressed.
-            % Output : - X
-            %          - Y
-            %          - Pixel value.
-            %          - Cell array of string of clicked events.
-            %            '<1>' for mouse left click.
-            % Required: XPA - http://hea-www.harvard.edu/saord/xpa/
-            % Tested : Matlab 7.0
-            %     By : Eran O. Ofek                    Feb 2007
-            %    URL : http://weizmann.ac.il/home/eofek/matlab/
-            % Example: [X,Y,V]=ds9.getpos(3);
-            %          [X,Y,V,Key] = ds9.getpos(1,'key');
-            %          [X,Y,V,Key] = ds9.getpos(2,'mouse');
-            %          [X,Y,V,Key] = ds9.getpos(1,'any');
-            % Reliable: 2
-            
-            [CooX,CooY,Value,Key]=ds9.ginput('image',varargin{:});
-            
-        end
-            
-        function [CooX,CooY,Value,Key]=getcoo(varargin)
-            % Interactively get the coordinates (WCS)
-            % Package: @ds9
-            % Description: Interactively get the coordinates (WCS) and value
-            %              of the pixel selected by the mouse (left click) or by clicking
-            %              any character on the ds9 display.
-            % Input  : - Operation mode:
-            %            If numeric than will return after the user clicked
-            %            the specified number of times.
-            %            if 'q' than will return if the user clicked 'q'.
-            %            Default is 'q'.
-            %          - Operation mode:
-            %            'any'   - will return after any character or left click is
-            %                      pressed (default).
-            %            'key'   - will return after any character is pressed.
-            %            'mouse' - will return after mouse left click is pressed.
-            % Output : - RA or Galactic longitude [rad].
-            %          - Y/Dec or Galactic latitude [rad].
-            %          - Pixel value.
-            %          - Cell array of string of clicked events.
-            %            '<1>' for mouse left click.
-            % Required: XPA - http://hea-www.harvard.edu/saord/xpa/
-            % Tested : Matlab 7.0
-            %     By : Eran O. Ofek                    Feb 2007
-            %    URL : http://weizmann.ac.il/home/eofek/matlab/
-            % Example: [X,Y,V]=ds9.getcoo(3);   % return the WCS RA/Dec position
-            %          [X,Y,V,Key] = ds9.getcoo('q','key');
-            %          [X,Y,V,Key] = ds9.getcoo(2,'mouse');
-            %          [X,Y,V,Key] = ds9.getcoo('q','any');
-            % Reliable: 2
-            
-            
-            [CooX,CooY,Value,Key]=ds9.ginput('icrs',varargin{:});
-            
-            
-        end
-        
-        function [MatVal,MatX,MatY]=getbox(Coo,Method,CooType)
-            % Get the pixel values in a specified box region
-            % Package: @ds9
-            %------------------------------------------------------------------------------
-            % getbox function                                                          ds9
-            % Description: Get from the ds9 display the pixel values in a specified
-            %              box region.
-            % Input  : - Box ccordinates (in 'image' coordinates):
-            %            [Xmin, Xmax, Ymin,Ymax]  (section)
-            %            or
-            %            [X_left_corner,  Y_left_corner,  X_width,
-            %            Y_height] (corner)
-            %            or
-            %            [X_center,       Y_center,       X_semiwidth,
-            %            Y_semiheight] (center).
-            %            Alternatively, if empty than the user have to
-            %            define two corners of the box using the mouse left
-            %            click. Default is empty.
-            %          - Method of box position {'section'|'corner'|'center'},
-            %            default is 'section'.
-            %            Note that in case of Method='center' and CooType='image',
-            %            box size will be 2*semiwidth+1.
-            %          - Coordinate type {'image'|'physical'|'fk4'|'fk5'|'icrs'},
-            %            default is 'image'.
-            %            THIS OPTION IS NOT SUPPORTED!
-            % Output : - Matrix of pixel values in box.
-            %          - Matrix of X position in 'image' coordinates, corresponding
-            %            to the matrix of pixel values.
-            %          - Matrix of Y position in 'image' coordinates, corresponding
-            %            to the matrix of pixel values.
-            % Reference: http://hea-www.harvard.edu/RD/ds9/ref/xpa.html
-            % Tested : Matlab 7.0
-            %     By : Eran O. Ofek                    Feb 2007
-            %    URL : http://weizmann.ac.il/home/eofek/matlab/
-            % Example: [MatV,MatX,MatY]=ds9.getbox([101 110 101 110]);
-            % Reliable: 2
-            %------------------------------------------------------------------------------
-            Def.Coo      = [];
-            Def.Method   = 'section';
-            Def.CooType  = 'image';
-
-            if (nargin==0)
-                Coo      = Def.Coo;
-                Method   = Def.Method;
-                CooType  = Def.CooType;
-            elseif (nargin==1)
-                Method   = Def.Method;
-                CooType  = Def.CooType;
-            elseif (nargin==2)
-                CooType  = Def.CooType;
-            elseif (nargin==3)
-                % do nothing
-            else
-               error('Illegal number of input arguments: ds9.getbox(Coo,Method,CooType)');
-            end
-            
-            if (isempty(Coo))
-                % get box coordinates from mouse clicks
-                fprintf('Select two corners of the box using the mouse left clicks\n');
-                [X,Y]  = ds9.ginput(CooType,2,'mouse');
-                Method = 'section';
-                Coo    = [min(X), max(X), min(Y), max(Y)];
-            end
-            
-            Coo = round(Coo);
-            
-            % convert Coordinate to 'corner' meethod
-            switch lower(Method)
-                 case 'section'
-                     CornerCoo = [Coo(1), Coo(3), Coo(2)-Coo(1)+1, Coo(4)-Coo(3)+1];
-                 case 'corner'
-                     CornerCoo = Coo;
-                 case 'center'
-                     CornerCoo = [Coo(1) - Coo(3), Coo(2) - Coo(4), 2.*Coo(3)+1, 2.*Coo(4)+1];
-                otherwise
-                     error('Unknown Method option');
-            end
-
-            SizeMat = [CornerCoo(4), CornerCoo(3)];   % [SizeY, SizeX]
-            MatVal  = zeros(SizeMat(1),SizeMat(2));
-
-            switch CooType
-                case 'image'
-
-                    [Res] = ds9.system('xpaget ds9 data %s %f %f %f %f no',CooType,round(CornerCoo));
-
-                    ResMat = sscanf(Res,'%d,%d = %f\n',[3 SizeMat(1).*SizeMat(2)]);
-                    ResMat = ResMat.';
-                    % relative position in matrix (relative to corner)
-                    RelX = ResMat(:,1) - min(ResMat(:,1)) + 1;
-                    RelY = ResMat(:,2) - min(ResMat(:,2)) + 1;
-
-                    Ind         = sub2ind(SizeMat,RelY,RelX);
-                    MatVal(Ind) = ResMat(:,3);
-                    %MatVal      = MatVal; %.';
-
-                case 'fk5'
-                    error('NOT SUPPORTED');
-                    %[~,Res] = ds9_system(sprintf('xpaget ds9 data %s %f %f %f %f no',CooType,round(CornerCoo)));
-                    %ResMat = sscanf(Res,'%f,%f = %f\n',[3 SizeMat(1).*SizeMat(2)]);
-                    %ResMat = ResMat.';
-
-
-                otherwise
-                    error('CooType option is currently unsupported');
-            end
-
-            if (nargout>1)
-               [MatX,MatY] = meshgrid((1:1:SizeMat(2)),(1:1:SizeMat(1)));
-               MatX        = MatX + CornerCoo(1)-1;
-               MatY        = MatY + CornerCoo(2)-1;
-            end
-
-        end
-        
-    end % methods
+    
+    
     
     % Interactive examination
     % (imexam,
