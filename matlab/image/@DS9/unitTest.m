@@ -184,6 +184,16 @@ function Result = unitTest()
         error('Error in ds9 coordinates comparison');
     end
     
+    % getData
+    D = DS9;
+    D.load('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits')
+    a=D.getData(100,100,[1 1])
+    [RA,Dec]=D.xy2coo(100,100);
+    b=D.getData(RA,Dec,[1 1], 'wcs')
+    if ~all(a==b)
+        error('Error with getData');
+    end
+
 
     cd(PWD);
     

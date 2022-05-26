@@ -2926,42 +2926,238 @@ classdef DS9 < handle
     
     
     methods  % interactive mouse/keyboard
-        function [X,Y,Click] = iexam(Obj, Type, Mode, Args)
-            %
+        function Result = getData(Obj, X,Y, HalfSize, CooSys, Args)
+            % Get data value around pixel position
+            % Input  : - A DS9 object.
+            %          - Vector of X [pix] or J2000.0 RA [deg/ard/sex]
+            %          - Vector of X [pix] or J2000.0 RA [deg/rad/sex]
+            %          - [X, Y] half size of data around central pixel to
+            %            retrieve. Use [0 0] to retrieve a singel filter.
+            %            Default is [1 1].
+            %          - Coordinate system: 'image' | 'physical' | 'wcs'
+            %            Default is 'image'.
+            %          * ...,key,val,...
+            %            'CooUnits' - If Coordinates are in 'wcs', this is
+            %                   either 'rad', or 'deg'.
+            %                   Default is 'deg'.
+            %                   If coordinates are sexagesinal, then will
+            %                   be ognored.
+            % Output : - A structure array (element per input coordinate)
+            %            with the following fields:
+            %            .Data - Data value matrix
+            %            .MatX - X pix matrix
+            %            .MatY - Y pix matrix
+            %            .X    - X center
+            %            .Y    - Y center
+            %            .Xcorner - X lower corner
+            %            .Ycorner - Y lower corner
+            % Author : Eran Ofek (May 2022)
+            % XPA syntax:
+            %Syntax:
+            %data [<coordsys> [<skyframe>] <x> <y> <width> <height> [yes|no]]
+            % 
+            %Example:
+            %$xpaget ds9 data image 450 520 3 3 yes
+            %$xpaget ds9 data physical 899 1039 6 6 no
+            %$xpaget ds9 data fk5 202.47091 47.196811 0.00016516669 0.00016516669 no
+            %$xpaget ds9 data wcs fk5 13:29:53.018 +47:11:48.52 0.00016516669 0.00016516669 no
+            % Example: D = DS9;
+            %          D.load('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits')
+            %          a=D.getData(100,100,[1 1])
+            %          [RA,Dec]=D.xy2coo(100,100);
+            %          b=D.getData(RA,Dec,[1 1], 'wcs')
             
             arguments
                 Obj
-                Type             = 'coordinate';   % coo | coordinate | data
-                Mode             = 'any';   % button|key|any
-                Args.CooSys      = 'image';   % 'image' | 'wcs'
-                Args.SkyFrame    = 'icrs';    % 'fk5' | 'galactic'
-                Args.CooUnits    = 'degrees'; % sexagesimal | degrees
-                Args.DataSize    = [3 3];     % width | height
+                X
+                Y
+                HalfSize        = [1 1];
+                CooSys          = 'image';  % 'image' | 'wcs' | 'physical'
+                %Args.SkyFrame   = 'fk5';
+                Args.CooUnits   = 'deg';    % deg | rad
+                
+            end
+            SkyFrame = '';
+            
+            if ischar(X) && ischar(Y)
+                X = {X};
+                Y = {Y};
+            end
+            Ncoo = numel(X);
+            
+            switch lower(CooSys)
+                case 'wcs'
+                    % convert RA/Dec to pix position
+                    [X, Y]   = Obj.coo2xy(X, Y, 'CooType','image', 'CooUnits',Args.CooUnits);
+                    CooSys   = 'image';
+                    
+            end
+            
+            if numel(HalfSize)==1
+                HalfSize = [HalfSize, HalfSize];
+            end
+            Size = HalfSize.*2 + 1;
+            
+            X = X - HalfSize(1);
+            Y = Y - HalfSize(2);
+            X = round(X);
+            Y = round(Y);
+            
+            Result = struct('Data',cell(Ncoo,1), 'MatX',cell(Ncoo,1), 'MatY',cell(Ncoo,1), 'X',cell(Ncoo,1), 'Y',cell(Ncoo,1), 'Xcorner', cell(Ncoo,1), 'Ycorner', cell(Ncoo,1));
+            for Icoo=1:1:Ncoo
+                % float coo
+                Str = Obj.xpaget('data %s %s %d %d %d %d no',CooSys, SkyFrame, X(Icoo), Y(Icoo), Size(1), Size(2));
+                Result(Icoo).X       = X(Icoo) + HalfSize(1);
+                Result(Icoo).Y       = Y(Icoo) + HalfSize(2);
+                Result(Icoo).Xcorner = X(Icoo);
+                Result(Icoo).Ycorner = Y(Icoo);
+                
+                Tmp = regexp(Str, '(?<X>\d+),(?<Y>\d+) = (?<Val>[\w\.]+)','names');
+                Ntmp = numel(Tmp);
+                Result(Icoo).Data = nan(Size(2), Size(1));
+                Result(Icoo).MatX = nan(Size(2), Size(1));
+                Result(Icoo).MatY = nan(Size(2), Size(1));
+                for Itmp=1:1:Ntmp
+                    Xn = str2double(Tmp(Itmp).X);
+                    Yn = str2double(Tmp(Itmp).Y);
+                    X1 = Xn - X(Icoo) + 1;
+                    Y1 = Yn - Y(Icoo) + 1;
+                    Result(Icoo).MatX(Y1,X1) = Xn;
+                    Result(Icoo).MatY(Y1,X1) = Yn;
+                    Result(Icoo).Data(Y1,X1) = str2double(Tmp(Itmp).Val);
+                end
+            end
+            
+        end
+        
+        function [X,Y,Click, RA, Dec, Data] = ginput1(Obj, Mode, Args)
+            % iexam/ginput - get pixel position/value by mouse/key clicking on current frame.
+            %   Executing this function will show a crosshair on the ds9
+            %   frame, by clicking (mouse or/and keyboard) on a pixel, the
+            %   function will return the position and data for this pixel.
+            %   See: ginput for multiple clicks function.
+            % Input  : - A DS9 object.
+            %          - Mode: one of the following: 'button'|'key'|['any']
+            %            'button' - use mouse.
+            %            'key - use keyboard.
+            %            'any' - use mouse or keyboard.
+            %          * ...,key,val,...
+            %            'DataSize' - half size around pixel for which to
+            %                   return data. [0 0] will return a single
+            %                   pixel. Default is [1 1].
+            %            'CooUnits' - Units of output RA/Dec.
+            % Output : - X [pix] position.
+            %          - Y [pix] position.
+            %          - Click: <1>,<2>,<3> for mousr buttons, or letters
+            %            for keyboard.
+            %          - J2000.0 RA (in CooUnits units).
+            %          - J2000.0 Dec (in CooUnits units).
+            %          - A structure of data for pixel value
+            %            (See getData for fields description).
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9;
+            %          D.load('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits')
+            %          [X,Y,Click, RA, Dec, Data] = D.ginput1;
+            
+            arguments
+                Obj
+                Mode             = 'any';
+                Args.DataSize    = [1 1];     % width | height
+                Args.CooUnits    = 'deg';
             end
             
             Command = 'iexam';
-            switch lower(Type)
-                case 'data'
-                    Str = Obj.xpaget('%s %s %s %d %d',Command, Mode, Type, Args.DataSize);
-                    Res = parseOutput(String, 'cell');
-                    Click = Res{1};
-                    X     = cell2mat(Res(2:end));
-                    Y     = [];
-                case {'coordinate','coo'}
-                    Type = 'coordinate';
-                    switch lower(Args.CooSys)
-                        case 'image'
-                            Str = Obj.xpaget('%s %s %s %s',Command, Mode, Type, Args.CooSys);
-                        case 'wcs'
-                            Str = Obj.xpaget('%s %s %s %s %s %s',Command, Mode, Type, Args.CooSys, Args.SkyFrame, Args.CooUnits);
-                        otherwise
-                            error('Unknown CooSys option - must be image|wcs');
-                    end
-                otherwise
-                    error('Unknown Type option - must be data|coordinate');
+            Str = Obj.xpaget('%s %s coordinate image',Command, Mode);
+            Res = DS9.parseOutput(Str, 'cell');
+            Click = Res{1};
+            X     = str2double(Res{2});
+            Y     = str2double(Res{3});
+
+            if nargout>3
+                % get RA/Dec
+                [RA, Dec] = Obj.xy2coo(X, Y, 'CooUnits',Args.CooUnits);
+                
+                if nargout>5
+                    % get data
+                    Data = Obj.getData(X,Y,Args.DataSize);
+                end
             end
         end
+        
+        function [X,Y,Click, RA, Dec, Data] = ginput(Obj, Mode, Nclick, Args)
+            % iexam/ginput - get pixel position/value by mouse/key clicking on current frame.
+            %   Executing this function will show a crosshair on the ds9
+            %   frame, by clicking (mouse or/and keyboard) on a pixel, the
+            %   function will return the position and data for this pixel.
+            %   See: ginput1 for single click function.
+            % Input  : - A DS9 object.
+            %          - Mode: one of the following: 'button'|'key'|['any']
+            %            'button' - use mouse.
+            %            'key - use keyboard.
+            %            'any' - use mouse or keyboard.
+            %          - Number of clicks to execute.
+            %            If Inf, then will stop on stop-click defined
+            %            in the 'Stop' argument.
+            %          * ...,key,val,...
+            %            'Stop' - Stop character or click: 
+            %                   '<1>' for left click.
+            %                   Default is 'q'.
+            %            'DataSize' - half size around pixel for which to
+            %                   return data. [0 0] will return a single
+            %                   pixel. Default is [1 1].
+            %            'CooUnits' - Units of output RA/Dec.
+            % Output : - X [pix] position vector.
+            %            The data include the position collected when the
+            %            stop character was pressed.
+            %          - Y [pix] position vector.
+            %          - Cell array of click: <1>,<2>,<3> for mousr buttons, or letters
+            %            for keyboard.
+            %          - J2000.0 RA (in CooUnits units) vector.
+            %          - J2000.0 Dec (in CooUnits units) vector.
+            %          - A structure array of data for pixel value
+            %            (See getData for fields description).
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9;
+            %          D.load('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits')
+            %          [X,Y,Click, RA, Dec, Data] = D.ginput;
+            
+            arguments
+                Obj
+                Mode             = 'any';
+                Nclick           = Inf;
+                Args.Stop        = 'q';
+                Args.DataSize    = [1 1];     % width | height
+                Args.CooUnits    = 'deg';
+            end
+            
+            Ind = 0;
+            Cont = true;
+            while Cont
+                Ind = Ind + 1 ;
+                [X(Ind),Y(Ind),Click{Ind}, RA(Ind), Dec(Ind), Data(Ind)] = ginput1(Obj, Mode, 'DataSize',Args.DataSize,'CooUnits',Args.CooUnits);
+                if isinf(Nclick)
+                    switch Click{Ind}
+                        case Args.Stop
+                            % right click found
+                            Cont = false;
+                    end
+                else
+                    if Ind>=Nclick 
+                        Cont = false;
+                    end
+                end
+            end
+            
+        end
+        
+        
     end
+    
+    
+    
+    
+    
+    
     
     
     
@@ -2970,164 +3166,6 @@ classdef DS9 < handle
     % (ginput, getpos, getcoo, getbox)
     methods (Static)
         
-        function [CooX,CooY,Val,Key]=ginput(CooType,ExitMode,Mode)
-            % Interactively get the coordinates (X/Y or WCS)
-            % Package: @ds9
-            % Description: Interactively get the coordinates (X/Y or WCS) and value
-            %              of the pixel selected by the mouse (left click) or by clicking
-            %              any character on the ds9 display.
-            % Input  : - Coordinate type {'fk4'|'fk5'|'icrs'|'eq'|
-            %                             'galactic'|'image'|'physical'},
-            %            default is 'image'.
-            %            'eq' is equivalent to 'icrs'.
-            %          - Operation mode:
-            %            If numeric than will return after the user clicked
-            %            the specified number of times.
-            %            if 'q' than will return if the user clicked 'q'.
-            %            Default is 'q'.
-            %          - Operation mode:
-            %            'any'   - will return after any character or left click is
-            %                      pressed (default).
-            %            'key'   - will return after any character is pressed.
-            %            'mouse' - will return after mouse left click is pressed.
-            % Output : - X/RA or Galactic longitude. If celestial coordinates, the
-            %            return the result in radians.
-            %          - Y/Dec or Galactic latitude. If celestial coordinates, the
-            %            return the result in radians.
-            %          - Pixel value.
-            %          - Cell array of string of clicked events.
-            %            '<1>' for mouse left click.
-            % Required: XPA - http://hea-www.harvard.edu/RD/xpa/index.html
-            % Tested : Matlab 7.0
-            %     By : Eran O. Ofek                    Feb 2007
-            %    URL : http://weizmann.ac.il/home/eofek/matlab/
-            % Example: [X,Y,V]=ds9.ginput(3,'fk5');   % return the WCS RA/Dec position
-            %          [X,Y,V,Key] = ds9.ginput('icrs','q','key');
-            %          [X,Y,V,Key] = ds9.ginput('icrs',10,'mouse');
-            %          [X,Y,V,Key] = ds9.ginout('image',2,'any');
-            % Reliable: 2
-            
-            
-            RAD = 180./pi;
-
-            Def.CooType  = 'image';
-            Def.ExitMode = 'q';
-            Def.Mode     = 'any';
-            if (nargin==0)
-               CooType  = Def.CooType;
-               ExitMode = Def.ExitMode;
-               Mode     = Def.Mode;
-            elseif (nargin==1)
-               ExitMode = Def.ExitMode;
-               Mode     = Def.Mode;
-            elseif (nargin==2)
-               Mode     = Def.Mode;
-            elseif (nargin==3)
-               % do nothing
-            else
-               error('Illegal number of input arguments: ds9.ginput(CooType,Mode);');
-            end
-
-            switch lower(Mode)
-             case 'mouse'
-                Mode = '';
-            end
-            
-            switch lower(CooType)
-             case {'eq','equatorial'}
-                CooType = 'icrs';
-             otherwise
-                % do nothing
-            end
-
-            switch lower(CooType)
-             case {'fk4','fk5','icrs'}
-                String = sprintf('wcs %s degrees',lower(CooType));
-             case {'gal','galactic'}
-                String = 'wcs galactic degrees';
-             case {'image'}
-                String = 'image';
-             case {'physical'}
-                String = 'physical';
-             otherwise
-                error('Unknown CooType option');
-            end
-            % remove "degrees" from coordinate string for crosshair command
-            CrosshairString = strsplit(String, ' degrees');
-            CrosshairString = CrosshairString{1};
-
-%             CooX  = zeros(N,1);
-%             CooY  = zeros(N,1);
-%             Val   = zeros(N,1);
-%             Key   = cell(N,1);
-            Cont  = true;
-            I     = 0;
-            while Cont
-               I = I + 1;
-               %--- get Coordinates (from interactive mouse click) ---
-               [Coo] = ds9.system('xpaget ds9 imexam %s coordinate %s',Mode,String);
-               SpCoo = regexp(Coo,' ','split');
-               Key{I} = SpCoo{1};
-               CooX(I)   = str2double(SpCoo{2});
-               CooY(I)   = str2double(SpCoo{3});
-
-               %--- set crosshair position to Coordinates ---
-               ds9.system('xpaset -p ds9 crosshair %d %d %s',CooX(I),CooY(I),CrosshairString);
-               %--- get Coordinates of crosshair ---
-               [CooIm] = ds9.system('xpaget ds9 crosshair image');
-
-               %--- get Pixel value at crosshair position ---
-               [ValStr] = ds9.system('xpaget ds9 data image %d %d 1 1 yes',CooX(I),CooY(I));
-               ValStr = strtrim(ValStr);
-               
-               %--- Exit crosshair mode ---
-               ds9.system('xpaset -p ds9 mode none');
-
-               if (isempty(ValStr))
-                    Val(I) = NaN;
-               else
-                    Val(I)          = sscanf(ValStr,'%f');
-               end
-               %CooVal       = sscanf(Coo,'%f %f');
-               switch lower(CooType)
-                case {'fk4','fk5','icrs','gal','galactic'}
-                   CooX(I)            = CooX(I)./RAD;
-                   CooY(I)            = CooY(I)./RAD;
-                otherwise
-                   % do nothing - image coordinates
-               end
-
-               if (isnumeric(ExitMode))
-                   if (I>=ExitMode)
-                       Cont = false;
-                   end
-               else
-                   switch lower(ExitMode)
-                       case 'q'
-                           if (strcmpi(Key{I},'q'))
-                               Cont = false;
-                           end
-                       otherwise
-                           error('Unknown Mode option');
-                   end
-               end
-            end
-            
-            if (isnumeric(ExitMode))
-                CooX = CooX.';
-                CooY = CooY.';
-                Val  = Val.';
-                Key  = Key.';
-            else
-                CooX = CooX(1:end-1).';
-                CooY = CooY(1:end-1).';
-                Val = Val(1:end-1).';
-                Key = Key(1:end-1).';
-            end
-            
-            ds9.system('xpaset -p ds9 mode pointer');
-
-        end
         
         function [CooX,CooY,Value,Key]=getpos(varargin)
             % Get X,Y position and pixel value
