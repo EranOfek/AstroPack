@@ -835,7 +835,9 @@ classdef DS9 < handle
             % Set ds9 mode
             % Input  : - A DS9 object.
             %          - ds9 mode:
+            %            Options are:
             %            none|region|crosshair|colorbar|pan|zoom|rotate|catalog|examine.
+            %            If 'show' then display options.
             %            If empty, then return mode state.
             %            If Inf show a message with all possible modes.
             %            Default is 'region'.
@@ -845,6 +847,10 @@ classdef DS9 < handle
             arguments
                 Obj
                 Mode = 'region';
+            end
+            
+            if strcmpi(Mode,'show')
+                fprintf('Mode options: none|region|crosshair|colorbar|pan|zoom|rotate|catalog|examine\n');
             end
             
             Result = [];
