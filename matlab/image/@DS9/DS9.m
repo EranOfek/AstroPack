@@ -2924,8 +2924,44 @@ classdef DS9 < handle
         end
     end
     
-
     
+    methods  % interactive mouse/keyboard
+        function [X,Y,Click] = iexam(Obj, Type, Mode, Args)
+            %
+            
+            arguments
+                Obj
+                Type             = 'coordinate';   % coo | coordinate | data
+                Mode             = 'any';   % button|key|any
+                Args.CooSys      = 'image';   % 'image' | 'wcs'
+                Args.SkyFrame    = 'icrs';    % 'fk5' | 'galactic'
+                Args.CooUnits    = 'degrees'; % sexagesimal | degrees
+                Args.DataSize    = [3 3];     % width | height
+            end
+            
+            Command = 'iexam';
+            switch lower(Type)
+                case 'data'
+                    Str = Obj.xpaget('%s %s %s %d %d',Command, Mode, Type, Args.DataSize);
+                    Res = parseOutput(String, 'cell');
+                    Click = Res{1};
+                    X     = cell2mat(Res(2:end));
+                    Y     = [];
+                case {'coordinate','coo'}
+                    Type = 'coordinate';
+                    switch lower(Args.CooSys)
+                        case 'image'
+                            Str = Obj.xpaget('%s %s %s %s',Command, Mode, Type, Args.CooSys);
+                        case 'wcs'
+                            Str = Obj.xpaget('%s %s %s %s %s %s',Command, Mode, Type, Args.CooSys, Args.SkyFrame, Args.CooUnits);
+                        otherwise
+                            error('Unknown CooSys option - must be image|wcs');
+                    end
+                otherwise
+                    error('Unknown Type option - must be data|coordinate');
+            end
+        end
+    end
     
     
     
