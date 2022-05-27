@@ -195,11 +195,9 @@ function Result = unitTest()
     end
 
     % plot AstroCatalog/AstroImage
-    
-    %not working
-    
     D.load('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits')
     D.plot(D.InfoAI(2).Image.CatData)    
+    D.plot(D.InfoAI(2).Image)    
     
     
     

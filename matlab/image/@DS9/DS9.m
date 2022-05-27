@@ -762,7 +762,28 @@ classdef DS9 < handle
         end
         
         function Obj = popFieldsAI(Obj, Frame, Window, Args)
-            %
+            % Populate, the Back, Var, Catalog, astrometry, and PSF
+            % of the image in the InfoAI assocaited with the cuurent frame.
+            % Input  : - A DS9 object.
+            %          - Frame index. If empty, use current frame.
+            %            Default is [].
+            %          - ds9 window name. If empty, use current window.
+            %            Default is [].
+            %          * ...,key,val,...
+            %            'backgroundArgs' - A cell array of additional
+            %                   arguments to pass to imProc.background.background.
+            %                   Default is {}.
+            %            'findMeasureSourcesArgs' - A cell array of additional
+            %                   arguments to pass to imProc.sources.findMeasureSources
+            %                   Default is {}.
+            %            'Verbose' - Show status messages. Default is true.
+            %            'RePop' - Repopulate Back, Var, Cat, PSF, even if
+            %                   exist. Default is false.
+            % Output : - A DS9 object, in which the current frame InfoAI
+            %            image is updated with the populated fields.
+            % Author : Eran Ofek (May 2022)
+            % Example: D.load('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits')
+            %          D.popFieldsAI;
             
             arguments
                 Obj
@@ -770,16 +791,27 @@ classdef DS9 < handle
                 Window                           = [];
                 Args.backgroundArgs cell         = {};
                 Args.findMeasureSourcesArgs cell = {};
+                Args.Verbose logical             = true;
+                Args.RePop logical               = false;
             end
             
             [AI, Ind] = getAI(Obj, Frame, Window);
             
             % background
-            AI = imProc.background.background(AI, Args.backgroundArgs{:});
+            if isemptyImage(AI,{'Back'}) || isemptyImage(AI,{'Var'}) || Args.RePop
+                if Args.Verbose
+                    fprintf('Estimating background\n');
+                end
+                AI = imProc.background.background(AI, Args.backgroundArgs{:});
+            end
             
             % source find
-            AI = imProc.sources.findMeasureSources(AI, Args.findMeasureSourcesArgs{:});
-            
+            if sizeCatalog(AI)==0 || Args.RePop
+                if Args.Verbose
+                    fprintf('Find sources\n');
+                end
+                AI = imProc.sources.findMeasureSources(AI, Args.findMeasureSourcesArgs{:});
+            end
             
             % astrometry
             
@@ -1570,6 +1602,7 @@ classdef DS9 < handle
             %            The AstCat object coordinates column names are
             %            defined by the 'ColName...' argumenents.
             %            For RA/Dec units must be degrees.
+            %            NaN positions will not be displayed.
             %          * Arbitrary number of ...,key,val,... pairs.
             %            The following keywords are available:
             %            'FileName' - Output region file name.
@@ -1721,6 +1754,11 @@ classdef DS9 < handle
                 Y      = Y.*Factor;
             end
                 
+            % remove NaN positions
+            Flag = ~isnan(X) & ~isnan(Y);
+            X    = X(Flag);
+            Y    = Y(Flag);
+            
             
             % Number of regions to plot
             Nreg    = numel(X);
@@ -1923,6 +1961,7 @@ classdef DS9 < handle
             %            (e.g., 'yo' - yellow circle; 'ks' - black square).
             %            Alternatively, the first argument is X coordinate,
             %            the second is Y coordinate and the rest as before.
+            %            Will remove NaN positions.
             % Output : null
             % Example: D = DS9(rand(100,100));
             %          D.plot(X, Y, 'ro')
