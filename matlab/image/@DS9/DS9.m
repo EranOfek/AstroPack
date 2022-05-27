@@ -776,6 +776,14 @@ classdef DS9 < handle
             %            'findMeasureSourcesArgs' - A cell array of additional
             %                   arguments to pass to imProc.sources.findMeasureSources
             %                   Default is {}.
+            %            'astrometryCoreArgs' - A cell array of additional
+            %                   arguments to pass to
+            %                   imProc.astrometry.astrometryCore
+            %                   Default is {};
+            %            'astrometryRefineArgs' - A cell array of additional
+            %                   arguments to pass to
+            %                   imProc.astrometry.astrometryRefine
+            %                   Default is {};
             %            'Verbose' - Show status messages. Default is true.
             %            'RePop' - Repopulate Back, Var, Cat, PSF, even if
             %                   exist. Default is false.
@@ -791,6 +799,8 @@ classdef DS9 < handle
                 Window                           = [];
                 Args.backgroundArgs cell         = {};
                 Args.findMeasureSourcesArgs cell = {};
+                Args.astrometryCoreArgs cell     = {};
+                Args.astrometryRefineArgs cell     = {};
                 Args.Verbose logical             = true;
                 Args.RePop logical               = false;
             end
@@ -813,8 +823,18 @@ classdef DS9 < handle
                 AI = imProc.sources.findMeasureSources(AI, Args.findMeasureSourcesArgs{:});
             end
             
-            % astrometry
-            
+            % astrometryif sizeCatalog(AI)==0 || Args.RePop
+            if imProc.astrometry.isSuccessWCS(AI) || Args.RePop
+                if Args.Verbose
+                    fprintf('Find sources\n');
+                end
+                if imProc.astrometry.isSuccessWCS(AI)
+                    % refine astrometry
+                    AI = astrometryRefine(AI, Args.astrometryRefineArgs{:});
+                else
+                    AI = astrometryCore(AI, Args.astrometryCoreArgs{:});
+                end
+            end
             % PSF phot
             
             % match external catalog
@@ -3230,10 +3250,10 @@ classdef DS9 < handle
             
         end
         
-        
     end
     
     
+
     
     
     
