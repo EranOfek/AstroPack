@@ -3273,7 +3273,10 @@ classdef DS9 < handle
             %          - Serive - one of the following web services:
             %               'SDSS' - SDSS navigator
             %               'PS1' - PS1 navigator
-            %               'NED' - NED search (see 'NED_Searchrad' arg).
+            %               'NED' - NED search (see 'nedArgs' arg)
+            %               'DECaLS' - DECaLS image viewer (see
+            %                           'decalsArgs' arg').
+            %               '
             %            Default is 'SDSS'.
             %            However, if using clicking option (see next arg),
             %            the user can specify which service to open, by
@@ -3291,8 +3294,13 @@ classdef DS9 < handle
             %                   Default is 'deg'.
             %            'OpenLink' - A logical indicating if to open the
             %                   link in a web window.
-            %            'NED_SearchRad' - NED serch radius [arcmin]
-            %                   Default is 3.
+            %            'nedArgs' - A cell array of additional arguments to
+            %                   pass to VO.NED.ned_link.
+            %                   Default is {3} - i.e., 3 arcmin search
+            %                   radius.
+            %            'decalsArgs' -  cell array of additional arguments to
+            %                   pass to VO.DECaLS.decals_viewer_link
+            %                   Default is {}.
             % Output : - A cell array of a single WWW link to the service.
             %          - J2000.0 RA [deg]
             %          - J2000.0 Dec [deg]
@@ -3307,7 +3315,8 @@ classdef DS9 < handle
                 Coo                    = [];          % [] - click, {} - sexa, [RA, Dec]
                 Args.CooUnits          = 'deg';  % input units 'deg' | 'rad' | 'pix'
                 Args.OpenLink logical  = true;
-                Args.NED_SearchRad     = 3;
+                Args.nedArgs           = {3};
+                Args.decalsArgs        = {};
             end
             RAD = 180./pi;
             
@@ -3363,7 +3372,9 @@ classdef DS9 < handle
                 case {'p','ps1'}
                     Link = telescope.PS1.navigator_link(RA_rad, Dec_rad);
                 case {'n','ned'}
-                    Link = VO.NED.ned_link(RA_rad, Dec_rad, Args.NED_SearchRad);
+                    Link = VO.NED.ned_link(RA_rad, Dec_rad, Args.nedArgs{:});
+                case {'d','decals'}
+                    Link = VO.DECaLS.decals_viewer_link(RA_rad, Dec_rad, Args.decalsArgs{:});
                 otherwise
                     error('Not supported option');
             end       
