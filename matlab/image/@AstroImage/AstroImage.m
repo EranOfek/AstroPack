@@ -684,6 +684,22 @@ classdef AstroImage < Component
             end
                 
         end
+        
+        function Result = isemptyPSF(Obj)
+            % Check if PSF in AstroImage is empty
+            % Input  : - An AstroImage object.
+            % Output : - An array of logicals indicating if PSF is empty in
+            %            each image element.
+            % Author : Eran Ofek (May 2022)
+            % Example: AI=AstroImage; AI.isemptyPSF
+           
+            Nobj = numel(Obj);
+            Result = false(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = isempty(Obj(Iobj).PSFData.Data);
+            end
+            
+        end
     end
     
     methods (Access=private)  % private functions

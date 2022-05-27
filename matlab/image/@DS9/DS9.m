@@ -784,6 +784,10 @@ classdef DS9 < handle
             %                   arguments to pass to
             %                   imProc.astrometry.astrometryRefine
             %                   Default is {};
+            %            'constructPSFArgs' - A cell array of additional
+            %                   arguments to pass to
+            %                   imProc.psf.constructPSF
+            %                   Default is {};
             %            'Verbose' - Show status messages. Default is true.
             %            'RePop' - Repopulate Back, Var, Cat, PSF, even if
             %                   exist. Default is false.
@@ -800,7 +804,8 @@ classdef DS9 < handle
                 Args.backgroundArgs cell         = {};
                 Args.findMeasureSourcesArgs cell = {};
                 Args.astrometryCoreArgs cell     = {};
-                Args.astrometryRefineArgs cell     = {};
+                Args.astrometryRefineArgs cell   = {};
+                Args.constructPSFArgs cell       = {};
                 Args.Verbose logical             = true;
                 Args.RePop logical               = false;
             end
@@ -823,10 +828,20 @@ classdef DS9 < handle
                 AI = imProc.sources.findMeasureSources(AI, Args.findMeasureSourcesArgs{:});
             end
             
+            % Estimate PSF
+            if isemptyPSF(AI) || Args.RePop
+                if Args.Verbose
+                    fprintf('Estimate PSF and measure PSF photometry\n');
+                end
+                [AI] = imProc.psf.constructPSF(AI, Args.constructPSFArgs{:});
+                % PSF photometry
+                [~, AI] = imProc.sources.psfFitPhot(AI, 'CreateNewObj',false);                                   
+            end
+            
             % astrometryif sizeCatalog(AI)==0 || Args.RePop
             if imProc.astrometry.isSuccessWCS(AI) || Args.RePop
                 if Args.Verbose
-                    fprintf('Find sources\n');
+                    fprintf('Solve astrometry\n');
                 end
                 if imProc.astrometry.isSuccessWCS(AI)
                     % refine astrometry
@@ -835,12 +850,6 @@ classdef DS9 < handle
                     AI = astrometryCore(AI, Args.astrometryCoreArgs{:});
                 end
             end
-            % PSF phot
-            
-            % match external catalog
-            
-            
-            
             
             Obj.InfoAI(Ind).Image = AI;
         end
@@ -3253,13 +3262,38 @@ classdef DS9 < handle
     end
     
     
+    
+    
+    
+    methods  % image examination
+        % Radial plot
+        % Line/vector inspection
+        % Aperture phot and moments estimation
+        % PSF fitting
+        % galaxy fitting
+        % Interactive image examination
+    end
 
+    methods  % interact with external DB ard resources
+        % SDSS navigator image by click
+        
+        % PS navigator image by click
+        
+        % NED by click
+        
+        % SIMBAD by click
+        
+        % GALEX by click
+        
+        % DECaLS by click
+        
     
+    end
     
-    
-    
-    
-    
+    methods  % interact with catsHTM
+        % coneSearch on specific catalog including MergedCat
+        
+    end
     
     
     
