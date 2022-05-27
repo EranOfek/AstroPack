@@ -3262,20 +3262,118 @@ classdef DS9 < handle
     end
     
     
-    
-    
-    
-    methods  % image examination
-        % Radial plot
-        % Line/vector inspection
-        % Aperture phot and moments estimation
-        % PSF fitting
-        % galaxy fitting
-        % Interactive image examination
-    end
-
     methods  % interact with external DB ard resources
-        % SDSS navigator image by click
+       
+        function [Link,RA,Dec] = getLink(Obj, Service, Coo, Args)
+            % Get some service (e.g., SDSS navigator) link by clicking on frame
+            %   Get link for some sky maps service (SDSS, PS1, etc) by
+            %   clicking in franme and getting WCS coordinates.
+            %   Alternatively open the link in a browser.
+            % Input  : - A DS0 object.
+            %          - Serive - one of the following web services:
+            %               'SDSS' - SDSS navigator
+            %               'PS1' - PS1 navigator
+            %               'NED' - NED search (see 'NED_Searchrad' arg).
+            %            Default is 'SDSS'.
+            %            However, if using clicking option (see next arg),
+            %            the user can specify which service to open, by
+            %            clicking by a letter.
+            %            In the clicking mode - a menue will be dispalyed
+            %            in the MATLAB window.
+            %          - Coordinates. If empty, working in interatice mode
+            %            (clicking on current frame).
+            %            Alternatively [RA, Dec],
+            %            or {RAsexagesimal, Decsexagesimal}
+            %            Default is [].
+            %          * ...,key,val,...
+            %            'CooUnits' - If Coo is a numeric vector then these
+            %                   are te input coordinates units.
+            %                   Default is 'deg'.
+            %            'OpenLink' - A logical indicating if to open the
+            %                   link in a web window.
+            %            'NED_SearchRad' - NED serch radius [arcmin]
+            %                   Default is 3.
+            % Output : - A cell array of a single WWW link to the service.
+            %          - J2000.0 RA [deg]
+            %          - J2000.0 Dec [deg]
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9;
+            %          D.load('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits')
+            %          D.getLink
+            
+            arguments
+                Obj
+                Service                = 'SDSS';
+                Coo                    = [];          % [] - click, {} - sexa, [RA, Dec]
+                Args.CooUnits          = 'deg';  % input units 'deg' | 'rad' | 'pix'
+                Args.OpenLink logical  = true;
+                Args.NED_SearchRad     = 3;
+            end
+            RAD = 180./pi;
+            
+            if isempty(Coo)
+                % prompt user for clicking the image
+                fprintf('Use any key to click on position\n');
+                fprintf('    Mouse left click : %s\n',Service);
+                fprintf('    s - SDSS\n');
+                fprintf('    p - Pan-STARRS\n');
+                fprintf('    n - NED\n');
+                fprintf('    v - SIMBAD\n');
+                fprintf('    d - DECaLS\n');
+                fprintf('    z - ZTF\n');
+                fprintf('    p - PTF\n');
+                fprintf('    g - GALEX\n');
+                fprintf('    2 - 2MASS\n');
+                fprintf('    W - WISE\n');
+                
+                [X,Y,Click, RA, Dec, Data] = ginput1(Obj, 'any');
+                
+            else
+                Click = [];
+                if iscell(Coo)
+                    RA  = celestial.coo.convertdms(Coo(1), 'SH', 'd');
+                    Dec = celestial.coo.convertdms(Coo(2), 'SD', 'd');
+                elseif isnumeric(Coo)
+                    RA  = Coo(1);
+                    Dec = Coo(2);
+                    ConvFactor = convert.angular(Args.CooUnits, 'deg');
+                    RA  = RA.*ConvFactor;
+                    Dec = Dec.*ConvFactor;
+                else
+                    error('Unknown Coo option');
+                end
+            end
+            
+            RA_rad  = RA./RAD;   % [rad]
+            Dec_rad = Dec./RAD;  % [rad]
+            
+            if isempty(Click)
+                % use Service from input argumnets
+            else
+                if strcmp(Click, '<1>')
+                    % use defult service
+                else
+                    Service = Click;
+                end
+            end
+            
+            switch lower(Service)
+                case {'s','sdss'}
+                    Link = VO.SDSS.navigator_link(RA_rad, Dec_rad);
+                case {'p','ps1'}
+                    Link = telescope.PS1.navigator_link(RA_rad, Dec_rad);
+                case {'n','ned'}
+                    Link = VO.NED.ned_link(RA_rad, Dec_rad, Args.NED_SearchRad);
+                otherwise
+                    error('Not supported option');
+            end       
+            
+            if Args.OpenLink
+                web(Link{1}, '-browser');
+            end
+                
+        end    
+        
         
         % PS navigator image by click
         
@@ -3289,6 +3387,18 @@ classdef DS9 < handle
         
     
     end
+    
+    
+    methods  % image examination
+        % Radial plot
+        % Line/vector inspection
+        % Aperture phot and moments estimation
+        % PSF fitting
+        % galaxy fitting
+        % Interactive image examination
+    end
+
+    
     
     methods  % interact with catsHTM
         % coneSearch on specific catalog including MergedCat
