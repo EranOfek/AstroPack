@@ -1430,7 +1430,6 @@ classdef AstroImage < Component
                 Args.DataProp = {Args.DataProp};
             end
             
-            
             Nprop   = numel(Args.DataProp);
             if nargout>Nprop
                 error('Nuber of requested output arguments is larger than number of DataProp');
@@ -1449,13 +1448,18 @@ classdef AstroImage < Component
             end
             varargout = cell(1, nargout);
             for Iarg=1:1:nargout    
-                if isnan(Ind)
+                if isempty(Obj.(Args.DataProp{Iarg}))
                     varargout{Iarg} = [];
+                elseif numel(Obj.(Args.DataProp{Iarg}))==1
+                    varargout{Iarg} = Obj.(Args.DataProp{Iarg});
                 else
-                    varargout{Iarg} = Obj.(Args.DataProp{Iarg})(Ind);
+                    if isnan(Ind)
+                        varargout{Iarg} = [];
+                    else
+                        varargout{Iarg} = Obj.(Args.DataProp{Iarg})(Ind);
+                    end
                 end
             end
-            
             
         end
         
