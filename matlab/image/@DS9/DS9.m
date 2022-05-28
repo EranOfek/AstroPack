@@ -3527,57 +3527,7 @@ classdef DS9 < handle
             
         end
     end
-        
-    methods % GUI
-        function gui(Obj, Args)
-            %
-            
-            arguments
-                Obj
-                Args.Fun   = [];
-            end
-            
-            AI = Obj.getAI;
-            AI.populateWCS;
-            
-            
-            Fig = uifigure;
-            
-            
-            F = figure;
-            UI.B        = uicontrol(F,'Style','pushbutton','String','STOP', 'Position',[20 20 100 40], 'callback','src');            
-            UI.Title    = uicontrol(F,'Style','text',      'String','Display image crosshair information', 'FontSize',14, 'Position',[20 400 500 40]);
-            UI.PosXY    = uicontrol(F,'Style','text',      'String','', 'FontSize',12, 'Position',[20 300 500 40]);
-            UI.PosRD    = uicontrol(F,'Style','text',      'String','', 'FontSize',12, 'Position',[20 200 500 40]);
-            drawnow;
-            
-            UI.B.UserData.StopCrosshairMode = false;
-            
-            Obj.mode('crosshair');
-            
-            Cont = true;
-            Ind  = 0;
-            while ~F.UserData.StopCrosshairMode
-                Ind = Ind + 1;
-                
-                Str = Obj.xpaget('crosshair');
-                Coo = DS9.parseOutput(Str, 'num');
-                
-                [RA, Dec] = AI.WCS.xy2sky(Coo(1), Coo(2));
-                
-                
-                UI.PosXY.String = sprintf('X=%f     Y=%f',Coo(1), Coo(2));
-                UI.PosRD.String = sprintf('RA=%f    Dec=%f',RA, Dec);
-                
-                F.UserData.StopCrosshairMode
-                pause(0.1)
-                drawnow;
-            end
-            
-            Obj.mode('region');
-        end
-    end
-    
+     
     methods  % interact with external DB ard resources
        
         % missing: SIMBAD, GALEX, ZTF, PTF, WISE, IRAS, UKIRT, ...
@@ -3783,6 +3733,61 @@ classdef DS9 < handle
     methods  % interactive inspection based on InfoAI
         
         
+    end
+    
+    
+       
+    methods % GUI
+        function gui(Obj, Args)
+            %
+            % https://www.mathworks.com/help/matlab/creating_guis/share-data-among-callbacks.html#mw_b98520d7-da2a-44fe-a5d2-255683b09365
+            % https://www.mathworks.com/help/matlab/creating_guis/share-data-among-callbacks.html
+            
+            
+            arguments
+                Obj
+                Args.Fun   = [];
+            end
+            
+            AI = Obj.getAI;
+            AI.populateWCS;
+            
+            
+            Fig = uifigure;
+            
+            
+            F = figure;
+            UI.B        = uicontrol(F,'Style','pushbutton','String','STOP', 'Position',[20 20 100 40], 'callback','src');            
+            UI.Title    = uicontrol(F,'Style','text',      'String','Display image crosshair information', 'FontSize',14, 'Position',[20 400 500 40]);
+            UI.PosXY    = uicontrol(F,'Style','text',      'String','', 'FontSize',12, 'Position',[20 300 500 40]);
+            UI.PosRD    = uicontrol(F,'Style','text',      'String','', 'FontSize',12, 'Position',[20 200 500 40]);
+            drawnow;
+            
+            UI.B.UserData.StopCrosshairMode = false;
+            
+            Obj.mode('crosshair');
+            
+            Cont = true;
+            Ind  = 0;
+            while ~F.UserData.StopCrosshairMode
+                Ind = Ind + 1;
+                
+                Str = Obj.xpaget('crosshair');
+                Coo = DS9.parseOutput(Str, 'num');
+                
+                [RA, Dec] = AI.WCS.xy2sky(Coo(1), Coo(2));
+                
+                
+                UI.PosXY.String = sprintf('X=%f     Y=%f',Coo(1), Coo(2));
+                UI.PosRD.String = sprintf('RA=%f    Dec=%f',RA, Dec);
+                
+                F.UserData.StopCrosshairMode
+                pause(0.1)
+                drawnow;
+            end
+            
+            Obj.mode('region');
+        end
     end
     
     
