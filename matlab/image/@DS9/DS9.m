@@ -429,6 +429,40 @@ classdef DS9 < handle
                 
             end
         end
+        
+        function xpasetStatic(Command, varargin)
+            % Execute an xpaset command (Static version)
+            %   See xpaset  and xpasetFrame for a non-static version
+            % Input  : - The command to follow the 'xpaset -p ds9'.
+            %            This string may also include printf control
+            %            characters like %s.
+            %          * An arbitrary number of input arguments that will
+            %            be inserted to the control characters in the second
+            %            input argument.
+            % Output : null
+            % Author : Eran Ofek (May 2022)
+            % Example: DS9.xpasetStatic('mode %s',Mode);
+            
+            Command = sprintf(Command,varargin{:});
+            DS9.system('xpaset -p %s %s','ds9', Command);
+        end
+        
+        function Ans = xpagetStatic(Command, varargin)
+            % Execute an xpaget command (Static version)
+            %   For non-static version see xpaget
+            % Input  : - The command to follow the 'xpaget ds9'.
+            %            This string may also include printf control
+            %            characters like %s.
+            %          * An arbitrary number of input arguments that will
+            %            be inserted to the control characters in the second
+            %            input argument.
+            % Output : - Return output.
+            % Author : Eran Ofek (May 2022)
+            
+            Command = sprintf(Command,varargin{:});
+            Ans = ds9.system('xpaget %s %s','ds9', Command);
+            Ans = regexprep(Ans, '\n$','');  % remove the \n at the end of the result string  
+        end
     end
     
     
@@ -447,7 +481,7 @@ classdef DS9 < handle
             % Example: Obj.xpaset('mode %s',Mode);
             
             Command = sprintf(Command,varargin{:});
-            ds9.system('xpaset -p %s %s',Obj.MethodXPA, Command);
+            DS9.system('xpaset -p %s %s',Obj.MethodXPA, Command);
         end
         
         function xpasetFrame(Obj, Frame, Command, varargin)
