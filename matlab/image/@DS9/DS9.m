@@ -3419,20 +3419,62 @@ classdef DS9 < handle
             
         end
         
-        function Result = getInfoData(Obj, X,Y, Radius, Args)
+        function Data = getInfoData(Obj, X,Y, Radius, Args)
             % Get data around position from the image stored in InfoAI
-            %
+            % Input  : - A DS9 object containing images in the InfoAI
+            %            property.
+            %          - X [pix] or J2000.0 RA [Units in 'CooUnits' arg]
+            %          - Y [pix] or J2000.0 Dec [Units in 'CooUnits' arg]
+            %          - Radius [pix] of the rectangular stamp that will be
+            %            returned around each position.
+            %          * ...,key,val,...
+            %            'CooSys' - Coo. system: ['image']|'wcs'
+            %                   This argument refers to the X/Y coordinates
+            %                   input.
+            %            'CooUnits' - If Coo sys. is 'wcs', then these are
+            %                   the coordinate units: 'rad'|['deg']
+            %            'DataProp' - A cell array of data properties in
+            %                   the AstroImage (stored in InfoAI) that will
+            %                   be queried.
+            %                   Default is {'Image','Back','Var','Mask'}.
+            %            'GetCat' - A logical indicating if to query the
+            %                   catalog data in the AstroImage around the
+            %                   input position.
+            %                   Default is true.
+            %            'Frame' - Frame index. If empty, use current.
+            %                   Default is [].
+            %            'Window' - ds9 window name. If empty, use current.
+            %                   Default is [].
+            % Iutput : - A structure containing the retrievd data.
+            %            The following fields are available:
+            %            .Val - A structure with field per queried
+            %                   'DataProp'. These are the values of the
+            %                   pixel at the specified position.
+            %            .Mran - Same as Val, but for the mean of pixel
+            %                   values within the radius (rectanngular shape)
+            %                   around the search position.
+            %            .Std - Same as Mean, but for the std of the pixel
+            %                   values.
+            %            .Cat - An AstroCatalog with the selected sources
+            %                   within the search radius from the search
+            %                   position.
+            % Author : Eran Ofek (May 2022)
+            % Example: Data = getInfoData(D, 100,100, 3);,
             
             arguments
                 Obj
                 X
                 Y
-                Radius          = 3;
-                Args.CooSys     = 'image';
-                Args.CooUnits   = 'deg';    % input coo units
-                Args.DataProp   = {'Image','Back','Var','Mask'};
-                Args.Frame      = [];
-                Args.Window     = [];
+                Radius                  = 3;   % [pix]
+                Args.CooSys             = 'image';
+                Args.CooUnits           = 'deg';    % input coo units
+                Args.DataProp           = {'Image','Back','Var','Mask'};
+                Args.GetCat logical     = true;
+                %Args.IsCircle logical   = true;
+                
+                Args.Frame              = [];
+                Args.Window             = [];
+                
             end
             
             AI = Obj.getAI(Args.Frame, Args.Window);
@@ -3451,25 +3493,37 @@ classdef DS9 < handle
             
             Nprop = numel(Args.DataProp);
             for Iprop=1:1:Nprop
-                [Ny, Nx] = sizeImage(AI, Args.DataProp{Iprop});
-                switch Ny.*Nx
+                
+                Data.Val.(Args.DataProp{Iprop})   = getImageVal(AI, X, Y, 'DataProp',Args.DataProp{Iprop});
+                switch numel(AI.(Args.DataProp{Iprop}))
                     case 0
-                        % image is empty - set val to []
+                        Stamp  = [];
                     case 1
-                        % image is scalar - set to image val
-                        Val.(Args.DataProp{Iprop})   = AI.(Args.DataProp{Iprop});
-                        Mean.(Args.DataProp{Iprop})  = Val.(Args.DataProp{Iprop});
-                        Std.(Args.DataProp{Iprop})   = Val.(Args.DataProp{Iprop});
+                        Stamp  = Data.Val.(Args.DataProp{Iprop});
                     otherwise
-                        % assume full image is available
-                        
-                        
+                        LongProp                          = AstroImage.PropDataTranslation(Args.DataProp{Iprop});
+                        Stamp                             = imProc.image.cutouts(AI, [X, Y], 'Shift',false, 'DataProp',LongProp);
+                end
+                
+                switch lower(Args.DataProp{Iprop})
+                    case 'mask'
+                        Data.Mean.(Args.DataProp{Iprop}) = tools.array.bitor_array(Stamp);
+                        Data.Std.(Args.DataProp{Iprop})  = [];
+                    otherwise
+                        Data.Mean.(Args.DataProp{Iprop}) = mean(Stamp);
+                        Data.Std.(Args.DataProp{Iprop})  = std(Stamp);
                 end
                 
             end
             
-            
-            
+            if Args.GetCat && sizeCatalog(AI)>0
+                % query for sources around position
+                XY   = getXY(AI.CatData);
+                Dist = sqrt( (XY(:,1)-X).^2 + (XY(:,2)-Y).^2 );
+                Data.Cat  = selectRows(AI.CatData.Catalog, Dist < Radius);
+            else
+                Data.Cat = [];
+            end
             
         end
     end

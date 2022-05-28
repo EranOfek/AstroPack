@@ -498,6 +498,29 @@ classdef AstroImage < Component
             end
             
         end
+        
+        function LongProp = PropDataTranslation(ShortProp)
+            % Translate short propery (e.g., 'Image') to long ('ImageData')
+            % Input  : - Short prop.
+            % Output : - Long prop.
+            % Author : Eran Ofek (May 2022)
+            % Example: AstroImage.PropDataTranslation('Back')
+            
+            switch ShortProp
+                case 'Image'
+                    LongProp = 'ImageData';
+                case 'Back'
+                    LongProp = 'BackData';
+                case 'Var'
+                    LongProp = 'VarData';
+                case 'Mask'
+                    LongProp = 'MaskData';
+                case 'Cat'
+                    LongProp = 'CatData';
+                otherwise
+                    error('Unknown property %s',ShortProp);
+            end
+        end
     end
 
  
@@ -1451,7 +1474,7 @@ classdef AstroImage < Component
                 if isempty(Obj.(Args.DataProp{Iarg}))
                     varargout{Iarg} = [];
                 elseif numel(Obj.(Args.DataProp{Iarg}))==1
-                    varargout{Iarg} = Obj.(Args.DataProp{Iarg});
+                    varargout{Iarg} = Obj.(Args.DataProp{Iarg})(1);
                 else
                     if isnan(Ind)
                         varargout{Iarg} = [];

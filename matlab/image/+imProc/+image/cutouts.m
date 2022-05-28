@@ -32,8 +32,8 @@ function [CutoutCube, ActualXY] = cutouts(Obj, XY, Args)
     %            These may be rounded if 'RoundPos' is set to true.
     % Author : Eran Ofek (Apr 2021)
     % Example: IC = ImageComponent({rand(1000,1000)});
-
-    % Example: AI=AstroImage({rand(1000,1000)});
+    %
+    %          AI=AstroImage({rand(1000,1000)});
     %          XY = rand(10000,2).*900 + 50;
     %          Cube = imProc.image.cutouts(AI, XY);
     %          Cube = imProc.image.cutouts(AI, XY,'Shift',true);
