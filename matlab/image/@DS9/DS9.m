@@ -3272,6 +3272,10 @@ classdef DS9 < handle
             %            or {RAsexagesimal, Decsexagesimal}
             %            Default is [].
             %          * ...,key,val,...
+            %            'PromptIfEmptyCoo' - Text message to prompt on
+            %                   MATLAB screen if Coo is empty and the user is
+            %                   requsted to click on frame (e.g., a menue).
+            %                   Default is ''.
             %            'Mode' - one of the following: 'button'|'key'|['any']
             %                   'button' - use mouse.
             %                   'key - use keyboard.
@@ -3452,8 +3456,39 @@ classdef DS9 < handle
     methods  % interact with catsHTM
         % coneSearch on specific catalog including MergedCat
         
-        function coneSearch_catsHTM(Obj, CatalogName, Coo, Args)
-            %
+        function [Cat, RA, Dec] = catsHTM(Obj, CatalogName, Coo, Args)
+            % Query a catsHTM catalog by interactive source position on current ds9 frame
+            % Input  : - A DS9 object.
+            %          - Default catsHTM catalog name to query.
+            %            Execute: catsHTM.catalogs for options.
+            %            Default is 'MergedCat'
+            %            If empty, use default.
+            %          - Coordinates. If empty, working in interatice mode
+            %            (clicking on current frame).
+            %            Alternatively [RA, Dec],
+            %            or {RAsexagesimal, Decsexagesimal}
+            %            Default is [].
+            %          * ...,key,val,...
+            %            'SearchRadius' - Cone search search radius.
+            %                   Default is 10 (default units 'arcsec').
+            %            'SearchradiusUnits' - Cone search radius units.
+            %                   Default is 'arcsec'.
+            %            'CooUnits' - If coo are not empty or sexagesimal,
+            %                   this is the input coordinates units 'rad'|'deg'.
+            %                   Default is 'deg'.
+            %            'OutType' - catsHTM.cone_search output type.
+            %                   Options are 'mat'|'astcat'|'catcl'|'astrocatalog'|'table'
+            %                   Default is 'table'.
+            % Output : - A catsHTM catalog with sources around the
+            %            requested coordinates.
+            %          - Searched J2000.0 RA [deg].
+            %          - Searched J2000.0 Dec [deg].
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9;
+            %          D.load('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits')
+            %          [Cat, RA, Dec] = catsHTM(D,[], [10 10])
+            %          [Cat, RA, Dec] = catsHTM(D,[], {'01:15:10','-20:10:20'})
+            %          [Cat, RA, Dec] = catsHTM(D,[], []);  % interactive
            
             arguments
                 Obj
@@ -3462,14 +3497,41 @@ classdef DS9 < handle
                 Args.SearchRadius       = 10;
                 Args.SearchradiusUnits  = 'arcsec';
                 Args.CooUnits           = 'deg';
+                Args.OutType            = 'table';
             end
             
-            [RA, Dec] = Obj.getCoo(Coo, 'CooUnits', Args.CooUnits, 'Mode','any')
+            if isempty(CatalogName)
+                CatalogName = 'MergedCat';
+            end
+                
+            TextMsg = sprintf('Interactively select a source in the image to query\n');
+            TextMsg = sprintf('%s  Press one of the following keys to select a catalog query\n',TextMsg);
+            TextMsg = sprintf('%s     Left mouse click - %s\n',TextMsg, CatalogName);
+            TextMsg = sprintf('%s     s - SDSS\n',TextMsg);
+            TextMsg = sprintf('%s     p - PS1\n',TextMsg);
+            TextMsg = sprintf('%s     g - GAIA\n',TextMsg);
+            TextMsg = sprintf('%s     \n',TextMsg);
+            TextMsg = sprintf('%s     \n',TextMsg);
+            TextMsg = sprintf('%s     \n',TextMsg);
             
-            Cat = catsHTM.cone_search(CatalogName, RA, Dec, Args.SearchRadius, 'RadiusUnits',Args.SearchradiusUnits);
+            [RA, Dec, Click] = Obj.getCoo(Coo, 'CooUnits', Args.CooUnits, 'Mode','any', 'PromptIfEmptyCoo',TextMsg);
             
-            
-            
+            switch Click
+                case '<1>'
+                    % use default catalog name
+                    CatName = catalogName;
+                case 's'
+                    CatName = 'SDSSDR10';
+                case 'p'
+                    CatName = 'PS1';
+                case 'g'
+                    CatNAME = 'GAIAEDR3';
+                otherwise
+                    error('Unknown Catalog name option');
+            end
+            Cat = catsHTM.cone_search(CatName, RA, Dec, Args.SearchRadius, 'RadiusUnits',Args.SearchradiusUnits,...
+                                                                           'OutType',Args.OutType);
+           
         end
     end
     
