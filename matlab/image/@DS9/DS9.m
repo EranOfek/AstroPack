@@ -3455,6 +3455,19 @@ classdef DS9 < handle
         function coneSearch_catsHTM(Obj, CatalogName, Coo, Args)
             %
            
+            arguments
+                Obj
+                CatalogName             = 'MergedCat';
+                Coo                     = [];
+                Args.SearchRadius       = 10;
+                Args.SearchradiusUnits  = 'arcsec';
+                Args.CooUnits           = 'deg';
+            end
+            
+            [RA, Dec] = Obj.getCoo(Coo, 'CooUnits', Args.CooUnits, 'Mode','any')
+            
+            Cat = catsHTM.cone_search(CatalogName, RA, Dec, Args.SearchRadius, 'RadiusUnits',Args.SearchradiusUnits);
+            
             
             
         end

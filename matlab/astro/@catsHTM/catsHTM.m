@@ -1655,7 +1655,7 @@ classdef catsHTM
             %                            objects outside cone.
             %                            Default is true.
             %            'ColCellFile' - Default is '%s_htmColCell.mat'.
-            %            'OutType'     - Output type {'mat'|'astcat'|'catcl'|'astrocatalog'}.
+            %            'OutType'     - Output type {'mat'|'astcat'|'catcl'|'astrocatalog'|'table'}.
             %                            Default is 'mat'.
             % Output : - Catalog of source within cone.
             %          - Cell array of column names.
@@ -1788,6 +1788,10 @@ classdef catsHTM
                     AstC.ColNames = ColCell;
                     AstC.ColUnits = ColUnits;
                     Cat = AstC;
+                case 'table'
+                    Cat = array2table(Cat);
+                    Cat.Properties.variableNames = ColCell;
+                    Cat.Properties.variableUnits = ColUnits;
                 case 'catcl'
                     AstC = catCl;
                     AstC.Cat = Cat;
