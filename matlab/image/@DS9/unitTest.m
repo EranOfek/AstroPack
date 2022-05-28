@@ -171,15 +171,15 @@ function Result = unitTest()
     D.skyFIRST('12:00:00','+21:10:10',10,'Frame',[])
     D.skyFIRST(1,1)  % deg
     
-    % xy2coo / coo2xy
+    % xy2sky / sky2xy
     D.exit;
     D = DS9;
     D.load('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
     D.scale('zscale')
     X = rand(10,1).*1000;
     Y = rand(10,1).*1000;
-    [RA, Dec] = D.xy2coo(X,Y);
-    [X1,Y1] = D.coo2xy(RA, Dec);
+    [RA, Dec] = D.xy2sky(X,Y);
+    [X1,Y1] = D.sky2xy(RA, Dec);
     if max(abs(X-X1))>0.05 || max(abs(Y-Y1))>0.05
         error('Error in ds9 coordinates comparison');
     end

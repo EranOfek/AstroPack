@@ -2550,8 +2550,8 @@ classdef DS9 < handle
                 
     end
     
-    methods   % xy2coo, coo2xy
-        function [CooX,CooY] = coo2xy(Obj,RA,Dec,Args)
+    methods   % xy2sky, sky2xy
+        function [CooX,CooY] = sky2xy(Obj,RA,Dec,Args)
             % Convert RA/Dec to X/Y (image) using ds9 tools
             % Input  : - A DS9 object.
             %          - J2000.0 RA [sexagesimal string, rad or deg]
@@ -2568,7 +2568,7 @@ classdef DS9 < handle
             %          - Y [pix].
             % Author : Eran Ofek (May 2022)
             % Example: D = DS9(rand(100,100));
-            %          [a,b]=D.coo2xy(1, 3)
+            %          [a,b]=D.sky2xy(1, 3)
            
             arguments
                 Obj
@@ -2625,7 +2625,7 @@ classdef DS9 < handle
             
         end
         
-        function [RA,Dec] = xy2coo(Obj,X,Y,Args)
+        function [RA,Dec] = xy2sky(Obj,X,Y,Args)
             % Convert RA/Dec to X/Y (image) using ds9 tools
             % Input  : - A DS9 object.
             %          - X (pix).
@@ -2641,7 +2641,7 @@ classdef DS9 < handle
             %          - J2000.0 Dec 
             % Author : Eran Ofek (May 2022)
             % Example: D = DS9(rand(100,100));
-            %          [a,b]=D.xy2coo(1, 3)
+            %          [a,b]=D.xy2sky(1, 3)
            
             arguments
                 Obj
@@ -3107,7 +3107,7 @@ classdef DS9 < handle
             % Example: D = DS9;
             %          D.load('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits')
             %          a=D.getData(100,100,[1 1])
-            %          [RA,Dec]=D.xy2coo(100,100);
+            %          [RA,Dec]=D.xy2sky(100,100);
             %          b=D.getData(RA,Dec,[1 1], 'wcs')
             
             arguments
@@ -3131,7 +3131,7 @@ classdef DS9 < handle
             switch lower(CooSys)
                 case 'wcs'
                     % convert RA/Dec to pix position
-                    [X, Y]   = Obj.coo2xy(X, Y, 'CooType','image', 'CooUnits',Args.CooUnits);
+                    [X, Y]   = Obj.sky2xy(X, Y, 'CooType','image', 'CooUnits',Args.CooUnits);
                     CooSys   = 'image';
                     
             end
@@ -3218,7 +3218,7 @@ classdef DS9 < handle
 
             if nargout>3
                 % get RA/Dec
-                [RA, Dec] = Obj.xy2coo(X, Y, 'CooUnits',Args.CooUnits);
+                [RA, Dec] = Obj.xy2sky(X, Y, 'CooUnits',Args.CooUnits);
                 
                 if nargout>5
                     % get data
@@ -3371,7 +3371,57 @@ classdef DS9 < handle
             Dec        = Dec.*ConvFactor;
         end
         
-        function crosshairFun(Obj, Args)
+        function [X, Y] = crosshair(Obj, Args)
+            % Get crosshair position
+            % Input  : - A DS9 object.
+            %          * ...,key,val,...
+            %            'CooSys' - ['image'] | 'physical' | 'wcs'
+            %            'CooRef' - Default is 'icrs'.
+            %            'ChangeMode' - A logical indicating if to change
+            %                   mode to 'crosshair', and then return to original
+            %                   mode after crosshair coordinates retrival
+            %                   is done. Default is true.
+            % Output : - X coordinate [pix] or RA [deg]
+            %            Use 'CooSys', and 'CooRef' to control output.
+            %          - Y coordinate [pix] or Dec [deg]
+            % AUthor : Eran Ofek (May 2022)
+            % Example: [x,y]=D.crosshair('CooSys','wcs')
+            
+            arguments
+                Obj
+                Args.CooSys                = 'image';  % 'wcs' 
+                Args.CooRef                = 'icrs';
+                Args.ChangeMode logical    = true;
+            end
+            
+            if Args.ChangeMode
+                OrigMode = Obj.mode([]);
+                if ~strcmp(OrigMode, 'crosshair')
+                    % change mode
+                    Obj.mode('crosshair');
+                end
+            end
+            
+            switch lower(Args.CooSys)
+                case {'image','physical'}
+                    Str = Obj.xpaget('crosshair %s',Args.CooSys);
+                otherwise
+                    Str = Obj.xpaget('crosshair %s %s',Args.CooSys, Args.CooRef);
+            end
+            Coo = DS9.parseOutput(Str, 'num');
+            X   = Coo(1);
+            Y   = Coo(2);
+            
+            if Args.ChangeMode
+                % back to original mode
+                Obj.mode(OrigMode);
+            end
+            
+        end
+    end
+        
+    methods % GUI
+        function gui(Obj, Args)
             %
             
             arguments
@@ -3379,30 +3429,41 @@ classdef DS9 < handle
                 Args.Fun   = [];
             end
             
-            StopCrosshairMode = false;
+            AI = Obj.getAI;
+            AI.populateWCS;
+            
+            
+            Fig = uifigure;
+            
+            
             F = figure;
-            UI.B        = uicontrol(F,'Style','pushbutton','String','STOP', 'Position',[20 20 100 40], 'callback','StopCrosshairMode=true;');
-            drawnow;
+            UI.B        = uicontrol(F,'Style','pushbutton','String','STOP', 'Position',[20 20 100 40], 'callback','src');            
             UI.Title    = uicontrol(F,'Style','text',      'String','Display image crosshair information', 'FontSize',14, 'Position',[20 400 500 40]);
+            UI.PosXY    = uicontrol(F,'Style','text',      'String','', 'FontSize',12, 'Position',[20 300 500 40]);
+            UI.PosRD    = uicontrol(F,'Style','text',      'String','', 'FontSize',12, 'Position',[20 200 500 40]);
             drawnow;
-            UI.ImagePos = uicontrol(F,'Style','text',      'String','', 'FontSize',12, 'Position',[20 300 500 40]);
-            drawnow;
+            
+            UI.B.UserData.StopCrosshairMode = false;
             
             Obj.mode('crosshair');
             
             Cont = true;
             Ind  = 0;
-            while ~StopCrosshairMode
+            while ~F.UserData.StopCrosshairMode
                 Ind = Ind + 1;
                 
                 Str = Obj.xpaget('crosshair');
                 Coo = DS9.parseOutput(Str, 'num');
-              
                 
-                UI.ImagePos.String = sprintf('X=%f    Y=%f',Coo(1), Coo(2));
+                [RA, Dec] = AI.WCS.xy2sky(Coo(1), Coo(2));
+                
+                
+                UI.PosXY.String = sprintf('X=%f     Y=%f',Coo(1), Coo(2));
+                UI.PosRD.String = sprintf('RA=%f    Dec=%f',RA, Dec);
+                
+                F.UserData.StopCrosshairMode
+                pause(0.1)
                 drawnow;
-                
-                
             end
             
             Obj.mode('region');
