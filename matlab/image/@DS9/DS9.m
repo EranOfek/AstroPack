@@ -3381,31 +3381,25 @@ classdef DS9 < handle
             
             StopCrosshairMode = false;
             F = figure;
-            UI.B     = uicontrol(F,'Style','pushbutton','callback','StopCrosshairMode=true;','String','STOP', 'Position',[20 20 100 40]); %,'Positon',[0 0 0.5 0.1]);
-            UI.Title = uicontrol(F,'Style','pushbutton','callback','StopCrosshairMode=true;','String','STOP', 'Position',[20 20 100 40]); %,'Positon',[0 0 0.5 0.1]);
-            
-            
-            H.Title    = text(0,1, 'crosshairFun display image cursor information');
-            H.Title.FontSize = 14;
-            axis off;
-            H.ImagePos = text(0,0.9,'');
-            H.ImagePos.FontSize = 12;
+            UI.B        = uicontrol(F,'Style','pushbutton','String','STOP', 'Position',[20 20 100 40], 'callback','StopCrosshairMode=true;');
+            drawnow;
+            UI.Title    = uicontrol(F,'Style','text',      'String','Display image crosshair information', 'FontSize',14, 'Position',[20 400 500 40]);
+            drawnow;
+            UI.ImagePos = uicontrol(F,'Style','text',      'String','', 'FontSize',12, 'Position',[20 300 500 40]);
+            drawnow;
             
             Obj.mode('crosshair');
-%            [X,Y,Click] = Obj.ginput1('any');
             
             Cont = true;
             Ind  = 0;
-            while Cont
+            while ~StopCrosshairMode
                 Ind = Ind + 1;
                 
                 Str = Obj.xpaget('crosshair');
                 Coo = DS9.parseOutput(Str, 'num');
-                if Coo(1)<0 || Coo(2)<0
-                    Cont = false;
-                end
+              
                 
-                H.ImagePos.String = sprintf('X=%f    Y=%f',Coo(1), Coo(2));
+                UI.ImagePos.String = sprintf('X=%f    Y=%f',Coo(1), Coo(2));
                 drawnow;
                 
                 
