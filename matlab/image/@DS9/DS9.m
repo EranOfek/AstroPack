@@ -3259,11 +3259,84 @@ classdef DS9 < handle
             
         end
         
+        function [RA, Dec, Click, Info] = getCoo(Obj, Coo, Args)
+            % get RA/Dec coordinates from image click or user input
+            %   This is a utility function that return RA/Dec from
+            %   interactive user click on current frame, or user input in
+            %   arguments. If interactive, it optionaly display a
+            %   message/instructions to the MATLAB screen.
+            % Input  : - A DS9 object.
+            %          - Coordinates. If empty, working in interatice mode
+            %            (clicking on current frame).
+            %            Alternatively [RA, Dec],
+            %            or {RAsexagesimal, Decsexagesimal}
+            %            Default is [].
+            %          * ...,key,val,...
+            %            'Mode' - one of the following: 'button'|'key'|['any']
+            %                   'button' - use mouse.
+            %                   'key - use keyboard.
+            %                   'any' - use mouse or keyboard (Default).
+            %            'CooUnits' - If Coo is a numeric vector then these
+            %                   are te input coordinates units.
+            %                   Default is 'deg'.
+            %            'OutUnits' - Output units of RA/Dec ['rad'|'deg']
+            %                   Default is 'deg'.
+            % Output : - J2000.0 RA
+            %          - J2000.0 Dec
+            %          - A structure array with additional info on the
+            %            click position. Empty if user supplied coordinates.
+            % Author : Eran Ofek (May 2022)
+            % Example: [RA, Dec, Click, Info] = getCoo(D, {'12:00:00','+20:10:20'})
+            %          [RA, Dec, Click, Info] = getCoo(D, [180, +20.1])
+            
+            arguments
+                Obj
+                Coo
+                Args.PromptIfEmptyCoo = '';  % text to prompt if Coo isempty
+                Args.Mode             = 'any';
+                Args.CooUnits         = 'deg';
+                Args.OutUnits         = 'deg';
+            end
+            
+            RAD = 180./pi;
+            
+            Info = [];
+            if isempty(Coo)
+                if ~isempty(Args.PromptIfEmptyCoo)
+                    % prompt user for clicking the image
+                    fprintf('%s',Args.PromptIfEmptyCoo);
+                end
+                
+                [X,Y,Click, RA, Dec, Data] = ginput1(Obj, Args.Mode);
+                Info.Click = Click;
+                Info.X     = X;
+                Info.Y     = Y;
+                Info.Data  = Data;
+            else
+                Click = [];
+                if iscell(Coo)
+                    RA  = celestial.coo.convertdms(Coo(1), 'SH', 'd');
+                    Dec = celestial.coo.convertdms(Coo(2), 'SD', 'd');
+                elseif isnumeric(Coo)
+                    RA  = Coo(1);
+                    Dec = Coo(2);
+                    ConvFactor = convert.angular(Args.CooUnits, 'deg');
+                    RA  = RA.*ConvFactor;
+                    Dec = Dec.*ConvFactor;
+                else
+                    error('Unknown Coo option');
+                end
+            end
+            
+            ConvFactor = convert.angular('deg', Args.OutUnits);
+            RA         = RA.*ConvFactor;
+            Dec        = Dec.*ConvFactor;
+        end
     end
-    
     
     methods  % interact with external DB ard resources
        
+        % missing: SIMBAD, GALEX, ZTF, PTF, WISE, IRAS, UKIRT, ...
         function [Link,RA,Dec] = getLink(Obj, Service, Coo, Args)
             % Get some service (e.g., SDSS navigator) link by clicking on frame
             %   Get link for some sky maps service (SDSS, PS1, etc) by
@@ -3320,39 +3393,19 @@ classdef DS9 < handle
             end
             RAD = 180./pi;
             
-            if isempty(Coo)
-                % prompt user for clicking the image
-                fprintf('Use any key to click on position\n');
-                fprintf('    Mouse left click : %s\n',Service);
-                fprintf('    s - SDSS\n');
-                fprintf('    p - Pan-STARRS\n');
-                fprintf('    n - NED\n');
-                fprintf('    v - SIMBAD\n');
-                fprintf('    d - DECaLS\n');
-                fprintf('    z - ZTF\n');
-                fprintf('    p - PTF\n');
-                fprintf('    g - GALEX\n');
-                fprintf('    2 - 2MASS\n');
-                fprintf('    W - WISE\n');
-                
-                [X,Y,Click, RA, Dec, Data] = ginput1(Obj, 'any');
-                
-            else
-                Click = [];
-                if iscell(Coo)
-                    RA  = celestial.coo.convertdms(Coo(1), 'SH', 'd');
-                    Dec = celestial.coo.convertdms(Coo(2), 'SD', 'd');
-                elseif isnumeric(Coo)
-                    RA  = Coo(1);
-                    Dec = Coo(2);
-                    ConvFactor = convert.angular(Args.CooUnits, 'deg');
-                    RA  = RA.*ConvFactor;
-                    Dec = Dec.*ConvFactor;
-                else
-                    error('Unknown Coo option');
-                end
-            end
+            PromptMsg = sprintf('Use any key to click on position\n');
+            PromptMsg = sprintf('%s    Mouse left click : %s\n',PromptMsg, Service);
+            PromptMsg = sprintf('%s    s - SDSS\n',PromptMsg);
+            PromptMsg = sprintf('%s    p - Pan-STARRS\n',PromptMsg);
+            PromptMsg = sprintf('%s    n - NED\n',PromptMsg);
+            PromptMsg = sprintf('%s    d - DECaLS\n',PromptMsg);
+            PromptMsg = sprintf('%s    \n',PromptMsg);
             
+            [RA, Dec, Click, Info] = getCoo(Obj, Coo, 'PromptIfEmptyCoo',PromptMsg,...
+                                                      'Mode','any',...
+                                                      'CooUnits',Args.CooUnits,...
+                                                      'OutUnits','deg');
+                                                  
             RA_rad  = RA./RAD;   % [rad]
             Dec_rad = Dec./RAD;  % [rad]
             
@@ -3385,20 +3438,7 @@ classdef DS9 < handle
                 
         end    
         
-        
-        % PS navigator image by click
-        
-        % NED by click
-        
-        % SIMBAD by click
-        
-        % GALEX by click
-        
-        % DECaLS by click
-        
-    
     end
-    
     
     methods  % image examination
         % Radial plot
@@ -3408,14 +3448,22 @@ classdef DS9 < handle
         % galaxy fitting
         % Interactive image examination
     end
-
-    
     
     methods  % interact with catsHTM
         % coneSearch on specific catalog including MergedCat
         
+        function coneSearch_catsHTM(Obj, CatalogName, Coo, Args)
+            %
+           
+            
+            
+        end
     end
     
+    methods  % asteroids
+        % Plot known asteroids on image
+    
+    end
     
     
     
