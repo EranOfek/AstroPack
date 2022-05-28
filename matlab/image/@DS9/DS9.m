@@ -3069,8 +3069,8 @@ classdef DS9 < handle
     
     
     methods  % interactive mouse/keyboard
-        function Result = getData(Obj, X,Y, HalfSize, CooSys, Args)
-            % Get data value around pixel position
+        function Result = getPixData(Obj, X,Y, HalfSize, CooSys, Args)
+            % Get pixel data value around pixel position from the image stored in the ds9 window
             % Input  : - A DS9 object.
             %          - Vector of X [pix] or J2000.0 RA [deg/ard/sex]
             %          - Vector of X [pix] or J2000.0 RA [deg/rad/sex]
@@ -3106,9 +3106,9 @@ classdef DS9 < handle
             %$xpaget ds9 data wcs fk5 13:29:53.018 +47:11:48.52 0.00016516669 0.00016516669 no
             % Example: D = DS9;
             %          D.load('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits')
-            %          a=D.getData(100,100,[1 1])
+            %          a=D.getPixData(100,100,[1 1])
             %          [RA,Dec]=D.xy2sky(100,100);
-            %          b=D.getData(RA,Dec,[1 1], 'wcs')
+            %          b=D.getPixData(RA,Dec,[1 1], 'wcs')
             
             arguments
                 Obj
@@ -3196,7 +3196,7 @@ classdef DS9 < handle
             %          - J2000.0 RA (in CooUnits units).
             %          - J2000.0 Dec (in CooUnits units).
             %          - A structure of data for pixel value
-            %            (See getData for fields description).
+            %            (See getPixData for fields description).
             % Author : Eran Ofek (May 2022)
             % Example: D = DS9;
             %          D.load('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits')
@@ -3222,7 +3222,7 @@ classdef DS9 < handle
                 
                 if nargout>5
                     % get data
-                    Data = Obj.getData(X,Y,Args.DataSize);
+                    Data = Obj.getPixData(X,Y,Args.DataSize);
                 end
             end
         end
@@ -3416,6 +3416,60 @@ classdef DS9 < handle
                 % back to original mode
                 Obj.mode(OrigMode);
             end
+            
+        end
+        
+        function Result = getInfoData(Obj, X,Y, Radius, Args)
+            % Get data around position from the image stored in InfoAI
+            %
+            
+            arguments
+                Obj
+                X
+                Y
+                Radius          = 3;
+                Args.CooSys     = 'image';
+                Args.CooUnits   = 'deg';    % input coo units
+                Args.DataProp   = {'Image','Back','Var','Mask'};
+                Args.Frame      = [];
+                Args.Window     = [];
+            end
+            
+            AI = Obj.getAI(Args.Frame, Args.Window);
+            
+            switch lower(Args.CooSys)
+                case 'image'
+                    % get RA/Dec
+                    [RA, Dec] = AI.WCS.xy2sky(X, Y, 'OutUnits','deg');
+                otherwise
+                    % input is RA/Dec
+                    RA  = X;
+                    Dec = Y;
+                    % get X/Y
+                    [X, Y] = AI.WCS.sky2xy(RA, Dec, 'InUnits',Args.CooUnits);
+            end
+            
+            Nprop = numel(Args.DataProp);
+            for Iprop=1:1:Nprop
+                [Ny, Nx] = sizeImage(AI, Args.DataProp{Iprop});
+                switch Ny.*Nx
+                    case 0
+                        % image is empty - set val to []
+                    case 1
+                        % image is scalar - set to image val
+                        Val.(Args.DataProp{Iprop})   = AI.(Args.DataProp{Iprop});
+                        Mean.(Args.DataProp{Iprop})  = Val.(Args.DataProp{Iprop});
+                        Std.(Args.DataProp{Iprop})   = Val.(Args.DataProp{Iprop});
+                    otherwise
+                        % assume full image is available
+                        
+                        
+                end
+                
+            end
+            
+            
+            
             
         end
     end

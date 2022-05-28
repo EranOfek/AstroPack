@@ -1413,7 +1413,9 @@ classdef AstroImage < Component
             %                   {'Image','Back','Var','Mask'}
             % Output : * Vector of values at requested image positions.
             %            Output argument per each 'DataProp' element.
-            
+            %            If pixel position is out of image bounds than
+            %            return [].
+            % Author : Eran Ofek (May 2021)
             % Example: AI = AstroImage({rand(100,80)});
             %          [V1] = getImageVal(AI,2,2)
            
@@ -1439,11 +1441,19 @@ classdef AstroImage < Component
             if isempty(Y)
                 Ind = X;
             else
-                Ind = imUtil.image.sub2ind_fast([SizeY, SizeX], round(X), round(Y));
+                if X<1 || Y<1 || X>SizeX || Y>SizeY
+                    Ind = NaN;
+                else
+                    Ind = imUtil.image.sub2ind_fast([SizeY, SizeX], round(X), round(Y));
+                end
             end
             varargout = cell(1, nargout);
             for Iarg=1:1:nargout    
-                varargout{Iarg} = Obj.(Args.DataProp{Iarg})(Ind);
+                if isnan(Ind)
+                    varargout{Iarg} = [];
+                else
+                    varargout{Iarg} = Obj.(Args.DataProp{Iarg})(Ind);
+                end
             end
             
             
