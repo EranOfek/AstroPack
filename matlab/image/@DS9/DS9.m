@@ -3727,7 +3727,21 @@ classdef DS9 < handle
     
     methods  % asteroids
         % Plot known asteroids on image
-    
+        function Result = plotAsteroids(Obj, Args)
+            %
+            
+            arguments
+                Obj
+                Args
+            end
+            
+            % get RA/Dec/FoV/JD of image
+            
+            % Find all known asteroids in FOV
+            
+            % plot 
+        
+        end
     end
     
     methods  % interactive inspection based on InfoAI
