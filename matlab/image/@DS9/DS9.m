@@ -3727,20 +3727,39 @@ classdef DS9 < handle
     
     methods  % catalogs
         function [Data,FileName] = catalog(Obj, CatName, Args)
-            %
-            % [ned|simbad|denis|skybot]
-            % [aavso|ac|ascss|cmc|gaia|gsc1|gsc2|gsc3|nomad|ppmx|sao|sdss5|sdss6|sdss7|sdss8|sdss9|tycho]
-            % [ua2|ub1|ucac2|ucac2sup|ucac3|ucac4|urat1]
-            % [2mass|iras]
-            % [csc|xmm|rosat]
-            % [first|nvss]
-            % [chandralog|cfhtlog|esolog|stlog|xmmlog]
-            % [cds <catalogname>]
-            % [cds <catalogid>]
+            % Overplot a ds9 catalog on a ds9 frame and upload the catalog to memory.
+            %       The search radius is set by ds9.
+            % Input  : - A DS9 object.
+            %          - Catalog name.
+            %            if 'clear' | 'cancel' | 'close',  then run this command after
+            %            the catalog command.
+            %            Otherwise this is a catalog name:
+            %            Default is '2mass'
+            %               [ned|simbad|denis|skybot]
+            %               [aavso|ac|ascss|cmc|gaia|gsc1|gsc2|gsc3|nomad|ppmx|sao|sdss5|sdss6|sdss7|sdss8|sdss9|tycho]
+            %               [ua2|ub1|ucac2|ucac2sup|ucac3|ucac4|urat1]
+            %               [2mass|iras]
+            %               [csc|xmm|rosat]
+            %               [first|nvss]
+            %               [chandralog|cfhtlog|esolog|stlog|xmmlog]
+            %               [cds <catalogname>]
+            %               [cds <catalogid>]
+            %          * ...,key,val,...
+            %            'OutType' - 'file' | 'table' | ['AstroCatalog']
+            %            FileName - File name in which to save the data.
+            %                   Default is tempname.
+            %            'ReadType' - File type to save 'rdb'|['tsv']
+            %            'KeepFile' - Keep saved file. Default is false.
+            % Output : - The output catalog.
+            %          - File name (if kept).
+            % Author : Eran Ofek (May 2022)
+            % Example: D = DS9;
+            %          D.load('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
+            %          Cat = D.catalog('sdss9');
             
             arguments
                 Obj
-                CatName
+                CatName                 = '2mass';
                 Args.OutType            = 'Astrocatalog';  % 'AstroCatalog' | 'file'
                 Args.FileName           = tempname;
                 Args.ReadType           = 'tsv'; % rdb|tsv
@@ -3750,7 +3769,7 @@ classdef DS9 < handle
             Obj.xpaset('catalog %s',CatName);
             
             switch lower(CatName)
-                case {'clear','close'}
+                case {'clear','close','cancel'}
                     % do nothing
                     Data     = [];
                     FileName = [];
@@ -3765,8 +3784,19 @@ classdef DS9 < handle
         end
         
         function [Data,FileName] = catExport(Obj, Args)
-            %
-           
+            % Export catalog from ds9 catalog dialog box (see catalog method)
+            % Input  : - A DS9 object.
+            %          * ...,key,val,...
+            %            'OutType' - 'file' | 'table' | ['AstroCatalog']
+            %            FileName - File name in which to save the data.
+            %                   Default is tempname.
+            %            'ReadType' - File type to save 'rdb'|['tsv']
+            %            'KeepFile' - Keep saved file. Default is false.
+            % Output : - The output catalog.
+            %          - File name (if kept).
+            % Author : Eran Ofek (May 2022)
+            % Example: Data = D.catExport;
+            
             arguments
                 Obj
                 
@@ -3783,10 +3813,17 @@ classdef DS9 < handle
                 case 'file'
                     Args.KeepFile = true;
                 otherwise
-                    %readtale(FileName, 'FileType','delimitedtext'
-                    
-                %case 'astrocatalog'
-                    
+                    Table = readtable(FileName, 'FileType','delimitedtext', 'Delimiter','\t'); 
+                    switch lower(Args.OutType)
+                        case 'table'
+                            Data = Table;
+                        case 'astrocatalog'
+                            Data = AstroCatalog;
+                            Data.Catalog  = Table;
+                            Data.ColNames = Table.Properties.VariableNames;
+                        otherwise
+                            error('Unknown OutType option');
+                    end
             end
                                 
             if ~Args.KeepFile
