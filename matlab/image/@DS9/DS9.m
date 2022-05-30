@@ -873,15 +873,15 @@ classdef DS9 < handle
             end
             
             % astrometryif sizeCatalog(AI)==0 || Args.RePop
-            if imProc.astrometry.isSuccessWCS(AI) || Args.RePop
+            if ~imProc.astrometry.isSuccessWCS(AI) || Args.RePop
                 if Args.Verbose
                     fprintf('Solve astrometry\n');
                 end
                 if imProc.astrometry.isSuccessWCS(AI)
                     % refine astrometry
-                    AI = astrometryRefine(AI, Args.astrometryRefineArgs{:});
+                    AI = imProc.astrometry.astrometryRefine(AI, Args.astrometryRefineArgs{:});
                 else
-                    AI = astrometryCore(AI, Args.astrometryCoreArgs{:});
+                    AI = imProc.astrometry.astrometryCore(AI, Args.astrometryCoreArgs{:});
                 end
             end
             
@@ -3838,10 +3838,14 @@ classdef DS9 < handle
         % Plot known asteroids on image
         function Result = plotAsteroids(Obj, Args)
             %
+            % Example: D = DS9;
+            %          D.load('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
+            %          D.plotAsteroids
             
             arguments
                 Obj
-                Args.match2solarSystem cell     = {};
+                Args.popFieldsAIArgs cell           = {};
+                Args.match2solarSystemArgs cell     = {};
             end
             
             % get RA/Dec/FoV/JD of image
@@ -3851,6 +3855,8 @@ classdef DS9 < handle
                 %
                 error('Not supported yet for images without InfoAI');
             else
+                Obj.popFieldsAI(Args.popFieldsAIArgs{:});
+                AI = Obj.getAI;
                 [Result, CatOut] = imProc.match.match2solarSystem(AI, Args.match2solarSystemArgs{:});
             end
             
