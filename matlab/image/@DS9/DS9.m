@@ -3725,6 +3725,78 @@ classdef DS9 < handle
         end
     end
     
+    methods  % catalogs
+        function [Data,FileName] = catalog(Obj, CatName, Args)
+            %
+            % [ned|simbad|denis|skybot]
+            % [aavso|ac|ascss|cmc|gaia|gsc1|gsc2|gsc3|nomad|ppmx|sao|sdss5|sdss6|sdss7|sdss8|sdss9|tycho]
+            % [ua2|ub1|ucac2|ucac2sup|ucac3|ucac4|urat1]
+            % [2mass|iras]
+            % [csc|xmm|rosat]
+            % [first|nvss]
+            % [chandralog|cfhtlog|esolog|stlog|xmmlog]
+            % [cds <catalogname>]
+            % [cds <catalogid>]
+            
+            arguments
+                Obj
+                CatName
+                Args.OutType            = 'Astrocatalog';  % 'AstroCatalog' | 'file'
+                Args.FileName           = tempname;
+                Args.ReadType           = 'tsv'; % rdb|tsv
+                Args.KeepFile logical   = false;
+            end
+            
+            Obj.xpaset('catalog %s',CatName);
+            
+            switch lower(CatName)
+                case {'clear','close'}
+                    % do nothing
+                    Data     = [];
+                    FileName = [];
+                otherwise
+                    if nargout>0
+                        [Data,FileName] = catExport(Obj, 'OutType',Args.OutType,...
+                                                         'FileName',Args.FileName,...
+                                                         'ReadType',Args.ReadType,...
+                                                         'KeepFile',Args.KeepFile);
+                    end
+            end
+        end
+        
+        function [Data,FileName] = catExport(Obj, Args)
+            %
+           
+            arguments
+                Obj
+                
+                Args.OutType            = 'Astrocatalog';  % 'AstroCatalog' | 'file'
+                Args.FileName           = tempname;
+                Args.ReadType           = 'tsv'; % rdb|tsv
+                Args.KeepFile logical   = false;
+            end
+            
+            Obj.xpaset('catalog export %s %s',Args.ReadType, Args.FileName);
+            
+            FileName = Args.FileName;
+            switch lower(Args.OutType)
+                case 'file'
+                    Args.KeepFile = true;
+                otherwise
+                    %readtale(FileName, 'FileType','delimitedtext'
+                    
+                %case 'astrocatalog'
+                    
+            end
+                                
+            if ~Args.KeepFile
+                delete(Args.FileName);
+                FileName = [];
+            end
+            
+        end
+    end
+    
     methods  % asteroids
         % Plot known asteroids on image
         function Result = plotAsteroids(Obj, Args)
@@ -3732,10 +3804,18 @@ classdef DS9 < handle
             
             arguments
                 Obj
-                Args
+                Args.match2solarSystem cell     = {};
             end
             
             % get RA/Dec/FoV/JD of image
+            % check if InfoAI is available for image
+            AI = Obj.getAI;
+            if isempty(AI)
+                %
+                error('Not supported yet for images without InfoAI');
+            else
+                [Result, CatOut] = imProc.match.match2solarSystem(AI, Args.match2solarSystemArgs{:});
+            end
             
             % Find all known asteroids in FOV
             
