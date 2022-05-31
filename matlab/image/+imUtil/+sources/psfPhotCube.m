@@ -41,7 +41,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     %            Fitting-related parameters:
     %            'SmallStep' - Gradient step size. Default is 1e-4 (pix).
     %            'MaxStep' - Maximum step size in each iteration.
-    %                   Default is 1.
+    %                   Default is 0.2.
     %            'ConvThresh' - Convergence threshold. Default is 1e-4.
     %            'MaxIter' - Max number of iterations. Default is 10.
     %            'ZP' - ZP for magnitude calculations.
@@ -85,7 +85,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Args.Yinit      = [];
         
         Args.SmallStep  = 1e-3;
-        Args.MaxStep    = 0.3;
+        Args.MaxStep    = 0.2;
         Args.ConvThresh = 1e-4;
         Args.MaxIter    = 10;
         
