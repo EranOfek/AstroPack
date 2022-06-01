@@ -1,5 +1,39 @@
 function Result=biasCharacterization(Files, Args)
-    %
+    % Characterize a set of bias images
+    %   This function is designed to summarize some of the main properties
+    %   of bias-like (or dark) images.
+    %   The function also generats two plots
+    %       fig1 -  histogram of pixel values in an individual image, and
+    %           the master bias. Single pix, and 5x5 filter.
+    %       fig2 - histogram of master std bias  values. Single pix, and 5x5 filter.
+    % Input  : - A dir name, or a file name with wild card, or an
+    %            AstroImage object with the bias images.
+    %          * ...,key,val,...
+    %            See code.
+    % Output : - A structure with the following fields:
+    %            .singleImageChar - corresponds to a single bias image.
+    %               with the following fields:
+    %               .Npix0 - Number of pixels with val=0
+    %               .Npix1 - Number of pixels with val=1
+    %               .QuantileLevels - Quantile levels (fraction).
+    %               .QuantileVals - Values at which the quantile fractions
+    %                       is achived.
+    %            .Bias - corresponds to the bias image.
+    %               with fields:
+    %               .Image - An AstroImage with the master bias.
+    %               .Npix0
+    %               .Npix1
+    %               .QuantileLevels
+    %               .QuantileVals
+    %               .MeanStd - Mean of std image.
+    %               .MedStd
+    %               .StdStd
+    %               .StdQuantileLevels
+    %               .StdQuantileVals
+    %            .BiasMask - Corresponds to the bias mask image.
+    %               with fields:
+    %               .BitSummary - Table of bit mask statistics
+    % Author : Eran Ofek (jun 2022)
     % Example:
     % Result=imProc.instCharc.biasCharacterization('/raid/eran/projects/LAST/characterization/Darks/')
    
@@ -119,10 +153,12 @@ function Result=biasCharacterization(Files, Args)
     %% Bias std statistics
     Result.Bias.MeanStd = mean(sqrt(Bias.Var(:)));
     Result.Bias.MedStd  = median(sqrt(Bias.Var(:)));
-    Result.Bias.stdStd  = std(sqrt(Bias.Var(:)));
+    Result.Bias.StdStd  = std(sqrt(Bias.Var(:)));
     
     Result.Bias.StdQuantileLevels = Args.QuantileLevels;
     Result.Bias.StdQuantileVals   = quantile(sqrt(Bias.Var(:)), Args.QuantileLevels);
     
+    %% Mask statistics
+    Result.BiasMask = Bias.MaskData.bitStat;
     
 end
