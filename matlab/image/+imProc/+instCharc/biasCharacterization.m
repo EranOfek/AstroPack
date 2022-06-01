@@ -9,6 +9,9 @@ function Result=biasCharacterization(Files, Args)
     % Input  : - A dir name, or a file name with wild card, or an
     %            AstroImage object with the bias images.
     %          * ...,key,val,...
+    %            'Gain' - Images gain. Default is 1.
+    %               All the calculations will be done on the original
+    %               images multiplied by the gain.
     %            See code.
     % Output : - A structure with the following fields:
     %            .singleImageChar - corresponds to a single bias image.
