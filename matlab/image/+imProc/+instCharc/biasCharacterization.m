@@ -1,5 +1,7 @@
-function Result=biasCharacteriaztion(Files, Args)
+function Result=biasCharacterization(Files, Args)
     %
+    % Example:
+    % Result=imProc.instCharc.biasCharacterization('/raid/eran/projects/LAST/characterization/Darks/')
    
     arguments
         Files               = '*.fits';  % dir name or file names, or AstroImage object 

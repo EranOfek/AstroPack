@@ -63,7 +63,7 @@ function Result = gainCorrect(Obj, Gain, Args)
         if ~isnumeric(Gain)
             Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, Gain, 1, Args.replaceValArgs{:});
         else
-            Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, DefGainKeu, 1, Args.replaceValArgs{:});
+            Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, DefGainKey, 1, Args.replaceValArgs{:});
         end
         
         % write old GAIN value
