@@ -19,7 +19,7 @@ function Result = generate_mlx(Args)
     Args.File = strrep(Args.File,'\','/');
     Args.outputPath = strrep(Args.outputPath,'\','/');
     
-    
+    PWD = pwd;    
     try
         PyScript = fullfile('python', 'utils', 'matlab_utils', 'matlab_docgen.py');
         Py = fullfile(tools.os.getUltrasatPath(), PyScript)
@@ -53,5 +53,5 @@ function Result = generate_mlx(Args)
         
     catch Ex
     end
-
+    cd(PWD);
 end
