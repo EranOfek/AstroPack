@@ -78,6 +78,7 @@ classdef AstroTransmission < Component
             % Input  : - A scalar indicating the number of empty
             %            AstroTransmission objects, or a two column matrix
             %            of [Wave, Transmission].
+            %            Default is 1.
             %          * ...,key,val,...
             %            'Family' - Filter family
             %            'Band' - Filter name.
@@ -99,7 +100,7 @@ classdef AstroTransmission < Component
             % Exanple: AT = AstroTransmission(rand(100,2),'Band','a','Family','a')
             
             arguments
-                Matrix                      % [Wave(Ang), Trans]
+                Matrix             = 1; % num. of elements or   [Wave(Ang), Trans]
                 Args.Family
                 Args.Band
                 Args.Type          = 'filter';

@@ -383,6 +383,10 @@ classdef AstroSpec < Component
                         Family = AstFilter.get(Family, Name);
                     case 'astrotransmission'
                         Family = AstFilter.getFilt(Family, Name);
+                        if isempty(Name)
+                            % populate Name from Family
+                            Name = {Family.Band};
+                        end
                     otherwise
                         error('Unknown class option');
                 end
@@ -397,8 +401,16 @@ classdef AstroSpec < Component
             elseif isa(Family, 'AstroTransmission')
                 Nf = numel(Family);
                 FilterCell = cell(1, Nf);
+                PopName = false;
+                if isempty(Name)
+                    Name = cell(1, Nf);
+                    PopName = true;
+                end
                 for If=1:1:Nf
                     FilterCell{If} = [convert.length(Family(If).WaveUnits, 'A', Family(If).Wave), Family(If).Tran];
+                    if PopName
+                        Name{If}       = Family(If).Band;
+                    end
                 end
             elseif isnumeric(Family)
                 FilterCell{1} = Family;
