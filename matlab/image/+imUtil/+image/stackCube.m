@@ -2,7 +2,7 @@ function [Coadd, CoaddVarEmpirical, CoaddVar, CoaddN] = stackCube(Cube, Args)
 % Stack (coadd) a cube of images using various functions
 % Input  : - A cube of images in which the image index in the 3rd dim.
 %          - * ...,key,val,...
-%              'IndexDim' - Dimension of image index. Default is 3.
+%              'IndexDim' - Dimension of image index. Default is 1.
 %              'StackMethod' - Stacking method. Options are:
 %                   'sum'
 %                   ['mean']
