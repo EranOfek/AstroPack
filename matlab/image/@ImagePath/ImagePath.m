@@ -943,6 +943,49 @@ classdef ImagePath < Base %Component
             end
         end
         
+        function [List, Flag] = selectByDate(Files, StartDate, EndDate)
+            % Select files in some range of dates and times.
+            % Input  : - A file name with possible wild cards, or a cell
+            %            array of file names.
+            %            Default is '*.fits'.
+            %          - Start date (JD, [Y M D H M S], or date string).
+            %            Default is -Inf.
+            %          - End date (JD, [Y M D H M S], or date string).
+            %            Default is Inf.
+            % Output : - A list of selected files which dates is between
+            %            the start and end dates.
+            %          - A logical vector of selected files.
+            % Author : Eran Ofek (Jun 2022)
+            % Example: ImagePath.selectByDate('PTF*.fits');
+            
+            arguments
+                Files       = '*.fits';
+                StartDate   = -Inf;
+                EndDate     = Inf;
+            end
+           
+            if ischar(Files)
+                List = io.files.filelist(Files);
+            else
+                List = Files;
+            end
+            
+            if numel(StartDate)==1
+                StartJD = StartDate;
+            else
+                StartJD = celestial.time.julday(StartDate);
+            end
+            if numel(EndDate)==1
+                EndJD = EndDate;
+            else
+                EndJD = celestial.time.julday(EndDate);
+            end
+            
+            IP = ImagePath.parseFileName(List);
+            
+            Flag = [IP.JD]>StartJD & [IP.JD]<EndJD;
+            List = List(Flag);
+        end
        
     end
 
