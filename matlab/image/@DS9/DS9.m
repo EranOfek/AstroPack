@@ -548,7 +548,7 @@ classdef DS9 < handle
             % Author : Eran Ofek (May 2022)
             
             Command = sprintf(Command,varargin{:});
-            Ans = ds9.system('xpaget %s %s',Obj.MethodXPA, Command);
+            Ans = DS9.system('xpaget %s %s',Obj.MethodXPA, Command);
             Ans = regexprep(Ans, '\n$','');  % remove the \n at the end of the result string  
         end
     
@@ -2130,7 +2130,7 @@ classdef DS9 < handle
             
         end
    
-        % plot line by x/y coordinates
+        % plot line/polygon by x/y coordinates
         function FileName = plotLine(Obj, X, Y, ColorSymbol, Args)
             % Plot a line, broken line, or a polygon
             % Description: Plot a broken line (curve) in ds9 image.
@@ -3450,7 +3450,7 @@ classdef DS9 < handle
             %            .Val - A structure with field per queried
             %                   'DataProp'. These are the values of the
             %                   pixel at the specified position.
-            %            .Mran - Same as Val, but for the mean of pixel
+            %            .Mean - Same as Val, but for the mean of pixel
             %                   values within the radius (rectanngular shape)
             %                   around the search position.
             %            .Std - Same as Mean, but for the std of the pixel
@@ -3482,6 +3482,7 @@ classdef DS9 < handle
             switch lower(Args.CooSys)
                 case 'image'
                     % get RA/Dec
+                    AI.populateWCS;
                     [RA, Dec] = AI.WCS.xy2sky(X, Y, 'OutUnits','deg');
                 otherwise
                     % input is RA/Dec
@@ -3502,16 +3503,18 @@ classdef DS9 < handle
                         Stamp  = Data.Val.(Args.DataProp{Iprop});
                     otherwise
                         LongProp                          = AstroImage.PropDataTranslation(Args.DataProp{Iprop});
-                        Stamp                             = imProc.image.cutouts(AI, [X, Y], 'Shift',false, 'DataProp',LongProp);
+                        Stamp                             = imProc.image.cutouts(AI, [X, Y], 'Shift',false, 'DataProp',LongProp, 'HalfSize',Radius);
                 end
+                
+                Data.Stamp.(Args.DataProp{Iprop}) = Stamp;
                 
                 switch lower(Args.DataProp{Iprop})
                     case 'mask'
-                        Data.Mean.(Args.DataProp{Iprop}) = tools.array.bitor_array(Stamp);
-                        Data.Std.(Args.DataProp{Iprop})  = [];
+                        Data.Mean.(Args.DataProp{Iprop})  = tools.array.bitor_array(Stamp);
+                        Data.Std.(Args.DataProp{Iprop})   = [];
                     otherwise
-                        Data.Mean.(Args.DataProp{Iprop}) = mean(Stamp);
-                        Data.Std.(Args.DataProp{Iprop})  = std(Stamp);
+                        Data.Mean.(Args.DataProp{Iprop}) = mean(Stamp,'all');
+                        Data.Std.(Args.DataProp{Iprop})  = std(Stamp,[],'all');
                 end
                 
             end
@@ -3526,6 +3529,52 @@ classdef DS9 < handle
             end
             
         end
+        
+        function Result = getStamp(Obj, X, Y, Args)
+            % get stamp around image coordinates from ds9 frame or from InfoAI
+            % Input  : - A DS9 object.
+            %          - X image position.
+            %          - Y image position.
+            %          * ...,key,val,...
+            %            'UseInfoAI' - A logical indicating if to read the
+            %                   image stamp from InfoAI (true) or ds9
+            %                   (false.
+            %                   Default is true.
+            %            'DataProp' - From which data property in InfoAI
+            %                   the image data should be read
+            %                   {'Image'|'Back'|,'Var'|'Mask'}
+            %                   Default is 'Image'.
+            %            'HalfSize' - Half size of image stamp.
+            %                   Default is 15 (so stamp is 31x31).
+            % Output : - A matrix containing the image stamp around the
+            %            requested coordinates.
+            % Author : Eran Ofek (Jun 2022)
+            % Example: D = DS9;
+            %          D.load('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits')
+            %          [Result] = D.exam(512,512);
+            
+            arguments
+                Obj
+                X
+                Y
+                Args.UseInfoAI logical     = true;
+                Args.DataProp              = 'Image';
+                Args.HalfSize              = 15;
+                
+            end
+            
+            if Args.UseInfoAI
+                % read data around position from InfoAI
+                Data     = Obj.getInfoData( X,Y, Args.HalfSize, 'CooSys','image');
+                Result = Data.Stamp.(Args.DataProp);
+            else
+                % read data around position from image in current frame
+                Data     = Obj.getPixData( X,Y, Args.HalfSize, 'image');
+                Result = Data.Data;
+            end
+            
+        end
+        
     end
      
     methods  % interact with external DB ard resources
@@ -3635,6 +3684,8 @@ classdef DS9 < handle
     end
     
     methods  % image examination
+        
+        
         % Radial plot
         % Line/vector inspection
         % Aperture phot and moments estimation
@@ -3940,7 +3991,7 @@ classdef DS9 < handle
     methods (Static)
         
         % plot and return a line profile along the x-axis
-        function [Res]=imexam(Image,varargin)
+        function [Res]=imexam1(Image,varargin)
             % ds9 image examination utility
             % Package: @ds9
             % Description: Interactive image examination in ds9.
