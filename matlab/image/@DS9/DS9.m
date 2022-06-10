@@ -3564,11 +3564,11 @@ classdef DS9 < handle
             
             if Args.UseInfoAI
                 % read data around position from InfoAI
-                Data     = Obj.getInfoData( X,Y, Args.HalfSize, 'CooSys','image');
+                Data     = Obj.getInfoData(X,Y, Args.HalfSize, 'CooSys','image');
                 Result = Data.Stamp.(Args.DataProp);
             else
                 % read data around position from image in current frame
-                Data     = Obj.getPixData( X,Y, Args.HalfSize, 'image');
+                Data     = Obj.getPixData(X,Y, Args.HalfSize, 'image');
                 Result = Data.Data;
             end
             
@@ -3753,7 +3753,6 @@ classdef DS9 < handle
                     H = ylabel('Value');
                     H.FontSize    = 18;
                     H.Interpreter = 'latex';
-                    
                     
                 case 'x'
                     % x profile
