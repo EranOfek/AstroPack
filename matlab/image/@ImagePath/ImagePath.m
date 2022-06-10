@@ -950,6 +950,7 @@ classdef ImagePath < Base %Component
             %            Default is '*.fits'.
             %          - Start date (JD, [Y M D H M S], or date string).
             %            Default is -Inf.
+            %            If empty, then select all.
             %          - End date (JD, [Y M D H M S], or date string).
             %            Default is Inf.
             % Output : - A list of selected files which dates is between
@@ -970,21 +971,26 @@ classdef ImagePath < Base %Component
                 List = Files;
             end
             
-            if numel(StartDate)==1
-                StartJD = StartDate;
+            if isempty(StartDate)
+                % do nothing
+                Flag = [];
             else
-                StartJD = celestial.time.julday(StartDate);
+                if numel(StartDate)==1
+                    StartJD = StartDate;
+                else
+                    StartJD = celestial.time.julday(StartDate);
+                end
+                if numel(EndDate)==1
+                    EndJD = EndDate;
+                else
+                    EndJD = celestial.time.julday(EndDate);
+                end
+
+                IP = ImagePath.parseFileName(List);
+
+                Flag = [IP.Time]>StartJD & [IP.Time]<EndJD;
+                List = List(Flag);
             end
-            if numel(EndDate)==1
-                EndJD = EndDate;
-            else
-                EndJD = celestial.time.julday(EndDate);
-            end
-            
-            IP = ImagePath.parseFileName(List);
-            
-            Flag = [IP.Time]>StartJD & [IP.Time]<EndJD;
-            List = List(Flag);
         end
        
     end
