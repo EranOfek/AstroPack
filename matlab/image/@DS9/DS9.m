@@ -3742,7 +3742,27 @@ classdef DS9 < handle
                     
                 case 'r'
                     % radial profile with centering
+                    [M1,M2,Aper] = imUtil.image.moment2(Stamp, Args.HalfSize+1, Args.HalfSize+1);
+                    Radial = imUtil.psf.radialProfile(Stamp, [M1.X, M1.Y], 'Radius',Args.HalfSize, 'Step',Args.Step);
+                    Result{Iclick} = Radial;
                     
+                    fprintf('--- Moments and aperture photometry ---\n');
+                    fprintf('Xinii = %7.3f, Yini=%7.3f\n',X, Y);
+                    fprintf('X1    = %7.3f, Y2  =%7.3f\n',M1.X-Args.HalfSize+X, M1.Y-Args.HalfSize+Y);
+                    fprintf('Niter = %d\n',M1.Iter);
+                    fprintf('X2=%f,  Y2=%f,  XY=%f\n',M2.X2, M2.Y2, M2.XY);
+                    fprintf('Aper phot: Back=%f,  BackStd=%f\n',Aper.AnnulusBack, Aper.AnnulusStd);
+                    for Iaper=1:1:numel(Aper.AperRadius)
+                        fprintf('Aper phot: Radius=%f,  Flux=%f\n',Aper.AperRadius(Iaper), Aper.AperPhot(Iaper));
+                    end
+                    
+                    plot(Radial.R, Radial.MeanV, 'k-','LineWidth',2);
+                    H = xlabel('Radius [pix]');
+                    H.FontSize    = 18;
+                    H.Interpreter = 'latex';
+                    H = ylabel('Value');
+                    H.FontSize    = 18;
+                    H.Interpreter = 'latex';
                     
                 case 't'
                     % radial profile - no centering
