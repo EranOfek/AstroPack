@@ -983,7 +983,7 @@ classdef ImagePath < Base %Component
             
             IP = ImagePath.parseFileName(List);
             
-            Flag = [IP.JD]>StartJD & [IP.JD]<EndJD;
+            Flag = [IP.Time]>StartJD & [IP.Time]<EndJD;
             List = List(Flag);
         end
        
