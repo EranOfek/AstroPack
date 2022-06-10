@@ -19,11 +19,9 @@ function Result = radialProfile(Image, CenterPos, Args)
     %            .MedV - Median image val of points in bin.
     %            .StdV - Std image val of points in bin.
     % Author : Eran Ofek (Jun 2022)
-    % Example: R = imUtil.sources.radialProfile(rand(100,100));
-    %          R = imUtil.sources.radialProfile(rand(100,100,3));
-    
-    
-    
+    % Example: R = imUtil.psf.radialProfile(rand(100,100));
+    %          R = imUtil.psf.radialProfile(rand(100,100,3));
+        
     arguments
         Image
         CenterPos          = [];
@@ -83,7 +81,7 @@ function Result = radialProfile(Image, CenterPos, Args)
         Result(Iim).StdV  = zeros(Nrad,1);
         for Irad=1:1:Nrad
             FlagR = MatR2>=Radius2Edges(Irad) & MatR2<Radius2Edges(Irad+1);
-            
+            FlagR = FlagR(:);
             
             AllVal = Image1(FlagR);
             Result(Iim).N(Irad)     = sum(FlagR);

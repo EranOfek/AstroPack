@@ -3560,7 +3560,6 @@ classdef DS9 < handle
                 Args.UseInfoAI logical     = true;
                 Args.DataProp              = 'Image';
                 Args.HalfSize              = 15;
-                
             end
             
             if Args.UseInfoAI
@@ -3578,7 +3577,7 @@ classdef DS9 < handle
     end
      
     methods  % interact with external DB ard resources
-       
+        
         % missing: SIMBAD, GALEX, ZTF, PTF, WISE, IRAS, UKIRT, ...
         function [Link,RA,Dec] = getLink(Obj, Service, Coo, Args)
             % Get some service (e.g., SDSS navigator) link by clicking on frame
@@ -3684,7 +3683,108 @@ classdef DS9 < handle
     end
     
     methods  % image examination
-        
+        function Result = imexam(Obj, Args)
+           
+            arguments
+                Obj
+                Args.Fun                   = 'r';
+                Args.X                     = [];
+                Args.Y                     = [];
+                Args.RA                    = [];
+                Args.Dec                   = [];
+                Args.Mode                  = 'any';
+                Args.HalfSize              = 15;
+                Args.UseInfoAI logical     = true;
+                Args.DataProp              = 'Image';
+                
+                Args.Step                  = 1;
+            end
+            
+            Click = [];
+            if ~(isempty(Args.RA) && isempty(Args.Dec))
+                % convert RA/Dec to X/Y
+                [X, Y] = Obj.sky2xy(Args.RA, Args.Dec);
+            else
+                if ~(isempty(Args.X) && isempty(Args.Y))
+                    X = Args.X;
+                    Y = Args.Y;
+                else
+                    % get X/Y from mouse
+                    [X, Y, Click, RA, Dec] = Obj.ginput1(Args.Mode);
+                end
+            end
+            
+            Stamp = Obj.getStamp(X, Y, 'HalfSize',Args.HalfSize, 'UseInfoAI',Args.UseInfoAI, 'DataProp',Args.DataProp);
+                
+            if isempty(Click)
+                % non-interactive mode
+                Fun = Args.Fun;
+            else
+                % interactive mode
+                switch Click
+                    case {'<1>','<2>','<3>'}
+                        % moiuse click - use default Fun
+                        Fun = Args.Fun;
+                    otherwise
+                        Fun = Click;
+                end
+            end
+            
+            % execute function on data
+            switch lower(Fun)
+                case 'h'
+                    % show help
+                    
+                case 'q'
+                    % quit
+                    
+                case 'r'
+                    % radial profile with centering
+                    
+                    
+                case 't'
+                    % radial profile - no centering
+                    Res = imUtil.psf.radialProfile(Stamp, [Args.HalfSize Args.HalfSize]+1, 'Radius',Args.HalfSize, 'Step',Args.Step);
+                    
+                    plot(Res.R, Res.MeanV, 'k-','LineWidth',2);
+                    H = xlabel('Radius [pix]');
+                    H.FontSize    = 18;
+                    H.Interpreter = 'latex';
+                    H = ylabel('Value');
+                    H.FontSize    = 18;
+                    H.Interpreter = 'latex';
+                    
+                    
+                case 'x'
+                    % x profile
+                    
+                case 'y'
+                    % y profile
+                    
+                case 'v'
+                    % vector - get another click
+                    
+                case 's'
+                    % plot surface
+                    
+                case 'p'
+                    % fit psf
+                    
+                case 'a'
+                    % aperture photometry
+                    
+                case 'm'
+                    % moments
+                    
+                otherwise
+                    fprintf('Unknown key - type ''h'' for help\n');
+            end
+                    
+                    
+           
+            
+            
+        end
         
         % Radial plot
         % Line/vector inspection

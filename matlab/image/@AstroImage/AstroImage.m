@@ -1466,7 +1466,7 @@ classdef AstroImage < Component
                 if X<1 || Y<1 || X>SizeX || Y>SizeY
                     Ind = NaN;
                 else
-                    Ind = imUtil.image.sub2ind_fast([SizeY, SizeX], round(X), round(Y));
+                    Ind = imUtil.image.sub2ind_fast([SizeY, SizeX], round(Y), round(X));
                 end
             end
             varargout = cell(1, nargout);
