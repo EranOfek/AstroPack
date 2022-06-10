@@ -3730,6 +3730,8 @@ classdef DS9 < handle
                 end
             end
             
+            Iclick = 1;
+            
             % execute function on data
             switch lower(Fun)
                 case 'h'
@@ -3744,9 +3746,10 @@ classdef DS9 < handle
                     
                 case 't'
                     % radial profile - no centering
-                    Res = imUtil.psf.radialProfile(Stamp, [Args.HalfSize Args.HalfSize]+1, 'Radius',Args.HalfSize, 'Step',Args.Step);
+                    Radial = imUtil.psf.radialProfile(Stamp, [Args.HalfSize Args.HalfSize]+1, 'Radius',Args.HalfSize, 'Step',Args.Step);
+                    Result{Iclick} = Radial;
                     
-                    plot(Res.R, Res.MeanV, 'k-','LineWidth',2);
+                    plot(Radial.R, Radial.MeanV, 'k-','LineWidth',2);
                     H = xlabel('Radius [pix]');
                     H.FontSize    = 18;
                     H.Interpreter = 'latex';
@@ -3769,11 +3772,31 @@ classdef DS9 < handle
                 case 'p'
                     % fit psf
                     
-                case 'a'
-                    % aperture photometry
+                case {'m','a'}
+                    % moments & aper phot
+                    [M1,M2,Aper] = imUtil.image.moment2(Stamp, Args.HalfSize+1, Args.HalfSize+1);
+                    Mom.M1   = M1;
+                    Mom.M2   = M2;
+                    Mom.Aper = Aper;
                     
-                case 'm'
-                    % moments
+                    Result{Iclick} = Mom;
+                    
+                    fprintf('--- Moments and aperture photometry ---\n');
+                    fprintf('Xinii = %7.3f, Yini=%7.3f\n',X, Y);
+                    fprintf('X1    = %7.3f, Y2  =%7.3f\n',Mom.M1.X-Args.HalfSize+X, Mom.M1.Y-Args.HalfSize+Y);
+                    fprintf('Niter = %d\n',Mom.M1.Iter);
+                    fprintf('X2=%f,  Y2=%f,  XY=%f\n',Mom.M2.X2, Mom.M2.Y2, Mom.M2.XY);
+                    fprintf('Aper phot: Back=%f,  BackStd=%f\n',Mom.Aper.AnnulusBack, Mom.Aper.AnnulusStd);
+                    for Iaper=1:1:numel(Mom.Aper.AperRadius)
+                        fprintf('Aper phot: Radius=%f,  Flux=%f\n',Mom.Aper.AperRadius(Iaper), Mom.Aper.AperPhot(Iaper));
+                    end
+                    
+                    
+                    error('BUG - back is not conssitent')
+                    
+                    
+                    
+                    
                     
                 otherwise
                     fprintf('Unknown key - type ''h'' for help\n');
