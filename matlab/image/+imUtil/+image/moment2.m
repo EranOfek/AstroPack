@@ -398,7 +398,9 @@ if nargout>1
             XX(IsXXnan) = StampCenterX;
             YY(IsXXnan) = StampCenterY;
             
+            AnnulusBack = Aper.AnnulusBack;
             Aper = imUtil.sources.aperPhotCube(Cube, XX, YY, 'PSF',Args.PSF,'SubPixShift',Args.SubPixShift, 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus, 'SubBack',false);            
+            Aper.AnnulusBack = AnnulusBack; % return annulus back to first value, otherwise will be zero...
         else
         
             % aperture photometry

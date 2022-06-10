@@ -3811,11 +3811,7 @@ classdef DS9 < handle
                         fprintf('Aper phot: Radius=%f,  Flux=%f\n',Mom.Aper.AperRadius(Iaper), Mom.Aper.AperPhot(Iaper));
                     end
                     
-                    
-                    error('BUG - back is not conssitent')
-                    
-                    
-                    
+                                      
                     
                     
                 otherwise
