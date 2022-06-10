@@ -23,7 +23,7 @@ function [Res]=satellite_mag(varargin)
 RAD = 180./pi;
 
 DefV.Dist                 = 500;     % km
-DefV.Area                 = 15;       % [cm^2]
+DefV.Area                 = 1;       % [cm^2]
 DefV.Albedo               = 0.1;
 DefV.FWHM                 = 2.5;
 DefV.SunAbsMag            = -26.74;  % V
