@@ -3698,7 +3698,11 @@ classdef DS9 < handle
                 Args.DataProp              = 'Image';
                 
                 Args.Step                  = 1;
+                
+                Args.LineWidth             = 2;
             end
+            
+            Vec = (-Args.HalfSize:1:Args.HalfSize);
             
             Click = [];
             if ~(isempty(Args.RA) && isempty(Args.Dec))
@@ -3733,103 +3737,85 @@ classdef DS9 < handle
             Iclick = 1;
             
             % execute function on data
-            switch lower(Fun)
-                case 'h'
+            switch Fun
+                case {'h','H'}
                     % show help
                     
-                case 'q'
+                case {'q','Q'}
                     % quit
                     
-                case 'r'
-                    % radial profile with centering
-                    [M1,M2,Aper] = imUtil.image.moment2(Stamp, Args.HalfSize+1, Args.HalfSize+1);
-                    Radial = imUtil.psf.radialProfile(Stamp, [M1.X, M1.Y], 'Radius',Args.HalfSize, 'Step',Args.Step);
-                    Result{Iclick} = Radial;
-                    
-                    fprintf('--- Moments and aperture photometry ---\n');
-                    fprintf('Xinii = %7.3f, Yini=%7.3f\n',X, Y);
-                    fprintf('X1    = %7.3f, Y2  =%7.3f\n',M1.X-Args.HalfSize+X, M1.Y-Args.HalfSize+Y);
-                    fprintf('Niter = %d\n',M1.Iter);
-                    fprintf('X2=%f,  Y2=%f,  XY=%f\n',M2.X2, M2.Y2, M2.XY);
-                    fprintf('Aper phot: Back=%f,  BackStd=%f\n',Aper.AnnulusBack, Aper.AnnulusStd);
-                    for Iaper=1:1:numel(Aper.AperRadius)
-                        fprintf('Aper phot: Radius=%f,  Flux=%f\n',Aper.AperRadius(Iaper), Aper.AperPhot(Iaper));
-                    end
-                    
-                    plot(Radial.R, Radial.MeanV, 'k-','LineWidth',2);
-                    H = xlabel('Radius [pix]');
-                    H.FontSize    = 18;
-                    H.Interpreter = 'latex';
-                    H = ylabel('Value');
-                    H.FontSize    = 18;
-                    H.Interpreter = 'latex';
-                    
-                case 't'
-                    % radial profile - no centering
-                    Radial = imUtil.psf.radialProfile(Stamp, [Args.HalfSize Args.HalfSize]+1, 'Radius',Args.HalfSize, 'Step',Args.Step);
-                    Result{Iclick} = Radial;
-                    
-                    plot(Radial.R, Radial.MeanV, 'k-','LineWidth',2);
-                    H = xlabel('Radius [pix]');
-                    H.FontSize    = 18;
-                    H.Interpreter = 'latex';
-                    H = ylabel('Value');
-                    H.FontSize    = 18;
-                    H.Interpreter = 'latex';
-                    
-                case 'x'
-                    % x profile
-                    
-                case 'y'
-                    % y profile
-                    
-                case 'v'
-                    % vector - get another click
-                    
-                case 's'
-                    % plot surface
-                    
-                case 'p'
-                    % fit psf
-                    
-                case {'m','a'}
-                    % moments & aper phot
-                    [M1,M2,Aper] = imUtil.image.moment2(Stamp, Args.HalfSize+1, Args.HalfSize+1);
-                    Mom.M1   = M1;
-                    Mom.M2   = M2;
-                    Mom.Aper = Aper;
-                    
-                    Result{Iclick} = Mom;
-                    
-                    fprintf('--- Moments and aperture photometry ---\n');
-                    fprintf('Xinii = %7.3f, Yini=%7.3f\n',X, Y);
-                    fprintf('X1    = %7.3f, Y2  =%7.3f\n',Mom.M1.X-Args.HalfSize+X, Mom.M1.Y-Args.HalfSize+Y);
-                    fprintf('Niter = %d\n',Mom.M1.Iter);
-                    fprintf('X2=%f,  Y2=%f,  XY=%f\n',Mom.M2.X2, Mom.M2.Y2, Mom.M2.XY);
-                    fprintf('Aper phot: Back=%f,  BackStd=%f\n',Mom.Aper.AnnulusBack, Mom.Aper.AnnulusStd);
-                    for Iaper=1:1:numel(Mom.Aper.AperRadius)
-                        fprintf('Aper phot: Radius=%f,  Flux=%f\n',Mom.Aper.AperRadius(Iaper), Mom.Aper.AperPhot(Iaper));
-                    end
-                    
-                                      
-                    
-                    
                 otherwise
-                    fprintf('Unknown key - type ''h'' for help\n');
+                    
+                    % check if lower case
+                    if tools.string.islower(Fun)
+                        % Fun is a lower case
+                        % center on source
+                        [M1,M2,Aper] = imUtil.image.moment2(Stamp, Args.HalfSize+1, Args.HalfSize+1);
+                        Xi = M1.X;
+                        Yi = M1.Y;
+                        
+                        % print center on scrren
+                        fprintf('--- Moments and aperture photometry ---\n');
+                        fprintf('Xinii = %7.3f, Yini=%7.3f\n',X, Y);
+                        fprintf('X1    = %7.3f, Y2  =%7.3f\n',M1.X-Args.HalfSize+X, M1.Y-Args.HalfSize+Y);
+                        fprintf('Niter = %d\n',M1.Iter);
+                        fprintf('X2=%f,  Y2=%f,  XY=%f\n',M2.X2, M2.Y2, M2.XY);
+                        fprintf('Aper phot: Back=%f,  BackStd=%f\n',Aper.AnnulusBack, Aper.AnnulusStd);
+                        for Iaper=1:1:numel(Aper.AperRadius)
+                            fprintf('Aper phot: Radius=%f,  Flux=%f\n',Aper.AperRadius(Iaper), Aper.AperPhot(Iaper));
+                        end
+                        
+                    else
+                        % no source centering
+                        Xi = Args.HalfSize + 1;
+                        Yi = Args.HalfSize + 1;
+                    end
+                    
+                    switch lower(Fun)
+                        case 'r'
+                            % radial plot
+                    
+                            Radial = imUtil.psf.radialProfile(Stamp, [Xi, Yi], 'Radius',Args.HalfSize, 'Step',Args.Step);
+                            Result{Iclick} = Radial;
+
+                            plot(Radial.R, Radial.MeanV, 'k-','LineWidth',Args.LineWidth);
+                            H = xlabel('Radius [pix]');
+                            H.FontSize    = 18;
+                            H.Interpreter = 'latex';
+                            H = ylabel('Value');
+                            H.FontSize    = 18;
+                            H.Interpreter = 'latex';
+                        case 'x'
+                            plot(X+Vec,  Stamp(round(Yi),:), 'k-', 'LineWidth',Args.LineWidth);
+                            Result{Iclick} = Stamp(round(Yi),:);
+                            H = xlabel('X [pix]');
+                            H.FontSize    = 18;
+                            H.Interpreter = 'latex';
+                            H = ylabel('Value');
+                            H.FontSize    = 18;
+                            H.Interpreter = 'latex';
+                        case 'y'
+                            plot(Y+Vec,  Stamp(:,round(Xi)), 'k-', 'LineWidth',Args.LineWidth);
+                            Result{Iclick} = Stamp(:,round(Xi));
+                            H = xlabel('Y [pix]');
+                            H.FontSize    = 18;
+                            H.Interpreter = 'latex';
+                            H = ylabel('Value');
+                            H.FontSize    = 18;
+                            H.Interpreter = 'latex';
+                        case 'w'
+                        case 'v'
+                        case 'a'
+                        case 'p'
+                        case 'g'
+                            % galaxy fitting
+                        otherwise
+  
+                    end
             end
-                    
-                    
-           
-            
             
         end
         
-        % Radial plot
-        % Line/vector inspection
-        % Aperture phot and moments estimation
-        % PSF fitting
-        % galaxy fitting
-        % Interactive image examination
     end
     
     methods  % interact with catsHTM
