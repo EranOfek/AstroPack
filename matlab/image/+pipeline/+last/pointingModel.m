@@ -1,11 +1,13 @@
 function Result = pointingModel(Files, Args)
-    %
+    % Calculate pointing model from a lsit of images.
+    %   
     % Example: R = pipeline.last.pointingModel([],'StartDate',[08 06 2022 17 54 00],'EndDate',[08 06 2022 18 06 00]);
     
     arguments
         Files                             = 'LAST*sci*.fits';
         Args.StartDate                    = [];
         Args.EndDate                      = [];
+        Args.Dir                          = pwd;
         Args.astrometryCroppedArgs cell   = {};
         %Args.backgroundArgs cell          = {};
         %Args.findMeasureSourcesArgs cell  = {};
@@ -14,6 +16,9 @@ function Result = pointingModel(Files, Args)
     if isempty(Files)
         Files = 'LAST*sci*.fits';
     end
+    
+    PWD = pwd;
+    cd(Args.Dir);
     
     List = ImagePath.selectByDate(Files, Args.StartDate, Args.EndDate);
     
@@ -46,5 +51,16 @@ function Result = pointingModel(Files, Args)
     
     Result = array2table(Table);
     Result.Properties.VariableNames = Head;
+    
+    cd(PWD);
+    
+    TableDiff = array2table([(Result.RA-Result.CenterRA).*cosd(Result.CenterDec), (Result.Dec-Result.CenterDec)]);
+    TableDiff.Properties.VariableNames = {'DiffHA','DiffDec'};
+    
+    Result = [Result, TableDiff];
+    
+    % generate scattered interpolanets
+    %Fha = scatteredInterpolant(Table.HA, Table.Dec, Table.DiffHA);
+    %Fdec = scatteredInterpolant(Table.HA, Table.Dec, Table.DiffDec);
     
 end
