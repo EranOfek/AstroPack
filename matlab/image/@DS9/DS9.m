@@ -3684,7 +3684,16 @@ classdef DS9 < handle
     
     methods  % image examination
         function Result = imexam(Obj, Args)
-           
+            % Interactive image examination - photometry an dplot curves, surface
+            % Input  : - A DS9 object.
+            %          * ...,key,val,...
+            %            '
+            % Output : -
+            % Author : Eran Ofek (Jun 2022)
+            % Example: D = DS9;
+            %          D.load('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits')
+            %          D.inexam
+            
             arguments
                 Obj
                 Args.Fun                   = 'r';
@@ -3704,56 +3713,67 @@ classdef DS9 < handle
             
             Vec = (-Args.HalfSize:1:Args.HalfSize);
             
-            Click = [];
-            if ~(isempty(Args.RA) && isempty(Args.Dec))
-                % convert RA/Dec to X/Y
-                [X, Y] = Obj.sky2xy(Args.RA, Args.Dec);
-            else
-                if ~(isempty(Args.X) && isempty(Args.Y))
-                    X = Args.X;
-                    Y = Args.Y;
+            Cont = true;
+            Iclick = 0;
+            while Cont
+                Iclick = Iclick + 1;
+                Click = [];
+                if ~(isempty(Args.RA) && isempty(Args.Dec))
+                    % convert RA/Dec to X/Y
+                    [X, Y] = Obj.sky2xy(Args.RA, Args.Dec);
+                    Cont = false;
                 else
-                    % get X/Y from mouse
-                    [X, Y, Click, RA, Dec] = Obj.ginput1(Args.Mode);
+                    if ~(isempty(Args.X) && isempty(Args.Y))
+                        X = Args.X;
+                        Y = Args.Y;
+                        Cont = false;
+                    else
+                        % get X/Y from mouse
+                        [X, Y, Click, RA, Dec] = Obj.ginput1(Args.Mode);
+                    end
                 end
-            end
-            
-            Stamp = Obj.getStamp(X, Y, 'HalfSize',Args.HalfSize, 'UseInfoAI',Args.UseInfoAI, 'DataProp',Args.DataProp);
-                
-            if isempty(Click)
-                % non-interactive mode
-                Fun = Args.Fun;
-            else
-                % interactive mode
-                switch Click
-                    case {'<1>','<2>','<3>'}
-                        % moiuse click - use default Fun
-                        Fun = Args.Fun;
+
+                Stamp = Obj.getStamp(X, Y, 'HalfSize',Args.HalfSize, 'UseInfoAI',Args.UseInfoAI, 'DataProp',Args.DataProp);
+
+                if isempty(Click)
+                    % non-interactive mode
+                    Fun = Args.Fun;
+                else
+                    % interactive mode
+                    switch Click
+                        case {'<1>','<2>','<3>'}
+                            % moiuse click - use default Fun
+                            Fun = Args.Fun;
+                        otherwise
+                            Fun = Click;
+                    end
+                end
+
+                % execute function on data
+                switch Fun
+                    case {'h','H'}
+                        % show help
+                        fprintf('\n');
+                        fprintf('--- Interactive menu ---\n');
+                        fprintf('  q - quit\n');
+                        fprintf('  h - show this help menu\n');
+                        fprintf('  r - Radial plot with centering\n');
+                        fprintf('  t - Radial plot without centering\n');
+                        fprintf('  s - surface plot\n');
+                        fprintf('  x - curve throuh x axis\n');
+                        fprintf('  y - curve throuh y axis\n');
+                        fprintf('\n');
+                        
+                    case {'q','Q'}
+                        % quit
+                        Cont = false;
                     otherwise
-                        Fun = Click;
-                end
-            end
-            
-            Iclick = 1;
-            
-            % execute function on data
-            switch Fun
-                case {'h','H'}
-                    % show help
-                    
-                case {'q','Q'}
-                    % quit
-                    
-                otherwise
-                    
-                    % check if lower case
-                    if tools.string.islower(Fun)
-                        % Fun is a lower case
+
                         % center on source
                         [M1,M2,Aper] = imUtil.image.moment2(Stamp, Args.HalfSize+1, Args.HalfSize+1);
-                        Xi = M1.X;
-                        Yi = M1.Y;
-                        
+                        Xc = M1.X;
+                        Yc = M1.Y;
+
                         % print center on scrren
                         fprintf('--- Moments and aperture photometry ---\n');
                         fprintf('Xinii = %7.3f, Yini=%7.3f\n',X, Y);
@@ -3764,56 +3784,93 @@ classdef DS9 < handle
                         for Iaper=1:1:numel(Aper.AperRadius)
                             fprintf('Aper phot: Radius=%f,  Flux=%f\n',Aper.AperRadius(Iaper), Aper.AperPhot(Iaper));
                         end
-                        
-                    else
-                        % no source centering
-                        Xi = Args.HalfSize + 1;
-                        Yi = Args.HalfSize + 1;
-                    end
-                    
-                    switch lower(Fun)
-                        case 'r'
-                            % radial plot
-                    
-                            Radial = imUtil.psf.radialProfile(Stamp, [Xi, Yi], 'Radius',Args.HalfSize, 'Step',Args.Step);
-                            Result{Iclick} = Radial;
 
-                            plot(Radial.R, Radial.MeanV, 'k-','LineWidth',Args.LineWidth);
-                            H = xlabel('Radius [pix]');
-                            H.FontSize    = 18;
-                            H.Interpreter = 'latex';
-                            H = ylabel('Value');
-                            H.FontSize    = 18;
-                            H.Interpreter = 'latex';
-                        case 'x'
-                            plot(X+Vec,  Stamp(round(Yi),:), 'k-', 'LineWidth',Args.LineWidth);
-                            Result{Iclick} = Stamp(round(Yi),:);
-                            H = xlabel('X [pix]');
-                            H.FontSize    = 18;
-                            H.Interpreter = 'latex';
-                            H = ylabel('Value');
-                            H.FontSize    = 18;
-                            H.Interpreter = 'latex';
-                        case 'y'
-                            plot(Y+Vec,  Stamp(:,round(Xi)), 'k-', 'LineWidth',Args.LineWidth);
-                            Result{Iclick} = Stamp(:,round(Xi));
-                            H = xlabel('Y [pix]');
-                            H.FontSize    = 18;
-                            H.Interpreter = 'latex';
-                            H = ylabel('Value');
-                            H.FontSize    = 18;
-                            H.Interpreter = 'latex';
-                        case 'w'
-                        case 'v'
-                        case 'a'
-                        case 'p'
-                        case 'g'
-                            % galaxy fitting
-                        otherwise
-  
-                    end
+
+                        % no source centering
+                        Xp = Args.HalfSize + 1;
+                        Yp = Args.HalfSize + 1;
+
+                        switch lower(Fun)
+                            case 'r'
+                                % radial plot w/centering
+                                cla;
+                                Radial = imUtil.psf.radialProfile(Stamp, [Xc, Yc], 'Radius',Args.HalfSize, 'Step',Args.Step);
+                                Result{Iclick} = Radial;
+
+                                plot(Radial.R, Radial.MeanV, 'k-','LineWidth',Args.LineWidth);
+                                H = xlabel('Radius [pix]');
+                                H.FontSize    = 18;
+                                H.Interpreter = 'latex';
+                                H = ylabel('Value');
+                                H.FontSize    = 18;
+                                H.Interpreter = 'latex';
+                                drawnow;
+                            case 't'
+                                % radial plot without centering
+                                Radial = imUtil.psf.radialProfile(Stamp, [Xp, Yp], 'Radius',Args.HalfSize, 'Step',Args.Step);
+                                Result{Iclick} = Radial;
+                                cla;
+                                plot(Radial.R, Radial.MeanV, 'k-','LineWidth',Args.LineWidth);
+                                H = xlabel('Radius [pix]');
+                                H.FontSize    = 18;
+                                H.Interpreter = 'latex';
+                                H = ylabel('Value');
+                                H.FontSize    = 18;
+                                H.Interpreter = 'latex';
+                                drawnow;
+
+                            case 'x'
+                                % x plot with centering
+                                cla;
+                                plot(X+Vec,  Stamp(round(Yc),:), 'k-', 'LineWidth',Args.LineWidth);
+                                
+                                Result{Iclick} = Stamp(round(Yc),:);
+                                H = xlabel('X [pix]');
+                                H.FontSize    = 18;
+                                H.Interpreter = 'latex';
+                                H = ylabel('Value');
+                                H.FontSize    = 18;
+                                H.Interpreter = 'latex';
+                                drawnow;
+                            case 'y'
+                                % y plot with centering
+                                cla;
+                                plot(Y+Vec,  Stamp(:,round(Xc)), 'k-', 'LineWidth',Args.LineWidth);
+                                
+                                Result{Iclick} = Stamp(:,round(Xc));
+                                H = xlabel('Y [pix]');
+                                H.FontSize    = 18;
+                                H.Interpreter = 'latex';
+                                H = ylabel('Value');
+                                H.FontSize    = 18;
+                                H.Interpreter = 'latex';
+                                drawnow;
+                            case 'w'
+                            case 'v'
+                            case 's'
+                                % surface plot
+                                cla;
+                                surface(Y+Vec, X+Vec, Stamp);
+                                colorbar;
+                                
+                                Result{Iclick} = Stamp;
+                                H = xlabel('X [pix]');
+                                H.FontSize    = 18;
+                                H.Interpreter = 'latex';
+                                H = ylabel('Y [pix]');
+                                H.FontSize    = 18;
+                                H.Interpreter = 'latex';
+                                drawnow;
+
+                            case 'a'
+                            case 'p'
+                            case 'g'
+                                % galaxy fitting
+                            otherwise
+
+                        end
+                end
             end
-            
         end
         
     end
