@@ -53,7 +53,7 @@ function Table = getXRT_LC(Name, Args)
     if ~Args.SaveDir
         % delete dir
         cd ..
-        delete(Id)
+        system(sprintf('rm -rf %s',Id));
     end
     
     
