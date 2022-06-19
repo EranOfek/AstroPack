@@ -60,7 +60,7 @@ function Result = pointingModel(Files, Args)
     Result = [Result, TableDiff];
     
     % generate scattered interpolanets
-    %Fha = scatteredInterpolant(Table.HA, Table.Dec, Table.DiffHA);
-    %Fdec = scatteredInterpolant(Table.HA, Table.Dec, Table.DiffDec);
+    % Fha = scatteredInterpolant(R4.HA, R4.Dec, (R4.CenterRA-R4.RA).*cosd(R4.CenterDec),'linear','nearest');
+    % Fdec = scatteredInterpolant(R4.HA, R4.Dec, (R4.CenterDec-R4.Dec),'linear','nearest');
     
 end
