@@ -41,6 +41,9 @@ function [DistRA,DistDec,Aux]=convert2equatorial(Long,Lat,varargin)
 %            'HorizonsObsCode' - In case solar system ephemerides is
 %                           requested, then this is the Horizons observatory
 %                           code. Default is '500' (geocentric observer).
+%            'DistIsDelta' - A logical indicating if the distortion
+%                           function return Delta coordinates or
+%                           coordinates (false). Default is true.
 %            'DistFun'    - Distortion function handle.
 %                           The function is of the form:
 %                           [DistHA,DistDec]=@Fun(HA,Dec), where all the
@@ -90,6 +93,7 @@ addOptional(InPar,'HorizonsObsCode','500');  % 500 geocentric
 
 addOptional(InPar,'InputUnits','deg');  
 addOptional(InPar,'OutputUnits','deg');  
+addOptional(InPar,'DistIsDelta',true);
 addOptional(InPar,'DistFun',[]);  
 addOptional(InPar,'ApplyRefraction',true);
 addOptional(InPar,'Temp',15);  % C
@@ -208,8 +212,29 @@ if isempty(InPar.DistFun)
     DistDec = AppDec + DeltaDistDec./RAD;
 
 else
-    [DistHA, DistDec] = InPar.DistFun(AppHA,AppDec);
+    [DistDeltaHA, DistDeltaDec] = InPar.DistFun(AppHA,AppDec);
+    if InPar.DistIsDelta
+        % distortion function returns delta (observed-calculated)
+        DistHA  = AppHA  + cos(AppDec).*DistDeltaHA./RAD;
+        DistDec = AppDec + DistDeltaDec./RAD;
+    else
+        % distortion function return HA, Dec...
+        DistHA  = DistDeltaHA;
+        DistDec = DistDeltaDec;
+    end
+        
 end
+
+% convert RA back to HA if needed
+switch lower(InPar.InCooType)
+    case {'ha','jha'}
+        % HA = LST - RA
+        DistRA = 2.*pi.*LST - DistRA;  % DistRA is now HA
+    otherwise
+        % do nothing
+end        
+        
+
 
 Aux.JD        = InPar.JD;
 Aux.LST       = LST;  % fraction of day
@@ -229,15 +254,6 @@ Aux.DeltaDistHA  = DeltaDistHA./RAD;
 Aux.DeltaDistDec = DeltaDistDec./RAD;
 Aux.Refraction   = Refraction;
 
-% convert RA back to HA if needed
-switch lower(InPar.InCooType)
-    case {'ha','jha'}
-        % HA = LST - RA
-        DistRA = 2.*pi.*LST - DistRA;  % DistRA is now HA
-    otherwise
-        % do nothing
-end        
-        
 
 % convert back to output units
 DistRA  = convert.angular('rad',InPar.OutputUnits,DistRA);
