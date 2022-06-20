@@ -54,7 +54,7 @@ function Result = pointingModel(Files, Args)
     
     cd(PWD);
     
-    TableDiff = array2table([(Result.RA-Result.CenterRA).*cosd(Result.CenterDec), (Result.Dec-Result.CenterDec)]);
+    TableDiff = array2table([-(Result.RA-Result.CenterRA).*cosd(Result.CenterDec), -(Result.Dec-Result.CenterDec)]);
     TableDiff.Properties.VariableNames = {'DiffHA','DiffDec'};
     
     Result = [Result, TableDiff];

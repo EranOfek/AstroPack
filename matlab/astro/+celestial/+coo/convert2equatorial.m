@@ -44,11 +44,12 @@ function [DistRA,DistDec,Aux]=convert2equatorial(Long,Lat,varargin)
 %            'DistIsDelta' - A logical indicating if the distortion
 %                           function return Delta coordinates or
 %                           coordinates (false). Default is true.
-%            'DistFun'    - Distortion function handle.
+%            'DistFunHA'    - Distortion function handle for HA.
 %                           The function is of the form:
-%                           [DistHA,DistDec]=@Fun(HA,Dec), where all the
+%                           [DistHA]=@Fun(HA,Dec), where all the
 %                           input and output are in degrees.
-%                           Default is empty. If not given return [0,0].
+%                           Default is empty. If thsi and DistFinDec are not given return [0,0].
+%            'DistFunDec'    - Like DistFunHA, bit for Dec.
 %            'InputUnits' - Default is 'deg'.
 %            'OutputUnits'- Default is 'deg'
 %            'ApplyRefraction' - Default is true.
@@ -94,7 +95,8 @@ addOptional(InPar,'HorizonsObsCode','500');  % 500 geocentric
 addOptional(InPar,'InputUnits','deg');  
 addOptional(InPar,'OutputUnits','deg');  
 addOptional(InPar,'DistIsDelta',true);
-addOptional(InPar,'DistFun',[]);  
+addOptional(InPar,'DistFunHA',[]);  
+addOptional(InPar,'DistFunDec',[]);  
 addOptional(InPar,'ApplyRefraction',true);
 addOptional(InPar,'Temp',15);  % C
 addOptional(InPar,'Wave',5500);  % Ang
@@ -203,7 +205,7 @@ AppRA = 2.*pi.*LST - AppHA;  % [rad]
 % calculate HA = LST - RA
 %AppHA = 2.*pi.*LST - AppRA;   % [rad]
 % call distortions function
-if isempty(InPar.DistFun)
+if isempty(InPar.DistFunHA) || isempty(InPar.DistFunDec) 
     DeltaDistHA  = 0; % deg
     DeltaDistDec = 0; % deg
     
@@ -212,7 +214,9 @@ if isempty(InPar.DistFun)
     DistDec = AppDec + DeltaDistDec./RAD;
 
 else
-    [DistDeltaHA, DistDeltaDec] = InPar.DistFun(AppHA,AppDec);
+    [DistDeltaHA]  = InPar.DistFunHA(AppHA,AppDec);
+    [DistDeltaDec] = InPar.DistFunDec(AppHA,AppDec);
+    
     if InPar.DistIsDelta
         % distortion function returns delta (observed-calculated)
         DistHA  = AppHA  + cos(AppDec).*DistDeltaHA./RAD;
