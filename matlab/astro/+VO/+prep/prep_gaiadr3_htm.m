@@ -201,7 +201,7 @@ end
 save SumC.mat SumC
 
 
-%% Count sources in DEc strips
+%% Count sources in Dec strips
 %cd /raid/eran/catsHTM/GAIA/DRE3/
 cd /data/euler/catsHTM/GAIA/DR3/prep/src
 load SumC.mat
