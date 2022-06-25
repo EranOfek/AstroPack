@@ -21,7 +21,7 @@ function [L,Res]=kilonova_multizone(t,varargin)
 %            'Gamma'- Evolution in kappa.
 %            't0'   - t0.
 %            'kM'   - kappa(t=tM) [cm^2/gr]
-%            'kG'   - kappa_\gamma [cm^2/gr]
+%            'ke'   - kappa_e [cm^2/gr]
 %            'epsdot0' - Energy deposition rate at t0 [erg/s/gr].
 % Output : - Luminosity [erg/s].
 %          - Structure array with additional parameters.
