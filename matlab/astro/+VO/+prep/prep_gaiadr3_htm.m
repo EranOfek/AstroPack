@@ -255,7 +255,7 @@ load SumC.mat
 %VecDec = (-90:0.2:90)';
 Ndec   = numel(VecDec);
 SumDec = zeros(Ndec-1,1);
-for Idec=1:1:Ndec-1
+for Idec=294:1:Ndec-1
     Idec
     tic;
     
