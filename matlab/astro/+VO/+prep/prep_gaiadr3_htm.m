@@ -206,7 +206,7 @@ save SumC.mat SumC
 cd /data/euler/catsHTM/GAIA/DR3/prep/src
 load SumC.mat
 
-VecDec = (-90:0.2:90)';
+VecDec = (-90:0.1:90)';
 Ndec   = numel(VecDec);
 
 Nsum = size(SumC,1);
@@ -255,7 +255,7 @@ load SumC.mat
 %VecDec = (-90:0.2:90)';
 Ndec   = numel(VecDec);
 SumDec = zeros(Ndec-1,1);
-for Idec=294:1:Ndec-1
+for Idec=1:1:Ndec-1
     Idec
     tic;
     
@@ -320,8 +320,8 @@ for Idec=294:1:Ndec-1
     
     FileW = sprintf('GaiaDRE3_%s%04.1f_%s%04.1f.hdf5',D1s,abs(D1),D2s,abs(D2));
     DataDec(:,1:2) = DataDec(:,1:2)./RAD;
-    Size = size(DataDec)
-    %h5create(FileW,'/V',Size, 'ChunkSize',[min(Size(1), 1e6), Size(2)]);
+    Size = size(DataDec);
+    %h5create(FileW,'/V',Size, 'ChunkSize',[min(Size(1), 1e5), Size(2)]);
     %h5write(FileW,'/V',DataDec);
     
     HDF5.save(DataDec,FileW,'/V');
