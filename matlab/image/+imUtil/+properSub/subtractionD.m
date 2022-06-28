@@ -35,7 +35,7 @@ function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(R_hat, N_ha
         Args.Eps      = 0;
     end
         
-    D_den     = (SigmaN.^2 .* Fr.^2) .* AbsFun(Pr_hat).^2 + (SigmaR.^2 .*Fn.^2) .* AbsFun(Pn_hat).^2 + Args.Eps;
+    D_den     = (SigmaN.^2 .* Fr.^2) .* Args.AbsFun(Pr_hat).^2 + (SigmaR.^2 .*Fn.^2) .* Args.AbsFun(Pn_hat).^2 + Args.Eps;
     D_num     = Fr.*Pr_hat.*N_hat - Fn.*Pn_hat.*R_hat;
     D_denSqrt = sqrt(D_den);
     D_hat     = D_num./D_denSqrt;

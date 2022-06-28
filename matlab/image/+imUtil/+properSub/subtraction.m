@@ -199,7 +199,7 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         Scorr = [];
     end
     
-    if Args.OutIsFT
+    if ~Args.OutIsFT
         D_hat  = ifft2(D_hat);
         Pd_hat = ifft2(Pd_hat);
         S_hat  = ifft2(S_hat);
