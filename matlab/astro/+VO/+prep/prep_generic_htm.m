@@ -16,7 +16,7 @@ function prep_generic_htm(varargin)
 
 RAD = 180./pi;
 
-DefV.CatName             = 'GAIAEDR3'; %'URAT1'; % 'GALEX2mEpochs'; %'URAT1'; %'PS1ps';  %'NEDz'; %'GAIADR2'; %'HSCv2'; %'SAGE'; %'SWIREz'; %'SDSSoffset'; %'VSTkids';
+DefV.CatName             = 'GAIADR3'; %'URAT1'; % 'GALEX2mEpochs'; %'URAT1'; %'PS1ps';  %'NEDz'; %'GAIADR2'; %'HSCv2'; %'SAGE'; %'SWIREz'; %'SDSSoffset'; %'VSTkids';
 DefV.FileBaseName        = 'GaiaDRE3'; %'urat1'; % 'GALEX2mEpochs'; %'URAT1'; % 'ned'; %'GaiaDR2'; %'HSC'; %'SpitzerSAGE'; % 'swire'; %'MyTable'; %'kids';
 DefV.FileExtName         = '.hdf5'; %'.fit'; %'h5'; %'txt';%'hdf5'; %'.mat'; %'.fit'; %'.mat'; %'.fit';
 DefV.FileSplit           = '_';
@@ -190,10 +190,77 @@ for If=1:1:Nf
     Cat.ColCell = {'RA','Dec','Epoch','ErrRA','ErrDec','Plx','ErrPlx','PMRA','ErrPMRA','PMDec','ErrPMDec','RA_Dec_Corr',...
            'ExcessNoise','ExcessNoiseSig','MagErr_G','Mag_G','MagErr_BP','Mag_BP','MagErr_RP','Mag_RP',...
            'RV','ErrRV','Teff'};
+       
+    % GAIA-DR3
+    Cat.ColCell = [    {'RA'                          }
+    {'Dec'                         }
+    {'Epoch'                       }
+    {'ErrRA'                       }
+    {'ErrDec'                      }
+    {'Plx'                         }
+    {'ErrPlx'                      }
+    {'PMRA'                        }
+    {'ErrPMRA'                     }
+    {'PMDec'                       }
+    {'ErrPMDec'                    }
+    {'ra_dec_corr'                 }
+    {'astrometric_n_obs_al'        }
+    {'astrometric_n_obs_ac'        }
+    {'astrometric_n_good_obs_al'   }
+    {'astrometric_n_bad_obs_al'    }
+    {'astrometric_gof_al'          }
+    {'astrometric_excess_noise'    }
+    {'astrometric_excess_noise_sig'}
+    {'astrometric_chi2_al'         }
+    {'astrometric_params_solved'   }
+    {'nu_eff_used_in_astrometry'   }
+    {'pseudocolour'                }
+    {'pseudocolour_error'          }
+    {'astrometric_sigma5d_max'     }
+    {'phot_g_n_obs'                }
+    {'phot_g_mean_mag'             }
+    {'phot_g_mean_flux_over_error' }
+    {'phot_bp_mean_mag'            }
+    {'phot_bp_mean_flux_over_error'}
+    {'phot_rp_mean_mag'            }
+    {'phot_rp_mean_flux_over_error'}
+    {'phot_bp_rp_excess_factor'    }
+    {'bp_rp'                       }
+    {'radial_velocity'             }
+    {'radial_velocity_error'       }
+    {'rv_amplitude_robust'         }
+    {'in_qso_candidates'           }
+    {'in_galaxy_candidates'        }
+    {'non_single_star'             }
+    {'has_xp_continuous'           }
+    {'teff_gspphot'                }
+    {'teff_gspphot_lower'          }
+    {'teff_gspphot_upper'          }
+    {'logg_gspphot'                }
+    {'logg_gspphot_lower'          }
+    {'logg_gspphot_upper'          }
+    {'mh_gspphot'                  }
+    {'mh_gspphot_lower'            }
+    {'mh_gspphot_upper'            }
+    {'azero_gspphot'               }
+    {'azero_gspphot_lower'         }
+    {'azero_gspphot_upper'         }];
 
-    Cat.ColUnits = {'rad','rad','JYear','mas','mas','mas','mas','mas/yr','mas/yr','mas/yr','mas/yr','','mas','','Vega','Vega','Vega','Vega','Vega','Vega',   'km/s','km/s','K'};
 
-    
+    Cat.ColUnits = {'rad','rad','JYear','mas','mas','mas','mas',...
+        'mas/yr','mas/yr','mas/yr','mas/yr',...
+        '','','','','','',...
+        'mas','',...
+        '','','','','',...
+        'mas',...
+        '','mag','s/n','mag','s/n','mag','s/n',...
+        '','mag',...
+        'km/s','km/s','km/s',...
+        'bool','bool','bool','bool',...
+        'K','K','K','logg','logg','logg','[Fe/H]','[Fe/H]','[Fe/H]',...
+        'mag','mag','mag'};
+        
+        
     DecRange    = [Dec1(If), Dec2(If)]./RAD;
     VO.prep.build_htm_catalog(Cat.Cat,'HTM_Level',InPar.HTM_Level,'CatName',InPar.CatName,'SaveInd',false,'DecRange',DecRange,...
                               'HTM',HTM,'LevelHTM',LevelHTM);
