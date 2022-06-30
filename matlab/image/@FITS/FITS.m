@@ -336,7 +336,7 @@ classdef FITS < handle
                 Args.XTENkey char             = 'XTENSION';
                 Args.StartRow                 = [];
                 Args.NRows                    = [];
-                Args.OutClass function_handle = @double;
+                Args.OutClass                 = @double;
                 Args.NullVal                  = NaN;       % [] do nothing
                 Args.BreakRepCol(1,1) logical = true;
             end
