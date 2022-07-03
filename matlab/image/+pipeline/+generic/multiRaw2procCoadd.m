@@ -425,7 +425,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                           'AutoSubDir',AutoSubDir,...
                                                           'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir',''});
     
-                                                      
+    Args.SubDir = IP(1).SubDir;                                                  
     writeProduct(IP, AllSI, 'Save',Args.SaveProcIm || Args.SaveProcMask || Args.SaveProcCat,...
                             'SaveFields', DataProp([Args.SaveProcIm, Args.SaveProcMask, Args.SaveProcCat, false]));
     
