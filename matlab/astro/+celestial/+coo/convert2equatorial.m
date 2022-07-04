@@ -214,17 +214,19 @@ if isempty(InPar.DistFunHA) || isempty(InPar.DistFunDec)
     DistDec = AppDec + DeltaDistDec./RAD;
 
 else
-    [DistDeltaHA]  = InPar.DistFunHA(AppHA,AppDec);
-    [DistDeltaDec] = InPar.DistFunDec(AppHA,AppDec);
+    [DeltaDistHA]  = InPar.DistFunHA(AppHA,AppDec);
+    [DeltaDistDec] = InPar.DistFunDec(AppHA,AppDec);
     
     if InPar.DistIsDelta
         % distortion function returns delta (observed-calculated)
-        DistHA  = AppHA  + cos(AppDec).*DistDeltaHA./RAD;
-        DistDec = AppDec + DistDeltaDec./RAD;
+        DistHA  = AppHA  + cos(AppDec).*DeltaDistHA./RAD;
+        DistRA  = AppRA  + cos(AppDec).*DeltaDistHA./RAD;
+        DistDec = AppDec + DeltaDistDec./RAD;
     else
         % distortion function return HA, Dec...
-        DistHA  = DistDeltaHA;
-        DistDec = DistDeltaDec;
+        DistHA  = DeltaDistHA;
+        DistRA  = (AppRA-AppHA) + DeltaDistHA;
+        DistDec = DeltaDistDec;
     end
         
 end
