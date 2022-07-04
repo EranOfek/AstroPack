@@ -272,7 +272,8 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
             case 'mag_conv'
                 % may have multiple columns
                 NC = size(Src.FLUX_CONV,2);
-                Cat(:,K:K+NC-1) = convert.luptitude(Src.FLUX_CONV, ZP_Flux, Args.LupSoftPar);     
+                Cat(:,K:K+NC-1) = convert.luptitude(Src.FLUX_CONV, ZP_Flux, Args.LupSoftPar);  
+                %Cat(:,K:K+NC-1) = real(Cat(:,K:K+NC-1));
                 [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
                 K = K + NC - 1;    
             case 'magerr_conv'

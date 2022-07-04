@@ -267,6 +267,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     end
 
                     CatXY2         = Cat.getCol({'X2','Y2'});
+                    % removing negative measurments
+                    CatXY2(CatXY2<0) = NaN;
                     Width          = sqrt(sum(CatXY2,2));
                     MedW           = median(Width,1,'omitnan');
 
@@ -319,6 +321,9 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     Flag  = ~isnan(Y) & CatMagErr < Args.MaxErr & SN<Args.MaxSN;
 
                     ResFit(Iobj).Par    = H(Flag,:)\Y(Flag);
+                    if ~isreal(ResFit(Iobj).Par )
+                        'a'
+                    end
                     ResFit(Iobj).ZP     = ResFit(Iobj).Par(1) + Args.MagZP;
                     ResFit(Iobj).MagSys = Args.MagSys;
                     ResFit(Iobj).Resid  = Y - H*ResFit(Iobj).Par;

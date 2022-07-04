@@ -318,6 +318,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         % FFU: flags Holes
         % imProc.mask.maskHoles
 
+        
         % Astrometry, including update coordinates in catalog
         if Args.DoAstrometry
             if isempty(Args.WCS)
@@ -364,8 +365,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
 
             % Update Cat photometry
         end
-
-
+        
         % interpolate over problematic pixels
         if Args.InterpolateOverProblems
             % interpolate over staurated pixels
