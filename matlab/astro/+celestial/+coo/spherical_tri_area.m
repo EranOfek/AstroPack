@@ -12,9 +12,9 @@ function Area=spherical_tri_area(Coo1,Coo2,Coo3)
 % Reliable: 2
 %------------------------------------------------------------------------------
 
-Cos.Coo1 = cosined(Coo1);
-Cos.Coo2 = cosined(Coo2);
-Cos.Coo3 = cosined(Coo3);
+Cos.Coo1 = celestial.coo.cosined(Coo1);
+Cos.Coo2 = celestial.coo.cosined(Coo2);
+Cos.Coo3 = celestial.coo.cosined(Coo3);
 
 % angles between points
 Ang12 = acos(dot(Cos.Coo1,Cos.Coo2,2));  
