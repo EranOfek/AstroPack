@@ -14,7 +14,7 @@ function searchVarMerged(Files, Args)
     else
         cd(Args.Dir);
     end
-    
+    %%
     List  = io.files.rdir(Files);
     Nlist = numel(List);   
    
@@ -23,20 +23,24 @@ function searchVarMerged(Files, Args)
         
         T = FITS.readTable1(FileName);
         if sum(T.PolyDeltaChi2>18)>0
+            Ilist
+            [SC2, SI] = sort(T.PolyDeltaChi2);
             [Max, MaxInd] = max(T.PolyDeltaChi2);
             
-            [Ilist, Max, T.Mean_SN_3(MaxInd)]
+            [Ilist, Max, T.Mean_SN_3(MaxInd), T.RA(MaxInd), T.Dec(MaxInd)]
         
             T.RA(MaxInd)
             T.Dec(MaxInd)
             
             FileMergedMat = strrep(FileName, '_sci_merged_Cat_001.fits', '_sci_merged_MergedMat_001.hdf5');
             MatRA = h5read(FileMergedMat, '/RA');
+            MatMag = h5read(FileMergedMat, '/MAG_APER_2');
             nanmean(MatRA)
         end
         
     end
         
+    %%
     cd(PWD);
     
 end
