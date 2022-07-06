@@ -295,8 +295,9 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
             MergedCat(Ifields).ColNames = ColNames;
             MergedCat(Ifields).ColUnits = ColUnits;
             % MatchedS is not sorted
-            MergedCat(Ifields).sortrows('Dec');
-
+            [~,IndS] = MergedCat(Ifields).sortrows('Dec');
+            MatchedS(Ifields).applySortInd(IndS, 2);
+            
             % FFU: search for asteroids
             % imProc.asteroids.searchAsteroids_pmCat
 

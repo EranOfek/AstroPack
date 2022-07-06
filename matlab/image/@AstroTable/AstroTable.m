@@ -1222,13 +1222,14 @@ classdef AstroTable < Component
     
     methods  % sort, flip, select
         
-        function Obj = sortrows(Obj,SortByColumn)
+        function [Obj,Ind] = sortrows(Obj,SortByColumn)
             % Sort AstroTable objects by some column names/indices
             % Input  : - An AstroTable object (multiple elements is possible).
             %          - A column/s names or indices by which to sort the
             %            catalogs. If empty, will attempt to use the
             %            SortByCol property. Default is empty.
             % Output : - An object in which the catalogs are sorted.
+            %          - Vector of sorted indices for lats catalog only.
             % Author : Eran Ofek (Mar 2021)
             % Example: AC=AstroTable; AC.Catalog = rand(100,3); AC=sortrows(AC,2);
             
@@ -1250,7 +1251,7 @@ classdef AstroTable < Component
                 end
                 
                 if ~Obj(Iobj).IsSorted || any(SortByColumnInd~=Obj(Iobj).SortByCol)
-                    Obj(Iobj).Catalog   = sortrows(Obj(Iobj).Catalog, SortByColumnInd);
+                    [Obj(Iobj).Catalog, Ind]   = sortrows(Obj(Iobj).Catalog, SortByColumnInd);
                     Obj(Iobj).SortByCol = SortByColumnInd;
                     Obj(Iobj).IsSorted  = true;
                 end

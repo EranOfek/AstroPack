@@ -32,7 +32,7 @@ function searchVarMerged(Files, Args)
             
             FileMergedMat = strrep(FileName, '_sci_merged_Cat_001.fits', '_sci_merged_MergedMat_001.hdf5');
             MatRA = h5read(FileMergedMat, '/RA');
-            mean(MatRA)
+            nanmean(MatRA)
         end
         
     end

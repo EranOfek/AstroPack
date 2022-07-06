@@ -893,6 +893,30 @@ classdef MatchedSources < Component
             end
         end
         
+        function Obj = applySortInd(Obj, Ind, Dim)
+            % Reorder all sources accoring to vector of indices (e.g., sort)
+            % Input  : - A single element MatchedSources object.
+	    %          - Vector of indices by which to order the data matrices.
+	    %          - Dimension along to order the data. Default is 2.
+            % Output : - The ordered MatchedSources object.
+	    % Author : Eran Ofek (Jul 2022)
+           
+            arguments
+                Obj(1,1)
+                Ind
+                Dim  = 2;
+            end
+            
+            Fields = fieldnames(Obj.Data);
+            Nfield = numel(Fields);
+            for Ifield=1:1:Nfield
+                if Dim==1
+                    Obj.Data.(Fields{Ifield})(Ind,:);
+                else
+                    Obj.Data.(Fields{Ifield})(:,Ind);
+                end
+            end
+        end
     end
     
     methods % design matrix
