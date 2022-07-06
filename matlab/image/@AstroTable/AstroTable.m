@@ -1254,6 +1254,8 @@ classdef AstroTable < Component
                     [Obj(Iobj).Catalog, Ind]   = sortrows(Obj(Iobj).Catalog, SortByColumnInd);
                     Obj(Iobj).SortByCol = SortByColumnInd;
                     Obj(Iobj).IsSorted  = true;
+                else
+                    Ind = (1:1:size(Obj(Iobj).Catalog,1)).';
                 end
             end
         end

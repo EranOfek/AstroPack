@@ -911,9 +911,9 @@ classdef MatchedSources < Component
             Nfield = numel(Fields);
             for Ifield=1:1:Nfield
                 if Dim==1
-                    Obj.Data.(Fields{Ifield})(Ind,:);
+                    Obj.Data.(Fields{Ifield}) = Obj.Data.(Fields{Ifield})(Ind,:);
                 else
-                    Obj.Data.(Fields{Ifield})(:,Ind);
+                    Obj.Data.(Fields{Ifield}) = Obj.Data.(Fields{Ifield})(:,Ind);
                 end
             end
         end
