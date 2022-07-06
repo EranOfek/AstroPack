@@ -34,11 +34,12 @@ classdef BitDictionary < Component
     methods % constructor
         function Obj=BitDictionary(DictionaryName)
             % Dictionary constructor
-            % Input  : Dictionary file name to load. Default is ''.
+            % Input  : Dictionary file name to load.
+            %          Default is 'BitMask.Image.Default'
             % Example: BD=BitDictionary('BitMask.Image.Default')
             
             arguments
-                DictionaryName char    = '';
+                DictionaryName char    = 'BitMask.Image.Default';
             end
            
             Obj.Name = DictionaryName;
