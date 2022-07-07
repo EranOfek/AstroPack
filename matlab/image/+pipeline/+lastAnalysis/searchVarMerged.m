@@ -48,6 +48,7 @@ function searchVarMerged(Files, Args)
             FileMergedMat = strrep(FileName, '_sci_merged_Cat_001.fits', '_sci_merged_MergedMat_001.hdf5');
             MatRA = h5read(FileMergedMat, '/RA');
             MatMag = h5read(FileMergedMat, '/MAG_CONV_2');
+            MS = MatchedSources.read(FileMergedMat);
             nanmean(MatRA)
             plot(MatMag(:,SI(end-0)),'o')
         end
