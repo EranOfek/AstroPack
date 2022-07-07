@@ -21,6 +21,10 @@ function [Ind,FlagUnique,FlagFound]=search_sortedlat_multi(Cat,Long,Lat,Radius,F
 %            'Nmatch' - Number of matched sources.
 %            'Dist' - Distance between sources. This is provided only if
 %                   the input search radius is negative.
+%            'Ind1' - If Dist is requested (negative search radius)
+%                   then will also calculate Ind1 -
+%                   containing the index for the nearest match only,
+%                   and NaN if no matches.
 %          - A logical vector of length equal to the number of searched
 %            coordinates (Cat) which flag the first unique source.
 %          - If Cat and Long/Lat have the same length and are the same
@@ -72,7 +76,7 @@ Ilowhigh = double(Inear(Ilat));
 Ilow     = Ilowhigh(:,1);
 Ihigh    = min(Ncat,Ilowhigh(:,2)+1); % add 1 because of the way mfind_bin works
 
-Ind = tools.struct.struct_def({'Ind','Nmatch','Dist'},Nlat,1);
+Ind = tools.struct.struct_def({'Ind','Nmatch','Dist','Ind1'},Nlat,1);
 
 FlagFound    = false(Nlat,1);
 %CopyOfUnique = false(Nlat,1);
@@ -86,9 +90,19 @@ for I=1:1:Nlat
     %Ind(I).Ind    = Ilow(I)-1+find(Dist <= Radius);
     Ind(I).Nmatch = numel(Ind(I).Ind);
     
-    
     if CalcDist
         Ind(I).Dist   = Dist(FlagDist);
+        
+        switch numel(Ind(I).Ind)
+            case 0
+                Ind(I).Ind1 = NaN;
+            case 1
+                Ind(I).Ind1 = Ind(I).Ind;
+            otherwise
+                [~,MinI] = min(Ind(I).Dist);
+                Ind(I).Ind1 = Ind(I).Ind(MinI);
+        end
+        
     end
     if ~any(FlagUnique(Ind(I).Ind))
         % a new unique source
