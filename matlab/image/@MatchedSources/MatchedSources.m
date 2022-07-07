@@ -972,50 +972,127 @@ classdef MatchedSources < Component
             end
         end
         
-        function Result = merge(Obj, Args)
-            %
-           
+        function Result = mergeByCoo(Obj, ObjRef, Args)
+            % Merge MatchedSources objects by coordinates.
+            %   Given an array of MatchedSources object and a reference
+            %   MatchedSource object, search by coordinates, all the
+            %   sources in the MatchedSource that are matched to a source
+            %   in the reference. Create a new MatchedSources object with
+            %   all the epochs (element of the MatchedSources array) for
+            %   each source in the reference.
+            % Input  : - A MatchedSources object.
+            %          - A single element MatchedSources object with the
+            %            refrence catalog. The number of sources in the
+            %            output equal to the number of sources in this
+            %            object.
+            %          * ...,key,val,...
+            %            'CooUnits' - The units of the RA/Dec coordinates
+            %                   in all the MatchedSources objects.
+            %                   Default is 'deg'.
+            %            'SearchRadius' - Matching search radius.
+            %                   Default is 3.
+            %            'SearchRadiusUnits' - Searchradius units.
+            %                   Default is 'arcsec'.
+            %            'FieldRA' - Field name in the Data property that
+            %                   contains the J2000.0 R.A.
+            %                   Alternatively, a cell array dictionary of
+            %                   names from which the first exiting name
+            %                   will be selected.
+            %                   Default is AstroCatalog.DefNamesRA.
+            %            'FieldDec' - Like 'FieldRA' but for the J2000.0
+            %                   Dec. Default is AstroCatalog.DefNamesDec.
+            %            'MeanFun' - Mean function to apply over columns
+            %                   for the sorted data field.
+            %                   Default is @median
+            %            'MeanFunArgs' - A cell array of additional
+            %                   arguments to pass to 'MeanFun' after the
+            %                   Dim argument. Default is {'omitnan'}.
+            % Output : - A MatchedSources object with a single element.
+            %            This object contains the matched sources in all
+            %            the MatchedSources object.
+            %            The number of sources in the
+            %            output equal to the number of sources in this
+            %            object.
+            % Author : Eran Ofek (Jul 2022)
+            
+            
             arguments
                 Obj
+                ObjRef(1,1) MatchedSources
+                Args.CooUnits      = 'deg';
+                Args.SearchRadius  = 3;
+                Args.SearchRadiusUnits = 'arcsec';
+                
                 Args.FieldRA       = AstroCatalog.DefNamesRA;
                 Args.FieldDec      = AstroCatalog.DefNamesDec;
                 Args.MeanFun       = @median;
                 Args.MeanFunArgs   = {'omitnan'};
-                Args.Iref          = 1;
-                
-                Args.SearchRadius  = 3;
-                Args.SearchRadiusUnits = 'arcsec';
             end
+            
+            UnitsConv = convert.angular(Args.CooUnits, 'rad',1);
             
             SearchRadiusRad = convert.angular(Args.SearchRadiusUnits, 'rad', Args.SearchRadius);  % [rad]
             
             
             Nobj = numel(Obj);
             
-            [FieldRA]  = getFieldNameDic(Obj(1), Args.FieldRA);
-            [FieldDec] = getFieldNameDic(Obj(1), Args.FieldDec);
+            [FieldRA]  = getFieldNameDic(ObjRef, Args.FieldRA);
+            [FieldDec] = getFieldNameDic(ObjRef, Args.FieldDec);
             
             % sort all by Declination + add SrcData
-            Obj = sortData(Obj, 'Dec', 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
+            ObjRef = sortData(ObjRef, 'Dec', 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
+            Obj    = sortData(Obj, 'Dec', 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
             
             % populate the SrcData - estimate mean RA/Dec
-            Obj = addSrcData(Obj, {FieldRA, FieldDec}, [], 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
+            ObjRef = addSrcData(ObjRef, {FieldRA, FieldDec}, [], 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
+            Obj    = addSrcData(Obj, {FieldRA, FieldDec}, [], 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
             
-                        
+            Fields = fieldnames(ObjRef.Data);
+            Nfield = numel(Fields);
+                  
+            Nsrc = ObjRef.Nsrc;
+            
             % reference image            
-            RA  = Obj(Args.Iref).SrcData.(FieldRA);
-            Dec = Obj(Args.Iref).SrcData.(FieldDec);
+            RA  = ObjRef.SrcData.(FieldRA)  .* UnitsConv;
+            Dec = ObjRef.SrcData.(FieldDec) .* UnitsConv;
+            
+            Result = MatchedSources;
             for Iobj=1:1:Nobj
                 % for each MatchedSources element
                 % match sources by coordinates
                 
-                Ind = VO.search.search_sortedlat_multi([Obj(Iobj).SrcData.(FieldRA)(:), Obj(Iobj).SrcData.(FieldDec)(:)],RA, Dec, SearchRadiusRad);
+                % use negative SearchRad in order to return Dist and Ind1
+                Ind = VO.search.search_sortedlat_multi([Obj(Iobj).SrcData.(FieldRA)(:), Obj(Iobj).SrcData.(FieldDec)(:)].*UnitsConv,...
+                                                       RA, Dec, -SearchRadiusRad);
                 % select from Obj(Iobj).Data objects with index: Ind.Ind
                 % and put them in new matrix...
+                FlagI = [Ind.Ind1];
                 
-                
-                
-                
+                for Ifield=1:1:Nfield
+                    if Iobj==1
+                        % copy matrix from Obj to Result
+                        Result.Data.(Fields{Ifield}) = Obj(Iobj).Data.(Fields{Ifield});
+                        if Ifield==1
+                            Result.JD                    = Obj(Iobj).JD;
+                        end
+                    else                        
+                        % Lines with NaNs will be filled with NaNs rows
+                        [~,Ncol] = size(Obj);
+                        NFI   = numel(FlagI);
+                        % initialzie Result with NaNs
+                        Mat   = nan(NFI, Nsrc);
+                        % remove NaNs from FlagI
+                        IndF  = ~isnan(FlagI);
+                        FlagI = FlagI(IndF);
+                        % Result = NaN; Result(Ind,:) = Obj(FlagInd, :) insert NaN to Result when appear in FlagInd
+                        Mat(:,IndF) = Obj(Iobj).Data.(Fields{Ifield})(:,FlagI);
+                        
+                        Result.Data.(Fields{Ifield}) = [Result.Data.(Fields{Ifield}); Mat];
+                        if Ifield==1
+                            Result.JD                    = [Result.JD; Obj(Iobj).JD];
+                        end
+                    end
+                end                
             
             end
             

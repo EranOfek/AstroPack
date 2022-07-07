@@ -501,7 +501,7 @@ classdef AstroTable < Component
                     % Lines with NaNs will be filled with NaNs rows
                     [~,Ncol] = size(Obj);
                     NFI   = numel(FlagI);
-                    Result   = nan(NFI, Ncol);
+                    %Result   = nan(NFI, Ncol);
 
                     % remove NaNs from FlagI
                     IndF  = ~isnan(FlagI);
