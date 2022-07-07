@@ -895,18 +895,23 @@ classdef MatchedSources < Component
             end
         end
         
-        function Obj = applySortInd(Obj, Ind, Dim)
+        function Obj = applySortInd(Obj, Ind, Dim, ApplySrcData)
             % Reorder all sources accoring to vector of indices (e.g., sort)
             % Input  : - A single element MatchedSources object.
-	    %          - Vector of indices by which to order the data matrices.
-	    %          - Dimension along to order the data. Default is 2.
+            %          - Vector of indices by which to order the data matrices.
+            %          - Dimension along to order the data. Default is 2.
+            %          - A logical indicating if to apply the reorder also
+            %            to the SrcData fields.
+            %            This is operational only if Dim=2.
+            %            Default is true.   
             % Output : - The ordered MatchedSources object.
-	    % Author : Eran Ofek (Jul 2022)
+            % Author : Eran Ofek (Jul 2022)
            
             arguments
                 Obj(1,1)
                 Ind
-                Dim  = 2;
+                Dim                    = 2;
+                ApplySrcData logical   = true;
             end
             
             Fields = fieldnames(Obj.Data);
@@ -916,9 +921,96 @@ classdef MatchedSources < Component
                     Obj.Data.(Fields{Ifield}) = Obj.Data.(Fields{Ifield})(Ind,:);
                 else
                     Obj.Data.(Fields{Ifield}) = Obj.Data.(Fields{Ifield})(:,Ind);
+                    
+                    % apply also to SrcData
+                    if ApplySrcData && isfield(Obj.SrcData, Fields{Ifield})
+                        Obj.SrcData.(Fields{Ifield}) = Obj.SrcData.(Fields{Ifield})(Ind);
+                    end
                 end
             end
         end
+        
+        function Obj = sortData(Obj, FieldName, Args)
+            % Sort (source wise) all the Data and SrcData fields by some of the Data fields.
+            %   This function also add a field (default is 'Dec') to the
+            %   SrcData property.
+            %   For example, you can use this to sort all the Data and
+            %   SrcData fields by the mean declination of the sources.
+            %   The sort is applied for each element in the MatchedSources
+            %   object.
+            % Input  : - A MatchedSources object.
+            %          - Field name by which to sort.
+            %            Default is 'Dec'.
+            %          * ...,key,val,...
+            %            'MeanFun' - Mean function to apply over columns
+            %                   for the sorted data field.
+            %                   Default is @median
+            %            'MeanFunArgs' - A cell array of additional
+            %                   arguments to pass to 'MeanFun' after the
+            %                   Dim argument. Default is {'omitnan'}.
+           
+            arguments
+                Obj
+                FieldName         = 'Dec';
+                Args.MeanFun      = @median;
+                Args.MeanFunArgs  = {'omitnan'};
+            end            
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if iscell(FieldName)
+                    [Field]  = getFieldNameDic(Obj(Iobj), FieldName);
+                else
+                    Field    = FieldName;
+                end
+                
+                Obj(Iobj) = addSrcData(Obj(Iobj), {Field}, [], 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
+                 
+                [~,SortedInd] = sort(Obj(Iobj).SrcData.(Field));
+            
+                Obj(Iobj) = applySortInd(Obj(Iobj), SortedInd, 2, true);
+            end
+        end
+        
+        function Result = merge(Obj, Args)
+            %
+           
+            arguments
+                Obj
+                Args.FieldRA       = AstroCatalog.DefNamesRA;
+                Args.FieldDec      = AstroCatalog.DefNamesDec;
+                Args.MeanFun       = @median;
+                Args.MeanFunArgs   = {'omitnan'};
+                Args.Iref          = 1;
+                
+            end
+            
+            Nobj = numel(Obj);
+            
+            [FieldRA]  = getFieldNameDic(Obj(1), Args.FieldRA);
+            [FieldDec] = getFieldNameDic(Obj(1), Args.FieldDec);
+            
+            % sort all by Declination + add SrcData
+            Obj = sortData(Obj, 'Dec', 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
+            
+            % populate the SrcData - estimate mean RA/Dec
+            Obj = addSrcData(Obj, {FieldRA, FieldDec}, [], 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
+            
+            
+            
+            
+            % reference image            
+            RA  = Obj(Args.Iref).SrcData.(FieldRA);
+            Dec = Obj(Args.Iref).SrcData.(FieldDec);
+            for Iobj=1:1:Nobj
+                % for each MatchedSources element
+                % match sources by coordinates
+                
+            
+            end
+            
+        end
+        
     end
     
     methods % design matrix
