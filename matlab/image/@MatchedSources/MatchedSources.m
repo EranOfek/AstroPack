@@ -983,7 +983,12 @@ classdef MatchedSources < Component
                 Args.MeanFunArgs   = {'omitnan'};
                 Args.Iref          = 1;
                 
+                Args.SearchRadius  = 3;
+                Args.SearchRadiusUnits = 'arcsec';
             end
+            
+            SearchRadiusRad = convert.angular(Args.SearchRadiusUnits, 'rad', Args.SearchRadius);  % [rad]
+            
             
             Nobj = numel(Obj);
             
@@ -996,15 +1001,18 @@ classdef MatchedSources < Component
             % populate the SrcData - estimate mean RA/Dec
             Obj = addSrcData(Obj, {FieldRA, FieldDec}, [], 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
             
-            
-            
-            
+                        
             % reference image            
             RA  = Obj(Args.Iref).SrcData.(FieldRA);
             Dec = Obj(Args.Iref).SrcData.(FieldDec);
             for Iobj=1:1:Nobj
                 % for each MatchedSources element
                 % match sources by coordinates
+                
+                Ind = VO.search.search_sortedlat_multi([Obj(Iobj).SrcData.(FieldRA)(:), Obj(Iobj).SrcData.(FieldDec)(:)],RA, Dec, SearchRadiusRad);
+                % select from Obj(Iobj).Data objects with index: Ind.Ind
+                % and put them in new matrix...
+                
                 
             
             end
