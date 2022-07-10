@@ -185,7 +185,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
                 end
 
                 % apply ZP to all Magnitudes...
-                [MatchedS(Ifields) ,ApplyToMagField] = applyZP(MatchedS(Ifields), ResZP(Ifields).FitZP, 'FieldZP','FitZP', 'ApplyToMagField','MAG_', 'Operator',@plus);
+                [MatchedS(Ifields) ,ApplyToMagField] = applyZP(MatchedS(Ifields), ResZP(Ifields).FitZP, 'FieldZP','FitZP', 'ApplyToMagField','MAG_', 'Operator',@minus);
 
             else
                 ResZP = [];
