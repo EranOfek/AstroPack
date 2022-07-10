@@ -226,6 +226,9 @@ classdef MatchedSources < Component
                         h5create(FileName, sprintf('/%s',Obj.Fields{Idata}), size(Obj.Data.(Obj.Fields{Idata})));
                         h5write(FileName, sprintf('/%s',Obj.Fields{Idata}), Obj.Data.(Obj.Fields{Idata}));
                     end
+                    % save also the JD
+                    h5create(FileName, '/JD', size(Obj.JD));
+                    h5write(FileName,  '/JD', Obj.JD);
                 case {'mat'}
                     % save the Data structure
                     save(FileName, Obj.Data, '-v7.3');
