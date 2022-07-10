@@ -69,7 +69,7 @@ Dec1   = Dec1(SI);
 Dec2   = Dec2(SI);
 Files  = Files(SI);
 
-for If=1:1:Nf
+for If=266:1:Nf
     tic;
     clear Cat;
     [If, Nf]

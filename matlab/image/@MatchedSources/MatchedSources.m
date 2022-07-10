@@ -185,6 +185,11 @@ classdef MatchedSources < Component
                     error('Unknown FileType');
             end
             Obj = MatchedSources;
+            % treat special fields
+            if isfield(Struct, 'JD')
+                Obj.JD = Struct.JD;
+                Struct = rmfield(Struct, 'JD');
+            end
             Obj.addMatrix(Struct);
             
         end
@@ -841,7 +846,10 @@ classdef MatchedSources < Component
             % Input  : - An MatchedSources object.
             %            If Data is empty, this may be a multi-element
             %            object.
-            %          - A field name in the SrcData to populate.
+            %          - A field name in the SrcData to populate, or a cell
+            %            array of fields.
+            %            Cell array if fields is valid only if Data is
+            %            empty.
             %          - Data. If empty, then will look for the field name
             %            in the Data property, abd calculate the mean over
             %            all columns of the data property.
@@ -865,7 +873,7 @@ classdef MatchedSources < Component
             
             arguments
                 Obj
-                Field
+                Field                                    % char or cell
                 Data                            = [];
                 Args.MeanFun function_handle    = @tools.math.stat.nanmedian;
                 Args.MeanFunArgs cell           = {};
@@ -873,12 +881,22 @@ classdef MatchedSources < Component
             
             Nobj = numel(Obj);
             
+            if iscell(Field) && ~isempty(Data)
+                error('Field may be a cell array only if Data is empty');
+            end
+            % convert Field to cell array
+            if ischar(Field)
+                Field = {Field};
+            end
+            Nfield = numel(Field);
             
             if isempty(Data)
                 % get data from some mean of existing property
                 for Iobj=1:1:Nobj
-                    Data = getMatrix(Obj(Iobj), Field);
-                    Obj(Iobj).SrcData.(Field) = Args.MeanFun(Data, 1, Args.MeanFunArgs{:});
+                    for Ifield=1:1:Nfield
+                        Data = getMatrix(Obj(Iobj), Field{Ifield});
+                        Obj(Iobj).SrcData.(Field{Ifield}) = Args.MeanFun(Data, 1, Args.MeanFunArgs{:});
+                    end
                 end
             else
                 if numel(Obj)>1
@@ -886,11 +904,11 @@ classdef MatchedSources < Component
                 end
                 if size(Data,1)==1 
                     % already single epoch
-                    Obj.SrcData.(Field) = Data;
+                    Obj.SrcData.(Field{1}) = Data;
                 elseif size(Data,2)==1
-                    Obj.SrcData.(Field) = Data.';
+                    Obj.SrcData.(Field{1}) = Data.';
                 else
-                    Obj.SrcData.(Field) = Args.MeanFun(Data, 1, Args.MeanFunArgs{:});
+                    Obj.SrcData.(Field{1}) = Args.MeanFun(Data, 1, Args.MeanFunArgs{:});
                 end
             end
         end
@@ -951,9 +969,9 @@ classdef MatchedSources < Component
            
             arguments
                 Obj
-                FieldName         = 'Dec';
-                Args.MeanFun      = @median;
-                Args.MeanFunArgs  = {'omitnan'};
+                FieldName             = 'Dec';
+                Args.MeanFun          = @median;
+                Args.MeanFunArgs cell = {'omitnan'};
             end            
             
             Nobj = numel(Obj);
@@ -964,7 +982,7 @@ classdef MatchedSources < Component
                     Field    = FieldName;
                 end
                 
-                Obj(Iobj) = addSrcData(Obj(Iobj), {Field}, [], 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
+                Obj(Iobj) = addSrcData(Obj(Iobj), Field, [], 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
                  
                 [~,SortedInd] = sort(Obj(Iobj).SrcData.(Field));
             
@@ -1050,7 +1068,8 @@ classdef MatchedSources < Component
             Fields = fieldnames(ObjRef.Data);
             Nfield = numel(Fields);
                   
-            Nsrc = ObjRef.Nsrc;
+            Nsrc    = ObjRef.Nsrc;
+            
             
             % reference image            
             RA  = ObjRef.SrcData.(FieldRA)  .* UnitsConv;
@@ -1066,32 +1085,29 @@ classdef MatchedSources < Component
                                                        RA, Dec, -SearchRadiusRad);
                 % select from Obj(Iobj).Data objects with index: Ind.Ind
                 % and put them in new matrix...
-                FlagI = [Ind.Ind1];
+                FlagI    = [Ind.Ind1];
+                FlagRef  = (1:1:Nsrc).';
+
+                Nepoch   = Obj(Iobj).Nepoch;
+                IndF     = ~isnan(FlagI);
+                FlagI    = FlagI(IndF);
                 
+                Result.JD = [Result.JD; Obj(Iobj).JD];
                 for Ifield=1:1:Nfield
+                    
+                    % initialzie Result with NaNs
+                    Mat   = nan(Nepoch, Nsrc);
+                    % remove NaNs from FlagI
+
+                    FlagRefI = FlagRef(IndF);
+                    % Result = NaN; Result(Ind,:) = Obj(FlagInd, :) insert NaN to Result when appear in FlagInd
+                    Mat(:,FlagRefI) = Obj(Iobj).Data.(Fields{Ifield})(:,FlagI);
                     if Iobj==1
-                        % copy matrix from Obj to Result
-                        Result.Data.(Fields{Ifield}) = Obj(Iobj).Data.(Fields{Ifield});
-                        if Ifield==1
-                            Result.JD                    = Obj(Iobj).JD;
-                        end
-                    else                        
-                        % Lines with NaNs will be filled with NaNs rows
-                        [~,Ncol] = size(Obj);
-                        NFI   = numel(FlagI);
-                        % initialzie Result with NaNs
-                        Mat   = nan(NFI, Nsrc);
-                        % remove NaNs from FlagI
-                        IndF  = ~isnan(FlagI);
-                        FlagI = FlagI(IndF);
-                        % Result = NaN; Result(Ind,:) = Obj(FlagInd, :) insert NaN to Result when appear in FlagInd
-                        Mat(:,IndF) = Obj(Iobj).Data.(Fields{Ifield})(:,FlagI);
-                        
+                        Result.Data.(Fields{Ifield}) = Mat;
+                    else
                         Result.Data.(Fields{Ifield}) = [Result.Data.(Fields{Ifield}); Mat];
-                        if Ifield==1
-                            Result.JD                    = [Result.JD; Obj(Iobj).JD];
-                        end
                     end
+                    
                 end                
             
             end

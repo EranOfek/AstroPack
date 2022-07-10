@@ -20,8 +20,21 @@ function searchVarMerged(Files, Args)
     List  = io.files.rdir(Files);
     Nlist = numel(List);   
    
+    Nsub = 24;
+    State = false(Nlist./Nsub, Nsub);
     for Ilist=1:1:Nlist
         FileName = fullfile(List(Ilist).folder, List(Ilist).name);
+        FileMergedMat = strrep(FileName, '_sci_merged_Cat_001.fits', '_sci_merged_MergedMat_001.hdf5');
+        IP=ImagePath.parseFileName(FileMergedMat);
+        CropID = str2double(IP.CropID);        
+        
+        FC = sum(State(:,CropID));
+        Counter = sum(State(:,CropID)) + 1;
+        
+        State(Counter, CropID) = true;
+        
+        
+        MS(Counter, CropID) = MatchedSources.read(FileMergedMat);
         
         T = FITS.readTable1(FileName);
         [FlagBad] = findBit(BD, T.FLAGS, {'Saturated','NearEdge','Overlap','NaN'});
@@ -45,7 +58,7 @@ function searchVarMerged(Files, Args)
             T.RA(MaxInd)
             T.Dec(MaxInd)
             
-            FileMergedMat = strrep(FileName, '_sci_merged_Cat_001.fits', '_sci_merged_MergedMat_001.hdf5');
+            
             MatRA = h5read(FileMergedMat, '/RA');
             MatMag = h5read(FileMergedMat, '/MAG_CONV_2');
             MS = MatchedSources.read(FileMergedMat);
