@@ -1,4 +1,4 @@
-function [Z2] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
+function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     % Image substruction for detection of point source motion using the 
     %       TRANSLIENT algorithm of Springer et al.(2022). 
     %       The function returns the proper subtraction statistics Z2.
@@ -14,14 +14,29 @@ function [Z2] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     %          - (SigmaN) the standard deviation of the background new
     %            image.
     %          - (SigmaR) the standard deviation of the background
-    %            reference image.   
+    %            reference image.  
+    %          * ...,key,val,...
+    %            'IsImFFT' - A logical indicating if the input N and R
+    %                   images are in Fourier domain. Default is false.
+    %            'IsPsfFFT' - A logical indicating if the input Pn and Pr
+    %                   PSFs are in Fourier domain. Default is false.
+    %            'ShiftIm' - A logical indicating if to fftshift the input
+    %                   N and R images. Default is false.
+    %            'ShiftPsf' - A logical indicating if to fftshift the input
+    %                   Pn and Pr PSFs. Default is false.
+    %            'Eps' - A small value to add to the demoninators in order
+    %                   to avoid division by zero due to roundoff errors.
+    %                   Default is 0. (If needed set to about 100.*eps).
     % Output : - (Z2) The translient statistic.
+    %          - (Zhat) The translient Zhat vector. Size (M,M,2) where M is
+    %            the image size.
+    %          - (Norm) Normalization factor so that Z2/Norm is distributed
+    %            as a chi-squared dist. with 2 degrees of freedom. 
     %          
-    %          - (Scorr) The corrected score image (S_corr).
-    % Author : Eran Ofek (Dec 2021)
+    % Author : Amir Sharon (June 2022)
     % Example: Size=300;  N = randn(Size,Size); R=randn(Size,Size);
     %          Pn = randn(Size,Size); Pr=randn(Size,Size);
-    %          [D, Pd, S, Scorr] = imUtil.properSub.subtraction(N, R, Pn, Pr,1,1);
+    %          [D, Pd, S, Scorr] = imUtil.properSub.translient(N, R, Pn, Pr,1,1);
 
     arguments
         N         % Background subtracted N
@@ -35,6 +50,8 @@ function [Z2] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
         Args.IsPsfFFT(1,1) logical    = false;
         Args.ShiftIm(1,1) logical     = false;
         Args.ShiftPsf(1,1) logical    = false;
+
+        Args.Eps                      = 0;
     end
    
     if Args.IsImFFT
@@ -61,16 +78,22 @@ function [Z2] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     end
 
     M     = size(Pnhat,1); % assume sqaure images for now
-    Znom = conj(Pnhat).*conj(Prhat).*(Pnhat.*Rhat - Prhat.*Nhat);
-    Zden = abs(Prhat).^2 .* SigmaN.^2 + abs(Pnhat).^2 .*SigmaR.^2;
-    Zhat = 4*pi/M*Znom./Zden;
-    
     [Kx,Ky] = meshgrid(0:(M-1));
+    Kxy = reshape([Kx,Ky],M,M,2);
 
-    Zx = imag(ifft2(Kx.*Zhat));
-    Zy = imag(ifft2(Ky.*Zhat));
+    Zden = abs(Prhat).^2 .* SigmaN.^2 + abs(Pnhat).^2 .*SigmaR.^2 + Args.Eps;
+    Znom = 4*pi/M * conj(Pnhat).*conj(Prhat);
+    Prefactors = Znom./Zden.*Kxy;
+    
+    Zhat = Prefactors.*(Pnhat.*Rhat - Prhat.*Nhat);
 
-    Z2 = Zx.^2 + Zy.^2;
+    Z = imag(ifft2(Zhat));
+
+    Z2 = sum(Z.^2,3);
+
+    Term1 = ifft2(Prefactors.*SigmaR*Pnhat);
+    Term2 = ifft2(Prefactors.*SigmaN*Prhat);
     
-    
+    Norm = sum(imag(Term1(:)).^2+imag(Term2(:)).^2)/2;
+         
 end
