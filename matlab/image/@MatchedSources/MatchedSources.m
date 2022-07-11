@@ -243,7 +243,7 @@ classdef MatchedSources < Component
         end
     end
     
-    methods (Static)
+    methods (Static)  % design matrix
         function H=designMatrixCalib(Nep, Nsrc, Args)
             % Generate the design matrix for relative photometric calibration
             % Reference: Ofek+2011
@@ -1471,6 +1471,85 @@ classdef MatchedSources < Component
 
         end
         
+        function Result = binning(Obj, Ngroup, Args)
+            % Bin MatchedSources Data, JD, SrcData entries.
+            %   Note that the function assumes that the data is sorted by
+            %   time.
+            %   Note that error entries will be binned using the same
+            %   MeanFun as all the other entries.
+            % Input  : - A MatchedSources object.
+            %          - Number of sucessive entries to bin.
+            %            E.g., if 2, pairs of sucessive lines will be
+            %            binned. Default is 2.
+            %          * ...,key,val,...
+            %            'TimeMeanFun' - A function handle to use in order
+            %                   to bin the JD entries. Default is @mean.
+            %            'MeanFun' - A function handle to use in order
+            %                   to bin the Data and SrcData entries.
+            %                   Default is @mean.
+            %            'MeanFunArgs' - A cell array of additional
+            %                   arguments to pass to the binning function,
+            %                   after the data and dim arguments.
+            %                   Default is {'omitnan'}.
+            %            'CreateNewObj' - A logical indicating if the
+            %                   output is a new MatchedSources object.
+            %                   Default is true.
+            % Output : - A matchedSources object with the binned data.
+            % Author : Eran Ofek (Jul 2022)
+            % Example: Result = binning(Obj, 2);
+            
+            arguments
+                Obj
+                Ngroup                             = 2;
+                
+                Args.TimeMeanFun function_handle   = @mean;
+                Args.MeanFun function_handle       = @mean;
+                Args.MeanFunArgs cell              = {'omitnan'};
+                
+                Args.CreateNewObj logical          = true;
+            end
+           
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                % for each MatchedSources element
+                Nepoch = Obj(Iobj).Nepoch;
+                IndF = (1:Ngroup:Nepoch); % index of first in each bin
+                Nbin = numel(IndF);
+                IndF = [IndF, Nepoch];
+                
+                % JD property
+                JD   = nan(Nbin,1);
+                for Ibin=1:1:Nbin
+                    Ind = (IndF(Ibin):1:IndF(Ibin+1)).';
+                    JD(Ibin) = Args.TimeMeanFun(Obj(Iobj).JD(Ind), 1);
+                end
+                Result(Iobj).JD = JD;
+                
+                % Data property
+                Fields = fieldnames(Obj(Iobj).Data);
+                Nf     = numel(Fields);
+                Mat = nan(Nbin, Obj(Iobj).Nsrc);
+                for If=1:1:Nf
+                    for Ibin=1:1:Nbin
+                        Ind = (IndF(Ibin):1:IndF(Ibin+1)).';
+                        Mat(Ibin,:) = Args.MeanFun(Obj(Iobj).Data.(Fields{If})(Ind,:), 1, Args.MeanFunArgs{:});
+                    end
+                    Result(Iobj).Data.(Fields{If}) = Mat;
+                end
+                
+                % SrcData property
+                Fields       = fieldnames(Result(Iobj).SrcData);
+                Result(Iobj) = addSrcData(Result(Iobj), Fields, [], 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
+                
+            end
+            
+        end
     end
     
     methods % combine/merge
