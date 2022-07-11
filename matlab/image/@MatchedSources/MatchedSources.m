@@ -48,6 +48,7 @@ classdef MatchedSources < Component
         Units(1,1) struct % each field [Units]
         JD                % time per epoch
         SrcData(1,1) struct   % Data for sources (e.g., mean RA)
+        FileName          % optional file name
     end
     
     properties (Dependent)
@@ -192,7 +193,95 @@ classdef MatchedSources < Component
             end
             Obj.addMatrix(Struct);
             
+            Obj.FileName = FileName;
+            
         end
+        
+        function Result = read_rdir(FileTemplate, Args)
+            % Read all MatchedSources files in a dir tree into a MatchedSources object.
+            %   By default will read all Level=MergedMat files, recursivley
+            %   from a tree of directories, into a MatchedSources object.
+            %   If OrderPart argument is provided than will attempt to
+            %   order the files into a matrix in which rows are for
+            %   different epochs, and columns for different property like
+            %   CropID index.
+            % Input  : - A file template name to attempt reading.
+            %            Default is '*_sci_merged_MergedMat_*.hdf5'.
+            %          * ...,key,val,...
+            %            'readArgs' - A cell array of additional arguments
+            %                   to pass to the MatchedSources.read static function.
+            %            'OrderPart' - If provided, will try to order the
+            %                   objects by (Epoch,CropID).
+            %                   Default is 'CropID'.
+            %                   For more info about CropID see ImagePath
+            %                   class.
+            % Output : - A MatchedSources object.
+            % Author : Eran Ofek (Jul 2022)
+            % Example: mm=MatchedSources.read_rdir;
+            
+            arguments
+                FileTemplate         = '*_sci_merged_MergedMat_*.hdf5';   
+                
+                Args.readArgs cell   = {};
+                Args.OrderPart       = 'CropID';   % [] - do not order
+            end
+            
+            List  = io.files.rdir(FileTemplate);
+            Nlist = numel(List);   
+   
+            % read all files regardless of order
+            if Nlist==0
+                Result = [];
+            else
+                for Ilist=1:1:Nlist
+                    File          = fullfile(List(Ilist).folder, List(Ilist).name);
+                    Result(Ilist) = MatchedSources.read(File, Args.readArgs{:});
+                end
+
+                if ~isempty(Args.OrderPart)
+                    IP     = ImagePath.parseFileName({Result.FileName});
+                    Part   = str2double({IP.(Args.OrderPart)});
+                    Npart  = max(Part);
+                    Nepoch = Nlist./Npart;
+                    
+                    ResultO = MatchedSources;
+                    for Ipart=1:1:Npart
+                        ResultO(1:Nepoch,Ipart) = Result([Part==Ipart].');
+                        VecMeanJD = zeros(Nepoch,1);
+                        for Iep=1:1:Nepoch
+                            VecMeanJD(Iep) = mean(ResultO(Iep,Ipart).JD);
+                        end
+                        [~,SI] = sort(VecMeanJD);
+                        ResultO(:,Ipart) = ResultO(SI,Ipart);
+                    end
+                    
+                    Result = ResultO;
+                    
+                end
+            end
+            
+            
+            
+            
+%     Nsub = 24;
+%     State = false(Nlist./Nsub, Nsub);
+%     for Ilist=1:1:Nlist
+%         FileName = fullfile(List(Ilist).folder, List(Ilist).name);
+%         FileMergedMat = strrep(FileName, '_sci_merged_Cat_001.fits', '_sci_merged_MergedMat_001.hdf5');
+%         IP=ImagePath.parseFileName(FileMergedMat);
+%         CropID = str2double(IP.CropID);        
+%         
+%         FC = sum(State(:,CropID));
+%         Counter = sum(State(:,CropID)) + 1;
+%         
+%         State(Counter, CropID) = true;
+%         
+%         
+%         MS(Counter, CropID) = MatchedSources.read(FileMergedMat);
+%         
+            
+        end
+        
     end
     
     methods % write
@@ -853,6 +942,8 @@ classdef MatchedSources < Component
             %            array of fields.
             %            Cell array if fields is valid only if Data is
             %            empty.
+            %            If empty, use all fields in the Data property.
+            %            Default is empty.
             %          - Data. If empty, then will look for the field name
             %            in the Data property, abd calculate the mean over
             %            all columns of the data property.
@@ -876,7 +967,7 @@ classdef MatchedSources < Component
             
             arguments
                 Obj
-                Field                                    % char or cell
+                Field                           = [];      % char or cell
                 Data                            = [];
                 Args.MeanFun function_handle    = @tools.math.stat.nanmedian;
                 Args.MeanFunArgs cell           = {};
@@ -887,6 +978,12 @@ classdef MatchedSources < Component
             if iscell(Field) && ~isempty(Data)
                 error('Field may be a cell array only if Data is empty');
             end
+            
+            if isempty(Field)
+                % use all firlds
+                Field = Obj.Fields;
+            end
+            
             % convert Field to cell array
             if ischar(Field)
                 Field = {Field};
