@@ -3,14 +3,32 @@ function Obj = addMagCols(Obj, Args)
     % Input  : - An AstroImage or AstroCatalog object containing catalog of
     %            sources, with flux data.
     %          * ...,key,val,...
-    %            'FluxCols'
-    %            'MagStr'
-    %            'FluxErrCols'
-    %            'MagErrStr'
-    %            'ZP'
-    %            'IsLuptitude'
-    %            'LupSoft'
-    % Output : - 
+    %            'FluxCols' - A cell array of column names that contains
+    %                   flux measurments.
+    %                   Alternatively, a char array that contains a
+    %                   substring by which to search for all the flux
+    %                   columns.
+    %                   Default is 'FLUX_'.
+    %            'MagStr' - A cell array of columns names that will
+    %                   contains the magnitudes that corresponds to the
+    %                   flux in the 'FluxCols' argument.
+    %                   Alternatively, a char array that contains a string
+    %                   that will replace the corresponding string in
+    %                   'FluxCols' argument.
+    %                   Default is 'MAG_'.
+    %            'FluxErrCols' - Like 'FluxCols' but for flux errors.
+    %                   Default is 'FLUXERR_'.
+    %            'MagErrStr' - Like 'MagStr' but for magnitude errors.
+    %                   Default is 'MAGERR_'.
+    %            'ZP' - Magnitude zero point. Default is 25.
+    %            'IsLuptitude' - A logical indicating if to calculate
+    %                   luptitudes (true) or magnitudes (false).
+    %                   Default is true.
+    %            'LupSoft' - Luptitude softening parameter.
+    %                   see convert.luptitude for details.
+    %                   Default is 1e-10.
+    % Output : - An AstroImage or AstroCatalog with the added magnitude
+    %            columns.
     % Author : Eran Ofek (Jul 2022)
     
     arguments
