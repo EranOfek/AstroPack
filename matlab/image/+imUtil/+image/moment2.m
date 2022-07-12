@@ -33,7 +33,7 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %                       aperture photometry.
 %                       Default is [2 4 6].
 %            'Annulus' - Vector of inner and outer radius of background
-%                       annulus. Default is [8 12].
+%                       annulus. Default is [10 14].
 %            'SubBack' - A logical indicating if to subtract the annulus-measured
 %                        background.
 %                        Default is true.
