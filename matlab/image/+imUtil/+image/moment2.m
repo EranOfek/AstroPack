@@ -34,8 +34,9 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %                       Default is [2 4 6].
 %            'Annulus' - Vector of inner and outer radius of background
 %                       annulus. Default is [8 12].
-%            'SubBack' - A logical indicating if to subtract background.
-%                       Default is true.
+%            'SubBack' - A logical indicating if to subtract the annulus-measured
+%                        background.
+%                        Default is true.
 %            'BackFun' - Function handle to use for background estimation.
 %                       In order to meaningful this function must ignore
 %                       NaNs.
