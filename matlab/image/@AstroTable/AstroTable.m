@@ -819,7 +819,7 @@ classdef AstroTable < Component
     end
     
     methods  % columns get/edit
-        function [Result, Units] = getCol(Obj, Columns, OutputIsTable, UpdateAstroTable, Args)
+        function [Result, Units, ColInd] = getCol(Obj, Columns, OutputIsTable, UpdateAstroTable, Args)
             % Get a catalog columns by index or names
             % Input  : - A single element AstroTable object.
             %          - A vector of column indices, or a column name, or a
@@ -841,6 +841,7 @@ classdef AstroTable < Component
             %            columns.
             %          - A cell array of units corresponding to the
             %            requested columns.
+            %          - Selected column index.
             % Author : Eran Ofek (Mar 2021)
             % Example: AC.getCol({'Var1','Var3'},true)
             %          AC.getCol([1 2])
