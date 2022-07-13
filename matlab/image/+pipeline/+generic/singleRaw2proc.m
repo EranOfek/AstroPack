@@ -143,7 +143,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                  'FLUX_APER', 'FLUXERR_APER',...
                                                  'MAG_APER', 'MAGERR_APER',...
                                                  'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
-        Args.DeletePropAfterSrcFinding        = {'Back','Var'};
+        Args.DeletePropAfterSrcFinding        = {}; %{'Back','Var'};
         
         
         
@@ -398,6 +398,8 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
             
         end
         
+        % delete properties
+        SI.deleteProp(Args.DeletePropAfterSrcFinding);
         
         % match known solar system objects
         if ~isempty(Args.OrbEl)

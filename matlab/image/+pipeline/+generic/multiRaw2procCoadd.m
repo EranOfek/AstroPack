@@ -213,6 +213,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         Args.singleRaw2procArgs cell          = {};
         Args.DeletePropAfterSrcFinding        = {'Back','Var'};
+        %Args.DeleteBackBeforeCoadd logical    = true;
+        %Args.DeleteVarBeforeCoadd logical     = true;
+
         Args.UpdateCounter logical            = true;
         
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
@@ -250,9 +253,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         Args.StackMethod                      = 'sigmaclip';
         Args.Asteroids_PM_MatchRadius         = 3;
-        Args.DeleteBackBeforeCoadd logical    = true;
-        Args.DeleteVarBeforeCoadd logical     = true;
-        
+                
         Args.AddProjName2Header logical       = true;
         Args.AddFieldID2Header logical        = true;
         
@@ -399,12 +400,13 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     %clear SI;
 
     % delete Back and Var before coaddition
-    if Args.DeleteBackBeforeCoadd
-        AllSI.deleteProp('Back');
-    end
-    if Args.DeleteVarBeforeCoadd
-        AllSI.deleteProp('Var');
-    end
+    AllSI.deleteProp(Args.DeletePropAfterSrcFinding);
+%     if Args.DeleteBackBeforeCoadd
+%         AllSI.deleteProp('Back');
+%     end
+%     if Args.DeleteVarBeforeCoadd
+%         AllSI.deleteProp('Var');
+%     end
     
     
     % Save individual proc images
