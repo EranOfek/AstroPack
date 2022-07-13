@@ -27,6 +27,8 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     %            'Eps' - A small value to add to the demoninators in order
     %                   to avoid division by zero due to roundoff errors.
     %                   Default is 0. (If needed set to about 100.*eps).
+    %            'NormalizeZ2' - A logical indicating whether to return Z2
+    %            after normalization, that is Z2->Z2./Norm
     % Output : - (Z2) The translient statistic.
     %          - (Zhat) The translient Zhat vector. Size (M,M,2) where M is
     %            the image size.
@@ -52,6 +54,8 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
         Args.ShiftPsf(1,1) logical    = false;
 
         Args.Eps                      = 0;
+
+        Args.NormalizeZ2(1,1) logical = false;
     end
    
     if Args.IsImFFT
@@ -77,23 +81,16 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
         Prhat = fftshift(Prhat);
     end
 
-    M     = size(Pnhat,1); % assume sqaure images for now
-    [Kx,Ky] = meshgrid(0:(M-1));
-    Kxy = reshape([Kx,Ky],M,M,2);
-
-    Zden = abs(Prhat).^2 .* SigmaN.^2 + abs(Pnhat).^2 .*SigmaR.^2 + Args.Eps;
-    Znom = 4*pi/M * conj(Pnhat).*conj(Prhat);
-    Prefactors = Znom./Zden.*Kxy;
+    [Z2Prefactors,Norm] = imUtil.properSub.translientAuxiliary(Pnhat, Prhat, SigmaN, SigmaR, 'IsPsfFFT',true,'Eps',Args.Eps);
     
-    Zhat = Prefactors.*(Pnhat.*Rhat - Prhat.*Nhat);
+    Zhat = Z2Prefactors.*(Pnhat.*Rhat - Prhat.*Nhat);
 
     Z = imag(ifft2(Zhat));
 
     Z2 = sum(Z.^2,3);
 
-    Term1 = ifft2(Prefactors.*SigmaR*Pnhat);
-    Term2 = ifft2(Prefactors.*SigmaN*Prhat);
-    
-    Norm = sum(imag(Term1(:)).^2+imag(Term2(:)).^2)/2;
+    if Args.NormalizeZ2
+        Z2 = Z2./Norm;
+    end
          
 end

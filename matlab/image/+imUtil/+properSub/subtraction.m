@@ -93,7 +93,11 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         Args.Eps                      = 0;
         Args.AbsUsingConj logical     = false;
         
-        
+        Args.AnalyticNorm logical     = true;
+        Args.EmpiricalNorm logical    = false;
+        Args.MeanFun function_handle  = @tools.math.stat.nanmedian;
+        Args.StdFun function_handle   = @tools.math.stat.rstd;
+
     end
     
     Fr = Args.Fr;
@@ -198,12 +202,21 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
     else
         Scorr = [];
     end
-    
+
     if ~Args.OutIsFT
         D_hat  = ifft2(D_hat);
         Pd_hat = ifft2(Pd_hat);
         S_hat  = ifft2(S_hat);
         % Scorr is already in real space
+
+        if Args.AnalyticNorm
+            S_hat = S_hat/(sqrt(sum(abs(Pd_hat(:)).^2))*Fd);
+        end
+
+        if Args.EmpiricalNorm
+            S_hat = S_hat - Args.MeanFun(S_hat,'all');
+            S_hat = S_hat./Args.StdFun(S_hat,'all');
+        end
     else
         % convert Scorr to fft
         Scorr  = fft2(Scorr);
