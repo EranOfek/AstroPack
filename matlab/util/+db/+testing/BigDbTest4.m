@@ -96,7 +96,7 @@ function Result = BigDbTest4()
         %writetable(Table, CsvFileName);           
         
         if mod(BatchCounter, 10) == 1
-            RowCount = Q.selectCount();
+            RowCount = Q.selectTableRowCount();
         else
             RowCount = RowCount + BatchSize;
         end

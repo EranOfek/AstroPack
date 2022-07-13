@@ -144,6 +144,7 @@ classdef DbAdmin < Component
             
             arguments
                 Obj
+                Args.DatabaseName   = ''        % Create database
                 Args.XlsxFileName   = ''        %
                 Args.SqlFileName    = ''        %                
             end
@@ -248,6 +249,7 @@ classdef DbAdmin < Component
             %             'SqlFileName'   - File name of SQL script to execute
             %             'TableName'     - Table name, if not specified, Obj.TableName is used
             %             'PrimaryKeyDef' - Definition of primary key (SQL)
+            %             'IdentityPk'    - 
             % Output  : true on success
             % Author  : Chen Tishler (2021)
             % Example : db.DbAdmin.createTable('unittest', )
@@ -264,6 +266,7 @@ classdef DbAdmin < Component
                 Args.SqlFileName    = ''
                 Args.TableName      = ''
                 Args.PrimaryKeyDef  = ''
+                Args.IdentityPk     = ''    %
             end
 
 

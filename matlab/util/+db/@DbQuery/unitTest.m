@@ -34,7 +34,7 @@ function Result = unitTest()
     % Get tables list
     TablesList = Q.getTablesList();
     assert(~isempty(TablesList));
-    ColumnList = Q.getTableColumnList('master_table');
+    ColumnList = Q.getTableColumnNames('master_table');
     assert(~isempty(ColumnList));
     
     Q = db.DbQuery('unittest:master_table');
@@ -70,7 +70,7 @@ function Result = unitTest()
     %
     Q = db.DbQuery('unittest:master_table');
     Q = db.DbQuery('unittest', 'TableName', 'master_table');
-    io.msgLog(LogLevel.Test, 'Number of records in table: %d', Q.selectCount());
+    io.msgLog(LogLevel.Test, 'Number of records in table: %d', Q.selectTableRowCount());
             
     ColNames = 'fdouble1,fdouble2,fdouble3';
     if isfield(Q.Config.Data.Database.DbConnections.UnitTest, 'DoubleFields')
@@ -159,7 +159,7 @@ function Result = testSelect(Q)
     % Test SELECT functionality and DbQuery.select()    
     io.msgStyle(LogLevel.Test, '@start', 'DbQuery.select test started')
     
-    Count = Q.selectCount('TableName', 'master_table');
+    Count = Q.selectTableRowCount('TableName', 'master_table');
     if Count == 0
         Result = false;
         io.msgLog(LogLevel.Warning, 'testSelect: Table master_table is empty, cannot test select. Try again after calling testInsert');
@@ -233,8 +233,8 @@ function Result = testSelect(Q)
     R = Q.select('*', 'Limit', 1);
     assert(numel(R.Data) == 1);
 
-    % getTableColumnList     
-    Columns = Q.getTableColumnList('master_table');
+    % getTableColumnNames     
+    Columns = Q.getTableColumnNames('master_table');
     assert(numel(Columns) > 0);
     disp(Columns);
 
@@ -312,25 +312,25 @@ function Result = testInsertRaw(Q)
     
     %----------------------------------------------------- INSERT with exec()
     % Insert using raw SQL by calling Q.exec() directly
-    CountBeforeInsert = Q.selectCount();
+    CountBeforeInsert = Q.selectTableRowCount();
     InsertCount = 10;
-    io.msgLog(LogLevel.Debug, 'Count before insert: %d', Q.selectCount());
+    io.msgLog(LogLevel.Debug, 'Count before insert: %d', Q.selectTableRowCount());
     for i = 1:InsertCount
         Q.SqlText = sprintf("INSERT INTO master_table (recid, fint, fdouble) VALUES('%s', %d, %f)",...
             Component.newUuid(), randi(100), randi(100000));
         Q.exec();
     end
-    io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());
+    io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectTableRowCount());
     
     % Assume that we are the single process writing to this table at the moment
-    CountAfterInsert = Q.selectCount();
+    CountAfterInsert = Q.selectTableRowCount();
     assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
     
     % Insert batch using raw SQL: Prepare multiple INSERT lines   
     % See: https://www.tutorialspoint.com/how-to-generate-multiple-insert-queries-via-java
     TestBatch = true;
     if (TestBatch)
-        CountBeforeInsert = Q.selectCount();
+        CountBeforeInsert = Q.selectTableRowCount();
         InsertCount = 10;
         
         % Prepare multi-line INSERT 
@@ -343,11 +343,11 @@ function Result = testInsertRaw(Q)
         end           
         
         % Execute as one statement
-        io.msgLog(LogLevel.Debug, 'Count before insert: %d', Q.selectCount());        
+        io.msgLog(LogLevel.Debug, 'Count before insert: %d', Q.selectTableRowCount());        
         Q.exec(Sql);
         assert(Q.ExecOk);
-        io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());
-        CountAfterInsert = Q.selectCount();
+        io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectTableRowCount());
+        CountAfterInsert = Q.selectTableRowCount();
         assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
     end
 end
@@ -386,9 +386,9 @@ function Result = testInsert(Q)
                 R.Data(i).fbool = true;
                 R.Data(i).fstring = sprintf('MyStr_%03d', i);        
             end    
-            io.msgLog(LogLevel.Debug, 'Count before insert: %d', Q.selectCount());
+            io.msgLog(LogLevel.Debug, 'Count before insert: %d', Q.selectTableRowCount());
             Q.insert(R, 'BatchSize', 1000);
-            io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());
+            io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectTableRowCount());
             Count = Count*10;
         end
 
@@ -406,7 +406,7 @@ function Result = testInsert(Q)
         R.merge(S);
         
         Q.insert(R, 'BatchSize', 100);
-        io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());    
+        io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectTableRowCount());    
     end
     
     
@@ -424,7 +424,7 @@ function Result = testInsert(Q)
         for Iter=1:Iters
             Mat = rand(Count, Cols);
             Q.insert(Mat, 'ColNames', ColNames, 'InsertRecFunc', @makePrimaryKeyForMat, 'BatchSize', 10000);
-            io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());    
+            io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectTableRowCount());    
             Count = Count * 10;
         end
     end
@@ -477,7 +477,7 @@ function Result = testDelete(Q)
     Result = false;
     Q.TableName = 'master_table';
     for Iter=1:5
-        Count1 = Q.selectCount();    
+        Count1 = Q.selectTableRowCount();    
         if Count1 > 0
             R = Q.select('recid', 'Limit', 1);
             assert(isa(R, 'db.DbRecord'));       
@@ -485,7 +485,7 @@ function Result = testDelete(Q)
             Where = sprintf("recid = '%s'", recid);
             Q.deleteRecord('Where', Where);
 
-            Count2 = Q.selectCount();
+            Count2 = Q.selectTableRowCount();
             assert(Count2 == (Count1-1));
         end
     end

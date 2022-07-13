@@ -59,7 +59,7 @@ function Result = BigDbTest()
         Table = struct2table(Data);
         writetable(Table, CsvFileName);           
         
-        Count = Q.selectCount();
+        Count = Q.selectTableRowCount();
         %fprintf('Count: %d\n', Count);
         t1 = tic;
         Q.insert([], 'CsvFileName', CsvFileName);        

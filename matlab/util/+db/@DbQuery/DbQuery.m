@@ -53,7 +53,7 @@
 %    getColumnIndex - Get column index by column name, search in ColNames{} Input: ColumnName - Output: DbRecord Example: Index = Obj.getColumnIndex('')
 %    getColumnList - Get columns list of current ResultSet as celarray Input: - Output: Example: ColNames = Obj.getColumnList()
 %    getColumnType - Get column type Input: ColumnName - Output: char - Example: -
-%    getTableColumnList - Get columns list of specified table as cell array Input: TableName Output: Cell array Example: = Obj.getTableColumnList('master_table')
+%    getTableColumnNames - Get columns list of specified table as cell array Input: TableName Output: Cell array Example: = Obj.getTableColumnList('master_table')
 %    getTableIndexList - Get list of index names of specified table Input: TableName Output: Cell array Example: = Obj.getTableIndexList('master_table')
 %    getTablePrimaryKey - Get primary key column names of specified table Input: TableName Output: Cell array Example: = Obj.getTablePrimaryKey('master_table')
 %    getTablesList - Get columns list of specified table as cell array Input: - Output: Cell array Example: = Obj.getTablesList()
@@ -65,7 +65,7 @@
 %    query - Run SELECT query, do NOT load any data. For non-SELECT statements, use exec() Input: char-array - SQL text. If not specified, Obj.SqlText is used Output: true on success, use loadResultSet() to load the data Example: Obj.query('SELECT COUNT(*) FROM master_table');
 %    select - Execute SELECT Columns FROM TableName and load results to memory Input: - Columns - Comma-separated field names to select (i.e. 'recid,fint') 'TableName' - Table name, if not specified, Obj.TableName is used 'Where' - Where condition (excluding WHERE keyword) 'Order' - Order by clause (excluding ORDER BY keyword)
 %    selectColumn - Get column from specified table as cell array Input: SqlText - SELECT query text ColumnName - Column name to select from query result Output: Cell array Example: = Obj.selectColumn('SELECT COUNT(*) FROM master_table', 'count')
-%    selectCount - Select number of records with optionally WHERE clause Intput: Args.TableName - If empty, use Obj.TableName Args.Where - Example: 'Flag == 1' Output: integer - COUNT returned by query Example: Count = Obj.selectCount()
+%    selectTableRowCount - Select number of records with optionally WHERE clause Intput: Args.TableName - If empty, use Obj.TableName Args.Where - Example: 'Flag == 1' Output: integer - COUNT returned by query Example: Count = Obj.selectTableRowCount()
 %    update - Update record Intput: SetColumns - Note that string values must be enclosed by single ' for example: 'MyField=''MyValue''' 'TableName' - 'Where' -
 %    writeResultSetToCsvFile - Write Obj.JavaResultSet returned by select() to CSV file using Java CSVWriter obejct Input: CsvFileName Output: true on sucess Example: Obj.writeResultSetToCsvFile('/tmp/test1.csv');
 %
@@ -537,7 +537,7 @@ classdef DbQuery < Component
 
             % Get table columns list
             if Args.ColumnsOnly
-                TableColumnList = Obj.getTableColumnList(Args.TableName);
+                TableColumnList = Obj.getTableColumnNames(Args.TableName);
             else
                 TableColumnList = [];
             end
@@ -779,7 +779,7 @@ classdef DbQuery < Component
 
     %----------------------------------------------------------------------
     
-    methods % High-level: Run query / Execute statement(s)
+    methods % Low-level - FOR INTERNAL USE : Run query / Execute statement(s)
 
         function Result = query(Obj, ASqlText, Args)
             % Run any SELECT query, results should be accessed by calling getColumn()
@@ -902,7 +902,7 @@ classdef DbQuery < Component
     
     methods % High-level: Utilities
         
-        function Result = selectCount(Obj, Args)
+        function Result = selectTableRowCount(Obj, Args)
             % Select number of records in table, with optional WHERE clause.
             % Input   : - DbQuery object
             %           * Pairs of ...,key,val,...
@@ -914,9 +914,9 @@ classdef DbQuery < Component
             %                           See https://wiki.postgresql.org/wiki/Count_estimate
             % Output  : - integer     - COUNT returned by query
             % Author  : Chen Tishler (2021)
-            % Example : Count = Obj.selectCount()
-            %           Count = Obj.selectCount('TableName', 'MyTable')
-            %           Count = Obj.selectCount('TableName', 'MyTable', 'Where', 'Flag == 1')           
+            % Example : Count = Obj.selectTableRowCount()
+            %           Count = Obj.selectTableRowCount('TableName', 'MyTable')
+            %           Count = Obj.selectTableRowCount('TableName', 'MyTable', 'Where', 'Flag == 1')           
             arguments
                 Obj                     %
                 Args.TableName = ''     % If empty, use Obj.TableName
@@ -1313,13 +1313,13 @@ classdef DbQuery < Component
         end
         
         
-        function Result = getTableColumnList(Obj, TableName)
+        function Result = getTableColumnNames(Obj, TableName)
             % Get columns list of specified table as cell array
             % Input   : - DbQuery object
             %           - TableName
             % Output  : - Cell array with list of column names
             % Author  : Chen Tishler (2021)
-            % Example : Obj.getTableColumnList('master_table')
+            % Example : Obj.getTableColumnNames('master_table')
             Text = sprintf('SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ''%s'' ORDER BY column_name', TableName);
             Result = Obj.selectColumn(Text, 'column_name');
         end
@@ -1610,7 +1610,7 @@ classdef DbQuery < Component
             %CheckColumns = false;
             %if Args.TableName
             %    CheckColumns = true;
-            %    ColumnList = Obj.getTableColumnList(Args.TableName);
+            %    ColumnList = Obj.getTableColumnNames(Args.TableName);
             %end
             
             % Iterate struct fields

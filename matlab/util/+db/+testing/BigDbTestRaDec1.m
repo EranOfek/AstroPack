@@ -99,7 +99,7 @@ function Result = BigDbTestRaDec1()
         %writetable(Table, CsvFileName);           
         
         if mod(BatchCounter, 10) == 1
-            RowCount = Q.selectCount('Fast', true);
+            RowCount = Q.selectTableRowCount('Fast', true);
         else
             RowCount = RowCount + BatchSize;
         end

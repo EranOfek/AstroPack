@@ -48,7 +48,7 @@ function Result = examples()
     Q.insert(Mat, 'ColNames', 'fdouble1,fdouble2', 'InsertRecFunc', @make_recid, 'BatchSize', 10000);
    
     % Select number of rows in table
-    Count = Q.selectCount('TableName', 'master_table');
+    Count = Q.selectTableRowCount('TableName', 'master_table');
     fprintf('Rows: %d\n', Count);
     
     % Select all columns with limit, return output as table
@@ -84,12 +84,12 @@ function Result = examples()
     CsvFileName = fullfile(MyPath, 'unitTest_insert1.csv');
     Where = "recid like 'pk_UnitTest_%'";
     Q.deleteRecord('TableName', 'master_table', 'Where', Where);
-    Count = Q.selectCount('TableName', 'master_table', 'Where', Where);
+    Count = Q.selectTableRowCount('TableName', 'master_table', 'Where', Where);
     fprintf('Count after delete %d\n', Count);
     
     Q.insert([], 'TableName', 'master_table', 'CsvFileName', CsvFileName);
     
-    Count = Q.selectCount('TableName', 'master_table', 'Where', Where);
+    Count = Q.selectTableRowCount('TableName', 'master_table', 'Where', Where);
     fprintf('Count after insert %d\n', Count);
     
     % Select into AstroHeader
@@ -110,7 +110,7 @@ function Result = examples()
     fprintf('Tables: %s\n', strjoin(TablesList, ','));    
     
     % Get columns list
-    ColumnList = Q.getTableColumnList('master_table');
+    ColumnList = Q.getTableColumnNames('master_table');
     fprintf('Columns: %s\n', strjoin(ColumnList, ','));
 
     
