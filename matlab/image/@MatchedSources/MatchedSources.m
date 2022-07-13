@@ -1860,6 +1860,12 @@ classdef MatchedSources < Component
             %                   the first field name that appears in the
             %                   Data structure, and its content will be plotted.
             %                   Default is {'MAG','MAG_PSF','MAG_APER'}.
+            %            'FieldY' - Like 'FieldX', but for Y-axis (rms).
+            %                   If empty, will use rms of FieldX.
+            %                   Default is {}.
+            %            'FactorRMS' - Factor by which to multiply the
+            %                   Y-axis. E.g., for units conversion.
+            %                   Default is 1.
             %            'PlotSymbol' - A cell array of parameters to pass
             %                   to the plot function.
             %                   Default is
@@ -1892,6 +1898,8 @@ classdef MatchedSources < Component
             arguments
                 Obj(1,1)
                 Args.FieldX                   = {'MAG','MAG_PSF','MAG_APER','MAG_APER_3','MAG_APER_2'};
+                Args.FieldY                   = {};
+                Args.FactorRMS                = 1;
                 Args.PlotSymbol               = {'k.','MarkerFaceColor','k','MarkerSize',3};
                 Args.BinSize                  = [];
                 Args.DivideErrBySqrtN(1,1) logical = true;
@@ -1922,6 +1930,7 @@ classdef MatchedSources < Component
                 Args.FieldX = {Args.FieldX};
             end
             
+            
             if ischar(Args.PlotSymbol)
                 Args.PlotSymbol = {Args.PlotSymbol};
             end
@@ -1930,10 +1939,27 @@ classdef MatchedSources < Component
             Ind = find(ismember(Args.FieldX, FN),1);
             FieldX = Args.FieldX{Ind};
             
+            if isempty(Args.FieldY)
+                FieldY = FieldX;
+            else
+                if ischar(Args.FieldY)
+                    Args.FieldY = {Args.FieldY};
+                end
+                Ind = find(ismember(Args.FieldY, FN),1);
+                FieldY = Args.FieldY{Ind};
+            end
+            
             Mat   = Obj.Data.(FieldX);
             % axis x - e.g., mean mag
             AxisX = Args.MeanFun(Mat, Obj.DimEpoch);
-            AxisY = Args.StdFun(Mat, [], Obj.DimEpoch);
+            
+            if isempty(Args.FieldY)
+                AxisY = Args.StdFun(Mat, [], Obj.DimEpoch);
+            else
+                MatY = Obj.Data.(FieldY);
+                AxisY = Args.StdFun(MatY, [], Obj.DimEpoch);
+            end
+            AxisY = AxisY.*Args.FactorRMS;
             
             H = plot(AxisX, AxisY, Args.PlotSymbol{:});
             
