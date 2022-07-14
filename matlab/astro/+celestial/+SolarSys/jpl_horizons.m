@@ -74,7 +74,7 @@ Str(I).value   = Str(I).value{1};
 
 I = I + 1;
 Str(I).command = 'STEP_SIZE';
-Str(I).value   = sprintf('%d%%20%s',InPar.StepSize,InPar.StepSizeUnits);
+Str(I).value   = sprintf('%d%s',InPar.StepSize,InPar.StepSizeUnits);
 
 I = I + 1;
 Str(I).command = 'QUANTITIES';
@@ -84,6 +84,9 @@ I = I + 1;
 Str(I).command = 'CSV_FORMAT';
 Str(I).value   = 'YES';
 
+I = I + 1;
+Str(I).command = 'EXTRA_PREC';
+Str(I).value   = 'YES';
 %UU='https://ssd.jpl.nasa.gov/api/horizons.api?format=''text''&COMMAND=''499''&OBJ_DATA=''YES''&MAKE_EPHEM=''YES''&EPHEM_TYPE=''OBSERVER''&CENTER=''500@399''&START_TIME=''2006-01-01''&STOP_TIME=''2006-01-20''&STEP_SIZE=''1%20d''&QUANTITIES=''1,9,20,23,24,29'''
 
 
@@ -150,12 +153,12 @@ for Icol=1:1:Ncol
             ColCell{Icol}  = 'JD';
             ColUnits{Icol} = 'JD';
             
-        case {'R.A._(ICRF/J2000.0)','R.A._(ICRF)'}
+        case {'R.A._(ICRF/J2000.0)','R.A._(ICRF)','R.A._____(ICRF)'}
             C{Icol} = celestial.coo.convertdms(C{Icol},'SHb',OutCooUnits);
             ColCell{Icol}  = 'RA';
             ColUnits{Icol} = 'OutCooUNits';
         
-        case {'DEC_(ICRF/J2000.0)','DEC__(ICRF)'}
+        case {'DEC_(ICRF/J2000.0)','DEC__(ICRF)' , 'DEC______(ICRF)'}
             C{Icol} = celestial.coo.convertdms(C{Icol},'SDb',OutCooUnits);
             ColCell{Icol}  = 'Dec';
             ColUnits{Icol} = 'OutCooUNits';
@@ -239,6 +242,11 @@ for Icol=1:1:Ncol
             C{Icol} = str2double(C{Icol});
             ColCell{Icol}  = 'N_mag';
             ColUnits{Icol} = 'mag';      
+        case '1-way_down_LT'
+            C{Icol} = str2double(C{Icol});
+            ColCell{Icol}  = '1-way_down_LT';
+            ColUnits{Icol} = 'min';      
+            
         otherwise
             ColCell{Icol}
             error('Unknwon column name option');
