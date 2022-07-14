@@ -488,6 +488,15 @@ classdef catsHTM
             Data(I).Ref  = 'Gaia collaboration et al. 2020';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2020arXiv201201533G/abstract';
             
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/GAIA/DR3/';
+            Data(I).Name = 'GAIADR3';
+            Data(I).Desc = 'GAIA-DR3 catalog';
+            Data(I).Ref  = 'Gaia collaboration et al. 2022';
+            Data(I).RefLink = '';
+            
             
             I = I + 1;
             Data(I).Status  = true;
@@ -863,7 +872,7 @@ classdef catsHTM
             Data = catsHTM.catalogs;
             Nd = numel(Data);
             
-            for Id=14:1:14,
+            for Id=13:1:13,
                 %1:1:Nd
                 if Data(Id).Status
                     Data(Id)
