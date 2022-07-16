@@ -308,6 +308,27 @@ classdef AstroWCS < Component
             end
             
         end
+        
+        function Scale = getScale(Obj, OutUnits)
+            % Get pixel scale from CD matrix
+            % Input  : - An AstroWCS object
+            %          - Output units: 'arcsec'|'deg' per pixel.
+            %            Default is 'arcsec'.
+            % Output : - A vector of pixel scales per AstroWCS element.
+            % Author : Eran Ofek (Jul 2022)
+            
+            arguments
+                Obj
+                OutUnits    = 'arcsec';
+            end
+            
+            Nobj  = numel(Obj);
+            Scale = zeros(Nobj,1);
+            for Iobj=1:1:Nobj
+                Scale(Iobj) = (abs(Obj(Iobj).CD(1,1)) + abs(Obj(Iobj).CD(1,1))).*0.5;
+                Scale(Iobj) = convert.angular(Obj(Iobj).CUNIT{1}, OutUnits, Scale(Iobj));
+            end
+        end
     end
 
     methods   % Functions to construct AstroWCS from AstroHeader

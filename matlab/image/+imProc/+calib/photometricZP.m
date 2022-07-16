@@ -93,6 +93,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %            'MagZP' - Zero point that was used in order to convert
     %                   instrumental flux to instrumental mag.
     %                   Default is 25.
+    %            'PixScale' - Pixel scale [arcsec/pix]. If empty will
+    %                   attempt to read from image WCS. Default is [].
     %            'matchReturnIndicesArgs' - A cell array of additional
     %                   arguments to pass to imProc.match.matchReturnIndices
     %                   Default is {}.
@@ -122,6 +124,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.CatColNameMagErr         = 'MAGERR_APER_3'; %'MAGERR_CONV_3';
         Args.CatColNameSN             = 'SN_3';
         Args.MagZP                    = 25;
+        Args.PixScale                 = [];
         Args.MagSys                   = 'AB';  % 'AB' | 'Vega'
         Args.CatZP                    = 'GAIAEDR3';   % catalog origin of magnitudes
         
@@ -383,7 +386,19 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                 % BACKMAG
 
                 MedBack = fast_median(Result(Iobj).Back(:));   %, 'all', 'omitnan');
-                ResFit(Iobj).BackMag = ResFit(Iobj).ZP - 2.5.*log10(MedBack);
+                if isempty(Args.PixScale)
+                    % try to read pixel scale from WCS
+                    if isa(Obj, 'AstroImage')
+                        Obj(Iobj).WCS.getScale('arcsec');
+                    else
+                        error('Can not get pixel scale - either provide it, or use AstroImage with WCS data');
+                    end
+                else
+                    PixScale = Args.PixScale;
+                end
+                ResFit(Iobj).BackMag = ResFit(Iobj).ZP - 2.5.*log10(MedBack) + 5.*log10(PixScale);  % per aecsec^2
+                
+                
 
                 Keys = {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDW','PH_RMS','PH_NSRC','PH_MAGSY','LIMMAG','BACKMAG'};
                 Vals = {ResFit(Iobj).ZP, ResFit(Iobj).Par(2), ResFit(Iobj).Par(3), ResFit(Iobj).Par(4), ResFit(Iobj).MedW, ResFit(Iobj).RMS, ResFit(Iobj).Nsrc, ResFit(Iobj).MagSys, ResFit(Iobj).LimMag, ResFit(Iobj).BackMag};
