@@ -131,12 +131,15 @@ classdef DbAdmin < Component
             % Input : - DbAdmin object
             %         * Pairs of ...,key,val,...
             %           The following keys are available:            			            
+            %           'DatabaseName' - Database name, create empty database (without XLS or SQL)
+            %           'CheckExist'   - True (default) to check if database already exists, and ignore
+            %           'Drop'         - True to drop (delete) the database before creating it (default is false)
             %           'XlsxFileName' - .xlsx file from Google Sheets - Specify XLSX file
             %           'SqlFileName'  - .sql file name - Specify SQL script to run
             %
             % Output  : true on success
             % Author  : Chen Tishler (2021)
-            % Example : -
+            % Example : createDatabase(DatabaseName='MyDb');
             % Instructions:
             %    1. Download database definition from Google Sheet by selecting
             %       File -> Download -> (XLS)
@@ -144,13 +147,30 @@ classdef DbAdmin < Component
             
             arguments
                 Obj
-                Args.DatabaseName   = ''        % Create database
+                Args.DatabaseName   = ''        % Database name, create empty database (without XLS or SQL)
                 Args.XlsxFileName   = ''        %
                 Args.SqlFileName    = ''        %                
             end
             
             Result = false;
             
+            %
+            if ~isempty(Args.DatabaseName) && Args.CheckExist
+                if Obj.IsDbExist(Args.DatabaseName)
+                    Result = true;
+                    return;
+                end
+            end
+            
+            % Drop existing database
+            if ~isempty(Args.DatabaseName) && Args.Drop
+                if Obj.IsDbExist(Args.DatabaseName)
+                SqlText = sprintf('CREATE DATABASE %s WITH TEMPLATE = template0 ENCODING = ''UTF8'';', Args.DatabaseName);
+                Result = Obj.exec(SqlText);
+                end
+            end
+            
+        
             % Execute SQL file using psql
             if ~isempty(Args.SqlFileName)
                 if isfile(Args.SqlFileName)
@@ -172,10 +192,15 @@ classdef DbAdmin < Component
                 else
                     Obj.msgLog(LogLevel.Error, 'createDatabase: Input XLSX file not found: %s', Args.XlsxFileName);
                 end               
+
+            % Create empty database
+            elseif ~isempty(Args.DatabaseName)
+                SqlText = sprintf('CREATE DATABASE %s WITH TEMPLATE = template0 ENCODING = ''UTF8'';', Args.DatabaseName);
+                Result = Obj.exec(SqlText);
             end
-
+            
         end
-
+             
         
         function Result = createConnectionConfig(Obj, Args)
             % Create database connection in config/local/Database.DbConnections.UnitTest.yml
@@ -249,10 +274,13 @@ classdef DbAdmin < Component
             %             'SqlFileName'   - File name of SQL script to execute
             %             'TableName'     - Table name, if not specified, Obj.TableName is used
             %             'PrimaryKeyDef' - Definition of primary key (SQL)
-            %             'IdentityPk'    - 
+            %             'AutoPk'        - Name of auto-increment primary
+            %                               key field (BIGINT), if specified, we use Postgres' IDENTITY COLUMN
+            %             'CheckExist'    - True (default) to check if database already exists, and ignore
+            %             'Drop'          - True to drop (delete) the table before creating it (default is false)            
             % Output  : true on success
             % Author  : Chen Tishler (2021)
-            % Example : db.DbAdmin.createTable('unittest', )
+            % Example : db.DbAdmin.createTable('TableName', 'my_table', 'AutoPk', 'pk')
             % Refs    : https://www.postgresql.org/docs/8.0/sql-createuser.html
             % SQL     : [DROP TABLE IF EXISTS customers CASCADE;]
             %           CREATE TABLE customers (
@@ -266,13 +294,30 @@ classdef DbAdmin < Component
                 Args.SqlFileName    = ''
                 Args.TableName      = ''
                 Args.PrimaryKeyDef  = ''
-                Args.IdentityPk     = ''    %
+                Args.AutoPk         = ''    %
             end
 
 
             Result = false;
             SqlText = '';
             
+            %
+            if ~isempty(Args.DatabaseName) && Args.CheckExist
+                if Obj.IsDbExist(Args.DatabaseName)
+                    Result = true;
+                    return;
+                end
+            end
+            
+            % Drop existing database
+            if ~isempty(Args.DatabaseName) && Args.Drop
+                if Obj.IsDbExist(Args.DatabaseName)
+                SqlText = sprintf('CREATE DATABASE %s WITH TEMPLATE = template0 ENCODING = ''UTF8'';', Args.DatabaseName);
+                Result = Obj.exec(SqlText);
+                end
+            end
+            
+                   
             % SQL text
             if ~isempty(Args.SqlText)
                 SqlText = Args.SqlText;
@@ -280,6 +325,10 @@ classdef DbAdmin < Component
             % SQL file name
             elseif ~isempty(Args.SqlFileName)
                 SqlText = fileread(Args.SqlFileName);
+
+            % Table name with auto-increment primary key
+            elseif ~isempty(Args.TableName) && ~isempty(Args.AutoPk)
+                SqlText = sprintf('CREATE TABLE %s (%s BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY);', Args.TableName, Args.AutoPk); 
                 
             % Table name with Primary key
             elseif ~isempty(Args.TableName) && ~isempty(Args.PrimaryKeyDef)
@@ -292,6 +341,20 @@ classdef DbAdmin < Component
         end
         
         
+        function Result = dropTable(Obj, TableName)
+            % Drop database
+            %
+            % Input : - DbAdmin object
+            %         - Table name to drop            
+            % Output  : true on success
+            % Author  : Chen Tishler (2022)
+            % Example : dropTable('MyTable');
+            
+            SqlText = sprintf('DROP TABLE IF EXISTS %s;', TableName);
+            Result = Obj.exec(SqlText);            
+        end
+        
+        
         function Result = addColumn(Obj, TableName, ColumnName, DataType, ColumnDef)
             % Add single or multiple columns to table
             % Input   : - DbAdmin object
@@ -300,7 +363,10 @@ classdef DbAdmin < Component
             %           - DataType   - Data field type, INTEGER, etc. see
             %             https://www.postgresql.org/docs/current/datatype.html
             %           - Additional text for column definition, i.e. DEFAULT ...
-            %
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:            			                        
+            %             'CheckExist'    - True (default) to check if column already exists
+            %             'Comment'       - Comment text, specifiy 'NULL' to remove existing comment
             % Output  : true on success
             % Author  : Chen Tishler (2021)
             % Example : Obj.addColumn('master_table', 'MyColA', 'INTEGER', 'DEFAULT 0')
@@ -336,17 +402,26 @@ classdef DbAdmin < Component
             end
             
             Result = Obj.exec(SqlText);
+            
+            % Add/remove column comment
+            if ~isempty(Args.Comment)
+                if strcmp(Args.Comment, 'NULL')
+                else
+                end
+            end
         end
 
         
-        function Result = addIndex(Obj, TableName, IndexName, IndexDef)
+        function Result = addIndex(Obj, TableName, IndexName, IndexDef, Args)
             % Add single index to table, may include one or multiple fields
             % Input   : - DbAdmin object
             %           - Table name to be altered
             %           - Unique index name, usually composed as TableName_idx_FieldNames, 
             %             for example 'master_table_idx_FDouble2'
             %           - Index definition text with list of fields, for example: 'USING btree (FDouble2)'
-            %
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:            			                        
+            %             'CheckExist'    - True (default) to check if index already exists
             % Output  : - true on success
             % Author  : Chen Tishler (2021)
             % Example : addIndex('master_table', 'master_table_idx_FDouble2', 'USING btree (FDouble2)');
@@ -362,13 +437,61 @@ classdef DbAdmin < Component
                 TableName           %
                 IndexName           %
                 IndexDef            %
+                Args.CheckExist     %
+                Args.Drop           %
             end
                         
+            if Args.CheckExist
+            end
+            
+            if Args.Drop
+            end
+            
+            %         sql = "CREATE INDEX {} ON {} USING BTREE({});".format(index_name, table_name, column_names)
             SqlText = sprintf('CREATE INDEX %s ON %s %s', IndexName, TableName, IndexDef);
             Result = Obj.exec(SqlText);
         end
         
 
+        function Result = addIndexOnColumn(Obj, TableName, ColumnName, Args)
+            % Add single index to table, on specified column.
+            % Input   : - DbAdmin object
+            %           - Table name to be altered
+            %           - Column name
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:            			                        
+            %             'CheckExist'    - True (default) to check if index already exists
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
+            % Example : addIndex('master_table', 'master_table_idx_FDouble2', 'USING btree (FDouble2)');
+            % Refs    : https://www.postgresql.org/docs/9.1/sql-createindex.html
+            %           https://www.postgresqltutorial.com/postgresql-indexes/postgresql-create-index/
+            % SQL     : CREATE INDEX index_name ON table_name [USING method]
+            %            (
+            %               column_name [ASC | DESC] [NULLS {FIRST | LAST }],
+            %               ...
+            %            );
+            arguments
+                Obj                 %
+                TableName           %
+                ColumnName          %
+                Args.CheckExist     %
+            end
+                        
+            IndexName = sprintf('{}_idx_%s', TableName, ColumnName);
+            Obj.addIndex(TableName, self.add_index(table_name, index_name, column_name, check_exists)
+        
+            if Args.CheckExist
+            end
+            
+            if Args.Drop
+            end
+            
+            SqlText = sprintf('CREATE INDEX %s ON %s %s', IndexName, TableName, IndexDef);
+            Result = Obj.exec(SqlText);
+        end
+        
+        
         function Result = getDbList(Obj)
             % Get list of databases
             % Input   : - DbAdmin object
