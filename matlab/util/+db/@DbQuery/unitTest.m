@@ -15,6 +15,9 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'Version: %s', pgver);
     assert(contains(pgver, 'PostgreSQL'));
 
+    
+    testAdmin();
+    
     % Select into CSV file (CsvFileName)
     % Shared folder must be accessible
     % When working on Windows, make sure that the shared folder in visible
@@ -493,4 +496,143 @@ function Result = testDelete(Q)
     Result = true;
 end
 
+
+
+function Result = testAdmin()
+    % Admin Unit-Test (see also examples.m)
+    %
+    % On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
+    % On Linux, use pgAdmin and DataGrip by JetBrains
+    %
+    % Requirements:
+    %
+    % 1. Install Postgres v14 - See detailed instructions in files:
+    %
+    %       postgres_installation_ubuntu18.md
+    %       postgres_shared_folder.md
+    %
+    % 2. Install pgAdmin4 (version 6.3) as administration tool    
+    %    On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
+    %    On Linux, use DataGrip by JetBrains (License is required)
+    %
+    % 3. You need to have configuration file with database user and password, as:
+    %
+    %       config/local/Database.DbConnections.UnitTest.yml
+    %
+    % 4. Database 'unittest' should already exist with table 'master_table'
+    %
+    
+    % Modify Host= below if you do not have access to server 'gauss'
+    Host = 'gauss';
+    
+    % Uncomment this line if you do not have access to server 'gauss'
+    % and your database server is local on your computer.
+    %Host = 'localhost'
+        
+    % Set log levels for maximum details
+    MsgLogger.getSingleton().setLogLevel(LogLevel.Debug, 'type', 'all');
+    io.msgStyle(LogLevel.Test, '@start', 'Admin test started')
+    io.msgLog(LogLevel.Test, 'DATABASE SERVER HOST: %s', Host);
+    io.msgLog(LogLevel.Test, 'Postgres database "unittest" should exist');
+    
+    % Connect to server, this is the command line syntax of 'psql'
+    % psql -h gauss -U admin -d unittest -W
+    
+    % Get path to folder of sources, to run '.sql' files
+    [MyPath,~,~] = fileparts(mfilename('fullpath'));
+    
+    % Create DbQuery instance with connetion details from configuration
+    % file 'Database.DbConnections.UnitTest.yml', so Query created below
+    % is linked to this connection.
+    Query = db.DbQuery('unittest');
+    DbList1 = Query.getDbList();
+    assert(numel(DbList1) > 0);
+    
+    % Create Query without connection, use it to create Config file
+    Query = db.DbQuery();    
+    ConfigFileName = Query.createConnectionConfig('DatabaseName', 'admin_db', 'Host', 'gauss', 'Port', 5432, 'UserName', 'admin', 'Password', 'Passw0rd');
+    assert(~strcmp(ConfigFileName, ''));
+  
+    % Create DbQuery from arguments
+    Query = db.DbQuery('Host', Host, 'Port', 5432, 'UserName', 'admin', 'Password', 'Passw0rd', 'DatabaseName', 'unittest');    
+    assert(Query.isTableExist('master_table'));
+    
+    % Get list of databases
+    DbList1 = Query.getDbList();
+    assert(numel(DbList1) > 0);
+    
+    % Create empty database
+    Query.createDb('DbName', 'mydb1');
+    assert(Query.isDbExist('mydb1'));
+    
+    % Connect to the new db (MUST DO)
+    Q2 = DbQuery(Query, 'Database', 'mydb1');
+    Q2.createTable('mytable1', 'AutoPk', 'pk');
+    assert(Q2.isTableExist('mytable1'));
+    
+    % Create database 'dbadmin_unittest' from sqlfile
+    Query.createDb('SqlFileName', fullfile(MyPath, 'unitTest_createDatabase.sql'));
+    assert(Query.isDbExist('unittest'));
+    
+    % Create DB from xlsx file (Google Sheets)
+    exist = Query.isDbExist('unittest3');
+    Query.createDb('XlsxFileName', fullfile(MyPath, 'unittest3.xlsx'));
+    assert(Query.isDbExist('unittest3'));
+    
+    % Create DB with args - no support yet    
+    % @Todo    
+    
+    % Create table with specified SQL text
+    SqlText = [...
+        'DROP TABLE IF EXISTS newtable_1; '...
+        'CREATE TABLE newtable_1 ('...
+        'RecID VARCHAR NOT NULL,'...
+        'FDouble1 DOUBLE PRECISION DEFAULT 0,'...
+        'FInt1 INTEGER DEFAULT 0,'...
+        'FString1 VARCHAR,'...
+        'CONSTRAINT table1_pkey PRIMARY KEY(RecID)'...
+        ');' ];
+
+    % Execute the SQL text and check that table was created
+    Query.createTable('SqlText', SqlText);
+    assert(Query.isTableExist('newtable_1'));
+    
+    % Create table with args
+    Query.createTable('TableName', 'newtable_2', 'PrimaryKeyDef', 'new_Pkey int');
+    assert(Query.isTableExist('newtable_2'));
+    
+    % Create table with SQL file
+    Query.createTable('SqlFileName', fullfile(MyPath, 'unitTest_createTable.sql'));
+    assert(Query.isTableExist('newtable_3'));
+    
+    % Add new column to existing table
+    Query.addColumn('newtable_1', {'MyColA'}, {'INTEGER'}, {'DEFAULT 0'});
+    assert(Query.isColumnExist('newtable_1', 'MyColA'));   
+
+    % Add index to existing table
+    IndexList1 = Query.getTableIndexList('newtable_1');
+    index_added = Query.addIndex('newtable_1', 'newtable_1_idx_FDouble5', 'USING btree (FDouble1)');
+    IndexList2 = Query.getTableIndexList('newtable_1');
+    assert(index_added && any(strcmpi(IndexList2, 'newtable_1_idx_FDouble5')));
+    
+    % Users:
+    % Get list of users (roles)
+    UserList1 = Query.getUserList();    
+    assert(numel(UserList1) > 0);
+    
+    % Add user
+    Query.addUser('Test1', 'Password1');
+    UserList2 = Query.getUserList();
+    assert(any(strcmpi(UserList2, 'test1')));
+    %assert(length(UserList2) == length(UserList1)+1);  @@@@Dan 
+
+    % Remove user
+    Query.removeUser('Test1');
+    UserList3 = Query.getUserList();
+    assert(~any(strcmpi(UserList3, 'test1')));
+    %assert(length(UserList3) == length(UserList1));
+    
+    io.msgStyle(LogLevel.Test, '@passed', 'Admin test passed');
+    Result = true;
+end
 

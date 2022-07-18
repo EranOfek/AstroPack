@@ -3,6 +3,7 @@
 % Title:   SQL Database query component for Postgres
 % Author:  Chen Tishler
 % Created: July 2021
+% Updated: July 2022
 % Note:    For more documentation see .md files in +db/doc/
 %--------------------------------------------------------------------------
 % Description:
@@ -46,6 +47,12 @@
 %
 % Methods:
 %    DbQuery - Create new DbQuery obeject Input: DbTableOrConn - Database alias from Database.yml, with optional table name, for example: 'UnitTest'
+%    addColumn - Add single or multiple columns to table Input: Output: Example: Obj.addColumn('master_table', 'MyColA', 'INTEGER', 'DEFAULT 0') Refs: https://www.postgresqltutorial.com/postgresql-add-column/
+%    addIndex - Add single index to table, may include one or multiple fields Input: TableName - Table name to be altered IndexName - Unique index name, usually composed as
+%    addUser - Add database user Input: UserName - User name Password - Pasword string 'DatabaseName' - If specified user will be granted only for this database 'Permission' - 'read', 'write', 'full'
+%    createConnectionConfig - Create database connection in config/local/Database.DbConnections.UnitTest.yml Input: 'FileName' = '' % 'DatabaseName' = '' % 'Host' = 'localhost' % Host name or IP address
+%    createDb - Create database Input: 'XlsFileName' - When specified, 'DatabaseName' -
+%    createTable - Create database table, @Todo Input: Output: Example: db.DbQuery.createTable('unittest', ) Refs: https://www.postgresql.org/docs/8.0/sql-createuser.html
 %    delete -
 %    deleteRecord - Delete record by fields specified in Rec Note that we cannot use 'delete' as function name because it is a reserved keyword. Intput: Args.TableName - Args.Where -
 %    exec - Execute SQL statement (that does not return data), for SELECT, use query() Input: char-array - SQL text. If not specified, Obj.SqlText is used Output: true on success Example: Obj.exec('INSERT (recid,fint) INTO master_table VALUES (''MyUuid'',1)'
@@ -53,16 +60,20 @@
 %    getColumnIndex - Get column index by column name, search in ColNames{} Input: ColumnName - Output: DbRecord Example: Index = Obj.getColumnIndex('')
 %    getColumnList - Get columns list of current ResultSet as celarray Input: - Output: Example: ColNames = Obj.getColumnList()
 %    getColumnType - Get column type Input: ColumnName - Output: char - Example: -
+%    getDbList - Get list of databases Input: - Output: Cell array with list of databases Example: List = Obj.getDbList() Refs: https://www.postgresqltutorial.com/postgresql-list-users/
 %    getTableColumnNames - Get columns list of specified table as cell array Input: TableName Output: Cell array Example: = Obj.getTableColumnList('master_table')
 %    getTableIndexList - Get list of index names of specified table Input: TableName Output: Cell array Example: = Obj.getTableIndexList('master_table')
 %    getTablePrimaryKey - Get primary key column names of specified table Input: TableName Output: Cell array Example: = Obj.getTablePrimaryKey('master_table')
 %    getTablesList - Get columns list of specified table as cell array Input: - Output: Cell array Example: = Obj.getTablesList()
+%    getUserList - Get columns list of specified table as cell array Input: - Output: Cell array Example: List = Obj.getUserList() Refs: https://www.postgresqltutorial.com/postgresql-list-users/
 %    insert - Simple insert, all arguments are char Insert new record to table, Keys and Values are celarray Input: Rec - Data to insert 'TableName' - Table name, if not specified, Obj.TableName is used 'CsvFileName' - When non-empty, use copyFrom and insert data from this file instead of Rec
 %    isColumn - Check if field exists by name Input: ColumnName Output: true if current result set Example: IsColumn = Obj.isColumn('MyFieldName')
+%    isDbExist - Check if database exists Input: DbName Output: true if exists Example: List = Obj.isDbExist('my_database') Refs: https://www.postgresqltutorial.com/postgresql-list-users/
 %    loadResultSet - Helper function for select() - Load ResultSet to DbRecord array Might be time and memory consuming! Input: 'MaxRows' - Optional limit of number of rows to load to memory Output: DbRecord object: ColCount, ColNames, ColType, Data(i) Example: Obj.loadResultSet();
 %    next - Move cursor to next record, return false if reached end of data Input: - Output: true on sucess Example: Obj.next()
 %    prev - Move cursor to previous record, return false if reached end of data Input: - Output: true on sucess Example: Obj.prev()
 %    query - Run SELECT query, do NOT load any data. For non-SELECT statements, use exec() Input: char-array - SQL text. If not specified, Obj.SqlText is used Output: true on success, use loadResultSet() to load the data Example: Obj.query('SELECT COUNT(*) FROM master_table');
+%    removeUser - Remove user Input: UserName to remove Output: true on success Example: db.DbQuery.removeUser('robert') Refs: https://www.postgresql.org/docs/9.4/sql-dropuser.html
 %    select - Execute SELECT Columns FROM TableName and load results to memory Input: - Columns - Comma-separated field names to select (i.e. 'recid,fint') 'TableName' - Table name, if not specified, Obj.TableName is used 'Where' - Where condition (excluding WHERE keyword) 'Order' - Order by clause (excluding ORDER BY keyword)
 %    selectColumn - Get column from specified table as cell array Input: SqlText - SELECT query text ColumnName - Column name to select from query result Output: Cell array Example: = Obj.selectColumn('SELECT COUNT(*) FROM master_table', 'count')
 %    selectTableRowCount - Select number of records with optionally WHERE clause Intput: Args.TableName - If empty, use Obj.TableName Args.Where - Example: 'Flag == 1' Output: integer - COUNT returned by query Example: Count = Obj.selectTableRowCount()
@@ -82,9 +93,14 @@
 %    makeUpdateColumnsText - Prepare SQL text from cell array Input: ColumnNames - Output: char-array Example: -
 %    makeWhereColumnsText - Prepare SQL text from cell array "WHERE RecID=? AND FInt=?..." Input: ColumnNames - Operand
 %    openConn - [Internal Use] Open connection, throw exception on failure Input: - Output: true on sucess Example: Obj.openConn()
+%    runPsql - Run 'psql' external utility with command line parameters. Input: XlsFileName Output: Example: db.DbQuery.runPsql( psql -h gauss -p 5432 -U admin -W -d postgres -f unittest_postgres.sql
 %    setConnection - [Internal Use] Set connection Input: DbTableOrConn - Output: true on sucess Example: Obj.setConnection('unittest')
 %    setStatementValues - Set statement values from specified DbRecord or struct Input: Rec - FirstRecord - RecordCount - 'ColumnNames' -
 %    writeBinaryFile - Get cell array field names that match the specified field type Input: Rec - DbRecord with data Output: true on sucess Example: ColNames = Q.getColumnNamesOfType('Double'); @Todo - Implement this function in MEX
+%    xlsx2sql - Convert XLSX file downloaded from Google Drive to SQL file Note: Requires ULTRASAT repository and ULTRASAT_PATH environment var to be set correctly. Note: python3 (python3.exe on Windows) should be on system PATH Input: XlsFileName
+%
+% Methods: Static
+%    startGui - Run gui utility - @TODO - Currently DO NOT USE Input: - Output: - Example: db.DbQuery.startGui
 %
 %#/docgen
 
@@ -117,6 +133,15 @@ classdef DbQuery < Component
         JavaStatement   = []        % [Java object] Prepared statement object
         JavaMetadata    = []        % [Java object] set by getMetadata()
         JavaResultSet   = []        % [Java object] returned result-set from SELECT
+        
+        % Admin
+        Shell           = ''        % Linux shell, 'tcsh' or 'bash', empty for auto detect by $SHELL env        
+        Host            = ''        % Host name or IP address
+        Port            = 5432      % Port number, default if 5432
+        DatabaseName    = ''        % Use 'postgres' when creating databases or for general functionality
+        UserName        = ''        % User name for connection
+        Password        = ''        % Password for connection
+        
     end
 
     %----------------------------------------------------------------------
@@ -128,6 +153,13 @@ classdef DbQuery < Component
             % Input : - DbConnection object, or database alias from Database.yml.
             %           * Pairs of ...,key,val,...
             %             The following keys are available:
+            %             These arguments are used when DbTableOrConn is empty:
+            %             'Host'      - Host name
+            %             'Database'  - Database name
+            %             'UserName'  - User name
+            %             'Password'  - Password
+            %             'Port'      - Port number
+            %
             %             'TableName' - Set current table name, when not set, it must be
             %                           specified by each function (insert/select/etc.)
             %             'InsertRecFunc' - Default function used with insert(). See help of insert()
@@ -151,6 +183,14 @@ classdef DbQuery < Component
                 DbTableOrConn   = []  % DbAlias / DbAlias:TableName / DbConnection object
                 Args.TableName        % Set TableName when not included in DbTable parameter
                 Args.InsertRecFunc    % Default function used with insert(). See help of insert()
+                
+                % These arguments are used when both DbQuery and DbCon are NOT set:
+                Args.Host          = ''        % Host name or IP address
+                Args.Port          = 5432      % Port number
+                Args.DatabaseName  = ''        % Use 'postgres' to when creating databases or for general
+                Args.UserName      = ''        % User name
+                Args.Password      = ''        % Password
+                
             end
 
             % Setup component
@@ -160,7 +200,21 @@ classdef DbQuery < Component
             %Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
 
             % Set connection
-            Obj.setConnection(DbTableOrConn);
+            if ~isempty(DbTableOrConn)
+                if isa(DbTableOrConn, 'db.DbQuery')
+                    Obj.setConnection(Obj.Conn);
+                else
+                    Obj.setConnection(DbTableOrConn);
+                end                
+
+            % Create new connection from other arguments
+            elseif ~isempty(Args.Host)
+                NewCon = db.DbConnection('Host', Args.Host, 'Port', Args.Port, ...
+                    'DatabaseName', Args.DatabaseName, 'UserName', Args.UserName, 'Password', Args.Password);
+                
+                Obj.setConn(NewCon);
+                
+            end
 
             % Override TableName and set other properties
             Obj.setProps(Args);
@@ -1952,7 +2006,827 @@ classdef DbQuery < Component
         
     end
     
+    %----------------------------------------------------------------------
     
+    methods % Database creating & modification
+        
+        function Result = createDb(Obj, Args)
+            % Create database, from .XLSX or .SQL file
+            %
+            % Input : - DbQuery object
+            %         * Pairs of ...,key,val,...
+            %           The following keys are available:            			            
+            %           'DatabaseName' - Database name, create empty database (without XLS or SQL)
+            %           'CheckExist'   - True (default) to check if database already exists, and ignore
+            %           'Drop'         - True to drop (delete) the database before creating it (default is false)
+            %           'XlsxFileName' - .xlsx file from Google Sheets - Specify XLSX file
+            %           'SqlFileName'  - .sql file name - Specify SQL script to run
+            %
+            % Output  : true on success
+            % Author  : Chen Tishler (2021)
+            % Example : createDb(DatabaseName='MyDb');
+            % Instructions:
+            %    1. Download database definition from Google Sheet by selecting
+            %       File -> Download -> (XLS)
+            %
+            
+            arguments
+                Obj
+                Args.DatabaseName   = ''        % Database name, create empty database (without XLS or SQL)
+                Args.XlsxFileName   = ''        %
+                Args.SqlFileName    = ''        %                
+            end
+            
+            Result = false;
+            
+            %
+            if ~isempty(Args.DatabaseName) && Args.CheckExist
+                if Obj.IsDbExist(Args.DatabaseName)
+                    Result = true;
+                    return;
+                end
+            end
+            
+            % Drop existing database
+            if ~isempty(Args.DatabaseName) && Args.Drop
+                if Obj.IsDbExist(Args.DatabaseName)
+                SqlText = sprintf('CREATE DATABASE %s WITH TEMPLATE = template0 ENCODING = ''UTF8'';', Args.DatabaseName);
+                Result = Obj.exec(SqlText);
+                end
+            end
+            
+        
+            % Execute SQL file using psql
+            if ~isempty(Args.SqlFileName)
+                if isfile(Args.SqlFileName)
+                    Obj.runPsql('SqlFileName', Args.SqlFileName);
+                    Result = true;
+                else
+                    Obj.msgLog(LogLevel.Error, 'createDb: Input SQL file not found: %s', Args.SqlFileName);
+                end
+                
+            % Extract database definition from XLS file and execute the
+            % resulting SQL file using psql
+            elseif ~isempty(Args.XlsxFileName)
+                if isfile(Args.XlsxFileName)
+                    SqlFileName = Obj.xlsx2sql(Args.XlsxFileName);
+                    if ~isempty(SqlFileName) && isfile(SqlFileName)
+                        Obj.runPsql('SqlFileName', SqlFileName);
+                        Result = true;
+                    end
+                else
+                    Obj.msgLog(LogLevel.Error, 'createDb: Input XLSX file not found: %s', Args.XlsxFileName);
+                end               
+
+            % Create empty database
+            elseif ~isempty(Args.DatabaseName)
+                SqlText = sprintf('CREATE DATABASE %s WITH TEMPLATE = template0 ENCODING = ''UTF8'';', Args.DatabaseName);
+                Result = Obj.exec(SqlText);
+            end
+            
+        end
+             
+        
+        function Result = createConnectionConfig(Obj, Args)
+            % Create database connection in config/local/Database.DbConnections.UnitTest.yml
+            % Input : - DbQuery object
+            %         * Pairs of ...,key,val,...
+            %           The following keys are available:            			            
+            %           'FileName'        = ''                %
+            %           'DatabaseName'    = ''                %
+            %           'Host'            = 'localhost'       % Host name or IP address
+            %           'Port'            = 5432              %
+            %           'DriverName'      = 'postgres'        % Driver name
+            %           'UserName'        = ''                % Login user
+            %           'Password'        = ''                % Login password
+            %           'ServerSharePath' = '' %              % Path to shared folder on the server, for COPY statements
+            %           'MountSharePath'  = ''
+            %           'WinMountSharePath'  = ''
+            % Output : - Configuration file name on success
+            % Author : Chen Tishler (2021)
+            % Example: db.DbQuery.createConnectionConfig('DatabaseName', 'unittest5', 'Host', 'gauss', 'Port', 5432, 'UserName', 'admin', 'Password', 'Passw0rd');
+            % Database.DbConnections.UnitTest.yml
+            
+            arguments
+                Obj
+                Args.FileName        = ''                %
+                Args.DatabaseName    = ''                %
+                Args.Host            = 'localhost'       % Host name or IP address
+                Args.Port            = 5432              %
+                Args.DriverName      = 'postgres'        % Driver name
+                Args.UserName        = ''                % Login user
+                Args.Password        = ''                % Login password
+                Args.ServerSharePath = '/var/samba/pgshare'   % Path to shared folder on the server, for COPY statements
+                Args.MountSharePath  = '/media/gauss_pgshare' %
+                Args.WinMountSharePath  = 'S:\'               %
+            end
+            
+            % Prepare file name if not specified
+            Result = [];
+            if isempty(Args.FileName)
+                ConfigPath = fullfile(tools.os.getAstroPackConfigPath(), 'local');
+                Args.FileName = fullfile(ConfigPath, strcat('Database.DbConnections.', Args.DatabaseName, '.yml'));
+            end
+            
+            % Create file
+            Fid = fopen(Args.FileName, 'wt');
+            if Fid > -1
+                fprintf(Fid, '# %s\n\n',                        Args.FileName);
+                fprintf(Fid, 'DatabaseName    : ''%s''\n',      Args.DatabaseName);
+                fprintf(Fid, 'Host            : ''%s''\n',      Args.Host);
+                fprintf(Fid, 'Port            : %d\n',          Args.Port);
+                fprintf(Fid, 'DriverName      : ''postgres''\n');
+                fprintf(Fid, 'UserName        : ''%s''\n',      Args.UserName);
+                fprintf(Fid, 'Password        : ''%s''\n',      Args.Password);
+                fprintf(Fid, 'ServerSharePath : ''%s''\n',      Args.ServerSharePath);
+                fprintf(Fid, 'MountSharePath  : ''%s''\n',      Args.MountSharePath);
+                fprintf(Fid, 'WinMountSharePath : ''%s''\n',    Args.WinMountSharePath);
+                fclose(Fid);
+                
+                if isfile(Args.FileName)
+                    Result = Args.FileName;
+                end
+            end            
+        end
+              
+        
+        function Result = createTable(Obj, Args)
+            % Create database table, @Todo
+            % Input   : - DbQuery object
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:            			                        
+            %             'SqlText'       - SQL text to execute
+            %             'SqlFileName'   - File name of SQL script to execute
+            %             'TableName'     - Table name, if not specified, Obj.TableName is used
+            %             'PrimaryKeyDef' - Definition of primary key (SQL)
+            %             'AutoPk'        - Name of auto-increment primary
+            %                               key field (BIGINT), if specified, we use Postgres' IDENTITY COLUMN
+            %             'CheckExist'    - True (default) to check if database already exists, and ignore
+            %             'Drop'          - True to drop (delete) the table before creating it (default is false)            
+            % Output  : true on success
+            % Author  : Chen Tishler (2021)
+            % Example : db.DbQuery.createTable('TableName', 'my_table', 'AutoPk', 'pk')
+            % Refs    : https://www.postgresql.org/docs/8.0/sql-createuser.html
+            % SQL     : [DROP TABLE IF EXISTS customers CASCADE;]
+            %           CREATE TABLE customers (
+            %             id SERIAL PRIMARY KEY,
+            %             customer_name VARCHAR NOT NULL
+            %           );
+            %
+            arguments
+                Obj
+                Args.SqlText        = ''
+                Args.SqlFileName    = ''
+                Args.TableName      = ''
+                Args.PrimaryKeyDef  = ''
+                Args.AutoPk         = ''    %
+            end
+
+
+            Result = false;
+            SqlText = '';
+            
+            %
+            if ~isempty(Args.DatabaseName) && Args.CheckExist
+                if Obj.IsDbExist(Args.DatabaseName)
+                    Result = true;
+                    return;
+                end
+            end
+            
+            % Drop existing database
+            if ~isempty(Args.DatabaseName) && Args.Drop
+                if Obj.IsDbExist(Args.DatabaseName)
+                SqlText = sprintf('CREATE DATABASE %s WITH TEMPLATE = template0 ENCODING = ''UTF8'';', Args.DatabaseName);
+                Result = Obj.exec(SqlText);
+                end
+            end
+            
+                   
+            % SQL text
+            if ~isempty(Args.SqlText)
+                SqlText = Args.SqlText;
+                
+            % SQL file name
+            elseif ~isempty(Args.SqlFileName)
+                SqlText = fileread(Args.SqlFileName);
+
+            % Table name with auto-increment primary key
+            elseif ~isempty(Args.TableName) && ~isempty(Args.AutoPk)
+                SqlText = sprintf('CREATE TABLE %s (%s BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY);', Args.TableName, Args.AutoPk); 
+                
+            % Table name with Primary key
+            elseif ~isempty(Args.TableName) && ~isempty(Args.PrimaryKeyDef)
+                SqlText = sprintf('CREATE TABLE %s (%s PRIMARY KEY)', Args.TableName, Args.PrimaryKeyDef);
+            end
+            
+            if ~isempty(SqlText)
+                Result = Obj.exec(SqlText);
+            end
+        end
+        
+        
+        function Result = dropTable(Obj, TableName)
+            % Drop database
+            %
+            % Input : - DbQuery object
+            %         - Table name to drop            
+            % Output  : true on success
+            % Author  : Chen Tishler (2022)
+            % Example : dropTable('MyTable');
+            
+            SqlText = sprintf('DROP TABLE IF EXISTS %s;', TableName);
+            Result = Obj.exec(SqlText);            
+        end
+        
+        
+        function Result = addColumn(Obj, TableName, ColumnName, DataType, ColumnDef)
+            % Add single or multiple columns to table
+            % Input   : - DbQuery object
+            %           - Table name
+            %           - Column name
+            %           - DataType   - Data field type, INTEGER, etc. see
+            %             https://www.postgresql.org/docs/current/datatype.html
+            %           - Additional text for column definition, i.e. DEFAULT ...
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:            			                        
+            %             'CheckExist'    - True (default) to check if column already exists
+            %             'Comment'       - Comment text, specifiy 'NULL' to remove existing comment
+            % Output  : true on success
+            % Author  : Chen Tishler (2021)
+            % Example : Obj.addColumn('master_table', 'MyColA', 'INTEGER', 'DEFAULT 0')
+            % Refs    : https://www.postgresqltutorial.com/postgresql-add-column/
+            % SQL     : ALTER TABLE table_name
+            %           ADD COLUMN column_name1 data_type constraint,
+            %           ADD COLUMN column_name2 data_type constraint,
+            %           ...
+            %           ADD COLUMN column_namen data_type constraint;
+            arguments
+                Obj
+                TableName               %
+                ColumnName              %
+                DataType                %
+                ColumnDef               %
+            end
+
+            % Validate input, size of arrays must match
+            assert(numel(ColumnName) == numel(DataType));
+            assert(numel(ColumnName) == numel(ColumnDef));
+            
+            % Prepare statement text
+            SqlText = sprintf('ALTER TABLE %s ', TableName);
+
+            % Add definitions of all specified columns
+            for i=1:numel(ColumnName)
+                SqlText = sprintf('%s ADD COLUMN %s %s %s', SqlText, ColumnName{i}, DataType{i}, ColumnDef{i});
+                if i == numel(ColumnName)
+                    SqlText = strcat(SqlText, ';');
+                else
+                    SqlText = strcat(SqlText, ',');
+                end
+            end
+            
+            Result = Obj.exec(SqlText);
+            
+            % Add/remove column comment
+            if ~isempty(Args.Comment)
+                if strcmp(Args.Comment, 'NULL')
+                else
+                end
+            end
+        end
+
+        
+        function Result = isIndexExist(Obj, TableName, IndexName)
+            % Check if specified index exists
+            % Input   : - DbQuery object
+            %           - Table name to be altered
+            %           - Index name
+            % Output  : - true if index exsits
+            % Author  : Chen Tishler (2022)
+            % Example : isIndexExist('master_table', 'idx_master_table_str1')          
+            SqlText = sprintf('SELECT * FROM pg_indexes WHERE schemaname = ''public'' AND tablename = ''%s''', TableName);
+            List = Obj.selectColumn(SqlText, 'indexname');
+            Result = any(strcmpi(List, IndexName));
+        end
+       
+        
+        function Result = addIndex(Obj, TableName, IndexName, Columns, Args)
+            % Add single index to table, may include one or multiple fields
+            % Input   : - DbQuery object
+            %           - Table name to be altered
+            %           - Unique index name, usually composed as TableName_idx_FieldNames, 
+            %             for example 'master_table_idx_FDouble2'
+            %           - Column names, comma separated
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:            			                        
+            %             'CheckExist'    - True (default) to check if index already exists
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
+            % Example : addIndex('master_table', 'master_table_idx_FDouble2', 'USING btree (FDouble2)');
+            % Refs    : https://www.postgresql.org/docs/9.1/sql-createindex.html
+            %           https://www.postgresqltutorial.com/postgresql-indexes/postgresql-create-index/
+            % SQL     : CREATE INDEX index_name ON table_name [USING method]
+            %            (
+            %               column_name [ASC | DESC] [NULLS {FIRST | LAST }],
+            %               ...
+            %            );
+            arguments
+                Obj                 %
+                TableName           %
+                IndexName           %
+                Columns             %
+                Args.CheckExist = true %
+            end
+                        
+            if Args.CheckExist
+                if Obj.isIndexExist(TableName, IndexName)
+                    Result = true;
+                    return
+                end
+            end
+            
+            SqlText = sprintf('CREATE INDEX %s ON %s USING BTREE(%s);', IndexName, TableName, Columns);
+            Result = Obj.exec(SqlText);
+        end
+        
+
+        function Result = addIndexOnColumn(Obj, TableName, ColumnName, Args)
+            % Add single index to table, on specified column, index name is generated as 'idx_TableName_ColumnName'
+            % Input   : - DbQuery object
+            %           - Table name to be altered
+            %           - Column name
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:            			                        
+            %             'CheckExist'    - True (default) to check if index already exists
+            % Output  : - true on success
+            % Author  : Chen Tishler (2022)
+            % Example : addIndexOnColumn('master_table', 'fdouble2')
+            arguments
+                Obj                      %
+                TableName                %
+                ColumnName               %
+                Args.CheckExist = true   %
+            end
+                        
+            IndexName = sprintf('{}_idx_%s', TableName, ColumnName);
+            Result = Obj.addIndex(TableName, IndexName, ColumnName, 'CheckExist', Args.CheckExist)
+        end
+        
+        
+        function Result = getDbList(Obj)
+            % Get list of databases
+            % Input   : - DbQuery object
+            % Output  : - Cell array with list of databases
+            % Author  : Chen Tishler (2021)
+            % Example : List = Obj.getDbList()
+            % Refs    : https://www.postgresqltutorial.com/postgresql-list-users/
+            
+            Text = 'SELECT datname FROM pg_database WHERE datistemplate = false';
+            Result = Obj.selectColumn(Text, 'datname');
+        end
+        
+        
+        function Result = isDbExist(Obj, DbName)
+            % Check if the specified database exists
+            % Input   : - DbQuery object
+            %           - DbName - database name to check for
+            % Output  : - true if exists
+            % Author  : Chen Tishler (2021)
+            % Example : Obj.isDbExist('my_database_name')
+            % Refs    : https://www.postgresqltutorial.com/postgresql-list-users/
+            
+            Text = sprintf('SELECT datname FROM pg_database WHERE datistemplate = false AND datname = ''%s''', lower(DbName));
+            List = Obj.selectColumn(Text, 'datname');
+            Result = any(strcmpi(List, DbName));
+        end
+        
+    end
+    
+    %----------------------------------------------------------------------
+    methods % User Management
+        
+        % https://www.postgresql.org/docs/14/user-manag.html
+        %
+        % PostgreSQL manages database access permissions using the concept of roles.
+        % A role can be thought of as either a database user, or a group of database
+        % users, depending on how the role is set up. Roles can own database objects
+        % (for example, tables and functions) and can assign privileges on those
+        % objects to other roles to control who has access to which objects.
+        % Furthermore, it is possible to grant membership in a role to another role,
+        % thus allowing the member role to use privileges assigned to another role.
+        %
+        % The concept of roles subsumes the concepts of "users" and "groups".
+        % In PostgreSQL versions before 8.1, users and groups were distinct kinds
+        % of entities, but now there are only roles. Any role can act as a user,
+        % a group, or both.
+        %
+        % Database roles are conceptually completely separate from operating
+        % system users. In practice it might be convenient to maintain a
+        % correspondence, but this is not required. Database roles are global
+        % across a database cluster installation (and not per individual database).
+        %
+        % Every connection to the database server is made using the name of
+        % some particular role, and this role determines the initial access
+        % privileges for commands issued in that connection.
+        % The role name to use for a particular database connection is indicated
+        % by the client that is initiating the connection request in an
+        % application-specific fashion. For example, the psql program uses
+        % the -U command line option to indicate the role to connect as.
+        % Many applications assume the name of the current operating system
+        % user by default (including createuser and psql).
+        % Therefore it is often convenient to maintain a naming correspondence
+        % between roles and operating system users.
+        %
+        % CREATE ROLE admin WITH LOGIN SUPERUSER CREATEDB CREATEROLE PASSWORD 'Passw0rd';
+        %
+                
+        function Result = addUser(Obj, UserName, Password, Args)
+            % Add database user
+            % Input   : - DbQuery object
+            %           - User name
+            %           - Password string
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:            			            
+            %             'DatabaseName' - If specified user will be granted only for this database
+            %             'Permission'   - 'read', 'write', 'full'
+            % Output  : true on sucess
+            % Author  : Chen Tishler (2021)
+            % Example : db.DbQuery.addUser('robert', 'pass123')
+            % Refs    : https://www.postgresql.org/docs/8.0/sql-createuser.html
+            %           https://stackoverflow.com/questions/760210/how-do-you-create-a-read-only-user-in-postgresql
+            % SQL     : CREATE USER user user_name WITH ENCRYPED PASSWORD 'mypassword';
+            %           GRANT ALL PRIVILEGES ON DATABASE sample_db TO user_name;
+            %
+            % @Todo   : Need to research and learn more about creating read-only users
+            %
+            arguments
+                Obj                     %
+                UserName                %
+                Password                %
+                Args.DatabaseName = ''  %
+                Args.Permission = ''    %
+            end
+            
+            % 1. Create new user
+            SqlText = sprintf('CREATE USER %s WITH PASSWORD ''%s''', UserName, Password);
+            Result = Obj.exec(SqlText);
+            
+            % 2. Grant the CONNECT access
+            SqlText = sprintf('GRANT CONNECT ON DATABASE %s TO %s', Args.DatabaseName, UserName);
+            Result = Obj.exec(SqlText);
+            
+            % 3. Grant full access
+            if ~isempty(Args.DatabaseName) && (strcmp(Args.Permission, 'write') || strcmp(Args.Permission, 'full'))
+                SqlText = sprintf('GRANT ALL PRIVILEGES ON DATABASE %s TO %s', Args.DatabaseName, UserName);
+                Result = Obj.exec(SqlText);
+            end
+            
+            % Create read-only user on specified database
+            % https://ubiq.co/database-blog/how-to-create-read-only-user-in-postgresql/
+            if ~isempty(Args.DatabaseName) && strcmp(Args.Permission, 'read')
+                
+                % Assign permission to this read only user
+                SqlText = sprintf('GRANT USAGE ON SCHEMA public TO %s', UserName);
+                Result = Obj.exec(SqlText);
+                
+                % Assign permission to this read only user
+                SqlText = sprintf('GRANT SELECT ON ALL TABLES IN SCHEMA public TO %s', UserName);
+                Result = Obj.exec(SqlText);
+                
+                % Assign permissions to read all newly tables created in the future
+                SqlText = sprintf('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO %s', UserName);
+                Result = Obj.exec(SqlText);
+            end
+        end
+        
+        
+        function Result = removeUser(Obj, UserName)
+            % Remove specified user from database users list
+            %
+            % NOTE: This function may fail if there are dependecies between
+            % the user and other objects such as tables. Use pgAdmin to remove users
+            % and dependecies.
+            %
+            % Input   : - DbQuery object
+            %           - UserName to remove
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
+            % Example : db.DbQuery.removeUser('robert')
+            % Refs    : https://www.postgresql.org/docs/9.4/sql-dropuser.html
+            % SQL     : DROP USER [ IF EXISTS ] name [, ...]
+            arguments
+                Obj                 %
+                UserName            %
+            end
+
+            SqlText = sprintf('DROP USER IF EXISTS %s', UserName);
+            Result = Obj.exec(SqlText);
+        end
+        
+        
+        function Result = getUserList(Obj)
+            % Get database users list. 
+            % Note that users are per server, and may be used with multiple databases.
+            % Input   : - DbQuery object
+            % Output  : - Cell array with names of database users
+            % Author  : Chen Tishler (2021)
+            % Example : List = Obj.getUserList()
+            % Refs    : https://www.postgresqltutorial.com/postgresql-list-users/
+            
+            Text = [...
+                'SELECT usename AS role_name, '...
+                '  CASE '...
+                '     WHEN usesuper AND usecreatedb THEN '...
+                '       CAST(''superuser, create database'' AS pg_catalog.text) '...
+                '     WHEN usesuper THEN '...
+                '        CAST(''superuser'' AS pg_catalog.text) '...
+                '     WHEN usecreatedb THEN '...
+                '        CAST(''create database'' AS pg_catalog.text) '...
+                '     ELSE '...
+                '        CAST('''' AS pg_catalog.text) '...
+                '  END role_attributes '...
+                'FROM pg_catalog.pg_user '...
+                'ORDER BY role_name desc; '...
+                ];
+            
+            Result = Obj.selectColumn(Text, 'role_name');
+        end
+
+    end
+    %----------------------------------------------------------------------
+    
+    methods(Hidden)
+        
+        function Result = setConn(Obj, Conn)
+            % Set connection data from the specified DbConnection object
+            % Input   : - DbQuery object
+            %           - Conn - DbConnection object
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
+            % Example : Obj.setConn(DbCon);
+            
+            Obj.Conn = Conn;
+            Obj.Host = Conn.Host;
+            Obj.Port = Conn.Port;
+            Obj.DatabaseName = Conn.DatabaseName;
+            Obj.UserName = Conn.UserName;
+            Obj.Password = Conn.Password;
+            Result = true;
+        end
+               
+        
+        function Result = xlsx2sql(Obj, XlsxFileName)
+            % Convert XLSX file downloaded from Google Drive to SQL file, using xlsx2sql.py
+            % Note: Requires ULTRASAT repository and ULTRASAT_PATH environment
+            %       var to be set correctly.
+            % Note: python3 (python3.exe on Windows) should be on PATH ('System' PATH on Windows)
+            % Input   : - DbQuery object
+            %           - XlsFileName
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
+            % Example : db.DbQuery.xlsx2sql('c:\temp\_xls\unittest.xlsx')
+            arguments
+                Obj             % 
+                XlsxFileName    %
+            end
+            
+            Result = '';
+            if ~isfile(XlsxFileName)
+                return;
+            end
+                
+            PWD = pwd;
+            try
+               
+                % Search xlsx2sql.py in Ultrasat folder
+                Path = tools.os.getUltrasatPath();
+                flist = [];
+                if ~isempty(Path) && isfolder(Path)
+                    flist = dir(fullfile(Path, '**\xlsx2sql.py'));
+                    if numel(flist) == 0
+                        Path = tools.os.getAstroPackPath();
+                        if ~isempty(Path) && isfolder(Path)
+                            flist = dir(fullfile(Path, '**\xlsx2sql.py'));                        
+                        end
+                    end
+                end
+                if numel(flist) > 0
+                    PyScript = fullfile(flist(1).folder, flist(1).name);
+                else
+                    io.msgLog(LogLevel.Error, 'xlsx2sql.py: xlsx2sql.py not found in source code folders');
+                    return;
+                end
+                    
+                
+                % Prepare path to Python script
+                [Path, FName] = fileparts(XlsxFileName);
+                cd(Path);
+                if ~isfile(PyScript)
+                    io.msgLog(LogLevel.Info, 'xlsx2sql.py: File not found: %s', 'xlsx2sql.py');
+                    return;
+                end
+                
+                % Prepare command line, assume we have 'python3' installed
+                % Note: python3 (python3.exe on Windows) should be on
+                % SYSTEM PATH (not USER PATH).
+                % See: https://stackoverflow.com/questions/47539201/python-is-not-recognized-windows-10
+                % For example: Add both C:\Python38 and C:\Python38\Scripts
+                Args = sprintf('-x %s', XlsxFileName);
+                Obj.msgLog(LogLevel.Info, 'xlsx2sql.py: %s', Args);
+                
+                % Execute python3 xlsx2sql.py, this may take a while...
+                Obj.msgLog(LogLevel.Info, 'xlsx2sql.py: Executing %s', PyScript);
+                
+                [Status, Output] = tools.os.runPython(PyScript, 'ArgsStr', Args);
+                if Status ~= 0
+                    Obj.msgLog(LogLevel.Error, 'xlsx2sql.py: FAILED to execute, make sure that python3 is found on your PATH: %s', PyScript);
+                end
+                
+                % Prepare file name of generated SQL
+                SqlFileName = sprintf('%s%s%s_postgres.sql', FName, filesep, FName);
+                
+                % Check that SQL file was created in current folder
+                if isfile(SqlFileName)
+                    SqlFileName = fullfile(pwd, SqlFileName);
+                    if isfile(SqlFileName)
+                        Result = SqlFileName;
+                    else
+                        io.msgLog(LogLevel.Error, 'xlsx2sql.py: SQL file was not generated in current folder: %s', SqlFileName);
+                        SqlFileName = '';
+                    end
+                else
+                    Obj.msgLog(LogLevel.Error, 'xlsx2sql.py: SQL file was not generated: %s', SqlFileName);
+                    SqlFileName = '';
+                end
+                
+            catch Ex
+            end
+            cd(PWD);
+        end
+        
+        
+        function Result = runPsql(Obj, Args)
+            % Run the 'psql' external utility with command line parameters.
+            % Input   : - DbQuery object
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:            			            
+            %             'Host'          - Host name or IP address to connect
+            %             'Port'          - Port number, 0 to use default
+            %             'DatabaseName'  - Database name, use 'postgres' to when creating databases or for general
+            %             'UserName'      - User name
+            %             'Password'      - Password
+            %             'SqlFileName'   - SQL file name to be executed
+            %             'Params'        - Additional parameters for command line            
+            %
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
+            % Example : db.DbQuery.runPsql(
+            %               'psql -h gauss -p 5432 -U admin -W -d postgres -f unittest_postgres.sql')
+            % Note    : psql (psql.exe on Windows) must be on the system PATH
+            %           i.e. Add C:\Program Files\PostgreSQL\14\bin to SYSTEM PATH
+            %
+            arguments
+                Obj
+                Args.Host          = ''        % Host name or IP address to connect
+                Args.Port          = 0         % Port number, 0 to use default
+                Args.DatabaseName  = ''        % Database name, use 'postgres' to when creating databases or for general
+                Args.UserName      = ''        % User name
+                Args.Password      = ''        % Password
+                Args.SqlFileName   = ''        % SQL file name to be executed
+                Args.Params        = ''        % Additional parameters for command line
+            end
+
+            Result = false;
+            
+            if isempty(Args.Host)
+                Args.Host = Obj.Host;
+            end
+            
+            if Args.Port == 0
+                Args.Port = Obj.Port;
+            end
+
+            if isempty(Args.DatabaseName)
+                Args.DatabaseName = Obj.DatabaseName;
+            end
+
+            if isempty(Args.UserName)
+                Args.UserName = Obj.UserName;
+            end
+        
+            if isempty(Args.Password)
+                Args.Password = Obj.Password;
+            end
+
+            try
+                                
+                % Prepare command line
+                Cmd = sprintf('psql -h %s -p %d -U %s -w', Args.Host, Args.Port, Args.UserName);
+                
+                % -d
+                if ~isempty(Args.DatabaseName)
+                    Cmd = sprintf('%s -d %s', Cmd, Args.DatabaseName);
+                end
+                
+                % -f
+                if ~isempty(Args.SqlFileName)
+                    Cmd = sprintf('%s -f %s', Cmd, Args.SqlFileName);
+                end
+                
+                % Additional params
+                if ~isempty(Args.Params)
+                    Cmd = sprintf('%s %s', Cmd, Args.Params);
+                end
+                
+                % Password
+                if ~isempty(Args.Password)
+                    
+                    % Windows - note that we MUST NOT have a spaces next to '&&'
+                    if tools.os.iswindows()
+                        Cmd = sprintf('set PGPASSWORD=%s&&%s', Args.Password, Cmd);
+                        
+                    % Linux - use 'export'
+                    else
+                        
+                        % Check which shell we use
+                        if isempty(Obj.Shell)
+                            Obj.Shell = getenv('SHELL');
+                        end
+                        
+                        % bash / tcsh
+                        if contains(Obj.Shell, 'tcsh')
+                            Cmd = sprintf('setenv PGPASSWORD ''%s'' ; %s', Args.Password, Cmd);
+                        else
+                            Cmd = sprintf('export PGPASSWORD=''%s'' ; %s', Args.Password, Cmd);
+                        end
+                    end
+                end
+                
+                io.msgLog(LogLevel.Info, 'psql: system( %s )', Cmd);
+                [Status, Output] = system(Cmd);
+                io.msgLog(LogLevel.Info, 'psql: %d', Status);
+                io.msgLog(LogLevel.Info, 'psql: %s', Output);
+                if Status ~= 0
+                    Obj.msgLog(LogLevel.Error, 'runPsql: FAILED to execute, make sure that psql is found on your PATH: %s', Cmd);
+                end
+                Result = true;
+            catch Ex
+                io.msgLogEx(LogLevel.Info, Ex, 'psql');
+            end
+        end
+                
+    end
+
+    %----------------------------------------------------------------------
+    
+    methods(Static)
+        
+        function Result = startGui()
+            % Run gui utility process - @TODO - Not completed - DO NOT USE!
+            % Input   : -
+            % Output  : - true on success
+            % Author  : Chen Tishler (2021)
+            % Example : db.DbQuery.startGui
+
+            Result = false;
+            try
+                                
+                % Prepare command line
+                Path = fullfile(tools.os.getUltrasatPath(), 'python', 'utils', 'utils_gui');
+                if ~isfolder(Path)
+                    io.msgLog(LogLevel.Error, 'DbQuery.startGui: Path not found: %s', Path);
+                    return;
+                end
+                
+                % Set utility name
+                if tools.os.islinux
+                    Cmd = sprintf('%s%s%s', Path, filesep, 'utils_gui');
+                else
+                    Cmd = sprintf('%s%s%s', Path, filesep, 'utils_gui.exe');
+                end
+ 
+                % Found - run it
+                if isfile(Cmd)
+                    io.msgLog(LogLevel.Info, 'DbQuery.startGui: system( %s )', Cmd);
+                    [Status, Output] = system(Cmd);
+                    %io.msgLog(LogLevel.Info, 'startGui: %d', Status);
+                    %io.msgLog(LogLevel.Info, 'startGui: %s', Output);
+                    Result = true;
+                    
+                % File not found
+                else
+                    io.msgLog(LogLevel.Error, 'DbQuery.startGui: File not found, use Lazarus to compile the project: %s', Cmd);
+                end
+                
+            catch Ex
+                io.msgLogEx(LogLevel.Info, Ex, 'DbQuery.startGui');
+            end
+        end
+        
+    end
+    
+    %----------------------------------------------------------------------
     methods(Static) % Static
 
         Result = unitTest()
