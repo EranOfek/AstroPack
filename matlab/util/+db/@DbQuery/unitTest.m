@@ -562,13 +562,20 @@ function Result = testAdmin()
     assert(numel(DbList1) > 0);
     
     % Create empty database
-    Query.createDb('DbName', 'mydb1');
+    Query.createDb('DatabaseName', 'mydb1');
     assert(Query.isDbExist('mydb1'));
     
     % Connect to the new db (MUST DO)
-    Q2 = DbQuery(Query, 'Database', 'mydb1');
-    Q2.createTable('mytable1', 'AutoPk', 'pk');
+    Q2 = db.DbQuery(Query, 'Database', 'mydb1');
+    Q2.createTable('TableName', 'mytable1', 'AutoPk', 'pk');
     assert(Q2.isTableExist('mytable1'));
+    Q2.addColumn('mytable1', 'f1', 'double', 'default 0');
+    Q2.addColumn('mytable1', 'f2', 'double', 'default 0', 'comment', 'my comment for f2');
+    Q2.addColumn('mytable1', 'f3', 'double', 'default 0', 'index', true);
+    Q2.addIndexOnColumn('mytable1', 'f1');
+    
+    Q2.dropTable('mytable1');
+    assert(~Q2.isTableExist('mytable1'));    
     
     % Create database 'dbadmin_unittest' from sqlfile
     Query.createDb('SqlFileName', fullfile(MyPath, 'unitTest_createDatabase.sql'));
@@ -606,7 +613,7 @@ function Result = testAdmin()
     assert(Query.isTableExist('newtable_3'));
     
     % Add new column to existing table
-    Query.addColumn('newtable_1', {'MyColA'}, {'INTEGER'}, {'DEFAULT 0'});
+    Query.addColumn('newtable_1', 'MyColA', 'INTEGER', 'DEFAULT 0');
     assert(Query.isColumnExist('newtable_1', 'MyColA'));   
 
     % Add index to existing table

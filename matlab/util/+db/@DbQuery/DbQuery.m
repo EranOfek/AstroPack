@@ -202,7 +202,16 @@ classdef DbQuery < Component
             % Set connection
             if ~isempty(DbTableOrConn)
                 if isa(DbTableOrConn, 'db.DbQuery')
-                    Obj.setConnection(Obj.Conn);
+                    if ~isempty(Args.DatabaseName)
+                        %Obj.setProps(Args);
+                        AConn = DbTableOrConn.Conn;
+                        NewCon = db.DbConnection('Host', AConn.Host, 'Port', AConn.Port, ...
+                            'DatabaseName', Args.DatabaseName, 'UserName', AConn.UserName, 'Password', AConn.Password);
+                
+                        Obj.setConn(NewCon);
+                    else
+                        Obj.setConnection(DbTableOrConn.Conn);
+                    end
                 else
                     Obj.setConnection(DbTableOrConn);
                 end                
@@ -2035,26 +2044,24 @@ classdef DbQuery < Component
                 Args.DatabaseName   = ''        % Database name, create empty database (without XLS or SQL)
                 Args.XlsxFileName   = ''        %
                 Args.SqlFileName    = ''        %                
+                Args.CheckExist     = true      % When true, check if database exist before executing 
             end
             
             Result = false;
-            
-            %
-            if ~isempty(Args.DatabaseName) && Args.CheckExist
-                if Obj.IsDbExist(Args.DatabaseName)
-                    Result = true;
-                    return;
+                      
+            % 
+            if ~isempty(Args.DatabaseName)
+                if Args.CheckExist
+                    if Obj.isDbExist(Args.DatabaseName)
+                        Result = true;
+                        return;
+                    end
                 end
-            end
-            
-            % Drop existing database
-            if ~isempty(Args.DatabaseName) && Args.Drop
-                if Obj.IsDbExist(Args.DatabaseName)
+                
                 SqlText = sprintf('CREATE DATABASE %s WITH TEMPLATE = template0 ENCODING = ''UTF8'';', Args.DatabaseName);
                 Result = Obj.exec(SqlText);
-                end
-            end
-            
+                return;
+            end           
         
             % Execute SQL file using psql
             if ~isempty(Args.SqlFileName)
@@ -2179,7 +2186,9 @@ classdef DbQuery < Component
                 Args.SqlFileName    = ''
                 Args.TableName      = ''
                 Args.PrimaryKeyDef  = ''
-                Args.AutoPk         = ''    %
+                Args.AutoPk         = ''        %
+                Args.CheckExist     = true
+                Args.Drop           = false;    
             end
 
 
@@ -2187,18 +2196,18 @@ classdef DbQuery < Component
             SqlText = '';
             
             %
-            if ~isempty(Args.DatabaseName) && Args.CheckExist
-                if Obj.IsDbExist(Args.DatabaseName)
+            if ~isempty(Args.TableName) && Args.CheckExist
+                if Obj.isTableExist(Args.TableName)
                     Result = true;
                     return;
                 end
             end
             
-            % Drop existing database
-            if ~isempty(Args.DatabaseName) && Args.Drop
-                if Obj.IsDbExist(Args.DatabaseName)
-                SqlText = sprintf('CREATE DATABASE %s WITH TEMPLATE = template0 ENCODING = ''UTF8'';', Args.DatabaseName);
-                Result = Obj.exec(SqlText);
+            % Drop existing table
+            if ~isempty(Args.TableName) && Args.Drop
+                if Obj.isTableExist(Args.TableName)
+                    SqlText = sprintf('DROP TABLE IF EXISTS %s;', Args.TableName);
+                    Result = Obj.exec(SqlText);
                 end
             end
             
@@ -2240,59 +2249,58 @@ classdef DbQuery < Component
         end
         
         
-        function Result = addColumn(Obj, TableName, ColumnName, DataType, ColumnDef)
+        function Result = addColumn(Obj, TableName, ColumnName, DataType, ColumnDef, Args)
             % Add single or multiple columns to table
             % Input   : - DbQuery object
             %           - Table name
-            %           - Column name
+            %           - Column name char
             %           - DataType   - Data field type, INTEGER, etc. see
             %             https://www.postgresql.org/docs/current/datatype.html
             %           - Additional text for column definition, i.e. DEFAULT ...
             %           * Pairs of ...,key,val,...
             %             The following keys are available:            			                        
             %             'CheckExist'    - True (default) to check if column already exists
-            %             'Comment'       - Comment text, specifiy 'NULL' to remove existing comment
+            %             'Index'         - True to create index
+            %             'Comment'       - Comment text, specifiy 'NULL' to remove existing comment            
             % Output  : true on success
             % Author  : Chen Tishler (2021)
             % Example : Obj.addColumn('master_table', 'MyColA', 'INTEGER', 'DEFAULT 0')
             % Refs    : https://www.postgresqltutorial.com/postgresql-add-column/
-            % SQL     : ALTER TABLE table_name
-            %           ADD COLUMN column_name1 data_type constraint,
-            %           ADD COLUMN column_name2 data_type constraint,
-            %           ...
-            %           ADD COLUMN column_namen data_type constraint;
+            % SQL     : ALTER TABLE table_name ADD COLUMN column_name1 data_type constraint;
             arguments
                 Obj
                 TableName               %
                 ColumnName              %
                 DataType                %
                 ColumnDef               %
+                Args.CheckExist = true  %
+                Args.Comment = ''       %
+                Args.Index = false      % 
             end
 
-            % Validate input, size of arrays must match
-            assert(numel(ColumnName) == numel(DataType));
-            assert(numel(ColumnName) == numel(ColumnDef));
-            
-            % Prepare statement text
-            SqlText = sprintf('ALTER TABLE %s ', TableName);
-
-            % Add definitions of all specified columns
-            for i=1:numel(ColumnName)
-                SqlText = sprintf('%s ADD COLUMN %s %s %s', SqlText, ColumnName{i}, DataType{i}, ColumnDef{i});
-                if i == numel(ColumnName)
-                    SqlText = strcat(SqlText, ';');
-                else
-                    SqlText = strcat(SqlText, ',');
-                end
+            DType = DataType;
+                
+            % Fix data types
+            if strcmpi(DType, 'double')
+                DType = 'DOUBLE PRECISION';
+            elseif strcmpi(DType, 'float')
+                DType = 'REAL';
             end
-            
+
+            SqlText = sprintf('ALTER TABLE %s ADD COLUMN %s %s %s;', TableName, ColumnName, DType, ColumnDef);          
             Result = Obj.exec(SqlText);
+            if Args.Index
+                Obj.createIndexOnColumn(TableName, ColumnName);
+            end
             
             % Add/remove column comment
             if ~isempty(Args.Comment)
                 if strcmp(Args.Comment, 'NULL')
+                    sprintf(SqlText, 'COMMENT ON COLUMN %s.%s IS NULL;', TableName, Args.ColumnName);
                 else
+                    sprintf(SqlText, 'COMMENT ON COLUMN %s.%s IS ''%s''', TableName, ColumnName, Args.Comment);
                 end
+                Result = Obj.exec(SqlText);
             end
         end
 
