@@ -599,21 +599,34 @@ function Result = testAdmin()
     % Get list of databases
     DbList1 = Query.getDbList();
     assert(numel(DbList1) > 0);
-    
+            
     % Create empty database
     Query.createDb('DatabaseName', 'mydb1');
     assert(Query.isDbExist('mydb1'));
-    
+
     % Connect to the new db (MUST DO)
     Q2 = db.DbQuery(Query, 'Database', 'mydb1');
+    
+    % Create schema and table in it
+    Q2.createSchema('test_schema');
+    Q2.createTable('TableName', 'test_schema.test_table', 'AutoPk', 'pk', 'Drop', true);
+    assert(Q2.isTableExist('test_schema.test_table'));
+    Q2.dropTable('test_schema.test_table');
+    assert(~Q2.isTableExist('test_schema.test_table'));    
+    
+    % Create table
     Q2.createTable('TableName', 'mytable1', 'AutoPk', 'pk', 'Drop', true);
     assert(Q2.isTableExist('mytable1'));
     Q2.addColumn('mytable1', 'f1', 'double', 'default 0');
     Q2.addColumn('mytable1', 'f2', 'double', 'default 0', 'comment', 'my comment for f2');
     Q2.addColumn('mytable1', 'f3', 'double', 'default 0', 'index', true);
     Q2.addIndexOnColumn('mytable1', 'f1');
-    %Comment = Q2.getColumnComment('mytable1', 'f2');
-    %assert(strcmp(Comment, 'my comment for f2');
+    
+    assert(Q2.isColumnExist('mytable1', 'f1'));
+    assert(Q2.isColumnExist('mytable1', 'f2'));
+    
+    Comment = Q2.getColumnComment('mydb1', 'mytable1', 'f2');
+    assert(strcmp(Comment, 'my comment for f2'));
     
     Q2.dropTable('mytable1');
     assert(~Q2.isTableExist('mytable1'));    

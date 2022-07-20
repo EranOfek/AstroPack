@@ -1370,7 +1370,7 @@ classdef DbQuery < Component
             % Output  : - true if table exists
             % Author  : Chen Tishler (2021)
             % Example : Obj.isTableExist('MyTable')
-            Schema = 'public';
+            [Schema, TableName] = db.DbQuery.getSchemaTable(TableName);
             Text = sprintf('SELECT table_name FROM information_schema.tables WHERE table_schema = ''%s'' AND table_name = ''%s'' ORDER BY table_name', lower(Schema), lower(TableName));
             List = Obj.selectColumn(Text, 'table_name');
             Result = any(strcmpi(List, TableName));
@@ -1400,7 +1400,11 @@ classdef DbQuery < Component
             % @Todo Schema = ...
             %  sql = "SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{}' AND TABLE_NAME = '{}' AND column_name = '{}' ORDER BY column_name".\
             % format(self.get_schema(table_name).lower(), self.get_table(table_name).lower(), column_name.lower())
-            Text = sprintf('SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ''%s'' AND column_name = ''%s'' ORDER BY column_name', lower(TableName), lower(ColumnName));
+            %Text = sprintf('SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ''%s'' AND column_name = ''%s'' ORDER BY column_name', lower(TableName), lower(ColumnName));
+            [Schema, TableName] = db.DbQuery.getSchemaTable(TableName);
+            Text = sprintf('SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ''%s'' AND TABLE_NAME = ''%s'' AND column_name = ''%s'' ORDER BY column_name', ...
+                lower(Schema), lower(TableName), lower(ColumnName));
+            
             List = Obj.selectColumn(Text, 'column_name');
             Result = any(strcmpi(List, ColumnName));
         end
@@ -2324,9 +2328,16 @@ classdef DbQuery < Component
         end
 
         
-        function Result = getColumnComment(Obj, DatabaseName, TableName, ColumnName)
+        function Result = getColumnComment(Obj, DbName, TableName, ColumnName)
             % Query column comment
-            % Todo
+            
+            SqlText = strcat('SELECT cols.column_name, (SELECT pg_catalog.col_description(c.oid, cols.ordinal_position::int) ', ...
+                'FROM pg_catalog.pg_class c WHERE c.oid = (SELECT cols.table_name::regclass::oid) AND c.relname = cols.table_name ', ...
+                ') as column_comment FROM information_schema.columns cols WHERE cols.table_catalog = ''%s'' AND ', ...
+                'cols.table_name = ''%s'' AND cols.column_name = ''%s''');
+
+            SqlText = sprintf(SqlText, DbName, TableName, ColumnName);
+            Result = Obj.selectColumn('column_comment');                   
         end
         
         
@@ -2926,10 +2937,10 @@ classdef DbQuery < Component
             s = strsplit(TableName, '.');
             if numel(s) == 1
                 Schema = DefaultSchema;
-                TableName = s{1};
+                TableName = lower(s{1});
             else
-                Schema = s{1};
-                TableName = s{2};                
+                Schema = lower(s{1});
+                TableName = lower(s{2});
             end
         end
         
