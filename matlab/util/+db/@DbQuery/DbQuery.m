@@ -2309,15 +2309,15 @@ classdef DbQuery < Component
             SqlText = sprintf('ALTER TABLE %s ADD COLUMN %s %s %s;', TableName, ColumnName, DType, ColumnDef);          
             Result = Obj.exec(SqlText);
             if Args.Index
-                Obj.createIndexOnColumn(TableName, ColumnName);
+                Obj.addIndexOnColumn(TableName, ColumnName);
             end
             
             % Add/remove column comment
             if ~isempty(Args.Comment)
                 if strcmp(Args.Comment, 'NULL')
-                    sprintf(SqlText, 'COMMENT ON COLUMN %s.%s IS NULL;', TableName, Args.ColumnName);
+                    SqlText = sprintf('COMMENT ON COLUMN %s.%s IS NULL;', TableName, Args.ColumnName);
                 else
-                    sprintf(SqlText, 'COMMENT ON COLUMN %s.%s IS ''%s''', TableName, ColumnName, Args.Comment);
+                    SqlText = sprintf('COMMENT ON COLUMN %s.%s IS ''%s''', TableName, ColumnName, Args.Comment);
                 end
                 Result = Obj.exec(SqlText);
             end
@@ -2403,8 +2403,8 @@ classdef DbQuery < Component
                 Args.CheckExist = true   %
             end
                         
-            IndexName = sprintf('{}_idx_%s', TableName, ColumnName);
-            Result = Obj.addIndex(TableName, IndexName, ColumnName, 'CheckExist', Args.CheckExist)
+            IndexName = sprintf('%s_idx_%s', TableName, ColumnName);
+            Result = Obj.addIndex(TableName, IndexName, ColumnName, 'CheckExist', Args.CheckExist);
         end
         
         
@@ -2861,41 +2861,60 @@ classdef DbQuery < Component
     end
     
     %----------------------------------------------------------------------
+    properties(Constant)
+        ReservedDatabaseWords = { 'group', 'dec' };
+    end
+    
+     
     methods(Static) % Static
     
-        function Result = CamelToSnake(Name)
+        function Result = camelToSnake(Name)
             % Convert camelCase to snake_case
-            %Result = regexprep(Name, '(.)([A-Z][a-z]+)', r'\1_\2');
-            %Result = regexprep(Result, '([a-z0-9])([A-Z])', r'\1_\2');
-            %Result = lower(Result);
-            Result = '@todo';
+            
+            % Place an underscore between letters of adjacent lower case and upper case
+            Result = regexprep(Name, '([a-z])([A-Z])','$1_${lower($2)}');           
+            
+            % Lower case first letter if upper case                        
+            Result = regexprep(Result, '^([A-Z])', '${lower($1)}');           
         end
         
-        %ReservedDatabaseWords = { 'group', 'dec' };
+        
+        function Result = snakeToCamel(Name)
+            % Convert snake_case to camelCase (may not work for some cases, need to test)
+            
+            % Capitialize letters with that have an underscore preceding it
+            Result = regexprep(Name, '_([a-z])','${upper($1)}');
 
+            % Remove underscore for numbers that have an underscore preceding
+            Result = regexprep(Result,'_([0-9])', '$1');
+
+            % Option to upper or lower case the first letter
+            Result = regexprep(Result, '^([a-z])', '${upper($1)}');
+            Result = regexprep(Result, '^([A-Z])', '${lower($1)}');
+        end
+        
+    
         function Result = NameToColumnName(ColumnName)
             % Normalize column name: convert camelCase to snake_case
-            %col = db.DbQuery.CamelToSnake(column_name)
-            %col = col.replace('__', '_')
-            %if col in reserved_database_words:
-            %    col = 'f_' + col
-            Result = '@todo';            
+            Result = db.DbQuery.camelToSnake(ColumnName);
+            Result = strrep(Result, '__', '_');
+            if any(contains(db.DbQuery.ReservedDatabaseWords, Result))
+                Result = strcat('f_', Result);
+            end
         end
         
     
         function Result = ColumnNameToName(Word)
             % 
-            %if word.startswith('f_') and word[2:] in reserved_database_words:
-            %Result = word.replace('f_', '', 1)
-            Result = '@todo';
+            Result = Word;
+            if startsWith(Word, 'f_')
+                Word = Word(3:end);
+                if any(contains(db.DbQuery.ReservedDatabaseWords, Word))
+                    Result = Word;
+                end
+            end
         end
     
-        function Result = SnakeToCamel(ColumnName)
-            % Convert snake_case to camelCase (may not work for some cases, need to test)
-            %Result = ''.join(word.title() for word in column_name.split('_'))
-            Result = '@todo';
-        end
-        
         
         function [Schema, TableName] = getSchemaTable(TableName, DefaultSchema)
             % Split schema.table_name to schema, table_name. When schema name is not specified, use the default ('public')            
