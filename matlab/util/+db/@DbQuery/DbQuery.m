@@ -1370,7 +1370,8 @@ classdef DbQuery < Component
             % Output  : - true if table exists
             % Author  : Chen Tishler (2021)
             % Example : Obj.isTableExist('MyTable')
-            Text = sprintf('SELECT table_name FROM information_schema.tables WHERE table_schema = ''public'' AND table_name = ''%s'' ORDER BY table_name', lower(TableName));
+            Schema = 'public';
+            Text = sprintf('SELECT table_name FROM information_schema.tables WHERE table_schema = ''%s'' AND table_name = ''%s'' ORDER BY table_name', lower(Schema), lower(TableName));
             List = Obj.selectColumn(Text, 'table_name');
             Result = any(strcmpi(List, TableName));
         end
@@ -1396,6 +1397,9 @@ classdef DbQuery < Component
             % Output  : - true if column exist
             % Author  : Chen Tishler (2021)
             % Example : Obj.isColumnExist('master_table', 'my_column')
+            % @Todo Schema = ...
+            %  sql = "SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{}' AND TABLE_NAME = '{}' AND column_name = '{}' ORDER BY column_name".\
+            % format(self.get_schema(table_name).lower(), self.get_table(table_name).lower(), column_name.lower())
             Text = sprintf('SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ''%s'' AND column_name = ''%s'' ORDER BY column_name', lower(TableName), lower(ColumnName));
             List = Obj.selectColumn(Text, 'column_name');
             Result = any(strcmpi(List, ColumnName));
@@ -1909,16 +1913,18 @@ classdef DbQuery < Component
             % Example : Ver = DbQuery.getDbVersion()
             
             Result = [];
+            Valid = false;
             Obj.query('SELECT version()');
             if Obj.ColCount == 1
                 Result = Obj.getColumn('version');
+            
+                % Check that the output is valid
+                Valid = contains(Result, 'PostgreSQL');
             end
             
-            % Check that the output is valid
-            Valid = contains(Result, 'PostgreSQL');
             if ~Valid
                 Obj.msgLog(LogLevel.Warning, 'getDbVersion: Invalid result: %s', Result);
-            end
+            end            
         end
         
         
@@ -2018,6 +2024,20 @@ classdef DbQuery < Component
     %----------------------------------------------------------------------
     
     methods % Database creating & modification
+        
+        function Result = createSchema(Obj, SchemaName)
+            % Create database, from .XLSX or .SQL file
+            %
+            % Input : - DbQuery object
+            %         - Schema name to create
+            %
+            % Output  : true on success
+            % Author  : Chen Tishler (2022)
+            % Example : createSchema('myschema')
+            SqlText = sprintf('CREATE SCHEMA IF NOT EXISTS %s;', SchemaName);
+            Result = Obj.exec(SqlText);           
+        end
+
         
         function Result = createDb(Obj, Args)
             % Create database, from .XLSX or .SQL file
@@ -2191,12 +2211,11 @@ classdef DbQuery < Component
                 Args.Drop           = false;    
             end
 
-
             Result = false;
             SqlText = '';
             
             %
-            if ~isempty(Args.TableName) && Args.CheckExist
+            if ~isempty(Args.TableName) && Args.CheckExist && ~Args.Drop
                 if Obj.isTableExist(Args.TableName)
                     Result = true;
                     return;
@@ -2305,6 +2324,12 @@ classdef DbQuery < Component
         end
 
         
+        function Result = getColumnComment(Obj, DatabaseName, TableName, ColumnName)
+            % Query column comment
+            % Todo
+        end
+        
+        
         function Result = isIndexExist(Obj, TableName, IndexName)
             % Check if specified index exists
             % Input   : - DbQuery object
@@ -2313,7 +2338,8 @@ classdef DbQuery < Component
             % Output  : - true if index exsits
             % Author  : Chen Tishler (2022)
             % Example : isIndexExist('master_table', 'idx_master_table_str1')          
-            SqlText = sprintf('SELECT * FROM pg_indexes WHERE schemaname = ''public'' AND tablename = ''%s''', TableName);
+            [Schema, TableName] = db.DbQuery.getSchemaTable(TableName);
+            SqlText = sprintf('SELECT * FROM pg_indexes WHERE schemaname = ''%s'' AND tablename = ''%s''', Schema, TableName);
             List = Obj.selectColumn(SqlText, 'indexname');
             Result = any(strcmpi(List, IndexName));
         end
@@ -2832,6 +2858,79 @@ classdef DbQuery < Component
             end
         end
         
+    end
+    
+    %----------------------------------------------------------------------
+    methods(Static) % Static
+    
+        function Result = CamelToSnake(Name)
+            % Convert camelCase to snake_case
+            %Result = regexprep(Name, '(.)([A-Z][a-z]+)', r'\1_\2');
+            %Result = regexprep(Result, '([a-z0-9])([A-Z])', r'\1_\2');
+            %Result = lower(Result);
+            Result = '@todo';
+        end
+        
+        %ReservedDatabaseWords = { 'group', 'dec' };
+
+        function Result = NameToColumnName(ColumnName)
+            % Normalize column name: convert camelCase to snake_case
+            %col = db.DbQuery.CamelToSnake(column_name)
+            %col = col.replace('__', '_')
+            %if col in reserved_database_words:
+            %    col = 'f_' + col
+            Result = '@todo';            
+        end
+        
+    
+        function Result = ColumnNameToName(Word)
+            % 
+            %if word.startswith('f_') and word[2:] in reserved_database_words:
+            %Result = word.replace('f_', '', 1)
+            Result = '@todo';
+        end
+    
+        function Result = SnakeToCamel(ColumnName)
+            % Convert snake_case to camelCase (may not work for some cases, need to test)
+            %Result = ''.join(word.title() for word in column_name.split('_'))
+            Result = '@todo';
+        end
+        
+        
+        function [Schema, TableName] = getSchemaTable(TableName, DefaultSchema)
+            % Split schema.table_name to schema, table_name. When schema name is not specified, use the default ('public')            
+            arguments
+                TableName
+                DefaultSchema = 'public'
+            end           
+
+            s = strsplit(TableName, '.');
+            if numel(s) == 1
+                Schema = DefaultSchema;
+                TableName = s{1};
+            else
+                Schema = s{1};
+                TableName = s{2};                
+            end
+        end
+        
+        
+        function Result = getSchema(TableName, DefaultSchema)
+            % Extract schema from schema.table_name. When schema name is not specified, use the default ('public')            
+            arguments
+                TableName
+                DefaultSchema = 'public'
+            end            
+            [Schema, TN] = db.DbQuery.getSchemaTable(TableName, DefaultSchema);
+            Result = Schema;
+        end
+        
+        
+        function Result = getTable(TableName)
+            % Extract table_name from schema.table_name
+            [Schema, TN] = db.DbQuery.getSchemaTable(TableName);
+            Result = TN;
+        end        
     end
     
     %----------------------------------------------------------------------

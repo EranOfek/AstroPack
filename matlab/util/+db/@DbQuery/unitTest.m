@@ -556,6 +556,34 @@ function Result = testAdmin()
     % Create DbQuery from arguments
     Query = db.DbQuery('Host', Host, 'Port', 5432, 'UserName', 'admin', 'Password', 'Passw0rd', 'DatabaseName', 'unittest');    
     assert(Query.isTableExist('master_table'));
+        
+    %
+    [Schema, TN] = db.DbQuery.getSchemaTable('table_name');
+    assert(strcmp(Schema, 'public') && strcmp(TN, 'table_name'));
+    [Schema, TN] = db.DbQuery.getSchemaTable('schema.table_name');
+    assert(strcmp(Schema, 'schema') && strcmp(TN, 'table_name'));
+    
+    Schema = db.DbQuery.getSchema('table_name');
+    assert(strcmp(Schema, 'public'));
+    Schema = db.DbQuery.getSchema('schema.table_name');
+    assert(strcmp(Schema, 'schema'));
+    
+    TN = db.DbQuery.getTable('table_name');
+    assert(strcmp(TN, 'table_name'));
+    TN = db.DbQuery.getTable('schema.table_name');
+    assert(strcmp(TN, 'table_name'));    
+     
+    % *** @TODO ***
+    s = db.DbQuery.CamelToSnake('myCamelCase');
+    %assert(strcmp(s, 'my_camel_case'));
+    s = db.DbQuery.SnakeToCamel('my_camel_case');
+    %assert(strcmp(s, 'myCamelCase'));    
+    
+    s = db.DbQuery.NameToColumnName('MyColumnName');
+    %assert(strcmp(s, 'my_column_name'));
+    s = db.DbQuery.ColumnNameToName('my_column_name');
+    %assert(strcmp(s, 'MyColumnName'));
+
     
     % Get list of databases
     DbList1 = Query.getDbList();
@@ -567,7 +595,7 @@ function Result = testAdmin()
     
     % Connect to the new db (MUST DO)
     Q2 = db.DbQuery(Query, 'Database', 'mydb1');
-    Q2.createTable('TableName', 'mytable1', 'AutoPk', 'pk');
+    Q2.createTable('TableName', 'mytable1', 'AutoPk', 'pk', 'Drop', true);
     assert(Q2.isTableExist('mytable1'));
     Q2.addColumn('mytable1', 'f1', 'double', 'default 0');
     Q2.addColumn('mytable1', 'f2', 'double', 'default 0', 'comment', 'my comment for f2');
