@@ -90,7 +90,7 @@ function Result = BigDbTest3()
         Table = struct2table(Data);
         writetable(Table, CsvFileName);           
         
-        RowCount = Q.selectCount();
+        RowCount = Q.selectTableRowCount();
         t1 = tic;
         Q.insert([], 'CsvFileName', CsvFileName);        
         io.msgLog(LogLevel.Test, '[%05d] RowCount=%d, insert %d x %d: %0.5f sec', BatchCounter, RowCount, BatchSize, Cols, toc(t1));

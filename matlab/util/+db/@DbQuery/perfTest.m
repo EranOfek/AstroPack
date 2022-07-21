@@ -33,7 +33,7 @@ function Result = perfTest()
 
     ItersCount = 10000;
     io.msgLog(LogLevel.Info, 'Perf: insert, Iters: %d ...', ItersCount);
-    Count1 = Q.selectCount('master_table');            
+    Count1 = Q.selectTableRowCount('master_table');            
     T = tic();
     for i = 1:ItersCount                      
         s = struct;            
@@ -42,7 +42,7 @@ function Result = perfTest()
     end
     Time = toc(T) / ItersCount;
     io.msgLog(LogLevel.Info, 'Perf: insert: %f', Time);
-    Count2 = Q.selectCount('master_table');
+    Count2 = Q.selectTableRowCount('master_table');
     if Count2 ~= Count1 + ItersCount
         io.msgLog(LogLevel.Info, 'Wrong number of records: Count1: %d, Count2: %d', Count1, Count2);
     end
@@ -51,7 +51,7 @@ function Result = perfTest()
 
     BatchSize = 1000;
     io.msgLog(LogLevel.Info, 'Perf: insert Batch: %d, Iters: %d ...', BatchSize, ItersCount);
-    Count1 = Q.selectCount('master_table');
+    Count1 = Q.selectTableRowCount('master_table');
     T = tic();
     s = [];
     for i = 1:ItersCount                      
@@ -61,7 +61,7 @@ function Result = perfTest()
     Time = toc(T) / ItersCount;
     io.msgLog(LogLevel.Info, 'Perf: insert batch: %f', Time);
 
-    Count2 = Q.selectCount('master_table');
+    Count2 = Q.selectTableRowCount('master_table');
     if Count2 ~= Count1 + ItersCount
         io.msgLog(LogLevel.Info, 'Wrong number of records: Count1: %d, Count2: %d', Count1, Count2);
     end 
