@@ -920,6 +920,14 @@ classdef CalibImages < Component
             %                   Default is 'OVERSCAN'.
             %           'MethodOverScan' - see imProc.dark.overscan.
             %                   Default is 'globalmedian'.
+            %           'NonLinCorr' - A correction table [Flux, CorrectionFactor]
+            %                   or a structure with .Flux and .Corr fields.
+            %                   The correction factor is either multiplicative or by
+            %                   division (see 'Operator' argument in imProc.calib.nonlinearCorrection).
+            %           'NonLinCorrArgs' - A cell array of additional
+            %                   arguments to pass to
+            %                   imProc.calib.nonlinearCorrection.
+            %                   Default is {}.
             %           'deflatArgs' - A cell array of additional
             %                   arguments to pass to imProc.flat.deflat.
             %                   Default is {}.
@@ -961,6 +969,8 @@ classdef CalibImages < Component
                 Args.SubtractOverscan logical       = true;
                 Args.OverScan                       = 'OVERSCAN';
                 Args.MethodOverScan                 = 'globalmedian';
+                Args.NonLinCorr                     = [];   % nonlinear correction table [flux, factor]
+                Args.NonLinCorrArgs cell            = {};   % args for imProc.calib.nonlinearCorrection
                 Args.deflatArgs cell                = {};
                 Args.CorrectFringing logical        = false;
                 Args.MultiplyByGain logical         = true;
@@ -1005,10 +1015,16 @@ classdef CalibImages < Component
                 Result = Obj.overscan(Result, 'OverScan',Args.OverScan, 'Method',Args.MethodOverScan, 'CreateNewObj',false');
             end
                 
+            if ~isempty(Args.NonLinCorr)
+                % apply non-linear correction
+                imProc.calib.nonlinearityCorrection(Result, Args.NonLinCorr, Args.NonLinCorrArgs{:}, 'CreateNewObj',false);
+            end
+                
+            
             % The overscan may change the size of the image.
             % Depands on how the flat was created, the new image size may
             % not be compatible with the flat size
-            
+                        
             % divide by flat
             if Args.SingleFilter
                 Result = Obj.deflatOneFilt(Result, 'deflatArgs',Args.deflatArgs, 'CreateNewObj',false');
