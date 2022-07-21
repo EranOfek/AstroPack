@@ -389,7 +389,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                 if isempty(Args.PixScale)
                     % try to read pixel scale from WCS
                     if isa(Obj, 'AstroImage')
-                        Obj(Iobj).WCS.getScale('arcsec');
+                        PixScale = Obj(Iobj).WCS.getScale('arcsec');
                     else
                         error('Can not get pixel scale - either provide it, or use AstroImage with WCS data');
                     end
