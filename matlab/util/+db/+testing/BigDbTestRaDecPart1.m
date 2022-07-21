@@ -92,10 +92,10 @@ function Result = BigDbTestRaDecPart1()
             if Iter == 1 % mod(BatchCounter, 10) == 1
                 
                 % Does not work on host 'soc1'
-                %RowCount = Q.selectCount('Fast', true);
+                %RowCount = Q.selectTableRowCount('Fast', true);
                 
                 % Takes too long with large db
-                %RowCount = Q.selectCount('TableName', PartitionName);  %'Fast', true);
+                %RowCount = Q.selectTableRowCount('TableName', PartitionName);  %'Fast', true);
             else
                 RowCount = RowCount + BatchSize;
             end

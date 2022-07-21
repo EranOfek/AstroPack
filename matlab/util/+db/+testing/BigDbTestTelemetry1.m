@@ -49,7 +49,7 @@ function Result = BigDbTestTelemetry1()
             
         % Get number of rows in table
         if mod(BatchCounter, 10) == 1
-            RowCount = Q.selectCount('Fast', true);
+            RowCount = Q.selectTableRowCount('Fast', true);
         else
             RowCount = RowCount + BatchSize;
         end
