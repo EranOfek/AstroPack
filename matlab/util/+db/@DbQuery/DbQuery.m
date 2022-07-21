@@ -2319,7 +2319,7 @@ classdef DbQuery < Component
             % Add/remove column comment
             if ~isempty(Args.Comment)
                 if strcmp(Args.Comment, 'NULL')
-                    SqlText = sprintf('COMMENT ON COLUMN %s.%s IS NULL;', TableName, Args.ColumnName);
+                    SqlText = sprintf('COMMENT ON COLUMN %s.%s IS NULL;', TableName, ColumnName);
                 else
                     SqlText = sprintf('COMMENT ON COLUMN %s.%s IS ''%s''', TableName, ColumnName, Args.Comment);
                 end
@@ -2330,14 +2330,40 @@ classdef DbQuery < Component
         
         function Result = getColumnComment(Obj, DbName, TableName, ColumnName)
             % Query column comment
-            
+            % Input   : - DbQuery object
+            %           - Database name
+            %           - Table name
+            %           - Column name
+            % Output  : Column comment char array
+            % Author  : Chen Tishler (2022)
+            % Example : Obj.getColumnComment('mydb1', 'mytable1', 'f2')
             SqlText = strcat('SELECT cols.column_name, (SELECT pg_catalog.col_description(c.oid, cols.ordinal_position::int) ', ...
-                'FROM pg_catalog.pg_class c WHERE c.oid = (SELECT cols.table_name::regclass::oid) AND c.relname = cols.table_name ', ...
-                ') as column_comment FROM information_schema.columns cols WHERE cols.table_catalog = ''%s'' AND ', ...
-                'cols.table_name = ''%s'' AND cols.column_name = ''%s''');
+                ' FROM pg_catalog.pg_class c WHERE c.oid = (SELECT cols.table_name::regclass::oid) AND c.relname = cols.table_name ', ...
+                ' ) as column_comment FROM information_schema.columns cols WHERE cols.table_catalog = ''%s'' AND ', ...
+                ' cols.table_name = ''%s'' AND cols.column_name = ''%s''');
 
             SqlText = sprintf(SqlText, DbName, TableName, ColumnName);
-            Result = Obj.selectColumn('column_comment');                   
+            Result = Obj.selectColumn(SqlText, 'column_comment');                   
+        end
+        
+        
+        function Result = getTableColumnsComments(Obj, DbName, TableName)
+            % Query comments of all columns of table, return dict of [column_name] = comment_comment
+            % Input   : - DbQuery object
+            %           - Database name
+            %           - Table name
+            % Output  : Struct array, for each column: column_name, column_comment
+            % Author  : Chen Tishler (2022)
+            % Example : Obj.getColumnComment('mydb1', 'mytable1', 'f2')        
+
+            SqlText = strcat('SELECT cols.column_name, (SELECT pg_catalog.col_description(c.oid, cols.ordinal_position::int) ', ...
+                ' FROM pg_catalog.pg_class c WHERE c.oid = (SELECT cols.table_name::regclass::oid) AND c.relname = cols.table_name ', ...
+                ' ) as column_comment FROM information_schema.columns cols WHERE cols.table_catalog = ''%s'' AND cols.table_name = ''%s''');
+
+            SqlText = sprintf(SqlText, DbName, TableName);
+            Result = Obj.query(SqlText);
+            Result = Obj.loadResultSet();
+            Result = Result.Data;
         end
         
         

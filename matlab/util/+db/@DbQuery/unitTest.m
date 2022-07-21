@@ -617,9 +617,9 @@ function Result = testAdmin()
     % Create table
     Q2.createTable('TableName', 'mytable1', 'AutoPk', 'pk', 'Drop', true);
     assert(Q2.isTableExist('mytable1'));
-    Q2.addColumn('mytable1', 'f1', 'double', 'default 0');
-    Q2.addColumn('mytable1', 'f2', 'double', 'default 0', 'comment', 'my comment for f2');
-    Q2.addColumn('mytable1', 'f3', 'double', 'default 0', 'index', true);
+    Q2.addColumn('mytable1', 'f1', 'double', 'default 0', 'Comment', 'comment for f1');
+    Q2.addColumn('mytable1', 'f2', 'double', 'default 0', 'Comment', 'my comment for f2');
+    Q2.addColumn('mytable1', 'f3', 'double', 'default 0', 'index', true, 'Comment', 'comment for f3');
     Q2.addIndexOnColumn('mytable1', 'f1');
     
     assert(Q2.isColumnExist('mytable1', 'f1'));
@@ -627,6 +627,17 @@ function Result = testAdmin()
     
     Comment = Q2.getColumnComment('mydb1', 'mytable1', 'f2');
     assert(strcmp(Comment, 'my comment for f2'));
+    
+    Comments = Q2.getTableColumnsComments('mydb1', 'mytable1');
+    assert(numel(Comments) == 4);
+    assert(strcmp(Comments(3).column_name, 'f2'));
+    assert(strcmp(Comments(3).column_comment, 'my comment for f2'));
+    
+
+    % Remove existing column comment
+    Q2.addColumn('mytable1', 'f2', 'double', 'default 0', 'Comment', 'NULL');    
+    Comment = Q2.getColumnComment('mydb1', 'mytable1', 'f2');
+    assert(strcmp(Comment, ''));
     
     Q2.dropTable('mytable1');
     assert(~Q2.isTableExist('mytable1'));    
