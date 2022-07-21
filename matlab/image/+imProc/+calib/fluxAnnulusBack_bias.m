@@ -26,15 +26,27 @@ function [Result, Obj] = fluxAnnulusBack_bias(Obj, Args)
     %                   Default is [2 4 6].
     %            'BinningLog' - Binning logarithmic step size.
     %                   Default is 0.3.
+    %            'BelowMinSetTo0' - A logical indicating if to set the zero
+    %                   the corrected offset, for all values below the flux at
+    %                   which the minimum is ached.
+    %                   Default is true.
     %            'InterpMethod' - Interpolation method used in the
     %                   correction. Default is 'spline'.
+    %            'BitDict' - Bit dictionary. If empty, don't return
+    %                   'IsSaturated'. Default is [].
     % Output : - A structure array with element per each image or catalog
     %            element, and the following fields:
     %            .Binning - [Flux, AnnulusBackBiasPerPix]
     %                       The AnnulusBackBias is the bias per pixel in
     %                       the background estimation as a function of
     %                       flux.
+    %            .Min     - The minimum of the background in .Binning,
+    %                       before it was subtracted.
+    %            .Data    - The data.
+    %            .IsSaturated - A flag indicating if the source is
+    %                       saturated.
     % Author : Eran Ofek (Jul 2022)
+    % Example: [R]=imProc.calib.fluxAnnulusBack_bias(AC,'BitDict',BitDictionary);
    
     arguments
         Obj   % AstroImage or AstroCatalog
@@ -43,7 +55,9 @@ function [Result, Obj] = fluxAnnulusBack_bias(Obj, Args)
         Args.CorrectKey cell  = {'FLUX_APER_1','FLUX_APER_2','FLUX_APER_3'};
         Args.CorrectRadius    = [2 4 6];
         Args.BinningLog       = 0.3;
+        Args.BelowMinSetTo0 logical = true;
         Args.InterpMethod     = 'spline';
+        Args.BitDict          = [];
     end
     
     if nargout>1
@@ -72,13 +86,22 @@ function [Result, Obj] = fluxAnnulusBack_bias(Obj, Args)
         LogData  = log10(Data(FlagGood,:));
         
         % binning
-        B  = timeseries.binning(LogData,Args.BinningLog,[],{MeanBin, @median});
+        B  = timeseries.binning(LogData,Args.BinningLog,[NaN NaN],{'MeanBin', @median});
         NN = ~isnan(B(:,2));
         B  = B(NN,:);
         
-        Result(Iobj).Binning = 10.^B;
-        Result(Iobj).Binning = Result(Iobj).Binning - min(Result(Iobj).Binning);
-        Result(Iobj).Data    = Data;
+        Result(Iobj).Binning      = 10.^B;
+        [Result(Iobj).Min, MinI]  = min(Result(Iobj).Binning(:,2));
+        Result(Iobj).Binning(:,2) = Result(Iobj).Binning(:,2) - Result(Iobj).Min;
+        
+        if Args.BelowMinSetTo0
+            Result(Iobj).Binning(1:MinI,2) = 0;
+        end
+        
+        Result(Iobj).Data         = Data;
+        if ~isempty(Args.BitDict)
+            Result(Iobj).IsSaturated = Args.BitDict.findBit(getCol(Obj(Iobj),'FLAGS'),'Saturated');
+        end
         
         if nargout>1
             [CorrData,~,CorrColInd] = getCol(Obj(Iobj), Args.CorrectKey);
