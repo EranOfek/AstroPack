@@ -883,6 +883,7 @@ classdef CalibImages < Component
             %   Flag staturated pixels in mask
             %   Subtract bias image
             %   Subtract and remove overscan from image
+            %   Nonlinearity correction
             %   Divide image by flat
             %   Correct for fringing
             %   Multiple image by gain
