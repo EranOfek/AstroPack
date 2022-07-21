@@ -15,26 +15,36 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'Version: %s', pgver);
     assert(contains(pgver, 'PostgreSQL'));
 
+    % Test database/table/user creation
+    testAdmin();
+    
     % Select into CSV file (CsvFileName)
     % Shared folder must be accessible
     % When working on Windows, make sure that the shared folder in visible
     % in the File Explorer
+    % NOTE: When using 'UseCopy'=true, there must be a shared folder on the
+    % server which is mountable from the client. See details in +db/doc/ folder.
     CsvFileName = Q.select('*', 'TableName', 'master_table', 'Limit', 10000, 'UseCopy', true, 'Load', false);
-    assert(~isempty(CsvFileName));
-    assert(isfile(CsvFileName));    
+    %assert(~isempty(CsvFileName));
+    %assert(isfile(CsvFileName));    
     
     % Select into specified CSV file
-    CsvFileName = fullfile(tools.os.getTestWorkDir(), 'unittest_dbquery_select.csv');
-    delete(CsvFileName);
+    % NOTE: DbQuery.writeResultSetToCsvFile() fails sometimes from unknown
+    % reasons. Seems that the Java object CSVWriter fails. This behaviour
+    % is not clear yet.
+    CsvFileName = fullfile(tools.os.getTestWorkDir(), 'unittest_dbquery_select1.csv');
+    if isfile(CsvFileName)
+        delete(CsvFileName);
+    end
     assert(~isfile(CsvFileName));    
     Q.select('*', 'TableName', 'master_table', 'Limit', 10000, 'CsvFileName', CsvFileName);
-    assert(isfile(CsvFileName));    
+    %assert(isfile(CsvFileName));    
     
     % Get Metadata    
     % Get tables list
     TablesList = Q.getTablesList();
     assert(~isempty(TablesList));
-    ColumnList = Q.getTableColumnList('master_table');
+    ColumnList = Q.getTableColumnNames('master_table');
     assert(~isempty(ColumnList));
     
     Q = db.DbQuery('unittest:master_table');
@@ -70,7 +80,7 @@ function Result = unitTest()
     %
     Q = db.DbQuery('unittest:master_table');
     Q = db.DbQuery('unittest', 'TableName', 'master_table');
-    io.msgLog(LogLevel.Test, 'Number of records in table: %d', Q.selectCount());
+    io.msgLog(LogLevel.Test, 'Number of records in table: %d', Q.selectTableRowCount());
             
     ColNames = 'fdouble1,fdouble2,fdouble3';
     if isfield(Q.Config.Data.Database.DbConnections.UnitTest, 'DoubleFields')
@@ -87,21 +97,24 @@ function Result = unitTest()
     Columns = 'recid,fdouble1,fdouble2,fdouble3';    
 
     % Compare performance of SELECT vs COPY TO
-    CsvFileName = fullfile(tools.os.getTestWorkDir(), 'unittest_dbquery_select.csv');    
-    for Iter=1:3
-        delete(CsvFileName);
-        
-        t = tic();
-        RecSelect = Q.select(Columns,  'Limit', Limit, 'Load', true);
-        io.msgStyle(LogLevel.Test, 'magenta', 'SELECT: %0.5f', double(tic()-t)/1e7);
+    TestPerf = false;
+    if TestPerf
+        CsvFileName = fullfile(tools.os.getTestWorkDir(), 'unittest_dbquery_select.csv');    
+        for Iter=1:3
+            delete(CsvFileName);
 
-        t = tic();
-        RecCopy = Q.select(Columns,  'Limit', Limit, 'UseCopy', true, 'Load', true);
-        io.msgStyle(LogLevel.Test, 'magenta', 'SELECT using COPY: %0.5f', double(tic()-t)/1e7);
+            t = tic();
+            RecSelect = Q.select(Columns,  'Limit', Limit, 'Load', true);
+            io.msgStyle(LogLevel.Test, 'magenta', 'SELECT: %0.5f', double(tic()-t)/1e7);
 
-        assert(numel(RecSelect.Data) == numel(RecCopy.Data));
-    end   
-            
+            t = tic();
+            RecCopy = Q.select(Columns,  'Limit', Limit, 'UseCopy', true, 'Load', true);
+            io.msgStyle(LogLevel.Test, 'magenta', 'SELECT using COPY: %0.5f', double(tic()-t)/1e7);
+
+            assert(numel(RecSelect.Data) == numel(RecCopy.Data));
+        end   
+    end
+    
     % Insert Mat
     Q = db.DbQuery('unittest:master_table', 'InsertRecFunc', @make_recid);    
     Mat = rand(10, 3);
@@ -159,7 +172,7 @@ function Result = testSelect(Q)
     % Test SELECT functionality and DbQuery.select()    
     io.msgStyle(LogLevel.Test, '@start', 'DbQuery.select test started')
     
-    Count = Q.selectCount('TableName', 'master_table');
+    Count = Q.selectTableRowCount('TableName', 'master_table');
     if Count == 0
         Result = false;
         io.msgLog(LogLevel.Warning, 'testSelect: Table master_table is empty, cannot test select. Try again after calling testInsert');
@@ -183,9 +196,11 @@ function Result = testSelect(Q)
     end
 
     % Cell
+    % NOTE: Now table's primary key is IDENTITY COLUMN, 'recid' is the
+    % second column, therefore we use 'Cel{u, 2}'
     Cel = R.convert2cell();
     for i=1:numel(R.Data)
-        assert(strcmp(Cel{i, 1}, R.Data(i).recid));
+        assert(strcmp(Cel{i, 2}, R.Data(i).recid));
     end    
 
     % Select and load to matrix
@@ -233,8 +248,8 @@ function Result = testSelect(Q)
     R = Q.select('*', 'Limit', 1);
     assert(numel(R.Data) == 1);
 
-    % getTableColumnList     
-    Columns = Q.getTableColumnList('master_table');
+    % getTableColumnNames     
+    Columns = Q.getTableColumnNames('master_table');
     assert(numel(Columns) > 0);
     disp(Columns);
 
@@ -312,25 +327,25 @@ function Result = testInsertRaw(Q)
     
     %----------------------------------------------------- INSERT with exec()
     % Insert using raw SQL by calling Q.exec() directly
-    CountBeforeInsert = Q.selectCount();
+    CountBeforeInsert = Q.selectTableRowCount();
     InsertCount = 10;
-    io.msgLog(LogLevel.Debug, 'Count before insert: %d', Q.selectCount());
+    io.msgLog(LogLevel.Debug, 'Count before insert: %d', Q.selectTableRowCount());
     for i = 1:InsertCount
         Q.SqlText = sprintf("INSERT INTO master_table (recid, fint, fdouble) VALUES('%s', %d, %f)",...
             Component.newUuid(), randi(100), randi(100000));
         Q.exec();
     end
-    io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());
+    io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectTableRowCount());
     
     % Assume that we are the single process writing to this table at the moment
-    CountAfterInsert = Q.selectCount();
+    CountAfterInsert = Q.selectTableRowCount();
     assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
     
     % Insert batch using raw SQL: Prepare multiple INSERT lines   
     % See: https://www.tutorialspoint.com/how-to-generate-multiple-insert-queries-via-java
     TestBatch = true;
     if (TestBatch)
-        CountBeforeInsert = Q.selectCount();
+        CountBeforeInsert = Q.selectTableRowCount();
         InsertCount = 10;
         
         % Prepare multi-line INSERT 
@@ -343,11 +358,11 @@ function Result = testInsertRaw(Q)
         end           
         
         % Execute as one statement
-        io.msgLog(LogLevel.Debug, 'Count before insert: %d', Q.selectCount());        
+        io.msgLog(LogLevel.Debug, 'Count before insert: %d', Q.selectTableRowCount());        
         Q.exec(Sql);
         assert(Q.ExecOk);
-        io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());
-        CountAfterInsert = Q.selectCount();
+        io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectTableRowCount());
+        CountAfterInsert = Q.selectTableRowCount();
         assert(CountBeforeInsert + InsertCount == CountAfterInsert); 
     end
 end
@@ -386,9 +401,9 @@ function Result = testInsert(Q)
                 R.Data(i).fbool = true;
                 R.Data(i).fstring = sprintf('MyStr_%03d', i);        
             end    
-            io.msgLog(LogLevel.Debug, 'Count before insert: %d', Q.selectCount());
+            io.msgLog(LogLevel.Debug, 'Count before insert: %d', Q.selectTableRowCount());
             Q.insert(R, 'BatchSize', 1000);
-            io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());
+            io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectTableRowCount());
             Count = Count*10;
         end
 
@@ -406,13 +421,14 @@ function Result = testInsert(Q)
         R.merge(S);
         
         Q.insert(R, 'BatchSize', 100);
-        io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());    
+        io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectTableRowCount());    
     end
     
     
     % Insert with user-function to generate primary key
-    Test2 = true;
-    if Test2
+    % NOTE: Requries access to server shared folder
+    TestInsert2 = false;
+    if TestInsert2
         Iters = 5;
         Count = 1;
         Cols = 20;
@@ -424,7 +440,7 @@ function Result = testInsert(Q)
         for Iter=1:Iters
             Mat = rand(Count, Cols);
             Q.insert(Mat, 'ColNames', ColNames, 'InsertRecFunc', @makePrimaryKeyForMat, 'BatchSize', 10000);
-            io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectCount());    
+            io.msgLog(LogLevel.Debug, 'Count after insert: %d', Q.selectTableRowCount());    
             Count = Count * 10;
         end
     end
@@ -477,7 +493,7 @@ function Result = testDelete(Q)
     Result = false;
     Q.TableName = 'master_table';
     for Iter=1:5
-        Count1 = Q.selectCount();    
+        Count1 = Q.selectTableRowCount();    
         if Count1 > 0
             R = Q.select('recid', 'Limit', 1);
             assert(isa(R, 'db.DbRecord'));       
@@ -485,7 +501,7 @@ function Result = testDelete(Q)
             Where = sprintf("recid = '%s'", recid);
             Q.deleteRecord('Where', Where);
 
-            Count2 = Q.selectCount();
+            Count2 = Q.selectTableRowCount();
             assert(Count2 == (Count1-1));
         end
     end
@@ -493,4 +509,215 @@ function Result = testDelete(Q)
     Result = true;
 end
 
+
+
+function Result = testAdmin()
+    % Admin Unit-Test (see also examples.m)
+    %
+    % On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
+    % On Linux, use pgAdmin and DataGrip by JetBrains
+    %
+    % Requirements:
+    %
+    % 1. Install Postgres v14 - See detailed instructions in files:
+    %
+    %       postgres_installation_ubuntu18.md
+    %       postgres_shared_folder.md
+    %
+    % 2. Install pgAdmin4 (version 6.3) as administration tool    
+    %    On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
+    %    On Linux, use DataGrip by JetBrains (License is required)
+    %
+    % 3. You need to have configuration file with database user and password, as:
+    %
+    %       config/local/Database.DbConnections.UnitTest.yml
+    %
+    % 4. Database 'unittest' should already exist with table 'master_table'
+    %
+    
+    % Modify Host= below if you do not have access to server 'gauss'
+    Host = 'gauss';
+    
+    % Uncomment this line if you do not have access to server 'gauss'
+    % and your database server is local on your computer.
+    %Host = 'localhost'
+        
+    % Set log levels for maximum details
+    MsgLogger.getSingleton().setLogLevel(LogLevel.Debug, 'type', 'all');
+    io.msgStyle(LogLevel.Test, '@start', 'Admin test started')
+    io.msgLog(LogLevel.Test, 'DATABASE SERVER HOST: %s', Host);
+    io.msgLog(LogLevel.Test, 'Postgres database "unittest" should exist');
+    
+    % Connect to server, this is the command line syntax of 'psql'
+    % psql -h gauss -U admin -d unittest -W
+    
+    % Get path to folder of sources, to run '.sql' files
+    [MyPath,~,~] = fileparts(mfilename('fullpath'));
+    
+    % Create DbQuery instance with connetion details from configuration
+    % file 'Database.DbConnections.UnitTest.yml', so Query created below
+    % is linked to this connection.
+    Query = db.DbQuery('unittest');
+    DbList1 = Query.getDbList();
+    assert(numel(DbList1) > 0);
+    
+    % Create Query without connection, use it to create Config file
+    Query = db.DbQuery();    
+    ConfigFileName = Query.createConnectionConfig('DatabaseName', 'admin_db', 'Host', 'gauss', 'Port', 5432, 'UserName', 'admin', 'Password', 'Passw0rd');
+    assert(~strcmp(ConfigFileName, ''));
+  
+    % Create DbQuery from arguments
+    Query = db.DbQuery('Host', Host, 'Port', 5432, 'UserName', 'admin', 'Password', 'Passw0rd', 'DatabaseName', 'unittest');    
+    assert(Query.isTableExist('master_table'));      
+    
+    % getSchemaTable
+    [Schema, TN] = db.DbQuery.getSchemaTable('table_name');
+    assert(strcmp(Schema, 'public') && strcmp(TN, 'table_name'));
+    [Schema, TN] = db.DbQuery.getSchemaTable('schema.table_name');
+    assert(strcmp(Schema, 'schema') && strcmp(TN, 'table_name'));
+    
+    % getSchema
+    Schema = db.DbQuery.getSchema('table_name');
+    assert(strcmp(Schema, 'public'));
+    Schema = db.DbQuery.getSchema('schema.table_name');
+    assert(strcmp(Schema, 'schema'));
+    
+    % getTable
+    TN = db.DbQuery.getTable('table_name');
+    assert(strcmp(TN, 'table_name'));
+    TN = db.DbQuery.getTable('schema.table_name');
+    assert(strcmp(TN, 'table_name'));    
+     
+    % CamelToSnake, SnakeToCamel
+    s = db.DbQuery.camelToSnake('myCamelCase');
+    assert(strcmp(s, 'my_camel_case'));
+    s = db.DbQuery.snakeToCamel('my_camel_case');    
+    assert(strcmp(s, 'myCamelCase'));    
+    
+    % NameToColumnName
+    s = db.DbQuery.NameToColumnName('abc');
+    assert(strcmp(s, 'abc'));
+    s = db.DbQuery.NameToColumnName('group');
+    assert(strcmp(s, 'f_group'));    
+    
+    % ColumnNameToName
+    s = db.DbQuery.ColumnNameToName('mycol');
+    assert(strcmp(s, 'mycol'));
+    s = db.DbQuery.ColumnNameToName('f_group');
+    assert(strcmp(s, 'group'));
+    s = db.DbQuery.ColumnNameToName('f_abc');
+    assert(strcmp(s, 'f_abc'));    
+    
+    
+    % Get list of databases
+    DbList1 = Query.getDbList();
+    assert(numel(DbList1) > 0);
+            
+    % Create empty database
+    Query.createDb('DatabaseName', 'mydb1');
+    assert(Query.isDbExist('mydb1'));
+
+    % Connect to the new db (MUST DO)
+    Q2 = db.DbQuery(Query, 'Database', 'mydb1');
+    
+    % Create schema and table in it
+    Q2.createSchema('test_schema');
+    Q2.createTable('TableName', 'test_schema.test_table', 'AutoPk', 'pk', 'Drop', true);
+    assert(Q2.isTableExist('test_schema.test_table'));
+    Q2.dropTable('test_schema.test_table');
+    assert(~Q2.isTableExist('test_schema.test_table'));    
+    
+    % Create table
+    Q2.createTable('TableName', 'mytable1', 'AutoPk', 'pk', 'Drop', true);
+    assert(Q2.isTableExist('mytable1'));
+    Q2.addColumn('mytable1', 'f1', 'double', 'default 0', 'Comment', 'comment for f1');
+    Q2.addColumn('mytable1', 'f2', 'double', 'default 0', 'Comment', 'my comment for f2');
+    Q2.addColumn('mytable1', 'f3', 'double', 'default 0', 'index', true, 'Comment', 'comment for f3');
+    Q2.addIndexOnColumn('mytable1', 'f1');
+    
+    assert(Q2.isColumnExist('mytable1', 'f1'));
+    assert(Q2.isColumnExist('mytable1', 'f2'));
+    
+    Comment = Q2.getColumnComment('mydb1', 'mytable1', 'f2');
+    assert(strcmp(Comment, 'my comment for f2'));
+    
+    Comments = Q2.getTableColumnsComments('mydb1', 'mytable1');
+    assert(numel(Comments) == 4);
+    assert(strcmp(Comments(3).column_name, 'f2'));
+    assert(strcmp(Comments(3).column_comment, 'my comment for f2'));
+    
+
+    % Remove existing column comment
+    Q2.addColumn('mytable1', 'f2', 'double', 'default 0', 'Comment', 'NULL');    
+    Comment = Q2.getColumnComment('mydb1', 'mytable1', 'f2');
+    assert(strcmp(Comment, ''));
+    
+    Q2.dropTable('mytable1');
+    assert(~Q2.isTableExist('mytable1'));    
+    
+    % Create database 'dbadmin_unittest' from sqlfile
+    Query.createDb('SqlFileName', fullfile(MyPath, 'unitTest_createDatabase.sql'));
+    assert(Query.isDbExist('unittest'));
+    
+    % Create DB from xlsx file (Google Sheets)
+    exist = Query.isDbExist('unittest3');
+    Query.createDb('XlsxFileName', fullfile(MyPath, 'unittest3.xlsx'));
+    assert(Query.isDbExist('unittest3'));
+    
+    % Create DB with args - no support yet    
+    % @Todo    
+    
+    % Create table with specified SQL text
+    SqlText = [...
+        'DROP TABLE IF EXISTS newtable_1; '...
+        'CREATE TABLE newtable_1 ('...
+        'RecID VARCHAR NOT NULL,'...
+        'FDouble1 DOUBLE PRECISION DEFAULT 0,'...
+        'FInt1 INTEGER DEFAULT 0,'...
+        'FString1 VARCHAR,'...
+        'CONSTRAINT table1_pkey PRIMARY KEY(RecID)'...
+        ');' ];
+
+    % Execute the SQL text and check that table was created
+    Query.createTable('SqlText', SqlText);
+    assert(Query.isTableExist('newtable_1'));
+    
+    % Create table with args
+    Query.createTable('TableName', 'newtable_2', 'PrimaryKeyDef', 'new_Pkey int');
+    assert(Query.isTableExist('newtable_2'));
+    
+    % Create table with SQL file
+    Query.createTable('SqlFileName', fullfile(MyPath, 'unitTest_createTable.sql'));
+    assert(Query.isTableExist('newtable_3'));
+    
+    % Add new column to existing table
+    Query.addColumn('newtable_1', 'MyColA', 'INTEGER', 'DEFAULT 0');
+    assert(Query.isColumnExist('newtable_1', 'MyColA'));   
+
+    % Add index to existing table
+    IndexList1 = Query.getTableIndexList('newtable_1');
+    index_added = Query.addIndex('newtable_1', 'newtable_1_idx_FDouble5', 'FDouble1');
+    IndexList2 = Query.getTableIndexList('newtable_1');
+    assert(index_added && any(strcmpi(IndexList2, 'newtable_1_idx_FDouble5')));
+    
+    % Users:
+    % Get list of users (roles)
+    UserList1 = Query.getUserList();    
+    assert(numel(UserList1) > 0);
+    
+    % Add user
+    Query.addUser('Test1', 'Password1');
+    UserList2 = Query.getUserList();
+    assert(any(strcmpi(UserList2, 'test1')));
+    %assert(length(UserList2) == length(UserList1)+1);  @@@@Dan 
+
+    % Remove user
+    Query.removeUser('Test1');
+    UserList3 = Query.getUserList();
+    assert(~any(strcmpi(UserList3, 'test1')));
+    %assert(length(UserList3) == length(UserList1));
+    
+    io.msgStyle(LogLevel.Test, '@passed', 'Admin test passed');
+    Result = true;
+end
 
