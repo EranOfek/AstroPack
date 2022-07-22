@@ -521,6 +521,52 @@ classdef AstroImage < Component
                     error('Unknown property %s',ShortProp);
             end
         end
+        
+        function Result = readIP(FileBase, Args)
+            % Read image which name obeys the ImagePath standard, along
+            % with all its metadata images (e.g., Cat, PSF,...)
+            % 
+            
+            arguments
+                FileBase
+                Args.Path        = '';
+                Args.ReadProd    = {'Image','Var','Back','Mask','PSF','Cat'};
+            end
+            
+            Nprod = numel(Args.ReadProd);
+            
+            FullFileBase = fullfile(Args.Path,FileBase);
+            Files        = dir(FullFileBase);
+            ListFiles    = {Files.name};
+            Nfiles       = numel(Files);
+            if Nfiles==0
+                Result = [];
+                warning('No files found');
+            else
+                Result = AstroImage;
+                
+                for Iprod=1:1:Nprod
+                    Flag = contains(ListFiles, Args.ReadProd{Iprod});
+                    Nfound = sum(Flag);
+                    if Nfound>1
+                        error('More than one file of product type %s was found', Args.ReadProd{Iprod});
+                    else
+                        if Nfound>0
+                            % file found
+                            FileName = ListFiles{Flag};
+                            switch Args.ReadProd{Iprod}
+                                case 'Cat'
+                                    
+                                otherwise
+                                    
+                            end
+                            
+                            Result.(Args.ReadProd{Iprod}) = 
+                        end
+                    end
+                end
+            end
+        end
     end
 
  
@@ -596,8 +642,9 @@ classdef AstroImage < Component
     end
     
     methods (Static)  % static methods
-       
+        
     end
+    
     
 %     methods % translate Data property names
 %         function DataName = translateDataPropName(Obj, DataProp)
