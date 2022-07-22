@@ -1,4 +1,4 @@
-# AstroPack
+# AstroPack (a.k.a. MAATv2)
 Astronomy, Astrophysics, &amp; Image Processing Software Pacakge
 
 Developers: Eran Ofek, Chen Tishler, Yossi Shvartzvald, Amir Sharon, Dan Elhanati, Noam Segev
