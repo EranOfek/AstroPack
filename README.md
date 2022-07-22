@@ -19,3 +19,7 @@ Please cite:
 ## Usage:
 From matlab: edit manuals.GettingStarted, and the manuals package.
   
+## Content
+A collection of several thousands functions for astronomy, astrophysics, and image processing applications.
+The following topics are covered:
+### Astronomical Image Processing
