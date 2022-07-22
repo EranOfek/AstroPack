@@ -525,12 +525,36 @@ classdef AstroImage < Component
         function Result = readIP(FileBase, Args)
             % Read image which name obeys the ImagePath standard, along
             % with all its metadata images (e.g., Cat, PSF,...)
-            % 
+            % Input  : - File name base that contains a wild card.
+            %            E.g., 'LAST.01.02.03_20220615.205431.830_clear_205-10_020_001_024_sci_proc_*'
+            %            All files with this template name will be
+            %            searched, and classified according to the product.
+            %          * ...,key,val,...
+            %            'Path' - Path in which the files reside.
+            %                   Default is ''.
+            %            'ReadProd' - Products to read:
+            %                   Default is
+            %                   {'Image','Var','Back','Mask','PSF','Cat'}.
+            %            'HDU' - HDU number of HDF5 dataset name.
+            %                   Default is 1.
+            %            'FileType' - [] will attempt to identify
+            %                   automatically. Otherwise, 'fits' | 'hdf5'.
+            %                   Default is [].
+            %            'CCDSEC' - CCDSEC for image to read [Xmin Xmax
+            %                   Ymin Ymax]. If empty, read the entire image.
+            %                   Default is [].
+            % Output : - An AstroImage object populated with the loaded
+            %            images and metadata.
+            % Author : Eran Ofek (Jul 2022)
+            % Example: AI = AstroImage.readIP('LAST.01.02.03_20220615.205431.830_clear_205-10_020_001_024_sci_proc_*');
             
             arguments
                 FileBase
                 Args.Path        = '';
                 Args.ReadProd    = {'Image','Var','Back','Mask','PSF','Cat'};
+                Args.HDU         = 1;
+                Args.FileType    = [];
+                Args.CCDSEC      = [];
             end
             
             Nprod = numel(Args.ReadProd);
@@ -556,12 +580,20 @@ classdef AstroImage < Component
                             FileName = ListFiles{Flag};
                             switch Args.ReadProd{Iprod}
                                 case 'Cat'
-                                    
+                                    T = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',true);
+                                    Result.CatData = AstroCatalog(T);
+                                case 'Image'
+                                    [Im,Header] = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',false);
+                                    Result.(Args.ReadProd{Iprod}) = Im;
+                                    Result.HeaderData.Data        = Header;
+                                case 'PSF'
+                                    [Im,Header] = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'IsTable',false);
+                                    Result.PSFData.DataPSF = Im;
                                 otherwise
-                                    
+                                    Im = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',false);
+                                    Result.(Args.ReadProd{Iprod}) = Im;
                             end
                             
-                            Result.(Args.ReadProd{Iprod}) = 
                         end
                     end
                 end
