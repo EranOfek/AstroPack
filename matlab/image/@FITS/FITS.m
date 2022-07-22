@@ -315,6 +315,9 @@ classdef FITS < handle
             %                         are repeating then will change column information
             %                         according to the matrix column count.
             %                         Default is true.
+            %            'IdentifyNaN' - A logical indicating if to replace
+            %                         -9.1191e-36 with NaN.
+            %                         Default is true.
             % Output : - A table containing the FITS table content.
             %          - The FITS file header.
             %          - A structure array of additional columns
@@ -339,6 +342,7 @@ classdef FITS < handle
                 Args.OutClass                 = @double;
                 Args.NullVal                  = NaN;       % [] do nothing
                 Args.BreakRepCol(1,1) logical = true;
+                Args.IdentifyNaN logical      = true;
             end
                       
             % get header as cell array
@@ -384,6 +388,12 @@ classdef FITS < handle
                 
                 % Read rows of ASCII or binary table column
                 [Col.Data{Icol}] = matlab.io.fits.readCol(Fptr, Icol, CellRowPar{:});
+                
+                % replace -eps with NaN
+                if Args.IdentifyNaN
+                    Flag = Col.Data{Icol}<-9.1e-36 & Col.Data{Icol}>-9.2e-36;
+                    Col.Data{Icol}(Flag) = NaN;
+                end
                 
                 % Optionally convert value to specified type
                 if (~isempty(Args.OutClass))
