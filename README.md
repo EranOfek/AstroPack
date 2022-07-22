@@ -1,4 +1,4 @@
-# AstroPack - Astrophysics Software Pacakge
+# AstroPack (a.k.a. MAATv2) - Astrophysics, Astronomy, and Image Processing Software Pacakge
 
 ## The Weizmann Institute of Science
 
