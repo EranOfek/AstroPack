@@ -9,3 +9,9 @@ Weizmann Institute of Science
 2. git checkout dev1
 3. From matlab: edit manuals.Install, and follow the instructions.
   
+## Credit:
+Please cite Ofek (2014; https://ui.adsabs.harvard.edu/abs/2014ascl.soft07005O/abstract); Soumagnac and Ofek (2018; https://ui.adsabs.harvard.edu/abs/2018PASP..130g5002S/abstract); Ofek (2019; https://ui.adsabs.harvard.edu/abs/2019PASP..131e4504O/abstract); and Ofek et al., in prep.
+
+## Usage:
+From matlab: edit manuals.GettingStarted, and the manuals package.
+  
