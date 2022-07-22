@@ -23,3 +23,14 @@ From matlab: edit manuals.GettingStarted, and the manuals package.
 A collection of several thousands functions for astronomy, astrophysics, and image processing applications.
 The following topics are covered:
 ### Astronomical Image Processing
+### Celestial coordinates
+### Celestial mechanics
+### Virtual Observatory excess
+### Large catalogs and catsHTM
+### Statistics
+### Telescopes and Optics
+### Spectra and filters
+### Time series analysis
+### Cosmology
+### Gravitational lensing
+### General utilities
