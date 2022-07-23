@@ -856,7 +856,7 @@ classdef OrbitalEl < Base
                 Args.MaxIterLT                   = 5;  % use 0 for quick and dirty
                 Args.IncludeMag(1,1) logical     = true;  % use false to speed up
                 Args.AddDesignation(1,1) logical = true;  % works only for AstroCatalog output
-                Args.Integration(1,1) logical    = false; 
+                Args.Integration(1,1) logical    = false; %false; 
                 Args.TolInt                      = 1e-10; 
             end
             RAD  = 180./pi;
@@ -1072,7 +1072,13 @@ classdef OrbitalEl < Base
             %            'QuickSearchBuffer' - In the first iteration the
             %                   search radius is increased by this amount.
             %                   Default is 500 (units given by the
-            %                   'SearchRadiusUnits' key/val).
+            %                   'SearchBufferUnits' key/val).
+            %            'SearchBufferUnits' - Units of
+            %                   'QuickSearchBuffer'. Default is 'arcsec'.
+            %            'Integration' - A logical indicating if to perform
+            %                   orbital integartion on the objects within the
+            %                   search radius.
+            %                   Default is false.
             % Output : - An AstroCatalog object with the ephemerides of the
             %            minor planets / comets found near the search
             %            position. The number of elements are equal to the
@@ -1100,10 +1106,12 @@ classdef OrbitalEl < Base
                 Args.coneSearchArgs cell = {};
                 Args.AddDesignation(1,1) logical = true;
                 Args.QuickSearchBuffer   = 500;    % to be added to SearchRadis (same units).
+                Args.SearchBufferUnits   = 'arcsec';
+                Args.Integration logical = false;
             end
             
             SearchRadiusRAD      = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
-            QuickSearchBufferRAD = convert.angular(Args.SearchRadiusUnits, 'rad', Args.QuickSearchBuffer);
+            QuickSearchBufferRAD = convert.angular(Args.SearchBufferUnits, 'rad', Args.QuickSearchBuffer);
             
             if isinf(Args.MagLimit)
                 IncludeMag = false;
@@ -1139,7 +1147,8 @@ classdef OrbitalEl < Base
                                                   'RefEllipsoid',Args.RefEllipsoid,...
                                                   'OutUnitsDeg',false,...
                                                   'AddDesignation',Args.AddDesignation,...
-                                                  'OutUnitsDeg',Args.OutUnitsDeg);
+                                                  'OutUnitsDeg',Args.OutUnitsDeg,...
+                                                  'Integration',Args.Integration);
 
 
                     [Result(Iobj), Flag] = imProc.match.coneSearch(Result(Iobj), [RA, Dec], 'CooType','sphere',...
