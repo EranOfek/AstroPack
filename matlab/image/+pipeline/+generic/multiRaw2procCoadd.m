@@ -267,6 +267,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.SaveCoaddIm logical   = true;
         Args.SaveCoaddMask logical = true;
         Args.SaveCoaddCat logical  = true;
+        Args.SaveCoaddPSF logical  = true;
         Args.SaveAsteroids logical = true;
 
     end
@@ -281,6 +282,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             Args.SaveCoaddIm    = true;
             Args.SaveCoaddMask  = true;
             Args.SaveCoaddCat   = true;
+            Args.SaveCoaddPSF   = true;
             Args.SaveAsteroids  = true;
         else
             Args.SaveProcIm     = false;
@@ -291,6 +293,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             Args.SaveCoaddIm    = false;
             Args.SaveCoaddMask  = false;
             Args.SaveCoaddCat   = false;
+            Args.SaveCoaddPSF   = false;
             Args.SaveAsteroids  = false;
         end
     end
@@ -493,8 +496,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                           'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir','', 'PathLevel','proc'});
     
     FlagGood = ~isemptyImage(Coadd);
-    writeProduct(IP(FlagGood), Coadd(FlagGood), 'Save', Args.SaveCoaddIm || Args.SaveCoaddMask || Args.SaveCoaddCat,...
-                            'SaveFields', DataProp([Args.SaveCoaddIm, Args.SaveCoaddMask, Args.SaveCoaddCat, false]));
+    writeProduct(IP(FlagGood), Coadd(FlagGood), 'Save', Args.SaveCoaddIm || Args.SaveCoaddMask || Args.SaveCoaddCat || Args.SaveCoaddPSF,...
+                            'SaveFields', DataProp([Args.SaveCoaddIm, Args.SaveCoaddMask, Args.SaveCoaddCat, Args.SaveCoaddPSF]));
       
     % save MergedCat
     writeProduct(IP(FlagGood), MergedCat(FlagGood), 'Save',Args.SaveMatchCat, 'Product','Cat', 'Level','merged', 'WriteFunArgs', {'FileType','fits'}, 'SaveFields',{'Cat'});
