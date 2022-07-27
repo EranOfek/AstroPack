@@ -19,6 +19,9 @@ function Result = zp_meddiff(MS, Args)
     %            'MinNepoch' - Use sources which the min. number of epochs
     %                   they appear (not NaN) is larger than this number.
     %                   Default is 10.
+    %            'UseWMedian' - A logical indicating if to use weighted
+    %                   median instead of median.
+    %                   Default is false.
     % Output : - A structure array (element per MatchedSources element)
     %            with the following fields:
     %            .FitZP    - Fitted ZP [mag] per image. Add to image in
@@ -47,7 +50,8 @@ function Result = zp_meddiff(MS, Args)
         Args.MaxMagErr              = 0.03;
         Args.RefImInd               = 1;
         Args.MinNepoch              = Inf;  % Inf - source appear in all epochs
-                
+        Args.UseWMedian logical     = false;
+        
         %Args.Plot(1,1) logical      = false;
     end
     
@@ -77,7 +81,12 @@ function Result = zp_meddiff(MS, Args)
 
         DiffMagEpoch = Mag - Mag(Args.RefImInd,:);
 
-        Result(Ims).FitZP    = median(DiffMagEpoch, 2, 'omitnan');
+        if Args.UseWMedian
+            error('UseWMedian not tested yet');
+            Result(Ims).FitZP    = tools.nath.stat.wmedian(DiffMagEpoch, MagErr); % 2, 'omitnan');
+        else
+            Result(Ims).FitZP    = median(DiffMagEpoch, 2, 'omitnan');
+        end
         Result(Ims).FitStdZP = std(DiffMagEpoch, [], 2, 'omitnan');
         Result(Ims).FitErrZP = Result(Ims).FitStdZP./sqrt(Nsrc);
         Result(Ims).Nsrc     = Nsrc;
