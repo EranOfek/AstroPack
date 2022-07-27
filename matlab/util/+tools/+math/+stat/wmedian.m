@@ -1,6 +1,5 @@
 function WMed = wmedian(Val, Err, Dim)
     % Weighted median for a vector.
-    % Package: Util.stat
     % Description: Weighted median for a vector.
     %              Calculates the weighted median of a vector
     %              given the error on each value in the vector.
@@ -39,13 +38,13 @@ function WMed = wmedian(Val, Err, Dim)
     
     [SV,SI] = sort(Val, 1);
     Weights = 1./Err(SI).^2;
-    CSW     = cumsum(Weights, 1);  % cumsum of the weights
+    CSW     = cumsum(Weights, 1, 'omitnan');  % cumsum of the weights
     if any(isinf(CSW),'all')
         WMed = NaN;
     else
         NVar    = size(Val,2);
         
-        Norm    = sum(Weights, 1);
+        Norm    = sum(Weights, 1, 'omitnan');
         %CSWnorm = CSW./CSW(end);
         CSWnorm = CSW./Norm;
         

@@ -21,7 +21,7 @@ function Result = zp_meddiff(MS, Args)
     %                   Default is 10.
     %            'UseWMedian' - A logical indicating if to use weighted
     %                   median instead of median.
-    %                   Default is false.
+    %                   Default is true.
     % Output : - A structure array (element per MatchedSources element)
     %            with the following fields:
     %            .FitZP    - Fitted ZP [mag] per image. Add to image in
@@ -50,7 +50,7 @@ function Result = zp_meddiff(MS, Args)
         Args.MaxMagErr              = 0.03;
         Args.RefImInd               = 1;
         Args.MinNepoch              = Inf;  % Inf - source appear in all epochs
-        Args.UseWMedian logical     = false;
+        Args.UseWMedian logical     = true;
         
         %Args.Plot(1,1) logical      = false;
     end
@@ -82,8 +82,7 @@ function Result = zp_meddiff(MS, Args)
         DiffMagEpoch = Mag - Mag(Args.RefImInd,:);
 
         if Args.UseWMedian
-            error('UseWMedian not tested yet');
-            Result(Ims).FitZP    = tools.nath.stat.wmedian(DiffMagEpoch, MagErr); % 2, 'omitnan');
+            Result(Ims).FitZP    = tools.math.stat.wmedian(DiffMagEpoch, MagErr, 2); 
         else
             Result(Ims).FitZP    = median(DiffMagEpoch, 2, 'omitnan');
         end
