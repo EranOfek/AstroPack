@@ -6,13 +6,14 @@ function D=wmedian(varargin)
 %              given the error on each value in the vector.
 % Input  : * Either two arguments Data,Error or a two column matrix
 %            of [Data,Error].
+%            The weights are given by 1./Error.^2
 % Output : - Weighted median
 % Reference: https://en.wikipedia.org/wiki/Weighted_median
 % License: GNU general public license version 3
 % Tested : Matlab R2015a
 %     By : Eran O. Ofek                    Jun 2015
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: D=wmedian(V,E);
+% Example: D=tools.math.stat.wmedian(V,E);
 % Reliable: 2
 %--------------------------------------------------------------------------
 
