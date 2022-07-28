@@ -426,15 +426,6 @@ classdef catsHTM
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2015AAS...22533616H/abstract';
             
             I = I + 1;
-            Data(I).Status  = true;
-            Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/Cosmos/';
-            Data(I).Name = 'Cosmos';
-            Data(I).Desc = 'COSMOS multi band photometry';
-            Data(I).Ref  = 'Capak et al. 2007';
-            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2007ApJS..172...99C/abstract';
-            
-            I = I + 1;
             Data(I).Status  = false;
             Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/CRTS_per_var/';
@@ -442,6 +433,15 @@ classdef catsHTM
             Data(I).Desc = 'CRTS periodic variable star catalog';
             Data(I).Ref  = 'Drake et al. 2014';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2014ApJS..213....9D/abstract';
+            
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/Cosmos/';
+            Data(I).Name = 'Cosmos';
+            Data(I).Desc = 'COSMOS multi band photometry';
+            Data(I).Ref  = 'Capak et al. 2007';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2007ApJS..172...99C/abstract';
             
             I = I + 1;
             Data(I).Status  = true;
@@ -497,6 +497,14 @@ classdef catsHTM
             Data(I).Ref  = 'Gaia collaboration et al. 2022';
             Data(I).RefLink = '';
             
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/GAIA/DR3extraGal/';
+            Data(I).Name = 'GAIADR3extraGal';
+            Data(I).Desc = 'GAIA-DR3 catalog';
+            Data(I).Ref  = 'Gaia collaboration et al. 2022';
+            Data(I).RefLink = '';
             
             I = I + 1;
             Data(I).Status  = true;
@@ -510,9 +518,18 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/GLADE/';
+            Data(I).Dir  = '/GLADE/v1/';
             Data(I).Name = 'GLADE';
             Data(I).Desc = 'GLADE galaxy catalog; http://glade.elte.hu/';
+            Data(I).Ref  = 'Dalya et al. 2021';
+            Data(I).RefLink = 'https://arxiv.org/abs/2110.06184';
+            
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/GLADE/plus/';
+            Data(I).Name = 'GLADEp';
+            Data(I).Desc = 'GLADE+ galaxy catalog; http://glade.elte.hu/';
             Data(I).Ref  = 'Dalya et al. 2021';
             Data(I).RefLink = 'https://arxiv.org/abs/2110.06184';
             
@@ -779,6 +796,15 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/VLASS/ep1/';
+            Data(I).Name = 'VLASSep1';
+            Data(I).Desc = 'The VLASS radio survey / epoch 1';
+            Data(I).Ref  = 'Gordon et al. 2021';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2021yCat..22550030G/abstract';
+            
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/VST/KiDS/DR3/';
             Data(I).Name = 'VSTkids';
             Data(I).Desc = 'The first and second data releases of the Kilo-Degree Survey';
@@ -872,7 +898,7 @@ classdef catsHTM
             Data = catsHTM.catalogs;
             Nd = numel(Data);
             
-            for Id=13:1:13,
+            for Id=14:1:14,
                 %1:1:Nd
                 if Data(Id).Status
                     Data(Id)
@@ -2465,9 +2491,11 @@ classdef catsHTM
             % Example: catsHTM.mergeCats
             
             arguments
-                CatNames cell    = {'GAIAEDR3','unWISE','TMASS','GLADE','PGC','SDSSDR10','PS1','DECaLS','GALEX','FIRST','NVSS','LAMOST_DR4','NEDz','SpecSDSSDR17','ROSATfsc','XMM','ztfDR1var','WDEDR3','QSO1M'};  % 16 bit
-                Args.CatRadius   = [2,         3,       3,      10,     10,   2,         2,    2,       4,       5,      15,    2,           10,    10,        30,        10,   2,         2,       3];
-                Args.Nbit        = 20;
+                %CatNames cell    = {'GAIAEDR3','unWISE','TMASS','GLADE','PGC','SDSSDR10','PS1','DECaLS','GALEX','FIRST','NVSS','LAMOST_DR4','NEDz','SpecSDSSDR17','ROSATfsc','XMM','ztfDR1var','WDEDR3','QSO1M'};  % 16 bit
+                %Args.CatRadius   = [2,         3,       3,      10,     10,   2,         2,    2,       4,       5,      15,    2,           10,    10,        30,        10,   2,         2,       3];
+                CatNames cell    = {'GAIADR3','unWISE','TMASS','GLADEp','PGC','SDSSDR10','PS1','DECaLS','GALEX','FIRST','NVSS','VLASSep1','LAMOST_DR4','NEDz','SpecSDSSDR17','ROSATfsc','XMM','ztfDR1var','WDEDR3','QSO1M','GAIADR3extraGal'};  % 32 bit
+                Args.CatRadius   = [2,         3,       3,      10,     10,   2,         2,    2,       4,       5,      15,    5,         2,           10,    10,            30,        10,   2,         2,       3,      10];
+                Args.Nbit        = 21;
                 Args.NewCatName  = 'MergedCat';
                 Args.SaveInd     = true;
                 
