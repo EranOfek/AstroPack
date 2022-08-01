@@ -31,6 +31,7 @@ else
 end
 
 WaveRange = linspace(min(WaveRange),max(WaveRange),100).';
+WaveRange = logspace(log10(min(WaveRange)),log10(max(WaveRange)),10000).';
 
 Nt  = length(Temp);
 if (length(Radius)==1)
@@ -42,7 +43,7 @@ end
 
 Flux = zeros(Nt,1).*NaN;
 for It=1:1:Nt
-   [Il,If] = AstroUtil.spec.black_body(Temp(It),WaveRange);
+   [Il,If] = astro.spec.black_body(Temp(It),WaveRange);
    Spec    = [WaveRange, Il.*1e-8];
 
    Flux(It) = trapz(Spec(:,1),Spec(:,2));
