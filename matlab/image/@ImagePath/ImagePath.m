@@ -993,6 +993,44 @@ classdef ImagePath < Base %Component
             end
         end
        
+        function [List, Flag] = selectByType(Files, Type, IsType)
+            % Select files with ImagePath format by Type
+            % Input  : - If this is a char array than use io.files.filelist
+            %            to generate a cell array of file names.
+            %            Alternatively, this is a cell array of file names.
+            %          - Image type to select (or ignore).
+            %            Default is {'sci','science'}.
+            %          - A logical flag indicating if to use files of
+            %            the specified Type. If false, then ignore this type
+            %            and select all the rest.
+            %            Default is true.
+            % Output : - A cell array of selected files.
+            %          - A vector of logical flags indicating the selected
+            %            files.
+            % Author : Eran Ofek (Aug 2022)
+           
+            arguments
+                Files
+                Type                 = {'sci','science'};
+                IsType logical       = true;
+            end
+            
+            if ischar(Files)
+                List = io.files.filelist(Files);
+            else
+                List = Files;
+            end
+            
+            IP   = ImagePath.parseFileName(List);
+            Flag = ismember({IP.Type},Type);
+            if ~IsType
+                Flag = ~Flag;
+            end
+            
+            List = List(Flag);
+            
+        end
+        
     end
 
 
