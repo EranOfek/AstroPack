@@ -1048,6 +1048,8 @@ classdef ImagePath < Base %Component
             %                   (second output argument).
             %            .List - A cell array of file names in group.
             %            .N    - Number of files in group.
+            %            .JDfirst - JD of first image in list.
+            %            .JDlast  - JD of last image in list.
             %          - The sorted (by date) list of files.
             % Author : Eran Ofek (Aug 2022)
             % Example: [St, List] = ImagePath.groupByCounter('LAST*.fits');
@@ -1075,12 +1077,15 @@ classdef ImagePath < Base %Component
             IndE = [Ind1(2:end)-1; N];
             
             for I=1:1:numel(Ind1)
-                St(I).Ind  = [Ind1(I):1:IndE(I)];
-                St(I).List = List(St(I).Ind);
-                St(I).N    = numel(St(I).Ind);
+                St(I).Ind     = [Ind1(I):1:IndE(I)];
+                St(I).List    = List(St(I).Ind);
+                St(I).N       = numel(St(I).Ind);
+                St(I).JDfirst = IP(St(I).Ind(1)).Time;
+                St(I).JDlast  = IP(St(I).Ind(end)).Time;
             end
             
         end
+        
         
     end
 
