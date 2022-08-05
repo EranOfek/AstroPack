@@ -10,7 +10,7 @@ function runPipeLAST(DataNumber, Args)
     
     arguments
         DataNumber                    = 1;
-        Args.ProjName                 = [];  %'LAST.1.12.3';
+        Args.ProjName                 = [];  %'LAST.01.02.03';
         Args.NodeNumber               = 1;
         
         Args.GeoPos                   = [35 30 400];
@@ -24,6 +24,7 @@ function runPipeLAST(DataNumber, Args)
         Args.NewFilesDir              = []; %'/last01e/data1/archive/new';
         Args.DarkFlatDir              = []; %'/last01e/data1/archive/calib';
         
+        Args.TimeSinceLast            = 300./86400;
         
         Args.SearchStr                = '*.fits'; 
         Args.DarkSearchStr            = '*_dark_proc*_Image_*.fits';
@@ -37,30 +38,32 @@ function runPipeLAST(DataNumber, Args)
     end
    
     RAD = 180./pi;
-    HostName = tools.os.get_computer;
     
-    if isempty(Args.ProjName)
-        % ProjName is empty - construct the default LAST camera address:
-        switch HostName(end)
-            case 'e'
-                % East computer controls cameras 1 & 2
-                CameraNumber = DataNumber + 0;
-            case 'w'
-                % East computer controls cameras 3 & 4
-                CameraNumber = DataNumber + 2;
-            otherwise
-                error('Unknown host name template')
-        end
-        if isempty(Args.MountNumber)
-            MountNumber = HostName(5:6);
-        else
-            if isnumeric(Args.MountNumber)
-                Args.MountNumber = sprintf('%02d',Args.MountNumber);
-            end
-            MountNumber = Args.MountNumber;
-        end
-        Args.ProjName = sprintf('%s.%02d.%s.%02d', Args.DefBaseProjName, Args.NodeNumber, MountNumber, CameraNumber);
-    end
+    [ProjName, MountNumber, CameraNumber, HostName] = pipeline.last.constructProjName(Args.ProjName, [], Args.MountNumber, Args.NodeNumber, Args.DefBaseProjName);
+    
+%     HostName = tools.os.get_computer;
+%     if isempty(Args.ProjName)
+%         % ProjName is empty - construct the default LAST camera address:
+%         switch HostName(end)
+%             case 'e'
+%                 % East computer controls cameras 1 & 2
+%                 CameraNumber = DataNumber + 0;
+%             case 'w'
+%                 % East computer controls cameras 3 & 4
+%                 CameraNumber = DataNumber + 2;
+%             otherwise
+%                 error('Unknown host name template')
+%         end
+%         if isempty(Args.MountNumber)
+%             MountNumber = HostName(5:6);
+%         else
+%             if isnumeric(Args.MountNumber)
+%                 Args.MountNumber = sprintf('%02d',Args.MountNumber);
+%             end
+%             MountNumber = Args.MountNumber;
+%         end
+%         Args.ProjName = sprintf('%s.%02d.%s.%02d', Args.DefBaseProjName, Args.NodeNumber, MountNumber, CameraNumber);
+%     end
     
     BaseArchiveDefault =  fullfile(filesep, HostName, sprintf('%s%d','data', DataNumber), 'archive');
     BasePathDefault    =  fullfile(filesep, HostName, sprintf('%s%d','data', DataNumber), 'archive', Args.ProjName);
@@ -144,6 +147,24 @@ function runPipeLAST(DataNumber, Args)
             end
         end
           
+        % move all non-science, dark, flat images to raw directory
+        %[List] = selectByProp(ProjName, {'sci','science','flat','dark','bias'}, 'Type', false);
+        % move List to raw
+        
+        
+        % select all science images
+        %[List] = selectByProp(ProjName, {'sci','science'}, 'Type', true);
+        %[Group, List] = groupByCounter(List);
+        % time [day] since last image in counter group
+        %TimeSinceLast = celestial.time.julday - [Group.JDlast];
+        %find(TimeSinceLast>Args.TimeSinceLast | [Group.N]==20)
+        
+        % process images
+        % 
+        
+        
+        
+        
         % get all files waiting for processing
         SciFiles = dir(fullfile(Args.NewFilesDir,Args.SearchStr));
         SciFiles = SciFiles(~[SciFiles.isdir]);

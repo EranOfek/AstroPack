@@ -1041,6 +1041,7 @@ classdef ImagePath < Base %Component
             % Input  : - If this is a char array than use io.files.filelist
             %            to generate a cell array of file names.
             %            Alternatively, this is a cell array of file names.
+            %          - Maximum number of files in group. Default is 20.
             % Output : - A structure array with element per group and the
             %            following fields:
             %            .Ind -  A vector of indices of files in group.
@@ -1056,6 +1057,7 @@ classdef ImagePath < Base %Component
             
             arguments
                 Files
+                MaxInGroup = 20;
             end
             
             if ischar(Files)
@@ -1075,6 +1077,21 @@ classdef ImagePath < Base %Component
             % index of first image in counter series
             Ind1 = find([1; diff(Counter)]>0);
             IndE = [Ind1(2:end)-1; N];
+                        
+            Nind = numel(Ind1);
+            Inew = Nind;
+            for Iind=1:1:Nind
+                NinGroup = IndE(Iind)-Ind1(Iind) + 1;
+                Nsub = floor(NinGroup./MaxInGroup);
+                for Isub=1:1:Nsub
+                    I1 = MaxInGroup.*(Isub-1) + 1;
+                    I2 = min(MaxInGroup.*Isub, NinGroup);
+                    Inew = Inew+1;
+                    Ind1(Inew) = I1;
+                    IndE(Inew) = I2;
+                end
+            end
+                                    
             
             for I=1:1:numel(Ind1)
                 St(I).Ind     = [Ind1(I):1:IndE(I)];
@@ -1083,6 +1100,8 @@ classdef ImagePath < Base %Component
                 St(I).JDfirst = IP(St(I).Ind(1)).Time;
                 St(I).JDlast  = IP(St(I).Ind(end)).Time;
             end
+            
+            
             
         end
         
