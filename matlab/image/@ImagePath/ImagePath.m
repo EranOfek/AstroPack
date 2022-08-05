@@ -993,26 +993,31 @@ classdef ImagePath < Base %Component
             end
         end
        
-        function [List, Flag] = selectByType(Files, Type, IsType)
-            % Select files with ImagePath format by Type
+        function [List, Flag] = selectByProp(Files, PropVal, Prop, IsVal)
+            % Select files with ImagePath format by some property (e.g., Type).
             % Input  : - If this is a char array than use io.files.filelist
             %            to generate a cell array of file names.
             %            Alternatively, this is a cell array of file names.
-            %          - Image type to select (or ignore).
+            %          - Image property value to select (or ignore).
             %            Default is {'sci','science'}.
+            %          - Property name to select by (e.g., 'Type','Level').
+            %            Default is 'Type'.
             %          - A logical flag indicating if to use files of
-            %            the specified Type. If false, then ignore this type
-            %            and select all the rest.
+            %            the specified property value. If false, then
+            %            ignore this value and select all the rest.
             %            Default is true.
             % Output : - A cell array of selected files.
             %          - A vector of logical flags indicating the selected
             %            files.
             % Author : Eran Ofek (Aug 2022)
+            % Example: [List] = ImagePath.selectByProp('LAST*.fits', {'focus'}, 'Type')
+            % Example: [List] = ImagePath.selectByProp('LAST*.fits', {'focus'}, 'Type',false)
            
             arguments
                 Files
-                Type                 = {'sci','science'};
-                IsType logical       = true;
+                PropVal              = {'sci','science'};
+                Prop                 = 'Type';
+                IsVal logical        = true;
             end
             
             if ischar(Files)
@@ -1022,12 +1027,58 @@ classdef ImagePath < Base %Component
             end
             
             IP   = ImagePath.parseFileName(List);
-            Flag = ismember({IP.Type},Type);
-            if ~IsType
+            Flag = ismember({IP.(Prop)}, PropVal);
+            if ~IsVal
                 Flag = ~Flag;
             end
             
             List = List(Flag);
+            
+        end
+        
+        function [St, List] = groupByCounter(Files)
+            % Group ImagePath file names by counter groups
+            % Input  : - If this is a char array than use io.files.filelist
+            %            to generate a cell array of file names.
+            %            Alternatively, this is a cell array of file names.
+            % Output : - A structure array with element per group and the
+            %            following fields:
+            %            .Ind -  A vector of indices of files in group.
+            %                   These are the indices in the sorted list
+            %                   (second output argument).
+            %            .List - A cell array of file names in group.
+            %            .N    - Number of files in group.
+            %          - The sorted (by date) list of files.
+            % Author : Eran Ofek (Aug 2022)
+            % Example: [St, List] = ImagePath.groupByCounter('LAST*.fits');
+            
+            arguments
+                Files
+            end
+            
+            if ischar(Files)
+                List = io.files.filelist(Files);
+            else
+                List = Files;
+            end
+            
+            IP     = ImagePath.parseFileName(List);
+            % sort by time
+            [~,SI] = sort([IP.Time]);
+            List   = List(SI);
+            IP     = IP(SI);
+            Counter = [IP.Counter];
+            N       = numel(Counter);
+            
+            % index of first image in counter series
+            Ind1 = find([1; diff(Counter)]>0);
+            IndE = [Ind1(2:end)-1; N];
+            
+            for I=1:1:numel(Ind1)
+                St(I).Ind  = [Ind1(I):1:IndE(I)];
+                St(I).List = List(St(I).Ind);
+                St(I).N    = numel(St(I).Ind);
+            end
             
         end
         
