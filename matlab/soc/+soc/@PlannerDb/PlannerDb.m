@@ -63,8 +63,9 @@ classdef PlannerDb < Component
     %----------------------------------------------------------------------
     methods % High-level
 
-        function Result = select(Obj, Columns, Args)
-            % Execute SELECT Columns FROM TableName and optionally load results to memory
+        function Result = insertTarget(Obj)
+            % Insert new target
+            Result = true;
         end
         
     end
