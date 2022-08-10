@@ -1036,7 +1036,7 @@ classdef ImagePath < Base %Component
             
         end
         
-        function [St, List] = groupByCounter(Files)
+        function [St, List] = groupByCounter(Files, MaxInGroup)
             % Group ImagePath file names by counter groups
             % Input  : - If this is a char array than use io.files.filelist
             %            to generate a cell array of file names.
