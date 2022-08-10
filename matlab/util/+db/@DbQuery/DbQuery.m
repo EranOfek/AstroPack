@@ -2191,7 +2191,9 @@ classdef DbQuery < Component
             %             'TableName'     - Table name, if not specified, Obj.TableName is used
             %             'PrimaryKeyDef' - Definition of primary key (SQL)
             %             'AutoPk'        - Name of auto-increment primary
-            %                               key field (BIGINT), if specified, we use Postgres' IDENTITY COLUMN
+            %                               key field (BIGINT), if specified, we use Postgres'
+            %                               IDENTITY COLUMN or UUID (when UuidPk=true)
+            %             'UuidPk'        - True to create primary key as UUID instead of IDENTITY, default is false
             %             'CheckExist'    - True (default) to check if database already exists, and ignore
             %             'Drop'          - True to drop (delete) the table before creating it (default is false)            
             % Output  : true on success
@@ -2210,7 +2212,8 @@ classdef DbQuery < Component
                 Args.SqlFileName    = ''
                 Args.TableName      = ''
                 Args.PrimaryKeyDef  = ''
-                Args.AutoPk         = ''        %
+                Args.AutoPk         = ''        
+                Args.UuidPk         = false
                 Args.CheckExist     = true
                 Args.Drop           = false;    
             end
@@ -2245,7 +2248,11 @@ classdef DbQuery < Component
 
             % Table name with auto-increment primary key
             elseif ~isempty(Args.TableName) && ~isempty(Args.AutoPk)
-                SqlText = sprintf('CREATE TABLE %s (%s BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY);', Args.TableName, Args.AutoPk); 
+                if Args.UuidPk
+                    SqlText = sprintf('CREATE TABLE %s (%s UUID DEFAULT gen_random_uuid() PRIMARY KEY);', Args.TableName, Args.AutoPk); 
+                else
+                    SqlText = sprintf('CREATE TABLE %s (%s BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY);', Args.TableName, Args.AutoPk); 
+                end
                 
             % Table name with Primary key
             elseif ~isempty(Args.TableName) && ~isempty(Args.PrimaryKeyDef)

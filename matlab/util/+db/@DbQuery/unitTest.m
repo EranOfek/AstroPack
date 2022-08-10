@@ -646,7 +646,10 @@ function Result = testAdmin()
     assert(strcmp(Comments(3).column_name, 'f2'));
     assert(strcmp(Comments(3).column_comment, 'my comment for f2'));
     
-
+    % Create table with UUID primary key
+    Q2.createTable('TableName', 'mytable2', 'AutoPk', 'pk', 'UuidPk', true, 'Drop', true);
+    assert(Q2.isTableExist('mytable2'));
+    
     % Remove existing column comment
     Q2.addColumn('mytable1', 'f2', 'double', 'default 0', 'Comment', 'NULL');    
     Comment = Q2.getColumnComment('mydb1', 'mytable1', 'f2');
