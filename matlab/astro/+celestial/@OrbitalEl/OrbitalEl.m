@@ -889,13 +889,13 @@ classdef OrbitalEl < Base
                 while LightTimeNotConverged
                     Iter = Iter + 1;
                     if Args.Integration
-                        if Ntarget > 1 && any(Obj.Epoch~=Obj.Epoch(1)) % if targets start with different epochs integrate one by one
+                        if Ntarget > 1 && (any(Obj.Epoch~=Obj.Epoch(1)) || any(LightTime~=LightTime(1)) ) % if targets start or ends with different epochs integrate one by one
                             U_B = zeros(3,Ntarget);
                             for Itarget = 1:Ntarget
-                                [U_B(:,Itarget),~] = celestial.SolarSys.orbitIntegration([Obj.Epoch(Itarget),Time(It)-LightTime],X0(:,Itarget),V0(:,Itarget), 'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
+                                [U_B(:,Itarget),~] = celestial.SolarSys.orbitIntegration([Obj.Epoch(Itarget),Time(It)-LightTime(It)],X0(:,Itarget),V0(:,Itarget), 'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
                             end
                         else    %  otherwise integrate all at once
-                            [U_B,~] = celestial.SolarSys.orbitIntegration([Obj.Epoch(1),Time(It)-LightTime],X0,V0, 'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
+                            [U_B,~] = celestial.SolarSys.orbitIntegration([Obj.Epoch(1),Time(It)-LightTime(1)],X0,V0, 'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
                         end
                     else
                         [Nu, R, E, Vel, M]          = keplerSolve(Obj, Time(It)-LightTime,'Tol',Args.Tol);
@@ -914,12 +914,13 @@ classdef OrbitalEl < Base
                         case 'vsop87'
                             [E_H,E_dotH] = celestial.SolarSys.calc_vsop87(Time(It), 'Earth', 'a', 'd');
                         case 'inpop'
-                            error('INPOP is not implemented yet - use vsop87');
+%                             error('INPOP is not implemented yet - use vsop87');
                             IN = celestial.INPOP;  % need to make it singelton
                             IN.populateTables({'Ear','Sun'});
+                            IN.populateTables({'Ear','Sun'},'FileData','vel');
                             %
-                            XXX = IN.getPos('Ear',Time(It)) - IN.getPos('Sun',Time(It));
-                            VVV = IN.getVel('Ear',Time(It)) - IN.getVel('Sun',Time(It));
+                            E_H = IN.getPos('Ear',Time(It),'IsEclipticOut',true) - IN.getPos('Sun',Time(It),'IsEclipticOut',true);
+                            E_dotH = IN.getVel('Ear',Time(It),'IsEclipticOut',true) - IN.getVel('Sun',Time(It),'IsEclipticOut',true);
                             
                             % convert to eclipic coordinates
                             
@@ -1142,7 +1143,7 @@ classdef OrbitalEl < Base
                 if  numEl(ObjNew(Iobj))==0
                     Flag = [];
                 else
-                  
+                    Args.Integration = true; %test
                     Result(Iobj) = ephem(ObjNew(Iobj), JD, 'GeoPos',Args.GeoPos,...
                                                   'RefEllipsoid',Args.RefEllipsoid,...
                                                   'OutUnitsDeg',false,...

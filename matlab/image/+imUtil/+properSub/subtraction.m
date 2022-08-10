@@ -10,7 +10,7 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
     %       its PSF Pd,
     %       the proper subtraction statistics S, and the source noise and
     %       astrometric-noise corrected statistics S_corr.
-    % Input  : - The background sybtracted new image (N). This can be in
+    % Input  : - The background subtracted new image (N). This can be in
     %            the image domain or fourier domain (i.e., 'IsImFFT'=true).
     %          - Like N but, the background subtracted reference image (R).
     %          - The PSF of the new image N. The PSF image size must be

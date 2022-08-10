@@ -120,7 +120,7 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
         Obj                                              % AstroCatalog | AstroImage
         Args.JD                            = [];         % [] - take from header
         Args.OrbEl                         = [];         % [] - read from disk | OrbitalEl object | AstroCatalog object with asteroids
-        Args.SerachSingleEpoch logical     = false;
+        Args.SearchSingleEpoch logical     = false;
         Args.ImageRadius                   = 4;    % units of ImageCooUnits
         Args.ImageRA                       = [];
         Args.ImageDec                      = [];
@@ -170,7 +170,7 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
     Nobj = numel(Obj);
     SourcesWhichAreMP = AstroCatalog(size(Obj));
     
-    if Args.SerachSingleEpoch
+    if Args.SearchSingleEpoch
         % This option supports multiple images of a contigous region taken
         % at a single epoch.
         % In this case, we first query for all nearby MP (at a single epoch),
@@ -274,7 +274,7 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
         end
         
     else
-        % Args.SerachSingleEpoch = false
+        % Args.SearchSingleEpoch = false
         % This option supports multiple images of random fields at random
         % epochs.
         % Each image is treated seperatly

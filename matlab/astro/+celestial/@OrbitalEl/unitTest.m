@@ -52,6 +52,7 @@ function Result = unitTest()
     Cat = ephem(OrbEl, JD);
     CatE = ephem(OrbEl, JD, 'GeoPos',[],'MaxIterLT',0,'IncludeMag',false);
 
+
     % compare to JPL
     TTmUTC = 70./86400;
     JD = celestial.time.julday([19 9 2021])+(0:1./24:5)';  
@@ -77,10 +78,22 @@ function Result = unitTest()
     OrbEl = celestial.OrbitalEl.loadSolarSystem('unnum','A/2017 U1');
     JD = celestial.time.julday([1 1 2018 0]);
     Cat = ephem(OrbEl, JD+(0:1./24:1), 'OutUnitsDeg',false);
-    [CatJPL]=celestial.SolarSys.jpl_horizons('ObjectInd','A/2017 U1','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','399')
+    [CatJPL]=celestial.SolarSys.jpl_horizons('ObjectInd','A/2017 U1','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','399');
     %[Cat.Catalog(:,2) - CatJPL.Catalog(:,2), Cat.Catalog(:,3) - CatJPL.Catalog(:,3)].*RAD.*3600
 
     
+    % ephem with several options
+    OrbEl = celestial.OrbitalEl.loadSolarSystem([],9804);
+    JD = celestial.time.julday([9 9 2023]);
+    Cat = ephem(OrbEl, JD );
+    Cat2  = ephem(OrbEl, JD,'EarthEphem','inpop');
+
+    assert(all(abs(1-Cat.Catalog{:,{'RA','Dec','R'}}./Cat2.Catalog{:,{'RA','Dec','R'}})<1e-3))
+
+    Cat = ephem(OrbEl, JD,'Integration',true);
+    Cat2  = ephem(OrbEl, JD,'Integration',true,'EarthEphem','inpop');
+    assert(all(abs(1-Cat.Catalog{:,{'RA','Dec','R'}}./Cat2.Catalog{:,{'RA','Dec','R'}})<1e-3))
+
     
     io.msgLog(LogLevel.Test, 'OrbitalEl test passed');
     Result = true;

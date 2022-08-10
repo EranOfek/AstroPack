@@ -2,7 +2,7 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     % Image substruction for detection of point source motion using the 
     %       TRANSLIENT algorithm of Springer et al.(2022). 
     %       The function returns the proper subtraction statistics Z2.
-    % Input  : - The background sybtracted new image (N). This can be in
+    % Input  : - The background subtracted new image (N). This can be in
     %            the image domain or fourier domain (i.e., 'IsImFFT'=true).
     %          - Like N but, the background subtracted reference image (R).
     %          - The PSF of the new image N. The PSF image size must be
