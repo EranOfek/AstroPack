@@ -55,11 +55,12 @@ function [Z2Prefactors,Norm] = translientAuxiliary(Pn, Pr, SigmaN, SigmaR, Args)
 
     M     = size(Pnhat,1); % assume square images for now
 
+% because of linearization of the translation phase (Delta*K), 
+% it is not 2*Pi periodic, so use negative frequancies.
     Mcenter = ceil(M/2);
     FreqArr = fftshift(-Mcenter:(Mcenter-1));
     [Kx,Ky] = meshgrid(FreqArr);
 
-%     [Kx,Ky] = meshgrid(0:(M-1));
     Kxy = reshape([Kx,Ky],M,M,2);
 
     Zden = abs(Prhat).^2 .* SigmaN.^2 + abs(Pnhat).^2 .*SigmaR.^2 + Args.Eps;

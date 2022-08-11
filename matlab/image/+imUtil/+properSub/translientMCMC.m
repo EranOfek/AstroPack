@@ -41,8 +41,8 @@ function [Chain] = translientMCMC(N,R,Pn,Pr, SigmaN, SigmaR, Xc,Args)
     %                   is false.
     %            'Verbosity' - Verbosity parameter for the mcmcrun
     %                   function. Default is false.
-    % Output : - (Norm) Normalization factor so that Z2/Norm is distributed
-    %            as a chi-squared dist. with 2 degrees of freedom. 
+    % Output : - (Chain) Chain of samples from the posterior distribution.
+    %             Size is (Nchain-Ndrop)x(number of parameters).
     %          
     % Author : Amir Sharon (August 2022)
     % Example: Size=64; Pos = [30,30];
@@ -96,7 +96,10 @@ if isempty(Args.Ndrop)
 end
 
 M     = size(Pnhat,1);
-[Kx,Ky] = meshgrid(0:(M-1));
+Mcenter = ceil(M/2);
+FreqArr = fftshift(-Mcenter:(Mcenter-1));
+[Kx,Ky] = meshgrid(FreqArr);
+
 TotalVar = abs(Prhat).^2*SigmaN.^2+abs(Pnhat).^2*SigmaR.^2+Args.Eps;
 
 Phase = exp(-2i*pi*(Kx*(Xc(1)-1)+Ky*(Xc(2)-1))/M);
@@ -141,11 +144,6 @@ switch Args.ParameterSet
                     };
 
     case 3  % Equation (30)
-        % because of linearization of the translation phase (Delta*K), it is not 2*Pi periodic,
-        % so use negative frequancies.
-        Mcenter = ceil(M/2)-1;
-        FreqArr = mod(Mcenter+(0:(M-1)),M)-Mcenter;
-        [Kx,Ky] = meshgrid(FreqArr);
         Loglike = @(x,data) 1/M^2*sum(abs(Prhat.*N_hat - Pnhat.*R_hat + ...
             Phase.*Prhat.*Pnhat.*(x(2)+x(3)*1i*pi*(Kx*cos(x(1))+Ky*sin(x(1)))/M)).^2./TotalVar,"all");
 
