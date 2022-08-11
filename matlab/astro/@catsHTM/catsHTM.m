@@ -898,7 +898,7 @@ classdef catsHTM
             Data = catsHTM.catalogs;
             Nd = numel(Data);
             
-            for Id=14:1:14,
+            for Id=16:1:17,
                 %1:1:Nd
                 if Data(Id).Status
                     Data(Id)
