@@ -976,7 +976,7 @@ classdef AstroImage < Component
             switch lower(Args.FileType)
                 case 'fits'
                     switch DataProp
-                        case {'Image','Back','Var','Mask'}
+                        case {'Image','Back','Var','Mask','PSF'}
                             if Args.IsSimpleFITS
                                 FITS.writeSimpleFITS(Obj.(DataProp), Name, 'Header',HeaderData,...
                                                                'DataType',class(Obj.(DataProp)));
