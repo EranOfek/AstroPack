@@ -50,6 +50,11 @@ function WMed = wmedian(Val, Err, Dim)
         
         WMed = nan(1,NVar);
         for Iv=1:1:NVar
+            CSWnorm(1,Iv) = min(CSWnorm(1,Iv), 0.5);
+            if isnan(SV(end,Iv))
+                CSWnorm(end,Iv) = 1;
+                SV(end,Iv)      = max(SV(:,end));
+            end
             WMed(Iv) = interp1(CSWnorm(:,Iv),SV(:,Iv),0.5,'linear');
         end
     end
