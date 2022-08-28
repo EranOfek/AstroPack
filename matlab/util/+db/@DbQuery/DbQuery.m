@@ -1851,7 +1851,12 @@ classdef DbQuery < Component
                         Obj.JavaStatement.setDouble(Index, Value);
                     elseif isa(Value, 'char')
                         %Obj.msgLog(LogLevel.DebugEx, 'char: %s = %s', f, Value);
-                        Obj.JavaStatement.setString(Index, Value);
+                        Obj.JavaStatement.setString(Index, Value);                        
+                    elseif isa(Value, 'datetime')
+                        d = Value;
+                        Sec = d.Second;
+                        V = java.sql.Timestamp(d.Year-1900, d.Month-1, d.Day, d.Hour, d.Minute, floor(Sec), d.Second-floor(Sec));
+                        Obj.JavaStatement.setTimestamp(Index, V);                        
                     else
                         % Other not supported (yet?)
                         Obj.msgLog(LogLevel.Warn, 'setStatementValues: ERROR: other type - not supported: %s', ColumnName);

@@ -6,7 +6,7 @@ function Result = examples()
     % Install pgAdmin4 (version 6.3) as administration tool    
     %
     % On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
-    % On Linux, use DataGrip by JetBrains 
+    % On Linux, use DataGrip by JetBrains i
     %
     % You need to have configuration file with database user and password:
     % config/local/Database.DbConnections.UnitTest.yml
