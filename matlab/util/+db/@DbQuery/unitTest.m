@@ -617,7 +617,8 @@ function Result = testAdmin()
     Query.createDb('DatabaseName', 'mydb1');
     assert(Query.isDbExist('mydb1'));
 
-    % Connect to the new db (MUST DO)
+    %--------------------------------------- Q2: Test with new database'mydb1'
+    % Connect Q2 to the new db (MUST DO)
     Q2 = db.DbQuery(Query, 'Database', 'mydb1');
     
     % Create schema and table in it
@@ -645,8 +646,7 @@ function Result = testAdmin()
     assert(numel(Comments) == 4);
     assert(strcmp(Comments(3).column_name, 'f2'));
     assert(strcmp(Comments(3).column_comment, 'my comment for f2'));
-    
-
+       
     % Remove existing column comment
     Q2.addColumn('mytable1', 'f2', 'double', 'default 0', 'Comment', 'NULL');    
     Comment = Q2.getColumnComment('mydb1', 'mytable1', 'f2');
@@ -654,6 +654,12 @@ function Result = testAdmin()
     
     Q2.dropTable('mytable1');
     assert(~Q2.isTableExist('mytable1'));    
+    
+    % Create table with UUID primary key
+    Q2.createTable('TableName', 'mytable2', 'AutoPk', 'pk', 'UuidPk', true, 'Drop', true);
+    assert(Q2.isTableExist('mytable2'));
+    
+    %--------------------------------------- Q2 done
     
     % Create database 'dbadmin_unittest' from sqlfile
     Query.createDb('SqlFileName', fullfile(MyPath, 'unitTest_createDatabase.sql'));
