@@ -58,6 +58,14 @@ GeoObjVis.MoonAngDist = celestial.coo.sphere_dist_fast(Coo(:,1)',Coo(:,2)',MoonR
 GeoObjVis.JD = JD;
 GeoObjVis.Coo = Coo;
 
+GeoObjVis.SunRA = SunRA;
+GeoObjVis.SunDec = SunDec;
+GeoObjVis.EarthRA = EarthRA;
+GeoObjVis.EarthDec = EarthDec;
+GeoObjVis.MoonRA = MoonRA;
+GeoObjVis.MoonDec = MoonDec;
+
+
 
 
 
