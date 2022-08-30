@@ -240,7 +240,21 @@ classdef DbConnection < Component
             Result = ~Obj.IsOpen;
         end
        
-        
+
+        function Result = reconnect(Obj)
+            % Reconnect to database - @Todo - CALLED INTERNALLY BY ... ???
+            % Input   : - DbConnection object
+            % Output  : - true on success
+            % Author  : Chen Tishler (09/2022)
+            % Example : Obj.reconnect()
+            
+            Obj.msgLog(LogLevel.Info, 'reconnect');
+            if Obj.IsOpen
+            end
+            Result = false;
+        end
+
+                
         function Result = newQuery(Obj)
             % Create new DbQuery instance linked to this connection
             % Input   : - DbConnection object

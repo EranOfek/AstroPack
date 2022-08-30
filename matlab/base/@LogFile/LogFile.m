@@ -24,12 +24,15 @@ classdef LogFile < handle
         Fid = []                % File handle
         UserData                % Optional user data
         LogPath = ''            % 'C:\\_Ultrasat\\log'
-        Timestamp = ''          % Timestamp when log file created
-        MaxFileSize = 10000000  % Limit file size automatic switching, will be renamed to '.old', default is 10MB
-        RenameToTime = true     % True to rename old files to timestamp
+        BaseFileName = ''       % @TODO 
+        UseDatePath = false     % @TODO 
+        Timestamp = ''          % Timestamp when log file created, as yyyy-mm-dd__HH-MM-SS-FileName.log
+        MaxFileSize = 10000000  % Limit file size automatic switching, will be renamed to timestamp or '.old', default is 10MB
+        RenameToTime = true     % True to rename old files to timestamp, otherwise they are renamed to .old
         UseFlush = true         % Due to issue with fflush(), fclose() is called on each write (Chen, 13/06/2021), @Todo
         UsePid = true           % True to write process id
-        Pid = 0
+        Pid = 0                 % Process ID
+        LastDate = ''           %
     end
 
     %--------------------------------------------------------
@@ -41,8 +44,10 @@ classdef LogFile < handle
             %               If FileName does not contain path separator, call 
             %               LogFile.defaultPath() to get default path for log files.
             %         'UseTimestamp' - When true, add current timestamp to file name
+            %         'UseDatePath'  - When true ... @TODO
             arguments
                 FileName = ''               % File name
+                Args.UseDatePath = false    % True to create log files in date folder structure, yyyy/mm/dd, file per day
                 Args.UseTimestamp = false   % True to add timestamp to file name, 
                 Args.MaxFileSize = 10000000 % Maximum file size before switching to '.old'
             end
@@ -51,6 +56,12 @@ classdef LogFile < handle
             Obj.Timestamp = Obj.getFileNameTimestamp();            
             Obj.MaxFileSize = Args.MaxFileSize;
             Obj.Pid = feature('getpid');
+            
+            %
+            if Args.UseDatePath 
+                [FPath, FN, Ext] = fileparts(FileName);               
+                Obj.BaseFileName = FN;
+            end
             
             % Empty file name, use default
             if isempty(FileName)
@@ -132,6 +143,26 @@ classdef LogFile < handle
                 Prompt = sprintf('%s > %s ', Prompt, Title);
             end
 
+            %
+            if Obj.UseDatePath
+                
+                % Check if date has changed
+                Date = date();
+                if ~strcmp(Date, Obj.LastDate)
+                    
+                    % Close current file if open
+                    if ~isempty(Obj.Fid)
+                        fclose(Obj.Fid);
+                        Obj.Fid = [];
+                    end
+                    
+                    Obj.LastDate = date;
+                    FPath = LogFile.getDatePath(Obj.LogPath);
+                    Obj.FileName = fullfile(FPath, Obj.BaseFileName);
+                    
+                end
+            end
+            
             % Open file
             if isempty(Obj.Fid)
                 Obj.Fid = fopen(Obj.FileName, 'at');
@@ -248,6 +279,15 @@ classdef LogFile < handle
             % Example: T = LogFile.getFileNameTimestamp()
             Result = datestr(now, 'yyyy-mm-dd__HH-MM-SS');
         end
+        
+        
+        function Result = getDatePath(BasePath)
+            % Return current date as path.
+            % Input:   -
+            % Output:  Current date ... 
+            % Example: T = LogFile.getFileNameTimestamp()
+            Result = fullfile(BasePath, datestr(now, 'yyyy/mm/dd'));            
+        end        
 
     end
 
