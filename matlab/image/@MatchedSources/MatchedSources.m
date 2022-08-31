@@ -678,7 +678,7 @@ classdef MatchedSources < Component
         end
         
         function Result = getUnits(Obj, FieldNames)
-            % Return the units
+            % Return the units for a mtrix name.
             % Input  : - A single element MatchedSources object.
             %          - A char or a cell array of field names.
             % Output : - A char or cell array (according to input) units.
