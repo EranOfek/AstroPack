@@ -105,7 +105,7 @@ function [Result, Fit]=image_quality(Image, Args)
         H.FontSize=18;
         H.Interpreter='latex';
         H = gcf;
-        H.PaperPosition=[1.25 3.28 6 9];
+        H.PaperPosition=[1.25 3.28 6 6];
         
     end
         
