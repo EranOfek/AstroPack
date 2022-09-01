@@ -29,7 +29,7 @@ function [Result, Fit]=image_quality(Image, Args)
     %            .Y - Matrix of Y centers per position.
     %          - Paraboloid surface fit.
     % Author : Eran Ofek (Jan 2022)
-    % Example: Result=imUtil.psf.image_quality(Image)
+    % Example: [Result,Fit]=imUtil.psf.image_quality(Image)
 
 
     arguments
@@ -66,10 +66,13 @@ function [Result, Fit]=image_quality(Image, Args)
     Result.X          = reshape(ListCenter(:,1), Nxy(2), Nxy(1));
     Result.Y          = reshape(ListCenter(:,2), Nxy(2), Nxy(1));
     
+    X = Result.X(:) - mean(Resul.X);
+    Y = Result.Y(:) - mean(Resul.Y);
+    
     if nargout>1
         % fit
         N = numel(FWHM);
-        H = [ones(N,1), Result.X(:), Result.Y(:), Result.X(:).*Result.Y(:), Result.X(:).^2, Result.Y(:).^2];
+        H = [ones(N,1), X, Y, X.*Y, X.^2, Y.^2];
         if Args.Clean
             MedFWHM = median(FWHM);
             Flag = FWHM>(MedFWHM-Args.HalfRangeGood) & FWHM<(MedFWHM+Args.HalfRangeGood);

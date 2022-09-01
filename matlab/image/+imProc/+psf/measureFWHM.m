@@ -1,6 +1,6 @@
 function [FWHM, Nstars] = measureFWHM(Obj, Args)
     % Estimate image seeing or focus state
-    % Input  : - AN image. Either a matrix, a cell of matrices, or an
+    % Input  : - An image. Either a matrix, a cell of matrices, or an
     %            AstroImage object.
     %          * list of ...,key,val,...
     %            'CCDSEC' - CCDSEC [Xmin, Xmax, Ymin, Ymax] on which to run
