@@ -82,5 +82,9 @@ function [Result, Fit]=image_quality(Image, Args)
         Fit.Par   = H(Flag,:)\FWHM(Flag);
         Fit.Flag  = Flag;
         Fit.Resid = FWHM - H*Fit.Par;
+        
+        Fit.ExtramX = (Fit.Par(3).*Fit.Par(4) - 2.*Fit.Par(2).*Fit.Par(6))./(-Fit.Par(4).^2 + 4.*Fit.Par(5).*Fit.Par(6));
+        Fit.ExtramY = (Fit.Par(2).*Fit.Par(4) - 2.*Fit.Par(3).*Fit.Par(5))./(-Fit.Par(4).^2 + 4.*Fit.Par(5).*Fit.Par(6));
+        
     end
 end
