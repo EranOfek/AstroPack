@@ -21,6 +21,7 @@ function [Result, Fit]=image_quality(Image, Args)
     %                           Default is 'bisec'.
     %            'MaxIter'    - Numbre of iterations for the 'bisec' method.
     %                           Default is 5.
+    %            'Plot'       - PLot image quality map. Default is false.
     % Output : - A structure with the following fields:
     %            .FWHM - Matrix of FWHM per position.
     %            .Nstars - Matrix of number of used stars per position.
@@ -47,6 +48,7 @@ function [Result, Fit]=image_quality(Image, Args)
         
         Args.Clean logical  = true;
         Args.HalfRangeGood  = 1.5;
+        Args.Plot logical   = false;
     end
 
     Image = single(Image);
@@ -90,4 +92,21 @@ function [Result, Fit]=image_quality(Image, Args)
         Fit.ExtramYc = (Fit.Par(2).*Fit.Par(4) - 2.*Fit.Par(3).*Fit.Par(5))./(-Fit.Par(4).^2 + 4.*Fit.Par(5).*Fit.Par(6));
         
     end
+    
+    if Args.Plot
+        surface(Result.X(1,:), Result.Y(:,1),Result.FWHM.*1.25);
+        H=colorbar;
+        H.Label.String='FWHM [arcsec]';
+        H.Label.Interpreter='latex';
+        H=xlabel('X [pix]');           
+        H.FontSize=18;
+        H.Interpreter='latex';
+        H=ylabel('Y [pix]');
+        H.FontSize=18;
+        H.Interpreter='latex';
+        H = gcf;
+        H.PaperPosition=[1.25 3.28 6 9];
+        
+    end
+        
 end
