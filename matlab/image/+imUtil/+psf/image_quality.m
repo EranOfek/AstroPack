@@ -66,8 +66,8 @@ function [Result, Fit]=image_quality(Image, Args)
     Result.X          = reshape(ListCenter(:,1), Nxy(2), Nxy(1));
     Result.Y          = reshape(ListCenter(:,2), Nxy(2), Nxy(1));
     
-    X = Result.X(:) - mean(Resul.X);
-    Y = Result.Y(:) - mean(Resul.Y);
+    X = Result.X(:) - mean(Result.X(1,:));
+    Y = Result.Y(:) - mean(Result.Y(:,1));
     
     if nargout>1
         % fit
