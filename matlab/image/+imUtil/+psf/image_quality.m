@@ -28,6 +28,9 @@ function [Result, Fit]=image_quality(Image, Args)
     %            .X - Matrix of X centers per position.
     %            .Y - Matrix of Y centers per position.
     %          - Paraboloid surface fit.
+    %            The coordinate system is relative to the image center.
+    %            ExtramXc, ExtramYc provides the extramum position relative
+    %            to the image center.
     % Author : Eran Ofek (Jan 2022)
     % Example: [Result,Fit]=imUtil.psf.image_quality(Image)
 
@@ -83,8 +86,8 @@ function [Result, Fit]=image_quality(Image, Args)
         Fit.Flag  = Flag;
         Fit.Resid = FWHM - H*Fit.Par;
         
-        Fit.ExtramX = (Fit.Par(3).*Fit.Par(4) - 2.*Fit.Par(2).*Fit.Par(6))./(-Fit.Par(4).^2 + 4.*Fit.Par(5).*Fit.Par(6));
-        Fit.ExtramY = (Fit.Par(2).*Fit.Par(4) - 2.*Fit.Par(3).*Fit.Par(5))./(-Fit.Par(4).^2 + 4.*Fit.Par(5).*Fit.Par(6));
+        Fit.ExtramXc = (Fit.Par(3).*Fit.Par(4) - 2.*Fit.Par(2).*Fit.Par(6))./(-Fit.Par(4).^2 + 4.*Fit.Par(5).*Fit.Par(6));
+        Fit.ExtramYc = (Fit.Par(2).*Fit.Par(4) - 2.*Fit.Par(3).*Fit.Par(5))./(-Fit.Par(4).^2 + 4.*Fit.Par(5).*Fit.Par(6));
         
     end
 end
