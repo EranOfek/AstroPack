@@ -1568,7 +1568,7 @@ classdef MatchedSources < Component
 
         end
         
-        function Result = binning(Obj, Ngroup,[Obj,ApplyToMagField] = applyZP(Obj, ZP Args)
+        function Result = binning(Obj, Ngroup, Args)
             % Bin MatchedSources Data, JD, SrcData entries.
             %   Note that the function assumes that the data is sorted by
             %   time.
