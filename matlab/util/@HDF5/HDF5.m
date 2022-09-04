@@ -77,7 +77,8 @@ classdef HDF5
             Size   = size(Data);
             
             % create/open an HDF5 file
-            if (exist(FileName,'file')>0)
+            %if (exist(FileName,'file')>0)
+            if isfile(FileName)
                 % file exist
                 FID = H5F.open(FileName,'H5F_ACC_RDWR','H5P_DEFAULT');
             else
