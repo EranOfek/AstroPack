@@ -16,8 +16,7 @@ function Result = zp_meddiff(MS, Args)
     %            'MaxMagErr' - Upper limit on the median mag error to use.
     %                   Default is 0.03.
     %            'RefImInd' - Index of reference image. Default is 1.
-    %            'MinNepoch' - ... Use sources which the min. number of epochs
-    %                   they appear (not NaN) is larger than this number.
+    %            'MinNepoch' - Minimum number of epochs required.
     %                   Default is Inf.
     %            'MinNsrc' - Minimum number of sources per epoch.
     %                   Default is 10.
