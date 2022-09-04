@@ -16,8 +16,10 @@ function Result = zp_meddiff(MS, Args)
     %            'MaxMagErr' - Upper limit on the median mag error to use.
     %                   Default is 0.03.
     %            'RefImInd' - Index of reference image. Default is 1.
-    %            'MinNepoch' - Use sources which the min. number of epochs
+    %            'MinNepoch' - ... Use sources which the min. number of epochs
     %                   they appear (not NaN) is larger than this number.
+    %                   Default is Inf.
+    %            'MinNsrc' - Minimum number of sources per epoch.
     %                   Default is 10.
     %            'UseWMedian' - A logical indicating if to use weighted
     %                   median instead of median.
@@ -50,6 +52,7 @@ function Result = zp_meddiff(MS, Args)
         Args.MaxMagErr              = 0.03;
         Args.RefImInd               = 1;
         Args.MinNepoch              = Inf;  % Inf - source appear in all epochs
+        Args.MinNsrc                = 10;
         Args.UseWMedian logical     = true;
         
         %Args.Plot(1,1) logical      = false;
@@ -65,27 +68,33 @@ function Result = zp_meddiff(MS, Args)
         Mag       = Mag(:,FlagMM);
         MagErr    = MagErr(:,FlagMM);
 
-        [Nep, Nsrc] = size(Mag);
+        %[Nep, Nsrc] = size(Mag);
 
         % select sources with minimum number of observations
         NdetPerSrc = sum(~isnan(Mag),1);
 
+        NsrcPerEpoch  = sum(~isnan(Mag), 2);
+        FlagGoodEpoch = NsrcPerEpoch>Args.MinNsrc;
+        Nep           = sum(FlagGoodEpoch);
+        
         MinNepoch = min(Nep, Args.MinNepoch);
 
         FlagMin    = NdetPerSrc>=MinNepoch;
 
-        Mag    = Mag(:,FlagMin);
-        MagErr = MagErr(:,FlagMin);
+        Mag    = Mag(FlagGoodEpoch,FlagMin);
+        MagErr = MagErr(FlagGoodEpoch,FlagMin);
 
-        [Nep, Nsrc] = size(Mag);
+        [~, Nsrc] = size(Mag);
 
         DiffMagEpoch = Mag - Mag(Args.RefImInd,:);
 
         if Args.UseWMedian
-            Result(Ims).FitZP    = tools.math.stat.wmedian(DiffMagEpoch, MagErr, 2); 
+            Result(Ims).FitZP(FlagGoodEpoch)    = tools.math.stat.wmedian(DiffMagEpoch, MagErr, 2); 
         else
-            Result(Ims).FitZP    = median(DiffMagEpoch, 2, 'omitnan');
+            Result(Ims).FitZP(FlagGoodEpoch)    = median(DiffMagEpoch, 2, 'omitnan');
         end
+        Result(Ims).FitZP(~FlagGoodEpoch)   = NaN;
+        
         Result(Ims).FitStdZP = std(DiffMagEpoch, [], 2, 'omitnan');
         Result(Ims).FitErrZP = Result(Ims).FitStdZP./sqrt(Nsrc);
         Result(Ims).Nsrc     = Nsrc;
