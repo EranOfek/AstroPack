@@ -171,6 +171,7 @@ function runPipeLAST(DataNumber, Args)
         % process images
         % 
         
+        % [List] = ImagePath.selectByProp('LAST*.fits', {'focus'}, 'Type');
         
         
         
