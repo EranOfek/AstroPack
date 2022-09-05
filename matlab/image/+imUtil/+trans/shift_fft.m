@@ -188,14 +188,16 @@ elseif Algo==3
     
     % Kernel for X dimension
     OperX = fft([0 1 zeros(1,NX-2)]);
-    KernelX = fftshift(exp(1i.*DX.*phase(OperX)),2);
+%     KernelX = fftshift(exp(1i.*DX.*phase(OperX)),2);
+    KernelX = fftshift(exp(1i.*DX.*unwrap(angle(OperX))),2);
     KernelX = KernelX./KernelX(:,1);
     KernelX(:,floor(NX.*0.5+1)) = 1;
     %KernelX = ifft(KernelX);
 
     % Kernel for Y dimension
     OperY = fft([0 1 zeros(1,NY-2)]);
-    KernelY = fftshift(exp(1i.*DY.*phase(OperY)),2);
+%     KernelY = fftshift(exp(1i.*DY.*phase(OperY)),2);
+    KernelY = fftshift(exp(1i.*DY.*unwrap(angle(OperY))),2);
     KernelY = KernelY./KernelY(:,1);
     KernelY(:,floor(NY.*0.5+1)) = 1;
     %KernelY = ifft(KernelY);
