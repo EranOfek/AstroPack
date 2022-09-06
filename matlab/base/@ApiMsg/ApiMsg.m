@@ -47,24 +47,16 @@ classdef ApiMsg < handle
     %--------------------------------------------------------
     methods % Constructor
 
-        function Obj = ApiMsg(varargin)
+        function Obj = ApiMsg()
             % Constructor
             % By default use singleton MsgLogger and Configuration
             % Input  - Optional arguement of type Component, stored in Obj.Owner
             %   NewComp = Component()
             %   NewComp = Component(Owner)
 
-            % Set owner component
-            if numel(varargin) > 0
-                Obj.Owner = varargin{1};
-            end
-
-            % Use default log and configuration
-            Obj.Logger = MsgLogger.getSingleton();
-            Obj.Config = Configuration.getSingleton();
             
             % Validate configuration of derived classes
-            Obj.validateConfig();
+            Obj.Query = db.DbQuery('socdb');
             
         end
         
@@ -82,8 +74,8 @@ classdef ApiMsg < handle
             Obj.Query.insert(Row, 'TableName', Obj.TableName);
 
             % Get PK - replace with RETURNING !!! @Todo
-            Obj.Rows = Obj.select('*', Obj.TableName, 'Order', 'pk DESC', 'Limit', 1);
-            Row = Obj.Rows(1);
+            Obj.Rows = Obj.Query.select('*', 'TableName', Obj.TableName, 'Order', 'pk DESC', 'Limit', 1);
+            Row = Obj.Rows.Data(1);
             Obj.pk = Row.pk;
         end
         
@@ -91,13 +83,9 @@ classdef ApiMsg < handle
         function Result = pollResult(Obj)
             Result = '';
 
-            Query.Active:= false;
-            Query.SQL.Text:= 'SELECT * FROM ' + TableName + ' WHERE pk=' + IntToStr(pk);
-            Query.Active:= true;
-
-            
-            if ~Obj.Query.Eof 
-            
+            Obj.Rows = Obj.Query.select('*', 'TableName', Obj.TableName, 'Where', sprintf('pk=%d', Obj.pk));
+            if numel(Obj.Rows.Data) > 0
+                Row = Obj.Rows.Data(1);
                 Obj.api_rep_time      = Row.api_rep_time;
                 Obj.api_rep_result    = Row.api_rep_result;
                 Obj.api_rep_status    = Row.api_rep_status;

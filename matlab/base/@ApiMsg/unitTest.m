@@ -12,7 +12,7 @@ function Result = unitTest()
     A.post();
     
     S = A.pollResult();
-    print(S);
+    fprintf(S);
   
     io.msgStyle(LogLevel.Test, '@passed', 'ApiMsg test passed');                          
     Result = true;
