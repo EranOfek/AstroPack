@@ -53,9 +53,7 @@ classdef ApiMsg < handle
             % Input  - Optional arguement of type Component, stored in Obj.Owner
             %   NewComp = Component()
             %   NewComp = Component(Owner)
-
             
-            % Validate configuration of derived classes
             Obj.Query = db.DbQuery('socdb');
             
         end
