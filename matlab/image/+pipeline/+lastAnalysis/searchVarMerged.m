@@ -65,6 +65,7 @@ function searchVarMerged(Files, Args)
             %MatMag = h5read(FileMergedMat, '/MAG_CONV_2');
             MS = MatchedSources.read(FileMergedMat);
             MatMag = MS.Data.MAG_APER_3(:,FlagSelected);
+            MatMag2 = MS.Data.MAG_APER_2(:,FlagSelected);
             %nanmean(MatRA)
             %plot(MatMag(:,SI(end-0)),'o')
         end
