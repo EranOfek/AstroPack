@@ -69,7 +69,7 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
     %                   the image mean.
     %                   Default is 'DarkLowVal'.
     %            'DarkLowVal_Threshold' - Threshold value.
-    %                   Default is 0.2.
+    %                   Default is 0.d.
     %            'BiasFlaring_BitName' - Bit name for flaring
     %                   pixels identified using
     %                   identifyFlaringPixels.
@@ -119,7 +119,7 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
         Args.DarkHighVal_Threshold      = 2;
 
         Args.DarkLowVal_BitName         = 'DarkLowVal';
-        Args.DarkLowVal_Threshold       = 0.2;
+        Args.DarkLowVal_Threshold       = 0.3;
 
         Args.BiasFlaring_BitName        = 'BiasFlaring';
         Args.BiasFlaring_Threshold      = 20;
