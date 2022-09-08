@@ -21,7 +21,7 @@ function searchVarMerged(Files, Args)
     Nlist = numel(List);   
    
     Nsub = 24;
-    State = false(Nlist./Nsub, Nsub);
+    State = false(ceil(Nlist./Nsub), Nsub);
     for Ilist=1:1:Nlist
         FileName = fullfile(List(Ilist).folder, List(Ilist).name);
         FileMergedMat = strrep(FileName, '_sci_merged_Cat_001.fits', '_sci_merged_MergedMat_001.hdf5');
