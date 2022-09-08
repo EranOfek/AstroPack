@@ -44,26 +44,29 @@ function searchVarMerged(Files, Args)
         %T = T(~FlagBad,:);
         if any(FlagSelected)
             
-            Ilist
+            fprintf('%d %6.1f %6.2f %9.5f %9.5f\n',[Ilist.*ones(sum(FlagSelected),1), T.PolyDeltaChi2(FlagSelected), T.Mean_SN_3(FlagSelected), T.RA(FlagSelected), T.Dec(FlagSelected)]);
             
             
-            [SC2, SI] = sort(T.PolyDeltaChi2);
-            FlagBad   = FlagBad(SI);
+            %Ilist
             
-            %[Max, MaxInd] = max(T.PolyDeltaChi2);
-            MaxInd = SI(end);
+%             [SC2, SI] = sort(T.PolyDeltaChi2);
+%             FlagBad   = FlagBad(SI);
+%             
+%             [Max, MaxInd] = max(T.PolyDeltaChi2);
+%             %MaxInd = SI(end);
+%             
+%             [Ilist, Max, T.Mean_SN_3(MaxInd), T.Mean_RA(MaxInd), T.Mean_Dec(MaxInd)]
+%         
+            %T.RA(MaxInd)
+            %T.Dec(MaxInd)
             
-            [Ilist, Max, T.Mean_SN_3(MaxInd), T.RA(MaxInd), T.Dec(MaxInd)]
-        
-            T.RA(MaxInd)
-            T.Dec(MaxInd)
             
-            
-            MatRA = h5read(FileMergedMat, '/RA');
-            MatMag = h5read(FileMergedMat, '/MAG_CONV_2');
+            %MatRA = h5read(FileMergedMat, '/RA');
+            %MatMag = h5read(FileMergedMat, '/MAG_CONV_2');
             MS = MatchedSources.read(FileMergedMat);
-            nanmean(MatRA)
-            plot(MatMag(:,SI(end-0)),'o')
+            MatMag = MS.Data.MAG_APER_3(:,FlagSelected);
+            %nanmean(MatRA)
+            %plot(MatMag(:,SI(end-0)),'o')
         end
         
     end
