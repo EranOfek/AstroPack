@@ -1126,7 +1126,7 @@ classdef ImagePath < Base %Component
             Inew = Nind;
             for Iind=1:1:Nind
                 NinGroup = IndE(Iind)-Ind1(Iind) + 1;
-                Nsub = floor(NinGroup./MaxInGroup);
+               h Nsub = floor(NinGroup./MaxInGroup);
                 for Isub=1:1:Nsub
                     I1 = MaxInGroup.*(Isub-1) + 1;
                     I2 = min(MaxInGroup.*Isub, NinGroup);

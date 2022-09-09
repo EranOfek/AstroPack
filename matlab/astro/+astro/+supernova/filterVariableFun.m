@@ -1,5 +1,5 @@
 function Ynew = filterVariableFun(X, Y, Args)
-    %
+    % NOT DEBUGED
     % Example: t = (9:0.01:1000).';
     %          [Res]=astro.supernova.nickel56_decay(t, 0.1);
     %          Y = astro.supernova.filterVariableFun(t, Res.Edep, 'FunArgs',t);

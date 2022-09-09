@@ -1,0 +1,89 @@
+function Gr = groupCounter(Counter, Args)
+    % Group a vector of counters into successive numbers.
+    %   Given a vector of integer counters, generate groups of successive
+    %   increasing counters. each group must contain at least MinInGroup
+    %   elements and MaxInGroup elements.
+    % Input  : - Vector of integers.
+    %          * ...,key,val,...
+    %            'MinInGroup' - Minimum number of elements in group.
+    %                   Smaller groups will be discarded.
+    %                   Default is 10.
+    %            'MaxInGroup' - Break groups, such that this is the maximum
+    %                   size of groups. Use Inf if no breaking is needed.
+    %                   Default is 20.
+    % Output : - A structure array of groups containing the following
+    %            fields:
+    %            .I1 - Starting index of group.
+    %            .I2 - Ending index of group.
+    % Author : Eran Ofek (Sep 2022)
+    % Example: Counter=[1 1 1 1 2 3 4 5 1:20, 1 1, 1:20];
+    %          Gr=tools.find.groupCounter(Counter);
+    %          Counter=[1 1 1 1 2 3 4 5 1:20, 1 1, 1:20, 1, 1:50];
+    %          Gr=tools.find.groupCounter(Counter);
+    
+    arguments
+        Counter
+        Args.MinInGroup    = 10;
+        Args.MaxInGroup    = 20;
+    end
+    
+    Nc          = numel(Counter);
+    DiffCounter = [diff([Counter(:); 1]); -1];
+    
+    Diff = [Counter.',[diff(Counter),1].', [0;diff([diff(Counter),1].')], (1:1:Nc).'];
+    
+    IgroupStart = find(Diff(:,3)>0);
+    Ng          = numel(IgroupStart);
+    for Ig=1:1:Ng
+        I1 = IgroupStart(Ig);
+        In = find(Diff(I1+1:end,3)<0, 1, 'first');
+        Ip = find(Diff(I1+1:end,3)>0, 1, 'first');
+        if isempty(In) && isempty(Ip)
+            I2 = Nc;
+        else
+            if isempty(Ip)
+                I2 = In + I1;
+            else
+                if Ip<In
+                    % skip
+                    I2 = [];
+                else
+                    I2 = In + I1;
+                end
+            end
+        end
+        if isempty(I2)
+            I2 = NaN;
+        end
+        Gr(Ig).I1 = I1;
+        Gr(Ig).I2 = I2;
+        
+    end
+    
+    NinGroup = [Gr.I2] - [Gr.I1] + 1;
+    Fgood    = NinGroup>=Args.MinInGroup;
+    Gr       = Gr(Fgood);
+    NinGroup = [Gr.I2] - [Gr.I1] + 1;
+    Ngr      = numel(Gr);
+    
+    Itoomany = find(NinGroup>Args.MaxInGroup);
+    K        = Ngr;
+    for Itm=1:1:numel(Itoomany)
+        Igr = Itoomany(Itm);
+        
+        
+        Nint = (1 + Gr(Igr).I2 - Gr(Igr).I1);
+        Nsub = ceil(Nint./Args.MaxInGroup);  % number of sub groups in current long group
+        IntCounter = (1:1:Nint);
+        ceil(IntCounter./Args.MaxInGroup);
+        for Ii=1:1:Nsub
+            K = K + 1;
+            
+            Gr(K).I1 = Gr(Igr).I1 + (Ii-1).*Args.MaxInGroup;
+            Gr(K).I2 = Gr(Igr).I1 + min(Ii.*Args.MaxInGroup - 1, Nint);
+        end
+        Gr(Igr).I2 = NaN;
+    end
+    Fgood = ~isnan([Gr.I2]);
+    Gr    = Gr(Fgood);
+end
