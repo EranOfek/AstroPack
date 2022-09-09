@@ -5,7 +5,7 @@ function runPipeLAST(DataNumber, Args)
     %          * ...,key,val,...
     %            See code
     % Author : Eran Ofek (Jan 2022)
-    % Example: 
+    % Example: pipeline.last.runPipeLAST(1)
     
     
     arguments
@@ -23,6 +23,7 @@ function runPipeLAST(DataNumber, Args)
         Args.DataDir                  = ''; % 
         Args.NewFilesDir              = []; %'/last01e/data1/archive/new';
         Args.DarkFlatDir              = []; %'/last01e/data1/archive/calib';
+        Args.RegenerateCalib logical  = true;
         
         Args.TimeSinceLast            = 300./86400;
         
@@ -39,34 +40,11 @@ function runPipeLAST(DataNumber, Args)
    
     RAD = 180./pi;
     
-    [ProjName, MountNumber, CameraNumber, HostName] = pipeline.last.constructProjName(Args.ProjName, [], Args.MountNumber, Args.NodeNumber, Args.DefBaseProjName);
+    [ProjName, MountNumber, CameraNumber, HostName] = pipeline.last.constructProjName(Args.ProjName, [], Args.MountNumber, DataNumber, Args.NodeNumber, Args.DefBaseProjName);
     
-%     HostName = tools.os.get_computer;
-%     if isempty(Args.ProjName)
-%         % ProjName is empty - construct the default LAST camera address:
-%         switch HostName(end)
-%             case 'e'
-%                 % East computer controls cameras 1 & 2
-%                 CameraNumber = DataNumber + 0;
-%             case 'w'
-%                 % East computer controls cameras 3 & 4
-%                 CameraNumber = DataNumber + 2;
-%             otherwise
-%                 error('Unknown host name template')
-%         end
-%         if isempty(Args.MountNumber)
-%             MountNumber = HostName(5:6);
-%         else
-%             if isnumeric(Args.MountNumber)
-%                 Args.MountNumber = sprintf('%02d',Args.MountNumber);
-%             end
-%             MountNumber = Args.MountNumber;
-%         end
-%         Args.ProjName = sprintf('%s.%02d.%s.%02d', Args.DefBaseProjName, Args.NodeNumber, MountNumber, CameraNumber);
-%     end
-    
+
     BaseArchiveDefault =  fullfile(filesep, HostName, sprintf('%s%d','data', DataNumber), 'archive');
-    BasePathDefault    =  fullfile(filesep, HostName, sprintf('%s%d','data', DataNumber), 'archive', Args.ProjName);
+    BasePathDefault    =  fullfile(filesep, HostName, sprintf('%s%d','data', DataNumber), 'archive', ProjName);
     if isempty(Args.NewFilesDir)
         % generate NewFilesDir
         Args.NewFilesDir = fullfile(BasePathDefault, filesep, 'new');
@@ -81,7 +59,7 @@ function runPipeLAST(DataNumber, Args)
         Args.BasePath = BasePathDefault;
     end
     if isempty(Args.BaseArchive)
-        % generate default BasePath - e.g., '/last01e/data1/archive/LAST.1.12.3'
+        % generate default BasePath - e.g., '/last01e/data1/archive'
         Args.BaseArchive = BaseArchiveDefault;
     end
     
@@ -101,17 +79,21 @@ function runPipeLAST(DataNumber, Args)
         % move focus files
         %io.files.moveFiles('*.focus*.\.fits',[], Args.NewFilesDir, ...
         
-        % look for darks and create master dark
-        FoundDark = pipeline.last.prepDarkFlat('NewFilesDir',Args.NewFilesDir, 'CalibDir',Args.DarkFlatDir, 'BasePath',Args.BaseArchive);
-        % look for flats and created master flat
-        FoundFlat = pipeline.last.prepDarkFlat('Type','flat','NewFilesDir',Args.NewFilesDir, 'CalibDir',Args.DarkFlatDir, 'BasePath',Args.BaseArchive);
-        if FoundDark || FoundFlat
-            % reload Dark/Flat
-            CI = CalibImages.loadFromDir(Args.DarkFlatDir);
-        end
-        
-        if CI.isemptyProp('Bias') || CI.isemptyProp('Flat')
-            error('No dark or flat found');
+        Args.RegenerateCalib = false;
+        if Args.RegenerateCalib || CI.isemptyProp('Bias') || CI.isemptyProp('Flat')
+            
+            % look for darks and create master dark
+            FoundDark = pipeline.last.prepDarkFlat('NewFilesDir',Args.NewFilesDir, 'CalibDir',Args.DarkFlatDir, 'BasePath',Args.BaseArchive);
+            % look for flats and created master flat
+            FoundFlat = pipeline.last.prepDarkFlat('Type','flat','NewFilesDir',Args.NewFilesDir, 'CalibDir',Args.DarkFlatDir, 'BasePath',Args.BaseArchive);
+            if FoundDark || FoundFlat
+                % reload Dark/Flat
+                CI = CalibImages.loadFromDir(Args.DarkFlatDir);
+            end
+
+            if CI.isemptyProp('Bias') || CI.isemptyProp('Flat')
+                error('No dark or flat found');
+            end
         end
         
 %         % check if there is a new Dark/Flat
@@ -171,21 +153,20 @@ function runPipeLAST(DataNumber, Args)
         % process images
         % 
         
-        % [List] = ImagePath.selectByProp('LAST*.fits', {'focus'}, 'Type');
-        
-        
+        ListSci = ImagePath.selectByProp('LAST*.fits', {'sci','science'}, 'Type');
+        ListFoc = ImagePath.selectByProp('LAST*.fits', {'focus'}, 'Type');
         
         % get all files waiting for processing
-        SciFiles = dir(fullfile(Args.NewFilesDir,Args.SearchStr));
-        SciFiles = SciFiles(~[SciFiles.isdir]);
+        %SciFiles = dir(fullfile(Args.NewFilesDir,Args.SearchStr));
+        %SciFiles = SciFiles(~[SciFiles.isdir]);
         % convert file names to ImagePath 
-        IP       = ImagePath.parseFileName({SciFiles.name});
+        IP       = ImagePath.parseFileName(ListSci);
         IP.setAllVal('BasePath', Args.BasePath);
         IP.setAllVal('DataDir',  Args.DataDir);
         IP.setAllVal('ProjName', Args.ProjName);
         
         %%% NEED to make sure that the processed file are of the same field
-        
+        [St, ListG] = ImagePath.groupByCounter(IP);  % BUG
         
         % find the latest image
         IP.setTime;   % make sure JD is populated

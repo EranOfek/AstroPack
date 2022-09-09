@@ -441,6 +441,44 @@ classdef ImagePath < Base %Component
             
         end
         
+        
+        function Result = genFullCell(Obj, Args)
+            % Generate a cell array of full file name + path from a populated ImagePath
+            % Input  : - A populated ImagePath object.
+            %         * ...,key,val,...
+            %           'PathLevel' - Level value for the path only.
+            %                   If empty do nothing. Use this to modify the
+            %                   path only. Default is [].
+            % Output : - A cell array of full path + file name. Only the last full path
+            %            is returned. All the rest are populated in the
+            %            FullName property.
+            % Author : Eran Ofek (Nov 2021)
+            % Example: IP = ImagePath(2);
+            %          IP.genFull
+            
+            arguments
+                Obj
+                Args.PathLevel  = [];  % [] - don't touch 
+            end
+                            
+            Nobj = numel(Obj);
+            Result = cell(size(Obj));
+            for Iobj=1:1:Nobj
+                File = Obj(Iobj).genFile;
+
+                Level = Obj(Iobj).Level;
+                if ~isempty(Args.PathLevel)
+                    Obj(Iobj).Level = Args.PathLevel;
+                end
+                Path = Obj(Iobj).genPath;
+                Obj(Iobj).Level = Level;  % return lebel to original value
+
+                Result{Iobj} = sprintf('%s%s',Path,File);
+                Obj(Iobj).FullName = Result{Iobj};
+            end
+            
+        end
+        
     end
     
    
@@ -1040,7 +1078,8 @@ classdef ImagePath < Base %Component
             % Group ImagePath file names by counter groups
             % Input  : - If this is a char array than use io.files.filelist
             %            to generate a cell array of file names.
-            %            Alternatively, this is a cell array of file names.
+            %            Alternatively, this is a cell array of file names,
+            %            or a populated ImagePath object.
             %          - Maximum number of files in group. Default is 20.
             % Output : - A structure array with element per group and the
             %            following fields:
@@ -1060,13 +1099,18 @@ classdef ImagePath < Base %Component
                 MaxInGroup = 20;
             end
             
-            if ischar(Files)
-                List = io.files.filelist(Files);
+            if isa(Files, 'ImagePath')
+                IP = Files;
+                List = IP.genFullCell;
             else
-                List = Files;
+                if ischar(Files)
+                    List = io.files.filelist(Files);
+                else
+                    List = Files;
+                end
+
+                IP     = ImagePath.parseFileName(List);
             end
-            
-            IP     = ImagePath.parseFileName(List);
             % sort by time
             [~,SI] = sort([IP.Time]);
             List   = List(SI);
@@ -1075,7 +1119,7 @@ classdef ImagePath < Base %Component
             N       = numel(Counter);
             
             % index of first image in counter series
-            Ind1 = find([1; diff(Counter)]>0);
+            Ind1 = find([1; diff(Counter(:))]>0);
             IndE = [Ind1(2:end)-1; N];
                         
             Nind = numel(Ind1);
