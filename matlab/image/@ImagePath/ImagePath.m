@@ -1074,7 +1074,7 @@ classdef ImagePath < Base %Component
             
         end
         
-        function [St, List] = groupByCounter(Files, MaxInGroup)
+        function [Gr, List] = groupByCounter(Files, MaxInGroup)
             % Group ImagePath file names by counter groups
             % Input  : - If this is a char array than use io.files.filelist
             %            to generate a cell array of file names.
@@ -1083,19 +1083,16 @@ classdef ImagePath < Base %Component
             %          - Maximum number of files in group. Default is 20.
             % Output : - A structure array with element per group and the
             %            following fields:
-            %            .Ind -  A vector of indices of files in group.
-            %                   These are the indices in the sorted list
-            %                   (second output argument).
-            %            .List - A cell array of file names in group.
-            %            .N    - Number of files in group.
-            %            .JDfirst - JD of first image in list.
-            %            .JDlast  - JD of last image in list.
+            %            .I1 - Index in List (second output) of first
+            %                   element in group.
+            %            .I2 - Index of last element in group.
             %          - The sorted (by date) list of files.
             % Author : Eran Ofek (Aug 2022)
             % Example: [St, List] = ImagePath.groupByCounter('LAST*.fits');
             
             arguments
                 Files
+                MinInGroup = 10;
                 MaxInGroup = 20;
             end
             
@@ -1116,39 +1113,10 @@ classdef ImagePath < Base %Component
             List   = List(SI);
             IP     = IP(SI);
             Counter = [IP.Counter];
-            N       = numel(Counter);
             
-            % index of first image in counter series
-            Ind1 = find([1; diff(Counter(:))]>0);
-            IndE = [Ind1(2:end)-1; N];
-                        
-            Nind = numel(Ind1);
-            Inew = Nind;
-            for Iind=1:1:Nind
-                NinGroup = IndE(Iind)-Ind1(Iind) + 1;
-               h Nsub = floor(NinGroup./MaxInGroup);
-                for Isub=1:1:Nsub
-                    I1 = MaxInGroup.*(Isub-1) + 1;
-                    I2 = min(MaxInGroup.*Isub, NinGroup);
-                    Inew = Inew+1;
-                    Ind1(Inew) = I1;
-                    IndE(Inew) = I2;
-                end
-            end
-                                    
-            
-            for I=1:1:numel(Ind1)
-                St(I).Ind     = [Ind1(I):1:IndE(I)];
-                St(I).List    = List(St(I).Ind);
-                St(I).N       = numel(St(I).Ind);
-                St(I).JDfirst = IP(St(I).Ind(1)).Time;
-                St(I).JDlast  = IP(St(I).Ind(end)).Time;
-            end
-            
-            
+            Gr = tools.find.groupCounter(Counter, 'MinInGroup',MinInGroup, 'MaxInGroup',MaxInGroup);
             
         end
-        
         
     end
 
