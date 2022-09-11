@@ -194,7 +194,16 @@ function runPipeLAST(DataNumber, Args)
             Counter = Counter + 1;
             tic;
             %%%% problem: FieldID is wrong
-            pipeline.generic.multiRaw2procCoadd(ListImagesNew, 'CalibImages',CI, Args.multiRaw2procCoaddArgs{:}, 'SubDir',NaN, 'BasePath', Args.BaseArchive);
+            try
+                pipeline.generic.multiRaw2procCoadd(ListImagesNew, 'CalibImages',CI, Args.multiRaw2procCoaddArgs{:}, 'SubDir',NaN, 'BasePath', Args.BaseArchive);
+            catch
+                % failed
+                % copy images to failed directory
+                ListImagesFailed = regexprep(ListImagesNew,'/new/','/failed/');
+                DirFailed        = fileparts(ListImagesFailed{1});
+                mkdir(DirFailed)
+                io.files.moveFiles(ListImagesNew, ListImagesFailed)
+            end
             toc
             
             % move images to path
