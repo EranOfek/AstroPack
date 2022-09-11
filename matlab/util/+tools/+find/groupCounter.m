@@ -80,7 +80,7 @@ function Gr = groupCounter(Counter, Args)
             K = K + 1;
             
             Gr(K).I1 = Gr(Igr).I1 + (Ii-1).*Args.MaxInGroup;
-            Gr(K).I2 = Gr(Igr).I1 + min(Ii.*Args.MaxInGroup - 1, Nint);
+            Gr(K).I2 = Gr(Igr).I1 + min(Ii.*Args.MaxInGroup, Nint)-1;
         end
         Gr(Igr).I2 = NaN;
     end
