@@ -1031,7 +1031,7 @@ classdef ImagePath < Base %Component
             end
         end
        
-        function [List, Flag] = selectByProp(Files, PropVal, Prop, IsVal)
+        function [IP, List, Flag] = selectByProp(Files, PropVal, Prop, IsVal)
             % Select files with ImagePath format by some property (e.g., Type).
             % Input  : - If this is a char array than use io.files.filelist
             %            to generate a cell array of file names.
@@ -1044,12 +1044,13 @@ classdef ImagePath < Base %Component
             %            the specified property value. If false, then
             %            ignore this value and select all the rest.
             %            Default is true.
-            % Output : - A cell array of selected files.
+            % Output : - An ImagePath pbject with the selected image.
+            %          - A cell array of selected files.
             %          - A vector of logical flags indicating the selected
             %            files.
             % Author : Eran Ofek (Aug 2022)
-            % Example: [List] = ImagePath.selectByProp('LAST*.fits', {'focus'}, 'Type')
-            % Example: [List] = ImagePath.selectByProp('LAST*.fits', {'focus'}, 'Type',false)
+            % Example: [IP,List] = ImagePath.selectByProp('LAST*.fits', {'focus'}, 'Type')
+            % Example: [IP,List] = ImagePath.selectByProp('LAST*.fits', {'focus'}, 'Type',false)
            
             arguments
                 Files
@@ -1070,11 +1071,12 @@ classdef ImagePath < Base %Component
                 Flag = ~Flag;
             end
             
+            IP   = IP(Flag);
             List = List(Flag);
             
         end
         
-        function [Gr, List] = groupByCounter(Files, MaxInGroup)
+        function [Gr, List] = groupByCounter(Files, MinInGroup, MaxInGroup)
             % Group ImagePath file names by counter groups
             % Input  : - If this is a char array than use io.files.filelist
             %            to generate a cell array of file names.

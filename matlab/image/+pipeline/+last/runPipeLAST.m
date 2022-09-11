@@ -153,42 +153,48 @@ function runPipeLAST(DataNumber, Args)
         % process images
         % 
         
-        ListSci = ImagePath.selectByProp('LAST*.fits', {'sci','science'}, 'Type');
-        ListFoc = ImagePath.selectByProp('LAST*.fits', {'focus'}, 'Type');
+        [IP_Sci, ListSci] = ImagePath.selectByProp('LAST*.fits', {'sci','science'}, 'Type');
+        [IP_Foc, ListFoc] = ImagePath.selectByProp('LAST*.fits', {'focus'}, 'Type');
         
         % get all files waiting for processing
         %SciFiles = dir(fullfile(Args.NewFilesDir,Args.SearchStr));
         %SciFiles = SciFiles(~[SciFiles.isdir]);
         % convert file names to ImagePath 
-        IP       = ImagePath.parseFileName(ListSci);
-        IP.setAllVal('BasePath', Args.BasePath);
-        IP.setAllVal('DataDir',  Args.DataDir);
-        IP.setAllVal('ProjName', Args.ProjName);
+        IP_Sci       = ImagePath.parseFileName(ListSci);
+        IP_Sci.setAllVal('BasePath', Args.BasePath);
+        %IP.setAllVal('DataDir',  Args.DataDir);
+        %IP.setAllVal('ProjName', ProjName);
+        IP_Sci.setAllVal('FormatCounter', '%03d');
+        IP_Sci.setAllVal('DataDir','');
         
         %%% NEED to make sure that the processed file are of the same field
-        [St, ListG] = ImagePath.groupByCounter(IP);  % BUG
+        [Groups, ListG] = ImagePath.groupByCounter(IP_Sci);  % BUG
         
         % find the latest image
-        IP.setTime;   % make sure JD is populated
-        IP.sortByJD;
+        %IP.setTime;   % make sure JD is populated
+        %IP.sortByJD;
         %IndLatest = findFirstLast(IP, true, 'Image');
-        IndLatest = find([IP.Counter]==Args.NinBatch, 1, 'last');
-        Ind = getAllInCounterSeries(IP, IndLatest, Args.NinBatch);
+        %IndLatest = find([IP.Counter]==Args.NinBatch, 1, 'last');
+        %Ind = getAllInCounterSeries(IP, IndLatest, Args.NinBatch);
         
-        
-        if ~isempty(Ind)
+        if ~isempty(Groups)
+            % the raw images destination directory
+            ListImagesRaw = ListG(Groups(end).I1:Groups(end).I2);
+            % the new/ directory
+            ListImagesNew = regexprep(ListImagesRaw,'/\d\d\d\d/\d\d/\d\d/raw','/new');
             
-            IP.setAllVal('FormatCounter', '%03d');
-            IP(Ind).genFile;
-            Path           = IP(1).genPath;
-            ListImages     = {IP(Ind).FileName};
-            ListImagesFull = io.files.addPathToFiles(ListImages, Args.NewFilesDir);
+        %if ~isempty(Ind)
             
+%             IP(Ind).genFile;
+%             Path           = IP(1).genPath;
+%             ListImages     = {IP(Ind).FileName};
+%             ListImagesFull = io.files.addPathToFiles(ListImages, Args.NewFilesDir);
+%             
             % execute the pipeline
             Counter = Counter + 1;
             tic;
             %%%% problem: FieldID is wrong
-            pipeline.generic.multiRaw2procCoadd(ListImagesFull, 'CalibImages',CI, Args.multiRaw2procCoaddArgs{:}, 'SubDir',NaN, 'BasePath', Args.BaseArchive);
+            pipeline.generic.multiRaw2procCoadd(ListImagesNew, 'CalibImages',CI, Args.multiRaw2procCoaddArgs{:}, 'SubDir',NaN, 'BasePath', Args.BaseArchive);
             toc
             
             % move images to path
