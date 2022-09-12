@@ -125,7 +125,7 @@ function Msg = generateReportMPC(Table, Args)
         else
             Filter = Args.Filter;
         end
-        Msg = sprintf('%s%5s%6s%3s%1s%s %s%s%9s%5.2f%1s%6s%3s\n',Msg, '', Desig, '', Args.InstType, DateStr, RA, Dec, '',Mag, Filter, '', Args.ObsCode);
+        Msg = sprintf('%s%5s%6s%3s%1s%s %s%s%9s%5.1f %1s%6s%3s\n',Msg, '', Desig, '', Args.InstType, DateStr, RA, Dec, '',Mag, Filter, '', Args.ObsCode);
     
     
 end
