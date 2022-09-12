@@ -26,7 +26,9 @@ function HeaderStr = generateHeaderBlocks(HeaderCell, DataClass, DataSize)
     % number of blocks: +1 because need to add the END keyword
     Nblocks = ceil((Nlines+1).*CHAR_PER_LINE./BYTE_PER_BLOCK);
     % allocate blocks
-    HeaderStr = blanks(Nblocks.*BYTE_PER_BLOCK);
+    %HeaderStr = blanks(Nblocks.*BYTE_PER_BLOCK);
+    HeaderStr = repmat(' ',[1 Nblocks.*BYTE_PER_BLOCK]);
+    
     
     I = 0;
     for Iline=1:1:Nlines
