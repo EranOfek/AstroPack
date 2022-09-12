@@ -183,28 +183,28 @@ function runPipeLAST(DataNumber, Args)
             % the new/ directory
             ListImagesNew = regexprep(ListImagesRaw,'/\d\d\d\d/\d\d/\d\d/raw','/new');
             
-        %if ~isempty(Ind)
-            
-%             IP(Ind).genFile;
-%             Path           = IP(1).genPath;
-%             ListImages     = {IP(Ind).FileName};
-%             ListImagesFull = io.files.addPathToFiles(ListImages, Args.NewFilesDir);
-%             
             % execute the pipeline
             Counter = Counter + 1;
-            tic;
             %%%% problem: FieldID is wrong
+            
+            
+            %LogFileName = sprintf('/home/ocs/%s_log_pipeline.log',ProjName);
+            %FID = fopen(LogFileName, 'a+');
+            tic;
             try
                 pipeline.generic.multiRaw2procCoadd(ListImagesNew, 'CalibImages',CI, Args.multiRaw2procCoaddArgs{:}, 'SubDir',NaN, 'BasePath', Args.BaseArchive);
                 Destination = io.files.moveFiles(ListImagesNew, ListImagesRaw, '', '', 'MkDir',true);
             catch
+                warning('Failed sequence');
                 % failed
                 % copy images to failed directory
                 ListImagesFailed = regexprep(ListImagesNew,'/new/','/failed/');
                 %DirFailed        = fileparts(ListImagesFailed{1});
-                io.files.moveFiles(ListImagesNew, ListImagesFailed, '', '', 'MkDir',true)
+                io.files.moveFiles(ListImagesNew, ListImagesFailed, '', '', 'MkDir',true);
             end
             toc
+            
+            Counter
             
             % move images to path
 %            Destination = io.files.moveFiles(ListImages, ListImages, Args.NewFilesDir, Path, 'MkDir',true);
