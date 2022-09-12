@@ -1,6 +1,21 @@
 function Msg = generateReportMPC(Table, Args)
     % Generate an MPC asteroids/comet report
-    %
+    % Input  : - Table or matrix with the following columns:
+    %            [JD, RA, Dec, Mag, Filter, AstIndex].
+    %            Alternatively, for different formats, use the 'ColRA',
+    %            'ColDec', 'ColJD', 'ColRA', 'ColDec', 'ColMag',
+    %            'ColFilter', 'ColAstIndex', to specify the column index.
+    %            ColAstIndex is a some integer uniquly indicating asteroids
+    %            in the same batch.
+    %          * ...,key,val,...
+    %            'Filter' - If not empty, will overrid the filter in the
+    %                   table. Default is 'C'.
+    %            'CooUnits' - Coordinates units. Default is 'deg'.
+    %            'IsComet' - A logical indicating if a comet.
+    %                   Default is false.
+    %            ...
+    %            See code for more options
+    % Output : - A string containing the message. Use fprintf to print it.
     % Author : Eran Ofek (Sep 2022)
     % Example: Table = [2451545.16, 100.1, -12.1, 17.12, NaN, 1; 2451545.16, 100.1, -12.1, 17.12, NaN, 1; 2451545.16, 100.1, -12.1, 17.12, NaN, 2]
     %          Msg = imUtil.asteroids.generateReportMPC(Table, 'Filter','C');
@@ -8,7 +23,7 @@ function Msg = generateReportMPC(Table, Args)
     arguments
         Table                % [JD, RA, Dec, Mag, Filter, AstIndex]
         Args.Filter           = 'C';
-        Args.JD               = 1;
+        Args.ColJD            = 1;
         Args.ColRA            = 2;
         Args.ColDec           = 3;
         Args.ColMag           = 4;
@@ -68,6 +83,9 @@ function Msg = generateReportMPC(Table, Args)
     Msg = sprintf('%sCOM %s\n',Msg, Position);
     Msg = sprintf('%sCOM %s\n',Msg, Args.ObsName);
     Msg = sprintf('%sCOM %s\n',Msg, Args.ObsAddress);
+    if Args.IsComet
+        Msg = sprintf('%sCOM %s\n',Msg, 'Probable comet');
+    end
     Msg = sprintf('%sTEL %s\n',Msg, Args.Telescope);
     Msg = sprintf('%sNET %s\n',Msg, Args.RefCatalog);
     
@@ -87,7 +105,7 @@ function Msg = generateReportMPC(Table, Args)
         
         
         Desig   = sprintf('%s%05d');
-        Date    = celestial.time.jd2date(Table(I, Args.JD), 'f','YMD');
+        Date    = celestial.time.jd2date(Table(I, Args.ColJD), 'f','YMD');
         DateStr = sprintf('%04d %02d %08.5f',Date);
         
         RAdeg   = convert.angular(Args.CooUnits,'deg',Table(I, Args.ColRA));
