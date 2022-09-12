@@ -104,9 +104,10 @@ function Msg = generateReportMPC(Table, Args)
         LastAstIndex = Table(I,Args.ColAstIndex);
         
         
-        Desig   = sprintf('%s%05d');
+        Desig   = sprintf('%s%05d', Args.DesigPrefix, DesigCounter);
         Date    = celestial.time.jd2date(Table(I, Args.ColJD), 'f','YMD');
-        DateStr = sprintf('%04d %02d %08.5f',Date);
+        Date(3) = Date(3) + Date(4);
+        DateStr = sprintf('%04d %02d %08.5f',Date(1:3));
         
         RAdeg   = convert.angular(Args.CooUnits,'deg',Table(I, Args.ColRA));
         Decdeg  = convert.angular(Args.CooUnits,'deg',Table(I, Args.ColDec));
