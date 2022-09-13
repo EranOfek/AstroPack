@@ -976,8 +976,9 @@ classdef CalibImages < Component
                 Args.CorrectFringing logical        = false;
                 Args.MultiplyByGain logical         = true;
                 Args.BitNameNaN                     = 'NaN';
+                Args.BitNameNegative                = 'Negative';
                 Args.InterpolateOverBadPix logical  = true;
-                Args.BitNameBadPix                  = {'Saturated','NaN'};
+                Args.BitNameBadPix                  = {'Saturated','NaN', 'Negative'};
                 Args.BitNameInterpolated            = 'Interpolated';
                 Args.interpOverNanArgs cell         = {};
                 
@@ -1049,6 +1050,9 @@ classdef CalibImages < Component
             for Iim=1:1:Nim
                 FlagNaN              = isnan(Result(Iim).Image);
                 Result(Iim).MaskData = maskSet(Result(Iim).MaskData, FlagNaN, Args.BitNameNaN, 1);
+                
+                FlagNeg              = Result(Iim).Image<0;
+                Result(Iim).MaskData = maskSet(Result(Iim).MaskData, FlagNeg, Args.BitNameNegative, 1);
             end
 
             
