@@ -194,10 +194,59 @@ classdef AstroTransmission < Component
             
         end
         
+        
+        function Result = genHadamard(Wave, Order, Family, BandPrefix, Args)
+            % Generate a series of Hadamard filters (Type='filter').
+            % Input  : - A vector of wavelength grid.
+            %            Default is (4000:1:9000);
+            %          - Hadamard matrix order. Default is 8.
+            %            Must be powers of 2.
+            %          - Filter family name. Default is 'Hadamard'.
+            %          - Filter band name prefix. Default is 'Band'.
+            %          * ...,key,val,...
+            %            'WaveUnits' - Default is 'A'.
+            % Output : - An AstroTransmission object of the top-hat
+            %            transmission curves
+            % Author : Eran Ofek (Sep 2021)
+            % Example: Result = AstroTransmission.genHadamard;
+            
+            arguments
+                Wave            = (4000:1:9000);
+                Order           = 8;
+                Family          = 'Hadamard'
+                BandPrefix      = 'Band';
+                Args.WaveUnits  = 'A';
+            end
+            
+            Wmin  = min(Wave);
+            Wmax  = max(Wave);
+            Range = Wmax - Wmin;
+            Nwave = numel(Wave);
+            
+            HadMat = hadamard(Order);
+            HadRes = imresize(HadMat, [Order Nwave], 'nearest');
+            
+            Flag   = HadRes<0;
+            HadRes(Flag) = 0;
+            HadRes = [zeros(Order,1), HadRes, zeros(Order,1)];
+            
+            Wave   = [Wmin-1, Wave(:).', Wmax+1];
+            
+            for I=1:1:Order
+                Tran = HadRes(I,:);
+                Result(I) = AstroTransmission([Wave(:), Tran(:)],...
+                                            'WaveUnits',Args.WaveUnits,...
+                                            'Family',Family,...
+                                            'Band',sprintf('%s%d',BandPrefix,I),...
+                                            'Type','filter');
+            end
+        end
+        
+        
         function Result = get(Family, Band, Type, Args)
             %
             
-            arguments
+           arguments
                 Family
                 Band
                 Type              = 'filter';
