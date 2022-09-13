@@ -342,7 +342,11 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     %AllSI = AstroImage([Nim, Nsub]);
     AstrometricCat = [];
     for Iim=1:1:Nim
-        %Iim
+%         Iim
+        
+%         if Iim==14
+%             'a'
+%         end
         
         if Iim==1 || ~Args.SameField || isempty(AstrometricCat)
             % need to generate AstrometricCat for field

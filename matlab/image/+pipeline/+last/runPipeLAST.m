@@ -65,6 +65,10 @@ function runPipeLAST(DataNumber, Args)
     
     StopFile = sprintf('%s%s%s',Args.NewFilesDir, filesep, Args.AbortFile);
     
+    
+    % switch to new files directory
+    cd(Args.NewFilesDir);
+    
     %<ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
     MostRecentDarkImage = '';
     MostRecentFlatImage = '';

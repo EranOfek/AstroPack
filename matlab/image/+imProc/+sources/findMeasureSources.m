@@ -172,6 +172,7 @@ function Result = findMeasureSources(Obj, Args)
     imProc.background.background(Result, 'CreateNewObj',false, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
     
     Nobj = numel(Obj);
+    %Iobj
     for Iobj=1:1:Nobj
         % call the source finder and measurments
         if Args.ReFind || ~isempty(Result(Iobj).(Args.CatProp).Catalog)
