@@ -335,8 +335,12 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     % search for bad images
     [Result,~] = imProc.stat.identifyBadImages(AI, 'CCDSEC',Args.IdentifyBadImagesCCDSEC);
     AI = AI(~[Result.BadImageFlag]);
-
+        
     Nim = numel(AI);
+    
+    if Nim==0
+        error('No good images found');
+    end
     
     %Nsub = 24;
     %AllSI = AstroImage([Nim, Nsub]);

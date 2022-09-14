@@ -196,8 +196,11 @@ function runPipeLAST(DataNumber, Args)
             %FID = fopen(LogFileName, 'a+');
             tic;
             try
+                
                 pipeline.generic.multiRaw2procCoadd(ListImagesNew, 'CalibImages',CI, Args.multiRaw2procCoaddArgs{:}, 'SubDir',NaN, 'BasePath', Args.BaseArchive);
                 Destination = io.files.moveFiles(ListImagesNew, ListImagesRaw, '', '', 'MkDir',true);
+                
+                fprintf('Sucess\n\n');
             catch
                 warning('Failed sequence');
                 % failed

@@ -184,6 +184,8 @@ classdef AstroImage < Component
             %                   mask image. Default is [].
             %            'MaskScale' - The same as scale, but for the
             %                   mask image. Default is [].
+            %            'MaskDict' - Mask bit dictionary.
+            %                   Default is 'BitMask.Image.Default'.
             %            'FileType' - If empty, use auto detection.
             %                   Default is [].
             %            'UseRegExp' - Ues regexp for file name
@@ -215,6 +217,7 @@ classdef AstroImage < Component
                 Args.Mask                     = [];
                 Args.MaskHDU                  = [];
                 Args.MaskScale                = [];
+                Args.MaskDict                 = 'BitMask.Image.Default';
                 
                 Args.PSF                      = [];
                 Args.PSFHDU                   = [];
@@ -297,6 +300,7 @@ classdef AstroImage < Component
                                 % treat integers in case of Mask
                                 switch ListProp{Ilist}
                                     case 'Mask'
+                                        Obj.MaskData.Dict = BitDictionary(Args.MaskDict);
                                         switch class(Obj.(ListProp{Ilist}))
                                             case 'int8'
                                                 Obj.(ListProp{Ilist}) = cast(Obj.(ListProp{Ilist}), 'uint8');

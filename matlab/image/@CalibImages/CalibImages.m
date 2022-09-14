@@ -940,6 +940,10 @@ classdef CalibImages < Component
             %           'BitNameNaN' - The bit name for NaN pixels.
             %                   If empty, then will not set the bit mask.
             %                   Default is 'NaN'.
+            %           'BitNameNegative' - Name of Negative bit-mask.
+            %                   Default is 'Negative'.
+            %           'SetNegativeTo0' - A logical indicating if to set
+            %                   negative pixels to zeros. Default is true.
             %           'InterpolateOberBadPix' - A logical indicating
             %                   if to interpolate over bad pixels.
             %                   Default is true.
@@ -977,6 +981,7 @@ classdef CalibImages < Component
                 Args.MultiplyByGain logical         = true;
                 Args.BitNameNaN                     = 'NaN';
                 Args.BitNameNegative                = 'Negative';
+                Args.SetNegativeTo0 logical         = true;
                 Args.InterpolateOverBadPix logical  = true;
                 Args.BitNameBadPix                  = {'Saturated','NaN', 'Negative'};
                 Args.BitNameInterpolated            = 'Interpolated';
@@ -1053,6 +1058,10 @@ classdef CalibImages < Component
                 
                 FlagNeg              = Result(Iim).Image<0;
                 Result(Iim).MaskData = maskSet(Result(Iim).MaskData, FlagNeg, Args.BitNameNegative, 1);
+                
+                if Args.SetNegativeTo0
+                    Result(Iim).Image(FlagNeg) = 0;
+                end
             end
 
             

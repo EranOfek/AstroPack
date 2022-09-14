@@ -49,11 +49,12 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
         %Args.assessAstrometricQualityArgs cell   = {};
 
         Args.CatRadius                           = 3600;
-        Args.RangeX                              = [-1000 1000].*3.5;
-        Args.RangeY                              = [-1000 1000].*3.5;
+        Args.RangeX                              = [-1000 1000].*2.5;
+        Args.RangeY                              = [-1000 1000].*2.5;
         Args.StepX                               = 2;
         Args.StepY                               = 2;
         Args.Flip                                = [1 1;-1 -1];
+        Args.RefRangeMag                         = [12 18];
         Args.SearchRadius                        = 6;
         Args.FilterSigma                         = 3;
     end
@@ -143,6 +144,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
                                                                                                      'StepX',Args.StepX,...
                                                                                                      'StepY',Args.StepY,...
                                                                                                      'Flip',Args.Flip,...
+                                                                                                     'RefRangeMag',Args.RefRangeMag,...
                                                                                                      'SearchRadius',Args.SearchRadius,...
                                                                                                      'FilterSigma',Args.FilterSigma,...
                                                                                                      Args.astrometryCoreArgs{:});
