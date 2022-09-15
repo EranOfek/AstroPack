@@ -154,13 +154,21 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         % 1. Index of nearest source, within search radius, in Obj1
         % 2. Distance;
         % 3. Total number of matches within radius.
-        Result(Imax).Obj2_IndInObj1  = IndTable(:,1);
-        Result(Imax).Obj2_Dist       = IndTable(:,2);
-        Result(Imax).Obj2_NmatchObj1 = IndTable(:,3);
+        Result(Imax).Obj2_IndInObj1   = IndTable(:,1);
+        Result(Imax).Obj2_Dist        = IndTable(:,2);
+        Result(Imax).Obj2_NmatchObj1  = IndTable(:,3);
         % IndInRef: For each source in Obj1 its index in Obj2
-        Result(Imax).Obj1_IndInObj2  = IndInObj2;
+        Result(Imax).Obj1_IndInObj2   = IndInObj2;
         Result(Imax).Obj1_FlagNearest = CatFlagNearest;
         Result(Imax).Obj1_FlagAll     = CatFlagAll;
 
+        %Result(Imax).Obj1_Dist = nan(size(CatFlagAll));
+        FlagNaN = isnan(IndInObj2);
+        IndInObj2(FlagNaN) = 1;  % temporary
+        
+        % new: Obj1_Dist
+        Col = 2;
+        Result(Imax).Obj1_Dist          = IndTable(IndInObj2, Col);
+        Result(Imax).Obj1_Dist(FlagNaN) = NaN;
     end
 end

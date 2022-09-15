@@ -84,6 +84,9 @@ function Result = match_catsHTMmerged(Obj, Args)
                                                                 'Radius',MaxSearchRadius,...
                                                                 'RadiusUnits','arcsec');
 
+                                                            
+            
+            
             % Merged Mask bits for each source
             % For each source in the ref catalog (CatH), if there is a matching
             % source within the search radius, then add the bit mask of the ref
