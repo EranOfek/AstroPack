@@ -86,12 +86,12 @@ function Result = match_catsHTMmerged(Obj, Args)
                 FlagNaN = ResInd.Obj1_Dist > CatH.Catalog(:,Args.MergedCatRadiusCol);
                 % FFU: need to debug: got here
                 
-                ResInd.Obj2_IndInObj1(FlagNaN) = NaN;
-                MergedCatFlag = zeros(numel(ResInd.Obj1_IndInObj2),1);
-                Nref = numel(ResInd.Obj2_IndInObj1);
+                ResInd.Obj1_IndInObj2(FlagNaN) = NaN;
+                MergedCatFlag = zeros(numel(ResInd.Obj2_IndInObj1),1);
+                Nref = numel(ResInd.Obj1_IndInObj2);
                 for Iref=1:1:Nref
-                    if ~isnan(ResInd.Obj2_IndInObj1(Iref))
-                        IndCat = ResInd.Obj2_IndInObj1(Iref);
+                    if ~isnan(ResInd.Obj1_IndInObj2(Iref))
+                        IndCat = ResInd.Obj1_IndInObj2(Iref);
                         MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), double(CatH.Catalog(Iref,Args.MergedCatMaskCol)));
                     end
                 end                                               
