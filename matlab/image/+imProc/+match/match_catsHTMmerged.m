@@ -76,33 +76,52 @@ function Result = match_catsHTMmerged(Obj, Args)
             end
 
 
-            % Cat need to be sorted
-            Cat.sortrows('Dec');
-            % match CatH against the Cat
-            % catH must be the ref catalog
-            ResInd = imProc.match.matchReturnIndices(Cat, CatH, 'CooType','sphere',...
-                                                                'Radius',MaxSearchRadius,...
-                                                                'RadiusUnits','arcsec');
+            RefIsCat = false;
+            if RefIscat
+                % Ref is Cat
+                % no need to sort - catsHTM already sorted
+                ResInd = imProc.match.matchReturnIndices(CatH, Cat, 'CooType','sphere',...
+                                                                    'Radius',MaxSearchRadius,...
+                                                                    'RadiusUnits','arcsec');
+                FlagNaN = ResInd.Obj1_Dist > CatH.Catalog(:,Args.MergedCatRadiusCol);
+                % need to debug: got here
+                
+                ResInd.Obj2_IndInObj1(FlagNaN) = NaN;
+                MergedCatFlag = zeros(numel(ResInd.Obj1_IndInObj2),1);
+                Nref = numel(ResInd.Obj2_IndInObj1);
+                for Iref=1:1:Nref
+                    if ~isnan(ResInd.Obj2_IndInObj1(Iref))
+                        IndCat = ResInd.Obj2_IndInObj1(Iref);
+                        MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), double(CatH.Catalog(Iref,Args.MergedCatMaskCol)));
+                    end
+                end                                               
+            else
+                % Ref is CatH
+                % Cat need to be sorted
+                Cat.sortrows('Dec');
+                % match CatH against the Cat
+                % catH must be the ref catalog
+                ResInd = imProc.match.matchReturnIndices(Cat, CatH, 'CooType','sphere',...
+                                                                    'Radius',MaxSearchRadius,...
+                                                                    'RadiusUnits','arcsec');
 
-                                                            
-            
-            
-            % Merged Mask bits for each source
-            % For each source in the ref catalog (CatH), if there is a matching
-            % source within the search radius, then add the bit mask of the ref
-            % source to that of the Cat source.
-            % The addition is 
-            FlagNaN = ResInd.Obj2_Dist > CatH.Catalog(:,Args.MergedCatRadiusCol);
-            ResInd.Obj2_IndInObj1(FlagNaN) = NaN;
-            MergedCatFlag = zeros(numel(ResInd.Obj1_IndInObj2),1);
-            Nref = numel(ResInd.Obj2_IndInObj1);
-            for Iref=1:1:Nref
-                if ~isnan(ResInd.Obj2_IndInObj1(Iref))
-                    IndCat = ResInd.Obj2_IndInObj1(Iref);
-                    MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), double(CatH.Catalog(Iref,Args.MergedCatMaskCol)));
+                % Merged Mask bits for each source
+                % For each source in the ref catalog (CatH), if there is a matching
+                % source within the search radius, then add the bit mask of the ref
+                % source to that of the Cat source.
+                % The addition is 
+                FlagNaN = ResInd.Obj2_Dist > CatH.Catalog(:,Args.MergedCatRadiusCol);
+                ResInd.Obj2_IndInObj1(FlagNaN) = NaN;
+                MergedCatFlag = zeros(numel(ResInd.Obj1_IndInObj2),1);
+                Nref = numel(ResInd.Obj2_IndInObj1);
+                for Iref=1:1:Nref
+                    if ~isnan(ResInd.Obj2_IndInObj1(Iref))
+                        IndCat = ResInd.Obj2_IndInObj1(Iref);
+                        MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), double(CatH.Catalog(Iref,Args.MergedCatMaskCol)));
+                    end
                 end
             end
-
+            
             % Insert column to catalog
             Cat = insertCol(Cat, MergedCatFlag, Args.ColPos, Args.FlagColNames, '');
 
