@@ -45,6 +45,9 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
     %            'Obj1_FlagAll' - A vector, for each source in Obj1,
     %                   of logicals indicating if this source is a
     %                   match (within search radius) to a source is Obj2.
+    %            'Obj1_Fist' - A vector, for each source in Obj1, of the
+    %                   angular distance ['rad' if 'sphere'] between the
+    %                   matched sources.
     % Author : Eran Ofek (Sep 2021)
     % Example : AC = AstroCatalog;
     %           AC.Catalog  = [1 0; 1 2; 1 1; 2 -1; 2 0; 2.01 0];
