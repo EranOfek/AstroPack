@@ -84,7 +84,7 @@ function Result = match_catsHTMmerged(Obj, Args)
                                                                     'Radius',MaxSearchRadius,...
                                                                     'RadiusUnits','arcsec');
                 FlagNaN = ResInd.Obj1_Dist > CatH.Catalog(:,Args.MergedCatRadiusCol);
-                % need to debug: got here
+                % FFU: need to debug: got here
                 
                 ResInd.Obj2_IndInObj1(FlagNaN) = NaN;
                 MergedCatFlag = zeros(numel(ResInd.Obj1_IndInObj2),1);
