@@ -2546,6 +2546,8 @@ classdef catsHTM
                     else
                         Cat = zeros(0,3);
                     end
+                    
+                    %class(Cat)
 
                     % calculate center of HTM
                     % Corners = [DataHTM(Ihtm, [7, 9, 11]).', DataHTM(Ihtm, [8
@@ -2569,6 +2571,8 @@ classdef catsHTM
                             CatC = [];
                             'a'
                         end
+                        %Icat
+                        %class(CatC)
                         % select sources in HTM
                         if isempty(CatC)
                             CatC = zeros(0,2);
