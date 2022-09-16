@@ -2578,7 +2578,7 @@ classdef catsHTM
                         end
                         Nlines = size(CatC,1);
                         Bit = bitset(0,Icat).*ones(Nlines,1);
-                        Cat  = [Cat; [CatC(:,1:2), Bit, Args.CatRadius(1).*ones(Nlines,1)]];
+                        Cat  = [Cat; [CatC(:,1:2), Bit, Args.CatRadius(Icat).*ones(Nlines,1)]];
                     end
 
 
