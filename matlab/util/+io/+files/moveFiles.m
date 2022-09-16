@@ -14,6 +14,9 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
     %          - Source path, either a char or a cell array of paths.
     %            Default is ''.
     %          - Destination path, either a char or a cell array of paths.
+    %            If empty, will assume all files have the same destination
+    %            and the destination is given in the destination file names
+    %            (second input argument).
     %            Default is ''.
     %          * ...,key,val,...
     %            'MkDir' - A logical indicating if to create destination
@@ -56,6 +59,14 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
         DestFiles = {DestFiles};
     end   
     
+    if isempty(DestPath)
+        % assumeing all files have the same destination
+        DestPath = fileparts(DestFiles{1});
+        DestPathInFile = true;
+    else
+        DestPathInFile = false;
+    end
+    
     if ischar(DestPath) && Args.MkDir
         mkdir(DestPath)
     end
@@ -64,7 +75,11 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
     Destination = cell(1, Nfile);
     for Ifile=1:1:Nfile
         Source      = sprintf('%s%s%s', SourcePath, filesep, SourceFiles{Ifile});
-        Destination{Ifile} = sprintf('%s%s%s', DestPath, filesep, DestFiles{Ifile});
+        if DestPathInFile
+            Destination{Ifile} = DestFiles{Ifile};
+        else
+            Destination{Ifile} = sprintf('%s%s%s', DestPath, filesep, DestFiles{Ifile});
+        end
         % make sure diirectory exist
         if ~ischar(DestPath) && Args.MkDir
             mkdir(DestPath{Ifile});

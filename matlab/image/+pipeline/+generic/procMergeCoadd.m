@@ -83,6 +83,9 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     
     % continue only for fields for which all visits astrometry is good
     FlagGoodAstrometry = all(imProc.astrometry.isSuccessWCS(AllSI));
+    if ~all(FlagGoodAstrometry)
+        warning('Some sub images have bad astrometry');
+    end
     [MergedCat, MatchedS, ResultSubIm.ResZP, ResultSubIm.ResVar, ResultSubIm.FitMotion] = imProc.match.mergeCatalogs(AllSI,...
                                                                                                             Args.mergeCatalogsArgs{:},...
                                                                                                             'FlagGood',FlagGoodAstrometry,...

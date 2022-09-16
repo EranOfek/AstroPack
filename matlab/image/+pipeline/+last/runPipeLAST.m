@@ -194,14 +194,15 @@ function runPipeLAST(DataNumber, Args)
             
             %LogFileName = sprintf('/home/ocs/%s_log_pipeline.log',ProjName);
             %FID = fopen(LogFileName, 'a+');
-            tic;
+            
             try
-                
+                tic;
                 pipeline.generic.multiRaw2procCoadd(ListImagesNew, 'CalibImages',CI, Args.multiRaw2procCoaddArgs{:}, 'SubDir',NaN, 'BasePath', Args.BaseArchive);
+                toc
                 Destination = io.files.moveFiles(ListImagesNew, ListImagesRaw, '', '', 'MkDir',true);
                 
                 fprintf('Sucess\n\n');
-            catch
+            catch ME
                 warning('Failed sequence');
                 % failed
                 % copy images to failed directory
@@ -209,7 +210,7 @@ function runPipeLAST(DataNumber, Args)
                 %DirFailed        = fileparts(ListImagesFailed{1});
                 io.files.moveFiles(ListImagesNew, ListImagesFailed, '', '', 'MkDir',true);
             end
-            toc
+            
             
             Counter
             
