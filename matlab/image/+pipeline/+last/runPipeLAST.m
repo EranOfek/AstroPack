@@ -199,6 +199,7 @@ function runPipeLAST(DataNumber, Args)
                 tic;
                 pipeline.generic.multiRaw2procCoadd(ListImagesNew, 'CalibImages',CI, Args.multiRaw2procCoaddArgs{:}, 'SubDir',NaN, 'BasePath', Args.BaseArchive);
                 toc
+                
                 Destination = io.files.moveFiles(ListImagesNew, ListImagesRaw, '', '', 'MkDir',true);
                 
                 fprintf('Sucess\n\n');

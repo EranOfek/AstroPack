@@ -244,8 +244,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.astrometryRefineArgs cell        = {};
         
         % Match against external catalog: 'MergedCat
-        Args.CoaddMatchMergedCat logical      = true;
-        Args.MergedMatchMergedCat logical     = true;
+        Args.CoaddMatchMergedCat logical      = false;  % true;  FFU: DEEBUG!!!
+        Args.MergedMatchMergedCat logical     = false;  % true;  FFU: DEEBUG!!!
         
         Args.mergeCatalogsArgs cell           = {};
         
