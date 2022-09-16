@@ -75,9 +75,10 @@ for I=1:1:Nlat
     DistI = Dist(FlagDist);
     if ~isempty(DistI)
         [MinDist, MinInd] = min(DistI);
-        IndTable(I,1) = IndI(MinInd);   % VERIFY THIS???
-        IndTable(I,2) = MinDist;
-        IndTable(I,3) = numel(IndI);
+        %IndTable(I,1) = IndI(MinInd);   % VERIFY THIS???
+        %IndTable(I,2) = MinDist;
+        %IndTable(I,3) = numel(IndI);
+        IndTable(I,:) = [IndI(MinInd), MinDist, numel(IndI)];
         
         CatFlagNearest(IndTable(I,1)) = true;
         CatFlagAll(IndI)              = true;

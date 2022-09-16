@@ -1,5 +1,5 @@
 function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Args)
-     % Merge catalogs of the same field into a single unified merged catalog
+    % Merge catalogs of the same field into a single unified merged catalog
     %   The program may works AstroImage array in which different columns
     %   corresponds to different fields, and rows corresponds to epochs.
     %   The catalogs of each fields are merged into an AstroTable using 

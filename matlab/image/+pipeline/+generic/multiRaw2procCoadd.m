@@ -437,6 +437,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                           'CropID_FromInd',false,...
                                                           'AutoSubDir',AutoSubDir,...
                                                           'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir',''});
+    ProjName = IP(1).ProjName;
     
     Args.SubDir = IP(1).SubDir;                                                  
     writeProduct(IP, AllSI, 'Save',Args.SaveProcIm || Args.SaveProcMask || Args.SaveProcCat,...
@@ -498,10 +499,13 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     % Save individual coadd images
     DataProp = {'Image','Mask','Cat','PSF'};
     IP = ImagePath.generateImagePathFromProduct(Coadd, 'PropFromHeader',true,...
-                                                          'DataDirFromProjName',true,...
+                                                          'DataDirFromProjName',false,...
                                                           'AutoSubDir',false,...
                                                           'CropID_FromInd',false,...
                                                           'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir','', 'PathLevel','proc'});
+    IP.setAllVal('ProjName',ProjName);
+    IP.setAllVal('DataDir',ProjName);
+    
     
     FlagGood = ~isemptyImage(Coadd);
     writeProduct(IP(FlagGood), Coadd(FlagGood), 'Save', Args.SaveCoaddIm || Args.SaveCoaddMask || Args.SaveCoaddCat || Args.SaveCoaddPSF,...
@@ -514,7 +518,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     writeProduct(IP(FlagGood), MatchedS(FlagGood), 'Save',Args.SaveMatchMat, 'Product','MergedMat', 'Level','merged', 'WriteFunArgs', {'FileType','hdf5'}, 'SaveFields',{'Cat'}, 'FileType','hdf5');
     
     % save Asteroids MAT file
-    writeProduct(IP(1), ResultAsteroids, 'Save',Args.SaveAsteroids, 'Product','Asteroids', 'Level','proc');
+    Igood = find(FlagGood, 1);
+    writeProduct(IP(Igood), ResultAsteroids, 'Save',Args.SaveAsteroids, 'Product','Asteroids', 'Level','proc');
     
 end
 

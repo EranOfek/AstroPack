@@ -77,7 +77,7 @@ function Result = match_catsHTMmerged(Obj, Args)
 
 
             RefIsCat = false;
-            if RefIscat
+            if RefIsCat
                 % Ref is Cat
                 % no need to sort - catsHTM already sorted
                 ResInd = imProc.match.matchReturnIndices(CatH, Cat, 'CooType','sphere',...
