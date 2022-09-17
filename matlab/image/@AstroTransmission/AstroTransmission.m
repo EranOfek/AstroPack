@@ -469,14 +469,17 @@ classdef AstroTransmission < Component
         end
         
         function Result = interp1(Obj, NewWave, Args)
-            % Interpolate the elements of AstroSpec into a new wavelength grid.
+            % Interpolate the elements of AstroTransmission into a new wavelength grid.
             %       The Mask will be interpolated using nearest
             %       interpolation. This function works only if the Data is
             %       convertable to a numeric matrix.
-            % Input  : - An AstroSpec object.
+            % Input  : - An AstroTransmission object.
             %          - A vector of new wavelngth grid on which to
             %            interpolate the AstroSpec object.
             %            Alternatively, a AstroSpec object with wavelength.
+            %            If a scalar, this is the wavelength step, while
+            %            the min and max wavelength will be taken from the
+            %            first element in the AstroTransmission object.
             %          * ...,key,val,...
             %            'Method' - Interpolation method. See interp1 for
             %                   options. Default is 'linear'.
@@ -491,44 +494,47 @@ classdef AstroTransmission < Component
             %                   Otherwise, create new copy. Default is [].
             % Output : - An AstroSpec object with the interpolated spectra.
             % Author : Eran Ofek (Aug 2021)
-            % Example: S = AstroSpec({rand(100,3)});
+            % Example: S = AstroTransmission({rand(100,3)});
             %          S.sort;
             %          S.interp1([0:0.1:1]);
             
             arguments
                 Obj
                 NewWave
-                Args.Method                 = 'linear';
+                Args.InterpMethod           = 'linear';
                 Args.ExtraArgs cell         = {};
                 Args.RemoveNan(1,1) logical = false;
                 Args.CreateNewObj           = [];
             end
           
-            if isa(NewWave, 'AstroSpec')
+            if isa(NewWave, 'AstroTransmission')
                 NewWave = NewWave.Wave;
             end
             NewWave = NewWave(:);
+            
+            if numel(NewWave)==1
+                % generate an evenly spaced grid based on first element in
+                % Obj
+                Step = NewWave;
+                
+                Min = min(Obj(1).Wave);
+                Max = max(Obj(1).Wave);
+                
+                NewWave = ((Min-Step):Step:(Max+Step)).';
+            end
             
             [Result] = createNewObj(Obj, Args.CreateNewObj, nargout, 0);
             
             Nobj = numel(Obj);
             
             for Iobj=1:1:Nobj
-                % special treatment for Mask
-                if ~isempty(Obj(Iobj).MaskData.Data)
-                    Result(Iobj).MaskData.Data = interp1(Obj(Iobj).Wave, Obj(Iobj).MaskData.Data, NewWave, 'nearest');
-                end
-                VarNames = Obj(Iobj).Data.Properties.VariableNames;
-                VarUnits = Obj(Iobj).Data.Properties.VariableUnits;
-                Result(Iobj).Data = array2table(interp1(Obj(Iobj).Wave, table2array(Obj(Iobj).Data), NewWave, Args.Method, Args.ExtraArgs{:}));
-                Result(Iobj).Data.Properties.VariableNames = VarNames;
-                Result(Iobj).Data.Properties.VariableUnits = VarUnits;
-                
-                if Args.RemoveNan
-                    Flag = isnan(Result(Iobj).Wave) | isnan(Result(Iobj).Flux);
-                    Result(Iobj) = selectWave(Result(Iobj), ~Flag);
-                end
+                Result(Iobj).Tran = interp1(Obj(Iobj).Wave, Obj(Iobj).Tran, NewWave, Args.InterpMethod, 'extrap');
+                % make sure no value below zero
+                Flag0 = Result(Iobj).Tran<0;
+                Result(Iobj).Tran(Flag0) = 0;
+                Result(Iobj).Wave = NewWave;
             end
+                
         end
         
         function [New1, New2] = interpAndKeepOverlap(Obj1, Obj2, Args)
