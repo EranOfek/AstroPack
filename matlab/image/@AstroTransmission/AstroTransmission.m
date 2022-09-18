@@ -150,6 +150,7 @@ classdef AstroTransmission < Component
             
         end
         
+        
         function Result = genTopHat(Ranges, Family, BandPrefix, Args)
             % Generate a series of top-hat filters (Type='filter').
             % Input  : - A two column matrix of [Min, Max] wavelength
@@ -751,6 +752,54 @@ classdef AstroTransmission < Component
             end
         end
         
+        
+        function [Result, Wave] = convert2matrix(Obj, NewWave)
+            % Generate a matrix of response functions from a set of AstroTransmission filters
+            %   Given an array of AstroTransmission, each containing a
+            %   filter transmission, enerate a matrix of size (Ntran,
+            %   Nwave), of all the transmissions.
+            %   Here Ntran is the number of elements in the input object,
+            %   and Nwave is the number of wavelength.
+            % Input  : - An array of AstroTransmission objects.
+            %          - A vector the new wavelngth grid on which to
+            %            generate the matrix. If empty, then use default
+            %            values (but in this case they are assumed to have
+            %            identrical wavelenth grid).
+            %            Default is [].
+            % Output : - A matrix of transmissions. Line per transmission.
+            %          - A vector of common wavelength for all
+            %            transmissions.
+            % Author : Eran Ofek (Sep 2022)
+            % Example: F2=AstroTransmission.genHadamard([4000:1:9000],48);
+            %          F2=F2.interp1([3999:1:9001]);
+            %          [Result, Wave] = convert2matrix(F2);
+            
+            arguments
+                Obj
+                NewWave   = [];
+            end
+            
+            if ~isempty(NewWave)
+                % interp1
+                
+                ObjC = interp1(Obj, NewWave, 'CreateNewObj',true);
+            else
+                ObjC = Obj;
+            end
+            
+            Nwave = length(ObjC);
+            if ~all(Nwave==Nwave(1))
+                error('Number of wavelength in each spectra must be identical, provide the NewWave argument');
+            end
+            
+            Nobj   = numel(ObjC);
+            Result = zeros(Nobj, Nwave(1));
+            for Iobj=1:1:Nobj
+                Result(Iobj,:) = ObjC(Iobj).Tran;
+            end
+            Wave = ObjC(Iobj).Wave;
+            
+        end
     end
     
     methods % Flux operators
