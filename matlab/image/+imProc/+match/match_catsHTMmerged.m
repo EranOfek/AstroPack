@@ -4,6 +4,11 @@ function Result = match_catsHTMmerged(Obj, Args)
     %   It contains 4 columns [RA, Dec, BitFlag, AngRadius]
     % Input  : - An AstroImage or AstroCatalog object.
     %          * ...,key,val,...
+    %            'SwitchRefCat' - A logical indicating if to swith the role
+    %                   of Cat and Ref. This may be important for run time.
+    %                   Best (perforemce wise) is that the first input
+    %                   contains the larger catalog.
+    %                   Default is false.
     %            'SameField' - A logical indicating if all the catalogs
     %                   covers the same field of view.
     %                   Used only for expediting the code.
@@ -37,6 +42,7 @@ function Result = match_catsHTMmerged(Obj, Args)
     
     arguments
         Obj
+        Args.SwitchRefCat logical         = false;
         Args.SameField logical            = false;
         Args.Con                          = {};
         Args.ColPos                       = Inf;
@@ -76,13 +82,12 @@ function Result = match_catsHTMmerged(Obj, Args)
             end
 
 
-            RefIsCat = false;
-            if RefIsCat
+            if Args.SwitchRefCat
                 % Ref is Cat
                 % no need to sort - catsHTM already sorted
                 ResInd = imProc.match.matchReturnIndices(CatH, Cat, 'CooType','sphere',...
                                                                     'Radius',MaxSearchRadius,...
-                                                                    'RadiusUnits','arcsec');
+                                                                    'RadiusUnits','arcsec'); %#ok<UNRCH>
                 FlagNaN = ResInd.Obj1_Dist > CatH.Catalog(:,Args.MergedCatRadiusCol);
                 % FFU: need to debug: got here
                 
@@ -120,7 +125,7 @@ function Result = match_catsHTMmerged(Obj, Args)
                         MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), double(CatH.Catalog(Iref,Args.MergedCatMaskCol)));
                     end
                 end
-            end
+            end  % if Args.SwitchRefCat
             
             % Insert column to catalog
             Cat = insertCol(Cat, MergedCatFlag, Args.ColPos, Args.FlagColNames, '');
