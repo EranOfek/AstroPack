@@ -79,6 +79,7 @@ function runPipeLAST(DataNumber, Args)
     % wait for new images
     Cont = true;
     Counter = 0;
+    FailedCounter = 0;
     while Cont
         % move focus files
         %io.files.moveFiles('*.focus*.\.fits',[], Args.NewFilesDir, ...
@@ -204,6 +205,22 @@ function runPipeLAST(DataNumber, Args)
                 
                 fprintf('Sucess\n\n');
             catch ME
+                
+                
+                if exist('ME.mat','file')>0
+                    load MEx.mat
+                    FailedCounter = numel(MEx);
+                end
+                
+                FailedCounter = FailedCounter + 1;
+                
+                MEx(FailedCounter).FailedCounter = FailedCounter;
+                MEx(FailedCounter).ME            = ME;
+                
+                save -v7.3 MEx.mat MEx
+                
+                
+                
                 warning('Failed sequence');
                 % failed
                 % copy images to failed directory
