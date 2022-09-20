@@ -51,7 +51,7 @@ classdef CalibImages < Component
         
         % created by createBias
         DarkGroupsKey   % cell array of keys
-        DarkGroupsVal   % Nimages X Nkeys
+        DarkGroupsVal   % Cell (size Nimages) of cells (size Nkeys)
         
         SubtractOverScan(1,1) logical   = true;
     end
@@ -327,7 +327,7 @@ classdef CalibImages < Component
                     Groups = AH.groupByKeyVal(Args.GroupKeys);
                     Ngroup = numel(Groups);
                     Obj.DarkGroupsKey = Args.GroupKeys;
-                    Obj.DarkGroupsVal
+                    Obj.DarkGroupsVal = {Groups.Content};
                 else
                     Ngroup = 1;
                     Groups(1).ptr = (1:1:numel(Files));
@@ -762,13 +762,18 @@ classdef CalibImages < Component
                 
                 % subtract bias/dark by groups
                 if isempty(Obj(Iobj).DarkGroups)
-                    Result(Iim) = imProc.dark.debias(Result(Iim), Obj(Iobj).Bias, 'CreateNewObj',false, Args.debiasArgs{:});
+                    IndBias = 1;
                 else
-                    error('Not supported yet');
-                    DarkKeyVal  = Obj(Iobj).Bias.getStructKey(Obj(Iobj).DarkGroups);
-                    ImageKeyVal = Result(Iim).HeaderData.getStructKey(Obj(Iobj).DarkGroups);
                     
+                    DarkKeyVal  = Obj(Iobj).DarkGroupsVal;
+                    DarkKeyVal  = cellfun(@cell2mat, DarkKeyVal, 'UniformOutput',false);
+                    DarkKeyVal  = cell2mat(DarkKeyVal.');
+                    
+                    ImageKeyVal = Result(Iim).HeaderData.getCellKey(Obj(Iobj).DarkGroupsKey);
+                    % index of bias image to use
+                    IndBias     = find(all(ImageKeyVal == DarkKeyVal, 2), 1);
                 end
+                Result(Iim) = imProc.dark.debias(Result(Iim), Obj(Iobj).Bias(IndBias), 'CreateNewObj',false, Args.debiasArgs{:});
             end
         end
         
