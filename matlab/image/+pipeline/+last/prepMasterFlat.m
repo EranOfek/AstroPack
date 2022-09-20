@@ -31,7 +31,7 @@ function Counter = prepMasterFlat(Args)
     %            'Verbose' - Default is false.
     % Output : - Number of master flat images written to disk.
     % Author : Eran Ofek (Sep 2022)
-    % Example: pipeline.last.prepMasterDark
+    % Example: pipeline.last.prepMasterFlat
     
     
     arguments
