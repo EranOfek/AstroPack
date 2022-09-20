@@ -1,4 +1,4 @@
-function prepMasterFlat(Args)
+function Counter = prepMasterFlat(Args)
     % Look for new files and prepare master flat for LAST
     % Input  : * ...,key,val,...
     %            'DataNum' - Number of disk data (e.g., 'data1').
@@ -29,7 +29,7 @@ function prepMasterFlat(Args)
     %                   to group the images.
     %                   Default is {'EXPTIME','CAMOFFS'}.
     %            'Verbose' - Default is false.
-    % Output : - Number of dark images written to disk.
+    % Output : - Number of master flat images written to disk.
     % Author : Eran Ofek (Sep 2022)
     % Example: pipeline.last.prepMasterDark
     
@@ -89,6 +89,9 @@ function prepMasterFlat(Args)
         end
     end
     
+    
+    CI = CalibImage.loadFromDir(CalibDir, 'FlatImType',[]);  % do not load flat
+    
     % read headers of all selected files
     % select images by additional criteria
     
@@ -96,11 +99,7 @@ function prepMasterFlat(Args)
     AH     = AstroHeader({FilesInNew.name});
     Groups = AH.groupByKeyVal(Args.GroupKeys);
     JD     = julday(AH);
-    Ngroup = numel(Groups);
-    
-    
-    got here...
-    
+    Ngroup = numel(Groups);    
     
     for Igroup=1:1:Ngroup
         Files = FilesInNew(Groups(Igroup).ptr);
@@ -123,14 +122,17 @@ function prepMasterFlat(Args)
                 List   = {FilesInNew(Ind).name};
 
                 % prep dark
-                CI = CalibImages;
+                %CI = CalibImages;
                 IP = ImagePath.parseFileName(List);
                 IP(1).DataDir  = ProjName;
                 IP(1).BasePath = BasePath;
                 IP(1).Level    = 'raw';
                 
-                CI.createBias(List);
-
+                %CI.createBias(List);
+                AI = AstroImage(List);
+                AI = CI.debias(AI);
+                CI.createFlat(AI);
+                
                 % save data
                 MasterIP = IP(1).copy;
                 MasterIP.Level   = 'proc';

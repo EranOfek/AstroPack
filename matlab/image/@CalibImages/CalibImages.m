@@ -264,7 +264,9 @@ classdef CalibImages < Component
             %            'BiasImType' - ImType that should appear in the
             %                   bias images names. Default is 'dark'.
             %            'FlatImType' - ImType that should appear in the
-            %                   flat images names. Default is 'flat'.
+            %                   flat images names.
+            %                   If empty then do not load the flat.
+            %                   Default is 'flat'.
             %            'BiasProduct' - A cell array of product names to
             %                   upload, in addition to the 'Image', for
             %                   the bias image. Default is {'Mask'}.
@@ -357,32 +359,34 @@ classdef CalibImages < Component
             end
             
             % Flat
-            Field  = 'FlatProduct';
-            ImType = 'FlatImType'; 
-            Nprod = numel(Args.(Field));
-            Pat = sprintf('%s*%s*%s*%s',DirName, Args.(ImType), Args.ImageProduct, Args.FileType);
-            Files = io.files.dirSortedByDate(Pat);
-            if isempty(Files)
-                warning('Bias images were not found in %s',DirName);
-            else
-                if Args.LoadLatest
-                    Files = Files(end);
-                else
-                    Files = Files(1);
-                end
-                ArgsAI    = cell(1, 1+Nprod.*2);
-                I         = 1;
-                ArgsAI{I} = fullfile(Files.folder,Files.name);
-
-                for Iprod=1:1:Nprod
-                    I = I + 1;
-                    ArgsAI{I} = Args.(Field){Iprod};
-                    I = I + 1;
-                    ArgsAI{I} = strrep(fullfile(Files.folder,Files.name), Args.ImageProduct, Args.(Field){Iprod});
-                end
-                Obj.Flat = AstroImage(ArgsAI{:});
-            end
+            if ~isempty(Args.FlatImType)
             
+                Field  = 'FlatProduct';
+                ImType = 'FlatImType'; 
+                Nprod = numel(Args.(Field));
+                Pat = sprintf('%s*%s*%s*%s',DirName, Args.(ImType), Args.ImageProduct, Args.FileType);
+                Files = io.files.dirSortedByDate(Pat);
+                if isempty(Files)
+                    warning('Bias images were not found in %s',DirName);
+                else
+                    if Args.LoadLatest
+                        Files = Files(end);
+                    else
+                        Files = Files(1);
+                    end
+                    ArgsAI    = cell(1, 1+Nprod.*2);
+                    I         = 1;
+                    ArgsAI{I} = fullfile(Files.folder,Files.name);
+
+                    for Iprod=1:1:Nprod
+                        I = I + 1;
+                        ArgsAI{I} = Args.(Field){Iprod};
+                        I = I + 1;
+                        ArgsAI{I} = strrep(fullfile(Files.folder,Files.name), Args.ImageProduct, Args.(Field){Iprod});
+                    end
+                    Obj.Flat = AstroImage(ArgsAI{:});
+                end
+            end
         end
         
     end
