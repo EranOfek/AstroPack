@@ -287,6 +287,7 @@ classdef CalibImages < Component
                 Args.ImageProduct        = 'Image';
                 Args.FileType            = 'fits';
                 Args.LoadLatest logical  = true;
+                Args.GroupKeys           = []; %{'EXPTIME','CAMOFFS','CAMGAIN'};
             end
             
             if isempty(DirName)
@@ -307,22 +308,37 @@ classdef CalibImages < Component
             if isempty(Files)
                 warning('Bias images were not found in %s',DirName);
             else
-                if Args.LoadLatest
-                    Files = Files(end);
+                if ~isempty(Args.GroupKeys)
+                    % read headers
+                    AH     = AstroHeader({Files.name});
+                    Groups = AH.groupByKeyVal(Args.GroupKeys);
+                    Ngroup = numel(Groups);
                 else
-                    Files = Files(1);
+                    Ngroup = 1;
+                    Groups(1).ptr = (1:1:numel(Files));
                 end
-                ArgsAI    = cell(1, 1+Nprod.*2);
-                I         = 1;
-                ArgsAI{I} = fullfile(Files.folder,Files.name);
+                
+                for Igroup=1:1:Ngroup
+                    FilesG = Files(Groups(Igroup).ptr);
+                    
+                    
+                    if Args.LoadLatest
+                        FilesG = FilesG(end);
+                    else
+                        FilesG = FilesG(1);
+                    end
+                    ArgsAI    = cell(1, 1+Nprod.*2);
+                    I         = 1;
+                    ArgsAI{I} = fullfile(FilesG.folder,FilesG.name);
 
-                for Iprod=1:1:Nprod
-                    I = I + 1;
-                    ArgsAI{I} = Args.(Field){Iprod};
-                    I = I + 1;
-                    ArgsAI{I} = strrep(fullfile(Files.folder,Files.name), Args.ImageProduct, Args.(Field){Iprod});
+                    for Iprod=1:1:Nprod
+                        I = I + 1;
+                        ArgsAI{I} = Args.(Field){Iprod};
+                        I = I + 1;
+                        ArgsAI{I} = strrep(fullfile(FilesG.folder,Files.name), Args.ImageProduct, Args.(Field){Iprod});
+                    end
+                    Obj.Bias(Igroup) = AstroImage(ArgsAI{:});
                 end
-                Obj.Bias = AstroImage(ArgsAI{:});
             end
             
             % Flat

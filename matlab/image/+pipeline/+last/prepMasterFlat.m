@@ -1,5 +1,5 @@
-function Counter = prepMasterDark(Args)
-    % Look for new files and prepare master dark for LAST
+function prepMasterFlat(Args)
+    % Look for new files and prepare master flat for LAST
     % Input  : * ...,key,val,...
     %            'DataNum' - Number of disk data (e.g., 'data1').
     %                   Default is 1.
@@ -27,7 +27,7 @@ function Counter = prepMasterDark(Args)
     %                   Default is 8.
     %            'GroupKeys' - Cell array of image header keywords by which
     %                   to group the images.
-    %                   Default is {'EXPTIME','CAMOFFS','CAMGAIN'}.
+    %                   Default is {'EXPTIME','CAMOFFS'}.
     %            'Verbose' - Default is false.
     % Output : - Number of dark images written to disk.
     % Author : Eran Ofek (Sep 2022)
@@ -38,20 +38,23 @@ function Counter = prepMasterDark(Args)
         Args.DataNum                  = 1;   % disk data# number
         Args.Node                     = 1;
         Args.ProjName                 = [];
-        Args.Type                     = 'dark';
+        Args.Type                     = 'twflat';
         Args.FileTemplate             = [];  % if empty will be constructed: 'LAST.01.02.03_*_dark*.fits'
         
         Args.NewFilesDir              = [];  % '/last02w/data1/archive/LAST.01.02.03/new'
         Args.CalibDir                 = [];  % '/last02w/data1/archive/LAST.01.02.03/calib'
         Args.BasePath                 = [];  % '/last02w/data1/archive'
         
-        Args.MaxTimeDiff              = 70;  % [s] - max time diff between images
+        Args.MaxTimeDiff              = 90;  % [s] - max time diff between images
         Args.SearchStr                = []; %'*_dark_raw*_Image_*.fits';
         %Args.DarkSearchStr            = '*_dark_proc*_Image_*.fits'; % needed for the flat
-        Args.MaxImages                = 20;
-        Args.MinNimages               = 8; % 8; % 18;
+        Args.MaxImages                = 25;
+        Args.MinNimages               = 6; % 8; % 18;
         
-        Args.GroupKeys                = {'EXPTIME','CAMOFFS','CAMGAIN'};
+        Args.MinMaxFlat               = [6000 40000];
+        Args.KeyFilter                = 'FILTER';
+        Args.GroupKeys                = {'FILTER','CAMOFFS','CAMGAIN'};
+        Args.ExpTimeKey               = 'EXPTIME';
         
         Args.Verbose logical          = false;
     end
@@ -74,13 +77,13 @@ function Counter = prepMasterDark(Args)
     Counter = 0;
     
     % wait for new files
-    NewDarkFilesExist = true;
-    while NewDarkFilesExist
+    NewFlatFilesExist = true;
+    while NewFlatFilesExist
         FilesInNew  = io.files.dirSortedByDate(Args.FileTemplate);
         TimeSinceLastFile_sec = SEC_DAY.*min(now - [FilesInNew.datenum]);
     
         if TimeSinceLastFile_sec > Args.MaxTimeDiff
-            NewDarkFilesExist = false;
+            NewFlatFilesExist = false;
         else
             pasue(max(Args.MaxTimeDiff - TimeSinceLastFile_sec, 1));
         end
@@ -94,6 +97,10 @@ function Counter = prepMasterDark(Args)
     Groups = AH.groupByKeyVal(Args.GroupKeys);
     JD     = julday(AH);
     Ngroup = numel(Groups);
+    
+    
+    got here...
+    
     
     for Igroup=1:1:Ngroup
         Files = FilesInNew(Groups(Igroup).ptr);
@@ -157,5 +164,6 @@ function Counter = prepMasterDark(Args)
         
         end
     end
+    
     
 end
