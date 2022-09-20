@@ -1274,6 +1274,82 @@ classdef AstroImage < Component
             
         end
         
+        function Result = isKeyVal(Obj, Key, Val, Args)
+            % Check if a multiple keyword value equal to some value.
+            % Input  : - An AstroImage object.
+            %          - A cell array of keywords to test.
+            %          - A cell array of keyword values to test.
+            %          * ...,key,val,..
+            %            'UseDict' - Indicating if to use dictionary or to
+            %                   perform an exact search. Default is true.
+            %            'CaseSens' - Default is true.
+            %            'SearchAlgo' - ['strcmp'] | 'regexp'.
+            %                   or 'last' match.
+            %            'Fill' - Fill value for the keyword Val, in case that the
+            %                   key is not found. Default is NaN (comment will be
+            %                   '').
+            %            'Val2Num' - Attempt to convert the value to numeric.
+            %                   Default is true.
+            %            'IsInputAlt' - If true, then the input keyword
+            %                   will be assumed to be in the list of
+            %                   alternate names. If false, then this must
+            %                   be the primary key name in the dictionary.
+            %                   For example, if you would like to search
+            %                   by 'AEXPTIME' use true.
+            %                   Default is false.
+            %            'KeyDict' - An optional keyword dictionary (a s
+            %                   tructure) that will override the object
+            %                   dictionary.
+            % Output : - A matrix of logicals. Line per AstroImage object,
+            %            row per keyword name. The logicals indicating if
+            %            the keyword equal the value.
+            % Author : Eran Ofek (Sep 2022)
+            % Example: Result = isKeyVal(AI,{'EXPTIME','CAMOFFS'},{20,4});
+            
+            arguments
+                Obj
+                Key cell
+                Val cell
+                
+                Args.UseDict(1,1) logical                                       = true;
+                Args.CaseSens(1,1) logical                                      = true;
+                Args.SearchAlgo char                                            = 'strcmp';
+                Args.Fill                                                       = NaN;
+                Args.Val2Num(1,1) logical                                       = true;
+                Args.IsInputAlt(1,1) logical                                    = true;
+                Args.KeyDict                                                    = [];
+            end
+            
+            
+            Nkey   = numel(Key);
+            Nobj   = numel(Obj);
+            Result = nan(Nobj, Nkey);
+            for Iobj=1:1:Nobj
+                St(Iobj) = Obj(Iobj).HeaderData.getStructKey(Key, 'UseDict',Args.UseDict,...
+                                                                  'CaseSens',Args.CaseSens,...
+                                                                  'SearchAlgo',Args.SearchAlgo,...
+                                                                  'Fill',Args.Fill,...
+                                                                  'Val2Num',Args.Val2Num,...
+                                                                  'IsInputAlt',Args.IsInputAlt,...
+                                                                  'KeyDict',Args.KeyDict);
+                
+                for Ikey=1:1:Nkey
+                    KeyVal = St(Iobj).(Val{Ikey});
+                    if ischar(KeyVal)
+                        if Args.CaseSens
+                            Result(Iobj, Ikey) = strcmp(KeyVal,Val{Ikey});
+                        else
+                            Result(Iobj, Ikey) = strcmpi(KeyVal,Val{Ikey});
+                        end
+                    else
+                        Result(Iobj, Ikey) = KeyVal == Val{Ikey};
+                    end
+                end
+            end
+            
+        end
+        
+        
         function Obj = propagateWCS(Obj, Args)
             % Given An AstroImage with WCS property, propagate it to the header and catalog
             % Input  : - An AstroImage object with populated WCS.

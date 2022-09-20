@@ -1,7 +1,7 @@
 function [Found, CI] = prepDarkFlat(Args)
     % Look for dark images and combine when ready
     % Example:
-    % pipeline.last.prepDarkFlat('NewFilesDir','/last02w/data1/archive/LAST.01.82.03/new','CalibDir','/last02w/data1/archive/LAST.01.82.03/calib','BasePath','/last02w/data1/archive');
+    % pipeline.last.prepDarkFlat('NewFilesDir','/last02w/data1/archive/LAST.01.02.03/new','CalibDir','/last02w/data1/archive/LAST.01.02.03/calib','BasePath','/last02w/data1/archive');
     % pipeline.last.prepDarkFlat('Type','flat','NewFilesDir','/last02w/data1/archive/LAST.01.82.03/new','CalibDir','/last02w/data1/archive/LAST.01.82.03/calib','BasePath','/last02w/data1/archive');
     
     
