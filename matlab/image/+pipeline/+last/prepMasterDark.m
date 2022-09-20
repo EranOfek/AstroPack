@@ -1,6 +1,36 @@
-function prepMasterDark(Args)
+function Counter = prepMasterDark(Args)
     % Look for new files and prepare master dark for LAST
-    % Input  : - 
+    % Input  : * ...,key,val,...
+    %            'DataNum' - Number of disk data (e.g., 'data1').
+    %                   Default is 1.
+    %            'Node' - LAST node. Default is 1.
+    %            'ProjName' - e.g., 'LAST.01.02.03'. If empty, will be
+    %                   constructed automatically from computer name.
+    %                   Default is [].
+    %            'Type' - Image type to search in image name.
+    %                   Default is 'dark'.
+    %            'FileTemplate' - File template to search.
+    %                   If empty will be constructed from project name and
+    %                   type (e.g., 'LAST.01.02.03_*_dark*.fits').
+    %                   Default is [].
+    %            'NewFilesDir' - e.g., '/last02w/data1/archive/LAST.01.02.03/new'
+    %                   If empty, constrcut automatically. Default is [].
+    %            'CalibDir' - e.g., '/last02w/data1/archive/LAST.01.02.03/calib'
+    %                   If empty, constrcut automatically. Default is [].
+    %            'BasePath' - e.g., '/last02w/data1/archive'
+    %                   If empty, constrcut automatically. Default is [].
+    %            'MaxTimeDiff' - Maximum time difference between images in
+    %                   sequence. Default is 70 [seconds].
+    %            'MaxImages' - Max. number of images in master.
+    %                   Default is 20.
+    %            'MinNimages' - Min. number of images in master.
+    %                   Default is 8.
+    %            'GroupKeys' - Cell array of image header keywords by which
+    %                   to group the images.
+    %                   Default is {'EXPTIME','CAMOFFS'}.
+    %            'Verbose' - Default is false.
+    % Output : - Number of dark images written to disk.
+    % Author : Eran Ofek (Sep 2022)
     % Example: pipeline.last.prepMasterDark
     
     
@@ -15,9 +45,9 @@ function prepMasterDark(Args)
         Args.CalibDir                 = [];  % '/last02w/data1/archive/LAST.01.02.03/calib'
         Args.BasePath                 = [];  % '/last02w/data1/archive'
         
-        Args.MaxTimeDiff              = 60;  % [s] - max time diff between images
+        Args.MaxTimeDiff              = 70;  % [s] - max time diff between images
         Args.SearchStr                = []; %'*_dark_raw*_Image_*.fits';
-        Args.DarkSearchStr            = '*_dark_proc*_Image_*.fits'; % needed for the flat
+        %Args.DarkSearchStr            = '*_dark_proc*_Image_*.fits'; % needed for the flat
         Args.MaxImages                = 20;
         Args.MinNimages               = 8; % 8; % 18;
         
@@ -41,14 +71,18 @@ function prepMasterDark(Args)
         Args.FileTemplate = sprintf('%s_*_%s*.fits', ProjName, Args.Type);
     end
     
+    Counter = 0;
+    
     % wait for new files
     NewDarkFilesExist = true;
     while NewDarkFilesExist
         FilesInNew  = io.files.dirSortedByDate(Args.FileTemplate);
-        TimeSinceLastFile_sec = SEC_DAY.*min(now - FilesInNew.datenum);
+        TimeSinceLastFile_sec = SEC_DAY.*min(now - [FilesInNew.datenum]);
     
         if TimeSinceLastFile_sec > Args.MaxTimeDiff
             NewDarkFilesExist = false;
+        else
+            pasue(max(Args.MaxTimeDiff - TimeSinceLastFile_sec, 1));
         end
     end
     
@@ -56,7 +90,7 @@ function prepMasterDark(Args)
     % select images by additional criteria
     
     % read headers
-    AH     = AstroHeader({Files.name});
+    AH     = AstroHeader({FilesInNew.name});
     Groups = AH.groupByKeyVal(Args.GroupKeys);
     JD     = julday(AH);
     Ngroup = numel(Groups);
@@ -69,7 +103,7 @@ function prepMasterDark(Args)
         Nud        = numel(UniqueDays);
         for Iud=1:1:Nud
             IndDay = find(UniqueDays(Iud)==ceil(JDF));
-            ListInDay = {FilesInNew(IndDay).name};
+            ListInDay = {Files(IndDay).name};
             
             Nid    = numel(IndDay);
             I1     = max(Nid - Args.MaxImages,1);
@@ -77,28 +111,36 @@ function prepMasterDark(Args)
             SelectedInd = IndDay(I1:I2);
             Ind    = Groups(Igroup).ptr(SelectedInd);
             
-            List   = {FilesInNew(Ind).name};
+            if numel(Ind)>Args.MinNimages
             
-            % prep dark
-            CI = CalibImages;
-            IP = ImagePath.parseFileName(List);
-            CI.createBias(Files);
+                List   = {FilesInNew(Ind).name};
 
-            % save data
-            MasterIP = IP(1).copy;
-            MasterIP.Level   = 'proc';
-            MasterIP.Product = 'Image';
-            MasterName = [CalibDir, filesep, MasterIP.genFile];
-            write1(CI.Bias, MasterName, MasterIP.Product);
+                % prep dark
+                CI = CalibImages;
+                IP = ImagePath.parseFileName(List);
+                IP(1).DataDir  = ProjName;
+                IP(1).BasePath = BasePath;
+                IP(1).Level    = 'raw';
+                
+                CI.createBias(List);
 
-            MasterIP.Product = 'Var';
-            MasterName = [CalibDir, filesep, MasterIP.genFile];
-            write1(CI.Bias, MasterName, MasterIP.Product);
+                % save data
+                MasterIP = IP(1).copy;
+                MasterIP.Level   = 'proc';
+                MasterIP.Product = 'Image';
+                MasterName = [CalibDir, filesep, MasterIP.genFile];
+                write1(CI.Bias, MasterName, MasterIP.Product);
 
-            MasterIP.Product = 'Mask';
-            MasterName = [CalibDir, filesep, MasterIP.genFile];
-            write1(CI.Bias, MasterName, MasterIP.Product);
+                MasterIP.Product = 'Var';
+                MasterName = [CalibDir, filesep, MasterIP.genFile];
+                write1(CI.Bias, MasterName, MasterIP.Product);
 
+                MasterIP.Product = 'Mask';
+                MasterName = [CalibDir, filesep, MasterIP.genFile];
+                write1(CI.Bias, MasterName, MasterIP.Product);
+
+                Counter = Counter + 1;
+            end
             
             % move files to date directory
             Nfiles = numel(ListInDay);

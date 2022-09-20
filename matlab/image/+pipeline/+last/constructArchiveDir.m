@@ -53,7 +53,7 @@ function [BasePath, CalibDir, NewFilesDir, ProjName] = constructArchiveDir(Args)
         BasePath = Args.BasePath;
     end
     if isempty(Args.CalibDir)
-        CalibDir = sprintf('%s%s%s%s%s',BasePath,filesep,ProjName,filsep,'calib');
+        CalibDir = sprintf('%s%s%s%s%s',BasePath,filesep,ProjName,filesep,'calib');
     else
         CalibDir = Args.CalibDir;
     end
