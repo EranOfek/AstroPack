@@ -21,6 +21,8 @@ function [Found, CI] = prepDarkFlat(Args)
         Args.WaitForMoreImages        = 40;   % [s]
         Args.KeyFilter                = 'FILTER';
         
+        Args.GroupKeys                = {'EXPTIME','CAMOFFS'};
+        
         Args.Verbose logical          = false;
         
     end
@@ -99,6 +101,13 @@ function [Found, CI] = prepDarkFlat(Args)
         for I=1:1:numel(IP)
             IP(I).DataDir = IP(I).ProjName;
         end
+        
+        % select images by additional criteria
+        % read headers
+        AH     = AstroHeader({Files.name});
+        Groups = AH.groupByKeyVal(Args.GroupKeys);
+        
+        
         
         if NInd>=Args.MinNimages
             % found enough images
