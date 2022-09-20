@@ -107,7 +107,8 @@ function [Found, CI] = prepDarkFlat(Args)
         AH     = AstroHeader({Files.name});
         Groups = AH.groupByKeyVal(Args.GroupKeys);
         
-        
+        Files = Files(Groups(1).ptr);
+        Nind  = numel(Files);
         
         if NInd>=Args.MinNimages
             % found enough images
