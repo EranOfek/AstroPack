@@ -1,6 +1,7 @@
 function prepMasterDark(Args)
     % Look for new files and prepare master dark for LAST
-    % 
+    % Input  : - 
+    
     
     arguments
         Args.DataNum                  = 1;   % disk data# number
@@ -59,8 +60,6 @@ function prepMasterDark(Args)
     JD     = julday(AH);
     Ngroup = numel(Groups);
     
-    Cont = Cont;
-    Igroup = 0;
     for Igroup=1:1:Ngroup
         Files = FilesInNew(Groups(Igroup).ptr);
         JDF   = JD(Groups(Igroup).ptr);
@@ -69,6 +68,8 @@ function prepMasterDark(Args)
         Nud        = numel(UniqueDays);
         for Iud=1:1:Nud
             IndDay = find(UniqueDays(Iud)==ceil(JDF));
+            ListInDay = {FilesInNew(IndDay).name};
+            
             Nid    = numel(IndDay);
             I1     = max(Nid - Args.MaxImages,1);
             I2     = Nid;
@@ -79,30 +80,31 @@ function prepMasterDark(Args)
             
             % prep dark
             CI = CalibImages;
-           
+            IP = ImagePath.parseFileName(List);
             CI.createBias(Files);
 
             % save data
-            DarkIP = IP(1).copy;
-            DarkIP.Level   = 'proc';
-            DarkIP.Product = 'Image';
-            DarkName = [Args.CalibDir, filesep, DarkIP.genFile];
-            write1(CI.Bias, DarkName, DarkIP.Product);
+            MasterIP = IP(1).copy;
+            MasterIP.Level   = 'proc';
+            MasterIP.Product = 'Image';
+            MasterName = [CalibDir, filesep, MasterIP.genFile];
+            write1(CI.Bias, MasterName, MasterIP.Product);
 
-            DarkIP.Product = 'Var';
-            DarkName = [Args.CalibDir, filesep, DarkIP.genFile];
-            write1(CI.Bias, DarkName, DarkIP.Product);
+            MasterIP.Product = 'Var';
+            MasterName = [CalibDir, filesep, MasterIP.genFile];
+            write1(CI.Bias, MasterName, MasterIP.Product);
 
-            DarkIP.Product = 'Mask';
-            DarkName = [Args.CalibDir, filesep, DarkIP.genFile];
-            write1(CI.Bias, DarkName, DarkIP.Product);
+            MasterIP.Product = 'Mask';
+            MasterName = [CalibDir, filesep, MasterIP.genFile];
+            write1(CI.Bias, MasterName, MasterIP.Product);
 
+            
             % move files to date directory
-            Nfiles = numel(Files);
+            Nfiles = numel(ListInDay);
             Path           = IP(1).genPath;
             for Iim=1:1:Nfiles
-                Source      = sprintf('%s%s%s', Args.NewFilesDir, filesep, Files(Iim).name);
-                Destination = sprintf('%s%s%s', Path, filesep, Files(Iim).name);
+                Source      = sprintf('%s%s%s', NewFilesDir, filesep, ListInDay{Iim});
+                Destination = sprintf('%s%s%s', Path, filesep, ListInDay{Iim});
                 % make sure diirectory exist
                 mkdir(Path);
                 % move file
@@ -110,11 +112,7 @@ function prepMasterDark(Args)
             end
             Found = true;
         
-        
-        
-        
-    
-    
-    
+        end
+    end
     
 end
