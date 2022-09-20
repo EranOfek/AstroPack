@@ -49,7 +49,9 @@ classdef CalibImages < Component
         Flat AstroImage
         Fringe AstroImage
         
-        DarkGroups
+        % created by createBias
+        DarkGroupsKey   % cell array of keys
+        DarkGroupsVal   % Nimages X Nkeys
         
         SubtractOverScan(1,1) logical   = true;
     end
@@ -324,7 +326,8 @@ classdef CalibImages < Component
                     AH     = AstroHeader({Files.name});
                     Groups = AH.groupByKeyVal(Args.GroupKeys);
                     Ngroup = numel(Groups);
-                    Obj.DarkGroups = Args.GroupKeys;
+                    Obj.DarkGroupsKey = Args.GroupKeys;
+                    Obj.DarkGroupsVal
                 else
                     Ngroup = 1;
                     Groups(1).ptr = (1:1:numel(Files));
@@ -756,7 +759,16 @@ classdef CalibImages < Component
                 if isemptyImage(Obj(Iobj).Bias)
                     error('Bias image is empty');
                 end
-                Result(Iim) = imProc.dark.debias(Result(Iim), Obj(Iobj).Bias, 'CreateNewObj',false, Args.debiasArgs{:});
+                
+                % subtract bias/dark by groups
+                if isempty(Obj(Iobj).DarkGroups)
+                    Result(Iim) = imProc.dark.debias(Result(Iim), Obj(Iobj).Bias, 'CreateNewObj',false, Args.debiasArgs{:});
+                else
+                    error('Not supported yet');
+                    DarkKeyVal  = Obj(Iobj).Bias.getStructKey(Obj(Iobj).DarkGroups);
+                    ImageKeyVal = Result(Iim).HeaderData.getStructKey(Obj(Iobj).DarkGroups);
+                    
+                end
             end
         end
         
@@ -1081,7 +1093,7 @@ classdef CalibImages < Component
                 end
             end
                         
-            % subtract bias
+            % subtract bias by groups
             Result = Obj.debias(Result, 'debiasArgs',Args.debiasArgs, 'CreateNewObj',false');
             
             % FFU: dark
