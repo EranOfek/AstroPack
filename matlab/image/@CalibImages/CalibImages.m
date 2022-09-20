@@ -218,7 +218,7 @@ classdef CalibImages < Component
         end
     end
     
-    methods (Static)  % read/write
+    methods (Static)  % read
         function Obj = read(Args)
             % Read FITS files into a CalibImages object (Static)
             % Input  : * ...,key,val,...
@@ -353,6 +353,48 @@ classdef CalibImages < Component
             end
             
         end
+        
+    end
+    
+    methods
+%         function write1(Obj, IP, Type, Products, Args)
+%             % Write CalibImages products to disk
+%             %   Works on a CalibImages object that contains a single calib
+%             %   image of each type.
+%             % Input  : - A CalibImages object.
+%             %
+%            
+%             arguments
+%                 Obj
+%                 IP  % IP or cell of file names
+%                 Type          = {'Bias','Flat'};
+%                 Products      = {'Image', 'Var', 'Mask'};
+%                 Args.Dir      = [];  % if empty use genPath
+%             end
+%             
+%             Ntype = numel(Type);
+%             Nprod = numel(Products);
+%             if isa((IP,'ImagePath')
+%                 % assume IP is an ImagePath object
+%                 
+%                 IP.Level   = 'proc';
+%                 for Itype=1:1:Ntype
+%                     IP.Type = Type{Itype};
+%                    
+%                     for Iprod=1:1:Nprod
+%                         IP.Product = Products{Iprod};
+%                         if isempty(Args.Dir)
+%                             MasterName = IP.genFull;
+%                         else
+%                             MasterName = sprintf('%s%s%s',Args.Dir,filesep,IP.genFile);
+%                         end
+%                         write1(Obj.(Type{Itype}), MasterName, Products{Iprod});
+%                         
+%                     end
+%                 end
+%             end
+%          
+%         end
     end
     
     methods % utility functions
