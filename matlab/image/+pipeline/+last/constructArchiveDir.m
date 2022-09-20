@@ -42,7 +42,9 @@ function [BasePath, CalibDir, NewFilesDir, ProjName] = constructArchiveDir(Args)
             otherwise
                 error('Can not parse computer name - illegal number');
         end
-        Args.ProjName = sprintf('LAST.%02d.%02d.%02d',Args.Node, ComputerNumber, CamNumber);
+        ProjName = sprintf('LAST.%02d.%02d.%02d',Args.Node, ComputerNumber, CamNumber);
+    else
+        ProjName = Args.ProjName;
     end
     
     if isempty(Args.BasePath)
@@ -51,12 +53,12 @@ function [BasePath, CalibDir, NewFilesDir, ProjName] = constructArchiveDir(Args)
         BasePath = Args.BasePath;
     end
     if isempty(Args.CalibDir)
-        CalibDir = sprintf('%s%s%s',BasePath,filesep,'calib');
+        CalibDir = sprintf('%s%s%s%s%s',BasePath,filesep,ProjName,filsep,'calib');
     else
         CalibDir = Args.CalibDir;
     end
     if isempty(Args.NewFilesDir)
-        NewFilesDir = sprintf('%s%s%s',BasePath,filesep,'new');
+        NewFilesDir = sprintf('%s%s%s%s%s',BasePath,filesep,ProjName,filesep,'new');
     else
         NewFilesDir = Args.NewFilesDir;
     end
