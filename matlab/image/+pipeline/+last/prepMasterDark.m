@@ -1,6 +1,7 @@
 function prepMasterDark(Args)
     % Look for new files and prepare master dark for LAST
     % Input  : - 
+    % Example: pipeline.last.prepMasterDark
     
     
     arguments
