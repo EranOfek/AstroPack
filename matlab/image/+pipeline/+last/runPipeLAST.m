@@ -143,18 +143,7 @@ function runPipeLAST(DataNumber, Args)
 %             end
 %         end
           
-        % move all non-science, dark, flat images to raw directory
-        %[List] = selectByProp(ProjName, {'sci','science','flat','dark','bias'}, 'Type', false);
-        % move List to raw
-        
-        
-        % select all science images
-        %[List] = selectByProp(ProjName, {'sci','science'}, 'Type', true);
-        %[Group, List] = groupByCounter(List);
-        % time [day] since last image in counter group
-        %TimeSinceLast = celestial.time.julday - [Group.JDlast];
-        %find(TimeSinceLast>Args.TimeSinceLast | [Group.N]==20)
-        
+
         % process images
         % 
         
@@ -186,7 +175,8 @@ function runPipeLAST(DataNumber, Args)
             % the raw images destination directory
             ListImagesRaw = ListG(Groups(end).I1:Groups(end).I2);
             % the new/ directory
-            ListImagesNew = regexprep(ListImagesRaw,'/\d\d\d\d/\d\d/\d\d/raw','/new');
+            %ListImagesNew = regexprep(ListImagesRaw,'/\d\d\d\d/\d\d/\d\d/raw','/new');
+            ListImagesNew = io.files.replaceFilePath(ListImagesRaw, Args.NewFilesDir);
             
             % execute the pipeline
             Counter = Counter + 1;
