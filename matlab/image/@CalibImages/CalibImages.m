@@ -387,6 +387,7 @@ classdef CalibImages < Component
                     Obj.Flat = AstroImage(ArgsAI{:});
                 end
             end
+            cd(PWD);
         end
         
     end
