@@ -217,10 +217,11 @@ classdef AstroWCS < Component
             
             arguments
                 Obj(1,1)
-                Args.TestNbin                 = 3;
+                Args.TestNbin                 = 2;
                 Args.RegionalMaxMedianRMS     = 1;     % arcsec OR pix?
                 Args.RegionalMaxWithNoSrc     = 0;
                 Args.MaxErrorOnMean           = 0.05;  % arcsec OR pix?
+                Args.MinStarsForRegional      = 50;
             end
             ARCSEC_DEG = 3600;
             
@@ -228,13 +229,18 @@ classdef AstroWCS < Component
             ImSize = min(range(Obj.ResFit.SrcX), range(Obj.ResFit.SrcY));
             Step   = ImSize./Args.TestNbin;
 
-            [BinN, ~, BinMedian] = tools.math.stat.bin2dFun(Obj.ResFit.SrcX(Obj.ResFit.FlagSrc),...
-                                                            Obj.ResFit.SrcY(Obj.ResFit.FlagSrc),...
-                                                            Obj.ResFit.Resid(Obj.ResFit.FlagSrc).*ARCSEC_DEG, 'Step',Step);
+            if sum(sum(Obj.ResFit.FlagSrc))<Args.MinStarsForRegional
+                % treat images with small number of stars
+                Obj.Success = Obj.ResFit.ErrorOnMean < (Args.MaxErrorOnMean./ARCSEC_DEG);
+            else
+                [BinN, ~, BinMedian] = tools.math.stat.bin2dFun(Obj.ResFit.SrcX(Obj.ResFit.FlagSrc),...
+                                                                Obj.ResFit.SrcY(Obj.ResFit.FlagSrc),...
+                                                                Obj.ResFit.Resid(Obj.ResFit.FlagSrc).*ARCSEC_DEG, 'Step',Step);
 
-            Obj.Success = max(BinMedian,[],'all') < Args.RegionalMaxMedianRMS && ...
-                          sum(BinN<2,'all') <= Args.RegionalMaxWithNoSrc && ...
-                          Obj.ResFit.ErrorOnMean < (Args.MaxErrorOnMean./ARCSEC_DEG);
+                Obj.Success = max(BinMedian,[],'all') < Args.RegionalMaxMedianRMS && ...
+                              sum(BinN<1,'all') <= Args.RegionalMaxWithNoSrc && ...
+                              Obj.ResFit.ErrorOnMean < (Args.MaxErrorOnMean./ARCSEC_DEG);
+            end
         end
         
         function Obj = cropWCS(Obj,Pos,Args)

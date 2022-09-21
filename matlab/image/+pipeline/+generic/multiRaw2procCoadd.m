@@ -348,7 +348,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     for Iim=1:1:Nim
 %          Iim
 %         
-%         if Iim==9
+%         if Iim==10
 %             'a'
 %         end
         

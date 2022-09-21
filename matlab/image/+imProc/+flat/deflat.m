@@ -117,6 +117,6 @@ function [Result, Flat, IsFlat, IsNotFlat] = deflat(ImObj, Flat, Args)
     % write the original flat name to header
     if Args.FlatFileNameInHeader
         FileName = io.files.removeFilePath(Flat.ImageData.FileName);
-        Result.funHeader(@insertKey, {Args.KeyFlat, FileName}, Inf);
+        Result.funHeader(@insertKey, {Args.KeyFlat, FileName{1}}, Inf);
     end
 end

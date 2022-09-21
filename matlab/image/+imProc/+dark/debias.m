@@ -108,6 +108,6 @@ function [Result, Bias, IsBias, IsNotBias] = debias(ImObj, Bias, Args)
     % write the original bias name to header
     if Args.BiasFileNameInHeader
         FileName = io.files.removeFilePath(Bias.ImageData.FileName);
-        Result.funHeader(@insertKey, {Args.KeyBias, FileName}, Inf);
+        Result.funHeader(@insertKey, {Args.KeyBias, FileName{1}}, Inf);
     end
 end

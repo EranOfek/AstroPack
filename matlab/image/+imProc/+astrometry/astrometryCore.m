@@ -317,7 +317,10 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                     'ResPattern',cell(Nobj,1),...
                     'ErrorOnMean',cell(Nobj,1),...
                     'BestInd',cell(Nobj,1),...
-                    'WCS',cell(Nobj,1));
+                    'WCS',cell(Nobj,1),...
+                    'ParWCS',cell(Nobj,1),...
+                    'Tran',cell(Nobj,1),...
+                    'ResFit',cell(Nobj,1));
                 
     for Iobj=1:1:Nobj
         % filter astrometric catalog
@@ -400,7 +403,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
 
         if Result(Iobj).Nsolutions==0
             % no solution found
-
+            Result(Iobj).WCS.Success = false;
+            
         else
 
             % assume solutions are ordered by S/N

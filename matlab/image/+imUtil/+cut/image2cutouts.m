@@ -35,6 +35,7 @@ function [Cube, RoundX, RoundY, X, Y] = image2cutouts(Image, X, Y, MaxRadius, Ar
     NdimImage = ndims(Image);
     if NdimImage==2
         % Image is 2D - build a cube of 2D stamps
+        Args.mexCutout = false; %% FFU - BUG
         if Args.mexCutout
             % Note that the second argument must be a double
             [Cube] = imUtil.cut.mexCutout(Image,double([X, Y]),MaxRadius.*2+1);

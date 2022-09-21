@@ -1145,7 +1145,7 @@ classdef FITS < handle
                             if (ischar(Header.(HeaderField){Inl,2}))
                                 Header.(HeaderField){Inl,2} = double(eval(Header.(HeaderField){Inl,2}));
                             end
-                            if (isempty(Header.(HeaderField){Inl,3}))
+                            if isempty(Header.(HeaderField){Inl,3})
                                 Header.(HeaderField){Inl,3} = ' ';
                             end
                             matlab.io.fits.writeKey(Fptr,Header.(HeaderField){Inl,1},...
@@ -1154,7 +1154,7 @@ classdef FITS < handle
                         case 'end'
                             % do nothing
                         otherwise
-                            if (isnan(Header.(HeaderField){Inl,2}))
+                            if any(isnan(Header.(HeaderField){Inl,2}))
                                 Header.(HeaderField){Inl,2} = ' ';
                             end
                             if (isempty(Header.(HeaderField){Inl,3}))
