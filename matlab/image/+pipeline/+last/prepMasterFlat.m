@@ -8,7 +8,7 @@ function Counter = prepMasterFlat(Args)
     %                   constructed automatically from computer name.
     %                   Default is [].
     %            'Type' - Image type to search in image name.
-    %                   Default is 'dark'.
+    %                   Default is 'twflat'.
     %            'FileTemplate' - File template to search.
     %                   If empty will be constructed from project name and
     %                   type (e.g., 'LAST.01.02.03_*_dark*.fits').
@@ -26,12 +26,12 @@ function Counter = prepMasterFlat(Args)
     %            'MinNimages' - Min. number of images in master.
     %                   Default is 8.
     %            'GroupKeys' - Cell array of image header keywords by which
-    %                   to group the images.
-    %                   Default is {'EXPTIME','CAMOFFS'}.
+    %                   to group the dark/bias images.
+    %                   Default is {'EXPTIME','CAMOFFS','CAMGAIN'}.
     %            'Verbose' - Default is false.
     % Output : - Number of master flat images written to disk.
     % Author : Eran Ofek (Sep 2022)
-    % Example: pipeline.last.prepMasterFlath
+    % Example: pipeline.last.prepMasterFlat
     
     
     arguments
@@ -51,9 +51,9 @@ function Counter = prepMasterFlat(Args)
         Args.MaxImages                = 25;
         Args.MinNimages               = 6; % 8; % 18;
         
-        Args.MinMaxFlat               = [6000 40000];
+        Args.MinMaxFlat               = [10000 45000];
         Args.KeyFilter                = 'FILTER';
-        Args.GroupKeys                = {'FILTER','CAMOFFS','CAMGAIN'};
+        Args.GroupKeys                = []; %{'EXPTIME','CAMOFFS','CAMGAIN'};
         Args.ExpTimeKey               = 'EXPTIME';
         
         Args.Verbose logical          = false;
@@ -90,7 +90,7 @@ function Counter = prepMasterFlat(Args)
     end
     
     
-    CI = CalibImage.loadFromDir(CalibDir, 'FlatImType',[]);  % do not load flat
+    CI = CalibImages.loadFromDir(CalibDir, 'FlatImType',[], 'GroupKeys',Args.GroupKeys);  % do not load flat
     
     % read headers of all selected files
     % select images by additional criteria
@@ -130,6 +130,26 @@ function Counter = prepMasterFlat(Args)
                 
                 %CI.createBias(List);
                 AI = AstroImage(List);
+                
+                % select images within MinMaxFlat
+                MedianFlat = imProc.stat.median(AI,'CCDSEC',[4000 5000 4000 5000]);
+%                 StdFlat    = imProc.stat.std(AI,'CCDSEC',[4000 5000 4000 5000]);
+%                 Mom5Flat    = imProc.stat.moment(AI,5,'CCDSEC',[4000 5000 4000 5000]);
+%                 
+%                 Kernel = imUtil.kernel2.circ(15,[31 31]);
+%                 FAI = AI.filter(Kernel,'CreateNewObj',true);
+%                 FAI = AI - FAI;
+%                 RStdFlat    = imProc.stat.rstd(FAI);
+%                 Nim = numel(AI);
+%                 for Iim=1:1:Nim
+%                     Nbad(Iim)=sum(abs(FAI(Iim).Image(:))> 3.*RStdFlat(Iim));
+%                 end
+%                 
+%                 
+                
+                FlagMinMax = MedianFlat>min(Args.MinMaxFlat) & MedianFlat<max(Args.MinMaxFlat) ;
+                AI         = AI(FlagMinMax);
+                
                 AI = CI.debias(AI);
                 CI.createFlat(AI);
                 
@@ -138,15 +158,15 @@ function Counter = prepMasterFlat(Args)
                 MasterIP.Level   = 'proc';
                 MasterIP.Product = 'Image';
                 MasterName = [CalibDir, filesep, MasterIP.genFile];
-                write1(CI.Bias, MasterName, MasterIP.Product);
+                write1(CI.Flat, MasterName, MasterIP.Product);
 
                 MasterIP.Product = 'Var';
                 MasterName = [CalibDir, filesep, MasterIP.genFile];
-                write1(CI.Bias, MasterName, MasterIP.Product);
+                write1(CI.Flat, MasterName, MasterIP.Product);
 
                 MasterIP.Product = 'Mask';
                 MasterName = [CalibDir, filesep, MasterIP.genFile];
-                write1(CI.Bias, MasterName, MasterIP.Product);
+                write1(CI.Flat, MasterName, MasterIP.Product);
 
                 Counter = Counter + 1;
             end

@@ -86,15 +86,24 @@ function runPipeLAST(DataNumber, Args)
         
         Args.RegenerateCalib = false;
         if Args.RegenerateCalib || CI.isemptyProp('Bias') || CI.isemptyProp('Flat')
-            
             % look for darks and create master dark
-            FoundDark = pipeline.last.prepDarkFlat('NewFilesDir',Args.NewFilesDir, 'CalibDir',Args.DarkFlatDir, 'BasePath',Args.BaseArchive);
+            CounterBias = pipeline.last.prepMasterDark('DataNum',DataNumber,'Node',Args.NodeNumber);
             % look for flats and created master flat
-            FoundFlat = pipeline.last.prepDarkFlat('Type','flat','NewFilesDir',Args.NewFilesDir, 'CalibDir',Args.DarkFlatDir, 'BasePath',Args.BaseArchive);
-            if FoundDark || FoundFlat
+            CounterFlat = pipeline.last.prepMasterFlat('DataNum',DataNumber,'Node',Args.NodeNumber);
+            if CounterFlat>0 || CounterBias>0
                 % reload Dark/Flat
                 CI = CalibImages.loadFromDir(Args.DarkFlatDir);
             end
+
+            
+%             % look for darks and create master dark
+%             FoundDark = pipeline.last.prepDarkFlat('NewFilesDir',Args.NewFilesDir, 'CalibDir',Args.DarkFlatDir, 'BasePath',Args.BaseArchive);
+%             % look for flats and created master flat
+%             FoundFlat = pipeline.last.prepDarkFlat('Type','flat','NewFilesDir',Args.NewFilesDir, 'CalibDir',Args.DarkFlatDir, 'BasePath',Args.BaseArchive);
+%             if FoundDark || FoundFlat
+%                 % reload Dark/Flat
+%                 CI = CalibImages.loadFromDir(Args.DarkFlatDir);
+%             end
 
             if CI.isemptyProp('Bias') || CI.isemptyProp('Flat')
                 error('No dark or flat found');

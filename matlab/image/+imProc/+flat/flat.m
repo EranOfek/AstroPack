@@ -24,7 +24,7 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
     %                   Default is 'sigmaclip'.
     %            'StackArgs' - A cell array of arguments to pass to the
     %                   method function. Default is
-    %                   {'MeanFun',@tools.math.stat.nanmedian, 'StdFun',@std, 'Nsigma',[5 5], 'MaxIter',1}.
+    %                   {'MeanFun',@tools.math.stat.nanmedian, 'StdFun',@std, 'Nsigma',[3 3], 'MaxIter',2}.
     %            'EmpiricalVarFun' - Default is @var.
     %            'EmpiricalVarFunArgs' - Default is {[],3,'omitnan'}.
     %            'DivideEmpiricalByN' - A logical indicating if to divide
@@ -88,7 +88,7 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
         Args.PostNormArgs cell          = {[2 3],'omitnan'};
 
         Args.StackMethod                = 'sigmaclip';   
-        Args.StackArgs                  = {'MeanFun',@tools.math.stat.nanmedian, 'StdFun',@std, 'Nsigma',[5 5], 'MaxIter',2};
+        Args.StackArgs                  = {'MeanFun',@tools.math.stat.nanmedian, 'StdFun',@std, 'Nsigma',[3 3], 'MaxIter',2};
         Args.EmpiricalVarFun            = @var;
         Args.EmpiricalVarFunArgs        = {[],1,'omitnan'};
         Args.DivideEmpiricalByN         = false;

@@ -763,10 +763,9 @@ classdef CalibImages < Component
                 % Note taht CreateNewObj was already done (if needed)
                 if isemptyImage(Obj(Iobj).Bias)
                     error('Bias image is empty');
-                end
-                
+                end                
                 % subtract bias/dark by groups
-                if isempty(Obj(Iobj).DarkGroups)
+                if isempty(Obj(Iobj).DarkGroupsKey)
                     IndBias = 1;
                 else
                     
