@@ -346,9 +346,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     %AllSI = AstroImage([Nim, Nsub]);
     AstrometricCat = [];
     for Iim=1:1:Nim
-%         Iim
-        
-%         if Iim==14
+%          Iim
+%         
+%         if Iim==9
 %             'a'
 %         end
         
