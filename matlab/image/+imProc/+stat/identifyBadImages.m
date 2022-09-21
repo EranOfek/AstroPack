@@ -17,7 +17,7 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
     %            'ThresholdACFnpix' - Threshold aotocorrelation.
     %                   Default is 0.25.
     %            'ThresholdACFdist' - ACF threshold for max dist test. 
-    %                   Default is 0.3.
+    %                   Default is 0.5.
     %            'ThresholdMaxDistACF' - ACF distance threshold.
     %                   If the maximal distance for ACF with values above
     %                   'ThresholdACFdist' is larger than this threshold
@@ -56,7 +56,7 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
         
         Args.CCDSEC                 = [];
         Args.ThresholdACFnpix       = 0.8;
-        Args.ThresholdACFdist       = 0.3;
+        Args.ThresholdACFdist       = 0.5;
         Args.ThresholdMaxDistACF    = 6;
         Args.ThresholdVal           = 5000;
         Args.MaxFracAboveVal        = 0.3;
