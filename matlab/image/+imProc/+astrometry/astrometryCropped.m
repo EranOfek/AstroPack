@@ -95,7 +95,7 @@ function [Result, CroppedAI, Summary] = astrometryCropped(Image, Args)
         
         % get cropped image
         CroppedAI(Iim) = AI(Iim).crop(Args.CropSize, 'Type',Args.CropType, 'CreateNewObj',true);
-        CCDSEC = CroppedAI.ImageData.CCDSEC;
+        CCDSEC = CroppedAI(Iim).ImageData.CCDSEC;
         
         % measure background
         CroppedAI(Iim) = imProc.background.background(CroppedAI(Iim), Args.backgroundArgs{:});
