@@ -81,6 +81,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	
     // Get cut_size
 	int cut_size = (int)mxGetScalar(prhs[2]);
+    
+    // cut_size must be odd
+    if (cut_size % 2 != 1) {
+        mexErrMsgIdAndTxt("MATLAB:util:img:mexCutout:inputWrongSize", "cut_size (argument 3) must be ODD value...");
+        return;
+    }
 	
 	// Check argument 3 (pad_value)
 	double pad_value = 0;
@@ -314,7 +320,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	int N = 0;
 		
 	// Copy the right part of the input matrix
-    sprintf(s, "Copying input matrix: num_cuts=%d, pages=%d, use_memcpy=%d, num_bytes=%d", (int)num_cuts, (int)pages, (int)use_memcpy, (int)num_bytes);
+    sprintf(s, "Copying input matrix: num_cuts=%d, cut_size: %d, pages=%d, use_memcpy=%d, num_bytes=%d", (int)num_cuts, (int)cut_size, (int)pages, (int)use_memcpy, (int)num_bytes);
     msglog(s);
     
 	for (int c=0; c < num_cuts;  c++){
@@ -328,29 +334,34 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 			
 		// Make sure x/y values are not negative
 		if (x1 < 0) {            
+            cut_size_x += x1;
+            push_x = 0;
 			//push_x = -x1;
             //sprintf(s, "NEG push_x: %d", push_x);  msglog(s);
         }		
 		if (y1 < 0) {            
+            cut_size_y += y1;
+            push_y = 0;
 			//push_y = -y1;
             //sprintf(s, "NEG push_y: %d", push_y);  msglog(s);
         }
 			        
 		// Make sure x/y values are not larger than array boundary
 		if (cut_size_x + x1 + push_x >= cols) {
-			cut_size_x = cols - x1;
+			//cut_size_x = cols - x1;
 		}
 		
 		if (cut_size_y + y1 + push_y >= rows) {
-			cut_size_y = rows - y1;
+			//cut_size_y = rows - y1;
 		}
 		
 		for (int p=0;  p < pages;  p++) {
             
+            // X Axis
             for (int j=push_x;  j < cut_size_x;  j++) {
                 
                 // pointer to the start of the line in the source matrix			
-                src = &in_array[ ((rows * cols * p) + (x1 * rows) + y1 + push_y + (j * rows)) * num_bytes ];
+                src = &in_array[ ((rows * cols * p) + (x1 * rows) + (j * rows) + y1 + push_y) * num_bytes ];
                 
                 // pointer to the start of the line in the destination cutout                
                 dst = &out_array[ ((c * cut_size * cut_size * pages) + (p * cut_size * cut_size) + (j * cut_size) + push_y) * num_bytes ];
@@ -358,19 +369,22 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
                 // how many bytes need to be copied...
                 N = (cut_size_y-push_y) * num_bytes; 
 			
-                // Use the new version of the code (default) based on memcpy
+                
+                // Y-Axis: Use the new version of the code (default) based on memcpy
                 if (use_memcpy) {
                     memcpy(dst, src, N); 
                 }
                 
-                // Old code (for benchmarking) goes over data one-by-one (copy num_bytes in each location)                
+                // Y-Axis: Old code (for benchmarking) goes over data one-by-one (copy num_bytes in each location)                
                 else {
                     for (int i=push_y;  i < cut_size_y;  i++) {
     					//memcpy(&dst[i*num_bytes], &src[i*num_bytes], num_bytes); 
                         
                         // @Chen: Debug only, copy always to the same cut
-                        unsigned char *a = &src[i *num_bytes];
+                        unsigned char *a = &src[i * num_bytes];
                         if (a >= in_array && a < in_array_end) {
+                            sprintf(s, "src OK          : c=%d, p=%d, j=%d, i=%d, N=%d, cut_size_x: %d, cut_size_y: %d, push_x: %d, push_y: %d, ptr: %p", c, p, j, i, N, cut_size_x, cut_size_y, push_x, push_y, (void*)a);
+                            msglog(s);
                         }
                         else {
                             sprintf(s, "src out of range: c=%d, p=%d, j=%d, i=%d, N=%d, cut_size_x: %d, cut_size_y: %d, push_x: %d, push_y: %d, ptr: %p", c, p, j, i, N, cut_size_x, cut_size_y, push_x, push_y, (void*)a);
@@ -379,6 +393,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
                         
                         unsigned char *b = &dst[i * num_bytes];
                         if (b >= out_array && b < out_array_end) {
+                            sprintf(s, "dst OK          : c=%d, p=%d, j=%d, i=%d, N=%d, cut_size_x: %d, cut_size_y: %d, push_x: %d, push_y: %d, ptr: %p", c, p, j, i, N, cut_size_x, cut_size_y, push_x, push_y, (void*)b);
+                            msglog(s);                            
                             memcpy(&dst[i*num_bytes], &src[i*num_bytes], num_bytes); 
                         }
                         else {
