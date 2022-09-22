@@ -229,7 +229,7 @@ classdef AstroWCS < Component
             ImSize = min(range(Obj.ResFit.SrcX), range(Obj.ResFit.SrcY));
             Step   = ImSize./Args.TestNbin;
 
-            if sum(sum(Obj.ResFit.FlagSrc))<Args.MinStarsForRegional
+            if sum(Obj.ResFit.FlagSrc)<Args.MinStarsForRegional
                 % treat images with small number of stars
                 Obj.Success = Obj.ResFit.ErrorOnMean < (Args.MaxErrorOnMean./ARCSEC_DEG);
             else

@@ -35,7 +35,7 @@ function Res=find_rot_pairs(Cat,Ref,varargin)
 %                     In this case will return the N highest maxima.
 %                     Default is 'thresh_fracmax'
 %            'Threshold' - Peak selection threshold
-%                     Default is 5.
+%                     Default is 4.
 %            'FracOfMax' - The parameter that that used in '*_fracmax' and
 %                     for selecting peaks.
 %                     Only peaks that above the maximal peak multiplied by
@@ -104,7 +104,7 @@ addOptional(InPar,'HistDistEdges',(12:3:300).');
 addOptional(InPar,'HistRotEdges',(-90:0.2:90).');
 
 addOptional(InPar,'MaxMethod','thresh_fracmax');
-addOptional(InPar,'Threshold',5);
+addOptional(InPar,'Threshold',4);
 addOptional(InPar,'FracOfMax',0.8);
 
 addOptional(InPar,'CatColX',1);
