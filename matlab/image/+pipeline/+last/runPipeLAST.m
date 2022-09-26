@@ -156,17 +156,27 @@ function runPipeLAST(DataNumber, Args)
         % process images
         % 
         
-        [IP_Sci, ListSci] = ImagePath.selectByProp('LAST*.fits', {'sci','science'}, 'Type');
+        
+        % move the focus images to the raw directory
         [IP_Foc, ListFoc] = ImagePath.selectByProp('LAST*.fits', {'focus'}, 'Type');
+        %IP_Foc       = ImagePath.parseFileName(ListSci);
+        IP_Foc.setAllVal('BasePath', Args.BasePath);
+        IP_Foc.setAllVal('FormatCounter', '%03d');
+        IP_Foc.setAllVal('DataDir','');
+        ListFocRaw  = IP_Foc.genFullCell;
+        Destination = io.files.moveFiles(ListFoc, ListFocRaw, '', '', 'MkDir',true);
+        
+        
+        % move the focus images to the raw directory
+        
         
         % get all files waiting for processing
         %SciFiles = dir(fullfile(Args.NewFilesDir,Args.SearchStr));
         %SciFiles = SciFiles(~[SciFiles.isdir]);
         % convert file names to ImagePath 
+        [IP_Sci, ListSci] = ImagePath.selectByProp('LAST*.fits', {'sci','science'}, 'Type');
         IP_Sci       = ImagePath.parseFileName(ListSci);
         IP_Sci.setAllVal('BasePath', Args.BasePath);
-        %IP.setAllVal('DataDir',  Args.DataDir);
-        %IP.setAllVal('ProjName', ProjName);
         IP_Sci.setAllVal('FormatCounter', '%03d');
         IP_Sci.setAllVal('DataDir','');
         

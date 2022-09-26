@@ -879,7 +879,7 @@ classdef ImagePath < Base %Component
             % Verify Level
             %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Level=%s', Obj.Level);
             switch Obj.Level
-                case {'log', 'raw', 'proc', 'stacked', 'ref', 'coadd', 'merged', 'calib'}
+                case {'log', 'raw', 'proc', 'stacked', 'ref', 'coadd', 'merged', 'calib', 'junk'}
                     % Ok
                 otherwise
                     error('Unknown Level option: %s', Obj.Level);
