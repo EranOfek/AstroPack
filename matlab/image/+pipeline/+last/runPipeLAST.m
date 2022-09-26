@@ -223,7 +223,7 @@ function runPipeLAST(DataNumber, Args)
                 warning('Failed sequence');
                 % failed
                 % copy images to failed directory
-                ListImagesFailed = regexprep(ListImagesNew,'/new/','/failed/');
+                ListImagesFailed = regexprep(ListImagesNew,'/new','/failed');
                 %DirFailed        = fileparts(ListImagesFailed{1});
                 io.files.moveFiles(ListImagesNew, ListImagesFailed, '', '', 'MkDir',true);
             end
