@@ -474,6 +474,47 @@ classdef CalibImages < Component
             end
             
         end
+        
+        function Result = crop(Obj, CCDSEC, Args)
+            % Crop all images in a CalibImages object
+            % Input  : - A CalibImages object.
+            %          - A CCDSEC [xmin, xmax, ymin, ymax]
+            %            or [Xcenter, Ycenter, Xhalfsize, Yhalfsize]
+            %            (select option using 'Type').
+            %          * ...,key,val,...
+            %            'Type' - ['ccdsec'] | 'center'
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object. Default is false.
+            %            'DataProp' - A cell array of properties in the
+            %                   CalibImages object to crop.
+            %                   Default is {'Bias','Flat'}
+            % Output : - A calibImages object with cropped images.
+            % Author : Eran Ofek (Sep 2022)
+            % Example: CI.crop([1 100 1 100])
+           
+            arguments
+                Obj
+                CCDSEC
+                Args.Type                   = 'ccdsec';  % 'center'
+                Args.CreateNewObj logical   = false;
+                Args.DataProp               = {'Bias','Flat'};
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Nobj  = numel(Obj);
+            Nprop = numel(Args.DataProp);
+            
+            for Iobj=1:1:Nobj
+                for Iprop=1:1:Nprop
+                    Result(Iobj).(Args.DataProp{Iprop}).crop(CCSSEC, 'Type',Args.Type, 'CreateNewObj',false);
+                end
+            end
+        end
     end
     
     methods % calibration functions
