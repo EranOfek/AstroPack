@@ -511,7 +511,7 @@ classdef CalibImages < Component
             
             for Iobj=1:1:Nobj
                 for Iprop=1:1:Nprop
-                    Result(Iobj).(Args.DataProp{Iprop}).crop(CCSSEC, 'Type',Args.Type, 'CreateNewObj',false);
+                    Result(Iobj).(Args.DataProp{Iprop}).crop(CCDSEC, 'Type',Args.Type, 'CreateNewObj',false);
                 end
             end
         end

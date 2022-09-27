@@ -151,6 +151,7 @@ function Counter = prepMasterFlat(Args)
                 AI         = AI(FlagMinMax);
                 
                 AI = CI.debias(AI);
+                
                 CI.createFlat(AI);
                 
                 % save data
