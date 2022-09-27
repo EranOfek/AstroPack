@@ -301,6 +301,7 @@ classdef CalibImages < Component
                 Args.FileType            = 'fits';
                 Args.LoadLatest logical  = true;
                 Args.GroupKeys           = []; %{'EXPTIME','CAMOFFS','CAMGAIN'};
+                Args.ExpTime             = [];
             end
             
             if isempty(DirName)
@@ -334,6 +335,13 @@ classdef CalibImages < Component
                     Ngroup = 1;
                     Groups(1).ptr = (1:1:numel(Files));
                 end
+                
+%                 if ~isempty(Args.ExpTime)
+%                     AH     = AstroHeader({Files.name});
+%                     ET = AH.getStructKey('EXPTIME');
+%                     FlagET = [ET.EXPTIME] == Args.ExpTime;
+%                     Files  = Files(FlagET);
+%                 end
                 
                 for Igroup=1:1:Ngroup
                     FilesG = Files(Groups(Igroup).ptr);
@@ -774,6 +782,7 @@ classdef CalibImages < Component
                     DarkKeyVal  = cell2mat(DarkKeyVal.');
                     
                     ImageKeyVal = Result(Iim).HeaderData.getCellKey(Obj(Iobj).DarkGroupsKey);
+                    ImageKeyVal = cell2mat(ImageKeyVal);
                     % index of bias image to use
                     IndBias     = find(all(ImageKeyVal == DarkKeyVal, 2), 1);
                 end
