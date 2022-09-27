@@ -1,12 +1,22 @@
-function realTimeAsteroidLC(TimeStart, Args)
+function movingAsteroidCropLC(TimeStart, Args)
     % Analyze a full farme LAST images
-    % Example: Output=pipeline.last.realTimeAsteroidLC([19 09 2022 22 51 23]);
+    % Example: Output=pipeline.last.movingAsteroidCropLC
     
     arguments
         TimeStart      = [26 9 2022 23 13 00];
         Args.CCDSEC    = [300 6000 2600 7000];
         Args.SameField = true;
-        
+        Args.ObsCode   = '097';
+        Args.AstDesig  = '65803';
+        Args.AstSearchRadius   = 10;   % [arcsec]
+        Args.HalfCrop          = 200;
+        Args.RefRA
+        Args.RefDec
+        Args.RefMag
+        Args.AstRefRadius   = 5;
+        Args.AperRadius     = [2 4 6 8 10];
+        Args.Annulus        = [14 18];
+        Args.CollectMag     = {'MAG_APER_1','MAG_APER_2','MAG_APER_3','MAG_APER_4','MAG_APER_5'};
         
         Args.Node      = 1
         Args.DataNum   = 1;
@@ -17,10 +27,14 @@ function realTimeAsteroidLC(TimeStart, Args)
         Args.Yref      = 3916;
         Args.ZPref     = 11.233;
     end
-
+    RAD        = 180./pi;
+    ARCSEC_DEG = 3600;
+    
     AstArgs = {'RefRangeMag',[8 16],...
                 'Scale',1.25};
     
+    
+            
     DataNum = 1;
     [BasePath, CalibDir, NewFilesDir, ProjName] = pipeline.last.constructArchiveDir;
     
@@ -30,10 +44,13 @@ function realTimeAsteroidLC(TimeStart, Args)
     StartJD = celestial.time.julday(TimeStart);
     JD0 = celestial.time.julday([26 9 2022 23 15 0]);
     
+    [Ephem]=celestial.SolarSys.jpl_horizons('ObjectInd',Args.AstDesig,'StartJD',StartJD-0.5,'StopJD',  StartJD+1.5,'CENTER',Args.ObsCode,'StepSizeUnits','h');
+    
+    
     Files = io.files.dirSortedByDate('LAST*.fits');
     List  = {Files.name};
     IP = ImagePath.parseFileName(List);
-    Ind = find([IP.Time]>StartJD, 1);
+    Ind = find([IP.Time]>StartJD);
     Nim = numel(Ind);
     for Iim=1:1:Nim
         Iim
@@ -47,18 +64,48 @@ function realTimeAsteroidLC(TimeStart, Args)
         
         
         AI = imProc.background.background(AI);
-        AI = imProc.sources.findMeasureSources(AI, 'MomPar',{'AperRadius',[2 4 6 10],'Annulus',[14 18]});
-        
+        AI = imProc.sources.findMeasureSources(AI, 'MomPar',{'AperRadius',Args.AperRadius,'Annulus',Args.Annulus});
+        JD = AI.julday;
     
         if Iim==1 || ~Args.SameField
-            [Result, AI, AstrometricCat] = imProc.astrometry.astrometryCore(AI(Iim),AstArgs{:});
+            [Result, AI, AstrometricCat] = imProc.astrometry.astrometryCore(AI,AstArgs{:});
+            LastWCS = AI.WCS;
             
             [CenterRA, CenterDec] = AI(Iim).WCS.xy2sky(Xcenter, Ycenter);
             CooArgs = {'RA',CenterRA, 'Dec',CenterDec};
         else
-            [Result, AI] = imProc.astrometry.astrometryCore(AI(Iim), AstArgs{:},...
-                'CatName',AstrometricCat, CooArgs{:});
+            [Result, AI] = imProc.astrometry.astrometryRefine(AI, 'WCS',LastWCS, 'CatName',AstrometricCat);
+            if Result is bad
+                % run astrometry
+                [Result, AI] = imProc.astrometry.astrometryCore(AI(Iim), AstArgs{:},...
+                    'CatName',AstrometricCat, CooArgs{:});
+            end
         end
+        
+        % id asteroid in catalog
+        [RA,Dec] = getLonLat(AI.CatData,'rad');
+        
+        PredRA  = interp1(Ephem.Catalog(:,1), Ephem.Cat(:,2), JD, 'cubic');
+        PredDec = interp1(Ephem.Catalog(:,1), Ephem.Cat(:,3), JD, 'cubic');
+        
+        
+        Dist = celestial.coo.sphere_dist_fast(RA, Dec, PredRA, PredDec);
+        IndAstInCatalog = find(Dist<(Args.AstSearchRadius./(RAD.*ARCSEC_DEG)));
+        
+        Dist = celestial.coo.sphere_dist_fast(RA, Dec, Args.RefRA, Args.RefDec);
+        IndRefInCatalog = find(Dist<(Args.AstRefRadius./(RAD.*ARCSEC_DEG)));
+        Mag = getCol(AI.CatData, Args.CollectMag);
+        
+        % crop image around PredRA, PredDec
+        [PredX, PredY] = AI.WCS.coo2xy(PredRA.*RAD, PredDec.*RAD);
+        
+        CropAI(Iim) = AI.crop([PredX, PredY, Args.HalfCrop Args.HalfCrop], 'Type','center', 'CreateNewObj',true);
+        CropAI(Iim).CatData = AI.CatData;
+        
+        CropAI(Iim).UserData.IndAstInCatalog = IndAstInCatalog;
+        CropAI(Iim).UserData.IndRefInCatalog = IndRefInCatalog;
+        CropAI(Iim).UserData.ZP              = Mag(IndRefInCatalog,:) - Args.RefMag;  % vector [one per aper]
+        
         
     end
 end
