@@ -14,12 +14,6 @@ function [Output,CropAI] = realTimeAsteroidLC(TimeStart, Args)
         Args.ZPref     = 11.233;
     end
 
-    DataNum = 1;
-    [BasePath, CalibDir, NewFilesDir, ProjName] = pipeline.last.constructArchiveDir;
-    
-    CI = CalibImages.loadFromDir(CalibDir);
-    
-    
     StartJD = celestial.time.julday(TimeStart);
     JD0 = celestial.time.julday([26 9 2022 23 15 0]);
     
@@ -32,7 +26,6 @@ function [Output,CropAI] = realTimeAsteroidLC(TimeStart, Args)
     Yref = Args.Yref;
     ZPref = Args.ZPref;
    
-    
     
     Iim = 0;
     Cont = true;
