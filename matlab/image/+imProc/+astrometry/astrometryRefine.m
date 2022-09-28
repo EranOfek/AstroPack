@@ -100,6 +100,8 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     %                   Default is {'Plx'}.
     %            'RefRangePlx' - Parllax range to retrieve.
     %                   Default is [-Inf 50].
+    %            'MinNmatches' - Minimum number of matches required for
+    %                   solution. Default is 10.
     %            'EpochOut' - Output epoch. Default units is 'JD' (see
     %                   imProc.cat.applyProperMotion for more options).
     %                   If empty, will not apply proper motion and
@@ -198,6 +200,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         Args.RefRangeMag                        = [12 19.5];
         Args.RefColNamePlx                      = {'Plx'};
         Args.RefRangePlx                        = [-Inf 50];
+        Args.MinNmatches                        = 10;
         
         Args.EpochOut                           = [];
         Args.argsProperMotion cell              = {};
@@ -405,8 +408,9 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
             % estimate plate scale
             if isempty(Args.Scale)
                 % estimate scale based on distances between sources
-                SrcDistRad = celestial.coo.sphere_dist_fast(SrcRA, SrcDec, SrcRA(1), SrcDec(1));
-                SrcDistPix = sqrt((Xcat - Xcat(1)).^2 + (Ycat - Ycat(1)).^2);
+                Inn = find(~isnan(SrcRA),1); % in rarre cases SrcRA(1) may be NaN...
+                SrcDistRad = celestial.coo.sphere_dist_fast(SrcRA, SrcDec, SrcRA(Inn), SrcDec(Inn));
+                SrcDistPix = sqrt((Xcat - Xcat(Inn)).^2 + (Ycat - Ycat(Inn)).^2);
                 Scale = median(SrcDistRad.*RAD.*ARCSEC_DEG./SrcDistPix,'all','omitnan');   % ["/pix]
             else
                 Scale = Args.Scale; % ["/pix]
@@ -445,79 +449,84 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
             Flag = ~isnan(MatchedCat.Catalog(:,1));
             Nmatches = sum(Flag);
 
-            [Xcat,~,IndCatX] = getColDic(MatchedCat, Args.CatColNamesX);
-            [Ycat,~,IndCatY] = getColDic(MatchedCat, Args.CatColNamesY);
-            Xref = getColDic(ProjAstCat, RefColNameX);
-            Yref = getColDic(ProjAstCat, RefColNameY);
-            Mag  = getColDic(ProjAstCat, Args.RefColNameMag);
+            if Nmatches<Args.MinNmatches
+                % bad 
+            else
+                
+                [Xcat,~,IndCatX] = getColDic(MatchedCat, Args.CatColNamesX);
+                [Ycat,~,IndCatY] = getColDic(MatchedCat, Args.CatColNamesY);
+                Xref = getColDic(ProjAstCat, RefColNameX);
+                Yref = getColDic(ProjAstCat, RefColNameY);
+                Mag  = getColDic(ProjAstCat, Args.RefColNameMag);
 
-            % fit
-            % Note that in astrometryCore, we use for scale = ResPattern.Sol.Scale(Isol).*Args.Scale,...
-            % ImageCenterXY is [0,0] because now the images are assumed to be
-            % alligned
+                % fit
+                % Note that in astrometryCore, we use for scale = ResPattern.Sol.Scale(Isol).*Args.Scale,...
+                % ImageCenterXY is [0,0] because now the images are assumed to be
+                % alligned
 
-            [Tran, ParWCS, ResFit, WCS] = imProc.astrometry.fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
-                                                           'ImageCenterXY',[0 0],...
-                                                           'Scale',Scale,...
-                                                           'ProjType',Args.ProjType,...
-                                                           'TranMethod',Args.TranMethod,...
-                                                           'Tran',Args.Tran,...
-                                                           'ExtraData',[],...
-                                                           'ErrPos',Args.ErrPos,...
-                                                           'Niter',Args.Niter,...
-                                                           'FitMethod',Args.FitMethod,...
-                                                           'MaxResid',Args.MaxResid,...
-                                                           'MagRange',Args.MagRange,...
-                                                           'BinMethod',Args.BinMethod,...
-                                                           'PolyDeg',Args.PolyDeg,...
-                                                           'BinSize',Args.BinSize,...
-                                                           'FunMean',Args.FunMean,...
-                                                           'FunStd',Args.FunStd,...
-                                                           'InterpMethod',Args.InterpMethod,...
-                                                           'ThresholdSigma',Args.ThresholdSigma);
+                [Tran, ParWCS, ResFit, WCS] = imProc.astrometry.fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
+                                                               'ImageCenterXY',[0 0],...
+                                                               'Scale',Scale,...
+                                                               'ProjType',Args.ProjType,...
+                                                               'TranMethod',Args.TranMethod,...
+                                                               'Tran',Args.Tran,...
+                                                               'ExtraData',[],...
+                                                               'ErrPos',Args.ErrPos,...
+                                                               'Niter',Args.Niter,...
+                                                               'FitMethod',Args.FitMethod,...
+                                                               'MaxResid',Args.MaxResid,...
+                                                               'MagRange',Args.MagRange,...
+                                                               'BinMethod',Args.BinMethod,...
+                                                               'PolyDeg',Args.PolyDeg,...
+                                                               'BinSize',Args.BinSize,...
+                                                               'FunMean',Args.FunMean,...
+                                                               'FunStd',Args.FunStd,...
+                                                               'InterpMethod',Args.InterpMethod,...
+                                                               'ThresholdSigma',Args.ThresholdSigma);
 
-            %
-            Result(Iobj).ParWCS     = ParWCS;
-            % store transformations
-            Result(Iobj).Tran       = Tran;
-            Result(Iobj).ResFit     = ResFit;
+                %
+                Result(Iobj).ParWCS     = ParWCS;
+                % store transformations
+                Result(Iobj).Tran       = Tran;
+                Result(Iobj).ResFit     = ResFit;
 
-            % create an AstroWCS object
-            %KeyValWCS = namedargs2cell(Result(Iobj).ParWCS);
-            Result(Iobj).WCS = WCS;  %AstroWCS.tran2wcs(Result(Iobj).Tran, KeyValWCS{:});
+                % create an AstroWCS object
+                %KeyValWCS = namedargs2cell(Result(Iobj).ParWCS);
+                Result(Iobj).WCS = WCS;  %AstroWCS.tran2wcs(Result(Iobj).Tran, KeyValWCS{:});
 
-            % add RA/Dec to the catalog
-            if nargout>1
+                % add RA/Dec to the catalog
+                if nargout>1
 
-                % update header with astrometric quality information
-                if Args.UpdateHeader
-                    Keys = {'AST_NSRC','AST_ARMS','AST_ERRM'};
-                    Obj(Iobj).HeaderData.replaceVal(Keys,...
-                                                    {Result(Iobj).ResFit.Ngood,...
-                                                     Result(Iobj).ResFit.AssymRMS.*ARCSEC_DEG,...
-                                                     Result(Iobj).ResFit.ErrorOnMean.*ARCSEC_DEG},...
-                                                    'Comment',{'Number of astrometric sources',...
-                                                               'Astrometric assymptotic RMS [arcsec]',...
-                                                               'Astrometric error on the mean [arcsec]'});
-                end
+                    % update header with astrometric quality information
+                    if Args.UpdateHeader
+                        Keys = {'AST_NSRC','AST_ARMS','AST_ERRM'};
+                        Obj(Iobj).HeaderData.replaceVal(Keys,...
+                                                        {Result(Iobj).ResFit.Ngood,...
+                                                         Result(Iobj).ResFit.AssymRMS.*ARCSEC_DEG,...
+                                                         Result(Iobj).ResFit.ErrorOnMean.*ARCSEC_DEG},...
+                                                        'Comment',{'Number of astrometric sources',...
+                                                                   'Astrometric assymptotic RMS [arcsec]',...
+                                                                   'Astrometric error on the mean [arcsec]'});
+                    end
 
-                % update RA/Dec in catalog
-                [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Cat.getCol(IndCatX), Cat.getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
-                %Cat = deleteCol(Cat, {Args.OutCatColRA, Args.OutCatColDec});
-                %No need - done in insertCol
-                Cat = insertCol(Cat, [ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
+                    % update RA/Dec in catalog
+                    [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Cat.getCol(IndCatX), Cat.getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
+                    %Cat = deleteCol(Cat, {Args.OutCatColRA, Args.OutCatColDec});
+                    %No need - done in insertCol
+                    Cat = insertCol(Cat, [ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
 
 
-                if isa(Obj, 'AstroImage')
-                    Obj(Iobj).CatData = Cat;
-                    % update WCS in AstroImage
-                    Obj(Iobj).WCS = Result(Iobj).WCS;
-                    % add WCS kesy to Header
-                    Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
-                elseif isa(Obj, 'AstroCatalog')
-                    Obj(Iobj)         = Cat;
-                else
-                    error('Unsupported input class. First input must be AstroCatalog or AstroImage');
+                    if isa(Obj, 'AstroImage')
+                        Obj(Iobj).CatData = Cat;
+                        % update WCS in AstroImage
+                        Obj(Iobj).WCS = Result(Iobj).WCS;
+                        % add WCS kesy to Header
+                        Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+                    elseif isa(Obj, 'AstroCatalog')
+                        Obj(Iobj)         = Cat;
+                    else
+                        error('Unsupported input class. First input must be AstroCatalog or AstroImage');
+                    end
                 end
             end
         end
