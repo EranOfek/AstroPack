@@ -190,7 +190,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     sprintf(s, "input class: %s", mxGetClassName(prhs[0]));
     msglog(s);
 
-    sprintf(s, "sizeof(bool) = %d", sizeof(bool));
+    sprintf(s, "sizeof(bool) = %d", (int)sizeof(bool));
     msglog(s);
 
     // Prepare output matrix
@@ -314,10 +314,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     unsigned char *out_array = (unsigned char *) mxGetData(plhs[0]);
     unsigned char *out_array_end = out_array + (num_out_elements * num_bytes);
 
-    sprintf(s, "in_array:  %p, size: %d, end: %p", (void*)in_array,  (num_in_elements * num_bytes), (void*)in_array_end);
+    sprintf(s, "in_array:  %p, size: %d, end: %p", (void*)in_array,  (int)(num_in_elements * num_bytes), (void*)in_array_end);
     msglog(s);
 
-    sprintf(s, "out_array: %p, size: %d, end: %p", (void*)out_array, (num_out_elements * num_bytes), (void*)out_array_end);
+    sprintf(s, "out_array: %p, size: %d, end: %p", (void*)out_array, (int)(num_out_elements * num_bytes), (void*)out_array_end);
     msglog(s);
 
     // Start by initializing everything to the pad value
