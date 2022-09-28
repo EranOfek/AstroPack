@@ -65,7 +65,8 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
     Ind = find([IP.Time]>StartJD & [IP.Time]<EndJD);
     Nim = numel(Ind);
     IndDebug = 0;
-    for Iim=1:1:Nim,
+    
+    for Iim=1:1:Nim
         %Nim
         tic;
         IndDebug = IndDebug + 1;
@@ -82,9 +83,12 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         AI = imProc.background.background(AI);
         AI = imProc.sources.findMeasureSources(AI, 'MomPar',{'AperRadius',Args.AperRadius,'Annulus',Args.Annulus});
         
+        if Iim==346
+            'a'
+        end
         % interpolate over bad pixels
         SN = AI.CatData.getCol({'SN_1','SN_4'});
-        [X,Y] = AI.CatData.getXY;
+        [X,Y] = AI.CatData.getXY('ColX','XPEAK','ColY','YPEAK');
         FlagCR = (SN(:,1) - SN(:,2))>0 & SN(:,1)>8;
         Y = Y(FlagCR);
         X = X(FlagCR);
