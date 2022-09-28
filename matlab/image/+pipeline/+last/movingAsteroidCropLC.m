@@ -4,7 +4,7 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
     
     arguments
   
-        TimeStart      = [26 9 2022 23 13 00];
+        TimeStart      = [26 9 2022 23 10 00];
         TimeStop       = [27 9 2022  2 37 55];
         Args.DataNum   = 1;
         Args.CCDSEC    = [300 6000 2600 7000];
@@ -63,7 +63,8 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
     Ind = find([IP.Time]>StartJD & [IP.Time]<EndJD);
     Nim = numel(Ind);
     IndDebug = 0;
-    for Iim=1:1:Nim
+    for Iim=1:1:300,
+        %Nim
         tic;
         IndDebug = IndDebug + 1;
         Iim
@@ -78,6 +79,20 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         
         AI = imProc.background.background(AI);
         AI = imProc.sources.findMeasureSources(AI, 'MomPar',{'AperRadius',Args.AperRadius,'Annulus',Args.Annulus});
+        
+        % interpolate over bad pixels
+        SN = AI.CatData.getCol({'SN_1','SN_4'});
+        [X,Y] = AI.CatData.getXY;
+        FlagCR = (SN(:,1) - SN(:,2))>0 & SN(:,1)>8;
+        Y = Y(FlagCR);
+        X = X(FlagCR);
+        Y = Y(~isnan(Y));
+        X = X(~isnan(X));
+        IndPixCR = imUtil.image.sub2ind_fast(size(AI.Image), Y, X);
+        AI = maskSet(AI, IndPixCR, 'CR_DeltaHT');
+        AI = imProc.mask.interpOverMaskedPix(AI);
+        
+        
         JD = AI.julday;
     
         if Iim==200
@@ -104,6 +119,7 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         
             % id asteroid in catalog
             [RA,Dec] = getLonLat(AI.CatData,'rad');
+            [X,Y]    = getXY(AI.CatData);
 
             PredRA  = interp1(Ephem.Catalog(:,1), Ephem.Catalog(:,2), JD, 'cubic');
             PredDec = interp1(Ephem.Catalog(:,1), Ephem.Catalog(:,3), JD, 'cubic');
@@ -111,6 +127,7 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
 
             Dist = celestial.coo.sphere_dist_fast(RA, Dec, PredRA, PredDec);
             IndAstInCatalog = find(Dist<(Args.AstSearchRadius./(RAD.*ARCSEC_DEG)));
+                        
             % select highest S/N
             if numel(IndAstInCatalog)>0
                 % asteroid found
@@ -124,6 +141,8 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
                     ConfusionFlag = true;
                 end
 
+                AstX = X(IndAstInCatalog);
+                AstY = Y(IndAstInCatalog);
 
                 MagAst = getCol(AI.CatData, Args.CollectMag);
 
@@ -134,7 +153,28 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
                 % crop image around PredRA, PredDec
                 [PredX, PredY] = AI.WCS.sky2xy(PredRA.*RAD, PredDec.*RAD);
 
-                CropAI(Iim) = AI.crop([PredX, PredY, Args.HalfCrop Args.HalfCrop], 'Type','center', 'CreateNewObj',true);
+                DistFromPred = sqrt((PredX-AstX).^2 + (PredY-AstY).^2);
+                if DistFromPred<1
+                    % use observed position instead of predicted position
+                    PredX = AstX;
+                    PredY = AstY;
+                end
+                FloorX = floor(PredX)-5;
+                FloorY = floor(PredY)-5;
+                ShiftX = FloorX - PredX;
+                ShiftY = FloorY - PredY;
+                
+                CropAI(Iim) = AI.crop([FloorX, FloorY, Args.HalfCrop Args.HalfCrop], 'Type','center', 'CreateNewObj',true);
+                
+                RegisteredImages = imProc.transIm.imwarp(CropAI(Iim), [ShiftX, ShiftY],...
+                                                     'TransWCS',false,...
+                                                     'FillValues',0,...
+                                                     'ReplaceNaN',true,...
+                                                     'CreateNewObj',true);
+
+                
+                
+                
                 CropAI(Iim).CatData = AI.CatData;
 
                 CropAI(Iim).UserData.IndAstInCatalog = IndAstInCatalog;
@@ -146,7 +186,7 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
                 CropAI(Iim).UserData.Ngood           = Result.ResFit.Ngood;
                 CropAI(Iim).UserData.ConfusionFlag   = ConfusionFlag;
 
-                if Args.Plot
+                if Args.Plot && ~isempty(CropAI(Iim).UserData.MagAst)
                     plot((JD - Args.JD0).*SEC_DAY, CropAI(Iim).UserData.MagAst(3), 'ko', 'MarkerFaceColor','k')
                     hold on;
                     plot((JD - Args.JD0).*SEC_DAY, CropAI(Iim).UserData.MagAst(5), 'ro', 'MarkerFaceColor','r')

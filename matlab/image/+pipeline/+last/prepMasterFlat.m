@@ -85,7 +85,7 @@ function Counter = prepMasterFlat(Args)
         if TimeSinceLastFile_sec > Args.MaxTimeDiff
             NewFlatFilesExist = false;
         else
-            pasue(max(Args.MaxTimeDiff - TimeSinceLastFile_sec, 1));
+            pause(max(Args.MaxTimeDiff - TimeSinceLastFile_sec, 1));
         end
     end
     

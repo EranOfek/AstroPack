@@ -1,4 +1,4 @@
-function makeMovie(Images, Args)
+function makeMovie(Images, FileName, Args)
     % Display and create a movie file from images in AstroImage or cube.
     % Input  : - Either a cube in which the image index is in the 3rd
     %            dimension, or an AstroImage object.
@@ -23,6 +23,7 @@ function makeMovie(Images, Args)
     arguments
         Images    % either a cube or an AstroImage object
         FileName      = [];  %'Movie.avi';
+        Args.Scale    = [-10 20];
         Args.DataProp = 'Image';
         Args.ColorMap = 'gray';
         Args.RemoveTicks logical  = true;
@@ -49,11 +50,11 @@ function makeMovie(Images, Args)
     for Iim=1:1:Nim
         if IsAI
             Matrix = Images(Iim).(Args.DataProp);
-        elsehttps://www.mathworks.com/help/matlab/ref/videowriter.writevideo.html#bus2hel-1-img
+        else
             Matrix = Images(:,:,Dim);
         end
             
-        imagesc(Matrix, Scale);
+        imagesc(Matrix, Args.Scale);
         colormap(Args.ColorMap);
         drawnow;
         if Args.RemoveTicks
