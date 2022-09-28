@@ -21,6 +21,8 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         Args.Annulus           = [14 18];
         Args.CollectMag        = {'MAG_APER_1','MAG_APER_2','MAG_APER_3','MAG_APER_4','MAG_APER_5'};
         Args.AstRefineRadius   = 10;
+        Args.FieldRA           = 50.915;
+        Args.FieldDec          = -33.449;
         
         Args.Plot logical      = true;
         Args.JD0               = celestial.time.julday([26 9 2022 23 15 0]);
@@ -99,7 +101,7 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
             'a'
         end
         if IndDebug==1 || ~Args.SameField
-            [Result, AI, AstrometricCat] = imProc.astrometry.astrometryCore(AI,AstArgs{:});
+            [Result, AI, AstrometricCat] = imProc.astrometry.astrometryCore(AI,'RA',Args.FieldRA, 'Dec',Args.FieldDec, AstArgs{:});
             LastWCS = AI.WCS;
             
             [CenterRA, CenterDec] = AI.WCS.xy2sky(Xcenter, Ycenter);
