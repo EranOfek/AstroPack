@@ -63,7 +63,7 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
     Ind = find([IP.Time]>StartJD & [IP.Time]<EndJD);
     Nim = numel(Ind);
     IndDebug = 0;
-    for Iim=1:1:300,
+    for Iim=1:1:Nim,
         %Nim
         tic;
         IndDebug = IndDebug + 1;
