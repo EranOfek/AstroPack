@@ -4,8 +4,8 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
     
     arguments
   
-        TimeStart      = [26 9 2022 23 10 00];
-        TimeStop       = [27 9 2022  2 37 55];
+        TimeStart      = [26 09 2022 23 14 02]; %[26 9 2022 23 10 00];  % 231403
+        TimeStop       = [26 09 2022 23 18 03]; %[27 9 2022  2 37 55];  % 231802
         Args.DataNum   = 1;
         Args.CCDSEC    = [300 6000 2600 7000];
         Args.SameField = true;
@@ -33,8 +33,8 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         Args.AstRefineRadius   = 10;
         %Args.FieldRA           = 50.915;
         %Args.FieldDec          = -33.449;
-        Args.FieldRA = 'RA'; %50.876;
-        Args.FieldDec = 'DEC'; % -32.791;
+        Args.FieldRA = 'RA'; %50.876; %'RA'; %50.876;
+        Args.FieldDec = 'DEC'; %-33.419; %'DEC'; % -32.791;
         
         Args.Plot logical      = true;
         Args.JD0               = celestial.time.julday([26 9 2022 23 15 0]);
@@ -78,7 +78,9 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
     Nim = numel(Ind);
     IndDebug = 0;
     
-    for Iim=1:1:Nim
+    %FITS.write_keys(List(Ind),{'FILTER','clear','';'GAIN',0.9,'';'RA',50.875917,'';'DEC',-33.4191896,''});
+    
+    for Iim=1:1:10
         %Nim
         tic;
         IndDebug = IndDebug + 1;
@@ -99,16 +101,19 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
             'a'
         end
         % interpolate over bad pixels
-        SN = AI.CatData.getCol({'SN_1','SN_4'});
-        [X,Y] = AI.CatData.getXY('ColX','XPEAK','ColY','YPEAK');
-        FlagCR = (SN(:,1) - SN(:,2))>0 & SN(:,1)>8;
-        Y = Y(FlagCR);
-        X = X(FlagCR);
-        Y = Y(~isnan(Y));
-        X = X(~isnan(X));
-        IndPixCR = imUtil.image.sub2ind_fast(size(AI.Image), Y, X);
-        AI = maskSet(AI, IndPixCR, 'CR_DeltaHT');
-        AI = imProc.mask.interpOverMaskedPix(AI);
+        DoMask = true;
+        if DoMask
+            SN = AI.CatData.getCol({'SN_1','SN_4'});
+            [X,Y] = AI.CatData.getXY('ColX','XPEAK','ColY','YPEAK');
+            FlagCR = (SN(:,1) - SN(:,2))>0 & SN(:,1)>8;
+            Y = Y(FlagCR);
+            X = X(FlagCR);
+            Y = Y(~isnan(Y));
+            X = X(~isnan(X));
+            IndPixCR = imUtil.image.sub2ind_fast(size(AI.Image), Y, X);
+            AI = maskSet(AI, IndPixCR, 'CR_DeltaHT');
+            AI = imProc.mask.interpOverMaskedPix(AI);
+        end
         
         
         JD = AI.julday;
@@ -161,7 +166,7 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
 
                 AstX = X(IndAstInCatalog);
                 AstY = Y(IndAstInCatalog);
-
+                
                 MagAst = getCol(AI.CatData, Args.CollectMag);
 
                 Dist = celestial.coo.sphere_dist_fast(RA, Dec, Args.RefRA./RAD, Args.RefDec./RAD);
