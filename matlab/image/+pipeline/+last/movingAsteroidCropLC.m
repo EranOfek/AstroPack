@@ -13,12 +13,19 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         Args.AstDesig  = '65803';
         Args.AstSearchRadius   = 10;   % [arcsec]
         Args.HalfCrop          = 200;
+        % 26-9
         %Args.RefRA             = 50.875917639; 
         %Args.RefDec            = -33.41918960863;
         %Args.RefMag            = 11.233;
-        Args.RefRA             = 54.06071248003;
-        Args.RefDec            = -32.79154817653;
-        Args.RefMag            = 13.1339;
+        % 27-9
+        %Args.RefRA             = 54.06071248003;
+        %Args.RefDec            = -32.79154817653;
+        %Args.RefMag            = 13.1339;
+        % 28-9
+        Args.RefRA             = 57.02433571
+        Args.RefDec            = -32.02240689608
+        Args.RefMag            = 13.8277;  % B-R=0.870306
+        
         Args.AstRefRadius      = 5;
         Args.AperRadius        = [2 4 6 8 10];
         Args.Annulus           = [14 18];
