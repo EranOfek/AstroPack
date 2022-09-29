@@ -6,12 +6,12 @@ function CoaddAI=prepDidymosMovie(CropAI,Args)
         CropAI
         
         Args.JD0               = celestial.time.julday([26 9 2022 23 15 0]);
-        Args.TimeStep          = 10;   % s
-        Args.BinTime           = 0.1;
-        Args.TimeBinAfter0     = @(TimeSec) max(30, TimeSec.*0.1);   % s
+        Args.TimeStep          = 30;   % s
+        Args.BinTime           = 0.025;
+        Args.TimeBinAfter0     = @(TimeSec) max(60, TimeSec.*0.025);   % s
         Args.Filter            = imUtil.kernel2.gauss(1.2);
         Args.MinNimages        = 4;
-        Args.coaddArgs cell    = {'StackMethod','mean','StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[4 4], 'MaxIter',1}};
+        Args.coaddArgs cell    = {'StackMethod','sigmaclip', 'StackArgs',{'MeanFun',@tools.math.stat.nanmedian, 'MaxIter',1, 'Nsigma',[3 3]}};  %{'StackMethod','sigmaclip','StackArgs',{'MeanFun',@median, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[2 2], 'MaxIter',1}};
         Args.PlotDS9 logical   = false;
     end
     RAD        = 180./pi;
@@ -58,8 +58,15 @@ function CoaddAI=prepDidymosMovie(CropAI,Args)
             FlagNN = ~isnan(ZP);
             ZP = ZP(FlagNN);
             
-            CoaddAI(Icoadd) = imProc.stack.coadd(BAI(Flag), 'PreNorm',FluxFactor, Args.coaddArgs{:});
+            CoaddAI(Icoadd) = imProc.stack.coadd(BAI(Flag), 'PreNorm',FluxFactor, Args.coaddArgs{:}, 'ReplaceNaN','none');
+            
+%             CoaddAI(Icoadd) = imProc.stack.coadd(BAI(Flag), 'PreNorm',FluxFactor,...
+%                 'StackMethod','sigmaclip',...
+%                 'StackArgs',{'MeanFun',@tools.math.stat.nanmedian, 'MaxIter',1, 'Nsigma',[3 3]},...
+%                 'ReplaceNaN','none');
 
+            
+            
             if Args.PlotDS9
                 ds9(CoaddAI(Icoadd),Icoadd)
             end

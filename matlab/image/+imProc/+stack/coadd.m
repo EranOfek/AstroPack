@@ -507,7 +507,7 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
 
                     Result.MaskData = maskSet(Result.MaskData, FlagNaN, Args.BitNameInterpolated, 1);
                 otherwise
-                    error('Unknown ReplaceMaN option');
+                    error('Unknown ReplaceNaN option');
             end  % end inner switch
     end % end outer switch
 end
