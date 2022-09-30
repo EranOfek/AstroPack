@@ -5,10 +5,12 @@ function CoaddAI=prepDidymosMovie(CropAI,Args)
     arguments
         CropAI
         
+        Args.ZP                = [];
+        Args.MaxTime           = 3800;
         Args.JD0               = celestial.time.julday([26 9 2022 23 15 0]);
-        Args.TimeStep          = 30;   % s
-        Args.BinTime           = 0.025;
-        Args.TimeBinAfter0     = @(TimeSec) max(60, TimeSec.*0.025);   % s
+        Args.TimeStep          = 5;   % s
+        Args.BinTime           = 0.03;
+        Args.TimeBinAfter0     = @(TimeSec) max(60, TimeSec.*0.03);   % s
         Args.Filter            = imUtil.kernel2.gauss(1.2);
         Args.MinNimages        = 4;
         Args.coaddArgs cell    = {'StackMethod','sigmaclip', 'StackArgs',{'MeanFun',@tools.math.stat.nanmedian, 'MaxIter',1, 'Nsigma',[3 3]}};  %{'StackMethod','sigmaclip','StackArgs',{'MeanFun',@median, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[2 2], 'MaxIter',1}};
@@ -32,31 +34,44 @@ function CoaddAI=prepDidymosMovie(CropAI,Args)
     StartTime  = min(TimeSince0);
     EndTime    = max(TimeSince0) - 0.5.*Args.BinTime.*max(TimeSince0);
     
+    TimeVec = (StartTime:Args.TimeStep:EndTime).';
+    Time    = TimeVec(1);
     Icoadd = 0;
-    for Time = StartTime:Args.TimeStep:EndTime
+    Istep  = 0;
+    while Time<Args.MaxTime && Istep<numel(TimeVec)
+        Istep = Istep + 1;
+        Time  = TimeVec(Istep);
         
         Icoadd
         Flag = abs(TimeSince0-Time)<Args.TimeBinAfter0(Time);
         IndFlag  = find(Flag);
+        
                
         NinCoadd = numel(IndFlag);
         
         if NinCoadd>Args.MinNimages
             Icoadd = Icoadd + 1;
-            ZP       = zeros(NinCoadd,1);
-        
-            for IIf=1:1:NinCoadd
-                if isempty(CropAI(IndFlag(IIf)).UserData.ZP)
-                    ZP(IIf) = NaN;
-                else
-                    ZP(IIf) = CropAI(IndFlag(IIf)).UserData.ZP(3);
+            
+            if isempty(Args.ZP)
+                
+                ZP       = zeros(NinCoadd,1);
+
+                for IIf=1:1:NinCoadd
+                    if isempty(CropAI(IndFlag(IIf)).UserData.ZP)
+                        ZP(IIf) = NaN;
+                    else
+                        ZP(IIf) = CropAI(IndFlag(IIf)).UserData.ZP(3);
+                    end
                 end
+            else
+                ZP = Args.ZP;
             end
-            FluxFactor = 10.^(0.4.*ZP);
+            
+            FluxFactor = 10.^(0.4.*ZP(Flag));
             %FAI = BAI(Flag).copy;
            
-            FlagNN = ~isnan(ZP);
-            ZP = ZP(FlagNN);
+            %FlagNN = ~isnan(ZP);
+            %ZP = ZP(FlagNN);
             
             CoaddAI(Icoadd) = imProc.stack.coadd(BAI(Flag), 'PreNorm',FluxFactor, Args.coaddArgs{:}, 'ReplaceNaN','none');
             

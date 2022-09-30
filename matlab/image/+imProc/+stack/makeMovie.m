@@ -23,7 +23,9 @@ function makeMovie(Images, FileName, Args)
     arguments
         Images    % either a cube or an AstroImage object
         FileName      = [];  %'Movie.avi';
-        Args.Scale    = [-10 20];
+        Args.Scale    = [-3 5];
+        Args.ScaleStd logical = false;
+        Args.TimeVec  = [];
         Args.DataProp = 'Image';
         Args.ColorMap = 'gray';
         Args.RemoveTicks logical  = true;
@@ -43,7 +45,8 @@ function makeMovie(Images, FileName, Args)
     end
     
     if ~isempty(FileName)
-        VideoObj = VideoWriter(FileName, Args.VideoType, Args.VideoArgs{:}, 'FrameRate',Args.FrameRate);
+        VideoObj = VideoWriter(FileName, Args.VideoType, Args.VideoArgs{:});
+        VideoObj.FrameRate = Args.FrameRate;
         open(VideoObj);
     end
     
@@ -54,8 +57,22 @@ function makeMovie(Images, FileName, Args)
             Matrix = Images(:,:,Dim);
         end
             
-        imagesc(Matrix, Args.Scale);
+        if Args.ScaleStd
+            Std = tools.math.stat.rstd(Matrix(:));
+            Scale = Std.*Args.Scale;
+        else
+            Scale = Args.Scale;
+        end
+        
+        imagesc(Matrix, Scale);
         colormap(Args.ColorMap);
+        
+        if ~isempty(Args.TimeVec)
+            H = text(20,20,sprintf('%5d s',floor(Args.TimeVec(Iim))));
+            H.Color     = 'w';
+            H.FontSize  = 14;
+        end
+        
         drawnow;
         if Args.RemoveTicks
             H = gca;

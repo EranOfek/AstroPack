@@ -187,8 +187,8 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
                     PredX = AstX;
                     PredY = AstY;
                 end
-                FloorX = floor(PredX)-5;
-                FloorY = floor(PredY)-5;
+                FloorX = floor(PredX);
+                FloorY = floor(PredY);
                 ShiftX = FloorX - PredX;
                 ShiftY = FloorY - PredY;
                 
