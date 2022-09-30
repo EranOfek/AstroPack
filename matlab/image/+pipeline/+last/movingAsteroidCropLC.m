@@ -4,8 +4,8 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
     
     arguments
   
-        TimeStart      = [26 09 2022 23 14 02]; %[26 9 2022 23 10 00];  % 231403
-        TimeStop       = [26 09 2022 23 18 03]; %[27 9 2022  2 37 55];  % 231802
+        TimeStart      = [29 09 2022 22 32 30]; %[26 09 2022 23 14 02]; %[26 9 2022 23 10 00];  % 231403
+        TimeStop       = [30 09 2022 02 40 00]; %[26 09 2022 23 18 03]; %[27 9 2022  2 37 55];  % 231802
         Args.DataNum   = 1;
         Args.CCDSEC    = [300 6000 2600 7000];
         Args.SameField = true;
@@ -22,9 +22,14 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         %Args.RefDec            = -32.79154817653;
         %Args.RefMag            = 13.1339;
         % 28-9
-        Args.RefRA             = 57.02433571
-        Args.RefDec            = -32.02240689608
-        Args.RefMag            = 13.8277;  % B-R=0.870306
+        %Args.RefRA             = 57.02433571
+        %Args.RefDec            = -32.02240689608
+        %Args.RefMag            = 13.8277;  % B-R=0.870306
+        % 29-9
+        Args.RefRA             = 59.93690318632;
+        Args.RefDec            = -31.09169810994;
+        Args.RefMag            = 13.7309;
+        
         
         Args.AstRefRadius      = 5;
         Args.AperRadius        = [2 4 6 8 10];
