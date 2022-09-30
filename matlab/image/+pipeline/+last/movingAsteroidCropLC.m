@@ -85,7 +85,7 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
     
     %FITS.write_keys(List(Ind),{'FILTER','clear','';'GAIN',0.9,'';'RA',50.875917,'';'DEC',-33.4191896,''});
     
-    for Iim=1:1:10
+    for Iim=1:1:Nim
         %Nim
         tic;
         IndDebug = IndDebug + 1;
