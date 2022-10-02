@@ -4,8 +4,8 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
     
     arguments
   
-        TimeStart      = [29 09 2022 22 32 30]; %[26 09 2022 23 14 02]; %[26 9 2022 23 10 00];  % 231403
-        TimeStop       = [30 09 2022 02 40 00]; %[26 09 2022 23 18 03]; %[27 9 2022  2 37 55];  % 231802
+        TimeStart      = [01 10 2022 22 12 00]; %[26 09 2022 23 14 02]; %[26 9 2022 23 10 00];  % 231403
+        TimeStop       = [02 10 2022 02 40 00]; %[26 09 2022 23 18 03]; %[27 9 2022  2 37 55];  % 231802
         Args.DataNum   = 1;
         Args.CCDSEC    = [300 6000 2600 7000];
         Args.SameField = true;
@@ -26,9 +26,13 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         %Args.RefDec            = -32.02240689608
         %Args.RefMag            = 13.8277;  % B-R=0.870306
         % 29-9
-        Args.RefRA             = 59.93690318632;
-        Args.RefDec            = -31.09169810994;
-        Args.RefMag            = 13.7309;
+        %Args.RefRA             = 59.93690318632;
+        %Args.RefDec            = -31.09169810994;
+        %Args.RefMag            = 13.7309;
+        % 01-10
+        Args.RefRA             = 65.88858233799;
+        Args.RefDec            = -29.04560749999;
+        Args.RefMag            = 13.0571;
         
         
         Args.AstRefRadius      = 5;
@@ -182,11 +186,11 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
                 [PredX, PredY] = AI.WCS.sky2xy(PredRA.*RAD, PredDec.*RAD);
 
                 DistFromPred = sqrt((PredX-AstX).^2 + (PredY-AstY).^2);
-                if DistFromPred<1
-                    % use observed position instead of predicted position
-                    PredX = AstX;
-                    PredY = AstY;
-                end
+                %if DistFromPred<1
+                %    % use observed position instead of predicted position
+                %    PredX = AstX;
+                %    PredY = AstY;
+                %end
                 FloorX = floor(PredX);
                 FloorY = floor(PredY);
                 ShiftX = FloorX - PredX;
