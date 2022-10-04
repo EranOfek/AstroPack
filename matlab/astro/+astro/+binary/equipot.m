@@ -15,7 +15,7 @@ function [x,y,q]=equipot(m1,m2,a,s,n,z)
 % Tested : Matlab 5.3
 %     By : Eran O. Ofek                    May 1994
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [x,y,q]=AstroUtil.binary.equipot(1,0.7,0.7.*1e9,3,50);
+% Example: [x,y,q]=astro.binary.equipot(1,0.7,0.7.*1e9,3,50);
 %          mesh(x,y,q);
 %-------------------------------------------------------------------------
 
