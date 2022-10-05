@@ -107,13 +107,18 @@ classdef PhotonsList < Component
             
             Obj = PhotonsList;
             
-            ImIO = ImageIO(File, 'HDU',Args.HDU, 'IsTable',true , 'readTableArgs',{'OutTable','astrocatalog'});
+            %ImIO = ImageIO(File, 'HDU',Args.HDU, 'IsTable',true , 'readTableArgs',{'OutTable','astrocatalog'});
             
-            [Out, HeaderT] = FITS.readTable1(File,'HDUnum',Args.HDU, 'OutTable','AstroCatalog');
+            %[Out, HeaderT] = FITS.readTable1(File,'HDUnum',Args.HDU, 'OutTable','AstroCatalog');
+            [Out, HeaderT] = FITS.readTable1(File,'HDUnum',Args.HDU, 'OutTable','AstroCatalog', 'BreakRepCol',false);
+            
             % get WCS from HeaderT
             
             % BUG HERE!!!
-            Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT);
+            %Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT);
+            
+            % Swift-XRT
+            Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT, 'Num1',2,'Num2',3);
             
             % read header
             [HeadCell] = FITS.readHeader1(File, Args.HeaderHDU);
