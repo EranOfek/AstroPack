@@ -107,6 +107,8 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         Iim
         Ilist = Ind(Iim);
         
+        List(Ilist)
+        
         % fix header
         if ~isempty(Args.AddKeys)
             FITS.write_keys(List(Ilist), Args.AddKeys);
