@@ -332,8 +332,16 @@ classdef CalibImages < Component
                     Obj.DarkGroupsKey = Args.GroupKeys;
                     Obj.DarkGroupsVal = {Groups.Content};
                 else
-                    Ngroup = 1;
-                    Groups(1).ptr = (1:1:numel(Files));
+                    if ~isempty(Args.ExpTime)
+                        AH     = AstroHeader({Files.name});
+                        ET     = AH.getStructKey('EXPTIME');
+                        Groups(1).ptr = find([ET.EXPTIME]==Args.ExpTime,1,'last');
+                        Ngroup = 1;
+                    else
+                    
+                        Ngroup = 1;
+                        Groups(1).ptr = (1:1:numel(Files));
+                    end
                 end
                 
 %                 if ~isempty(Args.ExpTime)

@@ -4,8 +4,8 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
     
     arguments
   
-        TimeStart      = [01 10 2022 22 12 00]; %[26 09 2022 23 14 02]; %[26 9 2022 23 10 00];  % 231403
-        TimeStop       = [02 10 2022 02 40 00]; %[26 09 2022 23 18 03]; %[27 9 2022  2 37 55];  % 231802
+        TimeStart      = [26 09 2022 23 14 02]; %[01 10 2022 22 12 00]; %[26 09 2022 23 14 02]; %[26 9 2022 23 10 00];  % 231403
+        TimeStop       = [26 09 2022 23 18 03]; %[02 10 2022 02 40 00]; %[26 09 2022 23 18 03]; %[27 9 2022  2 37 55];  % 231802
         Args.DataNum   = 1;
         Args.CCDSEC    = [300 6000 2600 7000];
         Args.SameField = true;
@@ -30,9 +30,9 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         %Args.RefDec            = -31.09169810994;
         %Args.RefMag            = 13.7309;
         % 01-10
-        Args.RefRA             = 65.88858233799;
-        Args.RefDec            = -29.04560749999;
-        Args.RefMag            = 13.0571;
+        %Args.RefRA             = 65.88858233799;
+        %Args.RefDec            = -29.04560749999;
+        %Args.RefMag            = 13.0571;
         
         
         Args.AstRefRadius      = 5;
@@ -47,6 +47,9 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         
         Args.Plot logical      = true;
         Args.JD0               = celestial.time.julday([26 9 2022 23 15 0]);
+        
+        Args.AddKeys = {}; %{'FILTER','clear',''; 'GAIN',0.8,''};
+        Args.DarkExpTime = []; %5;
     end
     RAD        = 180./pi;
     ARCSEC_DEG = 3600;
@@ -60,8 +63,9 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
     DataNum = 1;
     [BasePath, CalibDir, NewFilesDir, ProjName] = pipeline.last.constructArchiveDir('DataNum',Args.DataNum);
     
-    CI = CalibImages.loadFromDir(CalibDir);
+    CI = CalibImages.loadFromDir(CalibDir, 'ExpTime',Args.DarkExpTime);
     CI.crop(Args.CCDSEC);
+    CI.Bias.Image = CI.Bias.Image.*0.8;
     
     if numel(TimeStart)==1
         StartJD = TimeStart;
@@ -95,9 +99,16 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         IndDebug = IndDebug + 1;
         Iim
         Ilist = Ind(Iim);
+        
+        % fix header
+        if ~isempty(Args.AddKeys)
+            FITS.write_keys(List(Ilist), Args.AddKeys);
+        end
+        
         AI    = AstroImage(List(Ilist),'CCDSEC',Args.CCDSEC);
         
-        AI = CI.processImages(AI, 'SubtractOverscan',false);
+        
+        AI = CI.processImages(AI, 'SubtractOverscan',false, 'SetNegativeTo0',false);
         [SizeY, SizeX] = AI.sizeImage;
         Xcenter = SizeX.*0.5;
         Ycenter = SizeY.*0.5;
@@ -106,9 +117,7 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         AI = imProc.background.background(AI);
         AI = imProc.sources.findMeasureSources(AI, 'MomPar',{'AperRadius',Args.AperRadius,'Annulus',Args.Annulus});
         
-        if Iim==346
-            'a'
-        end
+        
         % interpolate over bad pixels
         DoMask = true;
         if DoMask
@@ -127,9 +136,7 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         
         JD = AI.julday;
     
-        if Iim==200
-            'a'
-        end
+        
         if IndDebug==1 || ~Args.SameField
             [Result, AI, AstrometricCat] = imProc.astrometry.astrometryCore(AI,'RA',Args.FieldRA, 'Dec',Args.FieldDec, AstArgs{:});
             LastWCS = AI.WCS;
