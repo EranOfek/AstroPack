@@ -23,11 +23,11 @@ function [varargout]=fminsearch_chi2(X,Y,Err,Fun,varargin)
 % Reliable: 2
 %------------------------------------------------------------------------------
 
-if (~iscell(Fun)),
+if (~iscell(Fun))
    Fun = {Fun};
 end
 
-if (numel(Err)==1),
+if (numel(Err)==1)
    Err = Err.*ones(size(X));
 end
 
@@ -39,7 +39,7 @@ varargout = cell(nargout,1);
 [varargout{:}] = fminsearch(@call_fun,varargin{:});
 
 
-   function Chi2=call_fun(Pars);
+   function Chi2=call_fun(Pars)
    ModelY = feval(CallFun,Pars,X,FunPar{:});
    Chi2 = sum(((Y-ModelY)./Err).^2);
    end
