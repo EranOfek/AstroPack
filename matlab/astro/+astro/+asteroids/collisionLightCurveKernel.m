@@ -3,10 +3,10 @@ function [S_comb, S_tot, VecT] = collisionLightCurveKernel(S_ej, Time, VecT, V_e
     % Example: [S_comb, S_tot, VecT] = astro.asteroids.collisionLightCurveKernel
    
     arguments
-        S_ej       = 1e10;   % cm^2
+        S_ej       = [0.1e10; 0.5e10; 0.4e10; 0.4e10; 0.4e10; 0.6e10; 0.6e10; 0.6e10]   % cm^2
         Time       = logspace(-1,6,1000).';  % time at which to interpolate the LC
         VecT       = logspace(-1,6,1000).';  % vec of time for full LC
-        V_ej       = [200 400; 400 800]; %[1.2e5, 1.6e5];  % [min max] velocity in bin [cm/s]
+        V_ej       = [10 30; 30 100; 100 300; 300 1000; 1000 3000; 3000 10000; 10000 30000; 140000 170000]; %[1.2e5, 1.6e5];  % [min max] velocity in bin [cm/s]
         AperSize   = 2.7e7;  % cm
         F_g        = 1;      % geometrical factor
         Alpha      = 1;
