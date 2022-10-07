@@ -9,6 +9,10 @@ function fitCollisionLightCurve
     
     %Ft = LC(:,1)<86400;
     LC = LC(Ft,:);
+    Ft = ~(LC(:,1)>1343 & LC(:,1)<10799);
+    LC = LC(Ft,:);
+    
+    Time = LC(:,1);
     
     DidymosArea = pi.*41000.^2;
     
@@ -70,5 +74,55 @@ function fitCollisionLightCurve
     loglog(Time,S_comb)   
 
     %%
+    
+    BinEye = [6.95e5 1e9;
+            6.1e5  1.05e9;
+            2.65e5 5.1e9;
+            1.77e5 5.9e9;
+            9.2e4  7.8e9;
+            1.15e4 8.4e9;
+            1300   9.3e9;
+            600    1e10;
+            300    1.15e10;
+            200    1.2e10;
+            150    1.28e10;
+            100    1.55e10;
+            85     1.82e10;
+            61     1.87e10;
+            50     2e10;
+            40     2.17e10];
+            
+            
+      TimeB = BinEye(:,1);
+      Sobs = BinEye(:,2);
+      
+      Nt = numel(TimeB);
+      
+      
+      DidymosArea = pi.*41000.^2;
+      Aper5 = 8./206000 .*0.075.*constant.au;
+            
+      V = Aper5./TimeB;
+      MeanV = 0.5.*(V(1:end-1) + V(2:end));
+      MeanT = 0.5.*(TimeB(1:end-1) + TimeB(2:end));
+      DiffS = diff(Sobs);
+            
+      MeanT = [Time(1);MeanT];
+      MeanV = [V(1); MeanV];
+      DiffS = [Sobs(1);DiffS];
+      
+      %for It=1:1:Nt
+      %    [S_comb, S_tot, VecT] = astro.asteroids.collisionLightCurveKernel(DiffS(It), MeanT, VecT, MeanV(It), Aper5, F_g, Alpha);
+      %end
+      
+      VecT       = logspace(0,6,1000).';
+      
+      F_g = 1;
+      [S_comb, S_tot, VecT] = astro.asteroids.collisionLightCurveKernel(DiffS, VecT, VecT, MeanV, Aper5, F_g, Alpha);
+      
+      loglog(VecT, S_comb)
+      hold on
+      plot(Time, S_obs,'o')
+      
     
 end
