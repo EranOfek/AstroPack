@@ -61,7 +61,7 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
     
     if isempty(DestPath)
         % assumeing all files have the same destination
-        DestPath = fileparts(DestFiles{1});
+        DestPath = fileparts(DestFiles);
         DestPathInFile = true;
     else
         DestPathInFile = false;
