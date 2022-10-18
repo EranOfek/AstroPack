@@ -1405,7 +1405,7 @@ classdef AstroImage < Component
 
                     if Args.UpdateHead
                         % add WCS kesy to Header
-                        Obj(Iobj).HeaderData = wcs2head(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+                        Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
                     end
                 end
             end

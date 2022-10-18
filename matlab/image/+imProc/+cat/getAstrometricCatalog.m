@@ -38,6 +38,9 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     %                   Default is {'Plx'}.
     %            'RangePlx' - Parllax range to retrieve.
     %                   Default is [-Inf 50].
+    %            'UsePlxRange' - Boolian indicating if to constrain the
+    %                   sources by Plx (true), or not (false). 
+    %                   Defauls is true.
     %            'OutRADecUnits' - Output units for the RA and Dec output
     %                   arguments. Default is 'rad'.
     %            'RemoveNeighboors' - A logical indicating if to remove
@@ -71,6 +74,7 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
         Args.ColNameMag                = {'Mag_BP','Mag'};
         Args.RangeMag                  = [12 19.5];
         Args.ColNamePlx                = {'Plx'};
+        Args.UsePlxRange               = true;
         Args.RangePlx                  = [-Inf 50];
         % OutRADec
         Args.OutRADecUnits             = 'rad';
@@ -103,9 +107,12 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
                 % Addtitional constraints on astrometric catalog
                 % mag and parallax constraints
                 % no output argument means that CreateNewObj=false
+                if Args.UsePlxRange               
                 queryRange(Result, Args.ColNameMag, Args.RangeMag,...
                                    Args.ColNamePlx, Args.RangePlx);
-                                                                
+                else
+                    queryRange(Result, Args.ColNameMag, Args.RangeMag);
+                end
 
                 % apply proper motion
                 if ~isempty(Args.EpochOut)
