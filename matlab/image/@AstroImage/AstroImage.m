@@ -1622,11 +1622,16 @@ classdef AstroImage < Component
             if isempty(Y)
                 Ind = X;
             else
-                if X<1 || Y<1 || X>SizeX || Y>SizeY
-                    Ind = NaN;
-                else
-                    Ind = imUtil.image.sub2ind_fast([SizeY, SizeX], round(Y), round(X));
-                end
+                FlagOut = X<1 | Y<1 | X>SizeX | Y>SizeY;
+                XNN = X(~FlagOut);
+                YNN = Y(~FlagOut);
+                Ind = imUtil.image.sub2ind_fast([SizeY, SizeX], round(YNN), round(XNN));
+%                 
+%                 if X<1 || Y<1 || X>SizeX || Y>SizeY
+%                     Ind = NaN;
+%                 else
+%                     Ind = imUtil.image.sub2ind_fast([SizeY, SizeX], round(Y), round(X));
+%                 end
             end
             varargout = cell(1, nargout);
             for Iarg=1:1:nargout    
