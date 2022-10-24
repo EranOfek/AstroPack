@@ -4,8 +4,8 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
     
     arguments
   
-        TimeStart      = [04 10 2022 22 34 00]; %[03 10 2022 22 39 30]; % [26 09 2022 23 14 02]; %[01 10 2022 22 12 00]; %[26 09 2022 23 14 02]; %[26 9 2022 23 10 00];  % 231403
-        TimeStop       = [05 10 2022 02 31 00]; %[04 10 2022 02 31 00]; % [26 09 2022 23 18 03]; %[02 10 2022 02 40 00]; %[26 09 2022 23 18 03]; %[27 9 2022  2 37 55];  % 231802
+        TimeStart      = [26 9 2022 23 10 00]; %[04 10 2022 22 34 00]; %[03 10 2022 22 39 30]; % [26 09 2022 23 14 02]; %[01 10 2022 22 12 00]; %[26 09 2022 23 14 02]; %[26 9 2022 23 10 00];  % 231403
+        TimeStop       = [27 9 2022  2 37 55]; %[05 10 2022 02 31 00]; %[04 10 2022 02 31 00]; % [26 09 2022 23 18 03]; %[02 10 2022 02 40 00]; %[26 09 2022 23 18 03]; %[27 9 2022  2 37 55];  % 231802
         Args.DataNum   = 1;
         Args.CCDSEC    = [300 6000 2600 7000];
         Args.SameField = true;
@@ -14,9 +14,9 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         Args.AstSearchRadius   = 10;   % [arcsec]
         Args.HalfCrop          = 200;
         % 26-9
-        %Args.RefRA             = 50.875917639; 
-        %Args.RefDec            = -33.41918960863;
-        %Args.RefMag            = 11.233;
+        Args.RefRA             = 50.875917639; 
+        Args.RefDec            = -33.41918960863;
+        Args.RefMag            = 11.233;
         % 27-9
         %Args.RefRA             = 54.06071248003;
         %Args.RefDec            = -32.79154817653;
@@ -38,9 +38,9 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         %Args.RefDec            = -26.75984586149;
         %Args.RefMag            = 14.140081;
         % 04-10
-        Args.RefRA             = 74.29651441909;
-        Args.RefDec            = -25.344302888;
-        Args.RefMag            = 13.5824;
+        %Args.RefRA             = 74.29651441909;
+        %Args.RefDec            = -25.344302888;
+        %Args.RefMag            = 13.5824;
         
         Args.AstRefRadius      = 5;
         Args.AperRadius        = [2 4 6 8 10];

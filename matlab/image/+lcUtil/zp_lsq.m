@@ -177,7 +177,7 @@ function [Result, CorrMS] = zp_lsq(MS, Args)
         if isempty(Args.CalibMag)
             Add = 0;
         else
-            Add = median(Args.CalibMag(:) - Result.FitMeanMag(:), 1, 'omitnan');
+            Add = median(Args.CalibMag(FlagMin) - Result.FitMeanMag(:), 1, 'omitnan');
         end
         CorrMS.addMatrix({Mag - Result.FitZP + Add}, {'Mag'});
     end
