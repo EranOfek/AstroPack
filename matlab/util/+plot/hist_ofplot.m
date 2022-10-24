@@ -80,7 +80,7 @@ for Ichild=1:1:Nchild
    [X,N] = tools.math.stat.realhist(get(Hchild(Ichild),'XData'),[XLim InPar.NbinX]);
    HistX(Ichild).X = X;
    HistX(Ichild).N = N;
-   [X,N] = tools.math.stat.realhist(get(Hchild(Ichild),'YData'),[YLim InPar.NbinX]);
+   [X,N] = tools.math.stat.realhist(get(Hchild(Ichild),'YData'),[YLim InPar.NbinY]);
    HistY(Ichild).X = X;
    HistY(Ichild).N = N;
    if (isempty(InPar.Color))
