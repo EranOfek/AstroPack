@@ -49,8 +49,8 @@ function CropAI=movingAsteroidCropLC(TimeStart, TimeStop, Args)
         Args.AstRefineRadius   = 10;
         %Args.FieldRA           = 50.915;
         %Args.FieldDec          = -33.449;
-        Args.FieldRA = 'RA'; %50.876; %'RA'; %50.876;
-        Args.FieldDec = 'DEC'; %-33.419; %'DEC'; % -32.791;
+        Args.FieldRA = 50.875917639; %'RA'; %50.876; %'RA'; %50.876;
+        Args.FieldDec = -33.419189; %'DEC'; %-33.419; %'DEC'; % -32.791;
         
         Args.Plot logical      = true;
         Args.JD0               = celestial.time.julday([26 9 2022 23 15 0]);
