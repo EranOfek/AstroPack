@@ -24,6 +24,7 @@ function makeMovie(Images, FileName, Args)
         Images    % either a cube or an AstroImage object
         FileName      = [];  %'Movie.avi';
         Args.Scale    = [-3 5];
+        Args.ScaleDeriv = [0 0];
         Args.ScaleStd logical = false;
         Args.TimeVec  = [];
         Args.DataProp = 'Image';
@@ -63,6 +64,9 @@ function makeMovie(Images, FileName, Args)
         else
             Scale = Args.Scale;
         end
+        Scale(1) = Scale(1) + sqrt(Iim).*Args.ScaleDeriv(1);
+        Scale(2) = Scale(2) + sqrt(Iim).*Args.ScaleDeriv(2);
+        
         
         imagesc(Matrix, Scale);
         colormap(Args.ColorMap);

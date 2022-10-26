@@ -26,8 +26,9 @@ function CoaddAI=prepDidymosMovie(CropAI,Args)
     JD = CropAI.julday;
     
     % subtract background
-    BAI = imProc.background.background(CropAI, 'SubSizeXY',[], 'CreateNewObj',true,'SubBack',true);
-    BAI = BAI.filter(Args.Filter);
+    %BAI = imProc.background.background(CropAI, 'SubSizeXY',[], 'CreateNewObj',true,'SubBack',true);
+    %BAI = BAI.filter(Args.Filter);
+    BAI = CropAI;
     
     
     TimeSince0 = (JD - Args.JD0).*SEC_DAY;   % [s]
@@ -73,7 +74,7 @@ function CoaddAI=prepDidymosMovie(CropAI,Args)
             %FlagNN = ~isnan(ZP);
             %ZP = ZP(FlagNN);
             
-            CoaddAI(Icoadd) = imProc.stack.coadd(BAI(Flag), 'PreNorm',FluxFactor, Args.coaddArgs{:}, 'ReplaceNaN','none');
+            CoaddAI(Icoadd) = imProc.stack.coadd(BAI(Flag), 'PreNorm',1./FluxFactor, Args.coaddArgs{:}, 'ReplaceNaN','none');
             
 %             CoaddAI(Icoadd) = imProc.stack.coadd(BAI(Flag), 'PreNorm',FluxFactor,...
 %                 'StackMethod','sigmaclip',...
