@@ -731,6 +731,16 @@ classdef CalibImages < Component
                 Args.flatArgs cell                = {};
             end
             
+            if isa(ImObj,'AstroImage')
+                % do nothing
+            else
+                List  = io.files.filelist(ImObj);
+                if isempty(List)
+                    error('No flat images were supplied');
+                end
+                ImObj = AstroImage(List);
+            end
+            
             % identify all possible filters
             ImFilt        = getStructKey(ImObj, Args.FilterKey, Args.getStructKeyArgs{:});
             FilterList    = {ImFilt.FILTER};
