@@ -1,7 +1,7 @@
 # Database.DbConnections.UnitTest
 
 DatabaseName       : 'postgres'                 # Database name
-Host               : 'gauss'                    # Hostname or IP address
+Host               : 'socsrv'                   # Hostname or IP address
 DriverName         : 'postgres'                 # Driver name
 Port               : 5432                       # Port number
 UserName           : 'postgres'                 # Login user
