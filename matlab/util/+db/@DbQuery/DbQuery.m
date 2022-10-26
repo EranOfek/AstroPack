@@ -1301,6 +1301,17 @@ classdef DbQuery < Component
             Text = 'SELECT table_name FROM information_schema.tables WHERE table_schema = ''public'' ORDER BY table_name';
             Result = Obj.selectColumn(Text, 'table_name');
         end
+        
+        
+        function Result = getSchemasList(Obj)
+            % Get list of all tables in current database
+            % Input   : - DbQuery object
+            % Output  : - Cell array
+            % Author  : Chen Tishler (2021)
+            % Example : List = Obj.getTablesList()
+            Text = 'SELECT schema_name FROM information_schema.schemata';
+            Result = Obj.selectColumn(Text, 'schema_name');
+        end        
 
         
         function Result = getPartitionTree(Obj, Args)
@@ -2048,6 +2059,32 @@ classdef DbQuery < Component
         end
 
         
+        function Result = createTablespace(Obj, TablespaceName, Path)
+            % Create table space on specified path.
+            % See: https://www.postgresql.org/docs/current/manage-ag-tablespaces.html
+            % The location must be an existing, empty directory that is owned by the 
+            % PostgreSQL operating system user. All objects subsequently created within 
+            % the tablespace will be stored in files underneath this directory.
+            % The location must not be on removable or transient storage, as the cluster 
+            % might fail to function if the tablespace is missing or lost.
+            %
+            % Create new folder:
+            %   sudo mkdir /data2/pgdata
+            %   sudo chown postgres:postgres /data2/pgdata
+            %   sudo chmod 700 /data2/pgdata
+            %
+            % Input : - DbQuery object
+            %         - Tablespace name to create
+            %         - Path to folder owned by PostgreSQL operating system user
+            %
+            % Output  : true on success
+            % Author  : Chen Tishler (2022)
+            % Example : createTablespace('myspace')
+            SqlText = sprintf('CREATE TABLESPACE %s LOCATION ''%s'';', TablespaceName, Path);
+            Result = Obj.exec(SqlText);           
+        end
+        
+        
         function Result = createDb(Obj, Args)
             % Create database, from .XLSX or .SQL file
             %
@@ -2059,6 +2096,10 @@ classdef DbQuery < Component
             %           'Drop'         - True to drop (delete) the database before creating it (default is false)
             %           'XlsxFileName' - .xlsx file from Google Sheets - Specify XLSX file
             %           'SqlFileName'  - .sql file name - Specify SQL script to run
+            %           'Tablespace'   - The name of the tablespace that will be associated with the new database, 
+            %                            or DEFAULT to use the template database's tablespace. This tablespace will 
+            %                            be the default tablespace used for objects created in this database. 
+            %                            See CREATE TABLESPACE for more information.
             %
             % Output  : true on success
             % Author  : Chen Tishler (2021)
@@ -2074,6 +2115,7 @@ classdef DbQuery < Component
                 Args.XlsxFileName   = ''        %
                 Args.SqlFileName    = ''        %                
                 Args.CheckExist     = true      % When true, check if database exist before executing 
+                Args.Tablespace     = ''        % 
             end
             
             Result = false;
@@ -2087,7 +2129,13 @@ classdef DbQuery < Component
                     end
                 end
                 
-                SqlText = sprintf('CREATE DATABASE %s WITH TEMPLATE = template0 ENCODING = ''UTF8'';', Args.DatabaseName);
+                SqlText = sprintf('CREATE DATABASE %s WITH TEMPLATE = template0 ENCODING = ''UTF8''', Args.DatabaseName);
+                
+                % Add tablespace
+                if ~isempty(Args.Tablespace)
+                    SqlText = strcat(SqlText, ' TABLESPACE ', Args.Tablespace);
+                end
+                
                 Result = Obj.exec(SqlText);
                 return;
             end           
@@ -2201,6 +2249,8 @@ classdef DbQuery < Component
             %             'UuidPk'        - True to create primary key as UUID instead of IDENTITY, default is false
             %             'CheckExist'    - True (default) to check if database already exists, and ignore
             %             'Drop'          - True to drop (delete) the table before creating it (default is false)            
+            %             'Tablespace'    - Specify TABLESPACE name to for the new table
+            %
             % Output  : true on success
             % Author  : Chen Tishler (2021)
             % Example : db.DbQuery.createTable('TableName', 'my_table', 'AutoPk', 'pk')
@@ -2221,6 +2271,7 @@ classdef DbQuery < Component
                 Args.UuidPk         = false
                 Args.CheckExist     = true
                 Args.Drop           = false;    
+                Args.Tablespace     = '';
             end
 
             Result = false;
@@ -2262,6 +2313,11 @@ classdef DbQuery < Component
             % Table name with Primary key
             elseif ~isempty(Args.TableName) && ~isempty(Args.PrimaryKeyDef)
                 SqlText = sprintf('CREATE TABLE %s (%s PRIMARY KEY)', Args.TableName, Args.PrimaryKeyDef);
+            end
+            
+            % Add TABLESPACE
+            if ~isempty(Args.Tablespace)
+                SqlText = strcat(SqlText, ' TABLESPACE ', Args.Tablespace);
             end
             
             if ~isempty(SqlText)
@@ -2404,6 +2460,7 @@ classdef DbQuery < Component
             %           * Pairs of ...,key,val,...
             %             The following keys are available:            			                        
             %             'CheckExist'    - True (default) to check if index already exists
+            %             'Tablespace'    - Tablespace name
             % Output  : - true on success
             % Author  : Chen Tishler (2021)
             % Example : addIndex('master_table', 'master_table_idx_FDouble2', 'USING btree (FDouble2)');
@@ -2420,6 +2477,7 @@ classdef DbQuery < Component
                 IndexName           %
                 Columns             %
                 Args.CheckExist = true %
+                Args.Tablespace = ''
             end
                         
             if Args.CheckExist
@@ -2429,7 +2487,12 @@ classdef DbQuery < Component
                 end
             end
             
-            SqlText = sprintf('CREATE INDEX %s ON %s USING BTREE(%s);', IndexName, TableName, Columns);
+            SqlText = sprintf('CREATE INDEX %s ON %s USING BTREE(%s)', IndexName, TableName, Columns);
+            
+            if ~isempty(Args.Tablespace)
+                SqlText = strcat(SqlText, ' TABLESPACE ', Args.Tablespace);
+            end
+            
             Result = Obj.exec(SqlText);
         end
         
@@ -2442,6 +2505,7 @@ classdef DbQuery < Component
             %           * Pairs of ...,key,val,...
             %             The following keys are available:            			                        
             %             'CheckExist'    - True (default) to check if index already exists
+            %             'Tablespace'    - Tablespace name
             % Output  : - true on success
             % Author  : Chen Tishler (2022)
             % Example : addIndexOnColumn('master_table', 'fdouble2')
@@ -2450,12 +2514,25 @@ classdef DbQuery < Component
                 TableName                %
                 ColumnName               %
                 Args.CheckExist = true   %
+                Args.Tablespace = ''
             end
                         
             IndexName = sprintf('%s_idx_%s', TableName, ColumnName);
-            Result = Obj.addIndex(TableName, IndexName, ColumnName, 'CheckExist', Args.CheckExist);
+            Result = Obj.addIndex(TableName, IndexName, ColumnName, 'CheckExist', Args.CheckExist, 'Tablespace', Args.Tablespace);
         end
         
+        
+        function Result = getTablespaceList(Obj)
+            % Get list of tablespaces
+            % Input   : - DbQuery object
+            % Output  : - Cell array with list of tablespaces
+            % Author  : Chen Tishler (2022)
+            % Example : List = Obj.getTablespaceList()
+            % Refs    : https://www.postgresqltutorial.com/postgresql-list-users/
+            
+            Text = 'SELECT spcname FROM pg_tablespace';
+            Result = Obj.selectColumn(Text, 'spcname');
+        end
         
         function Result = getDbList(Obj)
             % Get list of databases
