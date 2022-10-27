@@ -7,10 +7,10 @@ function CoaddAI=prepDidymosMovie(CropAI,Args)
         
         Args.ZP                = [];
         Args.MaxTime           = 3800;
-        Args.JD0               = celestial.time.julday([26 9 2022 23 15 0]);
+        Args.JD0               = celestial.time.julday([26 9 2022 23 15 1.9]);
         Args.TimeStep          = 5;   % s
         Args.BinTime           = 0.03;
-        Args.TimeBinAfter0     = @(TimeSec) max(60, TimeSec.*0.03);   % s
+        Args.TimeBinAfter0     = @(TimeSec) max(240, TimeSec.*0.03);   % s
         Args.Filter            = imUtil.kernel2.gauss(1.2);
         Args.MinNimages        = 4;
         Args.coaddArgs cell    = {'StackMethod','sigmaclip', 'StackArgs',{'MeanFun',@tools.math.stat.nanmedian, 'MaxIter',1, 'Nsigma',[3 3]}};  %{'StackMethod','sigmaclip','StackArgs',{'MeanFun',@median, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[2 2], 'MaxIter',1}};

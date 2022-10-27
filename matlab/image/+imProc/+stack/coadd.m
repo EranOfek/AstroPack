@@ -22,7 +22,7 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
     %                   Default is {}.
     %            'PreNorm' - Like offset, but for the
     %                   pre-normalization for the images. The
-    %                   pre-normalization is done after the offset.
+    %                   image is divided by the pre-normalization after the offset.
     %                   Default is [].
     %            'PreNormArgs' - A cell array of additional
     %                   arguments to pass to the pre-normalization function.
