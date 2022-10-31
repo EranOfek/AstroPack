@@ -74,9 +74,7 @@ function CoaddAI=prepDidymosMovie(CropAI,Args)
             %FlagNN = ~isnan(ZP);
             %ZP = ZP(FlagNN);
             
-            if Icoadd==75
-                'a'
-            end
+           
             
             CoaddAI(Icoadd) = imProc.stack.coadd(BAI(Flag), 'PreNorm',1./FluxFactor, Args.coaddArgs{:}, 'ReplaceNaN','none');
             
