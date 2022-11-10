@@ -309,12 +309,12 @@ else
    end
    
    % for Mag 0 star
-   DeltaMag0  = AstroUtil.spec.blackbody_mag_c(InPar.Temp,InPar.Family,InPar.Band,InPar.MagType,SolR,10);
+   DeltaMag0  = astro.spec.blackbody_mag_c(InPar.Temp,InPar.Family,InPar.Band,InPar.MagType,SolR,10);
    Flux0      = Flux.*10.^(+0.4.*DeltaMag0);
    Counts0    = Counts.*10.^(+0.4.*DeltaMag0);
    
    
-   DeltaMag  = AstroUtil.spec.blackbody_mag_c(InPar.Temp,InPar.Family,InPar.Band,InPar.MagType,SolR,10) - Mag;
+   DeltaMag  = astro.spec.blackbody_mag_c(InPar.Temp,InPar.Family,InPar.Band,InPar.MagType,SolR,10) - Mag;
    Flux      = Flux.*10.^(+0.4.*DeltaMag);
    Counts    = Counts.*10.^(+0.4.*DeltaMag);
 

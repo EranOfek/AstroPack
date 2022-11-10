@@ -71,13 +71,13 @@ if (numel(Spectrum)==1)
 end
 
 % Equalize Filter and Spectrum:
-[NewSpec,NewFilt]=AstroUtil.spec.eq_sampling(Spectrum,Filter,[],InterpMethod);
+[NewSpec,NewFilt]=astro.spec.eq_sampling(Spectrum,Filter,[],InterpMethod);
 
 % applay extinction:
 if (isempty(Extin)==1)
    Extin = [NewSpec(:,1), ones(size(NewSpec,1),1)];
 end
-[NewSpec,NewExtin] = AstroUtil.spec.eq_sampling(NewSpec,Extin,NewSpec(:,1),InterpMethod);
+[NewSpec,NewExtin] = astro.spec.eq_sampling(NewSpec,Extin,NewSpec(:,1),InterpMethod);
 
 % Observd Spectrum:
 ObsSpec = [NewSpec(:,1), NewSpec(:,2) .* 4.*pi.* Radius.^2 ./(4.*pi.*(Dist.*Pc).^2)];

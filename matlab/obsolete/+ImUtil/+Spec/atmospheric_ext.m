@@ -58,7 +58,7 @@ if (iscell(Spec)==1)
 else
    WaveSampling = Spec(:,1);
 end
-[SmSpec,SmExt] = AstroUtil.spec.eq_sampling(Spec,Ext,WaveSampling,InterpMethod);
+[SmSpec,SmExt] = astro.spec.eq_sampling(Spec,Ext,WaveSampling,InterpMethod);
 
 
 ExtFactor = 10.^(0.4.*SmExt(:,2).*AirMass);

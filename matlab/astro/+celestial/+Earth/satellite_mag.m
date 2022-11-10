@@ -30,7 +30,12 @@ DefV.SunAbsMag            = -26.74;  % V
 InPar = InArg.populate_keyval(DefV,varargin,mfilename);
 
 
-Res.Mag = InPar.SunAbsMag - 2.5.*log10(InPar.Area ./ (4.*pi.*(InPar.Dist.* 1e5)^2)) - 2.5.*log10(InPar.Albedo);
+Res.Mag1 = InPar.SunAbsMag - 2.5.*log10(InPar.Area ./ (4.*pi.*(InPar.Dist.* 1e5)^2)) - 2.5.*log10(InPar.Albedo);
+
+Diam = 2.*sqrt(InPar.Area./pi)./1e5;  % km
+H   = 5.*(3.1236 - 0.5.*log10(InPar.Albedo) - log10(Diam));
+Res.Mag = H + 5.*log10(1) + 5.*log10(InPar.Dist.*1e5./constant.au);
+
 
 K = celestial.Kepler.kepler3law(constant.EarthM,'a',constant.EarthR+InPar.Dist.*1e5);
 Res.AngV = K.v./(InPar.Dist.*1e5).*RAD.*3600;  % ''/s
@@ -92,7 +97,7 @@ end
     
 
 if 1==0
-    ExpTime = 15;
+    ExpTime = 20;
     PixScale = 1.2;
     FWHM     = 2.5;
 
