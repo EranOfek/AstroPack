@@ -25,6 +25,7 @@ function makeMovie(Images, FileName, Args)
         FileName      = [];  %'Movie.avi';
         Args.Scale    = [-3 5];
         Args.ScaleDeriv = [0 0];
+        Args.Z1Z2       = [];
         Args.ScaleStd logical = false;
         Args.TimeVec  = [];
         Args.DataProp = 'Image';
@@ -67,6 +68,11 @@ function makeMovie(Images, FileName, Args)
         Scale(1) = Scale(1) + sqrt(Iim).*Args.ScaleDeriv(1);
         Scale(2) = Scale(2) + sqrt(Iim).*Args.ScaleDeriv(2);
         
+        if ~isempty(Args.Z1Z2)
+            Z1 = interp(Args.Z1Z2(:,1),Args.Z1Z2(:,2),Iim);
+            Z2 = interp(Args.Z1Z2(:,1),Args.Z1Z2(:,3),Iim);
+            Scale = [Z1 Z2];
+        end
         
         imagesc(Matrix, Scale);
         colormap(Args.ColorMap);
