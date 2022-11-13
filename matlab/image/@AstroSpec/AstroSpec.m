@@ -919,6 +919,75 @@ classdef AstroSpec < Component
                 end
             end
         end
+        
+        function Result = sunSpec
+            % Get the Solar spectrum into an AstropSpec object
+            % Input  : null
+            % Output : - An AstroSpec object with the solar spectrum.
+            %            Flux is in erg/cm^2/s/A at 1AU (no atmosphere)
+            % Author : Eran Ofek (Nov 2022)
+            % Example: S=AstroSpec.sunSpec
+            
+            SunSpec = io.files.load2('SunSpec.mat');
+            Result  = AstroSpec({SunSpec});
+            
+        end
+        
+        function Result = mieScattering(Radius, RadiusW, Theta, N, Lambda)
+            % Mie scattering spectrum for a specific scattering angle and
+            %   linear combination of particle sizes.
+            % Input  : - Particle radius.
+            %          - Scattering angle (theta) in [deg].
+            %          - Refractive index.
+            %          - Wavelength in the same units as the particle
+            %            radius.
+            % Output : - An AstroSpec object with a Mie scattering spectrum
+            %            for some specific scattering angle Theta, and for
+            %            a particles with the given size distribution.
+            % Author : Eran Ofek (Nov 2022)
+            % Example: Result = AstroSpec.mieScattering(1, 58.1, 1.7+0.3.*1i);
+           
+            
+            arguments
+                Radius   = 1e4;  %(0.5:0.1:1.5)';
+                RadiusW  = 1;  % radius weight.
+                Theta    = 58.1;
+                N        = 1.7 + 0.3.*1i;  % can be a vector of the same length as Lambda
+                Lambda   = logspace(log10(1000), log10(15000), 100).'; %logspace(-2,1,100).';
+                
+            end
+           
+            Nl = numel(Lambda);
+            Nr = numel(Radius);
+            Nn = numel(N);
+            Nrw = numel(RadiusW);
+            Spec = zeros(Nl,2);
+            Spec(:,1) = Lambda(:);
+            for Il=1:1:Nl
+                In = min(Nn,Il);
+                for Ir=1:1:Nr
+                    [S, C, ANG] = calcmie(Radius(Ir), N(In), 1, Lambda(Il), 180, 'ConvergenceFactor',1);
+                    % Equation 3 in REF 1:
+                    S1=squeeze(abs(S(1,1,:))).^2;
+                    S2=squeeze(abs(S(2,2,:))).^2;
+                    a      = 2.*pi.*Radius(Ir)./Lambda(Il); % size parameter (alpha)
+
+                    % Note that there is an error in Eq. 8 in REF 1 - should be ^-1 instead of
+                    % ^-2
+                    %Itheta = (2.*k.^2).^-1 .*(S1 + S2);
+                    Itheta = (2.*pi.*a.^2).^-1 .*(S1 + S2);
+                    % to calculate the angular Mie cross section
+                    IthetaT = interp1(ANG(:),Itheta(:), Theta);
+
+                    Spec(Il,2) = Spec(Il,2) + IthetaT.*min(Nrw,Ir);
+                end
+            end
+            Spec(:,2) = Spec(:,2)./sum(RadiusW);
+            
+            Result = AstroSpec({Spec});
+            
+            
+        end
     end
     
     methods  % resampling, sort, interpolation
@@ -1412,6 +1481,77 @@ classdef AstroSpec < Component
                 end
             end
         end
+        
+        function Result = times(Obj1, Obj2)
+            % Multiply two spectra or spectrum and a filter.
+            %   The result is interpolated to the wavelength grid of the
+            %   second input object.
+            %   Multiplication is done element by elemnt, multi to multi,
+            %   or multi to single.
+            % Input  : - An AstroSpec object.
+            %          - An AstroSpec object or an AstFilter object.
+            % Output : - An AstroSpec object.
+            % Author : Eran Ofek (Nov 2022)
+            
+           
+            arguments
+                Obj1 AstroSpec
+                Obj2 
+                %Args.CreateNewObj logical   = true;
+            end
+            
+            
+            
+            switch class(Obj2)
+                case 'AstroSpec'
+                    % Obj2 is an AstroSpec object
+                    [New1, New2] = interpAndKeepOverlap(Obj1, Obj2);
+                    % Given two AstroSpec objects, interpolate the first into the
+                    % wavelength grid defined by the second and keep only the
+                    % overlaping points.
+                    
+                    N1 = numel(New1);
+                    N2 = numel(New2);
+                    N  = max(N1, N2);
+            
+                    for I=1:1:N
+                        I1 = min(I, N1);
+                        I2 = min(I, N2);
+
+                        Result(I) = AstroSpec({[New1(I1).Wave, New1(I1).Flux .* New2(I2).Flux]});
+                    end
+                case 'AstFilter'
+                    N1 = numel(Obj1);
+                    N2 = numel(Obj2);
+                    N  = max(N1, N2);
+                    
+                    for I=1:1:N
+                        I1 = min(I, N1);
+                        I2 = min(I, N2);
+
+                        InterpFlux = interp1(Obj1(I1).Wave, Obj1(I1).Flux, Obj2(I2).nT(:,1));
+                       
+                        Result(I) = AstroSpec({[Obj2(I2).nT(:,1), InterpFlux.*Obj2(I2).nT(:,2)]});
+                    end
+                    
+                otherwise
+                    error('Unsupported class for second input object');
+            end
+            
+        end
+        
+        function Result = trapz(Obj)
+            % Integrate (using trapz) the entire spectra
+            % Input  : - An AstroSpec object.
+            % Output : - A vector of integration results, one per element.
+            % Author : Eran Ofek (Nov 2022)
+            
+            N = numel(Obj);
+            Result = zeros(N,1);
+            for I=1:1:N
+                Result(I) = trapz(Obj(I).Wave, Obj(I).Flux);
+            end
+        end
     end
     
     
@@ -1797,40 +1937,6 @@ classdef AstroSpec < Component
         end
     end
     
-    methods  % plots
-        function H = plot(Obj, varargin)
-            % Plot all the spectra in an AstroSpec object
-            % Input  : - An AstroSpec object (multi elements supported)
-            %          * Additional input arguments to pass to the plot
-            %            command.
-            % Output : - AN handle for the last plot.
-            % Author : Eran Ofek (Aug 2021)
-            % Example: Result = AstroSpec.blackBody((4000:10:9000)', [5000; 6000]);
-            %          Result.plot
-           
-            IsHold = ishold;
-            
-            Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-                H = plot(Obj(Iobj).Wave, Obj(Iobj).Flux, varargin{:});
-                hold on;
-            end
-            
-            H = xlabel(sprintf('Wavelength [%s]',Obj(1).WaveUnits));
-            H.FontSize    = 18;
-            H.Interpreter = 'latex';
-            H = ylabel(sprintf('Flux [%s]',Obj(1).FluxUnits));
-            H.FontSize    = 18;
-            H.Interpreter = 'latex';
-            
-            if ~IsHold
-                hold off;
-            end
-            
-            
-        end
-        
-    end
     
     methods  % redshift/extinction/luminosity
         function Result = redshift(Obj, Zout, Zin, Args)
@@ -1922,6 +2028,42 @@ classdef AstroSpec < Component
         
     end
        
+    
+    methods  % plots
+        function H = plot(Obj, varargin)
+            % Plot all the spectra in an AstroSpec object
+            % Input  : - An AstroSpec object (multi elements supported)
+            %          * Additional input arguments to pass to the plot
+            %            command.
+            % Output : - AN handle for the last plot.
+            % Author : Eran Ofek (Aug 2021)
+            % Example: Result = AstroSpec.blackBody((4000:10:9000)', [5000; 6000]);
+            %          Result.plot
+           
+            IsHold = ishold;
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                H = plot(Obj(Iobj).Wave, Obj(Iobj).Flux, varargin{:});
+                hold on;
+            end
+            
+            H = xlabel(sprintf('Wavelength [%s]',Obj(1).WaveUnits));
+            H.FontSize    = 18;
+            H.Interpreter = 'latex';
+            H = ylabel(sprintf('Flux [%s]',Obj(1).FluxUnits));
+            H.FontSize    = 18;
+            H.Interpreter = 'latex';
+            
+            if ~IsHold
+                hold off;
+            end
+            
+            
+        end
+        
+    end
+    
     
     methods (Static)  % unitTest
         Result = unitTest

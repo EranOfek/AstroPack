@@ -107,6 +107,16 @@ Items:
         Description          : 'Galaxy + Quasar template spectra'
 
 
+    SunSpec:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'SunSpec'
+        SubDir               : 'spec/Sun'
+        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/Sun/SunSpec.tar']
+        Size                 : 0.02
+        SearchFile           : ''
+        Description          : 'Solar Spectrum'
+
+
     TestImagesLAST:
         # The following are cell arrays of entry per dataset
         DataName             : 'TestImagesLAST'
