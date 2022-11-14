@@ -941,9 +941,11 @@ classdef AstroSpec < Component
             %          - Refractive index.
             %          - Wavelength in the same units as the particle
             %            radius.
-            % Output : - An AstroSpec object with a Mie scattering spectrum
+            % Output : - An AstroSpec object with a Mie scattering efficiency spectrum
             %            for some specific scattering angle Theta, and for
             %            a particles with the given size distribution.
+            %            This is the scattering spectrum per unit area of
+            %            the scatters.
             % Author : Eran Ofek (Nov 2022)
             % Example: Result = AstroSpec.mieScattering(1, 58.1, 1.7+0.3.*1i);
            
@@ -978,6 +980,7 @@ classdef AstroSpec < Component
                     Itheta = (2.*pi.*a.^2).^-1 .*(S1 + S2);
                     % to calculate the angular Mie cross section
                     IthetaT = interp1(ANG(:),Itheta(:), Theta);
+                    %IthetaT = IthetaT; %./(pi.*Radius(Ir).^2);
 
                     Spec(Il,2) = Spec(Il,2) + IthetaT.*min(Nrw,Ir);
                 end

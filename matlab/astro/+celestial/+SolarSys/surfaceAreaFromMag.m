@@ -50,7 +50,7 @@ function [Area,AreaErr] = surfaceAreaFromMag(Mag, MagErr, Args)
     end
     
     Factor  = convert.length('cm',Args.OutUnits,1);
-    Area    = Area.*Factor;
-    AreaErr = AreaErr.*Factor;
+    Area    = Area.*Factor.^2;
+    AreaErr = AreaErr.*Factor.^2;
     
 end
