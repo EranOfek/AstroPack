@@ -1560,6 +1560,12 @@ classdef AstroSpec < Component
         
         function Result = rdivide(Obj1, Obj2)
             % Divide an AstroSpec elemnts by spectrum, filter, scalar
+            % Input  : - An AstroSPect object.
+            %          - A cell array with scalars
+            % Output : - An AstroSPec object in which each input spectrum
+            %            is divided by the corresponding scalar, or
+            %            spectrum.
+            % Author : Eran Ofek (Nov 2022)
             
            
             arguments
