@@ -933,7 +933,7 @@ classdef AstroSpec < Component
             
         end
         
-        function Result = mieScattering(Radius, RadiusW, Theta, N, Lambda)
+        function Result = mieScattering(Radius, RadiusW, Theta, N, Lambda, Out)
             % Mie scattering spectrum for a specific scattering angle and
             %   linear combination of particle sizes.
             % Input  : - Particle radius.
@@ -941,6 +941,10 @@ classdef AstroSpec < Component
             %          - Refractive index.
             %          - Wavelength in the same units as the particle
             %            radius.
+            %          - Output spectrum:
+            %               'scat'|'eff' - scattering eff. Default.
+            %               'abs' - abs.
+            %               'scat/abs' - scattering/abs
             % Output : - An AstroSpec object with a Mie scattering efficiency spectrum
             %            for some specific scattering angle Theta, and for
             %            a particles with the given size distribution.
@@ -956,7 +960,7 @@ classdef AstroSpec < Component
                 Theta    = 58.1;
                 N        = 1.7 + 0.3.*1i;  % can be a vector of the same length as Lambda
                 Lambda   = logspace(log10(1000), log10(15000), 100).'; %logspace(-2,1,100).';
-                
+                Out      = 'eff';  % 'eff' | 'scat/abs'
             end
            
             Nl = numel(Lambda);
@@ -982,7 +986,17 @@ classdef AstroSpec < Component
                     IthetaT = interp1(ANG(:),Itheta(:), Theta);
                     %IthetaT = IthetaT; %./(pi.*Radius(Ir).^2);
 
-                    Spec(Il,2) = Spec(Il,2) + IthetaT.*min(Nrw,Ir);
+                    Irw = min(Nrw,Ir);
+                    switch lower(Out)
+                        case {'eff','scat'}
+                            Spec(Il,2) = Spec(Il,2) + IthetaT.*RadiusW(Irw);   % 1/sr
+                        case 'abs'
+                            Spec(Il,2) = Spec(Il,2) + RadiusW(Irw) .*C.abs./(4.*pi.*Radius(Ir).^2);  % total abs/(pi*r^2)
+                        case 'scat/abs'
+                            Spec(Il,2) = Spec(Il,2) + RadiusW(Irw) .*IthetaT.*4.*pi./( C.abs./(4.*pi.*Radius(Ir).^2) );  % 
+                        otherwise
+                            error('Unknown Out option');
+                    end
                 end
             end
             Spec(:,2) = Spec(:,2)./sum(RadiusW);
@@ -1508,20 +1522,21 @@ classdef AstroSpec < Component
             switch class(Obj2)
                 case 'AstroSpec'
                     % Obj2 is an AstroSpec object
-                    [New1, New2] = interpAndKeepOverlap(Obj1, Obj2);
+                    %[New1, New2] = interpAndKeepOverlap(Obj1, Obj2);
                     % Given two AstroSpec objects, interpolate the first into the
                     % wavelength grid defined by the second and keep only the
                     % overlaping points.
                     
-                    N1 = numel(New1);
-                    N2 = numel(New2);
+                    N1 = numel(Obj1);
+                    N2 = numel(Obj2);
                     N  = max(N1, N2);
             
                     for I=1:1:N
                         I1 = min(I, N1);
                         I2 = min(I, N2);
 
-                        Result(I) = AstroSpec({[New1(I1).Wave, New1(I1).Flux .* New2(I2).Flux]});
+                        InterpFlux = interp1(Obj1(I1).Wave, Obj1(I1).Flux, Obj2(I2).Wave);
+                        Result(I) = AstroSpec({[Obj2(I2).Wave, InterpFlux .* Obj2(I2).Flux]});
                     end
                 case 'AstFilter'
                     N1 = numel(Obj1);
@@ -1539,6 +1554,28 @@ classdef AstroSpec < Component
                     
                 otherwise
                     error('Unsupported class for second input object');
+            end
+            
+        end
+        
+        function Result = rdivide(Obj1, Obj2)
+            % Divide an AstroSpec elemnts by spectrum, filter, scalar
+            
+           
+            arguments
+                Obj1
+                Obj2
+            end
+            
+            N1 = numel(Obj1);
+            N2 = numel(Obj2);
+            N  = max(N1,N2);
+            for I=1:1:N
+                if iscell(Obj2)
+                    I1 = min(I,N1);
+                    I2 = min(I,N2);
+                    Result(I) = AstroSpec({[Obj1(I1).Wave, Obj1(I2).Flux./Obj2{I2}]});
+                end
             end
             
         end
