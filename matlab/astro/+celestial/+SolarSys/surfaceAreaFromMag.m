@@ -13,8 +13,9 @@ function [Area,AreaErr] = surfaceAreaFromMag(Mag, MagErr, Args)
     %                   Default is [].
     %            'Band' - Filter name. Default is [].
     %            'MagSys' - Magnitude system. Default is 'Vega'.
-    % Output : - Surface area of reflector [cm^2].
-    %          - Error in surface area of reflector [cm^2]
+    %            'OutUnits' -Default is 'km' for km^2.
+    % Output : - Surface area of reflector [OutUnits]
+    %          - Error in surface area of reflector [OutUnits]
     % Author : Eran Ofek (Nov 2022)
     % Example: [Area,AreaErr] = celestial.SolarSys.surfaceAreaFromMag(12.6, 0.1);
     %          [Area,AreaErr] = celestial.SolarSys.surfaceAreaFromMag(12.6, 0.1,'r',1.05,'Delta',0.076,'P',0.15);
@@ -31,6 +32,7 @@ function [Area,AreaErr] = surfaceAreaFromMag(Mag, MagErr, Args)
         Args.Family  = ''
         Args.Band    = '';
         Args.MagSys  = 'Vega';
+        Args.OutUnits= 'km';
     end
 
     if ~isempty(Args.Family) && ~isempty(Args.Band)
@@ -46,4 +48,9 @@ function [Area,AreaErr] = surfaceAreaFromMag(Mag, MagErr, Args)
     else
         AreaErr = [];
     end
+    
+    Factor  = convert.length('cm',Args.OutUnits,1);
+    Area    = Area.*Factor;
+    AreaErr = AreaErr.*Factor;
+    
 end
