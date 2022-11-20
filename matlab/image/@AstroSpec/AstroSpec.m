@@ -937,21 +937,25 @@ classdef AstroSpec < Component
             % Mie scattering spectrum for a specific scattering angle and
             %   linear combination of particle sizes.
             % Input  : - Particle radius.
+            %          - Particle-radius weight. Default is 1.
             %          - Scattering angle (theta) in [deg].
             %          - Refractive index.
             %          - Wavelength in the same units as the particle
             %            radius.
             %          - Output spectrum:
-            %               'scat'|'eff' - scattering eff. Default.
-            %               'abs' - abs.
-            %               'scat/abs' - scattering/abs
+            %               'scat_theta' - [1/sr] scattering eff. (Q) at
+            %                       theta.
+            %               'abs' - total abs eff. (Q_abs)
+            %               'scat_tot' - tot scat eff (Q_scat).
+            %               'ext' - tot ext (abs+scat) eff.
+            %               'scat_theta/ext' - (4pi *scat_theta/tot) Default.
             % Output : - An AstroSpec object with a Mie scattering efficiency spectrum
             %            for some specific scattering angle Theta, and for
             %            a particles with the given size distribution.
             %            This is the scattering spectrum per unit area of
             %            the scatters.
             % Author : Eran Ofek (Nov 2022)
-            % Example: Result = AstroSpec.mieScattering(1, 58.1, 1.7+0.3.*1i);
+            % Example: Result = AstroSpec.mieScattering(1, 1, 58.1, 1.7+0.3.*1i);
            
             
             arguments
@@ -960,7 +964,7 @@ classdef AstroSpec < Component
                 Theta    = 58.1;
                 N        = 1.7 + 0.3.*1i;  % can be a vector of the same length as Lambda
                 Lambda   = logspace(log10(1000), log10(15000), 100).'; %logspace(-2,1,100).';
-                Out      = 'eff';  % 'eff' | 'scat/abs'
+                Out      = 'scat_theta/ext';  % 'eff' | 'scat/abs'
             end
            
             Nl = numel(Lambda);
@@ -988,12 +992,17 @@ classdef AstroSpec < Component
 
                     Irw = min(Nrw,Ir);
                     switch lower(Out)
-                        case {'eff','scat'}
-                            Spec(Il,2) = Spec(Il,2) + IthetaT.*RadiusW(Irw);   % 1/sr
+                        case {'scat_theta'}
+                            Spec(Il,2) = Spec(Il,2) + RadiusW(Irw).*IthetaT;   % 1/sr
                         case 'abs'
-                            Spec(Il,2) = Spec(Il,2) + RadiusW(Irw) .*C.abs./(4.*pi.*Radius(Ir).^2);  % total abs/(pi*r^2)
-                        case 'scat/abs'
-                            Spec(Il,2) = Spec(Il,2) + RadiusW(Irw) .*IthetaT.*4.*pi./( C.abs./(4.*pi.*Radius(Ir).^2) );  % 
+                            Spec(Il,2) = Spec(Il,2) + RadiusW(Irw) .*C.abs./(pi.*Radius(Ir).^2);  % total abs/(pi*r^2)
+                        case 'scat_tot'
+                            Spec(Il,2) = Spec(Il,2) + RadiusW(Irw) .*C.sca./(pi.*Radius(Ir).^2);  % total abs/(pi*r^2)
+                        case 'ext'
+                            Spec(Il,2) = Spec(Il,2) + RadiusW(Irw) .*C.ext./(pi.*Radius(Ir).^2);  % total abs/(pi*r^2)
+                        case 'scat_theta/ext'
+                            Spec(Il,2) = Spec(Il,2) + RadiusW(Irw) .*IthetaT.*4.*pi./(  C.ext./(pi.*Radius(Ir).^2) );
+                            
                         otherwise
                             error('Unknown Out option');
                     end
