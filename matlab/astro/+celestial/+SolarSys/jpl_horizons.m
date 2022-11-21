@@ -114,7 +114,7 @@ Lines = regexp(Data,'\n','split');
 Iline = find(~tools.cell.isempty_cell(strfind(Lines,'Date__')));
 ColCell = regexp(Lines(Iline),',','split');
 if isempty(ColCell)
-    Cat = AstCat;
+    Cat = AstroCatalog;
    return  
 end
 ColCell = tools.string.spacedel(ColCell{1});

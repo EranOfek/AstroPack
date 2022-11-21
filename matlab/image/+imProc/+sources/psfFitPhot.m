@@ -138,6 +138,7 @@ function [Result, ResultObj] = psfFitPhot(Obj, Args)
             Ind  = imUtil.image.sub2ind_fast(size(Obj(Iobj).Image), XY(:,1), XY(:,2));
             Back = Obj(Iobj).Back(Ind);
             Var  = Obj(Iobj).Var(Ind);
+            Std  = sqrt(Var);
         end
         
         % subtract Background
