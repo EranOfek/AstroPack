@@ -932,8 +932,8 @@ classdef AstroSpec < Component
             Result  = AstroSpec({SunSpec});
             
         end
-        
-        function Result = mieScattering(Radius, RadiusW, Theta, N, Lambda, Out)
+         
+        function [Result_ST,Result_A,Result_S,Result_E,Result_STE,Result_AE] = mieScattering(Radius, RadiusW, Theta, N, Lambda)
             % Mie scattering spectrum for a specific scattering angle and
             %   linear combination of particle sizes.
             % Input  : - Particle radius.
@@ -949,7 +949,9 @@ classdef AstroSpec < Component
             %               'scat_tot' - tot scat eff (Q_scat).
             %               'ext' - tot ext (abs+scat) eff.
             %               'scat_theta/ext' - (4pi *scat_theta/tot) Default.
+            %               'abs/ext'
             % Output : - An AstroSpec object with a Mie scattering efficiency spectrum
+            %            'scat_theta/ext'
             %            for some specific scattering angle Theta, and for
             %            a particles with the given size distribution.
             %            This is the scattering spectrum per unit area of
@@ -964,15 +966,33 @@ classdef AstroSpec < Component
                 Theta    = 58.1;
                 N        = 1.7 + 0.3.*1i;  % can be a vector of the same length as Lambda
                 Lambda   = logspace(log10(1000), log10(15000), 100).'; %logspace(-2,1,100).';
-                Out      = 'scat_theta/ext';  % 'eff' | 'scat/abs'
+                %Out      = {'scat_theta/ext','abs','scat_theta','ext'};  % 'eff' | 'scat/abs'
             end
            
+            
             Nl = numel(Lambda);
             Nr = numel(Radius);
             Nn = numel(N);
             Nrw = numel(RadiusW);
-            Spec = zeros(Nl,2);
-            Spec(:,1) = Lambda(:);
+            Spec_ST = zeros(Nl,2);
+            Spec_ST(:,1) = Lambda(:);
+            
+            Spec_A = zeros(Nl,2);
+            Spec_A(:,1) = Lambda(:);
+            
+            Spec_S = zeros(Nl,2);
+            Spec_S(:,1) = Lambda(:);
+            
+            Spec_E = zeros(Nl,2);
+            Spec_E(:,1) = Lambda(:);
+            
+            Spec_STE = zeros(Nl,2);
+            Spec_STE(:,1) = Lambda(:);
+            
+            Spec_AE = zeros(Nl,2);
+            Spec_AE(:,1) = Lambda(:);
+            
+            
             for Il=1:1:Nl
                 In = min(Nn,Il);
                 for Ir=1:1:Nr
@@ -991,26 +1011,31 @@ classdef AstroSpec < Component
                     %IthetaT = IthetaT; %./(pi.*Radius(Ir).^2);
 
                     Irw = min(Nrw,Ir);
-                    switch lower(Out)
-                        case {'scat_theta'}
-                            Spec(Il,2) = Spec(Il,2) + RadiusW(Irw).*IthetaT;   % 1/sr
-                        case 'abs'
-                            Spec(Il,2) = Spec(Il,2) + RadiusW(Irw) .*C.abs./(pi.*Radius(Ir).^2);  % total abs/(pi*r^2)
-                        case 'scat_tot'
-                            Spec(Il,2) = Spec(Il,2) + RadiusW(Irw) .*C.sca./(pi.*Radius(Ir).^2);  % total abs/(pi*r^2)
-                        case 'ext'
-                            Spec(Il,2) = Spec(Il,2) + RadiusW(Irw) .*C.ext./(pi.*Radius(Ir).^2);  % total abs/(pi*r^2)
-                        case 'scat_theta/ext'
-                            Spec(Il,2) = Spec(Il,2) + RadiusW(Irw) .*IthetaT.*4.*pi./(  C.ext./(pi.*Radius(Ir).^2) );
-                            
-                        otherwise
-                            error('Unknown Out option');
-                    end
+                  
+                    Spec_ST(Il,2)  = Spec_ST(Il,2) + RadiusW(Irw).*IthetaT;   % 1/sr
+                    Spec_A(Il,2)   = Spec_A(Il,2) + RadiusW(Irw) .*C.abs./(pi.*Radius(Ir).^2);  % total abs/(pi*r^2)
+                    Spec_S(Il,2)   = Spec_S(Il,2) + RadiusW(Irw) .*C.sca./(pi.*Radius(Ir).^2);  % total abs/(pi*r^2)
+                    Spec_E(Il,2)   = Spec_E(Il,2) + RadiusW(Irw) .*C.ext./(pi.*Radius(Ir).^2);  % total abs/(pi*r^2)
+                    Spec_STE(Il,2) = Spec_STE(Il,2) + RadiusW(Irw) .*IthetaT.*4.*pi./(  C.ext./(pi.*Radius(Ir).^2) );
+                    Spec_AE(Il,2)  = Spec_AE(Il,2) + RadiusW(Irw) .*(C.abs./(pi.*Radius(Ir).^2)) ./(  C.ext./(pi.*Radius(Ir).^2) );  % total abs/(pi*r^2)
+
                 end
             end
-            Spec(:,2) = Spec(:,2)./sum(RadiusW);
             
-            Result = AstroSpec({Spec});
+            Spec_ST(:,2)  = Spec_ST(:,2)./sum(RadiusW);
+            Spec_A(:,2)   = Spec_A(:,2)./sum(RadiusW);
+            Spec_S(:,2)   = Spec_E(:,2)./sum(RadiusW);
+            Spec_E(:,2)   = Spec_E(:,2)./sum(RadiusW);
+            Spec_STE(:,2) = Spec_STE(:,2)./sum(RadiusW);
+            Spec_AE(:,2)  = Spec_AE(:,2)./sum(RadiusW);
+            
+            
+            Result_ST  = AstroSpec({Spec_ST});
+            Result_A   = AstroSpec({Spec_A});
+            Result_S   = AstroSpec({Spec_S});
+            Result_E   = AstroSpec({Spec_E});
+            Result_STE = AstroSpec({Spec_STE});
+            Result_AE  = AstroSpec({Spec_AE});
             
             
         end

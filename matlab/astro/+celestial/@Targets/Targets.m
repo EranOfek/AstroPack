@@ -789,7 +789,7 @@ classdef Targets < Component
         end
         
         function [Time, IsRise] = nextSunHorizon(JD, GeoPos, Args)
-            % look for next Snn horizon crossing (including refraction)
+            % look for next Sun horizon crossing (including refraction)
             % Input  : - JD
             %          - GeoPos [Lon Lat] in deg.
             %            Default is [35 32].
