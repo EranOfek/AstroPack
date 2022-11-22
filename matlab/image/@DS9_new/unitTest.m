@@ -1,5 +1,5 @@
 function Result = unitTest()
-	% unitTest for DS9
+	% unitTest for DS9_new
     
      
 	if ~isunix && ~ismac
