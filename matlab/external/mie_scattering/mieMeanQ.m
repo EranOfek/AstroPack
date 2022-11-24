@@ -20,15 +20,17 @@ function Result = mieMeanQ(R, Fun_dNdR, Par_dNdR, Theta, N, Lambda, Rho)
         dNdR = Fun_dNdR;
     end
     
+    R  = R(:);
     Nr = numel(R);
     
     dR               = zeros(Nr,1);
     dN               = zeros(Nr,1); 
     MassInBin        = zeros(Nr,1);
-    S_sca            = zeros(Nr,1);
-    S_abs            = zeros(Nr,1);
-    S_ext            = zeros(Nr,1);
-    S_Stheta         = zeros(Nr,1);
+    Result.S_sca            = zeros(Nr,1);
+    Result.S_abs            = zeros(Nr,1);
+    Result.S_ext            = zeros(Nr,1);
+    Result.S_Stheta         = zeros(Nr,1);
+    Result.Q_Stheta         = zeros(Nr,1);
     
     
     GeomSigma = pi.*R.^2;
@@ -54,24 +56,25 @@ function Result = mieMeanQ(R, Fun_dNdR, Par_dNdR, Theta, N, Lambda, Rho)
         dR(Ir)              = R(Ir+1)-R(Ir);
         dN(Ir)              = dNdR(Ir).*dR(Ir);
         
-        
         MassInBin(Ir) = MassPerParticle(Ir).*dN(Ir);
 
-        S_sca(Ir)     = C.sca.*dN(Ir);
-        S_abs(Ir)     = C.abs.*dN(Ir);
-        S_ext(Ir)     = C.ext.*dN(Ir);
-        S_Stheta(Ir)  = S_IthetaT.*dN(Ir);
-        
+        Result.S_sca(Ir)     = C.sca.*dN(Ir);
+        Result.S_abs(Ir)     = C.abs.*dN(Ir);
+        Result.S_ext(Ir)     = C.ext.*dN(Ir);
+        Result.S_Stheta(Ir)  = S_IthetaT.*dN(Ir);
+        Result.Q_Stheta(Ir)  = Q_IthetaT.*dN(Ir);
     end
     
     Result.R       = R;
     Result.Mp      = MassPerParticle;
+    Result.dM      = MassInBin;
     Result.dN      = dN;
     Result.dR      = dR;
     Result.CumMass = cumsum(MassInBin);
-    Result.IntM    = trapz(R, MassInBin);
-    Result.IntS_aca    = trapz(R, S_sca);
-    Result.IntS_abs    = trapz(R, S_abs);
-    Result.IntS_ext    = trapz(R, S_ext);
+    Result.IntM        = trapz(R, MassInBin);
+    Result.IntS_aca    = trapz(R, Result.S_sca);
+    Result.IntS_abs    = trapz(R, Result.S_abs);
+    Result.IntS_ext    = trapz(R, Result.S_ext);
+    Result.IntS_theta  = trapz(R, Result.S_Stheta);
     
 end
