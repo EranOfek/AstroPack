@@ -22,10 +22,12 @@ function Result = mieMeanQ(R, Fun_dNdR, Par_dNdR, Theta, N, Lambda, Rho)
     
     R  = R(:);
     Nr = numel(R);
+    dNdR = dNdR(:);
     
     dR               = zeros(Nr,1);
     dN               = zeros(Nr,1); 
     MassInBin        = zeros(Nr,1);
+    
     Result.S_sca            = zeros(Nr,1);
     Result.S_abs            = zeros(Nr,1);
     Result.S_ext            = zeros(Nr,1);
@@ -66,7 +68,7 @@ function Result = mieMeanQ(R, Fun_dNdR, Par_dNdR, Theta, N, Lambda, Rho)
         Result.Q_ext(Ir)   = dNdR(Ir) .* C.ext./GeomSigma(Ir);
         Result.Q_scaT(Ir)  = dNdR(Ir) .* Q_IthetaT;
         
-        
+                
         
         dR(Ir)              = R(Ir+1)-R(Ir);
         dN(Ir)              = dNdR(Ir).*dR(Ir);
@@ -91,4 +93,8 @@ function Result = mieMeanQ(R, Fun_dNdR, Par_dNdR, Theta, N, Lambda, Rho)
     Result.IntQ_ext    = trapz(R, Result.Q_ext);
     Result.IntQ_scaT   = trapz(R, Result.Q_scaT);
     Result.IntMR2Qabs  = trapz(R, Result.MR2Qabs);
+    
+    Result.Int_dNdR    = trapz(R, dNdR);
+    Result.Int_dNdR_r3 = trapz(R, dNdR.*R.^3);
+    
 end
