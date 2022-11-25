@@ -37,6 +37,7 @@ function Result = mieMeanQ(R, Fun_dNdR, Par_dNdR, Theta, N, Lambda, Rho)
     Result.Q_ext            = zeros(Nr,1);
     Result.Q_scaT           = zeros(Nr,1);
     Result.MR2Qabs          = zeros(Nr,1);
+    Result.NR2Sabs          = zeros(Nr,1);
     
     
     GeomSigma = pi.*R.^2;
@@ -58,7 +59,14 @@ function Result = mieMeanQ(R, Fun_dNdR, Par_dNdR, Theta, N, Lambda, Rho)
         Q_IthetaT = interp1(Ang(:),Itheta(:), Theta);   % [1/sr]
         S_IthetaT = Q_IthetaT.*pi.*R(Ir).^2;   % [area/sr]
 
-        Result.MR2Qabs(Ir) = dNdR(Ir) .* S_IthetaT;  % pi r^2 Q r^-alpha - replacing: m Qabs pi r^2
+        dR(Ir)              = R(Ir+1)-R(Ir);
+        dN(Ir)              = dNdR(Ir).*dR(Ir);
+        
+        MassInBin(Ir) = MassPerParticle(Ir).*dNdR(Ir);
+        
+        Result.MR2Qabs(Ir) = MassInBin(Ir) .* S_IthetaT;  % pi r^2 Q r^-alpha - replacing: m Qabs pi r^2
+        Result.NR2Sabs(Ir) = dNdR(Ir).*S_IthetaT;
+        
         Result.S_sca(Ir)   = dNdR(Ir) .* C.sca;
         Result.S_abs(Ir)   = dNdR(Ir) .* C.abs;
         Result.S_ext(Ir)   = dNdR(Ir) .* C.ext;
@@ -68,13 +76,6 @@ function Result = mieMeanQ(R, Fun_dNdR, Par_dNdR, Theta, N, Lambda, Rho)
         Result.Q_ext(Ir)   = dNdR(Ir) .* C.ext./GeomSigma(Ir);
         Result.Q_scaT(Ir)  = dNdR(Ir) .* Q_IthetaT;
         
-                
-        
-        dR(Ir)              = R(Ir+1)-R(Ir);
-        dN(Ir)              = dNdR(Ir).*dR(Ir);
-        
-        MassInBin(Ir) = MassPerParticle(Ir).*dNdR(Ir);
-
     end
     
     Result.R       = R;
@@ -84,6 +85,7 @@ function Result = mieMeanQ(R, Fun_dNdR, Par_dNdR, Theta, N, Lambda, Rho)
     Result.dR      = dR;
     Result.CumMass = cumsum(MassInBin);
     Result.IntM        = trapz(R, MassInBin);
+    Result.IntN        = trapz(R, dNdR);
     Result.IntS_aca    = trapz(R, Result.S_sca);
     Result.IntS_abs    = trapz(R, Result.S_abs);
     Result.IntS_ext    = trapz(R, Result.S_ext);
@@ -93,6 +95,9 @@ function Result = mieMeanQ(R, Fun_dNdR, Par_dNdR, Theta, N, Lambda, Rho)
     Result.IntQ_ext    = trapz(R, Result.Q_ext);
     Result.IntQ_scaT   = trapz(R, Result.Q_scaT);
     Result.IntMR2Qabs  = trapz(R, Result.MR2Qabs);
+    Result.IntNR2Sabs  = trapz(R, Result.NR2Sabs);
+    
+    
     
     Result.Int_dNdR    = trapz(R, dNdR);
     Result.Int_dNdR_r3 = trapz(R, dNdR.*R.^3);
