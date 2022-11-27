@@ -51,7 +51,7 @@ classdef AstroPSF < Component
     methods % Constructor
        
         function Obj = AstroPSF(FileName, Args)
-            % AstroPSF constructor - read PSF images to AStroPSF object
+            % AstroPSF constructor - read PSF images to AstroPSF object
             % Input  : - File names.
             %            Either an AstroImage, ImageComponent, SIM, imCl
             %            objects from which the image property will be
@@ -59,6 +59,7 @@ classdef AstroPSF < Component
             %            object.
             %            Alternatively, a file name or a cell array of file
             %            names to read into the AstroPSF object.
+            %            Or a matrix containing the PSF.
             %          * ...,key,val,...
             %            'HDU' - If file name is a FITS file, then this is
             %                   the HDU. Default is 1.
@@ -111,7 +112,7 @@ classdef AstroPSF < Component
                         for If=1:1:Nf
                             Obj(If).(FieldName) = File{If}.Im;
                         end
-                    else
+                    elseif ischar(File)
                         ImIO = ImageIO(File, 'HDU',HDU,...
                                                  'FileType',Args.FileType,...
                                                  'IsTable',false,...
@@ -124,6 +125,9 @@ classdef AstroPSF < Component
                             end
                         end
                         Obj = reshape(Obj, size(ImIO));
+                    else
+                        % matrix format
+                        Obj.(FieldName) = File;
                     end
 
                 end % end if isempty...
