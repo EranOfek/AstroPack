@@ -318,7 +318,7 @@ function EnvVar = getEnvOrUseDefult(EnVarName, DefaultVal)
     end
     
     if isempty(EnvVar)
-        error('Can not find definition to %s - Either edit startup, or set up the environoment variable with this name');
+        error('Can not find definition to %s - Either edit startup, or set up the environment variable with this name');
     end
     
 end

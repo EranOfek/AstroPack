@@ -261,11 +261,24 @@ classdef ds9 < handle
             %          user.
             % Example: ds9.isopen
             % Reliable: 2
-            if (ismac)
-                Status = system('ps -A | grep ds9 | grep -v grep  > /dev/null');
-            else
-                Status = system('ps -xug | grep ds9 | grep -v grep  > /dev/null');
+            
+            try
+                Str=ds9.system('xpaget ds9 xpa info');
+                if contains(Str,'XPA_METHOD')
+                    Status = 0;
+                else
+                    Status = 1;
+                end
+                
+            catch
+                Status = 1;
             end
+            
+%             if (ismac)
+%                 Status = system('ps -A | grep ds9 | grep -v grep  > /dev/null');
+%             else
+%                 Status = system('ps -xug | grep ds9 | grep -v grep  > /dev/null');
+%             end
             if (Status==1)
                 % not open
                 IsOpen = false;
@@ -300,7 +313,9 @@ classdef ds9 < handle
                 end
             
             end
-            ds9.mode('region');
+            if ds9.isopen
+                ds9.mode('region');
+            end
             
         end
         
