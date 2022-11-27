@@ -1354,7 +1354,8 @@ classdef ImagePath < Base %Component
                 if Iprod==1
                     % create Dir
                     Path = fileparts(FullName);
-                    if exist(Path,'dir')==0
+                    if ~isfolder(Path)
+                        %exist(Path,'dir')==0
                         % create dir
                         mkdir(Path);
                     end
