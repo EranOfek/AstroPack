@@ -1,20 +1,24 @@
 function Result = snrapp()
-    % FileProcessor.unitTest
+    % SNR App    
     
     %io.msgLog(LogLevel.Test, 'FileProcessor test started');
 
-    % Create instances
+    InputPath = 'c:/soc/snr/input';
+    
+    % Application loop - process input files
     while true
         io.msgLog(LogLevel.Info, 'SnrApp FileProcessor started');
+        
+        % This try/catch block is to make sure that the application
+        % will continue to work in case of exception
         try
-            fp = FileProcessor;
-            fp.InputPath = '';
-            fp.InputFileMask = '.inp';
+            % Create objcet
+            fp = FileProcessor('InputPath', InputPath, 'InputMask', '.inp');
             fp.ProcessFileFunc = @FileProcessorCallback;
 
-            % Input loop will call FileProcessorCallback for each input
+            % Input loop will call FileProcessorCallback (below) for each input
             % file found in the folder
-            fp.InputLoop(10);
+            fp.process('DelaySec', 0.1);
 
         catch
             io.msgLog(LogLevel.Info, 'SnrApp exception');
