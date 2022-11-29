@@ -1,3 +1,4 @@
+
 function Result = unitTest()
     % FileProcessor.unitTest
     
@@ -6,8 +7,8 @@ function Result = unitTest()
     InputPath = 'c:/soc/snr/input';
 
     % Create objcet
-    fp = FileProcessor('InputPath', InputPath, 'InputMask', '*.inp');
-    fp.ProcessFileFunc = @FileProcessorCallback;
+    fp = FileProcessor('InputPath', InputPath, 'InputMask', '*.json');
+    fp.ProcessFileFunc = @fileProcessorCallback;
 
     % Input loop will call FileProcessorCallback (below) for each input
     % file found in the folder
@@ -17,27 +18,94 @@ function Result = unitTest()
     Result = true;
 end
 
+%------------------------------------------------------------------------
 
+function Result = processItem(item)
+    % Process item, return result
+    % See ultrasat.git/python/prj/src/webapps/webapp_snr/rest_snr_server1.py
+    
+    % Input   : - item - struct Item with op, x, y fields
 
+    %           * Pairs of ...,key,val,...
+    %             The following keys are available:            			            
 
-function FileProcessorCallback(FileName)
+    %                      
+    % Output  : struct ResponseMessage with message, result fields
+    % Author  : Chen Tishler (2021)
+    % Example : 
+    
+    % Item 
+    % ResponseMessage
+    
+    % Prepare output
+    out = struct;
+    out.message = 'matlab: Exception in processItem';
+    out.result = -1;   
+  
+    try
+        out.message = sprintf('matlab: op: %s', item.op);
+        
+        if strcmp(item.op, 'add')
+            out.result = item.x + item.y;
+        elseif strcmp(item.op, 'mul')
+            out.result = item.x * item.y;
+        elseif strcmp(item.op, 'sub')
+            out.result = item.x - item.y;
+        elseif strcmp(item.op, 'div')
+            if item.y ~= 0
+                out.result = item.x / item.y;
+            else
+                ME = MException('SNR:process', 'Division by zero');
+                throw(ME);
+            end
+        else
+            strcpy(out.message, 'unknown op');
+        end
+    catch Ex
+        out.message = sprintf('matlab: exception: %s', Ex.message);
+    end
+    
+    Result = out;
+end
+
+%------------------------------------------------------------------------
+
+function fileProcessorCallback(FileName)
     io.msgLog(LogLevel.Info, 'FileProcessorCallback started: %s', FileName);
     
     disp(FileName);
     
     TmpFileName = strcat(FileName, '.out.tmp');
     OutFileName = strcat(FileName, '.out');
+
+    % Read input JSON file
+    fid = fopen(FileName);
+    raw = fread(fid, inf);
+    str = char(raw');
+    fclose(fid);
     
-    % Write output to TmpFileName
-    fid = fopen(TmpFileName,'wt');
-    fprintf(fid, 'This is my reply.');
+    % Parse JSON from string to struct
+    disp(str);
+    item = jsondecode(str);
+   
+    % Process
+    try
+        out = processItem(item);
+    catch Ex
+        out = struct;
+        out.message = sprintf('matlab: Exception calling processItem: %s', Ex.message);        
+        out.result = -1;           
+    end
+
+    % Write output JSON file
+    disp(out);
+    out_json = jsonencode(out);
+    fid = fopen(TmpFileName, 'wt');
+    fprintf(fid, out_json);
     fclose(fid);
 
     % Rename final file to output extension
     io.msgLog(LogLevel.Info, 'Rename output %s -> %s', TmpFileName, OutFileName);
     movefile(TmpFileName, OutFileName);
 end
-
-
-
 
