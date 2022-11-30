@@ -39,11 +39,11 @@ function Result = processItem(item)
     
     % Prepare output
     out = struct;
-    out.message = 'matlab: Exception in processItem';
+    out.message = 'MATLAB: Exception in processItem';
     out.result = -1;   
   
     try
-        out.message = sprintf('matlab: op: %s', item.op);
+        out.message = sprintf('MATLAB: op: %s', item.op);
         
         if strcmp(item.op, 'add')
             out.result = item.x + item.y;
@@ -59,10 +59,10 @@ function Result = processItem(item)
                 throw(ME);
             end
         else
-            strcpy(out.message, 'unknown op');
+            strcpy(out.message, 'MATLAB: unknown op');
         end
     catch Ex
-        out.message = sprintf('matlab: exception: %s', Ex.message);
+        out.message = sprintf('MATLAB: exception: %s', Ex.message);
     end
     
     Result = out;
@@ -93,7 +93,7 @@ function fileProcessorCallback(FileName)
         out = processItem(item);
     catch Ex
         out = struct;
-        out.message = sprintf('matlab: Exception calling processItem: %s', Ex.message);        
+        out.message = sprintf('MATLAB: Exception calling processItem: %s', Ex.message);        
         out.result = -1;           
     end
 
