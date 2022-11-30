@@ -58,6 +58,9 @@ function Result = processItem(item)
                 ME = MException('SNR:process', 'Division by zero');
                 throw(ME);
             end
+        elseif strcmp(item.op, 'snr')            
+            snr = jsondecode(item.json_text);
+            out = processSnr(snr);
         else
             strcpy(out.message, 'MATLAB: unknown op');
         end
@@ -109,3 +112,24 @@ function fileProcessorCallback(FileName)
     movefile(TmpFileName, OutFileName);
 end
 
+%------------------------------------------------------------------------
+
+function Result = processSnr(snr)
+    % Process SNR
+    % See ultrasat.git/python/prj/src/webapps/webapp_snr/rest_snr_server1.py
+    
+    % Input   : - snr - struct 
+
+    %                      
+    % Output  : struct ResponseMessage with fields: message, result
+    % Author  : Chen Tishler (2022)
+    % Example : 
+    
+    out = struct;
+    out.message = sprintf('MATLAB: processSnr');
+    out.result = -1;
+    
+    % Do the actual SNR processing here
+    
+    Result = snr;
+end
