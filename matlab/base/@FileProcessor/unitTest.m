@@ -59,8 +59,7 @@ function Result = processItem(item)
                 throw(ME);
             end
         elseif strcmp(item.op, 'snr')            
-            snr = jsondecode(item.json_text);
-            out = processSnr(snr);
+            out = processSnr(item.json_text);
         else
             strcpy(out.message, 'MATLAB: unknown op');
         end
@@ -114,7 +113,7 @@ end
 
 %------------------------------------------------------------------------
 
-function Result = processSnr(snr)
+function Result = processSnr(json_text)
     % Process SNR
     % See ultrasat.git/python/prj/src/webapps/webapp_snr/rest_snr_server1.py
     
@@ -125,6 +124,9 @@ function Result = processSnr(snr)
     % Author  : Chen Tishler (2022)
     % Example : 
     
+    % Decode text
+    snr = jsondecode(json_text);
+            
     out = struct;
     out.message = sprintf('MATLAB: processSnr started');
     out.result = -1;
@@ -134,7 +136,7 @@ function Result = processSnr(snr)
     %
     
     % Done
-    out.message = sprintf('MATLAB: processSnr completed');
+    out.message = sprintf('MATLAB: processSnr completed: R: %s', snr.R);
     out.result = 777;    
     
     Result = out;
