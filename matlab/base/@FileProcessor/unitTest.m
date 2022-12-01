@@ -126,10 +126,15 @@ function Result = processSnr(snr)
     % Example : 
     
     out = struct;
-    out.message = sprintf('MATLAB: processSnr');
+    out.message = sprintf('MATLAB: processSnr started');
     out.result = -1;
     
     % Do the actual SNR processing here
     
-    Result = snr;
+    % Done
+    out.message = sprintf('MATLAB: processSnr completed');
+    out.result = 777;
+    
+    
+    Result = out;
 end
