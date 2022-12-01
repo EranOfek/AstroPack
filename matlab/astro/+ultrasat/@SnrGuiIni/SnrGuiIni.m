@@ -99,11 +99,10 @@ classdef SnrGuiIni < Component
             Obj.wrDescription('');            
             Obj.wrDefault('AB');
             
-            % Pickles Models - Combo Items            
-            Pickles = {'P1', 'P2', 'P3'};
-            Obj.wrCount(numel(Pickles));
+            Pickles = AstSpec.get_pickles;
+            Obj.wrCount(numel(Pickles))
             for i=1:numel(Pickles)
-                Obj.wrItem(i, Pickles{i});
+                Obj.wrItem(i, Pickles(i).ObjName)
             end
             
             % Source - Black Body with Temperature
@@ -127,37 +126,40 @@ classdef SnrGuiIni < Component
             Obj.wrMin(-25);
             Obj.wrMax(30);            
             Obj.wrDefault(10);
-            
-            % SNR - Calib Filter Family
-            Families = {'F1', 'F2', 'F3'};
-            Obj.wrSection('CalibFilterFamily');       
-            Obj.wrHint('Select Calibration family');            
-            Obj.wrDescription('');                        
-            Obj.wrCount(numel(Families));
-            for i=1:numel(Families)
-                Value = Families{i};
-                if i == 1
-                    Obj.wrDefault(Value);
-                end
-                
-                Obj.wrItem(i, Value);
-            end            
-            
-            % SNR - Calib Filter - list per Family
-            for i=1:numel(Families)            
-                Obj.wrSection(sprintf('CalibFilter_F%d', i));
-                Obj.wrHint('Select Calibration filter for family ...');            
-                Obj.wrDescription('');                            
-                Obj.wrCount(3);
-                for j=1:3
-                    Value = sprintf('Filter_F%d_%02d', i, j);
-                    if j == 1
-                        Obj.wrDefault(Value);
-                    end                    
-                    Obj.wrItem(j, Value);
+             
+            Filters = AstFilter.get;
+            Families = strings;
+            f = 1;
+            for i=1:numel(Filters)
+                if ~Families.contains(Filters(i).family)
+                    Families(f) = Filters(i).family;
+                    f = f + 1;
                 end
             end
-            
+            Obj.wrSection('CalibFilterFamily');
+            Obj.wrHint('Select Calibration family');
+            Obj.wrDescription('');
+            Obj.wrCount(numel(Families));
+            for i=1:numel(Families)
+                Obj.wrItem(i, Families(i));
+            end
+
+            OutputedFamilies = strings(numel(Families));
+            f = 1;
+            for i=1:numel(Filters)
+                if ~OutputedFamilies.contains(Filters(i).family)
+                    j = 1;
+                    Obj.wrSection(sprintf('CalibFilter_%s', Filters(i).family));
+                    OutputedFamilies(f) = Filters(i).family;
+                    f = f + 1;
+                    Obj.wrHint(sprintf('Select Calibration filter for family %s', Filters(i).family));
+                    Obj.wrDescription('');
+                    Obj.wrCount(0);
+                end
+                Obj.wrItem(j, sprintf('Filter_%s_%02d', Filters(i).family, Filters(i).band));
+                j = j + 1;
+            end
+
             % SNR - Calib Magnitude System
             Obj.wrSection('CalibMagnitudeSystem');
             Obj.wrHint('Select Calibration magnitude system');            
