@@ -130,11 +130,13 @@ function Result = processSnr(snr)
     out.result = -1;
     
     % Do the actual SNR processing here
+    %
+    %
     
     % Done
     out.message = sprintf('MATLAB: processSnr completed');
-    out.result = 777;
-    
+    out.result = 777;    
     
     Result = out;
 end
+
