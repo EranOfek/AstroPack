@@ -4,9 +4,10 @@ function Result = pointingModel(Files, Args)
     % Example: R = pipeline.last.pointingModel([],'StartDate',[08 06 2022 17 54 00],'EndDate',[08 06 2022 18 06 00]);
     
     arguments
-        Files                             = 'LAST*sci*.fits';
+        Files                             = 'LAST*PointingModel*sci*.fits';
         Args.StartDate                    = [];
         Args.EndDate                      = [];
+        Args.Nfiles                       = 108;  % use only last N files
         Args.Dir                          = pwd;
         Args.astrometryCroppedArgs cell   = {};
         %Args.backgroundArgs cell          = {};
@@ -21,6 +22,9 @@ function Result = pointingModel(Files, Args)
     cd(Args.Dir);
     
     List = ImagePath.selectByDate(Files, Args.StartDate, Args.EndDate);
+    if numel(List)>Args.Nfiles
+        List = List(end-Args.Nfiles+1:end);
+    end
     
     Nlist = numel(List);
     for Ilist=1:1:Nlist
