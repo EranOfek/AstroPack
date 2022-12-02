@@ -59,7 +59,7 @@ classdef SnrGuiIni < Component
             Obj.msgLog(LogLevel.Debug, 'process: %s', Obj.IniFileName);                            
             
             % Create file
-            Obj.fid = fopen(Obj.IniFileName, 'wt');
+            Obj.fid = fopen(Obj.IniFileName, 'w');
 
             %------------------------------------------------------            
             % Header
@@ -126,37 +126,43 @@ classdef SnrGuiIni < Component
             Obj.wrMin(-25);
             Obj.wrMax(30);            
             Obj.wrDefault(10);
-             
+            
+            % get the list of filter families
             Filters = AstFilter.get;
-            Families = strings;
-            f = 1;
+            FilterFamilies = containers.Map();
             for i=1:numel(Filters)
-                if ~Families.contains(Filters(i).family)
-                    Families(f) = Filters(i).family;
-                    f = f + 1;
+                family = Filters(i).family;
+                if ~isKey(FilterFamilies, family)
+                    FilterFamilies(family) = struct('Name', family, 'Count', 1);
+                    Obj.wrDefault(family);
+                else
+                    FilterFamilies(family) = struct(...
+                        'Name', family,...
+                        'Count', FilterFamilies(family).Count + 1);
                 end
             end
+
             Obj.wrSection('CalibFilterFamily');
             Obj.wrHint('Select Calibration family');
             Obj.wrDescription('');
-            Obj.wrCount(numel(Families));
-            for i=1:numel(Families)
-                Obj.wrItem(i, Families(i));
+            Obj.wrCount(FilterFamilies.length);
+            k = FilterFamilies.keys;
+            for i=1:length(k)
+                Obj.wrItem(i, k{i});
             end
 
-            OutputedFamilies = strings(numel(Families));
-            f = 1;
+            OutputedFamilies = containers.Map();
             for i=1:numel(Filters)
-                if ~OutputedFamilies.contains(Filters(i).family)
+                family = Filters(i).family;
+                if ~isKey(OutputedFamilies, family)
                     j = 1;
-                    Obj.wrSection(sprintf('CalibFilter_%s', Filters(i).family));
-                    OutputedFamilies(f) = Filters(i).family;
-                    f = f + 1;
-                    Obj.wrHint(sprintf('Select Calibration filter for family %s', Filters(i).family));
+                    Obj.wrSection(sprintf('CalibFilter_%s', family));
+                    OutputedFamilies(family) = true;
+                    Obj.wrHint(sprintf('Select Calibration filter for family %s', family));
                     Obj.wrDescription('');
-                    Obj.wrCount(0);
+                    Obj.wrCount(FilterFamilies(family).Count);
                 end
-                Obj.wrItem(j, sprintf('Filter_%s_%02d', Filters(i).family, Filters(i).band));
+                Obj.wrItem(j, sprintf('Filter_%s_%s', Filters(i).family, Filters(i).band));
                 j = j + 1;
             end
 
