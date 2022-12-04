@@ -127,14 +127,13 @@ classdef SnrGuiIni < Component
             Obj.wrMax(30);            
             Obj.wrDefault(10);
             
-            % get the list of filter families
-            Filters = AstFilter.get;
+            % Get the list of filter families
+            Filters = AstFilter.get();
             FilterFamilies = containers.Map();
             for i=1:numel(Filters)
                 family = Filters(i).family;
                 if ~isKey(FilterFamilies, family)
                     FilterFamilies(family) = struct('Name', family, 'Count', 1);
-                    Obj.wrDefault(family);
                 else
                     FilterFamilies(family) = struct(...
                         'Name', family,...
@@ -142,15 +141,18 @@ classdef SnrGuiIni < Component
                 end
             end
 
+            % CalibFilterFamily
             Obj.wrSection('CalibFilterFamily');
             Obj.wrHint('Select Calibration family');
             Obj.wrDescription('');
             Obj.wrCount(FilterFamilies.length);
+            Obj.wrDefault('ULTRASAT');
             k = FilterFamilies.keys;
             for i=1:length(k)
                 Obj.wrItem(i, k{i});
             end
 
+            % SNR - Calib Filter - list per Family
             OutputedFamilies = containers.Map();
             for i=1:numel(Filters)
                 family = Filters(i).family;
