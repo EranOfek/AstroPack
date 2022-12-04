@@ -59,7 +59,7 @@ classdef SnrGuiIni < Component
             Obj.msgLog(LogLevel.Debug, 'process: %s', Obj.IniFileName);                            
             
             % Create file
-            Obj.fid = fopen(Obj.IniFileName, 'wt');
+            Obj.fid = fopen(Obj.IniFileName, 'w');
 
             %------------------------------------------------------            
             % Header
@@ -99,11 +99,10 @@ classdef SnrGuiIni < Component
             Obj.wrDescription('');            
             Obj.wrDefault('AB');
             
-            % Pickles Models - Combo Items            
-            Pickles = {'P1', 'P2', 'P3'};
-            Obj.wrCount(numel(Pickles));
+            Pickles = AstSpec.get_pickles;
+            Obj.wrCount(numel(Pickles))
             for i=1:numel(Pickles)
-                Obj.wrItem(i, Pickles{i});
+                Obj.wrItem(i, Pickles(i).ObjName)
             end
             
             % Source - Black Body with Temperature
@@ -128,36 +127,45 @@ classdef SnrGuiIni < Component
             Obj.wrMax(30);            
             Obj.wrDefault(10);
             
-            % SNR - Calib Filter Family
-            Families = {'F1', 'F2', 'F3'};
-            Obj.wrSection('CalibFilterFamily');       
-            Obj.wrHint('Select Calibration family');            
-            Obj.wrDescription('');                        
-            Obj.wrCount(numel(Families));
-            for i=1:numel(Families)
-                Value = Families{i};
-                if i == 1
-                    Obj.wrDefault(Value);
-                end
-                
-                Obj.wrItem(i, Value);
-            end            
-            
-            % SNR - Calib Filter - list per Family
-            for i=1:numel(Families)            
-                Obj.wrSection(sprintf('CalibFilter_F%d', i));
-                Obj.wrHint('Select Calibration filter for family ...');            
-                Obj.wrDescription('');                            
-                Obj.wrCount(3);
-                for j=1:3
-                    Value = sprintf('Filter_F%d_%02d', i, j);
-                    if j == 1
-                        Obj.wrDefault(Value);
-                    end                    
-                    Obj.wrItem(j, Value);
+            % get the list of filter families
+            Filters = AstFilter.get;
+            FilterFamilies = containers.Map();
+            for i=1:numel(Filters)
+                family = Filters(i).family;
+                if ~isKey(FilterFamilies, family)
+                    FilterFamilies(family) = struct('Name', family, 'Count', 1);
+                    Obj.wrDefault(family);
+                else
+                    FilterFamilies(family) = struct(...
+                        'Name', family,...
+                        'Count', FilterFamilies(family).Count + 1);
                 end
             end
-            
+
+            Obj.wrSection('CalibFilterFamily');
+            Obj.wrHint('Select Calibration family');
+            Obj.wrDescription('');
+            Obj.wrCount(FilterFamilies.length);
+            k = FilterFamilies.keys;
+            for i=1:length(k)
+                Obj.wrItem(i, k{i});
+            end
+
+            OutputedFamilies = containers.Map();
+            for i=1:numel(Filters)
+                family = Filters(i).family;
+                if ~isKey(OutputedFamilies, family)
+                    j = 1;
+                    Obj.wrSection(sprintf('CalibFilter_%s', family));
+                    OutputedFamilies(family) = true;
+                    Obj.wrHint(sprintf('Select Calibration filter for family %s', family));
+                    Obj.wrDescription('');
+                    Obj.wrCount(FilterFamilies(family).Count);
+                end
+                Obj.wrItem(j, sprintf('Filter_%s_%s', Filters(i).family, Filters(i).band));
+                j = j + 1;
+            end
+
             % SNR - Calib Magnitude System
             Obj.wrSection('CalibMagnitudeSystem');
             Obj.wrHint('Select Calibration magnitude system');            
