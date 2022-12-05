@@ -5,10 +5,11 @@ function Result = pointingModel(Files, Args)
     
     arguments
         Files                             = 'LAST*PointingModel*sci*.fits';
+        Args.Dirs                         = 'ALL'; %{};
         Args.StartDate                    = [];
         Args.EndDate                      = [];
         Args.Nfiles                       = 108;  % use only last N files
-        Args.Dir                          = pwd;
+        %Args.Dir                          = pwd;
         Args.astrometryCroppedArgs cell   = {};
         %Args.backgroundArgs cell          = {};
         %Args.findMeasureSourcesArgs cell  = {};
@@ -19,6 +20,14 @@ function Result = pointingModel(Files, Args)
     end
     
     PWD = pwd;
+    
+    if ischar(Args.Dirs)
+        if strcmp(Args.Dirs, 'ALL')
+            % find all 4 dirs of data
+            PN = pipeline.last.constructProjName([],[],1,1,1);
+            
+            
+    
     cd(Args.Dir);
     
     List = ImagePath.selectByDate(Files, Args.StartDate, Args.EndDate);
