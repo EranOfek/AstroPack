@@ -1,4 +1,4 @@
-function AllResult = pointingModel(Files, Args)
+function [AllResult,PM] = pointingModel(Files, Args)
     % Calculate pointing model from a lsit of images.
     %   
     % Example: R = pipeline.last.pointingModel([],'StartDate',[08 06 2022 17 54 00],'EndDate',[08 06 2022 18 06 00]);
@@ -21,6 +21,7 @@ function AllResult = pointingModel(Files, Args)
         Args.ObsCoo                       = [35 30];  % [deg]
         Args.ConfigFile                   = '';
     end
+    RAD = 180./pi;
     
     if isempty(Files)
         Files = 'LAST*sci*.fits';
