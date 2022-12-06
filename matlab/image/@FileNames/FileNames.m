@@ -351,6 +351,45 @@ classdef FileNames < Base %Component
             end
             
         end
+        
+        function DateDir = getDateDir(Obj, Ind, ReturnChar)
+            % Return date directory name from file name properties
+            % Input  : - An FileNames object.
+            %          - Index of time in object for which to generate date
+            %            dir name. If empty, generate for all times.
+            %            Default is [].
+            %          - A logical indicating if to return a char array
+            %            instead of cell array. Default is false.
+            % Output : - A cell array of date directories for each file
+            %            time stamp.
+            % Author : Eran Ofek (Dec 2022)
+            
+            arguments
+                Obj
+                Ind   = [];
+                ReturnChar logical = false;
+            end
+            
+            JD = Obj.julday;
+            JD = JD + Obj.TimeZone./24;
+            JD = floor(JD);
+            Date = celestial.time.jd2date(JD);
+            
+            if isempty(Ind)
+                N = numel(JD);
+                DateDir = cell(N,1);
+                for I=1:1:N
+                    DateDir{I} = sprintf('%s%04d%s%02d%s%02d',filesep,Date(I,3), filesep,Date(I,2), filesep, Date(I,1));
+                end
+            else
+                Date = Date(Ind,:);
+                DateDir = {sprintf('%s%04d%s%02d%s%02d',filesep,Date(3), filesep,Date(2), filesep, Date(1))};
+            end
+                
+            if numel(DateDir)==1 && ReturnChar
+                DateDir = DateDir{1};
+            end
+        end
     end
     
     methods % file/path names
@@ -486,109 +525,6 @@ classdef FileNames < Base %Component
     
     methods % Generate Path & FileName
         
-        function Result = genPath(Obj, Args)
-            % Construct image/catalog file path based on the LAST/ULTRASAT standard
-            % Options are:
-            %
-            %   Form 1:
-            %       /data/YYYY/MM/DD/raw/     - contains all the science raw data
-            %       /data/YYYY/MM/DD/log/     - contains all the log files
-            %       /data/YYYY/MM/DD/proc/    - contains all the single processed images including: image, mask, back (if provided), var (if provided), PSF (if provided), and catalogs.
-            %       /data/YYYY/MM/DD/stacked/ - contains all the processed coadd images (coaddition of images of the same field taken continuously only) - images/masks/catalogs/PSF/subtraction products 
-            %            
-            %   Form 2: 
-            %       /data/ref/version<#>/area/ - All sky reference/coadd image - images/masks/catalogs/PSF
-            %
-            %   Form 3: 
-            %       /data/coadd/area/          - arbitrary coadded images (coadd images of arbitrary field over arbitrary time periods)             
-            %
-            %   Form 4:
-            %       /data/YYYY/MM/DD/calib/   - contains all the processed calibration images/variance/masks/catalogs            
-            % Input  : - An ImagePath object.
-            %          * ...,key,val,...
-            %            can be used to set the following ImagePath
-            %            properties:
-            %            'BasePath', 'DataDir', 'SubDir', 'Time',
-            %            'TimeZone', 'PathLevel', 'Area'.
-            % Output : - The path is updated in the Path property.
-            %            The path of the last element of ImagePath is
-            %            returned.
-            % Example: IP = ImagePath;
-            %          Path = IP.genPath('PathLevel','ref','SubDir','x')
-            
-            arguments
-                Obj
-                Args.BasePath       % See constructor
-                Args.DataDir        % See constructor
-                Args.SubDir         %
-                Args.Time           % Empty -> current computer time, UTC, Numeric -> time is in JD, char -> YYYY-MM-DDTHH:MM:SS.FFF
-                                    %      Should match 'convert'             format.Date, TimeZone} or {YYYY, MM, DD}, or []}
-                Args.TimeZone       % Hours
-                Args.PathLevel      % Also in file name
-                Args.Area
-            end
-            
-            Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-                % Set properties from arguments, only properties that exist in Args are set
-                Obj(Iobj).setProps(Args);
-
-                if isempty(Obj(Iobj).PathLevel)
-                    PathLevel = Obj(Iobj).Level;
-                else
-                    PathLevel = Obj(Iobj).PathLevel;
-                end
-
-                % Convert Time to JD and TimeStr
-                Obj(Iobj).setTime();
-
-                % Fix field values
-                Obj(Iobj).fixFields();
-
-                % Generate YMD based on JD and TimeZone
-                [Year, Month, Day] = imUtil.util.file.date_directory(Obj(Iobj).JD, Obj(Iobj).TimeZone);
-                YMD = sprintf('%04d%s%02d%s%02d', Year, filesep, Month, filesep, Day);
-
-                UseYMD   = false;
-                PreDate  = '';
-                PostDate = '';
-
-                % Check Level
-                switch PathLevel
-                    % /base/data/ref/<area>/version<#>/ - All sky reference/coadd image - images/masks/catalogs/PSF
-                    case { 'ref', 'coadd' }
-                        PostDate = sprintf('%s%s%s%s', PathLevel, filesep, Obj(Iobj).Area, ...
-                            filesep, Obj(Iobj).Version);
-                    case 'merged'
-                        UseYMD = true;                     
-                        PostDate = 'proc'; %Obj.Level; 
-                    case { 'raw', 'log', 'proc', 'stacked' }
-                        UseYMD = true;                     
-                        PostDate = PathLevel;                    
-                    case { 'calib' }
-                        PostDate = sprintf('%s%s%s', PathLevel, filesep, Obj(Iobj).SubLevel);
-                    otherwise
-                        error('Unknown path Level: %s', PathLevel);
-                end
-
-                %
-                if UseYMD
-                    FPath = sprintf('%s%s%s%s%s%s%s%s%s%s%s%s', Obj(Iobj).BasePath, filesep, ...
-                       Obj(Iobj).DataDir, filesep, PreDate, filesep, YMD, filesep, PostDate, ...
-                       filesep, Obj(Iobj).SubDir, filesep);
-                else
-                    FPath = sprintf('%s%s%s%s%s%s%s%s%s%s%s%s', Obj(Iobj).BasePath, filesep, ...
-                       Obj(Iobj).DataDir, filesep, PostDate, filesep, filesep, Obj(Iobj).SubDir, filesep);
-                end                      
-
-                % Clean path from multiple /
-                FPath = strrep(FPath, '\', '/');            
-                FPath = regexprep(FPath, sprintf('%s{2,5}', '/'), '/');
-
-                Result = FPath; 
-                Obj(Iobj).Path = FPath;
-            end
-        end
         
         
         function Result = genFull(Obj, Args)
