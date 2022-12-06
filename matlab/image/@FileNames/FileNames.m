@@ -32,8 +32,10 @@ classdef FileNames < Base %Component
         FileType cell       = {'fits'};
         
         
-        % old
-        TimeZone        = 2;
+        %
+        FullPath            = '';
+        BasePath            = '/euler1/archive/LAST';
+        TimeZone            = 2;
         
     end
     
@@ -431,6 +433,50 @@ classdef FileNames < Base %Component
                 FileName = FileName{1};
             end
             
+            
+        end
+        
+        function Path = genPath(Obj, Ind, ReturnChar)
+            %
+            
+            arguments
+                Obj
+                Ind = [];
+                ReturnChar logical = false;
+            end
+            
+            if isempty(Ind)
+                if ischar(Obj.Time)
+                    Ntime = 1;
+                else
+                    Ntime = numel(Obj.Time);
+                end
+            else
+                Ntime = 1;
+            end
+            
+            if isempty(Obj.FullPath)
+                Path = cell(Ntime,1);
+                for Itime=1:1:Ntime
+                    if ~isempty(Ind)
+                        Itime = Ind;
+                    end
+                    
+                    % /euler1/archive/LAST/<ProjName>/new
+                    % /euler1/archive/LAST/<ProjName>/2022/12/01/raw
+                    % /euler1/archive/LAST/<ProjName>/2022/12/01/proc
+                    % /euler1/archive/LAST/<ProjName>/2022/12/01/proc/1
+                    
+                    
+                end
+                
+            else
+                Path = {Obj.FullPath};
+            end
+            
+            if ReturnChar && numel(Path)==1
+                Path = Path{1};
+            end
             
         end
         
