@@ -129,21 +129,37 @@ classdef FileProcessor < Component
                         Obj.msgLog(LogLevel.Verbose, FileName);
                         
                         % This calls the derived function processFileImpl()
-                        Obj.processFile(FileName);
+                        try
+                            Obj.processFile(FileName);
+                        catch
+                            Obj.msgLog(LogLevel.Error, 'exception in processFile: %s', ProcessedFileName);
+                        end
                                            
                         % Move file to 'processed' folder
-                        if ~isempty(Obj.ProcessedPath)
-                            ProcessedFileName = fullfile(Obj.ProcessedPath, FName);                        
-                            Obj.msgLog(LogLevel.Debug, 'Moving input file to processed folder: %s', ProcessedFileName);                            
-                            movefile(FileName, ProcessedFileName, 'f');                           
-                        else
-                            % Delete or rename to '~'...
-                            if Obj.DeleteProcessed
-                                Obj.msgLog(LogLevel.Debug, 'Deleting procesed input file: %s', FileName);                            
-                                delete(FileName);
+                        try
+                            if ~isempty(Obj.ProcessedPath)
+                                ProcessedFileName = fullfile(Obj.ProcessedPath, FName);                        
+                                Obj.msgLog(LogLevel.Debug, 'Moving input file to processed folder: %s', ProcessedFileName);                            
+                                movefile(FileName, ProcessedFileName, 'f');                           
                             else
-                                ProcessedFileName = fullfile(Obj.ProcessedPath, '~', FName);                        
-                                movefile(FileName, ProcessedFileName, 'f');
+                                % Delete or rename to '~'...
+                                if Obj.DeleteProcessed
+                                    Obj.msgLog(LogLevel.Debug, 'Deleting procesed input file: %s', FileName);                            
+                                    delete(FileName);
+                                else
+                                    ProcessedFileName = fullfile(Obj.ProcessedPath, '~', FName);                        
+                                    movefile(FileName, ProcessedFileName, 'f');
+                                end
+                            end
+                        catch
+                            Obj.msgLog(LogLevel.Error, 'exception trying to move file: %s', ProcessedFileName);
+                            try
+                                if isfile(FileName)
+                                    Obj.msgLog(LogLevel.Debug, 'Deleting procesed input file: %s', FileName);                            
+                                    delete(FileName);                                
+                                end
+                            catch
+                                Obj.msgLog(LogLevel.Error, 'Failed to delete file: %s', FileName);                            
                             end
                         end
                     end

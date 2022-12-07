@@ -16,6 +16,7 @@ function soc_app_snr()
     % SNR App
 
 	fprintf('soc_app_snr started\n');
+    LogFile.getSingleton('FileName', 'soc_app_snr');
     
     if isdeployed
         fprintf('soc_app_snr: isdeployed = TRUE\n');

@@ -203,9 +203,11 @@ classdef LogFile < handle
             % Use system folder if not set
             if isempty(Path)
                 if ~isunix
-                    Path = 'C:/log';
+                    Path = 'c:/soc/log';
                 else
-                    Path = '~/log';
+                    Path = '~/soc/log';
+                    
+                    % @Todo - Should we use '/var/soc/log' ?
                 end                
             end
             Result = Path;

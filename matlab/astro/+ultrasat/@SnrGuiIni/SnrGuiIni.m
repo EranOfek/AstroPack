@@ -177,7 +177,8 @@ classdef SnrGuiIni < Component
                         Index = Index+1;
 
                         % Do we need the 'Filter_' prefix ???
-                        Filter = sprintf('Filter_%s_%s', Filters(j).family, Filters(j).band);
+                        Filter = sprintf('%s', Filters(j).band);
+                        %Filter = sprintf('Filter_%s_%s', Filters(j).family, Filters(j).band);
                         if Index == 1
                             Obj.wrDefault(Filter);
                         end
@@ -292,12 +293,20 @@ classdef SnrGuiIni < Component
 
     % Unit test
     methods(Static)
-        function Result = unitTest()
+        function Result = prepareIni()
+            %
             Obj = ultrasat.SnrGuiIni();
             Obj.process();
             Result = true;
         end
+        
+        
+        function Result = unitTest()
+            %
+            Obj = ultrasat.SnrGuiIni();
+            Obj.process();
+            Result = true;
+        end        
     end
 
 end
-

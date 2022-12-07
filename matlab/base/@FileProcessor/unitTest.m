@@ -74,9 +74,7 @@ end
 
 function fileProcessorCallback(FileName)
     io.msgLog(LogLevel.Info, 'FileProcessorCallback started: %s', FileName);
-    
-    disp(FileName);
-    
+      
     TmpFileName = strcat(FileName, '.out.tmp');
     OutFileName = strcat(FileName, '.out');
 
@@ -87,7 +85,7 @@ function fileProcessorCallback(FileName)
     fclose(fid);
     
     % Parse JSON from string to struct
-    disp(str);
+    io.msgLog(LogLevel.Info, 'JSON: %s', str);
     item = jsondecode(str);
    
     % Process
@@ -100,15 +98,18 @@ function fileProcessorCallback(FileName)
     end
 
     % Write output JSON file
-    disp(out);
+    io.msgLog(LogLevel.Info, 'Out.message: %s, result: %s', out.message, out.result);
     out_json = jsonencode(out);
     fid = fopen(TmpFileName, 'wt');
     fprintf(fid, out_json);
     fclose(fid);
 
     % Rename final file to output extension
-    io.msgLog(LogLevel.Info, 'Rename output %s -> %s', TmpFileName, OutFileName);
-    movefile(TmpFileName, OutFileName);
+    try
+        io.msgLog(LogLevel.Info, 'Rename output %s -> %s', TmpFileName, OutFileName);
+        movefile(TmpFileName, OutFileName);
+    catch
+    end
 end
 
 %------------------------------------------------------------------------
