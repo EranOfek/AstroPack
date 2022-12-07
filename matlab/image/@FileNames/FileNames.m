@@ -18,16 +18,16 @@ classdef FileNames < Base %Component
     properties       
         % These fields are the input parameters for getPath() and getFileName()
         %<ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
-        ProjName cell       = {};
+        ProjName            = '';
         Time                = [];
-        Filter cell         = {'clear'};
+        Filter              = {'clear'};
         FieldID cell        = {};
         Counter             = [];
         CCDID cell          = [];
         CropID cell         = [];
-        Type cell           = {'sci'};
-        Level cell          = {'raw'};
-        Product cell        = {'Image'};
+        Type                = {'sci'};
+        Level               = {'raw'};
+        Product             = {'Image'};
         Version             = [1];
         FileType cell       = {'fits'};
         
@@ -35,6 +35,7 @@ classdef FileNames < Base %Component
         %
         FullPath            = '';
         BasePath            = '/euler1/archive/LAST';
+        SubDir              = '';
         TimeZone            = 2;
         
     end
@@ -143,19 +144,48 @@ classdef FileNames < Base %Component
     methods % setter/getters
         function Obj = set.Type(Obj, Val)
             % Setter for Type
+            if ischar(Val)
+                Val = {Val};
+            end
             Obj.Type = Val;
             Obj.validateType;
         end
         function Obj = set.Level(Obj, Val)
             % Setter for Level
+            if ischar(Val)
+                Val = {Val};
+            end
             Obj.Level = Val;
             Obj.validateLevel;
         end
         function Obj = set.Product(Obj, Val)
             % Setter for Product
+            if ischar(Val)
+                Val = {Val};
+            end
             Obj.Product = Val;
             Obj.validateProduct;
         end
+        
+        function Obj = set.ProjName(Obj, Val)
+            % Setter for ProjName
+            if ischar(Val)
+                Val = {Val};
+            end
+            Obj.ProjName = Val;
+        end
+        
+        function Obj = set.Filter(Obj, Val)
+            % Setter for Filter
+            if ischar(Val)
+                Val = {Val};
+            end
+            Obj.Filter = Val;
+        end
+        
+        
+        
+        
     end
       
     methods % utilities
@@ -476,12 +506,21 @@ classdef FileNames < Base %Component
         end
         
         function Path = genPath(Obj, Ind, ReturnChar)
-            %
+            % Generate path for FileNames object
+            % Input  : - A FileNames object.
+            %          - Index of time stamp in the object for which to
+            %            generate the path. If empty, then for all (slow).
+            %            Default is 1.
+            %          - A logical indicatibf if to return the path in a
+            %            char array (true) or cell (false).
+            %            Default is true.
+            % Output : - A path.
+            % Author : Eran Ofek (Dec 2022) 
             
             arguments
                 Obj
-                Ind = [];
-                ReturnChar logical = false;
+                Ind = 1;
+                ReturnChar logical = true;
             end
             
             if isempty(Ind)
@@ -505,7 +544,14 @@ classdef FileNames < Base %Component
                     % /euler1/archive/LAST/<ProjName>/2022/12/01/raw
                     % /euler1/archive/LAST/<ProjName>/2022/12/01/proc
                     % /euler1/archive/LAST/<ProjName>/2022/12/01/proc/1
-                    
+                    DateDir = getDateDir(Obj, Itime, true);
+                    Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
+                                    Obj.BasePath, filesep, ...
+                                    getProp(Obj, 'ProjName', Itime),...
+                                    DateDir, filesep, ...
+                                    getProp(Obj, 'Level', Itime),...
+                                    filesep, ...
+                                    getProp(Obj, 'SubDir', Itime));
                     
                 end
                 
@@ -519,89 +565,21 @@ classdef FileNames < Base %Component
             
         end
         
-    end
-    
-    
-    
-    methods % Generate Path & FileName
-        
-        
-        
-        function Result = genFull(Obj, Args)
-            % Generate a full file name + path from a populated ImagePath
-            % Input  : - A populated ImagePath object.
-            %         * ...,key,val,...
-            %           'PathLevel' - Level value for the path only.
-            %                   If empty do nothing. Use this to modify the
-            %                   path only. Default is [].
-            % Output : - A full path + file name. Only the last full path
-            %            is returned. All the rest are populated in the
-            %            FullName property.
-            % Author : Eran Ofek (Nov 2021)
-            % Example: IP = ImagePath(2);
-            %          IP.genFull
+        function FullName = genFull(Obj, Ind, IndDir, ReturnChar)
+            %
             
-            arguments
-                Obj
-                Args.PathLevel  = [];  % [] - don't touch 
-            end
-                            
-            Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-                File = Obj(Iobj).genFile;
-
-                Level = Obj(Iobj).Level;
-                if ~isempty(Args.PathLevel)
-                    Obj(Iobj).Level = Args.PathLevel;
-                end
-                Path = Obj(Iobj).genPath;
-                Obj(Iobj).Level = Level;  % return lebel to original value
-
-                Result = sprintf('%s%s',Path,File);
-                Obj(Iobj).FullName = Result;
-            end
             
         end
         
-        
-        function Result = genFullCell(Obj, Args)
-            % Generate a cell array of full file name + path from a populated ImagePath
-            % Input  : - A populated ImagePath object.
-            %         * ...,key,val,...
-            %           'PathLevel' - Level value for the path only.
-            %                   If empty do nothing. Use this to modify the
-            %                   path only. Default is [].
-            % Output : - A cell array of full path + file name. Only the last full path
-            %            is returned. All the rest are populated in the
-            %            FullName property.
-            % Author : Eran Ofek (Nov 2021)
-            % Example: IP = ImagePath(2);
-            %          IP.genFull
+        function FullName = genFullCell(Obj, Ind, IndDir, ReturnChar)
+            %
             
-            arguments
-                Obj
-                Args.PathLevel  = [];  % [] - don't touch 
-            end
-                            
-            Nobj = numel(Obj);
-            Result = cell(size(Obj));
-            for Iobj=1:1:Nobj
-                File = Obj(Iobj).genFile;
-
-                Level = Obj(Iobj).Level;
-                if ~isempty(Args.PathLevel)
-                    Obj(Iobj).Level = Args.PathLevel;
-                end
-                Path = Obj(Iobj).genPath;
-                Obj(Iobj).Level = Level;  % return lebel to original value
-
-                Result{Iobj} = sprintf('%s%s',Path,File);
-                Obj(Iobj).FullName = Result{Iobj};
-            end
             
         end
         
     end
+    
+    
     
    
     methods % Read/Write from Header
