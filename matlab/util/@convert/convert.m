@@ -1277,6 +1277,34 @@ classdef convert
 
         end % convert.str2date function
 
+        function DateVec=strFN2date(String)
+            % Convert string or cell of chars dates in file name format to
+            %       date vector.
+            % Input  : - A char or cell array of chars with dates in file
+            %            name format of the form: YYYYMMDD.HHMMSS.FFF
+            % Output : - An array with row per date with columns [Y M D H M S]
+            % Author : Eran Ofek (Dec 2022)
+            % Example: convert.strFN2date({'20101011.101010.11','20101011.101010.11'})
+            %          convert.strFN2date('20101011.101010.11')
+            
+            %Tmp = regexp({'20101011.101010.11','20101011.101010.11'},'(?<Y>\d\d\d\d)(?<M>\d\d)(?<D>\d\d).(?<h>\d\d)(?<m>\d\d)(?<s>\d\d.\d*)','tokens')
+            Tmp = regexp(String,'(?<Y>\d\d\d\d)(?<M>\d\d)(?<D>\d\d).(?<h>\d\d)(?<m>\d\d)(?<s>\d\d.\d*)','names');
+            if iscell(Tmp)
+                Tmp = cell2mat(Tmp);
+            end
+            N  = numel(Tmp);
+            for I=1:1:N
+                DateVec(I,1) = str2double(Tmp(I).Y);
+                DateVec(I,2) = str2double(Tmp(I).M);
+                DateVec(I,3) = str2double(Tmp(I).D);
+                DateVec(I,4) = str2double(Tmp(I).h);
+                DateVec(I,5) = str2double(Tmp(I).m);
+                DateVec(I,6) = str2double(Tmp(I).s);
+            end
+                
+            
+        end
+        
 	    function Frac=hour_str2frac(String)
             % Convert hour string to fraction of day
             % Package: @convert
