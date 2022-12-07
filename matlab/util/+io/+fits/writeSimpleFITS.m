@@ -26,6 +26,10 @@ function writeSimpleFITS(Image, FileName, Args)
     if isempty(Args.Header)
         % create minimal default FITS header
         Args.Header = io.fits.defaultHeader(Args.DataType, size(Image));
+    else
+        % update the BITPIX key val if needed
+        BitPix      = io.fits.dataType2bitpix(Args.DataType);
+        Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BITPIX',{BitPix});
     end
     HeaderStr = io.fits.generateHeaderBlocks(Args.Header);
 

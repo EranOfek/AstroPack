@@ -13,6 +13,8 @@ function [Result, Summary] = constructPSF(Obj, Args)
     %            'ReCenter' - Recenter the sources in the stamps.
     %                   Default is false (i.e., X,Y in catalogs are good
     %                   enough).
+    %            'TypePSF' - Type of output PSF (e.g., @single).
+    %                   If empty, do not change. Default is [].
     % Output : - The input AstroImage object in which the PSFData is
     %            populated with the measured pixelated PSF.
     %          - A structure array, with:
@@ -36,6 +38,7 @@ function [Result, Summary] = constructPSF(Obj, Args)
         Args.constructPSF_cutoutsArgs cell  = {};
         Args.SmoothWings logical            = true;
         Args.ReCenter logical               = false;
+        Args.TypePSF                        = []; % or '@single', '@double',...
         
     end
     
@@ -75,7 +78,10 @@ function [Result, Summary] = constructPSF(Obj, Args)
                                                            'ReCenter',Args.ReCenter,...
                                                            'MomRadius',Args.HalfSize);
                     
-        
+        if ~isempty(Args.TypePSF)
+            Mean = Args.TypePSF(Mean);
+            Var  = Args.TypePSF(Var);
+        end
         % populate the PSFData
         if OutIsImage
             Result(Iobj).PSFData.DataPSF = Mean;

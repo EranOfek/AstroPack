@@ -6,7 +6,7 @@ function HeaderCell=defaultHeader(DataClass, DataSize)
     % Author : Eran Ofek (Jan 2022)
     % Example: HeaderCell=io.fits.defaultHeader('single', [10 100])
     
-     BitPix = io.fits.dataType2bitpix(DataClass);
+    BitPix = io.fits.dataType2bitpix(DataClass);
         
     HeaderCell = {'SIMPLE',true,'';
                   'BITPIX',BitPix,'';
