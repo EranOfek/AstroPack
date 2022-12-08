@@ -4,7 +4,7 @@
 % File name format: <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
 
 
-classdef FileNames < Base %Component
+classdef FileNames < Component
     % Construct and parse (@Todo) image path used in storage, database, and headers.
     % For storage and database, we should implement ImagePathDb class
     % The file path is described in the LAST/ULTRASAT file naming convension document.
@@ -628,7 +628,7 @@ classdef FileNames < Base %Component
             elseif isa(Input, 'AstroImage')
                 Header = Input.HeaderData;
             else
-                error('INput must be an AstroHeader or AstroImage');
+                error('Input must be an AstroHeader or AstroImage');
             end
               
             Obj.ProjName        = Header.getVal({'INSTRUME','PROJNAME'}); %Obj.DictKeyNames.PROJNAME);
@@ -655,32 +655,49 @@ classdef FileNames < Base %Component
 
         end
         
-        function Result = writeToHeader(Obj, Header)
+        function Result = writeToHeader(Obj, Input, KeysToWrite)
             % Write data to AstroHeader, DictKeyNames is used to get the
-            % correct key names            
+            % correct key names  
+            % Input  : - A FileNames object.
+            %          - An AstroHeader or AstroImage object.
+            %            Number of elements must be equal to the number of
+            %            times in FileNames.
+            %          - A cell arrays of properties in FileNames to write
+            %            to header.
+            %            Default is : {'TimeZone','Filter','FieldID','Counter','CCDID','CropID','Type','Level','Product','Version','FileType','SubDir'}
+            % Output : null
+            % Author : Eran Ofek (Dec 2022)
+            
             arguments
                 Obj
-                Header AstroHeader
+                Input  % AstroHeader | AstroImage
+                KeysToWrite = {'TimeZone','Filter','FieldID','Counter','CCDID','CropID','Type','Level','Product','Version','FileType','SubDir'};
+            end
+
+            Nk = numel(KeysToWrite);
+            Nt = numel(Obj.Time);
+            Nh = numel(Header);
+            if Nt~=Nh
+                error('Number of header elements must be equal to the number of times in FileNames');
+            end
+                 
+            for Ih=1:1:Nh
+                if isa(Input, 'AstroHeader')
+                    Header = Input(Ih);
+                else
+                    % assuming AstroImage
+                    Header = Input(Ih).Header;
+                end
+                
+                for Ik=1:1:Nk
+                    Header.replaceVal(Obj.Config.Data.Header.ImagePath.KeyNames.(KeysToWrite{Ik}{1}, Obj.getProp(KeysToWrite{Ik},Ih);
+                end
+              
+                if isa(Input, 'AstroImage')
+                    Input(Ih).Header = Header;
+                end
             end
             
-            %Obj.msgLog(LogLevel.Debug, 'writeToHeader: ');
-                 
-            Header.setVal(Obj.DictKeyNames.JD,          Obj.JD);
-            Header.setVal(Obj.DictKeyNames.TimeZone,    Obj.TimeZone);
-            Header.setVal(Obj.DictKeyNames.Filter,      Obj.Filter);
-            Header.setVal(Obj.DictKeyNames.FieldID,     Obj.FieldID);
-            Header.setVal(Obj.DictKeyNames.Counter,     Obj.Counter);
-            Header.setVal(Obj.DictKeyNames.CCDID,       Obj.CCDID);                        
-            Header.setVal(Obj.DictKeyNames.CropID,      Obj.CropID);
-            Header.setVal(Obj.DictKeyNames.Type,        Obj.Type);
-            Header.setVal(Obj.DictKeyNames.Level,       Obj.Level);
-            Header.setVal(Obj.DictKeyNames.SubLevel,    Obj.SubLevel);
-            Header.setVal(Obj.DictKeyNames.Product,     Obj.Product);
-            Header.setVal(Obj.DictKeyNames.Version,     Obj.Version);
-            Header.setVal(Obj.DictKeyNames.FileType,    Obj.FileType);
-            Header.setVal(Obj.DictKeyNames.SubDir,      Obj.SubDir);            
-            
-            Result = true;
         end        
         
         
