@@ -6,6 +6,9 @@ function [FlagGood, BestPar, BestStd] = ransacLinearModel(H, Y, Args)
     %            'Nsim' - Number of simulations. Default is 100.
     %            'FracPoints' - Fraction of points to use in each
     %                   simulation. Default is 0.1.
+    %            'NptSim' - If not [], this overrides 'FracPoints'.
+    %                   Specify how many points to use in each simulation.
+    %                   Default is [].
     %            'CleanNaN' - Clean NaNs before fitting.
     %                   Default is false.
     %            'NsigmaClip' - Sigma clipping in good points selection.
@@ -21,6 +24,7 @@ function [FlagGood, BestPar, BestStd] = ransacLinearModel(H, Y, Args)
         Y
         Args.Nsim               = 100;
         Args.FracPoints         = 0.1;
+        Args.NptSim             = []
         Args.CleanNaN logical   = false;
         Args.NsigmaClip         = [3 3];
     end
@@ -32,7 +36,11 @@ function [FlagGood, BestPar, BestStd] = ransacLinearModel(H, Y, Args)
     end
     
     Npt = numel(Y);
-    NptSim = ceil(Npt.*Args.FracPoints);
+    if isempty(Args.NptSim)
+        NptSim = ceil(Npt.*Args.FracPoints);
+    else
+        NptSim = Args.NptSim;
+    end
     
     PrevStd = Inf;
     for Isim=1:1:Args.Nsim
