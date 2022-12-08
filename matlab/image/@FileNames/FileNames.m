@@ -605,16 +605,15 @@ classdef FileNames < Base %Component
     end
     
     
-    
-   
     methods % Read/Write from Header
         
         function Obj = readFromHeader(Obj, Input, DataProp)
-            % Read ImagePath parameters from header.
+            % Read FileNames parameters from header.
             % Input  : - An ImagePath object.
             %          - A single element AstroImage or AstroHeader.
             %          - Either data property name or product name.
-            % Output : - A populated ImagePath object.
+            % Output : - A populated FileNames object.
+            % Author : Eran Ofek (Dec 2022)
             
             arguments
                 Obj(1,1)
@@ -626,18 +625,12 @@ classdef FileNames < Base %Component
                                 
             if isa(Input, 'AstroHeader')
                 Header = Input;
-                if isempty(DataProp)
-                    Obj.Product         = Header.getVal('PRODUCT');
-                else
-                    Obj.Product         = DataProp;
-                end
             elseif isa(Input, 'AstroImage')
                 Header = Input.HeaderData;
             else
                 error('INput must be an AstroHeader or AstroImage');
             end
               
-            
             Obj.ProjName        = Header.getVal({'INSTRUME','PROJNAME'}); %Obj.DictKeyNames.PROJNAME);
             Obj.Time            = julday(Header);  %.getVal('JD');
             Obj.TimeZone        = Header.getVal('TIMEZONE');
@@ -648,11 +641,11 @@ classdef FileNames < Base %Component
             Obj.CropID          = Header.getVal('CROPID');
             Obj.Type            = Header.getVal('IMTYPE');
             Obj.Level           = Header.getVal('LEVEL');
-            Obj.SubLevel        = Header.getVal('SUBLEVEL');
-            if isnan(Obj.SubLevel)
-                Obj.SubLevel = '';
+            if isempty(DataProp)
+                Obj.Product         = Header.getVal('PRODUCT');
+            else
+                Obj.Product         = DataProp;
             end
-            Obj.Product         = DataProp;
             Obj.Version         = Header.getVal('VERSION');
             Obj.FileType        = 'fits';
             Obj.SubDir          = Header.getVal('SUBDIR');
@@ -689,6 +682,12 @@ classdef FileNames < Base %Component
             
             Result = true;
         end        
+        
+        
+        
+        
+        
+        
         
         function Result = readFromDb(Obj, Query)
             % Read data from database table, current record of Query.ResultSet
