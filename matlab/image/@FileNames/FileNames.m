@@ -566,16 +566,41 @@ classdef FileNames < Base %Component
         end
         
         function FullName = genFull(Obj, Ind, IndDir, ReturnChar)
-            %
+            % Generate a full path and file name for all files
+            % Input  : - An FileNames object
+            %          - Index of time for file. If empty, generate full
+            %            name for all files. Default is [].
+            %          - Index of file for path. If empty, generate full
+            %            name for all files. Default is 1.
+            %          - Logical indicating if to return char instead of
+            %            cell (only if a single file is returned).
+            %            Default is false.
+            % Output : - A cell array of full file name and path.
+            % Author : Eran Ofek (Dec 2022)
             
+            arguments
+                Obj
+                Ind     = [];
+                IndDir  = 1;
+                ReturnChar logical = false;
+            end
+            FileName = genFile(Obj, Ind, ReturnChar);
+            Path     = genPath(Obj, IndDir, ReturnChar);
+            
+            Nfn      = numel(FileName);
+            Np       = numel(Path);
+            FullName = cell(Nfn,1);
+            for Ifn=1:1:Nfn
+                Ip = min(Np,Ifn);
+                FullName{Ifn} = sprintf('%s%s',Path{Ip},FileName{Ifn});
+            end
+            
+            if ReturnChar && numel(FullName)==1
+                FullName = FullName{1};
+            end
             
         end
         
-        function FullName = genFullCell(Obj, Ind, IndDir, ReturnChar)
-            %
-            
-            
-        end
         
     end
     
