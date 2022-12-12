@@ -699,30 +699,47 @@ classdef FileNames < Component
             end
             
         end        
-        
-        
-        
-        
-        
-        
-        
-        function Result = readFromDb(Obj, Query)
-            % Read data from database table, current record of Query.ResultSet
-            % Fields are defined in Google Sheet "common_image_path"
-            arguments
-                Obj
-                Query io.db.DbQuery
-            end            
-            
-            %Obj.msgLog(LogLevel.Debug, 'readFromDb: ');
-            st = Query.getRecord();
-            Result = Obj.readFromStruct(st);
-        end
-        
+                
     end
     
     
     methods % search and utilities
+        function Obj = reorderEntries(Obj, Ind)
+            % Reorder all the entries in FileNames object.
+            % Input  : - A FileNames object.
+            %          - Indices of entries as they should appear in the
+            %            output.
+            % Output : - A FileNames object in which the entries are in the
+            %            order specified in Indices.
+            % Author : Eran Ofek (Dec 2022)
+            
+            arguments
+                Obj
+                Ind
+                ProrToOrder = {'ProjName','Time','Filter','FieldID','Counter','CCDID','CropID','Type','Level','Product','Version','FileType'};
+            end
+            
+            NInd = numel(Ind);
+            Nf   = numel(PropToOrder);
+            for If=1:1:Nf
+                if numel(Obj.(PropToOrder{If}))==1
+                    % skip reorder
+                else
+                    if numel(Obj.(PropToOrder{If}))==NInd
+                        % reorder
+                        Obj.(PropToOrder{If})) = Obj.(PropToOrder{If}))(Ind);
+                    else
+                        error('Number of entries in property %s must be either 1 or %d',PropToOrder{If},NInd);
+                    end
+                end
+            end
+            
+        end
+        
+        
+        
+        
+        
         function I = findFirstLast(Obj, IsLast, ProductName)
             % find image, of some product type, with latest/earliest JD
             % Input  : - An ImagePath object.
