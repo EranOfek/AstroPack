@@ -155,7 +155,7 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
         Args.SourcesColDistPos              = Inf;
         Args.SourcesColDistName             = 'DistMP';
         Args.SourcesColDistUnits            = 'arcsec';
-
+        Args.Integration                    = false;
     end
     RAD = 180./pi;
 
@@ -202,7 +202,8 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
                                                                          'GeoPos',GeoPos,...
                                                                          'RefEllipsoid',Args.RefEllipsoid,...
                                                                          'AddDesignation',true,...
-                                                                         'OutUnitsDeg',true);
+                                                                         'OutUnitsDeg',true,...
+                                                                         'Integration',Args.Integration);
         end
 
         % merge ResultNear - output is table
@@ -323,7 +324,8 @@ function [SourcesWhichAreMP, Obj] = match2solarSystem(Obj, Args)
                                                                              'GeoPos',GeoPos,...
                                                                              'RefEllipsoid',Args.RefEllipsoid,...
                                                                              'AddDesignation',true,...
-                                                                             'OutUnitsDeg',true);
+                                                                             'OutUnitsDeg',true,...
+                                                                             'Integration',Args.Integration);
             end
 
 

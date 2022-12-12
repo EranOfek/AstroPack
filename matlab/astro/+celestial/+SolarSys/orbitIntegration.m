@@ -1,10 +1,10 @@
 function [X,V] = orbitIntegration(JD,X0,V0,Args)
     % Calculate the position and velocity evolution for a list of asteroids 
-    % Input  : - Target asteroids position vector in au.
+    % Input  :  - Vector of initial and final JD.
+    %           - Target asteroids position vector in au.
     %            This is a 3 X Nobj matrix, where 3 is the number of
     %            coordinates, and Nobj the number of objects.
     %          - Target asteroids velocity vector in au / day, same size as X0.
-    %          - Vector of initial and final JD.
     %          * ...,key,val,...
     %            'RelTol' - Relative tolerance of the ODE
     %            'AbsTol' = Absolute tolerance of the ODE
@@ -26,14 +26,19 @@ function [X,V] = orbitIntegration(JD,X0,V0,Args)
     Nobj = size(X0,2);
     opts = odeset('RelTol',Args.RelTol,'AbsTol',Args.AbsTol );
 
-    InitialValues = [X0;V0];
-
-    [Times,Result] = ode45(@(T,XVmat) odeDirectVectorized(T,XVmat,Nobj), JD, InitialValues,opts);
-
-    FinalValues = reshape(Result(end,:),[],Nobj);
+    if JD(1)~=JD(2)
+        InitialValues = [X0;V0];
     
-    X = FinalValues(1:3,:);
-    V = FinalValues(4:6,:);
+        [Times,Result] = ode45(@(T,XVmat) odeDirectVectorized(T,XVmat,Nobj), JD, InitialValues,opts);
+    
+        FinalValues = reshape(Result(end,:),[],Nobj);
+        
+        X = FinalValues(1:3,:);
+        V = FinalValues(4:6,:);
+    else
+        X = X0;
+        V = V0;
+    end
 
 end
 

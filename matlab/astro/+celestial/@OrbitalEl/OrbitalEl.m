@@ -880,6 +880,7 @@ classdef OrbitalEl < Base
             if Args.Integration
                 [Nu0]  = keplerSolve(Obj, Obj.Epoch, 'Tol',Args.Tol);
                 [V0,X0] = trueAnom2rectVel(Obj,Nu0,[],[]);
+                [StartEpochs,~,IndEpochs] = unique(Obj.Epoch); % devide to groups with same initial epoch
             end
 
             for It=1:1:Nt
@@ -889,13 +890,38 @@ classdef OrbitalEl < Base
                 while LightTimeNotConverged
                     Iter = Iter + 1;
                     if Args.Integration
-                        if Ntarget > 1 && (any(Obj.Epoch~=Obj.Epoch(1)) || any(LightTime~=LightTime(1)) ) % if targets start or ends with different epochs integrate one by one
-                            U_B = zeros(3,Ntarget);
-                            for Itarget = 1:Ntarget
-                                [U_B(:,Itarget),~] = celestial.SolarSys.orbitIntegration([Obj.Epoch(Itarget),Time(It)-LightTime(It)],X0(:,Itarget),V0(:,Itarget), 'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
+                        U_B = zeros(3,Ntarget);
+                        % loop for each group with same initial epoch
+                        for Iepoch = 1:numel(StartEpochs)
+                            IndTargets = find(IndEpochs ==Iepoch);
+                            NtargetsEpoch = numel(IndTargets);
+                             % if light times are different
+                            if NtargetsEpoch>1 && numel(LightTime)>1 && any(LightTime(IndTargets)~=LightTime(IndTargets(1))) 
+                                X_B = X0(:,IndTargets);
+                                V_B = V0(:,IndTargets);
+
+                                % first integrate all targets to minimal
+                                % time (maximal light time)
+                                [MaxLightTime,ImaxLightTime] = max(LightTime(IndTargets));
+                                [X_B,V_B] = celestial.SolarSys.orbitIntegration([StartEpochs(Iepoch),Time(It)-MaxLightTime]...
+                                        ,X_B,V_B, 'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
+
+                                % then integrate one by one according to
+                                % light time
+                                for Itarget = 1:numel(IndTargets)
+                                     [X_B(:,Itarget),~] = celestial.SolarSys.orbitIntegration([Time(It)-MaxLightTime,Time(It)-LightTime(IndTargets(Itarget))]...
+                                        ,X_B(:,Itarget),V_B(:,Itarget), 'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
+                                end    
+                                U_B(:,IndTargets) = X_B;
+                            else % if light times are equal integrate all at once
+                                if numel(LightTime)>1
+                                    IndLightTime = IndTargets(1);
+                                else
+                                    IndLightTime =1;
+                                end
+                                [U_B(:,IndTargets),~] = celestial.SolarSys.orbitIntegration([StartEpochs(Iepoch),Time(It)-LightTime(IndLightTime)]...
+                                    ,X0(:,IndTargets),V0(:,IndTargets),'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
                             end
-                        else    %  otherwise integrate all at once
-                            [U_B,~] = celestial.SolarSys.orbitIntegration([Obj.Epoch(1),Time(It)-LightTime(1)],X0,V0, 'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
                         end
                     else
                         [Nu, R, E, Vel, M]          = keplerSolve(Obj, Time(It)-LightTime,'Tol',Args.Tol);
@@ -903,6 +929,7 @@ classdef OrbitalEl < Base
                         [U_B] = trueAnom2rectPos(Obj, Nu, R, 'rad');
                         U_B   = U_B.';  % a 3 X N matrix
                     end
+
 
                     % verified
                     %RAD = 180./pi;
@@ -1143,7 +1170,6 @@ classdef OrbitalEl < Base
                 if  numEl(ObjNew(Iobj))==0
                     Flag = [];
                 else
-                    Args.Integration = true; %test
                     Result(Iobj) = ephem(ObjNew(Iobj), JD, 'GeoPos',Args.GeoPos,...
                                                   'RefEllipsoid',Args.RefEllipsoid,...
                                                   'OutUnitsDeg',false,...
