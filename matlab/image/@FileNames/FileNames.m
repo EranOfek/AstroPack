@@ -750,6 +750,39 @@ classdef FileNames < Component
             
         end
         
+        function [SunAlt] = sunAlt(Obj, Args)
+            % Calculate Sun Altitude for images in FileNames object
+            % Input  : - An FileNames object
+            %          * ...,key,val,...
+            %            'GeoPos' - Geodetic position [Lon, Lat] in deg.
+            %                   Default is [35 30].
+            % Output : - An array of Sun altitude (deg) for each image
+            %            entry.
+            % Author : Eran Ofek (May 2022)
+            % Example: 
+            
+            arguments
+                Obj
+                Args.GeoPos    = [35 30];
+            end
+            
+            RAD = 180./pi;
+            
+            VecJD    = Obj.julday;
+            VecJD    = VecJD(:);
+            LST      = celestial.time.lst(VecJD, Args.GeoPos(1)./RAD);  % frac of day
+            [RA,Dec] = celestial.SolarSys.suncoo(VecJD, 'j'); % [rad]
+            HA       = LST.*2.*pi - RA;                       % [rad]
+            [SunAz,SunAlt] = celestial.coo.hadec2azalt(HA, Dec, Args.GeoPos(2)./RAD); % [rad]
+            SunAlt   = SunAlt.*RAD; 
+            
+        end
+        
+        
+        
+        
+        
+        
         
         
         function I = findFirstLast(Obj, IsLast, ProductName)
@@ -896,38 +929,7 @@ classdef FileNames < Component
             end
         end
         
-        function [SunAlt] = sunAlt(Obj, Args)
-            % Calculate Sun Altitude for images in ImagePath object
-            % Input  : - An ImagePath object
-            %          * ...,key,val,...
-            %            'GeoPos' - Geodetic position [Lon, Lat] in deg.
-            %                   Default is [35 30].
-            % Output : - An array of Sun altitude (deg) for each image
-            %            entry.
-            % Author : Eran Ofek (May 2022)
-            % Example: % delete all images taken when the Sun is up
-            %          List=io.files.filelist('LAST*.fits');                         
-            %          IP=ImagePath.parseFileName(List);
-            %          SA=IP.sunAlt;
-            %          I=find(SA>0);
-            %          for ii=1:numel(I), delete(IP(I(ii)).genFile); end    
-            
-            arguments
-                Obj
-                Args.GeoPos    = [35 30];
-            end
-            
-            RAD = 180./pi;
-            
-            VecJD    = [Obj.Time];
-            VecJD    = VecJD(:);
-            LST      = celestial.time.lst(VecJD, Args.GeoPos(1)./RAD);  % frac of day
-            [RA,Dec] = celestial.SolarSys.suncoo(VecJD, 'j'); % [rad]
-            HA       = LST.*2.*pi - RA;                       % [rad]
-            [SunAz,SunAlt] = celestial.coo.hadec2azalt(HA, Dec, Args.GeoPos(2)./RAD); % [rad]
-            SunAlt   = SunAlt.*RAD; 
-            
-        end
+        
     end
     
     methods % raed/write from stuct
