@@ -59,7 +59,7 @@ function Result = processItem(item)
                 throw(ME);
             end
         elseif strcmp(item.op, 'snr')            
-            out = processSnr(item.json_text);
+            out = processSnrJson(item.json_text);
         else
             strcpy(out.message, 'MATLAB: unknown op');
         end
@@ -114,12 +114,12 @@ end
 
 %------------------------------------------------------------------------
 
-function Result = processSnr(json_text)
+function Result = processSnrJson(json_text)
     % Process SNR
     % See ultrasat.git/python/prj/src/webapps/webapp_snr/rest_snr_server1.py
-    
+    %    
     % Input   : - snr - struct 
-
+    % 
     %                      
     % Output  : struct ResponseMessage with fields: message, result
     % Author  : Chen Tishler (2022)
@@ -145,25 +145,14 @@ function Result = processSnr(json_text)
     Result = out;
 end
 
-
 %------------------------------------------------------------------------
 
 function [Result, Message] = doProcessSnr(Params)
     % Process SNR
     % See ultrasat.git/python/prj/src/webapps/webapp_snr/rest_snr_server1.py
     
-    % Input   : - snr - struct 
-
-    %                      
-    % Output  : struct with fields: message, result, result_snr, result_limiting_magnitude
-    % Author  : Arie B. (2022)
-    % Example : 
-
-    io.msgLog(LogLevel.Info, 'doProcessSnr started');
-    Message = sprintf('MATLAB: processSnr: R: %s', Params.R);
-    disp(Params);
-    
-    % Params:
+    % Input   : - Params - struct with these fields:
+	%
     %   ExpTime
     %   NumImages
     %   R
@@ -175,11 +164,26 @@ function [Result, Message] = doProcessSnr(Params)
     %   MagnitudeSystem
     %   LimitingMagnitude
     %    
+    %                      
+    % Output  : - Result - struct with fields: 
+    %   ResultSnr
+    %   ResultLimitingMagnitude
+    %           - Message - char with text message
+    %
+    % Author  : Arie B. (2022)
+    % Example : 
+
+    io.msgLog(LogLevel.Info, 'doProcessSnr started');
+    Message = sprintf('MATLAB: processSnr: R: %s', Params.R);
+    disp(Params);
+    
     
     % Put final SNR results in struct
+    % Currently for testing, just using the input params to calculate 
+    % the output fields
     Result = struct;
-    Result.result_snr = double(Params.ExpTime) * double(Params.NumImages);
-    Result.result_limiting_magnitude = double(Params.SnrMagnitude) * double(Params.LimitingMagnitude);
+    Result.ResultSnr = double(Params.ExpTime) * double(Params.NumImages);
+    Result.ResultLimitingMagnitude = double(Params.SnrMagnitude) * double(Params.LimitingMagnitude);
 
     %
     disp(Result);
