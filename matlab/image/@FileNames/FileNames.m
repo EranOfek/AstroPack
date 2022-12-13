@@ -4,7 +4,7 @@
 % File name format: <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
 
 
-classdef FileNames < Base %Component
+classdef FileNames < Component
     % Construct and parse (@Todo) image path used in storage, database, and headers.
     % For storage and database, we should implement ImagePathDb class
     % The file path is described in the LAST/ULTRASAT file naming convension document.
@@ -18,16 +18,16 @@ classdef FileNames < Base %Component
     properties       
         % These fields are the input parameters for getPath() and getFileName()
         %<ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
-        ProjName cell       = {};
+        ProjName            = '';
         Time                = [];
-        Filter cell         = {'clear'};
+        Filter              = {'clear'};
         FieldID cell        = {};
         Counter             = [];
         CCDID cell          = [];
         CropID cell         = [];
-        Type cell           = {'sci'};
-        Level cell          = {'raw'};
-        Product cell        = {'Image'};
+        Type                = {'sci'};
+        Level               = {'raw'};
+        Product             = {'Image'};
         Version             = [1];
         FileType cell       = {'fits'};
         
@@ -35,6 +35,7 @@ classdef FileNames < Base %Component
         %
         FullPath            = '';
         BasePath            = '/euler1/archive/LAST';
+        SubDir              = '';
         TimeZone            = 2;
         
     end
@@ -143,19 +144,48 @@ classdef FileNames < Base %Component
     methods % setter/getters
         function Obj = set.Type(Obj, Val)
             % Setter for Type
+            if ischar(Val)
+                Val = {Val};
+            end
             Obj.Type = Val;
             Obj.validateType;
         end
         function Obj = set.Level(Obj, Val)
             % Setter for Level
+            if ischar(Val)
+                Val = {Val};
+            end
             Obj.Level = Val;
             Obj.validateLevel;
         end
         function Obj = set.Product(Obj, Val)
             % Setter for Product
+            if ischar(Val)
+                Val = {Val};
+            end
             Obj.Product = Val;
             Obj.validateProduct;
         end
+        
+        function Obj = set.ProjName(Obj, Val)
+            % Setter for ProjName
+            if ischar(Val)
+                Val = {Val};
+            end
+            Obj.ProjName = Val;
+        end
+        
+        function Obj = set.Filter(Obj, Val)
+            % Setter for Filter
+            if ischar(Val)
+                Val = {Val};
+            end
+            Obj.Filter = Val;
+        end
+        
+        
+        
+        
     end
       
     methods % utilities
@@ -476,12 +506,21 @@ classdef FileNames < Base %Component
         end
         
         function Path = genPath(Obj, Ind, ReturnChar)
-            %
+            % Generate path for FileNames object
+            % Input  : - A FileNames object.
+            %          - Index of time stamp in the object for which to
+            %            generate the path. If empty, then for all (slow).
+            %            Default is 1.
+            %          - A logical indicatibf if to return the path in a
+            %            char array (true) or cell (false).
+            %            Default is true.
+            % Output : - A path.
+            % Author : Eran Ofek (Dec 2022) 
             
             arguments
                 Obj
-                Ind = [];
-                ReturnChar logical = false;
+                Ind = 1;
+                ReturnChar logical = true;
             end
             
             if isempty(Ind)
@@ -505,7 +544,14 @@ classdef FileNames < Base %Component
                     % /euler1/archive/LAST/<ProjName>/2022/12/01/raw
                     % /euler1/archive/LAST/<ProjName>/2022/12/01/proc
                     % /euler1/archive/LAST/<ProjName>/2022/12/01/proc/1
-                    
+                    DateDir = getDateDir(Obj, Itime, true);
+                    Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
+                                    Obj.BasePath, filesep, ...
+                                    getProp(Obj, 'ProjName', Itime),...
+                                    DateDir, filesep, ...
+                                    getProp(Obj, 'Level', Itime),...
+                                    filesep, ...
+                                    getProp(Obj, 'SubDir', Itime));
                     
                 end
                 
@@ -519,99 +565,55 @@ classdef FileNames < Base %Component
             
         end
         
-    end
-    
-    
-    
-    methods % Generate Path & FileName
-        
-        
-        
-        function Result = genFull(Obj, Args)
-            % Generate a full file name + path from a populated ImagePath
-            % Input  : - A populated ImagePath object.
-            %         * ...,key,val,...
-            %           'PathLevel' - Level value for the path only.
-            %                   If empty do nothing. Use this to modify the
-            %                   path only. Default is [].
-            % Output : - A full path + file name. Only the last full path
-            %            is returned. All the rest are populated in the
-            %            FullName property.
-            % Author : Eran Ofek (Nov 2021)
-            % Example: IP = ImagePath(2);
-            %          IP.genFull
+        function FullName = genFull(Obj, Ind, IndDir, ReturnChar)
+            % Generate a full path and file name for all files
+            % Input  : - An FileNames object
+            %          - Index of time for file. If empty, generate full
+            %            name for all files. Default is [].
+            %          - Index of file for path. If empty, generate full
+            %            name for all files. Default is 1.
+            %          - Logical indicating if to return char instead of
+            %            cell (only if a single file is returned).
+            %            Default is false.
+            % Output : - A cell array of full file name and path.
+            % Author : Eran Ofek (Dec 2022)
             
             arguments
                 Obj
-                Args.PathLevel  = [];  % [] - don't touch 
+                Ind     = [];
+                IndDir  = 1;
+                ReturnChar logical = false;
             end
-                            
-            Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-                File = Obj(Iobj).genFile;
-
-                Level = Obj(Iobj).Level;
-                if ~isempty(Args.PathLevel)
-                    Obj(Iobj).Level = Args.PathLevel;
-                end
-                Path = Obj(Iobj).genPath;
-                Obj(Iobj).Level = Level;  % return lebel to original value
-
-                Result = sprintf('%s%s',Path,File);
-                Obj(Iobj).FullName = Result;
+            FileName = genFile(Obj, Ind, ReturnChar);
+            Path     = genPath(Obj, IndDir, ReturnChar);
+            
+            Nfn      = numel(FileName);
+            Np       = numel(Path);
+            FullName = cell(Nfn,1);
+            for Ifn=1:1:Nfn
+                Ip = min(Np,Ifn);
+                FullName{Ifn} = sprintf('%s%s',Path{Ip},FileName{Ifn});
+            end
+            
+            if ReturnChar && numel(FullName)==1
+                FullName = FullName{1};
             end
             
         end
         
         
-        function Result = genFullCell(Obj, Args)
-            % Generate a cell array of full file name + path from a populated ImagePath
-            % Input  : - A populated ImagePath object.
-            %         * ...,key,val,...
-            %           'PathLevel' - Level value for the path only.
-            %                   If empty do nothing. Use this to modify the
-            %                   path only. Default is [].
-            % Output : - A cell array of full path + file name. Only the last full path
-            %            is returned. All the rest are populated in the
-            %            FullName property.
-            % Author : Eran Ofek (Nov 2021)
-            % Example: IP = ImagePath(2);
-            %          IP.genFull
-            
-            arguments
-                Obj
-                Args.PathLevel  = [];  % [] - don't touch 
-            end
-                            
-            Nobj = numel(Obj);
-            Result = cell(size(Obj));
-            for Iobj=1:1:Nobj
-                File = Obj(Iobj).genFile;
-
-                Level = Obj(Iobj).Level;
-                if ~isempty(Args.PathLevel)
-                    Obj(Iobj).Level = Args.PathLevel;
-                end
-                Path = Obj(Iobj).genPath;
-                Obj(Iobj).Level = Level;  % return lebel to original value
-
-                Result{Iobj} = sprintf('%s%s',Path,File);
-                Obj(Iobj).FullName = Result{Iobj};
-            end
-            
-        end
-        
     end
     
-   
+    
     methods % Read/Write from Header
         
         function Obj = readFromHeader(Obj, Input, DataProp)
-            % Read ImagePath parameters from header.
+            % Read FileNames parameters from header.
             % Input  : - An ImagePath object.
             %          - A single element AstroImage or AstroHeader.
             %          - Either data property name or product name.
-            % Output : - A populated ImagePath object.
+            % Output : - A populated FileNames object.
+            % Author : Eran Ofek (Dec 2022)
             
             arguments
                 Obj(1,1)
@@ -623,18 +625,12 @@ classdef FileNames < Base %Component
                                 
             if isa(Input, 'AstroHeader')
                 Header = Input;
-                if isempty(DataProp)
-                    Obj.Product         = Header.getVal('PRODUCT');
-                else
-                    Obj.Product         = DataProp;
-                end
             elseif isa(Input, 'AstroImage')
                 Header = Input.HeaderData;
             else
-                error('INput must be an AstroHeader or AstroImage');
+                error('Input must be an AstroHeader or AstroImage');
             end
               
-            
             Obj.ProjName        = Header.getVal({'INSTRUME','PROJNAME'}); %Obj.DictKeyNames.PROJNAME);
             Obj.Time            = julday(Header);  %.getVal('JD');
             Obj.TimeZone        = Header.getVal('TIMEZONE');
@@ -645,11 +641,11 @@ classdef FileNames < Base %Component
             Obj.CropID          = Header.getVal('CROPID');
             Obj.Type            = Header.getVal('IMTYPE');
             Obj.Level           = Header.getVal('LEVEL');
-            Obj.SubLevel        = Header.getVal('SUBLEVEL');
-            if isnan(Obj.SubLevel)
-                Obj.SubLevel = '';
+            if isempty(DataProp)
+                Obj.Product         = Header.getVal('PRODUCT');
+            else
+                Obj.Product         = DataProp;
             end
-            Obj.Product         = DataProp;
             Obj.Version         = Header.getVal('VERSION');
             Obj.FileType        = 'fits';
             Obj.SubDir          = Header.getVal('SUBDIR');
@@ -659,51 +655,91 @@ classdef FileNames < Base %Component
 
         end
         
-        function Result = writeToHeader(Obj, Header)
+        function Result = writeToHeader(Obj, Input, KeysToWrite)
             % Write data to AstroHeader, DictKeyNames is used to get the
-            % correct key names            
+            % correct key names  
+            % Input  : - A FileNames object.
+            %          - An AstroHeader or AstroImage object.
+            %            Number of elements must be equal to the number of
+            %            times in FileNames.
+            %          - A cell arrays of properties in FileNames to write
+            %            to header.
+            %            Default is : {'TimeZone','Filter','FieldID','Counter','CCDID','CropID','Type','Level','Product','Version','FileType','SubDir'}
+            % Output : null
+            % Author : Eran Ofek (Dec 2022)
+            
             arguments
                 Obj
-                Header AstroHeader
+                Input  % AstroHeader | AstroImage
+                KeysToWrite = {'TimeZone','Filter','FieldID','Counter','CCDID','CropID','Type','Level','Product','Version','FileType','SubDir'};
+            end
+
+            Nk = numel(KeysToWrite);
+            Nt = numel(Obj.Time);
+            Nh = numel(Header);
+            if Nt~=Nh
+                error('Number of header elements must be equal to the number of times in FileNames');
+            end
+                 
+            for Ih=1:1:Nh
+                if isa(Input, 'AstroHeader')
+                    Header = Input(Ih);
+                else
+                    % assuming AstroImage
+                    Header = Input(Ih).Header;
+                end
+                
+                for Ik=1:1:Nk
+                    Header.replaceVal(Obj.Config.Data.Header.ImagePath.KeyNames.(KeysToWrite{Ik}{1}, Obj.getProp(KeysToWrite{Ik},Ih);
+                end
+              
+                if isa(Input, 'AstroImage')
+                    Input(Ih).Header = Header;
+                end
             end
             
-            %Obj.msgLog(LogLevel.Debug, 'writeToHeader: ');
-                 
-            Header.setVal(Obj.DictKeyNames.JD,          Obj.JD);
-            Header.setVal(Obj.DictKeyNames.TimeZone,    Obj.TimeZone);
-            Header.setVal(Obj.DictKeyNames.Filter,      Obj.Filter);
-            Header.setVal(Obj.DictKeyNames.FieldID,     Obj.FieldID);
-            Header.setVal(Obj.DictKeyNames.Counter,     Obj.Counter);
-            Header.setVal(Obj.DictKeyNames.CCDID,       Obj.CCDID);                        
-            Header.setVal(Obj.DictKeyNames.CropID,      Obj.CropID);
-            Header.setVal(Obj.DictKeyNames.Type,        Obj.Type);
-            Header.setVal(Obj.DictKeyNames.Level,       Obj.Level);
-            Header.setVal(Obj.DictKeyNames.SubLevel,    Obj.SubLevel);
-            Header.setVal(Obj.DictKeyNames.Product,     Obj.Product);
-            Header.setVal(Obj.DictKeyNames.Version,     Obj.Version);
-            Header.setVal(Obj.DictKeyNames.FileType,    Obj.FileType);
-            Header.setVal(Obj.DictKeyNames.SubDir,      Obj.SubDir);            
-            
-            Result = true;
         end        
-        
-        function Result = readFromDb(Obj, Query)
-            % Read data from database table, current record of Query.ResultSet
-            % Fields are defined in Google Sheet "common_image_path"
-            arguments
-                Obj
-                Query io.db.DbQuery
-            end            
-            
-            %Obj.msgLog(LogLevel.Debug, 'readFromDb: ');
-            st = Query.getRecord();
-            Result = Obj.readFromStruct(st);
-        end
-        
+                
     end
     
     
     methods % search and utilities
+        function Obj = reorderEntries(Obj, Ind)
+            % Reorder all the entries in FileNames object.
+            % Input  : - A FileNames object.
+            %          - Indices of entries as they should appear in the
+            %            output.
+            % Output : - A FileNames object in which the entries are in the
+            %            order specified in Indices.
+            % Author : Eran Ofek (Dec 2022)
+            
+            arguments
+                Obj
+                Ind
+                ProrToOrder = {'ProjName','Time','Filter','FieldID','Counter','CCDID','CropID','Type','Level','Product','Version','FileType'};
+            end
+            
+            NInd = numel(Ind);
+            Nf   = numel(PropToOrder);
+            for If=1:1:Nf
+                if numel(Obj.(PropToOrder{If}))==1
+                    % skip reorder
+                else
+                    if numel(Obj.(PropToOrder{If}))==NInd
+                        % reorder
+                        Obj.(PropToOrder{If})) = Obj.(PropToOrder{If}))(Ind);
+                    else
+                        error('Number of entries in property %s must be either 1 or %d',PropToOrder{If},NInd);
+                    end
+                end
+            end
+            
+        end
+        
+        
+        
+        
+        
         function I = findFirstLast(Obj, IsLast, ProductName)
             % find image, of some product type, with latest/earliest JD
             % Input  : - An ImagePath object.

@@ -41,6 +41,7 @@ function [Area,AreaErr] = surfaceAreaFromMag(Mag, MagErr, Args)
     end
     
     Area = 10.^(0.4.*(Args.Mag_Sun - Mag) + log10(4.*pi) + 2.*log10(Args.Delta) + 2.*log10(Args.r) - log10(Args.P)) .*constant.au.^2;
+    %Area = 10.^(0.4.*(Args.Mag_Sun - Mag) + 2.*log10(Args.Delta) + 2.*log10(Args.r) - log10(Args.P)) .*constant.au.^2;
 
     if ~isempty(MagErr)
         %vectorize(simplify(tools.math.symbolic.symerror(10.^(0.4.*(MagSun - Mag) + log10(4.*pi) + 2.*log10(Delta) + 2.*log10(r) - log10(P)),Mag)))

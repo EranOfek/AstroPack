@@ -23,7 +23,9 @@ function Result = unitTest()
     
     F.genFile(1,true)
     tic;F.genFile;toc
+    F.genPath
     
+    F.genFull
     
     % Done
     io.msgStyle(LogLevel.Test, '@passed', 'FileNames test passed')
