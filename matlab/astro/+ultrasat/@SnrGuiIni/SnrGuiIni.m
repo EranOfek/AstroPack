@@ -71,10 +71,10 @@ classdef SnrGuiIni < Component
             Obj.wrSection('R');
             Obj.wrHint('Radial distance from center of field of view [Deg]');
             Obj.wrDescription('');
-            Obj.wrDefault('R01');
+            Obj.wrDefault('01');
             Obj.wrCount(25);
             for I=1:25
-                Obj.wrItem(I, sprintf('R%02d', I));
+                Obj.wrItem(I, sprintf('%02d', I));
             end
 
             % [ExpTime] - Exposure time
@@ -119,14 +119,6 @@ classdef SnrGuiIni < Component
             Obj.wrMin(500);
             Obj.wrMax(500000);
             Obj.wrDefault(1000);
-
-            % [OutputLimitingMagnitude] - Output type - Limiting Magnitude
-            Obj.wrSection('OutputLimitingMagnitude');
-            Obj.wrHint('Calculation output is Limiting Magnitude');
-
-            % [OutputSnr] - Output type - SNR
-            Obj.wrSection('OutputSnr');
-            Obj.wrHint('Calculation output is SNR value');
 
             % [SnrMagnitude]
             Obj.wrSection('SnrMagnitude');

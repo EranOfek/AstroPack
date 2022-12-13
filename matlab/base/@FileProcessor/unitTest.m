@@ -126,20 +126,63 @@ function Result = processSnr(json_text)
     % Example : 
     
     % Decode text
-    snr = jsondecode(json_text);
+    snr_input = jsondecode(json_text);
             
     out = struct;
     out.message = sprintf('MATLAB: processSnr started');
     out.result = -1;
+    out.json_text = '';
     
     % Do the actual SNR processing here
-    %
-    %
+    [snr_out, message] = doProcessSnr(snr_input);
     
     % Done
-    out.message = sprintf('MATLAB: processSnr completed: R: %s', snr.R);
-    out.result = 777;    
-    
+    out.message = message;
+    snr_out.message = '';
+    out.result = 0;    
+    out.json_text = jsonencode(snr_out);
+    out.json_text = strrep(out.json_text, '"', '\"');
     Result = out;
+end
+
+
+%------------------------------------------------------------------------
+
+function [Result, Message] = doProcessSnr(Params)
+    % Process SNR
+    % See ultrasat.git/python/prj/src/webapps/webapp_snr/rest_snr_server1.py
+    
+    % Input   : - snr - struct 
+
+    %                      
+    % Output  : struct with fields: message, result, result_snr, result_limiting_magnitude
+    % Author  : Arie B. (2022)
+    % Example : 
+
+    io.msgLog(LogLevel.Info, 'doProcessSnr started');
+    Message = sprintf('MATLAB: processSnr: R: %s', Params.R);
+    disp(Params);
+    
+    % Params:
+    %   ExpTime
+    %   NumImages
+    %   R
+    %   Source
+    %   PicklesModels
+    %   SnrMagnitude
+    %   CalibFilterFamily
+    %   CalibFilter
+    %   MagnitudeSystem
+    %   LimitingMagnitude
+    %    
+    
+    % Put final SNR results in struct
+    Result = struct;
+    Result.result_snr = double(Params.ExpTime) * double(Params.NumImages);
+    Result.result_limiting_magnitude = double(Params.SnrMagnitude) * double(Params.LimitingMagnitude);
+
+    %
+    disp(Result);
+    io.msgLog(LogLevel.Info, 'doProcessSnr done');    
 end
 

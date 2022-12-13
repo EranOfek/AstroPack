@@ -9,6 +9,6 @@ pause
 mcc -m soc_app_snr.m
 rem applicationCompiler
 
-zip a -r
+rem zip a -r
 
 pause
