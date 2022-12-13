@@ -736,7 +736,19 @@ classdef FileNames < Component
             
         end
         
-        
+        function [Obj, SI] = sortByJD(Obj)
+            % Sort entries in FileNames object by JD
+            % Input  : - A FileNames object.
+            % Output : - A FileNames object in which the entries are sorted
+            %            by JD.
+            %          - A vector of sorted indices.
+            % Author : Eran Ofek (Dec 2022)
+            
+            JD = Obj.julday;
+            [~,SI] = sort(JD);
+            Obj = reorderEntries(Obj, SI);
+            
+        end
         
         
         
@@ -768,17 +780,6 @@ classdef FileNames < Component
             I = Ind(I);
         end
         
-        function [Obj, SI] = sortByJD(Obj)
-            % Sort ImagePath object by JD
-            % Input  : - An ImagePath object.
-            % Output : - An ImagePath object, where the elements are sorted
-            %            by JD.
-            %          - sorted indices.
-            % Author : Eran Ofek (Jan 2022)
-            
-            [~,SI] = sort([Obj.JD]);
-            Obj    = Obj(SI);
-        end     
         
         function Ind = getAllProductsFromImageName(Obj, FileName)
             % Given an ImagePath and an image name (or index), return all the corresponding products 
