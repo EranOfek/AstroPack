@@ -407,7 +407,8 @@ classdef Tran2D < Base
                     ColCell     = {'x','y','c','AM','PA'};
                     FunX        = {@(x,y,c,AM,PA) ones(size(x)),...
                                       @(x,y,c,AM,PA) x,...
-                                      @(x,y,c,AM,PA) y};
+                                      @(x,y,c,AM,PA) y,...
+                                      @(x,y,c,AM,PA) x.*y};
                                       
                     FunY        = FunX;
                     PolyX_Xdeg  = [0 1 0];

@@ -736,6 +736,51 @@ classdef FileNames < Component
             
         end
         
+        function [Obj, SI] = sortByJD(Obj)
+            % Sort entries in FileNames object by JD
+            % Input  : - A FileNames object.
+            % Output : - A FileNames object in which the entries are sorted
+            %            by JD.
+            %          - A vector of sorted indices.
+            % Author : Eran Ofek (Dec 2022)
+            
+            JD = Obj.julday;
+            [~,SI] = sort(JD);
+            Obj = reorderEntries(Obj, SI);
+            
+        end
+        
+        function [SunAlt] = sunAlt(Obj, Args)
+            % Calculate Sun Altitude for images in FileNames object
+            % Input  : - An FileNames object
+            %          * ...,key,val,...
+            %            'GeoPos' - Geodetic position [Lon, Lat] in deg.
+            %                   Default is [35 30].
+            % Output : - An array of Sun altitude (deg) for each image
+            %            entry.
+            % Author : Eran Ofek (May 2022)
+            % Example: 
+            
+            arguments
+                Obj
+                Args.GeoPos    = [35 30];
+            end
+            
+            RAD = 180./pi;
+            
+            VecJD    = Obj.julday;
+            VecJD    = VecJD(:);
+            LST      = celestial.time.lst(VecJD, Args.GeoPos(1)./RAD);  % frac of day
+            [RA,Dec] = celestial.SolarSys.suncoo(VecJD, 'j'); % [rad]
+            HA       = LST.*2.*pi - RA;                       % [rad]
+            [SunAz,SunAlt] = celestial.coo.hadec2azalt(HA, Dec, Args.GeoPos(2)./RAD); % [rad]
+            SunAlt   = SunAlt.*RAD; 
+            
+        end
+        
+        
+        
+        
         
         
         
@@ -768,17 +813,6 @@ classdef FileNames < Component
             I = Ind(I);
         end
         
-        function [Obj, SI] = sortByJD(Obj)
-            % Sort ImagePath object by JD
-            % Input  : - An ImagePath object.
-            % Output : - An ImagePath object, where the elements are sorted
-            %            by JD.
-            %          - sorted indices.
-            % Author : Eran Ofek (Jan 2022)
-            
-            [~,SI] = sort([Obj.JD]);
-            Obj    = Obj(SI);
-        end     
         
         function Ind = getAllProductsFromImageName(Obj, FileName)
             % Given an ImagePath and an image name (or index), return all the corresponding products 
@@ -895,38 +929,7 @@ classdef FileNames < Component
             end
         end
         
-        function [SunAlt] = sunAlt(Obj, Args)
-            % Calculate Sun Altitude for images in ImagePath object
-            % Input  : - An ImagePath object
-            %          * ...,key,val,...
-            %            'GeoPos' - Geodetic position [Lon, Lat] in deg.
-            %                   Default is [35 30].
-            % Output : - An array of Sun altitude (deg) for each image
-            %            entry.
-            % Author : Eran Ofek (May 2022)
-            % Example: % delete all images taken when the Sun is up
-            %          List=io.files.filelist('LAST*.fits');                         
-            %          IP=ImagePath.parseFileName(List);
-            %          SA=IP.sunAlt;
-            %          I=find(SA>0);
-            %          for ii=1:numel(I), delete(IP(I(ii)).genFile); end    
-            
-            arguments
-                Obj
-                Args.GeoPos    = [35 30];
-            end
-            
-            RAD = 180./pi;
-            
-            VecJD    = [Obj.Time];
-            VecJD    = VecJD(:);
-            LST      = celestial.time.lst(VecJD, Args.GeoPos(1)./RAD);  % frac of day
-            [RA,Dec] = celestial.SolarSys.suncoo(VecJD, 'j'); % [rad]
-            HA       = LST.*2.*pi - RA;                       % [rad]
-            [SunAz,SunAlt] = celestial.coo.hadec2azalt(HA, Dec, Args.GeoPos(2)./RAD); % [rad]
-            SunAlt   = SunAlt.*RAD; 
-            
-        end
+        
     end
     
     methods % raed/write from stuct

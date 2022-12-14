@@ -154,7 +154,15 @@ function Result = tranAffine(Obj, AffineMatrix, IsForward, Args)
             Coo    = [X,Y,Z];
             NewCoo = [AffineMatrix * Coo.'].';
             
-            Result = replaceCol(Result, NewCoo(:,1:2), [ColX, ColY]);
+            Cat = replaceCol(Cat, NewCoo(:,1:2), [ColX, ColY]);
+           
+            if isa(Obj, 'AstroCatalog')
+                Result(Iobj) = Cat;
+            elseif isa(Obj, 'AstroImage')
+                Result(Iobj).CatData = Cat;
+            else
+                error('Unknown catalog format');
+            end
             
         end
     end
