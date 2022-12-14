@@ -14,6 +14,7 @@ function Var=load2(MatFile,varargin)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
+MatFile = fileMapFind(MatFile);
 
 Tmp = load(MatFile,varargin{:});
 if (isstruct(Tmp))

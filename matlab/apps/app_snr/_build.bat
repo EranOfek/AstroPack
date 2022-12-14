@@ -6,7 +6,7 @@ rem See: https://www.mathworks.com/help/compiler/isdeployed.html
 
 pause
 
-mcc -m soc_app_snr.m
+call mcc -m soc_app_snr.m
 rem applicationCompiler
 
 rem zip a -r

@@ -15,8 +15,16 @@
 function soc_app_snr()
     % SNR App
 
+    % Set logfile name
 	fprintf('soc_app_snr started\n');
     LogFile.getSingleton('FileName', 'soc_app_snr');
+    
+    %addpath('c:\temp');
+    %b = testme(3);
+    %disp(b);
+    
+    load2('1.mat');
+    %disp(a);
     
     if isdeployed
         fprintf('soc_app_snr: isdeployed = TRUE\n');
@@ -57,3 +65,17 @@ function soc_app_snr()
     
     fprintf('soc_app_snr done\n');
 end
+
+
+function var = load2(fn)
+    if isdeployed
+        disp('Deploy!!!');
+        fn = fullfile('c:\temp', fn);
+        var = load(fn);
+    else
+        var = load(fn);
+    end
+    disp(a);
+end
+
+
