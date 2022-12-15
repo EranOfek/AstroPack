@@ -23,8 +23,8 @@ classdef FileNames < Component
         Filter              = {'clear'};
         FieldID cell        = {};
         Counter             = [];
-        CCDID cell          = [];
-        CropID cell         = [];
+        CCDID               = [];
+        CropID              = [];
         Type                = {'sci'};
         Level               = {'raw'};
         Product             = {'Image'};
@@ -610,52 +610,56 @@ classdef FileNames < Component
         function Obj = readFromHeader(Obj, Input, DataProp)
             % Read FileNames parameters from header.
             % Input  : - An ImagePath object.
-            %          - A single element AstroImage or AstroHeader.
+            %          - AstroImage or AstroHeader.
             %          - Either data property name or product name.
             % Output : - A populated FileNames object.
             % Author : Eran Ofek (Dec 2022)
             
             arguments
                 Obj(1,1)
-                Input(1,1)       % AstroHeader | AstroImage
+                Input        % AstroHeader | AstroImage
                 DataProp    = 'Image';    % DataProp in AstroImage or Product name
             end
             
             %Obj.msgLog(LogLevel.Debug, 'readFromHeader: ');
-                                
-            if isa(Input, 'AstroHeader')
-                Header = Input;
-            elseif isa(Input, 'AstroImage')
-                Header = Input.HeaderData;
-            else
-                error('Input must be an AstroHeader or AstroImage');
-            end
-              
-            Obj.ProjName        = Header.getVal({'INSTRUME','PROJNAME'}); %Obj.DictKeyNames.PROJNAME);
-            Obj.Time            = julday(Header);  %.getVal('JD');
-            Obj.TimeZone        = Header.getVal('TIMEZONE');
-            Obj.Filter          = Header.getVal('FILTER');
-            Obj.FieldID         = Header.getVal('FIELDID');
-            Obj.Counter         = Header.getVal('COUNTER');
-            Obj.CCDID           = Header.getVal('CCDID');
-            Obj.CropID          = Header.getVal('CROPID');
-            Obj.Type            = Header.getVal('IMTYPE');
-            Obj.Level           = Header.getVal('LEVEL');
-            if isempty(DataProp)
-                Obj.Product         = Header.getVal('PRODUCT');
-            else
-                Obj.Product         = DataProp;
-            end
-            Obj.Version         = Header.getVal('VERSION');
-            Obj.FileType        = 'fits';
-            Obj.SubDir          = Header.getVal('SUBDIR');
-            if isnan(Obj.SubDir)
-                Obj.SubDir = '';
+                         
+            Nim = numel(Input);
+            for Iim=1:1:Nim
+
+                if isa(Input, 'AstroHeader')
+                    Header = Input(Iim);
+                elseif isa(Input, 'AstroImage')
+                    Header = Input(Iim).HeaderData;
+                else
+                    error('Input must be an AstroHeader or AstroImage');
+                end
+                  
+                Obj.ProjName{Iim}        = Header.getVal({'INSTRUME','PROJNAME'}); %Obj.DictKeyNames.PROJNAME);
+                Obj.Time(Iim)            = julday(Header);  %.getVal('JD');
+                Obj.TimeZone(Iim)        = Header.getVal('TIMEZONE');
+                Obj.Filter{Iim}          = Header.getVal('FILTER');
+                Obj.FieldID{Iim}         = Header.getVal('FIELDID');
+                Obj.Counter{Iim}         = Header.getVal('COUNTER');
+                Obj.CCDID(Iim)           = Header.getVal('CCDID');
+                Obj.CropID(Iim)          = Header.getVal('CROPID');
+                Obj.Type{Iim}            = Header.getVal('IMTYPE');
+                Obj.Level{Iim}           = Header.getVal('LEVEL');
+                if isempty(DataProp)
+                    Obj.Product{Iim}         = Header.getVal('PRODUCT');
+                else
+                    Obj.Product{Iim}         = DataProp;
+                end
+                Obj.Version(Iim)         = Header.getVal('VERSION');
+                Obj.FileType{Iim}        = 'fits';
+                Obj.SubDir{Iim}          = Header.getVal('SUBDIR');
+                if ~iscell(Obj.SubDir) && isnan(Obj.SubDir)
+                    Obj.SubDir{Iim} = '';
+                end
             end
 
         end
         
-        function Result = writeToHeader(Obj, Input, KeysToWrite)
+        function Input = writeToHeader(Obj, Input, KeysToWrite)
             % Write data to AstroHeader, DictKeyNames is used to get the
             % correct key names  
             % Input  : - A FileNames object.
@@ -665,7 +669,8 @@ classdef FileNames < Component
             %          - A cell arrays of properties in FileNames to write
             %            to header.
             %            Default is : {'TimeZone','Filter','FieldID','Counter','CCDID','CropID','Type','Level','Product','Version','FileType','SubDir'}
-            % Output : null
+            % Output : - The input AstroHeader or AstroImage with the
+            %            updated header.
             % Author : Eran Ofek (Dec 2022)
             
             arguments
@@ -676,7 +681,7 @@ classdef FileNames < Component
 
             Nk = numel(KeysToWrite);
             Nt = numel(Obj.Time);
-            Nh = numel(Header);
+            Nh = numel(Input);
             if Nt~=Nh
                 error('Number of header elements must be equal to the number of times in FileNames');
             end
@@ -690,7 +695,8 @@ classdef FileNames < Component
                 end
                 
                 for Ik=1:1:Nk
-                    Header.replaceVal(Obj.Config.Data.Header.ImagePath.KeyNames.(KeysToWrite{Ik}{1}, Obj.getProp(KeysToWrite{Ik},Ih);
+                    error('BUG')
+                    %Header.replaceVal(Obj.Config.Data.Header.ImagePath.KeyNames.(KeysToWrite{Ik}{1}, Obj.getProp(KeysToWrite{Ik},Ih);
                 end
               
                 if isa(Input, 'AstroImage')
@@ -704,11 +710,14 @@ classdef FileNames < Component
     
     
     methods % search and utilities
-        function Obj = reorderEntries(Obj, Ind)
+        function Obj = reorderEntries(Obj, Ind, PropToOrder)
             % Reorder all the entries in FileNames object.
             % Input  : - A FileNames object.
             %          - Indices of entries as they should appear in the
             %            output.
+            %          - A cell array of properties to order.
+            %            Default is: 
+            %            {'ProjName','Time','Filter','FieldID','Counter','CCDID','CropID','Type','Level','Product','Version','FileType'}
             % Output : - A FileNames object in which the entries are in the
             %            order specified in Indices.
             % Author : Eran Ofek (Dec 2022)
@@ -716,7 +725,7 @@ classdef FileNames < Component
             arguments
                 Obj
                 Ind
-                ProrToOrder = {'ProjName','Time','Filter','FieldID','Counter','CCDID','CropID','Type','Level','Product','Version','FileType'};
+                PropToOrder = {'ProjName','Time','Filter','FieldID','Counter','CCDID','CropID','Type','Level','Product','Version','FileType'};
             end
             
             NInd = numel(Ind);
@@ -727,7 +736,7 @@ classdef FileNames < Component
                 else
                     if numel(Obj.(PropToOrder{If}))==NInd
                         % reorder
-                        Obj.(PropToOrder{If})) = Obj.(PropToOrder{If}))(Ind);
+                        Obj.(PropToOrder{If}) = Obj.(PropToOrder{If})(Ind);
                     else
                         error('Number of entries in property %s must be either 1 or %d',PropToOrder{If},NInd);
                     end
