@@ -432,14 +432,14 @@ classdef Installer < Component
             %cd(I.ConfigStruct.SubDir{IndTime});
             
             if any(FileInd==1)
-                T1 = readtable(Finals);
+                T1 = files.io.readtable2(Finals);
             else
                 T1 = [];
             end
             
             
             if any(FileInd==2)
-                T2 = readtable(EOP_1962);
+                T2 = files.io.readtable2(EOP_1962);
                 ColNames = {'Year','Month','Day','MJD','x','y','UT1_UTC','LOD','dPsi','dEps',      'xErr','yErr',    'UT1_UTCErr','LOD_Err','dPsiErr','dEpsilonErr'};
                 ColUnits = {'',   '',     '',   'day','arcsec','arcsec','s','s','arcsec','arcsec','arcsec','arcsec','s','s','arcsec','arcsec'};
                 T2.Properties.VariableNames = ColNames;
@@ -449,7 +449,7 @@ classdef Installer < Component
             end
             
             if any(FileInd==3)
-                T3 = readtable(EOP_1846,'ReadVariableNames',false);
+                T3 = files.io.readtable2(EOP_1846,'ReadVariableNames',false);
                 T3 = T3(:,1:6);
                 ColNames = {'MJD','PM_X','PM_Y','UT1_TAI','DX','DY'};
                 ColUnits = {'day','arcsec','arcsec','s','arcsec','arcsec'};

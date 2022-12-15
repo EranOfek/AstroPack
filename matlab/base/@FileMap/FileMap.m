@@ -38,7 +38,7 @@ classdef FileMap < Component
     
     methods  
         
-        function Result = addAll(Obj)
+        function Result = addAll(Obj, AScan)
             % 
             % Input   : - Path
             %
@@ -48,12 +48,22 @@ classdef FileMap < Component
             % Output  : - Full file name
             % Author  : Chen Tishler (Dec. 2022)
             % Example : 
-           
+            arguments
+                Obj
+                AScan = false;
+            end
+            
             Result = '';
             List = strsplit(path, ';');
             for i=1:numel(List)
-                Obj.add(List{i});
+                Path = List{i};
+                if ~startsWith(Path, '/usr/local/MATLAB') && ~contains(Path, '\Matlab\')
+                    Obj.add(List{i});
+                end
             end
+            if AScan
+                Obj.scan();
+            end                
         end
         
         

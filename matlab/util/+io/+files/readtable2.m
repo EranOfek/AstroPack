@@ -1,17 +1,18 @@
-function Result = readtable2(TableFile,varargin)
-    % Load a mat file into a variable
-    % Package: Util.IO
-    % Description: load a mat file containing a single variable to a variable
-    %              name (rather than a structure, like load.m).
-    %              If multiple variables are returned then will behave like
-    %              load.m
-    % Input  : - Mat file name.
-    %          * Additional parameters to pass to the load.m function.
-    % Output : - Variable name.
-    % Author : Chen Tishler, Dec. 2022
+function Var = readtable2(TableFile,varargin)
+    % Load table file into a variable, this is a simple wrapper around
+    % readtable(). When running under 'isdeployed', and file name does not
+    % contain path, use fileMapFind to locate the file.
+    %
+    % Input  : - Table file name.
+    %          * Additional parameters to pass to the readtable.m function.
+    % Output : - Same as readtable()
+    % Author : Chen Tishler, Dec 2022
+    % Example: 
 
-    FileName = fileMapFind(TableFile);
+    % @Deploy - Use singleton file mapper to locate the file
+    if isdeployed    
+        FileName = fileMapFind(TableFile);
+    end
 
-    Result = readtable(FileName, varargin{:});
-
+    Var = readtable(FileName, varargin{:});
 end
