@@ -711,7 +711,7 @@ classdef FileNames < Component
     
     methods % search and utilities
         function Obj = reorderEntries(Obj, Ind, PropToOrder)
-            % Reorder all the entries in FileNames object.
+            % Reorder/select all the entries in FileNames object.
             % Input  : - A FileNames object.
             %          - Indices of entries as they should appear in the
             %            output.
@@ -744,6 +744,8 @@ classdef FileNames < Component
             end
             
         end
+        
+        
         
         function [Obj, SI] = sortByJD(Obj)
             % Sort entries in FileNames object by JD
@@ -787,10 +789,61 @@ classdef FileNames < Component
             
         end
         
+        function [Result,Flag] = selectBy(Obj, PropName, PropVal, Args)
+            % Select entries that have proprty value of some value or in some range.
+            % Input  : - A FileNames object.
+            %          - Property name by which to select entries.
+            %            Default is 'Product'.
+            %          - Value to select. This is either a char array of
+            %            property type (e.g., 'Image'), or a numeric scalar
+            %            or a numeric vector of [min max]. In the latter,
+            %            will select all values within range.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the input object.
+            %                   Default is true.
+            % Output : - A FileNames object with the selected entries.
+            %          - A vector of logicals indicating the selected
+            %            entries.
+            % Author : Eran Ofek (Dec 2022)
+            
+            arguments
+                Obj
+                PropName char               = 'Product';
+                PropVal                     = 'Image';
+                Args.CreateNewObj logical   = true;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
         
-        
-        
-        
+            if ischar(PropVal)
+                if ~iscell(Obj.(PropName))
+                    error('PropName %s must contain a cell array',PropName);
+                end
+                Flag = strcmp(Obj.(PropName), PropVal);
+            elseif isnumeric(PropVal)
+                if ~isnumeric(Obj.(PropName))
+                    error('PropName %s must contain a numeric array',PropName);
+                end
+                if numel(PropVal)==1
+                    % equal numeric value
+                    Flag = Obj.(PropName) == PropVal;
+                else
+                    % numeric value in range
+                    Flag = Obj.(PropName)>min(PropVal) & Obj.(PropName)<max(PropVal);
+                end
+            else
+                error('PropVal must be either a char array or numeric');
+            end
+            
+            Nt     = numel(Obj.Time);
+            Flag   = Flag | false(Nt,1);
+            Result = reorderEntries(Result, Flag);
+        end
         
         
         
