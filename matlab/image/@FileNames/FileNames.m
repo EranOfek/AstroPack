@@ -546,7 +546,7 @@ classdef FileNames < Component
             
         end
         
-        function Path = genPath(Obj, Ind, ReturnChar)
+        function Path = genPath(Obj, Ind, ReturnChar, AddSubDir)
             % Generate path for FileNames object
             % Input  : - A FileNames object.
             %          - Index of time stamp in the object for which to
@@ -555,6 +555,7 @@ classdef FileNames < Component
             %          - A logical indicatibf if to return the path in a
             %            char array (true) or cell (false).
             %            Default is true.
+            %          - Add SubDir to path. Default is true.
             % Output : - A path.
             % Author : Eran Ofek (Dec 2022) 
             
@@ -562,6 +563,7 @@ classdef FileNames < Component
                 Obj
                 Ind = 1;
                 ReturnChar logical = true;
+                AddSubDir logical  = true;
             end
             
             if isempty(Ind)
@@ -590,10 +592,12 @@ classdef FileNames < Component
                                     Obj.BasePath, filesep, ...
                                     getProp(Obj, 'ProjName', Itime),...
                                     DateDir, filesep, ...
-                                    getProp(Obj, 'Level', Itime),...
-                                    filesep, ...
-                                    getProp(Obj, 'SubDir', Itime));
-                    
+                                    getProp(Obj, 'Level', Itime));
+                                    
+                    if AddSubDir
+                        Path{Itime = sprintf('%s%s%s',Path{Itime},filesep,...
+                                                      getProp(Obj, 'SubDir', Itime));
+                    end
                 end
                 
             else
@@ -642,6 +646,35 @@ classdef FileNames < Component
             
         end
         
+        function [Result,Obj] = nextSubDir(Obj)
+            % Given SubDir which is a running numeric index, check which
+            %   directories exist in FileNames path and return the next
+            %   SubDir name
+            % Input  : - A FileNames object from which a path can be
+            %            generated using genPath.
+            % Output : - A char array containing the suggested SubDir name
+            %            that does not exist in path. 
+            %          - Only if the second argument is requested, then the
+            %            will update and return the FileNames object with
+            %            the new SubDir directory.
+            % Author : Eran Ofek (Dec 2022)
+           
+            Path = Obj.genPath(1, true, false); % Path without SubDir
+            Dir  = dir(Path);
+            
+            % select non-hidden directories
+            Flag = [Dir.isdir] & ~startsWith({Dir.name}, '.');
+            
+            NumDir = str2double({Dir(Flag).name});
+            Result = sprintf('%d',max(NumDir) + 1);
+            
+            
+            if nargout>1
+                % update SubDir
+                Obj.SubDir = Result;
+            end
+                        
+        end
         
     end
     
