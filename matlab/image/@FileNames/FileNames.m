@@ -710,14 +710,17 @@ classdef FileNames < Component
     
     
     methods % search and utilities
-        function Obj = reorderEntries(Obj, Ind, PropToOrder)
+        function Result = reorderEntries(Obj, Ind, Args)
             % Reorder/select all the entries in FileNames object.
             % Input  : - A FileNames object.
             %          - Indices of entries as they should appear in the
             %            output.
-            %          - A cell array of properties to order.
-            %            Default is: 
-            %            {'ProjName','Time','Filter','FieldID','Counter','CCDID','CropID','Type','Level','Product','Version','FileType'}
+            %          * ...,key,val,...
+            %            'PropToOrder' -  A cell array of properties to order.
+            %                   Default is: 
+            %                   {'ProjName','Time','Filter','FieldID','Counter','CCDID','CropID','Type','Level','Product','Version','FileType'}
+            %            'CreateNewObj' - Create a new copy.
+            %                   Default is false.
             % Output : - A FileNames object in which the entries are in the
             %            order specified in Indices.
             % Author : Eran Ofek (Dec 2022)
@@ -725,20 +728,28 @@ classdef FileNames < Component
             arguments
                 Obj
                 Ind
-                PropToOrder = {'ProjName','Time','Filter','FieldID','Counter','CCDID','CropID','Type','Level','Product','Version','FileType'};
+                Args.PropToOrder = {'ProjName','Time','Filter','FieldID','Counter','CCDID','CropID','Type','Level','Product','Version','FileType'};
+                Args.CreateNewObj logical = false;
             end
             
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            
             NInd = numel(Ind);
-            Nf   = numel(PropToOrder);
+            Nf   = numel(Args.PropToOrder);
             for If=1:1:Nf
-                if numel(Obj.(PropToOrder{If}))==1
+                if numel(Obj.(Args.PropToOrder{If}))==1
                     % skip reorder
                 else
-                    if numel(Obj.(PropToOrder{If}))==NInd
+                    if numel(Obj.(Args.PropToOrder{If}))==NInd
                         % reorder
-                        Obj.(PropToOrder{If}) = Obj.(PropToOrder{If})(Ind);
+                        Result.(Args.PropToOrder{If}) = Obj.(Args.PropToOrder{If})(Ind);
                     else
-                        error('Number of entries in property %s must be either 1 or %d',PropToOrder{If},NInd);
+                        error('Number of entries in property %s must be either 1 or %d',Args.PropToOrder{If},NInd);
                     end
                 end
             end
@@ -848,6 +859,56 @@ classdef FileNames < Component
             Flag   = Flag | false(Nt,1);
             Result = reorderEntries(Result, Flag);
         end
+        
+        function [Groups, Result] = selectByCounter(Obj, Args)
+            % Select entries according to running counter groups.
+            %   Given the Counter entry in an FileNames object, create
+            %   groups of entries by running counter, only for groups that
+            %   contains at least MinInGroup and not more than MaxInGroup
+            %   entries.
+            % Input  : - A FileNames object.
+            %          * ...,key,val,...
+            %            'MinInGroup' - Minimum number of elements in
+            %                   group. Default is 10.
+            %            'MaxInGroup' - Maximum number of elements in
+            %                   group. Default is 20.
+            % Output : - A struct array of all groups, with the following
+            %            fields:
+            %            .I1 - start index.
+            %            .I2 - end index.
+            %            .Ind - Vector of all indices.
+            %            .N - Number of elements
+            %          - A FileNames object with multiple elements.
+            %            Each element corresponds to a FileNames object for
+            %            each one of the groups.
+            % Author : Eran Ofek (Dec 2022)
+            
+            arguments
+                Obj
+                Args.MinInGroup             = 10;
+                Args.MaxInGroup             = 20;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Result     = Result.sortByJD;
+            JD         = Result.julday;
+            CounterVec = Result.Counter;
+            
+            Groups = tools.find.groupCounter(Counter, 'MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
+            
+            if nargout>1
+                Ngr    = numel(Groups);
+                for Igr=1:1:Ngr
+                    Result(Igr) = Obj.reorderEntries(Groups(Igr).Ind, 'CreateNewObj',true);
+                end
+            end
+        end
+        
         
         
         
