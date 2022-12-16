@@ -9,7 +9,7 @@ function MatchedS = imagesSequence2LC(List, Args)
     %            'CCDSEC' - CCDSEC [Xmin Xmax Ymin Ymax] of sub image to
     %                   analyze. If empty, analyze full image.
     %                   Default is [2201 4200 4001 6000].
-    %            'CalibDir' - Directory name containing calibration images,
+    %            'CI' - Directory name containing calibration images,
     %                   or a CalibImages object, or empty.
     %                   If empty skip calibration.
     %                   Default is
@@ -36,7 +36,7 @@ function MatchedS = imagesSequence2LC(List, Args)
         Args.RA            = celestial.coo.convertdms('00:39:58.719','SH','d');                                              
         Args.Dec           = celestial.coo.convertdms('+06:16:08.86','SD','d');
         Args.CCDSEC        = [2201 4200 4001 6000];
-        Args.CalibDir      = '/raid/eran/projects/telescopes/LAST/Images_PipeTest/calib';
+        Args.CI            = '/raid/eran/projects/telescopes/LAST/Images_PipeTest/calib';
         Args.Scale         = 1.25;
         Args.RefRangeMag   = [8 14];
         Args.SearchRadius  = 2;
@@ -50,7 +50,11 @@ function MatchedS = imagesSequence2LC(List, Args)
         List = io.files.filelist(List);
     end
 
-    CI=CalibImages.loadFromDir(Args.Calib);
+    if ischar(Args.CI)
+        CI = CalibImages.loadFromDir(Args.CI);
+    else
+        CI = Args.CI;
+    end
 
     RA=celestial.coo.convertdms('00:39:58.719','SH','d');                                              
     Dec=celestial.coo.convertdms('+06:16:08.86','SD','d');
@@ -62,7 +66,9 @@ function MatchedS = imagesSequence2LC(List, Args)
         AI(Il)=AstroImage(List{Il});
         AI(Il).HeaderData.insertKey({'FILTER','clear'});
         
-        AI(Il)=CI.processImages(AI(Il),'SubtractOverscan',false);
+        if ~isempty(Args.CI)
+            AI(Il)=CI.processImages(AI(Il),'SubtractOverscan',false);
+        end
         AI(Il)=AI(Il).crop(Args.CCDSEC);
     
         AI(Il) = imProc.background.background(AI(Il));
