@@ -1013,7 +1013,7 @@ classdef MatchedSources < Component
             end
         end
         
-        function Obj = applySortInd(Obj, Ind, Dim, ApplySrcData)
+        function Result = applySortInd(Obj, Ind, Dim, ApplySrcData, Args)
             % Reorder all sources accoring to vector of indices (e.g., sort)
             % Input  : - A single element MatchedSources object.
             %          - Vector of indices by which to order the data matrices.
@@ -1022,27 +1022,37 @@ classdef MatchedSources < Component
             %            to the SrcData fields.
             %            This is operational only if Dim=2.
             %            Default is true.   
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the object. Default is false.
             % Output : - The ordered MatchedSources object.
             % Author : Eran Ofek (Jul 2022)
            
             arguments
                 Obj(1,1)
                 Ind
-                Dim                    = 2;
-                ApplySrcData logical   = true;
+                Dim                       = 2;
+                ApplySrcData logical      = true;
+                Args.CreateNewObj logical = false;
             end
             
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
             Fields = fieldnames(Obj.Data);
             Nfield = numel(Fields);
             for Ifield=1:1:Nfield
                 if Dim==1
-                    Obj.Data.(Fields{Ifield}) = Obj.Data.(Fields{Ifield})(Ind,:);
+                    Result.Data.(Fields{Ifield}) = Obj.Data.(Fields{Ifield})(Ind,:);
                 else
-                    Obj.Data.(Fields{Ifield}) = Obj.Data.(Fields{Ifield})(:,Ind);
+                    Result.Data.(Fields{Ifield}) = Obj.Data.(Fields{Ifield})(:,Ind);
                     
                     % apply also to SrcData
                     if ApplySrcData && isfield(Obj.SrcData, Fields{Ifield})
-                        Obj.SrcData.(Fields{Ifield}) = Obj.SrcData.(Fields{Ifield})(Ind);
+                        Result.SrcData.(Fields{Ifield}) = Obj.SrcData.(Fields{Ifield})(Ind);
                     end
                 end
             end
