@@ -795,7 +795,11 @@ classdef FileNames < Component
             %          - Property name by which to select entries.
             %            Default is 'Product'.
             %          - Value to select. This is either a char array of
-            %            property type (e.g., 'Image'), or a numeric scalar
+            %            property type (e.g., 'Image'),
+            %            a cell array of property values.
+            %            If a cell array then will select entries that are
+            %            equal to one of these property values.
+            %            Alternatively, a numeric scalar
             %            or a numeric vector of [min max]. In the latter,
             %            will select all values within range.
             %          * ...,key,val,...
@@ -824,7 +828,7 @@ classdef FileNames < Component
                 if ~iscell(Obj.(PropName))
                     error('PropName %s must contain a cell array',PropName);
                 end
-                Flag = strcmp(Obj.(PropName), PropVal);
+                Flag = ismember(Obj.(PropName), PropVal);
             elseif isnumeric(PropVal)
                 if ~isnumeric(Obj.(PropName))
                     error('PropName %s must contain a numeric array',PropName);
