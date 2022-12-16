@@ -125,7 +125,6 @@ classdef FileNames < Component
             Obj.CropID          = 'crop';
             Obj.Type            = 'sci';
             Obj.Level           = 'raw';
-            Obj.SubLevel        = 'sub';
             Obj.Product         = 'Image';
             Obj.Version         = 'ver1';
             Obj.FileType        = 'fits';
@@ -188,6 +187,48 @@ classdef FileNames < Component
         
     end
       
+    methods (Static) % construction
+        function Obj=generateFromFileName(List)
+            % Generate a FileNames object from a list of file names
+            %   Given file names which name structure obeys the
+            %   LAST-ULTRASAT file name convention.
+            % Input  : - A list of file names.
+            %            Either a char array from which a list of file
+            %            names can be constructed using io.files.filelist
+            %            or a cell array of file names.
+            % Output : - A FileNames object containing the file names.
+            % Author : Eran Ofek (Dec 2022)
+            
+            if ischar(List)
+                List = io.files.filelist(List);
+            elseif iscell(List)
+                List = List;
+            else
+                error('List must be either a char array or cell array');
+            end
+            
+            Nlist = numel(List);
+            for Ilist=1:1:Nlist
+                SplitName = regexp(List{Ilist},'_','split');
+                
+                Obj.ProjName{Ilist} = SplitName{1};
+                Obj.Time{Ilist}     = SplitName{2};
+                Obj.Filter{Ilist}   = SplitName{3};
+                Obj.FieldID{Ilist}  = SplitName{4};
+                Obj.Counter{Ilist}  = str2double(SplitName{5});
+                Obj.CCDID{Ilist}    = str2double(SplitName{6});
+                Obj.CropID{Ilist}   = str2double(SplitName{7});
+                Obj.Type{Ilist}     = SplitName{8};
+                Obj.Level{Ilist}    = SplitName{9};
+                Obj.Product{Ilist}  = SplitName{10};
+                Obj.Version{Ilist}  = str2double(SplitName{11});
+                Obj.FileType{Ilist} = SplitName{12};
+                                
+            end
+            
+        end
+    end
+    
     methods % utilities
         function [Result,Flag]=validateType(Obj, ErrorIfWrong)
             % Validate Type property
@@ -619,6 +660,7 @@ classdef FileNames < Component
                 Obj(1,1)
                 Input        % AstroHeader | AstroImage
                 DataProp    = 'Image';    % DataProp in AstroImage or Product name
+                
             end
             
             %Obj.msgLog(LogLevel.Debug, 'readFromHeader: ');
@@ -755,8 +797,6 @@ classdef FileNames < Component
             end
             
         end
-        
-        
         
         function [Obj, SI] = sortByJD(Obj)
             % Sort entries in FileNames object by JD
