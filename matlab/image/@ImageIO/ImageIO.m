@@ -480,6 +480,107 @@ classdef ImageIO < Component
             HDF5.save(Data, FileName, Args.DataSet, Att);
             
         end
+        
+        function Files = write(ObjIn, ObjFN, DataProp, Args)
+            % A multi file general-purpose file write
+            %   Can be used to write the content of AstroImage or
+            %   MatchedSources objects.
+            % Input  : - An AstroImage or MatchedSources object.
+            %          - A FileNames object. The number of file entries
+            %            must be equal to the number of elements in the first
+            %            input object.
+            %          - Data property in AstroImage to save.
+            %            Default is 'Image'.
+            %          * ...,key,val,...
+            %            'HDU' - FITS HDU, or 'hdf5 DataSet in which to
+            %                   write the data. Relevant only for AstroImage
+            %                   input.
+            %            'WriteHeader' - Write header.
+            %                   Relevant only for AstroImage input.
+            %                   Default is true.
+            %            'IsSimpleFITS' - Write using simpleFITS.
+            %                   Default is true.
+            %            'DataType' - cast to data type. Default is [].
+            %            'ImageFileType' - Default is 'fits'.
+            %            'MatchedFileType' - Default is 'hdf5'.
+            % Output : - A cell array of file namesfull path that were
+            %            written.
+            % Author : Eran Ofek (Dec 2022)
+            
+            arguments
+                ObjIn
+                ObjFN
+                DataProp                   = 'Image';
+                Args.HDU                   = 1;
+                Args.WriteHeader logical   = true;
+                Args.IsSimpleFITS logical  = true;
+                Args.DataType              = [];
+                
+                Args.ImageFileType         = 'fits';
+                Args.MatchedFileType       = 'hdf5';
+            end
+            
+            
+            
+            ObjFN = ObjFN.copy;
+            switch DataProp
+                case 'Image'
+                    Istable = false;
+                    ObjFN.Product = 'Image';
+                case 'Mask'
+                    Istable = false;
+                    ObjFN.Product = 'Mask';
+                case 'Back'
+                    Istable = false;
+                    ObjFN.Product = 'Back';
+                case 'Var'
+                    Istable = false;
+                    ObjFN.Product = 'Var';
+                case 'Cat'
+                    Istable = true;
+                    ObjFN.Product = 'Cat';
+                case 'PSF'
+                    Istable = false;
+                    ObjFN.Product = 'PSF';
+                otherwise
+                    error('Unknown DataProp option');
+            end
+            
+            Files = ObjFN.genFull;
+            Nf    = numel(Files);
+            Nobj  = numel(ObjIn);
+            if Nf~=Nobj
+                error('Number of file names must be equal to the number of elements in object to save');
+            end
+            
+            Header = [];
+            switch class(ObjIn)
+                case 'AstroImage'
+                    %
+                    for Iobj=1:1:Nobj
+                        if Args.WriteHeader
+                            Header = ObjIn(Iobj).HeaderData;
+                        end
+                        ImageIO.write1(ObjIn(Iobj).(DataProp), Files{Iobj},'HDU',Args.HDU,...
+                                                                           'FileType',Args.ImageFileType,...
+                                                                           'IsSimpleFITS',Args.IsSimpleFITS,...
+                                                                           'IsTable',IsTable,...
+                                                                           'DataType',Args.DataType,...
+                                                                           'Header',Header);
+                    end
+                    
+                case 'MatchedSources'
+                    for Iobj=1:1:Nobj
+                        ObjIn(Iobj).write1(Files{Iobj}, 'FileType',Args.MatchedFileType);
+                    end
+                    
+                otherwise
+                    error('ObjIn %s is not supported',class(ObjIn));
+            end
+            
+            
+        end
+        
     end
     
     methods (Static)  % unitTest
