@@ -933,8 +933,8 @@ classdef FileNames < Component
             Result = reorderEntries(Result, Flag);
         end
         
-        function [Groups, Result] = selectByCounter(Obj, Args)
-            % Select entries according to running counter groups.
+        function [Groups, Result] = groupByCounter(Obj, Args)
+            % Group entries according to running counter groups.
             %   Given the Counter entry in an FileNames object, create
             %   groups of entries by running counter, only for groups that
             %   contains at least MinInGroup and not more than MaxInGroup
