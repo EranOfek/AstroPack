@@ -132,6 +132,8 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     %                   Default is 'Dec'.
     %            'OutCatColPos' - Position of RA/Dec columns added to catalog.
     %                   Default is Inf.
+    %            'SortCat' - Column name by which to sort the output
+    %                   catalog. If empty, do not sort. Default is 'Dec'.
     %            'UpdateHeader' - A logical indicating if to add to the
     %                   header the astrometric quality information.
     %                   The following columns will be added:
@@ -217,7 +219,8 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         Args.OutCatColRA                        = 'RA';
         Args.OutCatColDec                       = 'Dec';
         Args.OutCatColPos                       = Inf;
-        
+        Args.SortCat                            = 'Dec';  % if empty donit sort
+
         Args.UpdateHeader logical         = true;
 
         Args.CatColNamesX                       = AstroCatalog.DefNamesX;
@@ -514,7 +517,9 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                     %Cat = deleteCol(Cat, {Args.OutCatColRA, Args.OutCatColDec});
                     %No need - done in insertCol
                     Cat = insertCol(Cat, [ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
-
+                    if ~isempty(Args.SortCat)
+                        Cat = sortrows(Cat, Args.SortCat);
+                    end
 
                     if isa(Obj, 'AstroImage')
                         Obj(Iobj).CatData = Cat;

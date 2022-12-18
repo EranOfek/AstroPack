@@ -101,6 +101,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %                   Default is 'Dec'.
     %            'OutCatColPos' - Position of RA/Dec columns added to catalog.
     %                   Default is Inf.
+    %            'SortCat' - Column name by which to sort the output
+    %                   catalog. If empty, do not sort. Default is 'Dec'.
     %            'UpdateHeader' - A logical indicating if to add to the
     %                   header the astrometric quality information.
     %                   The following columns will be added:
@@ -134,6 +136,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %               'BestInd' - Index of solution with minimal ErrorOnMean.
     %          - An handle to the original input catalog, after adding the
     %            RA/Dec columns for all the sources.
+    %            Optionally sorted by Dec.
     %            The input catalog is modified only if two or more output
     %            arguments are requested.
     %          - An AstroImage or AstroCatalog object containing the astrometric catalog
@@ -203,7 +206,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.OutCatColRA                  = 'RA';
         Args.OutCatColDec                 = 'Dec';
         Args.OutCatColPos                 = Inf;
-        
+        Args.SortCat                      = 'Dec';  % if empty donit sort
+
         Args.TestNbin             = 3;
         Args.RegionalMaxMedianRMS = 1;     % arcsec OR pix?
         Args.RegionalMaxWithNoSrc = 0;
@@ -538,7 +542,11 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                 [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Cat.getCol(IndCatX), Cat.getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
                 % insert or replace
                 Cat = insertCol(Cat, [ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
-                
+                if ~isempty(Args.SortCat)
+                    Cat = sortrows(Cat, Args.SortCat);
+                end
+
+
                 % update the Obj with the new CatData and new header:
                 if isa(Obj, 'AstroImage')
                     Obj(Iobj).CatData = Cat;

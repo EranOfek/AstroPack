@@ -58,6 +58,8 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %                       -1 will use the initial guess without estimating
 %                       the first moment (i.e., forced photometry).
 %                       Default is 10.
+%            'MaxStep' - Maximum step size (pixels) in X and Y shifts
+%                       allowd in each iteration. Default is 0.1.
 %            'NoWeightFirstIter' - A flag indicating if not to apply weight
 %                       on the first itearation. Default is true.
 %            'PosConvergence' - Position convergence. Default is 1e-4.
@@ -125,6 +127,7 @@ arguments
     Args.WeightFun                                     = 1.5;    % sigma or function: @(r) exp(-r.^2./(2.*4))./(2.*pi.*4.^2);
     Args.Circle(1,1) logical                           = false;
     Args.MaxIter                                       = 10;
+    Args.MaxStep                                       = 0.1;
     Args.NoWeightFirstIter(1,1) logical                = true; 
     Args.PosConvergence                                = 1e-4;
     Args.DynamicWindow(1,1) logical                    = true;
@@ -303,9 +306,19 @@ else
         WInt = W.*W_Max.*Cube; % Weighted intensity
         Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
 
+        DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
+        DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+
+        if ~isempty(Args.MaxStep)
+            DeltaX1 = sign(DeltaX1).*min(abs(DeltaX1), Args.MaxStep);
+            DeltaY1 = sign(DeltaY1).*min(abs(DeltaY1), Args.MaxStep);
+        end
+
         % FFU : check the possibility to limit the step size to 0.5...
-        CumRelX1 = CumRelX1 + squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
-        CumRelY1 = CumRelY1 + squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+        %CumRelX1 = CumRelX1 + squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
+        %CumRelY1 = CumRelY1 + squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+        CumRelX1 = CumRelX1 + DeltaX1;
+        CumRelY1 = CumRelY1 + DeltaY1;
 
         M1.DeltaLastX = CumRelX1 - RelX1;
         M1.DeltaLastY = CumRelY1 - RelY1;
@@ -350,11 +363,26 @@ else
         
         Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
 
-        CumRelX1 = CumRelX1 + squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
-        CumRelY1 = CumRelY1 + squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+        DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
+        DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
 
+        if ~isempty(Args.MaxStep)
+            DeltaX1 = sign(DeltaX1).*min(abs(DeltaX1), Args.MaxStep);
+            DeltaY1 = sign(DeltaY1).*min(abs(DeltaY1), Args.MaxStep);
+        end
+
+        % FFU : check the possibility to limit the step size to 0.5...
+        %CumRelX1 = CumRelX1 + squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
+        %CumRelY1 = CumRelY1 + squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+        CumRelX1 = CumRelX1 + DeltaX1;
+        CumRelY1 = CumRelY1 + DeltaY1;
+
+        %CumRelX1 = CumRelX1 + squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
+        %CumRelY1 = CumRelY1 + squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+        
         M1.DeltaLastX = CumRelX1 - RelX1;
         M1.DeltaLastY = CumRelY1 - RelY1;
+        
     end
 end
 
