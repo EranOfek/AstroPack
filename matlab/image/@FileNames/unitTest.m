@@ -4,6 +4,9 @@ function Result = unitTest()
 
     
     F = FileNames;
+    F.setTestData;         
+    F.genFull;  
+
     F.ProjName = 'LAST';
     F.Time     = 2451545;
     

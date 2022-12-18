@@ -42,10 +42,10 @@ classdef FileNames < Component
     
     properties (Hidden)
         % Fields formatting
-        FormatFieldID   = '%06d';       % Used with FieldID
+        %FormatFieldID   = '%06d';       % Used with FieldID
         FormatCounter   = '%03d';       % Used with Counter        
-        FormatCCDID     = '%03d';       % Used with CCDID
-        FormatCropID    = '%03d';       % Used with CropID
+        FormatCCDID     = '%01d';       % Used with CCDID
+        FormatCropID    = '%02d';       % Used with CropID
         FormatVersion   = '%d';       % Used with Version
         
     end
@@ -63,8 +63,8 @@ classdef FileNames < Component
     
     methods % Constructor
        
-        function Obj = ImagePath(Pars)
-            % Constructor for ImagePath
+        function Obj = FileNames(Pars)
+            % Constructor for FileNames
             % Input  : - Either a:
             %            1. Scalar indicting the number of elements in the
             %            empty ImagePath object that will be created.
@@ -81,20 +81,17 @@ classdef FileNames < Component
                 Pars = 1;
             end
             
-            if iscell(Pars)
+            if iscell(Pars) || ischar(Pars)
                 % Pars is a list of image names
-                Obj = ImagePath.parseFileName(Pars);
+                Obj = FileNames.generateFromFileName(Pars);
                 
             elseif isnumeric(Pars)
                 % length of ImagePath object
                 N = Pars;
                 for I=1:1:N
-                    Obj(I).FileName = '';
+                    Obj(I).ProjName = '';
                 end
                 
-            elseif isstruct(Pars)
-                % populate from a struct according to field names
-                Obj = setProps(Obj, Pars);
                 
             else
                 error('Unknown option');
@@ -112,31 +109,27 @@ classdef FileNames < Component
             
         end
              
-        function [ResultPath, ResultFileName] = setTestData(Obj)
+        function Obj=setTestData(Obj)
             % Set data for unit-test and debugging, return expected result
             
-            Obj.ProjName        = 'USAT';            
-            Obj.Time            = '2021-09-09T12:34:56.789';
+            Obj.ProjName{1}     = 'USAT';            
+            Obj.Time            = 2451545;
             Obj.TimeZone        = 2;
-            Obj.Filter          = 'clear';
-            Obj.FieldID         = 'fld';
-            Obj.Counter         = 'cnt';
-            Obj.CCDID           = 'ccdid';            
-            Obj.CropID          = 'crop';
-            Obj.Type            = 'sci';
-            Obj.Level           = 'raw';
-            Obj.Product         = 'Image';
-            Obj.Version         = 'ver1';
-            Obj.FileType        = 'fits';
+            Obj.Filter{1}       = 'clear';
+            Obj.FieldID{1}      = 'fld';
+            Obj.Counter         = 1;
+            Obj.CCDID           = 1;
+            Obj.CropID          = 1;
+            Obj.Type{1}         = 'sci';
+            Obj.Level{1}        = 'raw';
+            Obj.Product{1}      = 'Image';
+            Obj.Version         = 1;
+            Obj.FileType{1}     = 'fits';
             Obj.SubDir          = 'subdir';
             
             % Debug? or have it?
             Obj.BasePath        = '/home/last';
-            Obj.DataDir         = 'data';                   
-
-            % Return expected results, used by unitTest()
-            ResultPath = '/home/last/data/2021/09/09/raw/';  % '/home/last/data/.../subdir'; %'/home/last/data/2021/10/03/raw/'
-            ResultFileName = 'USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_Image_ver1.fits';
+           
         end
     end
     
@@ -512,7 +505,7 @@ classdef FileNames < Component
                     CounterStr = sprintf(Obj.FormatCounter,CounterStr);
                 end
                 CCDIDStr = Obj.getProp('CCDID',Itime);
-                if isnumeric(CounterStr)
+                if isnumeric(CCDIDStr)
                     CCDIDStr = sprintf(Obj.FormatCCDID,CCDIDStr);
                 end
                 CropIDStr = Obj.getProp('CropID',Itime);
@@ -530,6 +523,7 @@ classdef FileNames < Component
                                             Obj.getProp('Time',Itime),...
                                             FilterStr,...
                                             FieldIDStr,...
+                                            CounterStr,...
                                             CCDIDStr,...
                                             CropIDStr,...
                                             Obj.getProp('Type',Itime),...
@@ -595,8 +589,8 @@ classdef FileNames < Component
                                     getProp(Obj, 'Level', Itime));
                                     
                     if AddSubDir
-                        Path{Itime = sprintf('%s%s%s',Path{Itime},filesep,...
-                                                      getProp(Obj, 'SubDir', Itime));
+                        Path{Itime} = sprintf('%s%s%s',Path{Itime},filesep,...
+                                                       getProp(Obj, 'SubDir', Itime));
                     end
                 end
                 
@@ -1182,102 +1176,7 @@ classdef FileNames < Component
         
     methods % Helpers (for internal use)
         
-        function Result = setTime(Obj)
-            % Set JD and TimeStr from Obj.Time
-            % Input:  Obj.Time
-            % Output: Obj.DT, Obj.TimeStr
-            % @Todo: Convert to static? or move to convert.time?
-            
-            % Empty: use current time
-            
-            Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-                
-                if isempty(Obj(Iobj).Time)
-                    Obj(Iobj).Time = celestial.time.julday;
-                end
-
-                % Convert number to string, set JD, TimeStr (assume JD)
-                if isnumeric(Obj(Iobj).Time)                
-                    StrDate = convert.time(Obj(Iobj).Time, 'JD', 'StrDate');
-                    Obj(Iobj).TimeStr = StrDate{1};
-                    Obj(Iobj).JD = Obj(Iobj).Time;
-                elseif ischar(Obj(Iobj).Time)
-                    Obj(Iobj).TimeStr = Obj(Iobj).Time;
-                    Obj(Iobj).JD = convert.time(Obj(Iobj).Time, 'StrDate', 'JD');
-                elseif iscellstr(Obj(Iobj).Time)
-                    Obj(Iobj).TimeStr = Obj(Iobj).Time{1};
-                    Obj(Iobj).JD = convert.time(Obj(Iobj).Time, 'StrDate', 'JD');
-                end
-
-                % Remove '-' and ':' from date (StrDate: 'YYYY-MM-DDTHH:MM:SS.FFF')
-                Obj(Iobj).TimeStr = strrep(Obj(Iobj).TimeStr, '-', '');
-                Obj(Iobj).TimeStr = strrep(Obj(Iobj).TimeStr, 'T', '.');
-                Obj(Iobj).TimeStr = strrep(Obj(Iobj).TimeStr, ':', '');
-            end
-            
-            Result = true;
-        end
-            
-        function Result = fixFields(Obj)
-            % Fix field values: type, level, sublevel, product
-            Obj.Type  = lower(Obj.Type);
-            Obj.Level = lower(Obj.Level);
-            Result = true;
-        end
-        
-        function Result = valiadateFields(Obj)
-            % Validate fields: Type, Level, Product
-
-            Result = true;
-            
-            % Verify Type
-            %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Type=%s', Obj.Type);
-            switch Obj.Type
-                case { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'focus', 'sci', 'science', 'wave', 'type' }
-                    % Ok
-                otherwise
-                    error('Unknown Type option: %s', Obj.Type);
-            end
-
-            % Verify Level
-            %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Level=%s', Obj.Level);
-            switch Obj.Level
-                case {'log', 'raw', 'proc', 'stacked', 'ref', 'coadd', 'merged', 'calib', 'junk'}
-                    % Ok
-                otherwise
-                    error('Unknown Level option: %s', Obj.Level);
-            end
-
-            % Verify Product
-            %Obj.msgLog(LogLevel.Debug, 'valiadateFields: Product=%s', Obj.Product);
-            switch Obj.Product
-                case { 'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat', 'Asteroids'}
-                    % Ok
-                otherwise
-                    error('Unknown Product option: %s', Obj.Product);
-            end
-            
-        end
-        
-        function Result = formatNumeric(Obj, Value, Format)
-            % connvert numeric to string
-            
-            if ischar(Value)
-                if strcmpi(Value, 'nan')
-                    Result = '';
-                else
-                    Result = Value;
-                end
-            else
-                if isempty(Format)
-                    Result = '';
-                else
-                    Result = sprintf(Format, Value);
-                end
-            end
-
-        end
+      
     end    
     
     methods (Static) % Parsers
@@ -1440,49 +1339,6 @@ classdef FileNames < Component
             
         end
         
-        function [Gr, List] = groupByCounter(Files, MinInGroup, MaxInGroup)
-            % Group ImagePath file names by counter groups
-            % Input  : - If this is a char array than use io.files.filelist
-            %            to generate a cell array of file names.
-            %            Alternatively, this is a cell array of file names,
-            %            or a populated ImagePath object.
-            %          - Maximum number of files in group. Default is 20.
-            % Output : - A structure array with element per group and the
-            %            following fields:
-            %            .I1 - Index in List (second output) of first
-            %                   element in group.
-            %            .I2 - Index of last element in group.
-            %          - The sorted (by date) list of files.
-            % Author : Eran Ofek (Aug 2022)
-            % Example: [St, List] = ImagePath.groupByCounter('LAST*.fits');
-            
-            arguments
-                Files
-                MinInGroup = 10;
-                MaxInGroup = 20;
-            end
-            
-            if isa(Files, 'ImagePath')
-                IP = Files;
-                List = IP.genFullCell;
-            else
-                if ischar(Files)
-                    List = io.files.filelist(Files);
-                else
-                    List = Files;
-                end
-
-                IP     = ImagePath.parseFileName(List);
-            end
-            % sort by time
-            [~,SI] = sort([IP.Time]);
-            List   = List(SI);
-            IP     = IP(SI);
-            Counter = [IP.Counter];
-            
-            Gr = tools.find.groupCounter(Counter, 'MinInGroup',MinInGroup, 'MaxInGroup',MaxInGroup);
-            
-        end
         
     end
 
