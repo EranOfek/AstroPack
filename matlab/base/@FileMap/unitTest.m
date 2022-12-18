@@ -4,6 +4,7 @@ function Result = unitTest()
     
     io.msgLog(LogLevel.Test, 'FileMap test started');
 
+    %
     a = FileMap();
     testLoad = false;
     if testLoad
@@ -11,11 +12,17 @@ function Result = unitTest()
         f = a.findFile('ZDbc.dproj');
         disp(f);
     else    
-        %a.add('c:/temp');
-        %a.add('c:/Ultrasat');
-        a.add('c:/');
-        a.scan();
-        a.saveMap();
+        if isunix
+            a.add('~/dev');
+            a.scan();
+            a.saveMap();            
+        else
+            %a.add('c:/temp');
+            %a.add('c:/Ultrasat');
+            a.add('c:/');
+            a.scan();
+            a.saveMap();
+        end
     end
     
     %f = a.FindFile('ZDbc.dproj');
@@ -27,6 +34,13 @@ function Result = unitTest()
     
     f = a.findFile1('c:/temp/123.txtj');
     disp(f);        
+    
+    %
+    b = FileMap();
+    b.loadMap();
+    f = b.findFile('ZDbc.dproj');
+    disp(f);
+    
     
     io.msgStyle(LogLevel.Test, '@passed', 'FileMap test passed');                          
     Result = true;

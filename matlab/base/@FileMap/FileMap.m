@@ -9,6 +9,7 @@ classdef FileMap < Component
         %
         DirList = {};           %
         Map = [];               % conainers.map
+        IgnoreCase = false;     %
         StorageFileName = ''    %
         LogDuplicates = true;   %
     end
@@ -32,7 +33,12 @@ classdef FileMap < Component
 
             Obj.setName('FileMap');
             Obj.Map = containers.Map();
-            Obj.StorageFileName = 'c:/temp/filemap1';
+            
+            if isunix
+                Obj.StorageFileName = '/tmp/FileMap1';
+            else
+                Obj.StorageFileName = 'c:/temp/FileMap1';
+            end
         end
 
     end
@@ -99,10 +105,14 @@ classdef FileMap < Component
             % Author  : Chen Tishler (Dec. 2022)
             % Example :
 
-            Result = '';
+            Result = '';           
             if ~contains(FileName, '/') && ~contains(FileName, '\')
-                if Obj.Map.isKey(FileName)
-                    F = Obj.Map(FileName);
+                FName = FileName;
+                if Obj.IgnoreCase
+                    FName = lower(FName);
+                end                
+                if Obj.Map.isKey(FName)
+                    F = Obj.Map(FName);
                     Result = fullfile(F.folder, FileName);
                 else
                 end
@@ -125,8 +135,12 @@ classdef FileMap < Component
 
             Result = '';
             if ~contains(FileName, '/') && ~contains(FileName, '\')
-                if Obj.Map.isKey(FileName)
-                    F = Obj.Map(FileName);
+                FName = FileName;
+                if Obj.IgnoreCase
+                    FName = lower(FName);
+                end                                
+                if Obj.Map.isKey(FName)
+                    F = Obj.Map(FName);
                     if numel(F.folder) == 1
                         Result = fullfile(F.folder{1}, FileName);
                     else
@@ -167,6 +181,9 @@ classdef FileMap < Component
             for i=1:numel(Files)
                 if Files(i).isdir == 0
                     fname = Files(i).name;
+                    if Obj.IgnoreCase
+                        fname = lower(fname);
+                    end                                    
                     if ~Obj.Map.isKey(fname)
                         F = struct;
                         F.name = fname;
