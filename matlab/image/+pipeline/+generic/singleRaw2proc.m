@@ -90,12 +90,12 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.RemoveBadImages logical          = true;
         Args.identifyBadImagesArgs cell       = {};
         
-        Args.BitNameBadPix                  = {'Saturated','NaN'};
+        Args.BitNameBadPix                  = {'Saturated','NaN','Negative'};
         Args.BitNameInterpolated            = 'Interpolated';
                 
         
         
-        Args.InterpolateOverProblems logical  = true;
+        Args.InterpolateOverProblems logical  = false; %true;
         Args.BitNamesToInterp                 = {'Saturated','HighRN','DarkHighVal','Hole','Spike','CR_DeltaHT'};
         Args.interpOverNanArgs cell           = {};
         
