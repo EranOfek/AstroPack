@@ -5,12 +5,22 @@ function Result = unitTest()
     io.msgLog(LogLevel.Test, 'FileMap test started');
 
     a = FileMap();
-    a.add('c:/temp');
-    a.scan();
+    testLoad = false;
+    if testLoad
+        a.loadMap();
+        f = a.findFile('ZDbc.dproj');
+        disp(f);
+    else    
+        %a.add('c:/temp');
+        %a.add('c:/Ultrasat');
+        a.add('c:/');
+        a.scan();
+        a.saveMap();
+    end
     
     %f = a.FindFile('ZDbc.dproj');
     f = a.findFile('ZDbc.dproj');
-    disp(f{1});
+    disp(f);  %{1});
     
     f = a.findFile1('ZDbc1.dproj');
     disp(f);    

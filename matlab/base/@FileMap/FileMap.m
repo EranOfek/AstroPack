@@ -1,58 +1,60 @@
 
 classdef FileMap < Component
     %
-    %  
-    
+    %
+
     % Properties
     properties (SetAccess = public)
-              
-        % 
-        DirList = {};       %
-        FileList = {};      %
-        Map = [];           % conainers.map
+
+        %
+        DirList = {};           %
+        Map = [];               % conainers.map
+        StorageFileName = ''    %
+        LogDuplicates = true;   %
     end
-    
-    %-------------------------------------------------------- 
-    methods  
-               
-        % Constructor    
-        function Obj = FileMap()          
+
+    %--------------------------------------------------------
+    methods
+
+        % Constructor
+        function Obj = FileMap()
             % Constructor for FileProcessor
             % Input   : - struct array, table, cell array, matrix,
             %
             %           * Pairs of ...,key,val,...
-            %             The following keys are available:            			            
-            %             'InputPath' - 
-            %             'InputMask' - 
-            %             'ProcessedPath' - 
+            %             The following keys are available:
+            %             'InputPath' -
+            %             'InputMask' -
+            %             'ProcessedPath' -
             % Output  : - New instance of FileProcessor object
             % Author  : Chen Tishler (2021)
-            % Example : 
-            
+            % Example :
+
             Obj.setName('FileMap');
             Obj.Map = containers.Map();
+            Obj.StorageFileName = 'c:/temp/filemap1';
         end
-                      
+
     end
 
-    
-    methods  
-        
+
+    methods
+
         function Result = addAll(Obj, AScan)
-            % 
+            %
             % Input   : - Path
             %
             %           * Pairs of ...,key,val,...
-            %             The following keys are available:            			            
+            %             The following keys are available:
             %
             % Output  : - Full file name
             % Author  : Chen Tishler (Dec. 2022)
-            % Example : 
+            % Example :
             arguments
                 Obj
                 AScan = false;
             end
-            
+
             Result = '';
             List = strsplit(path, ';');
             for i=1:numel(List)
@@ -63,42 +65,42 @@ classdef FileMap < Component
             end
             if AScan
                 Obj.scan();
-            end                
+            end
         end
-        
-        
-        
+
+
+
         function Result = add(Obj, Path)
-            % 
+            %
             % Input   : - Path
             %
             %           * Pairs of ...,key,val,...
-            %             The following keys are available:            			            
+            %             The following keys are available:
             %
             % Output  : - Full file name
             % Author  : Chen Tishler (Dec. 2022)
-            % Example : 
-           
+            % Example :
+
             Result = '';
             if ~any(strcmp(Obj.DirList, Path))
                 Obj.DirList{end+1} = Path;
             end
         end
-        
-        
+
+
         function Result = findFile(Obj, FileName)
-            % 
+            %
             % Input   : - File name
             %
             %           * Pairs of ...,key,val,...
-            %             The following keys are available:            			            
+            %             The following keys are available:
             %
             % Output  : - Full file name
             % Author  : Chen Tishler (Dec. 2022)
-            % Example : 
-           
+            % Example :
+
             Result = '';
-            if ~contains(FileName, '/') && ~contains(FileName, '\')            
+            if ~contains(FileName, '/') && ~contains(FileName, '\')
                 if Obj.Map.isKey(FileName)
                     F = Obj.Map(FileName);
                     Result = fullfile(F.folder, FileName);
@@ -106,21 +108,21 @@ classdef FileMap < Component
                 end
             else
                 Result = FileName;
-            end                
+            end
         end
-        
+
 
         function Result = findFile1(Obj, FileName)
-            % 
+            %
             % Input   : - File name
             %
             %           * Pairs of ...,key,val,...
-            %             The following keys are available:            			            
+            %             The following keys are available:
             %
             % Output  : - Full file name
             % Author  : Chen Tishler (Dec. 2022)
-            % Example : 
-           
+            % Example :
+
             Result = '';
             if ~contains(FileName, '/') && ~contains(FileName, '\')
                 if Obj.Map.isKey(FileName)
@@ -134,28 +136,33 @@ classdef FileMap < Component
             else
                 Result = FileName;
             end
-        end      
+        end
 
-        
+
         function scan(Obj)
-            % 
-            % Input   : - 
+            %
+            % Input   : -
             %
             %           * Pairs of ...,key,val,...
-            %             The following keys are available:            			            
+            %             The following keys are available:
             %
             % Output  : - Full file name
             % Author  : Chen Tishler (Dec. 2022)
-            % Example : 
+            % Example :
+            Obj.msgLog(LogLevel.Info, 'scan started');
             for i=1:numel(Obj.DirList)
                 Obj.scanPath(Obj.DirList{i});
             end
+            Obj.msgLog(LogLevel.Info, 'scan done');
+
+            %
+            Obj.checkDuplicates();
         end
-        
-        
+
+
         function scanPath(Obj, Path)
-            
-            % Get list of files and folders in any subfolder            
+
+            % Get list of files and folders in any subfolder
             Files = dir(fullfile(Path, '**\*.*'));
             for i=1:numel(Files)
                 if Files(i).isdir == 0
@@ -165,31 +172,79 @@ classdef FileMap < Component
                         F.name = fname;
                         F.folder{1} = Files(i).folder;
                         Obj.Map(fname) = F;
-                    else               
+                    else
+                        % Already exists
                         F = Obj.Map(fname);
                         F.folder{end+1} = Files(i).folder;
                         Obj.Map(fname) = F;
                     end
                 end
             end
-        end        
+        end
+
+
+        function saveMap(Obj)
+            % Save to file
+            Obj.msgLog(LogLevel.Info, 'saveMap: Items: %d, %s', Obj.Map.Count, Obj.StorageFileName);
+            if ~isempty(Obj.StorageFileName)
+                M = Obj.Map;
+                save(Obj.StorageFileName, 'M');
+            end
+        end
         
+
+        function loadMap(Obj)
+            % Load from file
+            Obj.msgLog(LogLevel.Info, 'loadMap: %s', Obj.StorageFileName);
+            if ~isempty(Obj.StorageFileName)
+                load(Obj.StorageFileName);
+                Obj.Map = M;
+                Obj.msgLog(LogLevel.Info, 'loaded %d items', Obj.Map.Count);
+                Obj.checkDuplicates();
+            end
+        end
+
+
+        function checkDuplicates(Obj)
+            %
+            if Obj.LogDuplicates
+                K = keys(Obj.Map);
+                FileCount = 0;
+                DupCount = 0;
+                DupListCount = 0;
+                for i=1:numel(K)
+                    F = Obj.Map(K{i});
+                    FileCount = FileCount + numel(F.folder);
+                    if numel(F.folder) > 1
+                        DupCount = DupCount + 1;
+                        DupListCount = DupListCount + numel(F.folder);
+                        %Obj.msgLog(LogLevel.Info, 'Multiple files found: %s', F.name);
+                        for j=1:numel(F.folder)
+                            %Obj.msgLog(LogLevel.Info, '  %s', fullfile(F.folder{j}, F.name));
+                        end
+                    end
+                end
+                Obj.msgLog(LogLevel.Info, 'Found %d files with duplicate names, %d files out of %d total files', DupCount, DupListCount, FileCount);
+            end            
+        end
         
+            
         function clear(Obj)
+            %
             Obj.DirList = {};
             Obj.Map = containers.Map();
         end
-        
+
     end
-    
-    
+
+
     methods(Static)
-        
+
         function Result = getSingleton()
             % Return singleton object, this is the default log file
             % to be used by current process (or workspace)
             % Input:   -
-            % Output:             
+            % Output:
             % Example: SysLogFile = LogFile.getSingleton();
             persistent PersObj
             if isempty(PersObj)
@@ -197,13 +252,13 @@ classdef FileMap < Component
             end
             Result = PersObj;
         end
-        
+
     end
 
 
     % Unit test
-    methods(Static)   
+    methods(Static)
         Result = unitTest()
-    end    
-        
+    end
+
 end
