@@ -127,8 +127,8 @@ arguments
     Args.WeightFun                                     = 1.5;    % sigma or function: @(r) exp(-r.^2./(2.*4))./(2.*pi.*4.^2);
     Args.Circle(1,1) logical                           = false;
     Args.MaxIter                                       = 10;
-    Args.MaxStep                                       = 0.1;
-    Args.NoWeightFirstIter(1,1) logical                = true; 
+    Args.MaxStep                                       = [];
+    Args.NoWeightFirstIter(1,1) logical                = true; %true; 
     Args.PosConvergence                                = 1e-4;
     Args.DynamicWindow(1,1) logical                    = true;
     Args.WindowOnlyOnLastIter(1,1) logical             = false;
@@ -251,14 +251,14 @@ else
 
     
     % 1st moment relative to the stamp center
-    CumRelX1 = squeeze(sum(WInt.*MatX,[1 2])).*Norm;
-    CumRelY1 = squeeze(sum(WInt.*MatY,[1 2])).*Norm;
+    CumRelX1 = zeros(Nsrc,1); %squeeze(sum(WInt.*MatX,[1 2])).*Norm;
+    CumRelY1 = zeros(Nsrc,1); %squeeze(sum(WInt.*MatY,[1 2])).*Norm;
     RelX1    = CumRelX1;
     RelY1    = CumRelY1;
 
 
-    M1.DeltaLastX = RelX1;
-    M1.DeltaLastY = RelY1;
+    M1.DeltaLastX = Inf; %RelX1;
+    M1.DeltaLastY = Inf; %RelY1;
     Iter = 0;
     while Iter<Args.MaxIter && any(abs(M1.DeltaLastX)>Args.PosConvergence) && any(abs(M1.DeltaLastY)>Args.PosConvergence)
         Iter = Iter + 1;
