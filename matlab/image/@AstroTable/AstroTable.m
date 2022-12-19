@@ -1374,6 +1374,34 @@ classdef AstroTable < Component
         
         end
 
+        function Result = insertMatrix(Obj, Mat)
+            % concat a matrix into a single element AstroTable
+            % Input  : - An AstroTable object.
+            %          - A matrix in which the number of columns is equial
+            %            to the number of columns in the AstroTable object
+            %            catalog data.
+            % Output : - The original AstroTable object in which the matrix
+            %            was concatenated.
+            % Author : Eran Ofek (Dec 2022)
+            % Example: AT=AstroTable({rand(10,3)});
+            %          AT.insertMatrix(rand(2,3));
+
+            arguments
+                Obj(1,1)
+                Mat
+            end
+
+            [~,NcolMat] = size(Mat);
+            [~,Ncol]    = Obj.sizeCatalog;
+            if Ncol~=NcolMat
+                error('Number of columns in matrix and catalog must be the same');
+            end
+
+            Obj.Catalog = [Obj.Catalog; Mat];
+
+        end
+
+
         function Result = selectRows(Obj, FlagInd, Args)
             % Select rows from AstroTable object, including optional NaN filling and reordering.
             %       There are 2 related functions: insertRows and
