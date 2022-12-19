@@ -23,7 +23,7 @@ function writeImageData(FID, Data, ForceClass)
     end
     
     DataLen = numel(Data);
-    Size    = ceil(DataLen./BYTE_PER_BLOCK);
+    Size    = BYTE_PER_BLOCK.*ceil(DataLen./BYTE_PER_BLOCK);
 
     %DataVec = zeros(Size, 1, ForceClass);
     %DataVec(1:DataLen) = reshape(Data.', DataLen, 1);
