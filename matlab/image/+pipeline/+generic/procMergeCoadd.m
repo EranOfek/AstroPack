@@ -204,7 +204,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
 
 
             % PSF photometry
-            [ResPSF, Coadd(Ifields)] = imProc.sources.psfFitPhot(Coadd(Ifields), 'CreateNewObj',false);                                   
+            [Coadd(Ifields), ResPSF] = imProc.sources.psfFitPhot(Coadd(Ifields), 'CreateNewObj',false);                                   
 
             % astrometry    
             % Note that if available, will use the "X" & "Y" positions produced

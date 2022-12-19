@@ -869,7 +869,7 @@ classdef DS9 < handle
                 end
                 [AI] = imProc.psf.constructPSF(AI, Args.constructPSFArgs{:});
                 % PSF photometry
-                [~, AI] = imProc.sources.psfFitPhot(AI, 'CreateNewObj',false);                                   
+                [AI] = imProc.sources.psfFitPhot(AI, 'CreateNewObj',false);                                   
             end
             
             % astrometryif sizeCatalog(AI)==0 || Args.RePop

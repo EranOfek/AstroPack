@@ -394,7 +394,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
             
             if Args.PsfPhot
                 % PSF photometry
-                [ResPSF, SI] = imProc.sources.psfFitPhot(SI, 'CreateNewObj',false);                                   
+                [SI, ResPSF] = imProc.sources.psfFitPhot(SI, 'CreateNewObj',false);                                   
             end
             
         end

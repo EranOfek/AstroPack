@@ -1,4 +1,4 @@
-function [Result, ResultObj] = psfFitPhot(Obj, Args)
+function [ResultObj, Result] = psfFitPhot(Obj, Args)
     % Execute PSF photometry on a list of coordinates and add the results
     %   to the input AstroCatalog.
     % Input  : - An AstroImage object with an optional catalog data with
@@ -51,10 +51,10 @@ function [Result, ResultObj] = psfFitPhot(Obj, Args)
     %            'psfPhotCubeArgs' - A cell array of additional arguments
     %                   to pass to imUtil.sources.psfPhotCube.
     %                   Default is {}.
-    % Output : - A structure array with the PSF fitting data.
-    %          - The input AstroImage object, where the following column
+    % Output : - The input AstroImage object, where the following column
     %            names were optionally added to the AStroCatalog:
     %            {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'PSF_CHI2DOF'}
+    %          - A structure array with the PSF fitting data.
     % Author : Eran Ofek (Feb 2022)
     % Example: AI=AstroImage('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
     %          AI=imProc.background.background(AI);
