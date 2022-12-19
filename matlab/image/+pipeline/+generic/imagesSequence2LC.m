@@ -74,14 +74,14 @@ function MatchedS = imagesSequence2LC(List, Args)
         AI(Il) = imProc.background.background(AI(Il));
         AI(Il) = imProc.sources.findMeasureSources(AI(Il),'RemoveBadSources',true);
 
-        [~,AI(Il)]=imProc.astrometry.astrometryCore(AI(Il),'RA',Args.RA,'Dec',Args.Dec,'Scale',Args.Scale,'RefRangeMag',Args.RefRangeMag, Args.argsAstrometry);
+        [~,AI(Il)]=imProc.astrometry.astrometryCore(AI(Il),'RA',Args.RA,'Dec',Args.Dec,'Scale',Args.Scale,'RefRangeMag',Args.RefRangeMag, Args.argsAstrometry{:});
 
-        AI(Il) = imProc.astrometry.addCoordinates2catalog(AI(Il), 'UpdateCoo',true);
-        AI(Il).CatData.sortrows('Dec');  % <<--- make sure we sort catalogs in pipeline!!!
+        %AI(Il) = imProc.astrometry.addCoordinates2catalog(AI(Il), 'UpdateCoo',true);
+        %AI(Il).CatData.sortrows('Dec');  % <<--- make sure we sort catalogs in pipeline!!!
 
     end
 
-    [MergedCat, MatchedS, ResultSubIm.ResZP, ResultSubIm.ResVar, ResultSubIm.FitMotion] = imProc.match.mergeCatalogs(AI(:),'Radius',Args.SearchRadius, Args.argsMerged);
+    [MergedCat, MatchedS, ResultSubIm.ResZP, ResultSubIm.ResVar, ResultSubIm.FitMotion] = imProc.match.mergeCatalogs(AI(:),'Radius',Args.SearchRadius, Args.argsMerged{:});
     JD=AI.julday;
     MatchedS.JD=JD(:);
 
