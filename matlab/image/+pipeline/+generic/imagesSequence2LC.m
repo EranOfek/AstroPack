@@ -35,7 +35,7 @@ function MatchedS = imagesSequence2LC(List, Args)
         List               = 'LAST*Chiron*.fits';
         Args.RA            = celestial.coo.convertdms('00:39:58.719','SH','d');                                              
         Args.Dec           = celestial.coo.convertdms('+06:16:08.86','SD','d');
-        Args.CCDSEC        = [2201 4200 4001 6000];
+        Args.CCDSEC        = [501 2500 2301 4300]; %[2201 4200 4001 6000];
         Args.CI            = '/raid/eran/projects/telescopes/LAST/Images_PipeTest/calib';
         Args.Scale         = 1.25;
         Args.RefRangeMag   = [8 14];
@@ -86,13 +86,13 @@ function MatchedS = imagesSequence2LC(List, Args)
     MatchedS.JD=JD(:);
 
 
-    [Ind,Flag, Dist] = coneSearch(MatchedS,RA,Dec,4,'CooUnits','rad');
+    [Ind,Flag, Dist] = coneSearch(MatchedS,RA,Dec,8,'CooUnits','deg');
     ResZP = lcUtil.zp_meddiff(MatchedS,'MagField','MAG_APER_3','MagErrField','MAGERR_CONV_3');
     [MatchedS ,ApplyToMagField] = applyZP(MatchedS, ResZP.FitZP, 'FieldZP','FitZP', 'ApplyToMagField','MAG_', 'Operator',@minus);
 
     if Args.Plot
-        JD0 = JD(1);
-        plot((JD-JD0).*86400,MatchedS.Data.MAG_APER_3(:,Ind),'.')
+        JD0 = floor(MatchedS.JD(1));
+        plot((MatchedS.JD-JD0).*1440,MatchedS.Data.MAG_APER_3(:,Ind),'.')
         plot.invy
     end
 end
