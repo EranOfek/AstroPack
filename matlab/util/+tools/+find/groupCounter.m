@@ -36,7 +36,7 @@ function Gr = groupCounter(Counter, Args)
 
         Diff = [Counter.',[diff(Counter),1].', [0;diff([diff(Counter),1].')], (1:1:Nc).'];
 
-        IgroupStart = find(Diff(:,3)>0);
+        IgroupStart = [1; find(Diff(:,3)>0)];
         Ng          = numel(IgroupStart);
         for Ig=1:1:Ng
             I1 = IgroupStart(Ig);
