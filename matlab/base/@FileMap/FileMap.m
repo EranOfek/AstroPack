@@ -177,7 +177,7 @@ classdef FileMap < Component
         function scanPath(Obj, Path)
 
             % Get list of files and folders in any subfolder
-            Files = dir(fullfile(Path, '**\*.*'));
+            Files = dir(fullfile(Path, '**/*.*'));
             for i=1:numel(Files)
                 if Files(i).isdir == 0
                     fname = Files(i).name;
