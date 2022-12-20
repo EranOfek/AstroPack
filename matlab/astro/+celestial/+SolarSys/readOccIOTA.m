@@ -1,4 +1,4 @@
-function [PathD, InLim, InErr, Path]=readOccIOTA(URL, Args)
+function [PathD, Data, Path]=readOccIOTA(URL, Args)
     % Read IOTA we-page asteroid occultation path into matlab
     % Input  : - URL page.
     %            E.g., https://www.asteroidoccultation.com/2022_12/1220_71_78282_Summary.txt
@@ -11,7 +11,7 @@ function [PathD, InLim, InErr, Path]=readOccIOTA(URL, Args)
     % Example: [PD,P]=celestial.SolarSys.readOccIOTA;
     %          L=www.find_urls('https://www.asteroidoccultation.com/','match','\d\d\d\d_\d\d');
     %          L1=strrep(L,'.htm','_Summary.txt');
-    %          for I=1:1:numel(L1), [Path,InLim,InErr]=celestial.SolarSys.readOccIOTA(L1{I}); if InErr, Found(I)=true; end, end
+    %          for I=1:1:numel(L1), [Path,Data(I)]=celestial.SolarSys.readOccIOTA(L1{I}); I, end
 
     arguments
         URL          = 'https://www.asteroidoccultation.com/2022_12/1220_71_78282_Summary.txt';
@@ -27,6 +27,8 @@ function [PathD, InLim, InErr, Path]=readOccIOTA(URL, Args)
         Args.GeoPos  = [35 30];
     end
 
+    RAD = 180./pi;
+    
     Pos(1).Pos = [4 7];
     Pos(2).Pos = [9 10];
 
@@ -58,9 +60,20 @@ function [PathD, InLim, InErr, Path]=readOccIOTA(URL, Args)
     %Lines = regexp(TableData,'\n','split');
 
     %error('doesnt work');
-    Tmp = regexp(Str, '1 sigma uncertainty ellipse (major, minor, PA): (?<Err>\d\.\d\d\d)','names');
-    Tmp = regexp(Str, 'approx. diameter [km]: (?<Diam>\d+)','names');
+    Tmp = regexp(Str, '1 sigma uncertainty ellipse \(major, minor, PA\): (?<Err>\d\.\d\d\d)','names');
+    Data.ErrorAS = str2double(Tmp.Err);
+    Tmp = regexp(Str, 'approx\. diameter \[km\]: (?<Diam>\d+)','names');
+    Data.Diameter = str2double(Tmp.Diam);
+    Tmp = regexp(Str, 'distance from Earth \[AU\]: (?<Delta>\d+\.\d+)','names');
+    Data.Delta = str2double(Tmp.Delta);
+    Tmp = regexp(Str, 'magnitude of target star: (?<MagTarget>\d+\.\d+)','names');
+    Data.MagTarget = str2double(Tmp.MagTarget);
+    Tmp = regexp(Str, 'magnitude drop \[mag\]: (?<MagDrop>\d+\.\d+)','names');
+    Data.MagDrop = str2double(Tmp.MagDrop);
     
+    Data.ErrorKM = Data.ErrorAS./(RAD.*3600) .* Data.Delta.*constant.au./1e5;
+    
+        
     Nl = numel(Lines);
 
     VecStart = [4 16];%; 58 69; 80 91; 102 113; 124 135];
@@ -68,7 +81,7 @@ function [PathD, InLim, InErr, Path]=readOccIOTA(URL, Args)
     Nvs      = size(VecStart,1);
     K = 0;
     for Il=1:1:Nl
-        Il
+        %Il
         if numel(Lines{Il})>100
             K = K + 1;
             for Ivs=1:1:Nvs
@@ -101,7 +114,8 @@ function [PathD, InLim, InErr, Path]=readOccIOTA(URL, Args)
             end
 
             Path(K).Time    = [str2double(Lines{Il}(29:30)), str2double(Lines{Il}(32:33)), str2double(Lines{Il}(35:38))];
-
+            PathD(K).Time   = (Path(K).Time(1) + Path(K).Time(2)./60 + Path(K).Time(3)./3600)./24;
+            
             Path(K).StarAlt = str2double(Lines{Il}(42:45));
             Path(K).StarAz  = str2double(Lines{Il}(47:50));
             Path(K).SunAlt  = str2double(Lines{Il}(54:56));
@@ -125,23 +139,32 @@ function [PathD, InLim, InErr, Path]=readOccIOTA(URL, Args)
         plot(coastlon,coastlat)
         hold on
         plot([PathD.Lon], [PathD.Lat],'-')
-        plot([PathD.LonLim1], [PathD.LatLim1],'--')
-        plot([PathD.LonLim2], [PathD.LatLim2],'--')
-        plot([PathD.LonErrLim1], [PathD.LatErrLim1],'--')
-        plot([PathD.LonErrLim2], [PathD.LatErrLim2],'--')
+        %plot([PathD.LonLim1], [PathD.LatLim1],'--')
+        %plot([PathD.LonLim2], [PathD.LatLim2],'--')
+        %plot([PathD.LonErrLim1], [PathD.LatErrLim1],'--')
+        %plot([PathD.LonErrLim2], [PathD.LatErrLim2],'--')
 
     end
     
     if nargout>1
-        LonOut = [[PathD.LonErrLim1]'; flipud([PathD.LonErrLim2]')];
-        LatOut = [[PathD.LatErrLim1]'; flipud([PathD.LatErrLim2]')];
+        LonLine = [PathD.Lon]';
+        LatLine = [PathD.Lat]';
         
-        InErr = inpolygon(Args.GeoPos(:,1),Args.GeoPos(:,2),LonOut, LatOut);
+        Dist = celestial.coo.sphere_dist_fast(LonLine./RAD, LatLine./RAD, Args.GeoPos(1)./RAD, Args.GeoPos(2)./RAD);
+        Data.MinDistKM = 6371.*min(Dist);
         
-        LonOut = [[PathD.LonLim1]'; flipud([PathD.LonLim2]')];
-        LatOut = [[PathD.LatLim1]'; flipud([PathD.LatLim2]')];
+        Data.MinDistSigma = Data.MinDistKM./(Data.Diameter.*0.5 + Data.ErrorKM);
         
-        InLim = inpolygon(Args.GeoPos(:,1),Args.GeoPos(:,2),LonOut, LatOut);
+        
+%         LonOut = [[PathD.LonErrLim1]'; flipud([PathD.LonErrLim2]')];
+%         LatOut = [[PathD.LatErrLim1]'; flipud([PathD.LatErrLim2]')];
+%         
+%         InErr = inpolygon(Args.GeoPos(:,1),Args.GeoPos(:,2),LonOut, LatOut);
+%         
+%         LonOut = [[PathD.LonLim1]'; flipud([PathD.LonLim2]')];
+%         LatOut = [[PathD.LatLim1]'; flipud([PathD.LatLim2]')];
+%         
+%         InLim = inpolygon(Args.GeoPos(:,1),Args.GeoPos(:,2),LonOut, LatOut);
         
     end
 end
