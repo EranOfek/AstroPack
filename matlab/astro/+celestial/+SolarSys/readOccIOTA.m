@@ -57,7 +57,7 @@ function [PathD, InLim, InErr, Path]=readOccIOTA(URL, Args)
     %TableData = Str(IndStart+31:IndEnd);
     %Lines = regexp(TableData,'\n','split');
 
-    error('doesnt work');
+    %error('doesnt work');
     Tmp = regexp(Str, '1 sigma uncertainty ellipse (major, minor, PA): (?<Err>\d\.\d\d\d)','names');
     Tmp = regexp(Str, 'approx. diameter [km]: (?<Diam>\d+)','names');
     
