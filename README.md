@@ -1,10 +1,10 @@
 # AstroPack (a.k.a. MAATv2)
 Astronomy, Astrophysics, &amp; Image Processing Software Pacakge
 
-Developers: <a href="https://www.weizmann.ac.il/physics/ofek/home">Eran Ofek</a>, Chen Tishler, Yossi Shvartzvald, Amir Sharon, Dan Elhanati, Noam Segev
+Main Developers: <a href="https://www.weizmann.ac.il/physics/ofek/home">Eran Ofek</a>, Chen Tishler, Yossi Shvartzvald, Amir Sharon, Dan Elhanati, Noam Segev
 Weizmann Institute of Science
 
-## Instellation:
+## Installation:
 1. git clone <this package>
 2. git checkout dev1
 3. From matlab: edit manuals.Install, and follow the instructions.
