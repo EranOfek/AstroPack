@@ -1952,7 +1952,7 @@ end
 disp(sprintf('--- Measure Lines in rest frame %s ---',SpecType))
 disp(sprintf('--- OPen New figure ---'))
 [LinesProp,ConPos]=eq_width(SpecM);
-%            [Wavelength at extramum intensity,
+%            [Wavelength at extremum intensity,
 %             Line center (first moment),
 %             Line second moment,
 %             Line FWHM, (not implemented)

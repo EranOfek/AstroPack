@@ -30,7 +30,7 @@ function [Result, Fit]=image_quality(Image, Args)
     %            .Y - Matrix of Y centers per position.
     %          - Paraboloid surface fit.
     %            The coordinate system is relative to the image center.
-    %            ExtramXc, ExtramYc provides the extramum position relative
+    %            ExtramXc, ExtramYc provides the extremum position relative
     %            to the image center.
     % Author : Eran Ofek (Jan 2022)
     % Example: [Result,Fit]=imUtil.psf.image_quality(Image)

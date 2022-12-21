@@ -6,14 +6,14 @@ function [Fp,ExtramP,ExtramFp,Extram2D]=interp3p(Y,P)
 %              points are at [-1,0,1], return, based on the Stirling
 %              interpolation formula, the values of the interpolation
 %              function at the vector of positions, and information
-%              regarding the extramum of the interpolation function.
+%              regarding the extremum of the interpolation function.
 % Input  : - Vector of three values specified at positions [-1,0,1].
 %          - Vector of positions at which to calculate the values
 %            of the interpolation function.
 % Output : - Values of the interpolation function.
-%          - Position of extramum.
+%          - Position of extremum.
 %          - Value at extramum.
-%          - 2nd derivative at extramum.
+%          - 2nd derivative at extremum.
 % Tested : Matlab R2011b
 %     By : Eran O. Ofek                    May 2014
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
