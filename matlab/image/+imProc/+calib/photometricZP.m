@@ -222,7 +222,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
 
                 % get photometric catalog
                 Ipc = 1;
-                [PhotCat] = imProc.cat.getAstrometricCatalog(RA, Dec, 'CatName',Args.CatName,...
+                [PhotCat(Iobj)] = imProc.cat.getAstrometricCatalog(RA, Dec, 'CatName',Args.CatName,...
                                                                       'CatOrigin',Args.CatOrigin,...
                                                                       'Radius',CircleRadius,...
                                                                       'CooUnits','rad',...
@@ -236,21 +236,21 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                                                                       'RangePlx',Args.RangePlx);
             end
 
-
             if Args.UseOnlyMainSeq
-                PhotCat = imProc.calib.selectMainSequenceFromGAIA(PhotCat, 'CreateNewObj',true);
+                PhotCat(Iobj) = imProc.calib.selectMainSequenceFromGAIA(PhotCat(Iobj), 'CreateNewObj',true);
             end
 
             % match Cat against reference (photometric) catalog
-            PhotCat(Ipc).sortrows('Dec');
+            %PhotCat(Ipc).sortrows('Dec');
+            PhotCat(Iobj).sortrows('Dec');
             %Cat.sortrows('Dec');
 
-            ResMatch = imProc.match.matchReturnIndices(PhotCat(Ipc), Cat, 'Radius',Args.Radius,...
+            ResMatch = imProc.match.matchReturnIndices(PhotCat(Iobj), Cat, 'Radius',Args.Radius,...
                                                                           'RadiusUnits',Args.RadiusUnits,...
                                                                           'CooType','sphere',...
                                                                           Args.matchReturnIndicesArgs{:});
 
-            MatchedPhotCat = selectRows(PhotCat(Ipc), ResMatch.Obj2_IndInObj1, 'IgnoreNaN',false, 'CreateNewObj',true);
+            MatchedPhotCat = selectRows(PhotCat(Iobj), ResMatch.Obj2_IndInObj1, 'IgnoreNaN',false, 'CreateNewObj',true);
 
 
 
@@ -317,6 +317,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
 
                     H     = [ones(Nsrc,1), Color, Color.^2, Width-MedW]; % CatXY];
                     ResFit(Iobj).Fun = @(Par, InstMag, Color, Width, MedW) InstMag + Par(1) + Par(2).*Color + Par(3).*Color.^2 + Par(4).*(Width-MedW);
+                    %ResFit(Iobj).Fun = @(Par, InstMag, Color) InstMag + Par(1) + Par(2).*Color;
 
                     Y     = RefMag - CatMag;
                     %Y     = RefMagBands(:,1) - CatMag;

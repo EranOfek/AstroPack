@@ -56,12 +56,12 @@ function [Result, FlagRes, FitPar] = selectMainSequenceFromGAIA(Obj, Args)
     end
 
     Cols   = {'Plx', 'ErrPlx', 'Mag_G', 'Mag_BP', 'Mag_RP', 'ExcessNoise','ExcessNoiseSig'};
-    DataSt = getCol2struct(Obj, Cols);
+    
 
     FitPar = [];
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
-        
+        DataSt(Iobj) = getCol2struct(Obj(Iobj), Cols);
         Flag = DataSt(Iobj).Plx > Args.PlxLimit & ...
                (DataSt(Iobj).Plx./DataSt(Iobj).ErrPlx) > Args.PlxSNLimit & ...
                DataSt(Iobj).ExcessNoise < Args.ExcessNoiseLimit & ...
@@ -70,7 +70,7 @@ function [Result, FlagRes, FitPar] = selectMainSequenceFromGAIA(Obj, Args)
                (DataSt(Iobj).Mag_BP - DataSt(Iobj).Mag_RP) < Args.ColorLimit(2);
 
 
-        DistMod =  5.*log10(1000./DataSt.Plx) - 5;  % m-M
+        DistMod =  5.*log10(1000./DataSt(Iobj).Plx) - 5;  % m-M
         AbsMagG = DataSt(Iobj).Mag_G - DistMod;
         Color   = DataSt(Iobj).Mag_BP - DataSt(Iobj).Mag_RP;
 
