@@ -124,6 +124,9 @@ classdef Configuration < handle
         Data struct = struct()  % Initialize empty struct, all YML files are added here in tree structure
     end
 
+    properties (Constant)
+        InputArgsLevel = 'InputArgs';
+    end
     %--------------------------------------------------------
     methods % Constructor
         function Obj = Configuration(Args)
@@ -330,6 +333,42 @@ classdef Configuration < handle
             end
         end
 
+        function Result = getDefFunctionArgsFromConfig(Obj, SetName, FunName)
+            % Get function default input arguments from Configuration.
+            % Input  : - A Configuration object.
+            %          - Function setname. Setname is the project or group
+            %            for which the default arguments belong.
+            %            In the configuration there may be several setnames
+            %            each referes to a different project.
+            %            Default is 'last'.
+            %          - FunName is the function path name - e.g.,
+            %            'CalibImages.loadFromDir' | 'celestial.time.julday'.
+            %            If empty, then will use dbstack to identify the
+            %            caller function (2nd level in dbstack).
+            %            Default is empty.
+            % Output : - The substructure of function arguments.
+            % Author : Eran Ofek (Dec 2022)
+            % Example: AI.Config.getDefFunctionArgsFromConfig 
+            %          AI.Config.getDefFunctionArgsFromConfig('last','example')
+            
+            arguments
+                Obj
+                SetName  = 'last';
+                FunName  = [];
+            end
+            
+            if isempty(FunName)
+                % use dbstack to get function arguments
+                DB = dbstack(2);
+                FunName = DB(2).name;
+            end
+            
+            [Result, Failed] = tools.struct.string2fields(Obj.Data.(Obj.InputArgsLevel).(SetName),FunName);
+            if Failed
+                error('Input Arguments configuration setname for %s and function %s was not found',SetName,FunName);
+            end
+                       
+        end
     end
     
     %======================================================================

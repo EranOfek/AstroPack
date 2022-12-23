@@ -44,19 +44,29 @@ classdef Pipeline < Component
             arguments
                 Obj
                 Args.CI                     = [];  % pass a CalibImages object
-                Args.ImagesPath             = @pipeline.last.constructCamDir;  % bias images are in this dir (empty=current dir)
+                Args.ImagesPath             = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
                 Args.ImagePathArgs          = {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
                 Args.FileNameType           = 'dark';
                 Args.UseFileNames logical   = true;
                 Args.UseConfigArgs logical  = true;
                 Args.Args                   = {};
             end
+                        
             
             if ~isempty(Args.CI)
                 Obj.CI = Args.CI;
             else
+                if isa(Args.ImagesPath, 'function_handle')
+                    ImagePath = Args.ImagesPath(Args.ImagePathArgs{:});
+                else
+                    ImagePath = Args.ImagesPath;
+                end
+                PWD = pwd;
+                cd(ImagePath);
+                % prep bias/dark
                 
-            
+                cd(PWD);
+            end
             
         end
         
