@@ -43,46 +43,49 @@ classdef Pipeline < Component
            
             arguments
                 Obj
-                CI                          = '*.fits'; %[];  % pass a CalibImages object
+                List                          = '*.fits'; %[];  % pass a CalibImages object
                 Args.ImagesPath             = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
                 Args.ImagePathArgs          = {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
                 Args.FileNameType           = 'dark';
                 Args.UseFileNames logical   = true;
                 Args.UseConfigArgs logical  = true;
-                Args.Args                   = {};
+                Args.ArgsCreateBias         = {};
             end
                         
             
-            if isa(CI,'AstroImage')
-                % ...
+            if isa(List,'AstroImage')
+                % do nothing - List is an AstroImage
             else
-                if isa(Args.ImagesPath, 'function_handle')
-                    ImagePath = Args.ImagesPath(Args.ImagePathArgs{:});
-                else
-                    ImagePath = Args.ImagesPath;
-                end
-                PWD = pwd;
-                cd(ImagePath);
-                % prep bias/dark
                 
                 % identify bias/dark image by type
                 if Args.UseFileNames
                     % use FileNames class
-                    FN = FileNames.generateFromFileName(CI);
+                    FN = FileNames.generateFromFileName(List);
                     [FN,Flag] = selectBy(FN, 'Type', Args.FileNameType, 'CreateNewObj',false)
                     List = FN.genFile;
                 else
                     % select files
-                    List = io.files.filelist(CI);
+                    List = io.files.filelist(List);
                     % search for subs tring in file names
                     Flag = contains(List, Args.FileNameType);
                     List = List(Flag);
                 end
-                    
-                
-                cd(PWD);
+                                                
             end
             
+            if isa(Args.ImagesPath, 'function_handle')
+                ImagePath = Args.ImagesPath(Args.ImagePathArgs{:});
+            else
+                ImagePath = Args.ImagesPath;
+            end
+            PWD = pwd;
+            cd(ImagePath);
+            % prep bias/dark
+
+            Obj.CI = CalibImages;
+            Obj.CI = createBias(Obj.CI, List, Args.ArgsCreateBias{:});
+            
+            cd(PWD);
         end
         
         % prep flat
