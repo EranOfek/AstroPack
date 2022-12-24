@@ -43,7 +43,7 @@ classdef Pipeline < Component
            
             arguments
                 Obj
-                Args.CI                     = [];  % pass a CalibImages object
+                CI                          = '*.fits'; %[];  % pass a CalibImages object
                 Args.ImagesPath             = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
                 Args.ImagePathArgs          = {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
                 Args.FileNameType           = 'dark';
@@ -53,8 +53,8 @@ classdef Pipeline < Component
             end
                         
             
-            if ~isempty(Args.CI)
-                Obj.CI = Args.CI;
+            if isa(CI,'AstroImage')
+                % ...
             else
                 if isa(Args.ImagesPath, 'function_handle')
                     ImagePath = Args.ImagesPath(Args.ImagePathArgs{:});
@@ -64,6 +64,21 @@ classdef Pipeline < Component
                 PWD = pwd;
                 cd(ImagePath);
                 % prep bias/dark
+                
+                % identify bias/dark image by type
+                if Args.UseFileNames
+                    % use FileNames class
+                    FN = FileNames.generateFromFileName(CI);
+                    [FN,Flag] = selectBy(FN, 'Type', Args.FileNameType, 'CreateNewObj',false)
+                    List = FN.genFile;
+                else
+                    % select files
+                    List = io.files.filelist(CI);
+                    % search for subs tring in file names
+                    Flag = contains(List, Args.FileNameType);
+                    List = List(Flag);
+                end
+                    
                 
                 cd(PWD);
             end
