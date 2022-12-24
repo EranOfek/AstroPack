@@ -19,44 +19,20 @@ classdef Pipeline < Component
     end
     
     methods (Static)  % static methods
-     
-        
-    end
-    
-    methods % Prepare pipeline for executation
-        function Obj = loadCalibImages(Obj, Args)
-            %
+        function [List, ImagePath, FullPathList] = prepImagesList(List, Args)
+            % Prepare list of images to 
             
             arguments
-                Obj
-                Args.CalibDir = [];
-            end
-            
-        end
-        
-    end
-    
-    methods % generic pipelines
-        % prep dark/bias
-        function Obj=createBias(Obj, Args)
-            %
-           
-            arguments
-                Obj
-                List                          = '*.fits'; %[];  % pass a CalibImages object
+                List
                 Args.ImagesPath             = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
                 Args.ImagePathArgs          = {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
                 Args.FileNameType           = 'dark';
                 Args.UseFileNames logical   = true;
-                Args.UseConfigArgs logical  = true;
-                Args.ArgsCreateBias         = {};
             end
-                        
             
             if isa(List,'AstroImage')
                 % do nothing - List is an AstroImage
             else
-                
                 % identify bias/dark image by type
                 if Args.UseFileNames
                     % use FileNames class
@@ -78,6 +54,48 @@ classdef Pipeline < Component
             else
                 ImagePath = Args.ImagesPath;
             end
+            
+            if nargout>2
+                FullPathList = fullfile(ImagePath, List);
+            end
+            
+        end
+        
+    end
+    
+    methods % Prepare pipeline for executation
+        function Obj = loadCalibImages(Obj, Args)
+            %
+            
+            arguments
+                Obj
+                Args.CalibDir = [];
+            end
+            
+        end
+        
+    end
+    
+    methods % generic pipelines
+        
+        
+        % prep dark/bias
+        function Obj=createBias(Obj, Args)
+            %
+            
+            arguments
+                Obj
+                List                          = '*.fits'; %[];  % pass a CalibImages object
+                Args.ImagesPath             = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
+                Args.ImagePathArgs          = {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
+                Args.FileNameType           = 'dark';
+                Args.UseFileNames logical   = true;
+                Args.UseConfigArgs logical  = true;
+                Args.ArgsCreateBias         = {};
+            end
+                        
+            
+            
             PWD = pwd;
             cd(ImagePath);
             % prep bias/dark
