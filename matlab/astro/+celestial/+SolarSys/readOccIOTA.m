@@ -12,7 +12,15 @@ function [PathD, Data, Path]=readOccIOTA(URL, Args)
     %          L=www.find_urls('https://www.asteroidoccultation.com/','match','\d\d\d\d_\d\d');
     %          L1=strrep(L,'.htm','_Summary.txt');
     %          for I=1:1:numel(L1), [Path,Data(I)]=celestial.SolarSys.readOccIOTA(L1{I}); I, end
-
+    %
+    %          URL = 'https://www.asteroidoccultation.com/IndexAll.htm';
+    %          L=www.find_urls(URL,'strfind','.htm');
+    %          for I=1:1:numel(L),
+    %               Lm=www.find_urls(L{I},'match','.*\d\.htm'); Lm = strrep(Lm, '.htm','_Summary.txt');
+    %               for J=1:1:numel(Lm),
+    %               [Path,Data(I,J)]=celestial.SolarSys.readOccIOTA(Lm{J});end
+    %          end
+    
     arguments
         URL          = 'https://www.asteroidoccultation.com/2022_12/1220_71_78282_Summary.txt';
         Args.strfind = [];
@@ -73,6 +81,8 @@ function [PathD, Data, Path]=readOccIOTA(URL, Args)
     
     Data.ErrorKM = Data.ErrorAS./(RAD.*3600) .* Data.Delta.*constant.au./1e5;
     
+    Tmp = regexp(Str, 'geocentric midpoint of event \[JD\]:\s*(?<JD>\d+\.\d+)','names');
+    Data.MidGeocentricJD = str2double(Tmp.JD);
         
     Nl = numel(Lines);
 
@@ -155,6 +165,7 @@ function [PathD, Data, Path]=readOccIOTA(URL, Args)
         
         Data.MinDistSigma = Data.MinDistKM./(Data.Diameter.*0.5 + Data.ErrorKM);
         
+        Data.URL = URL;
         
 %         LonOut = [[PathD.LonErrLim1]'; flipud([PathD.LonErrLim2]')];
 %         LatOut = [[PathD.LatErrLim1]'; flipud([PathD.LatErrLim2]')];
