@@ -91,6 +91,8 @@ function MatchedS = imagesSequence2LC(List, Args)
     ResZP = lcUtil.zp_meddiff(MatchedS,'MagField','MAG_APER_3','MagErrField','MAGERR_CONV_3');
     [MatchedS ,ApplyToMagField] = applyZP(MatchedS, ResZP.FitZP, 'FieldZP','FitZP', 'ApplyToMagField','MAG_', 'Operator',@minus);
 
+    
+    
     if Args.Plot
         JD0 = floor(MatchedS.JD(1));
         plot((MatchedS.JD-JD0).*1440,MatchedS.Data.MAG_APER_3(:,Ind),'.')
