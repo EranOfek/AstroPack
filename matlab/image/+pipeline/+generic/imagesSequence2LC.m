@@ -30,12 +30,13 @@ function MatchedS = imagesSequence2LC(List, Args)
     % Output : - A MatchedSources object containing the photometry of
     %            soources in the field.
     % Author : Eran Ofek (Dec 2022)
+    % Example: [MS]=pipeline.generic.imagesSequence2LC('LAST*Chiron*.fits','CI',CI);
 
     arguments
         List               = 'LAST*Chiron*.fits';
         Args.RA            = celestial.coo.convertdms('00:39:58.719','SH','d');                                              
         Args.Dec           = celestial.coo.convertdms('+06:16:08.86','SD','d');
-        Args.CCDSEC        = [501 2500 2301 4300]; %[2201 4200 4001 6000];
+        Args.CCDSEC        = [2201 4200 4001 6000]; %[501 2500 2301 4300]; %[2201 4200 4001 6000];
         Args.CI            = '/raid/eran/projects/telescopes/LAST/Images_PipeTest/calib';
         Args.Scale         = 1.25;
         Args.RefRangeMag   = [8 14];
