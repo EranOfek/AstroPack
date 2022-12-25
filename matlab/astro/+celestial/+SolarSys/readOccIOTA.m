@@ -15,10 +15,11 @@ function [PathD, Data, Path]=readOccIOTA(URL, Args)
     %
     %          URL = 'https://www.asteroidoccultation.com/IndexAll.htm';
     %          L=www.find_urls(URL,'strfind','.htm');
+    %          K = 0;
     %          for I=1:1:numel(L),
     %               Lm=www.find_urls(L{I},'match','.*\d\.htm'); Lm = strrep(Lm, '.htm','_Summary.txt');
-    %               for J=1:1:numel(Lm),
-    %               [Path,Data(I,J)]=celestial.SolarSys.readOccIOTA(Lm{J});end
+    %               for J=1:1:numel(Lm), 
+    %               try, K=K+1; [Path,Data(K)]=celestial.SolarSys.readOccIOTA(Lm{J}); end, end
     %          end
     
     arguments
