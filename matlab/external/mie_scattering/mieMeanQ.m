@@ -48,7 +48,7 @@ function Result = mieMeanQ(R, Fun_dNdR, Par_dNdR, Theta, N, Lambda, Rho)
     Result.Q_scaT           = zeros(Nr,1);
     Result.MR2Qabs          = zeros(Nr,1);
     Result.NR2Sabs          = zeros(Nr,1);
-    
+    Result.dSdOsT           = zeros(Nr,1);
     
     GeomSigma = pi.*R.^2;
     MassPerParticle = 4./3.*pi.*Rho.*R.^3;
@@ -108,6 +108,7 @@ function Result = mieMeanQ(R, Fun_dNdR, Par_dNdR, Theta, N, Lambda, Rho)
         Result.Q_ext(Ir)   = dNdR(Ir) .* C.ext./GeomSigma(Ir);
         Result.Q_scaT(Ir)  = dNdR(Ir) .* Q_IthetaT;
         
+        Result.dSdOsT(Ir)  = dNdR(Ir) .* S_IthetaT./C.ext;
     end
     
     Result.R       = R;
@@ -118,7 +119,7 @@ function Result = mieMeanQ(R, Fun_dNdR, Par_dNdR, Theta, N, Lambda, Rho)
     Result.CumMass = cumsum(MassInBin);
     Result.IntM        = trapz(R, MassInBin);
     Result.IntN        = trapz(R, dNdR);
-    Result.IntS_aca    = trapz(R, Result.S_sca);
+    Result.IntS_sca    = trapz(R, Result.S_sca);
     Result.IntS_abs    = trapz(R, Result.S_abs);
     Result.IntS_ext    = trapz(R, Result.S_ext);
     Result.IntS_scaT   = trapz(R, Result.S_scaT);
@@ -129,6 +130,7 @@ function Result = mieMeanQ(R, Fun_dNdR, Par_dNdR, Theta, N, Lambda, Rho)
     Result.IntMR2Qabs  = trapz(R, Result.MR2Qabs);
     Result.IntNR2Sabs  = trapz(R, Result.NR2Sabs);
     
+    Result.Int_dSdOsT  = trapz(R, Result.dSdOsT);
     
     
     Result.Int_dNdR    = trapz(R, dNdR);
