@@ -461,15 +461,16 @@ classdef FileNames < Component
     end
     
     methods % file/path names
-        function FileName = genFile(Obj, Ind, ReturnChar)
+        function FileName = genFile(Obj, Ind, Args)
             % Generate a cell array of file names from a FileNames object
             % Input  : - An FileNames object.
             %          - If empty, then will return all file names.
             %            If scalar, then will return only the file name
             %            that corresponds to the Ith time in the object.
-            %          - A logical indicating if to return a char array
-            %            instead of cell array in case that a single file is
-            %            returned. Default is false.
+            %          * ..., key,val,...
+            %            'ReturnChar' - A logical indicating if to return a char array
+            %                   instead of cell array in case that a single file is
+            %                   returned. Default is false.
             % Output : - A cell array of file names.
             % Author : Eran Ofek (Dec 2022)
             
@@ -477,7 +478,7 @@ classdef FileNames < Component
             arguments
                 Obj
                 Ind = [];
-                ReturnChar logical = false;
+                Args.ReturnChar logical = false;
             end
             
             if isempty(Ind)
@@ -537,31 +538,42 @@ classdef FileNames < Component
                                             Obj.getProp('FileType',Itime));
                                             
             end
-            if ReturnChar && Ntime==1
+            if Args.ReturnChar && Ntime==1
                 FileName = FileName{1};
             end
             
             
         end
         
-        function Path = genPath(Obj, Ind, ReturnChar, AddSubDir)
-            % Generate path for FileNames object
+        function Path = genPath(Obj, Ind, Args)
+            % Generate path for FileNames object.
+            %       If the FullPath [property in the object is populated
+            %       than it is returned.
             % Input  : - A FileNames object.
             %          - Index of time stamp in the object for which to
             %            generate the path. If empty, then for all (slow).
             %            Default is 1.
-            %          - A logical indicatibf if to return the path in a
-            %            char array (true) or cell (false).
-            %            Default is true.
-            %          - Add SubDir to path. Default is true.
+            %          * ...,key,val,...
+            %            'ReturnChar' - A logical indicatibf if to return the path in a
+            %                   char array (true) or cell (false).
+            %                   Default is true.
+            %            'AddSubDir' - Add SubDir to path. Default is true.
+            %            'BasePath' - Base path to insert into the object
+            %                   BasePath property. If empty, use object default.
+            %                   Default is [].
+            %            'FullPath' - A full path to insert into the object
+            %                   FullPath property. If empty, use object default.
+            %                   Default is [].
             % Output : - A path.
             % Author : Eran Ofek (Dec 2022) 
             
             arguments
-                Obj
+                Obj(1,1)
                 Ind = 1;
-                ReturnChar logical = true;
-                AddSubDir logical  = true;
+                Args.ReturnChar logical = true;
+                Args.AddSubDir logical  = true;
+                Args.BasePath = [];
+                Args.FullPath = [];
             end
             
             if isempty(Ind)
@@ -574,13 +586,21 @@ classdef FileNames < Component
                 Ntime = 1;
             end
             
+            if ~isempty(Args.BasePath)
+                Obj.BasePath = Args.BasePath;
+            end
+
+            if ~isempty(Args.FullPath)
+                Obj.FullPath = Args.FullPath;
+            end
+            
             if isempty(Obj.FullPath)
                 Path = cell(Ntime,1);
                 for Itime=1:1:Ntime
                     if ~isempty(Ind)
                         Itime = Ind;
                     end
-                    
+
                     % /euler1/archive/LAST/<ProjName>/new
                     % /euler1/archive/LAST/<ProjName>/2022/12/01/raw
                     % /euler1/archive/LAST/<ProjName>/2022/12/01/proc
@@ -591,44 +611,54 @@ classdef FileNames < Component
                                     getProp(Obj, 'ProjName', Itime),...
                                     DateDir, filesep, ...
                                     getProp(Obj, 'Level', Itime));
-                                    
+
                     if AddSubDir
                         Path{Itime} = sprintf('%s%s%s',Path{Itime},filesep,...
                                                        getProp(Obj, 'SubDir', Itime));
                     end
                 end
-                
+
             else
                 Path = {Obj.FullPath};
             end
-            
-            if ReturnChar && numel(Path)==1
+
+            if Args.ReturnChar && numel(Path)==1
                 Path = Path{1};
             end
             
         end
         
-        function FullName = genFull(Obj, Ind, IndDir, ReturnChar)
+        function FullName = genFull(Obj, Ind, Args)
             % Generate a full path and file name for all files
             % Input  : - An FileNames object
             %          - Index of time for file. If empty, generate full
             %            name for all files. Default is [].
-            %          - Index of file for path. If empty, generate full
-            %            name for all files. Default is 1.
-            %          - Logical indicating if to return char instead of
-            %            cell (only if a single file is returned).
-            %            Default is false.
+            %          * ...,key,val,...
+            %            'IndDir' - Index of file for path. If empty, generate full
+            %                   name for all files. Default is 1.
+            %            'ReturnChar' - Logical indicating if to return char instead of
+            %                   cell (only if a single file is returned).
+            %                   Default is false.
+            %            'BasePath' - Base path to insert into the object
+            %                   BasePath property. If empty, use object default.
+            %                   Default is [].
+            %            'FullPath' - A full path to insert into the object
+            %                   FullPath property. If empty, use object default.
+            %                   Default is [].
             % Output : - A cell array of full file name and path.
             % Author : Eran Ofek (Dec 2022)
             
             arguments
                 Obj
                 Ind     = [];
-                IndDir  = 1;
-                ReturnChar logical = false;
+                Args.IndDir  = 1;
+                Args.ReturnChar logical = false;
+                Args.BasePath = [];
+                Args.FullPath = [];
             end
+            
             FileName = genFile(Obj, Ind, ReturnChar);
-            Path     = genPath(Obj, IndDir, ReturnChar);
+            Path     = genPath(Obj, Args.IndDir, 'ReturnChar',Args.ReturnChar, 'BasePath',Args.BasePath, 'FullPath',Args.FullPath);
             
             Nfn      = numel(FileName);
             Np       = numel(Path);
@@ -638,7 +668,7 @@ classdef FileNames < Component
                 FullName{Ifn} = sprintf('%s%s',Path{Ip},FileName{Ifn});
             end
             
-            if ReturnChar && numel(FullName)==1
+            if Args.ReturnChar && numel(FullName)==1
                 FullName = FullName{1};
             end
             
