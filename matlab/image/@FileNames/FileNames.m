@@ -211,9 +211,9 @@ classdef FileNames < Component
                 Obj.Time{Ilist}     = SplitName{2};
                 Obj.Filter{Ilist}   = SplitName{3};
                 Obj.FieldID{Ilist}  = SplitName{4};
-                Obj.Counter{Ilist}  = str2double(SplitName{5});
-                Obj.CCDID{Ilist}    = str2double(SplitName{6});
-                Obj.CropID{Ilist}   = str2double(SplitName{7});
+                Obj.Counter(Ilist)  = str2double(SplitName{5});
+                Obj.CCDID(Ilist)    = str2double(SplitName{6});
+                Obj.CropID(Ilist)   = str2double(SplitName{7});
                 Obj.Type{Ilist}     = SplitName{8};
                 Obj.Level{Ilist}    = SplitName{9};
                 Obj.Product{Ilist}  = SplitName{10};
@@ -818,12 +818,12 @@ classdef FileNames < Component
                 if numel(Obj.(Args.PropToOrder{If}))==1
                     % skip reorder
                 else
-                    if numel(Obj.(Args.PropToOrder{If}))==NInd
+                    %if numel(Obj.(Args.PropToOrder{If}))==NInd
                         % reorder
-                        Result.(Args.PropToOrder{If}) = Obj.(Args.PropToOrder{If})(Ind);
-                    else
-                        error('Number of entries in property %s must be either 1 or %d',Args.PropToOrder{If},NInd);
-                    end
+                    Result.(Args.PropToOrder{If}) = Obj.(Args.PropToOrder{If})(Ind);
+                    %else
+                    %    error('Number of entries in property %s must be either 1 or %d',Args.PropToOrder{If},NInd);
+                    %end
                 end
             end
             
@@ -938,11 +938,16 @@ classdef FileNames < Component
             %   contains at least MinInGroup and not more than MaxInGroup
             %   entries.
             % Input  : - A FileNames object.
+            %            Note that after running this function the input
+            %            object will be sorted by JD.
             %          * ...,key,val,...
             %            'MinInGroup' - Minimum number of elements in
             %                   group. Default is 10.
             %            'MaxInGroup' - Maximum number of elements in
             %                   group. Default is 20.
+            %            'CreateNewObj' - A logical indicating if to save
+            %                   the grouped elements in a new object.
+            %                   Default is true.
             % Output : - A struct array of all groups, with the following
             %            fields:
             %            .I1 - start index.
@@ -958,6 +963,7 @@ classdef FileNames < Component
                 Obj
                 Args.MinInGroup             = 10;
                 Args.MaxInGroup             = 20;
+                Args.CreateNewObj logical   = true;
             end
             
             if Args.CreateNewObj
@@ -970,11 +976,13 @@ classdef FileNames < Component
             JD         = Result.julday;
             CounterVec = Result.Counter;
             
-            Groups = tools.find.groupCounter(Counter, 'MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
+            
+            Groups = tools.find.groupCounter(CounterVec, 'MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
             
             if nargout>1
                 Ngr    = numel(Groups);
                 for Igr=1:1:Ngr
+                    Igr
                     Result(Igr) = Obj.reorderEntries(Groups(Igr).Ind, 'CreateNewObj',true);
                 end
             end
