@@ -44,8 +44,8 @@ classdef FileNames < Component
         % Fields formatting
         %FormatFieldID   = '%06d';       % Used with FieldID
         FormatCounter   = '%03d';       % Used with Counter        
-        FormatCCDID     = '%01d';       % Used with CCDID
-        FormatCropID    = '%02d';       % Used with CropID
+        FormatCCDID     = '%03d';       % Used with CCDID
+        FormatCropID    = '%03d';       % Used with CropID
         FormatVersion   = '%d';       % Used with Version
         
     end
@@ -982,7 +982,6 @@ classdef FileNames < Component
             if nargout>1
                 Ngr    = numel(Groups);
                 for Igr=1:1:Ngr
-                    Igr
                     Result(Igr) = Obj.reorderEntries(Groups(Igr).Ind, 'CreateNewObj',true);
                 end
             end
