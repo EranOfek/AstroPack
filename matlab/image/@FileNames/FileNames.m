@@ -945,6 +945,10 @@ classdef FileNames < Component
             %                   group. Default is 10.
             %            'MaxInGroup' - Maximum number of elements in
             %                   group. Default is 20.
+            %            'BasePath' - Base path to replace the existing
+            %                   BasePath in the FileNames object.
+            %                   If empty, use original.
+            %                   Default is [].
             %            'CreateNewObj' - A logical indicating if to save
             %                   the grouped elements in a new object.
             %                   Default is true.
@@ -963,6 +967,7 @@ classdef FileNames < Component
                 Obj
                 Args.MinInGroup             = 10;
                 Args.MaxInGroup             = 20;
+                Args.BasePath               = [];
                 Args.CreateNewObj logical   = true;
             end
             
@@ -983,6 +988,9 @@ classdef FileNames < Component
                 Ngr    = numel(Groups);
                 for Igr=1:1:Ngr
                     Result(Igr) = Obj.reorderEntries(Groups(Igr).Ind, 'CreateNewObj',true);
+                    if ~isempty(Args.BasePath)
+                        Result(Igr).BasePath = Args.BasePath;
+                    end
                 end
             end
         end
