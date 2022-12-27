@@ -1,4 +1,4 @@
-function List=filelist(FileName, UseRegExp, ReadFromFile)
+function List=filelist(FileName, Args)
     % Generate a cell array array of files list from file name/regular expression
     % Input  : - A file name, a file name containing wild
     %            cards or regular expression, a cell array of
@@ -16,11 +16,12 @@ function List=filelist(FileName, UseRegExp, ReadFromFile)
 
     arguments
         FileName
-        UseRegExp logical      = false;
-        ReadFromFile logical   = true;
+        Args.UseRegExp logical      = false;
+        Args.ReadFromFile logical   = true;
+        Args.AddPath logical        = false;
     end
 
-    if ReadFromFile
+    if Args.ReadFromFile
         if strcmp(FileName(1),'@')
             % assume file name is a file containing file names
             FileName = FileName(2:end);
@@ -39,15 +40,23 @@ function List=filelist(FileName, UseRegExp, ReadFromFile)
     if NormalMode
 
         if ischar(FileName) || isstring(FileName)
-            if UseRegExp
+            if Args.UseRegExp
                 Files = dir('*');
-                FilesCell = fullfile({Files.folder},{Files.name});
+                if Args.AddPath
+                    FilesCell = fullfile({Files.folder},{Files.name});
+                else
+                    FilesCell = {Files.name};
+                end
                 Tmp  = regexp(FilesCell,FileName,'match');
                 Flag = ~cellfun(@isempty,Tmp);
                 List = FilesCell(Flag);    
             else
                 Files = dir(FileName);
-                List  = fullfile({Files.folder},{Files.name});
+                if Args.AddPath
+                    List  = fullfile({Files.folder},{Files.name});
+                else
+                    List = {Files.name};
+                end
             end
 
         elseif isstruct(FileName)

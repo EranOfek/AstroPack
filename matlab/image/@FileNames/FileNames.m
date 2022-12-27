@@ -191,6 +191,7 @@ classdef FileNames < Component
             %            or a cell array of file names.
             % Output : - A FileNames object containing the file names.
             % Author : Eran Ofek (Dec 2022)
+            % Example: FN=FileNames.generateFromFileName('LAST*.fits');
             
             if ischar(List)
                 List = io.files.filelist(List);
@@ -200,6 +201,8 @@ classdef FileNames < Component
                 error('List must be either a char array or cell array');
             end
             
+            Obj = FileNames;
+
             Nlist = numel(List);
             for Ilist=1:1:Nlist
                 SplitName = regexp(List{Ilist},'_','split');
@@ -214,8 +217,9 @@ classdef FileNames < Component
                 Obj.Type{Ilist}     = SplitName{8};
                 Obj.Level{Ilist}    = SplitName{9};
                 Obj.Product{Ilist}  = SplitName{10};
-                Obj.Version{Ilist}  = str2double(SplitName{11});
-                Obj.FileType{Ilist} = SplitName{12};
+                TmpSplit = split(SplitName{11},'.');
+                Obj.Version(Ilist)  = str2double(TmpSplit{1});
+                Obj.FileType{Ilist} = TmpSplit{2};
                                 
             end
             
