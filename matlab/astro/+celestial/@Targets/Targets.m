@@ -20,7 +20,7 @@ classdef Targets < Component
         MaxNobs                    = Inf;
         PriorityArgs               = struct('InterNightCadence',40./1440,...
                                             'CadenceFun',@celestial.scheduling.fermiexp,...  
-                                            'CadeneFunArgs',[1.4, 1, 0.03, 1, 0.5]);  %t0,Decay,Soft,BaseW,ExtraW)
+                                            'CadeneFunArgs',{1.4, 1, 0.03, 1, 0.5});  %t0,Decay,Soft,BaseW,ExtraW)
                                                     
         LastJD
         GlobalCounter              = 0;
@@ -580,11 +580,12 @@ classdef Targets < Component
     
     methods % weights and priority
         function [Obj, P, Ind] = calcPriority(Obj, JD, CadenceMethod)
+            % Calculate priority for targets in celestial.Targets object.
             %
             % Example: T=celestial.Targets;
             %          T.generateTargetList('last');
             %          [T, P] = calcPriority(T, 2451545.5, 'west2east')
-            
+            %
             %          T=celestial.Targets; T.generateTargetList('last');
             %          [lon,lat]=T.ecliptic; F=abs(lat)<5 & T.RA>100 & T.RA<110; T.MaxNobs(~F)=0; T.MaxNobs(F)=Inf;
             %          [~,PP,Ind]=T.calcPriority(2451545.5,'cycle');
@@ -619,6 +620,23 @@ classdef Targets < Component
                 case 'continues'
                     
                 case 'predefined'
+                    
+                case 'survey'
+                    % prioritize target for survey with pre defined
+                    % cadence.
+                    % The survey have two cadences:
+                    % Main cadence time scale (e.g., 1 day)
+                    % Repitition time scale (e.g., 30 min)
+
+%                     W = zeros(size(t));
+%                     W(t<t0)  = (BaseW + ExtraW)./(1 + exp(-(t(t<t0)-t0)./Soft));
+%                     W(t>=t0) = BaseW + ExtraW.*exp(-(t(t>=t0)-t0)./Decay);
+% 
+%                     W = Obj.PriorityArgs.CadenceFun(t, Obj.PriorityArgs.CadeneFunArgs{:});
+                        
+                    
+                    
+                    
                     
                 case 'cycle'
                     % prioritize targets by cycling through a list.
@@ -677,6 +695,7 @@ classdef Targets < Component
             end
             
         end
+                
     end
     
     methods % targets selection
@@ -864,6 +883,73 @@ classdef Targets < Component
             end
             Cell = namedargs2cell(Args);
             [RA, Dec] = celestial.SolarSys.earthShadowCoo(JD, Dist, Cell{:});
+        end
+        
+        function W=fermiExpWeight(Tnow,Tlast, Args)
+            % fermi-rise exp-decay weight function for cadence priority
+            % Input  : - Time now.
+            %          - Time of last observation. Default is 0.
+            %          * ...,key,val,...
+            %            'TimeCadence' - Cadence. Default is 0.7.
+            %            'WeightLevelHigh' - Max Weight following Fermi
+            %                   rise. Default is 1.1
+            %            'WeightLevelLow' - Min Weight following the exp.
+            %                   decay. Default is 1.
+            %            'FermiRiseTime' - Fermi rise time scale.
+            %                   Default is 0.5.
+            %            'ExpDecayTime' - Exp. decay time scale.
+            %                   Default is 2.
+            % Output : - Vector of weights.
+            % Author : Eran Ofek (Dec 2022)
+            % Example: t=(0:0.01:10)';
+            %          W=celestial.Targets.fermiExpWeight(t,0);
+           
+            arguments
+                Tnow
+                Tlast                 = 0;
+                Args.FermiCadence     = 0.7;
+                Args.WeightLevelHigh  = 1.1;
+                Args.WeightLevelLow   = 1.0;
+                Args.FermiRiseTime    = 0.5;
+                Args.ExpDecayTime     = 2;
+            end
+            
+            T = Tnow - Tlast;
+            
+            W = zeros(size(T));
+            FlagR = T<Args.FermiCadence;
+            
+            W(FlagR)  = Args.WeightLevelHigh./(1 + exp(-(T(FlagR)-Args.FermiCadence)./Args.FermiRiseTime));
+            W(~FlagR) = Args.WeightLevelLow + (Args.WeightLevelHigh-Args.WeightLevelLow).*exp(-(T(~FlagR)-Args.FermiCadence)./Args.ExpDecayTime);        
+            
+        end
+        
+        function W=stepWeight(Tnow, Tlast, Args)
+            % step weight function for cadence priority
+            % Input  : - Time now.
+            %          - Time of last observation. Default is 0.
+            %          * ...,key,val,...
+            %            'StepCadence' - Cadence. Default is 1/48.
+            %            'WeightLevelStep' - Weight following step
+            %                   rise. Default is 1
+            % Output : - Vector of weights.
+            % Author : Eran Ofek (Dec 2022)
+            % Example: t=(0:0.01:10)';
+            %          W=celestial.Targets.stepWeight(t,0);
+           
+            arguments
+                Tnow
+                Tlast
+                Args.StepCadence     = 1./48;
+                Args.WeightLevelStep = 1;
+            end
+            
+            T = Tnow - Tlast;
+            
+            W = zeros(size(T));
+            FlagS = T>Args.StepCadence;
+            W(FlagS) = Args.WeightLevelStep;
+            
         end
         
     end
