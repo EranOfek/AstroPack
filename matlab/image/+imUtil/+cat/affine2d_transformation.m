@@ -12,8 +12,8 @@ function [NewX,NewY,AffineMatrix,AffineMatrixNoFlip]=affine2d_transformation(Cat
 %            Otherwise a vector of [Theta, Scale, ShiftX, ShiftY]
 %            or [Theta, Sclae, ShiftX, ShiftY, FlipX, FlipY]
 %          - Direction of rotation:
-%            '+' will rotate the coordinates in respect to the reference
-%            frame, while '-' will rotate the reference frame.
+%            '+' (or positive) will rotate the coordinates in respect to the reference
+%            frame, while '-' (or negative) will rotate the reference frame.
 %            Default is '+'.
 %          * Pairs of ...,key,val,... The following keywords are avaialble:
 %            'ThetaUnits' - If the AffineMatrix (second input argument) is
@@ -44,6 +44,14 @@ addOptional(InPar,'ColY',2);
 
 parse(InPar,varargin{:});
 InPar = InPar.Results;
+
+if isnumeric(Direction)
+    if Direction>0
+        Direction = '+';
+    else
+        Direction = '-';
+    end
+end
 
 
 if numel(AffineMatrix)~=9
