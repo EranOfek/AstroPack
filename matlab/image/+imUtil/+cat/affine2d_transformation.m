@@ -1,4 +1,4 @@
-function [NewX,NewY,AffineMatrix,AffineMatrixNoFlip]=affine2d_transformation(Cat,AffineMatrix,Direction,varargin)
+function [NewX,NewY,AffineMatrix,AffineMatrixNoFlip]=affine2d_transformation(Cat,AffineMatrix,Direction,Args)
 % Applay a 2D affine transformation to [X,Y] coordinates 
 % Package: +imUtil.cat
 % Description: Applay a 2D affine transformation to [X,Y] coordinates 
@@ -31,19 +31,15 @@ function [NewX,NewY,AffineMatrix,AffineMatrixNoFlip]=affine2d_transformation(Cat
 % Example: Cat = rand(10,2);
 %          [NewX,NewY]=imUtil.cat.affine2d_transformation(Cat,[0 10 10])
 
-if nargin<3
-    Direction = '+';
+arguments
+    Cat
+    AffineMatrix
+    Direction   = '+';
+    Args.ThetaUnits = 'deg';
+    Args.ColX       = 1;
+    Args.ColY       = 2;
 end
 
-
-InPar = inputParser;
-
-addOptional(InPar,'ThetaUnits','deg');
-addOptional(InPar,'ColX',1);
-addOptional(InPar,'ColY',2);
-
-parse(InPar,varargin{:});
-InPar = InPar.Results;
 
 if isnumeric(Direction)
     if Direction>0
@@ -53,13 +49,12 @@ if isnumeric(Direction)
     end
 end
 
-
 if numel(AffineMatrix)~=9
     if numel(AffineMatrix)==4
         AffineMatrix = [AffineMatrix, 1, 1];
     end
     % assume [Theta, ShiftX, ShiftY]
-    Theta  = convert.angular(InPar.ThetaUnits,'rad',AffineMatrix(1)); % Theta in radians
+    Theta  = convert.angular(Args.ThetaUnits,'rad',AffineMatrix(1)); % Theta in radians
     Scale  = AffineMatrix(2);
     ShiftX = AffineMatrix(3);
     ShiftY = AffineMatrix(4);
@@ -83,8 +78,8 @@ end
 % apply affine transformayion
 if ~isempty(Cat)
     N = size(Cat,1);
-    X = Cat(:,InPar.ColX);
-    Y = Cat(:,InPar.ColY);
+    X = Cat(:,Args.ColX);
+    Y = Cat(:,Args.ColY);
     Z = ones(N,1);
 
     Coo    = [X,Y,Z];
