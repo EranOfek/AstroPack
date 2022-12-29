@@ -119,7 +119,7 @@ classdef ImageIO < Component
                                     end
                                 end
                             else
-                                List = io.files.filelist(FileNames, Args.UseRegExp);
+                                List = io.files.filelist(FileNames, 'UseRegExp',Args.UseRegExp);
                             end
                         end
                     end
