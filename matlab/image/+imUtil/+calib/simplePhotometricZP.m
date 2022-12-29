@@ -1,4 +1,4 @@
-function Result=simplePhotometricZP(InstrumentalMag, CalibMag , Args)
+function [Result,Y,VarY]=simplePhotometricZP(InstrumentalMag, CalibMag , Args)
     % Simple photometric ZP solver
     %       Given instrumental magnitude and calibrated magnitude fit a ZP
     %       including color terms, airmass, position, width:
@@ -53,6 +53,8 @@ function Result=simplePhotometricZP(InstrumentalMag, CalibMag , Args)
     %            .Chi2 - Chi^2
     %            .Ndof - d.o.f
     %            .Nsrc - Number of sources.
+    %          - Y vector. I.e., InstrumentalMag - CalibMag
+    %          - VarY (variance in Y) vector.
     % Author : Eran Ofek (Dec 2022)
     % Example: InstrumentalMag = rand(100,1).*6;
     %          CalibMag = InstrumentalMag + 2 + randn(100,1).*0.03;
@@ -87,7 +89,9 @@ function Result=simplePhotometricZP(InstrumentalMag, CalibMag , Args)
             H = [H, Args.Color.^Ico];
             ColNames = [ColNames, sprintf('Color%d',Ico)];
             if Args.SubMed
-                Med = Args.MedFun(H(:,end), Args.MedFunArgs{:});
+                if Ico==1
+                    Med = Args.MedFun(H(:,end), Args.MedFunArgs{:});
+                end
                 H(:,end) = H(:,end) - Med;
                 MeanVec = [MeanVec, Med];
             else
