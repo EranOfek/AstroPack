@@ -342,6 +342,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         error('No good images found');
     end
     
+    
     %Nsub = 24;
     %AllSI = AstroImage([Nim, Nsub]);
     AstrometricCat = [];
