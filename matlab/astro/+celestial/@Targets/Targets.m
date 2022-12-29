@@ -750,13 +750,22 @@ classdef Targets < Component
     methods (Static)  % static utilities
         function TargetName = radec2name(RA,Dec, Fun)
             % given RA/Dec [deg] generate names in cell array %03d+%02d
-            
+            % Input  : - RA [deg].
+            %          - Dec [deg].
+            %          - Function for calculating the RA/Dec number.
+            %            Default is @round.
+            % Output : - Cell array of strings of the format %03d+%02d.
+            % Author : Eran Ofek (Dec 2022)
+            % Example: celestial.Targets.radec2name(20,10)
+
             arguments
                 RA
                 Dec
                 Fun = @round;
             end
             
+            RA  = mod(RA, 360);
+
             Ntarget      = numel(RA);
             TargetName  = cell(Ntarget,1);
             Sign = sign(Dec);
