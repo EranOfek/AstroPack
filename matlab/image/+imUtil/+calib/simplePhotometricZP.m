@@ -69,13 +69,14 @@ function [Result,Y,VarY]=simplePhotometricZP(InstrumentalMag, CalibMag , Args)
         Args.Width           = [];
         Args.X               = [];
         Args.Y               = [];
+        Args.MaxMagErr       = 0.03;
         Args.ColorOrder      = 2;
         Args.ColorAM logical = false;
         Args.PosOrder        = [1 0; 0 1; 1 1];
         Args.SubMed logical  = true;
         Args.MedFun          = @median
         Args.MedFunArgs cell = {1,'omitnan'};
-        Args.SigmaClip       = [-3 3];
+        Args.SigmaClip       = [-1.5 1.5];
         Args.Niter           = 2;
     end
     
@@ -155,7 +156,8 @@ function [Result,Y,VarY]=simplePhotometricZP(InstrumentalMag, CalibMag , Args)
         ErrCalibMag = zeros(Nsrc,1);
     end
     
-    
+    %H = H(:,1:2);
+
     Y    = InstrumentalMag(:,1) - CalibMag(:,1);
     VarY = ErrInstMag.^2 + ErrCalibMag.^2;  % variance
     
@@ -163,15 +165,15 @@ function [Result,Y,VarY]=simplePhotometricZP(InstrumentalMag, CalibMag , Args)
         VarY = ones(Nsrc,1);
     end
     
-    FlagNN = ~isnan(Y) & ~any(isnan(H),2);
+    FlagNN = ~isnan(Y) & ~any(isnan(H),2) & VarY<(Args.MaxMagErr.^2);
     
     for Iiter=1:1:Args.Niter
         [Par, ParErr] = lscov(H(FlagNN,:), Y(FlagNN), 1./VarY(FlagNN));
 
         Resid = Y - H*Par;
-        Std   = nan(Nsrc,1);
+        %Std   = nan(Nsrc,1);
 
-        Std(FlagNN)   = std(Resid(FlagNN));
+        Std   = tools.math.stat.rstd(Resid(FlagNN));
 
         Z = Resid./Std;
         
@@ -181,6 +183,8 @@ function [Result,Y,VarY]=simplePhotometricZP(InstrumentalMag, CalibMag , Args)
         end
     end
     
+    %Par = [Par; 0; 0];
+
     Result.ColNames = ColNames;
     Result.MeanVec  = MeanVec;
     Result.Par      = Par;

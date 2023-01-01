@@ -157,7 +157,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.CatRadiusUnits               = 'arcsec'
         Args.Con                          = {};
                 
-        Args.RefColNameMag                = {'Mag_BP','Mag'};
+        Args.RefColNameMag                = {'phot_bp_mean_mag','phot_g_mean_mag'}; %{'Mag_BP','Mag'};
         Args.RefRangeMag                  = [12 19]; %.5];
         Args.RefColNamePlx                = {'Plx'};
         Args.RefRangePlx                  = [-Inf 50];

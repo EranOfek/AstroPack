@@ -92,7 +92,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     %                   See catsHTM.cone_search. Default is {}.
     %            'RefColNameMag' - Column name containing mag in the
     %                   astrometric reference catalog.
-    %                   Default is {'Mag_BP','Mag'}.
+    %                   Default is {'phot_bp_mean_mag','phot_g_mean_mag'}.
     %            'RefRangeMag' - Magnitude range to retrieve.
     %                   Default is [12 19.5].
     %            'RefColNamePlx' - Parallax column name in the
@@ -198,7 +198,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         Args.CatRadiusUnits                     = 'arcsec'
         Args.Con                                = {};
         
-        Args.RefColNameMag                      = {'Mag_BP','Mag'};
+        Args.RefColNameMag                      = {'phot_bp_mean_mag','phot_g_mean_mag'}; %{'Mag_BP','Mag'};
         Args.RefRangeMag                        = [12 19.5];
         Args.RefColNamePlx                      = {'Plx'};
         Args.RefRangePlx                        = [-Inf 50];

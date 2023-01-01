@@ -44,9 +44,9 @@ classdef AstroCatalog < AstroTable
         DefNamesDec cell                 = {'Dec','DEC','Mean_Dec','Median_Dec','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DEJ2000','Declination'};
         DefNamesPMRA cell                = {'PMRA'};
         DefNamesPMDec cell               = {'PMDec'};
-        DefNamesRV cell                  = {'RV'};
+        DefNamesRV cell                  = {'RV','radial_velocity'};
         DefNamesPlx cell                 = {'Plx'};
-        DefNamesMag cell                 = {'MAG','Mag','PSF_MAG','MAG_PSF','Mag_BP','Mag_G','Mag_RP','MAG_CONV_2'};
+        DefNamesMag cell                 = {'MAG','Mag','PSF_MAG','MAG_PSF','Mag_BP','Mag_G','Mag_RP','MAG_CONV_2','phot_g_mean_mag'};
     end    
     
     methods % constructor

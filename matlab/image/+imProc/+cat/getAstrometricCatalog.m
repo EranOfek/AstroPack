@@ -31,7 +31,7 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     %                   to pass to imProc.cat.applyProperMotion.
     %                   Default is {}.
     %            'ColNameMag' - Column name containing mag.
-    %                   Default is {'Mag_BP','Mag'}.
+    %                   Default is {'phot_bp_mean_mag','phot_g_mean_mag'}
     %            'RangeMag' - Magnitude range to retrieve.
     %                   Default is [12 19.5].
     %            'ColNamePlx' - Parallax column name.
@@ -58,7 +58,7 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     arguments
         RA
         Dec
-        Args.CatName                  = 'GAIAEDR3';   % or AstroCatalog
+        Args.CatName                  = 'GAIADR3'; %'GAIAEDR3';   % or AstroCatalog
         Args.CatOrigin                = 'catsHTM';
         Args.Radius                   = 1000;
         Args.RadiusUnits              = 'arcsec';
@@ -71,7 +71,7 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
         Args.EpochIn                  = [];  % if given - don't use catalog Epoch
         Args.argsProperMotion cell    = {};
         % queryRange
-        Args.ColNameMag                = {'Mag_BP','Mag'};
+        Args.ColNameMag                = {'phot_bp_mean_mag','phot_g_mean_mag'}; % {'Mag_BP','Mag'};
         Args.RangeMag                  = [12 19.5];
         Args.ColNamePlx                = {'Plx'};
         Args.UsePlxRange               = true;
@@ -108,8 +108,8 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
                 % mag and parallax constraints
                 % no output argument means that CreateNewObj=false
                 if Args.UsePlxRange               
-                queryRange(Result, Args.ColNameMag, Args.RangeMag,...
-                                   Args.ColNamePlx, Args.RangePlx);
+                    queryRange(Result, Args.ColNameMag, Args.RangeMag,...
+                                    Args.ColNamePlx, Args.RangePlx);
                 else
                     queryRange(Result, Args.ColNameMag, Args.RangeMag);
                 end

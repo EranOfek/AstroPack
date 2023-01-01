@@ -14,7 +14,7 @@ function [ZP, Filters] = survey_ZP(DR, Type)
     end
     
     switch lower(DR)
-        case {'gaiaedr3'}
+        case {'gaiaedr3','gaiadr3'}
             Vega = [25.6874	25.3385	24.7479];
             AB   = [25.8010 25.3540 25.1040];
             Filters = {'G','Bp','Rp'};

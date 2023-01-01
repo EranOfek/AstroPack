@@ -208,7 +208,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.AstroImageReadArgs cell          = {};
         
         Args.SameField logical                = true;
-        Args.CatName                          = 'GAIAEDR3';
+        Args.CatName                          = 'GAIADR3'; %'GAIAEDR3';
         Args.CooOffset                        = [0 0];    % [deg]
         
         Args.singleRaw2procArgs cell          = {};
