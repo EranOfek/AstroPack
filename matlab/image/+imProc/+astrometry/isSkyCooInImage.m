@@ -19,6 +19,7 @@ function [Result,MaxMinDist] = isSkyCooInImage(Obj, Alpha, Delta, Args)
     %          - A vector of maximum of minium distances from image
     %            boundries.
     % Author : Eran Ofek (Jan 2023)
+    % Example: [a,b]=imProc.astrometry.isSkyCooInImage(Coadd, RA,Dec);
     
     arguments
         Obj AstroImage
