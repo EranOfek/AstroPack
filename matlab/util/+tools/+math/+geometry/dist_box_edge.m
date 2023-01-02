@@ -11,7 +11,7 @@ function MinDist=dist_box_edge(X,Y,EdgeX,EdgeY)
 % Tested : Matlab R2011b
 %     By : Eran O. Ofek                    Jan 2014
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: MinDist=Util.Geom.dist_box_edge([5;16],[15;3],[1 2048],[1 4096]);
+% Example: MinDist=tools.math.geometry.dist_box_edge([5;16],[15;3],[1 2048],[1 4096]);
 % Reliable: 2
 %--------------------------------------------------------------------------
 

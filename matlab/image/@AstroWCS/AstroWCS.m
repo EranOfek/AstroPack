@@ -1064,7 +1064,7 @@ classdef AstroWCS < Component
 
         end
         
-        function [InImage] = isSkyCooInImage(Obj, Alpha, Delta, CCDSEC, Units)
+        function [InImage, MinDist] = isSkyCooInImage(Obj, Alpha, Delta, CCDSEC, Units)
             % Check if RA/Dec are within image footprint (CCDSEC)
             % Input  : - A single element AstroWCS object.
             %          - J2000.0 R.A.
@@ -1074,8 +1074,10 @@ classdef AstroWCS < Component
             %          - Input RA/Dec units. Default is 'deg'.
             % Output : - A vector of logicals indicating, for each
             %            coordinate, if it is inside CCDSEC footprint.
+            %          - Vector of minimum distance of each position from
+            %            image boundries.
             % Author : Eran Ofek (Jan 2023)
-            
+
             arguments
                 Obj(1,1)
                 Alpha
@@ -1096,6 +1098,9 @@ classdef AstroWCS < Component
 
             InImage = PX>CCDSEC(1) & PX<CCDSEC(2) & PY>CCDSEC(3) & PY<CCDSEC(4);
 
+            if nargout>1
+                MinDist=tools.math.geometry.dist_box_edge(PX, PY, CCDSEC(1:2), CCDSEC(3:4));
+            end
         end
     end
     
