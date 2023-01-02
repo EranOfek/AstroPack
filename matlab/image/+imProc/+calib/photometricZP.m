@@ -336,9 +336,9 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     [Rzp,~,VarY] = imUtil.calib.simplePhotometricZP([CatMag, CatMagErr],[RefMag,RefMagErr],'Color',Color,'ColorOrder',Args.ColorOrder,'Width',Width);
 
                     ResFit(Iobj).Par = Rzp.Par;
-                    
 
-                    ResFit(Iobj).ZP     = ResFit(Iobj).Par(1) + Args.MagZP;
+                    %ResFit(Iobj).ZP     = ResFit(Iobj).Par(1) + Args.MagZP;
+                    ResFit(Iobj).ZP     = Args.MagZP - ResFit(Iobj).Par(1);
                     ResFit(Iobj).MagSys = Args.MagSys;
                     ResFit(Iobj).Resid  = Rzp.AllResid; %Y - H*ResFit(Iobj).Par;
                     ResFit(Iobj).RefMag = RefMag;
@@ -357,7 +357,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     ResFit(Iobj).Nsrc   = sum(ResFit(Iobj).Flag);
 
                     if ~Args.UseWidth && Args.ColorOrder==1
-                        ResFit(Iobj).Fun = @(Par, InstMag, Color, MedC) InstMag + Par(1) + Par(2).*(Color-MedC);
+                        ResFit(Iobj).Fun = @(Par, InstMag, Color, MedC) InstMag - Par(1) - Par(2).*(Color-MedC);
                     else
                         error('Unsupported option');
                     end
@@ -371,7 +371,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                         ResFit(Iobj).LimMag = polyval(ParLimMagFit, log10(Args.LimMagSN));
                     end
 
-
+                    % photometric calibration plot
+                    %semilogy(RefMag,[ResFit(Iobj).Fun(ResFit(1).Par, CatMag, Color, ResFit(Iobj).MedC )-RefMag],'.')
                 case 'simpleold'
                     % fit ZP and color term
                     % FFU - add cleaning
@@ -434,7 +435,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
 
 
                     H     = [ones(Nsrc,1), Color, Color.^2, Width-MedW]; % CatXY];
-                    ResFit(Iobj).Fun = @(Par, InstMag, Color, Width, MedW) InstMag + Par(1) + Par(2).*Color + Par(3).*Color.^2 + Par(4).*(Width-MedW);
+                    ResFit(Iobj).Fun = @(Par, InstMag, Color, Width, MedW) InstMag - Par(1) - Par(2).*Color - Par(3).*Color.^2 - Par(4).*(Width-MedW);
                     %ResFit(Iobj).Fun = @(Par, InstMag, Color) InstMag + Par(1) + Par(2).*Color;
 
                     Y     = RefMag - CatMag;
@@ -446,7 +447,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     if ~isreal(ResFit(Iobj).Par )
                         'a'
                     end
-                    ResFit(Iobj).ZP     = ResFit(Iobj).Par(1) + Args.MagZP;
+                    %ResFit(Iobj).ZP     = ResFit(Iobj).Par(1) + Args.MagZP;
+                    ResFit(Iobj).ZP     = Args.MagZP - ResFit(Iobj).Par(1);
                     ResFit(Iobj).MagSys = Args.MagSys;
                     ResFit(Iobj).Resid  = Y - H*ResFit(Iobj).Par;
                     ResFit(Iobj).RefMag = RefMag;
@@ -552,10 +554,11 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
             end
 
             if Args.Plot
+                figure(1)
                 semilogy(ResFit(Iobj).RefMag, abs(ResFit(Iobj).Resid),'.')
                 hold on;
                 semilogy(ResFit(Iobj).RefMag(ResFit(Iobj).Flag), abs(ResFit(Iobj).Resid(ResFit(Iobj).Flag)),'.')
-                H = xlabel('G [mag]');
+                H = xlabel('B$_{\rm p}$ [mag]');
                 H.FontSize = 18;
                 H.Interpreter = 'latex';
                 H = ylabel('$\vert$Resid$\vert$ [mag]');
@@ -564,14 +567,24 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
 
 
                 % limiting magnitude plot
+                figure(2)
                 ColorVec = [0.6:0.2:1.4];
                 NcV      = numel(ColorVec);
                 Colors   = plot.generate_colors(NcV-1);
                 for IcV=1:1:NcV-1
                     Icolor = Color>ColorVec(IcV) & Color<ColorVec(IcV+1);
-                    semilogy(RefMag(Icolor), SN(Icolor), 'k.','Color',Colors(IcV,:));
+                    %semilogy(RefMag(Icolor), SN(Icolor), 'k.','Color',Colors(IcV,:));
+                    semilogy(RefMag(Icolor), SN(Icolor), 'k.'); %,'Color',Colors(IcV,:));
                     hold on;
                 end
+                H = xlabel('B$_{\rm p}$ [mag]');
+                H.FontSize = 18;
+                H.Interpreter = 'latex';
+                H = ylabel('$S/N$');
+                H.FontSize = 18;
+                H.Interpreter = 'latex';
+
+
 
             end
         end
