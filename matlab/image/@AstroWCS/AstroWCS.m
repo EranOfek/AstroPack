@@ -1064,6 +1064,39 @@ classdef AstroWCS < Component
 
         end
         
+        function [InImage] = isSkyCooInImage(Obj, Alpha, Delta, CCDSEC, Units)
+            % Check if RA/Dec are within image footprint (CCDSEC)
+            % Input  : - A single element AstroWCS object.
+            %          - J2000.0 R.A.
+            %          - J2000.0 Dec.
+            %          - CCDSEC. Either [xmin xmax ymin ymax] or
+            %            [xmax, ymax].
+            %          - Input RA/Dec units. Default is 'deg'.
+            % Output : - A vector of logicals indicating, for each
+            %            coordinate, if it is inside CCDSEC footprint.
+            % Author : Eran Ofek (Jan 2023)
+            
+            arguments
+                Obj(1,1)
+                Alpha
+                Delta
+                CCDSEC
+                Units    = 'deg';
+            end
+
+            if numel(CCDSEC)==4
+                % do nothing
+            elseif numel(CCDSEC)==2
+                CCDSEC = [1 CCDSEC(1) 1 CCDSEC(2)];
+            else
+                error('CCDSEC must contains 2 or 4 elements');
+            end
+
+            [PX, PY] = sky2xy(Obj, Alpha, Delta, 'InUnits',Units);
+
+            InImage = PX>CCDSEC(1) & PX<CCDSEC(2) & PY>CCDSEC(3) & PY<CCDSEC(4);
+
+        end
     end
     
     methods  % Functions related to xy2refxy
