@@ -239,7 +239,8 @@ switch lower(InPar.InCooType)
     otherwise
         % do nothing
 end        
-        
+
+DistRA = mod(DistRA,2.*pi);
 
 
 Aux.JD        = InPar.JD;
