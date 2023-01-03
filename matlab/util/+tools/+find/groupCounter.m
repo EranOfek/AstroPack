@@ -87,6 +87,8 @@ function Gr = groupCounter(Counter, Args)
 
                 Gr(K).I1 = Gr(Igr).I1 + (Ii-1).*Args.MaxInGroup;
                 Gr(K).I2 = Gr(Igr).I1 + min(Ii.*Args.MaxInGroup, Nint)-1;
+                Gr(K).Ind = (Gr(K).I1:1:Gr(K).I2).';
+                Gr(K).N   = numel(Gr(K).Ind);
             end
             Gr(Igr).I2 = NaN;
         end
