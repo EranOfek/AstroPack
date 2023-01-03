@@ -1162,6 +1162,41 @@ classdef AstroWCS < Component
             end
         end
     end
+
+    methods % plots
+        function varargout=plotRMS(Obj, Args)
+            % plot RMS vs. magnitude plot for astrometric solution
+            % Input  : - A single element AstroWCS object
+            % Output : - Handle for plot.
+            % Author : Eran Ofek (Jan 2023)
+            % Example: AllSI(1).WCS.plotRMS
+
+            arguments
+                Obj(1,1)
+                Args.OnlyGood logical   = false;
+            end
+
+            Flag = Obj.ResFit.FlagSrc;
+            Hp = semilogy(Obj.RefMag(Flag), Obj.Resid(Flag).*3600,'k.');
+            if ~Args.OnlyGood
+                hold on;
+                semilogy(Obj.RefMag(~Flag), Obj.Resid(~Flag).*3600,'r.');
+                hold off;
+            end
+            
+            H = xlabel('mag');
+            H.Interpreter = 'latex';
+            H.FontSize    = 18;
+
+            H = ylabel('Residuals [arcsec]');
+            H.Interpreter = 'latex';
+            H.FontSize    = 18;
+
+            if nargout>0
+                varargout{1} = Hp;
+            end
+        end
+    end
     
     methods (Static)  % static methods %======== Functions to construct AstroWCS from AstroHeader =========
         
