@@ -373,28 +373,47 @@ classdef Configuration < handle
     end
     
     methods (Static) % static utility functions
-        function Args = getArgsFromConfig(Input, FunName, Args)
-            %
+        function Args = getArgsFromConfig(Input, Config, Args)
+            % Retrieve arguments from configuration file
+            %   
+            % Input  : - 
             
             arguments
                 Input
-                FunName
-                Args.SetName = [];
+                Config = [];
+                Args   = [];
             end
                 
-           
-            if isa(Input, 'Configuration')
-                %DB = dbstack;
-                %Result = getDefFunctionArgsFromConfig(Obj, Args.SetName, FunName)
-            elseif isa(Input, 'struct')
+            if ischar(Input)
+                % Input contains Configuration file InputArgs SetName
+                DB = dbstack;
+                if numel(DB)==1
+                    error('Function was called from session');
+                end
+                CallingFun = DB(2).name;
                 
-            elseif isa(Input, 'cell')
-                
+                % get configuration
+                if isempty(Config)
+                    % Config was not given - create
+                    Config = Configuration.getSingelton;
+                end
+                Struct = tools.struct.string2fields(Config.Data.(Config.InputArgsLevel).(Input), CallingFun);
+                    
+            elseif isstruct(Input)
+                Struct = Input;                
             else
-                
+                error('Input must be SetName string or a structure');
             end
                 
-            
+            if nargin<3
+                % Args was not supplied - return Struct
+                % by remove FileName
+                Args = rmfield(Struct, 'FileName');
+            else
+                % Args was supplied
+                % copy available parameters in Struct to Args
+                Args = tools.struct.copyProp(Struct, Args, {}, true);
+            end
         end
     end
     

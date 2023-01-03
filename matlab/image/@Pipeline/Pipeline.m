@@ -7,6 +7,12 @@
 classdef Pipeline < Component
     properties (SetAccess = public)
         CI CalibImages    
+        CalibDir
+        
+        ImagesDir
+        
+        InputArgs
+        
         StampSize         = [];
     end
     
