@@ -7,10 +7,11 @@
 % Wish list:
 % readCalib
 % prepCalib
-% applyCalib
+% applyCalib (including calib selection)
 % singleRaw2proc
 % raw2proc
 % multiRaw2procCoadd
+% forcePhot (including moving)
 
 classdef Pipeline < Component
     properties (SetAccess = public)
