@@ -4,6 +4,14 @@
 % Functionality :
 %
 
+% Wish list:
+% readCalib
+% prepCalib
+% applyCalib
+% singleRaw2proc
+% raw2proc
+% multiRaw2procCoadd
+
 classdef Pipeline < Component
     properties (SetAccess = public)
         CI CalibImages    
