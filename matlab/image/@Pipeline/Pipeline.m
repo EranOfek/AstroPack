@@ -23,10 +23,10 @@ classdef Pipeline < Component
             % Prepare list of images to 
             
             arguments
-                List
+                List                        = '*.fits';
                 Args.ImagesPath             = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
                 Args.ImagePathArgs          = {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
-                Args.FileNameType           = 'dark';
+                Args.FileNameType           = 'sci';
                 Args.UseFileNames logical   = true;
             end
             
@@ -37,7 +37,7 @@ classdef Pipeline < Component
                 if Args.UseFileNames
                     % use FileNames class
                     FN = FileNames.generateFromFileName(List);
-                    [FN,Flag] = selectBy(FN, 'Type', Args.FileNameType, 'CreateNewObj',false)
+                    [FN,Flag] = selectBy(FN, 'Type', Args.FileNameType, 'CreateNewObj',false);
                     List = FN.genFile;
                 else
                     % select files
@@ -80,7 +80,7 @@ classdef Pipeline < Component
         
         
         % prep dark/bias
-        function Obj=createBias(Obj, Args)
+        function Obj=createBias(Obj, List, Args)
             %
             
             arguments

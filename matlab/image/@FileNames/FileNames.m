@@ -957,7 +957,7 @@ classdef FileNames < Component
             end
             
             Nt     = numel(Obj.Time);
-            Flag   = Flag | false(Nt,1);
+            Flag   = Flag(:).' | false(1,Nt);
             Result = reorderEntries(Result, Flag);
         end
         
