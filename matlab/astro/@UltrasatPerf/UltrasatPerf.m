@@ -73,6 +73,21 @@ classdef UltrasatPerf < Base
 
         chromPSF(:,:)       double = [];  % [arcsec] 2D (WL vs. R) chromatic PSF
         
+        % SNR param
+        Aper                double = 33;     % Aperture [cm]
+        FL                  double = 36;     % Focal Length [cm]
+        PixSize             double = 9.5;    % Pixel size [micron]
+        RN                  double = 3.5;    % Read Noise [e-/pixel]
+        StrayLight          double = 3.5.^2; % [e-/pix]
+        DC                  double = 0.026;   % [e-/pix/s]
+        Gain                double = 2;      % [e-/ADU]
+        WC                  double = 160000; % Full well capacity [e-]
+        
+        SNR_ClearAper       double = 1; % Already taken into account
+        SNR_Trans           double = 1; % Already taken into account
+        SNR_Reflection      double = 1; % Already taken into account
+        SNR_QE              double = 1; % Already taken into account
+        
         % Performance 
         TotT(:,:)                double = []; % 2D (WL vs. R) Total throughput
         U_AstFilt(:,1)           AstFilter = []; % Array of AstFilters ( one per R) with Total throughput
@@ -87,6 +102,8 @@ classdef UltrasatPerf < Base
         AW_SatMag(:,1)           double = []; % Area weighted saturation mag in central 170 deg (approximated by r=7.4deg circle;
         ZP(:,:)                  double = []; % 2D (Specs vs R) Zero points
         VarPerPix(:,:)           double = []; % 2D (Specs vs R) Variance per Pixels
+        
+        
         
     end
     
@@ -134,6 +151,89 @@ classdef UltrasatPerf < Base
 
     methods  % General functions
        
+        function SNR = calcSNR(Obj,Args)
+            arguments
+                Obj
+                Args.SN                   = 5;
+                Args.R                    = 1; % Index of radial position
+                Args.SrcINd               = 41; % Index of source spec
+                
+                Args.Mag                  = 22.0;
+                Args.CalibFilterFamily    = [];    % filter family of input magnitude by which to scale the mag
+                Args.CalibFilter          = [];
+                Args.CalibMagSys          = 'AB';
+
+                Args.Name                 = {};     % override all pthe parameters provided in the list
+                Args.FWHM                 = [];     % FWHM [arcsec]
+                Args.PSFeff               = 0.8;    % PSF photometry efficiency                
+                
+                Args.ExpTime              = 300;    % [s]
+                Args.Nim                  = 3;
+
+                Args.TargetSpec           = []; %2e4; %3e3; %2e4;    % if given override Mag
+                Args.BackSpec             = @telescope.sn.back_comp;    % per arcsec^2 | handle | AstSpec | matrix
+                Args.BackCompFunPar       = {'CerenkovSupp',21};
+                Args.Ebv                  = 0.02;
+                Args.Filter               = [];
+                Args.FilterFamily         = [];
+                Args.MagSys               = 'AB';
+
+                Args.InterpMethod         = 'linear';                
+            end
+            
+            if isempty(Args.CalibFilterFamily)  % Desfult use with calculated ULTRASAT filters for specific R
+                Args.CalibFilterFamily    = Obj.U_AstFilt(Args.R);
+                Args.CalibFilter          = [];
+            end
+            
+            if isempty(Args.FWHM)               % Desfult use with caulcated EffPSF for specific src and R
+               Args.FWHM = Obj.EffPSF(Args.SrcINd,Args.R);
+            end
+            
+            if isempty(Args.TargetSpec)         % Desfult use with selected specific src
+               Args.TargetSpec = Obj.Specs(Args.SrcINd);
+            end
+            
+            if isempty(Args.FilterFamily)  % Desfult use with calculated ULTRASAT filters for specific R
+                Args.FilterFamily    = Obj.U_AstFilt(Args.R);
+                Args.Filter          = [];
+            end
+            
+            SNR=telescope.sn.snr('SN',Args.SN,...
+                                 'Mag',Args.Mag,...%SNR(Imag,1),...                                 
+                                 'CalibFilterFamily',Args.CalibFilterFamily,...
+                                 'CalibFilter',Args.CalibFilter,...      
+                                 'CalibMagSys',Args.CalibMagSys,...
+                                 'Name',Args.Name,...                                 
+                                 'FWHM',Args.FWHM,...
+                                 'PSFeff',Args.PSFeff,...
+                                 'Aper',Obj.Aper,...
+                                 'FL',Obj.FL,...
+                                 'PixSize',Obj.PixSize ,...
+                                 'RN',Obj.RN,...                                 
+                                 'StrayLight',Obj.StrayLight,...                                 
+                                 'DC',Obj.DC,...                                 
+                                 'Gain',Obj.Gain,...                                 
+                                 'WC',Obj.WC,...                                 
+                                 'ExpTime',Args.ExpTime,...                                 
+                                 'Nim',Args.Nim,... 
+                                 'ClearAper',Obj.SNR_ClearAper,...
+                                 'Trans',Obj.SNR_Trans,...
+                                 'Reflection',Obj.SNR_Reflection,...
+                                 'QE',Obj.SNR_QE,...
+                                 'TargetSpec',Args.TargetSpec,...
+                                 'BackSpec',Args.BackSpec,... 
+                                 'BackCompFunPar',Args.BackCompFunPar,...                                 
+                                 'Ebv',Args.Ebv,... 
+                                 'Filter',Args.Filter,...
+                                 'FilterFamily',Args.FilterFamily,...
+                                 'MagSys',Args.MagSys,...
+                                 'Wave',Obj.wavelength,...
+                                 'InterpMethod',Args.InterpMethod);
+                       
+            
+        end
+        
         function h = plot(Obj,plotname,Args)
             arguments
                 Obj
@@ -219,20 +319,20 @@ classdef UltrasatPerf < Base
                     ylabel('Limiting Magnitude [AB mag]','interpreter','latex','FontSize',Args.AxisFontSize);
                     
                 case 'SNR' %
-                    SNR_G_R1  = Obj.calcSNR(1,17);
-                    SNR_G_R13 = Obj.calcSNR(13,17);
-                    SNR_M_R1  = Obj.calcSNR(1,27);
-                    SNR_M_R13 = Obj.calcSNR(13,27);
+                    SNRvMAG_G_R1  = Obj.calcSNRvMAG(1,17);
+                    SNRvMAG_G_R13 = Obj.calcSNRvMAG(13,17);
+                    SNRvMAG_M_R1  = Obj.calcSNRvMAG(1,27);
+                    SNRvMAG_M_R13 = Obj.calcSNRvMAG(13,27);
                     
-                    plot(SNR_G_R1(:,1),SNR_G_R1(:,2),'--g','Linewidth',2);
-                    plot(SNR_G_R13(:,1),SNR_G_R13(:,2),'g','Linewidth',2);
-                    plot(SNR_M_R1(:,1),SNR_M_R1(:,2),'--r','Linewidth',2);
-                    plot(SNR_M_R13(:,1),SNR_M_R13(:,2),'r','Linewidth',2);
+                    plot(SNRvMAG_G_R1(:,1),SNRvMAG_G_R1(:,2),'--g','Linewidth',2);
+                    plot(SNRvMAG_G_R13(:,1),SNRvMAG_G_R13(:,2),'g','Linewidth',2);
+                    plot(SNRvMAG_M_R1(:,1),SNRvMAG_M_R1(:,2),'--r','Linewidth',2);
+                    plot(SNRvMAG_M_R13(:,1),SNRvMAG_M_R13(:,2),'r','Linewidth',2);
                     
-                    plot(SNR_G_R1(1,1),SNR_G_R1(1,2),'og','MarkerSize',8,'MarkerFaceColor','g');
-                    plot(SNR_G_R13(1,1),SNR_G_R13(1,2),'og','MarkerSize',8,'MarkerFaceColor','g');
-                    plot(SNR_M_R1(1,1),SNR_M_R1(1,2),'or','MarkerSize',8,'MarkerFaceColor','r');
-                    plot(SNR_M_R13(1,1),SNR_M_R13(1,2),'or','MarkerSize',8,'MarkerFaceColor','r');
+                    plot(SNRvMAG_G_R1(1,1),SNRvMAG_G_R1(1,2),'og','MarkerSize',8,'MarkerFaceColor','g');
+                    plot(SNRvMAG_G_R13(1,1),SNRvMAG_G_R13(1,2),'og','MarkerSize',8,'MarkerFaceColor','g');
+                    plot(SNRvMAG_M_R1(1,1),SNRvMAG_M_R1(1,2),'or','MarkerSize',8,'MarkerFaceColor','r');
+                    plot(SNRvMAG_M_R13(1,1),SNRvMAG_M_R13(1,2),'or','MarkerSize',8,'MarkerFaceColor','r');
                     
                     legend({'$G$ dwarf at $R=0^\circ$','$G$ dwarf at $R=5^\circ$','$M$ dwarf at $R=0^\circ$','$M$ dwarf at $R=5^\circ$'},'interpreter','latex','Location','best','FontSize',Args.LegendFontSize);
                     xlabel('Magnitude [AB mag]','interpreter','latex','FontSize',Args.AxisFontSize);
@@ -250,7 +350,7 @@ classdef UltrasatPerf < Base
             hold off;
         end
         
-        function SNR = calcSNR(Obj,R,SrcINd,Args)
+        function SNRvMAG = calcSNRvMAG(Obj,R,SrcINd,Args)
             arguments
                 Obj
                 R
@@ -264,16 +364,12 @@ classdef UltrasatPerf < Base
                 Mags = Args.mags;
             end
             
-            SNR(:,1) = Mags;
-            Nmag = size(SNR,1);
+            SNRvMAG(:,1) = Mags;
+            Nmag = size(SNRvMAG,1);
             
             for Imag = 1:Nmag
-                curr_SN=telescope.sn.snr('Mag',SNR(Imag,1),'FWHM',Obj.EffPSF(SrcINd,R),'TargetSpec',Obj.Specs(SrcINd),...
-                           'FilterFamily',Obj.U_AstFilt(R),'Filter',[],...
-                           'CalibFilterFamily',Obj.U_AstFilt(R),'CalibFilter',[],...                           
-                           'ClearAper',1,'Trans',1,'Reflection',1,'QE',1,'DC',0.026,...
-                           'BackCompFunPar',{'CerenkovSupp',21});
-                SNR(Imag,2) = curr_SN.SNRm;
+                curr_SN=Obj.calcSNR('Mag',SNRvMAG(Imag,1),'R',R,'SrcINd',SrcINd);  
+                SNRvMAG(Imag,2) = curr_SN.SNRm;
             end
             
         end
@@ -304,10 +400,7 @@ classdef UltrasatPerf < Base
             for Sidx = 1:Nsrc
                 for R = 1:Nr
                     Obj.EffPSF(Sidx,R) = Obj.calc_eff_PSF(Obj.chromPSF(:,R),Obj.Specs(Sidx),Obj.U_AstFilt(R),Obj.wavelength);
-                    curr_SN=telescope.sn.snr('FWHM',Obj.EffPSF(Sidx,R),'TargetSpec',Obj.Specs(Sidx),...
-                                               'FilterFamily',Obj.U_AstFilt(R),'Filter',[],...
-                                               'ClearAper',1,'Trans',1,'Reflection',1,'QE',1,'DC',0.026,...
-                                               'BackCompFunPar',{'CerenkovSupp',21});
+                    curr_SN=Obj.calcSNR('R',R,'SrcINd',Sidx);
                     Obj.LimMag(Sidx,R) = curr_SN.LimMag;
                     Obj.SatMag(Sidx,R) = curr_SN.SatLimit;
                     Obj.ZP(Sidx,R) = curr_SN.ZP;
