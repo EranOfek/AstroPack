@@ -74,7 +74,11 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
     Nfile = numel(SourceFiles);
     Destination = cell(1, Nfile);
     for Ifile=1:1:Nfile
-        Source      = sprintf('%s%s%s', SourcePath, filesep, SourceFiles{Ifile});
+        if isempty(SourcePath)
+            Source      = sprintf('%s', SourceFiles{Ifile});
+        else
+            Source      = sprintf('%s%s%s', SourcePath, filesep, SourceFiles{Ifile});
+        end
         if DestPathInFile
             Destination{Ifile} = DestFiles{Ifile};
         else
