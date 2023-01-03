@@ -19,8 +19,29 @@ classdef Pipeline < Component
     end
     
     methods (Static)  % static methods
-        function [List, ImagePath, FullPathList] = prepImagesList(List, Args)
-            % Prepare list of images to 
+        function [List, ImagePath, FullPathList, FN] = prepImagesList(List, Args)
+            % Prepare list of images of some Type
+            % Input  : - A cell array of images, or a char array with image
+            %            name wild cards template.
+            %            Default is '*.fits'.
+            %          * ...,key,val,...
+            %            'ImagesPath' - Either a char array with image path
+            %                   name, or a function handle that generate the path.
+            %                   Default is @pipeline.last.constructCamDir
+            %            'ImagePathArgs' - A cell array of arguments to
+            %                   pass to the ImagePath function.
+            %                   Default is {1,'Node',1, 'SubDir','new',
+            %                   'ProjNamebase','LAST'}.
+            %            'FileNameType' - File type to select.
+            %                   Default is 'sci'.
+            %            'UseFileNames' - A logical indicating if to use
+            %                   the FileNames class. Default is true.
+            % Output : - A cell array of file names.
+            %          - A char array with files path.
+            %          - A cell array of full file names.
+            %          - A FileNames object containing the files.
+            % Author : Eran Ofek (Jan 2023)
+            % Example: [List, ImagePath, FullPathList,FN] = Pipeline.prepImagesList('LAST*.fits');
             
             arguments
                 List                        = '*.fits';
@@ -30,24 +51,20 @@ classdef Pipeline < Component
                 Args.UseFileNames logical   = true;
             end
             
-            if isa(List,'AstroImage')
-                % do nothing - List is an AstroImage
+            % identify bias/dark image by type
+            if Args.UseFileNames
+                % use FileNames class
+                FN = FileNames.generateFromFileName(List);
+                [FN,Flag] = selectBy(FN, 'Type', Args.FileNameType, 'CreateNewObj',false);
+                List = FN.genFile;
             else
-                % identify bias/dark image by type
-                if Args.UseFileNames
-                    % use FileNames class
-                    FN = FileNames.generateFromFileName(List);
-                    [FN,Flag] = selectBy(FN, 'Type', Args.FileNameType, 'CreateNewObj',false);
-                    List = FN.genFile;
-                else
-                    % select files
-                    List = io.files.filelist(List);
-                    % search for subs tring in file names
-                    Flag = contains(List, Args.FileNameType);
-                    List = List(Flag);
-                end
-                                                
+                % select files
+                List = io.files.filelist(List);
+                % search for subs tring in file names
+                Flag = contains(List, Args.FileNameType);
+                List = List(Flag);
             end
+
             
             if isa(Args.ImagesPath, 'function_handle')
                 ImagePath = Args.ImagesPath(Args.ImagePathArgs{:});
@@ -57,6 +74,10 @@ classdef Pipeline < Component
             
             if nargout>2
                 FullPathList = fullfile(ImagePath, List);
+                
+                if nargout>3 && ~Args.UseFileNames
+                    FN = FileNames(List);
+                end
             end
             
         end
