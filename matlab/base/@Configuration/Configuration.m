@@ -369,6 +369,33 @@ classdef Configuration < handle
             end
                        
         end
+        
+    end
+    
+    methods (Static) % static utility functions
+        function Args = getArgsFromConfig(Input, FunName, Args)
+            %
+            
+            arguments
+                Input
+                FunName
+                Args.SetName = [];
+            end
+                
+           
+            if isa(Input, 'Configuration')
+                %DB = dbstack;
+                %Result = getDefFunctionArgsFromConfig(Obj, Args.SetName, FunName)
+            elseif isa(Input, 'struct')
+                
+            elseif isa(Input, 'cell')
+                
+            else
+                
+            end
+                
+            
+        end
     end
     
     %======================================================================
