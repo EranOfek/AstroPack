@@ -83,6 +83,41 @@ classdef Base < matlab.mixin.Copyable
             end
         end
 
+        function Target = copyPropNotEmpty(Obj, Target,OnlyIfEmpty)
+            % Go over the properties in Target and if empty, then copy from Obj
+            % Input  : - Object
+            %          - Target object or structure.
+            %          - A logical indicating if only to copy field content
+            %            if target field exist but is empty.
+            %            Default is true.
+            % Output : - The Target object or structure, in which fields
+            %            that exist in the input object are copied.
+            % Author : Eran Ofek (Jan 2023)
+           
+            arguments
+                Obj
+                Target
+                OnlyIfEmpty logical    = true;
+            end
+            
+            FieldsTarget = fieldnames(Target);
+            Nft          = numel(FieldsTarget);
+            for Ift=1:1:Nft
+                if OnlyIfEmpty
+                    if isempty(Target.(FieldsTarget{Ift}))
+                        if isprop(Obj, FieldsTarget{Ift})
+                            Target.(FieldsTarget{Ift}) = Obj.(FieldsTarget{Ift});
+                        end
+                    end
+                else
+                    if isprop(Obj, FieldsTarget{Ift})
+                        Target.(FieldsTarget{Ift}) = Obj.(FieldsTarget{Ift});
+                    end
+                end
+            end
+            
+        end
+        
         function [Result, CreateNewObj] = createNewObj(Obj, CreateNewObj, Nargout, MinNargout)
             % A utility function for creation of an object new copy based
             % on nargout

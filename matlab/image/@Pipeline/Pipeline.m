@@ -129,15 +129,17 @@ classdef Pipeline < Component
             arguments
                 Obj
                 List                          = '*.fits'; %[];  % pass a CalibImages object
-                Args.ImagesPath             = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
-                Args.ArgsImagePath          = {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
+                Args.ImagesPath             = []; %@pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
+                Args.ArgsImagePath          = {}; % {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
                 Args.FileNameType           = 'dark';
                 Args.UseFileNames logical   = true;
                 Args.UseConfigArgs logical  = true;
                 Args.ArgsCreateBias         = {};
             end
             
-            
+            % Get default arguments from object property - if not supplied
+            % by user
+            Args = copyPropNotEmpty(Obj, Args, true);
                         
             PWD = pwd;
             cd(ImagePath);
