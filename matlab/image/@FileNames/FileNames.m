@@ -181,6 +181,67 @@ classdef FileNames < Component
     end
       
     methods (Static) % construction
+        function Result=getValFromFileName(File,Prop)
+            % Get specific proprty from file name
+            % Input  : - A char array containing a single file name.
+            %          - Property to retrieve (e.g.,
+            %            'Time','JD','Type',...). Default is 'JD'.
+            % Output : - Property value.
+            % Author : Eran Ofek (Jan 2023)
+            % Example: FileNames.getValFromFileName('LAST.01.02.01_20221229.212126.937_clear_050+09_050_001_001_sci_raw_Image_1.fits');
+            
+            arguments
+                File
+                Prop  = 'JD';
+            end
+
+            SplitName = regexp(File,'_','split');
+            switch Prop
+                case 'ProjName'
+                    Result = SplitName{1};
+                case 'Time'
+                    Result = SplitName{2};
+                case 'JD'
+                    DateVec = SplitName{2};
+                    DateVec = convert.strFN2date(DateVec);
+                    Result  = celestial.time.julday(DateVec(:,[3 2 1 4 5 6]));
+                case 'Filter'
+                    Result = SplitName{3};
+                case 'FieldID'
+                    Result = SplitName{4};
+
+                case 'Counter'
+                    Result = SplitName{5};
+
+                case 'CCDID'
+                    Result = SplitName{6};
+
+                case 'CropID'
+                    Result = SplitName{7};
+
+                case 'Type'
+                    Result = SplitName{8};
+
+                case 'Level'
+                    Result = SplitName{9};
+
+                case 'Product'
+                    Result = SplitName{10};
+
+                case 'Version'
+                    TmpSplit = split(SplitName{11},'.');
+                    Result = TmpSplit{1};
+                
+                case 'FileType'
+                    TmpSplit = split(SplitName{11},'.');
+                    Result = TmpSplit{2};
+                
+                otherwise
+                    error('Unknown property name');
+            end
+
+        end
+
         function Obj=generateFromFileName(List)
             % Generate a FileNames object from a list of file names
             %   Given file names which name structure obeys the
