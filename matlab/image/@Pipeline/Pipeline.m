@@ -18,7 +18,8 @@ classdef Pipeline < Component
         CI CalibImages    
         CalibDir
         
-        ImagesDir
+        ImagesPath         = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
+        ArgsImagesPath     = {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
         
         InputArgs
         
@@ -61,7 +62,7 @@ classdef Pipeline < Component
             arguments
                 List                        = '*.fits';
                 Args.ImagesPath             = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
-                Args.ImagePathArgs          = {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
+                Args.ArgsImagePath          = {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
                 Args.FileNameType           = 'sci';
                 Args.UseFileNames logical   = true;
             end
@@ -82,7 +83,7 @@ classdef Pipeline < Component
 
             
             if isa(Args.ImagesPath, 'function_handle')
-                ImagePath = Args.ImagesPath(Args.ImagePathArgs{:});
+                ImagePath = Args.ImagesPath(Args.ArgsImagePath{:});
             else
                 ImagePath = Args.ImagesPath;
             end
@@ -110,6 +111,8 @@ classdef Pipeline < Component
             
         end
         
+        
+        
     end
     
     methods % generic pipelines
@@ -117,21 +120,25 @@ classdef Pipeline < Component
         
         % prep dark/bias
         function Obj=createBias(Obj, List, Args)
-            %
+            % Pipeline: Create master bias images
+            %   Search for bias images
+            %   Create master bias image for each night/ExpTime/etc.
+            %   Write the master bias images in output directory
+            %   Store the master bias images in CI property.
             
             arguments
                 Obj
                 List                          = '*.fits'; %[];  % pass a CalibImages object
                 Args.ImagesPath             = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
-                Args.ImagePathArgs          = {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
+                Args.ArgsImagePath          = {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
                 Args.FileNameType           = 'dark';
                 Args.UseFileNames logical   = true;
                 Args.UseConfigArgs logical  = true;
                 Args.ArgsCreateBias         = {};
             end
+            
+            
                         
-            
-            
             PWD = pwd;
             cd(ImagePath);
             % prep bias/dark
