@@ -63,6 +63,7 @@ function Result=findSourceInCat(List, RA, Dec, Args)
         Args.DefNamesY               = AstroCatalog.DefNamesY;
         Args.OutType                 = 'table';  % 'table' | 'selected' | 'all' | 'mat'
 
+        Args.Verbose logical         = false;
     end
 
     % convert coordinates to rad
@@ -81,13 +82,13 @@ function Result=findSourceInCat(List, RA, Dec, Args)
         SearchRadius = Args.SearchRadius;
     end
 
-    if ischar(Obj)
+    if ischar(List)
         if Args.Recursive
             SDir = io.files.rdir(List);
         else
             SDir = dir(List);
         end
-        List = fullname({SDir.folder},{SDir.name});
+        List = fullfile({SDir.folder},{SDir.name});
     end
 
 
@@ -95,6 +96,12 @@ function Result=findSourceInCat(List, RA, Dec, Args)
     Nlist = numel(List);
     Result = struct('JD',cell(Nlist,1), 'Nfound',cell(Nlist,1), 'Dist',cell(Nlist,1), 'Ind',cell(Nlist,1), 'Table',cell(Nlist,1));
     for Ilist=1:1:Nlist
+        if Args.Verbose
+            if mod(Ilist,100)==0
+                [Ilist, Nlist]
+            end
+        end
+        
         if isa(List, 'AstroImage')
             Cat = List(Ilist).CatData;
             JD  = List(Ilist).julday;
@@ -102,7 +109,7 @@ function Result=findSourceInCat(List, RA, Dec, Args)
             Cat = List(Ilist);
             JD  = List(Ilist).JD;
         elseif iscell(List)
-            Cat = AstroCatalog(List{Ilist});
+            Cat = AstroCatalog(List(Ilist));
             JD  = [];
         else
             error('Unknown List type option');
@@ -135,7 +142,7 @@ function Result=findSourceInCat(List, RA, Dec, Args)
         Result(Ilist).Nfound   = sum(Flag);
         Result(Ilist).Dist     = Dist(Flag);  % [rad]
         Result(Ilist).Ind      = find(Flag);
-        switch OutType
+        switch Args.OutType
             case 'all'
                 Result(Ilist).Table    = Cat;
             case 'selected'
