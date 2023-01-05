@@ -48,11 +48,11 @@ function Result = zp_meddiff(MS, Args)
         Args.MagField char          = 'MAG';
         Args.MagErrField char       = 'MAGERR';
         
-        Args.MaxMagErr              = 0.03;
+        Args.MaxMagErr              = 0.02;
         Args.RefImInd               = 1;
         Args.MinNepoch              = Inf;  % Inf - source appear in all epochs
         Args.MinNsrc                = 10;
-        Args.UseWMedian logical     = true;
+        Args.UseWMedian logical     = false;
         
         %Args.Plot(1,1) logical      = false;
     end

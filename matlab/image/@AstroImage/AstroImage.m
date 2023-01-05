@@ -157,7 +157,8 @@ classdef AstroImage < Component
        
         function Obj = AstroImage(FileNames, Args)
             % Constructor and image reader for AstroImage class
-            % Input  : - A file name, files, or cell of matrices.
+            % Input  : - A file name (with optional wild cards),
+            %            or cell of matrices.
             %          * ...,key,val,...
             %            'HDU' - HDU number. Default is 1.
             %            'Scale' - Image scale. Default is [].
@@ -261,7 +262,8 @@ classdef AstroImage < Component
                     else
                         % ImageData
                         if ischar(FileNames)
-                            FN = {FileNames};
+                            %FN = {FileNames};
+                            FN = io.files.filelist(FileNames);
                         else
                             FN = FileNames;
                         end
