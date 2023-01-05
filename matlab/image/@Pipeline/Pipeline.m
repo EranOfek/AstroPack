@@ -235,6 +235,16 @@ classdef Pipeline < Component
         
         % coadd
     end
+    
+    methods % generic pipelines
+        % singleRaw
+        
+        % mutltiRaw
+        
+        % coaddMerge
+        
+        
+    end
 
     methods (Static) % UnitTest
         Result = unitTest()
