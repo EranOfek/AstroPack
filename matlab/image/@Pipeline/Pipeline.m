@@ -117,7 +117,7 @@ classdef Pipeline < Component
         
     end
     
-    methods % generic pipelines
+    methods % calibration prep
         
         
         % prep dark/bias
@@ -219,12 +219,19 @@ classdef Pipeline < Component
             
         end
         
-        % prep flat
+        % createFlat
+    end
+    
+    methods % pipeline blocks
+        % process
         
+        % sources
         
-        % getSources (bias, flat,..., back, sources, astrometry)
+        % forcePhot
         
-        % match sources
+        % astrometry
+        
+        % match to catalogs        
         
         % coadd
     end
