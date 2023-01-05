@@ -70,8 +70,8 @@ classdef FileNames < Component
             %            empty ImagePath object that will be created.
             %            2. A cell array of file nsmaes that will be
             %            parsed.
-            %            3. A structure from which all the relevant fields
-            %            will be copied to the ImageObject properties.
+            %            3. A structure array returned from the dir
+            %            command.
             % Output : - An ImagePath object.
             % Author : Eran Ofek (Jan 2022)
             % Example: IP = ImagePath(2);
@@ -91,8 +91,9 @@ classdef FileNames < Component
                 for I=1:1:N
                     Obj(I).ProjName = '';
                 end
-                
-                
+            elseif isstruct(Pars)
+                List = fullfile({Pars.folder}, {Pars.name});
+                Obj = FileNames.generateFromFileName(List);
             else
                 error('Unknown option');
             end
@@ -546,6 +547,7 @@ classdef FileNames < Component
                 Ind = [];
                 Args.ReturnChar logical = false;
                 Args.Product            = '';
+                Args.Level              = '';
             end
             
             if isempty(Ind)
@@ -691,7 +693,7 @@ classdef FileNames < Component
                                     DateDir, filesep, ...
                                     getProp(Obj, 'Level', Itime));
 
-                    if AddSubDir
+                    if Args.AddSubDir
                         Path{Itime} = sprintf('%s%s%s',Path{Itime},filesep,...
                                                        getProp(Obj, 'SubDir', Itime));
                     end
@@ -740,7 +742,7 @@ classdef FileNames < Component
                 Args.Level    = '';
             end
             
-            FileName = genFile(Obj, Ind, ReturnChar, 'Product',Args.Product, 'Level',Args.Level);
+            FileName = genFile(Obj, Ind, 'ReturnChar',Args.ReturnChar, 'Product',Args.Product, 'Level',Args.Level);
             Path     = genPath(Obj, Args.IndDir, 'ReturnChar',Args.ReturnChar, 'BasePath',Args.BasePath, 'FullPath',Args.FullPath);
             
             Nfn      = numel(FileName);

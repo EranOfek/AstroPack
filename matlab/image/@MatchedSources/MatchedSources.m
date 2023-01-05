@@ -226,7 +226,10 @@ classdef MatchedSources < Component
                 Args.OrderPart       = 'CropID';   % [] - do not order
             end
             
-            List  = io.files.rdir(FileTemplate);
+            List = io.files.rdir(FileTemplate);
+            FN   = FileNames(List);
+            List = FN.genFile;
+            
             Nlist = numel(List);   
    
             % read all files regardless of order
@@ -234,8 +237,8 @@ classdef MatchedSources < Component
                 Result = [];
             else
                 for Ilist=1:1:Nlist
-                    File          = fullfile(List(Ilist).folder, List(Ilist).name);
-                    Result(Ilist) = MatchedSources.read(File, Args.readArgs{:});
+                    %File          = fullfile(List(Ilist).folder, List(Ilist).name);
+                    Result(Ilist) = MatchedSources.read(List{Ilist}, Args.readArgs{:});
                 end
 
                 if ~isempty(Args.OrderPart)
@@ -246,13 +249,15 @@ classdef MatchedSources < Component
                     
                     ResultO = MatchedSources;
                     for Ipart=1:1:Npart
-                        ResultO(1:Nepoch,Ipart) = Result([Part==Ipart].');
-                        VecMeanJD = zeros(Nepoch,1);
-                        for Iep=1:1:Nepoch
-                            VecMeanJD(Iep) = mean(ResultO(Iep,Ipart).JD);
+                        if any([Part==Ipart])
+                            ResultO(1:Nepoch,Ipart) = Result([Part==Ipart].');
+                            VecMeanJD = zeros(Nepoch,1);
+                            for Iep=1:1:Nepoch
+                                VecMeanJD(Iep) = mean(ResultO(Iep,Ipart).JD);
+                            end
+                            [~,SI] = sort(VecMeanJD);
+                            ResultO(:,Ipart) = ResultO(SI,Ipart);
                         end
-                        [~,SI] = sort(VecMeanJD);
-                        ResultO(:,Ipart) = ResultO(SI,Ipart);
                     end
                     
                     Result = ResultO;
