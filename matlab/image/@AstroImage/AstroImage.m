@@ -382,7 +382,9 @@ classdef AstroImage < Component
                 Obj(Iobj).(DataProp).Data  = ImIO(Iobj).Data;
                 Obj(Iobj).(DataProp).Scale = Scale;
                 if ~isempty(FileNames)
-                    Obj(Iobj).(DataProp).FileName = FileNames{Iobj};
+                    if iscellstr(FileNames)
+                        Obj(Iobj).(DataProp).FileName = FileNames{Iobj};
+                    end
                 end
                 
                 if CopyHeader
