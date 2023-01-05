@@ -46,7 +46,7 @@ classdef FileNames < Component
         FormatCounter   = '%03d';       % Used with Counter        
         FormatCCDID     = '%03d';       % Used with CCDID
         FormatCropID    = '%03d';       % Used with CropID
-        FormatVersion   = '%d';       % Used with Version
+        FormatVersion   = '%03d';       % Used with Version
         
     end
 
