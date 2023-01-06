@@ -523,6 +523,23 @@ classdef CalibImages < Component
                 end
             end
         end
+        
+        function getLinearityCorrFromConfig(Obj, Name, Args)
+            % 
+            
+            arguments
+                Obj
+                Name
+                Args.ConfigPath = {'CameraConfig','Linearity'};
+            end
+            
+            
+            if ischar(Name)
+                Obj(1).Config.Data.CameraConfig.Linearity.(Name)
+            end
+                
+        end
+        
     end
     
     methods % calibration functions
