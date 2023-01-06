@@ -1,4 +1,7 @@
 % Pipeline - 
+%   The Pipeline class contains tools to perform blocks of image reduction
+%   steps. The tools are excslusively works with FileNames, AstroImage, and
+%   CalibImages objects.
 % Properties :
 %       
 % Functionality :
@@ -20,6 +23,7 @@ classdef Pipeline < Component
         
         ImagesPath         = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
         ArgsImagesPath     = {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
+        
         
         BasePath           
         
