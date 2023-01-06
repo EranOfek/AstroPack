@@ -17,7 +17,7 @@ Please cite:
   4. Ofek et al., in prep.
 
 ## Usage:
-From matlab: edit manuals.GettingStarted, and the manuals package.
+From matlab: edit manuals.GettingStarted, and the inspect the content of the manuals package.
   
 ## Content
 A collection of several thousands functions for astronomy, astrophysics, and image processing applications.
