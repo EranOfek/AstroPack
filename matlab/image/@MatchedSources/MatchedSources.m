@@ -2002,33 +2002,44 @@ classdef MatchedSources < Component
             
             % plot noise curve
             if Args.PlotNoiseCurve
-                if ~isempty(Args.SNField)
-                    [SNField] = getFieldNameDic(Obj, Args.SNField);
-                    SN        = median(Obj.Data.(SNField),1,'omitnan');
-                else
-                    % S/N is not provided - calc from other fields
-                   [FluxField] = getFieldNameDic(Obj, Args.FluxField);
-                   [StdField]  = getFieldNameDic(Obj, Args.StdField);
-                
-                   Flux   = median(Obj.Data.(FluxField),1,'omitnan');
-                   Std    = median(Obj.Data.(StdField),1,'omitnan');
-                   if Args.IsStd
-                       Var = Std.^2;
-                   else
-                       Var = Std;
-                   end
-                   SN = Flux./sqrt(Args.AperArea.*Var.*Args.Gain + Flux.*Args.Gain + Args.AperArea.*Args.RN.^2);
-                end
-                
-                FlagNN = ~isnan(AxisX) & ~isnan(SN);
-                VecX   = AxisX(FlagNN);
-                SN     = SN(FlagNN);
-                
-                B=timeseries.binning([VecX(:), 1.086./SN(:)],0.5,[NaN NaN],{'MidBin',@tools.math.stat.nanmedian,@numel});
-                FlagNN = ~isnan(B(:,2));
-                B = B(FlagNN,:);
+                Obj.addSrcData;
+                SN = Obj.SrcData.(Args.FluxField)./sqrt(Obj.SrcData.(Args.FluxField).*Args.Gain + Args.AperArea.*Obj.SrcData.VAR_IM + Args.AperArea.*Args.RN.^2);
+                SN = SN(:);
+                MagVec = Obj.SrcData.MAG_APER_3(:);
+                FlagNN = ~isnan(SN);
+                B = timeseries.binning([MagVec(FlagNN),1.086./SN(FlagNN)+0.0008],0.5,[10 18]);
                 hold on;
-                plot(B(:,1), B(:,2),'k-')
+                semilogy(B(:,1),B(:,3),'r-')
+                
+                
+                
+%                 if ~isempty(Args.SNField)
+%                     [SNField] = getFieldNameDic(Obj, Args.SNField);
+%                     SN        = median(Obj.Data.(SNField),1,'omitnan');
+%                 else
+%                     % S/N is not provided - calc from other fields
+%                    [FluxField] = getFieldNameDic(Obj, Args.FluxField);
+%                    [StdField]  = getFieldNameDic(Obj, Args.StdField);
+%                 
+%                    Flux   = median(Obj.Data.(FluxField),1,'omitnan');
+%                    Std    = median(Obj.Data.(StdField),1,'omitnan');
+%                    if Args.IsStd
+%                        Var = Std.^2;
+%                    else
+%                        Var = Std;
+%                    end
+%                    SN = Flux./sqrt(Args.AperArea.*Var.*Args.Gain + Flux.*Args.Gain + Args.AperArea.*Args.RN.^2);
+%                 end
+%                 
+%                 FlagNN = ~isnan(AxisX) & ~isnan(SN);
+%                 VecX   = AxisX(FlagNN);
+%                 SN     = SN(FlagNN);
+%                 
+%                 B=timeseries.binning([VecX(:), 1.086./SN(:)],0.5,[NaN NaN],{'MidBin',@tools.math.stat.nanmedian,@numel});
+%                 FlagNN = ~isnan(B(:,2));
+%                 B = B(FlagNN,:);
+%                 hold on;
+%                 plot(B(:,1), B(:,2),'k-')
                 
             end
             Hgca = gca;
