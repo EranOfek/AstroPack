@@ -48,7 +48,8 @@ classdef CalibImages < Component
         Dark AstroImage
         Flat AstroImage
         Fringe AstroImage
-        
+        Linearity
+
         % created by createBias
         DarkGroupsKey   % cell array of keys
         DarkGroupsVal   % Cell (size Nimages) of cells (size Nkeys)
@@ -524,16 +525,47 @@ classdef CalibImages < Component
             end
         end
         
-        function getLinearityCorrFromConfig(Obj, Name, Args)
+        function populateLinearity(Obj, Name, Args)
             % 
             
             arguments
-                Obj
+                Obj(1,1)
                 Name
+                Args.PathBase   = [];
+                Args.FileLoad   = 'load';
                 Args.ConfigPath = {'CameraConfig','Linearity'};
             end
             
             
+            if isempty(Args.PathBase)
+                % search for config file in some directiry tree
+                PWD = pwd;
+                cd(Args.PathBase);
+                
+                DirF = io.files.rdir(Name);
+                Nf = numel(DirF);
+                switch Nf
+                    case 1
+                        File = fullname(DirF.folder,DirF.name);
+                    case 0
+                        error('File Name template %s was not found in path %s',Name, Args.PathBase);
+                    otherwise
+                        error('More than one file Name template %s was not found in path %s',Name, Args.PathBase);
+                end
+
+                switch Args.FileLoad
+                    case 'load'
+                        Data = io.files.load2(File);   % [ADU, corr-factor] 
+                    otherwise
+                        error('FileLoad option %s is not supported',Args.FileLoad);
+                end
+                Obj.Linearity = Data;  % [ADU, corr-factor] 
+
+                cd(PWD);
+            else
+
+            end
+
             if ischar(Name)
                 Obj(1).Config.Data.CameraConfig.Linearity.(Name)
             end
