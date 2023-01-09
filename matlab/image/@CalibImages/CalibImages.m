@@ -525,22 +525,40 @@ classdef CalibImages < Component
             end
         end
         
-        function populateLinearity(Obj, Name, Args)
-            % 
+        function Result=populateLinearity(Obj, Name, Args)
+            % read Linaerity file from config file and populate the CalibImages
+            % Input  : - A single element CalibImages object.
+            %          - Configuration file name or file template name.
+            %          * ...,key,val,...
+            %            'PathBase' - Path in which the directory tree
+            %                   containing the linearity configuration file
+            %                   reside.
+            %                   If empty,... [option not yet available]
+            %                   Default is [].
+            %            'FileLoad' - How to load the file:
+            %                   'load' - will use the load function to read
+            %                       a ascii/mat file containing two columns
+            %                       [Counts(ADU), Linearity]
+            % Output : - The linarity two column table:
+            %            [Counts(ADU), Linearity]
+            %            Also populating the .Linearity property in the
+            %            CalibImages object.
+            % Author : Eran Ofek (Jan 2023)
             
             arguments
                 Obj(1,1)
                 Name
                 Args.PathBase   = [];
                 Args.FileLoad   = 'load';
-                Args.ConfigPath = {'CameraConfig','Linearity'};
             end
             
             
             if isempty(Args.PathBase)
                 % search for config file in some directiry tree
                 PWD = pwd;
-                cd(Args.PathBase);
+                if ~isempty(Args.PathBase)
+                    cd(Args.PathBase);
+                end
                 
                 DirF = io.files.rdir(Name);
                 Nf = numel(DirF);
@@ -555,20 +573,20 @@ classdef CalibImages < Component
 
                 switch Args.FileLoad
                     case 'load'
-                        Data = io.files.load2(File);   % [ADU, corr-factor] 
+                        Result = io.files.load2(File);   % [ADU, corr-factor] 
                     otherwise
                         error('FileLoad option %s is not supported',Args.FileLoad);
                 end
-                Obj.Linearity = Data;  % [ADU, corr-factor] 
+                Obj.Linearity = Result;  % [ADU, corr-factor] 
 
                 cd(PWD);
             else
-
+                error('Empty PathBase option is not yet available')
             end
 
-            if ischar(Name)
-                Obj(1).Config.Data.CameraConfig.Linearity.(Name)
-            end
+%             if ischar(Name)
+%                 Obj(1).Config.Data.CameraConfig.Linearity.(Name)
+%             end
                 
         end
         
