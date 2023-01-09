@@ -1807,11 +1807,20 @@ classdef MatchedSources < Component
             %                   std. Default is @std.
             %            'StdFunArgs' - A cell array of additional arguments to pass to
             %                   the 'StdFun'. Default is {[],1,'omitnan'}.
+            %            'Nsigma' - For the 'binning' method. This indicate
+            %                   the number of sigma above mean of the std in
+            %                   which to flag a source as variable. 
             % Output : - A structure array (element per object element).
             %            .MeanMag - mean mag for all sources.
             %            .StdPar - par std for all sources.
-            %            .EstimatedStdPar - The binned/polyfitted parameter-std
-            %                   for all sources.
+            %            .InterpMeanStd - The interpolated binned/polyfitted
+            %                   mean of the std for each source magnitude.
+            %            .InterpStdStd - (avalable for 'binning' option)
+            %                   The interpolated binned/polyfitted
+            %                   rstd of the std for each source magnitude.
+            %            .Flag - (avalable for 'binning' option) A logical
+            %                   flag indicating if a source is a possible
+            %                   variable.
             % Author : Eran Ofek (Jan 2022)
             % Example: MS = MatchedSources;
             %          MS.addMatrix(rand(100,200).*10,'MAG')
@@ -1829,6 +1838,7 @@ classdef MatchedSources < Component
                 Args.MeanFunArgs cell          = {1, 'omitnan'}
                 Args.StdFun function_handle    = @std;
                 Args.StdFunArgs cell           = {[],1,'omitnan'};
+                Args.Nsigma                    = 3;
             end
             
             Nobj = numel(Obj);
@@ -1839,7 +1849,7 @@ classdef MatchedSources < Component
                 if strcmp(Args.MagField, Args.ParField)
                     Par = Mag;
                 else
-                    [FieldNamePar] = getFieldNameDic(Obj(Iobj), Args.ParField);
+                    [FieldNamePar] = getFieldNameDic(Obj(Iobj), Args.MagField);
                     Par = getMatrix(Obj(Iobj), FieldNamePar);
                 end
 
@@ -1848,11 +1858,15 @@ classdef MatchedSources < Component
 
                 switch lower(Args.Method)
                     case 'binning'
-                        B = timeseries.binning([Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:)] ,Args.BinSize,[NaN NaN], {'MidBin',@numel, @median});
-                        Result(Iobj).EstimatedStdPar = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
+                        B = timeseries.binning([Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:)] ,Args.BinSize,[NaN NaN], {'MidBin',@numel, @median, @tools.math.stat.rstd});
+                        Result(Iobj).B = B;
+                        %Result(Iobj).EstimatedStdPar = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
+                        Result(Iobj).InterpMeanStd = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
+                        Result(Iobj).InterpStdStd = interp1(B(:,1), B(:,4), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
+                        Result(Iobj).FlagVar      = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.Nsigma.*Result(Iobj).InterpStdStd(:));
                     case 'polyfit'
                         Par = polyfit(Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:), Args.PolyDeg);
-                        Result(Iobj).EstimatedStdPar = polyval(Par, Result(Iobj).MeanMag);
+                        Result(Iobj).InterpMeanStd = polyval(Par, Result(Iobj).MeanMag);
                     otherwise
                         error('Unknown Method option');
                 end                
