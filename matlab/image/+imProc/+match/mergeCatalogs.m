@@ -124,7 +124,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
         Args.FitPM logical           = true;
         Args.fitMotionArgs cell      = {'Prob',1e-5};
         
-        Args.MatchedColums           = {'RA','Dec','X1','Y1','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','MAG_APER_2','MAG_APER_3','FLUX_APER_3','FLAGS','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};
+        Args.MatchedColums           = {'RA','Dec','X1','Y1','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','MAG_APER_2','MAGERR_APER_2','MAG_APER_3','MAGERR_APER_3','FLUX_APER_3','FLAGS','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};
         
         Args.ColNameFlags            = 'FLAGS';
         Args.ColNamesStat            = {'RA','Dec','X1','Y1','MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};  % must be a subset of MatchedColums
@@ -132,7 +132,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
         
         Args.ColNamesAll             = {'MAG_CONV_2','MAGERR_CONV_2'};
         Args.MagCalibColName         = 'MAG_APER_3'; %'MAG_CONV_2';
-        Args.MagCalibErrColName      = 'MAGERR_CONV_2';
+        Args.MagCalibErrColName      = 'MAGERR_APER_3';
 
         Args.unifiedSourcesCatalogArgs cell     = {};
        

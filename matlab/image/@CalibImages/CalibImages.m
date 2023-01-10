@@ -561,41 +561,46 @@ classdef CalibImages < Component
 
             arguments
                 Obj(1,1)
-                Name
+                Name            = [];
                 Args.PathBase   = [];
                 Args.FileLoad   = 'load';
             end
             
             
-            if isempty(Args.PathBase)
-                % search for config file in some directiry tree
-                PWD = pwd;
-                if ~isempty(Args.PathBase)
-                    cd(Args.PathBase);
+            if ~isempty(Name)
+                if isempty(Args.PathBase)
+                    % search for config file in some directiry tree
+                    PWD = pwd;
+                    if ~isempty(Args.PathBase)
+                        cd(Args.PathBase);
+                    end
+                    
+                    DirF = io.files.rdir(Name);
+                    Nf = numel(DirF);
+                    switch Nf
+                        case 1
+                            File = fullname(DirF.folder,DirF.name);
+                        case 0
+                            error('File Name template %s was not found in path %s',Name, Args.PathBase);
+                        otherwise
+                            error('More than one file Name template %s was not found in path %s',Name, Args.PathBase);
+                    end
+    
+                    switch Args.FileLoad
+                        case 'load'
+                            Result = io.files.load2(File);   % [ADU, corr-factor] 
+                        otherwise
+                            error('FileLoad option %s is not supported',Args.FileLoad);
+                    end
+                    Obj.Linearity = Result;  % [ADU, corr-factor] 
+    
+                    cd(PWD);
+                else
+                    error('Empty PathBase option is not yet available')
                 end
-                
-                DirF = io.files.rdir(Name);
-                Nf = numel(DirF);
-                switch Nf
-                    case 1
-                        File = fullname(DirF.folder,DirF.name);
-                    case 0
-                        error('File Name template %s was not found in path %s',Name, Args.PathBase);
-                    otherwise
-                        error('More than one file Name template %s was not found in path %s',Name, Args.PathBase);
-                end
-
-                switch Args.FileLoad
-                    case 'load'
-                        Result = io.files.load2(File);   % [ADU, corr-factor] 
-                    otherwise
-                        error('FileLoad option %s is not supported',Args.FileLoad);
-                end
-                Obj.Linearity = Result;  % [ADU, corr-factor] 
-
-                cd(PWD);
             else
-                error('Empty PathBase option is not yet available')
+                % do nothing - do not populate Linearity (Name is empty)
+                Result = Obj;
             end
 
 %             if ischar(Name)

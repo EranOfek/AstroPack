@@ -46,7 +46,7 @@ classdef FileNames < Component
         FormatCounter   = '%03d';       % Used with Counter        
         FormatCCDID     = '%03d';       % Used with CCDID
         FormatCropID    = '%03d';       % Used with CropID
-        FormatVersion   = '%03d';       % Used with Version
+        FormatVersion   = '%d';       % Used with Version
         
     end
 
@@ -55,7 +55,7 @@ classdef FileNames < Component
     end
     
     properties (Hidden, Constant)
-        ListType        = { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'focus', 'sci', 'science', 'wave', 'type' };
+        ListType        = { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'focus', 'sci', 'wave', 'type' };
         ListLevel       = {'log', 'raw', 'proc', 'stacked', 'ref', 'coadd', 'merged', 'calib', 'junk'};
         ListProduct     = { 'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat', 'Asteroids'};
     end
