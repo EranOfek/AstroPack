@@ -65,7 +65,7 @@ classdef MatchedSources < Component
         
         DefNamesX cell                   = {'X','X_IMAGE','XWIN_IMAGE','X1','X_PEAK','XPEAK'};
         DefNamesY cell                   = {'Y','Y_IMAGE','YWIN_IMAGE','Y1','Y_PEAK','YPEAK'};
-pipe        DefNamesRA cell                  = {'RA','ALPHA','ALPHAWIN_J2000','ALPHA_J2000','RA_J2000','RAJ2000','RightAsc'};
+        DefNamesRA cell                  = {'RA','ALPHA','ALPHAWIN_J2000','ALPHA_J2000','RA_J2000','RAJ2000','RightAsc'};
         DefNamesDec cell                 = {'Dec','DEC','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DEJ2000','Declination'};
         DefNamesErrRA cell               = {'RAERR','RA_ERR','ALPHAERR','ALPHA_ERR'};
         DefNamesErrDec cell              = {'DecErr','DECERR','DEC_ERR','DELTAERR','DELTA_ERR'};
@@ -2094,7 +2094,7 @@ pipe        DefNamesRA cell                  = {'RA','ALPHA','ALPHAWIN_J2000','A
         end
         
         % index from position
-        function [Ind,Flag, Dist] = coneSearch(Obj, RA, Dec, SearchRadius, Args)
+        function [Result] = coneSearch(Obj, RA, Dec, SearchRadius, Args)
             % search sources in MatchedSource object by RA/Dec
             % Input  : - A MatchedSources object.
             %          - R.A.
