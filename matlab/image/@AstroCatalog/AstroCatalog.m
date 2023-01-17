@@ -715,6 +715,7 @@ classdef AstroCatalog < AstroTable
         function [Dist, PA] = sphere_dist(Obj, Lon, Lat, LonLatUnits, OutUnits)
             % Calculate the spherical distance and PA between Lon,Lat in
             % Astrocatalog and a Lon, Lat in array.
+            %   see also AstroCatalog/coneSearch
             % Input  : - A single-element AstroCatlog Object.
             %          - Lon (scalar, or column vector with the same length
             %            as the AstroCatalog catalog, or a row vector of
@@ -746,6 +747,43 @@ classdef AstroCatalog < AstroTable
             Dist          = Dist.*ConvertFactor;
             PA            = PA.*ConvertFactor;
             
+        end
+
+        function Result=coneSearch(Obj, RA, Dec, SearchRadius, Args)
+            %
+
+            arguments
+                Obj
+                RA
+                Dec
+                SearchRadius                 = 3;
+                Args.SearchRadiusUnits       = 'arcsec';
+                Args.InCooUnits              = 'deg';   % 'deg' | 'rad'
+                Args.CooUnits                = 'deg';   % 'deg' | 'rad'
+                Args.FieldRA                 = 'RA';
+                Args.FieldDec                = 'Dec';
+                Args.MeanFun function_handle = @tools.math.stat.nanmedian;
+                Args.MeanFunArgs cell        = {};
+            end
+            
+            RA  = convert.angular(Args.InCooUnits, 'rad', RA);
+            Dec = convert.angular(Args.InCooUnits, 'rad', Dec);
+            
+            Nobj   = numel(Obj);
+            Result = struct('Flag',cell(size(Obj)), 'Ind',cell(size(Obj)), 'Dist',cell(size(Obj)));
+            for Iobj=1:1:Nobj
+                MeanRA  = convert.angular(Args.CooUnits, 'rad', Obj(Iobj).SrcData.(Args.FieldRA));
+                MeanDec = convert.angular(Args.CooUnits, 'rad', Obj(Iobj).SrcData.(Args.FieldDec));
+                
+                SearchRadius = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
+                Dist = celestial.coo.sphere_dist_fast(RA, Dec, MeanRA, MeanDec);
+                Result(Iobj).Flag = Dist<SearchRadius;
+                Result(Iobj).Ind  = find(Result(Iobj).Flag);
+                Result(Iobj).Dist = Dist(Result(Iobj).Flag);
+                Result(Iobj).Nsrc = sum(Result(Iobj).Flag);
+            end
+
+
         end
     end
     
