@@ -769,14 +769,17 @@ classdef AstroCatalog < AstroTable
             RA  = convert.angular(Args.InCooUnits, 'rad', RA);
             Dec = convert.angular(Args.InCooUnits, 'rad', Dec);
             
+            SearchRadius = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
+
             Nobj   = numel(Obj);
             Result = struct('Flag',cell(size(Obj)), 'Ind',cell(size(Obj)), 'Dist',cell(size(Obj)));
             for Iobj=1:1:Nobj
                 MeanRA  = convert.angular(Args.CooUnits, 'rad', Obj(Iobj).SrcData.(Args.FieldRA));
                 MeanDec = convert.angular(Args.CooUnits, 'rad', Obj(Iobj).SrcData.(Args.FieldDec));
                 
-                SearchRadius = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
-                Dist = celestial.coo.sphere_dist_fast(RA, Dec, MeanRA, MeanDec);
+                [VecRA, VecDec] = getLonLat(Obj(Iobj),'rad');
+
+                Dist = celestial.coo.sphere_dist_fast(RA, Dec, VecRA, VecDec);
                 Result(Iobj).Flag = Dist<SearchRadius;
                 Result(Iobj).Ind  = find(Result(Iobj).Flag);
                 Result(Iobj).Dist = Dist(Result(Iobj).Flag);
