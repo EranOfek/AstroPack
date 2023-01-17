@@ -803,9 +803,6 @@ classdef AstroCatalog < AstroTable
             Nobj   = numel(Obj);
             Result = struct('Flag',cell(size(Obj)), 'Ind',cell(size(Obj)), 'Dist',cell(size(Obj)));
             for Iobj=1:1:Nobj
-                MeanRA  = convert.angular(Args.CooUnits, 'rad', Obj(Iobj).SrcData.(Args.FieldRA));
-                MeanDec = convert.angular(Args.CooUnits, 'rad', Obj(Iobj).SrcData.(Args.FieldDec));
-                
                 [VecRA, VecDec] = getLonLat(Obj(Iobj),'rad');
 
                 Dist = celestial.coo.sphere_dist_fast(RA, Dec, VecRA, VecDec);
