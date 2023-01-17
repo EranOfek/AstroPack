@@ -750,7 +750,36 @@ classdef AstroCatalog < AstroTable
         end
 
         function Result=coneSearch(Obj, RA, Dec, SearchRadius, Args)
-            %
+            % search sources in AstroCatalog object by RA/Dec
+            % Input  : - An AstroCatalog object.
+            %          - R.A.
+            %          - Dec.
+            %          - Search radius. Default is 3.
+            %          * ...,key,val,...
+            %            'SearchRadiusUnits' - SearchRadius units.
+            %                   Default is 'arcsec'.
+            %            'InCooUnits' - Input RA/Dec units.
+            %                   Default is 'deg'.
+            %            'CooUnits' - Coordinates units in the Data matrix.
+            %                   Default is 'deg'.
+            %            'FieldRA' - Field name containing the R.A.
+            %                   Default is 'RA'.
+            %            'FieldDec' - Field name containing the Dec.
+            %                   Default is 'Dec'.
+            %            'MeanFun' - Mean function to apply over columns.
+            %                   Default is @tools.math.stat.nanmedian
+            %            'MeanFunArgs' - A cell array of additional
+            %                   arguments to pass to 'MeanFun' after the
+            %                   Dim argument. Default is {}.
+            % Output : - A structure array (element per AstroCatalog
+            %            object element) with the following fields:
+            %            .Ind - Indices of sources found withing search radius.
+            %            .Flag - Flag of logicals of found sources.
+            %            .Dist - Angular distance [rad] between found sources and
+            %                   search position.
+            %            .Nsrc - Number of sources found.
+            % Author : Eran Ofek (Mar 2022)
+            % Example: 
 
             arguments
                 Obj
