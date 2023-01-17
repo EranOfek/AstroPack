@@ -228,6 +228,7 @@ pipe        DefNamesRA cell                  = {'RA','ALPHA','ALPHAWIN_J2000','A
             
             List = io.files.rdir(FileTemplate);
             FN   = FileNames(List);
+            FN.FormatVersion = '%03d';
             List = FN.genFile;
             
             Nlist = numel(List);   
