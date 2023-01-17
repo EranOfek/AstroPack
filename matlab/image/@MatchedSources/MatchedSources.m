@@ -2122,6 +2122,7 @@ classdef MatchedSources < Component
             %            .Flag - Flag of logicals of found sources.
             %            .Dist - Angular distance [rad] between found sources and
             %                   search position.
+            %            .Nsrc - Number of sources found.
             % Author : Eran Ofek (Mar 2022)
             % Example: MS = MatchedSources;
             %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','RA','Dec'})
@@ -2158,6 +2159,7 @@ classdef MatchedSources < Component
                 Result(Iobj).Flag = Dist<SearchRadius;
                 Result(Iobj).Ind  = find(Result(Iobj).Flag);
                 Result(Iobj).Dist = Dist(Result(Iobj).Flag);
+                Result(Iobj).Nsrc = sum(Result(Iobj).Flag);
             end
 
         end
