@@ -8,7 +8,7 @@ function [Image,CorrFactor] = nonlinearityCorrection(Image, Correction, Args)
     %          * ...,key,val,...
     %            'InterpMethod' - Default is 'linear'.
     %            'Operator' - function handle operator to apply on the correction factor.
-    %                   Default is @rdivide (i.e., divide image by factor).
+    %                   Default is @rdivide .e., divide image by factor).
     % Output : - A corrected image.
     % Author : Eran Ofek (Jul 2022)
     % Example: Corr = [0 1; 1000 1.1;20000 0.9; 70000 0.8]; 

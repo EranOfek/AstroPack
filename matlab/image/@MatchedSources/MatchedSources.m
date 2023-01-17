@@ -65,7 +65,7 @@ classdef MatchedSources < Component
         
         DefNamesX cell                   = {'X','X_IMAGE','XWIN_IMAGE','X1','X_PEAK','XPEAK'};
         DefNamesY cell                   = {'Y','Y_IMAGE','YWIN_IMAGE','Y1','Y_PEAK','YPEAK'};
-        DefNamesRA cell                  = {'RA','ALPHA','ALPHAWIN_J2000','ALPHA_J2000','RA_J2000','RAJ2000','RightAsc'};
+pipe        DefNamesRA cell                  = {'RA','ALPHA','ALPHAWIN_J2000','ALPHA_J2000','RA_J2000','RAJ2000','RightAsc'};
         DefNamesDec cell                 = {'Dec','DEC','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DEJ2000','Declination'};
         DefNamesErrRA cell               = {'RAERR','RA_ERR','ALPHAERR','ALPHA_ERR'};
         DefNamesErrDec cell              = {'DecErr','DECERR','DEC_ERR','DELTAERR','DELTA_ERR'};
@@ -2095,7 +2095,7 @@ classdef MatchedSources < Component
         % index from position
         function [Ind,Flag, Dist] = coneSearch(Obj, RA, Dec, SearchRadius, Args)
             % search sources in MatchedSource object by RA/Dec
-            % Input  : - A single element MatchedSources object.
+            % Input  : - A MatchedSources object.
             %          - R.A.
             %          - Dec.
             %          - Search radius. Default is 3.
@@ -2115,17 +2115,19 @@ classdef MatchedSources < Component
             %            'MeanFunArgs' - A cell array of additional
             %                   arguments to pass to 'MeanFun' after the
             %                   Dim argument. Default is {}.
-            % Output : - Indices of sources found withing search radius.
-            %          - Flag of logicals of found sources.
-            %          - Angular distance [rad] between found sources and
-            %            search position.
+            % Output : - A structure array (element per MatchedSource
+            %            object element) with the following fields:
+            %            .Ind - Indices of sources found withing search radius.
+            %            .Flag - Flag of logicals of found sources.
+            %            .Dist - Angular distance [rad] between found sources and
+            %                   search position.
             % Author : Eran Ofek (Mar 2022)
             % Example: MS = MatchedSources;
             %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','RA','Dec'})
             %          [Ind,Flag,Dist] = coneSearch(MS, 0.5,0.5,100);
             
             arguments
-                Obj(1,1)
+                Obj
                 RA
                 Dec
                 SearchRadius                 = 3;
@@ -2144,15 +2146,19 @@ classdef MatchedSources < Component
             RA  = convert.angular(Args.InCooUnits, 'rad', RA);
             Dec = convert.angular(Args.InCooUnits, 'rad', Dec);
             
-            MeanRA  = convert.angular(Args.CooUnits, 'rad', Obj.SrcData.(Args.FieldRA));
-            MeanDec = convert.angular(Args.CooUnits, 'rad', Obj.SrcData.(Args.FieldDec));
-            
-            SearchRadius = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
-            Dist = celestial.coo.sphere_dist_fast(RA, Dec, MeanRA, MeanDec);
-            Flag = Dist<SearchRadius;
-            Ind  = find(Flag);
-            Dist = Dist(Flag);
-            
+            Nobj   = numel(Obj);
+            Result = struct('Flag',cell(size(Obj)), 'Ind',cell(size(Obj)), 'Dist',cell(size(Obj)));
+            for Iobj=1:1:Nobj
+                MeanRA  = convert.angular(Args.CooUnits, 'rad', Obj(Iobj).SrcData.(Args.FieldRA));
+                MeanDec = convert.angular(Args.CooUnits, 'rad', Obj(Iobj).SrcData.(Args.FieldDec));
+                
+                SearchRadius = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
+                Dist = celestial.coo.sphere_dist_fast(RA, Dec, MeanRA, MeanDec);
+                Result(Iobj).Flag = Dist<SearchRadius;
+                Result(Iobj).Ind  = find(Result(Iobj).Flag);
+                Result(Iobj).Dist = Dist(Result(Iobj).Flag);
+            end
+
         end
         
         % plot LC by source index
