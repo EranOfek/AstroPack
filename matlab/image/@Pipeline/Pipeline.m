@@ -23,7 +23,8 @@ classdef Pipeline < Component
         
         ImagesPath         = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
         ArgsImagesPath     = {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
-        
+        CalibPath          = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
+        ArgsCalibPath      = {1,'Node',1, 'SubDir','calib', 'ProjNamebase','LAST'};
         
         BasePath           
         
@@ -108,12 +109,37 @@ classdef Pipeline < Component
     
     methods % Prepare pipeline for executation
         function Obj = loadCalibImages(Obj, Args)
-            %
+            % Load the CalibImages object into the Pipeline object
+            % Input  : - A Pipeline object.
+            %          * ...,key,val,...
+            %            'CalibDir' - Path containing the calibration
+            %                   images. Default is {}.
+            %            'loadFromDirArgs' - A cell array of additional key/val
+            %                   arguments to pass to the CalibImages.loadFromDir
+            %                   function. If empty, then attempt to
+            %                   construct the dir using the CalibPath and
+            %                   ArgsCalibPath object properties.
+            %                   Default is {}.
+            % Output : - A Pipeline object in which the CI property is
+            %            populated with CalibImages object.
+            % Author : Eran Ofek (Jan 2023)
             
             arguments
-                Obj
-                Args.CalibDir = [];
+                Obj(1,1)
+                Args.CalibDir        = [];
+                Args.loadFromDirArgs = {};
             end
+            
+            if isempty(Args.CalibDir)
+                if isa(Obj.CalibPath, 'function_handle')
+                    Args.CalibDir = Obj.CalibPath(Obj.ArgsCalibPath{:});
+                else
+                    % CalibPath property contains a char array of path
+                    Args.CalibDir = Obj.CalibPath;
+                end
+            end        
+                
+            Obj.CI = CalibImages.loadFromDir(Args.CalibDir, Args.loadFromDirArgs{:});
             
         end
         
