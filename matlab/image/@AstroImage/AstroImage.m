@@ -159,6 +159,9 @@ classdef AstroImage < Component
             % Constructor and image reader for AstroImage class
             % Input  : - A file name (with optional wild cards),
             %            or cell of matrices.
+            %            Examples: '*.fits' - all fits file in current dir.
+            %               '/a/b/c.fits' - NOT SUPPORTED.
+            %               {'/a/b/c.fits','a/b/d.fits'} - list of files.
             %          * ...,key,val,...
             %            'HDU' - HDU number. Default is 1.
             %            'Scale' - Image scale. Default is [].
