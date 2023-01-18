@@ -55,8 +55,8 @@ classdef FileNames < Component
     end
     
     properties (Hidden, Constant)
-        ListType        = { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'focus', 'sci', 'science', 'wave', 'type' };
-        ListLevel       = {'log', 'raw', 'proc', 'stacked', 'ref', 'coadd', 'merged', 'calib', 'junk'};
+        ListType        = { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'focus', 'sci', 'wave', 'type' };
+        ListLevel       = {'log', 'raw', 'proc', 'stack', 'ref', 'coadd', 'merged', 'calib', 'junk'};
         ListProduct     = { 'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat', 'Asteroids'};
     end
     
@@ -70,8 +70,8 @@ classdef FileNames < Component
             %            empty ImagePath object that will be created.
             %            2. A cell array of file nsmaes that will be
             %            parsed.
-            %            3. A structure from which all the relevant fields
-            %            will be copied to the ImageObject properties.
+            %            3. A structure array returned from the dir
+            %            command.
             % Output : - An ImagePath object.
             % Author : Eran Ofek (Jan 2022)
             % Example: IP = ImagePath(2);
@@ -91,8 +91,9 @@ classdef FileNames < Component
                 for I=1:1:N
                     Obj(I).ProjName = '';
                 end
-                
-                
+            elseif isstruct(Pars)
+                List = fullfile({Pars.folder}, {Pars.name});
+                Obj = FileNames.generateFromFileName(List);
             else
                 error('Unknown option');
             end
@@ -532,14 +533,21 @@ classdef FileNames < Component
             %            'ReturnChar' - A logical indicating if to return a char array
             %                   instead of cell array in case that a single file is
             %                   returned. Default is false.
+            %            'Product' - If given (e.g., 'Image') will override
+            %                   Product name (but will not modify the
+            %                   object). Default is '';
+            %            'Level' - If given (e.g., 'proc') will override
+            %                   Level name (but will not modify the
+            %                   object). Default is '';
             % Output : - A cell array of file names.
             % Author : Eran Ofek (Dec 2022)
-            
         
             arguments
                 Obj
                 Ind = [];
                 Args.ReturnChar logical = false;
+                Args.Product            = '';
+                Args.Level              = '';
             end
             
             if isempty(Ind)
@@ -582,7 +590,19 @@ classdef FileNames < Component
                 if isnumeric(VersionStr)
                     VersionStr = sprintf(Obj.FormatVersion,VersionStr);
                 end
-                                
+                
+                if isempty(Args.Product)
+                    ProductStr = Obj.getProp('Product',Itime);
+                else
+                    ProductStr = Args.Product;
+                end
+                
+                if isempty(Args.Level)
+                    LevelStr = Obj.getProp('Level',Itime);
+                else
+                    LevelStr = Args.Level;
+                end
+                
                 % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
                 FileName{Itime} = sprintf('%s_%s_%s_%s_%s_%s_%s_%s_%s_%s_%s.%s',...
                                             Obj.getProp('ProjName',Itime),...
@@ -593,8 +613,8 @@ classdef FileNames < Component
                                             CCDIDStr,...
                                             CropIDStr,...
                                             Obj.getProp('Type',Itime),...
-                                            Obj.getProp('Level',Itime),...
-                                            Obj.getProp('Product',Itime),...
+                                            LevelStr,...
+                                            ProductStr,...
                                             VersionStr,...
                                             Obj.getProp('FileType',Itime));
                                             
@@ -673,7 +693,7 @@ classdef FileNames < Component
                                     DateDir, filesep, ...
                                     getProp(Obj, 'Level', Itime));
 
-                    if AddSubDir
+                    if Args.AddSubDir
                         Path{Itime} = sprintf('%s%s%s',Path{Itime},filesep,...
                                                        getProp(Obj, 'SubDir', Itime));
                     end
@@ -706,6 +726,8 @@ classdef FileNames < Component
             %            'FullPath' - A full path to insert into the object
             %                   FullPath property. If empty, use object default.
             %                   Default is [].
+            %            'Product' - See genFile.
+            %            'Level' - See genFile.
             % Output : - A cell array of full file name and path.
             % Author : Eran Ofek (Dec 2022)
             
@@ -716,9 +738,11 @@ classdef FileNames < Component
                 Args.ReturnChar logical = false;
                 Args.BasePath = [];
                 Args.FullPath = [];
+                Args.Product  = '';
+                Args.Level    = '';
             end
             
-            FileName = genFile(Obj, Ind, ReturnChar);
+            FileName = genFile(Obj, Ind, 'ReturnChar',Args.ReturnChar, 'Product',Args.Product, 'Level',Args.Level);
             Path     = genPath(Obj, Args.IndDir, 'ReturnChar',Args.ReturnChar, 'BasePath',Args.BasePath, 'FullPath',Args.FullPath);
             
             Nfn      = numel(FileName);

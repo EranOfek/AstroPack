@@ -6,10 +6,10 @@ function fitTransmissionZP(InstMag, Err, SpecMatrix, Args)
     arguments
         InstMag
         Err
-        SpecMatrix
+        SpecMatrix                         % by default columns contain spectra
         Args.Transpose logical  = false;   % transpose SpecMatrix
         Args.SpecWave           = 'GAIA-DR3';  % or vector of wavelength [Nwave, Nsrc]
-        Args.IsFlux logical     = false;  % InstMag is in flux units
+        Args.IsFlux logical     = true;  % InstMag is in flux units
         Args.ZP                 = 25;     % ZP for mag to flux conversion
         Args.Trans              = [3800 0; 3801 1; 8000 1; 8001 0];
         Args.PolyOrder          = [];
@@ -36,7 +36,7 @@ function fitTransmissionZP(InstMag, Err, SpecMatrix, Args)
     if ischar(Args.SpecWave)
         switch Args.SpecWave
             case 'GAIA-DR3'
-                Wave = (336:2:1020).';
+                Wave = (3360:20:10200).';
             otherwise
                 error('Unknown SpecWave option');
         end
@@ -59,7 +59,7 @@ function fitTransmissionZP(InstMag, Err, SpecMatrix, Args)
     end
     
     % interp Trans to SpecMatrix wavelength
-    TransT = interp1(Trans(:,1), Trans(:,2), Wave, Args.InterpMethod);
+    TransT = interp1(Trans(:,1), Trans(:,2), Wave, Args.InterpMethod,0);
     
     % prepare polynomials expension
     % select polynomial order
@@ -95,8 +95,8 @@ function fitTransmissionZP(InstMag, Err, SpecMatrix, Args)
     % solve
     switch Args.Algo
         case '\'
-            Par = Hflux\InstFlux;
-            Err = nan(size(Par));
+            Par    = Hflux\InstFlux;
+            ParErr = nan(size(Par));
         case 'lscov'
             [Par, ParErr] = lscov(Hflux, InstFlux, 1./Err.^2);
         otherwise
@@ -105,5 +105,8 @@ function fitTransmissionZP(InstMag, Err, SpecMatrix, Args)
     
     Resid = InstFlux - Hflux*Par;
     Std   = std(Resid);
+    
+    
+    
     
 end

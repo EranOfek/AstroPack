@@ -48,7 +48,8 @@ classdef CalibImages < Component
         Dark AstroImage
         Flat AstroImage
         Fringe AstroImage
-        
+        Linearity
+
         % created by createBias
         DarkGroupsKey   % cell array of keys
         DarkGroupsVal   % Cell (size Nimages) of cells (size Nkeys)
@@ -286,8 +287,15 @@ classdef CalibImages < Component
             %                   E.g., {'EXPTIME','CAMOFFS','CAMGAIN'}
             %                   If empty, then ignore and upload only one.
             %                   Default is empty.
+            %            'LinearityName' - Linearity file name or template
+            %                   name to load. If empty, do not load.
+            %                   Default is [].
+            %            'LinearityPathBase' - Linearity path.
+            %                   See CalibImages/populateLinearity.
+            %                   Default is [].
             % Output : - A CalibImages object in which the Bias and Flat
-            %            fields are populated.
+            %            fields are populated, and optionally also the
+            %            Linearity property is loaded.
             % Author : Eran Ofek (Apr 2022)
             % Example: CI = CalibImages.loadFromDir
            
@@ -302,6 +310,9 @@ classdef CalibImages < Component
                 Args.LoadLatest logical  = true;
                 Args.GroupKeys           = []; %{'EXPTIME','CAMOFFS','CAMGAIN'};
                 Args.ExpTime             = [];
+
+                Args.LinearityName       = [];
+                Args.LinearityPathBase   = [];
             end
             
             if isempty(DirName)
@@ -372,6 +383,10 @@ classdef CalibImages < Component
                     end
                     Obj.Bias(Igroup) = AstroImage(ArgsAI{:});
                 end
+
+                % populate Linearity
+                Obj = Obj.populateLinearity(Args.LinearityName, 'PathBase',Args.LinearityPathBase);
+
             end
             
             % Flat
@@ -523,6 +538,77 @@ classdef CalibImages < Component
                 end
             end
         end
+        
+        function Result=populateLinearity(Obj, Name, Args)
+            % read Linaerity file from config file and populate the CalibImages
+            % Input  : - A single element CalibImages object.
+            %          - Configuration file name or file template name.
+            %          * ...,key,val,...
+            %            'PathBase' - Path in which the directory tree
+            %                   containing the linearity configuration file
+            %                   reside.
+            %                   If empty,... [option not yet available]
+            %                   Default is [].
+            %            'FileLoad' - How to load the file:
+            %                   'load' - will use the load function to read
+            %                       a ascii/mat file containing two columns
+            %                       [Counts(ADU), Linearity]
+            % Output : - The linarity two column table:
+            %            [Counts(ADU), Linearity]
+            %            Also populating the .Linearity property in the
+            %            CalibImages object.
+            % Author : Eran Ofek (Jan 2023)
+
+            arguments
+                Obj(1,1)
+                Name            = [];
+                Args.PathBase   = [];
+                Args.FileLoad   = 'load';
+            end
+            
+            
+            if ~isempty(Name)
+                if isempty(Args.PathBase)
+                    % search for config file in some directiry tree
+                    PWD = pwd;
+                    if ~isempty(Args.PathBase)
+                        cd(Args.PathBase);
+                    end
+                    
+                    DirF = io.files.rdir(Name);
+                    Nf = numel(DirF);
+                    switch Nf
+                        case 1
+                            File = fullname(DirF.folder,DirF.name);
+                        case 0
+                            error('File Name template %s was not found in path %s',Name, Args.PathBase);
+                        otherwise
+                            error('More than one file Name template %s was not found in path %s',Name, Args.PathBase);
+                    end
+    
+                    switch Args.FileLoad
+                        case 'load'
+                            Result = io.files.load2(File);   % [ADU, corr-factor] 
+                        otherwise
+                            error('FileLoad option %s is not supported',Args.FileLoad);
+                    end
+                    Obj.Linearity = Result;  % [ADU, corr-factor] 
+    
+                    cd(PWD);
+                else
+                    error('Empty PathBase option is not yet available')
+                end
+            else
+                % do nothing - do not populate Linearity (Name is empty)
+                Result = Obj;
+            end
+
+%             if ischar(Name)
+%                 Obj(1).Config.Data.CameraConfig.Linearity.(Name)
+%             end
+                
+        end
+        
     end
     
     methods % calibration functions
@@ -1084,6 +1170,12 @@ classdef CalibImages < Component
             %                   or a structure with .Flux and .Corr fields.
             %                   The correction factor is either multiplicative or by
             %                   division (see 'Operator' argument in imProc.calib.nonlinearCorrection).
+            %                   Default is @rdivide.
+            %                   If empty, will attempt to read the table
+            %                   from the Linearity property of the
+            %                   CalibImages object.
+            %                   If not exist, the will skip this step.
+            %                   Default is [].
             %           'NonLinCorrArgs' - A cell array of additional
             %                   arguments to pass to
             %                   imProc.calib.nonlinearCorrection.
@@ -1181,12 +1273,12 @@ classdef CalibImages < Component
                 Result = Obj.overscan(Result, 'OverScan',Args.OverScan, 'Method',Args.MethodOverScan, 'CreateNewObj',false');
             end
                 
-            if ~isempty(Args.NonLinCorr)
-                % apply non-linear correction
-                imProc.calib.nonlinearityCorrection(Result, Args.NonLinCorr, Args.NonLinCorrArgs{:}, 'CreateNewObj',false);
+            if isempty(Args.NonLinCorr)
+                Args.NonLinCorr = Obj.Linearity;
             end
-                
-            
+            % apply non-linear correction
+            Result = imProc.calib.nonlinearityCorrection(Result, Args.NonLinCorr, Args.NonLinCorrArgs{:}, 'CreateNewObj',false);
+                        
             % The overscan may change the size of the image.
             % Depands on how the flat was created, the new image size may
             % not be compatible with the flat size

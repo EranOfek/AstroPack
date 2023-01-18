@@ -1,6 +1,6 @@
 function Result = unitTest()
     % unitTest for AstroImage
-    % Example: AstroImage.unitTest
+    % Example: AstroImage.unitTest 
 
     io.msgStyle(LogLevel.Test, '@start', 'AstroImage test started')
 
@@ -61,9 +61,10 @@ function Result = unitTest()
     end
 
     io.msgLog(LogLevel.Test, 'testing AstroImage julday');
+   % kra: the next line does not work (fixed by EO)
     AI = AstroImage('*.fits');
-    [JD,ET] = julday(AI(2:3));
-    [JD,ET] = julday(AI(1));
+   [JD,ET] = julday(AI(2:3));
+   [JD,ET] = julday(AI(1));
 
     % image2subimages
     io.msgLog(LogLevel.Test, 'testing AstroImage image2subimages');
@@ -75,14 +76,14 @@ function Result = unitTest()
     % check crop - complete
     AI = AstroImage({rand(100,100)},'Back',{rand(100,100)});
     Sec_ccdsec = [11 20 11 30];
-    Res = crop(AI,Sec_ccdsec);
+    Res = crop(AI,Sec_ccdsec,'CreateNewObj',true);
     Sec_center = [Sec_ccdsec(1)+Sec_ccdsec(2),Sec_ccdsec(3)+Sec_ccdsec(4),...
                   Sec_ccdsec(2)-Sec_ccdsec(1),Sec_ccdsec(4)-Sec_ccdsec(3)]/2;
-    Res2 = crop(AI,Sec_center,'Type','center');
-     if ~all(Res.Image==Res2.Image,'all')
+    Res2 = crop(AI,Sec_center,'Type','center','CreateNewObj',true);
+    % kra: why after this line Res also changes (fixed by EO)
+    if ~all(Res.Image==Res2.Image,'all')
         error('Problem with crop or plus operator with crop');
     end
-
 
     % overload operators
     io.msgLog(LogLevel.Test, 'testing AstroImage operators')
@@ -124,8 +125,7 @@ function Result = unitTest()
     if ~all(R(2).Image==2./3)
         error('Problem with rdivide operator');
     end
-    
-        
+            
     % overload operators with CCDSEC
     io.msgLog(LogLevel.Test, 'testing AstroImage operators with CCDSEC')
     AI = AstroImage({ones(1024, 1024)});
@@ -142,9 +142,6 @@ function Result = unitTest()
     Mat = zeros(30,30); Mat(15,15)=1;
     AI = AstroImage({Mat});
     Res = conv(AI, @imUtil.kernel2.gauss);
-    
-  
-    
 
     % filter (cross-correlation)
     io.msgLog(LogLevel.Test, 'testing AstroImage filter')
@@ -152,7 +149,15 @@ function Result = unitTest()
     AI.filter(imUtil.kernel2.annulus);
     Mat = zeros(30,30); Mat(15,15)=1;
     AI = AstroImage({Mat});
-    Res = filter(AI, @imUtil.kernel2.gauss);
+    Res2 = filter(AI, @imUtil.kernel2.gauss);
+    
+    % kra:
+    io.msgLog(LogLevel.Test, 'convolution vs. filter relative error')
+    Diff = Res-Res2;
+    Er = norm(Diff.Image)/norm(Res.Image);
+    if(Er >= 1e-15)
+        error('filter and conv do not match on a point-source')
+    end
 
     % object2array
     % ???
@@ -220,8 +225,11 @@ function Result = unitTest()
     % funHeaderScalar
     io.msgLog(LogLevel.Test, 'testing AstroImage funHeaderScalar')
     AI = AstroImage({rand(10,10), rand(10,10)});
-    funHeaderScalar(AI,@julday)
-
+    funHeader(AI,@insertKey,{'DATEOBS','2003-07-24T18:28:58','';'EXPTIME',60,''}); %kra: insert a value
+    %AI(1).getStructKey('DATE').DATEOBS %kra
+    Res = funHeaderScalar(AI,@julday); %kra: generated NaN, fixed by EO via adding DATEOBS and EXPTIME
+    assert( (Res(1) == 2452845.2704629627) && (Res(2) == 2452845.2704629627) );
+    
     % getStructKey
     Im = ones(500,500);
     AI = AstroImage({poissrnd(Im.*1e3), poissrnd(Im*3e3), poissrnd(Im.*1e4), poissrnd(Im.*1e4), poissrnd(Im.*2e4)});
@@ -241,7 +249,9 @@ function Result = unitTest()
     AI.MaskData.Dict=BitDictionary('BitMask.Image.Default');
     Flag = false(3,3); Flag(1,2)=true;
     Res = AI.maskSet(Flag,'Saturated');
+    assert( (Res.Mask(1,1) == 0) && (Res.Mask(1,2) == 1) ); %kra
     Res = AI.maskSet(Flag,'Streak');
+    assert( (Res.Mask(1,1) == 0) && (Res.Mask(1,2) == 1048576) ); %kra
 
     % isImType
     io.msgLog(LogLevel.Test, 'testing AstroImage isImType')
@@ -268,9 +278,9 @@ function Result = unitTest()
     % funBinaryImVar
     io.msgLog(LogLevel.Test, 'testing AstroImage funBinaryImVar')
     AI = AstroImage({ones(3,3)},'Var',{ones(3,3)});
-    Res = funBinaryImVar(AI,AI,@plus);
-    Res = funBinaryImVar(AI,AI,@minus);
-    Res = funBinaryImVar(AI,3,@times);
+    Res1 = funBinaryImVar(AI,AI,@plus);
+    Res2 = funBinaryImVar(AI,AI,@minus);
+    Res3 = funBinaryImVar(AI,3,@times);
     
     % load and test real images
     AI1 = AstroImage('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
@@ -287,6 +297,21 @@ function Result = unitTest()
 %     RA = 0;
 %     Dec = 0;
 %     [Result, Info] = cropLonLat(AI1, RA, Dec);
+
+    % kra: additions
+    io.msgLog(LogLevel.Test, 'testing astroImage2AstroCatalog')
+    AI = AstroImage({randn(5,5)});
+    AI.CatData = AstroCatalog({'asu.fit'},'HDU',2);
+    cat = astroImage2AstroCatalog(AI,'CreateNewObj',true);
+    catsize = size(AI.CatData.Catalog); 
+    for ifl=1:1:catsize(2)
+        for objn=1:1:catsize(1)
+            if ~isnan(AI.CatData.Catalog(objn,ifl))
+                assert( AI.CatData.Catalog(objn,ifl) == cat.Catalog(objn,ifl) );
+            end
+        end
+    end 
+    
     
     cd(PWD);
 

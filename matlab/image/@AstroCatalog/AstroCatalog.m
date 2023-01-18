@@ -715,6 +715,7 @@ classdef AstroCatalog < AstroTable
         function [Dist, PA] = sphere_dist(Obj, Lon, Lat, LonLatUnits, OutUnits)
             % Calculate the spherical distance and PA between Lon,Lat in
             % Astrocatalog and a Lon, Lat in array.
+            %   see also AstroCatalog/coneSearch
             % Input  : - A single-element AstroCatlog Object.
             %          - Lon (scalar, or column vector with the same length
             %            as the AstroCatalog catalog, or a row vector of
@@ -746,6 +747,72 @@ classdef AstroCatalog < AstroTable
             Dist          = Dist.*ConvertFactor;
             PA            = PA.*ConvertFactor;
             
+        end
+
+        function Result=coneSearch(Obj, RA, Dec, SearchRadius, Args)
+            % search sources in AstroCatalog object by RA/Dec
+            % Input  : - An AstroCatalog object.
+            %          - R.A.
+            %          - Dec.
+            %          - Search radius. Default is 3.
+            %          * ...,key,val,...
+            %            'SearchRadiusUnits' - SearchRadius units.
+            %                   Default is 'arcsec'.
+            %            'InCooUnits' - Input RA/Dec units.
+            %                   Default is 'deg'.
+            %            'CooUnits' - Coordinates units in the Data matrix.
+            %                   Default is 'deg'.
+            %            'FieldRA' - Field name containing the R.A.
+            %                   Default is 'RA'.
+            %            'FieldDec' - Field name containing the Dec.
+            %                   Default is 'Dec'.
+            %            'MeanFun' - Mean function to apply over columns.
+            %                   Default is @tools.math.stat.nanmedian
+            %            'MeanFunArgs' - A cell array of additional
+            %                   arguments to pass to 'MeanFun' after the
+            %                   Dim argument. Default is {}.
+            % Output : - A structure array (element per AstroCatalog
+            %            object element) with the following fields:
+            %            .Ind - Indices of sources found withing search radius.
+            %            .Flag - Flag of logicals of found sources.
+            %            .Dist - Angular distance [rad] between found sources and
+            %                   search position.
+            %            .Nsrc - Number of sources found.
+            % Author : Eran Ofek (Mar 2022)
+            % Example: 
+
+            arguments
+                Obj
+                RA
+                Dec
+                SearchRadius                 = 3;
+                Args.SearchRadiusUnits       = 'arcsec';
+                Args.InCooUnits              = 'deg';   % 'deg' | 'rad'
+                Args.CooUnits                = 'deg';   % 'deg' | 'rad'
+                Args.FieldRA                 = 'RA';
+                Args.FieldDec                = 'Dec';
+                Args.MeanFun function_handle = @tools.math.stat.nanmedian;
+                Args.MeanFunArgs cell        = {};
+            end
+            
+            RA  = convert.angular(Args.InCooUnits, 'rad', RA);
+            Dec = convert.angular(Args.InCooUnits, 'rad', Dec);
+            
+            SearchRadius = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
+
+            Nobj   = numel(Obj);
+            Result = struct('Flag',cell(size(Obj)), 'Ind',cell(size(Obj)), 'Dist',cell(size(Obj)));
+            for Iobj=1:1:Nobj
+                [VecRA, VecDec] = getLonLat(Obj(Iobj),'rad');
+
+                Dist = celestial.coo.sphere_dist_fast(RA, Dec, VecRA, VecDec);
+                Result(Iobj).Flag = Dist<SearchRadius;
+                Result(Iobj).Ind  = find(Result(Iobj).Flag);
+                Result(Iobj).Dist = Dist(Result(Iobj).Flag);
+                Result(Iobj).Nsrc = sum(Result(Iobj).Flag);
+            end
+
+
         end
     end
     
