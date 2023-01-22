@@ -610,6 +610,56 @@ classdef AstroImage < Component
                 end
             end
         end
+        
+        function Result = readFileNames(ObjFN, Args)
+            % Read images contained in a FileNames object into an AstroImage object.
+            %   Optionally read not only the image but also additional
+            %   products (e.g., 'Cat','PSF').
+            % Input  : - A FileNames object from which file names can be
+            %            generated.
+            %          * ...,key,val,...
+            %            'Path' - A path for the files. If given then will
+            %                   override the genPath method.
+            %                   Default is [].
+            %            'MainProduct' - The main product type to be read
+            %                   into the AstroImage Image property.
+            %                   Default is 'Image'.
+            %            'AddProduct' - A cell array of additional products
+            %                   to read. Default is {'Mask','PSF','cat'}.
+            %            'PopulateWCS' - Populate the WCS object in the
+            %                   AstroImage. Default is true.
+            % Output : - An AstroImage object with the images and other
+            %            data products.
+            % Author : Eran Ofek (Jan 2023)
+            % Example: 
+            
+            arguments
+                ObjFN(1,1) FileNames
+                Args.Path                     = [];
+                Args.MainProduct char         = 'Image';
+                Args.AddProduct               = {'Mask','PSF','Cat'};        
+                Args.PopulateWCS logical      = true;
+            end
+            
+            if ischar(Args.AddProduct)
+                Args.AddProduct = {Args.AddProduct};
+            end
+            
+            FilesList = ObjFN.genFull('Product',Args.MainProduct, 'FullPath',Args.Path);
+            
+            Nprod  = numel(Args.Product);
+            for Iprod=1:2:Nprod-1
+                AI_Args{Iprod}   = Args.Product{Iprod};
+                AI_Args{Iprod+1} = ObjFN.genFull('Product',Args.Product{Iprod}, 'FullPath',Args.Path);
+            end
+            
+            Result = AstroImage(FilesList, AI_Args{:});
+            
+            if Args.PopulateWCS
+                Result = populateWCS(Result);
+            end
+            
+        end
     end
 
  
