@@ -48,7 +48,7 @@ function Summary=plotReadNoisrDistribution(Obj, Args)
     
     XX = (X(1:end-1)+X(2:end)).*0.5;
 
-    H = plot(XX,N,'k.');
+    H = plot(XX,N,'k.','MarkerSize',12);
     hold on;
 
     if Args.LogY
