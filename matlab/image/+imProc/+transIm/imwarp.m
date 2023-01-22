@@ -158,7 +158,7 @@ function Result = imwarp(Obj, Trans, Args)
 
             DispField = struct('DF',cell(Nobj,1));
             for Iobj=1:1:Nobj
-                DispField(Iobj).DF  = xy2refxy(Obj(Iobj).WCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Args.RefWCS, 'Sampling', Args.Sampling);
+                DispField(Iobj).DF  = xy2refxy(Obj(Iobj).WCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Trans, 'Sampling', Args.Sampling);
             end
         elseif isa(Trans, 'AstroImage')
             % Convert AstroWCS in AstroImage to displacment field
@@ -167,6 +167,11 @@ function Result = imwarp(Obj, Trans, Args)
             [ImageSizeY, ImageSizeX]   = sizeImage(Obj);
 
             DispField = struct('DF',cell(Nobj,1));
+
+            if ~Trans.WCS.Success
+                Trans.populateWCS;
+            end 
+
             for Iobj=1:1:Nobj
                 if ~isempty(Obj(Iobj).WCS) && Obj(Iobj).WCS.Success
                     DataWCS = Obj(Iobj).WCS;
@@ -176,7 +181,7 @@ function Result = imwarp(Obj, Trans, Args)
                     DataWCS = Obj(Iobj).WCS;
                 end
 
-                DispField(Iobj).DF  = xy2refxy(DataWCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Trans, 'Sampling', Args.Sampling);
+                DispField(Iobj).DF  = xy2refxy(DataWCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Trans.WCS, 'Sampling', Args.Sampling);
             end
         elseif isa(Trans, 'affine2d')
             ImWarpTransformation = Trans;

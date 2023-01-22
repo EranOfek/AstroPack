@@ -57,8 +57,7 @@ function [Z2Prefactors,Norm] = translientAuxiliary(Pn, Pr, SigmaN, SigmaR, Args)
 
 % because of linearization of the translation phase (Delta*K), 
 % it is not 2*Pi periodic, so use negative frequancies.
-    Mcenter = ceil(M/2);
-    FreqArr = fftshift(-Mcenter:(Mcenter-1));
+    FreqArr = fftshift(-ceil(M/2):(floor(M/2)-1));
     [Kx,Ky] = meshgrid(FreqArr);
 
     Kxy = reshape([Kx,Ky],M,M,2);
