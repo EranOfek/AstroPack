@@ -1,4 +1,4 @@
-function Summary=plotReadNoisrDistribution(Obj, Args)
+function Summary=plotReadNoiseDistribution(Obj, Args)
     % Plot readout noise disyribution from a set of bias images
     % Input  : - A cube of bias images in which the image index is in the
     %            3rd dimension, or an AstroImage of bias images.
@@ -19,7 +19,7 @@ function Summary=plotReadNoisrDistribution(Obj, Args)
     %            'ProbLineRatio' - Ratio of lower part of prob. line in
     %                   units of YLim. Default is 0.3.
     % Output : - A structure of statistical p[roperties.
-    % Example: S=imProc.instCharc.plotReadNoisrDistribution(Bias_mat, 'ConvKernel',ones(3,3)./9);
+    % Example: S=imProc.instCharc.plotReadNoiseDistribution(Bias_mat, 'ConvKernel',ones(3,3)./9);
 
     arguments
         Obj
@@ -73,7 +73,7 @@ function Summary=plotReadNoisrDistribution(Obj, Args)
     Summary.MedianStd = median(StdImage(:));
     Summary.MeanMean  = mean( mean(CubeImage,[1 2]), 'all');
     Summary.MedMed    = median( median(CubeImage,[1 2]), 'all');
-
+    Summary.DistributionRN = [CC(:), N(:)./sum(N)];
     
 
     hold off;
