@@ -13,12 +13,26 @@ function Result = forcedPhot(Obj, Args)
     arguments
         Obj AstroImage
         Args.Coo
-        Args.CooUnits               = 'deg';   % 'pix'|'deg'|'rad
-        Args.CalcPSF logical        = true;
-        Args.MinEdgeDist            = 10;      % pix
+        Args.CooUnits                = 'deg';   % 'pix'|'deg'|'rad
+        Args.CalcPSF logical         = true;
+        Args.MinEdgeDist             = 10;      % pix
         
-        Args.MomentMaxIter          = 0;       % 0 - no iterations
-        Args.constructPSFArgs cell  = {};
+        Args.MomentMaxIter           = 0;       % 0 - no iterations
+        Args.UseMomCoo logical       = false;
+        Args.constructPSFArgs cell   = {};
+        Args.ImageProp               = 'Image';
+        Args.UseBack logical         = false;
+        
+        Args.AnnulusRad              = 2;
+        Args.backgroundCubeArgs cell = {};
+        
+        Args.FitRadius  = 3;
+        Args.SmallStep  = 1e-3;
+        Args.MaxStep    = 0.2;
+        Args.ConvThresh = 1e-4;
+        Args.MaxIter    = 10;      % use 1 for no itrations
+        Args.UseSourceNoise = 'off';
+        Args.ZP         = 25; 
     end
 
     switch lower(Args.CooUnits)
@@ -37,6 +51,8 @@ function Result = forcedPhot(Obj, Args)
         Args.Coo = convert.angular(Args.CooUnits,'deg',Args.Coo);
     end
 
+    Result = MatchedSources;
+    
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
         if IsSpherical
@@ -51,6 +67,9 @@ function Result = forcedPhot(Obj, Args)
         % force photometry on sources
         [M1,M2,Aper] = imUtil.image.moment2(Image,X,Y, 'MaxIter',Args.MomentMaxIter);
         
+        if Args.UseMomCoo
+            
+        
         % generate PSF
         if Obj(Iobj).isemptyPSF
             % No PSF in AstroImage
@@ -58,21 +77,43 @@ function Result = forcedPhot(Obj, Args)
             Obj(Iobj) = imProc.psf.constructPSF(Obj(Iobj), Args.constructPSFArgs{:});
         end
         PSF = Obj(Iobj).PSFData.Data;
-        
-        % prepare a Cube of background subtracted stamps around sources
-        % Cube = 
-        % imUtil.sources.backgroundCube
-        
+    
+        % stamps around sources
+        [Cube] = imUtil.cut.image2cutouts(Obj(Iobj).(Args.ImageProp), X, Y);
+    
+        % background
+        if Args.UseBack
+            % use existing background/var from AstroImage
+            Back = Obj(Iobj).Back;
+            Std  = sqrt(Obj(Iobj).Var);
+        else
+            % calculate background from annulus in stamps
+            [Back, Std] = imUtil.sources.backgroundCube(Cube, 'AnnulusRad',Args.AnnulusRad, Args.backgroundCubeArgs{:});
+        end
+           
         % psf photometry        
         [Result, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
                                                                 'Std',Std,...
-                                                                'Back',0,...
+                                                                'Back',Back,...
                                                                 'FitRadius',Args.FitRadius,...
-                                                                'backgroundCubeArgs',Args.backgroundCubeArgs,...
-                                                                Args.psfPhotCubeArgs{:});
-                  
+                                                                'SmallStep',Args.SmallStep,...
+                                                                'MaxStep',Args.MaxStep,...
+                                                                'ConvThresh',Args.ConvThresh,...
+                                                                'MaxIter',Args.MaxIter,...
+                                                                'UseSourceNoise',Args.UseSourceNoise,...
+                                                                'ZP',Args.ZP);
+    
+        % Store forced photometry results in MatchedSources object
+        Result.Data.X1
+        Result.Data.Y1
+        Result.Data.X2
+        Result.Data.Y2
+        Result.Data.XY
+        %Result.Data.MAG_APER_1
+        
+        
                                                             
-       % imProc.sources.psfFitPhot(Obj(Iobj), 'XY',[X,Y], 'UpdateCat',false, 
     end
+    
 end
    
