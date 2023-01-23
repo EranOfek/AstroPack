@@ -647,10 +647,10 @@ classdef AstroImage < Component
             
             FilesList = ObjFN.genFull('Product',Args.MainProduct, 'FullPath',Args.Path);
             
-            Nprod  = numel(Args.Product);
-            for Iprod=1:2:Nprod-1
-                AI_Args{Iprod}   = Args.Product{Iprod};
-                AI_Args{Iprod+1} = ObjFN.genFull('Product',Args.Product{Iprod}, 'FullPath',Args.Path);
+            Nprod  = numel(Args.AddProduct);
+            for Iprod=1:1:Nprod
+                AI_Args{Iprod.*2-1} = Args.AddProduct{Iprod};
+                AI_Args{Iprod.*2}   = ObjFN.genFull('Product',Args.AddProduct{Iprod}, 'FullPath',Args.Path);
             end
             
             Result = AstroImage(FilesList, AI_Args{:});

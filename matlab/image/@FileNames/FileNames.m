@@ -46,7 +46,7 @@ classdef FileNames < Component
         FormatCounter   = '%03d';       % Used with Counter        
         FormatCCDID     = '%03d';       % Used with CCDID
         FormatCropID    = '%03d';       % Used with CropID
-        FormatVersion   = '%d';       % Used with Version
+        FormatVersion   = '%03d';       % Used with Version
         
     end
 
@@ -750,7 +750,7 @@ classdef FileNames < Component
             FullName = cell(Nfn,1);
             for Ifn=1:1:Nfn
                 Ip = min(Np,Ifn);
-                FullName{Ifn} = sprintf('%s%s',Path{Ip},FileName{Ifn});
+                FullName{Ifn} = sprintf('%s%s%s',Path{Ip},filesep,FileName{Ifn});
             end
             
             if Args.ReturnChar && numel(FullName)==1
