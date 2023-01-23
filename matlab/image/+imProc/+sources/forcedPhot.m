@@ -15,6 +15,7 @@ function Result = forcedPhot(Obj, Args)
         Args.Coo
         Args.CooUnits          = 'deg';   % 'pix'|'deg'|'rad
         Args.CalcPSF logical   = true;
+        Args.MinEdgeDist       = 10;      % pix
     end
 
     switch lower(Args.CooUnits)
@@ -40,6 +41,9 @@ function Result = forcedPhot(Obj, Args)
         end
 
         % check if sources are in footprint
+        [Ny, Nx] = Obj(Iobj).sizeImage;
+        FlagIn      = X>1 & X<Nx & Y>1 & Y<Ny;
+        FlagInGood  = X>Args.MinEdgeDist & X<(Nx-Args.MinEdgeDist) & Y>Args.MinEdgeDist & Y<(Ny-Args.MinEdgeDist);
         
         % force photometry on sources
 
