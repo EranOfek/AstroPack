@@ -18,9 +18,15 @@
 
 classdef Pipeline < Component
     properties (SetAccess = public)
-        CI CalibImages    
-        CalibDir
+        CI      % either CalibImages object or directory path
+        CroppedCI  % do we need this?
+        Input   % AstroImage or list of image names
+        Output  %
+        CCDSEC    = [];  % [] for entire image
         
+
+
+        % ???
         ImagesPath         = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
         ArgsImagesPath     = {1,'Node',1, 'SubDir','new', 'ProjNamebase','LAST'};
         CalibPath          = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
@@ -38,9 +44,26 @@ classdef Pipeline < Component
     end
     
     methods % Setters/Getters
-    
+        % 
     end
     
+    % object can be a vector! so running the pipelines will run on all???
+
+    % methods:
+    %   load
+    %   save
+    %   writeDB
+    %   raw2proc
+    %       dark, linearization, flat, fringe, gain, sources, astrometry+add2cat,
+    %       matchExternalCal, matchSolarSystem
+    %           Need: guess WCS parameter...
+    %   coadd
+    %   diff
+    %   mergeTable
+    %   mergeMatrix
+    %   forcedPhot
+
+
     methods (Static)  % static methods
         function [List, ImagePath, FullPathList, FN] = prepImagesList(List, Args)
             % Prepare list of images of some Type

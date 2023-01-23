@@ -28,7 +28,7 @@ function Cat = downloadPrepSpecGAIA(Args)
         system('gzip -d *.csv.gz');
     end
     
-    %%
+    %
     if any(Args.Step==2)
         Nwave = numel(Args.Wave);
         Files = dir('XpSampledMean*.csv');
