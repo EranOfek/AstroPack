@@ -73,7 +73,7 @@ function Summary=plotReadNoiseDistribution(Obj, Args)
     Summary.MedianStd = median(StdImage(:));
     Summary.MeanMean  = mean( mean(CubeImage,[1 2]), 'all');
     Summary.MedMed    = median( median(CubeImage,[1 2]), 'all');
-    Summary.DistributionRN = [CC(:), N(:)./sum(N)];
+    Summary.DistributionRN = [XX(:), N(:)./sum(N)];
     
 
     hold off;
