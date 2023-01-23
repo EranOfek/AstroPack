@@ -13,9 +13,12 @@ function Result = forcedPhot(Obj, Args)
     arguments
         Obj AstroImage
         Args.Coo
-        Args.CooUnits          = 'deg';   % 'pix'|'deg'|'rad
-        Args.CalcPSF logical   = true;
-        Args.MinEdgeDist       = 10;      % pix
+        Args.CooUnits               = 'deg';   % 'pix'|'deg'|'rad
+        Args.CalcPSF logical        = true;
+        Args.MinEdgeDist            = 10;      % pix
+        
+        Args.MomentMaxIter          = 0;       % 0 - no iterations
+        Args.constructPSFArgs cell  = {};
     end
 
     switch lower(Args.CooUnits)
@@ -46,7 +49,30 @@ function Result = forcedPhot(Obj, Args)
         FlagInGood  = X>Args.MinEdgeDist & X<(Nx-Args.MinEdgeDist) & Y>Args.MinEdgeDist & Y<(Ny-Args.MinEdgeDist);
         
         % force photometry on sources
-
+        [M1,M2,Aper] = imUtil.image.moment2(Image,X,Y, 'MaxIter',Args.MomentMaxIter);
+        
+        % generate PSF
+        if Obj(Iobj).isemptyPSF
+            % No PSF in AstroImage
+            % generate PSF
+            Obj(Iobj) = imProc.psf.constructPSF(Obj(Iobj), Args.constructPSFArgs{:});
+        end
+        PSF = Obj(Iobj).PSFData.Data;
+        
+        % prepare a Cube of background subtracted stamps around sources
+        % Cube = 
+        % imUtil.sources.backgroundCube
+        
+        % psf photometry        
+        [Result, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
+                                                                'Std',Std,...
+                                                                'Back',0,...
+                                                                'FitRadius',Args.FitRadius,...
+                                                                'backgroundCubeArgs',Args.backgroundCubeArgs,...
+                                                                Args.psfPhotCubeArgs{:});
+                  
+                                                            
+       % imProc.sources.psfFitPhot(Obj(Iobj), 'XY',[X,Y], 'UpdateCat',false, 
     end
 end
    

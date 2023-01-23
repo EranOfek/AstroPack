@@ -54,7 +54,7 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %            'Circle' - A flag indicating if to extract the stamps with
 %                       circular shape. Default is false.
 %            'MaxIter' - Maximum number of 1st moment position iterations.
-%                       0 will perform aingle 1st moment calculation.
+%                       0 will perform a single 1st moment calculation.
 %                       -1 will use the initial guess without estimating
 %                       the first moment (i.e., forced photometry).
 %                       Default is 10.
