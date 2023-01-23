@@ -228,6 +228,8 @@ classdef AstroImage < Component
                 Args.PSFScale                 = [];
 
                 Args.Cat                      = [];
+                Args.CatHDU                   = [];
+                Args.CatScale                 = [];  % dummy
                 
                 Args.FileType                 = [];
                 Args.UseRegExp(1,1) logical   = false;
@@ -285,8 +287,8 @@ classdef AstroImage < Component
                         % Other data properties
                         ListProp  = {'Back','Var','Mask', 'PSF','Cat'};
                         ListData  = {'BackData','VarData','MaskData', 'PSFData','CatData'};
-                        ListHDU   = {'BackHDU','VarHDU','MaskHDU', 'PSFHDU',''};
-                        ListScale = {'BackScale','VarScale','MaskScale', 'PSFScale',''};
+                        ListHDU   = {'BackHDU','VarHDU','MaskHDU', 'PSFHDU','CatHDU'};
+                        ListScale = {'BackScale','VarScale','MaskScale', 'PSFScale','CatScale'};
                         
                         Nlist = numel(ListProp);
                         for Ilist=1:1:Nlist
@@ -384,8 +386,12 @@ classdef AstroImage < Component
             end
             
             for Iobj=1:1:Nobj
-                Obj(Iobj).(DataProp).Data  = ImIO(Iobj).Data;
-                Obj(Iobj).(DataProp).Scale = Scale;
+                if strcmp(DataProp, 'CatData')
+                    Obj(Iobj).(DataProp).Catalog  = ImIO(Iobj).Data;
+                else
+                    Obj(Iobj).(DataProp).Data  = ImIO(Iobj).Data;
+                    Obj(Iobj).(DataProp).Scale = Scale;
+                end
                 if ~isempty(FileNames)
                     if iscellstr(FileNames)
                         Obj(Iobj).(DataProp).FileName = FileNames{Iobj};
@@ -627,7 +633,7 @@ classdef AstroImage < Component
             %                   into the AstroImage Image property.
             %                   Default is 'Image'.
             %            'AddProduct' - A cell array of additional products
-            %                   to read. Default is {'Mask','PSF','cat'}.
+            %                   to read. Default is {'Mask','Cat'}.
             %            'PopulateWCS' - Populate the WCS object in the
             %                   AstroImage. Default is true.
             % Output : - An AstroImage object with the images and other
@@ -639,7 +645,7 @@ classdef AstroImage < Component
                 ObjFN(1,1) FileNames
                 Args.Path                     = [];
                 Args.MainProduct char         = 'Image';
-                Args.AddProduct               = {'Mask','PSF','Cat'};        
+                Args.AddProduct               = {'Mask','Cat'};        
                 Args.PopulateWCS logical      = true;
             end
             
