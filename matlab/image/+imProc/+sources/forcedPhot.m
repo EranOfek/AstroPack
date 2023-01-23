@@ -15,6 +15,7 @@ function Result = forcedPhot(Obj, Args)
         Args.Coo
         Args.CooUnits                = 'deg';   % 'pix'|'deg'|'rad
         Args.CalcPSF logical         = true;
+        Args.ColNames                = {'X','Y','Xstart','Ystart','X1','Y1','Chi2','Dof','FLUX_PSF','MAGPSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','MAG_APER','MAGERR_APER'};
         Args.MinEdgeDist             = 10;      % pix
         
         Args.MomentMaxIter           = 0;       % 0 - no iterations
@@ -51,12 +52,14 @@ function Result = forcedPhot(Obj, Args)
         Args.Coo = convert.angular(Args.CooUnits,'deg',Args.Coo);
     end
 
-    Result = MatchedSources;
+    Result    = MatchedSources;
+    Nsrc      = size(Args.Coo,1);
+    Result.JD = Obj.julday;
     
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
         if IsSpherical
-            [X,Y] = Obj(Iobj).WCS.sky2xy(Arg.Coo(:,1), Args.Coo(:,2), 'InUnits','deg');
+            [X,Y] = Obj(Iobj).WCS.sky2xy(Args.Coo(:,1), Args.Coo(:,2), 'InUnits','deg');
         end
 
         % check if sources are in footprint
@@ -92,7 +95,7 @@ function Result = forcedPhot(Obj, Args)
         end
            
         % psf photometry        
-        [Result, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
+        [ResultPSF, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
                                                                 'Std',Std,...
                                                                 'Back',Back,...
                                                                 'FitRadius',Args.FitRadius,...
@@ -103,15 +106,46 @@ function Result = forcedPhot(Obj, Args)
                                                                 'UseSourceNoise',Args.UseSourceNoise,...
                                                                 'ZP',Args.ZP);
     
+                                                            
         % Store forced photometry results in MatchedSources object
+        if Iobj==1
+            % init
+            Result.Data.X       = nan(Nobj, Nsrc);
+            Result.Data.Y       = nan(Nobj, Nsrc);
+            Result.Data.Xstart  = nan(Nobj, Nsrc);
+            Result.Data.Ystart  = nan(Nobj, Nsrc);
+        end
+        Result.Data.X(Iobj,:)   = ResultPSF.Xcenter(:).' + ResultPSF.DX(:).';
+        Result.Data.Y(Iobj,:)   = ResultPSF.Ycenter(:).' + ResultPSF.DY(:).';
+        
+        Result.Data.Xstart      = X(:).';
+        Result.Data.Ystart      = Y(:).';
+        
         Result.Data.X1
         Result.Data.Y1
         Result.Data.X2
         Result.Data.Y2
         Result.Data.XY
         %Result.Data.MAG_APER_1
+        AperPhot
+        AnnulusBack
+        AnnulusStd
         
-        
+        %.Chi2 - Vector of \chi^2 (element per stamp).
+    %            .Dof - The number of degrees of freedom in the fit.
+    %                   This is the stamp area minus 3.
+    %            .Flux - Vector of fitted fluxes.
+    %            .DX - Vector of fitted X positions relative the Xcenter.
+    %            .DY - Vector of fitted Y positions relative the Xcenter.
+    %            .Xinit - Xinit
+    %            .Yinit - Yinit
+    %            .Xcenter - Stamp X center.
+    %            .Ycenter - Stamp Y center.
+    %            .ConvergeFlag - A vector of logicals (one per stamp)
+    %                   indicating if the PSF fitting for the stamp
+    %                   converged.
+    %            .Niter - Number of iterations used.
+    %            .Mag   - Magnitude (luptitude).
                                                             
     end
     
