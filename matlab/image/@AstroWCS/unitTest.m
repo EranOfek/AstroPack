@@ -19,6 +19,11 @@ function Result = unitTest()
     Im_name = 'FOCx38i0101t_c0f.fits';
     AH = AstroHeader(Im_name);
     AW = AstroWCS.header2wcs(AH);
+    
+    % test header2wcs with arrays:
+    Im2_name = ["WFPC2ASSNu5780205bx.fits" "WFPC2u5780205r_c0fx.fits"];
+    AH2 = AstroHeader(Im2_name);
+    AW2 = AstroWCS.header2wcs(AH2);
 
     % Test for header without some: CD matrix missing, no CD matrix,  partial PC matrix, no PC matrix
     ValCD = cell2mat(AH.getCellKey({'CD1_1','CD1_2','CD2_1','CD2_2'}));
@@ -54,7 +59,6 @@ function Result = unitTest()
     % xy2sky tests
     RAD = 180./pi;
     
-
     % get [alpha, delta] for TAN projection
     %Im_name = 'FOCx38i0101t_c0f.fits';
     Im_name = 'WD0802+387-S019-Luminance-R001-Luminance.fts';
@@ -76,6 +80,7 @@ function Result = unitTest()
     [Alpha, Delta]  = AW.xy2sky(PX,PY);
 
     % Test DS9 only on Linux/Mac
+    % have_ds9 = false; %kradeb: the ds9 part crashes
     if have_ds9
         ds9(Im_name);
         [ds9_alpha,ds9_delta] = ds9.xy2coo(PX,PY,AW.RADESYS);
@@ -254,7 +259,15 @@ function Result = unitTest()
     AH = AW.wcs2header(AH);
 
     % test other things
-
+    
+    PolyTPVtable = AW.polyTPVdef();
+    assert(numel(PolyTPVtable)==400);
+    
+    AW = AstroWCS();
+    PV = AstroWCS.fill_TANSIP_KeyNames(AW.RevPV); 
+    AW2 = AstroWCS();
+    PV2 = AstroWCS.fill_TPV_KeyNames(AW2.RevPV);
+    
     cd(PWD);                
     io.msgStyle(LogLevel.Test, '@passed', 'AstroWCS test passed');
     Result = true;            
