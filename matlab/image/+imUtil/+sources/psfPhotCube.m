@@ -52,7 +52,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     %                   'last' - use only in the last (additional) iteration. 
     %                   'off' - only background noise. 
     %                   Default is 'off'.
-    %            'ZP' - ZP for magnitude calculations.
+    %            'ZP' - ZP for magnitude calculations. Default is 25.
     % Output : - A structure with the following fields:
     %            .Chi2 - Vector of \chi^2 (element per stamp).
     %            .Dof - The number of degrees of freedom in the fit.

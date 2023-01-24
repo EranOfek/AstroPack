@@ -8,29 +8,142 @@ function Result = forcedPhot(Obj, Args)
     %       added to the AstroCatalog in the AstroImage.
     % Input  : - An AstroImage object.
     %          * ...,key,val,...
-    %            'Coo' - 
-    %            'CooUnits' -
-    %            'CalcPSF' - 
-    %            'ColNames' -
-    %            'MinEdgeDist' -
-    %            'AddRefStarsDist' - 
-    %            'AddCatName' - 
-    %            
+    %            'Coo' - A two column matrix of [X, Y] or [RA, Dec]
+    %                   coordinates of positions in the image for which to
+    %                   calculate forced photometry.
+    %                   Note that it is possible to automatically add known
+    %                   stars to the list (see: AddRefStarsDist argument).
+    %                   The added stars will be appended to the bottom of
+    %                   the list.
+    %                   Default is [].
+    %            'CooUnits' - Units of coordinates provided in the 'Coo'
+    %                   argument. This can be:
+    %                   'pix' - Pixel coordinates.
+    %                   'deg' - J2000.0 RA/Dec in deg.
+    %                   'rad' - J2000.0 RA/Dec in rad.
+    %                   Default is 'deg'.
+    %            'ColNames' - A cell array of column names to add to the
+    %                   output MergedSources Data property.
+    %                   Select names from the following list:
+    %                   'X', 'Y' - X/Y pixel coordinates of the final fitted
+    %                           source position.
+    %                   'Xstart', 'Ystart' - X/Y pixel coordinates of the
+    %                           initial source position.
+    %                   'FLAG_POS' - A flag indicating if the source is:
+    %                           0 - within image and at least 'MinEdgeDist' pixels
+    %                               from edge.
+    %                           1 - outside the image.
+    %                   'FLAGS' - Bit mask flags propagated from the image
+    %                           mask.
+    %                   'Chi2','Dof','Chi2dof' - chi^2, dof, and chi^2/dof
+    %                           of the fitted PSF.
+    %                   'FLUX_PSF','MAG_PSF','MAGERR_PSF' - PSF flux, mag
+    %                           and mag error. Magnitudes are in luptitude,
+    %                           where zero point is set by the 'ZP'
+    %                           argument.
+    %                   'FLUX_APER_%d' - Aperture photometry flux for all
+    %                           requested apertures.
+    %                   'BACK_ANNULUS','STD_ANNULUS' - back and std in annulus.
+    %                   Default is:
+    %                   {'X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER'};  % 'Chi2','Dof'}
+    %            'MinEdgeDist' - Number of pixels of source from image edge
+    %                   in order to declare the object in/out image.
+    %                   Default is 0.
+    %            'AddRefStarsDist' - Angular distance in arcsec, around the
+    %                   mean position of the sources in the 'Coo' argument.
+    %                   If larger then 0 (and not NaN), then will search
+    %                   for sources using the catsHTM.cone_search function
+    %                   in the catalog specified in the 'AddCatName'
+    %                   argument. These sources will be appended the the
+    %                   Coo list and forced photometry will be calculated
+    %                   for these sources too.
+    %                   Default is 500 [arcsec].
+    %            'AddCatName' - Catalog name (in catsHTM) in which to
+    %                   search for additional sources.
+    %                   Default is 'GAIADR3'.
+    %
+    %            'MomentMaxIter' - Number of iterations used in the 1st and
+    %                   2nd moment estimation. If 0, then will use the
+    %                   provided input X/Y coordinates without iterations.
+    %                   Note that chaning this parameter may change the
+    %                   position of the source by more than on pixel.
+    %                   Default is 0.
+    %            UseMomCoo' - A logical. If true, then will use the 1st
+    %                   moment coordinates as the initial position for the
+    %                   PSF photometry. If false, then will use the input
+    %                   coordinates. Default is false.
+    %            'AperRadius' - A vector of aperture photometry radii in
+    %                   pixels. Default is [2 4 6].
+    %            'Annulus' - Annulus in which to calculate sky background
+    %                   and std.
+    %                   Note that the PSF phot. has a different annulus.
+    %                   Default is [10 12] pix.
+    %
+    %            'constructPSFArgs' - A cell array of additional arguments
+    %                   to pass to imProc.psf.constructPSF.
+    %                   Default is {}.
+    %            'ImageProp' - AstroImage Image property on which to calculate the PSF
+    %                   photometry and moments. Default is 'Image'.
+    %            'UseBack' - A logical. If true, then will use existing
+    %                   back and var in the AstroImage.
+    %                   Otherwise, will recalculate them from the annulus
+    %                   around each source.
+    %                   Default is false.
+    %
+    %            'AnnulusRad' - Radius of annulus used for background
+    %                   estimation in the PSF photometry.
+    %                   Outer radius is taken as the stamp radius.
+    %                   Default is 2 [pix].
+    %            'backgroundCubeArgs' - A cell array of additional
+    %                   parameters to pass to imUtil.sources.backgroundCube
+    %                   Default is {}.
+    %
+    %            'ReconstructPSF' - A logical indicatig if to force the
+    %                   generation of a PSF stamp even if it is already
+    %                   exist in the AstroPSF in the AstroImage.
+    %                   Default is false.
+    %            'HalfSizePSF' - Half size of the constructed PSF (unless
+    %                   PSF is provided). Default is 12 [pix].
+    %            'FitRadius' - Radius around source center to fit.
+    %                   This can be used in order to exclude regions
+    %                   outside the stellar core.
+    %                   Default is 3.
+    %            'SmallStep' - Gradient step size. Default is 1e-4 (pix).
+    %            'MaxStep' - Maximum step size in each iteration.
+    %                   Default is 0.2.
+    %            'ConvThresh' - Convergence threshold. Default is 1e-4.
+    %            'MaxIter' - Max number of iterations. Default is 10.
+    %            'UseSourceNoise' - A string indicating if implement
+    %                   source noise in the fit. The function use the 
+    %                   last estimator of the psf flux by the current best 
+    %                   fit fromthe previous step. 
+    %                   'all' - use from the second iteration and on.
+    %                   'last' - use only in the last (additional) iteration. 
+    %                   'off' - only background noise. 
+    %                   Default is 'off'.
+    %            'ZP' - ZP for magnitude calculations. Default is 25.
+    % Output : - A MatchedSources object with the forced photometry data
+    %            for each epoch and source.
+    %            The 'ColNames' input arguments controls which data will be
+    %            included in the MatchedSources object.
+    % Author: Eran Ofek (Jan 2023)
     % Example: Rc = AI.cooImage;
-    % %        R=imProc.sources.forcedPhot(AI,'Coo',Rc.Center);
+    %          R=imProc.sources.forcedPhot(AI,'Coo',Rc.Center);
     
     arguments
         Obj AstroImage
-        Args.Coo
+        Args.Coo                     = zeros(0,2);
         Args.CooUnits                = 'deg';   % 'pix'|'deg'|'rad
-        Args.CalcPSF logical         = true;
         Args.ColNames                = {'X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER'};  % 'Chi2','Dof'
-        Args.MinEdgeDist             = 10;      % pix
+        Args.MinEdgeDist             = 0;      % pix
         Args.AddRefStarsDist         = 500;     % arcsec; 0/NaN for no addition
         Args.AddCatName              = 'GAIADR3';
 
         Args.MomentMaxIter           = 0;       % 0 - no iterations
         Args.UseMomCoo logical       = false;
+        Args.AperRadius              = [2 4 6];
+        Args.Annulus                 = [10 12];
+
         Args.constructPSFArgs cell   = {};
         Args.ImageProp               = 'Image';
         Args.UseBack logical         = false;
@@ -90,13 +203,12 @@ function Result = forcedPhot(Obj, Args)
 
         % check if sources are in footprint
         [Ny, Nx] = Obj(Iobj).sizeImage;
-        FlagIn      = X>1 & X<Nx & Y>1 & Y<Ny;
-        FlagInGood  = X>Args.MinEdgeDist & X<(Nx-Args.MinEdgeDist) & Y>Args.MinEdgeDist & Y<(Ny-Args.MinEdgeDist);
-        
-        
+        %FlagIn      = X>1 & X<Nx & Y>1 & Y<Ny;
+        FlagIn  = X>Args.MinEdgeDist & X<(Nx-Args.MinEdgeDist) & Y>Args.MinEdgeDist & Y<(Ny-Args.MinEdgeDist);        
 
         % force photometry on sources
-        [M1,M2,Aper] = imUtil.image.moment2(Obj(Iobj).(Args.ImageProp), X, Y, 'MaxIter',Args.MomentMaxIter);
+        [M1,M2,Aper] = imUtil.image.moment2(Obj(Iobj).(Args.ImageProp), X, Y,...
+                                'MaxIter',Args.MomentMaxIter, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus);
         %[M1,M2,Aper] = imUtil.image.moment2(Cube, X, Y, 'MaxIter',Args.MomentMaxIter);
         
         if Args.UseMomCoo
@@ -171,6 +283,10 @@ function Result = forcedPhot(Obj, Args)
                     Result.Data.Y2(Iobj,:)           = M2.Y2(:).';
                 case 'XY'
                     Result.Data.XY(Iobj,:)           = M2.XY(:).';
+                case 'FLAG_POS'
+                    Result.Data.FLAG_POS(Iobj,:)     = FlagIn;
+                case 'FLAGS'
+                    Result.Data.FLAGS
                 case 'BACK_ANNULUS'
                     Result.Data.BACK_ANNULUS(Iobj,:) = Aper.AnnulusBack(:).';
                 case 'STD_ANNULUS'
