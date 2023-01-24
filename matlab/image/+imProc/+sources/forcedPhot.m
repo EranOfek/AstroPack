@@ -17,7 +17,9 @@ function Result = forcedPhot(Obj, Args)
         Args.CalcPSF logical         = true;
         Args.ColNames                = {'X','Y','Xstart','Ystart','X1','Y1','Chi2','Dof','FLUX_PSF','MAGPSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','MAG_APER','MAGERR_APER'};
         Args.MinEdgeDist             = 10;      % pix
-        
+        Args.AddRefStarsDist         = 500;     % arcsec; 0/NaN for no addition
+        Args.AddCatName              = 'GAIADR3';
+
         Args.MomentMaxIter           = 0;       % 0 - no iterations
         Args.UseMomCoo logical       = false;
         Args.constructPSFArgs cell   = {};
@@ -36,6 +38,8 @@ function Result = forcedPhot(Obj, Args)
         Args.ZP         = 25; 
     end
 
+    RAD = 180./pi;
+
     switch lower(Args.CooUnits)
         case 'pix'
             IsSpherical = false;
@@ -51,6 +55,16 @@ function Result = forcedPhot(Obj, Args)
     if IsSpherical
         Args.Coo = convert.angular(Args.CooUnits,'deg',Args.Coo);
     end
+
+    if ~isnan(Args.AddRefStarsDist) && Args.AddRefStarsDist>0
+        if ~IsSpherical
+            error('AddRefStarsDist>0 can be use only when using spherical coordinates')
+        end
+
+        CatAdd   = catsHTM.cone_search(Args.AddCatName, mean(Args.Coo(:,1))./RAD, mean(Args.Coo(:,2))./RAD,  Args.AddRefStarsDist);
+        Args.Coo = [Args.Coo; CatAdd(:,1:2).*RAD];  % deg 
+    end
+
 
     Result    = MatchedSources;
     Nsrc      = size(Args.Coo,1);
@@ -105,7 +119,6 @@ function Result = forcedPhot(Obj, Args)
                                                                 'MaxIter',Args.MaxIter,...
                                                                 'UseSourceNoise',Args.UseSourceNoise,...
                                                                 'ZP',Args.ZP);
-    
                                                             
         % Store forced photometry results in MatchedSources object
         if Iobj==1
