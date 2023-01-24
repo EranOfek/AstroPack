@@ -9,7 +9,8 @@ function Result = forcedPhot(Obj, Args)
     % Input  : - An AstroImage object.
     %          * ...,key,val,...
     %
-    % Example: R=imProc.sources.forcedPhot(AI);
+    % Example: Rc = AI.cooImage;
+    % %        R=imProc.sources.forcedPhot(AI,'Coo',Rc.Center);
     
     arguments
         Obj AstroImage
@@ -30,13 +31,15 @@ function Result = forcedPhot(Obj, Args)
         Args.AnnulusRad              = 2;
         Args.backgroundCubeArgs cell = {};
         
-        Args.FitRadius  = 3;
-        Args.SmallStep  = 1e-3;
-        Args.MaxStep    = 0.2;
-        Args.ConvThresh = 1e-4;
-        Args.MaxIter    = 10;      % use 1 for no itrations
-        Args.UseSourceNoise = 'off';
-        Args.ZP         = 25; 
+        Args.ReconstructPSF logical  = false;
+        Args.HalfSizePSF             = 12;
+        Args.FitRadius               = 3;
+        Args.SmallStep               = 1e-3;
+        Args.MaxStep                 = 0.2;
+        Args.ConvThresh              = 1e-4;
+        Args.MaxIter                 = 10;      % use 1 for no itrations
+        Args.UseSourceNoise          = 'off';
+        Args.ZP                      = 25; 
     end
 
     RAD = 180./pi;
@@ -82,23 +85,32 @@ function Result = forcedPhot(Obj, Args)
         FlagIn      = X>1 & X<Nx & Y>1 & Y<Ny;
         FlagInGood  = X>Args.MinEdgeDist & X<(Nx-Args.MinEdgeDist) & Y>Args.MinEdgeDist & Y<(Ny-Args.MinEdgeDist);
         
+        
+
         % force photometry on sources
-        [M1,M2,Aper] = imUtil.image.moment2(Image,X,Y, 'MaxIter',Args.MomentMaxIter);
+        [M1,M2,Aper] = imUtil.image.moment2(Obj(Iobj).(Args.ImageProp), X, Y, 'MaxIter',Args.MomentMaxIter);
+        %[M1,M2,Aper] = imUtil.image.moment2(Cube, X, Y, 'MaxIter',Args.MomentMaxIter);
         
         if Args.UseMomCoo
+            X = M1.X;
+            Y = M1.Y;
+        end
             
         
         % generate PSF
-        if Obj(Iobj).isemptyPSF
+        if Obj(Iobj).isemptyPSF || Args.ReconstructPSF
             % No PSF in AstroImage
             % generate PSF
-            Obj(Iobj) = imProc.psf.constructPSF(Obj(Iobj), Args.constructPSFArgs{:});
+            Obj(Iobj) = imProc.psf.constructPSF(Obj(Iobj), 'HalfSize',Args.HalfSizePSF, Args.constructPSFArgs{:});
+       
         end
         PSF = Obj(Iobj).PSFData.Data;
     
+        HalfSizePSF = (size(Obj(Iobj).PSFData.Data,1)-1).*0.5;
         % stamps around sources
-        [Cube] = imUtil.cut.image2cutouts(Obj(Iobj).(Args.ImageProp), X, Y);
+        [Cube] = imUtil.cut.image2cutouts(Obj(Iobj).(Args.ImageProp), X, Y, HalfSizePSF);
     
+        
         % background
         if Args.UseBack
             % use existing background/var from AstroImage
@@ -124,13 +136,13 @@ function Result = forcedPhot(Obj, Args)
         % Store forced photometry results in MatchedSources object
         if Iobj==1
             % init
-            Result.Data.X       = nan(Nobj, Nsrc);
-            Result.Data.Y       = nan(Nobj, Nsrc);
-            Result.Data.Xstart  = nan(Nobj, Nsrc);
-            Result.Data.Ystart  = nan(Nobj, Nsrc);
+            Result(Iobj).Data.X       = nan(Nobj, Nsrc);
+            Result(Iobj).Data.Y       = nan(Nobj, Nsrc);
+            Result(Iobj).Data.Xstart  = nan(Nobj, Nsrc);
+            Result(Iobj).Data.Ystart  = nan(Nobj, Nsrc);
         end
-        Result.Data.X(Iobj,:)   = ResultPSF.Xcenter(:).' + ResultPSF.DX(:).';
-        Result.Data.Y(Iobj,:)   = ResultPSF.Ycenter(:).' + ResultPSF.DY(:).';
+        Result(Iobj).Data.X(Iobj,:)   = ResultPSF.Xcenter(:).' + ResultPSF.DX(:).';
+        Result(Iobj).Data.Y(Iobj,:)   = ResultPSF.Ycenter(:).' + ResultPSF.DY(:).';
         
         Result.Data.Xstart      = X(:).';
         Result.Data.Ystart      = Y(:).';
