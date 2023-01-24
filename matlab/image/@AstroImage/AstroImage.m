@@ -1513,6 +1513,49 @@ classdef AstroImage < Component
         function Result = funWCS(Obj, Fun, ArgsToFun)
             % Apply function of WCS properties in AstroImage array
         end
+
+        function Result = cooImage(Obj, CCDSEC, Args)
+            % Return the image center and corners coordinates (from WCS)
+            % Input  : - An AstroImage object in which the WCS property is
+            %            populated.
+            %          - CCDSEC [Xmin, Xmax, Ymin, Ymax]
+            %            If empty, will use the image size.
+            %            If char, this is an header keyword name from which
+            %            to read the CCDSEC.
+            %            Default is [].
+            %          * ...,key,val,...
+            %            'OutUnits' - Output units. Default is 'deg'.
+            % Output : - A structure containing:
+            %            .Center - [RA, Dec] of center (of CCDSEC).
+            %            .Corners - [RA, Dec] of 4 image corners.
+            % Author : Eran Ofek (Jan 2023)
+            % Example: RR=AI.cooImage([1 1000 1 1000])
+            %          RR=AI.cooImage([])
+            %          RR=AI.cooImage('CCDSEC')
+
+            arguments
+                Obj
+                CCDSEC         = [];
+                Args.OutUnits  = 'deg';
+            end
+
+            Nobj = numel(Obj);
+            Result = struct('Center',cell(Nobj,1), 'Corners',cell(Nobj,1));
+            for Iobj=1:1:Nobj
+                if ischar(CCDSEC)
+                    % get CCDSEC from header keyword
+                    %CCDSEC = eval(Obj(Iobj).HeaderData.getVal(CCDSEC));
+                    CCDSEC = sscanf(Obj(Iobj).HeaderData.getVal('CCDSEC'),'[ %d %d %d %d]');
+                end
+                if isempty(CCDSEC)
+                    % get CCDSEC from image size
+                    [Ny, Nx] = Obj(Iobj).sizeImage;
+                    CCDSEC = [1 Nx 1 Ny];
+                end
+                Result(Iobj) = Obj(Iobj).WCS.cooImage(CCDSEC, 'OutUnits',Args.OutUnits);
+            end
+
+        end
         
         function Result = funPSF(Obj, Fun, ArgsToFun)
             % Apply function of PSF properties in AstroImage array
