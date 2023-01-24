@@ -43,6 +43,8 @@ function S = injectSources(Image,Cat,PSF,Args)
         S = zeros(Image);
     elseif numel(Image)==1 % In case of scalar
         S = zeros([Image,Image]);
+    else
+        S = Image;
     end
     [SizeImageX,SizeImageY] = size(S);
     Xind_vec = 1:1:SizePSFX;

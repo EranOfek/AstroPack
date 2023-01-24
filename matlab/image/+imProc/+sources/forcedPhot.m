@@ -9,6 +9,7 @@ function Result = forcedPhot(Obj, Args)
     % Input  : - An AstroImage object.
     %          * ...,key,val,...
     %
+    % Example: R=imProc.sources.forcedPhot(AI);
     
     arguments
         Obj AstroImage
