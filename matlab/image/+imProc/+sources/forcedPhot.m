@@ -8,7 +8,14 @@ function Result = forcedPhot(Obj, Args)
     %       added to the AstroCatalog in the AstroImage.
     % Input  : - An AstroImage object.
     %          * ...,key,val,...
-    %
+    %            'Coo' - 
+    %            'CooUnits' -
+    %            'CalcPSF' - 
+    %            'ColNames' -
+    %            'MinEdgeDist' -
+    %            'AddRefStarsDist' - 
+    %            'AddCatName' - 
+    %            
     % Example: Rc = AI.cooImage;
     % %        R=imProc.sources.forcedPhot(AI,'Coo',Rc.Center);
     
@@ -17,7 +24,7 @@ function Result = forcedPhot(Obj, Args)
         Args.Coo
         Args.CooUnits                = 'deg';   % 'pix'|'deg'|'rad
         Args.CalcPSF logical         = true;
-        Args.ColNames                = {'X','Y','Xstart','Ystart','X1','Y1','Chi2','Dof','FLUX_PSF','MAGPSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','MAG_APER','MAGERR_APER'};
+        Args.ColNames                = {'X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER'};  % 'Chi2','Dof'
         Args.MinEdgeDist             = 10;      % pix
         Args.AddRefStarsDist         = 500;     % arcsec; 0/NaN for no addition
         Args.AddCatName              = 'GAIADR3';
@@ -42,7 +49,8 @@ function Result = forcedPhot(Obj, Args)
         Args.ZP                      = 25; 
     end
 
-    RAD = 180./pi;
+    RAD  = 180./pi;
+    Ncol = numel(Args.ColNames);
 
     switch lower(Args.CooUnits)
         case 'pix'
@@ -140,56 +148,58 @@ function Result = forcedPhot(Obj, Args)
             Result(Iobj).Data.Y       = nan(Nobj, Nsrc);
             Result(Iobj).Data.Xstart  = nan(Nobj, Nsrc);
             Result(Iobj).Data.Ystart  = nan(Nobj, Nsrc);
+
+
+            Naper = numel(Aper.AperRadius);
         end
 
-        % The position is relative to X and Y which are the stamps center:
-        Result(Iobj).Data.X(Iobj,:)   = X(:).' + ResultPSF.DX(:).';
-        Result(Iobj).Data.Y(Iobj,:)   = Y(:).' + ResultPSF.DY(:).';
-        
-        Result.Data.Xstart      = X(:).';
-        Result.Data.Ystart      = Y(:).';
-        
-        Result.Data.X2          = M2.X2(:).';
-        Result.Data.Y2          = M2.Y2(:).';
-        Result.Data.XY          = M2.XY(:).';
 
-        Result.Data.BACK_ANNULUS = Aper.AnnulusBack;
-        Result.Data.STD_ANNULUS  = Aper.AnnulusStd;
-        Result.Data.MAG_APER_1   = Aper.AperPhot(:,1);
+        for Icol=1:1:Ncol
+            switch Args.ColNames{Icol}
+                case 'X'
+                    % The position is relative to X and Y which are the stamps center:
+                    Result(Iobj).Data.X(Iobj,:)   = X(:).' + ResultPSF.DX(:).';
+                case 'Y'
+                    Result(Iobj).Data.Y(Iobj,:)   = Y(:).' + ResultPSF.DY(:).';
+                case 'Xstart'
+                    Result.Data.Xstart(Iobj,:)       = X(:).';
+                case 'Ystart'
+                    Result.Data.Ystart(Iobj,:)       = Y(:).';
+                case 'X2'
+                    Result.Data.X2(Iobj,:)           = M2.X2(:).';
+                case 'Y2'
+                    Result.Data.Y2(Iobj,:)           = M2.Y2(:).';
+                case 'XY'
+                    Result.Data.XY(Iobj,:)           = M2.XY(:).';
+                case 'BACK_ANNULUS'
+                    Result.Data.BACK_ANNULUS(Iobj,:) = Aper.AnnulusBack(:).';
+                case 'STD_ANNULUS'
+                    Result.Data.STD_ANNULUS(Iobj,:)  = Aper.AnnulusStd(:).';
+                case 'FLUX_APER'
+                    ColStr = tools.cell.cellstr_prefix((1:Naper),'FLUX_APER_');
+                    for Iaper=1:1:Naper
+                        Result.Data.(ColStr{Iaper})(Iobj,:)   = Aper.AperPhot(:,Iaper).';
+                    end
+                case 'FLUX_PSF'
+                    Result.Data.FLUX_PSF(Iobj,:)     = ResultPSF.Flux(:).';
+                case 'FLUXERR_PSF'
+                    Result.Data.FLUXERR_PSF(Iobj,:)  = 1./ResultPSF.SNm(:).';
+                case 'MAG_PSF'
+                    Result.Data.MAG_PSF(Iobj,:)      = convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP));
+                case 'MAGERR_PSF'
+                    Result.Data.MAGERR_PSF(Iobj,:)  = 1.086./ResultPSF.SNm(:).';
+                case 'Chi2'
+                    Result.Data.Chi2(Iobj,:)        = ResultPSF.Chi2(:).';
+                case 'Dof'
+                    Result.Data.Dof(Iobj,:)         = ResultPSF.Dof(:).';
+                case 'Chi2dof'
+                    Result.Data.Chi2dof(Iobj,:)     = (ResultPSF.Chi2(:)./ResultPSF.Dof(:)).';
+                otherwise
+                    error('Unknown ColNames %s option',Args.ColNames{Icol})
+            end
+        end
 
-        Result.Data.FLUX_PSF
-        Result.Data.FLUXERR_PSF
-        Result.Data.MAG_PSF
-        Result.Data.MAGERR_PSF
-        
-
-
-        Result.Data.X1
-        Result.Data.Y1
-        Result.Data.X2
-        Result.Data.Y2
-        Result.Data.XY
-        %Result.Data.MAG_APER_1
-        AperPhot
-        AnnulusBack
-        AnnulusStd
-        
-        %.Chi2 - Vector of \chi^2 (element per stamp).
-    %            .Dof - The number of degrees of freedom in the fit.
-    %                   This is the stamp area minus 3.
-    %            .Flux - Vector of fitted fluxes.
-    %            .DX - Vector of fitted X positions relative the Xcenter.
-    %            .DY - Vector of fitted Y positions relative the Xcenter.
-    %            .Xinit - Xinit
-    %            .Yinit - Yinit
-    %            .Xcenter - Stamp X center.
-    %            .Ycenter - Stamp Y center.
-    %            .ConvergeFlag - A vector of logicals (one per stamp)
-    %                   indicating if the PSF fitting for the stamp
-    %                   converged.
-    %            .Niter - Number of iterations used.
-    %            .Mag   - Magnitude (luptitude).
-                                                            
+                  
     end
     
 end
