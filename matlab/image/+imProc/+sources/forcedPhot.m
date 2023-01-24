@@ -141,12 +141,29 @@ function Result = forcedPhot(Obj, Args)
             Result(Iobj).Data.Xstart  = nan(Nobj, Nsrc);
             Result(Iobj).Data.Ystart  = nan(Nobj, Nsrc);
         end
-        Result(Iobj).Data.X(Iobj,:)   = ResultPSF.Xcenter(:).' + ResultPSF.DX(:).';
-        Result(Iobj).Data.Y(Iobj,:)   = ResultPSF.Ycenter(:).' + ResultPSF.DY(:).';
+
+        % The position is relative to X and Y which are the stamps center:
+        Result(Iobj).Data.X(Iobj,:)   = X(:).' + ResultPSF.DX(:).';
+        Result(Iobj).Data.Y(Iobj,:)   = Y(:).' + ResultPSF.DY(:).';
         
         Result.Data.Xstart      = X(:).';
         Result.Data.Ystart      = Y(:).';
         
+        Result.Data.X2          = M2.X2(:).';
+        Result.Data.Y2          = M2.Y2(:).';
+        Result.Data.XY          = M2.XY(:).';
+
+        Result.Data.BACK_ANNULUS = Aper.AnnulusBack;
+        Result.Data.STD_ANNULUS  = Aper.AnnulusStd;
+        Result.Data.MAG_APER_1   = Aper.AperPhot(:,1);
+
+        Result.Data.FLUX_PSF
+        Result.Data.FLUXERR_PSF
+        Result.Data.MAG_PSF
+        Result.Data.MAGERR_PSF
+        
+
+
         Result.Data.X1
         Result.Data.Y1
         Result.Data.X2

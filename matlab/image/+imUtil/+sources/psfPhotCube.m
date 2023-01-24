@@ -58,6 +58,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     %            .Dof - The number of degrees of freedom in the fit.
     %                   This is the stamp area minus 3.
     %            .Flux - Vector of fitted fluxes.
+    %            .SNm - S/N for measurment, assuming gain=1 (Poisson
+    %                   errors).
     %            .DX - Vector of fitted X positions relative the Xcenter.
     %            .DY - Vector of fitted Y positions relative the Xcenter.
     %            .Xinit - Xinit
@@ -240,6 +242,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     end
     
     Result.Flux = squeeze(Flux);
+    Result.SNm  = Result.Flux./sqrt(Result.Flux + squeeze(Std).^2);  % S/N for measurments
     Result.Mag  = convert.luptitude(Result.Flux, 10.^(0.4.*Args.ZP));
     Result.DX = DX(:);
     Result.DY = DY(:);
