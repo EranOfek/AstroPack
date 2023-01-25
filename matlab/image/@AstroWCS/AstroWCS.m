@@ -357,16 +357,18 @@ classdef AstroWCS < Component
             coounit  = cell(size(ctype));
             
             for I = 1:1:numel(ctype)
-                Split    = regexp(ctype{I},'-','split');
-                Pair     = Split(~tools.cell.isempty_cell(Split));
-                cooname{I}  = Pair{1};
-                if (numel(Pair)>1)
-                    projtype{I} = Pair{2};
-                    if (numel(Pair)>2)   % For e.g., TAN-SIP. Combine both
-                        projtype{I} = [Pair{2} '-' Pair{3}];
+                if ~isnan(ctype{I})
+                    Split    = regexp(ctype{I},'-','split');
+                    Pair     = Split(~tools.cell.isempty_cell(Split));
+                    cooname{I}  = Pair{1};
+                    if (numel(Pair)>1)
+                        projtype{I} = Pair{2};
+                        if (numel(Pair)>2)   % For e.g., TAN-SIP. Combine both
+                            projtype{I} = [Pair{2} '-' Pair{3}];
+                        end
                     end
+                    coounit{I} = CunitDict.searchAlt(cooname{I});
                 end
-                coounit{I} = CunitDict.searchAlt(cooname{I});
             end
             
             % remove cells with no projtype, e.g. velocity

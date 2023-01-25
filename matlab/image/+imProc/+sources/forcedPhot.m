@@ -7,6 +7,8 @@ function Result = forcedPhot(Obj, Args)
     %       The output is written either to an AstroCatalaog object or
     %       added to the AstroCatalog in the AstroImage.
     % Input  : - An AstroImage object.
+    %            The AstroImage must iunclude an header or a populated
+    %            AstroWCS; A populated AstroCatalog.
     %          * ...,key,val,...
     %            'Coo' - A two column matrix of [X, Y] or [RA, Dec]
     %                   coordinates of positions in the image for which to
@@ -67,6 +69,11 @@ function Result = forcedPhot(Obj, Args)
     %            'AddCatName' - Catalog name (in catsHTM) in which to
     %                   search for additional sources.
     %                   Default is 'GAIADR3'.
+    %            'PopulateWCS' - A logical indicating if to populate the
+    %                   WCS from the header.
+    %                   (set to false to save time is WCS is already
+    %                   populated).
+    %                   Default is true.
     %
     %            'MomentMaxIter' - Number of iterations used in the 1st and
     %                   2nd moment estimation. If 0, then will use the
@@ -145,12 +152,13 @@ function Result = forcedPhot(Obj, Args)
         Obj AstroImage
         Args.Coo                     = zeros(0,2);
         Args.CooUnits                = 'deg';   % 'pix'|'deg'|'rad
-        Args.Moving logical          = true;
+        Args.Moving logical          = false;
         Args.ColNames                = {'X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS'};  % 'Chi2','Dof'
         Args.MinEdgeDist             = 0;      % pix
         Args.AddRefStarsDist         = 500;     % arcsec; 0/NaN for no addition
         Args.AddCatName              = 'GAIADR3';
-
+        Args.PopulateWCS logical     = true;
+        
         Args.MomentMaxIter           = 0;       % 0 - no iterations
         Args.UseMomCoo logical       = false;
         Args.AperRadius              = [2 4 6];
@@ -204,13 +212,22 @@ function Result = forcedPhot(Obj, Args)
         Args.Coo = [Args.Coo; CatAdd(:,1:2).*RAD];  % deg 
     end
 
+    Nobj = numel(Obj);
+
+    % Propagate WCS from header to AstroWCS
+    if Args.PopulateWCS
+        for Iobj=1:1:Nobj
+            if ~Obj(1).WCS.Success
+                Obj(Iobj).WCS = AstroWCS.header2wcs(Obj(Iobj).HeaderData);
+            end
+        end
+    end
 
     Result    = MatchedSources;
     Nsrc      = size(Args.Coo,1);
     Result.JD = Obj.julday;
     
-    Nobj = numel(Obj);
-
+    
     if Args.Moving
         Nmove = size(Args.Coo,1);
         if Nmove~=Nobj
