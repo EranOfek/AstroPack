@@ -309,16 +309,19 @@ classdef AstroImage < Component
                                 % treat integers in case of Mask
                                 switch ListProp{Ilist}
                                     case 'Mask'
-                                        Obj.MaskData.Dict = BitDictionary(Args.MaskDict);
-                                        switch class(Obj.(ListProp{Ilist}))
-                                            case 'int8'
-                                                Obj.(ListProp{Ilist}) = cast(Obj.(ListProp{Ilist}), 'uint8');
-                                            case 'int16'
-                                                Obj.(ListProp{Ilist}) = cast(Obj.(ListProp{Ilist}), 'uint16');
-                                            case 'int32'
-                                                Obj.(ListProp{Ilist}) = cast(Obj.(ListProp{Ilist}), 'uint32');
-                                            case 'int64'
-                                                Obj.(ListProp{Ilist}) = cast(Obj.(ListProp{Ilist}), 'uint64');
+                                        Nobj = numel(Obj);
+                                        for Iobj=1:1:Nobj
+                                            Obj(Iobj).MaskData.Dict = BitDictionary(Args.MaskDict);
+                                            switch class(Obj(Iobj).(ListProp{Ilist}))
+                                                case 'int8'
+                                                    Obj(Iobj).(ListProp{Ilist}) = cast(Obj(Iobj).(ListProp{Ilist}), 'uint8');
+                                                case 'int16'
+                                                    Obj(Iobj).(ListProp{Ilist}) = cast(Obj(Iobj).(ListProp{Ilist}), 'uint16');
+                                                case 'int32'
+                                                    Obj(Iobj).(ListProp{Ilist}) = cast(Obj(Iobj).(ListProp{Ilist}), 'uint32');
+                                                case 'int64'
+                                                    Obj(Iobj).(ListProp{Ilist}) = cast(Obj(Iobj).(ListProp{Ilist}), 'uint64');
+                                            end
                                         end
                                 end
                                         

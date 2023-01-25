@@ -1285,37 +1285,38 @@ classdef AstroWCS < Component
                 Result(Iobj).CUNIT = AH(Iobj).getCellKey(KeyCunit);
                 Result(Iobj).read_ctype;
             
-                [Result(Iobj).RADESYS, Result(Iobj).EQUINOX] = Result(Iobj).read_radesys_equinox(AH(Iobj));
-                
-                % Get base WCS info
-                if ~isnan(KeyValStruct.LONPOLE)
-                    Result(Iobj).LONPOLE = KeyValStruct.LONPOLE;
+                if isnumeric(Result(Iobj).CTYPE{1}) && any(isnan(Result(Iobj).CTYPE{1}))
+                    Result(Iobj).Success = false;
+                else
+                    [Result(Iobj).RADESYS, Result(Iobj).EQUINOX] = Result(Iobj).read_radesys_equinox(AH(Iobj));
+
+                    % Get base WCS info
+                    if ~isnan(KeyValStruct.LONPOLE)
+                        Result(Iobj).LONPOLE = KeyValStruct.LONPOLE;
+                    end
+                    if ~isnan(KeyValStruct.LATPOLE)
+                        Result(Iobj).LATPOLE = KeyValStruct.LATPOLE;
+                    end
+
+                    Result(Iobj).CRPIX = cell2mat(AH(Iobj).getCellKey(KeyCrpix));
+                    Result(Iobj).CRVAL = cell2mat(AH(Iobj).getCellKey(KeyCrval));
+                    Result(Iobj).CD = Result(Iobj).build_CD(AH(Iobj),Naxis);
+
+                    % Read distortions
+                    % look for PV coeficients
+                    Result(Iobj).PV = Result(Iobj).build_PV_from_Header(AH(Iobj), Result(Iobj).ProjType);
+
+                    % For TAN-SIP try to get RevPV (TODO generlize)
+                    if strcmpi(Result(Iobj).ProjType,'tan-sip')
+                        Result(Iobj).RevPV = AstroWCS.build_TANSIP_from_Header(AH(Iobj),true);
+                    end
+
+                    % populate proj Meta
+                    Result(Iobj).populate_projMeta;
+
+                    % assume header solution is good
+                    Result(Iobj).Success = true;
                 end
-                if ~isnan(KeyValStruct.LATPOLE)
-                    Result(Iobj).LATPOLE = KeyValStruct.LATPOLE;
-                end
-
-
-                Result(Iobj).CRPIX = cell2mat(AH(Iobj).getCellKey(KeyCrpix));
-                Result(Iobj).CRVAL = cell2mat(AH(Iobj).getCellKey(KeyCrval));
-
-                Result(Iobj).CD = Result(Iobj).build_CD(AH(Iobj),Naxis);
-
-                % Read distortions
-
-                % look for PV coeficients
-                Result(Iobj).PV = Result(Iobj).build_PV_from_Header(AH(Iobj), Result(Iobj).ProjType);
-
-                % For TAN-SIP try to get RevPV (TODO generlize)
-                if strcmpi(Result(Iobj).ProjType,'tan-sip')
-                    Result(Iobj).RevPV = AstroWCS.build_TANSIP_from_Header(AH(Iobj),true);
-                end
-
-                % populate proj Meta
-                Result(Iobj).populate_projMeta;
-
-                % assume header solution is good
-                Result(Iobj).Success = true;
             end
         end
                 
