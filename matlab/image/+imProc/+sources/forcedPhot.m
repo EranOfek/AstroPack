@@ -22,6 +22,12 @@ function Result = forcedPhot(Obj, Args)
     %                   'deg' - J2000.0 RA/Dec in deg.
     %                   'rad' - J2000.0 RA/Dec in rad.
     %                   Default is 'deg'.
+    %            'Moving' - A logical indicating if the source is moving.
+    %                   If true, then the 'Coo' argument contains entry per
+    %                   each AstroImage element (which we refere as epoch),
+    %                   and the forced photometry is performed on each
+    %                   image in a different location.
+    %                   Default is false.
     %            'ColNames' - A cell array of column names to add to the
     %                   output MergedSources Data property.
     %                   Select names from the following list:
@@ -45,7 +51,7 @@ function Result = forcedPhot(Obj, Args)
     %                           requested apertures.
     %                   'BACK_ANNULUS','STD_ANNULUS' - back and std in annulus.
     %                   Default is:
-    %                   {'X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER'};  % 'Chi2','Dof'}
+    %                   {'X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS'};  % 'Chi2','Dof'}
     %            'MinEdgeDist' - Number of pixels of source from image edge
     %                   in order to declare the object in/out image.
     %                   Default is 0.
@@ -97,7 +103,12 @@ function Result = forcedPhot(Obj, Args)
     %            'backgroundCubeArgs' - A cell array of additional
     %                   parameters to pass to imUtil.sources.backgroundCube
     %                   Default is {}.
-    %
+    %            'FlagsHalfSize' - The FLAGS columns (in ColNames) is propagating
+    %                 the FLAGS from the image bit mask. This parameter
+    %                 indicate the half size of the cutout in the bit mask
+    %                 image around each source from which to propagate the
+    %                 bit masks using the 'or' operator.
+    %                 Default is 3 [pix].
     %            'ReconstructPSF' - A logical indicatig if to force the
     %                   generation of a PSF stamp even if it is already
     %                   exist in the AstroPSF in the AstroImage.
@@ -134,7 +145,8 @@ function Result = forcedPhot(Obj, Args)
         Obj AstroImage
         Args.Coo                     = zeros(0,2);
         Args.CooUnits                = 'deg';   % 'pix'|'deg'|'rad
-        Args.ColNames                = {'X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER'};  % 'Chi2','Dof'
+        Args.Moving logical          = true;
+        Args.ColNames                = {'X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS'};  % 'Chi2','Dof'
         Args.MinEdgeDist             = 0;      % pix
         Args.AddRefStarsDist         = 500;     % arcsec; 0/NaN for no addition
         Args.AddCatName              = 'GAIADR3';
@@ -151,6 +163,8 @@ function Result = forcedPhot(Obj, Args)
         Args.AnnulusRad              = 2;
         Args.backgroundCubeArgs cell = {};
         
+        Args.FlagsHalfSize           = 3;
+
         Args.ReconstructPSF logical  = false;
         Args.HalfSizePSF             = 12;
         Args.FitRadius               = 3;
@@ -196,9 +210,30 @@ function Result = forcedPhot(Obj, Args)
     Result.JD = Obj.julday;
     
     Nobj = numel(Obj);
+
+    if Args.Moving
+        Nmove = size(Args.Coo,1);
+        if Nmove~=Nobj
+            error('For Moving=true the number of entries must be equal to the number of AstroImage elements');
+        end
+    end
+
     for Iobj=1:1:Nobj
-        if IsSpherical
-            [X,Y] = Obj(Iobj).WCS.sky2xy(Args.Coo(:,1), Args.Coo(:,2), 'InUnits','deg');
+        if Args.Moving
+            error('Moving=true is not implemented yet');
+            if IsSpherical
+                [X,Y] = Obj(Iobj).WCS.sky2xy(Args.Coo(Iobj,1), Args.Coo(Iobj,2), 'InUnits','deg');
+            else
+                X = Args.Coo(Iobj,1);
+                Y = Args.Coo(Iobj,2);
+            end
+        else
+            if IsSpherical
+                [X,Y] = Obj(Iobj).WCS.sky2xy(Args.Coo(:,1), Args.Coo(:,2), 'InUnits','deg');
+            else
+                X = Args.Coo(:,1);
+                Y = Args.Coo(:,2);
+            end
         end
 
         % check if sources are in footprint
@@ -270,9 +305,9 @@ function Result = forcedPhot(Obj, Args)
             switch Args.ColNames{Icol}
                 case 'X'
                     % The position is relative to X and Y which are the stamps center:
-                    Result(Iobj).Data.X(Iobj,:)   = X(:).' + ResultPSF.DX(:).';
+                    Result(Iobj).Data.X(Iobj,:)      = X(:).' + ResultPSF.DX(:).';
                 case 'Y'
-                    Result(Iobj).Data.Y(Iobj,:)   = Y(:).' + ResultPSF.DY(:).';
+                    Result(Iobj).Data.Y(Iobj,:)      = Y(:).' + ResultPSF.DY(:).';
                 case 'Xstart'
                     Result.Data.Xstart(Iobj,:)       = X(:).';
                 case 'Ystart'
@@ -286,7 +321,8 @@ function Result = forcedPhot(Obj, Args)
                 case 'FLAG_POS'
                     Result.Data.FLAG_POS(Iobj,:)     = FlagIn;
                 case 'FLAGS'
-                    Result.Data.FLAGS
+                    FlagsXY                          = bitwise_cutouts(Obj(Iobj).MaskData, [X,Y], 'or', 'HalfSize',Args.FlagsHalfSize);
+                    Result.Data.FLAGS(Iobj,:)        = FlagsXY(:).';
                 case 'BACK_ANNULUS'
                     Result.Data.BACK_ANNULUS(Iobj,:) = Aper.AnnulusBack(:).';
                 case 'STD_ANNULUS'
