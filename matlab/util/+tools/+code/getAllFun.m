@@ -33,7 +33,7 @@ function List=getAllFun(Args)
         AllFiles = AllFiles(~IsU);
     end
     
-    % remove obsolete
+    % remove testing
     if Args.RemoveTesting
         IsT = contains({AllFiles.folder}, 'testing');
         AllFiles = AllFiles(~IsT);
@@ -43,7 +43,7 @@ function List=getAllFun(Args)
     IsM = strcmp({AllFiles.Extension},'.m');
     AllFiles = AllFiles(IsM);
     
-    % remove directories
+    % remove directories %kra: already not needed as we selected ".m" files?
     Flag     = ~[AllFiles.isdir];
     AllFiles = AllFiles(Flag);
     
@@ -60,7 +60,10 @@ function List=getAllFun(Args)
         I = I + 1;
         Report = AllFuns(I);
         
-        List(I).FunName         = Report.name;        
+        List(I).FullPath        = tools.cell.sprintf_concatCell('/',Report.folder, Report.name); 
+        List(I).FunName         = Report.name; 
+        % remove .m
+        List(I).FunName = regexprep(List(I).FunName, '.m$',''); 
         List(I).FunFullName     = tools.cell.sprintf_concatCell('.',Report.PackNames, Report.name);
         % remove .m
         List(I).FunFullName = regexprep(List(I).FunFullName, '.m$','');
@@ -86,6 +89,7 @@ function List=getAllFun(Args)
         for Ifun=1:1:numel(AllClasses(Iclass).ClassFuns)
             I = I + 1;
             Report = AllClasses(Iclass).ClassFuns(Ifun);
+            ReportClass = AllClasses(Iclass); 
             
             List(I).FunName         = Report.MainFunName;
             
@@ -96,7 +100,8 @@ function List=getAllFun(Args)
                 Tmp = regexp(AllClasses(Iclass).folder, '/(?<ClassName>@\w+)','names');
                 List(I).ClassName = Tmp.ClassName(2:end);
             end
-
+            
+            List(I).FullPath        = tools.cell.sprintf_concatCell('/',ReportClass.folder, ReportClass.name); 
             List(I).FunFullName     = tools.cell.sprintf_concatCell('.',AllClasses(Iclass).PackNames, ['@', List(I).ClassName], List(I).FunName);
             % remove .m
             List(I).FunFullName = regexprep(List(I).FunFullName, '.m$','');
