@@ -264,6 +264,8 @@ function Result = forcedPhot(Obj, Args)
         %[M1,M2,Aper] = imUtil.image.moment2(Cube, X, Y, 'MaxIter',Args.MomentMaxIter);
         
         if Args.UseMomCoo
+            %X = nan(Nsrc,1);
+            %Y = nan(Nsrc,1);
             X = M1.X;
             Y = M1.Y;
         end
@@ -322,9 +324,9 @@ function Result = forcedPhot(Obj, Args)
             switch Args.ColNames{Icol}
                 case 'X'
                     % The position is relative to X and Y which are the stamps center:
-                    Result(Iobj).Data.X(Iobj,:)      = X(:).' + ResultPSF.DX(:).';
+                    Result.Data.X(Iobj,:)            = X(:).' + ResultPSF.DX(:).';
                 case 'Y'
-                    Result(Iobj).Data.Y(Iobj,:)      = Y(:).' + ResultPSF.DY(:).';
+                    Result.Data.Y(Iobj,:)            = Y(:).' + ResultPSF.DY(:).';
                 case 'Xstart'
                     Result.Data.Xstart(Iobj,:)       = X(:).';
                 case 'Ystart'
@@ -338,8 +340,8 @@ function Result = forcedPhot(Obj, Args)
                 case 'FLAG_POS'
                     Result.Data.FLAG_POS(Iobj,:)     = FlagIn;
                 case 'FLAGS'
-                    FlagsXY                          = bitwise_cutouts(Obj(Iobj).MaskData, [X,Y], 'or', 'HalfSize',Args.FlagsHalfSize);
-                    Result.Data.FLAGS(Iobj,:)        = FlagsXY(:).';
+                    FlagsXY                          = bitwise_cutouts(Obj(Iobj).MaskData, [X(FlagIn),Y(FlagIn)], 'or', 'HalfSize',Args.FlagsHalfSize);
+                    Result.Data.FLAGS(Iobj,FlagIn)   = FlagsXY(:).';
                 case 'BACK_ANNULUS'
                     Result.Data.BACK_ANNULUS(Iobj,:) = Aper.AnnulusBack(:).';
                 case 'STD_ANNULUS'
