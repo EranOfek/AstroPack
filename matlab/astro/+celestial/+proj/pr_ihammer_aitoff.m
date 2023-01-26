@@ -10,7 +10,7 @@ function [Long,Lat]=pr_ihammer_aitoff(X,Y,R)
 % Output : - Vector of Longitude, in radians.
 %          - Vector of Latitude, in radians.
 % Tested : Matlab 5.3
-%     By : Eran O. Ofek                 September 2012     
+%     By : Eran O. Ofek                 Sep 2012     
 %    URL : http://wise-obs.tau.ac.il/~eran/matlab.html
 % Reliable: 1
 %------------------------------------------------------------------------------
