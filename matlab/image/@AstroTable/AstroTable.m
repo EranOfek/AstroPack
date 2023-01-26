@@ -1493,8 +1493,13 @@ classdef AstroTable < Component
             %            "Y" values of the interpolation.
             %          - (NewX) Vector of new X values for the interpolation.
             %          * ...,key,val,...
-            %            'Sort' -
-            %            'InterpMethod' - 
+            %            'Sort' - Sort Table by InterpColX prior to
+            %                   interpolation. If true, this will modify
+            %                   the input object.
+            %                   Default is true.
+            %            'InterpMethod' - Interpolation method.
+            %                   See interp1 for options.
+            %                   Default is 'linear'.
             % Output : - An AstroTable/AstroCatalog object of the
             %            interpolated data.
             %            The new table contains the columns of InterpColX
