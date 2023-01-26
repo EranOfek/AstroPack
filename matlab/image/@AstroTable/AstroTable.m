@@ -1221,7 +1221,7 @@ classdef AstroTable < Component
         
     end
     
-    methods  % sort, flip, select
+    methods  % sort, flip, select, interp
         
         function [Obj,Ind] = sortrows(Obj,SortByColumn)
             % Sort AstroTable objects by some column names/indices
@@ -1401,7 +1401,6 @@ classdef AstroTable < Component
 
         end
 
-
         function Result = selectRows(Obj, FlagInd, Args)
             % Select rows from AstroTable object, including optional NaN filling and reordering.
             %       There are 2 related functions: insertRows and
@@ -1482,6 +1481,38 @@ classdef AstroTable < Component
                 Result(Iobj).Catalog = AstroTable.selectLines(Obj(Iobj).Catalog, FlagI, 'IgnoreNaN',Args.IgnoreNaN);
             end
         end
+    
+        function Result = interp(Obj, InterpColX, InterpColY, NewX, Args)
+            %
+
+            arguments
+                Obj(1,1)
+                InterpColX
+                InterpColY
+                NewX
+                Args.Sort logical          = true;
+                Args.InterpMethod          = 'linear';
+            end
+
+            ColIndX = Obj.colname2ind(InterpColX);
+            ColIndY = Obj.colname2ind(InterpColY);
+
+            if Args.Sort
+                Obj = Obj.sortrows(InterpColX);
+            end
+
+            NewY = interp1(Obj.Catalog(:,ColIndX), Obj.Catalog(:,ColIndY), NewX, Args.InterpMethod);
+
+            if isa(Obj, 'AstroCatalog')
+                Result = AstroCatalog
+            else
+
+            end
+
+
+
+        end
+
     end
     
     methods % applay functions and overloads
