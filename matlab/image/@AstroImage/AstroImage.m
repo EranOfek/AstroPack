@@ -1548,19 +1548,75 @@ classdef AstroImage < Component
             Nobj = numel(Obj);
             Result = struct('Center',cell(Nobj,1), 'Corners',cell(Nobj,1));
             for Iobj=1:1:Nobj
-                if ischar(CCDSEC)
-                    % get CCDSEC from header keyword
-                    %CCDSEC = eval(Obj(Iobj).HeaderData.getVal(CCDSEC));
-                    CCDSEC = sscanf(Obj(Iobj).HeaderData.getVal('CCDSEC'),'[ %d %d %d %d]');
-                end
                 if isempty(CCDSEC)
                     % get CCDSEC from image size
                     [Ny, Nx] = Obj(Iobj).sizeImage;
-                    CCDSEC = [1 Nx 1 Ny];
+                    CCDSECxy = [1 Nx 1 Ny];
                 end
-                Result(Iobj) = Obj(Iobj).WCS.cooImage(CCDSEC, 'OutUnits',Args.OutUnits);
+                if ischar(CCDSEC)
+                    % get CCDSEC from header keyword
+                    %CCDSEC = eval(Obj(Iobj).HeaderData.getVal(CCDSEC));
+                    CCDSECxy = sscanf(Obj(Iobj).HeaderData.getVal('CCDSEC'),'[ %d %d %d %d]');
+                else
+                    CCDSECxy = CCDSEC;
+                end
+                
+                Result(Iobj) = Obj(Iobj).WCS.cooImage(CCDSECxy, 'OutUnits',Args.OutUnits);
             end
 
+        end
+        
+        function [Result] = isSkyCooInImage(Obj, Alpha, Delta, CCDSEC, Units)
+            % Check if RA/Dec are within AstroImage image footprint (CCDSEC)
+            % Input  : - A single element AstroWCS object.
+            %          - J2000.0 R.A.
+            %          - J2000.0 Dec.
+            %          - CCDSEC. Either [xmin xmax ymin ymax] or
+            %            [xmax, ymax], or a character array containing
+            %            header keyword name from which to obtain the
+            %            CCDSEC (e.g., 'CCDSEC' | 'ORIGSEC' | 'ORIGUSEC' | 'UNIQSEC'
+            %            If empty, use image size. Default is [].
+            %          - Input RA/Dec units. Default is 'deg'.
+            % Output : - A structure array with results. Element per image.
+            %            Each containing the following fields:
+            %            .InImage - A vector of logicals indicating, for each
+            %                   coordinate, if it is inside CCDSEC footprint.
+            %            .MinDist - Vector of minimum distance of each position from
+            %                   image boundries. If the image WCS has
+            %                   Sucess=false, then this will be NaN.
+            % Author : Eran Ofek (Jan 2023)
+
+            arguments
+                Obj
+                Alpha
+                Delta
+                CCDSEC   = [];
+                Units    = 'deg';
+            end
+            
+            Nobj   = numel(Obj);
+            Result = struct('InImage',cell(Nobj,1), 'MinDist',cell(Nobj,1));
+            for Iobj=1:1:Nobj
+                if Obj(Iobj).WCS.Success
+                    if isempty(CCDSEC)
+                        % get CCDSEC from image size
+                        [Ny, Nx] = Obj(Iobj).sizeImage;
+                        CCDSECxy = [1 Nx 1 Ny];
+                    end
+                    if ischar(CCDSEC)
+                        % get CCDSEC from header keyword
+                        %CCDSEC = eval(Obj(Iobj).HeaderData.getVal(CCDSEC));
+                        CCDSECxy = sscanf(Obj(Iobj).HeaderData.getVal('CCDSEC'),'[ %d %d %d %d]');
+                    
+                    end
+                    
+                    
+                    [Result(Iobj).InImage, Result(Iobj).MinDist] = isSkyCooInImage(Obj(Iobj).WCS, Alpha, Delta, CCDSECxy, Units);
+                else
+                    Result(Iobj).InImage = false;
+                    Result(Iobj).MinDist = NaN;
+                end
+            end
         end
         
         function Result = funPSF(Obj, Fun, ArgsToFun)
