@@ -33,6 +33,8 @@ function Result = forcedPhot(Obj, Args)
     %            'ColNames' - A cell array of column names to add to the
     %                   output MergedSources Data property.
     %                   Select names from the following list:
+    %                   'RA',Dec' - J2000.0 RA/Dec (units specified in the
+    %                           'CooOutUnits' argument).
     %                   'X', 'Y' - X/Y pixel coordinates of the final fitted
     %                           source position.
     %                   'Xstart', 'Ystart' - X/Y pixel coordinates of the
@@ -53,7 +55,9 @@ function Result = forcedPhot(Obj, Args)
     %                           requested apertures.
     %                   'BACK_ANNULUS','STD_ANNULUS' - back and std in annulus.
     %                   Default is:
-    %                   {'X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS'};  % 'Chi2','Dof'}
+    %                   {'RA','Dec','X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS'};  % 'Chi2','Dof'}
+    %            'CooOutUnits' - Output J2000.0 RA/Dec units.
+    %                   Default is 'deg'.
     %            'MinEdgeDist' - Number of pixels of source from image edge
     %                   in order to declare the object in/out image.
     %                   Default is 10.
@@ -153,7 +157,8 @@ function Result = forcedPhot(Obj, Args)
         Args.Coo                     = zeros(0,2);
         Args.CooUnits                = 'deg';   % 'pix'|'deg'|'rad
         Args.Moving logical          = false;
-        Args.ColNames                = {'X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS'};  % 'Chi2','Dof'
+        Args.ColNames                = {'RA','Dec','X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS'};  % 'Chi2','Dof'
+        Args.CooOutUnits             = 'deg';
         Args.MinEdgeDist             = 10;      % pix
         Args.AddRefStarsDist         = 500;     % arcsec; 0/NaN for no addition
         Args.AddCatName              = 'GAIADR3';
@@ -319,16 +324,32 @@ function Result = forcedPhot(Obj, Args)
 
             % psf photometry        
             [ResultPSF, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
-                          
+                                                                'Std',Std,...
+                                                                'Back',Back,...
+                                                                'FitRadius',Args.FitRadius,...
+                                                                'SmallStep',Args.SmallStep,...
+                                                                'MaxStep',Args.MaxStep,...
+                                                                'ConvThresh',Args.ConvThresh,...
+                                                                'MaxIter',Args.MaxIter,...
+                                                                'UseSourceNoise',Args.UseSourceNoise,...
+                                                                'ZP',Args.ZP);
+                                                            
             % Store forced photometry results in MatchedSources object
             
+            Xpos = X(:).' + ResultPSF.DX(:).';
+            Ypos = Y(:).' + ResultPSF.DY(:).';
+            [RA, Dec] = Obj(Iobj).WCS.xy2sky(Xpos,Ypos,'OutUnits',Args.CooOutUnits);
             for Icol=1:1:Ncol
                 switch Args.ColNames{Icol}
+                    case 'RA'
+                        Result.Data.RA(Iobj,:)  = RA;
+                    case 'Dec'
+                        Result.Data.Dec(Iobj,:) = Dec;
                     case 'X'
                         % The position is relative to X and Y which are the stamps center:
-                        Result.Data.X(Iobj,:)            = X(:).' + ResultPSF.DX(:).';
+                        Result.Data.X(Iobj,:)            = Xpos;
                     case 'Y'
-                        Result.Data.Y(Iobj,:)            = Y(:).' + ResultPSF.DY(:).';
+                        Result.Data.Y(Iobj,:)            = Ypos;
                     case 'Xstart'
                         Result.Data.Xstart(Iobj,:)       = X(:).';
                     case 'Ystart'
