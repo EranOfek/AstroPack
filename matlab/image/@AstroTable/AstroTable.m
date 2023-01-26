@@ -1484,6 +1484,7 @@ classdef AstroTable < Component
     
         function Result = interp(Obj, InterpColX, InterpColY, NewX, Args)
             %
+            % Example : AT = AstroTable(rand(100,4),{'JD','RA','Dec','U'});
 
             arguments
                 Obj(1,1)
@@ -1504,10 +1505,12 @@ classdef AstroTable < Component
             NewY = interp1(Obj.Catalog(:,ColIndX), Obj.Catalog(:,ColIndY), NewX, Args.InterpMethod);
 
             if isa(Obj, 'AstroCatalog')
-                Result = AstroCatalog
+                Result = AstroCatalog([NewX, NewY]);
             else
-
+                Result = AstroTable([NewX, NewY]);
             end
+
+            
 
 
 
