@@ -3,19 +3,32 @@ function generateFunListWebPage(Args)
     % Example: tools.code.generateFunListWebPage
    
     arguments
-        Args.WebFileName    = 'funlist.html';
+        Args.WebFileName    = 'AstroPack_funlist.html'; 
     end
     
     List = tools.code.getAllFun;
-    TableCell = [{List.FunName}.', {List.FunFullName}.', {List.ClassName}.', {List.Year}.', {List.DescriptionLine}.'];
-    Header = {'Fun Name', 'Full Name', 'Class', 'Year', 'Brief description'};
-    
+
+    Header = {'Function', 'Full Name', 'Class', 'Year', 'Mon', 'Brief description'};
+        
+    Ncell = numel(List);
+        for Icell=1:1:Ncell
+            % a local machine link:
+            List(Icell).Link = sprintf('%s%s%s%s%s', '<a href="', List(Icell).FullPath,'">',List(Icell).FunName,'</a>');
+            % relink to Github:
+            List(Icell).Link = regexprep(List(Icell).Link, 'href=".*AstroPack/','href="https://github.com/EranOfek/AstroPack/tree/dev1/'); 
+        end
+        
+    TableCell = [{List.Link}.', {List.FunFullName}.', {List.ClassName}.', {List.Year}.', {List.Month}.', {List.DescriptionLine}.'];
+        
     www.html_table(Args.WebFileName,'TableCell',TableCell,'TableStatment','class="sortable"','TableHead',Header);
 
-    % add sortable javascript
+    % add sortable javascript (do not forget to put the sorttable.js file)
+    % into the same catalog as AstroPack_funlist.html 
     FileStr = io.files.file2str(Args.WebFileName, 'str');
-    Comment = sprintf('<b>Table is sortable - click on column to sort.</b><br> IsStatic indicate if the function is a static class.<br> Number of functions: %d.<br> Last update: %s.<br>',numel(List),date);
+    
+    Comment = sprintf('<b>The table is sortable: click on a column header to sort</b> <br> Number of functions: %d<br> Last update: %s<br>',numel(List),date);
     FileStr = sprintf('<script src="sorttable.js"></script>\n\n %s\n<br>\n %s',Comment,FileStr);
+   
     FID = fopen(Args.WebFileName,'w');
     fprintf(FID,'%s',FileStr);
     fclose(FID);

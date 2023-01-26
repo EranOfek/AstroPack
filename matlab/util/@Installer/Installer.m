@@ -77,7 +77,7 @@ classdef Installer < Component
             %                   Default is true.
             %            'Npwget' - Number of parallel wget. Default is 10.
             %            'wgetPars' - A cell array of additional wget
-            %                   arguments. Default is '-q -o /dev/null -U Mozilla --no-check-certificate'.
+            %                   arguments. Default is '--quiet --timeout=10 --output-file=/dev/null --user-agent=Mozilla --no-check-certificate'.
             % Author : Eran Ofek (Sep 2021)
             % Example: I = Installer;
             %          I.install            % install all
@@ -90,7 +90,7 @@ classdef Installer < Component
                 DataName                  = {};
                 Args.Delete(1,1) logical  = true;
                 Args.Npwget               = 10;
-                Args.wgetPars             = '-q -o /dev/null -U Mozilla --no-check-certificate';
+                Args.wgetPars             = '--quiet --timeout=10 --output-file=/dev/null --user-agent=Mozilla --no-check-certificate';
             end
 
             % Allow index to Items, single char value, or cell with list of items

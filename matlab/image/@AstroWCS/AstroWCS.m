@@ -357,16 +357,18 @@ classdef AstroWCS < Component
             coounit  = cell(size(ctype));
             
             for I = 1:1:numel(ctype)
-                Split    = regexp(ctype{I},'-','split');
-                Pair     = Split(~tools.cell.isempty_cell(Split));
-                cooname{I}  = Pair{1};
-                if (numel(Pair)>1)
-                    projtype{I} = Pair{2};
-                    if (numel(Pair)>2)   % For e.g., TAN-SIP. Combine both
-                        projtype{I} = [Pair{2} '-' Pair{3}];
+                if ~isnan(ctype{I})
+                    Split    = regexp(ctype{I},'-','split');
+                    Pair     = Split(~tools.cell.isempty_cell(Split));
+                    cooname{I}  = Pair{1};
+                    if (numel(Pair)>1)
+                        projtype{I} = Pair{2};
+                        if (numel(Pair)>2)   % For e.g., TAN-SIP. Combine both
+                            projtype{I} = [Pair{2} '-' Pair{3}];
+                        end
                     end
+                    coounit{I} = CunitDict.searchAlt(cooname{I});
                 end
-                coounit{I} = CunitDict.searchAlt(cooname{I});
             end
             
             % remove cells with no projtype, e.g. velocity
@@ -1102,6 +1104,33 @@ classdef AstroWCS < Component
                 MinDist=tools.math.geometry.dist_box_edge(PX, PY, CCDSEC(1:2), CCDSEC(3:4));
             end
         end
+    
+        function Result = cooImage(Obj, CCDSEC, Args)
+            % Return the image center and corners coordinates
+            % Input  : - A single element AstroWCS object.
+            %          - CCDSEC [Xmin, Xmax, Ymin, Ymax]
+            %          * ...,key,val,...
+            %            'OutUnits' - Output units. Default is 'deg'.
+            % Output : - A structure containing:
+            %            .Center - [RA, Dec] of center (of CCDSEC).
+            %            .Corners - [RA, Dec] of 4 image corners.
+            % Author : Eran Ofek (Jan 2023)
+            % Example: RR=AI.WCS.cooImage([1 1000 1 1000])
+
+            arguments
+                Obj(1,1)
+                CCDSEC(1,4)      = [];
+                Args.OutUnits    = 'deg';
+            end
+
+            % X/Y contains [center + 4 corners]
+            X = [(CCDSEC(1) + CCDSEC(2)).*0.5; CCDSEC(1); CCDSEC(1); CCDSEC(2); CCDSEC(2)];
+            Y = [(CCDSEC(3) + CCDSEC(4)).*0.5; CCDSEC(3); CCDSEC(4); CCDSEC(4); CCDSEC(3)];
+            [RA, Dec] = Obj.xy2sky(X, Y, 'OutUnits',Args.OutUnits);
+
+            Result.Center  = [RA(1), Dec(1)];
+            Result.Corners = [RA(2:end), Dec(2:end)];
+        end
     end
     
     methods  % Functions related to xy2refxy
@@ -1256,37 +1285,38 @@ classdef AstroWCS < Component
                 Result(Iobj).CUNIT = AH(Iobj).getCellKey(KeyCunit);
                 Result(Iobj).read_ctype;
             
-                [Result(Iobj).RADESYS, Result(Iobj).EQUINOX] = Result(Iobj).read_radesys_equinox(AH(Iobj));
-                
-                % Get base WCS info
-                if ~isnan(KeyValStruct.LONPOLE)
-                    Result(Iobj).LONPOLE = KeyValStruct.LONPOLE;
+                if isnumeric(Result(Iobj).CTYPE{1}) && any(isnan(Result(Iobj).CTYPE{1}))
+                    Result(Iobj).Success = false;
+                else
+                    [Result(Iobj).RADESYS, Result(Iobj).EQUINOX] = Result(Iobj).read_radesys_equinox(AH(Iobj));
+
+                    % Get base WCS info
+                    if ~isnan(KeyValStruct.LONPOLE)
+                        Result(Iobj).LONPOLE = KeyValStruct.LONPOLE;
+                    end
+                    if ~isnan(KeyValStruct.LATPOLE)
+                        Result(Iobj).LATPOLE = KeyValStruct.LATPOLE;
+                    end
+
+                    Result(Iobj).CRPIX = cell2mat(AH(Iobj).getCellKey(KeyCrpix));
+                    Result(Iobj).CRVAL = cell2mat(AH(Iobj).getCellKey(KeyCrval));
+                    Result(Iobj).CD = Result(Iobj).build_CD(AH(Iobj),Naxis);
+
+                    % Read distortions
+                    % look for PV coeficients
+                    Result(Iobj).PV = Result(Iobj).build_PV_from_Header(AH(Iobj), Result(Iobj).ProjType);
+
+                    % For TAN-SIP try to get RevPV (TODO generlize)
+                    if strcmpi(Result(Iobj).ProjType,'tan-sip')
+                        Result(Iobj).RevPV = AstroWCS.build_TANSIP_from_Header(AH(Iobj),true);
+                    end
+
+                    % populate proj Meta
+                    Result(Iobj).populate_projMeta;
+
+                    % assume header solution is good
+                    Result(Iobj).Success = true;
                 end
-                if ~isnan(KeyValStruct.LATPOLE)
-                    Result(Iobj).LATPOLE = KeyValStruct.LATPOLE;
-                end
-
-
-                Result(Iobj).CRPIX = cell2mat(AH(Iobj).getCellKey(KeyCrpix));
-                Result(Iobj).CRVAL = cell2mat(AH(Iobj).getCellKey(KeyCrval));
-
-                Result(Iobj).CD = Result(Iobj).build_CD(AH(Iobj),Naxis);
-
-                % Read distortions
-
-                % look for PV coeficients
-                Result(Iobj).PV = Result(Iobj).build_PV_from_Header(AH(Iobj), Result(Iobj).ProjType);
-
-                % For TAN-SIP try to get RevPV (TODO generlize)
-                if strcmpi(Result(Iobj).ProjType,'tan-sip')
-                    Result(Iobj).RevPV = AstroWCS.build_TANSIP_from_Header(AH(Iobj),true);
-                end
-
-                % populate proj Meta
-                Result(Iobj).populate_projMeta;
-
-                % assume header solution is good
-                Result(Iobj).Success = true;
             end
         end
                 

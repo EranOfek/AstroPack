@@ -93,64 +93,14 @@ function runPipeLAST(DataNumber, Args)
             if CounterFlat>0 || CounterBias>0
                 % reload Dark/Flat
                 CI = CalibImages.loadFromDir(Args.DarkFlatDir);
-            end
-
-            
-%             % look for darks and create master dark
-%             FoundDark = pipeline.last.prepDarkFlat('NewFilesDir',Args.NewFilesDir, 'CalibDir',Args.DarkFlatDir, 'BasePath',Args.BaseArchive);
-%             % look for flats and created master flat
-%             FoundFlat = pipeline.last.prepDarkFlat('Type','flat','NewFilesDir',Args.NewFilesDir, 'CalibDir',Args.DarkFlatDir, 'BasePath',Args.BaseArchive);
-%             if FoundDark || FoundFlat
-%                 % reload Dark/Flat
-%                 CI = CalibImages.loadFromDir(Args.DarkFlatDir);
-%             end
+            end           
 
             if CI.isemptyProp('Bias') || CI.isemptyProp('Flat')
                 error('No dark or flat found');
             end
         end
         
-%         % check if there is a new Dark/Flat
-%         [FoundDark, RecentDarkImage, RecentDarkMask] = io.files.searchNewFilesInDir(Args.DarkFlatDir, Args.DarkSearchStr, '_Image_',{'_Mask_'});
-%         [FoundFlat, RecentFlatImage, RecentFlatMask] = io.files.searchNewFilesInDir(Args.DarkFlatDir, Args.FlatSearchStr, '_Image_',{'_Mask_'});
-%         
-%         % add full path
-%         if ~isempty(RecentDarkImage)
-%             RecentDarkImage = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentDarkImage);
-%             RecentDarkMask  = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentDarkMask{1});
-%         end
-%         
-%         if ~isempty(RecentFlatImage)
-%             RecentFlatImage = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentFlatImage);
-%             RecentFlatMask  = sprintf('%s%s%s',Args.DarkFlatDir, filesep, RecentFlatMask{1});
-%         end
-        
-        
-%         if (~FoundDark || ~FoundFlat)
-%             % may be a probelm - Dark | Flat master images are not found on
-%             % disk
-%             
-%             if isempty(CI.Bias.Image) || isempty(CI.Flat.Image)
-%                 warning('No flat or dark available');
-%                 pause(30);
-%             end
-%             
-%             
-%         else
-%             if strcmp(MostRecentDarkImage, RecentDarkImage)
-%                 % most recent dark is already loaded
-%             else
-%                 % load dark image
-%                 CI.Bias = AstroImage(RecentDarkImage, 'Mask',RecentDarkMask);
-%             end
-%             
-%             if strcmp(MostRecentFlatImage, RecentFlatImage)
-%                 % most recent flat is already loaded
-%             else
-%                 % load flat image
-%                 CI.Flat = AstroImage(RecentFlatImage, 'Mask',RecentFlatMask);
-%             end
-%         end
+
           
 
         % process images
@@ -213,6 +163,14 @@ function runPipeLAST(DataNumber, Args)
                 Destination = io.files.moveFiles(ListImagesNew, ListImagesRaw, '', '', 'MkDir',true);
                 
                 fprintf('Sucess\n\n');
+
+%                 PWD = pwd;
+%                 cd(Destination)
+%                 FID = fopen('.status','w+');
+%                 fprintf('FID','%s ready-for-transfer',datestr(now,'yyyy-mm-ddTHH:MM:SS'));
+%                 fclose(FID);
+%                 cd(PWD);
+                
             catch ME
                 
                 

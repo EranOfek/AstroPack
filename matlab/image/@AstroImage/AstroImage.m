@@ -157,7 +157,11 @@ classdef AstroImage < Component
        
         function Obj = AstroImage(FileNames, Args)
             % Constructor and image reader for AstroImage class
-            % Input  : - A file name, files, or cell of matrices.
+            % Input  : - A file name (with optional wild cards),
+            %            or cell of matrices.
+            %            Examples: '*.fits' - all fits file in current dir.
+            %               '/a/b/c.fits' - NOT SUPPORTED.
+            %               {'/a/b/c.fits','a/b/d.fits'} - list of files.
             %          * ...,key,val,...
             %            'HDU' - HDU number. Default is 1.
             %            'Scale' - Image scale. Default is [].
@@ -222,6 +226,10 @@ classdef AstroImage < Component
                 Args.PSF                      = [];
                 Args.PSFHDU                   = [];
                 Args.PSFScale                 = [];
+
+                Args.Cat                      = [];
+                Args.CatHDU                   = [];
+                Args.CatScale                 = [];  % dummy
                 
                 Args.FileType                 = [];
                 Args.UseRegExp(1,1) logical   = false;
@@ -261,7 +269,8 @@ classdef AstroImage < Component
                     else
                         % ImageData
                         if ischar(FileNames)
-                            FN = {FileNames};
+                            %FN = {FileNames};
+                            FN = io.files.filelist(FileNames);
                         else
                             FN = FileNames;
                         end
@@ -276,10 +285,10 @@ classdef AstroImage < Component
                                                                         'FileNames',FN);
                                                                         
                         % Other data properties
-                        ListProp  = {'Back','Var','Mask', 'PSF'};
-                        ListData  = {'BackData','VarData','MaskData', 'PSFData'};
-                        ListHDU   = {'BackHDU','VarHDU','MaskHDU', 'PSFHDU'};
-                        ListScale = {'BackScale','VarScale','MaskScale', 'PSFScale'};
+                        ListProp  = {'Back','Var','Mask', 'PSF','Cat'};
+                        ListData  = {'BackData','VarData','MaskData', 'PSFData','CatData'};
+                        ListHDU   = {'BackHDU','VarHDU','MaskHDU', 'PSFHDU','CatHDU'};
+                        ListScale = {'BackScale','VarScale','MaskScale', 'PSFScale','CatScale'};
                         
                         Nlist = numel(ListProp);
                         for Ilist=1:1:Nlist
@@ -300,16 +309,19 @@ classdef AstroImage < Component
                                 % treat integers in case of Mask
                                 switch ListProp{Ilist}
                                     case 'Mask'
-                                        Obj.MaskData.Dict = BitDictionary(Args.MaskDict);
-                                        switch class(Obj.(ListProp{Ilist}))
-                                            case 'int8'
-                                                Obj.(ListProp{Ilist}) = cast(Obj.(ListProp{Ilist}), 'uint8');
-                                            case 'int16'
-                                                Obj.(ListProp{Ilist}) = cast(Obj.(ListProp{Ilist}), 'uint16');
-                                            case 'int32'
-                                                Obj.(ListProp{Ilist}) = cast(Obj.(ListProp{Ilist}), 'uint32');
-                                            case 'int64'
-                                                Obj.(ListProp{Ilist}) = cast(Obj.(ListProp{Ilist}), 'uint64');
+                                        Nobj = numel(Obj);
+                                        for Iobj=1:1:Nobj
+                                            Obj(Iobj).MaskData.Dict = BitDictionary(Args.MaskDict);
+                                            switch class(Obj(Iobj).(ListProp{Ilist}))
+                                                case 'int8'
+                                                    Obj(Iobj).(ListProp{Ilist}) = cast(Obj(Iobj).(ListProp{Ilist}), 'uint8');
+                                                case 'int16'
+                                                    Obj(Iobj).(ListProp{Ilist}) = cast(Obj(Iobj).(ListProp{Ilist}), 'uint16');
+                                                case 'int32'
+                                                    Obj(Iobj).(ListProp{Ilist}) = cast(Obj(Iobj).(ListProp{Ilist}), 'uint32');
+                                                case 'int64'
+                                                    Obj(Iobj).(ListProp{Ilist}) = cast(Obj(Iobj).(ListProp{Ilist}), 'uint64');
+                                            end
                                         end
                                 end
                                         
@@ -377,10 +389,16 @@ classdef AstroImage < Component
             end
             
             for Iobj=1:1:Nobj
-                Obj(Iobj).(DataProp).Data  = ImIO(Iobj).Data;
-                Obj(Iobj).(DataProp).Scale = Scale;
+                if strcmp(DataProp, 'CatData')
+                    Obj(Iobj).(DataProp).Catalog  = ImIO(Iobj).Data;
+                else
+                    Obj(Iobj).(DataProp).Data  = ImIO(Iobj).Data;
+                    Obj(Iobj).(DataProp).Scale = Scale;
+                end
                 if ~isempty(FileNames)
-                    Obj(Iobj).(DataProp).FileName = FileNames{Iobj};
+                    if iscellstr(FileNames)
+                        Obj(Iobj).(DataProp).FileName = FileNames{Iobj};
+                    end
                 end
                 
                 if CopyHeader
@@ -602,6 +620,59 @@ classdef AstroImage < Component
                     end
                 end
             end
+        end
+        
+        function Result = readFileNames(ObjFN, Args)
+            % Read images contained in a FileNames object into an AstroImage object.
+            %   Optionally read not only the image but also additional
+            %   products (e.g., 'Cat','PSF').
+            % Input  : - A FileNames object from which file names can be
+            %            generated.
+            %          * ...,key,val,...
+            %            'Path' - A path for the files. If given then will
+            %                   override the genPath method.
+            %                   Default is [].
+            %            'MainProduct' - The main product type to be read
+            %                   into the AstroImage Image property.
+            %                   Default is 'Image'.
+            %            'AddProduct' - A cell array of additional products
+            %                   to read. Default is {'Mask','Cat'}.
+            %            'PopulateWCS' - Populate the WCS object in the
+            %                   AstroImage. Default is true.
+            % Output : - An AstroImage object with the images and other
+            %            data products.
+            % Author : Eran Ofek (Jan 2023)
+            % Example: 
+            
+            arguments
+                ObjFN(1,1) FileNames
+                Args.Path                     = [];
+                Args.MainProduct char         = 'Image';
+                Args.AddProduct               = {'Mask','Cat'};        
+                Args.PopulateWCS logical      = true;
+            end
+            
+            if ischar(Args.AddProduct)
+                Args.AddProduct = {Args.AddProduct};
+            end
+            
+            FilesList = ObjFN.genFull('Product',Args.MainProduct, 'FullPath',Args.Path);
+            
+            Nprod  = numel(Args.AddProduct);
+            if Nprod==0
+                AI_Args = {};
+            end
+            for Iprod=1:1:Nprod
+                AI_Args{Iprod.*2-1} = Args.AddProduct{Iprod};
+                AI_Args{Iprod.*2}   = ObjFN.genFull('Product',Args.AddProduct{Iprod}, 'FullPath',Args.Path);
+            end
+            
+            Result = AstroImage(FilesList, AI_Args{:});
+            
+            if Args.PopulateWCS
+                Result = populateWCS(Result);
+            end
+            
         end
     end
 
@@ -1447,6 +1518,105 @@ classdef AstroImage < Component
         
         function Result = funWCS(Obj, Fun, ArgsToFun)
             % Apply function of WCS properties in AstroImage array
+        end
+
+        function Result = cooImage(Obj, CCDSEC, Args)
+            % Return the image center and corners coordinates (from WCS)
+            % Input  : - An AstroImage object in which the WCS property is
+            %            populated.
+            %          - CCDSEC [Xmin, Xmax, Ymin, Ymax]
+            %            If empty, will use the image size.
+            %            If char, this is an header keyword name from which
+            %            to read the CCDSEC.
+            %            Default is [].
+            %          * ...,key,val,...
+            %            'OutUnits' - Output units. Default is 'deg'.
+            % Output : - A structure containing:
+            %            .Center - [RA, Dec] of center (of CCDSEC).
+            %            .Corners - [RA, Dec] of 4 image corners.
+            % Author : Eran Ofek (Jan 2023)
+            % Example: RR=AI.cooImage([1 1000 1 1000])
+            %          RR=AI.cooImage([])
+            %          RR=AI.cooImage('CCDSEC')
+
+            arguments
+                Obj
+                CCDSEC         = [];
+                Args.OutUnits  = 'deg';
+            end
+
+            Nobj = numel(Obj);
+            Result = struct('Center',cell(Nobj,1), 'Corners',cell(Nobj,1));
+            for Iobj=1:1:Nobj
+                if isempty(CCDSEC)
+                    % get CCDSEC from image size
+                    [Ny, Nx] = Obj(Iobj).sizeImage;
+                    CCDSECxy = [1 Nx 1 Ny];
+                end
+                if ischar(CCDSEC)
+                    % get CCDSEC from header keyword
+                    %CCDSEC = eval(Obj(Iobj).HeaderData.getVal(CCDSEC));
+                    CCDSECxy = sscanf(Obj(Iobj).HeaderData.getVal('CCDSEC'),'[ %d %d %d %d]');
+                else
+                    CCDSECxy = CCDSEC;
+                end
+                
+                Result(Iobj) = Obj(Iobj).WCS.cooImage(CCDSECxy, 'OutUnits',Args.OutUnits);
+            end
+
+        end
+        
+        function [Result] = isSkyCooInImage(Obj, Alpha, Delta, CCDSEC, Units)
+            % Check if RA/Dec are within AstroImage image footprint (CCDSEC)
+            % Input  : - A single element AstroWCS object.
+            %          - J2000.0 R.A.
+            %          - J2000.0 Dec.
+            %          - CCDSEC. Either [xmin xmax ymin ymax] or
+            %            [xmax, ymax], or a character array containing
+            %            header keyword name from which to obtain the
+            %            CCDSEC (e.g., 'CCDSEC' | 'ORIGSEC' | 'ORIGUSEC' | 'UNIQSEC'
+            %            If empty, use image size. Default is [].
+            %          - Input RA/Dec units. Default is 'deg'.
+            % Output : - A structure array with results. Element per image.
+            %            Each containing the following fields:
+            %            .InImage - A vector of logicals indicating, for each
+            %                   coordinate, if it is inside CCDSEC footprint.
+            %            .MinDist - Vector of minimum distance of each position from
+            %                   image boundries. If the image WCS has
+            %                   Sucess=false, then this will be NaN.
+            % Author : Eran Ofek (Jan 2023)
+
+            arguments
+                Obj
+                Alpha
+                Delta
+                CCDSEC   = [];
+                Units    = 'deg';
+            end
+            
+            Nobj   = numel(Obj);
+            Result = struct('InImage',cell(Nobj,1), 'MinDist',cell(Nobj,1));
+            for Iobj=1:1:Nobj
+                if Obj(Iobj).WCS.Success
+                    if isempty(CCDSEC)
+                        % get CCDSEC from image size
+                        [Ny, Nx] = Obj(Iobj).sizeImage;
+                        CCDSECxy = [1 Nx 1 Ny];
+                    end
+                    if ischar(CCDSEC)
+                        % get CCDSEC from header keyword
+                        %CCDSEC = eval(Obj(Iobj).HeaderData.getVal(CCDSEC));
+                        CCDSECxy = sscanf(Obj(Iobj).HeaderData.getVal('CCDSEC'),'[ %d %d %d %d]');
+                    
+                    end
+                    
+                    
+                    [Result(Iobj).InImage, Result(Iobj).MinDist] = isSkyCooInImage(Obj(Iobj).WCS, Alpha, Delta, CCDSECxy, Units);
+                else
+                    Result(Iobj).InImage = false;
+                    Result(Iobj).MinDist = NaN;
+                end
+            end
         end
         
         function Result = funPSF(Obj, Fun, ArgsToFun)

@@ -26,6 +26,7 @@ function Force = ple_force(TargetXYZ, JD, CooFrame, IncludeSun)
     
     Msun  = 1.98847e33;  % [gram]
     Mpl   = [0.330103e27, 4.86731e27, 5.97217e27, 0.641691e27, 1898.125e27, 568.317e27, 86.8099e27, 102.4092e27]./Msun;  % [solar mass]
+%     Mpl(3) = 0; %test
     Msun  = 1;
     
     GMpl  = G .* Mpl;
@@ -35,6 +36,7 @@ function Force = ple_force(TargetXYZ, JD, CooFrame, IncludeSun)
     % planets coordinates
     % return: 3 X Nplanets X Ntimes
     PlXYZ = celestial.SolarSys.ple_xyzAll(JD, CooFrame);
+%     PlXYZ(:,3,:) = PlXYZ(:,3,:)+6e9/constant.au; %test
     Npl   = size(PlXYZ, 2);
 %     Njd   = numel(JD); 
     Njd   = size(TargetXYZ,2); % to support 1 date for multiple targets

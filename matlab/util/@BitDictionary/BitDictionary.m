@@ -174,7 +174,7 @@ classdef BitDictionary < Component
             %          - A cell array of bit descriptions.
             %          - An array of the input bit values, but with NaN if
             %            the bit index is out of range.
-            % Author : Eran Ofek (Mar 20201)
+            % Author : Eran Ofek (Mar 2021)
             % Example: [BitName,BitDescription,BitInd]=bitind2name(Obj,[1 4;7 12])
             
             arguments
@@ -250,7 +250,7 @@ classdef BitDictionary < Component
             %          - An array of bit decimal representations.
             %          - The sum of bits decimal representations.
             %          - A cell array of bit descriptions.
-            % Author : Eran Ofek (Mar 20201)
+            % Author : Eran Ofek (Mar 2021)
             % Example: [BitInd,BitDec,SumBitDec,BitDescription]=name2bit(Obj,{'Spike','DeadPix'})
             
             arguments

@@ -172,7 +172,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         
         Args.RemoveBitNames               = {'Saturated', 'Spike', 'CR_DeltaHT', 'CR_Laplacian', 'CR_Streak', 'Streak', 'Ghost', 'Persistent', 'NearEdge'};
         Args.HighSNBitNames               = {'DarkHighVal','BiasFlaring','FlatHighStd','HighRN'};   
-        Args.SN_HighSN                    = 7;                                                      
+        Args.SN_HighSN                    = 8;                                                      
         Args.TimeSpan                     = [];  % same units as PM time
         Args.PM_Radius                    = 3;   % same units as the PM
         Args.PM_RadiusUnits               = 'arcsec';

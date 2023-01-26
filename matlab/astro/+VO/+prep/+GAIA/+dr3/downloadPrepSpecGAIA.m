@@ -28,7 +28,7 @@ function Cat = downloadPrepSpecGAIA(Args)
         system('gzip -d *.csv.gz');
     end
     
-    %%
+    %
     if any(Args.Step==2)
         Nwave = numel(Args.Wave);
         Files = dir('XpSampledMean*.csv');
@@ -56,7 +56,7 @@ function Cat = downloadPrepSpecGAIA(Args)
     
     %% save Cat into an CatsHTM
     if any(Args.Step==3)
-        AC = AstroCatalog(Cat, 'ColNames',{'RA','Dec','source_id','solution_id','Ifile','Ispec'});
+        AC = AstroCatalog({Cat}, 'ColNames',{'RA','Dec','source_id','solution_id','Ifile','Ispec'});
         Nsrc = VO.prep.build_htm_catalog(AC, 'CatName','GAIADR3spec','HTM_Level',8);
     end
     

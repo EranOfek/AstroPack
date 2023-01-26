@@ -52,12 +52,14 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     %                   'last' - use only in the last (additional) iteration. 
     %                   'off' - only background noise. 
     %                   Default is 'off'.
-    %            'ZP' - ZP for magnitude calculations.
+    %            'ZP' - ZP for magnitude calculations. Default is 25.
     % Output : - A structure with the following fields:
     %            .Chi2 - Vector of \chi^2 (element per stamp).
     %            .Dof - The number of degrees of freedom in the fit.
     %                   This is the stamp area minus 3.
     %            .Flux - Vector of fitted fluxes.
+    %            .SNm - S/N for measurment, assuming gain=1 (Poisson
+    %                   errors).
     %            .DX - Vector of fitted X positions relative the Xcenter.
     %            .DY - Vector of fitted Y positions relative the Xcenter.
     %            .Xinit - Xinit
@@ -240,6 +242,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     end
     
     Result.Flux = squeeze(Flux);
+    Result.SNm  = Result.Flux./sqrt(Result.Flux + squeeze(Std).^2);  % S/N for measurments
     Result.Mag  = convert.luptitude(Result.Flux, 10.^(0.4.*Args.ZP));
     Result.DX = DX(:);
     Result.DY = DY(:);

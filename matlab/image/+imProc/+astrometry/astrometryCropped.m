@@ -26,7 +26,7 @@ function [Result, CroppedAI, Summary] = astrometryCropped(Image, Args)
         Args.RA                           = 40; %'RA';
         Args.Dec                          = 89.3; %'DEC';
         Args.CooUnits                     = 'deg';
-        Args.CatName                      = 'GAIAEDR3';  % or AstroCatalog
+        Args.CatName                      = 'GAIADR3';  % or AstroCatalog
         Args.CatRadius                    = 3600.*2.5;
         Args.CatRadiusUnits               = 'arcsec'
         Args.Con                          = {};
@@ -57,6 +57,10 @@ function [Result, CroppedAI, Summary] = astrometryCropped(Image, Args)
     
     if isnumeric(Image)
         Image = {Image};
+    elseif ischar(Image)
+        Image = {Image};
+    else
+        % do nothing
     end
     
     % create an AstroImage array with the images

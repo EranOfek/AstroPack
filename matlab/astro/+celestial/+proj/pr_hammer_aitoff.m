@@ -9,7 +9,7 @@ function [X,Y]=pr_hammer_aitoff(Long,Lat,R)
 % Output : - Vector of X position
 %          - Vector of Y position 
 % Tested : Matlab 5.3
-%     By : Eran O. Ofek                 September 2012     
+%     By : Eran O. Ofek                 Sep 2012     
 %    URL : http://wise-obs.tau.ac.il/~eran/matlab.html
 % Reference: Calabretta & Greisen 2002 A\&A 395, 1077
 % Reliable: 1

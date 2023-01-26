@@ -226,7 +226,11 @@ classdef MatchedSources < Component
                 Args.OrderPart       = 'CropID';   % [] - do not order
             end
             
-            List  = io.files.rdir(FileTemplate);
+            List = io.files.rdir(FileTemplate);
+            FN   = FileNames(List);
+            FN.FormatVersion = '%03d';
+            List = FN.genFile;
+            
             Nlist = numel(List);   
    
             % read all files regardless of order
@@ -234,8 +238,8 @@ classdef MatchedSources < Component
                 Result = [];
             else
                 for Ilist=1:1:Nlist
-                    File          = fullfile(List(Ilist).folder, List(Ilist).name);
-                    Result(Ilist) = MatchedSources.read(File, Args.readArgs{:});
+                    %File          = fullfile(List(Ilist).folder, List(Ilist).name);
+                    Result(Ilist) = MatchedSources.read(List{Ilist}, Args.readArgs{:});
                 end
 
                 if ~isempty(Args.OrderPart)
@@ -246,13 +250,15 @@ classdef MatchedSources < Component
                     
                     ResultO = MatchedSources;
                     for Ipart=1:1:Npart
-                        ResultO(1:Nepoch,Ipart) = Result([Part==Ipart].');
-                        VecMeanJD = zeros(Nepoch,1);
-                        for Iep=1:1:Nepoch
-                            VecMeanJD(Iep) = mean(ResultO(Iep,Ipart).JD);
+                        if any([Part==Ipart])
+                            ResultO(1:Nepoch,Ipart) = Result([Part==Ipart].');
+                            VecMeanJD = zeros(Nepoch,1);
+                            for Iep=1:1:Nepoch
+                                VecMeanJD(Iep) = mean(ResultO(Iep,Ipart).JD);
+                            end
+                            [~,SI] = sort(VecMeanJD);
+                            ResultO(:,Ipart) = ResultO(SI,Ipart);
                         end
-                        [~,SI] = sort(VecMeanJD);
-                        ResultO(:,Ipart) = ResultO(SI,Ipart);
                     end
                     
                     Result = ResultO;
@@ -1802,11 +1808,20 @@ classdef MatchedSources < Component
             %                   std. Default is @std.
             %            'StdFunArgs' - A cell array of additional arguments to pass to
             %                   the 'StdFun'. Default is {[],1,'omitnan'}.
+            %            'Nsigma' - For the 'binning' method. This indicate
+            %                   the number of sigma above mean of the std in
+            %                   which to flag a source as variable. 
             % Output : - A structure array (element per object element).
             %            .MeanMag - mean mag for all sources.
             %            .StdPar - par std for all sources.
-            %            .EstimatedStdPar - The binned/polyfitted parameter-std
-            %                   for all sources.
+            %            .InterpMeanStd - The interpolated binned/polyfitted
+            %                   mean of the std for each source magnitude.
+            %            .InterpStdStd - (avalable for 'binning' option)
+            %                   The interpolated binned/polyfitted
+            %                   rstd of the std for each source magnitude.
+            %            .Flag - (avalable for 'binning' option) A logical
+            %                   flag indicating if a source is a possible
+            %                   variable.
             % Author : Eran Ofek (Jan 2022)
             % Example: MS = MatchedSources;
             %          MS.addMatrix(rand(100,200).*10,'MAG')
@@ -1824,6 +1839,7 @@ classdef MatchedSources < Component
                 Args.MeanFunArgs cell          = {1, 'omitnan'}
                 Args.StdFun function_handle    = @std;
                 Args.StdFunArgs cell           = {[],1,'omitnan'};
+                Args.Nsigma                    = 3;
             end
             
             Nobj = numel(Obj);
@@ -1834,7 +1850,7 @@ classdef MatchedSources < Component
                 if strcmp(Args.MagField, Args.ParField)
                     Par = Mag;
                 else
-                    [FieldNamePar] = getFieldNameDic(Obj(Iobj), Args.ParField);
+                    [FieldNamePar] = getFieldNameDic(Obj(Iobj), Args.MagField);
                     Par = getMatrix(Obj(Iobj), FieldNamePar);
                 end
 
@@ -1843,11 +1859,15 @@ classdef MatchedSources < Component
 
                 switch lower(Args.Method)
                     case 'binning'
-                        B = timeseries.binning([Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:)] ,Args.BinSize,[NaN NaN], {'MidBin',@numel, @median});
-                        Result(Iobj).EstimatedStdPar = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
+                        B = timeseries.binning([Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:)] ,Args.BinSize,[NaN NaN], {'MidBin',@numel, @median, @tools.math.stat.rstd});
+                        Result(Iobj).B = B;
+                        %Result(Iobj).EstimatedStdPar = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
+                        Result(Iobj).InterpMeanStd = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
+                        Result(Iobj).InterpStdStd = interp1(B(:,1), B(:,4), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
+                        Result(Iobj).FlagVar      = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.Nsigma.*Result(Iobj).InterpStdStd(:));
                     case 'polyfit'
                         Par = polyfit(Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:), Args.PolyDeg);
-                        Result(Iobj).EstimatedStdPar = polyval(Par, Result(Iobj).MeanMag);
+                        Result(Iobj).InterpMeanStd = polyval(Par, Result(Iobj).MeanMag);
                     otherwise
                         error('Unknown Method option');
                 end                
@@ -1997,33 +2017,44 @@ classdef MatchedSources < Component
             
             % plot noise curve
             if Args.PlotNoiseCurve
-                if ~isempty(Args.SNField)
-                    [SNField] = getFieldNameDic(Obj, Args.SNField);
-                    SN        = median(Obj.Data.(SNField),1,'omitnan');
-                else
-                    % S/N is not provided - calc from other fields
-                   [FluxField] = getFieldNameDic(Obj, Args.FluxField);
-                   [StdField]  = getFieldNameDic(Obj, Args.StdField);
-                
-                   Flux   = median(Obj.Data.(FluxField),1,'omitnan');
-                   Std    = median(Obj.Data.(StdField),1,'omitnan');
-                   if Args.IsStd
-                       Var = Std.^2;
-                   else
-                       Var = Std;
-                   end
-                   SN = Flux./sqrt(Args.AperArea.*Var.*Args.Gain + Flux.*Args.Gain + Args.AperArea.*Args.RN.^2);
-                end
-                
-                FlagNN = ~isnan(AxisX) & ~isnan(SN);
-                VecX   = AxisX(FlagNN);
-                SN     = SN(FlagNN);
-                
-                B=timeseries.binning([VecX(:), 1.086./SN(:)],0.5,[NaN NaN],{'MidBin',@tools.math.stat.nanmedian,@numel});
-                FlagNN = ~isnan(B(:,2));
-                B = B(FlagNN,:);
+                Obj.addSrcData;
+                SN = Obj.SrcData.(Args.FluxField)./sqrt(Obj.SrcData.(Args.FluxField).*Args.Gain + Args.AperArea.*Obj.SrcData.VAR_IM + Args.AperArea.*Args.RN.^2);
+                SN = SN(:);
+                MagVec = Obj.SrcData.MAG_APER_3(:);
+                FlagNN = ~isnan(SN);
+                B = timeseries.binning([MagVec(FlagNN),1.086./SN(FlagNN)+0.0008],0.5,[10 18]);
                 hold on;
-                plot(B(:,1), B(:,2),'k-')
+                semilogy(B(:,1),B(:,3),'r-')
+                
+                
+                
+%                 if ~isempty(Args.SNField)
+%                     [SNField] = getFieldNameDic(Obj, Args.SNField);
+%                     SN        = median(Obj.Data.(SNField),1,'omitnan');
+%                 else
+%                     % S/N is not provided - calc from other fields
+%                    [FluxField] = getFieldNameDic(Obj, Args.FluxField);
+%                    [StdField]  = getFieldNameDic(Obj, Args.StdField);
+%                 
+%                    Flux   = median(Obj.Data.(FluxField),1,'omitnan');
+%                    Std    = median(Obj.Data.(StdField),1,'omitnan');
+%                    if Args.IsStd
+%                        Var = Std.^2;
+%                    else
+%                        Var = Std;
+%                    end
+%                    SN = Flux./sqrt(Args.AperArea.*Var.*Args.Gain + Flux.*Args.Gain + Args.AperArea.*Args.RN.^2);
+%                 end
+%                 
+%                 FlagNN = ~isnan(AxisX) & ~isnan(SN);
+%                 VecX   = AxisX(FlagNN);
+%                 SN     = SN(FlagNN);
+%                 
+%                 B=timeseries.binning([VecX(:), 1.086./SN(:)],0.5,[NaN NaN],{'MidBin',@tools.math.stat.nanmedian,@numel});
+%                 FlagNN = ~isnan(B(:,2));
+%                 B = B(FlagNN,:);
+%                 hold on;
+%                 plot(B(:,1), B(:,2),'k-')
                 
             end
             Hgca = gca;
@@ -2063,9 +2094,9 @@ classdef MatchedSources < Component
         end
         
         % index from position
-        function [Ind,Flag, Dist] = coneSearch(Obj, RA, Dec, SearchRadius, Args)
+        function [Result] = coneSearch(Obj, RA, Dec, SearchRadius, Args)
             % search sources in MatchedSource object by RA/Dec
-            % Input  : - A single element MatchedSources object.
+            % Input  : - A MatchedSources object.
             %          - R.A.
             %          - Dec.
             %          - Search radius. Default is 3.
@@ -2085,17 +2116,20 @@ classdef MatchedSources < Component
             %            'MeanFunArgs' - A cell array of additional
             %                   arguments to pass to 'MeanFun' after the
             %                   Dim argument. Default is {}.
-            % Output : - Indices of sources found withing search radius.
-            %          - Flag of logicals of found sources.
-            %          - Angular distance [rad] between found sources and
-            %            search position.
+            % Output : - A structure array (element per MatchedSource
+            %            object element) with the following fields:
+            %            .Ind - Indices of sources found withing search radius.
+            %            .Flag - Flag of logicals of found sources.
+            %            .Dist - Angular distance [rad] between found sources and
+            %                   search position.
+            %            .Nsrc - Number of sources found.
             % Author : Eran Ofek (Mar 2022)
             % Example: MS = MatchedSources;
             %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','RA','Dec'})
             %          [Ind,Flag,Dist] = coneSearch(MS, 0.5,0.5,100);
             
             arguments
-                Obj(1,1)
+                Obj
                 RA
                 Dec
                 SearchRadius                 = 3;
@@ -2114,15 +2148,21 @@ classdef MatchedSources < Component
             RA  = convert.angular(Args.InCooUnits, 'rad', RA);
             Dec = convert.angular(Args.InCooUnits, 'rad', Dec);
             
-            MeanRA  = convert.angular(Args.CooUnits, 'rad', Obj.SrcData.(Args.FieldRA));
-            MeanDec = convert.angular(Args.CooUnits, 'rad', Obj.SrcData.(Args.FieldDec));
-            
             SearchRadius = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
-            Dist = celestial.coo.sphere_dist_fast(RA, Dec, MeanRA, MeanDec);
-            Flag = Dist<SearchRadius;
-            Ind  = find(Flag);
-            Dist = Dist(Flag);
-            
+
+            Nobj   = numel(Obj);
+            Result = struct('Flag',cell(size(Obj)), 'Ind',cell(size(Obj)), 'Dist',cell(size(Obj)));
+            for Iobj=1:1:Nobj
+                MeanRA  = convert.angular(Args.CooUnits, 'rad', Obj(Iobj).SrcData.(Args.FieldRA));
+                MeanDec = convert.angular(Args.CooUnits, 'rad', Obj(Iobj).SrcData.(Args.FieldDec));
+                
+                Dist = celestial.coo.sphere_dist_fast(RA, Dec, MeanRA, MeanDec);
+                Result(Iobj).Flag = Dist<SearchRadius;
+                Result(Iobj).Ind  = find(Result(Iobj).Flag);
+                Result(Iobj).Dist = Dist(Result(Iobj).Flag);
+                Result(Iobj).Nsrc = sum(Result(Iobj).Flag);
+            end
+
         end
         
         % plot LC by source index
