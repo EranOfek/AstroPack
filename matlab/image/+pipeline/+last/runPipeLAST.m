@@ -164,12 +164,12 @@ function runPipeLAST(DataNumber, Args)
                 
                 fprintf('Sucess\n\n');
 
-                PWD = pwd;
-                cd(Destination)
-                FID = fopen('.status','w+');
-                fprintf('FID','%s ready-for-transfer',datestr(now,'yyyy-mm-ddTHH:MM:SS'));
-                fclose(FID);
-                cd(PWD);
+%                 PWD = pwd;
+%                 cd(Destination)
+%                 FID = fopen('.status','w+');
+%                 fprintf('FID','%s ready-for-transfer',datestr(now,'yyyy-mm-ddTHH:MM:SS'));
+%                 fclose(FID);
+%                 cd(PWD);
                 
             catch ME
                 
