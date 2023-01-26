@@ -56,7 +56,7 @@ function Result = forcedPhot(Obj, Args)
     %                   {'X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS'};  % 'Chi2','Dof'}
     %            'MinEdgeDist' - Number of pixels of source from image edge
     %                   in order to declare the object in/out image.
-    %                   Default is 0.
+    %                   Default is 10.
     %            'AddRefStarsDist' - Angular distance in arcsec, around the
     %                   mean position of the sources in the 'Coo' argument.
     %                   If larger then 0 (and not NaN), then will search
@@ -154,7 +154,7 @@ function Result = forcedPhot(Obj, Args)
         Args.CooUnits                = 'deg';   % 'pix'|'deg'|'rad
         Args.Moving logical          = false;
         Args.ColNames                = {'X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS'};  % 'Chi2','Dof'
-        Args.MinEdgeDist             = 0;      % pix
+        Args.MinEdgeDist             = 10;      % pix
         Args.AddRefStarsDist         = 500;     % arcsec; 0/NaN for no addition
         Args.AddCatName              = 'GAIADR3';
         Args.PopulateWCS logical     = true;
@@ -227,6 +227,18 @@ function Result = forcedPhot(Obj, Args)
     Nsrc      = size(Args.Coo,1);
     Result.JD = Obj.julday;
     
+    Naper = numel(Args.AperRadius);
+    for Icol=1:1:Ncol
+        % init
+        if strcmp(Args.ColNames{Icol},'FLUX_APER')
+            ColStr = tools.cell.cellstr_prefix((1:Naper),'FLUX_APER_');
+            for Iaper=1:1:Naper
+                Result.Data.(ColStr{Iaper}) = nan(Nobj, Nsrc);
+            end
+        else
+            Result.Data.(Args.ColNames{Icol}) = nan(Nobj, Nsrc);
+        end
+    end
     
     if Args.Moving
         Nmove = size(Args.Coo,1);
@@ -234,142 +246,133 @@ function Result = forcedPhot(Obj, Args)
             error('For Moving=true the number of entries must be equal to the number of AstroImage elements');
         end
     end
-
+    
     for Iobj=1:1:Nobj
-        if Args.Moving
-            error('Moving=true is not implemented yet');
-            if IsSpherical
-                [X,Y] = Obj(Iobj).WCS.sky2xy(Args.Coo(Iobj,1), Args.Coo(Iobj,2), 'InUnits','deg');
-            else
-                X = Args.Coo(Iobj,1);
-                Y = Args.Coo(Iobj,2);
-            end
-        else
-            if IsSpherical
-                [X,Y] = Obj(Iobj).WCS.sky2xy(Args.Coo(:,1), Args.Coo(:,2), 'InUnits','deg');
-            else
-                X = Args.Coo(:,1);
-                Y = Args.Coo(:,2);
-            end
-        end
-
-        % check if sources are in footprint
-        [Ny, Nx] = Obj(Iobj).sizeImage;
-        %FlagIn      = X>1 & X<Nx & Y>1 & Y<Ny;
-        FlagIn  = X>Args.MinEdgeDist & X<(Nx-Args.MinEdgeDist) & Y>Args.MinEdgeDist & Y<(Ny-Args.MinEdgeDist);        
-
-        % force photometry on sources
-        [M1,M2,Aper] = imUtil.image.moment2(Obj(Iobj).(Args.ImageProp), X, Y,...
-                                'MaxIter',Args.MomentMaxIter, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus);
-        %[M1,M2,Aper] = imUtil.image.moment2(Cube, X, Y, 'MaxIter',Args.MomentMaxIter);
         
-        if Args.UseMomCoo
-            %X = nan(Nsrc,1);
-            %Y = nan(Nsrc,1);
-            X = M1.X;
-            Y = M1.Y;
-        end
-            
-        
-        % generate PSF
-        if Obj(Iobj).isemptyPSF || Args.ReconstructPSF
-            % No PSF in AstroImage
-            % generate PSF
-            Obj(Iobj) = imProc.psf.constructPSF(Obj(Iobj), 'HalfSize',Args.HalfSizePSF, Args.constructPSFArgs{:});
        
-        end
-        PSF = Obj(Iobj).PSFData.Data;
-    
-        HalfSizePSF = (size(Obj(Iobj).PSFData.Data,1)-1).*0.5;
-        % stamps around sources
-        [Cube] = imUtil.cut.image2cutouts(Obj(Iobj).(Args.ImageProp), X, Y, HalfSizePSF);
-    
-        
-        % background
-        if Args.UseBack
-            % use existing background/var from AstroImage
-            Back = Obj(Iobj).Back;
-            Std  = sqrt(Obj(Iobj).Var);
+        if IsSpherical
+            ProcessImage = Obj(Iobj).WCS.Success;
         else
-            % calculate background from annulus in stamps
-            [Back, Std] = imUtil.sources.backgroundCube(Cube, 'AnnulusRad',Args.AnnulusRad, Args.backgroundCubeArgs{:});
+            ProcessImage = true;
         end
-           
-        % psf photometry        
-        [ResultPSF, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
-                                                                'Std',Std,...
-                                                                'Back',Back,...
-                                                                'FitRadius',Args.FitRadius,...
-                                                                'SmallStep',Args.SmallStep,...
-                                                                'MaxStep',Args.MaxStep,...
-                                                                'ConvThresh',Args.ConvThresh,...
-                                                                'MaxIter',Args.MaxIter,...
-                                                                'UseSourceNoise',Args.UseSourceNoise,...
-                                                                'ZP',Args.ZP);
-                                                            
-        % Store forced photometry results in MatchedSources object
-        if Iobj==1
-            % init
-            Result(Iobj).Data.X       = nan(Nobj, Nsrc);
-            Result(Iobj).Data.Y       = nan(Nobj, Nsrc);
-            Result(Iobj).Data.Xstart  = nan(Nobj, Nsrc);
-            Result(Iobj).Data.Ystart  = nan(Nobj, Nsrc);
+        
+        if ProcessImage
+        
+            if Args.Moving
+                error('Moving=true is not implemented yet');
+                if IsSpherical
+                    [X,Y] = Obj(Iobj).WCS.sky2xy(Args.Coo(Iobj,1), Args.Coo(Iobj,2), 'InUnits','deg');
+                else
+                    X = Args.Coo(Iobj,1);
+                    Y = Args.Coo(Iobj,2);
+                end
+            else
+                if IsSpherical
+                    [X,Y] = Obj(Iobj).WCS.sky2xy(Args.Coo(:,1), Args.Coo(:,2), 'InUnits','deg');
+                else
+                    X = Args.Coo(:,1);
+                    Y = Args.Coo(:,2);
+                end
+            end
+
+            % check if sources are in footprint
+            [Ny, Nx] = Obj(Iobj).sizeImage;
+            %FlagIn      = X>1 & X<Nx & Y>1 & Y<Ny;
+            FlagIn  = X>Args.MinEdgeDist & X<(Nx-Args.MinEdgeDist) & Y>Args.MinEdgeDist & Y<(Ny-Args.MinEdgeDist);        
+
+            % force photometry on sources
+            [M1,M2,Aper] = imUtil.image.moment2(Obj(Iobj).(Args.ImageProp), X, Y,...
+                                    'MaxIter',Args.MomentMaxIter, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus);
+            %[M1,M2,Aper] = imUtil.image.moment2(Cube, X, Y, 'MaxIter',Args.MomentMaxIter);
+
+            if Args.UseMomCoo
+                %X = nan(Nsrc,1);
+                %Y = nan(Nsrc,1);
+                X = M1.X;
+                Y = M1.Y;
+            end
 
 
-            Naper = numel(Aper.AperRadius);
-        end
+            % generate PSF
+            if Obj(Iobj).isemptyPSF || Args.ReconstructPSF
+                % No PSF in AstroImage
+                % generate PSF
+                Obj(Iobj) = imProc.psf.constructPSF(Obj(Iobj), 'HalfSize',Args.HalfSizePSF, Args.constructPSFArgs{:});
+
+            end
+            PSF = Obj(Iobj).PSFData.Data;
+
+            HalfSizePSF = (size(Obj(Iobj).PSFData.Data,1)-1).*0.5;
+            % stamps around sources
+            [Cube] = imUtil.cut.image2cutouts(Obj(Iobj).(Args.ImageProp), X, Y, HalfSizePSF);
 
 
-        for Icol=1:1:Ncol
-            switch Args.ColNames{Icol}
-                case 'X'
-                    % The position is relative to X and Y which are the stamps center:
-                    Result.Data.X(Iobj,:)            = X(:).' + ResultPSF.DX(:).';
-                case 'Y'
-                    Result.Data.Y(Iobj,:)            = Y(:).' + ResultPSF.DY(:).';
-                case 'Xstart'
-                    Result.Data.Xstart(Iobj,:)       = X(:).';
-                case 'Ystart'
-                    Result.Data.Ystart(Iobj,:)       = Y(:).';
-                case 'X2'
-                    Result.Data.X2(Iobj,:)           = M2.X2(:).';
-                case 'Y2'
-                    Result.Data.Y2(Iobj,:)           = M2.Y2(:).';
-                case 'XY'
-                    Result.Data.XY(Iobj,:)           = M2.XY(:).';
-                case 'FLAG_POS'
-                    Result.Data.FLAG_POS(Iobj,:)     = FlagIn;
-                case 'FLAGS'
-                    FlagsXY                          = bitwise_cutouts(Obj(Iobj).MaskData, [X(FlagIn),Y(FlagIn)], 'or', 'HalfSize',Args.FlagsHalfSize);
-                    Result.Data.FLAGS(Iobj,FlagIn)   = FlagsXY(:).';
-                case 'BACK_ANNULUS'
-                    Result.Data.BACK_ANNULUS(Iobj,:) = Aper.AnnulusBack(:).';
-                case 'STD_ANNULUS'
-                    Result.Data.STD_ANNULUS(Iobj,:)  = Aper.AnnulusStd(:).';
-                case 'FLUX_APER'
-                    ColStr = tools.cell.cellstr_prefix((1:Naper),'FLUX_APER_');
-                    for Iaper=1:1:Naper
-                        Result.Data.(ColStr{Iaper})(Iobj,:)   = Aper.AperPhot(:,Iaper).';
-                    end
-                case 'FLUX_PSF'
-                    Result.Data.FLUX_PSF(Iobj,:)     = ResultPSF.Flux(:).';
-                case 'FLUXERR_PSF'
-                    Result.Data.FLUXERR_PSF(Iobj,:)  = 1./ResultPSF.SNm(:).';
-                case 'MAG_PSF'
-                    Result.Data.MAG_PSF(Iobj,:)      = convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP));
-                case 'MAGERR_PSF'
-                    Result.Data.MAGERR_PSF(Iobj,:)  = 1.086./ResultPSF.SNm(:).';
-                case 'Chi2'
-                    Result.Data.Chi2(Iobj,:)        = ResultPSF.Chi2(:).';
-                case 'Dof'
-                    Result.Data.Dof(Iobj,:)         = ResultPSF.Dof(:).';
-                case 'Chi2dof'
-                    Result.Data.Chi2dof(Iobj,:)     = (ResultPSF.Chi2(:)./ResultPSF.Dof(:)).';
-                otherwise
-                    error('Unknown ColNames %s option',Args.ColNames{Icol})
+            % background
+            if Args.UseBack
+                % use existing background/var from AstroImage
+                Back = Obj(Iobj).Back;
+                Std  = sqrt(Obj(Iobj).Var);
+            else
+                % calculate background from annulus in stamps
+                [Back, Std] = imUtil.sources.backgroundCube(Cube, 'AnnulusRad',Args.AnnulusRad, Args.backgroundCubeArgs{:});
+            end
+
+            % psf photometry        
+            [ResultPSF, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
+                          
+            % Store forced photometry results in MatchedSources object
+            
+            for Icol=1:1:Ncol
+                switch Args.ColNames{Icol}
+                    case 'X'
+                        % The position is relative to X and Y which are the stamps center:
+                        Result.Data.X(Iobj,:)            = X(:).' + ResultPSF.DX(:).';
+                    case 'Y'
+                        Result.Data.Y(Iobj,:)            = Y(:).' + ResultPSF.DY(:).';
+                    case 'Xstart'
+                        Result.Data.Xstart(Iobj,:)       = X(:).';
+                    case 'Ystart'
+                        Result.Data.Ystart(Iobj,:)       = Y(:).';
+                    case 'X2'
+                        Result.Data.X2(Iobj,:)           = M2.X2(:).';
+                    case 'Y2'
+                        Result.Data.Y2(Iobj,:)           = M2.Y2(:).';
+                    case 'XY'
+                        Result.Data.XY(Iobj,:)           = M2.XY(:).';
+                    case 'FLAG_POS'
+                        Result.Data.FLAG_POS(Iobj,:)     = FlagIn;
+                    case 'FLAGS'
+                        FlagsXY                          = bitwise_cutouts(Obj(Iobj).MaskData, [X(FlagIn),Y(FlagIn)], 'or', 'HalfSize',Args.FlagsHalfSize);
+                        Result.Data.FLAGS(Iobj,FlagIn)   = FlagsXY(:).';
+                    case 'BACK_ANNULUS'
+                        Result.Data.BACK_ANNULUS(Iobj,:) = Aper.AnnulusBack(:).';
+                    case 'STD_ANNULUS'
+                        Result.Data.STD_ANNULUS(Iobj,:)  = Aper.AnnulusStd(:).';
+                    case 'FLUX_APER'
+                        
+                        ColStr = tools.cell.cellstr_prefix((1:Naper),'FLUX_APER_');
+                        for Iaper=1:1:Naper
+                            Result.Data.(ColStr{Iaper})(Iobj,:)   = Aper.AperPhot(:,Iaper).';
+                        end
+                    case 'FLUX_PSF'
+                        Result.Data.FLUX_PSF(Iobj,:)     = ResultPSF.Flux(:).';
+                    case 'FLUXERR_PSF'
+                        Result.Data.FLUXERR_PSF(Iobj,:)  = 1./ResultPSF.SNm(:).';
+                    case 'MAG_PSF'
+                        Result.Data.MAG_PSF(Iobj,:)      = convert.luptitude(ResultPSF.Flux(:).', 10.^(0.4.*Args.ZP));
+                    case 'MAGERR_PSF'
+                        Result.Data.MAGERR_PSF(Iobj,:)  = 1.086./ResultPSF.SNm(:).';
+                    case 'Chi2'
+                        Result.Data.Chi2(Iobj,:)        = ResultPSF.Chi2(:).';
+                    case 'Dof'
+                        Result.Data.Dof(Iobj,:)         = ResultPSF.Dof(:).';
+                    case 'Chi2dof'
+                        Result.Data.Chi2dof(Iobj,:)     = (ResultPSF.Chi2(:)./ResultPSF.Dof(:)).';
+                    otherwise
+                        error('Unknown ColNames %s option',Args.ColNames{Icol})
+                end
             end
         end
-
                   
     end
     
