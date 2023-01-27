@@ -1,4 +1,4 @@
-function MS=forcedPhotAll
+function MS=forcedPhotAll(Args)
     % Execute forcedPhot on all images found in some directory structure.
     %   Search for all images in dir struct recursively, and perform forced
     %   photometry on a stationary object or a moving object.
