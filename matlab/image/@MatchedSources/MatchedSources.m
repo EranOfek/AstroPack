@@ -1208,7 +1208,7 @@ classdef MatchedSources < Component
                 IndF     = ~isnan(FlagI);
                 FlagI    = FlagI(IndF);
                 
-                Result.JD = [Result.JD; Obj(Iobj).JD];
+                Result.JD = [Result.JD(:); Obj(Iobj).JD(:)];
                 for Ifield=1:1:Nfield
                     
                     % initialzie Result with NaNs

@@ -1,4 +1,4 @@
-function Result = forcedPhot(Obj, Args)
+function [Result] = forcedPhot(Obj, Args)
     % Perform forced photometry on images in an AstroImage object.
     %       Given a s et of coordinates [X,Y] or [RA,Dec] perform forced
     %       photometry on images.
