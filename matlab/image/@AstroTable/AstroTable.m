@@ -1221,7 +1221,7 @@ classdef AstroTable < Component
         
     end
     
-    methods  % sort, flip, select
+    methods  % sort, flip, select, interp
         
         function [Obj,Ind] = sortrows(Obj,SortByColumn)
             % Sort AstroTable objects by some column names/indices
@@ -1401,7 +1401,6 @@ classdef AstroTable < Component
 
         end
 
-
         function Result = selectRows(Obj, FlagInd, Args)
             % Select rows from AstroTable object, including optional NaN filling and reordering.
             %       There are 2 related functions: insertRows and
@@ -1482,6 +1481,69 @@ classdef AstroTable < Component
                 Result(Iobj).Catalog = AstroTable.selectLines(Obj(Iobj).Catalog, FlagI, 'IgnoreNaN',Args.IgnoreNaN);
             end
         end
+    
+        function Result = interp1(Obj, InterpColX, InterpColY, NewX, Args)
+            % Interpolate columns in AstroTable.
+            % Input  : - A single element Astrotable/AstroCatalog object.
+            %          - Column name or index in the AstroTable object
+            %            that contains the "X" argument of the
+            %            interpolation.
+            %          - Column nmaes (char array of a single column or a
+            %            cell array of multiple columns) that contains the
+            %            "Y" values of the interpolation.
+            %          - (NewX) Vector of new X values for the interpolation.
+            %          * ...,key,val,...
+            %            'Sort' - Sort Table by InterpColX prior to
+            %                   interpolation. If true, this will modify
+            %                   the input object.
+            %                   Default is true.
+            %            'InterpMethod' - Interpolation method.
+            %                   See interp1 for options.
+            %                   Default is 'linear'.
+            % Output : - An AstroTable/AstroCatalog object of the
+            %            interpolated data.
+            %            The new table contains the columns of InterpColX
+            %            and InterpColY. The InterpColX will contain the
+            %            NewX values, while the columns of InterpColY will
+            %            contain the interpolated values at "NewX".
+            % Author : Eran Ofek (Jan 2023)
+            % Example: AT = AstroTable({rand(100,4)},'ColNames',{'JD','RA','Dec','U'},'ColUnits',{'day','deg','deg',''});
+            %          R = AT.interp1('JD',{'RA','Dec'}, (0.1:0.1:0.9)');
+
+            arguments
+                Obj(1,1)
+                InterpColX
+                InterpColY
+                NewX
+                Args.Sort logical          = true;
+                Args.InterpMethod          = 'linear';
+            end
+            
+            if ischar(InterpColY)
+                InterpColY = {InterpColY};
+            end
+
+            ColIndX = Obj.colname2ind(InterpColX);
+            ColIndY = Obj.colname2ind(InterpColY);
+
+            if Args.Sort
+                Obj = Obj.sortrows(InterpColX);
+            end
+
+            NewY = interp1(Obj.Catalog(:,ColIndX), Obj.Catalog(:,ColIndY), NewX, Args.InterpMethod);
+
+            if isa(Obj, 'AstroCatalog')
+                Result = AstroCatalog({[NewX, NewY]});
+            else
+                Result = AstroTable({[NewX, NewY]});
+            end
+            Result.ColNames = [InterpColX, InterpColY];
+            if numel(Obj.ColUnits)==numel(Obj.ColNames)
+                Result.ColUnits = Obj.ColUnits([ColIndX, ColIndY]);
+            end
+            
+        end
+
     end
     
     methods % applay functions and overloads

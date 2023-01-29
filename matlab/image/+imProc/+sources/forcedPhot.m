@@ -264,7 +264,6 @@ function Result = forcedPhot(Obj, Args)
         if ProcessImage
         
             if Args.Moving
-                error('Moving=true is not implemented yet');
                 if IsSpherical
                     [X,Y] = Obj(Iobj).WCS.sky2xy(Args.Coo(Iobj,1), Args.Coo(Iobj,2), 'InUnits','deg');
                 else
