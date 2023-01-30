@@ -1231,10 +1231,46 @@ classdef MatchedSources < Component
         end
         
         function Result = selectBySrcIndex(Obj, Ind, Args)
-            %
+            % Selected sources by index in MatchedSources object
+            % Input  : - A MatchedSources object.
+            %          - A vector of indices or logical flags corresponding
+            %            to the sources to select.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object. Default is true.
+            % Output : - A MatchedSources object with the seclected
+            %            sources.
+            % Author : Eran Ofek (Jan 2023)
+            % Example: Result = selectBySrcIndex(Obj, [1 2 3]);
             
+            arguments
+                Obj
+                Ind
+                Args.CreateNewObj logical   = true;
+            end
             
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
             
+            FieldsD = fieldnames(Obj(1).Data);
+            NfD     = numel(FieldsD);
+            FieldsS = fieldnames(Obj(1).SrcData);
+            NfS     = numel(FieldsS);
+           
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                for If=1:1:NfD
+                    Result(Iobj).Data.(FieldsD{If}) = Obj(Iobj).Data.(FieldsD{If})(:,Ind);
+                end
+                for If=1:1:NfS
+                    Result(Iobj).Data.(FieldsS{If}) = Obj(Iobj).Data.(FieldsS{If})(:,Ind);
+                end
+            end
+                
         end
         
         function Result = SelectByEpoch(Obj, EpochSelect, Args)
