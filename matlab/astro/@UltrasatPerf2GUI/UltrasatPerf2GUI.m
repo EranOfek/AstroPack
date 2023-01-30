@@ -25,56 +25,46 @@ classdef UltrasatPerf2GUI < Base
             index = find(ismember(Obj.Sources, Args.Source));
         end
     
-        function jout = calcSNR(Obj, Args)
+        function Result = calcSNR(Obj, Args)
             arguments
                 Obj
-                Args.InFile
-                Args.OutFile
-            end
-            Stack = dbstack();
-            Func = Stack(1);
-
-            if ~isfield(Args, 'InFile') || ~isfield(Args, 'OutFile')
-                error("%s: Missing either 'Infile' or 'OutFile' argument", Func);
-            end
-            
-            try
-                inargs = jsondecode(fileread(Args.InFile));
-            catch ex
-                rethrow(ex);
+                Args.ExpTime
+                Args.NumImages
+                Args.R
+                Args.Source
+                Args.SnrMagnitude
+                Args.LimitingMagnitude
             end
 
-            result.ResultSnr = [];
-            result.ResultLimitingMagnitude = [];
-            result.message = string(nan);
+            Result.ResultSnr = [];
+            Result.ResultLimitingMagnitude = [];
+            Result.message = string(nan);
             
-            args.ExpTime = inargs.ExpTime;
-            args.Nim = inargs.NumImages;
-            sourceIndex = Obj.sourceIndex('Source', inargs.PicklesModels);
+            args.ExpTime = Args.ExpTime;
+            args.Nim = Args.NumImages;
+            sourceIndex = Obj.sourceIndex('Source', Args.Source);
             if isempty(sourceIndex)
-                result.message = sprintf("error: unknown source '%s'", inargs.PicklesModels);
-                jout = jsonencode(result);
+                Result.message = sprintf("error: unknown source '%s'", Args.Source);
                 return;
             end
             args.SrcINd = sourceIndex;
-            args.R = str2double(string(inargs.R));
-            args.SN = inargs.SnrMagnitude;
+            args.R = str2double(string(Args.R));
+            args.SN = Args.SnrMagnitude;
 
             try
                 ArgsCell = namedargs2cell(args);
                 out = Obj.UP.UP.calcSNR(ArgsCell{:});
             catch ex
-                result.message = sprintf("error: calcSNR threw exception identifier='%s' with message='%s'", ex.identifier, ex.message);
-                jout = jsonencode(result);
+                Result.message = sprintf("error: calcSNR threw exception identifier='%s' with message='%s'", ex.identifier, ex.message);
                 return;
             end
             
-            result.ResultSnr = out.SNRm;
-            result.ResultLimitingMagnitude = out.LimMag;
-            
-            fid = fopen(Args.OutFile, 'w');
-            fprintf(fid, jsonencode(result, 'ConvertInfAndNaN', true));
-            fclose(fid);
+            Result.ResultSnr = out.SNRm;
+            Result.ResultLimitingMagnitude = out.LimMag;
+        end
+        
+        function Sources = getSources(Obj)
+            Sources = Obj.Sources;
         end
     end
 end
