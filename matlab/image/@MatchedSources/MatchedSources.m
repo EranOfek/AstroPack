@@ -1274,7 +1274,56 @@ classdef MatchedSources < Component
         end
         
         function Result = SelectByEpoch(Obj, EpochSelect, Args)
-            %
+            % Selected entries in MatchedSources object by epoch index or ranges
+            % Input  : - A MatchedSources object.
+            %          - A vector of indices or logical flags corresponding
+            %            to the sources to select.
+            %            Alterantively, if this is a two column matrix,
+            %            then will be treated as ranges [min max] JD of
+            %            JD to select.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object. Default is true.
+            % Output : - A MatchedSources object with the seclected
+            %            epoch.
+            % Author : Eran Ofek (Jan 2023)
+            % Example: Result = SelectByEpoch(Obj, [1 2 3]');
+            
+            arguments
+                Obj
+                EpochSelect                  % two columns for range
+                Args.CreateNewObj logical   = true;
+            end
+            
+             if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            FieldsD = fieldnames(Obj(1).Data);
+            NfD     = numel(FieldsD);
+            FieldsS = fieldnames(Obj(1).SrcData);
+            NfS     = numel(FieldsS);
+           
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if size(EpochSelect,2)==2
+                    Ind = tools.array.find_ranges_flag(Obj(Iobj).JD, EpochSelect);
+                else
+                    Ind = EpochSelect;
+                end
+                
+                Result(Iobj).JD = Obj(Iobj).JD(Ind);
+                for If=1:1:NfD
+                    Result(Iobj).Data.(FieldsD{If}) = Obj(Iobj).Data.(FieldsD{If})(Ind,:);
+                end
+                for If=1:1:NfS
+                    Result(Iobj).Data.(FieldsS{If}) = Obj(Iobj).Data.(FieldsS{If})(Ind,:);
+                end
+            end
+                
             
         end
         
