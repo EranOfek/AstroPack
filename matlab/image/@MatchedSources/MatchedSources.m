@@ -1230,6 +1230,18 @@ classdef MatchedSources < Component
             
         end
         
+        function Result = selectBySrcIndex(Obj, Ind, Args)
+            %
+            
+            
+            
+        end
+        
+        function Result = SelectByEpoch(Obj, EpochSelect, Args)
+            %
+            
+        end
+        
     end
     
     methods % design matrix
