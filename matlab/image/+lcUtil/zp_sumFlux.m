@@ -22,7 +22,8 @@ function [Result, Info] = zp_sumFlux(Obj, Args)
         Args.FluxColName                  = 'FLUX';
         Args.MinSource                    = 5;
         Args.FluxErrColName               = 'FLUXERR';
-        Args.MaxRelErr                    = 0.05;  % reject sources with higer errors   . If empty do nothing                    
+        Args.MaxRelErr                    = 0.05;  % reject sources with higer errors   . If empty do nothing  
+        Args.MaxFlux                      = 50000;
         Args.NormFluxFun function_handle  = @median;
         
         
@@ -34,12 +35,21 @@ function [Result, Info] = zp_sumFlux(Obj, Args)
         Obj.addMatrix(Tmp, Args.FluxColName);
     end
     
+    % add SrcData vectors
+    Obj.addSrcData;
     
     
     Flag = notNanSources(Obj, Args.FluxColName); 
 
+    % reference stars
     % remove stars with large errors
     if ~isempty(Args.MaxRelErr)
+        
+        FlagRef = Obj.SrcData.MAGERR_PSF < Args.MaxRelErr & Obj.SrcData.FLUX_PSF<Args.MaxFlux;
+        
+        
+        
+        
         RelErr = Obj.Data.(Args.FluxErrColName)./Obj.Data.(Args.FluxColName);
         
         FlagSmallErr = all(RelErr<Args.MaxRelErr, 1);
@@ -47,6 +57,12 @@ function [Result, Info] = zp_sumFlux(Obj, Args)
         Flag = Flag & FlagSmallErr;
     end
     
+    Itarget = 1;
+    
+    
+    Ndet = sum(~isnan(Obj.Data.FLUX_PSF),2)
+    
+    SumFlux = sum(Obj.Data.FLUX_PSF(:,FlagRef), 2);
     
     if sum(Flag)<Args.MinSource
         Result.ZP = NaN;
