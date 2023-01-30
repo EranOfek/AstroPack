@@ -33,6 +33,10 @@ function startup(AddLast, AddAstroPath)
         AstroPack_CatsHTMPath = [filesep, Computer, filesep, 'data', filesep, 'catsHTM'];
         startup('AstroPack_CatsHTMPath',AstroPack_CatsHTMPath);
     end
+
+    % WebApi stuff
+    addpath(sprintf('%s%s%s',Base, filesep, 'LAST_WebApi', filesep, 'Simple3rdParty'));
+    addpath(sprintf('%s%s%s',Base, filesep, 'LAST_WebApi', filesep, 'snisWebSite'));
     
     cd(PWDbase);
 
