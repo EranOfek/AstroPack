@@ -19,6 +19,9 @@ function MS=forcedPhotAll(Args)
         Args.CooUnits       = 'deg';
         Args.EphemTable     = [];  % if given then Moving=true
         
+        
+        Args.MaxIter        = 1;
+        
         Args.Verbose logical = true;
     end
     
@@ -81,7 +84,7 @@ function MS=forcedPhotAll(Args)
             Coo = Coo(FlagIn,:);
         end
             
-        MS(Idir) = imProc.sources.forcedPhot(AI, 'Coo',Coo, 'CooUnits',CooUnits, 'Moving',Moving);
+        MS(Idir) = imProc.sources.forcedPhot(AI, 'Coo',Coo, 'CooUnits',CooUnits, 'Moving',Moving,'MaxIter',Args.MaxIter);
         
     end
     
