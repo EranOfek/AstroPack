@@ -1267,7 +1267,7 @@ classdef MatchedSources < Component
                     Result(Iobj).Data.(FieldsD{If}) = Obj(Iobj).Data.(FieldsD{If})(:,Ind);
                 end
                 for If=1:1:NfS
-                    Result(Iobj).Data.(FieldsS{If}) = Obj(Iobj).Data.(FieldsS{If})(:,Ind);
+                    Result(Iobj).SrcData.(FieldsS{If}) = Obj(Iobj).SrcData.(FieldsS{If})(Ind);
                 end
             end
                 
@@ -1303,8 +1303,6 @@ classdef MatchedSources < Component
             
             FieldsD = fieldnames(Obj(1).Data);
             NfD     = numel(FieldsD);
-            FieldsS = fieldnames(Obj(1).SrcData);
-            NfS     = numel(FieldsS);
            
             
             Nobj = numel(Obj);
@@ -1319,9 +1317,7 @@ classdef MatchedSources < Component
                 for If=1:1:NfD
                     Result(Iobj).Data.(FieldsD{If}) = Obj(Iobj).Data.(FieldsD{If})(Ind,:);
                 end
-                for If=1:1:NfS
-                    Result(Iobj).Data.(FieldsS{If}) = Obj(Iobj).Data.(FieldsS{If})(Ind,:);
-                end
+              
             end
                 
             
@@ -1489,7 +1485,7 @@ classdef MatchedSources < Component
         end
         
         function Flag = notNanEpochs(Obj, ColNames)
-            % Return a vector of logicals indicating epochs which do have any NaNs in their data.
+            % Return a vector of logicals indicating epochs which do not have any NaNs in their data.
             % Input  : - A single element MatchesSources object.
             %          - A field name, a cell array of field names, or
             %            empty. If empty, will use all field names.
