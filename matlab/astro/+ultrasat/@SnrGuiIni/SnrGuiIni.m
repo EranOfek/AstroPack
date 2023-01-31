@@ -1,12 +1,9 @@
 
 classdef SnrGuiIni < Component
-    % Parent class for file based processing
     %
-    % Poll input folder for new files:
-    %   Call derived processFileImpl() function
-    %   Delete or move the processed file to archive folder
-    %   Clean archive folder after specified numberof days
-
+    %
+    % Run:
+    % ultrasat.SnrGuiIni.prepareIni()
 
     % Properties
     properties (SetAccess = public)
@@ -67,14 +64,18 @@ classdef SnrGuiIni < Component
             Obj.wrLine(sprintf('; Auto generated file by: %s', mfilename('fullpath')));
             Obj.wrLine(sprintf('; Created: %s', datestr(now, 'yyyy-mm-dd HH:MM:SS')));
 
+            UG = UltrasatPerf2GUI();            
+            [Pickles, BlackBodyTemperature] = UG.getSources();        
+            Rdeg = UG.getRdeg();
+            
             % [R]
             Obj.wrSection('R');
             Obj.wrHint('Radial distance from center of field of view [Deg]');
             Obj.wrDescription('');
-            Obj.wrDefault('01');
-            Obj.wrCount(25);
-            for I=1:25
-                Obj.wrItem(I, sprintf('%02d', I));
+            Obj.wrDefault(sprintf('%f', Rdeg(1)));
+            Obj.wrCount(numel(Rdeg));
+            for I=1:numel(Rdeg)
+                Obj.wrItem(I, sprintf('%f', Rdeg(I)));
             end
 
             % [ExpTime] - Exposure time
@@ -91,7 +92,7 @@ classdef SnrGuiIni < Component
             Obj.wrDescription('');
             Obj.wrMin(1);
             Obj.wrMax(999);
-            Obj.wrDefault('1');
+            Obj.wrDefault('3');
 
             % [SourcePicklesModels]
             Obj.wrSection('SourcePicklesModels');
@@ -101,90 +102,103 @@ classdef SnrGuiIni < Component
             Obj.wrSection('SourceBlackBody');
             Obj.wrHint('Source is Black Body with temperture');
 
-            % [PicklesModels]
-            Pickles = AstSpec.get_pickles;
+            % [PicklesModels]                        
+            %Pickles = AstSpec.get_pickles;
             Obj.wrSection('PicklesModels');
             Obj.wrHint('Select Pickles Models');
             Obj.wrDescription('');
-            Obj.wrDefault(Pickles(1).ObjName);
-            Obj.wrCount(numel(Pickles))
+            Obj.wrDefault(Pickles{1});  %.ObjName);
+            Obj.wrCount(numel(Pickles));
             for i=1:numel(Pickles)
-                Obj.wrItem(i, Pickles(i).ObjName)
+                Obj.wrItem(i, Pickles{i});  % .ObjName)
             end
 
             % [BlackBodyTemperature] - Source - Black Body with Temperature
             Obj.wrSection('BlackBodyTemperature');
-            Obj.wrHint('Black body temperature, 500..500000');
+            Obj.wrHint('Black body temperature');
             Obj.wrDescription('');
-            Obj.wrMin(500);
-            Obj.wrMax(500000);
-            Obj.wrDefault(1000);
-
+            Obj.wrDefault(BlackBodyTemperature{1});            
+            Obj.wrCount(numel(BlackBodyTemperature));
+            for i=1:numel(BlackBodyTemperature)
+                Obj.wrItem(i, BlackBodyTemperature{i});
+            end            
+            
             % [SnrMagnitude]
             Obj.wrSection('SnrMagnitude');
             Obj.wrHint('Magnitude, -25..30');
             Obj.wrDescription('');
             Obj.wrMin(-25);
             Obj.wrMax(30);
-            Obj.wrDefault(10);
+            Obj.wrDefault(22);
 
+            % [LimitingMagnitude]
+            Obj.wrSection('LimitingMagnitude');
+            Obj.wrHint('Limiting Magnitude, 1..');
+            Obj.wrDescription('');
+            Obj.wrMin(1);
+            Obj.wrMax(9999999);
+            Obj.wrDefault(5);
+            
             %-----------------------------------------------------
             % Get the list of filter families
-            Filters = AstFilter.get();
-            FilterFamilies = containers.Map();
-            for i=1:numel(Filters)
-                family = Filters(i).family;
-                if ~isKey(FilterFamilies, family)
-                    FilterFamilies(family) = struct('Name', family, 'Count', 1);
-                else
-                    FilterFamilies(family) = struct(...
-                        'Name', family,...
-                        'Count', FilterFamilies(family).Count + 1);
+            UseFilters = false;
+            if UseFilters
+                Filters = AstFilter.get();
+                FilterFamilies = containers.Map();
+                for i=1:numel(Filters)
+                    family = Filters(i).family;
+                    if ~isKey(FilterFamilies, family)
+                        FilterFamilies(family) = struct('Name', family, 'Count', 1);
+                    else
+                        FilterFamilies(family) = struct(...
+                            'Name', family,...
+                            'Count', FilterFamilies(family).Count + 1);
+                    end
                 end
-            end
 
-            % [CalibFilterFamily]
-            Obj.wrSection('CalibFilterFamily');
-            Obj.wrHint('Select Calibration family');
-            Obj.wrDescription('');
-            Obj.wrCount(FilterFamilies.length);
-            Obj.wrDefault('ULTRASAT');
-            FamilyKeys = FilterFamilies.keys;
-            for i=1:length(FamilyKeys)
-                Obj.wrItem(i, FamilyKeys{i});
-            end
-
-            % [CalibFilter_...] - SNR - Calib Filter - list per Family
-            for i=1:length(FamilyKeys)
-                family = FamilyKeys{i};
-                Obj.wrSection(sprintf('CalibFilter_%s', family));
-                Obj.wrHint(sprintf('Select Calibration filter for family %s', family));
+                % [CalibFilterFamily]
+                Obj.wrSection('CalibFilterFamily');
+                Obj.wrHint('Select Calibration family');
                 Obj.wrDescription('');
-                Obj.wrCount(FilterFamilies(family).Count);
+                Obj.wrCount(FilterFamilies.length);
+                Obj.wrDefault('ULTRASAT');
+                FamilyKeys = FilterFamilies.keys;
+                for i=1:length(FamilyKeys)
+                    Obj.wrItem(i, FamilyKeys{i});
+                end
 
-                % Iterate all filters, process only those of current family
-                Index= 0;
-                for j=1:numel(Filters)
-                    if strcmp(family, Filters(j).family)
-                        Index = Index+1;
+                % [CalibFilter_...] - SNR - Calib Filter - list per Family
+                for i=1:length(FamilyKeys)
+                    family = FamilyKeys{i};
+                    Obj.wrSection(sprintf('CalibFilter_%s', family));
+                    Obj.wrHint(sprintf('Select Calibration filter for family %s', family));
+                    Obj.wrDescription('');
+                    Obj.wrCount(FilterFamilies(family).Count);
 
-                        % Do we need the 'Filter_' prefix ???
-                        Filter = sprintf('%s', Filters(j).band);
-                        %Filter = sprintf('Filter_%s_%s', Filters(j).family, Filters(j).band);
-                        if Index == 1
-                            Obj.wrDefault(Filter);
+                    % Iterate all filters, process only those of current family
+                    Index= 0;
+                    for j=1:numel(Filters)
+                        if strcmp(family, Filters(j).family)
+                            Index = Index+1;
+
+                            % Do we need the 'Filter_' prefix ???
+                            Filter = sprintf('%s', Filters(j).band);
+                            %Filter = sprintf('Filter_%s_%s', Filters(j).family, Filters(j).band);
+                            if Index == 1
+                                Obj.wrDefault(Filter);
+                            end
+                            Obj.wrItem(Index, Filter);
                         end
-                        Obj.wrItem(Index, Filter);
                     end
                 end
             end
-
+            
             %-----------------------------------------------------
 
             % [CalibMagnitudeSystem] - SNR - Calib Magnitude System
             Obj.wrSection('CalibMagnitudeSystem');
             Obj.wrHint('Select Calibration magnitude system');
-            Obj.wrDescription('This is the description BLA BLA BLA ...');
+            Obj.wrDescription('Calibration magnitude system');
             Obj.wrDefault('AB');
             Obj.wrCount(2);
             Obj.wrItem(1, 'AB');
@@ -221,7 +235,7 @@ classdef SnrGuiIni < Component
             fprintf(Obj.fid, '\n[%s]\n', SectionName);
         end
 
-
+        
         function wrLine(Obj, Line)
             % Input   : - Object
             %
@@ -294,9 +308,12 @@ classdef SnrGuiIni < Component
         
         
         function Result = unitTest()
-            %
+            % Unit-Test, same as prepareIni()
             Obj = ultrasat.SnrGuiIni();
+            delete(Obj.IniFileName);
+            %assert(~isfile(Obj.IniFileName));
             Obj.process();
+            assert(isfile(Obj.IniFileName));
             Result = true;
         end        
     end
