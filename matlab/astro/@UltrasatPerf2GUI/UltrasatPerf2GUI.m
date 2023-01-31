@@ -108,8 +108,8 @@ classdef UltrasatPerf2GUI < Base
             end
             
             % Put output results
-            Result.ResultSnr = out.SNRm;
-            Result.ResultLimitingMagnitude = out.LimMag;
+            Result.ResultSnr = round(out.SNRm, 2);
+            Result.ResultLimitingMagnitude = round(out.LimMag, 2);
         end
         
         

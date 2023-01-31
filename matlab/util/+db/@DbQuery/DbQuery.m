@@ -2374,7 +2374,7 @@ classdef DbQuery < Component
             % Fix data types
             if strcmpi(DType, 'double')
                 DType = 'DOUBLE PRECISION';
-            elseif strcmpi(DType, 'float')
+            elseif strcmpi(DType, 'float') || strcmpi(DType, 'single')
                 DType = 'REAL';
             end
 

@@ -82,8 +82,8 @@ classdef SnrGuiIni < Component
             Obj.wrSection('ExpTime');
             Obj.wrHint('Exposure time in seconds');
             Obj.wrDescription('');
-            Obj.wrMin(1);
-            Obj.wrMax(999);
+            Obj.wrMin(5);
+            Obj.wrMax(9000);
             Obj.wrDefault('300');
 
             % [NumImages] - Number of images
@@ -127,7 +127,7 @@ classdef SnrGuiIni < Component
             Obj.wrSection('SnrMagnitude');
             Obj.wrHint('Magnitude, -25..30');
             Obj.wrDescription('');
-            Obj.wrMin(-25);
+            Obj.wrMin(1);  % -25);
             Obj.wrMax(30);
             Obj.wrDefault(22);
 
@@ -136,7 +136,7 @@ classdef SnrGuiIni < Component
             Obj.wrHint('Limiting Magnitude, 1..');
             Obj.wrDescription('');
             Obj.wrMin(1);
-            Obj.wrMax(9999999);
+            Obj.wrMax(9999);
             Obj.wrDefault(5);
             
             %-----------------------------------------------------
