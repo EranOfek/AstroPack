@@ -96,7 +96,8 @@ classdef UltrasatPerf2GUI < Base
             end
             args.SrcINd = sourceIndex;
             args.R = str2double(string(Args.R));
-            args.SN = Args.SnrMagnitude;
+            args.SN = Args.LimitingMagnitude;
+            args.Mag = Args.SnrMagnitude;
 
             % Call UltrasatPerf.CalcSNR
             try
