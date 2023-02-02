@@ -170,23 +170,37 @@ function [Result, Message] = doProcessSnr(Params)
     %   ResultLimitingMagnitude
     %           - Message - char with text message
     %
-    % Author  : Arie B. (2022)
+    % Author  : Arie B. (2023)
     % Example : 
 
     io.msgLog(LogLevel.Info, 'doProcessSnr started');
     Message = sprintf('MATLAB: processSnr: R: %s', Params.R);
     disp(Params);
-    
-    
-    % Put final SNR results in struct
-    % Currently for testing, just using the input params to calculate 
-    % the output fields
-    Result = struct;
-    Result.ResultSnr = double(Params.ExpTime) * double(Params.NumImages);
-    Result.ResultLimitingMagnitude = double(Params.SnrMagnitude) * double(Params.LimitingMagnitude);
+ 
+    % Calculate
+    try
+        if strcmp(Params.Source, 'PicklesModels')
+            Params.Source = Params.PicklesModels;
+            Params = rmfield(Params, 'PicklesModels');
+        end
+        
+        if strcmp(Params.Source, 'BlackBody')
+            Params.Source = strcat('Planck spectrum T=', Params.BlackBodyTemperature, '.000000');
+            Params = rmfield(Params, 'BlackBodyTemperature');
+        end
+        
+        UG = UltrasatPerf2GUI();
+        ArgsCell = namedargs2cell(Params);
+        Result = UG.calcSNR(ArgsCell{:});
+    catch ex
+        Result.message = sprintf("error: UG threw exception identifier='%s' with message='%s'", ex.identifier, ex.message);
+    end
 
     %
     disp(Result);
+    Message = Result.message;
+    Result = rmfield(Result, 'message');
+    
     io.msgLog(LogLevel.Info, 'doProcessSnr done');    
 end
 

@@ -18,14 +18,16 @@ function [Result, Info] = zp_sumFlux(Obj, Args)
     %
    
     arguments
-        Obj
-        Args.FluxColName                  = 'FLUX';
+        Obj(1,1)
+        Args.FluxColName                  = 'FLUX_PSF';
         Args.MinSource                    = 5;
         Args.FluxErrColName               = 'FLUXERR';
-        Args.MaxRelErr                    = 0.05;  % reject sources with higer errors   . If empty do nothing                    
+        Args.MagErrColName                = 'MAGERR_PSF';
+        Args.MaxRelErr                    = 0.05;  % reject sources with higer errors   . If empty do nothing  
+        Args.MaxFlux                      = 50000;
         Args.NormFluxFun function_handle  = @median;
         
-        
+        Args.Itarget = 1;
     end
     
     if isnumeric(Obj)
@@ -34,19 +36,71 @@ function [Result, Info] = zp_sumFlux(Obj, Args)
         Obj.addMatrix(Tmp, Args.FluxColName);
     end
     
+    % add SrcData vectors
+    Obj.addSrcData;
     
+    
+    Itarget = Args.Itarget;
+    
+    % select epochs in which the primary target have measurments
+    FlagNN = ~isnan(Obj.Data.(Args.FluxColName)(:,Itarget));
+    ObjS = Obj.SelectByEpoch(FlagNN, 'CreateNewObj',true);
     
     Flag = notNanSources(Obj, Args.FluxColName); 
-
+    % select reference stars that have measurments in all epochs
+    ObjS = ObjS.selectBySrcIndex(Flag, 'CreateNewObj',false);
+    
+    
+    % reference stars
     % remove stars with large errors
     if ~isempty(Args.MaxRelErr)
-        RelErr = Obj.Data.(Args.FluxErrColName)./Obj.Data.(Args.FluxColName);
         
-        FlagSmallErr = all(RelErr<Args.MaxRelErr, 1);
+        FlagRef = ObjS.SrcData.(Args.MagErrColName) < Args.MaxRelErr & ObjS.SrcData.(Args.FluxColName)<Args.MaxFlux;
         
-        Flag = Flag & FlagSmallErr;
+        ObjR = ObjS.selectBySrcIndex(FlagRef, 'CreateNewObj',true);
+        
     end
     
+    % use reference star to find ZP
+    Flux = ObjR.Data.(Args.FluxColName);
+    
+    FluxZP = sum(Flux,2);
+    FluxZP = FluxZP./median(FluxZP);
+    
+    
+    
+    NormFlux = Flux./FluxZP;
+    
+    Std  = std(NormFlux,[],1);
+    Mean = median(NormFlux,1);
+    Err  = Std./Mean;
+    
+    FlagErr = Err<0.1;
+    Flux    = Flux(:,FlagErr);
+    
+    FluxZP = sum(Flux,2);
+    FluxZP = FluxZP./median(FluxZP);
+    
+    NormFlux = Flux./FluxZP;
+    
+    Std  = std(NormFlux,[],1);
+    Mean = median(NormFlux,1);
+    Err  = Std./Mean;
+    
+    
+    loglog(Mean, Err, '.')
+    
+    
+    plot(ObjS.Data.(Args.FluxColName)(:,1)./FluxZP,'.')
+    
+    
+    
+    
+    
+    
+    Ndet = sum(~isnan(Obj.Data.FLUX_PSF),2)
+    
+    SumFlux = sum(Obj.Data.FLUX_PSF(:,FlagRef), 2);
     
     if sum(Flag)<Args.MinSource
         Result.ZP = NaN;

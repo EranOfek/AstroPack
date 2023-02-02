@@ -5,17 +5,24 @@ function MS=forcedPhotAll(Args)
     % Input  : * ...,key,val,...
     %            See code
     % Output : - A Matched sources object. Element per directory.
+    % Author : Eran Ofek (Jan 2023)
+    % Example:
+    % MS=pipeline.last.forcedPhotAll('Coo',[50.0452635724,+8.748787337]);
    
     arguments
         Args.BasePath       = @pipeline.last.constructCamDir;  % if empty use pwd
         Args.DataDir        = 1;
-        Args.BasePathArgs   = {'SubDir','2023'};
-        Args.FileTemp       = 'LAST*_sci_proc_Image_*.fits';
+        Args.BasePathArgs   = {'SubDir','2023/01/'};
+        Args.FileTemp       = 'LAST*_050+08_*_sci_proc_Image_*.fits';
         
         Args.Coo                        % [RA, Dec], for moving use EphemTable
         Args.CooUnits       = 'deg';
         Args.EphemTable     = [];  % if given then Moving=true
         
+        
+        Args.MaxIter        = 1;
+        
+        Args.Verbose logical = true;
     end
     
     if isempty(Args.BasePath)
@@ -33,7 +40,8 @@ function MS=forcedPhotAll(Args)
     
     % select directories
     D = io.files.rdir(Args.FileTemp);
-    D = D([D.isdir]);
+    UniqueDir = unique({D.folder});
+    
     
     if isempty(Args.EphemTable)
         % stationary object
@@ -45,13 +53,16 @@ function MS=forcedPhotAll(Args)
     CooUnits = Args.CooUnits;
     
     
-    Ndir = numel(D);
+    Ndir = numel(UniqueDir);
     for Idir=1:1:Ndir
-        cd(D(Idir).folder);
+        if Args.Verbose
+            fprintf('Dir %d out of %d\n',Idir,Ndir);
+        end
+        cd(UniqueDir{Idir});
         
         % get all files
         FN = FileNames(Args.FileTemp);
-        AI = AstroImage.readFileNames(FN);
+        AI = AstroImage.readFileNames(FN,'Path',sprintf('.%s',filesep));
         JD = AI.julday;
         
         if isempty(Coo)
@@ -63,7 +74,7 @@ function MS=forcedPhotAll(Args)
             CooUnits    = InterpTable.ColUnits{2};
         end
             
-        MeanCoo = mean(Coo);
+        MeanCoo = mean(Coo,1);
         
         ResIn  = AI.isSkyCooInImage(MeanCoo(1), MeanCoo(2),'UNIQSEC',CooUnits);
         FlagIn = [ResIn.InImage];
@@ -73,7 +84,7 @@ function MS=forcedPhotAll(Args)
             Coo = Coo(FlagIn,:);
         end
             
-        MS(Idir) = imProc.sources.forcedPhot(AI, 'Coo',Coo, 'CooUnits',CooUnits, 'Moving',Moving);
+        MS(Idir) = imProc.sources.forcedPhot(AI, 'Coo',Coo, 'CooUnits',CooUnits, 'Moving',Moving,'MaxIter',Args.MaxIter);
         
     end
     

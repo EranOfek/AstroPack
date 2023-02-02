@@ -1,0 +1,67 @@
+SIMPLE  =                    T / file does conform to FITS standard             
+BITPIX  =                  -32 / number of bits per data pixel                  
+NAXIS   =                    2 / number of data axes                            
+NAXIS1  =                 6422 / length of data axis 1                          
+NAXIS2  =                 9600 / length of data axis 2                          
+EXTEND  =                    T / FITS dataset may contain extensions            
+COMMENT   FITS (Flexible Image Transport System) format is defined in 'Astronomy
+COMMENT   and Astrophysics', volume 376, page 359; bibcode: 2001A&A...376..359H 
+FILENAME= 'LAST.01.08.04_20230125.192423.674_clear_143+41_010_001_001_sci_raw_&'
+CONTINUE  'Image_1.fits'       /                                                
+LONGSTRN= 'OGIP 1.0'           / The HEASARC Long String Convention may be used.
+COMMENT   This FITS file may contain long string keyword values that are        
+COMMENT   continued over multiple keywords.  The HEASARC convention uses the &  
+COMMENT   character at the end of each substring which is then continued        
+COMMENT   on the next keyword which has the name CONTINUE.                      
+BZERO   =                   0. / offset data range to that of unsigned short    
+BSCALE  =                   1. / default scaling factor                         
+IMTYPE  = 'sci     '           /                                                
+OBJECT  = '143+41  '           /                                                
+EXPMODE = 'VIDEO   '           /                                                
+COUNTER =                  10. /                                                
+EXPTIME =                   5. /                                                
+FILTER  = 'clear   '           /                                                
+JD      =     2459970.30860734 /                                                
+GAIN    =                  0.9 /                                                
+READNOI =                  4.5 /                                                
+DARKCUR =                 0.01 /                                                
+SATURVAL=               60000. /                                                
+NONLIN  =               50000. /                                                
+BINX    =                   1. /                                                
+BINY    =                   1. /                                                
+CAMNUM  =                   4. /                                                
+CAMPOS  = 'NW      '           /                                                
+CAMNAME = 'QHY600M-58c58d44bc68c77f4' /                                         
+CAMTEMP =                 -4.9 /                                                
+CAMCOOL =                 25.5 /                                                
+CAMMODE =                    1 /                                                
+CAMGAIN =                   0. /                                                
+CAMOFFS =                   4. /                                                
+PROJNAME= 'LAST    '           /                                                
+OBSLON  =           35.0407331 /                                                
+OBSLAT  =           30.0529838 /                                                
+OBSALT  =                415.4 /                                                
+LST     =     90.9809174125561 /                                                
+DATE-OBS= '2023-01-25T19:24:23.674' /                                           
+M_RA    =     143.047141532542 /                                                
+M_DEC   =     41.0035353899002 /                                                
+M_HA    =    -52.0662241199855 /                                                
+M_JRA   =     142.666162845231 /                                                
+M_JDEC  =     41.1046268596256 /                                                
+M_JHA   =    -51.6579997616998 /                                                
+RA      =     142.666162845231 /                                                
+DEC     =     41.1046268596256 /                                                
+HA      =    -51.6852454326744 /                                                
+EQUINOX =                2000. /                                                
+M_AZ    =     60.5890156238073 /                                                
+M_ALT   =     46.9238463144578 /                                                
+AZ      =     60.4557762093437 /                                                
+ALT     =     47.1892632335154 /                                                
+AIRMASS =     1.36205844031069 /                                                
+TRK_RA  = 1.16050243377686E-06 /                                                
+TRK_DEC =                   0. /                                                
+MNTTEMP =                 14.1 /                                                
+FOCUS   =               35243. /                                                
+PRVFOCUS=               36241. /                                                
+END                                                                             
+

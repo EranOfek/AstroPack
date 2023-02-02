@@ -1208,7 +1208,7 @@ classdef MatchedSources < Component
                 IndF     = ~isnan(FlagI);
                 FlagI    = FlagI(IndF);
                 
-                Result.JD = [Result.JD; Obj(Iobj).JD];
+                Result.JD = [Result.JD(:); Obj(Iobj).JD(:)];
                 for Ifield=1:1:Nfield
                     
                     % initialzie Result with NaNs
@@ -1227,6 +1227,99 @@ classdef MatchedSources < Component
                 end                
             
             end
+            
+        end
+        
+        function Result = selectBySrcIndex(Obj, Ind, Args)
+            % Selected sources by index in MatchedSources object
+            % Input  : - A MatchedSources object.
+            %          - A vector of indices or logical flags corresponding
+            %            to the sources to select.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object. Default is true.
+            % Output : - A MatchedSources object with the seclected
+            %            sources.
+            % Author : Eran Ofek (Jan 2023)
+            % Example: Result = selectBySrcIndex(Obj, [1 2 3]);
+            
+            arguments
+                Obj
+                Ind
+                Args.CreateNewObj logical   = true;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            FieldsD = fieldnames(Obj(1).Data);
+            NfD     = numel(FieldsD);
+            FieldsS = fieldnames(Obj(1).SrcData);
+            NfS     = numel(FieldsS);
+           
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                for If=1:1:NfD
+                    Result(Iobj).Data.(FieldsD{If}) = Obj(Iobj).Data.(FieldsD{If})(:,Ind);
+                end
+                for If=1:1:NfS
+                    Result(Iobj).SrcData.(FieldsS{If}) = Obj(Iobj).SrcData.(FieldsS{If})(Ind);
+                end
+            end
+                
+        end
+        
+        function Result = SelectByEpoch(Obj, EpochSelect, Args)
+            % Selected entries in MatchedSources object by epoch index or ranges
+            % Input  : - A MatchedSources object.
+            %          - A vector of indices or logical flags corresponding
+            %            to the sources to select.
+            %            Alterantively, if this is a two column matrix,
+            %            then will be treated as ranges [min max] JD of
+            %            JD to select.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object. Default is true.
+            % Output : - A MatchedSources object with the seclected
+            %            epoch.
+            % Author : Eran Ofek (Jan 2023)
+            % Example: Result = SelectByEpoch(Obj, [1 2 3]');
+            
+            arguments
+                Obj
+                EpochSelect                  % two columns for range
+                Args.CreateNewObj logical   = true;
+            end
+            
+             if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            FieldsD = fieldnames(Obj(1).Data);
+            NfD     = numel(FieldsD);
+           
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if size(EpochSelect,2)==2
+                    Ind = tools.array.find_ranges_flag(Obj(Iobj).JD, EpochSelect);
+                else
+                    Ind = EpochSelect;
+                end
+                
+                Result(Iobj).JD = Obj(Iobj).JD(Ind);
+                for If=1:1:NfD
+                    Result(Iobj).Data.(FieldsD{If}) = Obj(Iobj).Data.(FieldsD{If})(Ind,:);
+                end
+              
+            end
+                
             
         end
         
@@ -1392,7 +1485,7 @@ classdef MatchedSources < Component
         end
         
         function Flag = notNanEpochs(Obj, ColNames)
-            % Return a vector of logicals indicating epochs which do have any NaNs in their data.
+            % Return a vector of logicals indicating epochs which do not have any NaNs in their data.
             % Input  : - A single element MatchesSources object.
             %          - A field name, a cell array of field names, or
             %            empty. If empty, will use all field names.

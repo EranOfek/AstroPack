@@ -102,9 +102,6 @@ classdef UltrasatPerf < Base
         AW_SatMag(:,1)           double = []; % Area weighted saturation mag in central 170 deg (approximated by r=7.4deg circle;
         ZP(:,:)                  double = []; % 2D (Specs vs R) Zero points
         VarPerPix(:,:)           double = []; % 2D (Specs vs R) Variance per Pixels
-        
-        
-        
     end
     
     properties (Hidden, Constant)
@@ -181,16 +178,16 @@ classdef UltrasatPerf < Base
                 Args.InterpMethod         = 'linear';                
             end
             
-            if isempty(Args.CalibFilterFamily)  % Desfult use with calculated ULTRASAT filters for specific R
+            if isempty(Args.CalibFilterFamily)  % Default use with calculated ULTRASAT filters for specific R
                 Args.CalibFilterFamily    = Obj.U_AstFilt(Args.R);
                 Args.CalibFilter          = [];
             end
             
-            if isempty(Args.FWHM)               % Desfult use with caulcated EffPSF for specific src and R
+            if isempty(Args.FWHM)               % Default use with caulcated EffPSF for specific src and R
                Args.FWHM = Obj.EffPSF(Args.SrcINd,Args.R);
             end
             
-            if isempty(Args.TargetSpec)         % Desfult use with selected specific src
+            if isempty(Args.TargetSpec)         % Default use with selected specific src
                Args.TargetSpec = Obj.Specs(Args.SrcINd);
             end
             
@@ -1148,10 +1145,10 @@ classdef UltrasatPerf < Base
     
     %----------------------------------------------------------------------
     
-    %methods (Static) % Unit-Test
-    %    Result = unitTest()
-    %        % Unit-Test
-    %                    
-    %end
+    methods (Static) % Unit-Test
+        Result = unitTest()
+            % Unit-Test
+                        
+    end
     
 end
