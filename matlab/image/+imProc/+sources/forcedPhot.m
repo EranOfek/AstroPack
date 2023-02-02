@@ -232,7 +232,12 @@ function [Result] = forcedPhot(Obj, Args)
     end
 
     Result    = MatchedSources;
-    Nsrc      = size(Args.Coo,1);
+    if Args.Moving
+        Nsrc      = 1 + size(CatAdd,1);
+    else
+        Nsrc      = size(Args.Coo,1) + size(CatAdd,1);
+    end
+    
     Result.JD = Obj.julday;
     
     Naper = numel(Args.AperRadius);
