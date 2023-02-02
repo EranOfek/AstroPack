@@ -69,9 +69,13 @@ function MS=forcedPhotAll(Args)
             % moving source
             Moving = true;
             
-            InterpTable = interp1(Args.Coo, 'JD',{'RA','Dec'}, JD);
+            InterpTable = interp1(Args.EphemTable, 'JD',{'RA','Dec'}, JD);
             Coo         = InterpTable.Catalog(:,[2 3]);
-            CooUnits    = InterpTable.ColUnits{2};
+            if isempty(InterpTable.ColUnits)
+               CooUnits = Args.CooUnits;
+            else
+               CooUnits    = InterpTable.ColUnits{2};
+            end            
         end
             
         MeanCoo = mean(Coo,1);
