@@ -24,7 +24,7 @@ classdef Pipeline < Component
         Output  %
         CCDSEC    = [];  % [] for entire image
         
-
+%%%% change name to PipelineOp
 
         % ???
         ImagesPath         = @pipeline.last.constructCamDir;  % bias images are in this dir ('.'=current dir)
