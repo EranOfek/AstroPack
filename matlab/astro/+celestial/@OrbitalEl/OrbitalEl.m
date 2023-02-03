@@ -445,7 +445,15 @@ classdef OrbitalEl < Base
                 TimeUnits    = 'day';
             end
             
-            V = (sqrt(2).*2.*pi.*Obj.A ./ period(Obj,TimeUnits)).*sqrt( 1./R - 1./(2.*Obj.A) );
+            
+            %V = (sqrt(2).*2.*pi.*Obj.A ./ period(Obj,TimeUnits)).*sqrt( 1./R - 1./(2.*Obj.A) );
+            
+            %V = sqrt( pi.*Obj.A ./ period(Obj,TimeUnits)).*( 1./R - 1./(2.*Obj.A) );
+            
+            
+            V = sqrt((constant.G.*constant.SunM)./convert.length(Obj.LenUnits,'cm') .* (2./R - 1./Obj.A));  % cm/s
+            V = V.*convert.length('cm',Obj.LenUnits)./convert.timeUnits('s',Obj.TimeUnits);
+            
         end
 
     end
