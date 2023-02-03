@@ -65,11 +65,11 @@ function MS=forcedPhotAll(Args)
         AI = AstroImage.readFileNames(FN,'Path',sprintf('.%s',filesep));
         JD = AI.julday;
         
-        if isempty(Coo)
+        if ~isempty(Args.EphemTable)
             % moving source
             Moving = true;
             
-            InterpTable = interp1(Args.EphemTable, 'JD',{'RA','Dec'}, JD);
+            InterpTable = interp1(Args.EphemTable, 'JD',{'RA','Dec'}, JD(:));
             Coo         = InterpTable.Catalog(:,[2 3]);
             if isempty(InterpTable.ColUnits)
                CooUnits = Args.CooUnits;
@@ -88,8 +88,10 @@ function MS=forcedPhotAll(Args)
             Coo = Coo(FlagIn,:);
         end
             
-        MS(Idir) = imProc.sources.forcedPhot(AI, 'Coo',Coo, 'CooUnits',CooUnits, 'Moving',Moving,'MaxIter',Args.MaxIter);
-        
+        if ~isempty(AI)
+            MS(Idir) = imProc.sources.forcedPhot(AI, 'Coo',Coo, 'CooUnits',CooUnits, 'Moving',Moving,'MaxIter',Args.MaxIter);
+        end
+        cd(BasePath);
     end
     
     % go back to orig dir
