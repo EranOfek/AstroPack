@@ -1,4 +1,4 @@
-function S = injectSources(Image,Cat,PSF,Args)
+function S = injectSources(Image,Cat,PSFin,Args)
     % Inject artificial sources into an image.
     %   The function user provided PSF and catalogs an build the sources image.
     % 
@@ -13,32 +13,14 @@ function S = injectSources(Image,Cat,PSF,Args)
     %        stamp size)
 
     arguments
+
         Image;
         Cat {mustBeNonNan};
-        PSF;
+        PSFin;
         Args.RecenterPSF = false;
     
     end
-    X = Cat(:,1);
-    Y = Cat(:,2);
-    flux = Cat(:,3);
-    DX = mod(X,1);
-    DY = mod(Y,1);
-    Xround=  floor(X);
-    Yround=  floor(Y);
-    Nsrc = numel(flux);
-    
-    [SizePSFX,SizePSFY] = size(PSF);
-    Xcenter = ceil(SizePSFX./2);
-    Ycenter = ceil(SizePSFX./2);
-    if Args.RecenterPSF
-        momt =imUtil.image.moment2(PSF,SizePSFX,SizePSFY);
-        DX = DX - (Xcenter - momt.X);
-        DY = DY - (Ycenter - momt.Y);
-        
-    end
-    
-    
+             
     if numel(Image)==2
         S = zeros(Image);
     elseif numel(Image)==1 % In case of scalar
@@ -46,16 +28,45 @@ function S = injectSources(Image,Cat,PSF,Args)
     else
         S = Image;
     end
+    
     [SizeImageX,SizeImageY] = size(S);
-    Xind_vec = 1:1:SizePSFX;
-    Yind_vec = 1:1:SizePSFY;
-    VecX= Xind_vec-Xcenter;
-    VecY= Yind_vec-Ycenter;
-    [matx,maty]= meshgrid(VecX,VecY);
-    PSF_shiftted = imUtil.trans.shift_fft(PSF,DX,DY);
+       
+    X = Cat(:,1);
+    Y = Cat(:,2);
+    flux = Cat(:,3);
+    DX = mod(X,1);
+    DY = mod(Y,1);
+    Xround=  floor(X);
+    Yround=  floor(Y);
+    Nsrc = numel(flux); % number of sources to be injected
+    
     for i = 1:Nsrc
         
-        
+        if size(PSFin,3) == Nsrc    % for each source an individual PSF is provided
+            PSF = PSFin(:,:,i);
+        elseif size(PSFin,3) == 1   % one PSF for all the sources
+            PSF = PSFin(:,:,1);
+        else
+            error('injectSources: PSF dimension mismatch');
+        end
+       
+        [SizePSFX,SizePSFY] = size(PSF);
+        Xcenter = ceil(SizePSFX./2);
+        Ycenter = ceil(SizePSFX./2);
+
+        if Args.RecenterPSF
+            momt = imUtil.image.moment2(PSF,SizePSFX,SizePSFY);
+            DX = DX - (Xcenter - momt.X);
+            DY = DY - (Ycenter - momt.Y);
+        end
+
+        Xind_vec = 1:1:SizePSFX;
+        Yind_vec = 1:1:SizePSFY;
+        VecX= Xind_vec-Xcenter;
+        VecY= Yind_vec-Ycenter;
+        [matx,maty]= meshgrid(VecX,VecY);
+        PSF_shiftted = imUtil.trans.shift_fft(PSF,DX,DY); 
+           
         Xind = matx+ Xround(i);
         Yind = maty+ Yround(i);
         
@@ -68,10 +79,7 @@ function S = injectSources(Image,Cat,PSF,Args)
         S(ind) = S(ind) +  psf_t(flag(:)).*flux(i); 
     
     end
-
-
-    
-    
+     
 end
 
 

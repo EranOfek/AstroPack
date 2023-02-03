@@ -214,7 +214,10 @@ function [Result] = forcedPhot(Obj, Args)
         end
 
         CatAdd   = catsHTM.cone_search(Args.AddCatName, mean(Args.Coo(:,1))./RAD, mean(Args.Coo(:,2))./RAD,  Args.AddRefStarsDist);
-        Args.Coo = [Args.Coo; CatAdd(:,1:2).*RAD];  % deg 
+        %Args.Coo = [Args.Coo; CatAdd(:,1:2).*RAD];  % deg 
+        CatAdd  = CatAdd(:,1:2).*RAD;  % deg 
+    else
+        CatAdd  = zeros(0,2);
     end
 
     Nobj = numel(Obj);
@@ -229,7 +232,12 @@ function [Result] = forcedPhot(Obj, Args)
     end
 
     Result    = MatchedSources;
-    Nsrc      = size(Args.Coo,1);
+    if Args.Moving
+        Nsrc      = 1 + size(CatAdd,1);
+    else
+        Nsrc      = size(Args.Coo,1) + size(CatAdd,1);
+    end
+    
     Result.JD = Obj.julday;
     
     Naper = numel(Args.AperRadius);
@@ -278,6 +286,9 @@ function [Result] = forcedPhot(Obj, Args)
                     Y = Args.Coo(:,2);
                 end
             end
+            % add CatAdd to X,Y
+            X = [X;CatAdd(:,1)];
+            Y = [Y;CatAdd(:,2)];
 
             % check if sources are in footprint
             [Ny, Nx] = Obj(Iobj).sizeImage;
