@@ -15,7 +15,7 @@ function S = injectSources(Image,Cat,PSFin,Args)
     arguments
 
         Image;
-        Cat {mustBeNonNan};
+        Cat;
         PSFin;
         Args.RecenterPSF = false;
     
@@ -56,8 +56,8 @@ function S = injectSources(Image,Cat,PSFin,Args)
 
         if Args.RecenterPSF
             momt = imUtil.image.moment2(PSF,SizePSFX,SizePSFY);
-            DX = DX - (Xcenter - momt.X);
-            DY = DY - (Ycenter - momt.Y);
+            DX(i) = DX(i) - (Xcenter - momt.X);
+            DY(i) = DY(i) - (Ycenter - momt.Y);
         end
 
         Xind_vec = 1:1:SizePSFX;
@@ -65,7 +65,7 @@ function S = injectSources(Image,Cat,PSFin,Args)
         VecX= Xind_vec-Xcenter;
         VecY= Yind_vec-Ycenter;
         [matx,maty]= meshgrid(VecX,VecY);
-        PSF_shiftted = imUtil.trans.shift_fft(PSF,DX,DY); 
+        PSF_shiftted = imUtil.trans.shift_fft(PSF,DX(i),DY(i)); 
            
         Xind = matx+ Xround(i);
         Yind = maty+ Yround(i);
