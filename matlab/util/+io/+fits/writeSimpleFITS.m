@@ -47,7 +47,7 @@ function writeSimpleFITS(Image, FileName, Args)
             Args.DataType='int16';
         case 'uint32'
             Image=int32(int64(Image)-int64(bzero));
-            Args.DataType='int16';
+            Args.DataType='int32';
     end
 
     FID = fopen(FileName,'w');
