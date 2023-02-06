@@ -38,22 +38,36 @@ function writeSimpleFITS(Image, FileName, Args)
     % if the class is unsigned, we must write Image-bzero as signed, and
     % change the required class.
     % To do the substraction, we have to upcast
+%     switch Args.DataType
+%         case 'uint8'
+%             Image=int8(int16(Image)-int16(bzero));
+%             Args.DataType='int8';
+%         case 'uint16'
+%             Image=int16(int32(Image)-int32(bzero));
+%             Args.DataType='int16';
+%         case 'uint32'
+%             Image=int32(int64(Image)-int64(bzero));
+%             Args.DataType='int32';
+%     end
+%     NewDataType=Args.DataType;
+
     switch Args.DataType
         case 'uint8'
-            Image=int8(int16(Image)-int16(bzero));
-            Args.DataType='int8';
+            NewDataType='int8';
         case 'uint16'
-            Image=int16(int32(Image)-int32(bzero));
-            Args.DataType='int16';
+            NewDataType='int16';
         case 'uint32'
-            Image=int32(int64(Image)-int64(bzero));
-            Args.DataType='int32';
+            NewDataType='int32';
+        otherwise
+            NewDataType=Args.DataType;
     end
-
+    Image=reshape(typecast(bitxor(Image(:),cast(bzero,Args.DataType)),...
+                           NewDataType),size(Image));
+    
     FID = fopen(FileName,'w');
     %fwrite(FID, HeaderStr, 'char', 0, 'b');
     fprintf(FID,'%s',HeaderStr);
-    io.fits.writeImageData(FID, Image, Args.DataType);
+    io.fits.writeImageData(FID, Image, NewDataType);
     fclose(FID);
 
 end
