@@ -1,8 +1,10 @@
-function BitPix = dataType2bitpix(Class)
+function [BitPix,bzero] = dataType2bitpix(Class)
     % Convert class name to BITPIX keyword value number.
     % Input  : - A class (e.g., 'single').
     % Output : - A BITPIX value.
-    % Author : Eran Ofek (Jan 2022)
+    %          - the recommended BZERO value for the header, for unsigned
+    %            formats
+    % Author : Eran Ofek (Jan 2022) (bzero added by Enrico Segre Feb 2023)
     % Eaxmple: BitPix = io.fits.dataType2bitpix('int16')
     
     switch lower(Class)
@@ -20,6 +22,16 @@ function BitPix = dataType2bitpix(Class)
             BitPix = -64;
         otherwise
             error('Unknown Class option');
+    end
+    switch lower(Class)
+        case 'uint8'
+            bzero=128;
+        case 'uint16'
+            bzero=2^15;
+        case 'uint32'
+            bzero=2^31;
+        otherwise
+            bzero=0;
     end
 end
             
