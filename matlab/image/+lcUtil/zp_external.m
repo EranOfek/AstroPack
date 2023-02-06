@@ -1,4 +1,4 @@
-function zp_external(Obj, Args)
+function Result = zp_external(Obj, Args)
     %
    
     arguments
@@ -12,7 +12,7 @@ function zp_external(Obj, Args)
         Args.FieldRefMagErr               = 'phot_bp_mean_flux_over_error';
         Args.FunConvertRefErr             = @(F) 1.086./F;    % conversion to relative error
 
-        Args.FluxErrRange                 = [0.003 0.02];
+        Args.FluxErrRange                 = [0.003 0.1];
 
 %         Args.CalibFun function_handle     =
 %         Args.CalibFunArgs function_handle = {};
@@ -32,7 +32,7 @@ function zp_external(Obj, Args)
 %         Args.MatchRadiusUnits             = 'arcsec';
 %         
         Args.CreateNewObj logical         = true;
-        Args.UpdateMagFields              = {'MAG_PSF'};
+        Args.UpdateMagFields              = {'FLUX_PSF'};
     end
     
     if Args.CreateNewObj
@@ -41,7 +41,6 @@ function zp_external(Obj, Args)
         Result = Obj;
     end
     
-    NextMag = numel(Args.FieldMagExternal);
     Nupdate = numel(Args.UpdateMagFields);
     
     Nobj = numel(Obj);
@@ -51,29 +50,39 @@ function zp_external(Obj, Args)
         Nepoch = Obj(Iobj).Nepoch;
         Nsrc   = Obj(Iobj).Nsrc;
         
-        RefMag    = Obj(Iobj).SrcDara.(Args.FieldRefMag);
+        RefMag    = Obj(Iobj).SrcData.(Args.FieldRefMag);
         % convert to flux
         if Args.IsMag
             error('IsMag true option is not yet available');
         end
-        RefMagErr = Obj(Iobj).SrcDara.(Args.FieldRefMagErr);
+        RefMagErr = Obj(Iobj).SrcData.(Args.FieldRefMagErr);
         RefMagErr = Args.FunConvertRefErr(RefMagErr);
 
-        InstFlux    = Obj(Iobj).Dara.(Args.FieldFlux);
-        InstFluxErr = Obj(Iobj).Dara.(Args.FieldErr);
-
-        MeanInstFluxErr = mean(InstFluxErr,1,'omitnan');
-        FlagRef         = MeanInstFluxErr>min(Args.FluxErrRange) & MeanInstFluxErr<max(Args.FluxErrRange);
-
-
-        MagDiff = convert.luptitude(InstFlux(:,FlagRef)) - RefMag(FlagRef);
-        Nref    = sum(FlagRef);
-        ZP      = median(MagDiff,2,'omitnan');
-        StdZP   = std(MagDiff,[],2,'omitnan');
-        ErrZP   = StdZP./sqrt(Nref);
-
+         
+        
+        InstFlux    = Obj(Iobj).Data.(Args.FieldFlux);
+        InstFluxErr = abs(Obj(Iobj).Data.(Args.FieldErr));
+        
+        FlagGoodRef = RefMagErr<0.1 & InstFlux>0 & InstFluxErr>min(Args.FluxErrRange) & InstFluxErr<max(Args.FluxErrRange);
+        
+        Nref = sum(FlagGoodRef,2);
+        
+        
+        
+        
+        RefMagMat               = RefMag.*FlagGoodRef;
+        RefMagMat(RefMagMat==0) = NaN;
+        RefFluxMat              = 10.^(-0.4.*RefMagMat);
+        
+        
+        
+        FluxRatio = RefFluxMat./InstFlux;
+        MeanFR = median(FluxRatio,2,'omitnan');
+        StdFR = std(FluxRatio,[],2,'omitnan');
+        ErrFR = StdFR./sqrt(Nref);
+       
         for Iupdate=1:1:Nupdate
-            Result(Iobj).Data.(Args.UpdateMagFields{Iupdate}) = Obj(Iobj).Data.(Args.UpdateMagFields{Iupdate}) + ZP;
+            Result(Iobj).Data.(Args.UpdateMagFields{Iupdate}) = Obj(Iobj).Data.(Args.UpdateMagFields{Iupdate}).*MeanFR;
         end
 
         
