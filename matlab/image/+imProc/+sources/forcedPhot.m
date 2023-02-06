@@ -167,7 +167,7 @@ function [Result] = forcedPhot(Obj, Args)
         Args.AddRefStarsDist         = 500;     % arcsec; 0/NaN for no addition
         Args.AddCatName              = 'GAIADR3';
         Args.PopulateWCS logical     = true;
-        Args.RefColNames cell        = {};
+        Args.RefColNames cell        = {'phot_g_mean_mag','phot_g_mean_flux_over_error','phot_bp_mean_mag','phot_bp_mean_flux_over_error','phot_rp_mean_mag','phot_rp_mean_flux_over_error'};
         
         Args.MomentMaxIter           = 0;       % 0 - no iterations
         Args.UseMomCoo logical       = false;
