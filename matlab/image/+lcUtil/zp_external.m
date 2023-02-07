@@ -12,7 +12,7 @@ function Result = zp_external(Obj, Args)
         Args.FieldRefMagErr               = 'phot_bp_mean_flux_over_error';
         Args.FunConvertRefErr             = @(F) 1.086./F;    % conversion to relative error
 
-        Args.FluxErrRange                 = [0.003 0.1];
+        Args.FluxErrRange                 = [0.003 0.2];
 
 %         Args.CalibFun function_handle     =
 %         Args.CalibFunArgs function_handle = {};
@@ -61,9 +61,9 @@ function Result = zp_external(Obj, Args)
          
         
         InstFlux    = Obj(Iobj).Data.(Args.FieldFlux);
-        InstFluxErr = abs(Obj(Iobj).Data.(Args.FieldErr));
+        InstFluxErr = real(Obj(Iobj).Data.(Args.FieldErr));
         
-        FlagGoodRef = RefMagErr<0.1 & InstFlux>0 & InstFluxErr>min(Args.FluxErrRange) & InstFluxErr<max(Args.FluxErrRange);
+        FlagGoodRef = RefMagErr<0.1 & InstFlux>0 & InstFluxErr>min(Args.FluxErrRange); % & InstFluxErr<max(Args.FluxErrRange);
         
         Nref = sum(FlagGoodRef,2);
         
