@@ -46,8 +46,10 @@ function [Result,LC] = zp_external(Obj, Args)
     Nobj = numel(Obj);
     LC   = zeros(0,2);
     for Iobj=1:1:Nobj
+        Iobj
         % for each MatchedSources object
-        
+        try
+            
         Nepoch = Obj(Iobj).Nepoch;
         Nsrc   = Obj(Iobj).Nsrc;
         
@@ -99,6 +101,7 @@ function [Result,LC] = zp_external(Obj, Args)
         Err = sqrt(Result(Iobj).Data.MAGERR_PSF(:,1).^2 + ErrZP.^2);
         LC = [LC; [Result(Iobj).JD(:), Result(Iobj).Data.FLUX_PSF(:,1), Result(Iobj).Data.MAGERR_PSF(:,1)]];
         
+        end
     end
 
 
