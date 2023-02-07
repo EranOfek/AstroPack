@@ -307,9 +307,10 @@ function [Result] = forcedPhot(Obj, Args)
                     Y = Args.Coo(:,2);
                 end
             end
-            % add CatAdd to X,Y
-            X = [X;CatAdd(:,1)];
-            Y = [Y;CatAdd(:,2)];
+            % add CatAdd [deg] - convert RA/Dec to X/Y
+            [Xcat,Ycat] = Obj(Iobj).WCS.sky2xy(CatAdd(:,1), CatAdd(:,2), 'InUnits','deg');
+            X = [X; Xcat];
+            Y = [Y; Ycat];
 
             % check if sources are in footprint
             [Ny, Nx] = Obj(Iobj).sizeImage;
