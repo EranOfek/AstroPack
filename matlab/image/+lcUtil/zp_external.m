@@ -1,4 +1,4 @@
-function Result = zp_external(Obj, Args)
+function [Result,LC] = zp_external(Obj, Args)
     %
    
     arguments
@@ -12,7 +12,7 @@ function Result = zp_external(Obj, Args)
         Args.FieldRefMagErr               = 'phot_bp_mean_flux_over_error';
         Args.FunConvertRefErr             = @(F) 1.086./F;    % conversion to relative error
 
-        Args.FluxErrRange                 = [0.003 0.2];
+        Args.FluxErrRange                 = [0.003 0.03];
 
 %         Args.CalibFun function_handle     =
 %         Args.CalibFunArgs function_handle = {};
@@ -44,6 +44,7 @@ function Result = zp_external(Obj, Args)
     Nupdate = numel(Args.UpdateMagFields);
     
     Nobj = numel(Obj);
+    LC   = zeros(0,2);
     for Iobj=1:1:Nobj
         % for each MatchedSources object
         
@@ -63,7 +64,7 @@ function Result = zp_external(Obj, Args)
         InstFlux    = Obj(Iobj).Data.(Args.FieldFlux);
         InstFluxErr = real(Obj(Iobj).Data.(Args.FieldErr));
         
-        FlagGoodRef = RefMagErr<0.1 & InstFlux>0 & InstFluxErr>min(Args.FluxErrRange); % & InstFluxErr<max(Args.FluxErrRange);
+        FlagGoodRef = RefMagErr<0.05 & InstFlux>0 & InstFluxErr>min(Args.FluxErrRange); % & InstFluxErr<max(Args.FluxErrRange);
         
         Nref = sum(FlagGoodRef,2);
         
@@ -74,6 +75,14 @@ function Result = zp_external(Obj, Args)
         RefMagMat(RefMagMat==0) = NaN;
         RefFluxMat              = 10.^(-0.4.*RefMagMat);
         
+        InstFlux(~FlagGoodRef)  = NaN;
+        
+        InstMag                 = 25 -2.5.*log10(InstFlux);
+        
+        DeltaMag = InstMag - RefMagMat;
+        ZP       = median(DeltaMag,2,'omitnan');
+        StdZP    = tools.math.stat.rstd(DeltaMag,2);
+        FluxZP   = 10.^(0.4.*(ZP));
         
         
         FluxRatio = RefFluxMat./InstFlux;
@@ -82,9 +91,10 @@ function Result = zp_external(Obj, Args)
         ErrFR = StdFR./sqrt(Nref);
        
         for Iupdate=1:1:Nupdate
-            Result(Iobj).Data.(Args.UpdateMagFields{Iupdate}) = Obj(Iobj).Data.(Args.UpdateMagFields{Iupdate}).*MeanFR;
+            Result(Iobj).Data.(Args.UpdateMagFields{Iupdate}) = Obj(Iobj).Data.(Args.UpdateMagFields{Iupdate}).*FluxZP;
         end
 
+        LC = [LC; [Result(Iobj).JD(:), Result(Iobj).Data.FLUX_PSF(:,1)]];
         
     end
 
