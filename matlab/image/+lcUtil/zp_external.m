@@ -66,6 +66,9 @@ function [Result,LC] = zp_external(Obj, Args)
         
         FlagGoodRef = RefMagErr<0.05 & InstFlux>0 & InstFluxErr>min(Args.FluxErrRange); % & InstFluxErr<max(Args.FluxErrRange);
         
+        Color = Result(Iobj).SrcData.phot_bp_mean_mag - Result(Iobj).SrcData.phot_g_mean_mag;
+        FlagGoodRef = FlagGoodRef & Color>0.2 & Color<0.8;
+        
         Nref = sum(FlagGoodRef,2);
         
         
@@ -79,22 +82,22 @@ function [Result,LC] = zp_external(Obj, Args)
         
         InstMag                 = 25 -2.5.*log10(InstFlux);
         
+        
+        
+        
         DeltaMag = InstMag - RefMagMat;
         ZP       = median(DeltaMag,2,'omitnan');
         StdZP    = tools.math.stat.rstd(DeltaMag,2);
+        ErrZP    = StdZP./sqrt(Nref);
         FluxZP   = 10.^(0.4.*(ZP));
         
-        
-        FluxRatio = RefFluxMat./InstFlux;
-        MeanFR = median(FluxRatio,2,'omitnan');
-        StdFR = std(FluxRatio,[],2,'omitnan');
-        ErrFR = StdFR./sqrt(Nref);
        
         for Iupdate=1:1:Nupdate
             Result(Iobj).Data.(Args.UpdateMagFields{Iupdate}) = Obj(Iobj).Data.(Args.UpdateMagFields{Iupdate}).*FluxZP;
         end
 
-        LC = [LC; [Result(Iobj).JD(:), Result(Iobj).Data.FLUX_PSF(:,1)]];
+        Err = sqrt(Result(Iobj).Data.MAGERR_PSF(:,1).^2 + ErrZP.^2);
+        LC = [LC; [Result(Iobj).JD(:), Result(Iobj).Data.FLUX_PSF(:,1), Result(Iobj).Data.MAGERR_PSF(:,1)]];
         
     end
 
