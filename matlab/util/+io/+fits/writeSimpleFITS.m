@@ -17,23 +17,12 @@ function writeSimpleFITS(Image, FileName, Args)
         FileName
         Args.Header cell              = {};
         Args.DataType                 = [];
+        Args.UseMatlabIo              = false;
     end
 
     if isempty(Args.DataType)
         Args.DataType = class(Image);
     end
-
-    if isempty(Args.Header)
-        % create minimal default FITS header
-        Args.Header = io.fits.defaultHeader(Args.DataType, size(Image));
-    end
-    % update the BITPIX and BZERO key vals if needed (or, should we keep
-    %  them in some particular case?)
-    [BitPix,bzero]  = io.fits.dataType2bitpix(Args.DataType);
-    Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BITPIX',{BitPix});
-    Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BZERO',{bzero});
-
-    HeaderStr = io.fits.generateHeaderBlocks(Args.Header);
 
     % if the class is unsigned, we must write Image-bzero as signed, and
     % change the required class.
@@ -61,13 +50,57 @@ function writeSimpleFITS(Image, FileName, Args)
         otherwise
             NewDataType=Args.DataType;
     end
-    Image=reshape(typecast(bitxor(Image(:),cast(bzero,Args.DataType)),...
-                           NewDataType),size(Image));
-    
-    FID = fopen(FileName,'w');
-    %fwrite(FID, HeaderStr, 'char', 0, 'b');
-    fprintf(FID,'%s',HeaderStr);
-    io.fits.writeImageData(FID, Image, NewDataType);
-    fclose(FID);
+    [BitPix,bzero]  = io.fits.dataType2bitpix(Args.DataType);
+    % shift the image if unsigned
+    if ~strcmp(NewDataType,Args.DataType)
+        Image=reshape(typecast(bitxor(Image(:),cast(bzero,Args.DataType)),...
+                      NewDataType),size(Image));
+    end
+
+   % prepare header and update the BITPIX and BZERO key vals if needed
+   % (or, should we keep them in some particular case?)
+   if isempty(Args.Header)
+       % create minimal default FITS header
+       Args.Header = io.fits.defaultHeader(Args.DataType, size(Image));
+   end
+   if ~Args.UseMatlabIo
+       Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BITPIX',{BitPix});
+       Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BZERO',{bzero});
+   else
+       Header = FITS.prepareHeader(Args.Header, HEAD.HeaderField, 'WriteTime', true);
+       Header.Header = imUtil.headerCell.replaceKey(Header.Header,'BITPIX',{BitPix});
+       Header.Header = imUtil.headerCell.replaceKey(Header.Header,'BZERO',{bzero});
+   end
+   
+   if ~Args.UseMatlabIo
+       % using fwrite:
+       HeaderStr = io.fits.generateHeaderBlocks(Args.Header);
+       FID = fopen(FileName,'w');
+       fprintf(FID,'%s',HeaderStr);
+       io.fits.writeImageData(FID, Image, NewDataType);
+       fclose(FID);
+   else
+        % using matlab.io.fits:
+        
+        % delete existing FileName if exist
+        if isfile(FileName)
+            delete(FileName);
+        end
+        
+        % Create new FITS file
+        Fptr = matlab.io.fits.createFile(FileName);
+        
+        % create Image
+        matlab.io.fits.createImg(Fptr, NewDataType, size(Image));
+
+        % write Header        
+        FITS.writeHeader(Fptr, Header, HEAD.HeaderField);
+        
+        % write Image %% datatype conversion overflow???
+        matlab.io.fits.writeImg(Fptr, Image); %,Fpixels);
+        
+        % Close FITS file
+        matlab.io.fits.closeFile(Fptr);
+    end
 
 end
