@@ -93,7 +93,22 @@ function writeSimpleFITS(Image, FileName, Args)
         % create Image
         matlab.io.fits.createImg(Fptr, NewDataType, size(Image));
 
-        % write Image %% datatype conversion overflow???
+        % test filling the header with random data, BEFORE writeImg
+        % -> indeed this takes significant time if placed AFTER,
+        %    most likely because the whole file has to be rewritten if the
+        %    initial block is grown
+        % none of these causes problems:
+%         for k=1:150
+%             matlab.io.fits.writeKey(Fptr,sprintf('K%05d',k),rand(),'random number')
+%         end
+%         matlab.io.fits.writeComment(Fptr,'tarapia tapioca')
+%         matlab.io.fits.writeHistory(Fptr,'come fosse cofandina anzi vicesindaco')
+
+        % write Header (this here causes datatype conversion overflow in writeImg)
+        %FITS.writeHeader(Fptr, Header, HEAD.HeaderField);
+
+
+        % write Image %% datatype conversion overflow if FITS.writeHeader before???
         matlab.io.fits.writeImg(Fptr, Image); %,Fpixels);
         
         % write Header
