@@ -1043,7 +1043,8 @@ classdef FITS < handle
                 Args.DataType                 = [];
             end
             
-            io.fits.writeSimpleFITS(Image, FileName, 'Header',Args.Header, 'DataType',Args.DataType);
+            io.fits.writeSimpleFITS(Image, FileName, 'Header',Args.Header,...
+                                     'DataType',Args.DataType,'UseMatlabIo',true);
             
         end
         

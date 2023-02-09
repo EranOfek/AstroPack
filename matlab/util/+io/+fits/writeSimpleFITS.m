@@ -93,12 +93,12 @@ function writeSimpleFITS(Image, FileName, Args)
         % create Image
         matlab.io.fits.createImg(Fptr, NewDataType, size(Image));
 
-        % write Header        
-        FITS.writeHeader(Fptr, Header, HEAD.HeaderField);
-        
         % write Image %% datatype conversion overflow???
         matlab.io.fits.writeImg(Fptr, Image); %,Fpixels);
         
+        % write Header
+        FITS.writeHeader(Fptr, Header, HEAD.HeaderField);
+
         % Close FITS file
         matlab.io.fits.closeFile(Fptr);
     end
