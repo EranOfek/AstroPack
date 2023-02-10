@@ -2,14 +2,28 @@ function [Cat]=jpl_horizons(varargin)
 % Get JPL horizons ephemeris for a solar system body.
 % Package: celestial.SolarSys
 % Description: Get JPL horizons ephemeris for a solar system body.
-% Input  : - 
-%          * Arbitrary number of pairs of arguments: ...,keyword,value,...
+% Input  : * Arbitrary number of pairs of arguments: ...,keyword,value,...
 %            where keyword are one of the followings:
-% Output : - 
+%            'ObjectInd' - Solar system object number.
+%                   Semicolumn following the number corresponds to
+%                   a small body number - e.g., '499;'
+%                   Default is '499;'.
+%            'StartJD' - Start JD, or [D M Y Frac].
+%                   Default is 2451545.5
+%            'StopJD' - Stop JD, or [D M Y Frac].
+%                   Default is 2451545.5
+%            'GeodCoo' - If empty use Geocentric observer.
+%                   Otherwise provide [Lon, Lat, Height] in [deg deg km].
+%                   Default is [].
+%            'DateFormat' - Default is 'JD'.
+%            'StepSize' - Default is 1.
+%            'StepSizeUnits' - Step size units. Default is 'd'.
+%            See code for additional arguments
+% Output : - An AstroCatalog object with the JPL Horizons ephemeris table.
 % License: GNU general public license version 3
-%     By : Eran O. Ofek                    Jun 2018
+% Author : Eran Ofek (Jun 2018)
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [Cat]=celestial.SolarSys.jpl_horizons;
+% Exaurlmple: [Cat]=celestial.SolarSys.jpl_horizons;
 %          [Cat]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',celestial.time.julday([14 6 2018]),'StopJD',  celestial.time.julday([20 6 2018]));
 % Reliable: 2
 %--------------------------------------------------------------------------
@@ -19,9 +33,10 @@ ColCellField  = AstCat.ColCellField;
 ColUnitsField = AstCat.ColUnitsField;
 
 
-DefV.ObjectInd           = '499;';   % semicolumn telss horizon its a small body - e.g., '499;'
+DefV.ObjectInd           = '499;';   % semicolumn tells horizon its a small body - e.g., '499;'
 DefV.StartJD             = 2451545.5;
 DefV.StopJD              = 2451555.5;
+DefV.GeodCoo             = [];  % [Lon, Lat, Height] % [deg deg km]
 DefV.DateFormat          = 'JD';
 DefV.StepSize            = 1;
 DefV.StepSizeUnits       = 'd';
@@ -31,6 +46,13 @@ DefV.CENTER              = '500'; %'@sun'; %code for observer location. Earth - 
 DefV.WebOptions          = weboptions;
 InPar = InArg.populate_keyval(DefV,varargin,mfilename);
 
+if numel(InPar.StartJD)>3
+    InPar.StartJD = celestial.time.julday(InPar.StartJD);
+end
+
+if numel(InPar.StopJD)>3
+    InPar.StopJD = celestial.time.julday(InPar.StopJD);
+end
 
 BaseURL = 'https://ssd.jpl.nasa.gov/horizons_batch.cgi?';
 %BaseURL = 'https://ssd.jpl.nasa.gov/api/horizons.api?';
@@ -49,10 +71,25 @@ I = I + 1;
 Str(I).command = 'COMMAND';
 Str(I).value   = InPar.ObjectInd;
 
-I = I + 1;
-Str(I).command = 'CENTER';
-Str(I).value   = InPar.CENTER;
+if ~isempty(InPar.GeodCoo)
+    I = I + 1;
+    Str(I).command = 'CENTER';
+    Str(I).value   = 'COORD';
 
+    I = I + 1;
+    Str(I).command = 'COORD_TYPE';
+    Str(I).value   = 'GEODETIC';
+
+    I = I + 1;
+    Str(I).command = 'SITE_COORD';
+    Str(I).value   = sprintf('%09.5f,%09.5f,%09.5f',InPar.GeodCoo);
+    %AllCommand = sprintf('%s&CENTER="COORD"&COORD_TYPE="GEODETIC"&SITE_COORD="%09.5f,%09.5f,%09.5f"',AllCommand, InPar.GeodCoo);
+else
+    I = I + 1;
+    Str(I).command = 'CENTER';
+    Str(I).value   = InPar.CENTER;
+
+end
 
 I = I + 1;
 Str(I).command = 'MAKE_EPHEM';
@@ -106,6 +143,7 @@ for Istr=1:1:Nstr
     end
 end
 
+    
 UrlCommand = sprintf('%s%s',BaseURL,AllCommand);
 Data = webread(UrlCommand,InPar.WebOptions);
 
