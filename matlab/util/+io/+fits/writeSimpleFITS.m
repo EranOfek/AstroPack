@@ -1,6 +1,10 @@
 function writeSimpleFITS(Image, FileName, Args)
     % Write a simple (single HDU) FITS file to disk
-    %   This function is a few times faster compared with CFITSIO routines.
+    %   This function is a few times faster than FITS.write(). This
+    %    involves tradeoff between using fwrite (slow because of endianness conversion)
+    %    and growing the image header with CFITSIO routines AFTER having
+    %    created the HDU and written the image.
+    %
     % Input  : - An image data (e.g., matrix).
     %          - File name in which to write the FITS file.
     %          * ...,key,val,...
@@ -8,8 +12,10 @@ function writeSimpleFITS(Image, FileName, Args)
     %                   header.
     %            'DataType' - Image data type. If empty, use image type.
     %                   Default is [].
+    %            'UseMatlabIo' use matlab CFITS instead of fwrite. Default
+    %                   true
     % Output : null
-    % Author : Eran Ofek (Jan 2022)
+    % Author : Eran Ofek (Jan 2022), Enrico Segre (Feb 2023)
     % Example: io.fits.writeSimpleFITS(AI.Image, 'try.fits','Header',AI.HeaderData.Data);
 
     arguments
@@ -17,7 +23,7 @@ function writeSimpleFITS(Image, FileName, Args)
         FileName
         Args.Header cell              = {};
         Args.DataType                 = [];
-        Args.UseMatlabIo              = false;
+        Args.UseMatlabIo              = true;
     end
 
     if isempty(Args.DataType)
@@ -66,13 +72,6 @@ function writeSimpleFITS(Image, FileName, Args)
    if ~Args.UseMatlabIo
        Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BITPIX',{BitPix});
        Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BZERO',{bzero});
-   else
-       Header = FITS.prepareHeader(Args.Header, HEAD.HeaderField, 'WriteTime', true);
-       Header.Header = imUtil.headerCell.replaceKey(Header.Header,'BITPIX',{BitPix});
-       Header.Header = imUtil.headerCell.replaceKey(Header.Header,'BZERO',{bzero});
-   end
-   
-   if ~Args.UseMatlabIo
        % using fwrite:
        HeaderStr = io.fits.generateHeaderBlocks(Args.Header);
        FID = fopen(FileName,'w');
@@ -104,15 +103,18 @@ function writeSimpleFITS(Image, FileName, Args)
 %         matlab.io.fits.writeComment(Fptr,'tarapia tapioca')
 %         matlab.io.fits.writeHistory(Fptr,'come fosse cofandina anzi vicesindaco')
 
-        % write Header (this here causes datatype conversion overflow in writeImg)
-        %FITS.writeHeader(Fptr, Header, HEAD.HeaderField);
+        Header = FITS.prepareHeader(Args.Header, HEAD.HeaderField, 'WriteTime', true);
+        FITS.writeHeader(Fptr, Header, HEAD.HeaderField);
 
 
         % write Image %% datatype conversion overflow if FITS.writeHeader before???
         matlab.io.fits.writeImg(Fptr, Image); %,Fpixels);
         
+        % change BZERO post-facto
+        matlab.io.fits.writeKey(Fptr,'BZERO',bzero);
+
         % write Header
-        FITS.writeHeader(Fptr, Header, HEAD.HeaderField);
+        % FITS.writeHeader(Fptr, Header, HEAD.HeaderField);
 
         % Close FITS file
         matlab.io.fits.closeFile(Fptr);
