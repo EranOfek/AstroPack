@@ -47,8 +47,8 @@ function writeSimpleFITS(Image, FileName, Args)
 %     NewDataType=Args.DataType;
 
     switch Args.DataType
-        case 'uint8'
-            NewDataType='int8';
+        case 'int8'
+            NewDataType='uint8';
         case 'uint16'
             NewDataType='int16';
         case 'uint32'

@@ -24,8 +24,8 @@ function [BitPix,bzero] = dataType2bitpix(Class)
             error('Unknown Class option');
     end
     switch lower(Class)
-        case 'uint8'
-            bzero=128;
+        case 'int8'
+            bzero=-128;
         case 'uint16'
             bzero=2^15;
         case 'uint32'
