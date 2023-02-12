@@ -17,10 +17,10 @@ function usimImage =  usim ( Args )
         Args.InCat           = AstroCatalog({'~/matlab/AstroPack/data/test_tables/asu.fit'},'HDU',2);
         
         Args.InSpec          = {'BB', 3500}; % parameters of the source spectra: either an array of AstroSpec objects
-                                               % or an array of model spectra parameters 
+                                             % or an array of model spectra parameters 
         
         Args.ImRes           = 2;          % image resolution: 2 is 1/2 of the ULTRASAT pixel
-                                             % possible values: 1, 2, 5, 10, 47.5
+                                           % possible values: 1, 2, 5, 10, 47.5
 
         Args.RotAng          = 0;          % tile rotation angle relative to the axis of the raw PSF database
         
@@ -28,7 +28,31 @@ function usimImage =  usim ( Args )
         
     end
     
-    Eps = 1e-12;        % precision
+    % Simulation parameters
+    
+    Eps = 1e-12;  % precision
+    
+    % PSF database parameters
+               
+    Nwave   = 91; % lab PSF grid points in wavelength
+    Nrad    = 25; % lab PSF grid points in radius    
+            
+    Wave    = linspace(2000,11000,Nwave);
+    Rad     = linspace(0,10,Nrad);
+    
+    PixRat  = 47.5; % the ratio of ULTRASAT pixel size to that of the lab image
+            
+    % read the chosen PSF database from a .mat file
+    
+    PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF',Args.ImRes,'.mat');
+    ReadDB = struct2cell ( load(PSF_db) ); % PSF data at chosen resolution
+    PSFdata = ReadDB{2}; 
+    
+    if ( size(PSFdata,3) ~= Nwave ) || ( size(PSFdata,4) ~= Nrad )
+        fprintf('PSF array size mismatch!\n');
+    end
+    
+    StampSize = size(PSFdata,1); 
     
     % ULTRASAT parameters
 
@@ -44,7 +68,7 @@ function usimImage =  usim ( Args )
 %     load('~/matlab/data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat', 'wavelength', 'Rdeg', 'TotT');
 
     UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');   
-    load(UP_db); % need to read just some of the data? 
+    load(UP_db); % need to read just some of the UP data? 
     
     % make a blank image
 
@@ -70,7 +94,7 @@ function usimImage =  usim ( Args )
     
     % write the empty image to FITS file
     
-    imUtil.util.fits.fitswrite(SimImage0.Image,'!~/SimImage0.fits');
+    % imUtil.util.fits.fitswrite(SimImage0.Image,'!~/SimImage0.fits');
   
     % use a fake catalog (parameters? defined number of sources at random positions?)
     
@@ -87,7 +111,53 @@ function usimImage =  usim ( Args )
     
     NumSrc = size(Cat,1);
   
-  
+    % initialize an array of source spectra
+    
+    Spec = zeros(NumSrc, Nwave);  % the spectra arrays are defined on the 1..Nwave grid
+    
+    % read the input spectra or generate synthetic spectra
+    
+    switch isa(Args.InSpec,'AstroSpec')
+        
+        case 0  % make a synthetic spectrum for a given model
+            
+            if Args.InSpec{1} == 'BB' 
+                
+                for ISrc = 1:1:NumSrc
+                    
+                    Spec(ISrc,:) = AstSpec.blackbody(Args.InSpec{2},Wave).Int; 
+                    
+                end
+                        
+            
+            elseif Args.InSpec{1} == 'PL'
+                
+                for ISrc = 1:1:NumSrc
+                    
+                    PLalpha = Args.InSpec{2};
+                    PLalpha1 = PLalpha + 1.;
+                    PLnorm = (1 / PLalpha1 ) * ( Wave(Nwave)^PLalpha1-Wave(1)^PLalpha1 );
+                    Spec(ISrc,:) = PLnorm * Wave ^ PLalpha; 
+                    
+                end
+                
+                
+            else
+                
+                fprintf('Spectra not defined in USim!\n');
+                
+            end
+            
+            
+        case 1  % read the table from an AstroSpec object
+            
+            for ISrc = 1:1:NumSrc
+                
+                Spec(ISrc,:) = specRegrid( Args.InSpec{ISrc} );
+                                    
+            end
+            
+    end
     
            
     % make a grid of BB spectra
