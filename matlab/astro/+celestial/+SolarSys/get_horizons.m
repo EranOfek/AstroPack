@@ -94,7 +94,7 @@ end
 if (length(EndJD)==1)
    % given in JD
    %EndDate = jd2date(floor(EndJD)+0.5);
-   EndDate = jd2date(EndJD,'h');
+   EndDate = celestial.time.jd2date(EndJD,'h');
 else
    if (length(EndJD)==3)
       EndDate = [EndJD, 0 ,0];

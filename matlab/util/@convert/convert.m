@@ -1326,6 +1326,7 @@ classdef convert
             Frac = cellfun(FunH,Time);
         end
 
+       
         % Convert between time systems
         function Output = time(Input, InType, OutType)
             % Convert between different types of time systems and years

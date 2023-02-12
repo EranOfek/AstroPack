@@ -1519,6 +1519,8 @@ classdef AstroTable < Component
                 Args.InterpMethod          = 'linear';
             end
             
+            NewX = NewX(:);
+            
             if ischar(InterpColY)
                 InterpColY = {InterpColY};
             end

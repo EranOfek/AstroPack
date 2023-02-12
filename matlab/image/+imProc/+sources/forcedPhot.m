@@ -78,6 +78,10 @@ function [Result] = forcedPhot(Obj, Args)
     %                   (set to false to save time is WCS is already
     %                   populated).
     %                   Default is true.
+    %            'RefColNames' - A cell array of columns in the reference
+    %                   catalog (specified in AddCatName). These columns,
+    %                   for each source will be added to the SrcData
+    %                   property in the output MatchedSources object.
     %
     %            'MomentMaxIter' - Number of iterations used in the 1st and
     %                   2nd moment estimation. If 0, then will use the
@@ -163,6 +167,7 @@ function [Result] = forcedPhot(Obj, Args)
         Args.AddRefStarsDist         = 500;     % arcsec; 0/NaN for no addition
         Args.AddCatName              = 'GAIADR3';
         Args.PopulateWCS logical     = true;
+        Args.RefColNames cell        = {'phot_g_mean_mag','phot_g_mean_flux_over_error','phot_bp_mean_mag','phot_bp_mean_flux_over_error','phot_rp_mean_mag','phot_rp_mean_flux_over_error'};
         
         Args.MomentMaxIter           = 0;       % 0 - no iterations
         Args.UseMomCoo logical       = false;
@@ -208,16 +213,20 @@ function [Result] = forcedPhot(Obj, Args)
         Args.Coo = convert.angular(Args.CooUnits,'deg',Args.Coo);
     end
 
+    
     if ~isnan(Args.AddRefStarsDist) && Args.AddRefStarsDist>0
         if ~IsSpherical
             error('AddRefStarsDist>0 can be use only when using spherical coordinates')
         end
 
-        CatAdd   = catsHTM.cone_search(Args.AddCatName, mean(Args.Coo(:,1))./RAD, mean(Args.Coo(:,2))./RAD,  Args.AddRefStarsDist);
+        CatH   = catsHTM.cone_search(Args.AddCatName, mean(Args.Coo(:,1))./RAD, mean(Args.Coo(:,2))./RAD,  Args.AddRefStarsDist, 'OutType','AstroCatalog');
         %Args.Coo = [Args.Coo; CatAdd(:,1:2).*RAD];  % deg 
-        CatAdd  = CatAdd(:,1:2).*RAD;  % deg 
+        %CatAdd  = CatAdd(:,1:2).*RAD;  % deg 
+        CatAdd = CatH.getLonLat('deg');
+        AddColsFromRef = true;
     else
         CatAdd  = zeros(0,2);
+        AddColsFromRef = false;
     end
 
     Nobj = numel(Obj);
@@ -232,11 +241,23 @@ function [Result] = forcedPhot(Obj, Args)
     end
 
     Result    = MatchedSources;
+    
     if Args.Moving
-        Nsrc      = 1 + size(CatAdd,1);
+        NsrcUser = 1;
     else
-        Nsrc      = size(Args.Coo,1) + size(CatAdd,1);
+        NsrcUser = size(Args.Coo,1);
     end
+    Nsrc = NsrcUser + size(CatAdd,1);
+    
+    
+    if AddColsFromRef
+        NrefC = numel(Args.RefColNames);
+        CatAddCol = CatH.getCol(Args.RefColNames);
+        for IrefC=1:1:NrefC            
+            Result.SrcData.(Args.RefColNames{IrefC}) = [nan(1, NsrcUser), CatAddCol(:,IrefC).'];
+        end
+    end
+
     
     Result.JD = Obj.julday;
     
@@ -286,9 +307,10 @@ function [Result] = forcedPhot(Obj, Args)
                     Y = Args.Coo(:,2);
                 end
             end
-            % add CatAdd to X,Y
-            X = [X;CatAdd(:,1)];
-            Y = [Y;CatAdd(:,2)];
+            % add CatAdd [deg] - convert RA/Dec to X/Y
+            [Xcat,Ycat] = Obj(Iobj).WCS.sky2xy(CatAdd(:,1), CatAdd(:,2), 'InUnits','deg');
+            X = [X; Xcat];
+            Y = [Y; Ycat];
 
             % check if sources are in footprint
             [Ny, Nx] = Obj(Iobj).sizeImage;
