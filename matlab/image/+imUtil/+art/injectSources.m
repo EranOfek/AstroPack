@@ -97,6 +97,7 @@ case 1    % one PSF for all the sources
     VecY= Yind_vec-Ycenter;
     [matx,maty]= meshgrid(VecX,VecY);
     PSF_shiftted = imUtil.trans.shift_fft(PSF,DX,DY);
+    
     for i = 1:Nsrc
         
         
