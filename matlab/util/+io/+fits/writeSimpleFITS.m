@@ -32,20 +32,6 @@ function writeSimpleFITS(Image, FileName, Args)
 
     % if the class is unsigned, we must write Image-bzero as signed, and
     % change the required class.
-    % To do the substraction, we have to upcast
-%     switch Args.DataType
-%         case 'uint8'
-%             Image=int8(int16(Image)-int16(bzero));
-%             Args.DataType='int8';
-%         case 'uint16'
-%             Image=int16(int32(Image)-int32(bzero));
-%             Args.DataType='int16';
-%         case 'uint32'
-%             Image=int32(int64(Image)-int64(bzero));
-%             Args.DataType='int32';
-%     end
-%     NewDataType=Args.DataType;
-
     switch Args.DataType
         case 'int8'
             NewDataType='uint8';
@@ -92,17 +78,6 @@ function writeSimpleFITS(Image, FileName, Args)
         % create Image
         matlab.io.fits.createImg(Fptr, NewDataType, size(Image));
 
-        % test filling the header with random data, BEFORE writeImg
-        % -> indeed this takes significant time if placed AFTER,
-        %    most likely because the whole file has to be rewritten if the
-        %    initial block is grown
-        % none of these causes problems:
-%         for k=1:150
-%             matlab.io.fits.writeKey(Fptr,sprintf('K%05d',k),rand(),'random number')
-%         end
-%         matlab.io.fits.writeComment(Fptr,'tarapia tapioca')
-%         matlab.io.fits.writeHistory(Fptr,'come fosse cofandina anzi vicesindaco')
-
         Header = FITS.prepareHeader(Args.Header, HEAD.HeaderField, 'WriteTime', true);
         FITS.writeHeader(Fptr, Header, HEAD.HeaderField);
 
@@ -112,9 +87,6 @@ function writeSimpleFITS(Image, FileName, Args)
         
         % change BZERO post-facto
         matlab.io.fits.writeKey(Fptr,'BZERO',bzero);
-
-        % write Header
-        % FITS.writeHeader(Fptr, Header, HEAD.HeaderField);
 
         % Close FITS file
         matlab.io.fits.closeFile(Fptr);

@@ -1023,8 +1023,11 @@ classdef FITS < handle
         
         function writeSimpleFITS(Image, FileName, Args)
             % Write a simple (single HDU) FITS file to disk
-            % using io.fits.writeSimpleFITS
-            %   This function is a few times faster compared with CFITSIO routines.
+            % using io.fits.writeSimpleFITS, which streamlines correctly
+            %   the CFITSIO routines, and is thus several times faster
+            %   than FITS.write. That routine also takes care of setting
+            %   BZERO properly for writing unsigned images with signed
+            %   types.
             % Input  : - An image data (e.g., matrix).
             %          - File name in which to write the FITS file.
             %          * ...,key,val,...
