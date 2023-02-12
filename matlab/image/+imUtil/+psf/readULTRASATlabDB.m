@@ -86,7 +86,7 @@ function readULTRASATlabDB
     tic
             
     Dummy = 0;
-    save('ULTRASATlabPSF.mat','Dummy','PSFdata','-v7.3');
+    save('ULTRASATlabPSF47.5.mat','Dummy','PSFdata','-v7.3');
             
     toc 
 
