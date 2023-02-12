@@ -1,4 +1,4 @@
-function usimImage =  usim ( Args )
+function usimImage =  usim ( Args ) 
 
     % Make simulated ULTRASAT images from source catalogs
     %
