@@ -1,28 +1,31 @@
 function usimImage =  usim ( Args ) 
 
-    % Make simulated ULTRASAT images from source catalogs
-    %
-    % Input:    
-    %       -  Args.InCat (a catalog of simulated sources)
-    %       -  Args.InSpec (individual spectra or one spectral model)
-    %       -  Args.ImRes (image resolution in 1/pix units)
-    %       -  Args.RotAng (SC rotation angle relative to the axis of the raw PSF database)
-    %       - 
-    %
-    % Output:
-    %       -  usimImage (simulated AstroImage object, FITS file output, RAW file output)
-
+% Make simulated ULTRASAT images from source catalogs
+% Package: ultrasat
+% Description: Make simulated ULTRASAT images from source catalogs
+% Input:    
+%       -  Args.InCat (a catalog of simulated sources)
+%       -  Args.InSpec (individual spectra or one spectral model)
+%       -  Args.ImRes (image resolution in 1/pix units)
+%       -  Args.RotAng (SC rotation angle relative to the axis of the raw PSF database)
+% Output : - usimImage (simulated AstroImage object, FITS file output, RAW file output)           
+% Tested : Matlab R2020b
+%     By : A. Krassilchtchikov et al.   Feb 2023
+% Example: Sim = usim (Cat, Spec, Resolution, RotAng, OutputType); 
+  
     arguments  
         
         Args.InCat           = AstroCatalog({'~/matlab/AstroPack/data/test_tables/asu.fit'},'HDU',2);
         
         Args.InSpec          = {'BB', 3500}; % parameters of the source spectra: either an array of AstroSpec objects
-                                             % or an array of model spectra parameters 
+                                             % or an array of model spectra parameters: 
+                                             % 'BB', Temperature (K) -- blackbody
+                                             % 'PL', Alpha -- power-law F ~ lambda^alpha
         
-        Args.ImRes           = 2;          % image resolution: 2 is 1/2 of the ULTRASAT pixel
+        Args.ImRes           = 5;          % image resolution: 2 is 1/2 of the ULTRASAT pixel
                                            % possible values: 1, 2, 5, 10, 47.5
 
-        Args.RotAng          = 0;          % tile rotation angle relative to the axis of the raw PSF database
+        Args.RotAng          = 0;          % tile rotation angle relative to the axis of the raw PSF database (deg)
         
         Args.OutType         = 'AstroImage';
         
@@ -41,18 +44,6 @@ function usimImage =  usim ( Args )
     Rad     = linspace(0,10,Nrad);
     
     PixRat  = 47.5; % the ratio of ULTRASAT pixel size to that of the lab image
-            
-    % read the chosen PSF database from a .mat file
-    
-    PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF',Args.ImRes,'.mat');
-    ReadDB = struct2cell ( load(PSF_db) ); % PSF data at chosen resolution
-    PSFdata = ReadDB{2}; 
-    
-    if ( size(PSFdata,3) ~= Nwave ) || ( size(PSFdata,4) ~= Nrad )
-        fprintf('PSF array size mismatch!\n');
-    end
-    
-    StampSize = size(PSFdata,1); 
     
     % ULTRASAT parameters
 
@@ -100,7 +91,9 @@ function usimImage =  usim ( Args )
     
     Cat = [2003 2022  125; 
            2543 2518  134;
+            100  200  880;
            1543 1518  334;
+           4000 4500  220;
            2612 2886  238]; 
     
     % or make an array of pixel coordinates and fluxes from InCat AstroCatalog objects
@@ -110,6 +103,16 @@ function usimImage =  usim ( Args )
     % determine number of sources in the catalog
     
     NumSrc = size(Cat,1);
+    
+    % obtain radial distances of the sources from the INNER CORNER of the tile
+    
+    RadSrc = zeros(NumSrc,1);
+    
+    for Isrc = 1:1:NumSrc
+        
+        RadSrc(Isrc) = sqrt( Cat(Isrc,1)^2 + Cat(Isrc,2)^2 ) *  PixSize;
+        
+    end
   
     % initialize an array of source spectra
     
@@ -117,7 +120,10 @@ function usimImage =  usim ( Args )
     
     % read the input spectra or generate synthetic spectra
     
-    switch isa(Args.InSpec,'AstroSpec')
+    % test
+    Args.InSpec = UP.Specs(1:NumSrc); % star spectra from Pickles % test
+    
+    switch isa(Args.InSpec,'AstroSpec') || isa(Args.InSpec,'AstSpec')
         
         case 0  % make a synthetic spectrum for a given model
             
@@ -125,7 +131,8 @@ function usimImage =  usim ( Args )
                 
                 for ISrc = 1:1:NumSrc
                     
-                    Spec(ISrc,:) = AstSpec.blackbody(Args.InSpec{2},Wave).Int; 
+                    % Spec(ISrc,:) = AstSpec.blackbody(Args.InSpec{2},Wave).Int; % AstSpec is deprecated
+                    Spec(ISrc,:) = AstroSpec.blackBody(Wave',Args.InSpec{2}).Flux; 
                     
                 end
                         
@@ -137,29 +144,140 @@ function usimImage =  usim ( Args )
                     PLalpha = Args.InSpec{2};
                     PLalpha1 = PLalpha + 1.;
                     PLnorm = (1 / PLalpha1 ) * ( Wave(Nwave)^PLalpha1-Wave(1)^PLalpha1 );
-                    Spec(ISrc,:) = PLnorm * Wave ^ PLalpha; 
+                    Spec(ISrc,:) = PLnorm * Wave .^ PLalpha; 
                     
                 end
-                
-                
+                                
             else
                 
-                fprintf('Spectra not defined in USim!\n');
+                fprintf('Spectra not defined in USim, exiting..\n');
+                return
                 
             end
             
             
-        case 1  % read the table from an AstroSpec object
+        case 1  % read the table from an AstroSpec/AstSpec object and regrid it to Wave set of wavelengths 
             
             for ISrc = 1:1:NumSrc
                 
-                Spec(ISrc,:) = specRegrid( Args.InSpec{ISrc} );
+                % Spec(ISrc,:) = specRegrid( Args.InSpec{ISrc}, Wave ); % to be written? 
+                
+                % the simplest way to regrid is to interpolate and set to 0 outside the range
+                % deb: is it safer to use griddedinterpolant? 
+                
+                if isa(Args.InSpec,'AstSpec') 
+                    Spec(ISrc,:) = interp1( Args.InSpec(ISrc).Wave, Args.InSpec(ISrc).Int, Wave, 'linear', 0);
+                elseif isa(Args.InSpec,'AstroSpec')
+                    Spec(ISrc,:) = interp1( Args.InSpec(ISrc).Wave, Args.InSpec(ISrc).Flux, Wave, 'linear', 0);
+                end
+                
                                     
             end
             
+            % try to make a 1-liner instead of a cycle? 
+            % Spec = interp1( Args.InSpec.Wave, Args.InSpec.Int, Wave, 'linear', 0);
+            
+    end
+                
+    % read the chosen PSF database from a .mat file
+    
+    PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF',Args.ImRes,'.mat');
+    ReadDB = struct2cell ( load(PSF_db) ); % PSF data at chosen resolution
+    PSFdata = ReadDB{2}; 
+    
+    if ( size(PSFdata,3) ~= Nwave ) || ( size(PSFdata,4) ~= Nrad )
+        fprintf('PSF array size mismatch, exiting..\n');
+        return
     end
     
-           
+    % initialize sources PSFs
+    
+    Nx = size(PSFdata,1); 
+    Ny = size(PSFdata,2);
+    PSF = zeros( NumSrc, Nx, Ny );
+    
+    % integrate the source spectra Si(λ) with their PSFs(λ,r) over the
+    % frequency range and obtain a single PSF for each source: imUtil.psf.specWeight
+      
+    PSF = imUtil.psf.specWeight( PSFdata, RadSrc, Rad, Spec );     
+        
+    % rotate the integrated PSFs according to the tile rotation angle:
+    % imUtil.psf.rotate or just imrotate? 
+    
+    Ang = Args.RotAng;
+    
+    Ang = -45; % test
+    
+    for ISrc = 1:1:NumSrc
+        RotPSF(:,:,ISrc) = imrotate(PSF(:,:,ISrc), Ang, 'bilinear', 'loose'); 
+        
+        % the rotated PSF does not conserve the energy, so need to rescale
+        Cons = sum ( RotPSF(:,:,ISrc), 'all' );
+        RotPSF(:,:,ISrc) = RotPSF(:,:,ISrc) / Cons;
+    end
+    
+    % NB: the actual size of rotated PSF stamp depends on the particular rotation angle,
+    % varying between Nx x Ny and sqrt(2) * Nx x sqrt(2) * Ny
+    
+    size( PSF, 1);
+    size( RotPSF, 1 );   
+        
+    % visual test
+    
+    subplot(2,2,1)
+    imagesc(PSF(:,:,1))
+    subplot(2,2,2)
+    imagesc(RotPSF(:,:,1))
+    subplot(2,2,3)
+    imagesc(PSF(:,:,3))
+    subplot(2,2,4)
+    imagesc(RotPSF(:,:,3))
+        
+    
+    % save the final PSFs into an AstroPSF array and attach it to the image: AstroPSF
+    
+    AP(1:NumSrc) = AstroPSF;
+    
+    for ISrc = 1:1:NumSrc
+        
+        AP(ISrc).DataPSF = RotPSF(:,:,ISrc);
+    
+    end
+    
+    % inject into the blank tile image all the rotated PSFs at fluxes set to 1: imUtil.art.injectSources
+    % (note that injectSources currently works only with odd stamp sizes)
+    % [Do we really need an injection by FFT shift? Why can’t we inject directly?] 
+
+
+    % add sky noise to the tile image + Poisson noise
+    
+    % add read-out noise to the tile image
+    
+    % add other noise factors
+
+    % output: a) a native RAW format image 
+    % b) a FITS image of an ULTRASAT tile with all the sources PSF + sky noise + read-out noise
+    % c) an AstroImage object with filled image, header, and PSF attachments 
+    
+    
+    
+    
+    
+    return
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     % make a grid of BB spectra
     
     NTemp = 5;
