@@ -1,6 +1,14 @@
 function readULTRASATlabDB
-%READULTRASATLABDB make .mat DB from the ASCII DB of ULTRASAT PSFs 
-%   Detailed explanation goes here
+
+% Make .mat DB files from the ASCII DB of ULTRASAT PSFs 
+% Package: imUtil.psf
+% Description: Make .mat DB files from the ASCII DB of ULTRASAT PSFs 
+% Input  : - no user input is needed
+% Output : - .mat DB files 
+%            
+% Tested : Matlab R2020b
+%     By : A. Krassilchtchikov et al.    Feb 2023
+% Example: readULTRASATlabDB 
     
     % Lab DB parameters:
 
@@ -100,6 +108,8 @@ function readULTRASATlabDB
     save('ULTRASATlabPSF1.mat' ,'Dummy','PSFdata1' ,'-v7.3');
 
     toc
+    
+    fprintf('%s\n','DB1-4 written')
     
 end
 
