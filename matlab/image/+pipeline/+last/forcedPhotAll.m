@@ -83,9 +83,6 @@ function MS=forcedPhotAll(Args)
         ResIn  = AI.isSkyCooInImage(MeanCoo(1), MeanCoo(2),'UNIQSEC',CooUnits);
         FlagIn = [ResIn.InImage];
         
-        MS(Idir).UserData.FlagIn = FlagIn;
-        MS(Idir).UserData.FN     = FN;
-        
         AI     = AI(FlagIn);
         JD     = JD(FlagIn);
         if Moving
@@ -94,6 +91,9 @@ function MS=forcedPhotAll(Args)
         
         if ~isempty(AI)
             MS(Idir) = imProc.sources.forcedPhot(AI, 'Coo',Coo, 'CooUnits',CooUnits, 'Moving',Moving,'MaxIter',Args.MaxIter);
+            MS(Idir).UserData.FlagIn = FlagIn;
+            MS(Idir).UserData.FN     = FN;
+        
         end
         cd(BasePath);
     end
