@@ -16,7 +16,7 @@ function S = injectSources(Image,Cat,PSFin,Args)
 
         Image;
         Cat;
-        PSF;
+        PSFin;
         Args.RecenterPSF = false;
     
     end
@@ -25,6 +25,8 @@ function S = injectSources(Image,Cat,PSFin,Args)
         S = zeros(Image);
     elseif numel(Image)==1 % In case of scalar
         S = zeros([Image,Image]);
+    else
+        S = Image;
     end
 
     [SizeImageX,SizeImageY] = size(S);
