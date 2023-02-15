@@ -15,21 +15,30 @@ function usimImage =  usim ( Args )
   
     arguments  
         
-        Args.InCat           = AstroCatalog({'~/matlab/AstroPack/data/test_tables/asu.fit'},'HDU',2);
+        Args.InCat           = AstroCatalog({'~/matlab/AstroPack/data/test_tables/asu.fit'},'HDU',1);
         
         Args.InSpec          = {'BB', 3500}; % parameters of the source spectra: either an array of AstroSpec objects
                                              % or an array of model spectra parameters: 
                                              % 'BB', Temperature (K) -- blackbody
                                              % 'PL', Alpha -- power-law F ~ lambda^alpha
         
-        Args.ImRes           = 5;          % image resolution: 2 is 1/2 of the ULTRASAT pixel
-                                           % possible values: 1, 2, 5, 10, 47.5
+        Args.ImRes           = 5;            % image resolution: 5 is 1/5 of the ULTRASAT pixel
+                                             % possible values: 1, 2, 5, 10, 47.5
 
-        Args.RotAng          = 0;          % tile rotation angle relative to the axis of the raw PSF database (deg)
+        Args.RotAng          = 0;            % tile rotation angle relative to the axis of the raw PSF database (deg)
+        
+        Args.Noise           = {0,'P'};      % the first cell denotes intial detector noise (dark counts), '1' -- add noise
+                                             % the second cell denotes the noise added after the source counts are in 'P' = Poisson
+                                             
+        Args.Inj             = 'FFTshift';   % source injection method can be either 'FFTshift' or 'direct'
         
         Args.OutType         = 'AstroImage';
         
     end
+    
+    % performance speed test
+    
+    tic
     
     % Simulation parameters
     
@@ -52,76 +61,90 @@ function usimImage =  usim ( Args )
     PixSize     = 5.4/3600; % pixel size in degrees 
  
     % load the matlab object with the ULTRASAT properties:
-%     
-%   [Wave, Rad, Trans] = load();
-%    UPP = load('~/matlab/data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat', ...
-%         'UP.wavelength', 'UP.Rdeg', 'UP.TotT');  
-%     load('~/matlab/data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat', 'wavelength', 'Rdeg', 'TotT');
-
+    
     UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');   
-    load(UP_db); % need to read just some of the UP data? 
+    load(UP_db,'UP'); % is it possible to read just some of the UP structures: UP.TotT and, possibly, UP.Specs? 
     
     % make a blank image
 
-    Emptybox = zeros(ImageSizeX,ImageSizeY);
+    Emptybox = zeros( ImageSizeX, ImageSizeY );
     
     % add some dark counts
     
-    Image0   = imnoise(Emptybox,'gaussian', 1, 2);
+    if Args.Noise{1} == 1 
+        Image0   = imnoise(Emptybox,'gaussian', 1, 2);
+    else
+        Image0   = Emptybox;
+    end
     
+    % write the empty image to a FITS file
+    
+    imUtil.util.fits.fitswrite(Image0,'!/home/sasha/SimImage0.fits');
+        
     % read in an appropriate ULTRASAT header and make a WCS 
     
     % SimHeader = AstroHeader('~/matlab/data/ULTRASAT/UC-3200-TN003-01_FITS_formatted_image_example.fits',0); % TBD 
     
     % SimWCS = AstroWCS.header2wcs(SimHeader); %TBD 
             
-    % make a source-less AstroImage object 
+    % make a source-less AstroImage object (?)
         
-    SimImage0 = AstroImage( {Image0} ,'Back',{Emptybox}, 'Var',{Emptybox}, 'Cat',{Args.InCat.Catalog}); 
+    usimImage(1) = AstroImage( {Image0} ,'Back',{Emptybox}, 'Var',{Emptybox}, 'Cat',{Args.InCat.Catalog}); 
     
-    % add some keywords and values to the image header 
+    % add some keywords and values to the image header % TBD
     
-    funHeader(SimImage0,@insertKey,{'DATEOBS','2003-07-24T18:28:58','';'EXPTIME',60,''}); % TBD
-    
-    % write the empty image to FITS file
-    
-    % imUtil.util.fits.fitswrite(SimImage0.Image,'!~/SimImage0.fits');
+    funHeader(usimImage(1), @insertKey, {'DATEOBS','2003-07-24T18:28:58','';'EXPTIME',60,''}); 
   
-    % use a fake catalog (parameters? defined number of sources at random positions?)
+    % make a fake catalog
     
-    Cat = [2003 2022  125; 
-           2543 2518  134;
-            100  200  880;
-           1543 1518  334;
-           4000 4500  220;
-           2612 2886  238]; 
+    % CatX    = [2003 2543 100 1543 4000 2612];
+    % CatY    = [2022 2518 200 1518 4500 2886];
+    % CatFlux = [ 125  134 880  334  220  238];
+    % Cat = [CatX' CatY' CatFlux'];
+    
+    Nfake = 10;  % number of fake sources
+    
+    CatX    = round( ImageSizeX*rand(Nfake,1) ); 
+    CatY    = round( ImageSizeY*rand(Nfake,1) ); 
+    RA      = zeros(Nfake,1); 
+    DEC     = zeros(Nfake,1); 
+    CatFlux = zeros(Nfake,1);       % will be determined below from spectra * transmission 
+    % CatFlux = 100 * rand(Nfake,1); 
+        
+    Cat = [CatX CatY RA DEC CatFlux];
+      
+    Args.InCat = AstroCatalog({Cat},'ColNames',{'X','Y','RAJ2000','DEJ2000','MAG'},'HDU',1);
     
     % or make an array of pixel coordinates and fluxes from InCat AstroCatalog objects
     
-    % [CatX, CatY] = SimWCS.sky2xy(Alpha,Delta);
+    % [CatX, CatY]  = SimWCS.sky2xy(Alpha,Delta);
+    % CatFlux       = zeros(size(CatX,1),1);
     
     % determine number of sources in the catalog
     
-    NumSrc = size(Cat,1);
+    NumSrc = size(Cat,1); 
     
     % obtain radial distances of the sources from the INNER CORNER of the tile
     
-    RadSrc = zeros(NumSrc,1);
+    RadSrc = zeros(NumSrc,1); 
     
     for Isrc = 1:1:NumSrc
         
-        RadSrc(Isrc) = sqrt( Cat(Isrc,1)^2 + Cat(Isrc,2)^2 ) *  PixSize;
+        RadSrc(Isrc) = sqrt( Cat(Isrc,1)^2 + Cat(Isrc,2)^2 ) *  PixSize; 
         
     end
   
     % initialize an array of source spectra
     
-    Spec = zeros(NumSrc, Nwave);  % the spectra arrays are defined on the 1..Nwave grid
-    
+    SpecIn  = zeros(NumSrc, Nwave);  % the incoming spectra 
+    SpecAbs = zeros(NumSrc, Nwave);  % the incoming spectra convolved with the throughput
+
     % read the input spectra or generate synthetic spectra
     
     % test
-    Args.InSpec = UP.Specs(1:NumSrc); % star spectra from Pickles % test
+    if NumSrc < 44  % size of UP.Specs 
+        Args.InSpec = UP.Specs(1:NumSrc); % star spectra from Pickles % test   
+    end
     
     switch isa(Args.InSpec,'AstroSpec') || isa(Args.InSpec,'AstSpec')
         
@@ -131,8 +154,8 @@ function usimImage =  usim ( Args )
                 
                 for ISrc = 1:1:NumSrc
                     
-                    % Spec(ISrc,:) = AstSpec.blackbody(Args.InSpec{2},Wave).Int; % AstSpec is deprecated
-                    Spec(ISrc,:) = AstroSpec.blackBody(Wave',Args.InSpec{2}).Flux; 
+                    % SpecIn(ISrc,:) = AstSpec.blackbody(Args.InSpec{2},Wave).Int; % AstSpec is deprecated
+                    SpecIn(ISrc,:) = AstroSpec.blackBody(Wave',Args.InSpec{2}).Flux; 
                     
                 end
                         
@@ -144,7 +167,7 @@ function usimImage =  usim ( Args )
                     PLalpha = Args.InSpec{2};
                     PLalpha1 = PLalpha + 1.;
                     PLnorm = (1 / PLalpha1 ) * ( Wave(Nwave)^PLalpha1-Wave(1)^PLalpha1 );
-                    Spec(ISrc,:) = PLnorm * Wave .^ PLalpha; 
+                    SpecIn(ISrc,:) = PLnorm * Wave .^ PLalpha; 
                     
                 end
                                 
@@ -166,17 +189,30 @@ function usimImage =  usim ( Args )
                 % deb: is it safer to use griddedinterpolant? 
                 
                 if isa(Args.InSpec,'AstSpec') 
-                    Spec(ISrc,:) = interp1( Args.InSpec(ISrc).Wave, Args.InSpec(ISrc).Int, Wave, 'linear', 0);
+                    SpecIn(ISrc,:) = interp1( Args.InSpec(ISrc).Wave, Args.InSpec(ISrc).Int, Wave, 'linear', 0);
                 elseif isa(Args.InSpec,'AstroSpec')
-                    Spec(ISrc,:) = interp1( Args.InSpec(ISrc).Wave, Args.InSpec(ISrc).Flux, Wave, 'linear', 0);
+                    SpecIn(ISrc,:) = interp1( Args.InSpec(ISrc).Wave, Args.InSpec(ISrc).Flux, Wave, 'linear', 0);
                 end
                 
                                     
             end
             
             % try to make a 1-liner instead of a cycle? 
-            % Spec = interp1( Args.InSpec.Wave, Args.InSpec.Int, Wave, 'linear', 0);
+            % SpecIn = interp1( Args.InSpec.Wave, Args.InSpec.Int, Wave, 'linear', 0);
             
+    end
+
+    % convolve the spectrum with the ULTRASAT throughut (make a separate
+    % routine?) 
+    
+    TotT = zeros(NumSrc,Nwave);
+
+    for Isrc = 1:1:NumSrc
+
+        Ir = find (Rad  <= RadSrc(ISrc),  1, 'last'); % find the nearest grid point
+        TotT(Isrc,:) = UP.TotT(1:100:9001,Ir);        % rescale the throughput array  
+        SpecAbs(Isrc,:) = SpecIn(Isrc,:) .* TotT(Isrc,:);
+
     end
                 
     % read the chosen PSF database from a .mat file
@@ -190,16 +226,16 @@ function usimImage =  usim ( Args )
         return
     end
     
-    % initialize sources PSFs
+    % initialize source PSFs
     
     Nx = size(PSFdata,1); 
     Ny = size(PSFdata,2);
     PSF = zeros( NumSrc, Nx, Ny );
     
-    % integrate the source spectra Si(λ) with their PSFs(λ,r) over the
+    % integrate the throughput-convolved source spectra Si(λ)*Th(λ,r) with their PSFs(λ,r) over the
     % frequency range and obtain a single PSF for each source: imUtil.psf.specWeight
       
-    PSF = imUtil.psf.specWeight( PSFdata, RadSrc, Rad, Spec );     
+    PSF = imUtil.psf.specWeight( PSFdata, RadSrc, Rad, SpecAbs );     
         
     % rotate the integrated PSFs according to the tile rotation angle:
     % imUtil.psf.rotate or just imrotate? 
@@ -209,11 +245,13 @@ function usimImage =  usim ( Args )
     Ang = -45; % test
     
     for ISrc = 1:1:NumSrc
+
         RotPSF(:,:,ISrc) = imrotate(PSF(:,:,ISrc), Ang, 'bilinear', 'loose'); 
         
         % the rotated PSF does not conserve the energy, so need to rescale
         Cons = sum ( RotPSF(:,:,ISrc), 'all' );
         RotPSF(:,:,ISrc) = RotPSF(:,:,ISrc) / Cons;
+
     end
     
     % NB: the actual size of rotated PSF stamp depends on the particular rotation angle,
@@ -234,7 +272,7 @@ function usimImage =  usim ( Args )
     imagesc(RotPSF(:,:,3))
         
     
-    % save the final PSFs into an AstroPSF array and attach it to the image: AstroPSF
+    % save the rotated PSFs into an AstroPSF array and attach it to the image: AstroPSF
     
     AP(1:NumSrc) = AstroPSF;
     
@@ -244,12 +282,58 @@ function usimImage =  usim ( Args )
     
     end
     
+    % performance control
+    
+    fprintf('Simulated PSFs ready..\n');
+    
+    toc
+    
+    fprintf('PSF injection started..\n');
+    
+    % NB: the ultimate flux dimension in the Cat table should be [ counts / s ] 
+    % (assuming infinitely small time resolution ) 
+    % i.e. all the sources fluxes F in [ ph / ( cm(2) s A) ] should be
+    % integrated with the TotT(lam,r): Cat(5) = sum_lam ( F * delta_lam * TotT (Lam, r) )
+        
+    tic
+    
+    if Args.Inj == 'FFTshift'
+        
     % inject into the blank tile image all the rotated PSFs at fluxes set to 1: imUtil.art.injectSources
     % (note that injectSources currently works only with odd stamp sizes)
     % [Do we really need an injection by FFT shift? Why can’t we inject directly?] 
 
+        if rem( size(RotPSF,1) , 2) == 0 
+            fprintf('The size of RotPSF is even, while imUtil.art.injectSources accepts odd size only!');
+        end
 
+        Image1 = imUtil.art.injectSources(Image0,Cat,RotPSF); 
+
+    elseif Args.Inj == 'Direct'
+
+    % direct injection
+           
+        Image1 = imUtil.art.directInjectSources(Image0,Cat,Args.ImRes,RotPSF);
+    
+    else
+        
+        fprintf('Injection method not defined!\n');
+        
+    end
+
+    % performance control
+    
+    fprintf('PSF injection completed..\n');
+    
+    toc
+    
     % add sky noise to the tile image + Poisson noise
+      
+    if Args.Noise{2} == 'P'
+        Image = Image1 + imnoise(Image1,'poisson'); %add Poisson noise 
+    else
+        Image = Image1; 
+    end
     
     % add read-out noise to the tile image
     
@@ -258,12 +342,16 @@ function usimImage =  usim ( Args )
     % output: a) a native RAW format image 
     % b) a FITS image of an ULTRASAT tile with all the sources PSF + sky noise + read-out noise
     % c) an AstroImage object with filled image, header, and PSF attachments 
+   
+        
+    % make a new AstroImage with sources injected and write it to FITS file
+    
+    usimImage = AstroImage( {Image1} ,'Back',{Emptybox}, 'Var',{Emptybox},'Cat',{Args.InCat.Catalog});
+    
+    imUtil.util.fits.fitswrite(Image1,'!/home/sasha/SimImage.fits');
     
     
-    
-    
-    
-    return
+    return 
     
     
     
