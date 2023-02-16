@@ -46,10 +46,10 @@ function Image = directInjectSources (Image0, Cat, Scaling, PSF)
         Yleft   = max( floor( Ycenter - SizeY/2. ), 1);
         Xright  = min( Xleft + SizeX, SizeImX);
         Yright  = min( Yleft + SizeY, SizeImY);
-        SzX     = Xright-Xleft+1;
-        SzY     = Yright-Yleft+1;
+        SzX     = Xright-Xleft;
+        SzY     = Yright-Yleft;
         
-        if Method == 'Pad'
+        if strcmp(Method,'Pad')
         
         % pad the stamp with zeros upto the full image size and add the images
         
@@ -58,7 +58,7 @@ function Image = directInjectSources (Image0, Cat, Scaling, PSF)
             PadYL   = max(Yleft-1, 0);
             PadYR   = max(SizeImY-Yright+1, 0);  
 
-            Src = PSF(:,:,Isrc);
+            Src = PSF(:,:,Isrc) .* Cat(Isrc,3);
 
             Src = padarray(Src,[PadXL 0],'pre'); 
             Src = padarray(Src,[PadXR 0],'post'); 
@@ -67,13 +67,13 @@ function Image = directInjectSources (Image0, Cat, Scaling, PSF)
 
             Im = Im + Src;
         
-        elseif Method == 'Regular'
+        elseif strcmp(Method,'Regular')
             
             for iX = 1:1:SzX
 
                 for iY = 1:1:SzY
                     
-                    Im( Xleft+iX, Yleft+iY ) = Im( Xleft+iX, Yleft+iY ) + PSF(iX, iY, Isrc);
+                    Im( Xleft+iX-1, Yleft+iY-1 ) = Im( Xleft+iX-1, Yleft+iY-1) + PSF(iX, iY, Isrc);
                     
                 end
                 
