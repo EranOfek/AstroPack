@@ -44,7 +44,7 @@ function [Result,LC] = zp_external(Obj, Args)
     Nupdate = numel(Args.UpdateMagFields);
     
     Nobj = numel(Obj);
-    LC   = zeros(0,2);
+    LC   = zeros(0,7);
     for Iobj=1:1:Nobj
         Iobj
         % for each MatchedSources object
@@ -99,7 +99,13 @@ function [Result,LC] = zp_external(Obj, Args)
         end
 
         Err = sqrt(Result(Iobj).Data.MAGERR_PSF(:,1).^2 + ErrZP.^2);
-        LC = [LC; [Result(Iobj).JD(:), Result(Iobj).Data.FLUX_PSF(:,1), Result(Iobj).Data.MAGERR_PSF(:,1)]];
+        LC = [LC; [Result(Iobj).JD(:),...
+                   Result(Iobj).Data.FLUX_PSF(:,1),...
+                   Result(Iobj).Data.MAGERR_PSF(:,1),...
+                   Result(Iobj).Data.Chi2dof(:,1),...
+                   Result(Iobj).Data.FLAGS(:,1),...
+                   Result(Iobj).Data.FLAG_POS(:,1),...
+                   Result(Iobj).Data.MAG_PSF(:,1) ]];
         
         end
     end
