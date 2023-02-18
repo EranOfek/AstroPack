@@ -15,7 +15,7 @@ function [MinDist,IP]=dist_p2line(Line,P0)
 % Tested : Matlab 5.3
 %     By : Eran O. Ofek                    Feb 2004
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [MinDist,IP]=Util.Geom.dist_p2line([1,0],[1,0]);
+% Example: [MinDist,IP]=tools.math.geometry.dist_p2line([1,0],[1,0]);
 % Reliable: 2
 %--------------------------------------------------------------------------
 [Ni,Nj] = size(Line);
