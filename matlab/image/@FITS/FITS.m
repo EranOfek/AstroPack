@@ -1035,6 +1035,20 @@ classdef FITS < handle
             %                   header.
             %            'DataType' - Image data type. If empty, use image type.
             %                   Default is [].
+            %            'CompressType' which CFITS compression to use (see
+            %                   'help matlab.io.fits.setCompressionType' and
+            %                   https://heasarc.gsfc.nasa.gov/docs/software/fitsio/compression.html).
+            %                   Default is 'NOCOMPRESS'. Among the valid types:
+            %                  'GZIP', 'GZIP1', 'GZIP_1', 'GZIP2', 'GZIP_2',
+            %                  'RICE', 'RICE1', 'RICE_1',
+            %                  'PLIO', 'PLIO1', 'PLIO_1',
+            %                  'HCOMPRESS', 'HCOMPRESS1', 'HCOMPRESS_1'
+            %                  (the latter are lossy, and can use a scale or
+            %                   smooth parameter, for which  we don't bother)
+            %                 All algorithms are said to be lossless for
+            %                 integer images, but PLIO works only for
+            %                 positive integer values.
+            %
             % Output : null
             % Author : Eran Ofek (Jan 2022)
             % Example: FITS.writeSimpleFITS(AI.Image, 'try.fits','Header',AI.HeaderData.Data);
@@ -1044,10 +1058,12 @@ classdef FITS < handle
                 FileName
                 Args.Header cell              = {};
                 Args.DataType                 = [];
+                Args.CompressType  char        = 'NOCOMPRESS';
             end
             
             io.fits.writeSimpleFITS(Image, FileName, 'Header',Args.Header,...
-                                     'DataType',Args.DataType,'UseMatlabIo',true);
+                                     'DataType',Args.DataType,'UseMatlabIo',true,...
+                                     'CompressType',Args.CompressType);
             
         end
         
