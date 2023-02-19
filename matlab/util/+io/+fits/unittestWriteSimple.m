@@ -54,7 +54,13 @@ function result=unittestWriteSimple()
             fprintf('testing image type %s:\n',imtype{i})
             % write simple FITS with automatic casting and BZERO
             %  (Astropack branch fits-u16)
-            FITS.writeSimpleFITS(im, imfile, 'Header',header);
+            FITS.writeSimpleFITS(im, imfile, 'Header',header,...
+                                 'CompressType','NOCOMPRESS');
+            % note: there is little point in trying to compress here: first
+            %  because neither matlab.io.fits.readImg or FITS.read1 will be
+            %  capable of reading, second because compression is lossy for
+            %  single and double
+
             % try to reread the image in two different ways
             try
                 % reread with FITS.read1()
@@ -62,7 +68,10 @@ function result=unittestWriteSimple()
 
                 % this should be 0 if all was ok
                 result1(i)=(numel(find(imReadFITS-im))==0);
-
+            catch
+                fprintf('---image type %s cannot be reread with FITS.read1\n',imtype{i})
+            end
+            try
                 % reread with matlab.io.fits
                 fptr = matlab.io.fits.openFile(imfile);
                 imreadio = matlab.io.fits.readImg(fptr);
@@ -71,12 +80,12 @@ function result=unittestWriteSimple()
                 % also this should be 0 if all was ok
                 result2(i)=(numel(find(imreadio-im))==0);
                 if result1(i) && result2(i)
-                    fprintf('test successful\n')
+                    fprintf('   rereading test successful\n')
                 else
-                    fprintf('test failed\n')
+                    fprintf('   rereading test failed\n')
                 end
             catch
-                fprintf('---image type %s cannot be reread\n',imtype{i})
+                fprintf('---image type %s cannot be reread with matlab.io.fits\n',imtype{i})
             end
         catch
             fprintf('---image type %s cannot be written\n',imtype{i})
