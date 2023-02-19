@@ -234,12 +234,10 @@ classdef AstroHeader < Component
                     error('Read Header from HDF5 file is not available yet');
                 otherwise
                     error('Unknown file Type option');
-            end
-            
-            
-            
+            end                       
         end
         
+       
         function show(Obj)
             % Display all headers in an AstroHeader object
            
@@ -248,6 +246,69 @@ classdef AstroHeader < Component
                 disp(Obj(Iobj).Data);
             end
         end
+        
+        
+        function Result = readFromTextFile(Obj, FileName, Args)
+            % Read single header from text file.
+            % Lines format is: Key = Value / Comment
+            % Input :  - AstroHeader object
+            %          - Text file name
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            %
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : readFromTextFile('header.txt')
+            arguments
+                Obj                     %
+                FileName                %
+                Args.Print = true       %
+            end
+            
+            fid = fopen(FileName, 'rt');
+            while true
+                Line = fgetl(fid);
+
+                % End of file
+                if ~ischar(Line) 
+                    break; 
+                end
+                %fprintf('%s\n', Line);
+
+                % Parse line: Key = Value / Comment
+                % SIMPLE  =                    T / file does conform to FITS standard             
+                S = split(Line, '=');
+                if numel(S) > 1
+                    Key = strip(S{1});
+                    
+                    % Convert key to lowercase and replace invalid chars with '_'
+                    Key = lower(Key);
+                    Key = replace(Key, '-', '_');
+                    
+                    W = split(S{2}, '/');
+                    Value = strip(W{1});
+                    Comment = '';
+                    if numel(W) > 1
+                        Comment = strip(W{2});
+                    end
+                    
+                    if Args.Print
+                        fprintf('%s = %s --- %s\n', Key, Value, Comment);
+                    end
+
+                    % Convert numerical values from string to number
+                    Num = str2num(Value);
+                    if ~isempty(Num)
+                        Value = Num;
+                    end
+
+                    % Insert Key/Value/Comment to AstroHeader object
+                    Obj.insertKey({Key, Value, Comment}, 'end');
+                end
+            end
+            fclose(fid);
+        end        
+        
     end
     
     methods (Static) % static methods

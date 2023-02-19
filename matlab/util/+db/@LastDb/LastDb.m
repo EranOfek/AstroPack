@@ -10,7 +10,11 @@ classdef LastDb < Component
     methods
         function Obj = LastDb(Args)
             % Create new DbQuery obeject
-            % Input : - @TODO - DbConnection object, or database alias from Database.yml.
+            % To use SSH Tunnel, run SSH on local machine, and specify its port:
+            %       ssh -L 63331:localhost:5432 ocs@10.23.1.25
+            %
+            %
+            % Input : - 
             %           * Pairs of ...,key,val,...
             %             The following keys are available:
             %             'Host'      - Host name
@@ -27,15 +31,24 @@ classdef LastDb < Component
             %
             arguments
                 % These arguments are used when both DbQuery and DbCon are NOT set:
-                Args.Host          = 'socsrv'        % Host name or IP address
-                Args.Port          = 5432            % Port number
+                Args.Host          = 'localhost'     % 'socsrv'        % Host name or IP address
+                Args.Port          = 63331           % 5432            % Port number
                 Args.DatabaseName  = 'lastdb'        % Use 'postgres' to when creating databases or for general
                 Args.UserName      = 'postgres'      % User name
-                Args.Password      = 'PassRoot'      % Password
+                Args.Password      = 'postgres'      % 'PassRoot'      % Password
             end
 
+            %
+            Obj.setName('LastDb');
+            
             % Create DbQuery object
+            Obj.msgLog(LogLevel.Info, 'LastDb: connecting to server %s:%d, database: %s, user: %s/%s', Args.Host, Args.Port, Args.DatabaseName, Args.UserName, Args.Password);
             Obj.Query = db.DbQuery('Host', Args.Host, 'Port', Args.Port, 'UserName', 'postgres', 'Password', Args.Password, 'DatabaseName', Args.DatabaseName);
+            
+            % Query database version, to verify that we have a connection
+            pgver = Obj.Query.getDbVersion();
+            Obj.msgLog(LogLevel.Info, 'LastDb: connected, Postgres version: %s', pgver);
+            assert(contains(pgver, 'PostgreSQL'));            
         end
     end
 
@@ -91,6 +104,8 @@ classdef LastDb < Component
                 Q                   %
                 TN                  %
             end
+
+            Obj.msgLog(LogLevel.Info, 'addCommonImageColumns started');
 
             % Columns with index
             Q.addColumn(TN, 'filename', 'varchar(256)', '', 'index', true);
@@ -151,6 +166,7 @@ classdef LastDb < Component
             Q.addColumn(TN, 'focus',    'single', 'default 0');
             Q.addColumn(TN, 'prvfocus', 'single', 'default 0');
 
+            Obj.msgLog(LogLevel.Info, 'addCommonImageColumns done');
             Result = true;
         end
 
@@ -180,14 +196,17 @@ classdef LastDb < Component
             [Path,FName,Ext] = fileparts(FileName);
             FName = strcat(FName, Ext);
 
-            Q.insert(H, 'TableName', 'raw_images', 'ColumnsOnly', true);
+            % Add field to header
+            AH.insertKey({'filename', FName, 'Image file name'}, 'end');
+            
+            % Insert header to table
+            Q.insert(AH, 'TableName', 'raw_images', 'ColumnsOnly', true);
             Result = true;
         end
-
-
-
+        
     end
 
+    
     methods(Static)
         Result = unitTest()
             % LastDb Unit-Test
