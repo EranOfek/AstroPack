@@ -16,8 +16,8 @@ function Image = directInjectSources (Image0, Cat, Scaling, PSF)
 
     % image summation methods: 
     
-    Method = 'Pad';     % 'Pad'     : summ full matrices
-                        % 'Regular' : add the stamp values in cycles
+     Method = 'Regular'; % 'Pad'     : summ full matrices
+                         % 'Regular' : add the PSF stamp values in cycles
         
     % rescale the initial image to the PSF scale:
     
@@ -65,7 +65,8 @@ function Image = directInjectSources (Image0, Cat, Scaling, PSF)
             Src = padarray(Src,[0 PadYL],'pre'); 
             Src = padarray(Src,[0 PadYR],'post');
 
-            Im = Im + Src;
+            Im = Im + Src .* Scaling^2;  
+            % NB! "imresize" scales the sum of the counts as Scale^2, so we need to scale the added signal
         
         elseif strcmp(Method,'Regular')
             
@@ -73,7 +74,9 @@ function Image = directInjectSources (Image0, Cat, Scaling, PSF)
 
                 for iY = 1:1:SzY
                     
-                    Im( Xleft+iX-1, Yleft+iY-1 ) = Im( Xleft+iX-1, Yleft+iY-1) + PSF(iX, iY, Isrc);
+                    Im( Xleft+iX-1, Yleft+iY-1 ) = Im( Xleft+iX-1, Yleft+iY-1) + ...
+                        PSF(iX, iY, Isrc) .* Cat(Isrc,3) .* Scaling^2; 
+                    % NB! "imresize" scales the sum of the counts as Scale^2, so we need to scale the added signal
                     
                 end
                 
