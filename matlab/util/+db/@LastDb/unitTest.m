@@ -14,6 +14,11 @@ function Result = unitTest()
     AH.readFromTextFile(FileName);   
     
     % Create LastDb object with default connection parameters
+    TestSSH = true;
+    if TestSSH
+        db.LastDb.setupSSH();
+    end
+    
     LDB = db.LastDb();
     
     % Create tables (optional)

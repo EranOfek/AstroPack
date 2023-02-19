@@ -172,35 +172,6 @@ classdef LastDb < Component
             Obj.msgLog(LogLevel.Info, 'addCommonImageColumns done');
             Result = true;
         end
-
-        
-        function Result = setupSSH(Obj, Args)
-            % Setup SSH Tunnel. DO NOT USE YET, we need to solve how to send
-            % password to the command line.
-            % Input :  - LastDb object
-            %          - Q - DbQuery object (should be Obj.Query)
-            %          - TN - Table name
-            %          * Pairs of ...,key,val,...
-            %            The following keys are available:
-            % Output  : True on success
-            % Author  : Chen Tishler (02/2023)
-            % Example : createTables()
-            arguments
-                Obj                         %
-                Args.Host = 'localhost'     %
-                Args.LocalPort = 63331      % Image file name
-            end
-            
-            Cmd = 'ssh -L 63331:localhost:5432 ocs@10.23.1.25';
-
-            Obj.msgLog(LogLevel.Info, 'psql: system( %s )', Cmd);
-            [Status, Output] = system(Cmd);
-            Obj.msgLog(LogLevel.Info, 'psql: %d', Status);
-            Obj.msgLog(LogLevel.Info, 'psql: %s', Output);
-            if Status ~= 0
-                Obj.msgLog(LogLevel.Error, 'runPsql: FAILED to execute, make sure that psql is found on your PATH: %s', Cmd);
-            end            
-        end
         
     end
 
@@ -293,6 +264,56 @@ classdef LastDb < Component
         
     end
 
+    
+    methods(Static)
+        function Result = setupSSH(Args)
+            % Setup SSH Tunnel. DO NOT USE YET, we need to solve how to send
+            % password to the command line.
+            % Input :  - LastDb object
+            %          - Q - DbQuery object (should be Obj.Query)
+            %          - TN - Table name
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : 
+            % 'ssh -L 63331:localhost:5432 ocs@10.23.1.25 &';
+            arguments
+                Args.Host = 'localhost'         %
+                Args.Port = 63331               % Image file name
+                Args.RemoteHost = '10.23.1.25';
+                Args.RemotePort = 5432;
+                Args.User = 'ocs';
+                Args.Password = 'physics';
+            end
+            
+            if tools.os.iswindows()                        
+                Cmd = sprintf('ssh -L %d:%s:%d %s@%s', Args.Port, Args.Host, Args.RemotePort, Args.User, Args.RemoteHost);
+                io.msgLog(LogLevel.Info, 'Execute and enter password: %s', Cmd);
+                Cmd = [];
+            else
+                if ~isempty(Args.Password)
+                    Cmd = sprintf('sshpass -p %s ssh -L %d:%s:%d %s@%s &', Args.Password, Args.Port, Args.Host, Args.RemotePort, Args.User, Args.RemoteHost);             
+                else
+                    Cmd = sprintf('ssh -L %d:%s:%d %s@%s &', Args.Port, Args.Host, Args.RemotePort, Args.User, Args.RemoteHost);
+                    io.msgLog(LogLevel.Info, 'Execute and enter password: %s', Cmd);
+                    Cmd = [];
+                end
+            end
+
+            %
+            if ~isempty(Cmd)
+                io.msgLog(LogLevel.Info, 'setupSSH: system( %s )', Cmd);
+                [Status, Output] = system(Cmd);
+                io.msgLog(LogLevel.Info, 'setupSSH: %d', Status);
+                io.msgLog(LogLevel.Info, 'setupSSH: %s', Output);
+                if Status ~= 0
+                    io.msgLog(LogLevel.Error, 'setupSSH: FAILED to execute, make sure that psql is found on your PATH: %s', Cmd);
+                end            
+            end
+        end        
+    end
+    
     
     methods(Static)
         Result = unitTest()
