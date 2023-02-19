@@ -30,7 +30,7 @@ function Result = specWeight(PSFdata, RadSrc, Rad, Spec)
     end
     
     Result  = zeros( Nx, Ny, NSrc );
-    
+        
     % make weighted PSFs for each of the sources:
     
     for ISrc = 1:1:NSrc
@@ -47,13 +47,13 @@ function Result = specWeight(PSFdata, RadSrc, Rad, Spec)
                 
         for Iw = 1:1:Nwave
             
-            Result(:, :, ISrc) = Result(:, :, ISrc) + PSFint(:, :, Iw) .* Spec(ISrc,Iw);
+            Result( :, :, ISrc) = Result( :, :, ISrc) + PSFint(:, :, Iw) .* Spec(ISrc,Iw);
             
         end
         
         % normalize the PSF to unity:
         
-        Result(:, :, ISrc) = Result(:, :, ISrc) / sum( Result(:, :, ISrc), 'all' );
+        Result( :, :, ISrc) = Result( :, :, ISrc) / sum( Result( :, :, ISrc), 'all' );
                         
     end
 
