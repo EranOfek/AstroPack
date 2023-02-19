@@ -13,7 +13,11 @@ function writeSimpleFITS(Image, FileName, Args)
     %            'DataType' - Image data type. If empty, use image type.
     %                   Default is [].
     %            'UseMatlabIo' use matlab CFITS instead of fwrite. Default
-    %                   true
+    %                   is true
+    %            'CompressType' which CFITS compression to use (see
+    %                   'help matlab.io.fits.setComplessionType').
+    %                   Default is 'NOCOMPRESS'. Only effective if
+    %                   UseMatlabIo=true.
     % Output : null
     % Author : Eran Ofek (Jan 2022), Enrico Segre (Feb 2023)
     % Example: io.fits.writeSimpleFITS(AI.Image, 'try.fits','Header',AI.HeaderData.Data);
@@ -24,6 +28,7 @@ function writeSimpleFITS(Image, FileName, Args)
         Args.Header cell              = {};
         Args.DataType                 = [];
         Args.UseMatlabIo              = true;
+        Args.CompressType    char     = 'NOCOMPRESS';
     end
 
     if isempty(Args.DataType)
@@ -75,6 +80,9 @@ function writeSimpleFITS(Image, FileName, Args)
         % Create new FITS file
         Fptr = matlab.io.fits.createFile(FileName);
         
+        % set eventual compression (and error out if unrecognized)
+        matlab.io.fits.setCompressionType(Fptr,upper(Args.CompressType))
+
         % create Image
         matlab.io.fits.createImg(Fptr, NewDataType, size(Image));
 
