@@ -42,8 +42,12 @@ function Result = specWeight(PSFdata, RadSrc, Rad, Spec)
         
         PSFint = zeros(Nx, Ny, Nwave); 
                         
-        PSFint(:,:,:) = ( 1. / ( Rad(Ir+1) - Rad(Ir) ) ) * ...
-            ( PSFdata(:,:,:,Ir) * ( Rad(Ir+1)-RadSrc(ISrc) ) + PSFdata(:,:,:,Ir+1) * ( RadSrc(ISrc)-Rad(Ir) ) ) ;
+        if Ir < size(Rad,2)                     % if we are not at the last point of the grid, interpolate
+            PSFint(:,:,:) = ( 1. / ( Rad(Ir+1) - Rad(Ir) ) ) * ...
+                ( PSFdata(:,:,:,Ir) * ( Rad(Ir+1)-RadSrc(ISrc) ) + PSFdata(:,:,:,Ir+1) * ( RadSrc(ISrc)-Rad(Ir) ) ) ;
+        else
+            PSFint(:,:,:) = PSFdata(:,:,:,Ir);  % do not extrapolate over the last point of the grid 
+        end
                 
         for Iw = 1:1:Nwave
             
