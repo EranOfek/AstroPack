@@ -33,7 +33,7 @@ classdef LastDb < Component
                 % These arguments are used when both DbQuery and DbCon are NOT set:
                 Args.Host          = 'localhost'     % 'socsrv'        % Host name or IP address
                 Args.Port          = 63331           % 5432            % Port number
-                Args.DatabaseName  = 'lastdb'        % Use 'postgres' to when creating databases or for general
+                Args.DatabaseName  = 'lastdb'        % 'last_operational'
                 Args.UserName      = 'postgres'      % User name
                 Args.Password      = 'postgres'      % 'PassRoot'      % Password
             end
@@ -130,10 +130,10 @@ classdef LastDb < Component
             Q.addColumn(TN, 'saturval', 'single', 'default 0');
             Q.addColumn(TN, 'nonlin',   'single', 'default 0');
             Q.addColumn(TN, 'binx',     'smallint', 'default 0');
-            Q.addColumn(TN, 'niny',     'smallint', 'default 0');
+            Q.addColumn(TN, 'biny',     'smallint', 'default 0');
             Q.addColumn(TN, 'camname',  'varchar(80)', "default ''");
             Q.addColumn(TN, 'camtemp',  'single', 'default 0');
-            Q.addColumn(TN, 'camcool',  'single', 'default 0');      % what is this?
+            Q.addColumn(TN, 'camcool',  'single', 'default 0');
             Q.addColumn(TN, 'cammode',  'smallint', 'default 0');
             Q.addColumn(TN, 'camgain',  'smallint', 'default 0');
             Q.addColumn(TN, 'camoffs',  'smallint', 'default 0');
@@ -142,7 +142,7 @@ classdef LastDb < Component
             Q.addColumn(TN, 'obslat',   'single', 'default 0');
             Q.addColumn(TN, 'obsalt',   'single', 'default 0');
             Q.addColumn(TN, 'lst',      'single', 'default 0');
-            Q.addColumn(TN, 'date_obs', 'varchar', "default ''");
+            Q.addColumn(TN, 'date_obs', 'varchar(80)', "default ''");
 
             %
             Q.addColumn(TN, 'm_ra',     'double', 'default 0');
@@ -165,17 +165,18 @@ classdef LastDb < Component
             Q.addColumn(TN, 'mnttemp',  'single', 'default 0');
             Q.addColumn(TN, 'focus',    'single', 'default 0');
             Q.addColumn(TN, 'prvfocus', 'single', 'default 0');
+            
+            % Additional
+            Q.addColumn(TN, 'procstat', 'varchar(256)', "default ''", 'Comment', 'Additional user data');
 
             Obj.msgLog(LogLevel.Info, 'addCommonImageColumns done');
             Result = true;
         end
 
-    end
-
-
-    methods
-        function Result = addRawImage(Obj, FileName, AH)
-            % Add/update common image columns to table
+        
+        function Result = setupSSH(Obj, Args)
+            % Setup SSH Tunnel. DO NOT USE YET, we need to solve how to send
+            % password to the command line.
             % Input :  - LastDb object
             %          - Q - DbQuery object (should be Obj.Query)
             %          - TN - Table name
@@ -185,22 +186,108 @@ classdef LastDb < Component
             % Author  : Chen Tishler (02/2023)
             % Example : createTables()
             arguments
+                Obj                         %
+                Args.Host = 'localhost'     %
+                Args.LocalPort = 63331      % Image file name
+            end
+            
+            Cmd = 'ssh -L 63331:localhost:5432 ocs@10.23.1.25';
+
+            Obj.msgLog(LogLevel.Info, 'psql: system( %s )', Cmd);
+            [Status, Output] = system(Cmd);
+            Obj.msgLog(LogLevel.Info, 'psql: %d', Status);
+            Obj.msgLog(LogLevel.Info, 'psql: %s', Output);
+            if Status ~= 0
+                Obj.msgLog(LogLevel.Error, 'runPsql: FAILED to execute, make sure that psql is found on your PATH: %s', Cmd);
+            end            
+        end
+        
+    end
+
+
+    methods
+        function Result = addRawImage(Obj, FileName, AH, AddCols)
+            % Insert RAW image columns to raw_images table
+            % Input :  - LastDb object
+            %          - FileName
+            %          - AstroHeader
+            %          - Optionally additional columns in struct
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : createTables()
+            arguments
                 Obj                 %
                 FileName            % Image file name
                 AH                  % AstroHeader
+                AddCols = []        % struct
+            end
+
+            Result = Obj.addImage('raw_images', FileName, AH, AddCols);
+        end
+        
+        
+        function Result = addProcImage(Obj, FileName, AH, AddCols)
+            % Insert PROC image columns to table
+            % Input :  - LastDb object
+            %          - FileName
+            %          - AstroHeader
+            %          - Optionally additional columns in struct
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : createTables()
+            arguments
+                Obj                 %
+                FileName            % Image file name
+                AH                  % AstroHeader
+                AddCols = []        % struct
+            end
+
+            Result = Obj.addImage('proc_images', FileName, AH, AddCols);
+        end
+        
+                
+        function Result = addImage(Obj, TableName, FileName, AH, AddCols)
+            % Insert AstroHeader to specified table.
+            % Input :  - LastDb object
+            %          - TableName
+            %          - FileName
+            %          - AstroHeader
+            %          - struct - Optionally additional columns. MUST BE lowercase!
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : createTables()
+            arguments
+                Obj                 %
+                TableName           %
+                FileName            % Image file name
+                AH                  % AstroHeader
+                AddCols = []        % struct
             end
 
             Q = Obj.Query;
 
-            % Extract file name from full path
-            [Path,FName,Ext] = fileparts(FileName);
-            FName = strcat(FName, Ext);
-
-            % Add field to header
-            AH.insertKey({'filename', FName, 'Image file name'}, 'end');
+            % Add FileName to header
+            AH.insertKey({'filename', FileName, 'Image file name'}, 'end');
             
-            % Insert header to table
-            Q.insert(AH, 'TableName', 'raw_images', 'ColumnsOnly', true);
+            % Add additional columns from struct to AstroHeader
+            if ~isempty(AddCols)
+                Fields = fieldnames(AddCols);
+                for i=1:numel(Fields)
+                    Field = Fields{i};
+                    Value = AddCols.(Field);
+                    Field = lower(Field);
+                    AH.insertKey({Field, Value, ''}, 'end');
+                end
+            end
+            
+            % Insert AstroHeader to table
+            Q.insert(AH, 'TableName', TableName, 'ColumnsOnly', true);
             Result = true;
         end
         

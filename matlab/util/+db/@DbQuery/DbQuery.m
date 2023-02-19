@@ -2923,16 +2923,16 @@ classdef DbQuery < Component
                     end
                 end
                 
-                io.msgLog(LogLevel.Info, 'psql: system( %s )', Cmd);
+                Obj.msgLog(LogLevel.Info, 'psql: system( %s )', Cmd);
                 [Status, Output] = system(Cmd);
-                io.msgLog(LogLevel.Info, 'psql: %d', Status);
-                io.msgLog(LogLevel.Info, 'psql: %s', Output);
+                Obj.msgLog(LogLevel.Info, 'psql: %d', Status);
+                Obj.msgLog(LogLevel.Info, 'psql: %s', Output);
                 if Status ~= 0
                     Obj.msgLog(LogLevel.Error, 'runPsql: FAILED to execute, make sure that psql is found on your PATH: %s', Cmd);
                 end
                 Result = true;
             catch Ex
-                io.msgLogEx(LogLevel.Info, Ex, 'psql');
+                Obj.msgLogEx(LogLevel.Info, Ex, 'psql');
             end
         end
                 

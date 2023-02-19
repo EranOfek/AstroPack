@@ -7,6 +7,6 @@ UserName        : 'postgres'        # Login user
 Password        : '???'             # Login password
 Port            : 5432              # Port number, 5432 for PostgresV13, 5433 for V14
 ServerSharePath    : '/var/samba/pgshare'   # Linux
-MountSharePath     : '/media/gauss_pgshare' # Linux
+MountSharePath     : '/media/socsrv_pgshare' # Linux
 WinMountSharePath  : 'S:/'                  # Windows (run: net use S: \\gauss\pgshare)
 
