@@ -3,10 +3,10 @@ function Result = specWeight(PSFdata, RadSrc, Rad, Spec)
 % Make source PSFs at certain pixel distances on the detector weighted with the given spectra of the sources
 % Package: imUtil.psf
 % Description: make source PSFs at certain pixel distances on the detector weighted with the given spectra of the sources
-% Input  : - PSFdata: a 4-D matrix of experimental PSF: 2D at given radius and wavelength
+% Input  : - PSFdata: a 4-D matrix of experimental PSF: (X, Y, wavelength, radius) 
 %          - RadSrc: an array of radial distances of the sources from the detector tile reference point
 %          - Rad: an array of radial distances sampled on the lab PSFs 
-%          - Spec: 3D array of source spectra 
+%          - Spec (Src, wavelength): a 2D array of source spectra 
 % Output : - A 3-D matrix of spectrum-weighted PSFs
 %            
 % Tested : Matlab R2020b
@@ -15,11 +15,11 @@ function Result = specWeight(PSFdata, RadSrc, Rad, Spec)
 
     % check input parameters:
 
-    NSrc    = size(Spec,1);
-    Nwave   = size(Spec,2);
+    NSrc    = size(Spec,1); 
+    Nwave   = size(Spec,2); 
 
-    Nx      = size(PSFdata,1);
-    Ny      = size(PSFdata,2);
+    Nx      = size(PSFdata,1); 
+    Ny      = size(PSFdata,2); 
     
     if size(PSFdata,3) ~= Nwave
         fprintf('Warning: Wavelength dimensions do not match!\n');
@@ -48,6 +48,7 @@ function Result = specWeight(PSFdata, RadSrc, Rad, Spec)
         else
             PSFint(:,:,:) = PSFdata(:,:,:,Ir);  % do not extrapolate over the last point of the grid 
         end
+        
                 
         for Iw = 1:1:Nwave
             

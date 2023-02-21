@@ -50,7 +50,7 @@ function readULTRASATlabDB
             % open the data file
             FileID = fopen(DataFile,'r');
 
-            % skip first 10 lines in a datafile
+            % skip the first 10 lines in a datafile
             for Skip = 1:10
                 Empty = fgets(FileID);
             end

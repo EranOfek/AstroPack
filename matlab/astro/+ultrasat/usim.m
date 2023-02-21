@@ -14,11 +14,12 @@ function usimImage =  usim ( Args )
 % Output : - usimImage (simulated AstroImage object, FITS file output, RAW file output)           
 % Tested : Matlab R2020b
 %     By : A. Krassilchtchikov et al.   Feb 2023
-% Example: Sim = usim (Cat, Spec, Resolution, RotAng, Noise, InjMethod, OutputType); 
+% Example: Sim = ultrasat.usim('InCat',10) 
+% put in 10 sources at random positions with the default spectrum and flux  
   
     arguments  
         
-        Args.InCat           =  10000;       % if = N, generate N random fake sources
+        Args.InCat           =  100;         % if = N, generate N random fake sources
                                              % if an AstroCat object, use sources from this object
         
         Args.InSpec          = {'BB', 3500}; % parameters of the source spectra: 
@@ -62,9 +63,9 @@ function usimImage =  usim ( Args )
     Rsun  = 6.957e10;    % [cm] Solar radius
     Lsun  = 3.846e33;    % [erg/s] Solar luminosity
     
-    Rstar = 1. * Rsun;   % stellar radius in Rsun %par
+    Rstar = 1. * Rsun;   % stellar radius in Rsun % par -- put into Args? 
     
-    Dstar = 10;          % [pc] stellar distance  %par
+    Dstar = 10;          % [pc] stellar distance  % par -- put into Args? 
     
     % PSF database parameters
                
@@ -94,7 +95,9 @@ function usimImage =  usim ( Args )
     % load the matlab object with the ULTRASAT properties:
     
     UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');   
-    load(UP_db,'UP'); % is it possible to read just some of the UP structures: UP.TotT and, possibly, UP.Specs? 
+    load(UP_db,'UP'); 
+    % is it possible to read just some of the UP structures: UP.TotT and, possibly, UP.Specs?
+    % we can save them as separate .mat objects and read those 
     
     % make a blank image
     
@@ -123,12 +126,8 @@ function usimImage =  usim ( Args )
         RA      = zeros(NumSrc,1);  % will be determined below if a WCS is set
         DEC     = zeros(NumSrc,1);  % -//-
         CatFlux = zeros(NumSrc,1);  % will be determined below from spectra * transmission 
-        % CatFlux = 100 * rand(Nfake,1); 
-
+ 
         Cat = [CatX CatY CatFlux RA DEC];
-
-        % NOTE: what is denoted 'MAG' here will actually be a count rate below!
-        Args.InCat = AstroCatalog({Cat},'ColNames',{'X','Y','MAG','RAJ2000','DEJ2000'},'HDU',1);
         
         fprintf('%d%s\n',NumSrc,' random sources generated');
         
@@ -416,7 +415,7 @@ function usimImage =  usim ( Args )
    
     % make a source-less AstroImage object (do we really need it?)
         
-    usimImage(1) = AstroImage( {Image0} ,'Back',{Emptybox}, 'Var',{Emptybox}, 'Cat',{Args.InCat.Catalog}); 
+    usimImage(1) = AstroImage( {Image0} ,'Back',{Emptybox}, 'Var',{Emptybox}); 
     
     % add some keywords and values to the image header % TBD
     funHeader(usimImage(1), @insertKey, {'DATEOBS','2003-07-24T18:28:58','';'EXPTIME',60,''}); 
@@ -432,7 +431,9 @@ function usimImage =  usim ( Args )
     end
         
     if strcmp( Args.OutType,'AstroImage') 
-              
+        
+        % NOTE: what is denoted 'MAG' here will actually be a count rate below!
+        Args.InCat = AstroCatalog({Cat},'ColNames',{'X','Y','MAG','RAJ2000','DEJ2000'},'HDU',1);
         % make a new AstroImage with sources injected and write it to FITS file
         usimImage(2) = AstroImage( {Image1} ,'Back',{Emptybox}, 'Var',{Emptybox},'Cat',{Args.InCat.Catalog});
         
@@ -444,15 +445,18 @@ function usimImage =  usim ( Args )
         
     else % all the possible outputs
         
+        % NOTE: what is denoted 'MAG' here will actually be a count rate below!
+        Args.InCat = AstroCatalog({Cat},'ColNames',{'X','Y','MAG','RAJ2000','DEJ2000'},'HDU',1);
+        % make a new AstroImage with sources injected and write it to FITS file
         usimImage(2) = AstroImage( {Image1} ,'Back',{Emptybox}, 'Var',{Emptybox},'Cat',{Args.InCat.Catalog});
         
-        imUtil.util.fits.fitswrite(Image1','!/home/sasha/SimImage.fits');
+        imUtil.util.fits.fitswrite(Image1,'!/home/sasha/SimImage.fits');
         % imUtil.util.fits.fitswrite(Image1-Image0,'!/home/sasha/SimDiffImage.fits'); % make a difference image
         
-        % NB: when writing to a fits image, need to transpose the image!
+        % NB: when writing to a fits image, need to transpose the image?
     
     end
 
     fprintf('Simulation completed. See the generated images!\n')
     
-ionend
+end
