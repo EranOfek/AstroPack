@@ -33,6 +33,7 @@ function [Result,LC] = zp_external(Obj, Args)
 %         
         Args.CreateNewObj logical         = true;
         Args.UpdateMagFields              = {'FLUX_PSF'};
+        Args.ZP                           = 25;
     end
     
     if Args.CreateNewObj
@@ -82,7 +83,7 @@ function [Result,LC] = zp_external(Obj, Args)
         
         InstFlux(~FlagGoodRef)  = NaN;
         
-        InstMag                 = 25 -2.5.*log10(InstFlux);
+        InstMag                 = Args.ZP -2.5.*log10(InstFlux);
         
         
         
@@ -92,6 +93,8 @@ function [Result,LC] = zp_external(Obj, Args)
         StdZP    = tools.math.stat.rstd(DeltaMag,2);
         ErrZP    = StdZP./sqrt(Nref);
         FluxZP   = 10.^(0.4.*(ZP));
+        
+        RealZP = Args.ZP - ZP;
         
        
         for Iupdate=1:1:Nupdate
@@ -105,7 +108,8 @@ function [Result,LC] = zp_external(Obj, Args)
                    Result(Iobj).Data.Chi2dof(:,1),...
                    Result(Iobj).Data.FLAGS(:,1),...
                    Result(Iobj).Data.FLAG_POS(:,1),...
-                   Result(Iobj).Data.MAG_PSF(:,1) ]];
+                   Result(Iobj).Data.MAG_PSF(:,1)]];
+                   
         
         end
     end
