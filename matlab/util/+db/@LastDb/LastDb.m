@@ -10,7 +10,11 @@ classdef LastDb < Component
     methods
         function Obj = LastDb(Args)
             % Create new DbQuery obeject
-            % Input : - @TODO - DbConnection object, or database alias from Database.yml.
+            % To use SSH Tunnel, run SSH on local machine, and specify its port:
+            %       ssh -L 63331:localhost:5432 ocs@10.23.1.25
+            %
+            %
+            % Input : - 
             %           * Pairs of ...,key,val,...
             %             The following keys are available:
             %             'Host'      - Host name
@@ -27,15 +31,24 @@ classdef LastDb < Component
             %
             arguments
                 % These arguments are used when both DbQuery and DbCon are NOT set:
-                Args.Host          = 'socsrv'        % Host name or IP address
-                Args.Port          = 5432            % Port number
-                Args.DatabaseName  = 'lastdb'        % Use 'postgres' to when creating databases or for general
+                Args.Host          = 'localhost'     % 'socsrv'        % Host name or IP address
+                Args.Port          = 63331           % 5432            % Port number
+                Args.DatabaseName  = 'lastdb'        % 'last_operational'
                 Args.UserName      = 'postgres'      % User name
-                Args.Password      = 'PassRoot'      % Password
+                Args.Password      = 'postgres'      % 'PassRoot'      % Password
             end
 
+            %
+            Obj.setName('LastDb');
+            
             % Create DbQuery object
+            Obj.msgLog(LogLevel.Info, 'LastDb: connecting to server %s:%d, database: %s, user: %s/%s', Args.Host, Args.Port, Args.DatabaseName, Args.UserName, Args.Password);
             Obj.Query = db.DbQuery('Host', Args.Host, 'Port', Args.Port, 'UserName', 'postgres', 'Password', Args.Password, 'DatabaseName', Args.DatabaseName);
+            
+            % Query database version, to verify that we have a connection
+            pgver = Obj.Query.getDbVersion();
+            Obj.msgLog(LogLevel.Info, 'LastDb: connected, Postgres version: %s', pgver);
+            assert(contains(pgver, 'PostgreSQL'));            
         end
     end
 
@@ -92,6 +105,8 @@ classdef LastDb < Component
                 TN                  %
             end
 
+            Obj.msgLog(LogLevel.Info, 'addCommonImageColumns started');
+
             % Columns with index
             Q.addColumn(TN, 'filename', 'varchar(256)', '', 'index', true);
             Q.addColumn(TN, 'ra',       'double', 'default 0', 'index', true);
@@ -115,10 +130,10 @@ classdef LastDb < Component
             Q.addColumn(TN, 'saturval', 'single', 'default 0');
             Q.addColumn(TN, 'nonlin',   'single', 'default 0');
             Q.addColumn(TN, 'binx',     'smallint', 'default 0');
-            Q.addColumn(TN, 'niny',     'smallint', 'default 0');
+            Q.addColumn(TN, 'biny',     'smallint', 'default 0');
             Q.addColumn(TN, 'camname',  'varchar(80)', "default ''");
             Q.addColumn(TN, 'camtemp',  'single', 'default 0');
-            Q.addColumn(TN, 'camcool',  'single', 'default 0');      % what is this?
+            Q.addColumn(TN, 'camcool',  'single', 'default 0');
             Q.addColumn(TN, 'cammode',  'smallint', 'default 0');
             Q.addColumn(TN, 'camgain',  'smallint', 'default 0');
             Q.addColumn(TN, 'camoffs',  'smallint', 'default 0');
@@ -127,7 +142,7 @@ classdef LastDb < Component
             Q.addColumn(TN, 'obslat',   'single', 'default 0');
             Q.addColumn(TN, 'obsalt',   'single', 'default 0');
             Q.addColumn(TN, 'lst',      'single', 'default 0');
-            Q.addColumn(TN, 'date_obs', 'varchar', "default ''");
+            Q.addColumn(TN, 'date_obs', 'varchar(80)', "default ''");
 
             %
             Q.addColumn(TN, 'm_ra',     'double', 'default 0');
@@ -150,19 +165,24 @@ classdef LastDb < Component
             Q.addColumn(TN, 'mnttemp',  'single', 'default 0');
             Q.addColumn(TN, 'focus',    'single', 'default 0');
             Q.addColumn(TN, 'prvfocus', 'single', 'default 0');
+            
+            % Additional
+            Q.addColumn(TN, 'procstat', 'varchar(256)', "default ''", 'Comment', 'Additional user data');
 
+            Obj.msgLog(LogLevel.Info, 'addCommonImageColumns done');
             Result = true;
         end
-
+        
     end
 
 
     methods
-        function Result = addRawImage(Obj, FileName, AH)
-            % Add/update common image columns to table
+        function Result = addRawImage(Obj, FileName, AH, AddCols)
+            % Insert RAW image columns to raw_images table
             % Input :  - LastDb object
-            %          - Q - DbQuery object (should be Obj.Query)
-            %          - TN - Table name
+            %          - FileName
+            %          - AstroHeader
+            %          - Optionally additional columns in struct
             %          * Pairs of ...,key,val,...
             %            The following keys are available:
             % Output  : True on success
@@ -172,22 +192,129 @@ classdef LastDb < Component
                 Obj                 %
                 FileName            % Image file name
                 AH                  % AstroHeader
+                AddCols = []        % struct
+            end
+
+            Result = Obj.addImage('raw_images', FileName, AH, AddCols);
+        end
+        
+        
+        function Result = addProcImage(Obj, FileName, AH, AddCols)
+            % Insert PROC image columns to table
+            % Input :  - LastDb object
+            %          - FileName
+            %          - AstroHeader
+            %          - Optionally additional columns in struct
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : createTables()
+            arguments
+                Obj                 %
+                FileName            % Image file name
+                AH                  % AstroHeader
+                AddCols = []        % struct
+            end
+
+            Result = Obj.addImage('proc_images', FileName, AH, AddCols);
+        end
+        
+                
+        function Result = addImage(Obj, TableName, FileName, AH, AddCols)
+            % Insert AstroHeader to specified table.
+            % Input :  - LastDb object
+            %          - TableName
+            %          - FileName
+            %          - AstroHeader
+            %          - struct - Optionally additional columns. MUST BE lowercase!
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : createTables()
+            arguments
+                Obj                 %
+                TableName           %
+                FileName            % Image file name
+                AH                  % AstroHeader
+                AddCols = []        % struct
             end
 
             Q = Obj.Query;
 
-            % Extract file name from full path
-            [Path,FName,Ext] = fileparts(FileName);
-            FName = strcat(FName, Ext);
-
-            Q.insert(H, 'TableName', 'raw_images', 'ColumnsOnly', true);
+            % Add FileName to header
+            AH.insertKey({'filename', FileName, 'Image file name'}, 'end');
+            
+            % Add additional columns from struct to AstroHeader
+            if ~isempty(AddCols)
+                Fields = fieldnames(AddCols);
+                for i=1:numel(Fields)
+                    Field = Fields{i};
+                    Value = AddCols.(Field);
+                    Field = lower(Field);
+                    AH.insertKey({Field, Value, ''}, 'end');
+                end
+            end
+            
+            % Insert AstroHeader to table
+            Q.insert(AH, 'TableName', TableName, 'ColumnsOnly', true);
             Result = true;
         end
-
-
-
+        
     end
 
+    
+    methods(Static)
+        function Result = setupSSH(Args)
+            % Setup SSH Tunnel. DO NOT USE YET, we need to solve how to send
+            % password to the command line.
+            % Input :  - LastDb object
+            %          - Q - DbQuery object (should be Obj.Query)
+            %          - TN - Table name
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : 
+            % 'ssh -L 63331:localhost:5432 ocs@10.23.1.25 &';
+            arguments
+                Args.Host = 'localhost'         %
+                Args.Port = 63331               % Image file name
+                Args.RemoteHost = '10.23.1.25';
+                Args.RemotePort = 5432;
+                Args.User = 'ocs';
+                Args.Password = 'physics';
+            end
+            
+            if tools.os.iswindows()                        
+                Cmd = sprintf('ssh -L %d:%s:%d %s@%s', Args.Port, Args.Host, Args.RemotePort, Args.User, Args.RemoteHost);
+                io.msgLog(LogLevel.Info, 'Execute and enter password: %s', Cmd);
+                Cmd = [];
+            else
+                if ~isempty(Args.Password)
+                    Cmd = sprintf('sshpass -p %s ssh -L %d:%s:%d %s@%s &', Args.Password, Args.Port, Args.Host, Args.RemotePort, Args.User, Args.RemoteHost);             
+                else
+                    Cmd = sprintf('ssh -L %d:%s:%d %s@%s &', Args.Port, Args.Host, Args.RemotePort, Args.User, Args.RemoteHost);
+                    io.msgLog(LogLevel.Info, 'Execute and enter password: %s', Cmd);
+                    Cmd = [];
+                end
+            end
+
+            %
+            if ~isempty(Cmd)
+                io.msgLog(LogLevel.Info, 'setupSSH: system( %s )', Cmd);
+                [Status, Output] = system(Cmd);
+                io.msgLog(LogLevel.Info, 'setupSSH: %d', Status);
+                io.msgLog(LogLevel.Info, 'setupSSH: %s', Output);
+                if Status ~= 0
+                    io.msgLog(LogLevel.Error, 'setupSSH: FAILED to execute, make sure that psql is found on your PATH: %s', Cmd);
+                end            
+            end
+        end        
+    end
+    
+    
     methods(Static)
         Result = unitTest()
             % LastDb Unit-Test

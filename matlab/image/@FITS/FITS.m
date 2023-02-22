@@ -1023,8 +1023,11 @@ classdef FITS < handle
         
         function writeSimpleFITS(Image, FileName, Args)
             % Write a simple (single HDU) FITS file to disk
-            % using io.fits.writeSimpleFITS
-            %   This function is a few times faster compared with CFITSIO routines.
+            % using io.fits.writeSimpleFITS, which streamlines correctly
+            %   the CFITSIO routines, and is thus several times faster
+            %   than FITS.write. That routine also takes care of setting
+            %   BZERO properly for writing unsigned images with signed
+            %   types.
             % Input  : - An image data (e.g., matrix).
             %          - File name in which to write the FITS file.
             %          * ...,key,val,...
@@ -1032,6 +1035,20 @@ classdef FITS < handle
             %                   header.
             %            'DataType' - Image data type. If empty, use image type.
             %                   Default is [].
+            %            'CompressType' which CFITS compression to use (see
+            %                   'help matlab.io.fits.setCompressionType' and
+            %                   https://heasarc.gsfc.nasa.gov/docs/software/fitsio/compression.html).
+            %                   Default is 'NOCOMPRESS'. Among the valid types:
+            %                  'GZIP', 'GZIP1', 'GZIP_1', 'GZIP2', 'GZIP_2',
+            %                  'RICE', 'RICE1', 'RICE_1',
+            %                  'PLIO', 'PLIO1', 'PLIO_1',
+            %                  'HCOMPRESS', 'HCOMPRESS1', 'HCOMPRESS_1'
+            %                  (the latter are lossy, and can use a scale or
+            %                   smooth parameter, for which  we don't bother)
+            %                 All algorithms are said to be lossless for
+            %                 integer images, but PLIO works only for
+            %                 positive integer values.
+            %
             % Output : null
             % Author : Eran Ofek (Jan 2022)
             % Example: FITS.writeSimpleFITS(AI.Image, 'try.fits','Header',AI.HeaderData.Data);
@@ -1041,9 +1058,12 @@ classdef FITS < handle
                 FileName
                 Args.Header cell              = {};
                 Args.DataType                 = [];
+                Args.CompressType  char        = 'NOCOMPRESS';
             end
             
-            io.fits.writeSimpleFITS(Image, FileName, 'Header',Args.Header, 'DataType',Args.DataType);
+            io.fits.writeSimpleFITS(Image, FileName, 'Header',Args.Header,...
+                                     'DataType',Args.DataType,'UseMatlabIo',true,...
+                                     'CompressType',Args.CompressType);
             
         end
         
