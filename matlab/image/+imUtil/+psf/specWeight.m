@@ -1,5 +1,4 @@
 function Result = specWeight(PSFdata, RadSrc, Rad, Spec)
-
 % Make source PSFs at certain pixel distances on the detector weighted with the given spectra of the sources
 % Package: imUtil.psf
 % Description: make source PSFs at certain pixel distances on the detector weighted with the given spectra of the sources
