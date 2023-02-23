@@ -242,7 +242,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     end
     
     Result.Flux = squeeze(Flux);
-    Result.SNm  = Result.Flux./sqrt(Result.Flux + squeeze(Std).^2);  % S/N for measurments
+    Result.SNm  = Result.Flux./sqrt(Result.Flux + (squeeze(StdBack)).^2);  % S/N for measurments
     Result.Mag  = convert.luptitude(Result.Flux, 10.^(0.4.*Args.ZP));
     Result.DX = DX(:);
     Result.DY = DY(:);

@@ -1,17 +1,29 @@
 function S = injectSources(Image,Cat,PSFin,Args)
     % Inject artificial sources into an image.
-    %   The function user provided PSF and catalogs an build the sources image.
-    % 
+    %   The function build the sources image with user provided PSF and catalogs.
+    %   The function does not treat nans. Make sure that non of the inputs 
+    %    contain nans.
+    %       
     % Input  :  - An image (matrix) to inject the source. In case of two
     %             components vector (i.e., [1200,1000]), the function will
     %             inject sources to an empty image with size set by Image. 
     %             In case of scalar, the function will inject into an equal
-    %             size empty image.
+    %             size empty image. In case of a matrix with more than two
+    %             elements, the function will add the injected sources to
+    %             the input image.
     %        :  - A three column vector contains X, Y and flux, for each
-    %             source.
-    %        :  - PSF stamp. The codes work with symmetric PSF (i.e., odd
-    %        stamp size)
-
+    %             source. 
+    %        :  - PSF stamps. Either a single PSF stamp (2D) or PSF stamp per source
+    %           in a 3D matrix, where the size of third dimension equal the nubmer of sources.
+    %           The codes work with symmetric PSF (i.e., odd stamp size)
+    %
+    %       * ...,key,val,...
+    %          'RecenterPSF' - a logical indicating if to set the center
+    %           of the PSF by the first moment instead of the centeral pixel. 
+    %           Default is false.
+    %
+    %
+    %       Output : - An image with the injected sources (matrix).
     arguments
 
         Image;
