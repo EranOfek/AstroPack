@@ -55,8 +55,11 @@ function readULTRASATlabDB
                 Empty = fgets(FileID);
             end
                    
-            % read the data
+            % read the data  
             [PSFdata0, DataCount] = fscanf(FileID,'%f %f',TableSize); 
+            
+            % TRANSPOSE the data matrix so that it complies to the original table as stored in the datafile
+            % PSFdata0 = PSFdata0'; 
                     
             % check the amount of the data
             if DataCount ~= Nx*Ny 
