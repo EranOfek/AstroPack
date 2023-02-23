@@ -35,7 +35,7 @@ function usimImage =  usim ( Args )
 
         Args.RotAng          = 0;            % tile rotation angle relative to the axis of the raw PSF database (deg)
         
-        Args.Noise           = {0,'N'};      % the first cell denotes intial detector noise (dark counts): 
+        Args.Noise           = {false,'N'};      % the first cell denotes intial detector noise (dark counts): 
                                              % '1' -- add white (Gaussian) noise
                                              % the second cell denotes the noise applied after 
                                              % the source and sky counts are in: 'P' = Poisson noise
@@ -44,6 +44,8 @@ function usimImage =  usim ( Args )
         
         Args.OutType         = 'all';        % output type: 'AstroImage', 'FITS', 'all' (default)
         
+        Args.OutDir          = '.';          % the output directory
+         
     end
     
     % performance speed test
@@ -86,7 +88,8 @@ function usimImage =  usim ( Args )
 
     ImageSizeX  = 4738; % tile size (pix)
     ImageSizeY  = 4738; % tile size (pix)
-    PixSize     = 5.4/3600; % pixel size in degrees 
+    PixSize     =  5.4; % pixels size (arcsec)
+    PixSizeDeg  = PixSize/3600; % pixel size (deg)
     
     DAper       = 33.;                   % [cm]    aperture diameter
     SAper       = pi * DAper ^ 2 / 4;    % [cm(2)] aperture area
@@ -105,7 +108,7 @@ function usimImage =  usim ( Args )
     
     % add some dark counts
     
-    if Args.Noise{1} == 1 
+    if Args.Noise{1}
         Image0   = imnoise(Emptybox,'gaussian', 1, 2); % what should be the actual noise scale? 
     else
         Image0   = Emptybox;
@@ -113,7 +116,10 @@ function usimImage =  usim ( Args )
     
     % write the empty image with dark counts to a FITS file
     
-    imUtil.util.fits.fitswrite(Image0','!/home/sasha/SimImage0.fits');     
+    OutFITS0     = sprintf('%s%s%s','!',Args.OutDir,'/SimImage0.fits'); 
+    OutFITS      = sprintf('%s%s%s','!',Args.OutDir,'/SimImage.fits'); 
+    OutFITSdiff  = sprintf('%s%s%s','!',Args.OutDir,'/SimImageDiff.fits'); 
+    imUtil.util.fits.fitswrite(Image0',OutFITS0);     
         
     % read sources from a catalog or make a fake catalog
     
@@ -165,7 +171,7 @@ function usimImage =  usim ( Args )
 
     for Isrc = 1:1:NumSrc
         
-        RadSrc(Isrc) = sqrt( Cat(Isrc,1)^2 + Cat(Isrc,2)^2 ) *  PixSize; 
+        RadSrc(Isrc) = sqrt( Cat(Isrc,1)^2 + Cat(Isrc,2)^2 ) *  PixSizeDeg; 
         
         Ir = find (Rad  <= RadSrc(Isrc),  1, 'last'); % find the nearest grid point in the Rad array
                                                       % [later replace it by a linear interpolation (TBD) ]
@@ -182,14 +188,17 @@ function usimImage =  usim ( Args )
 
     % read the input spectra or generate synthetic spectra
     
-    % test
-    if NumSrc < 44  % size of UP.Specs 
-        Args.InSpec = UP.Specs(1:NumSrc); % star spectra from Pickles. NB: these are normalized to 1 at 5556 Ang !
-        for Isrc = 1:1:NumSrc
-            Args.InSpec(Isrc).Int = Args.InSpec(Isrc).Int / sum ( Args.InSpec(Isrc).Int * 5.0 ); % 5.0 A is the bin width
-            Args.InSpec(Isrc).Int = Args.InSpec(Isrc).Int .* Lsun / (4 * pi * ( Dstar * 3.1e18 )^2 ); % Solar luminosity 
-        end
+    % test: use the Spectra from UP.Specs
+    for Isrc = 1:1:NumSrc
+        Pick(Isrc) = UP.Specs( rem(Isrc,43)+1 ); % star spectra from Pickles. NB: these are normalized to 1 at 5556 Ang !
     end
+        Args.InSpec = Pick(1:NumSrc);
+        
+    for Isrc = 1:1:NumSrc
+          Args.InSpec(Isrc).Int = Args.InSpec(Isrc).Int / sum ( Args.InSpec(Isrc).Int * 5.0 ); % 5.0 A is the bin width
+          Args.InSpec(Isrc).Int = Args.InSpec(Isrc).Int .* Lsun / (4 * pi * ( Dstar * 3.1e18 )^2 ); % Solar luminosity 
+    end
+    % end test
     
     switch isa(Args.InSpec,'AstroSpec') || isa(Args.InSpec,'AstSpec')
         
@@ -336,6 +345,20 @@ function usimImage =  usim ( Args )
     StampSize  = size( RotPSF, 1 );   
     
     fprintf('%s%4.1f%s\n','Final PSF stamp size ',StampSize * Args.ImRes / PixRat, ' pixels');
+    
+    
+    % test containment 
+    
+    R50 = zeros(NumSrc,2); 
+    
+    for Isrc = 1:1:NumSrc
+        
+        R50(Isrc,1) = RadSrc(Isrc);
+        R50(Isrc,2) = imUtil.psf.containment('PSF',RotPSF(:,:,Isrc),'Level',0.5) * PixSize / Args.ImRes;
+        
+    end
+    
+    R50 = sortrows(R50);
         
     % a visual test
     
@@ -440,8 +463,8 @@ function usimImage =  usim ( Args )
         
     elseif strcmp( Args.OutType,'FITS')
         
-        imUtil.util.fits.fitswrite(Image1,'!/home/sasha/SimImage.fits');
-        % imUtil.util.fits.fitswrite(Image1-Image0,'!/home/sasha/SimDiffImage.fits'); % make a difference image
+        imUtil.util.fits.fitswrite(Image1',OutFITS);     
+        % imUtil.util.fits.fitswrite(Image1-Image0,OutFITSdiff); % make a difference image
         
     else % all the possible outputs
         
@@ -449,9 +472,9 @@ function usimImage =  usim ( Args )
         Args.InCat = AstroCatalog({Cat},'ColNames',{'X','Y','MAG','RAJ2000','DEJ2000'},'HDU',1);
         % make a new AstroImage with sources injected and write it to FITS file
         usimImage(2) = AstroImage( {Image1} ,'Back',{Emptybox}, 'Var',{Emptybox},'Cat',{Args.InCat.Catalog});
-        
-        imUtil.util.fits.fitswrite(Image1,'!/home/sasha/SimImage.fits');
-        % imUtil.util.fits.fitswrite(Image1-Image0,'!/home/sasha/SimDiffImage.fits'); % make a difference image
+                
+        imUtil.util.fits.fitswrite(Image1',OutFITS);     
+        % imUtil.util.fits.fitswrite(Image1-Image0,OutFITSdiff); % make a difference image
         
         % NB: when writing to a fits image, need to transpose the image?
     
