@@ -7,7 +7,7 @@ function Pp = poissonMatchedFilter(P, B, F)
     % Output : - Poisson noise matched filter: ln(1+ P.*F./B)
     %            The filter index is in the 3rd dimension and is given by
     %            the maximum length of the background, flux, or PSF.
-    % Author : Eran Ofek (Feb 2022)
+    % Author : Eran Ofek (Feb 2023)
     % Example: P = imUtil.kernel2.gauss(1.5); B=0.1; F=3;
     %          Pp = imUtil.poissNoise.poissonMatchedFilter(P, B, F)
     %          P = imUtil.kernel2.gauss([1.5;2]); B=0.1; F=3;
