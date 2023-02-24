@@ -70,8 +70,8 @@ function Result=simulateThreshold(P, B, F, Args)
         for Isim=1:1:Nloop
             Image = poissrnd(B(Imax), SizeP(1), SizeP(2), Args.Nbatch);
             
-            IndS  = (Imax-1).*Args.Nbatch +1;
-            IndE  = Imax.*Args.Nbatch; 
+            IndS  = (Isim-1).*Args.Nbatch +1;
+            IndE  = Isim.*Args.Nbatch; 
             Result(Imax).SimT(IndS:IndE) = squeeze(sum(Image.*P(:,:,Imax),[1 2]));
         end
         
