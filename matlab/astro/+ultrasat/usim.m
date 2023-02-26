@@ -1,5 +1,4 @@
 function usimImage =  usim ( Args ) 
-
 % Make simulated ULTRASAT images from source catalogs
 % Package: ultrasat
 % Description: Make simulated ULTRASAT images from source catalogs
@@ -88,7 +87,7 @@ function usimImage =  usim ( Args )
 
     ImageSizeX  = 4738; % tile size (pix)
     ImageSizeY  = 4738; % tile size (pix)
-    PixSize     =  5.4; % pixels size (arcsec)
+    PixSize     =  5.4; % pixel size (arcsec)
     PixSizeDeg  = PixSize/3600; % pixel size (deg)
     
     DAper       = 33.;                   % [cm]    aperture diameter
@@ -102,30 +101,30 @@ function usimImage =  usim ( Args )
     % is it possible to read just some of the UP structures: UP.TotT and, possibly, UP.Specs?
     % we can save them as separate .mat objects and read those 
     
-    % make a blank image
-    
-    Emptybox = zeros( ImageSizeX, ImageSizeY );
-    
-    % add some dark counts
-    
-    if Args.Noise{1}
-        Image0   = imnoise(Emptybox,'gaussian', 1, 2); % what should be the actual noise scale? 
-    else
-        Image0   = Emptybox;
-    end
-    
-    % write the empty image with dark counts to a FITS file
-    
-    OutFITS0     = sprintf('%s%s%s','!',Args.OutDir,'/SimImage0.fits'); 
-    OutFITS      = sprintf('%s%s%s','!',Args.OutDir,'/SimImage.fits'); 
-    OutFITSdiff  = sprintf('%s%s%s','!',Args.OutDir,'/SimImageDiff.fits'); 
-    imUtil.util.fits.fitswrite(Image0',OutFITS0);     
+%     % make a blank image
+%     
+%     Emptybox = zeros( ImageSizeX, ImageSizeY );
+%     
+%     % add some dark counts
+%     
+%     if Args.Noise{1}
+%         Image0   = imnoise(Emptybox,'gaussian', 1, 2); % what should be the actual noise scale? 
+%     else
+%         Image0   = Emptybox;
+%     end
+%     
+%     % write the empty image with dark counts to a FITS file
+%     
+%     OutFITS0     = sprintf('%s%s%s','!',Args.OutDir,'/SimImage0.fits'); 
+%     OutFITS      = sprintf('%s%s%s','!',Args.OutDir,'/SimImage.fits'); 
+%     OutFITSdiff  = sprintf('%s%s%s','!',Args.OutDir,'/SimImageDiff.fits'); 
+%     imUtil.util.fits.fitswrite(Image0',OutFITS0);     
         
     % read sources from a catalog or make a fake catalog
     
     if ~isa(Args.InCat,'AstroCatalog') % make a fake catalog
       
-        NumSrc = Args.InCat;  % number of fake sources
+        NumSrc = Args.InCat;  % the number of fake sources
 
         CatX    = round( ImageSizeX * rand(NumSrc,1) ); 
         CatY    = round( ImageSizeY * rand(NumSrc,1) ); 
@@ -133,7 +132,7 @@ function usimImage =  usim ( Args )
         DEC     = zeros(NumSrc,1);  % -//-
         CatFlux = zeros(NumSrc,1);  % will be determined below from spectra * transmission 
  
-        Cat = [CatX CatY CatFlux RA DEC];
+%         Cat = [CatX CatY CatFlux RA DEC];
         
         fprintf('%d%s\n',NumSrc,' random sources generated');
         
@@ -157,7 +156,7 @@ function usimImage =  usim ( Args )
                 
         CatFlux       = zeros(NumSrc,1);   % will be determined below from spectra * transmission 
         
-        Cat = [CatX CatY CatFlux RA DEC];
+%         Cat = [CatX CatY CatFlux RA DEC];
 
         fprintf('%d%s\n',NumSrc,' sources read from the input catalog');
         
@@ -171,7 +170,7 @@ function usimImage =  usim ( Args )
 
     for Isrc = 1:1:NumSrc
         
-        RadSrc(Isrc) = sqrt( Cat(Isrc,1)^2 + Cat(Isrc,2)^2 ) *  PixSizeDeg; 
+        RadSrc(Isrc) = sqrt( CatX(Isrc)^2 + CatY(Isrc)^2 ) *  PixSizeDeg; 
         
         Ir = find (Rad  <= RadSrc(Isrc),  1, 'last'); % find the nearest grid point in the Rad array
                                                       % [later replace it by a linear interpolation (TBD) ]
@@ -188,16 +187,25 @@ function usimImage =  usim ( Args )
 
     % read the input spectra or generate synthetic spectra
     
-    % test: use the Spectra from UP.Specs
-    for Isrc = 1:1:NumSrc
-        Pick(Isrc) = UP.Specs( rem(Isrc,43)+1 ); % star spectra from Pickles. NB: these are normalized to 1 at 5556 Ang !
+    % test: use the Stellar Spectra from UP.Specs
+    if false  
+    
+        fprintf('using spectra from UP.Specs ..');
+
+        for Isrc = 1:1:NumSrc
+            Pick(Isrc) = UP.Specs( rem(Isrc,43)+1 ); % star spectra from Pickles. NB: these are normalized to 1 at 5556 Ang !
+            Pick(Isrc) = UP.Specs(18); % a G5V star of Teff = 5.66 kK
+            %Pick(Isrc) = UP.Specs(31); % an M4V star of Teff = 3.06 kK
+        end
+            Args.InSpec = Pick(1:NumSrc);
+            
+        for Isrc = 1:1:NumSrc
+              Args.InSpec(Isrc).Int = Args.InSpec(Isrc).Int / sum ( Args.InSpec(Isrc).Int * 5.0 ); % 5.0 A is the bin width
+              Args.InSpec(Isrc).Int = Args.InSpec(Isrc).Int .* Lsun / (4 * pi * ( Dstar * 3.1e18 )^2 ); % Solar luminosity 
+        end
+    
     end
-        Args.InSpec = Pick(1:NumSrc);
-        
-    for Isrc = 1:1:NumSrc
-          Args.InSpec(Isrc).Int = Args.InSpec(Isrc).Int / sum ( Args.InSpec(Isrc).Int * 5.0 ); % 5.0 A is the bin width
-          Args.InSpec(Isrc).Int = Args.InSpec(Isrc).Int .* Lsun / (4 * pi * ( Dstar * 3.1e18 )^2 ); % Solar luminosity 
-    end
+
     % end test
     
     switch isa(Args.InSpec,'AstroSpec') || isa(Args.InSpec,'AstSpec')
@@ -205,6 +213,8 @@ function usimImage =  usim ( Args )
         case 0  % make a synthetic spectrum for a given model
             
             if Args.InSpec{1} == 'BB' 
+
+                fprintf('%s%5.0f%s','generating BB spectra for T = ',Args.InSpec{2},' K .. ');
                 
                 for Isrc = 1:1:NumSrc
                     
@@ -216,6 +226,9 @@ function usimImage =  usim ( Args )
                         
             
             elseif Args.InSpec{1} == 'PL'
+
+
+                fprintf('%s%4.2f%s','generating PL spectra for alpha = ',Args.InSpec{2},' ..');
                 
                 for Isrc = 1:1:NumSrc
                     
@@ -273,7 +286,7 @@ function usimImage =  usim ( Args )
                           .* STileAper ./ ( H * C ./ ( 1e-8 * Wave(:) ) )' ;
         % [ counts /s /bin ] = [ erg s(-1) cm(-2) A(-1) ] * [ counts / ph ] * [ A / bin ] * [ cm(2) ]/ [ erg / ph ]
         
-        Cat(Isrc,3) = sum ( SpecAbs(Isrc,:), 'all' );  % the source fluxes in [ counts / s ] 
+        CatFlux(Isrc) = sum ( SpecAbs(Isrc,:), 'all' );  % the source fluxes in [ counts / s ] 
 
     end
         
@@ -310,99 +323,115 @@ function usimImage =  usim ( Args )
     PSF = imUtil.psf.specWeight( PSFdata, RadSrc, Rad, SpecAbs );     
     
     fprintf('done\n');
-        
-    % rotate the integrated PSFs according to the tile rotation angle:
-    % make some advanced imUtil.psf.rotate routine or just use the built-in imrotate? 
-    
-    fprintf('Rotating the weighted PSFs.. ');
-    
-    Ang = Args.RotAng;  
-    
-    if abs( Ang ) < 1 || abs( Ang - 360) < 1 % does not need to spend time on this 
-        
-        RotPSF = PSF;
-        
-    else
 
-        for Isrc = 1:1:NumSrc
+    % rotate and inject the source PSFs into an empty image
+    
+    ImageSrc = imUtil.art.injectArtSrc (CatX, CatY, CatFlux, ImageSizeX, ImageSizeY,...
+                            PSF, 'PSFScaling',Args.ImRes,'RotatePSF',Args.RotAng);
 
-            RotPSF(:,:,Isrc) = imrotate(PSF(:,:,Isrc), Ang, 'bilinear', 'loose'); 
-
-            % the rotated PSF does not conserve the energy, so need to rescale
-            Cons = sum ( RotPSF(:,:,Isrc), 'all' );
-            RotPSF(:,:,Isrc) = RotPSF(:,:,Isrc) / Cons;
-
-        end
-    
-    end
-    
-    fprintf('done\n');
-    
-    % NB: the actual size of rotated PSF stamp depends on the particular rotation angle,
-    % varying between Nx x Ny and sqrt(2) * Nx x sqrt(2) * Ny
-    
-    StampSize0 = size( PSF, 1);
-    StampSize  = size( RotPSF, 1 );   
-    
-    fprintf('%s%4.1f%s\n','Final PSF stamp size ',StampSize * Args.ImRes / PixRat, ' pixels');
-    
-    
-    % test containment 
-    
-    R50 = zeros(NumSrc,2); 
-    
-    for Isrc = 1:1:NumSrc
-        
-        R50(Isrc,1) = RadSrc(Isrc);
-        R50(Isrc,2) = imUtil.psf.containment('PSF',RotPSF(:,:,Isrc),'Level',0.5) * PixSize / Args.ImRes;
-        
-    end
-    
-    R50 = sortrows(R50);
-        
-    % a visual test
-    
-%     figure(1)
-%     subplot(2,2,1); imagesc(PSF(:,:,1)); title('R= ',RadSrc(1))
-%     subplot(2,2,2); imagesc(RotPSF(:,:,1));  title('R= ',RadSrc(1))
-%     subplot(2,2,3); imagesc(PSF(:,:,3)); title('R= ',RadSrc(3))
-%     subplot(2,2,4); imagesc(RotPSF(:,:,3)); title('R= ',RadSrc(3))            
-    
-
-    % performance control
-    
-    fprintf('Simulated PSFs ready..\n');
-    
-    elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
-    
-    fprintf('PSF injection.. ');
-      
-    tic
-    
-    if strcmp( Args.Inj, 'FFTshift' ) 
-        
-    % inject into the blank tile image all the rotated source PSFs: imUtil.art.injectSources
-    % (NB: injectSources currently works only with odd stamp sizes!)
-    
-        if rem( size(RotPSF,1) , 2) == 0 
-            fprintf('The size of RotPSF is even, while imUtil.art.injectSources accepts odd size only! Exiting..');
-            return
-        end
-
-        Image1 = imUtil.art.injectSources(Image0,Cat,RotPSF); 
-
-    elseif strcmp( Args.Inj, 'direct')
-
-    % direct injection
-           
-        Image1 = imUtil.art.directInjectSources(Image0,Cat,Args.ImRes,RotPSF);
-    
-    else
-        
-        fprintf('Injection method not defined! Exiting..\n');
-        return
-        
-    end
+%     % rotate the integrated PSFs according to the tile rotation angle:
+%     % make some advanced imUtil.psf.rotate routine or just use the built-in imrotate? 
+%     
+%     fprintf('Rotating the weighted PSFs.. ');
+%     
+%     Ang = Args.RotAng;  
+%     
+%     if abs( Ang ) < 1 || abs( Ang - 360) < 1 % does not need to spend time on this 
+%         
+%         RotPSF = PSF;
+%         
+%     else
+% 
+%         for Isrc = 1:1:NumSrc
+% 
+%             RotPSF(:,:,Isrc) = imrotate(PSF(:,:,Isrc), Ang, 'bilinear', 'loose'); 
+% 
+%             % the rotated PSF does not conserve the energy, so need to rescale
+%             Cons = sum ( RotPSF(:,:,Isrc), 'all' );
+%             RotPSF(:,:,Isrc) = RotPSF(:,:,Isrc) / Cons;
+% 
+%         end
+%     
+%     end
+%     
+%     fprintf('done\n');
+%     
+%     % NB: the actual size of rotated PSF stamp depends on the particular rotation angle,
+%     % varying between Nx x Ny and sqrt(2) * Nx x sqrt(2) * Ny
+%     
+%     StampSize0 = size( PSF, 1);
+%     StampSize  = size( RotPSF, 1 );   
+%     
+%     fprintf('%s%4.1f%s\n','Final PSF stamp size ',StampSize * Args.ImRes / PixRat, ' pixels');
+%     
+%     
+%     % test PSF containment and pseudoFWHM
+%     
+%     ContWidth  = zeros(NumSrc,1);  % radius of encircled flux PSF region
+%     PseudoFWHM = zeros(NumSrc,1);  % pseudo FWHM
+%     
+%     for Isrc = 1:1:NumSrc
+%         
+%         ContWidth(Isrc) = imUtil.psf.containment('PSF',RotPSF(:,:,Isrc),'Level',0.5);
+%         
+%         [ widthX, widthY ] = ... 
+%                     imUtil.psf.pseudoFWHM('PSF',RotPSF(:,:,Isrc),'Level',0.5);
+% 
+%         PseudoFWHM(Isrc) = sqrt ( widthX^2 + widthY^2 );
+%         
+%     end
+%     
+%     ContWidth   = ContWidth  * PixSize / Args.ImRes ;  % convert to arcsec    
+%     PseudoFWHM  = PseudoFWHM * PixSize / Args.ImRes ;  % convert to arcsec
+%    
+%     % visual tests
+%     
+% %     figure(1)
+% %     subplot(2,2,1); imagesc(PSF(:,:,1)); title('R= ',RadSrc(1))
+% %     subplot(2,2,2); imagesc(RotPSF(:,:,1));  title('R= ',RadSrc(1))
+% %     subplot(2,2,3); imagesc(PSF(:,:,3)); title('R= ',RadSrc(3))
+% %     subplot(2,2,4); imagesc(RotPSF(:,:,3)); title('R= ',RadSrc(3))  
+% 
+% %       figure(2); plot(RadSrc,R50,'.'); 
+% %       xlabel('Radius, deg'); ylabel('50% encirclement radius, arcsec')
+% %     
+% %       figure(3); plot(RadSrc, PseudoFWHM(:,3),'.'); 
+% %       xlabel('Radius, deg'); ylabel('pseudoFWHM, arcsec')
+% 
+%     % performance control
+%     
+%     fprintf('Simulated PSFs ready..\n');
+%     
+%     elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
+%     
+%     fprintf('PSF injection.. ');
+%       
+%     tic
+%     
+%     if strcmp( Args.Inj, 'FFTshift' ) 
+%         
+%     % inject into the blank tile image all the rotated source PSFs: imUtil.art.injectSources
+%     % (NB: injectSources currently works only with odd stamp sizes!)
+%     
+%         if rem( size(RotPSF,1) , 2) == 0 
+%             fprintf('The size of RotPSF is even, while imUtil.art.injectSources accepts odd size only! Exiting..');
+%             return
+%         end
+% 
+%         Image1 = imUtil.art.injectSources(Image0,Cat,RotPSF); 
+% 
+%     elseif strcmp( Args.Inj, 'direct')
+% 
+%     % direct injection
+%            
+%         Image1 = imUtil.art.directInjectSources(Image0,Cat,Args.ImRes,RotPSF);
+%     
+%     else
+%         
+%         fprintf('Injection method not defined! Exiting..\n');
+%         return
+%         
+%     end
 
     % performance control
     
@@ -412,6 +441,11 @@ function usimImage =  usim ( Args )
     
     % add some sky noise to the tile image 
     
+    ImageSrcNoise = imUtil.art.noise(ImageSrc,'Dark',1,'Sky',0,'Poisson',1,...
+                                     'Jitter',0,'ReadOut',0);
+
+    %
+
     SkyNoise = zeros(ImageSizeX, ImageSizeY);
 
     % SkyNoise = ??
@@ -423,7 +457,11 @@ function usimImage =  usim ( Args )
     if Args.Noise{2} == 'P'
         Image1 = poissrnd(Image1); % apply Poisson noise to the count rate 
     end
-    
+
+    % apply S/C jitter
+
+    % Image1 = ulJitter(Image1,exposure);
+
     % add read-out noise to the tile image
     
     ReadOutNoise = zeros(ImageSizeX, ImageSizeY); 
