@@ -1,7 +1,7 @@
-function Image = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
-    % Make an artificial image with source PSFs  
+function [Image, RotPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
+    % Make an artificial image with rotated source PSFs injected to the catalog postions     
     % Package: imUtil.art
-    % Description: Inject sources to catalog postions with PSFs scaled by the Scaling factor 
+    % Description: Make an artificial image with rotated source PSFs injected to the catalog postions
     %          - X, Y, CPS   : pixel coordinates and countrates of the sources
     %          - SizeX, SizeY: pixel sizes of the image containing the source PSFs
     %          - PSF         : either a single 2D PSF for all the object or 
@@ -12,7 +12,7 @@ function Image = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     %          - Args.Method:  source injection method, either 'direct' or
     %                          'PSFshift'
     %          
-    % Output : - Image: a 2D array containing the resulting image
+    % Output : - Image: a 2D array containing the resulting image and a 2+1 D array of rotated source PSFs
     %            
     % Tested : Matlab R2020b
     %     By : A. Krassilchtchikov et al.    Feb 2023
@@ -62,7 +62,7 @@ function Image = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     else                      % rotate all the PSFs by the same angle
         for Isrc = 1:1:NumSrc
             RotPSF(:,:,Isrc) = imrotate(PSF(:,:,Isrc), Args.RotatePSF(1), 'bilinear', 'loose'); 
-            RotPSF(:,:,Isrc) = RotPSF(:,:,Isrc) / sum ( RotPSF(:,:,Isrc), 'all' );
+            RotPSF(:,:,Isrc) = RotPSF(:,:,Isrc) / sum ( RotPSF(:,:,Isrc), 'all' ); % rescale
         end
     end
             
@@ -70,7 +70,7 @@ function Image = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     % varying between Nx x Ny and sqrt(2) * Nx x sqrt(2) * Ny
     StampSize  = size(RotPSF);   
     
-    % fprintf('%s%4.1f%s\n','Final PSF stamp size ',StampSize / Args.PSFScaling , ' image pixels');
+        % fprintf('%s%4.1f%s\n','Final PSF stamp size ', StampSize / Args.PSFScaling , ' image pixels');
     
     % test PSF containment width and pseudoFWHM width
     
@@ -99,7 +99,7 @@ function Image = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
 %       figure(3); plot(sqrt(X.^2+Y.^2).*5.4./3600, PseudoFWHM * 5.4,'*'); 
 %       xlabel('Radius, deg'); ylabel('pseudoFWHM, arcsec')
    
-    % PSF injection: inject into the blank image all the rotated source PSFs
+    % PSF injection: inject all the rotated source PSFs into the blank image 
 
     Cat = [X Y CPS];
 

@@ -61,6 +61,4 @@ function Result = specWeight(PSFdata, RadSrc, Rad, Spec)
                         
     end
 
-
-
 end
