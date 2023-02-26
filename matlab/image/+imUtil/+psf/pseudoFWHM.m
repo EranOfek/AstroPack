@@ -1,7 +1,7 @@
 function [Xsize, Ysize] = pseudoFWHM (Args)
-    % Measure pseudo FWHM width in a PSF stamp at a given level
+    % Measure pseudo FWHM width in a PSF stamp at a given flux level
     % Package: imUtil.psf
-    % Description: Measure pseudo FWHM width in a PSF stamp at a given level
+    % Description: Measure pseudo FWHM width in a PSF stamp at a given flux level
     %          - Args.PSF: a 2D array containing the PSF stamp 
     %          - Args.Level: signal level relative to the maximum, 0.5 is default
     % Output : - Rad: pseudo FWHM width in pixels
