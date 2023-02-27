@@ -100,6 +100,10 @@ function startup(Args)
         % set to default value
         Args.AstroPack_DataPath = sprintf('%s%s%s%s%s',HomeDir,filesep,'matlab',filesep,'data');
     end
+    if isempty(Args.AstroPack_ULTRASAT)
+        % set to default value
+        Args.AstroPack_ULTRASAT = sprintf('%s%s%s%s%s',HomeDir,filesep,'matlab',filesep,'data',filesep,'ULTRASAT');
+    end
     if isempty(Args.AstroPack_CatsHTMPath)
         % set to default value
         Args.AstroPack_CatsHTMPath = '/euler/catsHTM';
