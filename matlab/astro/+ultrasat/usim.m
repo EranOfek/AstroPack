@@ -36,6 +36,7 @@ function usimImage =  usim ( Args )
                                              % possible values: 1, 2, 5, 10, 47.5
 
         Args.RotAng          = 0;            % tile rotation angle relative to the axis of the raw PSF database (deg)
+                                             % may be a vector with individual angle for each of the sources
         
         Args.Noise           = {false,'N'};      % the first cell denotes intial detector noise (dark counts): 
                                              % '1' -- add white (Gaussian) noise
@@ -153,8 +154,8 @@ function usimImage =  usim ( Args )
         
         RadSrc(Isrc) = sqrt( CatX(Isrc)^2 + CatY(Isrc)^2 ) *  PixSizeDeg; 
         
-        Ir = find (Rad  <= RadSrc(Isrc),  1, 'last'); % find the nearest grid point in the Rad array
-                                                      % [later replace it by a linear interpolation (TBD) ]
+        Ir = find (Rad  <= RadSrc(Isrc),  1, 'last');   % find the nearest grid point in the Rad array
+                                                        % [later replace it by a linear interpolation (TBD) ]
         TotT(Isrc,:) = UP.TotT(1:DeltaLambda:9001, Ir); % take the throughput array values at a 100 A grid
        
     end
@@ -176,8 +177,8 @@ function usimImage =  usim ( Args )
             for Isrc = 1:1:NumSrc
                 % star spectra from Pickles. NB: these are normalized to 1 at 5556 Ang !
                 Pick(Isrc) = UP.Specs( rem(Isrc,43)+1 ); 
-                Pick(Isrc) = UP.Specs(18); % a G5V star of Teff = 5.66 kK
-                %Pick(Isrc) = UP.Specs(31); % an M4V star of Teff = 3.06 kK
+                %Pick(Isrc) = UP.Specs(18); % a G5V star of Teff = 5.66 kK
+                Pick(Isrc) = UP.Specs(31); % an M4V star of Teff = 3.06 kK
             end
                 Args.InSpec = Pick(1:NumSrc);
 
@@ -298,18 +299,19 @@ function usimImage =  usim ( Args )
     
     Nx = size(PSFdata,1); 
     Ny = size(PSFdata,2);
-    PSF = zeros( Nx, Ny, NumSrc );
+    WPSF = zeros( Nx, Ny, NumSrc );
     
                     fprintf('Weighting source PSFs with their spectra.. ');
              
-    PSF = imUtil.psf.specWeight( PSFdata, RadSrc, Rad, SpecAbs );     
+    WPSF = imUtil.psf.specWeight( PSFdata, RadSrc, Rad, SpecAbs );     
     
                     fprintf('done\n');
 
-    %%%%%%%%%%%%%%%%%%%%% rotate the source PSFs and inject them into an empty tile image
+    %%%%%%%%%%%%%%%%%%%%% rotate the weighted source PSFs, blur them due to the S/C jitter 
+    %%%%%%%%%%%%%%%%%%%%% and inject them into an empty tile image
     
-    [ImageSrc, RotPSF] = imUtil.art.injectArtSrc (CatX, CatY, CatFlux, ImageSizeX, ImageSizeY,...
-                                   PSF, 'PSFScaling',Args.ImRes,'RotatePSF',Args.RotAng);
+    [ImageSrc, PSF] = imUtil.art.injectArtSrc (CatX, CatY, CatFlux, ImageSizeX, ImageSizeY,...
+                             WPSF, 'PSFScaling',Args.ImRes,'RotatePSF',Args.RotAng,'Jitter',1);
                        
                     fprintf(' done\n');
     
@@ -319,8 +321,8 @@ function usimImage =  usim ( Args )
     
                     fprintf('Add noise .. ');
     
-    ImageSrcNoise = imUtil.art.noise(ImageSrc,'Exposure',Args.Exposure,'Dark',1,'Sky',0,...
-                                     'Jitter',0,'Poisson',1,'ReadOut',0);
+    ImageSrcNoise = imUtil.art.noise(ImageSrc,'Exposure',Args.Exposure,...
+                                    'Dark',1,'Sky',1,'Poisson',1,'ReadOut',1);
                                  
                     fprintf(' done\n');
 
@@ -334,13 +336,13 @@ function usimImage =  usim ( Args )
         Args.InCat = AstroCatalog({Cat},'ColNames',{'X','Y','MAG','RAJ2000','DEJ2000'},'HDU',1);
     end
     
-    % save the rotated PSFs into an AstroPSF array 
+    % save the final source PSFs into an AstroPSF array 
     
     AP(1:NumSrc) = AstroPSF;
     
     for Isrc = 1:1:NumSrc
         
-        AP(Isrc).DataPSF = RotPSF(:,:,Isrc);
+        AP(Isrc).DataPSF = PSF(:,:,Isrc);
     
     end
     
