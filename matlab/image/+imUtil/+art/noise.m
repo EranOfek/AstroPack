@@ -6,7 +6,6 @@ function Image = noise (ImageSrc, Args)
     %          - Args.Exposure: exposure in [s]
     %          - Args.Dark: dark counts (position-dependent?)
     %          - Args.Sky:  sky background (position-dependent?)
-    %          - Args.Jitter: blurring due to S/C jitter
     %          - Args.Possion: Poisson noise
     %          - Args.ReadOut: read-out noise (position-dependent?)
     % Output : - Image: image with all the said noise components
@@ -25,9 +24,7 @@ function Image = noise (ImageSrc, Args)
         Args.Dark      =    0;   % dark counts (position-dependent?)           
         
         Args.Sky       =    0;   % sky background (position-dependent?)
-        
-        Args.Jitter    =    0;   % blurring due to S/C jitter
-        
+               
         Args.Poisson   =    1;   % Poisson noise
         
         Args.ReadOut   =    0;   % Read-out noise (position-dependent?)
@@ -51,24 +48,25 @@ function Image = noise (ImageSrc, Args)
     
     if Args.Dark
         
-%         DarkCounts = imnoise(DarkCounts,'gaussian', 1, 2); % multiply by Args.Exposure ?
+        DarkCounts = poissrnd(1.5,Nx,Ny); 
+        % simulate dark noise < 7.8 e-/pix (300*0.026 e-/pix/s) for a 300 ks exposure 
+        % visual test: rr = DarkCounts > 8; imagesc(rr)
         
     end
     
-    if Args.Sky
+    if Args.Sky 
+            
+    % search for the spectrum in the literature, convolve with the
+    % throughput, multiply by the exposure, then make a poisson distribution of it
         
 %         SkyBckg = ; % multiply by Args.Exposure ?
-
+          
+        SkyBckg = poissrnd(SkyBckg);
+        
     end
     
     Image = Image + DarkCounts + SkyBckg;
 
-    % apply the S/C jitter  
-           
-    Image = ultrasat.jitter(Image,'Exposure',300,'SigmaX0',2.,'SigmaY0',2.,'Rotation',10);
-    
-    %  WARNING! ultrasat.jitter is NOT fully CODED YET!
-    
     % apply the Poisson noise
       
     if Args.Poisson 
@@ -81,10 +79,12 @@ function Image = noise (ImageSrc, Args)
     
     if Args.ReadOut
         
-%         ReadOutNoise = ; % multiply by Args.Exposure ?
+        RdNsigma = 3.5/3; % is the < 3.5 e-/pix specification for the high gain is a 3 sigma limit
+        
+        ReadOutNoise = max( 0, normrnd(0,RdNsigma,Nx,Ny) ); 
         
     end
     
-    Image = Image + ReadOutNoise;
+    Image = Image + ReadOutNoise; 
                                  
-end
+end 
