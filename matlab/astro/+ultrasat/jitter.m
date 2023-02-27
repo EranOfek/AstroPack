@@ -1,22 +1,26 @@
-function BlurredImage = jitter (Image, Args)
-    % Blur an artificial ULTRASAT image due to the S/C jitter
+function JPSF = jitter (PSF, Cat, Args)
+    % Blur an array of ULTRASAT PSFs due to the S/C jitter
     % Package: ultrasat
-    % Description: Blur an artificial ULTRASAT image due to the S/C jitter
-    %          - Image: initial image to be blurred
+    % Description: Blur an array of ULTRASAT PSFs due to the S/C jitter
+    %          - PSF: an initial array of PSF images to be blurred
+    %          - Src: an array of source X, Y coordinates on a detector tile
     %          - Args.Exposure: exposure in [s]
     %          - Args.SigmaX0: S/C jittering in the X direction
     %          - Args.SigmaY0: S/C jittering in the Y direction
     %          - Args.Rotation: S/C rotation jittering angle
+    %          - Args.Scaling: ULTRASAT pixel size / PSF pixel size
     % Output : - BlurredImage 
     %            
     % Tested : Matlab R2020b
     %     By : A. Krassilchtchikov et al.    Feb 2023
-    % Example: BlurredImage = ultrasat.jitter(Image, ...
-    % 'Args.Exposure',300,'Args.SigmaX0',2.,'Args.SigmaY0',2.,'Args.Rotation',10);
+    % Example: JPSF = ultrasat.jitter(PSF, Cat, ...
+    % 'Exposure',300,'SigmaX0',2.,'SigmaY0',2.,'Rotation',10);
     
     arguments
         
-        Image
+        PSF
+        
+        Cat
         
         Args.Exposure   =   300;  % [s]
         
@@ -26,36 +30,41 @@ function BlurredImage = jitter (Image, Args)
         
         Args.Rotation   =    10;  % arcsecond
         
+        Args.Scaling    =    1;   % PSF pixel = ULTRASAT pixels
+        
+        
     end
+    
+    % ULTRASAT parameters
     
     PixSize   = 5.4;                    % [arcsec]
     Exposure0 = 300;                    % [s] a nominal ULTRASAT exposure
     
     Q = Args.Exposure / Exposure0;      % is it indeed linear ??
     
-    Nx = size(Image,1);
-    Ny = size(Image,2);
+    X0Jitt    = Args.Scaling * Args.SigmaX0 / PixSize;  % convert arcsec to PSF pixels
+    Y0Jitt    = Args.Scaling * Args.SigmaY0 / PixSize;  % convert arcsec to PSF pixels
+    AlphaJitt = Args.Scaling * Args.Rotation * pi / (3600 * 180);  % 
     
-    JitterSigma = zeros(Nx,Ny,2);
+    % PSF blurring
     
-    X0Jitt   = Args.SigmaX0 / PixSize;  % convert arcsec to pixels
-    Y0Jitt   = Args.SigmaY0 / PixSize;  % convert arcsec to pixels
-    AlphaJitt = Args.Rotation * pi / (3600 * 180);  % 
+    NSrc = size(Cat,1);                 % determine the number of sources
     
-    for iX = 1:1:Nx
-        for iY = 1:1:Ny
-            
-            JitterSigma(iX,iY,1) = sqrt( X0Jitt^2 + (iY * AlphaJitt)^2 ) * Q; 
-            JitterSigma(iX,iY,2) = sqrt( Y0Jitt^2 + (iX * AlphaJitt)^2 ) * Q;        
-            
-        end
-    end  
+    if size(PSF,3) ~= NSrc
+        frprintf('The numbers of sources and PSFs in ultrasat.jitter do not match, exiting..');
+        return
+    end
     
-    BlurredImage = Image; % do nothing by now
-    
-    % which method to use: 
-    % imUtil.filter.conv2d_fast ?
-    % imfilter ? 
-    % imgaussfilt (only 1 value of sigma_x, sigma_y for the whole image)?
+    for Isrc = 1:1:NSrc
+        
+        SigmaX = sqrt( X0Jitt^2 + ( Cat(Isrc,2) * AlphaJitt)^2 ) * Q;
+        SigmaY = sqrt( Y0Jitt^2 + ( Cat(Isrc,1) * AlphaJitt)^2 ) * Q;
+        JPSF(:,:,Isrc) = imgaussfilt( PSF(:,:,Isrc), [SigmaX SigmaY]' );
+        
+        % do not need to renormalize, imgaussfilt conserves the flux
+        
+        % JPSF(:,:,Isrc) = JPSF(:,:,Isrc) / sum( JPSF(:,:,Isrc), 'all');
+        
+    end
     
 end
