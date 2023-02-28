@@ -60,6 +60,7 @@ function startup(Args)
         Args.AstroPack_DataPath          = [];  % e.g., '/home/eran/matlab/data'. If empty set to ~HOME/matlab/data, unless env var. exist
         Args.AstroPack_CatsHTMPath       = '/euler/catsHTM';
         Args.AstroPack_ConfigPath        = [];
+        Args.AstroPack_ULTRASAT          = [];
         
         Args.EnvVar_BasePath             = 'ASTROPACK_PATH';
         Args.EnvVar_DataPath             = 'ASTROPACK_DATA_PATH';
