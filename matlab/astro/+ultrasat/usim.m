@@ -5,10 +5,13 @@ function usimImage =  usim ( Args )
 % Input:    
 %       -  Args.InCat (a catalog of simulated sources)
 %       -  Args.InSpec (individual spectra or one spectral model)
-%       -  Args.ImRes (image resolution in 1/pix units)
 %       -  Args.Exposure (image exposure)
-%       -  Args.RotAng (SC rotation angle relative to the axis of the raw PSF database)
-%       -  Args.Noise (dark noise on the blank image, Poisson noise on the image with sources)
+%       -  Args.ImRes (image resolution in 1/pix units)
+%       -  Args.RotAng (tile rotation angle[s] relative to the axis of the raw PSF database)
+%       -  Args.NoiseDark (dark current noise)
+%       -  Args.NoiseSky  (sky background)
+%       -  Args.NoisePoisson (Poisson noise)
+%       -  Args.NoiseReadout (Read-out noise)
 %       -  Args.Inj (injection method, technical)
 %       -  Args.OutType (type of output image: FITS, AstroImage object, RAW object)
 % Output : - usimImage (simulated AstroImage object, FITS file output, RAW file output)           
@@ -38,10 +41,11 @@ function usimImage =  usim ( Args )
         Args.RotAng          = 0;            % tile rotation angle relative to the axis of the raw PSF database (deg)
                                              % may be a vector with individual angle for each of the sources
         
-        Args.Noise           = {false,'N'};      % the first cell denotes intial detector noise (dark counts): 
-                                             % '1' -- add white (Gaussian) noise
-                                             % the second cell denotes the noise applied after 
-                                             % the source and sky counts are in: 'P' = Poisson noise
+        Args.NoiseDark       = 1;            % Dark count noise
+        Args.NoiseSky        = 1;            % Sky background 
+        Args.NoisePoisson    = 1;            % Poisson noise
+        Args.NoiseReadout    = 1;            % Read-out noise
+                                             % (see details in imUtil.art.noise)
                                              
         Args.Inj             = 'direct';     % source injection method can be either 'FFTshift' or 'direct'
         
@@ -311,18 +315,22 @@ function usimImage =  usim ( Args )
     %%%%%%%%%%%%%%%%%%%%% and inject them into an empty tile image
     
     [ImageSrc, PSF] = imUtil.art.injectArtSrc (CatX, CatY, CatFlux, ImageSizeX, ImageSizeY,...
-                             WPSF, 'PSFScaling',Args.ImRes,'RotatePSF',Args.RotAng,'Jitter',1);
+                             WPSF, 'PSFScaling',Args.ImRes,'RotatePSF',Args.RotAng,...
+                             'Jitter',1,'Method',Args.Inj); 
                        
                     fprintf(' done\n');
     
                     elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
     
     %%%%%%%%%%%%%%%%%%%%% add and apply various types of noise to the tile image 
+    %%%%%%%%%%%%%%%%%%%%% NB: while ImageSrc is in [counts/s], 
+    %%%%%%%%%%%%%%%%%%%%%           ImageSrcNoise is already in [counts] !! 
     
-                    fprintf('Add noise .. ');
-    
+                    fprintf('Adding noise .. ');
+                    
     ImageSrcNoise = imUtil.art.noise(ImageSrc,'Exposure',Args.Exposure,...
-                                    'Dark',1,'Sky',1,'Poisson',1,'ReadOut',1);
+                                    'Dark',Args.NoiseDark,'Sky',Args.NoiseSky,...
+                                    'Poisson',Args.NoisePoisson,'ReadOut',Args.NoiseReadout);
                                  
                     fprintf(' done\n');
 
