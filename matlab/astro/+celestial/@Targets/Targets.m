@@ -15,6 +15,12 @@ classdef Targets < Component
         RA
         Dec
         
+        DeltaRA
+        DeltaDec
+        ExpTime
+        NperVisit
+        %Filter
+        
         CadenceMethod                           % 'periodic' | 'continues' | 'west2east'
         Priority                                % baseline priority that multiplies the base priority
         MaxNobs                    = Inf;
@@ -195,6 +201,9 @@ classdef Targets < Component
             fclose(FID);
             
         end
+        
+        %function reaedTargetList
+            
     end
     
     methods
@@ -745,6 +754,11 @@ classdef Targets < Component
             end
             
         end
+        
+        %function updateCounter
+        
+        %function getTarget(Obj, Ind)
+        
     end
     
     methods (Static)  % static utilities
