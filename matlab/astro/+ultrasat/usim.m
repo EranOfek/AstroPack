@@ -14,6 +14,7 @@ function usimImage =  usim ( Args )
 %       -  Args.NoiseReadout (Read-out noise)
 %       -  Args.Inj (injection method, technical)
 %       -  Args.OutType (type of output image: FITS, AstroImage object, RAW object)
+%       -  Args.Dir (the output directory)
 % Output : - usimImage (simulated AstroImage object, FITS file output, RAW file output)           
 % Tested : Matlab R2020b
 %     By : A. Krassilchtchikov et al.   Feb 2023
@@ -58,23 +59,23 @@ function usimImage =  usim ( Args )
                         % performance speed test
     
                         fprintf('ULTRASAT simulation started\n');
-                        tic
+                        tic; tstart = clock;
     
-    %%%%%%%%%%%%%%%%%%%%% Simulation parameters and physical constants
+    %%%%%%%%%%%%%%%%%%%%% Simulation parameters and some physical constants
     
     Eps = 1e-12;  % precision 
     
-    C   = 2.99792458e10; % the speed of light in vacuum, [cm/s]
-    H   = 6.6260755e-27; % the Planck constant, [erg s]
-    
-    Parsec = 3.1e18;     % [cm]
+    C   = constant.c;       % the speed of light in vacuum, [cm/s]
+    H   = constant.h;       % the Planck constant, [erg s]   
+    Parsec = constant.pc;   % the parsec, [cm]
 
-    Rsun  = 6.957e10;    % [cm] Solar radius
-    Lsun  = 3.846e33;    % [erg/s] Solar luminosity
+    Rsun  = constant.SunR;  % [cm] Solar radius
+    Lsun  = constant.SunL;  % [erg/s] Solar luminosity
     
-    Rstar = 1. * Rsun;   % stellar radius in Rsun % par -- put into Args? 
+    % put into Args?
     
-    Dstar = 10;          % [pc] stellar distance  % par -- put into Args? 
+    Rstar = 1. * Rsun;   % stellar radius in Rsun % par 
+    Dstar = 10;          % [pc] stellar distance  % par  
     
     %%%%%%%%%%%%%%%%%%%% ULTRASAT PSF database parameters
                
@@ -91,7 +92,7 @@ function usimImage =  usim ( Args )
     
     PixRat  = 47.5; % the ratio of the ULTRASAT pixel size to that of the lab PSF image
     
-    %%%%%%%%%%%%%%%%%%%% basic ULTRASAT parameters
+    %%%%%%%%%%%%%%%%%%%% basic ULTRASAT imaging parameters
 
     ImageSizeX  = 4738; % tile size (pix)
     ImageSizeY  = 4738; % tile size (pix)
@@ -293,9 +294,7 @@ function usimImage =  usim ( Args )
     end
     
                     fprintf('done\n'); 
-                    elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
-    
-                    tic
+                    elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
     
     %%%%%%%%%%%%%%%%%%%%%  integrate the throughput-convolved source spectra 
     %%%%%%%%%%%%%%%%%%%%%  S_i(λ)*Th(λ,r_i) with their PSF_i(λ,r_i) over the frequency range 
@@ -320,7 +319,7 @@ function usimImage =  usim ( Args )
                        
                     fprintf(' done\n');
     
-                    elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
+                    elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
     
     %%%%%%%%%%%%%%%%%%%%% add and apply various types of noise to the tile image 
     %%%%%%%%%%%%%%%%%%%%% NB: while ImageSrc is in [counts/s], 
@@ -333,6 +332,8 @@ function usimImage =  usim ( Args )
                                     'Poisson',Args.NoisePoisson,'ReadOut',Args.NoiseReadout);
                                  
                     fprintf(' done\n');
+                    
+                    elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
 
     %%%%%%%%%%%%%%%%%%%%%%  output: a) an AstroImage object with filled image, header, and PSF attachments 
     %%%%%%%%%%%%%%%%%%%%%%  b) a FITS image c) a native (RAW) format image 
@@ -374,6 +375,7 @@ function usimImage =  usim ( Args )
 
     %%%%%%%%%%%%%%%%%%%%
     
-                    fprintf('Simulation completed, see the generated images.\n')
+                    fprintf('%s%4.0f%s\n','Simulation completed in ',etime(clock,tstart),...
+                                         ' sec, see the generated images')
     
 end
