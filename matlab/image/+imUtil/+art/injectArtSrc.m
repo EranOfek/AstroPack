@@ -34,8 +34,8 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
         Args.Jitter         =    0;       % PSF blurring due to the S/C jitter
         Args.Method         =   'direct'; % injection method
                                           % 'direct' or 'FFTShift'
-        Args.OutPut         =   'image';  % 'image' - image only; 
-                                          % 'all'   - image + rotated and rescaled PSFs        
+%         Args.OutPut         =   'all';    % 'image' - image only; 
+%                                           'all'   - image + rotated and rescaled PSFs        
     end
 
     % create an impty image of the given size
