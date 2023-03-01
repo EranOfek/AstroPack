@@ -96,7 +96,8 @@ addOptional(InPar,'InputUnits','deg');
 addOptional(InPar,'OutputUnits','deg');  
 addOptional(InPar,'DistIsDelta',true);
 addOptional(InPar,'DistFunHA',[]);  
-addOptional(InPar,'DistFunDec',[]);  
+addOptional(InPar,'DistFunDec',[]); 
+addOptional(InPar,'SkipDist',false); 
 addOptional(InPar,'ApplyRefraction',true);
 addOptional(InPar,'Temp',15);  % C
 addOptional(InPar,'Wave',5500);  % Ang
@@ -105,6 +106,12 @@ addOptional(InPar,'PressureHg',760);  % mm Hg
 parse(InPar,varargin{:});
 
 InPar = InPar.Results;
+
+
+if InPar.SkipDist
+    InPar.DistFunHA  = [];
+    InPar.DistFunDec = [];
+end
 
 InPar.ObsCoo(1:2) = convert.angular('deg','rad',InPar.ObsCoo(1:2));
 
