@@ -4,10 +4,10 @@ function Image = noise (ImageSrc, Args)
     % Description: Add various types of noise to an artificial image made from a source catalog  
     %          - ImageSrc: inital noiseless image containing only source PSFs [counts/s]
     %          - Args.Exposure: exposure in [s]
-    %          - Args.Dark: dark counts (position-dependent?)
+    %          - Args.Dark: dark counts 
     %          - Args.Sky:  sky background (position-dependent?)
     %          - Args.Possion: Poisson noise
-    %          - Args.ReadOut: read-out noise (position-dependent?)
+    %          - Args.ReadOut: read-out noise 
     % Output : - Image: image with all the said noise components
     %            
     % Tested : Matlab R2020b
@@ -21,13 +21,13 @@ function Image = noise (ImageSrc, Args)
         
         Args.Exposure  =    1;   % exposure time [s]
         
-        Args.Dark      =    0;   % dark counts (position-dependent?)           
+        Args.Dark      =    0;   % dark counts           
         
         Args.Sky       =    0;   % sky background (position-dependent?)
                
         Args.Poisson   =    1;   % Poisson noise
         
-        Args.ReadOut   =    0;   % Read-out noise (position-dependent?)
+        Args.ReadOut   =    0;   % Read-out noise 
         
     end
     
@@ -44,6 +44,10 @@ function Image = noise (ImageSrc, Args)
     
     Image = ImageSrc .* Args.Exposure;  % [counts/s] * [s] = [counts]
     
+% In Yossi's presentation the variance of all the background
+% components: Zodiac + Cherenkov + Stray ligh + Dark current + ReadOut is estimated as 75 e-/pix (for a 300 s exposure?)
+% so in principle we could model it all as max( 0, normrnd(0,75,Nx,Ny) ) ?
+
     % add dark counts and sky background:
     
     if Args.Dark
@@ -59,7 +63,7 @@ function Image = noise (ImageSrc, Args)
     % search for the spectrum in the literature, convolve with the
     % throughput, multiply by the exposure, then make a poisson distribution of it
         
-%         SkyBckg = ; % multiply by Args.Exposure ?
+%         SkyBckg = Sky + Zodiac + Cherenkov ; % correct for Args.Exposure ?
           
         SkyBckg = poissrnd(SkyBckg);
         
