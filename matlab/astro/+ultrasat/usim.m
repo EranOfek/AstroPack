@@ -308,6 +308,9 @@ function usimImage =  usim ( Args )
              
     WPSF = imUtil.psf.specWeight( PSFdata, RadSrc, Rad, SpecAbs );     
     
+    % experimental
+    WPSF2 = imUtil.psf.specWeight2(SpecAbs, RadSrc, PSFdata, 'Rad', Rad); % experimental
+    
                     fprintf('done\n');
 
     %%%%%%%%%%%%%%%%%%%%% rotate the weighted source PSFs, blur them due to the S/C jitter 
