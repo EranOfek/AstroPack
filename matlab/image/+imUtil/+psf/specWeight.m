@@ -1,16 +1,16 @@
 function Result = specWeight(PSFdata, RadSrc, Rad, Spec)
-% Make source PSFs at certain pixel distances on the detector weighted with the given spectra of the sources
-% Package: imUtil.psf
-% Description: make source PSFs at certain pixel distances on the detector weighted with the given spectra of the sources
-% Input  : - PSFdata: a 4-D matrix of experimental PSF: (X, Y, wavelength, radius) 
-%          - RadSrc: an array of radial distances of the sources from the detector tile reference point
-%          - Rad: an array of radial distances sampled on the lab PSFs 
-%          - Spec (Src, wavelength): a 2D array of source spectra 
-% Output : - A 3-D matrix of spectrum-weighted PSFs
-%            
-% Tested : Matlab R2020b
-%     By : A. Krassilchtchikov et al.    Feb 2023
-% Example: PSF = imUtil.psf.specWeight( PSFdata, RadSrc, Rad, Spec );
+    % Make source PSFs at certain pixel distances on the detector weighted with the given spectra of the sources
+    % Package: imUtil.psf
+    % Description: make source PSFs at certain pixel distances on the detector weighted with the given spectra of the sources
+    % Input  : - PSFdata: a 4-D matrix of experimental PSF: (X, Y, wavelength, radius) 
+    %          - RadSrc: an array of radial distances of the sources from the detector tile reference point
+    %          - Rad: an array of radial distances sampled on the lab PSFs 
+    %          - Spec (Src, wavelength): a 2D array of source spectra 
+    % Output : - A 3-D matrix of spectrum-weighted PSFs
+    %            
+    % Tested : Matlab R2020b
+    %     By : A. Krassilchtchikov et al.    Feb 2023
+    % Example: PSF = imUtil.psf.specWeight( PSFdata, RadSrc, Rad, Spec );
 
     % check input parameters:
 
