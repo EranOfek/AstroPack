@@ -32,6 +32,8 @@ function Result=fitPeriod(LC, Freq, Args)
         Args.FitConst logical   = true;
         Args.Orders             = [1 2 3];
         Args.RefT0              = 0;
+        Args.Niter              = 2;
+        Args.SigmaClip          = [3 3];
     end
     
     T = LC(:,Args.ColT);
@@ -61,7 +63,10 @@ function Result=fitPeriod(LC, Freq, Args)
     H = [H, Hconst];
     
     Nfreq = numel(Freq);
-    Result = struct('Freq',cell(Nfreq,1), 'Par',cell(Nfreq,1), 'ParErr',cell(Nfreq,1), 'A',cell(Nfreq,1), 'Phase',cell(Nfreq,1));
+    Result = struct('Freq',cell(Nfreq,1), 'Par',cell(Nfreq,1), 'ParErr',cell(Nfreq,1),...
+                     'A',cell(Nfreq,1), 'Phase',cell(Nfreq,1),...
+                     'Std',cell(Nfreq,1), 'Chi2',cell(Nfreq,1), 'Dof',cell(Nfreq,1),...
+                     'Flag',cell(Nfreq,1));
     for Ifreq=1:1:Nfreq
         for Iord=1:1:Nord
             Icol = (Iord-1).*2 + 1;
@@ -69,13 +74,26 @@ function Result=fitPeriod(LC, Freq, Args)
             H(:,Icol+1) = cos(Args.Orders(Iord).*T2pi.*Freq(Ifreq));
         end
         
-        [Par, ParErr] = lscov(H, M, InvV);
+        Flag = true(N,1);
+        for Iiter=1:1:Args.Niter
+            
+            [Par, ParErr] = lscov(H(Flag,:), M(Flag), InvV(Flag));
+            Resid = M - H*Par;
+            Std   = tools.math.stat.rstd(Resid(Flag));
+            if Iiter<Args.Niter
+                Flag  = Resid>(-Std.*Args.SigmaClip(1)) & Resid<(Std.*Args.SigmaClip(2));
+            end
+        end
         
         Result(Ifreq).Freq    = Freq(Ifreq);
         Result(Ifreq).Par     = Par;
         Result(Ifreq).ParErr  = ParErr;
         Result(Ifreq).A       = zeros(Nord,1);
         Result(Ifreq).Phase   = zeros(Nord,1);
+        Result(Ifreq).Std     = Std;
+        Result(Ifreq).Chi2    = sum(Resid(Flag).^2.*InvV(Flag));
+        Result(Ifreq).Dof     = sum(Flag) - size(H,2);
+        Result(Ifreq).Flag    = Flag;
         
         for Iord=1:1:Nord
             Icol = (Iord-1).*2 + 1;
