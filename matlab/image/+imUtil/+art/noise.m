@@ -46,7 +46,7 @@ function Image = noise (ImageSrc, Args)
     
 % In Yossi's presentation the variance of all the background
 % components: Zodiac + Cherenkov + Stray ligh + Dark current + ReadOut is estimated as 75 e-/pix (for a 300 s exposure?)
-% so in principle we could model it all as max( 0, normrnd(0,75,Nx,Ny) ) ?
+% so in principle we could model it all as max( 0, normrnd(0,75,Nx,Ny) ) ??
 
     % add dark counts and sky background:
     
