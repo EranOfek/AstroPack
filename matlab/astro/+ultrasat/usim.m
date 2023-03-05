@@ -1,25 +1,25 @@
 function usimImage =  usim ( Args ) 
-% Make a simulated ULTRASAT image from a source catalog
-% Package: ultrasat
-% Description: Make a simulated ULTRASAT image from a source catalog
-% Input:    
-%       -  Args.InCat (a catalog of simulated sources)
-%       -  Args.InSpec (individual spectra or one spectral model)
-%       -  Args.Exposure (image exposure)
-%       -  Args.ImRes (image resolution in 1/pix units)
-%       -  Args.RotAng (tile rotation angle[s] relative to the axis of the raw PSF database)
-%       -  Args.NoiseDark (dark current noise)
-%       -  Args.NoiseSky  (sky background)
-%       -  Args.NoisePoisson (Poisson noise)
-%       -  Args.NoiseReadout (Read-out noise)
-%       -  Args.Inj (injection method, technical)
-%       -  Args.OutType (type of output image: FITS, AstroImage object, RAW object)
-%       -  Args.Dir (the output directory)
-% Output : - usimImage (simulated AstroImage object, FITS file output, RAW file output)           
-% Tested : Matlab R2020b
-%     By : A. Krassilchtchikov et al.   Feb 2023
-% Example: Sim = ultrasat.usim('InCat',10) 
-% put in 10 sources at random positions with the default spectrum and flux  
+    % Make a simulated ULTRASAT image from a source catalog
+    % Package: ultrasat
+    % Description: Make a simulated ULTRASAT image from a source catalog
+    % Input:    
+    %       -  Args.InCat (a catalog of simulated sources)
+    %       -  Args.InSpec (individual spectra or one spectral model)
+    %       -  Args.Exposure (image exposure)
+    %       -  Args.ImRes (image resolution in 1/pix units)
+    %       -  Args.RotAng (tile rotation angle[s] relative to the axis of the raw PSF database)
+    %       -  Args.NoiseDark (dark current noise)
+    %       -  Args.NoiseSky  (sky background)
+    %       -  Args.NoisePoisson (Poisson noise)
+    %       -  Args.NoiseReadout (Read-out noise)
+    %       -  Args.Inj (injection method, technical)
+    %       -  Args.OutType (type of output image: FITS, AstroImage object, RAW object)
+    %       -  Args.Dir (the output directory)
+    % Output : - usimImage (simulated AstroImage object, FITS file output, RAW file output)           
+    % Tested : Matlab R2020b
+    %     By : A. Krassilchtchikov et al.   Feb 2023
+    % Example: Sim = ultrasat.usim('InCat',10) 
+    % put in 10 sources at random positions with the default spectrum and flux  
   
     arguments  
         
@@ -174,10 +174,10 @@ function usimImage =  usim ( Args )
 
     % read the input spectra or generate synthetic spectra
     
-        % test: use the Stellar Spectra from UP.Specs
+        % TEST: use the Stellar Spectra from UP.Specs
         if true  
     
-            fprintf('using spectra from UP.Specs ..');
+            fprintf('TEST RUN: using spectra from UP.Specs ..');
 
             for Isrc = 1:1:NumSrc
                 % star spectra from Pickles. NB: these are normalized to 1 at 5556 Ang !
@@ -193,7 +193,7 @@ function usimImage =  usim ( Args )
             end
     
         end
-        % end test
+        % END TEST 
     
     switch isa(Args.InSpec,'AstroSpec') || isa(Args.InSpec,'AstSpec')
         
@@ -303,21 +303,35 @@ function usimImage =  usim ( Args )
     Nx = size(PSFdata,1); 
     Ny = size(PSFdata,2);
     WPSF = zeros( Nx, Ny, NumSrc );
+    WPSF2 = zeros( Nx, Ny, NumSrc ); 
     
                     fprintf('Weighting source PSFs with their spectra.. ');
+                    
+                    toc; tic
              
-    WPSF = imUtil.psf.specWeight( PSFdata, RadSrc, Rad, SpecAbs );     
+    WPSF = imUtil.psf.specWeight( PSFdata, RadSrc, Rad, SpecAbs );  
+    
+                    toc; tic
     
     % experimental
-    WPSF2 = imUtil.psf.specWeight2(SpecAbs, RadSrc, PSFdata, 'Rad', Rad); % experimental
+    WPSF2 = imUtil.psf.specWeight2a(SpecAbs, RadSrc, PSFdata, 'Rad', Rad); % experimental
+    
+            if max(WPSF-WPSF2,[],'all') > Eps
+                fprintf('The two methods differ!')
+            end
     
                     fprintf('done\n');
+                    toc
 
     %%%%%%%%%%%%%%%%%%%%% rotate the weighted source PSFs, blur them due to the S/C jitter 
     %%%%%%%%%%%%%%%%%%%%% and inject them into an empty tile image
     
+    RotAngle = Args.RotAng - 90;  
+    % the additional rotation by -90 deg is required 
+    % to have the coma in the right place!
+    
     [ImageSrc, PSF] = imUtil.art.injectArtSrc (CatX, CatY, CatFlux, ImageSizeX, ImageSizeY,...
-                             WPSF, 'PSFScaling',Args.ImRes,'RotatePSF',Args.RotAng,...
+                             WPSF, 'PSFScaling',Args.ImRes,'RotatePSF',RotAngle,...
                              'Jitter',1,'Method',Args.Inj); 
                        
                     fprintf(' done\n');
@@ -366,6 +380,9 @@ function usimImage =  usim ( Args )
     
     % add some keywords and values to the image header % TBD
     funHeader(usimImage, @insertKey, {'DATEOBS','2026-01-01T00:00:00','';'EXPTIME',Args.Exposure,''}); 
+    
+    % save the object in a .mat file for a future usage:
+    save('SimImage.mat','usimImage','-v7.3');
            
     % write the image to a FITS file    
     if strcmp( Args.OutType,'FITS') || strcmp( Args.OutType,'all')
