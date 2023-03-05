@@ -23,7 +23,7 @@ function usimImage =  usim ( Args )
   
     arguments  
         
-        Args.InCat           =  100;         % if = N, generate N random fake sources
+        Args.InCat           =  10;          % if = N, generate N random fake sources
                                              % if an AstroCat object, use sources from this object
         
         Args.InSpec          = {'BB', 3500}; % parameters of the source spectra: 
@@ -175,7 +175,7 @@ function usimImage =  usim ( Args )
     % read the input spectra or generate synthetic spectra
     
         % test: use the Stellar Spectra from UP.Specs
-        if false  
+        if true  
     
             fprintf('using spectra from UP.Specs ..');
 
@@ -183,7 +183,7 @@ function usimImage =  usim ( Args )
                 % star spectra from Pickles. NB: these are normalized to 1 at 5556 Ang !
                 Pick(Isrc) = UP.Specs( rem(Isrc,43)+1 ); 
                 %Pick(Isrc) = UP.Specs(18); % a G5V star of Teff = 5.66 kK
-                Pick(Isrc) = UP.Specs(31); % an M4V star of Teff = 3.06 kK
+                %Pick(Isrc) = UP.Specs(31); % an M4V star of Teff = 3.06 kK
             end
                 Args.InSpec = Pick(1:NumSrc);
 
