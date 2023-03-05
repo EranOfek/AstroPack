@@ -32,7 +32,7 @@ function Result = specWeight2(SpecSrc, RadSrc, PSFdata, Args)
         
     end
     
-    if Args.SpecLam ~= 0 && Args.SpecLam ~= 0   % regrid the spectra
+    if Args.SpecLam ~= 0 && Args.Lambda ~= 0   % regrid the spectra
         
         Spec = interp1(Args.SpecLam, SpecSrc, Args.Lambda);
         
@@ -53,7 +53,7 @@ function Result = specWeight2(SpecSrc, RadSrc, PSFdata, Args)
     Src     = 1:size(Spec,1);
     
     ActCube = interpn(X,Y,Lam, Args.Rad, Src, Wcube, X,Y,Lam, RadSrc, Src);
-    
+        
     Result  = squeeze( sum(ActCube,3) );
     
     % normalize 
