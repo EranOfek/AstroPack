@@ -12,7 +12,7 @@ matlab\startup\startup.m
 *.log
 
 # Simulation outputs
-SimImage.fits
+SimImage*
 
 matlab_2021_10_05_before_copyObject/
 
