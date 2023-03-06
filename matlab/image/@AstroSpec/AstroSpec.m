@@ -1802,7 +1802,8 @@ classdef AstroSpec < Component
                 Args.CreateNewObj = [];
             end
 
-            MagSyn = synphot(Obj, FilterFamily, FilterName, 'MagSys',Args.MagSys, 'Device',Args.Device, 'Algo',Args.Algo);
+            MagSyn = synphot(Obj, FilterFamily, FilterName, 'MagSys',Args.MagSys, 'Device',Args.Device);
+%             MagSyn = synphot(Obj, FilterFamily, FilterName, 'MagSys',Args.MagSys, 'Device',Args.Device, 'Algo',Args.Algo);
             MagSynVec = [MagSyn.(FilterName)];
             Factor = 10.^(-0.4.*(Mag - MagSynVec));
             Result = scaleFlux(Obj, Factor, 'CreateNewObj',Args.CreateNewObj);
