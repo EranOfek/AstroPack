@@ -4,8 +4,11 @@ function usimImage =  usim ( Args )
     % Description: Make a simulated ULTRASAT image from a source catalog
     % Input:    
     %       -  Args.InCat (a catalog of simulated sources)
+    %       -  Args.InMag (a vector of source magnitudes or 1 magnitude for all the sources)
+    %       -  Args.InMagFilt (the filter of source magnitudes)
     %       -  Args.InSpec (individual spectra or one spectral model)
     %       -  Args.Exposure (image exposure)
+    %       -  Args.Tile (name of the ULTRASAT tile)
     %       -  Args.ImRes (image resolution in 1/pix units)
     %       -  Args.RotAng (tile rotation angle[s] relative to the axis of the raw PSF database)
     %       -  Args.NoiseDark (dark current noise)
@@ -25,8 +28,14 @@ function usimImage =  usim ( Args )
         
         Args.InCat           =  10;          % if = N, generate N random fake sources
                                              % if an AstroCat object, use sources from this object
+                                             
+        Args.InMag           =  20;          % apparent magnitude of the input sources: 
+                                             % one magnitude for all the objects 
+                                             % or a vector of magnitudes 
+                                             
+        Args.InMagFilt       = {'ULTRASAT','STD'}; % the filter of the source magnitudes 
         
-        Args.InSpec          = {'BB', 3500}; % parameters of the source spectra: 
+        Args.InSpec          = {'BB', 5800}; % parameters of the source spectra: 
                                              % either an array of AstSpec or AstroSpec objects
                                              % or an array of model spectra parameters: 
                                              % '{'BB', 3500}', Temperature (K) -- blackbody
@@ -35,6 +44,8 @@ function usimImage =  usim ( Args )
                                              % in [erg cm(-2) s(-1) A(-1)] as seen near Earth!
                                              
         Args.Exposure        = 300;          % image exposure, [s]; 300 s in the standard ULTRASAT exposure
+        
+        Args.Tile            = 'B';          % the tile name: 'B' is the upper right tile  
         
         Args.ImRes           = 5;            % image resolution: 5 is 1/5 of the ULTRASAT pixel
                                              % possible values: 1, 2, 5, 10, 47.5
@@ -67,15 +78,14 @@ function usimImage =  usim ( Args )
     
     C   = constant.c;       % the speed of light in vacuum, [cm/s]
     H   = constant.h;       % the Planck constant, [erg s]   
-    Parsec = constant.pc;   % the parsec, [cm]
-
-    Rsun  = constant.SunR;  % [cm] Solar radius
-    Lsun  = constant.SunL;  % [erg/s] Solar luminosity
     
-    % put into Args?
-    
-    Rstar = 1. * Rsun;   % stellar radius in Rsun % par 
-    Dstar = 10;          % [pc] stellar distance  % par  
+%     Parsec = constant.pc;   % the parsec, [cm]
+% 
+%     Rsun  = constant.SunR;  % [cm] Solar radius
+%     Lsun  = constant.SunL;  % [erg/s] Solar luminosity
+%     
+%     Rstar = 1. * Rsun;   % stellar radius in Rsun % par 
+%     Dstar = 10;          % [pc] stellar distance  % par  
     
     %%%%%%%%%%%%%%%%%%%% ULTRASAT PSF database parameters
                
@@ -113,7 +123,7 @@ function usimImage =  usim ( Args )
         
     %%%%%%%%%%%%%%%%%%%% read source coordinates from an input catalog or make a fake catalog
     
-    if ~isa(Args.InCat,'AstroCatalog') % make a fake catalog
+    if ~isa(Args.InCat,'AstroCatalog') % make a fake catalog with sources randomly distributed over the FOV
       
         NumSrc = Args.InCat;  % the number of fake sources
 
@@ -187,11 +197,12 @@ function usimImage =  usim ( Args )
             end
                 Args.InSpec = Pick(1:NumSrc);
 
-            for Isrc = 1:1:NumSrc
-                  Args.InSpec(Isrc).Int = Args.InSpec(Isrc).Int / sum ( Args.InSpec(Isrc).Int * 5.0 ); % 5.0 A is the bin width
-                  Args.InSpec(Isrc).Int = Args.InSpec(Isrc).Int .* Lsun / (4 * pi * ( Dstar * 3.1e18 )^2 ); % Solar luminosity 
-            end
-    
+%             for Isrc = 1:1:NumSrc
+%                   Args.InSpec(Isrc).Int = Args.InSpec(Isrc).Int / sum ( Args.InSpec(Isrc).Int * 5.0 ); % 5.0 A is the bin width
+%                   Args.InSpec(Isrc).Int = Args.InSpec(Isrc).Int .* Lsun / (4 * pi * ( Dstar * 3.1e18 )^2 ); % Solar luminosity 
+%             end
+%                   
+            % do not need to normalize the spectrum here, it will be done below based on the magnitude
         end
         % END TEST 
     
@@ -206,8 +217,10 @@ function usimImage =  usim ( Args )
                 for Isrc = 1:1:NumSrc
                     
                     % SpecIn(Isrc,:) = AstSpec.blackbody(Args.InSpec{2},Wave).Int; % AstSpec is deprecated
-                    SpecIn(Isrc,:) = AstroSpec.blackBody(Wave',Args.InSpec{2},...
-                                     'Radius',Rstar,'Dist',Dstar).Flux; % erg s(-1) cm(-2) A(-1)
+%                     SpecIn(Isrc,:) = AstroSpec.blackBody(Wave',Args.InSpec{2},...
+%                                      'Radius',Rstar,'Dist',Dstar).Flux; % erg s(-1) cm(-2) A(-1)
+                    % do not need to normalize the spectrum here, it will be done below based on the magnitude
+                      SpecIn(Isrc,:) = AstroSpec.blackBody(Wave',Args.InSpec{2}).Flux; % erg s(-1) cm(-2) A(-1)
                     
                 end
                         
@@ -220,11 +233,13 @@ function usimImage =  usim ( Args )
                 for Isrc = 1:1:NumSrc
                     
                     PLalpha = Args.InSpec{2};
-                    PLalpha1 = PLalpha + 1.;
-                    PLnorm = 1 / ( (1 / PLalpha1 ) * ( Wave(Nwave)^PLalpha1-Wave(1)^PLalpha1 ) );
-                    SpecIn(Isrc,:) = PLnorm * Wave .^ PLalpha; % erg s(-1) cm(-2) A(-1) 
-                                                               % Flux = sum(F_l * Delta_l) normalized to 1
-                    SpecIn(Isrc,:) = SpecIn(Isrc,:) .* Lsun / (4 * pi * ( Dstar * Parsec )^2 ); % 
+%                     PLalpha1 = PLalpha + 1.;
+%                     PLnorm = 1 / ( (1 / PLalpha1 ) * ( Wave(Nwave)^PLalpha1-Wave(1)^PLalpha1 ) );
+%                     SpecIn(Isrc,:) = PLnorm * Wave .^ PLalpha; % erg s(-1) cm(-2) A(-1) 
+%                                                                % Flux = sum(F_l * Delta_l) normalized to 1
+%                     SpecIn(Isrc,:) = SpecIn(Isrc,:) .* Lsun / (4 * pi * ( Dstar * Parsec )^2 ); % 
+                    % do not need to normalize the spectrum here, it will be done below based on the magnitude
+                    SpecIn(Isrc,:) = Wave .^ PLalpha; % erg s(-1) cm(-2) A(-1)                                                       
                     
                 end
                                 
@@ -255,7 +270,7 @@ function usimImage =  usim ( Args )
             end
             
             % try to make a 1-liner instead of a cycle? 
-            % SpecIn = interp1( Args.InSpec.Wave, Args.InSpec.Int, Wave, 'linear', 0);
+            % SpecIn = interp1( 1:NSrc, Args.InSpec.Wave, Args.InSpec.Int, 1:NSrc, Wave, 'linear', 0);
             
     end
 
@@ -264,6 +279,21 @@ function usimImage =  usim ( Args )
     
                     tic
     
+    %%%%%%%%%%%%%%%%%%%%%  rescale the spectra to the input magnitudes 
+        
+    for Isrc = 1:1:NumSrc
+        
+          AS = AstroSpec([Wave' SpecIn(Isrc,:)']);
+          if size(Args.InMag,1) > 1 
+              InMag = Args.InMag(Isrc); 
+          else
+              InMag = Args.InMag(1); 
+          end
+          SpecScaled  = scaleSynphot(AS, InMag, Args.InMagFilt{1}, Args.InMagFilt{2}); 
+          SpecIn(Isrc,:) = SpecScaled.Flux; 
+        
+    end  
+                    
     %%%%%%%%%%%%%%%%%%%%%  convolve the spectrum with the ULTRASAT throughut and
     %%%%%%%%%%%%%%%%%%%%%  fill the CatFlux column with the spectrum-intergated countrate fluxes
     
@@ -303,25 +333,13 @@ function usimImage =  usim ( Args )
     Nx = size(PSFdata,1); 
     Ny = size(PSFdata,2);
     WPSF = zeros( Nx, Ny, NumSrc );
-    WPSF2 = zeros( Nx, Ny, NumSrc ); 
     
                     fprintf('Weighting source PSFs with their spectra.. ');
                     
-                    toc; tic
-             
-    WPSF = imUtil.psf.specWeight( PSFdata, RadSrc, Rad, SpecAbs );  
+    WPSF = imUtil.psf.specWeight(SpecAbs, RadSrc, PSFdata, 'Rad', Rad); 
     
-                    toc; tic
-    
-    % experimental
-    WPSF2 = imUtil.psf.specWeight2a(SpecAbs, RadSrc, PSFdata, 'Rad', Rad); % experimental
-    
-            if max(WPSF-WPSF2,[],'all') > Eps
-                fprintf('The two methods differ!')
-            end
-    
-                    fprintf('done\n');
-                    toc
+                    fprintf('done\n'); 
+                    elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
 
     %%%%%%%%%%%%%%%%%%%%% rotate the weighted source PSFs, blur them due to the S/C jitter 
     %%%%%%%%%%%%%%%%%%%%% and inject them into an empty tile image
@@ -329,6 +347,8 @@ function usimImage =  usim ( Args )
     RotAngle = Args.RotAng - 90;  
     % the additional rotation by -90 deg is required 
     % to have the coma in the right place!
+    
+                    fprintf('Rotating the PSFs and injecting them into an empty image.. ');
     
     [ImageSrc, PSF] = imUtil.art.injectArtSrc (CatX, CatY, CatFlux, ImageSizeX, ImageSizeY,...
                              WPSF, 'PSFScaling',Args.ImRes,'RotatePSF',RotAngle,...
@@ -379,17 +399,18 @@ function usimImage =  usim ( Args )
     usimImage = AstroImage( {ImageSrcNoise} ,'Back',{Emptybox}, 'Var',{Emptybox},'Cat',{Args.InCat.Catalog});
     
     % add some keywords and values to the image header % TBD
-    funHeader(usimImage, @insertKey, {'DATEOBS','2026-01-01T00:00:00','';'EXPTIME',Args.Exposure,''}); 
-    
+    funHeader(usimImage, @insertKey, {'DATEOBS','2026-01-01T00:00:00','';'EXPTIME',Args.Exposure,''});  
+       
     % save the object in a .mat file for a future usage:
-    save('SimImage.mat','usimImage','-v7.3');
+    OutObjName = sprintf('%s%s%s','SimImage_tile',Args.Tile,'.mat');   
+    save(OutObjName,'usimImage','-v7.3');
            
     % write the image to a FITS file    
     if strcmp( Args.OutType,'FITS') || strcmp( Args.OutType,'all')
         
         % NB: when writing to a fits image, do we need to transpose the image?
-        OutFITS = sprintf('%s%s%s','!',Args.OutDir,'/SimImage.fits'); 
-        imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITS);     
+        OutFITSName = sprintf('%s%s%s%s%s','!',Args.OutDir,'/SimImage_tile',Args.Tile,'.fits'); 
+        imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName);     
         
     end
 
