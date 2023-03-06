@@ -29,17 +29,19 @@ function Result=simulateThreshold(P, B, F, Args)
     %            .Thresh - The vector of estimated thresholds (one per
     %                   probability).
     % Author : Eran Ofek (Feb 2023)
-    % Example: P = imUtil.kernel2.gauss([1.5;2]); B=0.1; F=3;
-    %          Result = imUtil.poissNoise.simulateThreshold(P, B, F, Args)
+    % Example: P = imUtil.kernel2.gauss([1.5;2]); B=0.005; F=3;
+    %          Pp = imUtil.poissNoise.poissonMatchedFilter(P, B, F);
+    %          Result = imUtil.poissNoise.simulateThreshold(Pp, B, F);
+    %          
 
     
     arguments
         P
         B
         F
-        Args.ThreshP    = [1e-3, 1e-4];
+        Args.ThreshP    = 1e-5; %[1e-3, 1e-4, 1.3e-3];
         Args.Nsim       = 1e6;
-        Args.Nbatch     = 1e3; 
+        Args.Nbatch     = 1e6; 
     end
     
     SizeP = size(P);
