@@ -942,14 +942,6 @@ classdef AstroSpec < Component
             %          - Refractive index.
             %          - Wavelength in the same units as the particle
             %            radius.
-            %          - Output spectrum:
-            %               'scat_theta' - [1/sr] scattering eff. (Q) at
-            %                       theta.
-            %               'abs' - total abs eff. (Q_abs)
-            %               'scat_tot' - tot scat eff (Q_scat).
-            %               'ext' - tot ext (abs+scat) eff.
-            %               'scat_theta/ext' - (4pi *scat_theta/tot) Default.
-            %               'abs/ext'
             % Output : - An AstroSpec object with a Mie scattering efficiency spectrum
             %            'scat_theta/ext'
             %            for some specific scattering angle Theta, and for
