@@ -421,6 +421,7 @@ classdef DbQuery < Component
             %            'UseCopyThreshold'- When number of records is above this value, copyFrom() is used
             %            'CsvFileName'     - Specify CSV file as source of data
             %            'BinaryFileName'  - NOT IMPLEMENTED YET - When using COPY, name of Binary file @TODO
+            %            'Returning'       - @TODO - RETURNING - Need to add support
             %
             % Output   : - true on success.
             % Author   : Chen Tishler (2021)
@@ -452,6 +453,7 @@ classdef DbQuery < Component
                 Args.ColumnsOnly = false;   % When true, ignore fields that has no matching columns in the table
                 Args.CsvFileName = ''       % When using COPY, name of CSV file
                 Args.BinaryFileName = ''    % NOT IMPLEMENTED YET! When using COPY, name of Binary file @TODO - NOT IMPLEMENTED YET!
+                Args.Returning = ''         % NOT IMPLEMENTED YET!
             end
 
             % Execute SQL statement (using java calls)
@@ -629,6 +631,11 @@ classdef DbQuery < Component
             RecSqlText = ['INSERT INTO ', string(Args.TableName).char, ' (', SqlColumns, ') VALUES (', SqlValues, ');'];
             Obj.msgLog(LogLevel.Debug, 'insert: SqlText: %s', RecSqlText);
 
+            % @Todo - RETURNING
+            if ~isempty(Args.Returning)
+                RecSqlText = strcat(RecSqlText, 'RETURNING', Args.Returning);
+            end
+                        
             % Iterate struct array and insert in batchs
             RecIndex = 1;
             LastBatchSize = 0;
@@ -676,6 +683,12 @@ classdef DbQuery < Component
                 T3 = tic();
                 try
                     Obj.JavaResultSet = Obj.JavaStatement.executeUpdate();
+                    
+                    % @Todo - RETURNING - Collect the return data
+                    if ~isempty(Args.Returning)
+                        
+                    end
+            
                     Obj.ExecOk = true;
                 catch
                     Obj.msgLog(LogLevel.Error, 'insert: executeQuery failed: %s', Obj.SqlText);
