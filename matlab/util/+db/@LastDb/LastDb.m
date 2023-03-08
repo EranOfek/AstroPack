@@ -42,12 +42,12 @@ classdef LastDb < Component
             Obj.setName('LastDb');
             
             % Create DbQuery object
-            Obj.msgLog(LogLevel.Info, 'LastDb: connecting to server %s:%d, database: %s, user: %s/%s', Args.Host, Args.Port, Args.DatabaseName, Args.UserName, Args.Password);
+            Obj.msgLog(LogLevel.Info, 'Connecting to server %s:%d, database: %s, user: %s/%s', Args.Host, Args.Port, Args.DatabaseName, Args.UserName, Args.Password);
             Obj.Query = db.DbQuery('Host', Args.Host, 'Port', Args.Port, 'UserName', 'postgres', 'Password', Args.Password, 'DatabaseName', Args.DatabaseName);
             
             % Query database version, to verify that we have a connection
             pgver = Obj.Query.getDbVersion();
-            Obj.msgLog(LogLevel.Info, 'LastDb: connected, Postgres version: %s', pgver);
+            Obj.msgLog(LogLevel.Info, 'Connected, Postgres version: %s', pgver);
             assert(contains(pgver, 'PostgreSQL'));            
         end
     end

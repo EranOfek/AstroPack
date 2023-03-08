@@ -942,14 +942,6 @@ classdef AstroSpec < Component
             %          - Refractive index.
             %          - Wavelength in the same units as the particle
             %            radius.
-            %          - Output spectrum:
-            %               'scat_theta' - [1/sr] scattering eff. (Q) at
-            %                       theta.
-            %               'abs' - total abs eff. (Q_abs)
-            %               'scat_tot' - tot scat eff (Q_scat).
-            %               'ext' - tot ext (abs+scat) eff.
-            %               'scat_theta/ext' - (4pi *scat_theta/tot) Default.
-            %               'abs/ext'
             % Output : - An AstroSpec object with a Mie scattering efficiency spectrum
             %            'scat_theta/ext'
             %            for some specific scattering angle Theta, and for
@@ -1802,7 +1794,8 @@ classdef AstroSpec < Component
                 Args.CreateNewObj = [];
             end
 
-            MagSyn = synphot(Obj, FilterFamily, FilterName, 'MagSys',Args.MagSys, 'Device',Args.Device, 'Algo',Args.Algo);
+            MagSyn = synphot(Obj, FilterFamily, FilterName, 'MagSys',Args.MagSys, 'Device',Args.Device);
+%             MagSyn = synphot(Obj, FilterFamily, FilterName, 'MagSys',Args.MagSys, 'Device',Args.Device, 'Algo',Args.Algo);
             MagSynVec = [MagSyn.(FilterName)];
             Factor = 10.^(-0.4.*(Mag - MagSynVec));
             Result = scaleFlux(Obj, Factor, 'CreateNewObj',Args.CreateNewObj);
