@@ -6,6 +6,15 @@
 
 
 classdef Targets < Component
+    properties (Dependent)
+        RA
+        Dec
+        Index
+        Name
+        MaxNobs
+        LastJD
+    end
+    
     properties
         Data table   % with columns: Index, Name, RA, Dec, DeltaRA, DeltaDec, ExpTime, NperVisit, MaxNobs, LastJD, GlobalCounter, NightCounter
         
@@ -14,18 +23,16 @@ classdef Targets < Component
         IsSolarSystem logical      = false;
         IsTOO logical              = false;
         IsManual logical           = false;
-        RA
-        Dec
         
-        DeltaRA                   
-        DeltaDec
-        ExpTime
-        NperVisit
+        %DeltaRA                   
+        %DeltaDec
+        %ExpTime
+        %NperVisit
         %Filter
         
         CadenceMethod                           % 'periodic' | 'continues' | 'west2east'
         Priority                                % baseline priority that multiplies the base priority
-        MaxNobs                    = Inf;
+        
         PriorityArgs               = struct('InterNightCadence',40./1440,...
                                             'CadenceFun',@celestial.scheduling.fermiexp,...  
                                             'CadeneFunArgs',{1.4, 1, 0.03, 1, 0.5});  %t0,Decay,Soft,BaseW,ExtraW)
@@ -88,16 +95,76 @@ classdef Targets < Component
     end
     
     methods % setters/getters
+        function Result = get.RA(Obj)
+            % getter for RA
+            Result = Obj.Data.RA;
+        end
+        function Result = get.Dec(Obj)
+            % getter for Dec
+            Result = Obj.Data.Dec;
+        end
+        function Result = get.Index(Obj)
+            % getter for Index
+            Result = Obj.Data.Index;
+        end
+        function Result = get.Name(Obj)
+            % getter for Name
+            Result = Obj.Data.Name;
+        end
         function Result = get.MaxNobs(Obj)
             % getter for MaxNobs
-            
-            Obj.MaxNobs = Obj.MaxNobs(:);
-            if numel(Obj.MaxNobs)==1
-                Obj.MaxNobs = Obj.MaxNobs + zeros(size(Obj.RA));
+            Result = Obj.Data.MaxNobs;
+        end
+        function Result = get.LastJD(Obj)
+            % getter for LastJD
+            Result = Obj.Data.LastJD;
+        end
+        function Result = get.GlobalCounter(Obj)
+            % getter for GlobalCounter
+            Result = Obj.Data.GlobalCounter;
+        end
+        function Result = get.NightCounter(Obj)
+            % getter for GlobalCounter
+            Result = Obj.Data.NightCounter;
+        end
+                
+    end
+    
+    methods  % setters to Data table
+        function Obj = setTableProp(Obj, Prop, Val, Index)
+            % set Data table column for specific entries
+            % Input  : - celestial.Targets object.
+            %          - Table column name to set (e.g., 'LastJD').
+            %          - Vector of values.
+            %          - Vector of indices in which to insert the values.
+            %            If empty, then assume insert scalar value for entire
+            %            column, or insert vector to entire column.
+            %            Default is [].
+            % Output : - celestial.Targets in which the Data table is
+            %            updated.
+            % Author : Eran Ofek (Mar 2023)
+           
+            arguments
+                Obj
+                Prop
+                Val
+                Index = [];
             end
             
-            Result = Obj.MaxNobs;
+            if isempty(Index)
+                Nline = size(Obj.data,1);
+                if numel(Val)==1
+                    Val = Val.*ones(Nline,1);
+                    Index = true(Nline,1);
+                else
+                    Index = true(Nline,1);
+                end
+            end
+            
+            Obj.Data.(Prop)(Index) = Val;
+            
         end
+        
     end
     
     methods % read/write        
