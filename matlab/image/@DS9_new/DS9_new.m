@@ -25,7 +25,7 @@
 %
 
 
-classdef DS9 < handle
+classdef DS9_new < handle
     properties
         MethodXPA              = 'ds9';   % Index of current active ID - 
         Frame                  = [];
