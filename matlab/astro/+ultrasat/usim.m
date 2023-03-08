@@ -123,20 +123,8 @@ function usimImage =  usim ( Args )
         
     %%%%%%%%%%%%%%%%%%%% read source coordinates from an input catalog or make a fake catalog
     
-    if ~isa(Args.InCat,'AstroCatalog') % make a fake catalog with sources randomly distributed over the FOV
-      
-        NumSrc = Args.InCat;  % the number of fake sources
-
-        CatX    = round( ImageSizeX * rand(NumSrc,1) ); 
-        CatY    = round( ImageSizeY * rand(NumSrc,1) ); 
-        RA      = zeros(NumSrc,1);  % will be determined below if a WCS is set
-        DEC     = zeros(NumSrc,1);  % -//-
-        CatFlux = zeros(NumSrc,1);  % will be determined below from spectra * transmission 
-        
-                            fprintf('%d%s\n',NumSrc,' random sources generated');
-        
-    else % read sources from an AstroCatalog object
-        
+    if isa(Args.InCat,'AstroCatalog') % read sources from an AstroCatalog object 
+ 
         % read in an appropriate ULTRASAT header and make a WCS
         % SimHeader = AstroHeader('/home/sasha/matlab/data/ULTRASAT/UC-3200-TN003-01_FITS_formatted_image_example.fits',0); 
         % SimWCS = AstroWCS.header2wcs(SimHeader);
@@ -154,8 +142,39 @@ function usimImage =  usim ( Args )
         end
                 
         CatFlux       = zeros(NumSrc,1);   % will be determined below from spectra * transmission 
+        InMag         = zeros(NumSrc,1);    
         
-                            fprintf('%d%s\n',NumSrc,' sources read from the input catalog');
+                            fprintf('%d%s\n',NumSrc,' sources read from the input AstroCatalog object');
+ 
+        
+    elseif size(Args.InCat,2) > 1 % read source pixel coordinates from a table
+        
+        NumSrc = size(Args.InCat,1);
+        
+        CatX   = Args.InCat(:,1);
+        CatY   = Args.InCat(:,2);
+        
+        RA      = zeros(NumSrc,1);  % will be determined below if a WCS is set
+        DEC     = zeros(NumSrc,1);  % -//-
+        CatFlux = zeros(NumSrc,1);  % will be determined below from spectra * transmission 
+        InMag   = zeros(NumSrc,1);    
+        
+                            fprintf('%d%s\n',NumSrc,' sources read from the input table');
+        
+        
+    else % make a fake catalog with Args.InCat sources randomly distributed over the FOV
+        
+        NumSrc = Args.InCat;  % the number of fake sources
+
+        CatX    = round( ImageSizeX * rand(NumSrc,1) ); 
+        CatY    = round( ImageSizeY * rand(NumSrc,1) ); 
+        
+        RA      = zeros(NumSrc,1);  % will be determined below if a WCS is set
+        DEC     = zeros(NumSrc,1);  % -//-
+        CatFlux = zeros(NumSrc,1);  % will be determined below from spectra * transmission 
+        InMag   = zeros(NumSrc,1);    
+        
+                            fprintf('%d%s\n',NumSrc,' random sources generated');
         
     end
 
@@ -185,7 +204,7 @@ function usimImage =  usim ( Args )
     % read the input spectra or generate synthetic spectra
     
         % TEST: use the Stellar Spectra from UP.Specs
-        if true  
+        if false  
     
             fprintf('TEST RUN: using spectra from UP.Specs ..');
 
@@ -285,12 +304,15 @@ function usimImage =  usim ( Args )
         
           AS = AstroSpec([Wave' SpecIn(Isrc,:)']);
           if size(Args.InMag,1) > 1 
-              InMag = Args.InMag(Isrc); 
+              InMag(Isrc) = Args.InMag(Isrc); 
           else
-              InMag = Args.InMag(1); 
+              InMag(Isrc) = Args.InMag(1); 
           end
-          SpecScaled  = scaleSynphot(AS, InMag, Args.InMagFilt{1}, Args.InMagFilt{2}); 
+          SpecScaled  = scaleSynphot(AS, InMag(Isrc), Args.InMagFilt{1}, Args.InMagFilt{2}); 
           SpecIn(Isrc,:) = SpecScaled.Flux; 
+          
+%           fprintf('%s%d%s%4.1f\n','Eff. magnitude of source ', Isrc,' = ',...
+%               astro.spec.synthetic_phot([SpecScaled.Wave, SpecScaled.Flux],'ULTRASAT','STD','AB'));
         
     end  
                     
@@ -364,9 +386,23 @@ function usimImage =  usim ( Args )
     
                     fprintf('Adding noise .. ');
                     
-    ImageSrcNoise = imUtil.art.noise(ImageSrc,'Exposure',Args.Exposure,...
-                                    'Dark',Args.NoiseDark,'Sky',Args.NoiseSky,...
-                                    'Poisson',Args.NoisePoisson,'ReadOut',Args.NoiseReadout);
+%     ImageSrcNoise = imUtil.art.noise(ImageSrc,'Exposure',Args.Exposure,...
+%                                     'Dark',Args.NoiseDark,'Sky',Args.NoiseSky,...
+%                                     'Poisson',Args.NoisePoisson,'ReadOut',Args.NoiseReadout);
+%                                 
+
+    Noise_var_YS = 75.0 ; % [e-/pix] total background variance estimate for a 300 s exposure made by YS
+    NoiseLevel = Noise_var_YS * sqrt(Args.Exposure/300.) * ones(ImageSizeX,ImageSizeY);
+    SrcAndNoise   = ImageSrc .* Args.Exposure + NoiseLevel; 
+    
+%     ImageSrcNoise = poissrnd( SrcAndNoise, ImageSizeX, ImageSizeY);                             
+%     ImageBkg      = poissrnd( NoiseLevel, ImageSizeX, ImageSizeY);
+%     
+%     As the noise level is already quite hight for typical exposures,
+%     we can use a faster a normal distribution instead of the true Poisson distribution
+%
+    ImageSrcNoise =  normrnd( SrcAndNoise, sqrt(SrcAndNoise), ImageSizeX, ImageSizeY);              
+    ImageBkg      =  normrnd( NoiseLevel,  sqrt(NoiseLevel),  ImageSizeX, ImageSizeY);
                                  
                     fprintf(' done\n');
                     
@@ -377,9 +413,8 @@ function usimImage =  usim ( Args )
        
     % if we generated a fake catalog above, make a catalog table here
     if ~isa(Args.InCat,'AstroCatalog')
-        Cat = [CatX CatY CatFlux RA DEC];
-        % NOTE: what is denoted 'MAG' here is actually the integrated count number
-        Args.InCat = AstroCatalog({Cat},'ColNames',{'X','Y','MAG','RAJ2000','DEJ2000'},'HDU',1);
+        Cat = [CatX CatY CatFlux InMag RA DEC];
+        Args.InCat = AstroCatalog({Cat},'ColNames',{'X','Y','Counts','MAG','RAJ2000','DEJ2000'},'HDU',1);
     end
     
     % save the final source PSFs into an AstroPSF array 
@@ -396,7 +431,7 @@ function usimImage =  usim ( Args )
     Emptybox = zeros(ImageSizeX,ImageSizeY);
         
     % make an AstroImage 
-    usimImage = AstroImage( {ImageSrcNoise} ,'Back',{Emptybox}, 'Var',{Emptybox},'Cat',{Args.InCat.Catalog});
+    usimImage = AstroImage( {ImageSrcNoise} ,'Back',{ImageBkg}, 'Var',{ImageBkg},'Cat',{Args.InCat.Catalog});
     
     % add some keywords and values to the image header % TBD
     funHeader(usimImage, @insertKey, {'DATEOBS','2026-01-01T00:00:00','';'EXPTIME',Args.Exposure,''});  
@@ -408,15 +443,28 @@ function usimImage =  usim ( Args )
     % write the image to a FITS file    
     if strcmp( Args.OutType,'FITS') || strcmp( Args.OutType,'all')
         
-        % NB: when writing to a fits image, do we need to transpose the image?
+        % NB: when writing to a fits image, we need to transpose the image
         OutFITSName = sprintf('%s%s%s%s%s','!',Args.OutDir,'/SimImage_tile',Args.Tile,'.fits'); 
-        imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName);     
+        imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName);   
+        
+        % an accompanying region file: 
+        OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'.reg');
+        DS9_new.regionWrite([CatX CatY],'FileName',OutRegName,'Color','blue'); 
         
     end
 
-    %%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%    
     
                     fprintf('%s%4.0f%s\n','Simulation completed in ',etime(clock,tstart),...
                                          ' sec, see the generated images')
+
+    %%%%%%%%%%%%%%%%%%%% post modeling checks
     
+    MeasuredCat = imProc.sources.findMeasureSources(usimImage,'ForcedList',[CatX CatY],...
+                         'OnlyForced',1,'CreateNewObj',1,'ReCalcBack',0,'ZP',25).CatData;
+    
+    SNRs = MeasuredCat.Catalog(:,8:12);
+    Mag_Aper = MeasuredCat.Catalog(:,23:25);
+    
+
 end
