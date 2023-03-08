@@ -7,6 +7,8 @@
 
 classdef Targets < Component
     properties
+        Data table   % with columns: Index, Name, RA, Dec, DeltaRA, DeltaDec, ExpTime, NperVisit, MaxNobs, LastJD, GlobalCounter, NightCounter
+        
         Index
         TargetName cell
         IsSolarSystem logical      = false;
@@ -15,7 +17,7 @@ classdef Targets < Component
         RA
         Dec
         
-        DeltaRA
+        DeltaRA                   
         DeltaDec
         ExpTime
         NperVisit
@@ -142,6 +144,10 @@ classdef Targets < Component
                         
                         Obj.Priority       = Args.Priority(:).*ones(Ntarget,1);
                         Obj.LastJD         = zeros(Ntarget,1);
+                        Obj.DeltaRA        = zeros(Ntarget,1);
+                        Obj.DeltaDec       = zeros(Ntarget,1);
+                        Obj.NperVisit      = ones(Ntarget,1);
+                        Obj.MaxNobs        = inf(Ntarget,1);
                         Obj.GlobalCounter  = zeros(Ntarget,1);
                         Obj.NightCounter   = zeros(Ntarget,1);
                         
@@ -202,10 +208,51 @@ classdef Targets < Component
             
         end
         
-        %function reaedTargetList
+        
             
     end
-    
+
+    methods (Static)
+        function Result=readTargetList(Table)
+            % Generate an Targets object from a table/file.
+            % Input  : - A table object, or a file name to upload into a
+            %            table object using the readtable command.
+            %            The table must contains the Targets properties you
+            %            want to load (e.g., 'RA,'Dec',...).
+            % Output : - A celestial.Targets object with the populated
+            %            fields.
+            % Author : Eran Ofek (Mar 2023)
+
+            arguments
+                Table
+                
+            end
+
+            if istable(Table)
+                % already Table
+            elseif isa(Table,'AstroCatalog')
+                error('AstroCatalog not yet supported');
+            else
+                % assume file input
+                % attemp to read using readtable
+                Table = readtable(Table);
+            end
+
+            Cols  = Table.Properties.VariableNames;
+            Ncols = numel(Cols);
+
+            Result            = celestial.Targets;
+            for Icol=1:1:Ncols
+                if isprop(Result, Cols{Icol})
+                    Result.(Cols{Icol}) = Table.(Cols{Icol});
+                end
+            end
+
+
+        end
+    end
+
+
     methods
         function [Lon, Lat] = ecliptic(Obj)
             % Return ecliptic coordinates for targets.
@@ -755,10 +802,61 @@ classdef Targets < Component
             
         end
         
-        %function updateCounter
+        function Obj = updateCounter(Obj, ObjectIndex)
+            % Increase celestial.Targets counter by 1 for selected targets
+            % Input  : - A celestial.Targets object.
+            %          - A scalar or vector of targets indices, or target
+            %            names (as appear in the TargetName property).
+            % Output : - A celestial.Targets object, in which the
+            %            GlobalCounter and NightCounter for the selected
+            %            indices are increased by 1.
+            % Author : Eran Ofek (Mar 2023)
+
+
+            Ntargets = numel(Obj.RA);
+            if numel(Obj.GlobalCounter)==1
+                Obj.GlobalCounter = Obj.GlobalCounter.*ones(Ntargets);
+            end
+            if numel(Obj.NightCounter)==1
+                Obj.NightCounter = Obj.NightCounter.*ones(Ntargets);
+            end
+
+            if ischar(ObjectIndex)
+                % assume TargetName is provided
+                ObjectIndex = find(strcmp(Obj.TargetName,ObjectIndex));
+            end
+
+            Obj.GlobalCounter(ObjectIndex) = Obj.GlobalCounter(ObjectIndex) + 1;
+            Obj.NightCounter(ObjectIndex)  = Obj.NightCounter(ObjectIndex)  + 1;
+            
+        end
         
-        %function getTarget(Obj, Ind)
-        
+        function Result=getTarget(Obj, ObjectIndex, Args)
+            % Get properties of selected targets by index or target name
+            %
+
+            arguments
+                Obj
+                ObjectIndex
+                Args.Prop  = {'Index','RA','Dec','DeltaRA','DeltaDec','ExpTime','NpreVisit','MaxNobs','LastJD','GlobalCounter','NightCounter'};
+            end
+
+            if ischar(ObjectIndex)
+                % assume TargetName is provided
+                ObjectIndex = find(strcmp(Obj.TargetName,ObjectIndex));
+            end
+
+            Nprop = numel(Args.Prop);
+
+            Nind = numel(ObjectIndex);
+            Result = tools.struct.struct_def(Args.Prop, Nind,1);
+            for Iind=1:1:Nind
+                for Iprop=1:1:Nprop
+                    Result(Iind).(Args.Prop{Iprop}) = Obj.(Args.Prop{Iprop})(ObjectIndex(Iind));
+                end
+            end
+
+        end
     end
     
     methods (Static)  % static utilities

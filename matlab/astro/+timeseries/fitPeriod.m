@@ -1,4 +1,4 @@
-function Result=fitPeriod(LC, Freq, Args)
+function [Result,RefT0]=fitPeriod(LC, Freq, Args)
     % fit a light curve with an harmonic (sin/cos) series
     % Input  : - A matrix of light curve, with [t, Mag, Err] columns.
     %          - A vector of frequencies to fit.
@@ -12,6 +12,7 @@ function Result=fitPeriod(LC, Freq, Args)
     %            'Orders' - List of harmoinc orders to fit.
     %                   Default is [1 2 3].
     %            'RefT0' - Reference time to subtract before fitting.
+    %                   If empty, then will take the median of the time.
     %                   Default is 0.
     % Output : - A structure array with entry per frequency and the
     %            following fields:
@@ -20,6 +21,7 @@ function Result=fitPeriod(LC, Freq, Args)
     %            .ParErr - Fitted error parameters.
     %            .A      - Amplitudes.
     %            .Phase  - Phases.
+    %          - RefT0.
     % Author : Eran Ofek (Mar 2023)
     % Example: 
     
@@ -46,7 +48,13 @@ function Result=fitPeriod(LC, Freq, Args)
         InvV = 1./(LC(:,Args.ColE).^2);
     end
     
-    T = T - Args.RefT0;
+    if isempty(Args.RefT0)
+        RefT0 = median(T);
+    else
+        RefT0 = Args.RefT0;
+    end
+
+    T = T - RefT0;
     
     T2pi = 2.*pi.*T;
     
