@@ -19,7 +19,21 @@
 % To generate a list based on some all-sky fields:
 % T = celestial.Targets.generateTargetList('last')
 %
+% write a celestial.Targets as mat file
+% T.write('FileName.mat');
 %
+% Coordinate conversiona and information
+% (in all cases default time is now):
+% [Lon, Lat] = T.ecliptic;
+% [Lon, Lat] = T.galactic;
+% [MD, Moon] = T.moonDist(2451545);
+% [MD, Moon] = T.moonDist; % for current time
+% [Sun] = T.sunCoo;
+% [Moon] = T.moonCoo;
+% [Az, Alt, dAz, dAlt] = T.azalt;          
+% [HA, LST] = T.ha;
+% [VisibilityTime] = leftVisibilityTime(T);
+% [FlagAll, Flag] = isVisible(T); 
 
 
 
@@ -36,6 +50,8 @@ classdef Targets < Component
         GlobalCounter
         NightCounter
         Priority              % baseline priority
+        NperVisit
+        ExpTime
     end
     
     properties
@@ -153,7 +169,14 @@ classdef Targets < Component
             % getter for Priority
             Result = Obj.Data.Priority;
         end 
-        
+        function Result = get.ExpTime(Obj)
+            % getter for ExpTime
+            Result = Obj.Data.ExpTime;
+        end 
+        function Result = get.NperVisit(Obj)
+            % getter for NperVisit
+            Result = Obj.Data.NperVisit;
+        end 
     end
     
     methods  % setters to Data table
@@ -178,7 +201,7 @@ classdef Targets < Component
             end
             
             if isempty(Index)
-                Nline = size(Obj.data,1);
+                Nline = size(Obj.Data,1);
                 if numel(Val)==1
                     Val = Val.*ones(Nline,1);
                     Index = true(Nline,1);
@@ -819,7 +842,8 @@ classdef Targets < Component
                 CadenceMethod        = [];
                 %Args
             end
-            
+            SEC_DAY = 86400;
+
             if isempty(JD)
                 JD                   = celestial.time.julday;
             end
@@ -835,6 +859,58 @@ classdef Targets < Component
             Ntarget = numel(Obj.RA);
             
             switch lower(Obj.CadenceMethod)
+                case 'fields_cont'
+                    % Given a list of selected fields - observe each field
+                    % continously for X hours during Y night
+
+                    MaxNnight = 1;
+                    Nfind = 1;
+                    DeadTime  = 60;  % [s]
+                    UsePriority = true;
+
+                    TimeOnTarget = Obj.ExpTime.*Obj.NperVisit + DeadTime;
+
+
+                    Priority         = Obj.Priority;
+
+                    UniquePriority   = unique(Priority);
+                    Nup              = numel(UniquePriority);
+
+                    for Iup=1:1:Nup
+                        %
+                        
+
+                    end
+
+
+
+                    GlobalCounter    = Obj.GlobalCounter;
+                    NightCounter     = Obj.NightCounter;
+                    [VisibilityTime] = leftVisibilityTime(Obj, JD);
+                    FlagVisible      = VisibilityTime.*SEC_DAY > TimeOnTarget;
+
+                    FlagObserve      = GlobalCounter<Obj.MaxNobs & ...
+                                       NightCounter<MaxNnight & ...
+                                       Priority>0 & ...
+                                       FlagVisible;
+
+                    VisibilityTime(VisibilityTime==0) = NaN;
+                    VisibilityTime(~FlagObserve)      = NaN;
+
+                    [~,MinI] = min(VisibilityTime);
+
+
+                    [SortedVisibilityTime, SI] = sort(VisibilityTime);
+                    % search for observable target with shortest visibility
+                    % time
+                    Ind = find(FlagObserve(SI),Nfind,"first");
+                    SI(Ind)
+
+                    
+
+
+
+
                 case 'periodic'
                     
                 case 'continues'
@@ -868,17 +944,27 @@ classdef Targets < Component
                     Active         = Obj.MaxNobs(:)>0;
                     
                     Npr = 200;
-                    Obj.Priority = zeros(Ntarget,1);
-                    Obj.Priority(VisibilityTime > Obj.VisibilityArgs.MinNightlyVisibility) = 1;
+                    Priority = zeros(Ntarget,1);
                     
-                    Obj.Priority = Obj.Priority .* Active;
-                    Obj.Priority(Obj.GlobalCounter > Obj.MaxNobs) = 0;
                     
+
+                    Priority(VisibilityTime > Obj.VisibilityArgs.MinNightlyVisibility) = 1;
+                    
+                    Priority = Priority .* Active;
+                    Priority(Obj.GlobalCounter > Obj.MaxNobs) = 0;
+                    
+                    
+
                     [~,SI] = sortrows([Active, Obj.GlobalCounter, VisibilityTime],[-1 2 3]);
                     Active = Active(SI);
                     N = numel(SI);
-                    Obj.Priority(SI) = Obj.Priority(SI) .* (1 + (N:-1:1).'.*0.01).*Active;
+
+                    Priority(SI) = Priority(SI) .* (1 + (N:-1:1).'.*0.01).*Active;
                     
+
+                    Obj = setTableProp(Obj, 'Priority', Priority, []);
+
+
                 case 'west2east'
                     % priortize targets by the left visibility time,
                     % where the highest priority target is the one with the
