@@ -17,7 +17,7 @@
 % If scalar values are given then assume the same value for all targets
 %
 % To generate a list based on some all-sky fields:
-% T = celestial.Targets.generateTargetList('last')
+% T = celestial.Targets.generateTargetList('last');
 %
 % write a celestial.Targets as mat file
 % T.write('FileName.mat');
@@ -32,11 +32,23 @@
 % [Moon] = T.moonCoo;
 % [Az, Alt, dAz, dAlt] = T.azalt;          
 % [HA, LST] = T.ha;
+% [Time, IsRise] = celestial.Targets.nextSunHorizon;      
 % [VisibilityTime] = leftVisibilityTime(T);
 % [FlagAll, Flag] = isVisible(T); 
-
-
-
+%
+% Search for fields that contains some coordinates:
+% Flag = T.cooInField(100,10, 'HalfSize',[2.1 3.2]);
+%
+% Calculate priority and select objects:
+% [~,~,Ind] = T.calcPriority(2451545.5,'fields_cont');
+%
+% Get the details RA/Dec, etc for selected targets, in Table, and structure
+% format:
+% [ResT, ResS] = T.getTarget(Ind);
+%
+% after an observation is done, to increase the global/night counters for
+% target: Ind.
+% T.updateCounter(Ind);
 
 
 classdef Targets < Component
@@ -440,7 +452,7 @@ classdef Targets < Component
     end
 
 
-    methods
+    methods % coordinates
         function [Lon, Lat] = ecliptic(Obj)
             % Return ecliptic coordinates for targets.
             % Input  : - A Targets object.
@@ -477,6 +489,47 @@ classdef Targets < Component
             
         end
         
+        function [Flag] = cooInField(Obj, RA, Dec, Args)
+            % Search for fields that contains a list of coordinates
+            % Input  : - A celestial.targets object.
+            %          - A vector of RA [deg].
+            %          - A vectot of Dec [deg].
+            %          * ...,key,val,...
+            %            'HalfSize' - Half size of box to search around
+            %                   each field. Default is [2.1 3.2] (deg).
+            % Output : - A vector of logical indicating if the targets in
+            %            the celestial.targets object contains one or the RA/Dec.
+            % Author : Eran Ofek (Mar 2023)
+            % Example: T=celestial.Targets.generateTargetList('last');
+            %          Flag = T.cooInField(100,10, 'HalfSize',[2.1 3.2])
+           
+            arguments
+                Obj
+                RA     % [deg]
+                Dec    % [deg]
+                Args.HalfSize   = [2.1 3.2];  % deg
+            end
+            
+            RAD = 180./pi;
+            
+            RA   = RA./RAD;
+            Dec  = Dec./RAD;
+            
+            HalfSize  = Args.HalfSize./RAD;
+            
+            FieldsRA  = Obj.RA./RAD;
+            FieldsDec = Obj.Dec./RAD;
+            
+            Ntarget = numel(FieldsRA);
+            Flag    = false(Ntarget,1);
+            for Itarget=1:1:Ntarget
+                FlagCoo = celestial.coo.in_box(RA, Dec, [FieldsRA(Itarget), FieldsDec(Itarget)], HalfSize);
+                if any(FlagCoo)
+                    Flag(Itarget) = true;
+                end
+            end
+            
+        end
     end
     
     methods % visibility
@@ -829,11 +882,12 @@ classdef Targets < Component
             %          T.generateTargetList('last');
             %          [T, P] = calcPriority(T, 2451545.5, 'west2east')
             %
-            %          T=celestial.Targets; T.generateTargetList('last');
+            %          T=celestial.Targets.generateTargetList('last');
             %          [lon,lat]=T.ecliptic; F=abs(lat)<5 & T.RA>100 & T.RA<110; T.MaxNobs(~F)=0; T.MaxNobs(F)=Inf;
             %          [~,PP,Ind]=T.calcPriority(2451545.5,'cycle');
             %          T.GlobalCounter(Ind(1))=T.GlobalCounter(Ind(1))+1;
             %          [~,PP,Ind]=T.calcPriority(2451545.5,'cycle');
+            %          [~,PP,Ind]=T.calcPriority(2451545.5,'fields_cont');
             
             
             arguments
@@ -873,17 +927,7 @@ classdef Targets < Component
 
                     Priority         = Obj.Priority;
 
-                    UniquePriority   = unique(Priority);
-                    Nup              = numel(UniquePriority);
-
-                    for Iup=1:1:Nup
-                        %
-                        
-
-                    end
-
-
-
+                    
                     GlobalCounter    = Obj.GlobalCounter;
                     NightCounter     = Obj.NightCounter;
                     [VisibilityTime] = leftVisibilityTime(Obj, JD);
@@ -894,22 +938,32 @@ classdef Targets < Component
                                        Priority>0 & ...
                                        FlagVisible;
 
-                    VisibilityTime(VisibilityTime==0) = NaN;
-                    VisibilityTime(~FlagObserve)      = NaN;
-
-                    [~,MinI] = min(VisibilityTime);
-
-
-                    [SortedVisibilityTime, SI] = sort(VisibilityTime);
-                    % search for observable target with shortest visibility
-                    % time
-                    Ind = find(FlagObserve(SI),Nfind,"first");
-                    SI(Ind)
-
                     
+                    
+                    UniquePriority   = sort(unique(Priority),'descend');
+                    Nup              = numel(UniquePriority);
+                    MinI             = NaN;
+                    for Iup=1:1:Nup
+                        %
+                        Flag = FlagObserve & Priority==UniquePriority(Iup);
+                        
+                        if sum(Flag)>0
+                            VisibilityTimeP = VisibilityTime;
 
+                            VisibilityTimeP(VisibilityTimeP==0) = NaN;
+                            VisibilityTimeP(~Flag)      = NaN;
 
-
+                            [~,MinI] = min(VisibilityTimeP);
+                            if ~isnan(MinI)
+                                break;
+                            end
+                        end
+                    end
+                    
+                    % MinI contains the found target index
+                    Ind = MinI;
+                    P   = Priority;
+                    P(Ind) = P(Ind) + 1;
 
                 case 'periodic'
                     
@@ -990,21 +1044,23 @@ classdef Targets < Component
                     error('Unknown CadenceMethod option');
             end
             
-            if nargout>1
-                P = Obj.Priority;
-                if nargout>2
-                    % return also the indices of targets with priority>0 listed by priority
-                    [SortedP,SI] = sort(P, 'descend');
-                    Flag = SortedP>0;
-                    Ind  = SI(Flag);
-                end
-            end
+%             if nargout>1
+%                 P = Obj.Priority;
+%                 if nargout>2
+%                     % return also the indices of targets with priority>0 listed by priority
+%                     [SortedP,SI] = sort(P, 'descend');
+%                     Flag = SortedP>0;
+%                     Ind  = SI(Flag);
+%                 end
+%             end
             
         end
                 
     end
     
     methods % targets selection
+        
+        % OBSOLETE?
         function Ind = selectTarget(Obj, JD, Args)
             % Return the indices of visible targets sorted by priority highest to lowest.
             % Input  : - A Target object.
@@ -1034,23 +1090,7 @@ classdef Targets < Component
             
         end
         
-        function Obj = setPriority(Obj, TargetInd, Args)
-            % set the priority of a target after it was observed
-            
-            arguments
-                Obj
-                TargetInd
-                Args.Method
-            end
-            
-            switch Args.Method
-                case ''
-                    
-                otherwise
-                    error('Unknown Method option');
-            end
-            
-        end
+        
         
         function Obj = updateCounter(Obj, ObjectIndex)
             % Increase celestial.Targets counter by 1 for selected targets
@@ -1061,34 +1101,31 @@ classdef Targets < Component
             %            GlobalCounter and NightCounter for the selected
             %            indices are increased by 1.
             % Author : Eran Ofek (Mar 2023)
+            % Example: T=celestial.Targets.generateTargetList('last');
+            %          T.updateCounter(2);
 
-
-            Ntargets = numel(Obj.RA);
-            if numel(Obj.GlobalCounter)==1
-                Obj.GlobalCounter = Obj.GlobalCounter.*ones(Ntargets);
+            if iscell(ObjectIndex) || ischar(ObjectIndex)
+                % Object index is a TargetName
+                ObjectIndex = find(strcmp(Obj.TargetName, ObjectIndex));
             end
-            if numel(Obj.NightCounter)==1
-                Obj.NightCounter = Obj.NightCounter.*ones(Ntargets);
-            end
-
-            if ischar(ObjectIndex)
-                % assume TargetName is provided
-                ObjectIndex = find(strcmp(Obj.TargetName,ObjectIndex));
-            end
-
-            Obj.GlobalCounter(ObjectIndex) = Obj.GlobalCounter(ObjectIndex) + 1;
-            Obj.NightCounter(ObjectIndex)  = Obj.NightCounter(ObjectIndex)  + 1;
+            
+            Obj.Data.GlobalCounter(ObjectIndex) = Obj.Data.GlobalCounter(ObjectIndex) + 1;
+            Obj.Data.NightCounter(ObjectIndex) = Obj.Data.NightCounter(ObjectIndex) + 1;
             
         end
         
-        function Result=getTarget(Obj, ObjectIndex, Args)
+        function [Result,Struct]=getTarget(Obj, ObjectIndex)
             % Get properties of selected targets by index or target name
-            %
+            % Input  : - A celestial.Targets object.
+            %          - Vector of indices, or cell array of target names.
+            % Output : - A table with the selected targets.
+            %          - A structure array with the selected targets.
+            % Example: T=celestial.Targets.generateTargetList('last');
+            %          [ResT, ResS] = T.getTarget(1:2)
 
             arguments
                 Obj
                 ObjectIndex
-                Args.Prop  = {'Index','RA','Dec','DeltaRA','DeltaDec','ExpTime','NpreVisit','MaxNobs','LastJD','GlobalCounter','NightCounter'};
             end
 
             if ischar(ObjectIndex)
@@ -1096,16 +1133,10 @@ classdef Targets < Component
                 ObjectIndex = find(strcmp(Obj.TargetName,ObjectIndex));
             end
 
-            Nprop = numel(Args.Prop);
-
-            Nind = numel(ObjectIndex);
-            Result = tools.struct.struct_def(Args.Prop, Nind,1);
-            for Iind=1:1:Nind
-                for Iprop=1:1:Nprop
-                    Result(Iind).(Args.Prop{Iprop}) = Obj.(Args.Prop{Iprop})(ObjectIndex(Iind));
-                end
+            Result = Obj.Data(ObjectIndex,:);
+            if nargout>1
+                Struct = table2struct(Result);
             end
-
         end
     end
     
