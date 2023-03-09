@@ -4,25 +4,48 @@
 %       
 
 
+% Examples:
+% This command will generate a list of 3 targets at some RA/Dec
+% the rest of the parameters will be taken from a default (see function
+% help)
+% T = celestial.Targets.createList('RA',[112 21 321].','Dec',[-21,22,3].');
+% 
+% You can overide the default using - e.g.,
+% T = celestial.Targets.createList('RA',[112 21 321].','Dec',[-21,22,3].','ExpTime',10);
+% or
+% T = celestial.Targets.createList('RA',[112 21 321].','Dec',[-21,22,3].','MaxNobs',[1 2 3].');
+% If scalar values are given then assume the same value for all targets
+%
+% To generate a list based on some all-sky fields:
+% T = celestial.Targets.generateTargetList('last')
+%
+%
+
+
+
+
 
 classdef Targets < Component
     properties (Dependent)
         RA
         Dec
         Index
-        Name
+        TargetName
         MaxNobs
         LastJD
+        GlobalCounter
+        NightCounter
+        Priority              % baseline priority
     end
     
     properties
-        Data table   % with columns: Index, Name, RA, Dec, DeltaRA, DeltaDec, ExpTime, NperVisit, MaxNobs, LastJD, GlobalCounter, NightCounter
+        Data table   % with columns: Index, TargetName, RA, Dec, DeltaRA, DeltaDec, ExpTime, NperVisit, MaxNobs, LastJD, GlobalCounter, NightCounter
         
-        Index
-        TargetName cell
-        IsSolarSystem logical      = false;
-        IsTOO logical              = false;
-        IsManual logical           = false;
+        %Index
+        %TargetName cell
+        %IsSolarSystem logical      = false;
+        %IsTOO logical              = false;
+        %IsManual logical           = false;
         
         %DeltaRA                   
         %DeltaDec
@@ -31,15 +54,14 @@ classdef Targets < Component
         %Filter
         
         CadenceMethod                           % 'periodic' | 'continues' | 'west2east'
-        Priority                                % baseline priority that multiplies the base priority
         
         PriorityArgs               = struct('InterNightCadence',40./1440,...
                                             'CadenceFun',@celestial.scheduling.fermiexp,...  
                                             'CadeneFunArgs',{1.4, 1, 0.03, 1, 0.5});  %t0,Decay,Soft,BaseW,ExtraW)
                                                     
-        LastJD
-        GlobalCounter              = 0;
-        NightCounter               = 0;
+        %LastJD
+        %GlobalCounter              = 0;
+        %NightCounter               = 0;
         
         GeoPos                     = [35.041201 30.053014 400];  %
        
@@ -107,9 +129,9 @@ classdef Targets < Component
             % getter for Index
             Result = Obj.Data.Index;
         end
-        function Result = get.Name(Obj)
-            % getter for Name
-            Result = Obj.Data.Name;
+        function Result = get.TargetName(Obj)
+            % getter for TargetName
+            Result = Obj.Data.TargetName;
         end
         function Result = get.MaxNobs(Obj)
             % getter for MaxNobs
@@ -127,7 +149,11 @@ classdef Targets < Component
             % getter for GlobalCounter
             Result = Obj.Data.NightCounter;
         end
-                
+        function Result = get.Priority(Obj)
+            % getter for Priority
+            Result = Obj.Data.Priority;
+        end 
+        
     end
     
     methods  % setters to Data table
@@ -167,7 +193,78 @@ classdef Targets < Component
         
     end
     
-    methods % read/write        
+    
+    methods (Static) % generate lists
+        function Obj = createList(Args)
+            % Create a Targets object with data specified by user
+            % Input  : * ...,key,val,...
+            %            'RA' - Mandatory vector of RA [deg].
+            %            'Dec' - Mandaotory vector of Dec [deg].
+            %            'Index' - If empty, use serial numbers.
+            %                   Default is [].
+            %            'TargetName' - If empty, use celestial.Targets.radec2name
+            %                   to generate names. Default is [].
+            %            'DeltaRA' - Default is 0.
+            %            'DeltaDec' - Default is 0.
+            %            'ExpTime' - Default is 20.
+            %            'NperVisit' - Default is 20.
+            %            'MaxNobs' - Default is Inf.
+            %            'LastJD' - Default is 0.
+            %            'GlobalCounter' - Default is 0.
+            %            'NightCounter' - Default is 0.
+            %            'Priority' - Default is 1.
+            % Output : - A populated celestial.Targets object.
+            % Author : Eran Ofek (Mar 2023)
+            % Example: T=celestial.Targets.createList('RA',[1;2],'Dec',[1;2])
+
+            arguments
+                Args.RA            = [];
+                Args.Dec           = [];
+                Args.Index         = [];
+                Args.TargetName    = [];
+                Args.DeltaRA       = 0;
+                Args.DeltaDec      = 0;
+                Args.ExpTime       = 20;
+                Args.NperVisit     = 20;
+                Args.MaxNobs       = Inf;
+                Args.LastJD        = 0;
+                Args.GlobalCounter = 0;
+                Args.NightCounter  = 0;
+                Args.Priority      = 1;
+            end
+                
+            % Index, TargetName, RA, Dec, DeltaRA, DeltaDec, ExpTime, NperVisit, MaxNobs, LastJD, GlobalCounter, NightCounter
+
+            if isempty(Args.RA) || isempty(Args.Dec)
+                error('RA and Dec must be supplied');
+            end
+            
+            Ntarget = numel(Args.RA);
+            FN      = fieldnames(Args);
+            Nf      = numel(FN);
+
+            CellData = cell(1,Nf);
+            for If=1:1:Nf
+                switch FN{If}
+                    case 'Index'
+                        if isempty(Args.(FN{If}))
+                            Args.(FN{If}) = (1:1:Ntarget).';
+                        end
+                    case 'TargetName'
+                        if isempty(Args.(FN{If}))
+                            Args.(FN{If}) = celestial.Targets.radec2name(Args.RA, Args.Dec);
+                        end
+                    otherwise
+                        Args.(FN{If}) = Args.(FN{If}).*ones(Ntarget,1);
+                end
+                CellData{If} = Args.(FN{If});
+               
+            end
+            Obj      = celestial.Targets;
+            Obj.Data = table(CellData{:},'VariableNames',FN);
+
+        end
+
         function Obj = generateTargetList(Obj, List, Args)
             % Generate a Targets object with target list, including LAST default.
             % Input  : - A Targets object.
@@ -181,19 +278,22 @@ classdef Targets < Component
             %                   Default is 1.
             % Output : - A populated Targets object.
             % Author : Eran Ofek (Jan 2022)
-            % Example: T = celestial.Targets
-            %          T.generateTargetList('last')
+            % Example: T = celestial.Targets.generateTargetList('last')
             
             arguments
                 Obj
                 List            = 'last';
                 Args.N_LonLat   = [56 42];
                 Args.Priority   = 1;
+                Args.ExpTime    = 20;
+                Args.NperVisit  = 20;
+                Args.MaxNobs    = Inf;
             end
                 
             
             RAD = 180./pi;
             
+            Obj = celestial.Targets;
             if ischar(List)
                 % pre defined list
                 
@@ -202,21 +302,15 @@ classdef Targets < Component
                         Obj.VisibilityArgs.DecRange        = [-90 90];
                         
                         [TileList,TileArea] = celestial.coo.tile_the_sky(Args.N_LonLat(1), Args.N_LonLat(2));
-                        Obj.RA  = TileList(:,1).*RAD;
-                        Obj.Dec = TileList(:,2).*RAD;
-                        Ntarget = numel(Obj.RA);
+                        RA  = TileList(:,1).*RAD;
+                        Dec = TileList(:,2).*RAD;
+
+                        Ntarget = numel(RA);
                         
-                        Obj.Index = (1:1:Ntarget).';
-                        Obj.TargetName = celestial.Targets.radec2name(Obj.RA, Obj.Dec);
-                        
-                        Obj.Priority       = Args.Priority(:).*ones(Ntarget,1);
-                        Obj.LastJD         = zeros(Ntarget,1);
-                        Obj.DeltaRA        = zeros(Ntarget,1);
-                        Obj.DeltaDec       = zeros(Ntarget,1);
-                        Obj.NperVisit      = ones(Ntarget,1);
-                        Obj.MaxNobs        = inf(Ntarget,1);
-                        Obj.GlobalCounter  = zeros(Ntarget,1);
-                        Obj.NightCounter   = zeros(Ntarget,1);
+                        % Index, Name, RA(deg), Dec(deg), DeltaRA, DeltaDec, ExpTime, NperVisit, MaxNobs, LastJD, GlobalCounter, NightCounter
+                        Obj = celestial.Targets.createList('RA',TileList(:,1).*RAD, 'Dec',TileList(:,2).*RAD, 'ExpTime',Args.ExpTime,'NperVisit',Args.NperVisit,'MaxNobs',Args.MaxNobs,'Priority',Args.Priority);
+
+
                         
                     otherwise
                         error('Unknown List name');
@@ -241,6 +335,9 @@ classdef Targets < Component
             end
         end
         
+    end
+
+    methods % read/write
         function write(Obj, FileName)
             % save the Targets object as a MAT file.
             % Input  : - A Targets object.
