@@ -325,7 +325,6 @@ classdef Targets < Component
                 Args.MaxNobs    = Inf;
             end
                 
-            
             RAD = 180./pi;
             
             Obj = celestial.Targets;
@@ -344,8 +343,6 @@ classdef Targets < Component
                         
                         % Index, Name, RA(deg), Dec(deg), DeltaRA, DeltaDec, ExpTime, NperVisit, MaxNobs, LastJD, GlobalCounter, NightCounter
                         Obj = celestial.Targets.createList('RA',TileList(:,1).*RAD, 'Dec',TileList(:,2).*RAD, 'ExpTime',Args.ExpTime,'NperVisit',Args.NperVisit,'MaxNobs',Args.MaxNobs,'Priority',Args.Priority);
-
-
                         
                     otherwise
                         error('Unknown List name');
