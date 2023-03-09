@@ -33,7 +33,7 @@ function usimImage =  usim ( Args )
                                              % one magnitude for all the objects 
                                              % or a vector of magnitudes 
                                              
-        Args.InMagFilt       = {'ULTRASAT','STD'}; % the filter of the source magnitudes 
+        Args.InMagFilt       = {'ULTRASAT','R1'}; % the filter of the source magnitudes 
         
         Args.InSpec          = {'BB', 5800}; % parameters of the source spectra: 
                                              % either an array of AstSpec or AstroSpec objects
@@ -111,8 +111,7 @@ function usimImage =  usim ( Args )
     
     DAper       = 33.;                   % [cm]    aperture diameter
     SAper       = pi * DAper ^ 2 / 4;    % [cm(2)] aperture area
-    STileAper   = SAper/4;               % [cm(2)] 1 tile area
-    
+        
     %%%%%%%%%%%%%%%%%%%% load the matlab object with the ULTRASAT properties:
     
     UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');   
@@ -204,15 +203,20 @@ function usimImage =  usim ( Args )
     % read the input spectra or generate synthetic spectra
     
         % TEST: use the Stellar Spectra from UP.Specs
-        if false  
+        if true  
     
             fprintf('TEST RUN: using spectra from UP.Specs ..');
 
             for Isrc = 1:1:NumSrc
                 % star spectra from Pickles. NB: these are normalized to 1 at 5556 Ang !
-                Pick(Isrc) = UP.Specs( rem(Isrc,43)+1 ); 
-                %Pick(Isrc) = UP.Specs(18); % a G5V star of Teff = 5.66 kK
-                %Pick(Isrc) = UP.Specs(31); % an M4V star of Teff = 3.06 kK
+                %Pick(Isrc) = UP.Specs( rem(Isrc,43)+1 ); 
+                %Pick(Isrc) = UP.Specs(17); % a G0.0V star 
+                %Pick(Isrc) = UP.Specs(27); % an M0.0V star 
+                if rem(Isrc,2) == 0 % for Cat2 catalog
+                    Pick(Isrc) = UP.Specs(1); % UP.Specs(17); 
+                else
+                    Pick(Isrc) = UP.Specs(2); % UP.Specs(27); 
+                end
             end
                 Args.InSpec = Pick(1:NumSrc);
 
@@ -298,8 +302,27 @@ function usimImage =  usim ( Args )
     
                     tic
     
-    %%%%%%%%%%%%%%%%%%%%%  rescale the spectra to the input magnitudes 
+    
+    %%%%%%%%%%%%%% TEST input: a flat spectrum the 240-280 band, null otherwise
+    if false
         
+        fprintf('TEST input: flat spectrum in the 240-280 band\n');
+        
+        for Iwave = 1:1:Nwave
+            for Isrc = 1:1:NumSrc
+                if (Wave(Iwave) < 2400) || (Wave(Iwave) > 2800) 
+                    SpecIn(Isrc,Iwave) = 0.;
+                else
+                    SpecIn(Isrc,Iwave) = 1.;
+                end
+            end
+        end
+            
+    end
+    %%%%%%%%%%%%%%% END TEST
+    
+    %%%%%%%%%%%%%%%%%%%%%  rescale the spectra to the input magnitudes 
+    
     for Isrc = 1:1:NumSrc
         
           AS = AstroSpec([Wave' SpecIn(Isrc,:)']);
@@ -312,7 +335,8 @@ function usimImage =  usim ( Args )
           SpecIn(Isrc,:) = SpecScaled.Flux; 
           
 %           fprintf('%s%d%s%4.1f\n','Eff. magnitude of source ', Isrc,' = ',...
-%               astro.spec.synthetic_phot([SpecScaled.Wave, SpecScaled.Flux],'ULTRASAT','STD','AB'));
+%               astro.spec.synthetic_phot([SpecScaled.Wave, SpecScaled.Flux],'ULTRASAT','R1','AB');
+%               astro.spec.synthetic_phot([Wave', SpecIn(1,:)'],'ULTRASAT','R1','AB');
         
     end  
                     
@@ -322,7 +346,7 @@ function usimImage =  usim ( Args )
     for Isrc = 1:1:NumSrc
         
         SpecAbs(Isrc,:) = SpecIn(Isrc,:) .* TotT(Isrc,:) .* DeltaLambda ... 
-                          .* STileAper ./ ( H * C ./ ( 1e-8 * Wave(:) ) )' ;
+                          .* SAper ./ ( H * C ./ ( 1e-8 * Wave(:) ) )' ;
         % [ counts /s /bin ] = [ erg s(-1) cm(-2) A(-1) ] * [ counts / ph ] * [ A / bin ] * [ cm(2) ]/ [ erg / ph ]
         
         % the wavelength integrated source fluxes [ counts / s ]
@@ -391,15 +415,15 @@ function usimImage =  usim ( Args )
 %                                     'Poisson',Args.NoisePoisson,'ReadOut',Args.NoiseReadout);
 %                                 
 
-    Noise_var_YS = 75.0 ; % [e-/pix] total background variance estimate for a 300 s exposure made by YS
-    NoiseLevel = Noise_var_YS * sqrt(Args.Exposure/300.) * ones(ImageSizeX,ImageSizeY);
+    Back_YS = 75.0 ; % [e-/pix] total background estimate for a 300 s exposure made by YS
+    NoiseLevel = Back_YS * sqrt(Args.Exposure/300.) * ones(ImageSizeX,ImageSizeY);
     SrcAndNoise   = ImageSrc .* Args.Exposure + NoiseLevel; 
     
 %     ImageSrcNoise = poissrnd( SrcAndNoise, ImageSizeX, ImageSizeY);                             
 %     ImageBkg      = poissrnd( NoiseLevel, ImageSizeX, ImageSizeY);
 %     
-%     As the noise level is already quite hight for typical exposures,
-%     we can use a faster a normal distribution instead of the true Poisson distribution
+%     As the noise level is already quite high for typical exposures,
+%     we can use a faster normal distribution instead of the true Poisson distribution
 %
     ImageSrcNoise =  normrnd( SrcAndNoise, sqrt(SrcAndNoise), ImageSizeX, ImageSizeY);              
     ImageBkg      =  normrnd( NoiseLevel,  sqrt(NoiseLevel),  ImageSizeX, ImageSizeY);
@@ -427,11 +451,11 @@ function usimImage =  usim ( Args )
     
     end
     
-    % make sky background and variance images? % TBD
+    % make sky background and variance images?
     Emptybox = zeros(ImageSizeX,ImageSizeY);
         
     % make an AstroImage 
-    usimImage = AstroImage( {ImageSrcNoise} ,'Back',{ImageBkg}, 'Var',{ImageBkg},'Cat',{Args.InCat.Catalog});
+    usimImage = AstroImage( {ImageSrcNoise} ,'Back',{NoiseLevel}, 'Var',{ImageBkg},'Cat',{Args.InCat.Catalog});
     
     % add some keywords and values to the image header % TBD
     funHeader(usimImage, @insertKey, {'DATEOBS','2026-01-01T00:00:00','';'EXPTIME',Args.Exposure,''});  
@@ -461,7 +485,7 @@ function usimImage =  usim ( Args )
     %%%%%%%%%%%%%%%%%%%% post modeling checks
     
     MeasuredCat = imProc.sources.findMeasureSources(usimImage,'ForcedList',[CatX CatY],...
-                         'OnlyForced',1,'CreateNewObj',1,'ReCalcBack',0,'ZP',25).CatData;
+                         'OnlyForced',1,'CreateNewObj',1,'ReCalcBack',0,'ZP',UP.ZP(1,1)).CatData;
     
     SNRs = MeasuredCat.Catalog(:,8:12);
     Mag_Aper = MeasuredCat.Catalog(:,23:25);
