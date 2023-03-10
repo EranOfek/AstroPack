@@ -65,7 +65,7 @@ function [Result, CroppedAI, Summary] = astrometryCropped(Image, Args)
     
     % create an AstroImage array with the images
     AI = AstroImage(Image);
-    
+    AI.cast('single');
     
     % astrometryCore arguments:
     FunArgs = {'RA',Args.RA,...
