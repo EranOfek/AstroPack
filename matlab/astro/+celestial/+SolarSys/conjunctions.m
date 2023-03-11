@@ -6,7 +6,12 @@ function conjunctions(Table, Args)
         Args.SkipN           = 5;
         Args.ColJD           = 'JD';
         Args.CatName         = 'GAIADR3';
-        Args.CatEpoch       
+        Args.CatEpoch        = 
+        Args.CatColMag       = 
+        Args.CatColMag2      = 
+        Args.MagRange        = [0 15];
+        Args.OcculterRadius  =      % [km]
+        Args.ThresholdOccRad = 3;
     end
     
     RAD = 180./pi;
@@ -18,7 +23,13 @@ function conjunctions(Table, Args)
     Dec  = Coo(:,2);
     [CosX, CosY, CosZ] = celestial.coo.coo2cosined(RA, Dec);
     JD   = getCol(Table, Args.ColJD);
+    Delta = getCol(Table, 'Delta');
+    r     = getCol(Table, 'r');
+    MagEp = getCol(Table, 'Mag');
     
+    OcculterRadius = convert.length('km','au',Args.OcculterRadius);  % [au]
+    
+    K = 0;
     for Irow=Args.SkipN:1:Nrow-Args.SkipN-1
         MeanCosX = CosX(Irow) + CosX(Irow+1);
         MeanCosY = CosY(Irow) + CosY(Irow+1);
@@ -28,11 +39,15 @@ function conjunctions(Table, Args)
         SearchRad          = celestial.coo.sphere_dist_cosd(MeanRA, MeanDec, RA(Irow), Dec(Irow)).*1.1;
         
         Cat = catsHTM.cone_search(Args.CatName, MeanRA, MeanDec, SearchRad.*RAD.*3600, 'OutType','AstroCatalog');
+        % select stars from Cat by magnitude
+        Mag = getCol(Cat, Args.CatColMag);
+        FlagMag = Mag>min(Args.MagRange) & Mag<max(Args.MagRange);
+        Cat = selectRows(Cat, FlagMag);
         
         EpochOut = convert.time(JD(Irow),'JD','J');
         
         Cat = imProc.cat.applyProperMotion(Cat, Args.CatEpoch,EpochOut,'EpochInUnits','J','EpochOutUnits','J','ApplyPlx',true);
-        % select stars from Cat by magnitude
+        
         
         % get RA/Dec
         CatCoo = getLonLat(Cat, 'rad');
@@ -45,6 +60,24 @@ function conjunctions(Table, Args)
         [MinDist,IP] = tools.math.geometry.dist_p2line([RA(Irow), Dec(Irow); RA(Irow+1), Dec(Irow+1)], CatCoo);
         
         % check if MinDist is smaller than asteroid + star size
+        Mag  = getCol(Cat, Args.CatColMag);
+        Mag2 = getCol(Cat, Args.CatColMag2);
+        
+        % occulter angular radius
+        OcculterAngRadius = atan(OcculterSize./Delta(Irow));   % [radians]
+        
+        FlagOcc = MinDist<(OcculterAngRadius.*Args.ThresholdOccRad);
+        if any(FlagOcc)
+            [OccMinDist, MinI] = find(FlagOcc);
+            
+            K = K + 1;
+            Result(K).OccMinDist;
+            Result(K).Star = selectRows(Cat, MinI);
+            
+            Result(K).Time = 
+            
+        end
+            
         
     end
     
