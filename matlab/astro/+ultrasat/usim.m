@@ -69,7 +69,8 @@ function usimImage =  usim ( Args )
     
                         % performance speed test
     
-                        fprintf('ULTRASAT simulation started\n');
+                        cprintf('hyper','ULTRASAT simulation started\n');
+                        fprintf('%s%d%s%s\n','The requested exposure is ',Args.Exposure,' seconds for tile ',Args.Tile);
                         tic; tstart = clock;
     
     %%%%%%%%%%%%%%%%%%%%% Simulation parameters and some physical constants
@@ -146,7 +147,7 @@ function usimImage =  usim ( Args )
                             fprintf('%d%s\n',NumSrc,' sources read from the input AstroCatalog object');
  
         
-    elseif size(Args.InCat,2) > 1 % read source pixel coordinates from a table
+    elseif size(Args.InCat,2) > 1 && size(Args.InCat,3) == 1 % read source pixel coordinates from a table
         
         NumSrc = size(Args.InCat,1);
         
@@ -161,7 +162,7 @@ function usimImage =  usim ( Args )
                             fprintf('%d%s\n',NumSrc,' sources read from the input table');
         
         
-    else % make a fake catalog with Args.InCat sources randomly distributed over the FOV
+    elseif size(Args.InCat,2) == 1 % make a fake catalog with Args.InCat sources randomly distributed over the FOV
         
         NumSrc = Args.InCat;  % the number of fake sources
 
@@ -174,6 +175,11 @@ function usimImage =  usim ( Args )
         InMag   = zeros(NumSrc,1);    
         
                             fprintf('%d%s\n',NumSrc,' random sources generated');
+                            
+    else
+        
+                            cprintf('err','Incorrect catalog input, exiting ...\n'); 
+                            return
         
     end
 
@@ -203,7 +209,7 @@ function usimImage =  usim ( Args )
     % read the input spectra or generate synthetic spectra
     
         % TEST: use the Stellar Spectra from UP.Specs
-        if true  
+        if false  
     
             fprintf('TEST RUN: using spectra from UP.Specs ..');
 
@@ -213,9 +219,9 @@ function usimImage =  usim ( Args )
                 %Pick(Isrc) = UP.Specs(17); % a G0.0V star 
                 %Pick(Isrc) = UP.Specs(27); % an M0.0V star 
                 if rem(Isrc,2) == 0 % for Cat2 catalog
-                    Pick(Isrc) = UP.Specs(1); % UP.Specs(17); 
+                    Pick(Isrc) = UP.Specs(17); % UP.Specs(17); 
                 else
-                    Pick(Isrc) = UP.Specs(2); % UP.Specs(27); 
+                    Pick(Isrc) = UP.Specs(27); % UP.Specs(27); 
                 end
             end
                 Args.InSpec = Pick(1:NumSrc);
@@ -268,7 +274,7 @@ function usimImage =  usim ( Args )
                                 
             else
                 
-                fprintf('Spectra not defined in USim, exiting..\n');
+                cprintf('err','Spectra not defined in USim, exiting..\n');
                 return
                 
             end
@@ -365,7 +371,7 @@ function usimImage =  usim ( Args )
     PSFdata = ReadDB{2}; 
     
     if ( size(PSFdata,3) ~= Nwave ) || ( size(PSFdata,4) ~= Nrad )
-        fprintf('PSF array size mismatch, exiting..\n');
+        cprintf('err','PSF array size mismatch, exiting..\n');
         return
     end
     
@@ -451,12 +457,39 @@ function usimImage =  usim ( Args )
     
     end
     
+    % rotate the image depending on the particular tile:
+    
+    switch Args.Tile
+        
+        case 'A' % NB: need to change Cat_X and Cat_Y as well 
+            
+            ImageSrcNoise = imrotate(ImageSrcNoise, -90, 'bilinear', 'loose');
+        
+        case 'B'
+            
+            % nothing to do
+            
+        case 'C'
+            
+            ImageSrcNoise = imrotate(ImageSrcNoise, -180, 'bilinear', 'loose');
+            
+        case 'D'
+            
+            ImageSrcNoise = imrotate(ImageSrcNoise, -270, 'bilinear', 'loose');
+            
+        otherwise
+            
+            cprintf('err','Incorrect tile name, exiting...\n');
+            return
+            
+    end
+    
     % make sky background and variance images?
     Emptybox = zeros(ImageSizeX,ImageSizeY);
         
     % make an AstroImage 
-    usimImage = AstroImage( {ImageSrcNoise} ,'Back',{NoiseLevel}, 'Var',{ImageBkg},'Cat',{Args.InCat.Catalog});
-    
+    usimImage = AstroImage( {ImageSrcNoise} ,'Back',{NoiseLevel}, 'Var',{ImageBkg},'Cat',{Args.InCat.Catalog});   
+
     % add some keywords and values to the image header % TBD
     funHeader(usimImage, @insertKey, {'DATEOBS','2026-01-01T00:00:00','';'EXPTIME',Args.Exposure,''});  
        
