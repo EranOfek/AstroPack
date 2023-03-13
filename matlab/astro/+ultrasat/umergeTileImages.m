@@ -1,4 +1,4 @@
-function Image = umergeTileImages (Args)
+function umergeTileImages (Args)
     % Make a 4-tile ULTRASAT image from 4 separate tile images     
     % Package: ultrasat
     % Description: Make a 4-tile ULTRASAT image from 4 separate tile images
@@ -6,10 +6,10 @@ function Image = umergeTileImages (Args)
     %          - Args.B      : name of the .mat object with a presimulated image of tile B
     %          - Args.C      : name of the .mat object with a presimulated image of tile C
     %          - Args.D      : name of the .mat object with a presimulated image of tile D
+    %          - Args.OutDir : output directory 
     %          
-    % Output : - Image: a 2D array containing the resulting source image 
-    %                   
-    %            
+    % Output : - Image: a 2D fits image containing the resulting source image 
+    %                  
     % Tested : Matlab R2020b
     %     By : A. Krassilchtchikov et al.    Feb 2023
     % Example: Image = umergeTileImages (Args)
@@ -22,7 +22,11 @@ function Image = umergeTileImages (Args)
     Args.C = 'SimImage_tileC.mat';
     Args.D = 'SimImage_tileD.mat';
     
+    Args.OutDir = '.'
+    
     end
+    
+    % ULTRASAT parameters
     
     TileSizeX  = 4738;
     TileSizeY  = 4738;
@@ -30,6 +34,8 @@ function Image = umergeTileImages (Args)
     PixelSize   = 9.5;  % pixel size in microns
     
     GapMm       = 2.4;  % gap width in mm
+    
+    % blank image construction 
         
     Ngap        = ceil( 1e3 * GapMm / PixelSize); 
     
@@ -40,10 +46,14 @@ function Image = umergeTileImages (Args)
     
     % read in the data
     
-    imA = load(Args.A);
-    imB = load(Args.B);
-    imC = load(Args.C);
-    imD = load(Args.D);
+    R = load(Args.A);
+    imA = R.usimImage.Image;
+    R = load(Args.B);
+    imB = R.usimImage.Image;
+    R = load(Args.C);
+    imC = R.usimImage.Image;
+    R = load(Args.D);
+    imD = R.usimImage.Image;
     
     % pad the quarter arrays with zeros
     
@@ -61,8 +71,9 @@ function Image = umergeTileImages (Args)
     
     Image = Image + imA + imB + imC + imD;
     
-    % output: a matlab object and a fits file
+    % output: a FITS image
     
-    
+    OutFITSName = sprintf('%s%s%s','!',Args.OutDir,'/SimImage_merged.fits'); 
+    imUtil.util.fits.fitswrite(Image',OutFITSName);   
     
 end
