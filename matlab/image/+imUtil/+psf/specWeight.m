@@ -8,6 +8,10 @@ function Result = specWeight(SpecSrc, RadSrc, PSFdata, Args)
     %          - Args.Rad: a vector of radial distances of the lab PSFs 
     %          - Args.Lambda: a vector of wavelengths of the lab PSFs 
     %          - Args.SpecLam: a vector of wavelengths of the source spectra
+    %          - Args.SizeLimit: the maximal array size in Gb determines
+    %          the calculation method: a too large array may cause out of
+    %          memory error, while for a smaller array a faster algorithm
+    %          can be employed (see below)
     % Output : - Result(X,Y, SrcNum): A 3-D matrix of spectrum-weighted PSFs
     %            
     % Tested : Matlab R2020b
@@ -29,6 +33,8 @@ function Result = specWeight(SpecSrc, RadSrc, PSFdata, Args)
                             % PSFdata array and in the input source spectra
                             % SpecSrc is the same ! 
         Args.SpecLam = 0;
+        
+        Args.SizeLimit = 8; % [Gb] the maximal array size determines the calculation method
         
     end
     
@@ -57,20 +63,28 @@ function Result = specWeight(SpecSrc, RadSrc, PSFdata, Args)
     
     NumWave = size(Spec,2);
     
-    X       = 1:size(PSFdata,1);  
-    Y       = 1:size(PSFdata,2);
-    Lam     = 1:size(PSFdata,3);
+    Nx      = size(PSFdata,1);  
+    Ny      = size(PSFdata,2);
+    NLam    = size(PSFdata,3);
     
-    for Isrc = 1:1:NumSrc
+    X       = 1:Nx;  
+    Y       = 1:Ny;
+    Lam     = 1:NLam;
+    
+    Result = zeros(Nx,Ny,NumSrc);
+    
+    ArraySizeGb = 8 * Nx * Ny * NLam * NumSrc / (1024^3);
+    
+    if ArraySizeGb < Args.SizeLimit  % if the number of sources is not too high, we can use a faster algorithm
         
-        % rescale the data array to the actual source positions
-    
-        PSFdataS = interpn(X,Y,Lam, Args.Rad, PSFdata, X,Y,Lam, RadSrc(Isrc));
-
+        % rescale the data array to the actual source positions:
+        
+        PSFdataS = interpn(X,Y,Lam, Args.Rad, PSFdata, X,Y,Lam, RadSrc);
+        
         % put the spectrum into the right dimension
         % NOTE that the Spec array should be transposed before reshaping! 
 
-        Spec2 = reshape(Spec(Isrc,:)',[1 1 NumWave]);
+        Spec2 = reshape(Spec',[1 1 NumWave NumSrc]);
 
         % multiply the PSF array sampled by the source positions by the source spectra
 
@@ -81,8 +95,36 @@ function Result = specWeight(SpecSrc, RadSrc, PSFdata, Args)
         SumL  = squeeze( sum(Wcube,3) ); 
 
         % normalize 
-        Result(:,:,Isrc) = SumL ./ sum( SumL, [1,2] );
+        Result = SumL ./ sum( SumL, [1,2] );
 
+    else                             % if the number of sources is high, we can not operate on the full array
+    
+        for Isrc = 1:1:NumSrc
+        
+            % rescale the data array to the actual source positions
+
+            PSFdataS = interpn(X,Y,Lam, Args.Rad, PSFdata, X,Y,Lam, RadSrc(Isrc));
+
+            % put the spectrum into the right dimension
+            % NOTE that the Spec array should be transposed before reshaping! 
+
+            Spec2 = reshape(Spec(Isrc,:)',[1 1 NumWave]);
+
+            % multiply the PSF array sampled by the source positions by the source spectra
+
+            Wcube = PSFdataS .* Spec2;
+
+            % sum over the wavelengths and delete the degenerate dimension 
+
+            SumL  = squeeze( sum(Wcube,3) ); 
+
+            % normalize 
+            Result(:,:,Isrc) = SumL ./ sum( SumL, [1,2] );
+
+        end
+    
+            
     end
+    
     
 end
