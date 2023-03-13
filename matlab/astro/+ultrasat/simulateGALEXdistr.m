@@ -1,4 +1,4 @@
-function simImage = simulateGALEXdistr ()
+function simImage = simulateGALEXdistr (Args)
     % Simulate with ultrasat.usim a distribution of sources taken from Bianchi et al. 2007, ApJS, 173, 659     
     % Package: ultrasat
     % Description: Simulate with ultrasat.usim a distribution of sources taken from Bianchi et al. 2007, ApJS, 173, 659
@@ -8,9 +8,15 @@ function simImage = simulateGALEXdistr ()
     %                   
     %            
     % Tested : Matlab R2020b
-    %     By : A. Krassilchtchikov et al.    Feb 2023
-    % Example: Image = umergeTileImages (Args)
+    %     By : A. Krassilchtchikov et al.    Mar 2023
+    % Example: Image = simulateGALEXdistr ('OutDir','/home/sasha/')
     %               
+    
+    arguments
+        
+        Args.OutDir     =  '.'; % output directory
+        
+    end
     
     % data from Bianchi et al.
     
@@ -65,6 +71,8 @@ function simImage = simulateGALEXdistr ()
             
             Mag(Isrc)   = Imag;
             
+            % divide the population into 3 colours 
+            
             if      rem(Isrc,3) == 1
                 Spec(Isrc,:) = AstroSpec.blackBody(Wave',3500);
             elseif  rem(Isrc,3) == 2
@@ -75,9 +83,10 @@ function simImage = simulateGALEXdistr ()
             
         end
         
-    end
+    end 
     
+    % run the simulation 
     
-    simImage = ultrasat.usim('InCat',Cat,'InMag',Mag,'InSpec',Spec,'Exposure',900);
+    simImage = ultrasat.usim('InCat',Cat,'InMag',Mag,'InSpec',Spec,'Exposure',900,'OutDir',Args.OutDir);
     
 end
