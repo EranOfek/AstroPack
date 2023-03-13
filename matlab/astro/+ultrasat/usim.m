@@ -11,6 +11,7 @@ function usimImage =  usim ( Args )
     %       -  Args.Tile (name of the ULTRASAT tile)
     %       -  Args.ImRes (image resolution in 1/pix units)
     %       -  Args.RotAng (tile rotation angle[s] relative to the axis of the raw PSF database)
+    %       -  Args.ArraySizeLimit (the maximal array size, machine-dependent, determines the method in specWeight)
     %       -  Args.NoiseDark (dark current noise)
     %       -  Args.NoiseSky  (sky background)
     %       -  Args.NoisePoisson (Poisson noise)
@@ -52,6 +53,8 @@ function usimImage =  usim ( Args )
 
         Args.RotAng          = 0;            % tile rotation angle relative to the axis of the raw PSF database (deg)
                                              % may be a vector with individual angle for each of the sources
+                                             
+        Args.ArraySizeLimit  = 8;            % [Gb] determines the method employed in specWeight
         
         Args.NoiseDark       = 1;            % Dark count noise
         Args.NoiseSky        = 1;            % Sky background 
@@ -112,7 +115,52 @@ function usimImage =  usim ( Args )
     
     DAper       = 33.;                   % [cm]    aperture diameter
     SAper       = pi * DAper ^ 2 / 4;    % [cm(2)] aperture area
+    
+    % coordinates of the inner core of the tile and the rotation angle of the PSF: 
+    % NB: the additional rotation by -90 deg is required to have the coma in the right position!
+    
+    switch Args.Tile
         
+        case 'A'
+            
+            X0 = ImageSizeX + 0.5; Y0 = 0.5;
+            RotAngle = Args.RotAng - 90 + 90;  
+            
+        case 'B'
+            
+            X0 = 0.5;              Y0 = 0.5;
+            RotAngle = Args.RotAng - 90 + 0;  
+            
+        case 'C'
+            
+            X0 = 0.5;              Y0 = ImageSizeY + 0.5;
+            RotAngle = Args.RotAng - 90 - 90;  
+            
+        case 'D'
+            
+            X0 = ImageSizeX + 0.5; Y0 = ImageSizeY + 0.5;
+            RotAngle = Args.RotAng - 90 + 180;  
+            
+        otherwise
+            
+            cprintf('err','Invalid tile name, exiting..\n');
+            return
+        
+    end
+    
+    % pixel saturation and per pixel background (estimated by YS)
+    
+    FullWell0    = 1.6e5;                               % [e-] the pixel saturation limit for 1 exposure
+    FullWell     = FullWell0 * ceil(Args.Exposure/300); % the limit for a serie of exposures 
+        
+    % [e-/pix] total background estimate for a 300 s exposure made by YS
+    
+    Back.Zody    = 27; Back.Cher  = 15; Back.Stray = 12; Back.Dark = 12;
+    Back.Readout =  6; Back.Cross =  2; Back.Gain  =  1;
+    
+    Back.Tot = Back.Zody + Back.Cher + Back.Stray + Back.Dark + ...
+               Back.Readout * ceil(Args.Exposure/300) + Back.Cross + Back.Gain;
+    
     %%%%%%%%%%%%%%%%%%%% load the matlab object with the ULTRASAT properties:
     
     UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');   
@@ -166,8 +214,8 @@ function usimImage =  usim ( Args )
         
         NumSrc = Args.InCat;  % the number of fake sources
 
-        CatX    = round( ImageSizeX * rand(NumSrc,1) ); 
-        CatY    = round( ImageSizeY * rand(NumSrc,1) ); 
+        CatX    = max(1, floor( ImageSizeX * rand(NumSrc,1) )); 
+        CatY    = max(1, floor( ImageSizeY * rand(NumSrc,1) )); 
         
         RA      = zeros(NumSrc,1);  % will be determined below if a WCS is set
         DEC     = zeros(NumSrc,1);  % -//-
@@ -191,7 +239,7 @@ function usimImage =  usim ( Args )
 
     for Isrc = 1:1:NumSrc
         
-        RadSrc(Isrc) = sqrt( CatX(Isrc)^2 + CatY(Isrc)^2 ) *  PixSizeDeg; 
+        RadSrc(Isrc) = sqrt( ( CatX(Isrc) - X0 )^2 + ( CatY(Isrc) - Y0 )^2 ) *  PixSizeDeg; 
         
         Ir = find (Rad  <= RadSrc(Isrc),  1, 'last');   % find the nearest grid point in the Rad array
                                                         % [later replace it by a linear interpolation (TBD) ]
@@ -388,17 +436,13 @@ function usimImage =  usim ( Args )
     
                     fprintf('Weighting source PSFs with their spectra.. ');
                     
-    WPSF = imUtil.psf.specWeight(SpecAbs, RadSrc, PSFdata, 'Rad', Rad); 
-    
+    WPSF = imUtil.psf.specWeight(SpecAbs, RadSrc, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit); 
+        
                     fprintf('done\n'); 
                     elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
 
     %%%%%%%%%%%%%%%%%%%%% rotate the weighted source PSFs, blur them due to the S/C jitter 
     %%%%%%%%%%%%%%%%%%%%% and inject them into an empty tile image
-    
-    RotAngle = Args.RotAng - 90;  
-    % the additional rotation by -90 deg is required 
-    % to have the coma in the right place!
     
                     fprintf('Rotating the PSFs and injecting them into an empty image.. ');
     
@@ -420,9 +464,8 @@ function usimImage =  usim ( Args )
 %                                     'Dark',Args.NoiseDark,'Sky',Args.NoiseSky,...
 %                                     'Poisson',Args.NoisePoisson,'ReadOut',Args.NoiseReadout);
 %                                 
-
-    Back_YS = 75.0 ; % [e-/pix] total background estimate for a 300 s exposure made by YS
-    NoiseLevel = Back_YS * sqrt(Args.Exposure/300.) * ones(ImageSizeX,ImageSizeY);
+        
+    NoiseLevel = Back.Tot * sqrt(Args.Exposure/300.) * ones(ImageSizeX,ImageSizeY);
     SrcAndNoise   = ImageSrc .* Args.Exposure + NoiseLevel; 
     
 %     ImageSrcNoise = poissrnd( SrcAndNoise, ImageSizeX, ImageSizeY);                             
@@ -437,6 +480,10 @@ function usimImage =  usim ( Args )
                     fprintf(' done\n');
                     
                     elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
+                    
+    %%%%%%%%%%%%%%%%%%%%%%  cut the saturated pixels (to be improved) 
+    
+    ImageSrcNoise = max(ImageSrcNoise, FullWell);
 
     %%%%%%%%%%%%%%%%%%%%%%  output: a) an AstroImage object with filled image, header, and PSF attachments 
     %%%%%%%%%%%%%%%%%%%%%%  b) a FITS image c) a native (RAW) format image 
@@ -455,33 +502,6 @@ function usimImage =  usim ( Args )
         
         AP(Isrc).DataPSF = PSF(:,:,Isrc);
     
-    end
-    
-    % rotate the image depending on the particular tile:
-    
-    switch Args.Tile
-        
-        case 'A' % NB: need to change Cat_X and Cat_Y as well 
-            
-            ImageSrcNoise = imrotate(ImageSrcNoise, -90, 'bilinear', 'loose');
-        
-        case 'B'
-            
-            % nothing to do
-            
-        case 'C'
-            
-            ImageSrcNoise = imrotate(ImageSrcNoise, -180, 'bilinear', 'loose');
-            
-        case 'D'
-            
-            ImageSrcNoise = imrotate(ImageSrcNoise, -270, 'bilinear', 'loose');
-            
-        otherwise
-            
-            cprintf('err','Incorrect tile name, exiting...\n');
-            return
-            
     end
     
     % make sky background and variance images?
@@ -512,7 +532,7 @@ function usimImage =  usim ( Args )
 
     %%%%%%%%%%%%%%%%%%%%    
     
-                    fprintf('%s%4.0f%s\n','Simulation completed in ',etime(clock,tstart),...
+                    cprintf('hyper','%s%4.0f%s\n','Simulation completed in ',etime(clock,tstart),...
                                          ' sec, see the generated images')
 
     %%%%%%%%%%%%%%%%%%%% post modeling checks
