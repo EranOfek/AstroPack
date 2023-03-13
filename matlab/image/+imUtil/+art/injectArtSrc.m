@@ -51,7 +51,7 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     % consistency checks
 
     if size(X,1) ~= size(Y,1) || size(X,1) ~= NumSrc
-        fprintf('Input sizes inconsistent in injectArtSrc, exiting..');
+        cprintf('err','Input sizes inconsistent in injectArtSrc, exiting..');
         return
     end
 
@@ -121,7 +121,7 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
         case 'fftshift'
                    
             if rem( size(JPSF,1) , 2) == 0 
-                fprintf('The size of RotPSF is even, while imUtil.art.injectSources accepts odd size only! Exiting..');
+                cprintf('err','The size of RotPSF is even, while imUtil.art.injectSources accepts odd size only! Exiting..');
                 return
             end
     
@@ -133,7 +133,7 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     
         otherwise
         
-        fprintf('Injection method not defined! Exiting..\n');
+        cprintf('err','Injection method not defined! Exiting..\n');
         return
         
     end
