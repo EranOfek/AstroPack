@@ -1,4 +1,4 @@
-function conjunctions(Table, Args)
+function Result=conjunctions(Table, Args)
     %
    
     arguments
@@ -6,11 +6,11 @@ function conjunctions(Table, Args)
         Args.SkipN           = 5;
         Args.ColJD           = 'JD';
         Args.CatName         = 'GAIADR3';
-        Args.CatEpoch        = 
-        Args.CatColMag       = 
-        Args.CatColMag2      = 
+        Args.CatEpoch        = 2016;
+        Args.CatColMag       = 'phot_bp_mean_mag';
+        Args.CatColMag2      = 'phot_rp_mean_mag';
         Args.MagRange        = [0 15];
-        Args.OcculterRadius  =      % [km]
+        Args.OcculterRadius  = 1000;     % [km]
         Args.ThresholdOccRad = 3;
     end
     
@@ -29,6 +29,7 @@ function conjunctions(Table, Args)
     
     OcculterRadius = convert.length('km','au',Args.OcculterRadius);  % [au]
     
+    Result = [];
     K = 0;
     for Irow=Args.SkipN:1:Nrow-Args.SkipN-1
         MeanCosX = CosX(Irow) + CosX(Irow+1);
@@ -36,7 +37,7 @@ function conjunctions(Table, Args)
         MeanCosZ = CosZ(Irow) + CosZ(Irow+1);
        
         [MeanRA, MeanDec]  = celestial.coo.cosined2coo(MeanCosX, MeanCosY, MeanCosZ);
-        SearchRad          = celestial.coo.sphere_dist_cosd(MeanRA, MeanDec, RA(Irow), Dec(Irow)).*1.1;
+        SearchRad          = celestial.coo.sphere_dist_fast(MeanRA, MeanDec, RA(Irow), Dec(Irow)).*1.1;
         
         Cat = catsHTM.cone_search(Args.CatName, MeanRA, MeanDec, SearchRad.*RAD.*3600, 'OutType','AstroCatalog');
         % select stars from Cat by magnitude
@@ -64,7 +65,7 @@ function conjunctions(Table, Args)
         Mag2 = getCol(Cat, Args.CatColMag2);
         
         % occulter angular radius
-        OcculterAngRadius = atan(OcculterSize./Delta(Irow));   % [radians]
+        OcculterAngRadius = OcculterRadius./Delta(Irow);   % [radians]
         
         FlagOcc = MinDist<(OcculterAngRadius.*Args.ThresholdOccRad);
         if any(FlagOcc)
@@ -74,7 +75,7 @@ function conjunctions(Table, Args)
             Result(K).OccMinDist;
             Result(K).Star = selectRows(Cat, MinI);
             
-            Result(K).Time = 
+            %Result(K).Time = 
             
         end
             
