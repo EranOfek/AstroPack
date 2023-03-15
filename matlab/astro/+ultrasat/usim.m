@@ -44,7 +44,7 @@ function usimImage =  usim ( Args )
                                              % NB: the input spectral intensity should be
                                              % in [erg cm(-2) s(-1) A(-1)] as seen near Earth!
                                              
-        Args.Exposure        = 300;          % image exposure, [s]; 300 s in the standard ULTRASAT exposure
+        Args.Exposure        = [1 300];      % number and duration of exosures [s]; 1 x 300 s is the standard ULTRASAT exposure
         
         Args.Tile            = 'B';          % the tile name: 'B' is the upper right tile  
         
@@ -70,10 +70,15 @@ function usimImage =  usim ( Args )
          
     end
     
-                        % performance speed test
+                        % start of simulation
+                        
+                        Exposure = Args.Exposure(1) * Args.Exposure(2); 
     
                         cprintf('hyper','ULTRASAT simulation started\n');
-                        fprintf('%s%d%s%s\n','The requested exposure is ',Args.Exposure,' seconds for tile ',Args.Tile);
+                        fprintf('%s%d%s%s\n','The total requested exposure is ',Exposure,...
+                                ' seconds for tile ',Args.Tile);
+                            
+                        % performance speed test
                         tic; tstart = clock;
     
     %%%%%%%%%%%%%%%%%%%%% Simulation parameters and some physical constants
@@ -148,18 +153,23 @@ function usimImage =  usim ( Args )
         
     end
     
-    % pixel saturation and per pixel background (estimated by YS)
+    % pixel saturation and per pixel background (estimated by YS),
+    %  e-/ADU conversion coefficients
     
     FullWell0    = 1.6e5;                               % [e-] the pixel saturation limit for 1 exposure
-    FullWell     = FullWell0 * ceil(Args.Exposure/300); % the limit for a serie of exposures 
-        
+    FullWell     = FullWell0 * Args.Exposure(1);        % the limit for a serie of exposures 
+    
+    GainThresh = 16000;
+    E2ADUlow   = 1.185;  % below GainThresh e-/pix 
+    E2ADUhigh  = 0.074;  % above GainThresh e-/pix
+    
     % [e-/pix] total background estimate for a 300 s exposure made by YS
     
     Back.Zody    = 27; Back.Cher  = 15; Back.Stray = 12; Back.Dark = 12;
     Back.Readout =  6; Back.Cross =  2; Back.Gain  =  1;
     
-    Back.Tot = Back.Zody + Back.Cher + Back.Stray + Back.Dark + ...
-               Back.Readout * ceil(Args.Exposure/300) + Back.Cross + Back.Gain;
+    Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark + ...
+                 Back.Cross + Back.Gain ) * sqrt(Exposure/300.) + Back.Readout * Args.Exposure(1);
     
     %%%%%%%%%%%%%%%%%%%% load the matlab object with the ULTRASAT properties:
     
@@ -460,13 +470,14 @@ function usimImage =  usim ( Args )
     
                     fprintf('Adding noise .. ');
                     
+                    
 %     ImageSrcNoise = imUtil.art.noise(ImageSrc,'Exposure',Args.Exposure,...
 %                                     'Dark',Args.NoiseDark,'Sky',Args.NoiseSky,...
 %                                     'Poisson',Args.NoisePoisson,'ReadOut',Args.NoiseReadout);
 %                                 
         
-    NoiseLevel = Back.Tot * sqrt(Args.Exposure/300.) * ones(ImageSizeX,ImageSizeY);
-    SrcAndNoise   = ImageSrc .* Args.Exposure + NoiseLevel; 
+    NoiseLevel    = Back.Tot * ones(ImageSizeX,ImageSizeY);   % already in [counts], see above
+    SrcAndNoise   = ImageSrc .* Exposure + NoiseLevel; 
     
 %     ImageSrcNoise = poissrnd( SrcAndNoise, ImageSizeX, ImageSizeY);                             
 %     ImageBkg      = poissrnd( NoiseLevel, ImageSizeX, ImageSizeY);
@@ -481,9 +492,15 @@ function usimImage =  usim ( Args )
                     
                     elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
                     
-    %%%%%%%%%%%%%%%%%%%%%%  cut the saturated pixels (to be improved) 
+    %%%%%%%%%%%%%%%%%%%%%%  cut the saturated pixels (to be refined later) 
     
-    ImageSrcNoise = max(ImageSrcNoise, FullWell);
+    ImageSrcNoise = min(ImageSrcNoise, FullWell);
+    
+    %%%%%%%%%%%%%%%%%%%%%%  make an ADU and mask ADU images
+    
+    ImageSrcNoiseGainMask = ImageSrcNoise > GainThresh * Args.Exposure(1);  % if the signal is above the threshold, use high gain
+    ImageSrcNoiseADU = ImageSrcNoise .* ( ImageSrcNoiseGainMask .* E2ADUhigh + ...
+                                          (ones(ImageSizeX,ImageSizeY)-ImageSrcNoiseGainMask) .* E2ADUlow );
 
     %%%%%%%%%%%%%%%%%%%%%%  output: a) an AstroImage object with filled image, header, and PSF attachments 
     %%%%%%%%%%%%%%%%%%%%%%  b) a FITS image c) a native (RAW) format image 
@@ -511,7 +528,7 @@ function usimImage =  usim ( Args )
     usimImage = AstroImage( {ImageSrcNoise} ,'Back',{NoiseLevel}, 'Var',{ImageBkg},'Cat',{Args.InCat.Catalog});   
 
     % add some keywords and values to the image header % TBD
-    funHeader(usimImage, @insertKey, {'DATEOBS','2026-01-01T00:00:00','';'EXPTIME',Args.Exposure,''});  
+    funHeader(usimImage, @insertKey, {'DATEOBS','2026-01-01T00:00:00','';'EXPTIME', Exposure,''});  
        
     % save the object in a .mat file for a future usage:
     OutObjName = sprintf('%s%s%s','SimImage_tile',Args.Tile,'.mat');   
