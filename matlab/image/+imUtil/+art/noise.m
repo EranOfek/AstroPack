@@ -4,6 +4,7 @@ function Image = noise (ImageSrc, Args)
     % Description: Add various types of noise to an artificial image made from a source catalog  
     %          - ImageSrc: inital noiseless image containing only source PSFs [counts/s]
     %          - Args.Exposure: exposure in [s]
+    %          - Args.ExposureNum: number of exposures in a sequence
     %          - Args.Dark: dark counts 
     %          - Args.Sky:  sky background (position-dependent?)
     %          - Args.Possion: Poisson noise
@@ -19,15 +20,17 @@ function Image = noise (ImageSrc, Args)
         
         ImageSrc
         
-        Args.Exposure  =    1;   % exposure time [s]
+        Args.Exposure    =  300; % exposure time [s]
         
-        Args.Dark      =    0;   % dark counts           
+        Args.ExposureNum =    1;   % number of exposures in a sequence
         
-        Args.Sky       =    0;   % sky background (position-dependent?)
+        Args.Dark        =    1;   % dark counts           
+        
+        Args.Sky         =    1;   % sky background (position-dependent?)
                
-        Args.Poisson   =    1;   % Poisson noise
+        Args.Poisson     =    1;   % Poisson noise
         
-        Args.ReadOut   =    0;   % Read-out noise 
+        Args.ReadOut     =    1;   % Read-out noise 
         
     end
     
@@ -40,9 +43,13 @@ function Image = noise (ImageSrc, Args)
     SkyBckg      = zeros(Nx,Ny);
     ReadOutNoise = zeros(Nx,Ny);
     
+    % calculate the total exposure
+    
+    Exposure = Args.Exposure * Args.ExposureNum;
+    
     % make the exposure-integrated image:
     
-    Image = ImageSrc .* Args.Exposure;  % [counts/s] * [s] = [counts]
+    Image = ImageSrc .* Exposure;  % [counts/s] * [s] = [counts]
     
 % In Yossi's presentation the variance of all the background
 % components: Zodiac + Cherenkov + Stray ligh + Dark current + ReadOut is estimated as 75 e-/pix (for a 300 s exposure?)
@@ -85,7 +92,7 @@ function Image = noise (ImageSrc, Args)
         
         RdNsigma = 3.5/3; % is the < 3.5 e-/pix specification for the high gain is a 3 sigma limit
         
-        ReadOutNoise = max( 0, normrnd(0,RdNsigma,Nx,Ny) ); 
+        ReadOutNoise = max( 0, normrnd(0,RdNsigma,Nx,Ny) ) .* Args.ExposureNum; 
         
     end
     
