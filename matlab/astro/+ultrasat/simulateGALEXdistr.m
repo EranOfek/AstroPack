@@ -87,6 +87,6 @@ function simImage = simulateGALEXdistr (Args)
     
     % run the simulation 
     
-    simImage = ultrasat.usim('InCat',Cat,'InMag',Mag,'InSpec',Spec,'Exposure',900,'OutDir',Args.OutDir);
+    simImage = ultrasat.usim('InCat',Cat,'InMag',Mag,'InSpec',Spec,'Exposure',[3 300],'OutDir',Args.OutDir);
     
 end
