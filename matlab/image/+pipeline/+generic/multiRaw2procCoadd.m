@@ -330,7 +330,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         end        
     end
         
-    
+    % make sure images are in single format
+    AI = AI.cast('single');
     
     % search for bad images
     [Result,~] = imProc.stat.identifyBadImages(AI, 'CCDSEC',Args.IdentifyBadImagesCCDSEC);
