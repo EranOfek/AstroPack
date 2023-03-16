@@ -1,8 +1,8 @@
 function readULTRASATlabDB
 
-% Make .mat DB files from the ASCII DB of ULTRASAT PSFs 
+% Make .mat DB files from the ASCII DB of ULTRASAT PSFs for 5 resolution levels
 % Package: imUtil.psf
-% Description: Make .mat DB files from the ASCII DB of ULTRASAT PSFs 
+% Description: Make .mat DB files from the ASCII DB of ULTRASAT PSFs for 5 resolution levels
 % Input  : - no user input is needed
 % Output : - .mat DB files 
 %            
