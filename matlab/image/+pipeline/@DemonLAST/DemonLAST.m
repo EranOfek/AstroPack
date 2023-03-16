@@ -148,6 +148,8 @@ classdef DemonLAST < Component
             %            'HostName' - Computer host name. If empty, then
             %                   get from computer host name.
             %                   Default is [].
+            %            'ProjectName' - e.g., 'LAST'. Default is ''.
+            %            'Node' - e.g., 1. Default is [].
             % Output : - Base path - e.g., '/last02e/data1/archive/LAST.01.02.01'
             %          - Camera number
             %          - Computer side
@@ -157,9 +159,11 @@ classdef DemonLAST < Component
             % Author : Eran Ofek (Mar 2023)
 
             arguments
-                Args.DataDir    = [];
-                Args.CamNumber  = [];
-                Args.HostName   = [];
+                Args.DataDir     = [];
+                Args.CamNumber   = [];
+                Args.HostName    = [];
+                Args.ProjectName = '';
+                Args.Node        = [];
             end
 
             if isempty(Args.CamNumber)
@@ -185,10 +189,11 @@ classdef DemonLAST < Component
             else
                 HostName = Args.HostName;
             end
+            HostName = 'last02w'
             MountNumberStr = HostName(5:6);
          
-            [CameraNumber,Side] = dataDir2cameraNumber(DataDirNum,HostName);
-            ProjName = pipeline.DemonLAST.constructProjectName(Obj.ProjectName,Obj.Node,MountNumberStr,CameraNumber);
+            [CameraNumber,Side] = pipeline.DemonLAST.dataDir2cameraNumber(DataDir,HostName);
+            ProjName            = pipeline.DemonLAST.constructProjectName(Args.ProjectName, Args.Node, MountNumberStr, CameraNumber);
 
             % e.g., '/last02e/data1/archive/LAST.01.02.01'
 
@@ -199,18 +204,40 @@ classdef DemonLAST < Component
 
     end
 
-    methods
-        
+    methods % utilities
 
-        function Path=getPath(Obj, Args)
-            %
+        function [Path,CameraNumber,Side,HostName,ProjName,MountNumberStr]=getPath(Obj, SubDir, Args)
+            % get base path, computer, data, camera,...
+            % Input  : - A pipeline.DemonLAST object
+            %          - Sub directory to concat to base path
+            %            (e.g., 'new'). Default is ''.
+            %          * ...,key,val,...
+            %            'DataDir' - A data dir number. If given will
+            %                   overwrite the pipeline.DemonLAST property.
+            %                   If empty, will use the pipeline.DemonLAST property.
+            %                   Superceed the CamNumber.
+            %                   Default is [].
+            %            'CamNumber' - A camera number. If given will
+            %                   overwrite the pipeline.DemonLAST property.
+            %                   If empty, will use the pipeline.DemonLAST property.
+            %                   Default is [].
+            % Output : - Path
+            %          - Camera number
+            %          - Computer side
+            %          - Computer host name
+            %          - Project name
+            %          - Mount number string
+            % Author : Eran Ofek (Mar 2023)
+
 
             arguments
                 Obj
-                SubDir          = 'new';
+                SubDir          = '';
 
                 Args.DataDir    = [];
                 Args.CamNumber  = [];
+
+                
             end
 
             
@@ -221,15 +248,95 @@ classdef DemonLAST < Component
                 Obj.CamNumber = Args.CamNumber;
             end
 
-            [BasePath,CameraNumber,Side,HostName,ProjName,MountNumberStr]=getBasePath('DataDir',Obj.DataDir,'CameraNumber',Obj.CamNumber);
+            [BasePath,CameraNumber,Side,HostName,ProjName,MountNumberStr] = pipeline.DemonLAST.getBasePath('DataDir',Obj.DataDir,...
+                                        'CamNumber',Obj.CamNumber,...
+                                        'Node',Obj.Node,...
+                                        'ProjectName',Obj.ProjectName);
             Path = fullfile(BasePath,SubDir);
-
-
-
         end
 
     end
 
+    methods % pipelines
+        function runPipeline(Obj, Args)
+            %
+            
+            arguments
+                Obj
+                Args.DataDir    = [];
+                Args.CamNumber  = [];
+
+                Args.SubDir     = 'new';
+
+                Args.Verbose    = true;
+                Args.AbortFile  = '~/abortPipe';
+            end
+
+            StopGUI = tools.gui.stopButton('Msg','Terminate pipeline.DemonLAST/runPipeline');
+
+            [Path,CameraNumber,Side,HostName,ProjName,MountNumberStr] = getPath(Obj, Args.SubDir, 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
+            
+            % cd to new files directory
+%             if ~isfolder(Path)
+%                 error('Folder %s doesnt exist on computer',Path);
+%             end
+%             cd(Path);
+
+            Cont = true;
+
+            Counter = 0;
+            while Cont
+                pause(1);
+                Counter = Counter + 1;
+
+                if Args.Verbose
+                    fprintf('pipeline counter: %d\n',Counter);
+                end
+
+                % find all images in directory
+
+                % identify new bias images
+
+                % prepare master bias
+
+                % copy processed bias images to raw/ dir
+
+                % identify new flat images
+
+                % prepare master flat
+
+                % copy processed flat images to raw/ dir
+
+                % identify non science images
+
+                % copy non science images to unproc/ dir
+
+                % load calib file (if new exist)
+
+                % group images
+
+                try
+                    % run pipeline on group
+
+                catch
+                    % move images to failed/ dir
+
+                end
+
+                % check if continue
+                if StopGUI.StopFun()
+                    Cont = false;
+                end
+                if isfile(Args.AbortFile)
+                    delete('Args.AbortFile');
+                    Cont = false;
+                end
+
+            end
+
+
+        end
+    end
 
     %----------------------------------------------------------------------
     % Unit test
