@@ -12,7 +12,12 @@ classdef DemonLAST < Component
         ProjectName  = 'LAST';
         Node         = 1;
         DataDir      = 1;
-        CamNumber
+        CamNumber    = [];
+
+        BasePath     = [];
+        NewPath      = 'new';    % if start with '/' then abs path
+        CalibPath    = 'calib';  % if start with '/' then abs path
+        FailedPath   = 'failed'; % if start with '/' then abs path
         
     end
     
@@ -47,7 +52,75 @@ classdef DemonLAST < Component
     end
     
     methods % setter/getters
-    
+        function Result=get.BasePath(Obj)            
+            % getter for BasePath
+
+            if isempty(Obj.BasePath)
+                if isempty(Obj.DataDir) && isempty(Obj.CamNumber)
+                    Result = [];
+                else
+                    % get base path
+                    Result = pipeline.DemonLAST.getBasePath('DataDir',Obj.DataDir, 'CamNumber',Obj.CamNumber, 'ProjectName',Obj.ProjectName, 'Node',Obj.Node);
+                end
+            else
+                Result = Obj.BasePath;
+            end
+        end
+
+        function Result=get.NewPath(Obj)
+            % getter fore NewPath
+
+            if isempty(Obj.NewPath)
+                Result = [];
+            else
+                if strcmp(Obj.NewPath(1),filesep)
+                    % NewPath contains full dir name
+                    Result = Obj.NewPath;
+                else
+                    % NewPath contains relative path (relative to BasePath)
+                    Obj.NewPath = fullfile(Obj.BasePath,Obj.NewPath);
+                    Result      = Obj.NewPath;
+                end
+            end
+
+        end
+
+        function Result=get.CalibPath(Obj)
+            % getter fore CalibPath
+
+            if isempty(Obj.CalibPath)
+                Result = [];
+            else
+                if strcmp(Obj.CalibPath(1),filesep)
+                    % CalibPath contains full dir name
+                    Result = Obj.CalibPath;
+                else
+                    % CalibPath contains relative path (relative to BasePath)
+                    Obj.CalibPath = fullfile(Obj.BasePath,Obj.CalibPath);
+                    Result      = Obj.CalibPath;
+                end
+            end
+
+        end
+
+        function Result=get.FailedPath(Obj)
+            % getter fore FailedPath
+
+            if isempty(Obj.FailedPath)
+                Result = [];
+            else
+                if strcmp(Obj.FailedPath(1),filesep)
+                    % FailedPath contains full dir name
+                    Result = Obj.FailedPath;
+                else
+                    % FailedPath contains relative path (relative to BasePath)
+                    Obj.FailedPath = fullfile(Obj.BasePath,Obj.FailedPath);
+                    Result      = Obj.FailedPath;
+                end
+            end
+
+        end
+
     end
       
     methods (Static) % path and files
@@ -167,7 +240,7 @@ classdef DemonLAST < Component
             end
 
             if isempty(Args.CamNumber)
-                if isempty(Obj.DataDir)
+                if isempty(Args.DataDir)
                     error('DataDir or CamNumber must be supplied');
                 else
                     % only DataDir is given
@@ -198,12 +271,13 @@ classdef DemonLAST < Component
             % e.g., '/last02e/data1/archive/LAST.01.02.01'
 
             DataStr = sprintf('data%d',DataDir);
-            BasePath = fullfile(filesep,HostName,DataStr,'archive','ProjName');
+            BasePath = fullfile(filesep,HostName,DataStr,'archive',ProjName);
 
         end
 
     end
 
+    
     methods % utilities
 
         function [Path,CameraNumber,Side,HostName,ProjName,MountNumberStr]=getPath(Obj, SubDir, Args)
@@ -258,11 +332,38 @@ classdef DemonLAST < Component
     end
 
     methods % pipelines
+        function prepMasterDark(Obj, Args)
+            %
+
+            arguments
+                Obj
+                Args.FilesList   = '*.fits';
+            end
+
+            if isa(Args.FilesList,'FileNames')
+                FN = Args.FN;
+            else
+                % generate file names
+                % find all images in directory
+                FN = FileNames.generateFromFileName(Args.List);
+            end
+
+            % identify new bias images
+            [FN_Dark,Flag] = selectBy(Obj, 'Type', {'dark','bias'}, "CreateNewObj",true);
+            
+            % prepare master bias
+
+            % copy processed bias images to raw/ dir
+
+
+        end
+        
         function runPipeline(Obj, Args)
             %
             
             arguments
                 Obj
+                Args.List       = 'LAST*.fits';
                 Args.DataDir    = [];
                 Args.CamNumber  = [];
 
@@ -294,9 +395,11 @@ classdef DemonLAST < Component
                 end
 
                 % find all images in directory
+                FN = FileNames.generateFromFileName(Args.List);
 
                 % identify new bias images
-
+                [FN_Dark,Flag] = selectBy(Obj, 'Type', {'dark','bias'}, "CreateNewObj",true);
+                
                 % prepare master bias
 
                 % copy processed bias images to raw/ dir

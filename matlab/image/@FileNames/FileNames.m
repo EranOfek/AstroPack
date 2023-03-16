@@ -449,8 +449,9 @@ classdef FileNames < Component
                 Prop = 'Time';
                 Ind  = [];
                 Args.Jd2str logical  = true;
+                Args.CreateNewObj logical = true;
             end
-            
+
             if Args.Jd2str && strcmp(Prop, 'Time')
                 if isnumeric(Obj.(Prop))
                     Obj.jd2str;
