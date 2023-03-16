@@ -6,9 +6,12 @@ function Result=stopButton(Args)
     %            'Title' - Windiow title. Default is 'Stop'.
     %            'Text'  - Button text. Default is 'Abort'.
     %            'Pos'   - Position of window [x,y]. Default is [].
-    % Author
-    % Example: Result=tools.gui.stopButton(Arg'Msg','Stop the process');
-
+    % Output : - A function handle with the stop function
+    % Author : Eran Ofek (Mar 2023)
+    % Example: StopGUI=tools.gui.stopButton(Arg'Msg','Stop the process');
+    %          % next you can check
+    %          if StopGUI(), % do something; end
+    
     arguments
         Args.Msg     = 'Terminate the process';   % text
         Args.Title   = 'Stop';    % figure title
@@ -26,8 +29,7 @@ function Result=stopButton(Args)
     Hc(1).String          = Args.Text;
 
     % create the two anonymous functions
-    Result.StopFun  = @() stopFun(H) ; % false if message box still exists
-    %Result.ClearFun = @() clearfun(H) ; % delete message box
+    Result  = @() stopFun(H) ; % false if message box still exists
 
 end
 
