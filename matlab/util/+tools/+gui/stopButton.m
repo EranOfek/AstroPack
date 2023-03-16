@@ -1,5 +1,5 @@
 function Result=stopButton(Args)
-    % Create stop button 
+    % Create a stop button 
     % Input  : *...,key,val,...
     %            'Msg' - Window message.
     %                   Default is 'Terminate the process'.
@@ -11,7 +11,7 @@ function Result=stopButton(Args)
     % Example: StopGUI=tools.gui.stopButton(Arg'Msg','Stop the process');
     %          % next you can check
     %          if StopGUI(), % do something; end
-    
+
     arguments
         Args.Msg     = 'Terminate the process';   % text
         Args.Title   = 'Stop';    % figure title
