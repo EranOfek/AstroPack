@@ -28,6 +28,7 @@ function usimImage =  usim ( Args )
     arguments  
         
         Args.InCat           =  10;          % if = N, generate N random fake sources
+                                             % if a 2D tabel -- use X, Y from this table
                                              % if an AstroCat object, use sources from this object
                                              
         Args.InMag           =  20;          % apparent magnitude of the input sources: 
@@ -44,7 +45,7 @@ function usimImage =  usim ( Args )
                                              % NB: the input spectral intensity should be
                                              % in [erg cm(-2) s(-1) A(-1)] as seen near Earth!
                                              
-        Args.Exposure        = [1 300];      % number and duration of exosures [s]; 1 x 300 s is the standard ULTRASAT exposure
+        Args.Exposure        = [3 300];      % number and duration of exosures [s]; 1 x 300 s is the standard ULTRASAT exposure
         
         Args.Tile            = 'B';          % the tile name: 'B' is the upper right tile  
         
@@ -87,14 +88,6 @@ function usimImage =  usim ( Args )
     
     C   = constant.c;       % the speed of light in vacuum, [cm/s]
     H   = constant.h;       % the Planck constant, [erg s]   
-    
-%     Parsec = constant.pc;   % the parsec, [cm]
-% 
-%     Rsun  = constant.SunR;  % [cm] Solar radius
-%     Lsun  = constant.SunL;  % [erg/s] Solar luminosity
-%     
-%     Rstar = 1. * Rsun;   % stellar radius in Rsun % par 
-%     Dstar = 10;          % [pc] stellar distance  % par  
     
     %%%%%%%%%%%%%%%%%%%% ULTRASAT PSF database parameters
                
@@ -266,13 +259,13 @@ function usimImage =  usim ( Args )
 
     % read the input spectra or generate synthetic spectra
     
-        % TEST: use the Stellar Spectra from UP.Specs
-        if false  
+        %%% TEST: use the Stellar Spectra from UP.Specs
+        if FALSE  
     
-            fprintf('TEST RUN: using spectra from UP.Specs ..');
+            fprintf('TEST RUN: using stellar spectra from UP.Specs ..');
 
             for Isrc = 1:1:NumSrc
-                % star spectra from Pickles. NB: these are normalized to 1 at 5556 Ang !
+                % stellar spectra from Pickles. NB: these are normalized to 1 at 5556 Ang !
                 %Pick(Isrc) = UP.Specs( rem(Isrc,43)+1 ); 
                 %Pick(Isrc) = UP.Specs(17); % a G0.0V star 
                 %Pick(Isrc) = UP.Specs(27); % an M0.0V star 
@@ -284,14 +277,8 @@ function usimImage =  usim ( Args )
             end
                 Args.InSpec = Pick(1:NumSrc);
 
-%             for Isrc = 1:1:NumSrc
-%                   Args.InSpec(Isrc).Int = Args.InSpec(Isrc).Int / sum ( Args.InSpec(Isrc).Int * 5.0 ); % 5.0 A is the bin width
-%                   Args.InSpec(Isrc).Int = Args.InSpec(Isrc).Int .* Lsun / (4 * pi * ( Dstar * 3.1e18 )^2 ); % Solar luminosity 
-%             end
-%                   
-            % do not need to normalize the spectrum here, it will be done below based on the magnitude
         end
-        % END TEST 
+        %%% END TEST 
     
     switch isa(Args.InSpec,'AstroSpec') || isa(Args.InSpec,'AstSpec')
         
@@ -303,10 +290,6 @@ function usimImage =  usim ( Args )
                 
                 for Isrc = 1:1:NumSrc
                     
-                    % SpecIn(Isrc,:) = AstSpec.blackbody(Args.InSpec{2},Wave).Int; % AstSpec is deprecated
-%                     SpecIn(Isrc,:) = AstroSpec.blackBody(Wave',Args.InSpec{2},...
-%                                      'Radius',Rstar,'Dist',Dstar).Flux; % erg s(-1) cm(-2) A(-1)
-                    % do not need to normalize the spectrum here, it will be done below based on the magnitude
                       SpecIn(Isrc,:) = AstroSpec.blackBody(Wave',Args.InSpec{2}).Flux; % erg s(-1) cm(-2) A(-1)
                     
                 end
@@ -318,21 +301,14 @@ function usimImage =  usim ( Args )
                 fprintf('%s%4.2f%s','generating PL spectra for alpha = ',Args.InSpec{2},' ..');
                 
                 for Isrc = 1:1:NumSrc
-                    
-                    PLalpha = Args.InSpec{2};
-%                     PLalpha1 = PLalpha + 1.;
-%                     PLnorm = 1 / ( (1 / PLalpha1 ) * ( Wave(Nwave)^PLalpha1-Wave(1)^PLalpha1 ) );
-%                     SpecIn(Isrc,:) = PLnorm * Wave .^ PLalpha; % erg s(-1) cm(-2) A(-1) 
-%                                                                % Flux = sum(F_l * Delta_l) normalized to 1
-%                     SpecIn(Isrc,:) = SpecIn(Isrc,:) .* Lsun / (4 * pi * ( Dstar * Parsec )^2 ); % 
-                    % do not need to normalize the spectrum here, it will be done below based on the magnitude
-                    SpecIn(Isrc,:) = Wave .^ PLalpha; % erg s(-1) cm(-2) A(-1)                                                       
+                                 
+                    SpecIn(Isrc,:) = Wave .^ Args.InSpec{2}; % erg s(-1) cm(-2) A(-1)                                                       
                     
                 end
                                 
             else
                 
-                cprintf('err','Spectra not defined in USim, exiting..\n');
+                cprintf('err','Spectral parameters not properly defined in uSim, exiting..\n');
                 return
                 
             end
@@ -368,7 +344,7 @@ function usimImage =  usim ( Args )
     
     
     %%%%%%%%%%%%%% TEST input: a flat spectrum the 240-280 band, null otherwise
-    if false
+    if FALSE
         
         fprintf('TEST input: flat spectrum in the 240-280 band\n');
         
@@ -390,7 +366,7 @@ function usimImage =  usim ( Args )
     for Isrc = 1:1:NumSrc
         
           AS = AstroSpec([Wave' SpecIn(Isrc,:)']);
-          if size(Args.InMag,1) > 1 
+          if numel(Args.InMag) > 1 
               InMag(Isrc) = Args.InMag(Isrc); 
           else
               InMag(Isrc) = Args.InMag(1); 
