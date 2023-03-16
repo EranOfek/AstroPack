@@ -18,7 +18,7 @@ function temp = color2temp(color, filter1, filter2, filter_system, mag_system)
 %
 % Written by: Guy Nir 31/10/2019
 
-    import AstroUtil.spec.blackbody_mag_c;
+%    import AstroUtil.spec.blackbody_mag_c;
     
     if nargin==0, help('AstroUtil.spec.color2temp'); return; end
     
@@ -30,7 +30,7 @@ function temp = color2temp(color, filter1, filter2, filter_system, mag_system)
         mag_system = 'AB';
     end
     
-    func = @(T) abs(blackbody_mag_c(T, filter_system, filter1, mag_system) - blackbody_mag_c(T, filter_system, filter2, mag_system) - color);
+    func = @(T) abs(astro.spec.blackbody_mag_c(T, filter_system, filter1, mag_system) - astro.spec.blackbody_mag_c(T, filter_system, filter2, mag_system) - color);
 
     temp = fminsearch(func, 5000, optimset('TolX', 1)); 
 
