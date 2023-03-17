@@ -339,18 +339,48 @@ classdef DemonLAST < Component
                 Obj
                 Args.FilesList   = '*.fits';
                 Args.BiasArgs    = {};
+                Args.MinDT       = 1./1440;  
+                Args.MinInGroup  = 9;
             end
 
-            if isa(Args.FilesList,'FileNames')
-                FN = Args.FN;
-            else
-                % generate file names
-                % find all images in directory
-                FN = FileNames.generateFromFileName(Args.List);
-            end
+            WaitForMoreImages = true;
+            while WaitForMoreImages
+                
+                if isa(Args.FilesList,'FileNames')
+                    FN = Args.FN;
+                    WaitForMoreImages = false;
+                else
+                    % generate file names
+                    % find all images in directory
+                    FN = FileNames.generateFromFileName(Args.List);
+                end
 
-            % identify new bias images
-            [FN_Dark,Flag] = selectBy(FN, 'Type', {'dark','bias'}, "CreateNewObj",true);
+                % identify new bias images
+                [FN_Dark,Flag] = selectBy(FN, 'Type', {'dark','bias'}, "CreateNewObj",true);
+
+                % check that the dark images are ready and group by night
+                [Ind, LastJD, DT] = selectLastJD(FN_Dark);
+                if DT>Args.MinDT
+                    % prep master dark
+                    PrepMaster = true;
+                else
+                    % wait for more images
+                    PrepMaster = false;
+                end
+            
+                if PrepMaster==true
+                    WaitForMoreImages = false;
+                end
+            end
+            
+            % group dark images by time groups
+            [~, FN_Dark_Groups] = groupByCounter(FN_Dark, 'MinInGroup',Args.MinInGroup);
+            
+            
+            
+            
+            
+            
             DarkList = genFull(FN_Dark, []);
             
             % prepare master bias
