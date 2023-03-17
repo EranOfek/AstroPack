@@ -376,18 +376,45 @@ classdef DemonLAST < Component
             % group dark images by time groups
             [~, FN_Dark_Groups] = groupByCounter(FN_Dark, 'MinInGroup',Args.MinInGroup);
             
+            Ngr = numel(FN_Dark_Groups);
+            for Igr=1:1:Ngr
+                DarkList = FN_Dark_Groups(Igr).genFull([]);
             
             
-            
-            
-            
-            DarkList = genFull(FN_Dark, []);
-            
-            % prepare master bias
-            CI = CalibImages;
-            CI.createBias(DarkList, 'BiasArgs',Args.BiasArgs);
+                % prepare master bias
+                CI = CalibImages;
+                
+                CI.createBias(DarkList, 'BiasArgs',Args.BiasArgs);
 
-            % copy processed bias images to raw/ dir
+                % save processed bias images in raw/ dir
+                
+                %readFromHeader(FN_Dark_Groups(Igr), CI.Bias)
+                
+                
+                %Obj = readFromHeader(, Input, DataProp
+                
+                % write file
+                JD = CI.Bias.julday;
+                FN_Master = FileNames;
+                FN_Master.readFromHeader(CI.Dark);
+                FN_Master.Type     = {'dark'};
+                FN_Master.Level    = {'proc'};
+                FN_Master.Product  = {'Image'};
+                FN_Master.Version  = [1];
+                FN_Master.FileType = {'fits'};    
+                FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                write1(CI.Bias, FileN, 'Image');
+                FN_Master.Product  = {'Mask'};
+                FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                write1(CI.Bias, FileN, 'Mask');
+                FN_Master.Product  = {'Var'};
+                FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                write1(CI.Bias, FileN, 'Var');
+                
+                
+            end
+            
+            
 
 
         end

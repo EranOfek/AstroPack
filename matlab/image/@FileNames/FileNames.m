@@ -797,7 +797,7 @@ classdef FileNames < Component
         
         function Obj = readFromHeader(Obj, Input, DataProp)
             % Read FileNames parameters from header.
-            % Input  : - An ImagePath object.
+            % Input  : - An FileNames object.
             %          - AstroImage or AstroHeader.
             %          - Either data property name or product name.
             % Output : - A populated FileNames object.
@@ -1127,6 +1127,11 @@ classdef FileNames < Component
             end
             
         end
+        
+        
+        
+        
+        
         
         
         
