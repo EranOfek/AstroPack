@@ -12,8 +12,8 @@ function MS=forcedPhotAll(Args)
     arguments
         Args.BasePath       = @pipeline.last.constructCamDir;  % if empty use pwd
         Args.DataDir        = 1;
-        Args.BasePathArgs   = {'SubDir','2023/01/'};
-        Args.FileTemp       = 'LAST*_050+08_*_sci_proc_Image_*.fits';
+        Args.BasePathArgs   = {'SubDir','2023/03/'};
+        Args.FileTemp       = 'LAST*_089+48_*_sci_proc_Image_*.fits';
         
         Args.Coo                        % [RA, Dec], for moving use EphemTable
         Args.CooUnits       = 'deg';
