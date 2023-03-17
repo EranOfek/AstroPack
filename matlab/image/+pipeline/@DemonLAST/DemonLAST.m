@@ -338,6 +338,7 @@ classdef DemonLAST < Component
             arguments
                 Obj
                 Args.FilesList   = '*.fits';
+                Args.BiasArgs    = {};
             end
 
             if isa(Args.FilesList,'FileNames')
@@ -349,9 +350,12 @@ classdef DemonLAST < Component
             end
 
             % identify new bias images
-            [FN_Dark,Flag] = selectBy(Obj, 'Type', {'dark','bias'}, "CreateNewObj",true);
+            [FN_Dark,Flag] = selectBy(FN, 'Type', {'dark','bias'}, "CreateNewObj",true);
+            DarkList = genFull(FN_Dark, []);
             
             % prepare master bias
+            CI = CalibImages;
+            CI.createBias(DarkList, 'BiasArgs',Args.BiasArgs);
 
             % copy processed bias images to raw/ dir
 
