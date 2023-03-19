@@ -152,8 +152,8 @@ function Result=conjunctions(Table, Args)
             Result(K).MagStar = getCol(Cat, Args.CatColMag);
             Result(K).Star    = selectRows(Cat, MinI);
                        
-            Result(K).Az      = HprizCoo(1).*RAD;   % [deg]
-            Result(K).Alt     = HprizCoo(2).*RAD;   % [deg]
+            Result(K).Az      = HorizCoo(1).*RAD;   % [deg]
+            Result(K).Alt     = HorizCoo(2).*RAD;   % [deg]
             Result(K).SunAlt  = Sun.Alt.*RAD;       % [deg]
         end
             
