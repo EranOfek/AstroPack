@@ -46,11 +46,11 @@ DefV.CENTER              = '500'; %'@sun'; %code for observer location. Earth - 
 DefV.WebOptions          = weboptions;
 InPar = InArg.populate_keyval(DefV,varargin,mfilename);
 
-if numel(InPar.StartJD)>3
+if size(InPar.StartJD,2)==3
     InPar.StartJD = celestial.time.julday(InPar.StartJD);
 end
 
-if numel(InPar.StopJD)>3
+if size(InPar.StopJD,2)==3
     InPar.StopJD = celestial.time.julday(InPar.StopJD);
 end
 
@@ -194,12 +194,12 @@ for Icol=1:1:Ncol
         case {'R.A._(ICRF/J2000.0)','R.A._(ICRF)','R.A._____(ICRF)'}
             C{Icol} = celestial.coo.convertdms(C{Icol},'SHb',OutCooUnits);
             ColCell{Icol}  = 'RA';
-            ColUnits{Icol} = 'OutCooUNits';
+            ColUnits{Icol} = InPar.OutCoo;
         
         case {'DEC_(ICRF/J2000.0)','DEC__(ICRF)' , 'DEC______(ICRF)'}
             C{Icol} = celestial.coo.convertdms(C{Icol},'SDb',OutCooUnits);
             ColCell{Icol}  = 'Dec';
-            ColUnits{Icol} = 'OutCooUNits';
+            ColUnits{Icol} = InPar.OutCoo;
         case 'APmag'
             C{Icol} = str2double(C{Icol});
             ColCell{Icol} = 'APmag';
