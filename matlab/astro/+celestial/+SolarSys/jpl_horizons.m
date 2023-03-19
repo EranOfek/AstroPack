@@ -46,11 +46,11 @@ DefV.CENTER              = '500'; %'@sun'; %code for observer location. Earth - 
 DefV.WebOptions          = weboptions;
 InPar = InArg.populate_keyval(DefV,varargin,mfilename);
 
-if numel(InPar.StartJD)>3
+if size(InPar.StartJD,2)==3
     InPar.StartJD = celestial.time.julday(InPar.StartJD);
 end
 
-if numel(InPar.StopJD)>3
+if size(InPar.StopJD,2)==3
     InPar.StopJD = celestial.time.julday(InPar.StopJD);
 end
 
