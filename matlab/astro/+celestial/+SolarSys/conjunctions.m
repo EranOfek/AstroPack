@@ -60,7 +60,7 @@ function Result=conjunctions(Table, Args)
         [MeanRA, MeanDec]  = celestial.coo.cosined2coo(MeanCosX, MeanCosY, MeanCosZ);
         SearchRad          = celestial.coo.sphere_dist_fast(MeanRA, MeanDec, RA(Irow), Dec(Irow)).*1.1;
         
-        SearchRad.*RAD.*3600
+        %SearchRad.*RAD.*3600
 
         Cat = catsHTM.cone_search(Args.CatName, MeanRA, MeanDec, SearchRad.*RAD.*3600, 'OutType','AstroCatalog');
         % select stars from Cat by magnitude
