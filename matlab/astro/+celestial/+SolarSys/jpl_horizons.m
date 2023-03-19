@@ -57,6 +57,16 @@ end
 BaseURL = 'https://ssd.jpl.nasa.gov/horizons_batch.cgi?';
 %BaseURL = 'https://ssd.jpl.nasa.gov/api/horizons.api?';
 
+
+switch OutCooUnits
+    case 'd'
+        OutCooUnits3 = 'deg';
+    case 'r'
+        OutCooUnits3 = 'rad';
+    otherwise
+        errot('OutCooUnits must be r or d');
+end
+
 I = 0;
 I = I + 1;
 Str(I).command = 'batch';
@@ -194,12 +204,12 @@ for Icol=1:1:Ncol
         case {'R.A._(ICRF/J2000.0)','R.A._(ICRF)','R.A._____(ICRF)'}
             C{Icol} = celestial.coo.convertdms(C{Icol},'SHb',OutCooUnits);
             ColCell{Icol}  = 'RA';
-            ColUnits{Icol} = 'OutCooUNits';
+            ColUnits{Icol} = OutCooUnits3;
         
         case {'DEC_(ICRF/J2000.0)','DEC__(ICRF)' , 'DEC______(ICRF)'}
             C{Icol} = celestial.coo.convertdms(C{Icol},'SDb',OutCooUnits);
             ColCell{Icol}  = 'Dec';
-            ColUnits{Icol} = 'OutCooUNits';
+            ColUnits{Icol} = OutCooUnits3;
         case 'APmag'
             C{Icol} = str2double(C{Icol});
             ColCell{Icol} = 'APmag';
