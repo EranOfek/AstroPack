@@ -58,7 +58,7 @@ BaseURL = 'https://ssd.jpl.nasa.gov/horizons_batch.cgi?';
 %BaseURL = 'https://ssd.jpl.nasa.gov/api/horizons.api?';
 
 
-switch OutCooUnits
+switch InPar.OutCooUnits
     case 'd'
         OutCooUnits3 = 'deg';
     case 'r'
