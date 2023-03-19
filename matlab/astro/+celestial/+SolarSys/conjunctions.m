@@ -129,7 +129,6 @@ function Result=conjunctions(Table, Args)
             
             
             [MinDist, MinDistI] = min(Dist);
-            InterpJD(MinDistI)
 
             K = K + 1;
             Result(K).JD                     = BestJD;
