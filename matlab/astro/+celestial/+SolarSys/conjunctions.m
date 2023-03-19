@@ -104,6 +104,7 @@ function Result=conjunctions(Table, Args)
             % interpolate ephemeris to high resolution
             InterpJD = (JD(Irow):Args.InterpStep:JD(Irow+1))';
 
+           
 
             [InterpRA,InterpDec]=tools.interp.interp_diff_longlat(JD,[RA, Dec],InterpJD);
             Dist = celestial.coo.sphere_dist_fast(InterpRA,InterpDec, CatCoo(MinI,1),CatCoo(MinI,2));
@@ -121,6 +122,12 @@ function Result=conjunctions(Table, Args)
             
             
             % check that the occultation is obove local horizon
+            HorizCoo = celestial.coo.horiz_coo(Cat.Catalog(1,1:2),BestJD, Args.ObsCoo./RAD, 'h');
+            Sun      = celestial.SolarSys.get_sun(BestJD);
+            
+            
+            
+            
             [MinDist, MinDistI] = min(Dist);
             InterpJD(MinDistI)
 
@@ -144,7 +151,10 @@ function Result=conjunctions(Table, Args)
             Result(K).Dec     = Cat.Catalog(1,2).*RAD;  % [deg]
             Result(K).MagStar = getCol(Cat, Args.CatColMag);
             Result(K).Star    = selectRows(Cat, MinI);
-                        
+                       
+            Result(K).Az      = HprizCoo(1).*RAD;   % [deg]
+            Result(K).Alt     = HprizCoo(2).*RAD;   % [deg]
+            Result(K).SunAlt  = Sun.Alt.*RAD;       % [deg]
         end
             
         
