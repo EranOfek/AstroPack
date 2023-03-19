@@ -1,27 +1,41 @@
 function Result=conjunctions(Table, Args)
-    %
+    % Search for conjunctions between a Solar system object and a GAIA star
+    % Input  : - An Astrocatalog object containing the ephemeris for a
+    %            Solar system object. Can be generated using celestial.SolarSys.jpl_horizons
+    %          * ...,key,val,...
+    %            Check code
+    % Output : - A structure array with element per occultation candidate
+    %            and the following fields:
+    %            .JD - JD of minimum impact parameter
+    %            .MinDist - Minimum impact parameter [mas]
+    %            ...
+    %            .Star - AstroCatalog object with the occulted star.
+    % Author : Eran Ofek (Mar 2023)
     % Example: [EphemCat]=celestial.SolarSys.jpl_horizons('ObjectInd','2060', 'StartJD',[1 9 2022],'StopJD', [31 12 2023], 'StepSize',3,'StepSizeUnits','h');
     % Result = celestial.SolarSys.conjunctions(EphemCat);
 
     arguments
         Table AstroCatalog   % JD, RA, Dec, Delta, r, Mag,
+        Args.ObsCoo          = [35 32];
+        
         Args.SkipN           = 5;
         Args.ColJD           = 'JD';
         Args.CatName         = 'GAIADR3';
         Args.CatEpoch        = 2016;
         Args.CatColMag       = 'phot_bp_mean_mag';
         Args.CatColMag2      = 'phot_rp_mean_mag';
-        Args.MagRange        = [0 15];
+        Args.MagRange        = [0 16];
 
         Args.EphemColMag     = 'APmag';
         Args.OcculterRadius  = 1000;     % [km]
         Args.ThresholdOccRad = 3;
 
-        Args.InterpStep      = 1./86400;
+        Args.InterpStep      = 10./86400;
     end
     
     RAD = 180./pi;
     ARCSEC_DEG = 3600;
+    SEC_DAY    = 86400;
     
     Nrow = sizeCatalog(Table);
     
@@ -94,22 +108,43 @@ function Result=conjunctions(Table, Args)
             [InterpRA,InterpDec]=tools.interp.interp_diff_longlat(JD,[RA, Dec],InterpJD);
             Dist = celestial.coo.sphere_dist_fast(InterpRA,InterpDec, CatCoo(MinI,1),CatCoo(MinI,2));
 
+            
+            Extram  = tools.find.find_local_extremum(InterpJD, Dist);
+            FlagMin = Extram(:,3)>0;
+            Extram  = Extram(FlagMin,:);
+            if size(Extram,1)==1
+                BestJD      = Extram(1,1);
+                BestMinDist = Extram(1,2);
+            else
+                error('Found %d minima',size(Extram,1));
+            end
+            
+            
             % check that the occultation is obove local horizon
             [MinDist, MinDistI] = min(Dist);
             InterpJD(MinDistI)
 
             K = K + 1;
-            Result(K).JD              = JD(Irow);
-            Result(K).OccMinDist      = OcculterAngRadius(MinI).*RAD.*ARCSEC_DEG.*1000;     % [mas]
-            Result(K).OcculterRadius  = Args.OcculterRadius;  % [km]
+            Result(K).JD                     = BestJD;
+            DeltaTime                        = JD(Irow+1) - JD(Irow);
+                        
+            Result(K).MinDist                = BestMinDist.*RAD.*ARCSEC_DEG.*1000;          % [mas]
+            Result(K).OcculterRadius         = Args.OcculterRadius;                         % [km]
             Result(K).OcculterAngRadius      = OcculterAngRadius.*RAD.*ARCSEC_DEG.*1000;    % [mas]
             Result(K).ImpactPar_inOcculterAngRadiusUnits = MinDist_inAndRadUnits(MinI);     % [occulter ang rad.]
 
+            Result(K).AngSpeed               = celestial.coo.sphere_dist_fast(RA(Irow),Dec(Irow), RA(Irow+1),Dec(Irow+1)).*RAD.*ARCSEC_DEG.*1000./(DeltaTime.*SEC_DAY); % [mas/s]
+            Result(K).CrossingTime           = Result(K).OcculterAngRadius./Result(K).AngSpeed;   % [s] time to cross occulter radius
+
+            Result(K).MagMP = MagEp(Irow);   % Solar sys. object mag.
+            
+            
             % select candidate from Cat
-            Result(K).Star = selectRows(Cat, MinI);
-            
-            %Result(K).Time = 
-            
+            Result(K).RA      = Cat.Catalog(1,1).*RAD;  % [deg]
+            Result(K).Dec     = Cat.Catalog(1,2).*RAD;  % [deg]
+            Result(K).MagStar = getCol(Cat, Args.CatColMag);
+            Result(K).Star    = selectRows(Cat, MinI);
+                        
         end
             
         
