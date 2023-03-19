@@ -16,6 +16,8 @@ function Result=conjunctions(Table, Args)
         Args.EphemColMag     = 'APmag';
         Args.OcculterRadius  = 1000;     % [km]
         Args.ThresholdOccRad = 3;
+
+        Args.InterpStep      = 1./86400;
     end
     
     RAD = 180./pi;
@@ -86,6 +88,15 @@ function Result=conjunctions(Table, Args)
             
             
             % interpolate ephemeris to high resolution
+            InterpJD = (JD(Irow):Args.InterpStep:JD(Irow+1))';
+
+
+            [InterpRA,InterpDec]=tools.interp.interp_diff_longlat(JD,[RA, Dec],InterpJD);
+            Dist = celestial.coo.sphere_dist_fast(InterpRA,InterpDec, CatCoo(MinI,1),CatCoo(MinI,2));
+
+            % check that the occultation is obove local horizon
+            [MinDist, MinDistI] = min(Dist);
+            InterpJD(MinDistI)
 
             K = K + 1;
             Result(K).JD              = JD(Irow);
