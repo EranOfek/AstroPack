@@ -27,9 +27,9 @@ function usimImage =  usim ( Args )
   
     arguments  
         
-        Args.InCat           =  10;          % if = N, generate N random fake sources
-                                             % if a 2D tabel -- use X, Y from this table
-                                             % if an AstroCat object, use sources from this object
+        Args.InCat           =  10;          % if a number N, generate N random fake sources
+                                             % if a 2D table, use X, Y from this table
+                                             % if an AstroCat object, use source coordinates from this object
                                              
         Args.InMag           =  20;          % apparent magnitude of the input sources: 
                                              % one magnitude for all the objects 
@@ -55,7 +55,7 @@ function usimImage =  usim ( Args )
         Args.RotAng          = 0;            % tile rotation angle relative to the axis of the raw PSF database (deg)
                                              % may be a vector with individual angle for each of the sources
                                              
-        Args.ArraySizeLimit  = 8;            % [Gb] determines the method employed in specWeight
+        Args.ArraySizeLimit  = 8;            % [Gb] the limit determines the method employed in inUtil.psf.specWeight
         
         Args.NoiseDark       = 1;            % Dark count noise
         Args.NoiseSky        = 1;            % Sky background 
@@ -84,7 +84,7 @@ function usimImage =  usim ( Args )
     
     %%%%%%%%%%%%%%%%%%%%% Simulation parameters and some physical constants
     
-    Eps = 1e-12;  % precision 
+    Eps = 1e-12;            % precision (currently not employed?)
     
     C   = constant.c;       % the speed of light in vacuum, [cm/s]
     H   = constant.h;       % the Planck constant, [erg s]   
@@ -260,7 +260,7 @@ function usimImage =  usim ( Args )
     % read the input spectra or generate synthetic spectra
     
         %%% TEST: use the Stellar Spectra from UP.Specs
-        if FALSE  
+        if false  
     
             fprintf('TEST RUN: using stellar spectra from UP.Specs ..');
 
@@ -344,7 +344,7 @@ function usimImage =  usim ( Args )
     
     
     %%%%%%%%%%%%%% TEST input: a flat spectrum the 240-280 band, null otherwise
-    if FALSE
+    if false
         
         fprintf('TEST input: flat spectrum in the 240-280 band\n');
         
