@@ -38,9 +38,21 @@ function Result = specWeight(SpecSrc, RadSrc, PSFdata, Args)
         
     end
     
-    % check that the number of sources and the number of spectra are the same:
+    %
+    
+    Nx      = size(PSFdata,1);  
+    Ny      = size(PSFdata,2);
+    NLam    = size(PSFdata,3);
+    
+    X       = 1:Nx;  
+    Y       = 1:Ny;
+    Lam     = 1:NLam;
     
     NumSrc  = size(RadSrc,1);
+    
+    NumWave = size(SpecSrc,2);
+        
+    % check that the number of sources and the number of spectra are the same:
     
     if size(SpecSrc,1) ~= NumSrc
         
@@ -51,25 +63,24 @@ function Result = specWeight(SpecSrc, RadSrc, PSFdata, Args)
     
     % regrid the input spectra if the spectral grids in PSFdata and in SpecSrc are not the same 
     
-    if Args.SpecLam ~= 0 && Args.Lambda ~= 0   % regrid the spectra
+    if numel(Args.SpecLam) > 1 && numel(Args.Lambda) > 1   % regrid the spectra
         
-        Spec = interp1(Args.SpecLam, SpecSrc, Args.Lambda);
+        SrcNum = 1:NumSrc;
         
-    else                                       % the spectral grids in PSFdata and in SpecSrc are the same 
+        Spec = interpn(SrcNum, Args.SpecLam', SpecSrc, SrcNum, Args.Lambda');
+        
+        NumWave = size(Spec,2);
+        
+    elseif NumWave == NLam                               % the spectral grids in PSFdata and in SpecSrc are of the same size
          
         Spec = SpecSrc;
         
+    else
+        
+        cprintf ('err', 'Spectral grid mismatch in specWeight, need to input the grids, exiting...\n');
+        return
+        
     end 
-    
-    NumWave = size(Spec,2);
-    
-    Nx      = size(PSFdata,1);  
-    Ny      = size(PSFdata,2);
-    NLam    = size(PSFdata,3);
-    
-    X       = 1:Nx;  
-    Y       = 1:Ny;
-    Lam     = 1:NLam;
     
     Result = zeros(Nx,Ny,NumSrc);
     
