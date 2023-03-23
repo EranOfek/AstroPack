@@ -173,8 +173,7 @@ function usimImage =  usim ( Args )
     UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');   
     load(UP_db,'UP'); 
     % is it possible to read just some of the UP structures: UP.TotT, UP.wavelength and, possibly, UP.Specs?
-    % we can save them as separate .mat objects and read those 
-    
+    % we can save them as separate .mat objects and read those  
         
     %%%%%%%%%%%%%%%%%%%% read source coordinates from an input catalog or make a fake catalog
     
@@ -200,7 +199,6 @@ function usimImage =  usim ( Args )
         InMag         = zeros(NumSrc,1);    
         
                             fprintf('%d%s\n',NumSrc,' sources read from the input AstroCatalog object');
- 
         
     elseif size(Args.InCat,2) > 1 && size(Args.InCat,3) == 1 % read source pixel coordinates from a table
         
@@ -215,7 +213,6 @@ function usimImage =  usim ( Args )
         InMag   = zeros(NumSrc,1);    
         
                             fprintf('%d%s\n',NumSrc,' sources read from the input table');
-        
         
     elseif size(Args.InCat,2) == 1 % make a fake catalog with Args.InCat sources randomly distributed over the FOV
         
@@ -252,13 +249,14 @@ function usimImage =  usim ( Args )
     end
     
     %%%%%%%%%%%%%%%%%%%%% read or generate source spectra
+    %%%%%%%%%%%%%%%%%%%%%
     
     fprintf('Reading source spectra.. ');
     
     SpecIn  = zeros(NumSrc, Nwave);  % the incoming spectra 
     SpecAbs = zeros(NumSrc, Nwave);  % the incoming spectra convolved with the throughput
 
-    % read the input spectra or generate synthetic spectra
+    % read the input spectra or generate synthetic spectra 
     
         %%% TEST: use the Stellar Spectra from UP.Specs
         if false  
@@ -319,11 +317,9 @@ function usimImage =  usim ( Args )
         case 1  % read the table from an AstroSpec/AstSpec object and regrid it to Wave set of wavelengths 
             
             for Isrc = 1:1:NumSrc
-                
-                % Spec(Isrc,:) = specRegrid( Args.InSpec{Isrc}, Wave ); % to be written? 
-                
+                                                
                 % the simplest way to regrid is to interpolate and set to 0 outside the range
-                % deb: is it safer to use griddedinterpolant? 
+                % deb: is not it safer to use griddedinterpolant? 
                 
                 if isa(Args.InSpec,'AstSpec') 
                     SpecIn(Isrc,:) = interp1( Args.InSpec(Isrc).Wave, Args.InSpec(Isrc).Int, Wave, 'linear', 0);
