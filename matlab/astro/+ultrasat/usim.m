@@ -91,18 +91,22 @@ function usimImage =  usim ( Args )
     
     %%%%%%%%%%%%%%%%%%%% ULTRASAT PSF database parameters
                
-    Nwave   = 91; % lab PSF grid points in wavelength
-    Nrad    = 25; % lab PSF grid points in radius    
+    Nrad    = 25; 
+    Rad     = linspace(0,10,Nrad);          % lab PSF grid points in radius    
             
     MinWave = 2000;  % [A] the band boundaries
     MaxWave = 11000; % [A]
     
-    Wave    = linspace(MinWave,MaxWave,Nwave);
-    Rad     = linspace(0,10,Nrad);
+    WavePSF = linspace(MinWave,MaxWave,91); % lab PSF grid points in wavelength
     
-    DeltaLambda = round( (MaxWave-MinWave)/(Nwave-1) );  % the wavelength bin size in Angstrom [should be 100 A]
+    PixRat  = 47.5; % the ratio of the ULTRASAT pixel size to that of the lab PSF image (currently not employed?)
+        
+    %%%%%%%%%%%%%%%%%%%% the spectral grid used for countrate calculations
+
+    Nwave   = 9001;                                % number of spectral bins used for countrate calculations
+    Wave    = linspace(MinWave,MaxWave,Nwave);     % the wavelength grid 
     
-    PixRat  = 47.5; % the ratio of the ULTRASAT pixel size to that of the lab PSF image
+    DeltaLambda = (MaxWave-MinWave)/(Nwave-1);     % the wavelength bin size in Angstrom 
     
     %%%%%%%%%%%%%%%%%%%% basic ULTRASAT imaging parameters
 
@@ -168,9 +172,8 @@ function usimImage =  usim ( Args )
     
     UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');   
     load(UP_db,'UP'); 
-    % is it possible to read just some of the UP structures: UP.TotT and, possibly, UP.Specs?
-    % we can save them as separate .mat objects and read those 
-    
+    % is it possible to read just some of the UP structures: UP.TotT, UP.wavelength and, possibly, UP.Specs?
+    % we can save them as separate .mat objects and read those  
         
     %%%%%%%%%%%%%%%%%%%% read source coordinates from an input catalog or make a fake catalog
     
@@ -196,7 +199,6 @@ function usimImage =  usim ( Args )
         InMag         = zeros(NumSrc,1);    
         
                             fprintf('%d%s\n',NumSrc,' sources read from the input AstroCatalog object');
- 
         
     elseif size(Args.InCat,2) > 1 && size(Args.InCat,3) == 1 % read source pixel coordinates from a table
         
@@ -211,7 +213,6 @@ function usimImage =  usim ( Args )
         InMag   = zeros(NumSrc,1);    
         
                             fprintf('%d%s\n',NumSrc,' sources read from the input table');
-        
         
     elseif size(Args.InCat,2) == 1 % make a fake catalog with Args.InCat sources randomly distributed over the FOV
         
@@ -235,29 +236,27 @@ function usimImage =  usim ( Args )
     end
 
     %%%%%%%%%%%%%%%%%%%%% obtain radial distances of the sources from the INNER CORNER of the tile 
-    %%%%%%%%%%%%%%%%%%%%% and rescale the throuput array at given source positions 
+    %%%%%%%%%%%%%%%%%%%%% and regrid the throughput array at given source positions 
          
     RadSrc = zeros(NumSrc,1); 
     TotT   = zeros(NumSrc,Nwave);
 
     for Isrc = 1:1:NumSrc
         
-        RadSrc(Isrc) = sqrt( ( CatX(Isrc) - X0 )^2 + ( CatY(Isrc) - Y0 )^2 ) *  PixSizeDeg; 
+        RadSrc(Isrc) = sqrt( ( CatX(Isrc) - X0 )^2 + ( CatY(Isrc) - Y0 )^2 ) *  PixSizeDeg; % the source radii [deg]
         
-        Ir = find (Rad  <= RadSrc(Isrc),  1, 'last');   % find the nearest grid point in the Rad array
-                                                        % [later replace it by a linear interpolation (TBD) ]
-        TotT(Isrc,:) = UP.TotT(1:DeltaLambda:9001, Ir); % take the throughput array values at a 100 A grid
-       
+        TotT(Isrc,:) = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc(Isrc));          % regrid the throughput 
     end
     
     %%%%%%%%%%%%%%%%%%%%% read or generate source spectra
+    %%%%%%%%%%%%%%%%%%%%%
     
     fprintf('Reading source spectra.. ');
     
     SpecIn  = zeros(NumSrc, Nwave);  % the incoming spectra 
     SpecAbs = zeros(NumSrc, Nwave);  % the incoming spectra convolved with the throughput
 
-    % read the input spectra or generate synthetic spectra
+    % read the input spectra or generate synthetic spectra 
     
         %%% TEST: use the Stellar Spectra from UP.Specs
         if false  
@@ -275,7 +274,8 @@ function usimImage =  usim ( Args )
                     Pick(Isrc) = UP.Specs(27); % UP.Specs(27); 
                 end
             end
-                Args.InSpec = Pick(1:NumSrc);
+            
+            Args.InSpec = Pick(1:NumSrc);
 
         end
         %%% END TEST 
@@ -302,7 +302,7 @@ function usimImage =  usim ( Args )
                 
                 for Isrc = 1:1:NumSrc
                                  
-                    SpecIn(Isrc,:) = Wave .^ Args.InSpec{2}; % erg s(-1) cm(-2) A(-1)                                                       
+                    SpecIn(Isrc,:) = Wave .^ Args.InSpec{2};                           % erg s(-1) cm(-2) A(-1)                                                       
                     
                 end
                                 
@@ -317,11 +317,9 @@ function usimImage =  usim ( Args )
         case 1  % read the table from an AstroSpec/AstSpec object and regrid it to Wave set of wavelengths 
             
             for Isrc = 1:1:NumSrc
-                
-                % Spec(Isrc,:) = specRegrid( Args.InSpec{Isrc}, Wave ); % to be written? 
-                
+                                                
                 % the simplest way to regrid is to interpolate and set to 0 outside the range
-                % deb: is it safer to use griddedinterpolant? 
+                % deb: is not it safer to use griddedinterpolant? 
                 
                 if isa(Args.InSpec,'AstSpec') 
                     SpecIn(Isrc,:) = interp1( Args.InSpec(Isrc).Wave, Args.InSpec(Isrc).Int, Wave, 'linear', 0);
@@ -404,7 +402,8 @@ function usimImage =  usim ( Args )
     ReadDB = struct2cell ( load(PSF_db) ); % PSF data at chosen resolution
     PSFdata = ReadDB{2}; 
     
-    if ( size(PSFdata,3) ~= Nwave ) || ( size(PSFdata,4) ~= Nrad )
+%     if ( size(PSFdata,3) ~= Nwave ) || ( size(PSFdata,4) ~= Nrad )
+    if size(PSFdata,4) ~= Nrad 
         cprintf('err','PSF array size mismatch, exiting..\n');
         return
     end
@@ -422,7 +421,8 @@ function usimImage =  usim ( Args )
     
                     fprintf('Weighting source PSFs with their spectra.. ');
                     
-    WPSF = imUtil.psf.specWeight(SpecAbs, RadSrc, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit); 
+    WPSF = imUtil.psf.specWeight(SpecAbs, RadSrc, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, ...
+                                 'Lambda',WavePSF,'SpecLam',Wave); 
         
                     fprintf('done\n'); 
                     elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
@@ -515,6 +515,7 @@ function usimImage =  usim ( Args )
         
         % NB: when writing to a fits image, we need to transpose the image
         OutFITSName = sprintf('%s%s%s%s%s','!',Args.OutDir,'/SimImage_tile',Args.Tile,'.fits'); 
+%         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName,'Header',{'EXPTIME', Exposure,''});   
         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName);   
         
         % an accompanying region file: 

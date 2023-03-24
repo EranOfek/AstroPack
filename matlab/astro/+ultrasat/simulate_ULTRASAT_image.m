@@ -11,9 +11,13 @@ function simImage = simulate_ULTRASAT_image (Args)
     
     arguments
         
-        Args.Cat        =  'GALEX'; % 'HSC': Subaru HSC HDF data from a 10'x10' region (7215 obj.)
-                                    % 'GALEX': Source distribution measured 
-                                    %          by GALEX (Bianchi et al. 2007, ApJS, 173, 659)
+        Args.Cat        =  'GALEX_CESAM'; % 'HSC': Subaru HSC HDF data from a 10'x10' region (7215 obj.)
+                                          % https://hsc-release.mtk.nao.ac.jp/datasearch/
+                                          % 'GALEX': Source distribution measured 
+                                          %          by GALEX (Bianchi et al. 2007, ApJS, 173, 659)
+                                          % 'GALEX_CESAM': GALEX deep field
+                                          % distribution from CESAM http://cesam.lam.fr/galex-emphot/search/criteria
+                                          % 
         Args.OutDir     =  '.'  ;   % output directory
         
     end
@@ -38,26 +42,53 @@ function simImage = simulate_ULTRASAT_image (Args)
         
         case 'HSC'
             
-            %%%%%%%%% modeling Subaru HSC HDF data from a 30'x30' region (~ 50000 obj.)
-            %%%%%%%%% with g = 16 -- 26.0 
+            %%%%%%%%% modeling Subaru HSC HDF data from a 30' x 30' region (~ 130 000 obj.)
+            %%%%%%%%% with g < 27.5 (actually, g is in the 16 -- 27.5 range)
 
             
-            DataFile = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/subaru_hsc_udf_30x30min.mat'); 
+            DataFile = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/subaru_hsc_udf_30x30min_g27.5.mat'); 
             load (DataFile);  % load Mag_G, ColorT, Spec, NumSrc
             
-            Cat = zeros(NumSrc,2);
+            % make 3 times more objects to fit the GALEX distribution:
             
-            for Isrc = 1:1:NumSrc
+            NumSrc3 = 3 * NumSrc;
+            
+            MagG = zeros(NumSrc3,1);
+                        
+            for Isrc = 1:1:NumSrc3
+                
+                r = rem(Isrc,NumSrc)+1;
+                MagG(Isrc) = Mag_G(r);
+                SpecT(Isrc) = Spec(r);
+                
+            end
+            
+            %
+            
+            Cat = zeros(NumSrc3,2);
+            
+            for Isrc = 1:1:NumSrc3
                 
                 Cat(Isrc,1)    = floor( 1000 + 333 * rand ); % put the sources into a 333 x 333 pix ~ 30' x 30' box
                 Cat(Isrc,2)    = floor( 1000 + 333 * rand );
                 
             end
+            
+            % make a distribution
+            
+            Mag_R1 = zeros(NumSrc3,1);
+            
+            for Isrc = 1:1:NumSrc3
+                
+                SpecScaled  = scaleSynphot(SpecT(Isrc), MagG(Isrc), 'SDSS', 'g');
+                Mag_R1(Isrc) = astro.spec.synthetic_phot([Wave', SpecScaled.Flux],'ULTRASAT','R1','AB'); 
+                
+            end
 
             % run the simulation 
 
-            simImage = ultrasat.usim('InCat',Cat,'InMag',Mag_G,'InMagFilt',{'SDSS','g'},...
-                         'InSpec',Spec,'Exposure',[300 300],'OutDir',Args.OutDir);
+            simImage = ultrasat.usim('InCat',Cat,'InMag',MagG,'InMagFilt',{'SDSS','g'},...
+                         'InSpec',SpecT,'Exposure',[300 300],'OutDir',Args.OutDir);
         
         case 'HSCslow'
             
@@ -161,7 +192,48 @@ function simImage = simulate_ULTRASAT_image (Args)
             % run the simulation 
 
             simImage = ultrasat.usim('InCat',Cat,'InMag',Mag,'InSpec',Spec,'Exposure',[3 300],'OutDir',Args.OutDir);
+            
+        case 'GALEX_CESAM'
+            
+             %%%%%%%%%%% modeling GALEX data from the CESAM archive
+             
+            DataFile = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/cesam_xmmlss_00_deep_catalog_galex.csv');
+            
+            FileID = fopen(DataFile,'r');
+                    % skip the first 2 lines in a datafile
+                    for Skip = 1:2
+                        Empty = fgets(FileID);
+                    end
+            ObjList = fscanf(FileID,'%f,%f',[2,inf]); 
+            fclose(FileID);
+            
+            NumSrc = size(ObjList,2); 
+            
+            Cat = zeros(NumSrc,2);
+            Mag = ObjList(2,:);
+            
+            for Isrc = 1:1:NumSrc
+                
+                 Cat(Isrc,1) = floor( 1000 + 333 * rand ); 
+                 Cat(Isrc,2) = floor( 1000 + 333 * rand ); 
+               
+                % divide the population into 3 colours 
+
+                    if      rem(Isrc,3) == 1
+                        Spec(Isrc,:) = AstroSpec.blackBody(Wave',3500);
+                    elseif  rem(Isrc,3) == 2
+                        Spec(Isrc,:) = AstroSpec.blackBody(Wave',5800);
+                    else
+                        Spec(Isrc,:) = AstroSpec.blackBody(Wave',20000);
+                    end
+                    
+            end
         
+            % run the simulation 
+
+            simImage = ultrasat.usim('InCat',Cat,'InMag',Mag,'InSpec',Spec,'Exposure',[300 300],'OutDir',Args.OutDir);
+            
+            
         otherwise
             
             cprintf('err','Incorrect input catalog in simulate_ULTRASAT_image\n');
