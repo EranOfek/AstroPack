@@ -1,4 +1,4 @@
-function Result=conjunctions(Table, Args)
+function Result=conjunctionsStars(Table, Args)
     % Search for conjunctions between a Solar system object and a GAIA star
     % Input  : - An Astrocatalog object containing the ephemeris for a
     %            Solar system object. Can be generated using celestial.SolarSys.jpl_horizons
@@ -12,11 +12,12 @@ function Result=conjunctions(Table, Args)
     %            .Star - AstroCatalog object with the occulted star.
     % Author : Eran Ofek (Mar 2023)
     % Example: [EphemCat]=celestial.SolarSys.jpl_horizons('ObjectInd','2060', 'StartJD',[1 9 2022],'StopJD', [31 12 2023], 'StepSize',3,'StepSizeUnits','h');
-    % Result = celestial.SolarSys.conjunctions(EphemCat);
+    %          Result = celestial.SolarSys.conjunctionsStars(EphemCat);
 
     arguments
         Table AstroCatalog   % JD, RA, Dec, Delta, r, Mag,
         Args.ObsCoo          = [35 32];
+        Args.ObjName         = '';   % object name to add to Result
         
         Args.SkipN           = 5;
         Args.ColJD           = 'JD';
@@ -31,6 +32,8 @@ function Result=conjunctions(Table, Args)
         Args.ThresholdOccRad = 3;
 
         Args.InterpStep      = 10./86400;
+
+        Args.Result          = [];  % concat results
     end
     
     RAD = 180./pi;
@@ -50,8 +53,14 @@ function Result=conjunctions(Table, Args)
     
     OcculterRadius = convert.length('km','au',Args.OcculterRadius);  % [au]
     
-    Result = [];
-    K = 0;
+    if isempty(Args.Result)
+        Result = [];
+        K = 0;
+    else
+        Result = Args.Result;
+        K      = numel(Result);
+    end
+
     for Irow=Args.SkipN:1:Nrow-Args.SkipN-1
         MeanCosX = CosX(Irow) + CosX(Irow+1);
         MeanCosY = CosY(Irow) + CosY(Irow+1);
@@ -116,44 +125,43 @@ function Result=conjunctions(Table, Args)
             if size(Extram,1)==1
                 BestJD      = Extram(1,1);
                 BestMinDist = Extram(1,2);
-            else
-                error('Found %d minima',size(Extram,1));
+            
+                % check that the occultation is obove local horizon
+                HorizCoo = celestial.coo.horiz_coo(Cat.Catalog(1,1:2),BestJD, Args.ObsCoo./RAD, 'h');
+                Sun      = celestial.SolarSys.get_sun(BestJD);
+                
+                
+                
+                
+                [MinDist, MinDistI] = min(Dist);
+    
+                K = K + 1;
+                Result(K).JD                     = BestJD;
+                Result(K).ObjName                = Args.ObjName;
+                DeltaTime                        = JD(Irow+1) - JD(Irow);
+                            
+                Result(K).MinDist                = BestMinDist.*RAD.*ARCSEC_DEG.*1000;          % [mas]
+                Result(K).OcculterRadius         = Args.OcculterRadius;                         % [km]
+                Result(K).OcculterAngRadius      = OcculterAngRadius.*RAD.*ARCSEC_DEG.*1000;    % [mas]
+                Result(K).ImpactPar_inOcculterAngRadiusUnits = MinDist_inAndRadUnits(MinI);     % [occulter ang rad.]
+    
+                Result(K).AngSpeed               = celestial.coo.sphere_dist_fast(RA(Irow),Dec(Irow), RA(Irow+1),Dec(Irow+1)).*RAD.*ARCSEC_DEG.*1000./(DeltaTime.*SEC_DAY); % [mas/s]
+                Result(K).CrossingTime           = Result(K).OcculterAngRadius./Result(K).AngSpeed;   % [s] time to cross occulter radius
+    
+                Result(K).MagMP = MagEp(Irow);   % Solar sys. object mag.
+                
+                
+                % select candidate from Cat
+                Result(K).RA      = Cat.Catalog(1,1).*RAD;  % [deg]
+                Result(K).Dec     = Cat.Catalog(1,2).*RAD;  % [deg]
+                Result(K).MagStar = getCol(Cat, Args.CatColMag);
+                Result(K).Star    = selectRows(Cat, MinI);
+                           
+                Result(K).Az      = HorizCoo(1).*RAD;   % [deg]
+                Result(K).Alt     = HorizCoo(2).*RAD;   % [deg]
+                Result(K).SunAlt  = Sun.Alt.*RAD;       % [deg]
             end
             
-            
-            % check that the occultation is obove local horizon
-            HorizCoo = celestial.coo.horiz_coo(Cat.Catalog(1,1:2),BestJD, Args.ObsCoo./RAD, 'h');
-            Sun      = celestial.SolarSys.get_sun(BestJD);
-            
-            
-            
-            
-            [MinDist, MinDistI] = min(Dist);
-
-            K = K + 1;
-            Result(K).JD                     = BestJD;
-            DeltaTime                        = JD(Irow+1) - JD(Irow);
-                        
-            Result(K).MinDist                = BestMinDist.*RAD.*ARCSEC_DEG.*1000;          % [mas]
-            Result(K).OcculterRadius         = Args.OcculterRadius;                         % [km]
-            Result(K).OcculterAngRadius      = OcculterAngRadius.*RAD.*ARCSEC_DEG.*1000;    % [mas]
-            Result(K).ImpactPar_inOcculterAngRadiusUnits = MinDist_inAndRadUnits(MinI);     % [occulter ang rad.]
-
-            Result(K).AngSpeed               = celestial.coo.sphere_dist_fast(RA(Irow),Dec(Irow), RA(Irow+1),Dec(Irow+1)).*RAD.*ARCSEC_DEG.*1000./(DeltaTime.*SEC_DAY); % [mas/s]
-            Result(K).CrossingTime           = Result(K).OcculterAngRadius./Result(K).AngSpeed;   % [s] time to cross occulter radius
-
-            Result(K).MagMP = MagEp(Irow);   % Solar sys. object mag.
-            
-            
-            % select candidate from Cat
-            Result(K).RA      = Cat.Catalog(1,1).*RAD;  % [deg]
-            Result(K).Dec     = Cat.Catalog(1,2).*RAD;  % [deg]
-            Result(K).MagStar = getCol(Cat, Args.CatColMag);
-            Result(K).Star    = selectRows(Cat, MinI);
-                       
-            Result(K).Az      = HorizCoo(1).*RAD;   % [deg]
-            Result(K).Alt     = HorizCoo(2).*RAD;   % [deg]
-            Result(K).SunAlt  = Sun.Alt.*RAD;       % [deg]
         end
             
         
