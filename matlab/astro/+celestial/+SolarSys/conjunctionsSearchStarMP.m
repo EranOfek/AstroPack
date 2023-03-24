@@ -21,7 +21,8 @@ function Result = conjunctionsSearchStarMP(Args)
 
     Nast = sum(Flag);
     Result = [];
-    for Iast=1:1:Nast
+    for Iast=1:1:100
+        %Nast
         [Iast, Nast]
 
         II = Ind(Iast);
