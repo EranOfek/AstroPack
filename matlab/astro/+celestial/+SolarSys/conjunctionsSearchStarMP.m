@@ -6,7 +6,7 @@ function Result = conjunctionsSearchStarMP(Args)
         Args.DistRange = [9 Inf];
         Args.HRange    = [-Inf 7];
         Args.StartDate = [1 3 2023];
-        Args.EndDate   = [5 9 2023];
+        Args.EndDate   = [5 6 2023];
 
         Args.ObsCoo    = [35 32];
     end
