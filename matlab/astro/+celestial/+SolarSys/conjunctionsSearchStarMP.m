@@ -21,20 +21,16 @@ function Result = conjunctionsSearchStarMP(Args)
 
     Nast = sum(Flag);
     Result = [];
-    for Iast=1:1:1
-        %Nast
+    for Iast=1:1:Nast
         [Iast, Nast]
 
         II = Ind(Iast);
 
         ObjName = sprintf('%d',E(Ie).Number(II));
 
-        tic;
         [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',ObjName, 'StartJD',Args.StartDate,'StopJD',Args.EndDate, 'StepSize',3,'StepSizeUnits','h');
-    toc
-    tic;
+    
         Result = celestial.SolarSys.conjunctionsStars(EphemCat, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo);
-        toc
     end
 
 end
