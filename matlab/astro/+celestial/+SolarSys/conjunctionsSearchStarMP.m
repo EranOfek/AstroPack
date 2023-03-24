@@ -21,20 +21,23 @@ function Result = conjunctionsSearchStarMP(Args)
 
     Nast = sum(Flag);
     Result = [];
-    for Iast=1:1:100
-        %Nast
+    for Iast=1:1:Nast
         [Iast, Nast]
 
         II = Ind(Iast);
 
         ObjName = sprintf('%d',E(Ie).Number(II));
 
-        [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',ObjName, 'StartJD',Args.StartDate,'StopJD',Args.EndDate, 'StepSize',3,'StepSizeUnits','h');
+        try
+            [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',ObjName, 'StartJD',Args.StartDate,'StopJD',Args.EndDate, 'StepSize',3,'StepSizeUnits','h');
     
-        Hmag = E(Ie).MagPar(1);
-        [OcculterRadius] = celestial.SolarSys.asteroid_radius(Hmag, 0.15);
+            Hmag = E(Ie).MagPar(1);
+            [OcculterRadius] = celestial.SolarSys.asteroid_radius(Hmag, 0.15);
         
-        Result = celestial.SolarSys.conjunctionsStars(EphemCat, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',OcculterRadius);
+            Result = celestial.SolarSys.conjunctionsStars(EphemCat, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',OcculterRadius);
+        catch
+            fprintf('Failed %d',Iast);
+        end
     end
 
 end
