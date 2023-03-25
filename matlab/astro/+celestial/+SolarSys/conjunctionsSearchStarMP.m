@@ -38,8 +38,14 @@ function Result = conjunctionsSearchStarMP(Args)
 
         II = Ind(Iast);
 
-        ObjName = sprintf('%d',E(Ie).Number(II));
-
+        switch Ie
+            case 1
+                ObjName = sprintf('%d',E(Ie).Number(II));
+            case 2
+                ObjName = sprintf('%d',E(Ie).Designation{II});
+            otherwise
+                error('Unknown Ie option');
+        end
         try
             [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',ObjName, 'StartJD',Args.StartDate,'StopJD',Args.EndDate, 'StepSize',3,'StepSizeUnits','h');
     
