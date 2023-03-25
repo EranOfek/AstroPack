@@ -46,9 +46,14 @@ function Result = conjunctionsSearchStarMP(Args)
             otherwise
                 error('Unknown Ie option');
         end
+        
+        ObjName
+        
         try
             [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',ObjName, 'StartJD',Args.StartDate,'StopJD',Args.EndDate, 'StepSize',3,'StepSizeUnits','h');
     
+            EphemCat
+            
             Hmag = E(Ie).MagPar(1);
             [OcculterRadius] = celestial.SolarSys.asteroid_radius(Hmag, 0.15);
         
