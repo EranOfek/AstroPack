@@ -7,7 +7,7 @@ function Result = conjunctionsSearchStarMP(Args)
         Args.HRange    = [-Inf 7];
         Args.StartDate = [1 3 2023];
         Args.EndDate   = [5 6 2023];
-        Args.AddPlanets  = {'Uranus','Neptune'};
+        Args.AddPlanets  = {'799','899'};  % Uranus, Neptune
         Args.PlanetsRadius = [25362, 24622];
 
         Args.ObsCoo    = [35 32];
