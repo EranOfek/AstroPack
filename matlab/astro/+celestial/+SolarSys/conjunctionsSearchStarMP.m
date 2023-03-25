@@ -5,8 +5,10 @@ function Result = conjunctionsSearchStarMP(Args)
     arguments
         Args.DistRange = [9 Inf];
         Args.HRange    = [-Inf 7];
-        Args.StartDate = [1 6 2023];
-        Args.EndDate   = [5 9 2023];
+        Args.StartDate = [1 3 2023];
+        Args.EndDate   = [5 6 2023];
+        Args.AddPlanets  = {'Uranus','Neptune'};
+        Args.PlanetsRadius = [25362, 24622];
 
         Args.ObsCoo    = [35 32];
     end
@@ -40,4 +42,12 @@ function Result = conjunctionsSearchStarMP(Args)
         end
     end
 
+    
+    Npl = numel(Args.AddPlanets);
+    for Ip=1:1:Np
+        [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',Args.AddPlanets{Ipl}, 'StartJD',Args.StartDate,'StopJD',Args.EndDate, 'StepSize',3,'StepSizeUnits','h');
+    
+        Result = celestial.SolarSys.conjunctionsStars(EphemCat, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',Args.PlanetsRadius{Ip});
+    end
+    
 end
