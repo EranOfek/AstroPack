@@ -42,7 +42,7 @@ function Result = conjunctionsSearchStarMP(Args)
             case 1
                 ObjName = sprintf('%d',E(Ie).Number(II));
             case 2
-                ObjName = sprintf('%d',E(Ie).Designation{II});
+                ObjName = E(Ie).Designation{II};
             otherwise
                 error('Unknown Ie option');
         end
