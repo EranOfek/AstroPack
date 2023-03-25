@@ -44,7 +44,7 @@ function Result = conjunctionsSearchStarMP(Args)
 
     
     Npl = numel(Args.AddPlanets);
-    for Ip=1:1:Np
+    for Ip=1:1:Npl
         [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',Args.AddPlanets{Ipl}, 'StartJD',Args.StartDate,'StopJD',Args.EndDate, 'StepSize',3,'StepSizeUnits','h');
     
         Result = celestial.SolarSys.conjunctionsStars(EphemCat, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',Args.PlanetsRadius{Ip});
