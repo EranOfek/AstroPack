@@ -25,7 +25,7 @@ function Result = conjunctionsSearchStarMP(Args)
 
     E = celestial.OrbitalEl.loadSolarSystem;
 
-    Ie = 1;
+    Ie = Args.ElementsIndex;
     Flag = E(Ie).A(:)>Args.DistRange(1) & E(Ie).A(:)<Args.DistRange(2) & ...
            E(Ie).MagPar(:,1)>Args.HRange(1) & E(Ie).MagPar(:,1)<Args.HRange(2);
 
