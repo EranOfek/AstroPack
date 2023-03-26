@@ -6,7 +6,7 @@ function usimImage =  usim ( Args )
     %       -  Args.InCat (a catalog of simulated sources)
     %       -  Args.InMag (a vector of source magnitudes or 1 magnitude for all the sources)
     %       -  Args.InMagFilt (the filter of source magnitudes)
-    %       -  Args.InSpec (individual spectra or one spectral model)
+    %       -  Args.InSpec (individual spectra or one spectral model for all the objects)
     %       -  Args.Exposure (image exposure)
     %       -  Args.Tile (name of the ULTRASAT tile)
     %       -  Args.ImRes (image resolution in 1/pix units)
@@ -42,6 +42,7 @@ function usimImage =  usim ( Args )
                                              % or an array of model spectra parameters: 
                                              % '{'BB', 3500}', Temperature (K) -- blackbody
                                              % '{'PL', 2.}', Alpha -- power-law F ~ lambda^alpha
+                                             % '{'Tab',table}, NumSrc spectra, each spectrum in a column
                                              % NB: the input spectral intensity should be
                                              % in [erg cm(-2) s(-1) A(-1)] as seen near Earth!
                                              
@@ -106,7 +107,7 @@ function usimImage =  usim ( Args )
     Nwave   = 9001;                                % number of spectral bins used for countrate calculations
     Wave    = linspace(MinWave,MaxWave,Nwave);     % the wavelength grid 
     
-    DeltaLambda = (MaxWave-MinWave)/(Nwave-1);     % the wavelength bin size in Angstrom 
+    DeltaLambda = (MaxWave-MinWave)/(Nwave-1);     % the wavelength bin size in Angstroms 
     
     %%%%%%%%%%%%%%%%%%%% basic ULTRASAT imaging parameters
 
@@ -119,7 +120,7 @@ function usimImage =  usim ( Args )
     SAper       = pi * DAper ^ 2 / 4;    % [cm(2)] aperture area
     
     % coordinates of the inner core of the tile and the rotation angle of the PSF: 
-    % NB: the additional rotation by -90 deg is required to have the coma in the right position!
+    % NB: the additional rotation by -90 deg for tile "B" is required to have the coma in the right position!
     
     switch Args.Tile
         
@@ -160,7 +161,7 @@ function usimImage =  usim ( Args )
     E2ADUlow   = 1.185;  % below GainThresh e-/pix 
     E2ADUhigh  = 0.074;  % above GainThresh e-/pix
     
-    % [e-/pix] total background estimate for a 300 s exposure made by YS
+    % [e-/pix] background estimates for a 300 s exposure made by YS
     
     Back.Zody    = 27; Back.Cher  = 15; Back.Stray = 12; Back.Dark = 12;
     Back.Readout =  6; Back.Cross =  2; Back.Gain  =  1;
@@ -284,7 +285,9 @@ function usimImage =  usim ( Args )
         
         case 0  % make a synthetic spectrum for a given model
             
-            if Args.InSpec{1} == 'BB' 
+            switch lower( Args.InSpec{1} )
+                
+                case 'bb' 
 
                 fprintf('%s%5.0f%s','generating BB spectra for T = ',Args.InSpec{2},' K .. ');
                 
@@ -293,10 +296,8 @@ function usimImage =  usim ( Args )
                       SpecIn(Isrc,:) = AstroSpec.blackBody(Wave',Args.InSpec{2}).Flux; % erg s(-1) cm(-2) A(-1)
                     
                 end
-                        
             
-            elseif Args.InSpec{1} == 'PL'
-
+                case 'pl'
 
                 fprintf('%s%4.2f%s','generating PL spectra for alpha = ',Args.InSpec{2},' ..');
                 
@@ -306,7 +307,31 @@ function usimImage =  usim ( Args )
                     
                 end
                                 
-            else
+                case 'tab'
+
+                fprintf('%s','Reading source spectra from a table..');
+
+                if size( Args.InSpec{2}, 2) == NumSrc && size( Args.InSpec{2}, 1) == Nwave
+                    % NumSrc spectra at the standard grid 200:1:11000
+                    for Isrc = 1:1:NumSrc
+
+                        SpecIn(Isrc,:) = Args.InSpec{2}(:,Isrc); % read the spectra from table columns
+
+                    end
+                elseif size( Args.InSpec{2}, 2) == NumSrc + 1
+                    % NumSrc spectra at a nonstandard grid, the wavelength
+                    % grid is in the column number NumSrc + 1 
+                    for Isrc = 1:1:NumSrc 
+
+                        SpecIn(Isrc,:) = interp1(Args.InSpec{2}(:,NumSrc+1), Args.InSpec{2}(:,Isrc), Wave, 'linear', 0);
+
+                    end
+                else
+                    cprintf('err','\n Number of columns or rows in the spectral input table is incorrect, exiting..\n')
+                    return
+                end
+                
+                otherwise
                 
                 cprintf('err','Spectral parameters not properly defined in uSim, exiting..\n');
                 return
