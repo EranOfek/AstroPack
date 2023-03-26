@@ -214,8 +214,8 @@ function simImage = simulate_ULTRASAT_image (Args)
             
             for Isrc = 1:1:NumSrc
                 
-                 Cat(Isrc,1) = floor( 1000 + 333 * rand ); 
-                 Cat(Isrc,2) = floor( 1000 + 333 * rand ); 
+                 Cat(Isrc,1) = floor( 1800 + 333 * rand ); 
+                 Cat(Isrc,2) = floor( 1800 + 333 * rand ); 
                
                 % divide the population into 3 colours 
 
@@ -231,7 +231,8 @@ function simImage = simulate_ULTRASAT_image (Args)
         
             % run the simulation 
 
-            simImage = ultrasat.usim('InCat',Cat,'InMag',Mag,'InSpec',Spec,'Exposure',[300 300],'OutDir',Args.OutDir);
+            simImage = ultrasat.usim('InCat',Cat,'InMag',Mag,'InSpec',Spec,'Exposure',[300 300],...
+                                     'InMagFilt',{'GALEX','NUV'},'OutDir',Args.OutDir);
             
             
         otherwise
