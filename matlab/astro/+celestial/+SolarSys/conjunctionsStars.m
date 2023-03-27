@@ -108,16 +108,16 @@ function Result=conjunctionsStars(Table, Args)
         FlagOcc = MinDist_inAndRadUnits<Args.ThresholdOccRad;
         if any(FlagOcc)
             [~, MinI] = find(FlagOcc);
-            
+            MinI = MinI(1);
             
             % interpolate ephemeris to high resolution
-            InterpJD = (JD(Irow):Args.InterpStep:JD(Irow+1))';
+            InterpJD = (JD(Irow)-5./1440:Args.InterpStep:JD(Irow+1)+5./1440)';
 
            
 
             [InterpRA,InterpDec]=tools.interp.interp_diff_longlat(JD,[RA, Dec],InterpJD);
             Dist = celestial.coo.sphere_dist_fast(InterpRA,InterpDec, CatCoo(MinI,1),CatCoo(MinI,2));
-
+            
             
             Extram  = tools.find.find_local_extremum(InterpJD, Dist);
             FlagMin = Extram(:,3)>0;
@@ -161,7 +161,7 @@ function Result=conjunctionsStars(Table, Args)
                 Result(K).Alt     = HorizCoo(2).*RAD;   % [deg]
                 Result(K).SunAlt  = Sun.Alt.*RAD;       % [deg]
             end
-            
+
         end
             
         

@@ -7,7 +7,8 @@ function Result = conjunctionsSearchStarMP(Args)
     % Input  : * ...,key,val,...
     %            see code.
     % Output : - A structure array of found events.
-    % Example: Result = celestial.SolarSys.conjunctionsSearchStarMP
+    % Example: 
+
 
     arguments
         Args.ElementsIndex = 2;  % 1 for numbered asteroid; 2 for unnumbered

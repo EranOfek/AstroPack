@@ -414,7 +414,7 @@ classdef Targets < Component
             % Input  : - A table object, or a file name to upload into a
             %            table object using the readtable command.
             %            The table must contains the Targets properties you
-            %            want to load (e.g., 'RA,'Dec',...).
+            %            want to load (e.g., 'RA','Dec',...).
             % Output : - A celestial.Targets object with the populated
             %            fields.
             % Author : Eran Ofek (Mar 2023)
@@ -437,10 +437,10 @@ classdef Targets < Component
             Cols  = Table.Properties.VariableNames;
             Ncols = numel(Cols);
 
-            Result            = celestial.Targets;
+            Result = celestial.Targets;
             for Icol=1:1:Ncols
                 if isprop(Result, Cols{Icol})
-                    Result.(Cols{Icol}) = Table.(Cols{Icol});
+                    Result.Data.(Cols{Icol}) = Table.(Cols{Icol});
                 end
             end
 
@@ -877,7 +877,7 @@ classdef Targets < Component
             %
             % Example: T=celestial.Targets;
             %          T.generateTargetList('last');
-            %          [T, P] = calcPriority(T, 2451545.5, 'west2east')
+            %          [T, Prio] = calcPriority(T, 2451545.5, 'west2east')
             %
             %          T=celestial.Targets.generateTargetList('last');
             %          [lon,lat]=T.ecliptic; F=abs(lat)<5 & T.RA>100 & T.RA<110; T.MaxNobs(~F)=0; T.MaxNobs(F)=Inf;
