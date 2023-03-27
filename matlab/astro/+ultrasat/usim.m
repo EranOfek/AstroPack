@@ -577,23 +577,21 @@ function usimImage =  usim ( Args )
         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'.reg');
         DS9_new.regionWrite([CatX CatY],'FileName',OutRegName,'Color','blue','Size',1); 
         
-        idx = Cat(:,4) > 24;    % list faintest sources with InMag > 24
+        % more region files for various parts of the source distribution:
+        idx = Cat(:,4) > 24.5 & Cat(:,4) < 25.5;      % faintest sources
         CatFaint = Cat(idx,:);  
-        
         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'faint.reg');
         DS9_new.regionWrite([CatFaint(:,1) CatFaint(:,2)],'FileName',OutRegName,'Color','blue','Marker','o','Size',1);     
-        
-        idx = Cat(:,4) < 21;    % list bright sources with InMag < 21
-        CatBright = Cat(idx,:);  
-        
-        OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'bright.reg');
-        DS9_new.regionWrite([CatBright(:,1) CatBright(:,2)],'FileName',OutRegName,'Color','cyan','Marker','b','Size',1);     
-        
-        idx = 21 < Cat(:,4) & Cat(:,4) < 24 ;    % list medium brightness sources with 21 < InMag < 24
+      
+        idx = Cat(:,4) > 23.5 & Cat(:,4) < 24.5;      % medium brightness sources 
         CatMed = Cat(idx,:);  
-        
         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'medium.reg');
         DS9_new.regionWrite([CatMed(:,1) CatMed(:,2)],'FileName',OutRegName,'Color','green','Marker','o','Size',1);
+        
+        idx = Cat(:,4) > 22.5 & Cat(:,4) < 23.5;      % bright sources 
+        CatBright = Cat(idx,:);  
+        OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'bright.reg');
+        DS9_new.regionWrite([CatBright(:,1) CatBright(:,2)],'FileName',OutRegName,'Color','cyan','Marker','b','Size',1);     
         
     end
 
