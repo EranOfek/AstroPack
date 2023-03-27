@@ -18,6 +18,7 @@ function simImage = simulate_ULTRASAT_image (Args)
                                           % 'GALEX_CESAM': GALEX deep field
                                           % distribution from CESAM http://cesam.lam.fr/galex-emphot/search/criteria
                                           % 
+        Args.Same       = 0;              % read in a source distribution or generate a random new one
         Args.OutDir     =  '.'  ;   % output directory
         
     end
@@ -30,9 +31,9 @@ function simImage = simulate_ULTRASAT_image (Args)
     
     STile = PixSize^2 * ImageSizeX * ImageSizeY / (3600^2); % tile size in [deg]
     
-    Nwave   = 91; % lab PSF grid points in wavelength
+    Nwave   = 9001;  % 
          
-    MinWave = 2000;  % [A] the band boundaries
+    MinWave =  2000; % [A] the band boundaries
     MaxWave = 11000; % [A]
     
     Wave    = linspace(MinWave,MaxWave,Nwave);
@@ -195,44 +196,64 @@ function simImage = simulate_ULTRASAT_image (Args)
             
         case 'GALEX_CESAM'
             
-             %%%%%%%%%%% modeling GALEX data from the CESAM archive
+            %%%%%%%%%%% modeling GALEX data from the CESAM archive
+            
+            if ~Args.Same % model a new distribution 
              
-            DataFile = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/cesam_xmmlss_00_deep_catalog_galex.csv');
-            
-            FileID = fopen(DataFile,'r');
-                    % skip the first 2 lines in a datafile
-                    for Skip = 1:2
-                        Empty = fgets(FileID);
-                    end
-            ObjList = fscanf(FileID,'%f,%f',[2,inf]); 
-            fclose(FileID);
-            
-            NumSrc = size(ObjList,2); 
-            
-            Cat = zeros(NumSrc,2);
-            Mag = ObjList(2,:);
-            
-            for Isrc = 1:1:NumSrc
-                
-                 Cat(Isrc,1) = floor( 1800 + 333 * rand ); 
-                 Cat(Isrc,2) = floor( 1800 + 333 * rand ); 
-               
-                % divide the population into 3 colours 
+                DataFile = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/cesam_xmmlss_00_deep_catalog_galex.csv');
 
-                    if      rem(Isrc,3) == 1
-                        Spec(Isrc,:) = AstroSpec.blackBody(Wave',3500);
-                    elseif  rem(Isrc,3) == 2
-                        Spec(Isrc,:) = AstroSpec.blackBody(Wave',5800);
-                    else
-                        Spec(Isrc,:) = AstroSpec.blackBody(Wave',20000);
-                    end
+                FileID = fopen(DataFile,'r');
+                        % skip the first 2 lines in a datafile
+                        for Skip = 1:2
+                            Empty = fgets(FileID);
+                        end
+                ObjList = fscanf(FileID,'%f,%f',[2,inf]); 
+                fclose(FileID);
+
+                NumSrc = size(ObjList,2); 
+
+                Cat  = zeros(NumSrc,2);
+                MagU = zeros(NumSrc,2);
+                
+                MagNUV = ObjList(2,:);  % the GALEX NUV magnitudes from the catalog
+
+                for Isrc = 1:1:NumSrc
+
+                     Cat(Isrc,1) = floor( 1800 + 333 * rand ); % about 4.2 deg from the corner
+                     Cat(Isrc,2) = floor( 1800 + 333 * rand ); % hence using ULTRASAT R11 filter
+
+                    % divide the population into 3 colours 
+
+                        if      rem(Isrc,3) == 1
+                            Spec(Isrc,:) = AstroSpec.blackBody(Wave',3500);
+                        elseif  rem(Isrc,3) == 2
+                            Spec(Isrc,:) = AstroSpec.blackBody(Wave',5800);
+                        else
+                            Spec(Isrc,:) = AstroSpec.blackBody(Wave',20000);
+                        end
+                        
+                    % recalculate the magnitudes into the ULTRASAT R system
                     
+                    S          = scaleSynphot(Spec(Isrc,:), MagNUV(Isrc), 'GALEX', 'NUV');
+                    MagU(Isrc) = astro.spec.synthetic_phot([Wave', S.Flux],'ULTRASAT','R11','AB');
+
+                end
+
+                % save the catalog for the case you wish to repeat the same setup
+
+                % save('GALEX_CESAM_cat.mat', 'Cat','MagNUV','MagU', 'Spec','-v7.3');
+
+            else % read in the catalog and spectra to be modelled
+                                
+                DataFile = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/GALEX_CESAM_cat.mat'); 
+                load (DataFile);  % load Cat, MagU, MagNUV, Spec 
+                
             end
         
             % run the simulation 
 
-            simImage = ultrasat.usim('InCat',Cat,'InMag',Mag,'InSpec',Spec,'Exposure',[300 300],...
-                                     'InMagFilt',{'GALEX','NUV'},'OutDir',Args.OutDir);
+            simImage = ultrasat.usim('InCat',Cat,'InMag',MagU,'InSpec',Spec,'Exposure',[300 300],...
+                                     'InMagFilt',{'ULTRASAT','R11'},'OutDir',Args.OutDir);
             
             
         otherwise
