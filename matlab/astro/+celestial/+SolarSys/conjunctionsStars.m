@@ -25,7 +25,7 @@ function Result=conjunctionsStars(Table, Args)
         Args.CatEpoch        = 2016;
         Args.CatColMag       = 'phot_bp_mean_mag';
         Args.CatColMag2      = 'phot_rp_mean_mag';
-        Args.MagRange        = [0 18];
+        Args.MagRange        = [0 19];
 
         Args.EphemColMag     = 'APmag';
         Args.OcculterRadius  = 1000;     % [km]
@@ -80,7 +80,7 @@ function Result=conjunctionsStars(Table, Args)
         EpochOut = convert.time(JD(Irow),'JD','J');
         
         if Cat.sizeCatalog>0
-            %Cat = imProc.cat.applyProperMotion(Cat, Args.CatEpoch,EpochOut,'EpochInUnits','J','EpochOutUnits','J','ApplyPlx',true);
+            Cat = imProc.cat.applyProperMotion(Cat, Args.CatEpoch,EpochOut,'EpochInUnits','J','EpochOutUnits','J','ApplyPlx',true);
         end
         
         
