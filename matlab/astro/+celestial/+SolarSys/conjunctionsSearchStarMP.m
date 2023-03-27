@@ -1,4 +1,4 @@
-function Result = conjunctionsSearchStarMP(Args)
+function [Result, Table] = conjunctionsSearchStarMP(Args)
     % Search for conjunctions/occultations of minor planets and GAIA stars
     %   The code run over known selected asteroids and use 
     %   celestial.SolarSys.jpl_horizons to generate ephemerides and
@@ -7,6 +7,7 @@ function Result = conjunctionsSearchStarMP(Args)
     % Input  : * ...,key,val,...
     %            see code.
     % Output : - A structure array of found events.
+    %          - A table output.
     % Example: 
 
 
@@ -15,7 +16,7 @@ function Result = conjunctionsSearchStarMP(Args)
         Args.DistRange = [9 Inf];
         Args.HRange    = [-Inf 7];
         Args.StartDate = [20 3 2023];
-        Args.EndDate   = [9 6 2024];
+        Args.EndDate   = [9 6 2023];
         Args.AddPlanets  = {'799','899'};  % Uranus, Neptune
         Args.PlanetsRadius = [25362, 24622];
 
@@ -74,5 +75,7 @@ function Result = conjunctionsSearchStarMP(Args)
         Flag = [Result.SunAlt]<Args.MaxSunAlt & [Result.Alt]<Args.MinAlt;
         Result = Result(Flag);
     end
+    
+    Table = struct2table(Result);
     
 end
