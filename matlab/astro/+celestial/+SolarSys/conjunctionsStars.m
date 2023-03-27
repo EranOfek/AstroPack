@@ -80,7 +80,7 @@ function Result=conjunctionsStars(Table, Args)
         EpochOut = convert.time(JD(Irow),'JD','J');
         
         if Cat.sizeCatalog>0
-            Cat = imProc.cat.applyProperMotion(Cat, Args.CatEpoch,EpochOut,'EpochInUnits','J','EpochOutUnits','J','ApplyPlx',true);
+            %Cat = imProc.cat.applyProperMotion(Cat, Args.CatEpoch,EpochOut,'EpochInUnits','J','EpochOutUnits','J','ApplyPlx',true);
         end
         
         
