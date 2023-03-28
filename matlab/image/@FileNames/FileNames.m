@@ -243,7 +243,7 @@ classdef FileNames < Component
 
         end
 
-        function Obj=generateFromFileName(List)
+        function Obj=generateFromFileName(List, Args)
             % Generate a FileNames object from a list of file names
             %   Given file names which name structure obeys the
             %   LAST-ULTRASAT file name convention.
@@ -251,9 +251,21 @@ classdef FileNames < Component
             %            Either a char array from which a list of file
             %            names can be constructed using io.files.filelist
             %            or a cell array of file names.
+            %          * ...,key,val,...
+            %            'Dir' - Directory to populate FullPath, if true,
+            %                   then use current directory. If false or
+            %                   empty, use class default.
+            %                   Default is true.
             % Output : - A FileNames object containing the file names.
             % Author : Eran Ofek (Dec 2022)
             % Example: FN=FileNames.generateFromFileName('LAST*.fits');
+            
+            arguments
+                List
+                Args.Dir = true;
+            end
+            
+            
             
             if ischar(List)
                 List = io.files.filelist(List);
@@ -264,6 +276,16 @@ classdef FileNames < Component
             end
             
             Obj = FileNames;
+            
+            if islogical(Args.Dir)
+                if Args.Dir
+                    Obj.FullPath = pwd;
+                end
+            elseif isempty(Args.Dir)
+                % do nothing
+            else
+                Obj.FullPath = Args.Dir;
+            end
 
             Nlist = numel(List);
             for Ilist=1:1:Nlist
