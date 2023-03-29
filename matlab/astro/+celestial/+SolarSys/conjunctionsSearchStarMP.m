@@ -8,7 +8,7 @@ function [Result, Table] = conjunctionsSearchStarMP(Args)
     %            see code.
     % Output : - A structure array of found events.
     %          - A table output.
-    % Example: 
+    % Example: [Result, Table] = celestial.SolarSys.conjunctionsSearchStarMP('ElementsIndex',1);
 
 
     arguments
@@ -58,7 +58,7 @@ function [Result, Table] = conjunctionsSearchStarMP(Args)
             [OcculterRadius] = celestial.SolarSys.asteroid_radius(Hmag, 0.15);
         
             Result = celestial.SolarSys.conjunctionsStars(EphemCat, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',OcculterRadius);
-        catch
+        catch ME
             fprintf('Failed %d',Iast);
         end
     end
