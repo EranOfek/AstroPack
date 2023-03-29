@@ -142,7 +142,7 @@ function Result=conjunctionsStars(Table, Args)
     
                 K = K + 1;
                 Result(K).JD                     = BestJD;
-                Result(K).Date  = celestial.time.j2date(BestJD,'H');
+                Result(K).Date  = celestial.time.jd2date(BestJD,'H');
                 
                 Result(K).ObjName                = Args.ObjName;
                 DeltaTime                        = JD(Irow+1) - JD(Irow);
