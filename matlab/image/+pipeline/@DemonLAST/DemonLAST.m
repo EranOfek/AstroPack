@@ -352,7 +352,7 @@ classdef DemonLAST < Component
                 else
                     % generate file names
                     % find all images in directory
-                    FN = FileNames.generateFromFileName(Args.List);
+                    FN = FileNames.generateFromFileName(Args.FilesList);
                 end
 
                 % identify new bias images

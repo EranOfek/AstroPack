@@ -1044,7 +1044,7 @@ classdef FileNames < Component
                 Result = Obj;
             end
         
-            if ischar(PropVal)
+            if ischar(PropVal) || iscell(PropVal)
                 if ~iscell(Obj.(PropName))
                     error('PropName %s must contain a cell array',PropName);
                 end
