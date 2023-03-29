@@ -46,7 +46,7 @@ classdef FileNames < Component
         FormatCounter   = '%03d';       % Used with Counter        
         FormatCCDID     = '%03d';       % Used with CCDID
         FormatCropID    = '%03d';       % Used with CropID
-        FormatVersion   = '%03d';       % Used with Version
+        FormatVersion   = '%d'; %'%03d';       % Used with Version
         
     end
 
@@ -592,22 +592,27 @@ classdef FileNames < Component
                 FilterStr = Obj.getProp('Filter',Itime);
                 if isnumeric(FilterStr)
                     FilterStr = sprintf('%d',FilterStr);
+                
                 end
                 FieldIDStr = Obj.getProp('FieldID',Itime);
-                if isnumeric(FieldIDStr)
+                if isnumeric(FieldIDStr) && ~isnan(FieldIDStr)
                     FieldIDStr = sprintf(Obj.FormatFieldID,FieldIDStr);
+                
                 end
                 CounterStr = Obj.getProp('Counter',Itime);
                 if isnumeric(CounterStr)
                     CounterStr = sprintf(Obj.FormatCounter,CounterStr);
+                
                 end
                 CCDIDStr = Obj.getProp('CCDID',Itime);
                 if isnumeric(CCDIDStr)
                     CCDIDStr = sprintf(Obj.FormatCCDID,CCDIDStr);
+                
                 end
                 CropIDStr = Obj.getProp('CropID',Itime);
                 if isnumeric(CropIDStr)
                     CropIDStr = sprintf(Obj.FormatCropID,CropIDStr);
+                
                 end
                 VersionStr = Obj.getProp('Version',Itime);
                 if isnumeric(VersionStr)
