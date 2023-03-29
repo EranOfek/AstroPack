@@ -34,11 +34,16 @@ function Result=conjunctionsStars(Table, Args)
         Args.InterpStep      = 10./86400;
 
         Args.Result          = [];  % concat results
+        
+        Args.GAIA_Cols = {'RA','Dec','phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag'};
     end
     
     RAD = 180./pi;
     ARCSEC_DEG = 3600;
     SEC_DAY    = 86400;
+    
+    
+    Ngaia = numel(Args.GAIA_Cols);
     
     Nrow = sizeCatalog(Table);
     
@@ -160,6 +165,11 @@ function Result=conjunctionsStars(Table, Args)
                 Result(K).Az      = HorizCoo(1).*RAD;   % [deg]
                 Result(K).Alt     = HorizCoo(2).*RAD;   % [deg]
                 Result(K).SunAlt  = Sun.Alt.*RAD;       % [deg]
+                
+                for Igaia=1:1:Ngaia
+                    Result(K).(Args.GAIA_Cols{Igaia}) = getCol(Result(K).Star, Args.GAIA_Cols{Igaia});
+                end
+                
             end
 
         end

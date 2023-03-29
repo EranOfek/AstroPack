@@ -23,6 +23,7 @@ function [Result, Table] = conjunctionsSearchStarMP(Args)
         Args.ObsCoo    = [35 32];
         Args.MaxSunAlt = -11.0;
         Args.MinAlt    = 25;
+        
     end
 
     E = celestial.OrbitalEl.loadSolarSystem;
