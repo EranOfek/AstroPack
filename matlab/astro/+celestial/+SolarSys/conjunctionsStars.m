@@ -142,6 +142,8 @@ function Result=conjunctionsStars(Table, Args)
     
                 K = K + 1;
                 Result(K).JD                     = BestJD;
+                Result(K).Date  = celestial.time.j2date(BestJD,'H');
+                
                 Result(K).ObjName                = Args.ObjName;
                 DeltaTime                        = JD(Irow+1) - JD(Irow);
                             
@@ -169,6 +171,7 @@ function Result=conjunctionsStars(Table, Args)
                 for Igaia=1:1:Ngaia
                     Result(K).(Args.GAIA_Cols{Igaia}) = getCol(Result(K).Star, Args.GAIA_Cols{Igaia});
                 end
+                
                 
             end
 
