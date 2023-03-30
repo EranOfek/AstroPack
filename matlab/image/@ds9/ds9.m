@@ -1159,12 +1159,27 @@ classdef ds9 < handle
                    [X, Y] = getLonLat(Cat, 'deg', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec);
                    Args.Units = 'deg';
                end
-                
+               
+            elseif isa(Cat, 'AstroImage')
+                if numel(Cat)>1
+                    error('Input must be a single element AstroImage');
+                end
+                if IsXY
+                   [X, Y] = getXY(Cat.CatData, 'ColX', Args.ColNameX, 'ColY', Args.ColNameY);
+               else
+                   [X, Y] = getLonLat(Cat.CatData, 'deg', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec);
+                   Args.Units = 'deg';
+               end
             else
                 % Assume Cat is a two column matrix [X,Y]
                 X = Cat(:,1);
                 Y = Cat(:,2);
             end
+            
+            % remove NaN coordinates
+            FlagNaN = isnan(X) | isnan(Y);
+            X = X(~FlagNaN);
+            Y = Y(~FlagNaN);
             
             % In case of spherical coordinates - convert to deg
             if (~IsXY)

@@ -352,11 +352,11 @@ classdef DemonLAST < Component
                 else
                     % generate file names
                     % find all images in directory
-                    FN = FileNames.generateFromFileName(Args.List);
+                    FN = FileNames.generateFromFileName(Args.FilesList);
                 end
 
                 % identify new bias images
-                [FN_Dark,Flag] = selectBy(FN, 'Type', {'dark','bias'}, "CreateNewObj",true);
+                [FN_Dark,Flag] = selectBy(FN, 'Type', {'dark','bias'}, 'CreateNewObj',true);
 
                 % check that the dark images are ready and group by night
                 [Ind, LastJD, DT] = selectLastJD(FN_Dark);
@@ -396,12 +396,21 @@ classdef DemonLAST < Component
                 % write file
                 JD = CI.Bias.julday;
                 FN_Master = FileNames;
-                FN_Master.readFromHeader(CI.Dark);
+                FN_Master.readFromHeader(CI.Bias);
                 FN_Master.Type     = {'dark'};
                 FN_Master.Level    = {'proc'};
                 FN_Master.Product  = {'Image'};
                 FN_Master.Version  = [1];
                 FN_Master.FileType = {'fits'};    
+
+                % values for LAST dark images
+                FN_Master.FieldID  = {''};
+                FN_Master.Counter  = {''};
+                FN_Master.CCDID    = {''};
+                FN_Master.CropID   = {''};
+                FN_Master.ProjName = FN_Dark.ProjName{1};
+
+
                 FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
                 write1(CI.Bias, FileN, 'Image');
                 FN_Master.Product  = {'Mask'};

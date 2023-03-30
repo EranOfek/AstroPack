@@ -25,7 +25,7 @@ function Result=conjunctionsStars(Table, Args)
         Args.CatEpoch        = 2016;
         Args.CatColMag       = 'phot_bp_mean_mag';
         Args.CatColMag2      = 'phot_rp_mean_mag';
-        Args.MagRange        = [0 16];
+        Args.MagRange        = [0 19];
 
         Args.EphemColMag     = 'APmag';
         Args.OcculterRadius  = 1000;     % [km]
@@ -34,11 +34,16 @@ function Result=conjunctionsStars(Table, Args)
         Args.InterpStep      = 10./86400;
 
         Args.Result          = [];  % concat results
+        
+        Args.GAIA_Cols = {'RA','Dec','phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag'};
     end
     
     RAD = 180./pi;
     ARCSEC_DEG = 3600;
     SEC_DAY    = 86400;
+    
+    
+    Ngaia = numel(Args.GAIA_Cols);
     
     Nrow = sizeCatalog(Table);
     
@@ -137,6 +142,8 @@ function Result=conjunctionsStars(Table, Args)
     
                 K = K + 1;
                 Result(K).JD                     = BestJD;
+                Result(K).Date  = celestial.time.jd2date(BestJD,'H');
+                
                 Result(K).ObjName                = Args.ObjName;
                 DeltaTime                        = JD(Irow+1) - JD(Irow);
                             
@@ -160,6 +167,12 @@ function Result=conjunctionsStars(Table, Args)
                 Result(K).Az      = HorizCoo(1).*RAD;   % [deg]
                 Result(K).Alt     = HorizCoo(2).*RAD;   % [deg]
                 Result(K).SunAlt  = Sun.Alt.*RAD;       % [deg]
+                
+                for Igaia=1:1:Ngaia
+                    Result(K).(Args.GAIA_Cols{Igaia}) = getCol(Result(K).Star, Args.GAIA_Cols{Igaia});
+                end
+                
+                
             end
 
         end

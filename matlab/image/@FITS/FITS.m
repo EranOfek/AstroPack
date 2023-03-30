@@ -215,6 +215,7 @@ classdef FITS < handle
             end
                          
             Fptr = matlab.io.fits.openFile(FileName);
+            %Fptr = matlab.io.fits.openDiskFile(FileName);
             matlab.io.fits.movAbsHDU(Fptr, HDUnum);
 
             if isempty(Args.CCDSEC) || all(isinf(Args.CCDSEC))
