@@ -3,9 +3,9 @@ function usimImage =  usim ( Args )
     % Package: ultrasat
     % Description: Make a simulated ULTRASAT image from a source catalog
     % Input:    
-    %       -  Args.InCat (a catalog of simulated sources)
+    %       -  Args.InCat (a catalog of simulated sources or the number of sources to generate randomly)
     %       -  Args.InMag (a vector of source magnitudes or 1 magnitude for all the sources)
-    %       -  Args.InMagFilt (the filter of source magnitudes)
+    %       -  Args.InMagFilt (the filter[s] of source magnitudes)
     %       -  Args.InSpec (individual spectra or one spectral model for all the objects)
     %       -  Args.Exposure (image exposure)
     %       -  Args.Tile (name of the ULTRASAT tile)
@@ -21,7 +21,7 @@ function usimImage =  usim ( Args )
     %       -  Args.Dir (the output directory)
     % Output : - usimImage (simulated AstroImage object, FITS file output, RAW file output)           
     % Tested : Matlab R2020b
-    %     By : A. Krassilchtchikov et al.   Feb 2023
+    %     By : A. Krassilchtchikov et al.   Mar 2023
     % Example: Sim = ultrasat.usim('InCat',10) 
     % put in 10 sources at random positions with the default spectrum and flux  
   
@@ -35,7 +35,7 @@ function usimImage =  usim ( Args )
                                              % one magnitude for all the objects 
                                              % or a vector of magnitudes 
                                              
-        Args.InMagFilt       = {'ULTRASAT','R1'}; % the filter of the source magnitudes 
+        Args.InMagFilt       = {'ULTRASAT','R1'}; % one filter for all the source magnitudes or an array of filters
         
         Args.InSpec          = {'BB', 5800}; % parameters of the source spectra: 
                                              % either an array of AstSpec or AstroSpec objects
@@ -90,6 +90,8 @@ function usimImage =  usim ( Args )
     C   = constant.c;       % the speed of light in vacuum, [cm/s]
     H   = constant.h;       % the Planck constant, [erg s]   
     
+    RAD = 180./pi;          % the radian
+    
     %%%%%%%%%%%%%%%%%%%% ULTRASAT PSF database parameters
                
     Nrad    = 25; 
@@ -113,8 +115,11 @@ function usimImage =  usim ( Args )
 
     ImageSizeX  = 4738; % tile size (pix)
     ImageSizeY  = 4738; % tile size (pix)
-    PixSize     =  5.4; % pixel size (arcsec)
-    PixSizeDeg  = PixSize/3600; % pixel size (deg)
+    
+    FocalLength = 360;    % [mm] 
+    PixelSizeMm = 9.5e-3; % [mm] pixel size 
+    PixSizeDeg  = ( PixelSizeMm / FocalLength ) * RAD;  % [deg] pixel size  
+    PixSize     = PixSizeDeg * 3600; % [arcsec] 
     
     DAper       = 33.;                   % [cm]    aperture diameter
     SAper       = pi * DAper ^ 2 / 4;    % [cm(2)] aperture area
@@ -297,9 +302,12 @@ function usimImage =  usim ( Args )
                 end
                                
                 Temp(1:NumSrc) = Args.InSpec{2};
-
-%                 fprintf('%s%5.0f%s','generating BB spectra: T(Source1) = ',Temp(1),' K .. ');
-                fprintf('%s','generating BB spectra .. ');
+ 
+                if numel( Args.InSpec{2} ) == 1
+                    fprintf('%s%5.0f%s','generating BB spectra for T = ',Temp(1),' K .. ');
+                else
+                    fprintf('%s','generating BB spectra for individual source temperatures .. ');
+                end
                 
                 for Isrc = 1:1:NumSrc
                     
@@ -555,8 +563,8 @@ function usimImage =  usim ( Args )
     % make sky background and variance images?
     Emptybox = zeros(ImageSizeX,ImageSizeY);
         
-    % make an AstroImage 
-    usimImage = AstroImage( {ImageSrcNoise} ,'Back',{NoiseLevel}, 'Var',{ImageBkg},'Cat',{Args.InCat.Catalog});   
+    % make an AstroImage (note, the image is to be transposed!)
+    usimImage = AstroImage( {ImageSrcNoise'} ,'Back',{NoiseLevel}, 'Var',{ImageBkg},'Cat',{Args.InCat.Catalog});   
 
     % add some keywords and values to the image header % TBD
     funHeader(usimImage, @insertKey, {'DATEOBS','2026-01-01T00:00:00','';'EXPTIME', Exposure,''});  
@@ -570,28 +578,28 @@ function usimImage =  usim ( Args )
         
         % NB: when writing to a fits image, we need to transpose the image
         OutFITSName = sprintf('%s%s%s%s%s','!',Args.OutDir,'/SimImage_tile',Args.Tile,'.fits'); 
-%         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName,'Header',{'EXPTIME', Exposure,''});   
+%         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName,'Header',{'EXPTIME', Exposure,''});  %  DOES NOT WORK
         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName);   
         
         % an accompanying region file: 
         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'.reg');
-        DS9_new.regionWrite([CatX CatY],'FileName',OutRegName,'Color','blue','Size',1); 
+        DS9_new.regionWrite([CatX CatY],'FileName',OutRegName,'Color','blue','Marker','b','Size',1,'Width',4); 
         
         % more region files for various parts of the source distribution:
         idx = Cat(:,4) > 24.5 & Cat(:,4) < 25.5;      % faintest sources
         CatFaint = Cat(idx,:);  
         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'faint.reg');
-        DS9_new.regionWrite([CatFaint(:,1) CatFaint(:,2)],'FileName',OutRegName,'Color','blue','Marker','o','Size',1);     
+        DS9_new.regionWrite([CatFaint(:,1) CatFaint(:,2)],'FileName',OutRegName,'Color','blue','Marker','o','Size',1,'Width',4);     
       
         idx = Cat(:,4) > 23.5 & Cat(:,4) < 24.5;      % medium brightness sources 
         CatMed = Cat(idx,:);  
         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'medium.reg');
-        DS9_new.regionWrite([CatMed(:,1) CatMed(:,2)],'FileName',OutRegName,'Color','green','Marker','o','Size',1);
+        DS9_new.regionWrite([CatMed(:,1) CatMed(:,2)],'FileName',OutRegName,'Color','green','Marker','o','Size',1,'Width',4);
         
         idx = Cat(:,4) > 22.5 & Cat(:,4) < 23.5;      % bright sources 
         CatBright = Cat(idx,:);  
         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'bright.reg');
-        DS9_new.regionWrite([CatBright(:,1) CatBright(:,2)],'FileName',OutRegName,'Color','cyan','Marker','b','Size',1);     
+        DS9_new.regionWrite([CatBright(:,1) CatBright(:,2)],'FileName',OutRegName,'Color','cyan','Marker','b','Size',1,'Width',4);     
         
     end
 
@@ -602,12 +610,27 @@ function usimImage =  usim ( Args )
                                          ' sec, see the generated images')
 
     %%%%%%%%%%%%%%%%%%%% post modeling checks
+%     
+%     MeasuredCat = imProc.sources.findMeasureSources(usimImage,'ForcedList',[CatX CatY],...
+%                          'OnlyForced',1,'CreateNewObj',1,'ReCalcBack',0,'ZP',UP.ZP(1,1)).CatData;
     
-    MeasuredCat = imProc.sources.findMeasureSources(usimImage,'ForcedList',[CatX CatY],...
-                         'OnlyForced',1,'CreateNewObj',1,'ReCalcBack',0,'ZP',UP.ZP(1,1)).CatData;
-    
+    MeasuredCat = imProc.sources.findMeasureSources(usimImage,'RemoveBadSources',1,'CreateNewObj',1,...
+                                                    'ReCalcBack',0,'ZP',UP.ZP(1,1)).CatData;
+                     
+    Coords = MeasuredCat.Catalog(:,1:2);
     SNRs = MeasuredCat.Catalog(:,8:12);
     Mag_Aper = MeasuredCat.Catalog(:,23:25);
+    Mag_Aper_err = MeasuredCat.Catalog(:,26:28);
+    Summary = [Coords SNRs(:,4:5) Mag_Aper(:,2:3)]; 
     
+    idx5 = Summary(:,3) > 5; % take only sources over 5 sigma
+    Summ5 = Summary(idx5,:); 
+    
+    idx3 = Summary(:,3) > 3; % take only sources over 3 sigma
+    Summ3 = Summary(idx3,:); 
+    
+    OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'detected.reg');
+    DS9_new.regionWrite([Summ5(:,1) Summ5(:,2)],'FileName',OutRegName,'Color','red','Marker','o','Size',1,'Width',4);     
+  
 
 end
