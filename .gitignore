@@ -13,6 +13,7 @@ matlab\startup\startup.m
 
 # Simulation outputs
 SimImage*
+usimImage*
 
 matlab_2021_10_05_before_copyObject/
 
