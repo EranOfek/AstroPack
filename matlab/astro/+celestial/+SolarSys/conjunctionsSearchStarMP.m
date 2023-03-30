@@ -94,6 +94,8 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
                          Table.Dec.*RAD,'VariableNames',{'ObjName','Date','MagStar_Bp','ImPar_InOccAngRadUnits','AngSpeed','CrossingTime','MagAst','RA','Dec'});
                      
                      
-                         
+    %FID=fopen('Occ.txt','w');
+    %tools.table.fprintf(FID,'%20s  %25s  %7.2f %6.2f %6.3f %5.1f %6.2f  %10.6f %10.6f\n',T);
+    %fclose(FID)
 
 end
