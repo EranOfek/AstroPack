@@ -1,4 +1,4 @@
-function [Result, Table] = conjunctionsSearchStarMP(Args)
+function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
     % Search for conjunctions/occultations of minor planets and GAIA stars
     %   The code run over known selected asteroids and use 
     %   celestial.SolarSys.jpl_horizons to generate ephemerides and
@@ -8,6 +8,7 @@ function [Result, Table] = conjunctionsSearchStarMP(Args)
     %            see code.
     % Output : - A structure array of found events.
     %          - A table output.
+    %          - table with selected columns.
     % Example: [Result, Table] = celestial.SolarSys.conjunctionsSearchStarMP('ElementsIndex',1);
 
 
@@ -25,6 +26,8 @@ function [Result, Table] = conjunctionsSearchStarMP(Args)
         Args.MinAlt    = 25;
         
     end
+    
+    RAD = 180./pi;
 
     E = celestial.OrbitalEl.loadSolarSystem;
 
@@ -80,4 +83,17 @@ function [Result, Table] = conjunctionsSearchStarMP(Args)
     
     Table = struct2table(Result);
     
+    TableCompact = table(Table.ObjName,...
+                         convert.date2str(Table.Date),...
+                         Table.phot_bp_mean_mag,...
+                         Table.ImpactPar_inOcculterAngRadiusUnits,...
+                         Table.AngSpeed,...
+                         Table.CrossingTime,...
+                         Table.MagMP,...
+                         Table.RA.*RAD,...
+                         Table.Dec.*RAD,'VariableNames',{'ObjName','Date','MagStar_Bp','ImPar_InOccAngRadUnits','AngSpeed','CrossingTime','MagAst','RA','Dec'});
+                     
+                     
+                         
+
 end
