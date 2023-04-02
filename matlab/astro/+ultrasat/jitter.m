@@ -30,15 +30,15 @@ function JPSF = jitter (PSF, Cat, Args)
         
         Args.Rotation   =    10;  % arcsecond
         
-        Args.Scaling    =    1;   % PSF pixel = ULTRASAT pixels
+        Args.Scaling    =     1;  % PSF pixel = ULTRASAT pixels
         
         
     end
     
     % ULTRASAT parameters
     
-    PixSize   = 5.4;                    % [arcsec]
-    Exposure0 = 300;                    % [s] a nominal ULTRASAT exposure
+    PixSize   = 5.44;                   % [arcsec]
+    Exposure0 =  300;                   % [s] a nominal ULTRASAT exposure
     
     Q = Args.Exposure / Exposure0;      % is it indeed linear ??
     
@@ -62,7 +62,6 @@ function JPSF = jitter (PSF, Cat, Args)
         JPSF(:,:,Isrc) = imgaussfilt( PSF(:,:,Isrc), [SigmaX SigmaY]' );
         
         % do not need to renormalize, imgaussfilt conserves the flux
-        
         % JPSF(:,:,Isrc) = JPSF(:,:,Isrc) / sum( JPSF(:,:,Isrc), 'all');
         
     end
