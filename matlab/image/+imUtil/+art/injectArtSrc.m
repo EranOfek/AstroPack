@@ -12,6 +12,7 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     %          - Args.Jitter    : apply PSF blurring due to the S/C jitter  
     %          - Args.Method    : source injection method, either 'direct' 
     %                             or 'PSFshift'
+    %          - Args.MeasurePSF: whether to measure PSF flux containment and pseudo-FWHM (diagnostics)
     %          
     % Output : - Image: a 2D array containing the resulting source image 
     %                   and a 2+1 D array of rotated and jittered source PSFs
@@ -34,8 +35,8 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
         Args.Jitter         =    0;       % PSF blurring due to the S/C jitter
         Args.Method         =   'direct'; % injection method
                                           % 'direct' or 'FFTShift'
-%         Args.OutPut         =   'all';    % 'image' - image only; 
-%                                           'all'   - image + rotated and rescaled PSFs        
+        Args.MeasurePSF     =    0;       % measure PSF flux containment and pseudo-FWHM
+        
     end
 
     % create an impty image of the given size
@@ -75,43 +76,47 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
         end
     end
                 
-    % apply PSF blurring due to the S/C jitter
+    % apply PSF blurring due to the S/C jitter (ULTRASAT jitter parameters employed here)
     
     if Args.Jitter
-        JPSF = ultrasat.jitter(RotPSF, Cat, 'Exposure',300,'SigmaX0',2.,'SigmaY0',2.,...
-                               'Rotation',10,'Scaling',Args.PSFScaling);    
+        JPSF = ultrasat.jitter(RotPSF, Cat, 'Exposure', 300, 'SigmaX0', 2., 'SigmaY0', 2.,...
+                               'Rotation', 10, 'Scaling', Args.PSFScaling);    
     else
         JPSF = RotPSF;
     end
     
-    % StampSize  = size(JPSF);   
-    % fprintf('%s%4.1f%s\n','Final PSF stamp size ', StampSize / Args.PSFScaling , ' image pixels');
+    % test PSF size, containment width and pseudoFWHM width if requested
     
-    % test PSF containment width and pseudoFWHM width
-    
-    ContWidth  = zeros(NumSrc,1);  % radius of the encircled flux PSF region
-    PseudoFWHM = zeros(NumSrc,1);  % pseudo FWHM of the PSFs (see imUtil.psf.pseudoFWHM for the particular algorithm)
-    
-    for Isrc = 1:1:NumSrc
-        
-        ContWidth(Isrc) = imUtil.psf.containment('PSF',JPSF(:,:,Isrc),'Level',0.5);
-        
-        [ widthX, widthY ] = ... 
-                    imUtil.psf.pseudoFWHM('PSF',JPSF(:,:,Isrc),'Level',0.5);
+    if Args.MeasurePSF == 1
 
-        PseudoFWHM(Isrc) = sqrt ( widthX^2 + widthY^2 );
-        
-    end
+        StampSize  = size(JPSF);   
+        fprintf('%s%4.1f%s\n','Final PSF stamp size ', StampSize / Args.PSFScaling , ' image pixels');
     
-    ContWidth   = ContWidth  / Args.PSFScaling ;  % convert to image pixel size    
-    PseudoFWHM  = PseudoFWHM / Args.PSFScaling ;  % convert to image pixel size
+        ContWidth  = zeros(NumSrc,1);  % radius of the encircled flux PSF region
+        PseudoFWHM = zeros(NumSrc,1);  % pseudo FWHM of the PSFs (see imUtil.psf.pseudoFWHM for the particular algorithm)
+
+        for Isrc = 1:1:NumSrc
+
+            ContWidth(Isrc) = imUtil.psf.containment('PSF',JPSF(:,:,Isrc),'Level',0.5);
+
+            [ widthX, widthY ] = ... 
+                        imUtil.psf.pseudoFWHM('PSF',JPSF(:,:,Isrc),'Level',0.5);
+
+            PseudoFWHM(Isrc) = sqrt ( widthX^2 + widthY^2 );
+
+        end
+
+        ContWidth   = ContWidth  / Args.PSFScaling ;  % convert to image pixel size    
+        PseudoFWHM  = PseudoFWHM / Args.PSFScaling ;  % convert to image pixel size
+    
+    end
    
     % some visual tests
     
-%       figure(2); plot(sqrt(X.^2+Y.^2).*5.4./3600, ContWidth * 5.4,'*'); % 5.4 arcsec pixel size for ULTRASAT
+%       figure(2); plot(sqrt(X.^2+Y.^2).*5.44./3600, ContWidth * 5.44,'*'); % 5.44 arcsec pixel size for ULTRASAT
 %       xlabel('Radius, deg'); ylabel('50% encirclement radius, arcsec')
 %     
-%       figure(3); plot(sqrt(X.^2+Y.^2).*5.4./3600, PseudoFWHM * 5.4,'*'); 
+%       figure(3); plot(sqrt(X.^2+Y.^2).*5.44./3600, PseudoFWHM * 5.44,'*'); 
 %       xlabel('Radius, deg'); ylabel('pseudoFWHM, arcsec')
    
     % PSF injection: inject all the rotated source PSFs into the blank image 
