@@ -45,7 +45,7 @@ classdef ImagePath < Base %Component
         FormatCounter   = '%03d';       % Used with Counter        
         FormatCCDID     = '%03d';       % Used with CCDID
         FormatCropID    = '%03d';       % Used with CropID
-        FormatVersion   = '%03d';       % Used with Version
+        FormatVersion   = '%d'; %'%03d';       % Used with Version
         
         % @Todo: Defaults should be loaded from configuration
         BasePath        = '/euler/archive'; % Loaded from Config
