@@ -495,7 +495,7 @@ function usimImage =  usim ( Args )
     
     [ImageSrc, PSF] = imUtil.art.injectArtSrc (CatX, CatY, CatFlux, ImageSizeX, ImageSizeY,...
                              WPSF, 'PSFScaling',Args.ImRes,'RotatePSF',RotAngle,...
-                             'Jitter',1,'Method',Args.Inj); 
+                             'Jitter',1,'Method',Args.Inj,'MeasurePSF',0); 
                        
                             fprintf(' done\n');
                             elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
