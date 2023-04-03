@@ -1138,6 +1138,69 @@ classdef FileNames < Component
             end
         end
         
+        function [Groups, Result] = groupByTimeGaps(Obj, Args)
+            % Group FileNames images by groups seperated by some time gaps.
+            %   The input object will be sorted by time.
+            % Input  : - A FileNames object.
+            %          * ...,key,val,...
+            %            'TimeGap' - The minimum time gaps between observations
+            %                   that will result in sepeartion into a
+            %                   group. Default is 1./24 [day].
+            %            'MinInGroup' - Minimum number of files in a group.
+            %                   Groups with less images will be removed.
+            %                   Default is 5.
+            % Output : - A structure array of groups, with the following
+            %            fields:
+            %            .I1 - start index.
+            %            .I2 - end index.
+            %            .Ind - Vector of all indices.
+            %            .N - Number of elements
+            %          - A FileNames object with element per group.
+            % Author : Eran Ofek (Apr 2023)
+
+
+            arguments
+                Obj
+                Args.TimeGap      = [1./24];  % smallest time gap [day]
+                Args.MinInGroup   = 5;
+            end
+
+            % sort FileNames object by JD
+            Obj = sortByJD(Obj);
+
+            JD = Obj.julday;
+
+            Gaps = [Inf; diff(JD(:))];
+
+            Flag = Gaps>Args.TimeGap;
+
+            N        = numel(JD);
+            I1       = find(Flag);
+            I2       = [I1(2:end); N];
+            Ngr      = numel(I1);
+            K = 0;
+            for Igr=1:1:Ngr
+                Ind = (I1(Igr):I2(Igr));
+                if numel(Ind)>=Args.MinInGroup
+                    K = K + 1;
+
+                    Groups(K).I1 = I1(Igr);
+                    Groups(K).I2 = I2(Igr);
+                    Groups(K).Ind = Ind;
+                    Groups(K).N   = numel(Ind);
+                end
+            end
+            Ngr = numel(Groups);
+
+            if nargout>1
+                Result = FileNames(Ngr);
+                for Igr=1:1:Ngr
+                    Result(Igr) = Obj.reorderEntries(Groups(Igr).Ind, 'CreateNewObj',true);
+                end
+            end
+
+        end
+
         function [Ind, LastJD, DT]=selectLastJD(Obj)
             % Return index of image with largest JD
             % Input  : - A FileNames object

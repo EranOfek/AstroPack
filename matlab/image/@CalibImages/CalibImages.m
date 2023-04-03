@@ -609,6 +609,45 @@ classdef CalibImages < Component
                 
         end
         
+        function [Result,Flag]=exist(Obj, Type, Prop)
+            % Check if Bias/Dark/Flat/... image is populated in a CalibImages object
+            % Input  : - A CalibImages object.
+            %          - Type: 'Bias', 'Dark', 'Flat'. Default is 'Bias'.
+            %          - Properties to check. Default is {'Image','Mask'}.
+            % Output : - A logical indicating if images of all properties
+            %            are non empty.
+            %          - A vector of logical indicating if each one of the
+            %            properties is non empty.
+            % Author : Eran Ofek (Apr 2023)
+            % Example: CI.exist('Dark')
+
+            arguments
+                Obj
+                Type  = 'Bias';
+                Prop  = {'Image','Mask'};
+            end
+
+
+            if ischar(Prop)
+                Prop = {Prop};
+            end
+            Nprop = numel(Prop);
+
+            Flag = false(Nprop,1);
+            if isempty(Obj.(Type))
+                %Result = false;
+            else
+                for Iprop=1:1:Nprop
+                    [Ny, Nx] = sizeImage(Obj.(Type), Prop{Iprop});
+                    if Ny>0 && Nx>0
+                        Flag(Iprop) = true;
+                    end
+                end
+            end
+
+            Result = all(Flag);
+
+        end
     end
     
     methods % calibration functions

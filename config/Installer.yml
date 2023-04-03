@@ -71,7 +71,7 @@ Items:
         # The following are cell arrays of entry per dataset
         DataName             : 'MinorPlanets'
         SubDir               : 'SolarSystem/MinorPlanets'
-        URL                  : ['http://ssd.jpl.nasa.gov/dat/ELEMENTS.NUMBR.gz', 'http://ssd.jpl.nasa.gov/dat/ELEMENTS.UNNUM.gz', 'http://ssd.jpl.nasa.gov/dat/ELEMENTS.COMET']
+        URL                  : ['https://ssd.jpl.nasa.gov/dat/ELEMENTS.NUMBR.gz', 'https://ssd.jpl.nasa.gov/dat/ELEMENTS.UNNUM.gz', 'https://ssd.jpl.nasa.gov/dat/ELEMENTS.COMET']
         Size                 : 120
         SearchFile           : ''
         Description          : 'JPL Orbital Elements of Minor Planets'
