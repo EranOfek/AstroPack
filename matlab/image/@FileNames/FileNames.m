@@ -1201,13 +1201,14 @@ classdef FileNames < Component
 
         end
 
-        function [Ind, LastJD, DT]=selectLastJD(Obj)
+        function [Ind, LastJD, DT, Result]=selectLastJD(Obj)
             % Return index of image with largest JD
             % Input  : - A FileNames object
             % Output : - Index of image with largest JD
             %          - JD of image with largest JD
             %          - Time elpased since image with largest JD was taken
             %            I.e., CurrentJD - LastJD [days].
+            %          - A FileNames object with the image with latest JD.
             % Author : Eran Ofek (Mar 2023)
             
             JD = Obj.julday;
@@ -1216,6 +1217,9 @@ classdef FileNames < Component
                 DT = celestial.time.julday - LastJD;
             end
             
+            if nargout>3
+                Result = reorderEntries(Obj, Ind, 'CreateNewObj',true);
+            end
         end
         
         

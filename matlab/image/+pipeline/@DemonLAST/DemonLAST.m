@@ -341,7 +341,7 @@ classdef DemonLAST < Component
     end
 
     methods % pipelines
-        function prepMasterDark(Obj, Args)
+        function Obj=prepMasterDark(Obj, Args)
             % prepare master dark images
             %   Given a (D=) pipeline.DemonLAST object select files in either
             %   current dir or D.NewPath, and create master dark images
@@ -371,7 +371,10 @@ classdef DemonLAST < Component
             %            'Repopulate' - A logical indicating if to
             %                   repopulate the dark image even if it is already
             %                   exist.
-            % Output : * Write files to disk
+            %            'ClearVar' - Clear the Var image from the
+            %                   CalibImages. Default is true.
+            % Output : - A pipeline.DemonLAST with updated CI property.
+            %          * Write files to disk
             % Author : Eran Ofek (Apr 2023)
             % Example: D = pipeline.DemonLAST;
             %          D.CalibPath = <put here the output directory of the calibration images>
@@ -386,6 +389,7 @@ classdef DemonLAST < Component
                 Args.MinInGroup           = 9;
                 Args.move2newPath logical = false;
                 Args.Repopulate logical   = true;
+                Args.ClearVar logical     = true;
             end
 
             if Args.Repopulate || ~exist(Obj.CI,'Bias',{'Image','Mask'})
@@ -476,6 +480,10 @@ classdef DemonLAST < Component
                     
                     % keep in CI.Bias 
                     Obj.CI.Bias = CI.Bias;
+
+                    if Args.ClearVar
+                        Obj.CI.Bias.Var = [];
+                    end
                     
                 end
             else
@@ -484,7 +492,7 @@ classdef DemonLAST < Component
             
         end
         
-        function prepMasterFlat(Obj, Args)
+        function Obj=prepMasterFlat(Obj, Args)
             % prepare master flat images
             %   Given a (D=) pipeline.DemonLAST object select files in either
             %   current dir or D.NewPath, and create master flat images
@@ -517,7 +525,10 @@ classdef DemonLAST < Component
             %            'Repopulate' - A logical indicating if to
             %                   repopulate the dark image even if it is already
             %                   exist.
-            % Output : * Write files to disk
+            %            'ClearVar' - Clear the Var image from the
+            %                   CalibImages. Default is true.
+            % Output : - A pipeline.DemonLAST with updated CI property.
+            %          * Write files to disk
             % Author : Eran Ofek (Apr 2023)
             % Example: D = pipeline.DemonLAST;
             %          D.CalibPath = <put here the output directory of the calibration images>
@@ -534,6 +545,7 @@ classdef DemonLAST < Component
                 Args.MinInGroup  = 6;
                 Args.move2newPath logical = false;
                 Args.Repopulate logical   = true;
+                Args.ClearVar logical     = true;
             end
 
             if ~exist(Obj.CI, 'Bias',{'Image','Mask'})
@@ -630,6 +642,9 @@ classdef DemonLAST < Component
                     % keep in CI.Bias 
                     Obj.CI.Flat = CI.Flat;
                     
+                    if Args.ClearVar
+                        Obj.CI.Flat.Var = [];
+                    end
                 end
             else
                 % no need to create a Master bias - already exist
@@ -637,8 +652,61 @@ classdef DemonLAST < Component
 
         end
         
+        function Obj=loadCalib(Obj, Args)
+            % load CalibImages into the pipeline.DemonLAST object
+            % Input  : - A pipeline.DemonLAST object.
+            %          * ...,key,val,...
+            %            'CalibPath' - A path to the calib images. If
+            %                   empty, use the object CalibPath property.
+            %                   Default is [].
+            %            'BiasTemplate' - File name template of bias images.
+            %                   Default is '*dark_proc_Image*.fits'.
+            %            'FlatTemplate' - File name template of flat images.
+            %                   Default is '*flat_proc_Image*.fits'.
+            %            'AddImages' - Additional products to be loaded, in
+            %                   addition to the 'Image' product.
+            %                   Default is {'Mask'}.
+            % Output : - A ipeline.DemonLAST object in which the CI
+            %            property is populated with bias, flat, and
+            %            linearity data.
+            % Author : Eran Ofek (Apr 2023)
+            % Example: D=pipeline.DemonLAST;
+            %          D.loadCalib
+
+            arguments
+                Obj
+                Args.CalibPath       = [];
+                Args.BiasTemplate    = '*dark_proc_Image*.fits';
+                Args.FlatTemplate    = '*twflat_proc_Image*.fits';
+                Args.AddImages       = {'Mask'};
+            end
+
+            PWD = pwd;
+            if ~isempty(Args.CalibPath)
+                cd(Args.CalibDir)
+            else
+                cd(Obj.CalibPath);
+            end
+
+            % read latest bias image
+            FN_Bias = FileNames.generateFromFileName(Args.BiasTemplate);
+            [~,~,~,FN_Bias] = FN_Bias.selectLastJD;
+            Obj.CI.Bias = AstroImage.readFileNames(FN_Bias, 'AddProduct',Args.AddImages);
+
+            % read latest flat image
+            FN_Flat = FileNames.generateFromFileName(Args.FlatTemplate);
+            [~,~,~,FN_Flat] = FN_Flat.selectLastJD;
+            Obj.CI.Flat = AstroImage.readFileNames(FN_Flat, 'AddProduct',Args.AddImages);
+
+            % Read linearity file
+            % Result = populateLinearity(Obj.CI, Name, Args)
+          
+            cd(PWD);
+
+        end
 
 
+        
 
 
         function runPipeline(Obj, Args)
