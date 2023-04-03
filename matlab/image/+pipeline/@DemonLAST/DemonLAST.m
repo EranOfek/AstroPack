@@ -705,8 +705,28 @@ classdef DemonLAST < Component
 
         end
 
+        function Obj=main(Obj, Args)
+            %
 
-        
+            arguments
+                Obj
+                Args
+            end
+
+            GUI_Text = sprintf('Abort : Pipeline : %d.%d%d',Node, Mount, Camera);
+            StopGUI  = tools.gui.stopButton('Msg',GUI_Text);
+    %          % next you can check
+    %          if StopGUI(), % do something; end
+
+            Cont = true;
+            while Cont
+
+
+            end
+
+        end
+
+
 
 
         function runPipeline(Obj, Args)
