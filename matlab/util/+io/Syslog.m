@@ -75,6 +75,11 @@ classdef Syslog < handle
             	Args.ServerPort uint16 = 514            % optionally use another UDP port
             end
             
+            if ~strcmp(matlabRelease.Release, 'R2020b') % on newer releases we should use udpport()
+                Obj = [];
+                return;
+            end
+            
             % Map our LogLevels to the standard (RFC5424) priorities
             Obj.PriorityMap = containers.Map('KeyType', 'double', 'ValueType', 'double');
             
@@ -94,13 +99,10 @@ classdef Syslog < handle
             
             Obj.ServerIp = Args.ServerIp;
             Obj.ServerPort = Args.ServerPort;
-            try
-                Obj.UdpSocket = udp(Obj.ServerIp, Obj.ServerPort);
-                set(Obj.UdpSocket, 'Terminator', newline);
-                fopen(Obj.UdpSocket);
-            catch
-                Obj = [];
-            end
+            
+            Obj.UdpSocket = udp(Obj.ServerIp, Obj.ServerPort);
+            set(Obj.UdpSocket, 'Terminator', newline);
+            fopen(Obj.UdpSocket);
         end
         
         function sendMessage(Obj, LogLevel, varargin)

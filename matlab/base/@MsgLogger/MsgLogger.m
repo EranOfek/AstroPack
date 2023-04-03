@@ -208,11 +208,6 @@ classdef MsgLogger < handle
                 LogToSyslog = true;
             end
             
-            if ~strcmp(matlabRelease.Release, 'R2020b')
-                % Syslog uses udp() which is obsolete in 2022a (at least)
-                LogToSyslog = false;
-            end
-            
             % Prepare prompt with level
             LevStr = MsgLogger.getLevelStr(Level);
 
