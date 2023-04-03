@@ -76,7 +76,7 @@ classdef Syslog < handle
             end
             
             if ~strcmp(matlabRelease.Release, 'R2020b') % on newer releases we should use udpport()
-                Obj = [];
+                %Obj = [];
                 return;
             end
             

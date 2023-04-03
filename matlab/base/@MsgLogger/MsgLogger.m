@@ -167,7 +167,9 @@ classdef MsgLogger < handle
                     'MaxFileSize', Args.MaxFileSize);
             end
             
-            Obj.Syslog = io.Syslog();     % How to get our progname?
+            if strcmp(matlabRelease.Release, 'R2020b')
+                Obj.Syslog = io.Syslog();     % How to get our progname?
+            end
             
         end
     end
