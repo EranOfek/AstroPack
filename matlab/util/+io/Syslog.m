@@ -125,7 +125,7 @@ classdef Syslog < handle
                 Obj.Pid, ...
                 MsgLogger.getLevelStr(LogLevel), ...
                 varargin{:});
-            fprintf(Obj.UdpSocket, Message);
+            fwrite(Obj.UdpSocket, Message);
         end
         
         function delete(Obj)

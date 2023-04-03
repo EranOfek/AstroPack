@@ -205,6 +205,12 @@ classdef MsgLogger < handle
             if Obj.mustLog(Level)
                 LogToDisplay = true;
                 LogToFile = true;
+                LogToSyslog = true;
+            end
+            
+            if ~strcmp(matlabRelease.Release, 'R2020b')
+                % Syslog uses udp() which is obsolete in 2022a (at least)
+                LogToSyslog = false;
             end
             
             % Prepare prompt with level
@@ -221,6 +227,13 @@ classdef MsgLogger < handle
             if LogToFile
                 if ~isempty(Obj.LogF)
                     Obj.LogF.write2(sprintf('[%s]', LevStr), varargin{:});
+                end
+            end
+            
+            % Log to Syslog
+            if LogToSyslog
+                if ~isempty(Obj.Syslog)
+                    Obj.Syslog.sendMessage(Level, varargin{:});
                 end
             end
         end
