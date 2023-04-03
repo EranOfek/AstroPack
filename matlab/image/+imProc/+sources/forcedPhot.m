@@ -317,6 +317,8 @@ function [Result] = forcedPhot(Obj, Args)
             %FlagIn      = X>1 & X<Nx & Y>1 & Y<Ny;
             FlagIn  = X>Args.MinEdgeDist & X<(Nx-Args.MinEdgeDist) & Y>Args.MinEdgeDist & Y<(Ny-Args.MinEdgeDist);        
 
+            %ResIn  = Obj(Iobj).isSkyCooInImage(MeanCoo(1), MeanCoo(2),'UNIQSEC',CooUnits);
+
             % force photometry on sources
             [M1,M2,Aper] = imUtil.image.moment2(Obj(Iobj).(Args.ImageProp), X, Y,...
                                     'MaxIter',Args.MomentMaxIter, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus);
