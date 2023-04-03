@@ -710,19 +710,46 @@ classdef DemonLAST < Component
 
             arguments
                 Obj
-                Args
+                Args.DataDir       = 1;
+                Args.CamNumber     = [];
+                Args.NewSubDir     = 'new';
+                Args.AbortFileName = '~/abortPipe';
             end
-
-            GUI_Text = sprintf('Abort : Pipeline : %d.%d%d',Node, Mount, Camera);
+            
+            % get path
+            [NewPath,CameraNumber,Side,HostName,ProjName,MountNumberStr]=getPath(Obj, Args.NewSubDir, 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
+            
+            PWD = pwd;
+            cd(NewPath);
+            
+            GUI_Text = sprintf('Abort : Pipeline : %d.%s%d', Obj.Node, MountNumberStr, CameraNumber);
             StopGUI  = tools.gui.stopButton('Msg',GUI_Text);
-    %          % next you can check
-    %          if StopGUI(), % do something; end
-
+    
             Cont = true;
             while Cont
+                % prep Master dark
+                
+                % prep Master flat
+                
+                % copy focus images
+                
+                % copy test images taken during daytime
+                
+                % look for new images
+                
+                
 
-
+                
+                if StopGUI 
+                    Cont = false;
+                end
+                if isfile(Args.AbortFileName)
+                    Cont = false;
+                    delete(Args.AbortFileName);
+                end
             end
+            
+            cd(PWD);
 
         end
 
