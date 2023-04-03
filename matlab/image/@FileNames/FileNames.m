@@ -972,16 +972,21 @@ classdef FileNames < Component
             
         end
         
-        function [Obj, SI] = sortByJD(Obj)
+        function [Obj, SI] = sortByJD(Obj, Direction)
             % Sort entries in FileNames object by JD
             % Input  : - A FileNames object.
+            %          - Sort direction: 'ascend' (default), or 'descend'.
             % Output : - A FileNames object in which the entries are sorted
             %            by JD.
             %          - A vector of sorted indices.
             % Author : Eran Ofek (Dec 2022)
             
+            arguments
+                Obj
+                Direction = 'ascend';
+            end
             JD = Obj.julday;
-            [~,SI] = sort(JD);
+            [~,SI] = sort(JD, Direction);
             Obj = reorderEntries(Obj, SI);
             
         end

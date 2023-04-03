@@ -712,7 +712,11 @@ classdef DemonLAST < Component
                 Obj
                 Args.DataDir       = 1;
                 Args.CamNumber     = [];
+                Args.TempRawSci    = '*_sci_raw_*.fits';
                 Args.NewSubDir     = 'new';
+                Args.MinInGroup    = 5;
+                Args.MaxInGroup    = 20;
+                Args.SortDirection = 'descend';  % analyze last image first
                 Args.AbortFileName = '~/abortPipe';
             end
             
@@ -728,24 +732,47 @@ classdef DemonLAST < Component
             Cont = true;
             while Cont
                 % prep Master dark
+                Obj.prepMasterDark();
                 
                 % prep Master flat
+                Obj.prepMasterFlat();
                 
                 % copy focus images
+                
                 
                 % copy test images taken during daytime
                 
                 % look for new images
+                FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci);
+                [FN_Sci] = selectBy(FN_Sci, 'Product', 'Image', 'CreateNewObj',false);
+                [FN_Sci] = selectBy(FN_Sci, 'Type', {'sci','science'}, 'CreateNewObj',false);
+                [FN_Sci] = selectBy(FN_Sci, 'Level', 'raw', 'CreateNewObj',false);
+                [~, FN_Sci_Groups] = FN_Sci.groupByCounter('MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
+                FN_Sci_Groups = FN_Sci_Groups.sortByJD(Args.SortDirection);
+                Ngroup = numel(FN_Sci_Groups);
                 
+                for Igroup=1:1:Ngroup
+                    ImageList = FN_Sci_Groups(Igroup).genFull;
                 
-
+                    % call visit pipeline
                 
-                if StopGUI 
-                    Cont = false;
-                end
-                if isfile(Args.AbortFileName)
-                    Cont = false;
-                    delete(Args.AbortFileName);
+                    % save proc data product
+                    
+                    % Write images and catalogs to DB
+                    
+                    % move raw images to final location
+                    
+                   
+                    
+                    
+                    % check if stop loop
+                    if StopGUI 
+                        Cont = false;
+                    end
+                    if isfile(Args.AbortFileName)
+                        Cont = false;
+                        delete(Args.AbortFileName);
+                    end
                 end
             end
             
