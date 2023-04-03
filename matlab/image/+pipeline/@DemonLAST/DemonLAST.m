@@ -375,6 +375,74 @@ classdef DemonLAST < Component
             cd(PWD);
         end
         
+        function moveToDestination(Obj, ListImages, Args)
+            % Move list of files in the NewPath dir to destination
+            % Input  : - A pipeline.DemonLAST object.
+            %          - A file name template char array, or a cell array
+            %            of file names, or an FileNames object.
+            %          * ...,key,val,...
+            %            'Type' - FileNames image Type to select by.
+            %                   If empty, then skip. Default is [].
+            %            'Level' - Like 'Type', but for 'Level'.
+            %            'Product' - Like 'Type', but for 'Product'.
+            %            'Destination - Destination to move files to.
+            %                   Must be supplied.
+            %            'SourcePath' - Source path from which to move files.
+            %                   Default is Obj.NewPath.
+            % Output : null
+            % Author : Eran Ofek (Apr 2023)
+            
+            arguments
+                Obj
+                ListImages
+                Args.Type          = [];
+                Args.Level         = [];
+                Args.Product       = [];
+                Args.Destination
+                Args.SourcePath    = Obj.NewPath;
+            end
+                
+             
+            if ~isempty(Args.Type) || ~isempty(Args.Level) || ~isempty(Args.Product)
+                % select by Type/Level/Product
+                if isa(ListImages, 'FileNames')
+                    FN = FileNames;
+                else
+                    if iscell(ListImages)
+                        FN = FileNames(ListImages);
+                    else
+                        FN = FileNames.generateFromFileName(ListImages);
+                    end
+                end   
+                
+                if ~isempty(Args.Type)
+                    FN.selectByProp('Type',Args.Type, 'CreateNewObj',false);
+                end
+                if ~isempty(Args.Level)
+                    FN.selectByProp('Type',Args.Level, 'CreateNewObj',false);
+                end
+                if ~isempty(Args.Product)
+                    FN.selectByProp('Type',Args.Product, 'CreateNewObj',false);
+                end
+            else
+                if ischar(ListImages)
+                    % parse file names
+                    ListImages = io.files.filelist(ListImages);
+                end
+                    
+                FN = ListImages; 
+            end
+                
+            if isa(FN, 'FileNames')
+                ListImages = FN.genFile;
+            else
+                ListImages = FN;
+            end            
+            
+            io.files.moveFiles(ListImages, [], Args.SourcePath, Args.Destination);
+            
+        end
+        
     end
 
     methods % pipelines
