@@ -339,6 +339,42 @@ classdef DemonLAST < Component
             Path = fullfile(BasePath,SubDir);
         end
 
+        function Obj=deleteDayTimeImages(Obj, Args)
+            % Delete science images taken when the Sun is above the horizon
+            % Input  : - A pipeline.DemonLAST object.
+            %          * ...,key,val,...
+            %            'TempFileName' - File name template to select.
+            %                   Default is '*.fits'.
+            %            'Type' - Type of images to delete.
+            %                   Default is {'sci','science'}.
+            %            'SunAlt' - Sun altitude threshold above to delete
+            %                   the images. Default is 0.
+            % Output : null
+            % Author : Eran Ofek (Apr 2023)
+            
+            arguments
+                Obj
+                Args.TempFileName = '*.fits';
+                Args.Type         = {'sci','science'};
+                Args.SunAlt       = 0;
+                
+            end
+            
+            PWD = pwd;
+            cd(Obj.NewPath);
+            
+            FN = FileNames.generateFromFileName(Args.TempFileName);
+            FN.selectBy('Type',Args.Type);
+            
+            [SunAlt] = Obj.sunAlt(Obj, 'ObsCoo',Obj.ObsCoo(1:2));
+            Flag     = SunAlt>Args.SunAlt;
+            
+            FN.reorderEntries(Flag);
+            io.files.delete_cell(FN.genFile());
+            
+            cd(PWD);
+        end
+        
     end
 
     methods % pipelines
@@ -706,41 +742,7 @@ classdef DemonLAST < Component
 
         end
 
-        function Obj=deleteDayTimeImages(Obj, Args)
-            % Delete science images taken when the Sun is above the horizon
-            % Input  : - A pipeline.DemonLAST object.
-            %          * ...,key,val,...
-            %            'TempFileName' - File name template to select.
-            %                   Default is '*.fits'.
-            %            'Type' - Type of images to delete.
-            %                   Default is {'sci','science'}.
-            %            'SunAlt' - Sun altitude threshold above to delete
-            %                   the images. Default is 0.
-            % Output : null
-            % Author : Eran Ofek (Apr 2023)
-            
-            arguments
-                Obj
-                Args.TempFileName = '*.fits';
-                Args.Type         = {'sci','science'};
-                Args.SunAlt       = 0;
-                
-            end
-            
-            PWD = pwd;
-            cd(Obj.NewPath);
-            
-            FN = FileNames.generateFromFileName(Args.TempFileName);
-            FN.selectBy('Type',Args.Type);
-            
-            [SunAlt] = Obj.sunAlt(Obj, 'ObsCoo',Obj.ObsCoo(1:2));
-            Flag     = SunAlt>Args.SunAlt;
-            
-            FN.reorderEntries(Flag);
-            io.files.delete_cell(FN.genFile());
-            
-            cd(PWD);
-        end
+        
         
         function Obj=main(Obj, Args)
             %
