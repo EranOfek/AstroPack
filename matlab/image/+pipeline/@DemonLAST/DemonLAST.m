@@ -285,6 +285,57 @@ classdef DemonLAST < Component
 
         end
 
+        function [Path, SubDir] = getProcPath(FN, SubDir, Args)
+            % get processed images directory from FileNames object.
+            % Input  : - A FileNames object containing images from which we
+            %            want to find the proc images directory.
+            %          - A SubDir indicating additional directory in the
+            %            proc/ dir in which the data resides.
+            %            If numeric empty (i.e., []) then automatically
+            %            find the SubDir by incrimenting the largest
+            %            existing SubDir by 1.
+            %            If '' or chra array, then use it as a SubDir.
+            %          * ...,Key,Val,...
+            %            'BasePath' - Override the BasePath in the input
+            %                   FileNames object. If empty, use currently
+            %                   available BasePath in FileNames object.
+            %                   Default is [].
+            % Output : - Path for proc images, including SubDir.
+            %          - SubDir char array.
+            % Author : Eran Ofek (Apr 2023)
+
+            arguments
+                FN FileNames
+                SubDir           = [];  % [] - auto find ; '' - SubDir is '' 
+                Args.BasePath    = [];
+                %Args.DataDir     = [];
+                %Args.CamNumber   = [];
+                %Args.HostName    = [];
+                %Args.ProjectName = '';
+                %Args.Node        = [];
+            end
+
+            if ~isempty(Args.BasePath)
+                FN.BasePath = Args.BasePath;
+            end
+            %[BasePath,CameraNumber,Side,HostName,ProjName,MountNumberStr] = getBasePath('DataDir',Args.DataDir, 'CamNumber',Args.CamNumber, 'HostName',Args.HostName, 'ProjectName',Args.ProjectName, 'Node',Args.Node);
+
+            PathProc = FN.genPath;
+
+            if ischar(SubDir)
+                % SubDir is provided by user
+            else
+                if isempty(SubDir)
+                    SubDir = nextSubDir(FN);
+                else
+                    error('Unknown SubDir option');
+                end
+            end
+
+            Path = fullfile(PathProc,SubDir);
+
+        end
+
     end
 
     
@@ -825,10 +876,12 @@ classdef DemonLAST < Component
                 Args.MaxInGroup    = 20;
                 Args.SortDirection = 'descend';  % analyze last image first
                 Args.AbortFileName = '~/abortPipe';
+                Args.multiRaw2procCoaddArgs = {};
             end
             
             % get path
             [NewPath,CameraNumber,Side,HostName,ProjName,MountNumberStr]=getPath(Obj, Args.NewSubDir, 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
+            [BasePath] = getPath(Obj, '', 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
             
             PWD = pwd;
             cd(NewPath);
@@ -861,7 +914,20 @@ classdef DemonLAST < Component
                 for Igroup=1:1:Ngroup
                     ImageList = FN_Sci_Groups(Igroup).genFull;
                 
+                    % set the proc image directory
+                    FN_Sci_Groups(Igroup).BasePath = BasePath;
+
+                    ProcPath = FN_Sci_Groups(Igroup).genPath();
+
+
                     % call visit pipeline
+                    tic;
+                    pipeline.generic.multiRaw2procCoadd(ImageList, 'CalibImages',Obj.CI,...
+                                                                   Args.multiRaw2procCoaddArgs{:},...
+                                                                   'SubDir',NaN,...
+                                                                   'BasePath', Args.BaseArchive);
+                    toc
+                
                 
                     % save proc data product
                     
@@ -889,88 +955,6 @@ classdef DemonLAST < Component
 
 
 
-
-        function runPipeline(Obj, Args)
-            %
-            
-            arguments
-                Obj
-                Args.List       = 'LAST*.fits';
-                Args.DataDir    = [];
-                Args.CamNumber  = [];
-
-                Args.SubDir     = 'new';
-
-                Args.Verbose    = true;
-                Args.AbortFile  = '~/abortPipe';
-            end
-
-            StopGUI = tools.gui.stopButton('Msg','Terminate pipeline.DemonLAST/runPipeline');
-
-            [Path,CameraNumber,Side,HostName,ProjName,MountNumberStr] = getPath(Obj, Args.SubDir, 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
-            
-            % cd to new files directory
-%             if ~isfolder(Path)
-%                 error('Folder %s doesnt exist on computer',Path);
-%             end
-%             cd(Path);
-
-            Cont = true;
-
-            Counter = 0;
-            while Cont
-                pause(1);
-                Counter = Counter + 1;
-
-                if Args.Verbose
-                    fprintf('pipeline counter: %d\n',Counter);
-                end
-
-                % find all images in directory
-                FN = FileNames.generateFromFileName(Args.List);
-
-                % identify new bias images
-                [FN_Dark,Flag] = selectBy(Obj, 'Type', {'dark','bias'}, "CreateNewObj",true);
-                
-                % prepare master bias
-
-                % copy processed bias images to raw/ dir
-
-                % identify new flat images
-
-                % prepare master flat
-
-                % copy processed flat images to raw/ dir
-
-                % identify non science images
-
-                % copy non science images to unproc/ dir
-
-                % load calib file (if new exist)
-
-                % group images
-
-                try
-                    % run pipeline on group
-
-                catch
-                    % move images to failed/ dir
-
-                end
-
-                % check if continue
-                if StopGUI()
-                    Cont = false;
-                end
-                if isfile(Args.AbortFile)
-                    delete('Args.AbortFile');
-                    Cont = false;
-                end
-
-            end
-
-
-        end
     end
 
     %----------------------------------------------------------------------
