@@ -272,7 +272,10 @@ classdef DemonLAST < Component
             else
                 HostName = Args.HostName;
             end
+
+            'need to remove this line when going to production - getBasePath'
             HostName = 'last02w'
+
             MountNumberStr = HostName(5:6);
          
             [CameraNumber,Side] = pipeline.DemonLAST.dataDir2cameraNumber(DataDir,HostName);
@@ -494,6 +497,43 @@ classdef DemonLAST < Component
             
         end
         
+        function Obj=setPath(Obj, BasePath, Args)
+            % set the BasePath and other paths of pipeline.DemonLAST object
+            % Input  : - A pipeline.DemonLAST object.
+            %          - BasePath.
+            %          * ...,key,val,...
+            %            'NewPath' - If empty, do not set NewPath.
+            %                   Default is 'new'.
+            %            'CalibPath' - If empty, do not set CalibPath.
+            %                   Default is 'calib'.
+            %            'FailedPath' - If empty, do not set FailedPath.
+            %                   Default is 'failed'.
+            % Output : - A pipeline.DemonLAST object in which the paths are
+            %            updated.
+            % Author : Eran Ofek (Apr 2023)
+
+            arguments
+                Obj
+                BasePath
+                Args.NewPath    = 'new';
+                Args.CalibPath  = 'calib';
+                Args.FailedPath = 'failed';
+            end
+
+            FIELDS = {'NewPath','CalibPath','FailedPath'};
+            Nf     = numel(FIELDS);
+
+            if ~isempty(BasePath)
+                Obj.BasePath = BasePath;
+            end
+            for If=1:1:Nf
+                if ~isempty(Args.(FIELDS{If}))
+                    Obj.(FIELDS{If}) = Args.(FIELDS{If});
+                end
+            end
+
+        end
+
     end
 
     methods % pipelines
@@ -865,6 +905,10 @@ classdef DemonLAST < Component
         
         function Obj=main(Obj, Args)
             %
+            % Example: cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/new
+            %          D=pipeline.DemonLAST;
+            %          D.setPath('/raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/')
+            %
 
             arguments
                 Obj
@@ -886,12 +930,18 @@ classdef DemonLAST < Component
             end
             
             % get path
-            [NewPath,CameraNumber,Side,HostName,ProjName,MountNumberStr]=getPath(Obj, Args.NewSubDir, 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
-            [BasePath] = getPath(Obj, '', 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
-            
+            %[NewPath,CameraNumber,Side,HostName,ProjName,MountNumberStr]=getPath(Obj, Args.NewSubDir, 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
+            %[BasePath] = getPath(Obj, '', 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
+            NewPath  = Obj.NewPath;
+            BasePath = Obj.BasePath;
+
+
             PWD = pwd;
             cd(NewPath);
-            
+
+            FN_All   = FileNames.generateFromFileName('*.fits');
+            Result   = getValFromFileName(File,Prop)
+
             GUI_Text = sprintf('Abort : Pipeline : %d.%s%d', Obj.Node, MountNumberStr, CameraNumber);
             StopGUI  = tools.gui.stopButton('Msg',GUI_Text);
     
@@ -911,30 +961,6 @@ classdef DemonLAST < Component
                 % move focus images
                 FN_Foc   = FileNames.generateFromFileName(Args.TempRawFocus);
                 FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',[], 'DestPath', [], 'Level','raw', 'Type','focus');
-% 
-% 
-% 
-%                 switch Args.FocusTreatment
-%                     case 'keep'
-%                         % do nothing
-%                     case 'move'
-%                         FN_Foc   = FileNames.generateFromFileName(Args.TempRawFocus);
-%                         [FN_Foc] = selectBy(FN_Foc, 'Type', {'focus'}, 'CreateNewObj',false);
-% 
-%                         [PathRaw, SubDir] = getArchivePath(FN, '');
-%                         io.files.moveFiles(FN.Foc, [], './', PathRaw);
-% 
-%                     case 'delete'
-%                         FN_Foc   = FileNames.generateFromFileName(Args.TempRawFocus);
-%                         [FN_Foc] = selectBy(FN_Foc, 'Type', {'focus'}, 'CreateNewObj',false);
-%                         % delete focus files
-%                         io.files.delete_cell(FN_Foc.genFile());
-% 
-%                     otherwise
-%                         error('Unknown FocusTreament argument option');
-%                 end
-                
-                
                 
                 % look for new images
                 FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci);
