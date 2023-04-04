@@ -285,8 +285,8 @@ classdef DemonLAST < Component
 
         end
 
-        function [Path, SubDir] = getProcPath(FN, SubDir, Args)
-            % get processed images directory from FileNames object.
+        function [Path, SubDir] = getArchivePath(FN, SubDir, Args)
+            % get archive (proc/raw) images directory from FileNames object.
             % Input  : - A FileNames object containing images from which we
             %            want to find the proc images directory.
             %          - A SubDir indicating additional directory in the
@@ -877,6 +877,12 @@ classdef DemonLAST < Component
                 Args.SortDirection = 'descend';  % analyze last image first
                 Args.AbortFileName = '~/abortPipe';
                 Args.multiRaw2procCoaddArgs = {};
+
+                Args.DeleteSciDayTime logical = false;
+                Args.DeleteSunAlt  = 0;
+
+                Args.FocusTreatment  = 'move';   % 'move'|'keep'|'delete' 
+                Args.TempRawFocus    = '*_focus_raw_*.fits';
             end
             
             % get path
@@ -897,10 +903,38 @@ classdef DemonLAST < Component
                 % prep Master flat
                 Obj.prepMasterFlat();
                 
-                % copy focus images
+                % delete test images taken during daytime
+                if Args.DeleteSciDayTime
+                    deleteDayTimeImages(Obj, 'SunAlt',Args.DeleteSunAlt);
+                end
+
+                % move focus images
+                FN_Foc   = FileNames.generateFromFileName(Args.TempRawFocus);
+                FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',[], 'DestPath', [], 'Level','raw', 'Type','focus');
+% 
+% 
+% 
+%                 switch Args.FocusTreatment
+%                     case 'keep'
+%                         % do nothing
+%                     case 'move'
+%                         FN_Foc   = FileNames.generateFromFileName(Args.TempRawFocus);
+%                         [FN_Foc] = selectBy(FN_Foc, 'Type', {'focus'}, 'CreateNewObj',false);
+% 
+%                         [PathRaw, SubDir] = getArchivePath(FN, '');
+%                         io.files.moveFiles(FN.Foc, [], './', PathRaw);
+% 
+%                     case 'delete'
+%                         FN_Foc   = FileNames.generateFromFileName(Args.TempRawFocus);
+%                         [FN_Foc] = selectBy(FN_Foc, 'Type', {'focus'}, 'CreateNewObj',false);
+%                         % delete focus files
+%                         io.files.delete_cell(FN_Foc.genFile());
+% 
+%                     otherwise
+%                         error('Unknown FocusTreament argument option');
+%                 end
                 
                 
-                % copy test images taken during daytime
                 
                 % look for new images
                 FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci);
