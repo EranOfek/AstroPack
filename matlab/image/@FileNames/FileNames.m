@@ -34,7 +34,9 @@ classdef FileNames < Component
         
         %
         FullPath            = '';
+        
         BasePath            = '/euler1/archive/LAST';
+        BasePathIncludeProjName logical = true;
         SubDir              = '';
         TimeZone            = 2;
         
@@ -715,11 +717,19 @@ classdef FileNames < Component
                     % /euler1/archive/LAST/<ProjName>/2022/12/01/proc
                     % /euler1/archive/LAST/<ProjName>/2022/12/01/proc/1
                     DateDir = getDateDir(Obj, Itime, true);
-                    Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
-                                    Obj.BasePath, filesep, ...
-                                    getProp(Obj, 'ProjName', Itime),...
-                                    DateDir, filesep, ...
-                                    getProp(Obj, 'Level', Itime));
+                    if Obj.BasePathIncludeProjName
+                        % BasePath already include the ProjName
+                        Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
+                                        Obj.BasePath, filesep, ...
+                                        DateDir, filesep, ...
+                                        getProp(Obj, 'Level', Itime));
+                    else
+                        Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
+                                        Obj.BasePath, filesep, ...
+                                        getProp(Obj, 'ProjName', Itime),...
+                                        DateDir, filesep, ...
+                                        getProp(Obj, 'Level', Itime));
+                    end
 
                     if Args.AddSubDir
                         Path{Itime} = sprintf('%s%s%s',Path{Itime},filesep,...
@@ -974,7 +984,7 @@ classdef FileNames < Component
         
         function [Obj, SI] = sortByJD(Obj, Direction)
             % Sort entries in FileNames object by JD
-            % Input  : - A FileNames object.
+            % Input  : - A FileNames object (multi-element possible).
             %          - Sort direction: 'ascend' (default), or 'descend'.
             % Output : - A FileNames object in which the entries are sorted
             %            by JD.
@@ -985,9 +995,13 @@ classdef FileNames < Component
                 Obj
                 Direction = 'ascend';
             end
-            JD = Obj.julday;
-            [~,SI] = sort(JD, Direction);
-            Obj = reorderEntries(Obj, SI);
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                JD = Obj(Iobj).julday;
+                [~,SI] = sort(JD, Direction);
+                Obj(Iobj) = reorderEntries(Obj(Iobj), SI);
+            end
             
         end
         
@@ -1234,6 +1248,15 @@ classdef FileNames < Component
             end
         end
         
+        function Result=nfiles(Obj)
+            % Return number of files in a FileNames object
+            % Input  : - A FileNames object
+            % Output : - Number of files.
+            % Author : Eran Ofek (Apr 2023)
+
+            Result = numel(Obj.Time);
+        end
+
         function moveImages(Obj, Args)
             % move/delete images specified by FileNames object
             % Input  : - A FileNames object.
@@ -1282,7 +1305,7 @@ classdef FileNames < Component
             KEYS_SELECT = {'Product','Type','Level'};
             Nks         = numel(KEYS_SELECT);
 
-            if ~strcmp(Args.Operator, 'keep')
+            if ~strcmp(Args.Operator, 'keep') && nfiles(Obj)>0
 
                 % selectBy keys - do not modify the input object
                 for Iks=1:1:Nks

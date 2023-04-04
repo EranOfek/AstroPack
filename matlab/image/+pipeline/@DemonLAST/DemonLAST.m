@@ -537,7 +537,7 @@ classdef DemonLAST < Component
     end
 
     methods % pipelines
-        function Obj=prepMasterDark(Obj, Args)
+        function [Obj, FN, FN_Master]=prepMasterDark(Obj, Args)
             % prepare master dark images
             %   Given a (D=) pipeline.DemonLAST object select files in either
             %   current dir or D.NewPath, and create master dark images
@@ -570,6 +570,8 @@ classdef DemonLAST < Component
             %            'ClearVar' - Clear the Var image from the
             %                   CalibImages. Default is true.
             % Output : - A pipeline.DemonLAST with updated CI property.
+            %          - FileNames object of raw dark images.
+            %          - FileNames object of proc dark master image.
             %          * Write files to disk
             % Author : Eran Ofek (Apr 2023)
             % Example: D = pipeline.DemonLAST;
@@ -588,6 +590,9 @@ classdef DemonLAST < Component
                 Args.ClearVar logical     = true;
             end
 
+            FN        = [];
+            FN_Master = [];
+            NoImages = false;
             if Args.Repopulate || ~exist(Obj.CI,'Bias',{'Image','Mask'})
                 % create a master Bias
 
@@ -612,83 +617,98 @@ classdef DemonLAST < Component
     
                     % check that the dark images are ready and group by night
                     [Ind, LastJD, DT] = selectLastJD(FN_Dark);
-                    if DT>Args.MinDT
-                        % prep master dark
-                        PrepMaster = true;
-                    else
-                        % wait for more images
-                        PrepMaster = false;
-                    end
-                
-                    if PrepMaster==true
+                    if isempty(Ind)
+                        % no images
                         WaitForMoreImages = false;
+                        NoImages = true;
                     else
-                        pasue(Args.WaitForMoreImages)
+                        if DT>Args.MinDT
+                            % prep master dark
+                            PrepMaster = true;
+                        else
+                            % wait for more images
+                            PrepMaster = false;
+                        end
+                    
+                        if PrepMaster==true
+                            WaitForMoreImages = false;
+                        else
+                            pause(Args.WaitForMoreImages)
+                        end
                     end
                 end
                 
-                % group dark images by time groups
-                [~, FN_Dark_Groups] = groupByCounter(FN_Dark, 'MinInGroup',Args.MinInGroup);
-                
-                Ngr = numel(FN_Dark_Groups);
-                for Igr=1:1:Ngr
-                    DarkList = FN_Dark_Groups(Igr).genFull([]);
-                
-                
-                    % prepare master bias
-                    CI = CalibImages;
+                if ~NoImages
+                    % group dark images by time groups
+                    [~, FN_Dark_Groups] = groupByCounter(FN_Dark, 'MinInGroup',Args.MinInGroup);
                     
-                    CI.createBias(DarkList, 'BiasArgs',Args.BiasArgs);
+                    Ngr = numel(FN_Dark_Groups);
+                    for Igr=1:1:Ngr
+                        DarkList = FN_Dark_Groups(Igr).genFull([]);
+                    
+                    
+                        % prepare master bias
+                        CI = CalibImages;
+                        
+                        CI.createBias(DarkList, 'BiasArgs',Args.BiasArgs);
+        
+                        % save processed bias images in raw/ dir
+                        
+                        %readFromHeader(FN_Dark_Groups(Igr), CI.Bias)
+                        
+                        
+                        %Obj = readFromHeader(, Input, DataProp
+                        
+                        % write file
+                        JD = CI.Bias.julday;
+                        FN_Master = FileNames;
+                        FN_Master.readFromHeader(CI.Bias);
+                        FN_Master.Type     = {'dark'};
+                        FN_Master.Level    = {'proc'};
+                        FN_Master.Product  = {'Image'};
+                        FN_Master.Version  = [1];
+                        FN_Master.FileType = {'fits'};    
+        
+                        % values for LAST dark images
+                        FN_Master.FieldID  = {''};
+                        FN_Master.Counter  = {''};
+                        FN_Master.CCDID    = {''};
+                        FN_Master.CropID   = {''};
+                        FN_Master.ProjName = FN_Dark.ProjName{1};
+        
+        
+                        FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                        write1(CI.Bias, FileN{1}, 'Image');
+                        FN_Master.Product  = {'Mask'};
+                        FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                        write1(CI.Bias, FileN{1}, 'Mask');
+                        FN_Master.Product  = {'Var'};
+                        FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                        write1(CI.Bias, FileN{1}, 'Var');
+                        
+                        % keep in CI.Bias 
+                        Obj.CI.Bias = CI.Bias;
     
-                    % save processed bias images in raw/ dir
-                    
-                    %readFromHeader(FN_Dark_Groups(Igr), CI.Bias)
-                    
-                    
-                    %Obj = readFromHeader(, Input, DataProp
-                    
-                    % write file
-                    JD = CI.Bias.julday;
-                    FN_Master = FileNames;
-                    FN_Master.readFromHeader(CI.Bias);
-                    FN_Master.Type     = {'dark'};
-                    FN_Master.Level    = {'proc'};
-                    FN_Master.Product  = {'Image'};
-                    FN_Master.Version  = [1];
-                    FN_Master.FileType = {'fits'};    
-    
-                    % values for LAST dark images
-                    FN_Master.FieldID  = {''};
-                    FN_Master.Counter  = {''};
-                    FN_Master.CCDID    = {''};
-                    FN_Master.CropID   = {''};
-                    FN_Master.ProjName = FN_Dark.ProjName{1};
-    
-    
-                    FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                    write1(CI.Bias, FileN{1}, 'Image');
-                    FN_Master.Product  = {'Mask'};
-                    FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                    write1(CI.Bias, FileN{1}, 'Mask');
-                    FN_Master.Product  = {'Var'};
-                    FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                    write1(CI.Bias, FileN{1}, 'Var');
-                    
-                    % keep in CI.Bias 
-                    Obj.CI.Bias = CI.Bias;
-
-                    if Args.ClearVar
-                        Obj.CI.Bias.Var = [];
+                        if Args.ClearVar
+                            Obj.CI.Bias.Var = [];
+                        end
+                        
                     end
-                    
                 end
             else
-                % no need to create a Master bias - already exist
+                % no need to create a Master bias - already exist       
+                % read master image from disk
+                Obj = Obj.loadCalib('ReadProduct',{'Bias'});
+            end
+
+            % check that was able to read master image
+            if ~Obj.CI.exist('Bias')
+                error('No Bias image found - can not run pipeline');
             end
             
         end
         
-        function Obj=prepMasterFlat(Obj, Args)
+        function [Obj, FN, FN_Master]=prepMasterFlat(Obj, Args)
             % prepare master flat images
             %   Given a (D=) pipeline.DemonLAST object select files in either
             %   current dir or D.NewPath, and create master flat images
@@ -724,6 +744,8 @@ classdef DemonLAST < Component
             %            'ClearVar' - Clear the Var image from the
             %                   CalibImages. Default is true.
             % Output : - A pipeline.DemonLAST with updated CI property.
+            %          - FileNames object of raw flat images.
+            %          - FileNames object of proc flat master image.
             %          * Write files to disk
             % Author : Eran Ofek (Apr 2023)
             % Example: D = pipeline.DemonLAST;
@@ -748,6 +770,9 @@ classdef DemonLAST < Component
                 error('Can not execute prepMasterFlat without bias/dark images');
             end
 
+            FN        = [];
+            FN_Master = [];
+            NoImages = false;
             if Args.Repopulate || ~exist(Obj.CI,'Flat',{'Image','Mask'})
                 % create a master Flat
 
@@ -772,79 +797,96 @@ classdef DemonLAST < Component
     
                     % check that the dark images are ready and group by night
                     [Ind, LastJD, DT] = selectLastJD(FN_Flat);
-                    if DT>Args.MinDT
-                        % prep master dark
-                        PrepMaster = true;
-                    else
-                        % wait for more images
-                        PrepMaster = false;
-                    end
-                
-                    if PrepMaster==true
+                    if isempty(Ind)
+                        % no images
                         WaitForMoreImages = false;
+                        NoImages = true;
                     else
-                        pasue(Args.WaitForMoreImages)
+                        if DT>Args.MinDT
+                            % prep master dark
+                            PrepMaster = true;
+                        else
+                            % wait for more images
+                            PrepMaster = false;
+                        end
+                    
+                        if PrepMaster==true
+                            WaitForMoreImages = false;
+                        else
+                            pause(Args.WaitForMoreImages)
+                        end
                     end
                 end
                 
                 % group flat images time
 
-                [~, FN_Flat_Groups] = groupByTimeGaps(FN_Flat, 'MinInGroup',Args.MinInGroup);
-                
-                Ngr = numel(FN_Flat_Groups);
-                for Igr=1:1:Ngr
-                    FlatList = FN_Flat_Groups(Igr).genFull([]);
-                
-                
-                    % prepare master flat
-                    
-                    % read the images
-                    AI = AstroImage(FlatList);
+                if ~NoImages
 
-                    % subtract bias/dark
-                    AI = imProc.dark.debias(AI, Obj.CI.Bias, Args.debiasArgs{:});
-
-                    CI = CalibImages;
+                    [~, FN_Flat_Groups] = groupByTimeGaps(FN_Flat, 'MinInGroup',Args.MinInGroup);
                     
-                    CI.createFlat(AI, 'FlatArgs',Args.FlatArgs);
-    
-                    % write file
-                    JD = CI.Flat.julday;
-                    FN_Master = FileNames;
-                    FN_Master.readFromHeader(CI.Flat);
-                    FN_Master.Type     = {'twflat'};
-                    FN_Master.Level    = {'proc'};
-                    FN_Master.Product  = {'Image'};
-                    FN_Master.Version  = [1];
-                    FN_Master.FileType = {'fits'};    
-    
-                    % values for LAST dark images
-                    FN_Master.FieldID  = {''};
-                    FN_Master.Counter  = {''};
-                    FN_Master.CCDID    = {''};
-                    FN_Master.CropID   = {''};
-                    FN_Master.ProjName = FN_Flat.ProjName{1};
-    
-    
-                    FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                    write1(CI.Flat, FileN{1}, 'Image');
-                    FN_Master.Product  = {'Mask'};
-                    FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                    write1(CI.Flat, FileN{1}, 'Mask');
-                    FN_Master.Product  = {'Var'};
-                    FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                    write1(CI.Flat, FileN{1}, 'Var');
+                    Ngr = numel(FN_Flat_Groups);
+                    for Igr=1:1:Ngr
+                        FlatList = FN_Flat_Groups(Igr).genFull([]);
                     
-                    % keep in CI.Bias 
-                    Obj.CI.Flat = CI.Flat;
                     
-                    if Args.ClearVar
-                        Obj.CI.Flat.Var = [];
+                        % prepare master flat
+                        
+                        % read the images
+                        AI = AstroImage(FlatList);
+    
+                        % subtract bias/dark
+                        AI = imProc.dark.debias(AI, Obj.CI.Bias, Args.debiasArgs{:});
+    
+                        CI = CalibImages;
+                        
+                        CI.createFlat(AI, 'FlatArgs',Args.FlatArgs);
+        
+                        % write file
+                        JD = CI.Flat.julday;
+                        FN_Master = FileNames;
+                        FN_Master.readFromHeader(CI.Flat);
+                        FN_Master.Type     = {'twflat'};
+                        FN_Master.Level    = {'proc'};
+                        FN_Master.Product  = {'Image'};
+                        FN_Master.Version  = [1];
+                        FN_Master.FileType = {'fits'};    
+        
+                        % values for LAST dark images
+                        FN_Master.FieldID  = {''};
+                        FN_Master.Counter  = {''};
+                        FN_Master.CCDID    = {''};
+                        FN_Master.CropID   = {''};
+                        FN_Master.ProjName = FN_Flat.ProjName{1};
+        
+        
+                        FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                        write1(CI.Flat, FileN{1}, 'Image');
+                        FN_Master.Product  = {'Mask'};
+                        FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                        write1(CI.Flat, FileN{1}, 'Mask');
+                        FN_Master.Product  = {'Var'};
+                        FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                        write1(CI.Flat, FileN{1}, 'Var');
+                        
+                        % keep in CI.Bias 
+                        Obj.CI.Flat = CI.Flat;
+                        
+                        if Args.ClearVar
+                            Obj.CI.Flat.Var = [];
+                        end
                     end
                 end
             else
                 % no need to create a Master bias - already exist
+                % read master image from disk
+                Obj = Obj.loadCalib('ReadProduct',{'Flat'});
             end
+
+            % check that was able to read master image
+            if ~Obj.CI.exist('Flat')
+                error('No Flat image found - can not run pipeline');
+            end
+            
 
         end
         
@@ -855,6 +897,8 @@ classdef DemonLAST < Component
             %            'CalibPath' - A path to the calib images. If
             %                   empty, use the object CalibPath property.
             %                   Default is [].
+            %            'ReadProduct' - A cell array of products to read.
+            %                   Default is {'bias','flat'}.
             %            'BiasTemplate' - File name template of bias images.
             %                   Default is '*dark_proc_Image*.fits'.
             %            'FlatTemplate' - File name template of flat images.
@@ -872,6 +916,7 @@ classdef DemonLAST < Component
             arguments
                 Obj
                 Args.CalibPath       = [];
+                Args.ReadProduct     = {'bias','flat'}
                 Args.BiasTemplate    = '*dark_proc_Image*.fits';
                 Args.FlatTemplate    = '*twflat_proc_Image*.fits';
                 Args.AddImages       = {'Mask'};
@@ -885,14 +930,18 @@ classdef DemonLAST < Component
             end
 
             % read latest bias image
-            FN_Bias = FileNames.generateFromFileName(Args.BiasTemplate);
-            [~,~,~,FN_Bias] = FN_Bias.selectLastJD;
-            Obj.CI.Bias = AstroImage.readFileNames(FN_Bias, 'AddProduct',Args.AddImages);
+            if ismember('bias',lower(Args.ReadProduct))
+                FN_Bias = FileNames.generateFromFileName(Args.BiasTemplate);
+                [~,~,~,FN_Bias] = FN_Bias.selectLastJD;
+                Obj.CI.Bias = AstroImage.readFileNames(FN_Bias, 'AddProduct',Args.AddImages);
+            end
 
             % read latest flat image
-            FN_Flat = FileNames.generateFromFileName(Args.FlatTemplate);
-            [~,~,~,FN_Flat] = FN_Flat.selectLastJD;
-            Obj.CI.Flat = AstroImage.readFileNames(FN_Flat, 'AddProduct',Args.AddImages);
+            if ismember('flat',lower(Args.ReadProduct))
+                FN_Flat = FileNames.generateFromFileName(Args.FlatTemplate);
+                [~,~,~,FN_Flat] = FN_Flat.selectLastJD;
+                Obj.CI.Flat = AstroImage.readFileNames(FN_Flat, 'AddProduct',Args.AddImages);
+            end
 
             % Read linearity file
             % Result = populateLinearity(Obj.CI, Name, Args)
@@ -907,7 +956,7 @@ classdef DemonLAST < Component
             %
             % Example: cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/new
             %          D=pipeline.DemonLAST;
-            %          D.setPath('/raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/')
+            %          D.setPath('/raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02')
             %
 
             arguments
@@ -939,19 +988,22 @@ classdef DemonLAST < Component
             PWD = pwd;
             cd(NewPath);
 
-            FN_All   = FileNames.generateFromFileName('*.fits');
-            Result   = getValFromFileName(File,Prop)
-
-            GUI_Text = sprintf('Abort : Pipeline : %d.%s%d', Obj.Node, MountNumberStr, CameraNumber);
+            
+            GUI_Text = sprintf('Abort : Pipeline');
             StopGUI  = tools.gui.stopButton('Msg',GUI_Text);
     
             Cont = true;
             while Cont
                 % prep Master dark
-                Obj.prepMasterDark();
+                [Obj, FN_Dark] = Obj.prepMasterDark();
+                % move dark images to raw/ dir
+                FN_Dark.BasePath = BasePath;
+                FN_Dark.FullPath = [];
+                % copy files to: FN_Dark.genPath();
                 
                 % prep Master flat
-                Obj.prepMasterFlat();
+                [Obj, FN_Flat] = Obj.prepMasterFlat();
+                % move flat images to raw/ dir
                 
                 % delete test images taken during daytime
                 if Args.DeleteSciDayTime
@@ -963,7 +1015,7 @@ classdef DemonLAST < Component
                 FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',[], 'DestPath', [], 'Level','raw', 'Type','focus');
                 
                 % look for new images
-                FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci);
+                FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci, 'Dir',false);
                 [FN_Sci] = selectBy(FN_Sci, 'Product', 'Image', 'CreateNewObj',false);
                 [FN_Sci] = selectBy(FN_Sci, 'Type', {'sci','science'}, 'CreateNewObj',false);
                 [FN_Sci] = selectBy(FN_Sci, 'Level', 'raw', 'CreateNewObj',false);
@@ -977,7 +1029,7 @@ classdef DemonLAST < Component
                     % set the proc image directory
                     FN_Sci_Groups(Igroup).BasePath = BasePath;
 
-                    ProcPath = FN_Sci_Groups(Igroup).genPath();
+                    RawPath = FN_Sci_Groups(Igroup).genPath();
 
 
                     % call visit pipeline
