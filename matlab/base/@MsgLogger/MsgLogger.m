@@ -167,7 +167,9 @@ classdef MsgLogger < handle
                     'MaxFileSize', Args.MaxFileSize);
             end
             
-            Obj.Syslog = io.Syslog();     % How to get our progname?
+            if isunix
+                Obj.Syslog = io.Syslog();
+            end
             
         end
     end
