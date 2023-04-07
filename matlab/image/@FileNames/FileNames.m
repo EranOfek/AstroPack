@@ -34,7 +34,9 @@ classdef FileNames < Component
         
         %
         FullPath            = '';
+        
         BasePath            = '/euler1/archive/LAST';
+        BasePathIncludeProjName logical = true;
         SubDir              = '';
         TimeZone            = 2;
         
@@ -715,11 +717,19 @@ classdef FileNames < Component
                     % /euler1/archive/LAST/<ProjName>/2022/12/01/proc
                     % /euler1/archive/LAST/<ProjName>/2022/12/01/proc/1
                     DateDir = getDateDir(Obj, Itime, true);
-                    Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
-                                    Obj.BasePath, filesep, ...
-                                    getProp(Obj, 'ProjName', Itime),...
-                                    DateDir, filesep, ...
-                                    getProp(Obj, 'Level', Itime));
+                    if Obj.BasePathIncludeProjName
+                        % BasePath already include the ProjName
+                        Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
+                                        Obj.BasePath, filesep, ...
+                                        DateDir, filesep, ...
+                                        getProp(Obj, 'Level', Itime));
+                    else
+                        Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
+                                        Obj.BasePath, filesep, ...
+                                        getProp(Obj, 'ProjName', Itime),...
+                                        DateDir, filesep, ...
+                                        getProp(Obj, 'Level', Itime));
+                    end
 
                     if Args.AddSubDir
                         Path{Itime} = sprintf('%s%s%s',Path{Itime},filesep,...
@@ -972,17 +982,26 @@ classdef FileNames < Component
             
         end
         
-        function [Obj, SI] = sortByJD(Obj)
+        function [Obj, SI] = sortByJD(Obj, Direction)
             % Sort entries in FileNames object by JD
-            % Input  : - A FileNames object.
+            % Input  : - A FileNames object (multi-element possible).
+            %          - Sort direction: 'ascend' (default), or 'descend'.
             % Output : - A FileNames object in which the entries are sorted
             %            by JD.
             %          - A vector of sorted indices.
             % Author : Eran Ofek (Dec 2022)
             
-            JD = Obj.julday;
-            [~,SI] = sort(JD);
-            Obj = reorderEntries(Obj, SI);
+            arguments
+                Obj
+                Direction = 'ascend';
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                JD = Obj(Iobj).julday;
+                [~,SI] = sort(JD, Direction);
+                Obj(Iobj) = reorderEntries(Obj(Iobj), SI);
+            end
             
         end
         
@@ -1028,6 +1047,8 @@ classdef FileNames < Component
             %            or a numeric vector of [min max]. In the latter,
             %            will select all values within range.
             %          * ...,key,val,...
+            %            'SelectNotVal' - Select files which are not the
+            %                   required val. Default is false.
             %            'CreateNewObj' - A logical indicating if to create
             %                   a new copy of the input object.
             %                   Default is true.
@@ -1040,6 +1061,7 @@ classdef FileNames < Component
                 Obj
                 PropName char               = 'Product';
                 PropVal                     = 'Image';
+                Args.SelectNotVal logical   = false;   
                 Args.CreateNewObj logical   = true;
             end
             
@@ -1069,6 +1091,10 @@ classdef FileNames < Component
                 error('PropVal must be either a char array or numeric');
             end
             
+            if Args.SelectNotVal
+                Flag = ~Flag;
+            end
+
             Nt     = numel(Obj.Time);
             Flag   = Flag(:).' | false(1,Nt);
             Result = reorderEntries(Result, Flag);
@@ -1138,13 +1164,77 @@ classdef FileNames < Component
             end
         end
         
-        function [Ind, LastJD, DT]=selectLastJD(Obj)
+        function [Groups, Result] = groupByTimeGaps(Obj, Args)
+            % Group FileNames images by groups seperated by some time gaps.
+            %   The input object will be sorted by time.
+            % Input  : - A FileNames object.
+            %          * ...,key,val,...
+            %            'TimeGap' - The minimum time gaps between observations
+            %                   that will result in sepeartion into a
+            %                   group. Default is 1./24 [day].
+            %            'MinInGroup' - Minimum number of files in a group.
+            %                   Groups with less images will be removed.
+            %                   Default is 5.
+            % Output : - A structure array of groups, with the following
+            %            fields:
+            %            .I1 - start index.
+            %            .I2 - end index.
+            %            .Ind - Vector of all indices.
+            %            .N - Number of elements
+            %          - A FileNames object with element per group.
+            % Author : Eran Ofek (Apr 2023)
+
+
+            arguments
+                Obj
+                Args.TimeGap      = [1./24];  % smallest time gap [day]
+                Args.MinInGroup   = 5;
+            end
+
+            % sort FileNames object by JD
+            Obj = sortByJD(Obj);
+
+            JD = Obj.julday;
+
+            Gaps = [Inf; diff(JD(:))];
+
+            Flag = Gaps>Args.TimeGap;
+
+            N        = numel(JD);
+            I1       = find(Flag);
+            I2       = [I1(2:end); N];
+            Ngr      = numel(I1);
+            K = 0;
+            for Igr=1:1:Ngr
+                Ind = (I1(Igr):I2(Igr));
+                if numel(Ind)>=Args.MinInGroup
+                    K = K + 1;
+
+                    Groups(K).I1 = I1(Igr);
+                    Groups(K).I2 = I2(Igr);
+                    Groups(K).Ind = Ind;
+                    Groups(K).N   = numel(Ind);
+                end
+            end
+            Ngr = numel(Groups);
+
+            if nargout>1
+                Result = FileNames(Ngr);
+                for Igr=1:1:Ngr
+                    Result(Igr) = Obj.reorderEntries(Groups(Igr).Ind, 'CreateNewObj',true);
+                end
+            end
+
+        end
+
+        function [Ind, LastJD, DT, Result]=selectLastJD(Obj)
             % Return index of image with largest JD
             % Input  : - A FileNames object
             % Output : - Index of image with largest JD
             %          - JD of image with largest JD
             %          - Time elpased since image with largest JD was taken
             %            I.e., CurrentJD - LastJD [days].
+            %          - A FileNames object with the image with latest JD.
             % Author : Eran Ofek (Mar 2023)
             
             JD = Obj.julday;
@@ -1153,11 +1243,105 @@ classdef FileNames < Component
                 DT = celestial.time.julday - LastJD;
             end
             
+            if nargout>3
+                Result = reorderEntries(Obj, Ind, 'CreateNewObj',true);
+            end
         end
         
-        
-        
-        
+        function Result=nfiles(Obj)
+            % Return number of files in a FileNames object
+            % Input  : - A FileNames object
+            % Output : - Number of files.
+            % Author : Eran Ofek (Apr 2023)
+
+            Result = numel(Obj.Time);
+        end
+
+        function moveImages(Obj, Args)
+            % move/delete images specified by FileNames object
+            % Input  : - A FileNames object.
+            %          * ...,key,val,...
+            %            'SrcPath' - The path name of the source files to
+            %                   move or delete. If empty, then use current
+            %                   directory. Default is [].
+            %            'DestPath' - The path name of the files
+            %                   destination. If empty, then use the genPath
+            %                   method to construct the path.
+            %                   Default is [].
+            %            'Operator' - Options are:
+            %                   'move' - move files.
+            %                   'delete' - delete files.
+            %                   'keep' - do nothing.
+            %                   Default is 'move'.
+            %            'OutName' - A cell array of optional file names in
+            %                   the destination. If empty, then use source
+            %                   file names. Default is [].
+            %            'Product' - Select only file names of this
+            %                   product (e.g. 'Image' | 'Mask' | ...).
+            %                   If empty, do not use this selection.
+            %                   Default is [].
+            %            'Type' - Select only file names of this
+            %                   type (e.g. 'sci' | 'twflat' | ...).
+            %                   If empty, do not use this selection.
+            %                   Default is [].
+            %            'Level' - Select only file names of this
+            %                   level (e.g. 'proc' | 'raw' | ...).
+            %                   If empty, do not use this selection.
+            %                   Default is [].
+            % Output : null
+            % Author : Eran Ofek (Apr 2023)
+
+            arguments
+                Obj
+                Args.SrcPath      = []; % if empty, use pwd
+                Args.DestPath     = []; % if empty use genPath
+                Args.Operator     = 'move';   % 'move'|'delete'
+                Args.OutName      = [];
+                Args.Product      = [];
+                Args.Type         = [];
+                Args.Level        = [];
+            end
+
+            KEYS_SELECT = {'Product','Type','Level'};
+            Nks         = numel(KEYS_SELECT);
+
+            if ~strcmp(Args.Operator, 'keep') && nfiles(Obj)>0
+
+                % selectBy keys - do not modify the input object
+                for Iks=1:1:Nks
+                    if ~isempty(Args.(KEYS_SELECT{Iks}))
+                        Obj = Obj.selectBy(KEYS_SELECT{Iks}, Args.(KEYS_SELECT{Iks}), 'CreateNewObj',true, 'SelectNotVal',false);
+                    end
+                end
+
+                if isempty(Args.SrcPath)
+                    SrcPath = pwd;
+                else
+                    SrcPath = Args.SrcPath;
+                end
+    
+                if isempty(Args.DestPath)
+                    DestPath = Obj.genPath;
+                else
+                    DestPath = Args.DestPath;
+                end                
+    
+                switch Args.Operator
+                    case 'move'
+                        io.files.moveFiles(FN.genFile(), Args.OutName, SrcPath, DestPath);
+                    case 'delete'
+                        PWD = pwd;
+                        cd(SrcPath);
+                        io.files.delete_cell(FN.genFile());
+                        cd(PWD);
+                    case 'copy'
+                        error('copy not yet implemented');
+                    otherwise
+                        error('Unknown Operator argument option');
+                end
+            end
+        end
+         
         
         
         
