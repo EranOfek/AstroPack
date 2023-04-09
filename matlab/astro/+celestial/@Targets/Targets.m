@@ -85,7 +85,8 @@ classdef Targets < Component
         
         PriorityArgs               = struct('InterNightCadence',40./1440,...
                                             'CadenceFun',@celestial.scheduling.fermiexp,...  
-                                            'CadeneFunArgs',{1.4, 1, 0.03, 1, 0.5});  %t0,Decay,Soft,BaseW,ExtraW)
+                                            'CadeneFunArgs',{1.4, 1, 0.03, 1, 0.5},...
+                                            'DeadTime',30);  %t0,Decay,Soft,BaseW,ExtraW)
                                                     
         %LastJD
         %GlobalCounter              = 0;
@@ -872,6 +873,71 @@ classdef Targets < Component
     end
     
     methods % weights and priority
+        function [Obj, P, Ind]=cadence_fields_cont(Obj, JD)
+            % Implement "fields_cont" cadence
+            %   Given a list of selected fields - observe each field
+            %   continously for X hours during Y night
+            % Input  : - A celestial.Targets object.
+            %          - JD.
+            % Output : - The updated celestial.Targets object.
+            %          - Priority for all targets.
+            %          - Index of target with highest priority.
+            % Author : Eran Ofek (Apr 2023)
+            
+            SEC_DAY = 86400;
+
+            
+            MaxNnight = 1;
+            Nfind = 1;
+            DeadTime  = Obj.PriorityArgs.DeadTime;  % [s]
+            UsePriority = true;
+
+            TimeOnTarget = Obj.ExpTime.*Obj.NperVisit + DeadTime;
+
+
+            Priority         = Obj.Priority;
+
+
+            GlobalCounter    = Obj.GlobalCounter;
+            NightCounter     = Obj.NightCounter;
+            [VisibilityTime] = leftVisibilityTime(Obj, JD);
+            FlagVisible      = VisibilityTime.*SEC_DAY > TimeOnTarget;
+
+            FlagObserve      = GlobalCounter<Obj.MaxNobs & ...
+                               NightCounter<MaxNnight & ...
+                               Priority>0 & ...
+                               FlagVisible;
+
+            UniquePriority   = sort(unique(Priority),'descend');
+            Nup              = numel(UniquePriority);
+            MinI             = NaN;
+            for Iup=1:1:Nup
+                %
+                Flag = FlagObserve & Priority==UniquePriority(Iup);
+
+                if sum(Flag)>0
+                    VisibilityTimeP = VisibilityTime;
+
+                    VisibilityTimeP(VisibilityTimeP==0) = NaN;
+                    VisibilityTimeP(~Flag)      = NaN;
+
+                    [~,MinI] = min(VisibilityTimeP);
+                    if ~isnan(MinI)
+                        break;
+                    end
+                end
+            end
+
+            % MinI contains the found target index
+            Ind = MinI;
+            P   = Priority;
+            P(Ind) = P(Ind) + 1;
+
+            
+            
+        end
+        
+        
         function [Obj, P, Ind] = calcPriority(Obj, JD, CadenceMethod)
             % Calculate priority for targets in celestial.Targets object.
             %
@@ -913,54 +979,9 @@ classdef Targets < Component
                 case 'fields_cont'
                     % Given a list of selected fields - observe each field
                     % continously for X hours during Y night
-
-                    MaxNnight = 1;
-                    Nfind = 1;
-                    DeadTime  = 60;  % [s]
-                    UsePriority = true;
-
-                    TimeOnTarget = Obj.ExpTime.*Obj.NperVisit + DeadTime;
-
-
-                    Priority         = Obj.Priority;
-
                     
-                    GlobalCounter    = Obj.GlobalCounter;
-                    NightCounter     = Obj.NightCounter;
-                    [VisibilityTime] = leftVisibilityTime(Obj, JD);
-                    FlagVisible      = VisibilityTime.*SEC_DAY > TimeOnTarget;
+                    [Obj, P, Ind] = Obj.cadence_fields_cont(JD);
 
-                    FlagObserve      = GlobalCounter<Obj.MaxNobs & ...
-                                       NightCounter<MaxNnight & ...
-                                       Priority>0 & ...
-                                       FlagVisible;
-
-                    
-                    
-                    UniquePriority   = sort(unique(Priority),'descend');
-                    Nup              = numel(UniquePriority);
-                    MinI             = NaN;
-                    for Iup=1:1:Nup
-                        %
-                        Flag = FlagObserve & Priority==UniquePriority(Iup);
-                        
-                        if sum(Flag)>0
-                            VisibilityTimeP = VisibilityTime;
-
-                            VisibilityTimeP(VisibilityTimeP==0) = NaN;
-                            VisibilityTimeP(~Flag)      = NaN;
-
-                            [~,MinI] = min(VisibilityTimeP);
-                            if ~isnan(MinI)
-                                break;
-                            end
-                        end
-                    end
-                    
-                    % MinI contains the found target index
-                    Ind = MinI;
-                    P   = Priority;
-                    P(Ind) = P(Ind) + 1;
 
                 case 'periodic'
                     
