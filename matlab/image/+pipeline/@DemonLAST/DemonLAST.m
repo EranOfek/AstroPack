@@ -1026,19 +1026,19 @@ classdef DemonLAST < Component
                 for Igroup=1:1:Ngroup
                     
                 
-                    % set the proc image directory
-                    FN_Sci_Groups(Igroup).BasePath = BasePath;
+                    
 
                     % GOT HERE - there is a confusion with the path name...
 
-                    ImageList = FN_Sci_Groups(Igroup).genFull;
+                    RawImageList = FN_Sci_Groups(Igroup).genFull('FullPath',NewPath);
 
-                    RawPath = FN_Sci_Groups(Igroup).genPath();
+                    % set the proc image directory
+                    FN_Sci_Groups(Igroup).BasePath = BasePath;
 
-
+                    
                     % call visit pipeline
                     tic;
-                    pipeline.generic.multiRaw2procCoadd(ImageList, 'CalibImages',Obj.CI,...
+                    pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
                                                                    Args.multiRaw2procCoaddArgs{:},...
                                                                    'SubDir',NaN,...
                                                                    'BasePath', Args.BaseArchive);
