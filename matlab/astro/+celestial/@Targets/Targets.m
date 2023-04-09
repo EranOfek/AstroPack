@@ -882,7 +882,7 @@ classdef Targets < Component
             % Output : - The updated celestial.Targets object.
             %          - Priority for all targets.
             %          - Index of target with highest priority.
-            % Author : Eran Ofek (Apr 2023)
+            % Author : Eran Ofek (Jan 2023)
             
             SEC_DAY = 86400;
 
@@ -937,6 +937,39 @@ classdef Targets < Component
             
         end
         
+        function [Obj, P, Ind]=cadence_west2east(Obj, JD)
+            % Implement the "west2east" cadence.
+            %   priortize targets by the left visibility time,
+            %   where the highest priority target is the one with the
+            %   shortest visibility time above the Obj.MinNightlyVisibility
+            % Input  : - A celestial.Targets object.
+            %          - JD.
+            % Output : - The updated celestial.Targets object.
+            %          - Priority for all targets.
+            %          - Index of target with highest priority.
+            % Author : Eran Ofek (Jan 2023)
+            
+            VisibilityTime = leftVisibilityTime(Obj, JD);
+            % for all above min visibility time, sort by lowest to
+            % highest
+            Npr = 200;
+            Obj.Priority = zeros(Ntarget,1);
+            Obj.Priority(VisibilityTime > Obj.VisibilityArgs.MinNightlyVisibility) = 1;
+
+            VisibilityTime(Obj.GlobalCounter > Obj.MaxNobs) = 0;
+
+            [~,SI] = sort(VisibilityTime);
+            Iv     = find(VisibilityTime > Obj.VisibilityArgs.MinNightlyVisibility, Npr, 'first');
+            Nv     = numel(Iv);
+            Obj.Priority(SI(Iv)) = 2 - ((1:1:Nv)' - 1)./(Npr+1);
+
+            Obj.Priority(Obj.GlobalCounter > Obj.MaxNobs) = 0;
+
+            P = Obj.Priority;
+            [~,Ind] = max(P);
+        end
+        
+                    
         
         function [Obj, P, Ind] = calcPriority(Obj, JD, CadenceMethod)
             % Calculate priority for targets in celestial.Targets object.
@@ -982,11 +1015,6 @@ classdef Targets < Component
                     
                     [Obj, P, Ind] = Obj.cadence_fields_cont(JD);
 
-
-                case 'periodic'
-                    
-                case 'continues'
-                    
                 case 'predefined'
                     
                 case 'survey'
@@ -1003,60 +1031,12 @@ classdef Targets < Component
 %                     W = Obj.PriorityArgs.CadenceFun(t, Obj.PriorityArgs.CadeneFunArgs{:});
                         
                     
-                    
-                    
-                    
-                case 'cycle'
-                    % prioritize targets by cycling through a list.
-                    % The highest priority is set by the target with lowest
-                    % number of previous visits and the shortest visibility
-                    % time.
-                    
-                    VisibilityTime = leftVisibilityTime(Obj, JD);
-                    Active         = Obj.MaxNobs(:)>0;
-                    
-                    Npr = 200;
-                    Priority = zeros(Ntarget,1);
-                    
-                    
-
-                    Priority(VisibilityTime > Obj.VisibilityArgs.MinNightlyVisibility) = 1;
-                    
-                    Priority = Priority .* Active;
-                    Priority(Obj.GlobalCounter > Obj.MaxNobs) = 0;
-                    
-                    
-
-                    [~,SI] = sortrows([Active, Obj.GlobalCounter, VisibilityTime],[-1 2 3]);
-                    Active = Active(SI);
-                    N = numel(SI);
-
-                    Priority(SI) = Priority(SI) .* (1 + (N:-1:1).'.*0.01).*Active;
-                    
-
-                    Obj = setTableProp(Obj, 'Priority', Priority, []);
-
-
                 case 'west2east'
                     % priortize targets by the left visibility time,
                     % where the highest priority target is the one with the
                     % shortest visibility time above the Obj.MinNightlyVisibility
-                    %
-                    VisibilityTime = leftVisibilityTime(Obj, JD);
-                    % for all above min visibility time, sort by lowest to
-                    % highest
-                    Npr = 200;
-                    Obj.Priority = zeros(Ntarget,1);
-                    Obj.Priority(VisibilityTime > Obj.VisibilityArgs.MinNightlyVisibility) = 1;
-                                        
-                    VisibilityTime(Obj.GlobalCounter > Obj.MaxNobs) = 0;
                     
-                    [~,SI] = sort(VisibilityTime);
-                    Iv     = find(VisibilityTime > Obj.VisibilityArgs.MinNightlyVisibility, Npr, 'first');
-                    Nv     = numel(Iv);
-                    Obj.Priority(SI(Iv)) = 2 - ((1:1:Nv)' - 1)./(Npr+1);
-                    
-                    Obj.Priority(Obj.GlobalCounter > Obj.MaxNobs) = 0;
+                    [Obj, P, Ind]=cadence_west2east(Obj, JD);
                     
                 otherwise
                     error('Unknown CadenceMethod option');
