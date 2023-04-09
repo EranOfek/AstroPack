@@ -167,7 +167,7 @@ classdef MsgLogger < handle
                     'MaxFileSize', Args.MaxFileSize);
             end
             
-            if isunix
+            if isunix && license('test', 'instr_control_toolbox')
                 Obj.Syslog = io.Syslog();
             end
             
