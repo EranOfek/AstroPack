@@ -660,6 +660,8 @@ classdef FileNames < Component
             % Generate path for FileNames object.
             %       If the FullPath [property in the object is populated
             %       than it is returned.
+            %       If FullPath or BasePath are given then they are used
+            %       but not propagated to the object.
             % Input  : - A FileNames object.
             %          - Index of time stamp in the object for which to
             %            generate the path. If empty, then for all (slow).
@@ -698,14 +700,20 @@ classdef FileNames < Component
             end
             
             if ~isempty(Args.BasePath)
-                Obj.BasePath = Args.BasePath;
+                %Obj.BasePath = Args.BasePath;
+                BasePath = Args.BasePath;
+            else
+                BasePath = Obj.BasePath;
             end
 
             if ~isempty(Args.FullPath)
-                Obj.FullPath = Args.FullPath;
+                %Obj.FullPath = Args.FullPath;
+                FullPath = Args.FullPath;
+            else
+                FullPath = Obj.FullPath;
             end
             
-            if isempty(Obj.FullPath)
+            if isempty(FullPath)
                 Path = cell(Ntime,1);
                 for Itime=1:1:Ntime
                     if ~isempty(Ind)
@@ -720,12 +728,12 @@ classdef FileNames < Component
                     if Obj.BasePathIncludeProjName
                         % BasePath already include the ProjName
                         Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
-                                        Obj.BasePath, filesep, ...
+                                        BasePath, filesep, ...
                                         DateDir, filesep, ...
                                         getProp(Obj, 'Level', Itime));
                     else
                         Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
-                                        Obj.BasePath, filesep, ...
+                                        BasePath, filesep, ...
                                         getProp(Obj, 'ProjName', Itime),...
                                         DateDir, filesep, ...
                                         getProp(Obj, 'Level', Itime));
@@ -738,7 +746,7 @@ classdef FileNames < Component
                 end
 
             else
-                Path = {Obj.FullPath};
+                Path = {FullPath};
             end
 
             if Args.ReturnChar && numel(Path)==1
