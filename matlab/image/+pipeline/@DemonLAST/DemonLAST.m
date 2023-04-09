@@ -1024,10 +1024,14 @@ classdef DemonLAST < Component
                 Ngroup = numel(FN_Sci_Groups);
                 
                 for Igroup=1:1:Ngroup
-                    ImageList = FN_Sci_Groups(Igroup).genFull;
+                    
                 
                     % set the proc image directory
                     FN_Sci_Groups(Igroup).BasePath = BasePath;
+
+                    % GOT HERE - there is a confusion with the path name...
+
+                    ImageList = FN_Sci_Groups(Igroup).genFull;
 
                     RawPath = FN_Sci_Groups(Igroup).genPath();
 

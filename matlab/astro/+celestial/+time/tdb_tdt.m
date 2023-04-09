@@ -8,7 +8,7 @@ function Diff=tdb_tdt(JD)
 % Tested : Matlab 5.3
 %     By : Eran O. Ofek                    Jun 2000
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: Diff=celestial.time.tdb_tdt(julday([1 1 2000]));
+% Example: Diff=celestial.time.tdb_tdt(celestial.time.julday([1 1 2000]));
 % Reliable: 2
 %-----------------------------------------------------------------------
 
