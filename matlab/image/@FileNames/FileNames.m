@@ -1350,10 +1350,48 @@ classdef FileNames < Component
             end
         end
          
+        function Obj=updateIfNotEmpty(Obj, Args)
+            % Update FileNames properties if provided and not empty
+            % Input  : - A FileNames object.
+            %          * ...,key,val,...
+            %            Any of the properties of FileNames (e.g.,
+            %            'ProjName, Time, ..., SubDir).
+            %            If proprty is not given or empty, then it will not
+            %            be updated with the provided value.
+            % Output : - An updated FileNames object.
+            % Author : Eran Ofek (Apr 2023)
+            
+            arguments
+                Obj
+                Args.ProjName = [];
+                Args.Time     = [];
+                Args.Filter   = [];
+                Args.FieldID  = [];
+                Args.Counter  = [];
+                Args.CCDID    = [];
+                Args.CropID   = [];
+                Args.Type     = [];
+                Args.Level    = [];
+                Args.Product  = [];
+                Args.Version  = [];
+                Args.FileType = [];
+                Args.FullPath = [];
+                Args.BasePath = [];
+                Args.SubDir   = [];
+            end
         
-        
-        
-        
+            Fields = fieldnames(Args);
+            Nf     = numel(Fields);
+            Nobj   = numel(Obj);
+            
+            for Iobj=1:1:Nobj
+                for If=1:1:Nf
+                    if ~isempty(Args.(Fields{If}))
+                        Obj(Iobj).(Fields{If}) = Args.(Fields{If});
+                    end
+                end
+            end
+        end
         
         
         function I = findFirstLast(Obj, IsLast, ProductName)
