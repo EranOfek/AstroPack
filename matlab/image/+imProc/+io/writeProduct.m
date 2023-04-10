@@ -6,6 +6,8 @@ function writeProduct(Obj, FNin, Args)
     %            corresponds to the number of elements in the
     %            AstroImage object.
     %          * ...,key,val,...
+    %            'Save' - A logical indicating if to save data products.
+    %                   Default is true.
     %            'IsSimpleFITS' - Default is true.
     %            'Type' - FileNames type. If empty, then use the
     %                   Type provided in the FileNames object.
@@ -45,6 +47,7 @@ function writeProduct(Obj, FNin, Args)
     arguments
         Obj
         FNin FileNames
+        Args.Save logical           = true;
         Args.IsSimpleFITS logical   = true;
         Args.Type                   = [];
         Args.Level                  = [];
@@ -65,101 +68,102 @@ function writeProduct(Obj, FNin, Args)
         Args.FullPath               = [];
     end
 
-    Nprod = numel(Args.Product);
-    if numel(Args.WriteHeader)==1
-        WriteHeader = repmat(Args.WriteHeader, Nprod,1);
-    else
-        WriteHeader = Args.WriteHeader;
-        if numel(WriteHeader)~=Nprod
-            error('Number of elements in WriteHeader must be 1 or equal to the number of products');
-        end
-    end
-    Nobj  = numel(Obj);
-    Nfn   = FN.nfiles;
-    if Nobj~=Nfn
-        error('Number of elements in AstroImage and FileNames object must be identical');
-    end
-
-    % generate a copy of FNin, so the object will not be modified
-    FN = FNin.copy;
-
-    % Product and CropID are set inside the write loop
-
-
-    FN = FN.updateIfNotEmpty('Type',Args.Type,...
-                             'Level',Args.Level,...
-                             'Counter',Args.Counter,...
-                             'CCDID',Args.CCDID,...
-                             'CropID',Args.CropID,...
-                             'SubDir',Args.SubDir,...
-                             'Version',Args.Version,...
-                             'FileType',Args.FileType,...
-                             'BasePath',Args.BasePath,...
-                             'FullPath',Args.FullPath);
-
-    % get JD for all images
-    if Args.dateFromHeader
-        JD = Obj.julday;
-    else
-        JD = [];
-    end
-
-    % loop for updateing the FN object
-    for Iobj=1:1:Nobj
-        % for each element
-
-        % set the FileNames time
-        if ~isempty(JD)
-            FN.Time(Iobj) = JD(Iobj);
-        end
-
-        % go over products
-        for Iprod=1:1:Nprod
-            % Update Product in FileNames object
-            FN.Product = Args.Product{Iprod};
-
-            % Update CropID in FileNames object
-            if Args.GetHeaderCropID
-                FN.CropID = AI.HeaderData.getVal('CROPID');
+    if Args.Save
+        % Save data products
+        Nprod = numel(Args.Product);
+        if numel(Args.WriteHeader)==1
+            WriteHeader = repmat(Args.WriteHeader, Nprod,1);
+        else
+            WriteHeader = Args.WriteHeader;
+            if numel(WriteHeader)~=Nprod
+                error('Number of elements in WriteHeader must be 1 or equal to the number of products');
             end
         end
-    end
+        Nobj  = numel(Obj);
+        Nfn   = FN.nfiles;
+        if Nobj~=Nfn
+            error('Number of elements in AstroImage and FileNames object must be identical');
+        end
 
-    % generate file names
-    OutFileNames = FN.genFull;
+        % generate a copy of FNin, so the object will not be modified
+        FN = FNin.copy;
+
+        % Product and CropID are set inside the write loop
 
 
-    % loop for writing the products
-    switch class(Obj)
-        case 'AstroImage'
-            % AstroImage input
-            for Iobj=1:1:Nobj
-                for Iprod=1:1:Nprod
-                    Obj(Iobj).write1(OutFileNames{Iobj}, Args.Product{Iprod},...
-                                     'FileType',FN.FileType{1},...
-                                     'IsSimpleFITS',Args.IsSimpleFITS.IsSimpleFITS,...
-                                     'WriteHeader',WriteHeader(Iprod));
+        FN = FN.updateIfNotEmpty('Type',Args.Type,...
+                                 'Level',Args.Level,...
+                                 'Counter',Args.Counter,...
+                                 'CCDID',Args.CCDID,...
+                                 'CropID',Args.CropID,...
+                                 'SubDir',Args.SubDir,...
+                                 'Version',Args.Version,...
+                                 'FileType',Args.FileType,...
+                                 'BasePath',Args.BasePath,...
+                                 'FullPath',Args.FullPath);
 
+        % get JD for all images
+        if Args.dateFromHeader
+            JD = Obj.julday;
+        else
+            JD = [];
+        end
+
+        % loop for updateing the FN object
+        for Iobj=1:1:Nobj
+            % for each element
+
+            % set the FileNames time
+            if ~isempty(JD)
+                FN.Time(Iobj) = JD(Iobj);
+            end
+
+            % go over products
+            for Iprod=1:1:Nprod
+                % Update Product in FileNames object
+                FN.Product = Args.Product{Iprod};
+
+                % Update CropID in FileNames object
+                if Args.GetHeaderCropID
+                    FN.CropID = AI.HeaderData.getVal('CROPID');
                 end
             end
-        case 'AstroCatalog'
-            % AstroCatalog input
-            for Iobj=1:1:Nobj
-                Obj(Iobj).write1(OutFileNames{Iobj},...
-                                 'FileType',FN.FileType{1});
-            end
-            
-        case 'MatchedSources'
-            % MatchedSources input
-            FN.Level = 'merged';
-            for Iobj=1:1:Nobj
-                Obj(Iobj).write1(OutFileNames{Iobj},...
-                                 'FileType',FN.FileType{1});
-            end
-            
-        otherwise
-            error('1st input class %s is not supported',class(Obj));
-    end
+        end
+
+        % generate file names
+        OutFileNames = FN.genFull;
 
 
+        % loop for writing the products
+        switch class(Obj)
+            case 'AstroImage'
+                % AstroImage input
+                for Iobj=1:1:Nobj
+                    for Iprod=1:1:Nprod
+                        Obj(Iobj).write1(OutFileNames{Iobj}, Args.Product{Iprod},...
+                                         'FileType',FN.FileType{1},...
+                                         'IsSimpleFITS',Args.IsSimpleFITS.IsSimpleFITS,...
+                                         'WriteHeader',WriteHeader(Iprod));
+
+                    end
+                end
+            case 'AstroCatalog'
+                % AstroCatalog input
+                for Iobj=1:1:Nobj
+                    Obj(Iobj).write1(OutFileNames{Iobj},...
+                                     'FileType',FN.FileType{1});
+                end
+
+            case 'MatchedSources'
+                % MatchedSources input
+                FN.Level = 'merged';
+                for Iobj=1:1:Nobj
+                    Obj(Iobj).write1(OutFileNames{Iobj},...
+                                     'FileType',FN.FileType{1});
+                end
+
+            otherwise
+                error('1st input class %s is not supported',class(Obj));
+        end
+    end  % if Args.Save
 end
