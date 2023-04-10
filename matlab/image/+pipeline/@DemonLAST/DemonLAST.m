@@ -990,7 +990,7 @@ classdef DemonLAST < Component
 
             
             GUI_Text = sprintf('Abort : Pipeline');
-            StopGUI  = tools.gui.stopButton('Msg',GUI_Text);
+            [StopGUI, Hstop]  = tools.gui.stopButton('Msg',GUI_Text);
     
             Cont = true;
             while Cont
@@ -1038,10 +1038,11 @@ classdef DemonLAST < Component
                     
                     % call visit pipeline
                     tic;
-                    pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
+                    [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
                                                                    Args.multiRaw2procCoaddArgs{:},...
                                                                    'SubDir',NaN,...
-                                                                   'BasePath', Args.BaseArchive);
+                                                                   'BasePath', BasePath,...
+                                                                   'SaveAll',false);
                     toc
                 
                 
@@ -1050,8 +1051,7 @@ classdef DemonLAST < Component
                     % Write images and catalogs to DB
                     
                     % move raw images to final location
-                    
-                   
+                    io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull);
                     
                     
                     % check if stop loop
@@ -1068,7 +1068,8 @@ classdef DemonLAST < Component
             cd(PWD);
 
         end
-
+        % delete abort msg box
+        Hstop.delete;
 
 
     end
