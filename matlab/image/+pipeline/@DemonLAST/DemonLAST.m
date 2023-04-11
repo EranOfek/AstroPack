@@ -1069,7 +1069,7 @@ classdef DemonLAST < Component
 
         end
         % delete abort msg box
-        Hstop.delete;
+        %Hstop.delete;
 
 
     end
