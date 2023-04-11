@@ -254,7 +254,7 @@ classdef FileNames < Component
             %            names can be constructed using io.files.filelist
             %            or a cell array of file names.
             %          * ...,key,val,...
-            %            'Dir' - Directory to populate FullPath, if true,
+            %            'FullPath' - Directory to populate FullPath, if true,
             %                   then use current directory. If false or
             %                   empty, use class default.
             %                   Default is true.
@@ -280,13 +280,13 @@ classdef FileNames < Component
             Obj = FileNames;
             
             if islogical(Args.Dir)
-                if Args.Dir
+                if Args.FullPath
                     Obj.FullPath = pwd;
                 end
-            elseif isempty(Args.Dir)
+            elseif isempty(Args.FullPath)
                 % do nothing
             else
-                Obj.FullPath = Args.Dir;
+                Obj.FullPath = Args.FullPath;
             end
 
             Nlist = numel(List);
@@ -465,6 +465,8 @@ classdef FileNames < Component
             %            cell).
             %            If scalar is larger than the number of elements,
             %            then return the first element only.
+            %          * ...,key,val,...
+            %            'jd2str' - Default is true.
             % Output : - Value.
             % Author : Eran Ofek (Dec 2022)
             
@@ -1422,6 +1424,28 @@ classdef FileNames < Component
             I = Ind(I);
         end
         
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        %%% OBSOLETE:
         
         function Ind = getAllProductsFromImageName(Obj, FileName)
             % Given an ImagePath and an image name (or index), return all the corresponding products 
