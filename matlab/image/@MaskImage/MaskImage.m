@@ -68,8 +68,8 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             %       MI=MaskImage;
             %       MI.Dict=BitDictionary('BitMask.Image.Default')
             %       Flag = false(3,3); Flag(1,2)=true;
-            %       Result = MI.maskSet1(Flag,'Saturated')
-            %       Result = MI.maskSet1(Flag,'Streak')
+            %       Result = MI.maskSet(Flag,'Saturated')
+            %       Result = MI.maskSet(Flag,'Streak')
             
             arguments
                 Obj
