@@ -11,8 +11,9 @@ function Result=conjunctionsStars(Table, Args)
     %            ...
     %            .Star - AstroCatalog object with the occulted star.
     % Author : Eran Ofek (Mar 2023)
+    % Requirements: The GAIA-DR3 catsHTM catalog should be installed.
     % Example: [EphemCat]=celestial.SolarSys.jpl_horizons('ObjectInd','2060', 'StartJD',[1 9 2022],'StopJD', [31 12 2023], 'StepSize',3,'StepSizeUnits','h');
-    %          Result = celestial.SolarSys.conjunctionsStars(EphemCat);
+    %          Result = celestial.conjunctions.conjunctionsStars(EphemCat);
 
     arguments
         Table AstroCatalog   % JD, RA, Dec, Delta, r, Mag,
