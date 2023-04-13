@@ -1026,6 +1026,9 @@ classdef AstroImage < Component
             %            'OverWrite' - Default is false.
             %            'WriteTime' - Add the write time to header.
             %                   Default is false.
+            %            'Mkdir' - A logical indicating if to create
+            %                   directory if file name contains full path.
+            %                   Default is false.
             % Output : null
             % Author : Eran Ofek (Nov 2021)
             % Example: AllSI(1).write1('try1.fits')
@@ -1040,6 +1043,7 @@ classdef AstroImage < Component
                 Args.Append logical           = false;
                 Args.OverWrite logical        = false;
                 Args.WriteTime logical        = false;
+                Args.MkDir logical            = false;
             end
             
             if Args.WriteHeader
@@ -1048,6 +1052,14 @@ classdef AstroImage < Component
                 HeaderData = [];
             end
             
+            if Args.MkDir
+                Path = fileparts(Name);
+                if ~isempty(Path)
+                    mkdir(Path);
+                end
+            end
+
+
             switch lower(Args.FileType)
                 case 'fits'
                     switch DataProp

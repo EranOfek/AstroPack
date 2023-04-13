@@ -1,4 +1,4 @@
-function writeProduct(Obj, FNin, Args)
+function [FN,SubDir]=writeProduct(Obj, FNin, Args)
     % Write AstroImage/AstroCatalog/MergedSources data products using FileNames object
     %   The file names are generated using the FileNames object
     % Input  : - An AstroImage object.
@@ -14,6 +14,9 @@ function writeProduct(Obj, FNin, Args)
     %                   Default is [].
     %            'Level' - Like 'Type', but for 'Level'.
     %                   Default is [].
+    %            'LevelPath' -  Seperate Level for path.
+    %                   If numeric empty, then use 'Level' argument.
+    %                   Default is [].
     %            'Product' - A cell array of product names to
     %                   write. Default is {'Image','Mask','Cat','PSF'}
     %            'WriteHeader' - A logical, or a vector of logicals
@@ -28,20 +31,31 @@ function writeProduct(Obj, FNin, Args)
     %                   Default is [].
     %            'CropID' - Like 'Type', but for 'CropID'.
     %                   Default is [].
+    %            'FindSubDir' - A logical indicating if to find the SubDir
+    %                   automatically using the nextSubDir function.
+    %                   Default is false.
     %            'SubDir' - Like 'Type', but for 'SubDir'.
     %                   Default is [].
     %            'Version' - Like 'Type', but for 'Version'.
     %                   Default is [].
     %            'FileType' - Like 'Type', but for 'FileType'.
     %                   Default is [].
-    %            'GetHeaderCropID' - A logical indicating if to get
-    %                   the CropID from the header.
+    %            'GetHeaderJD' - Update JD from header. Default is true.
+    %            'GetHeaderCropID' - Update CropID from header.
     %                   Default is true.
+    %            'GetHeaderCounter' - Update Counter from header.
+    %                   Default is true.
+    %            'KeyCropID' - Header keyword containing the
+    %                   CropID. Default is 'CROPID'.
+    %            'KeyCounter' - Header keyword containing the
+    %                   Counter. Default is 'COUNTER'.
     %            'BasePath' - Like 'Type', but for 'BasePath'.
     %                   Default is [].
     %            'FullPath' - Like 'Type', but for 'FullPath'.
     %                   Default is [].
-    % Output : null
+    % Output : - A FileNames object for the written files
+    %            (Product='Image').
+    %          - Used SubDir.
     % Author : Eran Ofek (Apr 2023)
 
     arguments
@@ -51,6 +65,7 @@ function writeProduct(Obj, FNin, Args)
         Args.IsSimpleFITS logical   = true;
         Args.Type                   = [];
         Args.Level                  = [];
+        Args.LevelPath              = [];
         Args.Product cell           = {'Image','Mask','Cat','PSF'};
         Args.WriteHeader            = [true, false, true, false];
 
@@ -58,11 +73,17 @@ function writeProduct(Obj, FNin, Args)
         Args.Counter                = [];
         Args.CCDID                  = [];
         Args.CropID                 = [];  % ...
+        Args.FindSubDir logical     = false;
         Args.SubDir                 = [];
         Args.Version                = [];
         Args.FileType               = [];
 
-        Args.GetHeaderCropID logical = true;
+        Args.GetHeaderJD logical       = true;
+        Args.GetHeaderCropID logical   = true;
+        Args.GetHeaderCounter logical  = true;
+        Args.KeyCropID                 = 'CROPID';
+        Args.KeyCounter                = 'COUNTER';
+
 
         Args.BasePath               = [];
         Args.FullPath               = [];
@@ -80,16 +101,18 @@ function writeProduct(Obj, FNin, Args)
             end
         end
         Nobj  = numel(Obj);
-        Nfn   = FN.nfiles;
-        if Nobj~=Nfn
-            error('Number of elements in AstroImage and FileNames object must be identical');
-        end
+        
 
         % generate a copy of FNin, so the object will not be modified
         FN = FNin.copy;
 
-        % Product and CropID are set inside the write loop
 
+        % get SubDir auomatically
+        if Args.FindSubDir
+            [SubDir, FN] = FN.nextSubDir;
+        else
+            SubDir = FN.SubDir;
+        end
 
         FN = FN.updateIfNotEmpty('Type',Args.Type,...
                                  'Level',Args.Level,...
@@ -102,49 +125,37 @@ function writeProduct(Obj, FNin, Args)
                                  'BasePath',Args.BasePath,...
                                  'FullPath',Args.FullPath);
 
-        % get JD for all images
-        if Args.dateFromHeader
-            JD = Obj.julday;
-        else
-            JD = [];
+        % get CropID/Counter/Time from header
+         
+        if Args.GetHeaderJD || Args.GetHeaderCropID || Args.GetHeaderCounter
+            FN = updateForAstroImage(FN, Obj,...
+                                     'GetHeaderJD',Args.GetHeaderJD,...
+                                     'GetHeaderCropID',Args.GetHeaderCropID,...
+                                     'GetHeaderCounter',Args.GetHeaderCounter,...
+                                     'SelectFirst',true,...
+                                     'CreateNewObj',true);
         end
 
-        % loop for updateing the FN object
-        for Iobj=1:1:Nobj
-            % for each element
-
-            % set the FileNames time
-            if ~isempty(JD)
-                FN.Time(Iobj) = JD(Iobj);
-            end
-
-            % go over products
-            for Iprod=1:1:Nprod
-                % Update Product in FileNames object
-                FN.Product = Args.Product{Iprod};
-
-                % Update CropID in FileNames object
-                if Args.GetHeaderCropID
-                    FN.CropID = AI.HeaderData.getVal('CROPID');
-                end
-            end
+        Nfn   = FN.nfiles;
+        if Nobj~=Nfn
+            error('Number of elements in AstroImage and FileNames object must be identical');
         end
-
-        % generate file names
-        OutFileNames = FN.genFull;
-
 
         % loop for writing the products
         switch class(Obj)
             case 'AstroImage'
                 % AstroImage input
-                for Iobj=1:1:Nobj
-                    for Iprod=1:1:Nprod
-                        Obj(Iobj).write1(OutFileNames{Iobj}, Args.Product{Iprod},...
-                                         'FileType',FN.FileType{1},...
-                                         'IsSimpleFITS',Args.IsSimpleFITS.IsSimpleFITS,...
-                                         'WriteHeader',WriteHeader(Iprod));
 
+                for Iprod=1:1:Nprod
+                    % generate file names
+                    OutFileNames = FN.genFull('Product',Args.Product{Iprod}, 'LevelPath',Args.LevelPath);
+                    for Iobj=1:1:Nobj
+                            % create dir only on first file
+                            Obj(Iobj).write1(OutFileNames{Iobj}, Args.Product{Iprod},...
+                                             'FileType',FN.FileType{1},...
+                                             'IsSimpleFITS',Args.IsSimpleFITS,...
+                                             'WriteHeader',WriteHeader(Iprod),...
+                                             'MkDir',Iobj==1);
                     end
                 end
             case 'AstroCatalog'

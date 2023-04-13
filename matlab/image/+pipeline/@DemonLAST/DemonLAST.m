@@ -1023,11 +1023,7 @@ classdef DemonLAST < Component
                 FN_Sci_Groups = FN_Sci_Groups.sortByJD(Args.SortDirection);
                 Ngroup = numel(FN_Sci_Groups);
                 
-                % prep the proc images FileNames object
-                FN_Sci_GroupsProc = FN_Sci_Groups.copy;
-                FN_Sci_GroupsProc.updateIfNotEmpty('Level','proc');
-
-
+                
                 for Igroup=1:1:Ngroup
                     
                 
@@ -1039,10 +1035,7 @@ classdef DemonLAST < Component
 
                     FN_Sci_Groups(Igroup).BasePath = BasePath;
 
-                    % set the proc image directory
                     
-                    FN_Sci_GroupsProc(Igroup) 
-
                     % proc images names
 
                     
@@ -1056,7 +1049,18 @@ classdef DemonLAST < Component
                     toc
                 
                 
+                  
                     % save proc data product
+                    FN_Proc = imProc.io.writeProduct(AllSI, FN_Sci_Groups(Igroup).reorderEntries(1), 'Product',{'Image','Mask','Cat'}, 'WriteHeader',[true false true],...
+                                           'Level','proc',...
+                                           'LevelPath','proc',...
+                                           'FindSubDir',true);
+
+                    imProc.io.writeProduct(Coadd, FN_Sci_Groups(Igroup).reorderEntries(1), 'Product',{'Image','Mask','Cat','PSF'}, 'WriteHeader',[true false true false],...
+                                           'Level','coadd',...
+                                           'LevelPath','proc',...
+                                           'SubDir',FN_Proc.SubDir);
+
                     
                     % Write images and catalogs to DB
                     

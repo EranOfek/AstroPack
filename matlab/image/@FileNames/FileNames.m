@@ -789,6 +789,9 @@ classdef FileNames < Component
             %            'Product' - See genFile.
             %            'Level' - Level to add to file and path.
             %                   If empty, use object Level.
+            %                   Default is ''.
+            %            'LevelPath' - Seperate Level for path.
+            %                   If numeric empty, then use 'Level' argument.
             %                   Default is [].
             %            'AddSubDir' - A logical indicating if to
             %                   automatically add numerical SubDir.
@@ -798,18 +801,23 @@ classdef FileNames < Component
             
             arguments
                 Obj
-                Ind     = [];
-                Args.IndDir  = 1;
+                Ind           = [];
+                Args.IndDir   = 1;
                 Args.ReturnChar logical = false;
-                Args.BasePath = [];
-                Args.FullPath = [];
-                Args.Product  = '';
-                Args.Level    = '';
+                Args.BasePath  = [];
+                Args.FullPath  = [];
+                Args.Product   = '';
+                Args.Level     = '';
+                Args.LevelPath = [];
                 Args.AddSubDir logical = true;
             end
             
+            if isempty(Args.LevelPath) && isnumeric(Args.LevelPath)
+                Args.LevelPath = Args.Level;
+            end
+
             FileName = genFile(Obj, Ind, 'ReturnChar',Args.ReturnChar, 'Product',Args.Product, 'Level',Args.Level);
-            Path     = genPath(Obj, Args.IndDir, 'ReturnChar',Args.ReturnChar, 'BasePath',Args.BasePath, 'FullPath',Args.FullPath, 'Level',Args.Level, 'AddSubDir',Args.AddSubDir);
+            Path     = genPath(Obj, Args.IndDir, 'ReturnChar',Args.ReturnChar, 'BasePath',Args.BasePath, 'FullPath',Args.FullPath, 'Level',Args.LevelPath, 'AddSubDir',Args.AddSubDir);
             
             Nfn      = numel(FileName);
             Np       = numel(Path);
@@ -858,7 +866,11 @@ classdef FileNames < Component
                 Flag = [Dir.isdir] & ~startsWith({Dir.name}, '.');
                 
                 NumDir = str2double({Dir(Flag).name});
-                Result = sprintf('%d',max(NumDir) + 1);
+                if isempty(NumDir) && Args.OneIfEmpty
+                    Result = '1';
+                else
+                    Result = sprintf('%d',max(NumDir) + 1);
+                end
             end
             
             if nargout>1
@@ -991,10 +1003,10 @@ classdef FileNames < Component
             %                   If false, then number of elements in
             %                   FileNames must be 1 or equal to the number
             %                   of elements in the AstroImage object.
-            %            'UpdateJD' - Update JD from header. Default is true.
-            %            'UpdateCropID' - Update CropID from header.
+            %            'GetHeaderJD' - Update JD from header. Default is true.
+            %            'GetHeaderCropID' - Update CropID from header.
             %                   Default is true.
-            %            'UpdateCounter' - Update Counter from header.
+            %            'GetHeaderCounter' - Update Counter from header.
             %                   Default is true.
             %            'KeyCropID' - Header keyword containing the
             %                   CropID. Default is 'CROPID'.
@@ -1012,11 +1024,11 @@ classdef FileNames < Component
                 Args.CreateNewObj logical   = true;
                 Args.SelectFirst logical    = true;
                 
-                Args.UpdateJD logical       = true;
-                Args.UpdateCropID logical   = true;
-                Args.UpdateCounter logical  = true;
+                Args.GetHeaderJD logical       = true;
+                Args.GetHeaderCropID logical   = true;
+                Args.GetHeaderCounter logical  = true;
                 Args.KeyCropID              = 'CROPID';
-                Args.KeyCounter             = 'Counter';
+                Args.KeyCounter             = 'COUNTER';
             end
 
             if Args.CreateNewObj
@@ -1036,7 +1048,7 @@ classdef FileNames < Component
                 error('FileNames object number of files must be 1 or equal to the number of elements in the AStroImage object');
             end
 
-            if Args.UpdateJD
+            if Args.GetHeaderJD
                 JD = AI.julday;
             end
 
@@ -1045,18 +1057,18 @@ classdef FileNames < Component
             Counter = nan(Nai,1);
 
             for Iai=1:1:Nai
-                if Args.UpdateJD
+                if Args.GetHeaderJD
                     U_JD(Iai) = JD(Iai);
                 else
                     U_JD = [];
                 end
 
-                if Args.UpdateCropID
+                if Args.GetHeaderCropID
                     CropID(Iai) = AI(Iai).HeaderData.getVal(Args.KeyCropID);
                 else
                     CroPID = [];
                 end
-                if Args.UpdateCounter
+                if Args.GetHeaderCounter
                     Counter(Iai) = AI(Iai).HeaderData.getVal(Args.KeyCounter);
                 else
                     Counter = [];
