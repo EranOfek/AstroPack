@@ -1015,7 +1015,7 @@ classdef DemonLAST < Component
                 FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',[], 'DestPath', [], 'Level','raw', 'Type','focus');
                 
                 % look for new images
-                FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci, 'Dir',false);
+                FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci, 'FullPath',false);
                 [FN_Sci] = selectBy(FN_Sci, 'Product', 'Image', 'CreateNewObj',false);
                 [FN_Sci] = selectBy(FN_Sci, 'Type', {'sci','science'}, 'CreateNewObj',false);
                 [FN_Sci] = selectBy(FN_Sci, 'Level', 'raw', 'CreateNewObj',false);
@@ -1023,6 +1023,11 @@ classdef DemonLAST < Component
                 FN_Sci_Groups = FN_Sci_Groups.sortByJD(Args.SortDirection);
                 Ngroup = numel(FN_Sci_Groups);
                 
+                % prep the proc images FileNames object
+                FN_Sci_GroupsProc = FN_Sci_Groups.copy;
+                FN_Sci_GroupsProc.updateIfNotEmpty('Level','proc');
+
+
                 for Igroup=1:1:Ngroup
                     
                 
@@ -1032,8 +1037,13 @@ classdef DemonLAST < Component
 
                     RawImageList = FN_Sci_Groups(Igroup).genFull('FullPath',NewPath);
 
-                    % set the proc image directory
                     FN_Sci_Groups(Igroup).BasePath = BasePath;
+
+                    % set the proc image directory
+                    
+                    FN_Sci_GroupsProc(Igroup) 
+
+                    % proc images names
 
                     
                     % call visit pipeline
@@ -1051,6 +1061,7 @@ classdef DemonLAST < Component
                     % Write images and catalogs to DB
                     
                     % move raw images to final location
+                    
                     io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull);
                     
                     
