@@ -264,7 +264,7 @@ classdef FileNames < Component
             
             arguments
                 List
-                Args.Dir = true;
+                Args.FullPath = true;
             end
             
             
@@ -279,7 +279,7 @@ classdef FileNames < Component
             
             Obj = FileNames;
             
-            if islogical(Args.Dir)
+            if islogical(Args.FullPath)
                 if Args.FullPath
                     Obj.FullPath = pwd;
                 end
