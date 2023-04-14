@@ -985,7 +985,7 @@ classdef FileNames < Component
             
         end        
                 
-        function Result = updateForAstroImage(Obj, AI, Args)
+        function Result = AAAupdateForAstroImage(Obj, AI, Args)
             % Update an FileNames object using the headers of AstroImage
             %   Update the Time, CropID, and Counter in a FileNames object
             %   from the header information of an AstroImage object.
@@ -1025,7 +1025,18 @@ classdef FileNames < Component
                 Args.SelectFirst logical    = true;
                 
                 Args.GetHeaderJD logical       = true;
-                Args.GetHeaderCropID logical   = true;
+
+                Args.AI_CropID_FromHeader logical  = true;
+                Args.CropID_FromINdex logical      = true;
+
+                Args.AI_Counter_FromHeader logical = true;
+                Args.Counter_Zero logical          = true;
+
+
+
+                Args.GetHeaderCropID logical   = true;      % for AstroImage
+                Args.GetIndexCropID logical    = true;      % for AstroTable/MatchedSources
+
                 Args.GetHeaderCounter logical  = true;
                 Args.KeyCropID              = 'CROPID';
                 Args.KeyCounter             = 'COUNTER';
@@ -1063,6 +1074,7 @@ classdef FileNames < Component
                     U_JD = [];
                 end
 
+                 
                 if Args.GetHeaderCropID
                     CropID(Iai) = AI(Iai).HeaderData.getVal(Args.KeyCropID);
                 else
@@ -1078,6 +1090,140 @@ classdef FileNames < Component
             Result.updateIfNotEmpty('Counter',Counter, 'CROPID',CropID, 'Time',U_JD);
             
         end
+
+        function Result=updateFromObjectInfo(Obj, DataObj, Args)
+            % Update an FileNames object using the metadata
+            %   Update the Time, CropID, and Counter in a FileNames object
+            %   from the header information of an AstroImage object, or JD
+            %   and counters of AstroCatalog and MatchedSources objects.
+            % Input  : - A FileNames object.
+            %            For size restriction see the 'SelectFirst'
+            %            argument.
+            %          - A AstroImage/AstroCatalog/MatchedSources object.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - Create a new copy of the input
+            %                   object. Default is true.
+            %            'SelectFirst' - A logical indicating if to take
+            %                   the rest of the FileNames properties from
+            %                   the first file in FileNames.
+            %                   Default is true.
+            %                   If false, then number of elements in
+            %                   FileNames must be 1 or equal to the number
+            %                   of elements in the AstroImage object.
+            %            'GetHeaderJD' - Update JD from header. Default is true.
+            %            'AI_CropID_FromHeader' - Update CropID from AstroImage header.
+            %                   Default is true.
+            %            'CropID_FromIndex' - For non AstroImage inputs,
+            %                   update CropID from object element index.
+            %                   Default is true.
+            %            'AI_Counter_FromHeader' - Update Counter from AstroImage header.
+            %                   Default is true.
+            %            'Counter_Zero' - For non AstroImage inputs,
+            %                   update Counter to 0.
+            %                   Default is true.
+            %            'KeyCropID' - Header keyword containing the
+            %                   CropID. Default is 'CROPID'.
+            %            'KeyCounter' - Header keyword containing the
+            %                   Counter. Default is 'COUNTER'.
+            % Output : - An updated FileNames object.
+            %            Number of files equal and corresponding to the
+            %            number of AstroImage elements.
+            % Author : Eran Ofek (Apr 2023)
+            % Example: Result = updateForAstroImage(FN_Sci_GroupsProc(Igroup), AllSI)
+
+            arguments
+                Obj
+                DataObj
+
+                Args.CreateNewObj logical   = true;
+                Args.SelectFirst logical    = true;
+                
+                Args.GetHeaderJD logical       = true;
+
+                Args.AI_CropID_FromHeader logical  = true;
+                Args.CropID_FromIndex logical      = true;
+
+                Args.AI_Counter_FromHeader logical = true;
+                Args.Counter_Zero logical          = true;
+
+                Args.KeyCropID              = 'CROPID';
+                Args.KeyCounter             = 'COUNTER';
+            end
+
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
+            if Args.SelectFirst
+                Result.reorderEntries(1);
+            end
+
+            Nfiles = Result.nfiles;
+            Ndo    = numel(DataObj);
+
+            if ~(Nfiles==1 || Ndo==Nfiles)
+                error('FileNames object number of files must be 1 or equal to the number of elements in the data object');
+            end
+
+            if Args.GetHeaderJD
+                switch class(DataObj)
+                    case 'MatchedSources'
+                        JD = DataObj.juldayFun('mid');
+                    case {'AstroImage','AstroCatalog'}
+                        JD = DataObj.julday;
+                    otherwise
+                        error('Unknwon class of DataObj');
+                end
+            else
+                JD = [];
+            end
+            JD = JD(:);
+
+            U_JD    = nan(Ndo,1);
+            CropID  = nan(Ndo,1);
+            Counter = nan(Ndo,1);
+
+
+            switch class(DataObj)
+                case {'AstroImage'}
+                    for Ido=1:1:Ndo
+                        if Args.AI_CropID_FromHeader 
+                            CropID(Ido) = DataObj(Ido).HeaderData.getVal(Args.KeyCropID);
+                        else
+                            CroPID = [];
+                        end
+                        if Args.AI_Counter_FromHeader
+                            Counter(Ido) = DataObj(Ido).HeaderData.getVal(Args.KeyCounter);
+                        else
+                            Counter = [];
+                        end
+                    end
+
+
+                case {'MatchedSources','AstroCatalog'}
+                    if Args.CropID_FromIndex
+                        CropID = (1:1:Ndo).';
+                    else
+                        CropID = [];
+                    end
+                    
+                    if Args.Counter_Zero
+                        Counter = 0;
+                    else
+                        Counter = [];
+                    end
+
+
+                otherwise
+                    error('Unknwon class of DataObj');
+            end
+
+            Result.updateIfNotEmpty('Counter',Counter, 'CROPID',CropID, 'Time',JD);
+            
+        end
+
     end
     
     

@@ -1024,20 +1024,21 @@ classdef DemonLAST < Component
                 Ngroup = numel(FN_Sci_Groups);
                 
                 
+                % check if stop loop
+                %if StopGUI 
+                %    Cont = false;
+                %end
+                if isfile(Args.AbortFileName)
+                    Cont = false;
+                    delete(Args.AbortFileName);
+                end
+
                 for Igroup=1:1:Ngroup
-                    
+                    % for each visit
                 
-                    
-
-                    % GOT HERE - there is a confusion with the path name...
-
                     RawImageList = FN_Sci_Groups(Igroup).genFull('FullPath',NewPath);
 
                     FN_Sci_Groups(Igroup).BasePath = BasePath;
-
-                    
-                    % proc images names
-
                     
                     % call visit pipeline
                     tic;
@@ -1061,7 +1062,12 @@ classdef DemonLAST < Component
                                            'LevelPath','proc',...
                                            'SubDir',FN_Proc.SubDir);
 
-                    
+                    imProc.io.writeProduct(MergedCat, FN_Sci_Groups(Igroup).reorderEntries(1), 'Product',{'Cat'}, 'WriteHeader',[false],...
+                                           'Level','merged',...
+                                           'LevelPath','proc',...
+                                           'SubDir',FN_Proc.SubDir);
+
+
                     % Write images and catalogs to DB
                     
                     % move raw images to final location
@@ -1076,6 +1082,10 @@ classdef DemonLAST < Component
                     if isfile(Args.AbortFileName)
                         Cont = false;
                         delete(Args.AbortFileName);
+                    end
+                    if ~Cont
+                        % exist the visit loop
+                        Break;
                     end
                 end
             end

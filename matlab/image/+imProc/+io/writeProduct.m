@@ -41,9 +41,13 @@ function [FN,SubDir]=writeProduct(Obj, FNin, Args)
     %            'FileType' - Like 'Type', but for 'FileType'.
     %                   Default is [].
     %            'GetHeaderJD' - Update JD from header. Default is true.
-    %            'GetHeaderCropID' - Update CropID from header.
+    %            'CropID_FromIndex' - For non AstroImage inputs,
+    %                   update CropID from object element index.
     %                   Default is true.
-    %            'GetHeaderCounter' - Update Counter from header.
+    %            'AI_Counter_FromHeader' - Update Counter from AstroImage header.
+    %                   Default is true.
+    %            'Counter_Zero' - For non AstroImage inputs,
+    %                   update Counter to 0.
     %                   Default is true.
     %            'KeyCropID' - Header keyword containing the
     %                   CropID. Default is 'CROPID'.
@@ -79,8 +83,11 @@ function [FN,SubDir]=writeProduct(Obj, FNin, Args)
         Args.FileType               = [];
 
         Args.GetHeaderJD logical       = true;
-        Args.GetHeaderCropID logical   = true;
-        Args.GetHeaderCounter logical  = true;
+        Args.AI_CropID_FromHeader logical  = true;
+        Args.CropID_FromIndex logical      = true;
+        Args.AI_Counter_FromHeader logical = true;
+        Args.Counter_Zero logical          = true;
+
         Args.KeyCropID                 = 'CROPID';
         Args.KeyCounter                = 'COUNTER';
 
@@ -128,10 +135,12 @@ function [FN,SubDir]=writeProduct(Obj, FNin, Args)
         % get CropID/Counter/Time from header
          
         if Args.GetHeaderJD || Args.GetHeaderCropID || Args.GetHeaderCounter
-            FN = updateForAstroImage(FN, Obj,...
+            FN = updateFromObjectInfo(FN, Obj,...
                                      'GetHeaderJD',Args.GetHeaderJD,...
-                                     'GetHeaderCropID',Args.GetHeaderCropID,...
-                                     'GetHeaderCounter',Args.GetHeaderCounter,...
+                                     'AI_CropID_FromHeader',Args.AI_CropID_FromHeader,...
+                                     'CropID_FromIndex',Args.CropID_FromIndex,...
+                                     'AI_Counter_FromHeader',Args.AI_Counter_FromHeader,...
+                                     'Counter_Zero',Args.Counter_Zero,...
                                      'SelectFirst',true,...
                                      'CreateNewObj',true);
         end
@@ -160,6 +169,7 @@ function [FN,SubDir]=writeProduct(Obj, FNin, Args)
                 end
             case 'AstroCatalog'
                 % AstroCatalog input
+                OutFileNames = FN.genFull('Product','Cat', 'LevelPath',Args.LevelPath);
                 for Iobj=1:1:Nobj
                     Obj(Iobj).write1(OutFileNames{Iobj},...
                                      'FileType',FN.FileType{1});
