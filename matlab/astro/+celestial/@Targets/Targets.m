@@ -969,7 +969,27 @@ classdef Targets < Component
             [~,Ind] = max(P);
         end
         
-                    
+        function [Obj, P, Ind]=cadence_transients_survey(Obj, JD)
+            %
+            
+            arguments
+                Obj
+                JD    = celestial.time.julday;
+            end
+            
+            % Calculate visibility time left for all targets
+            VisibilityTime = leftVisibilityTime(Obj, JD);
+            
+            % for NightCounter==0: calc priority using daily cadence
+            % for NightCounter>0: calc priority using nightly cadence
+            
+            
+            
+            % Select all sources that are curretly visible
+            % and are visible
+            
+        end
+                            
         
         function [Obj, P, Ind] = calcPriority(Obj, JD, CadenceMethod)
             % Calculate priority for targets in celestial.Targets object.
