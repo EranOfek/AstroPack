@@ -1,5 +1,13 @@
 function Val=countVal(Array,Dim,UseMex)
-% Perform a bitand operation along all elements in an array.
+% Array=tools.array.insertInFlag(Array, Val, Flag, UseNot)
+% Here Flag is a vector of logicals with the same length as Array.
+% For UseNot=false, this will perform:
+% Array(Flag) = Val;
+% For UseNot=true, this will perform:
+% Array(~Flag) = Val;
+% 
+% Need a single, double, int16, int32, unit16, uint32 versions.
+%
 % Package: Util.array
 % Description: Perform a bitand operation along all elements in an array
 %              along a specific dimension.
@@ -9,11 +17,10 @@ function Val=countVal(Array,Dim,UseMex)
 % Output : - The result of the bitand operation.
 % See also: sum_bitor.m (the same)
 % License: GNU general public license version 3
-% Tested : Matlab R2015b
-%     By : Eran O. Ofek                    Jun 2016
+% Tested : Matlab R2020b
+%     By : Chen Tishler, April 2023
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: Val=tools.array.bitand_array(Array);
-% Reliable: 2
 %--------------------------------------------------------------------------
 
 if (nargin==1)

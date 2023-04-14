@@ -1,5 +1,5 @@
 typedef unsigned char __Int;
-#define MEX_INT  mxINT8_CLASS
-#define MEX_UINT mxUINT8_CLASS
+#define MEX_INT  mxINT16_CLASS
+#define MEX_UINT mxUINT16_CLASS
 
-#include "mex_countVal_include.c"
+#include "mex_insertInFlag_include.c"
