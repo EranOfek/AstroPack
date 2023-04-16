@@ -1,4 +1,4 @@
-typedef unsigned char __Int;
+typedef double __Type;
 #define MEX_INT  mxDOUBLE_CLASS
 #define MEX_UINT mxDOUBLE_CLASS
 

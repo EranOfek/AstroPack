@@ -49,188 +49,55 @@ void mexFunction(
         int nlhs, mxArray *plhs[],          // Output arguments
         int nrhs, const mxArray *prhs[])    // Input arguments
 {
-    // Input
-    __Int* input, val;
-    __Int* out;
-    int dim = 1;    
-    mwSize rows, cols, deps;
-    mwSize row, col, dep;
+    mxClassID class_id;
+    
+    // Check the number of input and output arguments
+    if (nrhs < 2 || nrhs > 3) 
+        mexErrMsgIdAndTxt("MATLAB:countVal:nargin", "Two or three input arguments required.");
+    
+    if (nlhs > 1) 
+        mexErrMsgIdAndTxt("MATLAB:countVal:nargout", "Only one output argument allowed.");
+    
+    // Get and validate array
+    const mxArray *array = prhs[0];       
+        
+    // Array
+    class_id = mxGetClassID(array);            
+    if ((class_id != MEX_TYPE) && (class_id != MEX_UTYPE)) 
+        mexErrMsgIdAndTxt("MATLAB:countVal", "Input matrix type does not match this function");  
+    if (mxIsSparse(prhs[0])) 
+        mexErrMsgIdAndTxt("MATLAB:countVal", "Sparse array is not supported yet");  
 
-    mxClassID     class_id;
-    const char*   input_type;    
-    mwSize        input_ndims;
-    const mwSize* input_size;
-   
-    // Output
-    mwSize output_ndims;
-    mwSize output_size[4] = {0,0,0,0};
+    // Val
+    if (((mxGetClassID(prhs[1]) != MEX_TYPE) && (mxGetClassID(prhs[1]) != MEX_UTYPE)) || (mxGetNumberOfElements(prhs[2]) != 1))
+        mexErrMsgIdAndTxt("MATLAB:countVal:Val", "Val: Wrong type or size");                  
+    __Type Val = *((__Type*)mxGetData(prhs[1]));
     
-    // Need at least one argument
-    if (nrhs < 1) {
-        return;
-    }
-
-    // Get dim
-    if ((nrhs > 1) && mxIsScalar(prhs[1])) {
-        dim = (int)mxGetScalar(prhs[1]);
+    // UseNot
+    bool UseNot = false;
+    if (nrhs == 3) {
+        if ((mxGetClassID(prhs[2]) != mxLOGICAL_CLASS) || (mxGetNumberOfElements(prhs[2]) != 1))
+            mexErrMsgIdAndTxt("MATLAB:countVal:UseNot", "UseNot: Wrong type or size");              
+        
+        UseNot = *((bool*)mxGetData(prhs[2]));
     }
     
-    // Parse input matrix
-    class_id    = mxGetClassID(prhs[0]);        
-    input       = (__Int*)mxGetData(prhs[0]);
-    input_ndims = mxGetNumberOfDimensions(prhs[0]);
-    input_size  = mxGetDimensions(prhs[0]);      
-    input_type  = mxGetClassName(prhs[0]);
+    // Count elements equal or not equal to Val        
+    __Type* array_data = (__Type*)mxGetData(array);
+    mwSize numel = mxGetNumberOfElements(array);    
+    long long count = 0; 
+    if (UseNot) {
+        for (mwSize i = 0; i < numel; ++i)
+            if (array_data[i] != Val)
+                count++;
+    }
+    else {
+        for (mwSize i = 0; i < numel; ++i)
+            if (array_data[i] == Val)
+                count++;        
+    }  
     
-    // 
-    if ((class_id != MEX_INT) && (class_id != MEX_UINT)) {
-        mexPrintf("Input matrix integer type does not match this function\n");
-        return;                
-    }
-                
-    if (mxIsSparse(prhs[0])) {
-        mexPrintf("Sparse array is not supported yet\n");  
-        return;        
-    }
-    
-    //mexPrintf("input_ndims: %d\n", input_ndims);  
-    //mexPrintf("input_size: %d, %d, %d\n", input_size[0], input_size[1], input_size[2]);
-    //mexPrintf("input_type: %s\n", input_type);
-    //mexPrintf("dim: %d\n", dim);  
-        
-    // Validate input params
-    if ((input_ndims != 2) && (input_ndims != 3)) {
-        mexPrintf("Invalid ndims of input matrix, supported ndims is 2 or 3: %d\n", input_ndims);  
-        return;
-    }
-    
-    //-------------------------------------------- Input 2D 
-    if (input_ndims == 2) {
-        
-        rows = input_size[0];
-        cols = input_size[1];
-        
-        // 2D, dim=1: For each column, sum all rows
-        if (dim == 1) {
-            // Create output matrix            
-            output_ndims   = 2;
-            output_size[0] = 1;
-            output_size[1] = input_size[1];        
-            plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
-            out = (__Int*)mxGetData(plhs[0]);                    
-                 
-            //
-            for (col = 0;  col < cols;  col++) {
-                out[col] = (__Int)(-1);
-                for (row = 0;  row < rows;  row++) {
-                    val = input[ col*rows + row ];
-                    out[col] &= val;
-                }            
-            }                        
-        }
-        
-        // 2D, dim=2: For each row, sum all column        
-        else if (dim == 2) {                    
-            // Create output matrix            
-            output_ndims   = 2;
-            output_size[0] = input_size[0];
-            output_size[1] = 1;        
-            plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
-            out = (__Int*)mxGetData(plhs[0]);                    
-
-            //
-            for (row = 0;  row < rows;  row++) {                        
-                out[row] = (__Int)(-1);;
-                for (col = 0;  col < cols;  col++) {
-                    val = input[ col*rows + row ];
-                    out[row] &= val;
-                }            
-            }            
-        }
-    }
-
-    //-------------------------------------------- Input 3D 
-    else if (input_ndims == 3) {
-        rows = input_size[0];
-        cols = input_size[1];
-        deps = input_size[2];
-        
-        #ifdef never
-        for (dep = 0;  dep < deps;  dep++) {
-            for (col = 0;  col < cols;  col++) {
-                for (row = 0;  row < rows;  row++) {
-                    val = input[ col*rows + row + dep*cols*rows];
-                    mexPrintf("input[%02d, %02d, %02d] = %d\n", row+1, col+1, dep+1, val);
-                }                                                
-            }                                    
-        }
-        return;
-        #endif
-        
-        //
-        if (dim == 1) {
-            output_ndims   = 3;
-            output_size[0] = 1;
-            output_size[1] = input_size[1];
-            output_size[2] = input_size[2];
-            plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
-            out = (__Int*)mxGetData(plhs[0]);                                
-            
-            //
-            for (dep = 0;  dep < deps;  dep++) {
-                for (col = 0;  col < cols;  col++) {
-                    out[dep*cols + col] = (__Int)(-1);;
-                    for (row = 0;  row < rows;  row++) {
-                        val = input[ col*rows + row + dep*cols*rows];
-                        out[dep*cols + col] &= val;
-                    }            
-                }                                    
-            }
-        }
-        
-        //
-        else if (dim == 2) {
-            output_ndims   = 3;            
-            output_size[0] = input_size[0];
-            output_size[1] = 1;
-            output_size[2] = input_size[2];        
-            plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
-            out = (__Int*)mxGetData(plhs[0]);                                
-            
-            //
-            for (dep = 0;  dep < deps;  dep++) {            
-                for (row = 0;  row < rows;  row++) {                        
-                    out[dep*rows + row] = (__Int)(-1);;                                    
-                    for (col = 0;  col < cols;  col++) {
-                        val = input[ col*rows + row + dep*cols*rows];
-                        out[dep*rows + row] &= val;
-                    }            
-                }
-            }                        
-        }
-        
-        //
-        else if (dim == 3) {
-            output_ndims   = 2;                        
-            output_size[0] = input_size[0];
-            output_size[1] = input_size[1];            
-            plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
-            out = (__Int*)mxGetData(plhs[0]);                                
-            
-            //
-            for (row = 0;  row < rows;  row++) {                        
-                for (col = 0;  col < cols;  col++) {
-                    out[col*rows + row] = (__Int)(-1);;                    
-                    for (dep = 0;  dep < deps;  dep++) {                                    
-                        val = input[ col*rows + row + dep*cols*rows ];
-                        out[col*rows + row] &= val;
-                    }
-                }            
-            }        
-        }
-    }
-  
-    //mexPrintf("output_ndims: %d\n", output_ndims);  
-    //mexPrintf("output_size:  %d, %d, %d\n", output_size[0], output_size[1], output_size[2]); 
+    // Put result
+    plhs[0] = mxCreateNumericMatrix(1, 1, mxINT64_CLASS, mxREAL);
+    *((long long*)mxGetData(plhs[0])) = count;
 }
-

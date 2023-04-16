@@ -1,4 +1,4 @@
-typedef unsigned char __Int;
+typedef unsigned int __Type;
 #define MEX_INT  mxINT32_CLASS
 #define MEX_UINT mxUINT32_CLASS
 
