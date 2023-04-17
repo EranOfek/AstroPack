@@ -627,6 +627,9 @@ classdef FileNames < Component
                     ProductStr = Obj.getProp('Product',Itime);
                 else
                     ProductStr = Args.Product;
+                    if iscell(ProductStr)
+                        ProductStr = ProductStr{1};
+                    end
                 end
                 
                 if isempty(Args.Level)

@@ -562,13 +562,15 @@ classdef DemonLAST < Component
             %                   Default is 9.
             %            'move2newPath' - A logical indicating if to move
             %                   to the D.NewPath before running the function.
-            %                   Default is false (i.e., working in current
+            %                   Default is true (i.e., working in current
             %                   dir).
             %            'Repopulate' - A logical indicating if to
             %                   repopulate the dark image even if it is already
             %                   exist.
             %            'ClearVar' - Clear the Var image from the
             %                   CalibImages. Default is true.
+            %            'Move2raw' - Move images to raw dir after
+            %                   processing. Default is true.
             % Output : - A pipeline.DemonLAST with updated CI property.
             %          - FileNames object of raw dark images.
             %          - FileNames object of proc dark master image.
@@ -585,9 +587,10 @@ classdef DemonLAST < Component
                 Args.MinDT                = 1./1440;  % [d]
                 Args.WaitForMoreImages    = 10;   % [s]
                 Args.MinInGroup           = 9;
-                Args.move2newPath logical = false;
+                Args.move2newPath logical = true;
                 Args.Repopulate logical   = true;
                 Args.ClearVar logical     = true;
+                Args.Move2raw logical     = true;
             end
 
             FN        = [];
@@ -610,6 +613,7 @@ classdef DemonLAST < Component
                         % generate file names
                         % find all images in directory
                         FN = FileNames.generateFromFileName(Args.FilesList);
+                        FN.BasePath = Obj.BasePath;
                     end
     
                     % identify new bias images
@@ -706,6 +710,13 @@ classdef DemonLAST < Component
                 error('No Bias image found - can not run pipeline');
             end
             
+            if Args.Move2raw && FN.nfiles>0
+                RawList = FN.genFull; 
+                FN.FullPath = [];
+                % copy files to: FN_Dark.genPath();
+                io.files.moveFiles(RawList, FN.genFull);
+            end
+
         end
         
         function [Obj, FN, FN_Master]=prepMasterFlat(Obj, Args)
@@ -743,6 +754,8 @@ classdef DemonLAST < Component
             %                   exist.
             %            'ClearVar' - Clear the Var image from the
             %                   CalibImages. Default is true.
+            %            'Move2raw' - Move images to raw dir after
+            %                   processing. Default is true.
             % Output : - A pipeline.DemonLAST with updated CI property.
             %          - FileNames object of raw flat images.
             %          - FileNames object of proc flat master image.
@@ -764,6 +777,7 @@ classdef DemonLAST < Component
                 Args.move2newPath logical = false;
                 Args.Repopulate logical   = true;
                 Args.ClearVar logical     = true;
+                Args.Move2raw logical     = true;
             end
 
             if ~exist(Obj.CI, 'Bias',{'Image','Mask'})
@@ -790,6 +804,7 @@ classdef DemonLAST < Component
                         % generate file names
                         % find all images in directory
                         FN = FileNames.generateFromFileName(Args.FilesList);
+                        FN.BasePath = Obj.BasePath;
                     end
     
                     % identify new flat images
@@ -887,6 +902,12 @@ classdef DemonLAST < Component
                 error('No Flat image found - can not run pipeline');
             end
             
+            if Args.Move2raw && FN.nfiles>0
+                RawList = FN.genFull; 
+                FN.FullPath = [];
+                % copy files to: FN_Dark.genPath();
+                io.files.moveFiles(RawList, FN.genFull);
+            end
 
         end
         
@@ -994,16 +1015,11 @@ classdef DemonLAST < Component
     
             Cont = true;
             while Cont
-                % prep Master dark
-                [Obj, FN_Dark] = Obj.prepMasterDark();
-                % move dark images to raw/ dir
-                FN_Dark.BasePath = BasePath;
-                FN_Dark.FullPath = [];
-                % copy files to: FN_Dark.genPath();
-                
-                % prep Master flat
-                [Obj, FN_Flat] = Obj.prepMasterFlat();
-                % move flat images to raw/ dir
+                % prep Master dark and move to raw/ dir
+                [Obj, FN_Dark] = Obj.prepMasterDark('Move2raw',true);
+                    
+                % prep Master flat and move to raw/ dir
+                [Obj, FN_Flat] = Obj.prepMasterFlat('Move2raw',true);
                 
                 % delete test images taken during daytime
                 if Args.DeleteSciDayTime
@@ -1025,9 +1041,9 @@ classdef DemonLAST < Component
                 
                 
                 % check if stop loop
-                %if StopGUI 
-                %    Cont = false;
-                %end
+                if StopGUI()
+                    Cont = false;
+                end
                 if isfile(Args.AbortFileName)
                     Cont = false;
                     delete(Args.AbortFileName);
@@ -1052,31 +1068,46 @@ classdef DemonLAST < Component
                 
                   
                     % save proc data product
-                    FN_Proc = imProc.io.writeProduct(AllSI, FN_Sci_Groups(Igroup).reorderEntries(1), 'Product',{'Image','Mask','Cat'}, 'WriteHeader',[true false true],...
+                    tic;
+                    
+                    FN_I = FN_Sci_Groups(Igroup).reorderEntries(1, 'CreateNewObj',true);
+
+                    FN_Proc = imProc.io.writeProduct(AllSI, FN_I, 'Product',{'Image','Mask','Cat'}, 'WriteHeader',[true false true],...
                                            'Level','proc',...
                                            'LevelPath','proc',...
                                            'FindSubDir',true);
 
-                    imProc.io.writeProduct(Coadd, FN_Sci_Groups(Igroup).reorderEntries(1), 'Product',{'Image','Mask','Cat','PSF'}, 'WriteHeader',[true false true false],...
+
+                    imProc.io.writeProduct(Coadd, FN_I, 'Product',{'Image','Mask','Cat','PSF'}, 'WriteHeader',[true false true false],...
                                            'Level','coadd',...
                                            'LevelPath','proc',...
                                            'SubDir',FN_Proc.SubDir);
 
-                    imProc.io.writeProduct(MergedCat, FN_Sci_Groups(Igroup).reorderEntries(1), 'Product',{'Cat'}, 'WriteHeader',[false],...
+                    imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
                                            'Level','merged',...
                                            'LevelPath','proc',...
                                            'SubDir',FN_Proc.SubDir);
+
+                    imProc.io.writeProduct(MatchedS, FN_I, 'Product',{'MergedMat'}, 'WriteHeader',[false],...
+                                           'Level','merged',...
+                                           'LevelPath','proc',...
+                                           'SubDir',FN_Proc.SubDir);
+
+                    imProc.io.writeProduct(ResultAsteroids, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
+                                           'Level','merged',...
+                                           'LevelPath','proc',...
+                                           'SubDir',FN_Proc.SubDir);
+
+                    toc
 
 
                     % Write images and catalogs to DB
                     
                     % move raw images to final location
-                    
                     io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull);
                     
-                    
                     % check if stop loop
-                    if StopGUI 
+                    if StopGUI()
                         Cont = false;
                     end
                     if isfile(Args.AbortFileName)
@@ -1085,7 +1116,7 @@ classdef DemonLAST < Component
                     end
                     if ~Cont
                         % exist the visit loop
-                        Break;
+                        break;
                     end
                 end
             end

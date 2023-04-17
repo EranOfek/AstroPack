@@ -1,7 +1,9 @@
 function [FN,SubDir]=writeProduct(Obj, FNin, Args)
     % Write AstroImage/AstroCatalog/MergedSources data products using FileNames object
     %   The file names are generated using the FileNames object
-    % Input  : - An AstroImage object.
+    % Input  : - An AstroImage/AstroCatalog/MatchedSources/struct object.
+    %            A MatchedSources will be wriite as hdf5 file.
+    %            A struct will be save as a mat file.
     %          - A FileNames object. The numbre of files should
     %            corresponds to the number of elements in the
     %            AstroImage object.
@@ -134,15 +136,18 @@ function [FN,SubDir]=writeProduct(Obj, FNin, Args)
 
         % get CropID/Counter/Time from header
          
-        if Args.GetHeaderJD || Args.GetHeaderCropID || Args.GetHeaderCounter
-            FN = updateFromObjectInfo(FN, Obj,...
-                                     'GetHeaderJD',Args.GetHeaderJD,...
-                                     'AI_CropID_FromHeader',Args.AI_CropID_FromHeader,...
-                                     'CropID_FromIndex',Args.CropID_FromIndex,...
-                                     'AI_Counter_FromHeader',Args.AI_Counter_FromHeader,...
-                                     'Counter_Zero',Args.Counter_Zero,...
-                                     'SelectFirst',true,...
-                                     'CreateNewObj',true);
+        switch class(Obj)
+            case {'AstroImage','AstroCatalog','MatchedSources'}
+                if Args.GetHeaderJD || Args.GetHeaderCropID || Args.GetHeaderCounter
+                    FN = updateFromObjectInfo(FN, Obj,...
+                                             'GetHeaderJD',Args.GetHeaderJD,...
+                                             'AI_CropID_FromHeader',Args.AI_CropID_FromHeader,...
+                                             'CropID_FromIndex',Args.CropID_FromIndex,...
+                                             'AI_Counter_FromHeader',Args.AI_Counter_FromHeader,...
+                                             'Counter_Zero',Args.Counter_Zero,...
+                                             'SelectFirst',true,...
+                                             'CreateNewObj',true);
+                end
         end
 
         Nfn   = FN.nfiles;
@@ -177,14 +182,24 @@ function [FN,SubDir]=writeProduct(Obj, FNin, Args)
 
             case 'MatchedSources'
                 % MatchedSources input
-                FN.Level = 'merged';
+                FN.Level    = 'merged';
+                FN.FileType = {'hdf5'};
+                OutFileNames = FN.genFull('Product','MergedMat', 'LevelPath',Args.LevelPath);
                 for Iobj=1:1:Nobj
                     Obj(Iobj).write1(OutFileNames{Iobj},...
                                      'FileType',FN.FileType{1});
                 end
 
+            
             otherwise
-                error('1st input class %s is not supported',class(Obj));
+                % save object as mat file
+                FN.Level    = Args.Level;
+                FN.FileType = {'mat'};
+                OutFileNames = FN.genFull('Product',Args.Product, 'LevelPath',Args.LevelPath);
+                for Iobj=1:1:Nobj
+                    save(OutFileNames{Iobj}, 'Obj', '-v7.3');
+                end
+
         end
     end  % if Args.Save
 end
