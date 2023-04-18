@@ -1,4 +1,4 @@
-function [Mean,Var,FlagGood,GoodCounter]=mean_sigclip(Data,Dim,Args)
+function [Mean,Var,IndBad,GoodCounter]=mean_sigclip(Data,Dim,Args)
 % Calculate the sigma-clipped mean of a dataset
 % Package: imUtil.image
 % Description: Calculate the sigma-clipped mean of a dataset with
@@ -27,9 +27,10 @@ function [Mean,Var,FlagGood,GoodCounter]=mean_sigclip(Data,Dim,Args)
 %                   in order to avoid division by zero. Default is 1e-12.
 % Output : - Sigma clipped mean of data.
 %          - Sigma clipped variance of the data.
-%          - A logical array of the same size of the input Data which
+%          - Indices of rejected measurments.
+%            [old:A logical array of the same size of the input Data which
 %            indicate the good data points that were used for the mean
-%            calculation.
+%            calculation.]
 %          - An image of number of images used in each pixel.
 % License: GNU general public license version 3
 % Tested : Matlab R2015b
@@ -59,22 +60,25 @@ end
 
 % if Niter=0, will calculate mean without sigma clipping
 Iter = 0;
-FlagGood = true(size(Data));
+%FlagGood = true(size(Data));
+IndBad   = [];
 Ngood    = numel(Data);
 NrejectNew = Inf;
 Nreject    = Inf;
 while Iter<=Args.MaxIter && NrejectNew~=0
     if Iter==0
-        FlagGood = true(size(Data));
+        %FlagGood = true(size(Data));
         DataF = Data;
     else
         Zstat = (DataF - Mean)./(Std+Args.EpsilonStd);
-        FlagGood = Zstat>(-abs(Args.Nsigma(1))) & Zstat<Args.Nsigma(2);
-        DataF(~FlagGood) = NaN;
+        %FlagGood = Zstat>(-abs(Args.Nsigma(1))) & Zstat<Args.Nsigma(2);
+        IndBad   = find(Zstat<(-abs(Args.Nsigma(1))) | Zstat>Args.Nsigma(2));
+        %DataF(~FlagGood) = NaN;
+        DataF(IndBad) = NaN;
     end
     % total number of rejected data points
     NrejectPrev = Nreject;
-    Nreject     = Ngood - sum(FlagGood,'all');
+    Nreject     = numel(IndBad); %Ngood - sum(FlagGood,'all');
     %Nreject     = Ngood - mcount(double(FlagGood),0.5,'>'); % slower
     
     NrejectNew  = Nreject-NrejectPrev;
