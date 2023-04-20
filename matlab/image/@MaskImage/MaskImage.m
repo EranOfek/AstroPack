@@ -62,14 +62,17 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             %                   BitDictionary('BitMask.Image.Default').
             %            'CreateNewObj' - A logical indicating if to copy
             %                   the input object. Default is false.
+            %            'UseFlags' - A logical indicating if to use flags
+            %                   or indices (speed considerations).
+            %                   Default is true.
             % Output : - An ImageMaks object.
             % Author : Eran Ofek (May 2021)
             % Example:
             %       MI=MaskImage;
             %       MI.Dict=BitDictionary('BitMask.Image.Default')
             %       Flag = false(3,3); Flag(1,2)=true;
-            %       Result = MI.maskSet1(Flag,'Saturated')
-            %       Result = MI.maskSet1(Flag,'Streak')
+            %       Result = MI.maskSet(Flag,'Saturated')
+            %       Result = MI.maskSet(Flag,'Streak')
             
             arguments
                 Obj
@@ -78,6 +81,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                 SetVal                            = 1;
                 Args.DefBitDict BitDictionary     = BitDictionary('BitMask.Image.Default');
                 Args.CreateNewObj logical         = false;
+                Args.UseFlags logical             = false;
             end
             
             if Args.CreateNewObj
@@ -114,7 +118,14 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                     Result(Iobj).Image = Result(Iobj).Dict.Class(zeros(SizeImage));
                 end
 
-                Result(Iobj).Image(Flag) = bitset(Result(Iobj).Image(Flag), BitInd, SetVal);
+
+                % use indices instead of flags - maybe faster in some cases
+                if Args.UseFlags
+                    Result(Iobj).Image(Flag) = bitset(Result(Iobj).Image(Flag), BitInd, SetVal);
+                else
+                    Ind = find(Flag);
+                    Result(Iobj).Image(Ind) = bitset(Result(Iobj).Image(Ind), BitInd, SetVal);
+                end
             end
             
                  

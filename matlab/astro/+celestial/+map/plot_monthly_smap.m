@@ -576,8 +576,8 @@ end
 switch ConLines
  case 'yes'
     load('ConstellationLines.mat');
-    %CL = ConstellationLines;
-    %CL = CL.Cat;
+    CL = ConstellationLines;
+    CL = CL.Cat;
     clear ConstellationLines;
     %--- convert coordinates to radians ---
     CL_RA1  = CL(:,1); %celestial.coo.convertdms(CL(:,1:3),  'H','r');

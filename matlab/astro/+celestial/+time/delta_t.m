@@ -59,6 +59,8 @@ DeltaT(Flag) = polyval(PolyPar1900_1997,Theta);
 %--- after 1961 ---
 % exact
 Flag = JD>YearJD(6);
-TAImUTC = celestial.time.tai_utc(JD(Flag));
-UT1mUTC = celestial.time.ut1_utc(JD(Flag));
+
+[TTmUTC, TTmUT1, UT1mTAI, UT1mUTC]=celestial.time.tt_utc(JD(Flag));
+% TAI - UT1   - TT + UT1      + TT - UTC = TAI-UTC
+TAImUTC = -UT1mTAI - TTmUT1 + TTmUTC;
 DeltaT(Flag) = 32.184 + TAImUTC - UT1mUTC;

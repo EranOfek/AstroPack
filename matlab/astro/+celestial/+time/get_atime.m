@@ -23,7 +23,8 @@ function T=get_atime(Date,GeodLong,UT1mUTC)
 % Tested : Matlab 7.3
 %     By : Eran O. Ofek                    Jun 2008
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: T=celestial.time.get_atime(convert.date2jd,35./RAD);
+% Example: RAD     = 180./pi;
+%          T=celestial.time.get_atime(convert.date2jd,35./RAD);
 % Reliable: 1
 %----------------------------------------------------------------------------- 
 
@@ -56,7 +57,7 @@ else
    T.Month  = Time(2);
    T.Day    = Time(1);
    T.Frac   = Time(4);
-   T_HMS    = convertdms(T.Frac,'f','H');
+   T_HMS    = celestial.coo.convertdms(T.Frac,'f','H');
    T.Hour   = T_HMS(1);
    T.Min    = T_HMS(2);
    T.Sec    = T_HMS(3);

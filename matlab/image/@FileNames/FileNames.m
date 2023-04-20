@@ -34,7 +34,9 @@ classdef FileNames < Component
         
         %
         FullPath            = '';
+        
         BasePath            = '/euler1/archive/LAST';
+        BasePathIncludeProjName logical = true;
         SubDir              = '';
         TimeZone            = 2;
         
@@ -252,7 +254,7 @@ classdef FileNames < Component
             %            names can be constructed using io.files.filelist
             %            or a cell array of file names.
             %          * ...,key,val,...
-            %            'Dir' - Directory to populate FullPath, if true,
+            %            'FullPath' - Directory to populate FullPath, if true,
             %                   then use current directory. If false or
             %                   empty, use class default.
             %                   Default is true.
@@ -262,7 +264,7 @@ classdef FileNames < Component
             
             arguments
                 List
-                Args.Dir = true;
+                Args.FullPath = true;
             end
             
             
@@ -277,14 +279,14 @@ classdef FileNames < Component
             
             Obj = FileNames;
             
-            if islogical(Args.Dir)
-                if Args.Dir
+            if islogical(Args.FullPath)
+                if Args.FullPath
                     Obj.FullPath = pwd;
                 end
-            elseif isempty(Args.Dir)
+            elseif isempty(Args.FullPath)
                 % do nothing
             else
-                Obj.FullPath = Args.Dir;
+                Obj.FullPath = Args.FullPath;
             end
 
             Nlist = numel(List);
@@ -463,6 +465,8 @@ classdef FileNames < Component
             %            cell).
             %            If scalar is larger than the number of elements,
             %            then return the first element only.
+            %          * ...,key,val,...
+            %            'jd2str' - Default is true.
             % Output : - Value.
             % Author : Eran Ofek (Dec 2022)
             
@@ -623,6 +627,9 @@ classdef FileNames < Component
                     ProductStr = Obj.getProp('Product',Itime);
                 else
                     ProductStr = Args.Product;
+                    if iscell(ProductStr)
+                        ProductStr = ProductStr{1};
+                    end
                 end
                 
                 if isempty(Args.Level)
@@ -658,6 +665,8 @@ classdef FileNames < Component
             % Generate path for FileNames object.
             %       If the FullPath [property in the object is populated
             %       than it is returned.
+            %       If FullPath or BasePath are given then they are used
+            %       but not propagated to the object.
             % Input  : - A FileNames object.
             %          - Index of time stamp in the object for which to
             %            generate the path. If empty, then for all (slow).
@@ -673,6 +682,8 @@ classdef FileNames < Component
             %            'FullPath' - A full path to insert into the object
             %                   FullPath property. If empty, use object default.
             %                   Default is [].
+            %            'Level' - Image level. If empty, use object Level.
+            %                   Default is [].
             % Output : - A path.
             % Author : Eran Ofek (Dec 2022) 
             
@@ -683,6 +694,8 @@ classdef FileNames < Component
                 Args.AddSubDir logical  = true;
                 Args.BasePath = [];
                 Args.FullPath = [];
+                Args.Level    = [];
+
             end
             
             if isempty(Ind)
@@ -696,18 +709,32 @@ classdef FileNames < Component
             end
             
             if ~isempty(Args.BasePath)
-                Obj.BasePath = Args.BasePath;
+                %Obj.BasePath = Args.BasePath;
+                BasePath = Args.BasePath;
+            else
+                BasePath = Obj.BasePath;
             end
 
             if ~isempty(Args.FullPath)
-                Obj.FullPath = Args.FullPath;
+                %Obj.FullPath = Args.FullPath;
+                FullPath = Args.FullPath;
+            else
+                FullPath = Obj.FullPath;
             end
             
-            if isempty(Obj.FullPath)
+            if isempty(FullPath)
                 Path = cell(Ntime,1);
                 for Itime=1:1:Ntime
                     if ~isempty(Ind)
                         Itime = Ind;
+                    end
+
+                    if isempty(Args.Level)
+                        % get Level from object:
+                        Level = getProp(Obj, 'Level', Itime);
+                    else
+                        % Level supplied by arguments
+                        Level = Args.Level;
                     end
 
                     % /euler1/archive/LAST/<ProjName>/new
@@ -715,11 +742,19 @@ classdef FileNames < Component
                     % /euler1/archive/LAST/<ProjName>/2022/12/01/proc
                     % /euler1/archive/LAST/<ProjName>/2022/12/01/proc/1
                     DateDir = getDateDir(Obj, Itime, true);
-                    Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
-                                    Obj.BasePath, filesep, ...
-                                    getProp(Obj, 'ProjName', Itime),...
-                                    DateDir, filesep, ...
-                                    getProp(Obj, 'Level', Itime));
+                    if Obj.BasePathIncludeProjName
+                        % BasePath already include the ProjName
+                        Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
+                                        BasePath, filesep, ...
+                                        DateDir, filesep, ...
+                                        Level);
+                    else
+                        Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
+                                        BasePath, filesep, ...
+                                        getProp(Obj, 'ProjName', Itime),...
+                                        DateDir, filesep, ...
+                                        Level);
+                    end
 
                     if Args.AddSubDir
                         Path{Itime} = sprintf('%s%s%s',Path{Itime},filesep,...
@@ -728,7 +763,7 @@ classdef FileNames < Component
                 end
 
             else
-                Path = {Obj.FullPath};
+                Path = {FullPath};
             end
 
             if Args.ReturnChar && numel(Path)==1
@@ -755,23 +790,37 @@ classdef FileNames < Component
             %                   FullPath property. If empty, use object default.
             %                   Default is [].
             %            'Product' - See genFile.
-            %            'Level' - See genFile.
+            %            'Level' - Level to add to file and path.
+            %                   If empty, use object Level.
+            %                   Default is ''.
+            %            'LevelPath' - Seperate Level for path.
+            %                   If numeric empty, then use 'Level' argument.
+            %                   Default is [].
+            %            'AddSubDir' - A logical indicating if to
+            %                   automatically add numerical SubDir.
+            %                   Default is true.
             % Output : - A cell array of full file name and path.
             % Author : Eran Ofek (Dec 2022)
             
             arguments
                 Obj
-                Ind     = [];
-                Args.IndDir  = 1;
+                Ind           = [];
+                Args.IndDir   = 1;
                 Args.ReturnChar logical = false;
-                Args.BasePath = [];
-                Args.FullPath = [];
-                Args.Product  = '';
-                Args.Level    = '';
+                Args.BasePath  = [];
+                Args.FullPath  = [];
+                Args.Product   = '';
+                Args.Level     = '';
+                Args.LevelPath = [];
+                Args.AddSubDir logical = true;
             end
             
+            if isempty(Args.LevelPath) && isnumeric(Args.LevelPath)
+                Args.LevelPath = Args.Level;
+            end
+
             FileName = genFile(Obj, Ind, 'ReturnChar',Args.ReturnChar, 'Product',Args.Product, 'Level',Args.Level);
-            Path     = genPath(Obj, Args.IndDir, 'ReturnChar',Args.ReturnChar, 'BasePath',Args.BasePath, 'FullPath',Args.FullPath);
+            Path     = genPath(Obj, Args.IndDir, 'ReturnChar',Args.ReturnChar, 'BasePath',Args.BasePath, 'FullPath',Args.FullPath, 'Level',Args.LevelPath, 'AddSubDir',Args.AddSubDir);
             
             Nfn      = numel(FileName);
             Np       = numel(Path);
@@ -787,12 +836,17 @@ classdef FileNames < Component
             
         end
         
-        function [Result,Obj] = nextSubDir(Obj)
+        function [Result,Obj] = nextSubDir(Obj, Args)
             % Given SubDir which is a running numeric index, check which
             %   directories exist in FileNames path and return the next
             %   SubDir name
             % Input  : - A FileNames object from which a path can be
             %            generated using genPath.
+            %          * ...,key,val,...
+            %            'OneIfEmpty' - A logical indicating if to return
+            %                   SubDir='1', if directory does not exist
+            %                   (if false will return []).
+            %                   Default is true.
             % Output : - A char array containing the suggested SubDir name
             %            that does not exist in path. 
             %          - Only if the second argument is requested, then the
@@ -800,15 +854,27 @@ classdef FileNames < Component
             %            the new SubDir directory.
             % Author : Eran Ofek (Dec 2022)
            
-            Path = Obj.genPath(1, true, false); % Path without SubDir
+            arguments
+                Obj
+                Args.OneIfEmpty logical   = true;
+            end
+
+            Path = Obj.genPath(1, 'AddSubDir',false); % Path without SubDir
             Dir  = dir(Path);
             
-            % select non-hidden directories
-            Flag = [Dir.isdir] & ~startsWith({Dir.name}, '.');
-            
-            NumDir = str2double({Dir(Flag).name});
-            Result = sprintf('%d',max(NumDir) + 1);
-            
+            if isempty(Dir) && Args.OneIfEmpty
+                Result = '1';
+            else
+                % select non-hidden directories
+                Flag = [Dir.isdir] & ~startsWith({Dir.name}, '.');
+                
+                NumDir = str2double({Dir(Flag).name});
+                if isempty(NumDir) && Args.OneIfEmpty
+                    Result = '1';
+                else
+                    Result = sprintf('%d',max(NumDir) + 1);
+                end
+            end
             
             if nargout>1
                 % update SubDir
@@ -922,6 +988,245 @@ classdef FileNames < Component
             
         end        
                 
+        function Result = AAAupdateForAstroImage(Obj, AI, Args)
+            % Update an FileNames object using the headers of AstroImage
+            %   Update the Time, CropID, and Counter in a FileNames object
+            %   from the header information of an AstroImage object.
+            % Input  : - A FileNames object.
+            %            For size restriction see the 'SelectFirst'
+            %            argument.
+            %          - A AstroImage object.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - Create a new copy of the input
+            %                   object. Default is true.
+            %            'SelectFirst' - A logical indicating if to take
+            %                   the rest of the FileNames properties from
+            %                   the first file in FileNames.
+            %                   Default is true.
+            %                   If false, then number of elements in
+            %                   FileNames must be 1 or equal to the number
+            %                   of elements in the AstroImage object.
+            %            'GetHeaderJD' - Update JD from header. Default is true.
+            %            'GetHeaderCropID' - Update CropID from header.
+            %                   Default is true.
+            %            'GetHeaderCounter' - Update Counter from header.
+            %                   Default is true.
+            %            'KeyCropID' - Header keyword containing the
+            %                   CropID. Default is 'CROPID'.
+            %            'KeyCounter' - Header keyword containing the
+            %                   Counter. Default is 'COUNTER'.
+            % Output : - An updated FileNames object.
+            %            Number of files equal and corresponding to the
+            %            number of AstroImage elements.
+            % Author : Eran Ofek (Apr 2023)
+            % Example: Result = updateForAstroImage(FN_Sci_GroupsProc(Igroup), AllSI)
+
+            arguments
+                Obj(1,1)
+                AI AstroImage
+                Args.CreateNewObj logical   = true;
+                Args.SelectFirst logical    = true;
+                
+                Args.GetHeaderJD logical       = true;
+
+                Args.AI_CropID_FromHeader logical  = true;
+                Args.CropID_FromINdex logical      = true;
+
+                Args.AI_Counter_FromHeader logical = true;
+                Args.Counter_Zero logical          = true;
+
+
+
+                Args.GetHeaderCropID logical   = true;      % for AstroImage
+                Args.GetIndexCropID logical    = true;      % for AstroTable/MatchedSources
+
+                Args.GetHeaderCounter logical  = true;
+                Args.KeyCropID              = 'CROPID';
+                Args.KeyCounter             = 'COUNTER';
+            end
+
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
+            if Args.SelectFirst
+                Result.reorderEntries(1);
+            end
+
+            Nfiles = Result.nfiles;
+            Nai    = numel(AI);
+
+            if ~(Nfiles==1 || Nai==Nfiles)
+                error('FileNames object number of files must be 1 or equal to the number of elements in the AStroImage object');
+            end
+
+            if Args.GetHeaderJD
+                JD = AI.julday;
+            end
+
+            U_JD    = nan(Nai,1);
+            CropID  = nan(Nai,1);
+            Counter = nan(Nai,1);
+
+            for Iai=1:1:Nai
+                if Args.GetHeaderJD
+                    U_JD(Iai) = JD(Iai);
+                else
+                    U_JD = [];
+                end
+
+                 
+                if Args.GetHeaderCropID
+                    CropID(Iai) = AI(Iai).HeaderData.getVal(Args.KeyCropID);
+                else
+                    CroPID = [];
+                end
+                if Args.GetHeaderCounter
+                    Counter(Iai) = AI(Iai).HeaderData.getVal(Args.KeyCounter);
+                else
+                    Counter = [];
+                end
+            end
+
+            Result.updateIfNotEmpty('Counter',Counter, 'CROPID',CropID, 'Time',U_JD);
+            
+        end
+
+        function Result=updateFromObjectInfo(Obj, DataObj, Args)
+            % Update an FileNames object using the metadata
+            %   Update the Time, CropID, and Counter in a FileNames object
+            %   from the header information of an AstroImage object, or JD
+            %   and counters of AstroCatalog and MatchedSources objects.
+            % Input  : - A FileNames object.
+            %            For size restriction see the 'SelectFirst'
+            %            argument.
+            %          - A AstroImage/AstroCatalog/MatchedSources object.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - Create a new copy of the input
+            %                   object. Default is true.
+            %            'SelectFirst' - A logical indicating if to take
+            %                   the rest of the FileNames properties from
+            %                   the first file in FileNames.
+            %                   Default is true.
+            %                   If false, then number of elements in
+            %                   FileNames must be 1 or equal to the number
+            %                   of elements in the AstroImage object.
+            %            'GetHeaderJD' - Update JD from header. Default is true.
+            %            'AI_CropID_FromHeader' - Update CropID from AstroImage header.
+            %                   Default is true.
+            %            'CropID_FromIndex' - For non AstroImage inputs,
+            %                   update CropID from object element index.
+            %                   Default is true.
+            %            'AI_Counter_FromHeader' - Update Counter from AstroImage header.
+            %                   Default is true.
+            %            'Counter_Zero' - For non AstroImage inputs,
+            %                   update Counter to 0.
+            %                   Default is true.
+            %            'KeyCropID' - Header keyword containing the
+            %                   CropID. Default is 'CROPID'.
+            %            'KeyCounter' - Header keyword containing the
+            %                   Counter. Default is 'COUNTER'.
+            % Output : - An updated FileNames object.
+            %            Number of files equal and corresponding to the
+            %            number of AstroImage elements.
+            % Author : Eran Ofek (Apr 2023)
+            % Example: Result = updateForAstroImage(FN_Sci_GroupsProc(Igroup), AllSI)
+
+            arguments
+                Obj
+                DataObj
+
+                Args.CreateNewObj logical   = true;
+                Args.SelectFirst logical    = true;
+                
+                Args.GetHeaderJD logical       = true;
+
+                Args.AI_CropID_FromHeader logical  = true;
+                Args.CropID_FromIndex logical      = true;
+
+                Args.AI_Counter_FromHeader logical = true;
+                Args.Counter_Zero logical          = true;
+
+                Args.KeyCropID              = 'CROPID';
+                Args.KeyCounter             = 'COUNTER';
+            end
+
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
+            if Args.SelectFirst
+                Result.reorderEntries(1);
+            end
+
+            Nfiles = Result.nfiles;
+            Ndo    = numel(DataObj);
+
+            if ~(Nfiles==1 || Ndo==Nfiles)
+                error('FileNames object number of files must be 1 or equal to the number of elements in the data object');
+            end
+
+            if Args.GetHeaderJD
+                switch class(DataObj)
+                    case 'MatchedSources'
+                        JD = DataObj.juldayFun('mid');
+                    case {'AstroImage','AstroCatalog'}
+                        JD = DataObj.julday;
+                    otherwise
+                        error('Unknwon class of DataObj');
+                end
+            else
+                JD = [];
+            end
+            JD = JD(:);
+
+            U_JD    = nan(Ndo,1);
+            CropID  = nan(Ndo,1);
+            Counter = nan(Ndo,1);
+
+
+            switch class(DataObj)
+                case {'AstroImage'}
+                    for Ido=1:1:Ndo
+                        if Args.AI_CropID_FromHeader 
+                            CropID(Ido) = DataObj(Ido).HeaderData.getVal(Args.KeyCropID);
+                        else
+                            CroPID = [];
+                        end
+                        if Args.AI_Counter_FromHeader
+                            Counter(Ido) = DataObj(Ido).HeaderData.getVal(Args.KeyCounter);
+                        else
+                            Counter = [];
+                        end
+                    end
+
+
+                case {'MatchedSources','AstroCatalog'}
+                    if Args.CropID_FromIndex
+                        CropID = (1:1:Ndo).';
+                    else
+                        CropID = [];
+                    end
+                    
+                    if Args.Counter_Zero
+                        Counter = 0;
+                    else
+                        Counter = [];
+                    end
+
+
+                otherwise
+                    error('Unknwon class of DataObj');
+            end
+
+            Result.updateIfNotEmpty('Counter',Counter, 'CROPID',CropID, 'Time',JD);
+            
+        end
+
     end
     
     
@@ -972,17 +1277,26 @@ classdef FileNames < Component
             
         end
         
-        function [Obj, SI] = sortByJD(Obj)
+        function [Obj, SI] = sortByJD(Obj, Direction)
             % Sort entries in FileNames object by JD
-            % Input  : - A FileNames object.
+            % Input  : - A FileNames object (multi-element possible).
+            %          - Sort direction: 'ascend' (default), or 'descend'.
             % Output : - A FileNames object in which the entries are sorted
             %            by JD.
             %          - A vector of sorted indices.
             % Author : Eran Ofek (Dec 2022)
             
-            JD = Obj.julday;
-            [~,SI] = sort(JD);
-            Obj = reorderEntries(Obj, SI);
+            arguments
+                Obj
+                Direction = 'ascend';
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                JD = Obj(Iobj).julday;
+                [~,SI] = sort(JD, Direction);
+                Obj(Iobj) = reorderEntries(Obj(Iobj), SI);
+            end
             
         end
         
@@ -1028,6 +1342,8 @@ classdef FileNames < Component
             %            or a numeric vector of [min max]. In the latter,
             %            will select all values within range.
             %          * ...,key,val,...
+            %            'SelectNotVal' - Select files which are not the
+            %                   required val. Default is false.
             %            'CreateNewObj' - A logical indicating if to create
             %                   a new copy of the input object.
             %                   Default is true.
@@ -1040,6 +1356,7 @@ classdef FileNames < Component
                 Obj
                 PropName char               = 'Product';
                 PropVal                     = 'Image';
+                Args.SelectNotVal logical   = false;   
                 Args.CreateNewObj logical   = true;
             end
             
@@ -1069,6 +1386,10 @@ classdef FileNames < Component
                 error('PropVal must be either a char array or numeric');
             end
             
+            if Args.SelectNotVal
+                Flag = ~Flag;
+            end
+
             Nt     = numel(Obj.Time);
             Flag   = Flag(:).' | false(1,Nt);
             Result = reorderEntries(Result, Flag);
@@ -1222,14 +1543,142 @@ classdef FileNames < Component
             end
         end
         
+        function Result=nfiles(Obj)
+            % Return number of files in a FileNames object
+            % Input  : - A FileNames object
+            % Output : - Number of files.
+            % Author : Eran Ofek (Apr 2023)
+
+            Result = numel(Obj.Time);
+        end
+
+        function moveImages(Obj, Args)
+            % move/delete images specified by FileNames object
+            % Input  : - A FileNames object.
+            %          * ...,key,val,...
+            %            'SrcPath' - The path name of the source files to
+            %                   move or delete. If empty, then use current
+            %                   directory. Default is [].
+            %            'DestPath' - The path name of the files
+            %                   destination. If empty, then use the genPath
+            %                   method to construct the path.
+            %                   Default is [].
+            %            'Operator' - Options are:
+            %                   'move' - move files.
+            %                   'delete' - delete files.
+            %                   'keep' - do nothing.
+            %                   Default is 'move'.
+            %            'OutName' - A cell array of optional file names in
+            %                   the destination. If empty, then use source
+            %                   file names. Default is [].
+            %            'Product' - Select only file names of this
+            %                   product (e.g. 'Image' | 'Mask' | ...).
+            %                   If empty, do not use this selection.
+            %                   Default is [].
+            %            'Type' - Select only file names of this
+            %                   type (e.g. 'sci' | 'twflat' | ...).
+            %                   If empty, do not use this selection.
+            %                   Default is [].
+            %            'Level' - Select only file names of this
+            %                   level (e.g. 'proc' | 'raw' | ...).
+            %                   If empty, do not use this selection.
+            %                   Default is [].
+            % Output : null
+            % Author : Eran Ofek (Apr 2023)
+
+            arguments
+                Obj
+                Args.SrcPath      = []; % if empty, use pwd
+                Args.DestPath     = []; % if empty use genPath
+                Args.Operator     = 'move';   % 'move'|'delete'
+                Args.OutName      = [];
+                Args.Product      = [];
+                Args.Type         = [];
+                Args.Level        = [];
+            end
+
+            KEYS_SELECT = {'Product','Type','Level'};
+            Nks         = numel(KEYS_SELECT);
+
+            if ~strcmp(Args.Operator, 'keep') && nfiles(Obj)>0
+
+                % selectBy keys - do not modify the input object
+                for Iks=1:1:Nks
+                    if ~isempty(Args.(KEYS_SELECT{Iks}))
+                        Obj = Obj.selectBy(KEYS_SELECT{Iks}, Args.(KEYS_SELECT{Iks}), 'CreateNewObj',true, 'SelectNotVal',false);
+                    end
+                end
+
+                if isempty(Args.SrcPath)
+                    SrcPath = pwd;
+                else
+                    SrcPath = Args.SrcPath;
+                end
+    
+                if isempty(Args.DestPath)
+                    DestPath = Obj.genPath;
+                else
+                    DestPath = Args.DestPath;
+                end                
+    
+                switch Args.Operator
+                    case 'move'
+                        io.files.moveFiles(FN.genFile(), Args.OutName, SrcPath, DestPath);
+                    case 'delete'
+                        PWD = pwd;
+                        cd(SrcPath);
+                        io.files.delete_cell(FN.genFile());
+                        cd(PWD);
+                    case 'copy'
+                        error('copy not yet implemented');
+                    otherwise
+                        error('Unknown Operator argument option');
+                end
+            end
+        end
+         
+        function Obj=updateIfNotEmpty(Obj, Args)
+            % Update FileNames properties if provided and not empty
+            % Input  : - A FileNames object.
+            %          * ...,key,val,...
+            %            Any of the properties of FileNames (e.g.,
+            %            'ProjName, Time, ..., SubDir).
+            %            If proprty is not given or empty, then it will not
+            %            be updated with the provided value.
+            % Output : - An updated FileNames object.
+            % Author : Eran Ofek (Apr 2023)
+            
+            arguments
+                Obj
+                Args.ProjName = [];
+                Args.Time     = [];
+                Args.Filter   = [];
+                Args.FieldID  = [];
+                Args.Counter  = [];
+                Args.CCDID    = [];
+                Args.CropID   = [];
+                Args.Type     = [];
+                Args.Level    = [];
+                Args.Product  = [];
+                Args.Version  = [];
+                Args.FileType = [];
+                Args.FullPath = [];
+                Args.BasePath = [];
+                Args.SubDir   = [];
+            end
         
-        
-        
-        
-        
-        
-        
-        
+            Fields = fieldnames(Args);
+            Nf     = numel(Fields);
+            Nobj   = numel(Obj);
+            
+            for Iobj=1:1:Nobj
+                for If=1:1:Nf
+                    if ~isempty(Args.(Fields{If}))
+                        Obj(Iobj).(Fields{If}) = Args.(Fields{If});
+                    end
+                end
+            end
+        end
         
         function I = findFirstLast(Obj, IsLast, ProductName)
             % find image, of some product type, with latest/earliest JD
@@ -1259,6 +1708,28 @@ classdef FileNames < Component
             I = Ind(I);
         end
         
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        %%% OBSOLETE:
         
         function Ind = getAllProductsFromImageName(Obj, FileName)
             % Given an ImagePath and an image name (or index), return all the corresponding products 

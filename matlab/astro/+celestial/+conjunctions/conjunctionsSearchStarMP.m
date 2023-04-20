@@ -9,7 +9,8 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
     % Output : - A structure array of found events.
     %          - A table output.
     %          - table with selected columns.
-    % Example: [Result, Table] = celestial.SolarSys.conjunctionsSearchStarMP('ElementsIndex',1);
+    % Requirements: The GAIA-DR3 catsHTM catalog should be installed.
+    % Example: [Result, Table] = celestial.conjunctions.conjunctionsSearchStarMP('ElementsIndex',1);
 
 
     arguments

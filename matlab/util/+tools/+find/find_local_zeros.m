@@ -39,7 +39,7 @@ Xi     = X(Istart:1:Iend);
 N      = length(Xi);
 
 
-[Yi,SPoly,H,X0] = Util.interp.interp_diff(X,Y,Xi,Deg,Check);
+[Yi,SPoly,H,X0] = tools.interp.interp_diff(X,Y,Xi,Deg,Check);
 
 
 Zeros  = [];

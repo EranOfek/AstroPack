@@ -18,8 +18,9 @@ function simImage = simulate_ULTRASAT_image (Args)
                                           % 'GALEX_CESAM': GALEX deep field
                                           % distribution from CESAM http://cesam.lam.fr/galex-emphot/search/criteria
                                           % 
+        Args.ExpNum     = 3;              % number of standard 300 s exposures
         Args.Same       = 0;              % read in a source distribution or generate a random new one
-        Args.OutDir     =  '.'  ;   % output directory
+        Args.OutDir     =  '.'  ;         % output directory
         
     end
     
@@ -89,7 +90,7 @@ function simImage = simulate_ULTRASAT_image (Args)
             % run the simulation 
 
             simImage = ultrasat.usim('InCat',Cat,'InMag',MagG,'InMagFilt',{'SDSS','g'},...
-                         'InSpec',SpecT,'Exposure',[300 300],'OutDir',Args.OutDir);
+                         'InSpec',SpecT,'Exposure',[Args.ExpNum 300],'OutDir',Args.OutDir);
         
         case 'HSCslow'
             
@@ -134,7 +135,7 @@ function simImage = simulate_ULTRASAT_image (Args)
             % run the simulation 
 
             simImage = ultrasat.usim('InCat',Cat,'InMag',Mag_G,'InMagFilt',{'SDSS','g'},...
-                         'InSpec',Spec,'Exposure',[3 300],'OutDir',Args.OutDir);
+                         'InSpec',Spec,'Exposure',[Args.ExpNum 300],'OutDir',Args.OutDir);
                  
         case 'GALEX'
     
@@ -201,7 +202,7 @@ function simImage = simulate_ULTRASAT_image (Args)
 
             % run the simulation 
 
-            simImage = ultrasat.usim('InCat',Cat,'InMag',Mag,'InSpec',Spec,'Exposure',[3 300],'OutDir',Args.OutDir);
+            simImage = ultrasat.usim('InCat',Cat,'InMag',Mag,'InSpec',Spec,'Exposure',[Args.ExpNum 300],'OutDir',Args.OutDir);
             
         case 'GALEX_CESAM'
             
@@ -261,7 +262,7 @@ function simImage = simulate_ULTRASAT_image (Args)
         
             % run the simulation 
 
-            simImage = ultrasat.usim('InCat',Cat,'InMag',MagU,'InSpec',Spec,'Exposure',[300 300],...
+            simImage = ultrasat.usim('InCat',Cat,'InMag',MagU,'InSpec',Spec,'Exposure',[Args.ExpNum 300],...
                                      'InMagFilt',{'ULTRASAT','R11'},'OutDir',Args.OutDir);
             
         case 'distribution'
@@ -317,7 +318,7 @@ function simImage = simulate_ULTRASAT_image (Args)
                     
             end
 
-            simImage = ultrasat.usim('InCat',Cat,'InMag',MagU,'InSpec',Spec,'Exposure',[300 300],...
+            simImage = ultrasat.usim('InCat',Cat,'InMag',MagU,'InSpec',Spec,'Exposure',[Args.ExpNum 300],...
                                      'InMagFilt',{'ULTRASAT','R11'},'OutDir',Args.OutDir);
 
             

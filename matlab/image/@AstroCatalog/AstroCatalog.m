@@ -1187,6 +1187,20 @@ classdef AstroCatalog < AstroTable
         end
     end
     
+    methods % utilities
+        function JD = julday(Obj)
+            % get JD for AstroCatalog
+            % Input  : - An AstroCatalog object.
+            % Output : - A vector of JD.
+            % Author : Eran Ofek (Apr 2023)
+            
+            Nobj = numel(Obj);
+            JD   = zeros(size(Obj));
+            for Iobj=1:1:Nobj
+                JD(Iobj) = Obj(Iobj).JD;
+            end
+        end
+    end
     
     methods (Static)
         function help

@@ -291,7 +291,9 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
                 ColUnits{Icol} = '';
             end
 
+
             MergedCat(Ifields).Catalog  = Cat;
+            MergedCat(Ifields).JD       = (min(MatchedS(Ifields).JD) + max(MatchedS(Ifields).JD)).*0.5;  % Set JD to mid time
             MergedCat(Ifields).ColNames = ColNames;
             MergedCat(Ifields).ColUnits = ColUnits;
             % MatchedS is not sorted

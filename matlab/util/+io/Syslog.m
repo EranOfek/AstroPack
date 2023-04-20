@@ -11,8 +11,8 @@ classdef Syslog < handle
     % Forwarder of MsgLogger messages to syslog
     
     properties (Access = public)
-        ServerIp string     % Syslog's server address (defaults to '127.0.0.1')
-        ServerPort uint16   % Syslog's server UDP port (defaults to 514)
+        ServerIp string     % Syslog's server address
+        ServerPort          % Syslog's server UDP port
         HostName string     % The current machine's hostname
         ProgName string     % The current process' name
         Pid uint32          % The current process' pid
@@ -71,13 +71,8 @@ classdef Syslog < handle
             % Construct a Syslog
             % Uses an UDP socket to forward messages to the syslog daemon on the localhost.
             arguments
-            	Args.ServerIp string = '127.0.0.1'      % optionally log to another machine
-            	Args.ServerPort uint16 = 514            % optionally use another UDP port
-            end
-            
-            if ~strcmp(matlabRelease.Release, 'R2020b') % on newer releases we should use udpport()
-                %Obj = [];
-                return;
+            	Args.ServerIp string = '127.0.0.1'  % optionally log to another machine
+            	Args.ServerPort = 514               % optionally use another UDP port
             end
             
             % Map our LogLevels to the standard (RFC5424) priorities
@@ -98,13 +93,15 @@ classdef Syslog < handle
             Obj.Pid = feature('getpid');
             
             Obj.ServerIp = Args.ServerIp;
-            Obj.ServerPort = Args.ServerPort;
+            Obj.ServerPort = Args.ServerPort;            
+            Obj.UdpSocket = udpport('byte', 'EnablePortSharing', true);
             
-            Obj.UdpSocket = udp(Obj.ServerIp, Obj.ServerPort);
-            set(Obj.UdpSocket, 'Terminator', newline);
-            fopen(Obj.UdpSocket);
+            Obj.ProgName = MsgLogger.getProgramName;
+            if isempty(Obj.ProgName)
+                Obj.ProgName = 'no-program-name';
+            end
         end
-        
+
         function sendMessage(Obj, LogLevel, varargin)
             % Sends a message in RFC5424 format to the syslog server
             
@@ -114,25 +111,20 @@ classdef Syslog < handle
                 MappedPriority = Obj.LOG_DEBUG;
             end
             
-            Prog = MsgLogger.getProgramName;
-            if isempty(Prog)
-                Prog = 'no-program-name';
-            end
-            
             Message = sprintf('<%d>%s %s %s[%d]: [%s] %s', ...
                 MappedPriority + (Obj.LOG_LAST * 8), ...
                 datetime('now', 'Format', 'MMM dd HH:mm:ss'), ...
                 Obj.HostName, ...
-                Prog, ...
+                Obj.ProgName, ...
                 Obj.Pid, ...
                 MsgLogger.getLevelStr(LogLevel), ...
-                varargin{:});
-            fwrite(Obj.UdpSocket, Message);
+                sprintf(varargin{:}));
+
+            Obj.UdpSocket.write(Message, Obj.ServerIp, Obj.ServerPort);
         end
         
         function delete(Obj)
             % Destructor
-            fclose(Obj.UdpSocket);
             delete(Obj.UdpSocket);
         end
         

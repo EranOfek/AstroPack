@@ -1,4 +1,4 @@
-function Result=stopButton(Args)
+function [Result,H]=stopButton(Args)
     % Create a stop button 
     % Input  : *...,key,val,...
     %            'Msg' - Window message.
@@ -6,7 +6,8 @@ function Result=stopButton(Args)
     %            'Title' - Windiow title. Default is 'Stop'.
     %            'Text'  - Button text. Default is 'Abort'.
     %            'Pos'   - Position of window [x,y]. Default is [].
-    % Output : - A function handle with the stop function
+    % Output : - A function handle with the stop function.
+    %          - Function handle of message box.
     % Author : Eran Ofek (Mar 2023)
     % Example: StopGUI=tools.gui.stopButton(Arg'Msg','Stop the process');
     %          % next you can check

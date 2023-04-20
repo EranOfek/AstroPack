@@ -1,40 +1,49 @@
-hi
-# AstroPack (a.k.a. MAATv2) - Astrophysics, Astronomy, and Image Processing Software Pacakge
+# AstroPack (a.k.a. MAATv2)
+Astronomy, Astrophysics, &amp; Image Processing Software Pacakge
 
-## The Weizmann Institute of Science
+Main Developers: <a href="https://www.weizmann.ac.il/physics/ofek/home">Eran Ofek</a>, Chen Tishler, Yossi Shvartzvald, Amir Sharon, Dan Elhanati, Noam Segev
+(Weizmann Institute of Science)
 
-https://www.weizmann.ac.il
+## Installation:
+1. git clone <this package>
+2. git checkout dev1
+3. From matlab: edit manuals.Install, and follow the instructions.
+
+For detailed installtion instruction, see the <a href="https://github.com/EranOfek/AstroPack/wiki/Install">Install wiki page</a>.
+  
+## Credit:
+Please cite:
+  1. <a href="https://ui.adsabs.harvard.edu/abs/2014ascl.soft07005O/abstract">Ofek (2014)</a>;
+  2. <a href="https://ui.adsabs.harvard.edu/abs/2018PASP..130g5002S/abstract">Soumagnac and Ofek (2018)</a>; );
+  3. <a href="https://ui.adsabs.harvard.edu/abs/2019PASP..131e4504O/abstract">Ofek (2019)</a>;
+  4. Ofek et al., in prep.
+
+## Getting started and documntation
+
+See <a href="https://github.com/EranOfek/AstroPack/wiki/Getting-Started">getting started wiki page</a>, or 
+from matlab: edit manuals.GettingStarted, and the inspect the content of the manuals package.
+
+Documentation is available in the github <a href="https://github.com/EranOfek/AstroPack/wiki">wiki page</a>, or in matlab, after installtion, in the manuals package.
+
+## Content
+A collection of several thousands functions for astronomy, astrophysics, and image processing applications.
+The following topics are covered:
+### Astronomical Image Processing
+### Celestial coordinates
+### Celestial mechanics
+### Virtual Observatory excess
+### Large catalogs and catsHTM
+### Statistics
+### Telescopes and Optics
+### Spectra and filters
+### Time series analysis
+### Cosmology
+### Gravitational lensing
+### General utilities
 
 
-### Prof. Eran Ofek 
-
-https://www.weizmann.ac.il/physics/ofek/home
-
-email: eran.ofek@weizmann.ac.il, ofek.eran@gmail.com
 
 
-### Yossi Shvartzvald
-
-https://www.weizmann.ac.il/Staff_Scientists/yossi-shvartzvald
-
-email: yossi.shvartzvald@weizmann.ac.il, yossishv@gmail.com
-
-
-### Chen Tishler 
-
-email: chen@tishler.dev, chentishler@gmail.com
-
-
-### Authors
-
-The MATLAB Astronomy & Astrophysics Toolbox (MAAT) contains tools contributed by the following individuals:
-
-Eran Ofek, Keren Sharon, Dovi Poznanski, Barak Zackay, Guy Nir, Ofer Yaron, Yifat Dzigan, Noam Ganot, Tali Engel.
-
-
-### License
-
-Unless specified otherwise this code and products are released under the GNU general public license version 3.
 
 
 

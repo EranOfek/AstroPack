@@ -139,7 +139,7 @@ if (nargout>1)
     Res.AdjustedChi2 = XC(:,2)+(XC(:,3)-Res.MinDof);
     for Indc2=1:1:NDC2
         %not sure about this
-        List0 = Util.find.find_local_zeros(Lag.', (Res.AdjustedChi2 - Res.MinChi2)-Res.DeltaChi2(Indc2) );
+        List0 = tools.find.find_local_zeros(Lag.', (Res.AdjustedChi2 - Res.MinChi2)-Res.DeltaChi2(Indc2) );
         if (~isempty(List0))
             Res.CI{Indc2} = List0(:,1);
         end

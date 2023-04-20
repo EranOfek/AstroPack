@@ -9,9 +9,9 @@
 %   CommentDict - Dictionary of default comments
 %   TimeDict - Dictionary of time keywords and their conversion functions.
 %   IsKeyUpToDate - Is Ket structure up to date.
-
 %
-
+%
+%
 % #functions (autogen)
 % AstroHeader - Construct AstroHeader object and populate it with headers
 % createBasicHeader - Create an AstroHeader object with a basic header
@@ -68,7 +68,7 @@ classdef AstroHeader < Component
     end
     
 %         filename
-%         configPath = "";
+%         configPath = "";q
 %         data
 %         lines
 %         userData
@@ -164,6 +164,14 @@ classdef AstroHeader < Component
             end
             % return structure array of keys
             KeyS(Iobj) = KeyS;
+            
+        end
+        
+        function Obj=set.Key(Obj, Val)
+            % setter for Key property
+           
+            Obj.Key = Val;
+            
             
         end
         
