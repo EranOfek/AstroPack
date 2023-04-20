@@ -1445,7 +1445,6 @@ classdef FileNames < Component
             JD         = Result.julday;
             CounterVec = Result.Counter;
             
-            
             Groups = tools.find.groupCounter(CounterVec, 'MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
             
             if nargout>1
