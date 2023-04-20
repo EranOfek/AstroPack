@@ -997,6 +997,10 @@ classdef DemonLAST < Component
 
                 Args.FocusTreatment  = 'move';   % 'move'|'keep'|'delete' 
                 Args.TempRawFocus    = '*_focus_raw_*.fits';
+
+                Args.MinNumIMageVisit  = 5;
+                Args.PauseDay          = 60;
+                Args.PauseNight        = 10;
             end
             
             % get path
@@ -1040,6 +1044,20 @@ classdef DemonLAST < Component
                 FN_Sci_Groups = FN_Sci_Groups.sortByJD(Args.SortDirection);
                 Ngroup = numel(FN_Sci_Groups);
                 
+                if Ngroup==1
+                    if FN_Sci_Groups(1).nfiles<=Args.MinNumIMageVisit
+                        Msg = 'Waiting for more images to analyze';
+                        fprintf('%s\n',Msg);
+
+                        SunInfo = celestial.SolarSys.get_sun;
+                        if SunInfo.Alt>0
+                            % Sun above horizon
+                            pause(Args.PauseDay)
+                        else
+                            pause(Args.PauseNight);
+                        end
+                    end
+                end
                 
                 % check if stop loop
                 if StopGUI()
@@ -1049,99 +1067,102 @@ classdef DemonLAST < Component
                     Cont = false;
                     delete(Args.AbortFileName);
                 end
+                
 
                 for Igroup=1:1:Ngroup
                     % for each visit
-                
-                    RawImageList = FN_Sci_Groups(Igroup).genFull('FullPath',NewPath);
+                    if FN_Sci_Groups(Igroup).nfiles>Args.MinNumIMageVisit
 
-                    FN_Sci_Groups(Igroup).BasePath = BasePath;
-                    
-                    % call visit pipeline
-                    
-                    try
-                        tic;
-                        [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
-                                                                   Args.multiRaw2procCoaddArgs{:},...
-                                                                   'SubDir',NaN,...
-                                                                   'BasePath', BasePath,...
-                                                                   'SaveAll',false);
-
-                        % save data products
-                        FN_I = FN_Sci_Groups(Igroup).reorderEntries(1, 'CreateNewObj',true);
+                        RawImageList = FN_Sci_Groups(Igroup).genFull('FullPath',NewPath);
     
-                        FN_Proc = imProc.io.writeProduct(AllSI, FN_I, 'Product',{'Image','Mask','Cat'}, 'WriteHeader',[true false true],...
-                                               'Level','proc',...
-                                               'LevelPath','proc',...
-                                               'FindSubDir',true);
-    
-    
-                        imProc.io.writeProduct(Coadd, FN_I, 'Product',{'Image','Mask','Cat','PSF'}, 'WriteHeader',[true false true false],...
-                                               'Level','coadd',...
-                                               'LevelPath','proc',...
-                                               'SubDir',FN_Proc.SubDir);
-    
-                        imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
-                                               'Level','merged',...
-                                               'LevelPath','proc',...
-                                               'SubDir',FN_Proc.SubDir);
-    
-                        imProc.io.writeProduct(MatchedS, FN_I, 'Product',{'MergedMat'}, 'WriteHeader',[false],...
-                                               'Level','merged',...
-                                               'LevelPath','proc',...
-                                               'SubDir',FN_Proc.SubDir);
-    
-                        imProc.io.writeProduct(ResultAsteroids, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
-                                               'Level','merged',...
-                                               'LevelPath','proc',...
-                                               'SubDir',FN_Proc.SubDir);
-
-                        % Write images and catalogs to DB
+                        FN_Sci_Groups(Igroup).BasePath = BasePath;
                         
-
-                        % move raw images to final location
-                        io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull);
-                    
-                        RunTime = toc;
-                    catch ME
-                        RunTime = toc;
-
-                        % extract errors
-                        ErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, ME.stack(1).line);
-                        warning(ErrorMsg);
-
-                        % write log file
-
-                        % move images to failed/ dir
-                        io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull('FullPath',FailedPath));
-
-                        ErrorMsg = sprintf('pipeline.DemonLAST: %d images moved to failed directory',numel(RawImageList));
-                        warning(ErrorMsg);
-                    end
-
-
-                    % write summary and run time to log
-                    Msg = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd analyzed %d images starting at %s',numel(RawImageList), FN_Sci_Groups(Igroup).Time{1});
-                    fprintf('%s\n',Msg);
-                    Msg = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd run time [s]: %6.1f', RunTime);
-                    fprintf('%s\n',Msg);
-
-
-
-                    
-                    
-                    
-                    % check if stop loop
-                    if StopGUI()
-                        Cont = false;
-                    end
-                    if isfile(Args.AbortFileName)
-                        Cont = false;
-                        delete(Args.AbortFileName);
-                    end
-                    if ~Cont
-                        % exist the visit loop
-                        break;
+                        % call visit pipeline
+                        
+                        try
+                            tic;
+                            [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
+                                                                       Args.multiRaw2procCoaddArgs{:},...
+                                                                       'SubDir',NaN,...
+                                                                       'BasePath', BasePath,...
+                                                                       'SaveAll',false);
+    
+                            % save data products
+                            FN_I = FN_Sci_Groups(Igroup).reorderEntries(1, 'CreateNewObj',true);
+        
+                            FN_Proc = imProc.io.writeProduct(AllSI, FN_I, 'Product',{'Image','Mask','Cat'}, 'WriteHeader',[true false true],...
+                                                   'Level','proc',...
+                                                   'LevelPath','proc',...
+                                                   'FindSubDir',true);
+        
+        
+                            imProc.io.writeProduct(Coadd, FN_I, 'Product',{'Image','Mask','Cat','PSF'}, 'WriteHeader',[true false true false],...
+                                                   'Level','coadd',...
+                                                   'LevelPath','proc',...
+                                                   'SubDir',FN_Proc.SubDir);
+        
+                            imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
+                                                   'Level','merged',...
+                                                   'LevelPath','proc',...
+                                                   'SubDir',FN_Proc.SubDir);
+        
+                            imProc.io.writeProduct(MatchedS, FN_I, 'Product',{'MergedMat'}, 'WriteHeader',[false],...
+                                                   'Level','merged',...
+                                                   'LevelPath','proc',...
+                                                   'SubDir',FN_Proc.SubDir);
+        
+                            imProc.io.writeProduct(ResultAsteroids, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
+                                                   'Level','merged',...
+                                                   'LevelPath','proc',...
+                                                   'SubDir',FN_Proc.SubDir);
+    
+                            % Write images and catalogs to DB
+    
+    
+                            % move raw images to final location
+                            io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull);
+                        
+                            RunTime = toc;
+                        catch ME
+                            RunTime = toc;
+    
+                            % extract errors
+                            ErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, ME.stack(1).line);
+                            warning(ErrorMsg);
+    
+                            % write log file
+    
+                            % move images to failed/ dir
+                            io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull('FullPath',FailedPath));
+    
+                            ErrorMsg = sprintf('pipeline.DemonLAST: %d images moved to failed directory',numel(RawImageList));
+                            warning(ErrorMsg);
+                        end
+    
+    
+                        % write summary and run time to log
+                        Msg = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd analyzed %d images starting at %s',numel(RawImageList), FN_Sci_Groups(Igroup).Time{1});
+                        fprintf('%s\n',Msg);
+                        Msg = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd run time [s]: %6.1f', RunTime);
+                        fprintf('%s\n',Msg);
+    
+    
+    
+                        
+                        
+                        
+                        % check if stop loop
+                        if StopGUI()
+                            Cont = false;
+                        end
+                        if isfile(Args.AbortFileName)
+                            Cont = false;
+                            delete(Args.AbortFileName);
+                        end
+                        if ~Cont
+                            % exist the visit loop
+                            break;
+                        end
                     end
                 end
             end
