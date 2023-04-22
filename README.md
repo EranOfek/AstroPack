@@ -27,7 +27,10 @@ Documentation is available in the github <a href="https://github.com/EranOfek/As
 
 ## Content
 A collection of several thousands functions for astronomy, astrophysics, and image processing applications.
+See also <a href="https://github.com/EranOfek/AstroPack/wiki/AstroPack-function-list">List of all functions</a>, and <a href="https://github.com/EranOfek/AstroPack/wiki/Getting-Started">getting started</a>.
+For detailed help see the <a href="https://github.com/EranOfek/AstroPack/wiki">AstroPack/MAATv2 wiki page</a>
 The following topics are covered:
+
 ### Astronomical Image Processing
 ### Celestial coordinates
 ### Celestial mechanics
