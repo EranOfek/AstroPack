@@ -1,4 +1,4 @@
-function [Ind,FlagUnique,FlagFound]=search_sortedlat_multi(Cat,Long,Lat,Radius,FlagUnique,DistFun)
+function [Ind,FlagUnique,FlagFound]=search_sortedlat_multi(Cat,Long,Lat,Radius,FlagUnique,DistFun,Args)
 % Search a single long/lat in a catalog sorted by latitude
 % Package: VO.search
 % Description: A low level function for a single cone search
@@ -14,6 +14,10 @@ function [Ind,FlagUnique,FlagFound]=search_sortedlat_multi(Cat,Long,Lat,Radius,F
 %            after first iteration provide the output.
 %          - A function handle for calculating distances Fun(X1,Y1,X2,Y2).
 %            Default is @celestial.coo.sphere_dist_fast.
+%          * ...,key,val,...
+%            'UseMex' - A logical indicating if to use the binarySearch mex
+%                   program instead of tools.find.mfind_bin
+%                   Default is true.
 % Output : - A strucure array in which the number of elements equal to the
 %            number of searched coordinates (Lat), and with the following
 %            fields:
@@ -43,6 +47,7 @@ arguments
     Radius
     FlagUnique                   = [];
     DistFun function_handle      = @celestial.coo.sphere_dist_fast;
+    Args.UseMex logical          = true;
 end
 
 if Radius<0
@@ -68,7 +73,12 @@ Nlat  = numel(Lat); % number of latitudes to search
 Ilat  = [(1:1:Nlat).', (1:1:Nlat).'+Nlat];
 
 Ncat  = size(Cat,1);
-Inear = tools.find.mfind_bin(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]);
+if Args.UseMex
+    Inear = binarySearch(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]);
+else
+    Inear = tools.find.mfind_bin(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]);
+end
+
 
 % Inear(Ilat) is a two column matrix [low, high] index for each latitud
 % search
