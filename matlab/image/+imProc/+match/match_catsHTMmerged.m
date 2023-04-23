@@ -92,6 +92,13 @@ function Result = match_catsHTMmerged(Obj, Args)
                 % FFU: need to debug: got here
                 
                 ResInd.Obj1_IndInObj2(FlagNaN) = NaN;
+                
+                % new code
+                %MergedCatFlag = zeros(numel(ResInd.Obj2_IndInObj1), 1, 'uint32'); 
+                %bitor(MergedCatFlag(~FlagNaN), CatH.Catalog(Iref,Args.MergedCatMaskCol)
+                
+                
+                % old code
                 MergedCatFlag = zeros(numel(ResInd.Obj2_IndInObj1),1);
                 Nref = numel(ResInd.Obj1_IndInObj2);
                 for Iref=1:1:Nref
