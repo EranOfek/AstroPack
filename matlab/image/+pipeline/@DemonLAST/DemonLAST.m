@@ -27,7 +27,8 @@ classdef DemonLAST < Component
         NewPath      = 'new';    % if start with '/' then abs path
         CalibPath    = 'calib';  % if start with '/' then abs path
         FailedPath   = 'failed'; % if start with '/' then abs path
-        
+        LogPath      = 'log';    % if start with '/' then abs path
+
         ObsCoo       = [35 30 415];  % [deg deg m]
     end
     
@@ -126,6 +127,24 @@ classdef DemonLAST < Component
                     % FailedPath contains relative path (relative to BasePath)
                     Obj.FailedPath = fullfile(Obj.BasePath,Obj.FailedPath);
                     Result      = Obj.FailedPath;
+                end
+            end
+
+        end
+
+        function Result=get.LogPath(Obj)
+            % getter fore LogPath
+
+            if isempty(Obj.LogPath)
+                Result = [];
+            else
+                if strcmp(Obj.LogPath(1),filesep)
+                    % FailedPath contains full dir name
+                    Result = Obj.LogPath;
+                else
+                    % FailedPath contains relative path (relative to BasePath)
+                    Obj.LogPath = fullfile(Obj.BasePath,Obj.LogPath);
+                    Result      = Obj.LogPath;
                 end
             end
 
@@ -531,6 +550,19 @@ classdef DemonLAST < Component
                     Obj.(FIELDS{If}) = Args.(FIELDS{If});
                 end
             end
+
+        end
+
+        function Obj=writeStatus(Obj, )
+            %
+            
+            PWD = pwd;
+168 %                 cd(Destination)
+169 %                 FID = fopen('.status','w+');
+170 %                 fprintf('FID','%s ready-for-transfer',datestr(now,'yyyy-mm-ddTHH:MM:SS'));
+171 %                 fclose(FID);
+172 %                 cd(PWD);
+
 
         end
 
@@ -974,7 +1006,9 @@ classdef DemonLAST < Component
         
         
         function Obj=main(Obj, Args)
-            %
+            % The main LAST pipeline demon.
+            %   The demon waits for images in the new/ directory, analyze
+            %   the images and distribute them.
             % Example: cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/new
             %          D=pipeline.DemonLAST;
             %          D.setPath('/raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02')
