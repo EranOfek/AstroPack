@@ -671,6 +671,10 @@ classdef CalibImages < Component
             %            'image2subimagesArgs' - A cell array of additional
             %                   arguments to pass to imProc.image.image2subimages
             %                   function. Default is {}.
+            %            'Convert2single' - A logical indicating if to
+            %                   convert the image to single precsion before
+            %                   processing (needed if images are stored in
+            %                   e.g., uint16). Default is false.
             % Output : - A CalibImages object with the Bias field
             %            populated. This is an handle to the original input
             %            object.
@@ -685,6 +689,7 @@ classdef CalibImages < Component
                 Args.BiasArgs cell            = {};
                 Args.BlockSize                = [];  % empty - do not generate sub images
                 Args.image2subimagesArgs cell = {};
+                Args.Convert2single logical   = false;
             end
             
             if isa(ImObj,'AstroImage')
@@ -703,6 +708,9 @@ classdef CalibImages < Component
             
             % for each sub image
             
+            if Args.Convert2single
+                ImObj.cast('single')
+            end
             [BiasImage, ~, ~] = imProc.dark.bias(ImObj, Args.BiasArgs{:});
             
             if isempty(Args.BlockSize)
@@ -840,6 +848,10 @@ classdef CalibImages < Component
             %            'flatArgs' - A cell array of additional
             %                   arguments to pass to imProc.flat.flat.
             %                   Default is {}.
+            %            'Convert2single' - A logical indicating if to
+            %                   convert the image to single precsion before
+            %                   processing (needed if images are stored in
+            %                   e.g., uint16). Default is false.
             % Output : - A CalibImages object in which the new flat is
             %            populated.
             % Author : Eran Ofek (Oct 2021)
@@ -854,6 +866,7 @@ classdef CalibImages < Component
                 Args.getStructKeyArgs cell        = {};
                 Args.isFlatArgs cell              = {};
                 Args.flatArgs cell                = {};
+                Args.Convert2single logical       = false;
             end
             
             if isa(ImObj,'AstroImage')
@@ -866,6 +879,10 @@ classdef CalibImages < Component
                 ImObj = AstroImage(List);
             end
             
+
+            if Args.Convert2single
+                ImObj.cast('single')
+            end
             % identify all possible filters
             ImFilt        = getStructKey(ImObj, Args.FilterKey, Args.getStructKeyArgs{:});
             FilterList    = {ImFilt.FILTER};

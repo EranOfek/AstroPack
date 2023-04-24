@@ -51,6 +51,7 @@ classdef Component < Base
         Tag         = []                % Optional tag (i.e. for events handling)
         MapKey      = []                % Used with ComponentMap class
         DebugMode   = true              % DebugMode
+        UseUuid     = false             % True if we need Uuid (added 18/04/2023)
         Config Configuration            % Configuration, deafult is system configuration
         Logger MsgLogger                % Logger, default is system logger
     end
@@ -97,10 +98,12 @@ classdef Component < Base
             % Output: Uuid, or [] if Obj is array
             % Example: MyUuid = Obj.makeUuid()
 
-            for i = 1:numel(Obj)
-                Obj(i).Uuid = Component.newUuid();
+            if Obj.UseUuid
+                for i = 1:numel(Obj)
+                    Obj(i).Uuid = Component.newUuid();
+                end
             end
-
+            
             if numel(Obj) == 1
                 Result = Obj.Uuid;
             else
@@ -116,6 +119,7 @@ classdef Component < Base
             % Example: MyUuid = Obj.needUuid()
             for i = 1:numel(Obj)
                 if isempty(Obj(i).Uuid)
+                    Obj(i).UseUuid = true;                    
                     Obj(i).makeUuid();
                 end
             end
@@ -359,7 +363,7 @@ classdef Component < Base
             % Make shallow copy of all properties
             NewObj = copyElement@Base(Obj);
 
-            % Generate new Uuid
+            % Generate new Uuid (only if it exists in the original)
             if ~isempty(Obj.Uuid)
                 NewObj.Uuid = Component.newUuid();
             end

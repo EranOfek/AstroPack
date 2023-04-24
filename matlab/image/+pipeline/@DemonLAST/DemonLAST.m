@@ -5,7 +5,7 @@
 % Example:
 %          D = pipeline.DemonLAST;
 %          D.CalibPath = <put here the output directory of the calibration images>
-%          D.D.prepMasterDark
+%          D.prepMasterDark
 %
 
 
@@ -40,6 +40,12 @@ classdef DemonLAST < Component
         FormatCropID    = '%03d';       % Used with CropID
         FormatVersion   = '%03d';       % Used with Version
         
+
+        
+        DefNewPath      = 'new';    % if start with '/' then abs path
+        DefCalibPath    = 'calib';  % if start with '/' then abs path
+        DefFailedPath   = 'failed'; % if start with '/' then abs path
+        DefLogPath      = 'log';    % if start with '/' then abs path
     end
 
     properties (Hidden, SetAccess=protected, GetAccess=public)
@@ -55,9 +61,16 @@ classdef DemonLAST < Component
     
     methods % Constructor
        
-        function Obj = FileNames(Pars)
+        function Obj = DemonLAST(Args)
             % Constructor for DemonLAST
+
+            arguments
+                Args.BasePath    = [];
+            end
             
+
+
+
         end
         
     end
@@ -74,7 +87,11 @@ classdef DemonLAST < Component
                     Result = pipeline.DemonLAST.getBasePath('DataDir',Obj.DataDir, 'CamNumber',Obj.CamNumber, 'ProjectName',Obj.ProjectName, 'Node',Obj.Node);
                 end
             else
-                Result = Obj.BasePath;
+                Result         = Obj.BasePath;
+                Obj.NewPath    = Obj.DefNewPath;
+                Obj.CalibPath  = Obj.DefCalibPath;
+                Obj.FailedPath = Obj.DefFailedPath;
+                Obj.LogPath    = Obj.DefLogPath;
             end
         end
 
@@ -553,18 +570,71 @@ classdef DemonLAST < Component
 
         end
 
-        function Obj=writeStatus(Obj, )
-            %
-            
-            PWD = pwd;
-168 %                 cd(Destination)
-169 %                 FID = fopen('.status','w+');
-170 %                 fprintf('FID','%s ready-for-transfer',datestr(now,'yyyy-mm-ddTHH:MM:SS'));
-171 %                 fclose(FID);
-172 %                 cd(PWD);
+        function writeStatus(Obj, Path, Args)
+            % Write ready-to-transfer in status file
+            % Input  : - A pipeline.DemonLAST object
+            %          - Path in which to write the file
+            %          * ...,key,val,...
+            %            'FileName' - Default is '.status'.
+            %            'Msg' - Default is 'ready-to-transfer'.
+            % Output : null
+            % Author : Eran Ofek (Apr 2023)
 
+            arguments
+                Obj
+                Path
+                Args.FileName = '.status';
+                Args.Msg      = 'ready-for-transfer';
+            end
+
+            FileName = fullfile(Path,Args.FileName);
+            FID = fopen(FileName,'w+');
+            fprintf(FID,'%s %s',datestr(now,'yyyy-mm-ddTHH:MM:SS'),Args.Msg);
+            fclose(FID);
 
         end
+
+        function writeLog(Obj, Msg, Args)
+            % write a log message to screen and log file
+
+            arguments
+                Obj
+                Msg
+                Args.WriteLog logical    = true;
+                Args.WriteDev logical    = true;
+            end
+
+            if ~isempty(Msg)
+                if ischar(Msg)
+                    Lines{1} = Msg;
+                elseif isstruct(Msg)
+                    Lines = squeeze(struct2cell(Msg));
+                elseif isa(Msg, 'MException')
+                    Nst      = numel(Msg.stack);
+                    Lines    = cell(1+Nst,1);
+                    Lines{1} = sprintf('Exception: id=%s msg=%s',Msg.identifier, Msg.message);
+                    
+                    for Ist=1:1:Nst
+                        Lines{Ist+1} = sprintf('stack: Ind=%d; FunName=%s; line=%d',Ist, Msg.stack(Ist).name, Msg.stack(Ist).line);
+                    end
+                elseif iscell(Msg)
+                    % do nothing - already in cell format
+                else
+                    error('Unknown Msg option');
+                end
+    
+                Nl = numel(Lines);
+                for Il=1:1:Nl
+                    if Args.WriteDev
+                        fprintf('%s\n', Lines{Il});
+                    end
+                    if Args.WriteLog
+                        
+                    end
+                end
+            end
+        end
+
 
     end
 
@@ -610,7 +680,7 @@ classdef DemonLAST < Component
             % Author : Eran Ofek (Apr 2023)
             % Example: D = pipeline.DemonLAST;
             %          D.CalibPath = <put here the output directory of the calibration images>
-            %          D.D.prepMasterDark
+            %          D.prepMasterDark
 
             arguments
                 Obj
@@ -686,7 +756,7 @@ classdef DemonLAST < Component
                         % prepare master bias
                         CI = CalibImages;
                         
-                        CI.createBias(DarkList, 'BiasArgs',Args.BiasArgs);
+                        CI.createBias(DarkList, 'BiasArgs',Args.BiasArgs, 'Convert2single',true);
         
                         % save processed bias images in raw/ dir
                         
@@ -730,8 +800,11 @@ classdef DemonLAST < Component
                         end
                         
                     end
+                else
+                    % read master image from disk
+                    Obj = Obj.loadCalib('ReadProduct',{'Bias'});
                 end
-            else
+            else % ~Repopulate...
                 % no need to create a Master bias - already exist       
                 % read master image from disk
                 Obj = Obj.loadCalib('ReadProduct',{'Bias'});
@@ -886,7 +959,7 @@ classdef DemonLAST < Component
     
                         CI = CalibImages;
                         
-                        CI.createFlat(AI, 'FlatArgs',Args.FlatArgs);
+                        CI.createFlat(AI, 'FlatArgs',Args.FlatArgs, 'Convert2single',true);
         
                         % write file
                         JD = CI.Flat.julday;
@@ -922,6 +995,9 @@ classdef DemonLAST < Component
                             Obj.CI.Flat.Var = [];
                         end
                     end
+                else
+                    % read master image from disk
+                    Obj = Obj.loadCalib('ReadProduct',{'Flat'});
                 end
             else
                 % no need to create a Master bias - already exist
@@ -1080,8 +1156,9 @@ classdef DemonLAST < Component
                 
                 if Ngroup==1
                     if FN_Sci_Groups(1).nfiles<=Args.MinNumIMageVisit
+                        
                         Msg = 'Waiting for more images to analyze';
-                        fprintf('%s\n',Msg);
+                        Obj.writeLog(Msg);
 
                         SunInfo = celestial.SolarSys.get_sun;
                         if SunInfo.Alt>0
@@ -1113,6 +1190,9 @@ classdef DemonLAST < Component
                         
                         % call visit pipeline
                         
+                        Msg = sprintf('pipline.DemonLAST executing pipeline for group %d - First image: %s',Igroup, RawImageList{end});
+                        Obj.writeLog(Msg);
+
                         try
                             tic;
                             [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
@@ -1124,46 +1204,58 @@ classdef DemonLAST < Component
                             % save data products
                             FN_I = FN_Sci_Groups(Igroup).reorderEntries(1, 'CreateNewObj',true);
         
-                            FN_Proc = imProc.io.writeProduct(AllSI, FN_I, 'Product',{'Image','Mask','Cat'}, 'WriteHeader',[true false true],...
+                            [FN_Proc,~,Status] = imProc.io.writeProduct(AllSI, FN_I, 'Product',{'Image','Mask','Cat'}, 'WriteHeader',[true false true],...
                                                    'Level','proc',...
                                                    'LevelPath','proc',...
                                                    'FindSubDir',true);
+                            Obj.writeLog(Status);
         
-        
-                            imProc.io.writeProduct(Coadd, FN_I, 'Product',{'Image','Mask','Cat','PSF'}, 'WriteHeader',[true false true false],...
+                            [~,~,Status]=imProc.io.writeProduct(Coadd, FN_I, 'Product',{'Image','Mask','Cat','PSF'}, 'WriteHeader',[true false true false],...
                                                    'Level','coadd',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
-        
-                            imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
+                            Obj.writeLog(Status);
+
+                            [~,~,Status]=imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
                                                    'Level','merged',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
-        
-                            imProc.io.writeProduct(MatchedS, FN_I, 'Product',{'MergedMat'}, 'WriteHeader',[false],...
+                            Obj.writeLog(Status);
+
+                            [~,~,Status]=imProc.io.writeProduct(MatchedS, FN_I, 'Product',{'MergedMat'}, 'WriteHeader',[false],...
                                                    'Level','merged',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
-        
-                            imProc.io.writeProduct(ResultAsteroids, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
+                            Obj.writeLog(Status);
+
+                            [~,~,Status]=imProc.io.writeProduct(ResultAsteroids, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
                                                    'Level','merged',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
-    
+                            Obj.writeLog(Status);
+
                             % Write images and catalogs to DB
     
     
                             % move raw images to final location
-                            io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull);
+                            RawImageListFinal = FN_Sci_Groups(Igroup).genFull;
+                            io.files.moveFiles(RawImageList, RawImageListFinal);
                         
+                            % Write ready-to-transfer
+                            writeStatus(Obj, FN_Proc.genPath);
+                            writeStatus(Obj, fileparts(RawImageListFinal{1}));
+
                             RunTime = toc;
                         catch ME
+                             
+                            
                             RunTime = toc;
     
                             % extract errors
                             ErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, ME.stack(1).line);
                             warning(ErrorMsg);
-    
+                            Obj.writeLog(ErrorMsg);
+
                             % write log file
     
                             % move images to failed/ dir
@@ -1171,16 +1263,14 @@ classdef DemonLAST < Component
     
                             ErrorMsg = sprintf('pipeline.DemonLAST: %d images moved to failed directory',numel(RawImageList));
                             warning(ErrorMsg);
+                            Obj.writeLog(ErrorMsg);
                         end
     
     
                         % write summary and run time to log
-                        Msg = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd analyzed %d images starting at %s',numel(RawImageList), FN_Sci_Groups(Igroup).Time{1});
-                        fprintf('%s\n',Msg);
-                        Msg = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd run time [s]: %6.1f', RunTime);
-                        fprintf('%s\n',Msg);
-    
-    
+                        Msg{1} = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd analyzed %d images starting at %s',numel(RawImageList), FN_Sci_Groups(Igroup).Time{1});
+                        Msg{2} = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd run time [s]: %6.1f', RunTime);
+                        Obj.writeLog(Msg);                        
     
                         
                         
