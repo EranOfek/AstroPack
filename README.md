@@ -32,6 +32,11 @@ For detailed help see the <a href="https://github.com/EranOfek/AstroPack/wiki">A
 The following topics are covered:
 
 ### Astronomical Image Processing
+
+AstroPack/MAATv2 contains tools for image analysis of astronomical images. The tools includes most of the required tools for image analysis from the <a href="https://github.com/EranOfek/AstroPack/wiki/Dark-and-Flat-calibration">basic calibration of images</a>, source finding, <a href="https://github.com/EranOfek/AstroPack/wiki/Photometry">photometry</a>, astrometry, catalog matching, photometric calibration, light curves, image coaddition, reference image management, image subtraction, and database storage.
+The main tools includes a data container class for astronomical images (<a href="https://github.com/EranOfek/AstroPack/wiki/AstroImage">AstroImage</a>). It supports arrays of classes, such that each element of the object contains one image with all its metadata (e.g., <a href="https://github.com/EranOfek/AstroPack/wiki/AstroHeader">header</a>, <a href="https://github.com/EranOfek/AstroPack/wiki/AstroCatalog">catalog</a>, <a href="https://github.com/EranOfek/AstroPack/wiki/AstroPSF">PSF</a>, <a href="https://github.com/EranOfek/AstroPack/wiki/AstroWCS">WCS</a>, background image, variance image, and <a href="https://github.com/EranOfek/AstroPack/wiki/MaskImage">mask image</a>.
+The classes provides easy to use arithmatic and logical manipulation of images. In addition low-level and high-level tools are available in several associated packages (e.g., <a href="https://github.com/EranOfek/AstroPack/wiki/imProc">imProc</a>).
+
 ### Celestial coordinates
 ### Celestial mechanics
 ### Virtual Observatory excess
