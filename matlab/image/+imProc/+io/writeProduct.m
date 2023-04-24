@@ -158,6 +158,7 @@ function [FN,SubDir]=writeProduct(Obj, FNin, Args)
 
 
         % loop for writing the products
+        
         switch class(Obj)
             case 'AstroImage'
                 % AstroImage input

@@ -64,6 +64,7 @@ function Result = match_catsHTMmerged(Obj, Args)
     
     Nobj = numel(Obj);
     Igood = 0;
+    
     for Iobj=1:1:Nobj
         if isa(Obj, 'AstroImage')
             Cat = Obj(Iobj).CatData;

@@ -40,6 +40,12 @@ classdef DemonLAST < Component
         FormatCropID    = '%03d';       % Used with CropID
         FormatVersion   = '%03d';       % Used with Version
         
+
+        
+        DefNewPath      = 'new';    % if start with '/' then abs path
+        DefCalibPath    = 'calib';  % if start with '/' then abs path
+        DefFailedPath   = 'failed'; % if start with '/' then abs path
+        DefLogPath      = 'log';    % if start with '/' then abs path
     end
 
     properties (Hidden, SetAccess=protected, GetAccess=public)
@@ -55,9 +61,16 @@ classdef DemonLAST < Component
     
     methods % Constructor
        
-        function Obj = FileNames(Pars)
+        function Obj = DemonLAST(Args)
             % Constructor for DemonLAST
+
+            arguments
+                Args.BasePath    = [];
+            end
             
+
+
+
         end
         
     end
@@ -74,7 +87,11 @@ classdef DemonLAST < Component
                     Result = pipeline.DemonLAST.getBasePath('DataDir',Obj.DataDir, 'CamNumber',Obj.CamNumber, 'ProjectName',Obj.ProjectName, 'Node',Obj.Node);
                 end
             else
-                Result = Obj.BasePath;
+                Result         = Obj.BasePath;
+                Obj.NewPath    = Obj.DefNewPath;
+                Obj.CalibPath  = Obj.DefCalibPath;
+                Obj.FailedPath = Obj.DefFailedPath;
+                Obj.LogPath    = Obj.DefLogPath;
             end
         end
 
@@ -553,16 +570,27 @@ classdef DemonLAST < Component
 
         end
 
-        function Obj=writeStatus(Obj, )
-            %
-            
-            PWD = pwd;
-168 %                 cd(Destination)
-169 %                 FID = fopen('.status','w+');
-170 %                 fprintf('FID','%s ready-for-transfer',datestr(now,'yyyy-mm-ddTHH:MM:SS'));
-171 %                 fclose(FID);
-172 %                 cd(PWD);
+        function writeStatus(Obj, Path, Args)
+            % Write ready-to-transfer in status file
+            % Input  : - A pipeline.DemonLAST object
+            %          - Path in which to write the file
+            %          * ...,key,val,...
+            %            'FileName' - Default is '.status'.
+            %            'Msg' - Default is 'ready-to-transfer'.
+            % Output : null
+            % Author : Eran Ofek (Apr 2023)
 
+            arguments
+                Obj
+                Path
+                Args.FileName = '.status';
+                Args.Msg      = 'ready-for-transfer';
+            end
+
+            FileName = fullfile(Path,Args.FileName);
+            FID = fopen(FileName,'w+');
+            fprintf(FID,'%s %s',datestr(now,'yyyy-mm-ddTHH:MM:SS'),Args.Msg);
+            fclose(FID);
 
         end
 
@@ -730,8 +758,11 @@ classdef DemonLAST < Component
                         end
                         
                     end
+                else
+                    % read master image from disk
+                    Obj = Obj.loadCalib('ReadProduct',{'Bias'});
                 end
-            else
+            else % ~Repopulate...
                 % no need to create a Master bias - already exist       
                 % read master image from disk
                 Obj = Obj.loadCalib('ReadProduct',{'Bias'});
@@ -922,6 +953,9 @@ classdef DemonLAST < Component
                             Obj.CI.Flat.Var = [];
                         end
                     end
+                else
+                    % read master image from disk
+                    Obj = Obj.loadCalib('ReadProduct',{'Flat'});
                 end
             else
                 % no need to create a Master bias - already exist
@@ -1154,8 +1188,13 @@ classdef DemonLAST < Component
     
     
                             % move raw images to final location
-                            io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull);
+                            RawImageListFinal = FN_Sci_Groups(Igroup).genFull;
+                            io.files.moveFiles(RawImageList, RawImageListFinal);
                         
+                            % Write ready-to-transfer
+                            writeStatus(Obj, FN_Proc.genPath);
+                            writeStatus(Obj, fileparts(RawImageListFinal{1}));
+
                             RunTime = toc;
                         catch ME
                             RunTime = toc;
