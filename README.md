@@ -47,10 +47,13 @@ The <a href="https://github.com/EranOfek/AstroPack/wiki/celestial">celestial</a>
 
 ### Virtual Observatory excess
 ### Large catalogs and catsHTM
-### Statistics
 ### Telescopes and Optics
 ### Spectra and filters
 ### Time series analysis
+
+Tools for time series analysis mainly available in the <a href="">timeseries</a> and <a href="">TimeDelay</a> packages.
+  
 ### Cosmology
 ### Gravitational lensing
+### Statistics
 ### General utilities
