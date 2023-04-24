@@ -39,7 +39,7 @@ The classes provides easy to use arithmatic and logical manipulation of images. 
 
 ### Celestial coordinates
 
-A large number of tools for coordinates calculations, conversion, and manipulation is available (e.g., in the <a href="https://github.com/EranOfek/AstroPack/wiki/celestial">celestial</a> package.
+A large number of tools for coordinates calculations, conversion, and manipulation is available (e.g., in the <a href="https://github.com/EranOfek/AstroPack/wiki/celestial">celestial</a> package).
   
 ### Celestial mechanics
 
