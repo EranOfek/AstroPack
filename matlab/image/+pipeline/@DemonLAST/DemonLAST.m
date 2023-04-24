@@ -596,7 +596,19 @@ classdef DemonLAST < Component
 
         function writeLog(Obj, Msg, Args)
             % write a log message to screen and log file
-
+            % Input  : - A pipeline.DemonLAST object.
+            %          - One of the following:
+            %            Char array containing message to print/log.
+            %            A cell array of messages.
+            %            As truct array with messages in the .Msg field.
+            %            An MException object.
+            %            Empty (do nothing).
+            %          * ...,key,val,...
+            %            'WriteLog' - write log file. Default is true.
+            %            'WriteDev' - write to screen. Default is true.
+            % Output : null
+            % Author : Eran Ofek (Apr 2023)
+            
             arguments
                 Obj
                 Msg
