@@ -22,10 +22,10 @@ function [Res,Period]=eb_light_curve(Lum,Mass,Radii,OrbEl,LimbFun,LDPars1,LDPars
 % Tested : Matlab 5.3
 %     By : Eran O. Ofek                    Aug 2001
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [LC,Period]=AstroUtil.binary.eb_light_curve([100 20],[1 0.6],[0.01 0.01],[0 0.3 0.2 0 0 pi./2],'AstroUtil.binary.limb_darkening');
+% Example: [LC,Period]=astro.binary.eb_light_curve([100 20],[1 0.6],[0.01 0.01],[0 0.3 0.2 0 0 pi./2],'astro.binary.limb_darkening');
 % Reliable: 2
 %------------------------------------------------------------------------------
-import AstroUtil.binary.*
+import astro.binary.*
 
 Nstep   = 1000;
 Def.LimbFun = 'limb_darkening';

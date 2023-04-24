@@ -27,7 +27,8 @@ classdef DemonLAST < Component
         NewPath      = 'new';    % if start with '/' then abs path
         CalibPath    = 'calib';  % if start with '/' then abs path
         FailedPath   = 'failed'; % if start with '/' then abs path
-        
+        LogPath      = 'log';    % if start with '/' then abs path
+
         ObsCoo       = [35 30 415];  % [deg deg m]
     end
     
@@ -39,6 +40,12 @@ classdef DemonLAST < Component
         FormatCropID    = '%03d';       % Used with CropID
         FormatVersion   = '%03d';       % Used with Version
         
+
+        
+        DefNewPath      = 'new';    % if start with '/' then abs path
+        DefCalibPath    = 'calib';  % if start with '/' then abs path
+        DefFailedPath   = 'failed'; % if start with '/' then abs path
+        DefLogPath      = 'log';    % if start with '/' then abs path
     end
 
     properties (Hidden, SetAccess=protected, GetAccess=public)
@@ -54,9 +61,16 @@ classdef DemonLAST < Component
     
     methods % Constructor
        
-        function Obj = FileNames(Pars)
+        function Obj = DemonLAST(Args)
             % Constructor for DemonLAST
+
+            arguments
+                Args.BasePath    = [];
+            end
             
+
+
+
         end
         
     end
@@ -73,7 +87,11 @@ classdef DemonLAST < Component
                     Result = pipeline.DemonLAST.getBasePath('DataDir',Obj.DataDir, 'CamNumber',Obj.CamNumber, 'ProjectName',Obj.ProjectName, 'Node',Obj.Node);
                 end
             else
-                Result = Obj.BasePath;
+                Result         = Obj.BasePath;
+                Obj.NewPath    = Obj.DefNewPath;
+                Obj.CalibPath  = Obj.DefCalibPath;
+                Obj.FailedPath = Obj.DefFailedPath;
+                Obj.LogPath    = Obj.DefLogPath;
             end
         end
 
@@ -126,6 +144,24 @@ classdef DemonLAST < Component
                     % FailedPath contains relative path (relative to BasePath)
                     Obj.FailedPath = fullfile(Obj.BasePath,Obj.FailedPath);
                     Result      = Obj.FailedPath;
+                end
+            end
+
+        end
+
+        function Result=get.LogPath(Obj)
+            % getter fore LogPath
+
+            if isempty(Obj.LogPath)
+                Result = [];
+            else
+                if strcmp(Obj.LogPath(1),filesep)
+                    % FailedPath contains full dir name
+                    Result = Obj.LogPath;
+                else
+                    % FailedPath contains relative path (relative to BasePath)
+                    Obj.LogPath = fullfile(Obj.BasePath,Obj.LogPath);
+                    Result      = Obj.LogPath;
                 end
             end
 
@@ -534,6 +570,30 @@ classdef DemonLAST < Component
 
         end
 
+        function writeStatus(Obj, Path, Args)
+            % Write ready-to-transfer in status file
+            % Input  : - A pipeline.DemonLAST object
+            %          - Path in which to write the file
+            %          * ...,key,val,...
+            %            'FileName' - Default is '.status'.
+            %            'Msg' - Default is 'ready-to-transfer'.
+            % Output : null
+            % Author : Eran Ofek (Apr 2023)
+
+            arguments
+                Obj
+                Path
+                Args.FileName = '.status';
+                Args.Msg      = 'ready-for-transfer';
+            end
+
+            FileName = fullfile(Path,Args.FileName);
+            FID = fopen(FileName,'w+');
+            fprintf(FID,'%s %s',datestr(now,'yyyy-mm-ddTHH:MM:SS'),Args.Msg);
+            fclose(FID);
+
+        end
+
     end
 
     methods % pipelines
@@ -698,8 +758,11 @@ classdef DemonLAST < Component
                         end
                         
                     end
+                else
+                    % read master image from disk
+                    Obj = Obj.loadCalib('ReadProduct',{'Bias'});
                 end
-            else
+            else % ~Repopulate...
                 % no need to create a Master bias - already exist       
                 % read master image from disk
                 Obj = Obj.loadCalib('ReadProduct',{'Bias'});
@@ -890,6 +953,9 @@ classdef DemonLAST < Component
                             Obj.CI.Flat.Var = [];
                         end
                     end
+                else
+                    % read master image from disk
+                    Obj = Obj.loadCalib('ReadProduct',{'Flat'});
                 end
             else
                 % no need to create a Master bias - already exist
@@ -974,7 +1040,9 @@ classdef DemonLAST < Component
         
         
         function Obj=main(Obj, Args)
-            %
+            % The main LAST pipeline demon.
+            %   The demon waits for images in the new/ directory, analyze
+            %   the images and distribute them.
             % Example: cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/new
             %          D=pipeline.DemonLAST;
             %          D.setPath('/raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02')
@@ -997,13 +1065,18 @@ classdef DemonLAST < Component
 
                 Args.FocusTreatment  = 'move';   % 'move'|'keep'|'delete' 
                 Args.TempRawFocus    = '*_focus_raw_*.fits';
+
+                Args.MinNumIMageVisit  = 5;
+                Args.PauseDay          = 60;
+                Args.PauseNight        = 10;
             end
             
             % get path
             %[NewPath,CameraNumber,Side,HostName,ProjName,MountNumberStr]=getPath(Obj, Args.NewSubDir, 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
             %[BasePath] = getPath(Obj, '', 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
-            NewPath  = Obj.NewPath;
-            BasePath = Obj.BasePath;
+            NewPath    = Obj.NewPath;
+            BasePath   = Obj.BasePath;
+            FailedPath = Obj.FailedPath;
 
 
             PWD = pwd;
@@ -1039,6 +1112,20 @@ classdef DemonLAST < Component
                 FN_Sci_Groups = FN_Sci_Groups.sortByJD(Args.SortDirection);
                 Ngroup = numel(FN_Sci_Groups);
                 
+                if Ngroup==1
+                    if FN_Sci_Groups(1).nfiles<=Args.MinNumIMageVisit
+                        Msg = 'Waiting for more images to analyze';
+                        fprintf('%s\n',Msg);
+
+                        SunInfo = celestial.SolarSys.get_sun;
+                        if SunInfo.Alt>0
+                            % Sun above horizon
+                            pause(Args.PauseDay)
+                        else
+                            pause(Args.PauseNight);
+                        end
+                    end
+                end
                 
                 % check if stop loop
                 if StopGUI()
@@ -1048,75 +1135,107 @@ classdef DemonLAST < Component
                     Cont = false;
                     delete(Args.AbortFileName);
                 end
+                
 
                 for Igroup=1:1:Ngroup
                     % for each visit
-                
-                    RawImageList = FN_Sci_Groups(Igroup).genFull('FullPath',NewPath);
+                    if FN_Sci_Groups(Igroup).nfiles>Args.MinNumIMageVisit
 
-                    FN_Sci_Groups(Igroup).BasePath = BasePath;
-                    
-                    % call visit pipeline
-                    tic;
-                    [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
-                                                                   Args.multiRaw2procCoaddArgs{:},...
-                                                                   'SubDir',NaN,...
-                                                                   'BasePath', BasePath,...
-                                                                   'SaveAll',false);
-                    toc
-                
-                
-                  
-                    % save proc data product
-                    tic;
-                    
-                    FN_I = FN_Sci_Groups(Igroup).reorderEntries(1, 'CreateNewObj',true);
+                        RawImageList = FN_Sci_Groups(Igroup).genFull('FullPath',NewPath);
+    
+                        FN_Sci_Groups(Igroup).BasePath = BasePath;
+                        
+                        % call visit pipeline
+                        
+                        try
+                            tic;
+                            [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
+                                                                       Args.multiRaw2procCoaddArgs{:},...
+                                                                       'SubDir',NaN,...
+                                                                       'BasePath', BasePath,...
+                                                                       'SaveAll',false);
+    
+                            % save data products
+                            FN_I = FN_Sci_Groups(Igroup).reorderEntries(1, 'CreateNewObj',true);
+        
+                            FN_Proc = imProc.io.writeProduct(AllSI, FN_I, 'Product',{'Image','Mask','Cat'}, 'WriteHeader',[true false true],...
+                                                   'Level','proc',...
+                                                   'LevelPath','proc',...
+                                                   'FindSubDir',true);
+        
+        
+                            imProc.io.writeProduct(Coadd, FN_I, 'Product',{'Image','Mask','Cat','PSF'}, 'WriteHeader',[true false true false],...
+                                                   'Level','coadd',...
+                                                   'LevelPath','proc',...
+                                                   'SubDir',FN_Proc.SubDir);
+        
+                            imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
+                                                   'Level','merged',...
+                                                   'LevelPath','proc',...
+                                                   'SubDir',FN_Proc.SubDir);
+        
+                            imProc.io.writeProduct(MatchedS, FN_I, 'Product',{'MergedMat'}, 'WriteHeader',[false],...
+                                                   'Level','merged',...
+                                                   'LevelPath','proc',...
+                                                   'SubDir',FN_Proc.SubDir);
+        
+                            imProc.io.writeProduct(ResultAsteroids, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
+                                                   'Level','merged',...
+                                                   'LevelPath','proc',...
+                                                   'SubDir',FN_Proc.SubDir);
+    
+                            % Write images and catalogs to DB
+    
+    
+                            % move raw images to final location
+                            RawImageListFinal = FN_Sci_Groups(Igroup).genFull;
+                            io.files.moveFiles(RawImageList, RawImageListFinal);
+                        
+                            % Write ready-to-transfer
+                            writeStatus(Obj, FN_Proc.genPath);
+                            writeStatus(Obj, fileparts(RawImageListFinal{1}));
 
-                    FN_Proc = imProc.io.writeProduct(AllSI, FN_I, 'Product',{'Image','Mask','Cat'}, 'WriteHeader',[true false true],...
-                                           'Level','proc',...
-                                           'LevelPath','proc',...
-                                           'FindSubDir',true);
-
-
-                    imProc.io.writeProduct(Coadd, FN_I, 'Product',{'Image','Mask','Cat','PSF'}, 'WriteHeader',[true false true false],...
-                                           'Level','coadd',...
-                                           'LevelPath','proc',...
-                                           'SubDir',FN_Proc.SubDir);
-
-                    imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
-                                           'Level','merged',...
-                                           'LevelPath','proc',...
-                                           'SubDir',FN_Proc.SubDir);
-
-                    imProc.io.writeProduct(MatchedS, FN_I, 'Product',{'MergedMat'}, 'WriteHeader',[false],...
-                                           'Level','merged',...
-                                           'LevelPath','proc',...
-                                           'SubDir',FN_Proc.SubDir);
-
-                    imProc.io.writeProduct(ResultAsteroids, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
-                                           'Level','merged',...
-                                           'LevelPath','proc',...
-                                           'SubDir',FN_Proc.SubDir);
-
-                    toc
-
-
-                    % Write images and catalogs to DB
-                    
-                    % move raw images to final location
-                    io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull);
-                    
-                    % check if stop loop
-                    if StopGUI()
-                        Cont = false;
-                    end
-                    if isfile(Args.AbortFileName)
-                        Cont = false;
-                        delete(Args.AbortFileName);
-                    end
-                    if ~Cont
-                        % exist the visit loop
-                        break;
+                            RunTime = toc;
+                        catch ME
+                            RunTime = toc;
+    
+                            % extract errors
+                            ErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, ME.stack(1).line);
+                            warning(ErrorMsg);
+    
+                            % write log file
+    
+                            % move images to failed/ dir
+                            io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull('FullPath',FailedPath));
+    
+                            ErrorMsg = sprintf('pipeline.DemonLAST: %d images moved to failed directory',numel(RawImageList));
+                            warning(ErrorMsg);
+                        end
+    
+    
+                        % write summary and run time to log
+                        Msg = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd analyzed %d images starting at %s',numel(RawImageList), FN_Sci_Groups(Igroup).Time{1});
+                        fprintf('%s\n',Msg);
+                        Msg = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd run time [s]: %6.1f', RunTime);
+                        fprintf('%s\n',Msg);
+    
+    
+    
+                        
+                        
+                        
+                        % check if stop loop
+                        if StopGUI()
+                            Cont = false;
+                        end
+                        if isfile(Args.AbortFileName)
+                            Cont = false;
+                            delete(Args.AbortFileName);
+                        end
+                        if ~Cont
+                            % exist the visit loop
+                            break;
+                        end
                     end
                 end
             end

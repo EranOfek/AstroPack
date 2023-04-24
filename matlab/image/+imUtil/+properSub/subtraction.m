@@ -164,7 +164,7 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         % apply source noise 
         if ApplySourceNoise
             % ZOGY Equations 26-29
-            [Kr_hat, Kn_hat, V_Sr, V_Sn, Vcorr] = imUtil.properSub.sourceNoise(Fr, Fn, Pr_hat, Pn_hat, D_den, VN, VR, AbsFun);
+            [Kr_hat, Kn_hat, V_Sr, V_Sn, Vcorr] = imUtil.properSub.sourceNoise(Fr, Fn, Pr_hat, Pn_hat, D_den, Args.VN, Args.VR, AbsFun);
             
 %             Kr_hat    = Fr.*Fn.^2.*conj(Pr_hat).*AbsFun(Pn_hat).^2./D_den;
 %             Kn_hat    = Fn.*Fr.^2.*conj(Pn_hat).*AbsFun(Pr_hat).^2./D_den;
@@ -178,10 +178,12 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         % apply astrometric noise
 
         if ApplyAstNoise
-            Sn        = Kn_hat.*N_hat;
-            Sr        = Kr_hat.*R_hat;
+            [Kr_hat, Kn_hat] = imUtil.properSub.sourceNoise(Fr, Fn, Pr_hat, Pn_hat, D_den, Args.VN, Args.VR, AbsFun); % need to change later
+            Sn        = ifft2(Kn_hat.*N_hat);
+            Sr        = ifft2(Kr_hat.*R_hat);
             [GradNx, GradNy] = gradient(Sn);
             [GradRx, GradRy] = gradient(Sr);
+
             Vast_Sn   = Args.SigmaAstN(1).^2 .* GradNx.^2 + Args.SigmaAstN(2).^2 .* GradNy.^2;
             Vast_Sr   = Args.SigmaAstR(1).^2 .* GradRx.^2 + Args.SigmaAstR(2).^2 .* GradRy.^2;
             
@@ -209,13 +211,20 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         S_hat  = ifft2(S_hat);
         % Scorr is already in real space
 
-        if Args.AnalyticNorm
-            S_hat = S_hat/(sqrt(sum(abs(Pd_hat(:)).^2))*Fd);
-        end
+        if Args.AnalyticNorm && ~Args.EmpiricalNorm
+            Norm = (sqrt(sum(abs(Pd_hat(:)).^2))*Fd);
+            S_hat = S_hat/Norm;
+%             Scorr = Scorr/Norm;
+        
 
-        if Args.EmpiricalNorm
+        elseif Args.EmpiricalNorm
             S_hat = S_hat - Args.MeanFun(S_hat,'all');
-            S_hat = S_hat./Args.StdFun(S_hat,'all');
+            Norm = Args.StdFun(S_hat,'all');
+            S_hat = S_hat./Norm;
+
+            Scorr = Scorr - Args.MeanFun(Scorr,'all');
+            Norm = Args.StdFun(Scorr,'all');
+            Scorr = Scorr./Norm;
         end
     else
         % convert Scorr to fft

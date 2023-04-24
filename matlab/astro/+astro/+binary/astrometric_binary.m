@@ -23,7 +23,7 @@ function [Orbit,Par]=astrometric_binary(JD,El)
 % Tested : Maylab R2011b
 %     By : Eran O. Ofek                    Jan 2014
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [Orbit,Par]=AstroUtil.binary.astrometric_binary; plot(Orbit.X,Orbit.Y,'.');
+% Example: [Orbit,Par]=astro.binary.astrometric_binary; plot(Orbit.X,Orbit.Y,'.');
 % Reliable: 2
 %--------------------------------------------------------------------------
 

@@ -116,13 +116,7 @@ function [FN,SubDir]=writeProduct(Obj, FNin, Args)
         FN = FNin.copy;
 
 
-        % get SubDir auomatically
-        if Args.FindSubDir
-            [SubDir, FN] = FN.nextSubDir;
-        else
-            SubDir = FN.SubDir;
-        end
-
+        
         FN = FN.updateIfNotEmpty('Type',Args.Type,...
                                  'Level',Args.Level,...
                                  'Counter',Args.Counter,...
@@ -155,7 +149,16 @@ function [FN,SubDir]=writeProduct(Obj, FNin, Args)
             error('Number of elements in AstroImage and FileNames object must be identical');
         end
 
+        % get SubDir auomatically
+        if Args.FindSubDir
+            [SubDir, FN] = FN.nextSubDir;
+        else
+            SubDir = FN.SubDir;
+        end
+
+
         % loop for writing the products
+        
         switch class(Obj)
             case 'AstroImage'
                 % AstroImage input

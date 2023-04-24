@@ -1,4 +1,4 @@
-% ImagePath - A class for generating stand storing image/path names
+% ImagePath - A class for generating stand sgenFiltoring image/path names
 %       for ULTRASAT and LAST.
 %
 % File name format: <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
@@ -496,13 +496,16 @@ classdef FileNames < Component
                         else
                             Result = Obj.(Prop){Ind};
                         end
-                    else
-
+                    elseif isnumeric(Obj.(Prop))
                         if Ind>numel(Obj.(Prop))
                             Result = Obj.(Prop)(1);
                         else
                             Result = Obj.(Prop)(Ind);
                         end
+                    elseif ischar(Obj.(Prop))
+                        Result = Obj.(Prop);
+                    else
+                        error('Unknown FileNames property format');
                     end
                 end
             end
@@ -595,28 +598,43 @@ classdef FileNames < Component
                 end
                 FilterStr = Obj.getProp('Filter',Itime);
                 if isnumeric(FilterStr)
-                    FilterStr = sprintf('%d',FilterStr);
-                
+                    if isnan(FilterStr)
+                        FilterStr = '';
+                    else
+                        FilterStr = sprintf('%d',FilterStr);
+                    end
                 end
                 FieldIDStr = Obj.getProp('FieldID',Itime);
                 if isnumeric(FieldIDStr) && ~isnan(FieldIDStr)
-                    FieldIDStr = sprintf(Obj.FormatFieldID,FieldIDStr);
-                
+                    if isnan(FieldIDStr)
+                        FieldIDStr = '';
+                    else
+                        FieldIDStr = sprintf(Obj.FormatFieldID,FieldIDStr);
+                    end
                 end
                 CounterStr = Obj.getProp('Counter',Itime);
                 if isnumeric(CounterStr)
-                    CounterStr = sprintf(Obj.FormatCounter,CounterStr);
-                
+                    if isnan(CounterStr)
+                        CounterStr = '';
+                    else
+                        CounterStr = sprintf(Obj.FormatCounter,CounterStr);
+                    end
                 end
                 CCDIDStr = Obj.getProp('CCDID',Itime);
                 if isnumeric(CCDIDStr)
-                    CCDIDStr = sprintf(Obj.FormatCCDID,CCDIDStr);
-                
+                    if isnan(CCDIDStr)
+                        CCDIDStr = '';
+                    else
+                        CCDIDStr = sprintf(Obj.FormatCCDID,CCDIDStr);
+                    end
                 end
                 CropIDStr = Obj.getProp('CropID',Itime);
                 if isnumeric(CropIDStr)
-                    CropIDStr = sprintf(Obj.FormatCropID,CropIDStr);
-                
+                    if isnan(CropIDStr)
+                        CropIDStr = '';
+                    else
+                        CropIDStr = sprintf(Obj.FormatCropID,CropIDStr);
+                    end
                 end
                 VersionStr = Obj.getProp('Version',Itime);
                 if isnumeric(VersionStr)
@@ -988,111 +1006,111 @@ classdef FileNames < Component
             
         end        
                 
-        function Result = AAAupdateForAstroImage(Obj, AI, Args)
-            % Update an FileNames object using the headers of AstroImage
-            %   Update the Time, CropID, and Counter in a FileNames object
-            %   from the header information of an AstroImage object.
-            % Input  : - A FileNames object.
-            %            For size restriction see the 'SelectFirst'
-            %            argument.
-            %          - A AstroImage object.
-            %          * ...,key,val,...
-            %            'CreateNewObj' - Create a new copy of the input
-            %                   object. Default is true.
-            %            'SelectFirst' - A logical indicating if to take
-            %                   the rest of the FileNames properties from
-            %                   the first file in FileNames.
-            %                   Default is true.
-            %                   If false, then number of elements in
-            %                   FileNames must be 1 or equal to the number
-            %                   of elements in the AstroImage object.
-            %            'GetHeaderJD' - Update JD from header. Default is true.
-            %            'GetHeaderCropID' - Update CropID from header.
-            %                   Default is true.
-            %            'GetHeaderCounter' - Update Counter from header.
-            %                   Default is true.
-            %            'KeyCropID' - Header keyword containing the
-            %                   CropID. Default is 'CROPID'.
-            %            'KeyCounter' - Header keyword containing the
-            %                   Counter. Default is 'COUNTER'.
-            % Output : - An updated FileNames object.
-            %            Number of files equal and corresponding to the
-            %            number of AstroImage elements.
-            % Author : Eran Ofek (Apr 2023)
-            % Example: Result = updateForAstroImage(FN_Sci_GroupsProc(Igroup), AllSI)
-
-            arguments
-                Obj(1,1)
-                AI AstroImage
-                Args.CreateNewObj logical   = true;
-                Args.SelectFirst logical    = true;
-                
-                Args.GetHeaderJD logical       = true;
-
-                Args.AI_CropID_FromHeader logical  = true;
-                Args.CropID_FromINdex logical      = true;
-
-                Args.AI_Counter_FromHeader logical = true;
-                Args.Counter_Zero logical          = true;
-
-
-
-                Args.GetHeaderCropID logical   = true;      % for AstroImage
-                Args.GetIndexCropID logical    = true;      % for AstroTable/MatchedSources
-
-                Args.GetHeaderCounter logical  = true;
-                Args.KeyCropID              = 'CROPID';
-                Args.KeyCounter             = 'COUNTER';
-            end
-
-            if Args.CreateNewObj
-                Result = Obj.copy;
-            else
-                Result = Obj;
-            end
-
-            if Args.SelectFirst
-                Result.reorderEntries(1);
-            end
-
-            Nfiles = Result.nfiles;
-            Nai    = numel(AI);
-
-            if ~(Nfiles==1 || Nai==Nfiles)
-                error('FileNames object number of files must be 1 or equal to the number of elements in the AStroImage object');
-            end
-
-            if Args.GetHeaderJD
-                JD = AI.julday;
-            end
-
-            U_JD    = nan(Nai,1);
-            CropID  = nan(Nai,1);
-            Counter = nan(Nai,1);
-
-            for Iai=1:1:Nai
-                if Args.GetHeaderJD
-                    U_JD(Iai) = JD(Iai);
-                else
-                    U_JD = [];
-                end
-
-                 
-                if Args.GetHeaderCropID
-                    CropID(Iai) = AI(Iai).HeaderData.getVal(Args.KeyCropID);
-                else
-                    CroPID = [];
-                end
-                if Args.GetHeaderCounter
-                    Counter(Iai) = AI(Iai).HeaderData.getVal(Args.KeyCounter);
-                else
-                    Counter = [];
-                end
-            end
-
-            Result.updateIfNotEmpty('Counter',Counter, 'CROPID',CropID, 'Time',U_JD);
-            
-        end
+%         function Result = AAAupdateForAstroImage(Obj, AI, Args)
+%             % Update an FileNames object using the headers of AstroImage
+%             %   Update the Time, CropID, and Counter in a FileNames object
+%             %   from the header information of an AstroImage object.
+%             % Input  : - A FileNames object.
+%             %            For size restriction see the 'SelectFirst'
+%             %            argument.
+%             %          - A AstroImage object.
+%             %          * ...,key,val,...
+%             %            'CreateNewObj' - Create a new copy of the input
+%             %                   object. Default is true.
+%             %            'SelectFirst' - A logical indicating if to take
+%             %                   the rest of the FileNames properties from
+%             %                   the first file in FileNames.
+%             %                   Default is true.
+%             %                   If false, then number of elements in
+%             %                   FileNames must be 1 or equal to the number
+%             %                   of elements in the AstroImage object.
+%             %            'GetHeaderJD' - Update JD from header. Default is true.
+%             %            'GetHeaderCropID' - Update CropID from header.
+%             %                   Default is true.
+%             %            'GetHeaderCounter' - Update Counter from header.
+%             %                   Default is true.
+%             %            'KeyCropID' - Header keyword containing the
+%             %                   CropID. Default is 'CROPID'.
+%             %            'KeyCounter' - Header keyword containing the
+%             %                   Counter. Default is 'COUNTER'.
+%             % Output : - An updated FileNames object.
+%             %            Number of files equal and corresponding to the
+%             %            number of AstroImage elements.
+%             % Author : Eran Ofek (Apr 2023)
+%             % Example: Result = updateForAstroImage(FN_Sci_GroupsProc(Igroup), AllSI)
+% 
+%             arguments
+%                 Obj(1,1)
+%                 AI AstroImage
+%                 Args.CreateNewObj logical   = true;
+%                 Args.SelectFirst logical    = true;
+%                 
+%                 Args.GetHeaderJD logical       = true;
+% 
+%                 Args.AI_CropID_FromHeader logical  = true;
+%                 Args.CropID_FromINdex logical      = true;
+% 
+%                 Args.AI_Counter_FromHeader logical = true;
+%                 Args.Counter_Zero logical          = true;
+% 
+% 
+% 
+%                 Args.GetHeaderCropID logical   = true;      % for AstroImage
+%                 Args.GetIndexCropID logical    = true;      % for AstroTable/MatchedSources
+% 
+%                 Args.GetHeaderCounter logical  = true;
+%                 Args.KeyCropID              = 'CROPID';
+%                 Args.KeyCounter             = 'COUNTER';
+%             end
+% 
+%             if Args.CreateNewObj
+%                 Result = Obj.copy;
+%             else
+%                 Result = Obj;
+%             end
+% 
+%             if Args.SelectFirst
+%                 Result.reorderEntries(1);
+%             end
+% 
+%             Nfiles = Result.nfiles;
+%             Nai    = numel(AI);
+% 
+%             if ~(Nfiles==1 || Nai==Nfiles)
+%                 error('FileNames object number of files must be 1 or equal to the number of elements in the AStroImage object');
+%             end
+% 
+%             if Args.GetHeaderJD
+%                 JD = AI.julday;
+%             end
+% 
+%             U_JD    = nan(Nai,1);
+%             CropID  = nan(Nai,1);
+%             Counter = nan(Nai,1);
+% 
+%             for Iai=1:1:Nai
+%                 if Args.GetHeaderJD
+%                     U_JD(Iai) = JD(Iai);
+%                 else
+%                     U_JD = [];
+%                 end
+% 
+%                  
+%                 if Args.GetHeaderCropID
+%                     CropID(Iai) = AI(Iai).HeaderData.getVal(Args.KeyCropID);
+%                 else
+%                     CroPID = [];
+%                 end
+%                 if Args.GetHeaderCounter
+%                     Counter(Iai) = AI(Iai).HeaderData.getVal(Args.KeyCounter);
+%                 else
+%                     Counter = [];
+%                 end
+%             end
+% 
+%             Result.updateIfNotEmpty('Counter',Counter, 'CROPID',CropID, 'Time',U_JD);
+%             
+%         end
 
         function Result=updateFromObjectInfo(Obj, DataObj, Args)
             % Update an FileNames object using the metadata
@@ -1444,7 +1462,6 @@ classdef FileNames < Component
             Result     = Result.sortByJD;
             JD         = Result.julday;
             CounterVec = Result.Counter;
-            
             
             Groups = tools.find.groupCounter(CounterVec, 'MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
             

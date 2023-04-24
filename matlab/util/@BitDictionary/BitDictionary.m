@@ -231,6 +231,7 @@ classdef BitDictionary < Component
             
             % Note: de2bi() requires installation of Communications Toolbox
             % Consider rewriting this function for better performance
+            % Use int2bit instead
             Flag = logical(de2bi(DecVal,Obj.Nbit)); % dec 2 bin and cast as logicals
             for Ibit=1:1:Nbitval
                 BitName{Ibit}        = Obj.Dic.(Obj.ColBitName)(Flag(Ibit,:));
