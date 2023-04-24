@@ -1011,7 +1011,7 @@ classdef AstroImage < Component
     end
     
     methods % read / write
-        function write1(Obj, Name, DataProp, Args)
+        function Status=write1(Obj, Name, DataProp, Args)
             % Write a single data property in a single element AstroImage to file
             % Input  : - A single element AstroImage object.
             %          - File name to write.
@@ -1029,7 +1029,9 @@ classdef AstroImage < Component
             %            'Mkdir' - A logical indicating if to create
             %                   directory if file name contains full path.
             %                   Default is false.
-            % Output : null
+            %            'Status' - Status structure to which to append the
+            %                   new status.
+            % Output : - Status structure with entry per problem.
             % Author : Eran Ofek (Nov 2021)
             % Example: AllSI(1).write1('try1.fits')
             
@@ -1044,6 +1046,7 @@ classdef AstroImage < Component
                 Args.OverWrite logical        = false;
                 Args.WriteTime logical        = false;
                 Args.MkDir logical            = false;
+                Args.Status                   = [];
             end
             
             if Args.WriteHeader
@@ -1060,6 +1063,8 @@ classdef AstroImage < Component
             end
 
 
+            Istat  = numel(Args.Status);
+            Status = Args.Status;
             switch lower(Args.FileType)
                 case 'fits'
                     switch DataProp
@@ -1070,22 +1075,32 @@ classdef AstroImage < Component
                                 otherwise
                                     HeaderDataToWrite = HeaderData;
                             end
-                            if Args.IsSimpleFITS
-                                FITS.writeSimpleFITS(Obj.(DataProp), Name, 'Header',HeaderDataToWrite); %,...
-                                                           %    'DataType',class(Obj.(DataProp)));
+
+                            if isempty(Obj.(DataProp))
+                                Istat = Istat + 1;
+                                Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', Name, DataProp);
                             else
-                                FITS.write(Obj.(DataProp), Name, 'Header',HeaderDataToWrite,...
-                                                               'DataType',class(Obj.(DataProp)),...
-                                                               'Append',Args.Append,...
-                                                               'OverWrite',Args.OverWrite,...
-                                                               'WriteTime',Args.WriteTime);
-                            end
-                        case {'Cat','CatData'}
-                            FITS.writeTable1(Obj.CatData, Name, 'Header',HeaderData,...
+                                if Args.IsSimpleFITS
+                                    FITS.writeSimpleFITS(Obj.(DataProp), Name, 'Header',HeaderDataToWrite); %,...
+                                                               %    'DataType',class(Obj.(DataProp)));
+                                else
+                                    FITS.write(Obj.(DataProp), Name, 'Header',HeaderDataToWrite,...
+                                                                   'DataType',class(Obj.(DataProp)),...
                                                                    'Append',Args.Append,...
                                                                    'OverWrite',Args.OverWrite,...
                                                                    'WriteTime',Args.WriteTime);
-                                                        
+                                end
+                            end
+                        case {'Cat','CatData'}
+                            if isempty(Obj.CatData.ColNames)
+                                stat = Istat + 1;
+                                Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, is empty - not saved', Name, 'CatData');
+                            else
+                                FITS.writeTable1(Obj.CatData, Name, 'Header',HeaderData,...
+                                                                   'Append',Args.Append,...
+                                                                   'OverWrite',Args.OverWrite,...
+                                                                   'WriteTime',Args.WriteTime);
+                            end
                         otherwise
                             % FFU
                             error('DataProp %s is not yet supported',DataProp);
@@ -1096,7 +1111,7 @@ classdef AstroImage < Component
             
         end
         
-        function write(Obj, Name, DataProp, Args)
+        function Status=write(Obj, Name, DataProp, Args)
             %
             % Example: AI.write(
             
@@ -1113,6 +1128,8 @@ classdef AstroImage < Component
                
             end
             
+            Istat  = 0;
+            Status = [];
             if ischar(Args.DataProp)
                 Args.DataProp = {Args.DataProp};
             end
@@ -1157,11 +1174,18 @@ classdef AstroImage < Component
                             else
                                 Header = [];
                             end
-                            FITS.write(Obj(Iobj).(Args.DataProp{Iprop}), Name{Iobj, Iprop}, 'Header',Header,...
+                            
+                            % Check that image exist
+                            if isempty(Obj(Iobj).(Args.DataProp{Iprop}))
+                                Istat = Istat + 1;
+                                Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved',Name{Iobj, Iprop}, Args.DataProp{Iprop});
+                            else
+                                FITS.write(Obj(Iobj).(Args.DataProp{Iprop}), Name{Iobj, Iprop}, 'Header',Header,...
                                                                                             'DataType',class(Obj(Iobj).(Args.DataProp{Iprop})),...
                                                                                             'Append',Args.Append,...
                                                                                             'OverWrite',Args.OverWrite,...
                                                                                             'WriteTime',Args.WriteTime);
+                            end
                         otherwise
                             error('DataProp %s not supported yet',Args.DataProp{Iprop});
                     end

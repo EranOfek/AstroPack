@@ -1197,7 +1197,11 @@ classdef AstroCatalog < AstroTable
             Nobj = numel(Obj);
             JD   = zeros(size(Obj));
             for Iobj=1:1:Nobj
-                JD(Iobj) = Obj(Iobj).JD;
+                if isempty(Obj(Iobj).JD)
+                    JD(Iobj) = NaN;
+                else
+                    JD(Iobj) = Obj(Iobj).JD;
+                end
             end
         end
     end

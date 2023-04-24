@@ -5,7 +5,7 @@
 % Example:
 %          D = pipeline.DemonLAST;
 %          D.CalibPath = <put here the output directory of the calibration images>
-%          D.D.prepMasterDark
+%          D.prepMasterDark
 %
 
 
@@ -594,6 +594,48 @@ classdef DemonLAST < Component
 
         end
 
+        function writeLog(Obj, Msg, Args)
+            % write a log message to screen and log file
+
+            arguments
+                Obj
+                Msg
+                Args.WriteLog logical    = true;
+                Args.WriteDev logical    = true;
+            end
+
+            if ~isempty(Msg)
+                if ischar(Msg)
+                    Lines{1} = Msg;
+                elseif isstruct(Msg)
+                    Lines = squeeze(struct2cell(Msg));
+                elseif isa(Msg, 'MException')
+                    Nst      = numel(Msg.stack);
+                    Lines    = cell(1+Nst,1);
+                    Lines{1} = sprintf('Exception: id=%s msg=%s',Msg.identifier, Msg.message);
+                    
+                    for Ist=1:1:Nst
+                        Lines{Ist+1} = sprintf('stack: Ind=%d; FunName=%s; line=%d',Ist, Msg.stack(Ist).name, Msg.stack(Ist).line);
+                    end
+                elseif iscell(Msg)
+                    % do nothing - already in cell format
+                else
+                    error('Unknown Msg option');
+                end
+    
+                Nl = numel(Lines);
+                for Il=1:1:Nl
+                    if Args.WriteDev
+                        fprintf('%s\n', Lines{Il});
+                    end
+                    if Args.WriteLog
+                        
+                    end
+                end
+            end
+        end
+
+
     end
 
     methods % pipelines
@@ -638,7 +680,7 @@ classdef DemonLAST < Component
             % Author : Eran Ofek (Apr 2023)
             % Example: D = pipeline.DemonLAST;
             %          D.CalibPath = <put here the output directory of the calibration images>
-            %          D.D.prepMasterDark
+            %          D.prepMasterDark
 
             arguments
                 Obj
@@ -714,7 +756,7 @@ classdef DemonLAST < Component
                         % prepare master bias
                         CI = CalibImages;
                         
-                        CI.createBias(DarkList, 'BiasArgs',Args.BiasArgs);
+                        CI.createBias(DarkList, 'BiasArgs',Args.BiasArgs, 'Convert2single',true);
         
                         % save processed bias images in raw/ dir
                         
@@ -917,7 +959,7 @@ classdef DemonLAST < Component
     
                         CI = CalibImages;
                         
-                        CI.createFlat(AI, 'FlatArgs',Args.FlatArgs);
+                        CI.createFlat(AI, 'FlatArgs',Args.FlatArgs, 'Convert2single',true);
         
                         % write file
                         JD = CI.Flat.julday;
@@ -1114,8 +1156,9 @@ classdef DemonLAST < Component
                 
                 if Ngroup==1
                     if FN_Sci_Groups(1).nfiles<=Args.MinNumIMageVisit
+                        
                         Msg = 'Waiting for more images to analyze';
-                        fprintf('%s\n',Msg);
+                        Obj.writeLog(Msg);
 
                         SunInfo = celestial.SolarSys.get_sun;
                         if SunInfo.Alt>0
@@ -1158,32 +1201,36 @@ classdef DemonLAST < Component
                             % save data products
                             FN_I = FN_Sci_Groups(Igroup).reorderEntries(1, 'CreateNewObj',true);
         
-                            FN_Proc = imProc.io.writeProduct(AllSI, FN_I, 'Product',{'Image','Mask','Cat'}, 'WriteHeader',[true false true],...
+                            [FN_Proc,~,Status] = imProc.io.writeProduct(AllSI, FN_I, 'Product',{'Image','Mask','Cat'}, 'WriteHeader',[true false true],...
                                                    'Level','proc',...
                                                    'LevelPath','proc',...
                                                    'FindSubDir',true);
+                            Obj.writeLog(Status);
         
-        
-                            imProc.io.writeProduct(Coadd, FN_I, 'Product',{'Image','Mask','Cat','PSF'}, 'WriteHeader',[true false true false],...
+                            [~,~,Status]=imProc.io.writeProduct(Coadd, FN_I, 'Product',{'Image','Mask','Cat','PSF'}, 'WriteHeader',[true false true false],...
                                                    'Level','coadd',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
-        
-                            imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
+                            Obj.writeLog(Status);
+
+                            [~,~,Status]=imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
                                                    'Level','merged',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
-        
-                            imProc.io.writeProduct(MatchedS, FN_I, 'Product',{'MergedMat'}, 'WriteHeader',[false],...
+                            Obj.writeLog(Status);
+
+                            [~,~,Status]=imProc.io.writeProduct(MatchedS, FN_I, 'Product',{'MergedMat'}, 'WriteHeader',[false],...
                                                    'Level','merged',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
-        
-                            imProc.io.writeProduct(ResultAsteroids, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
+                            Obj.writeLog(Status);
+
+                            [~,~,Status]=imProc.io.writeProduct(ResultAsteroids, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
                                                    'Level','merged',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
-    
+                            Obj.writeLog(Status);
+
                             % Write images and catalogs to DB
     
     
@@ -1197,6 +1244,8 @@ classdef DemonLAST < Component
 
                             RunTime = toc;
                         catch ME
+                             
+                            
                             RunTime = toc;
     
                             % extract errors
@@ -1214,12 +1263,9 @@ classdef DemonLAST < Component
     
     
                         % write summary and run time to log
-                        Msg = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd analyzed %d images starting at %s',numel(RawImageList), FN_Sci_Groups(Igroup).Time{1});
-                        fprintf('%s\n',Msg);
-                        Msg = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd run time [s]: %6.1f', RunTime);
-                        fprintf('%s\n',Msg);
-    
-    
+                        Msg{1} = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd analyzed %d images starting at %s',numel(RawImageList), FN_Sci_Groups(Igroup).Time{1});
+                        Msg{2} = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd run time [s]: %6.1f', RunTime);
+                        Obj.writeLog(Status);                        
     
                         
                         
