@@ -45,9 +45,21 @@ A large number of tools for coordinates calculations, conversion, and manipulati
 
 The <a href="https://github.com/EranOfek/AstroPack/wiki/celestial">celestial</a> package also contains large number of tools for solving the Kepler equation, generating low precision and high precision epehmeris, querying the JPL horizons website, <a href="https://github.com/EranOfek/AstroPack/wiki/celestial.map">plotting star maps</a>, and more.
 
-### Virtual Observatory excess
 ### Large catalogs and catsHTM
+
+AstroPack/MAATv2 supports astronomical catalog access via three channels:
+  1. The <a href="https://github.com/EranOfek/AstroPack/wiki/catsHTM">catsHTM</a> class allows for coordinate-based fast access of big astronomical catalags. Currently, over 20 catalogs are available in the catsHTM format. catsHTM is described in <a href="https://ui.adsabs.harvard.edu/abs/2018PASP..130g5002S/abstract">Soumagnac & Ofek 2018</a>.
+  2. The <a href="https://github.com/EranOfek/AstroPack/wiki/cats">cats</a> package that can be use to store and access small catalogs (i.e., up to tens of milions of entries).
+  3. Web access of catalogs - e.g., VizieR, SDSS, PS1, GALAEX.
+  
+### Virtual Observatory excess
+  
+  The <a href="">VO</a> package include tools for accessing several astronomical databases and for formatting catalogs.
+  
 ### Telescopes and Optics
+
+  The <a href="">telescope</a> package includes tools for signal-to-noise calculations and speckle images simulations.
+  
 ### Spectra and filters
 ### Time series analysis
 
