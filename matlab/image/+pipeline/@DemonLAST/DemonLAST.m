@@ -1190,6 +1190,9 @@ classdef DemonLAST < Component
                         
                         % call visit pipeline
                         
+                        Msg = sprintf('pipline.DemonLAST executing pipeline for group %d - First image: %s',Igroup, RawImageList{end});
+                        Obj.writeLog(Msg);
+
                         try
                             tic;
                             [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
@@ -1251,7 +1254,8 @@ classdef DemonLAST < Component
                             % extract errors
                             ErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, ME.stack(1).line);
                             warning(ErrorMsg);
-    
+                            Obj.writeLog(ErrorMsg);
+
                             % write log file
     
                             % move images to failed/ dir
@@ -1259,13 +1263,14 @@ classdef DemonLAST < Component
     
                             ErrorMsg = sprintf('pipeline.DemonLAST: %d images moved to failed directory',numel(RawImageList));
                             warning(ErrorMsg);
+                            Obj.writeLog(ErrorMsg);
                         end
     
     
                         % write summary and run time to log
                         Msg{1} = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd analyzed %d images starting at %s',numel(RawImageList), FN_Sci_Groups(Igroup).Time{1});
                         Msg{2} = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd run time [s]: %6.1f', RunTime);
-                        Obj.writeLog(Status);                        
+                        Obj.writeLog(Msg);                        
     
                         
                         
