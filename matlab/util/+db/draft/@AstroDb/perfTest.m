@@ -28,9 +28,6 @@ function Result = perfTest()
         T = toc();
         io.msgLog(LogLevel.Test, 'Preparing rand Catalog: Rows: %d, Cols: %d: = %.4f', Rows, Cols, T);
 
-        % Set uuid
-        %for j = 1:AC.
-
         %
         tic();
         FileName = sprintf('c:\\temp\\Cat-%d.csv', Rows);
