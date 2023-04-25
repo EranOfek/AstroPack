@@ -527,6 +527,9 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                         Obj(Iobj).WCS = Result(Iobj).WCS;
                         % add WCS kesy to Header
                         Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+                        % add RA/Dec corners to header
+                        Obj(Iobj).HeaderData = addCornersCoo2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+
                     elseif isa(Obj, 'AstroCatalog')
                         Obj(Iobj)         = Cat;
                     else
