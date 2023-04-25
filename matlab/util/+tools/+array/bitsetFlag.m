@@ -1,4 +1,4 @@
-function Result = bitsetFlag(Array, Flag, Bit, Value, UseMex)
+function Result = bitsetFlag(Array, Flag, Bit, Value, UseMex, UseMP)
     % Given an N-D Array, count the number of elements
     % that are exactly equal to the value in Val.
     % UseNot is an argument indicating if to count the number of 
@@ -27,6 +27,7 @@ function Result = bitsetFlag(Array, Flag, Bit, Value, UseMex)
         Bit
         Value = true;           % Value to look for
         UseMex = true;          % False: Use MATLAB implementaion, True: Use MEX implementation
+        UseMP = true;           % True: Use threading with OpenMP
     end
 
     % MATLAB implementation
@@ -40,13 +41,13 @@ function Result = bitsetFlag(Array, Flag, Bit, Value, UseMex)
     C = lower(class(Array));    
     switch C
         case {'uint8','int8'}
-            Result = tools.array.mex_bitsetFlag8(Array,  Flag, int32(Bit), int32(Value));               
+            Result = tools.array.mex_bitsetFlag8(Array,  Flag, int32(Bit), int32(Value), int32(UseMP));               
         case {'uint16','int16'}
-            Result = tools.array.mex_bitsetFlag16(Array, Flag, int32(Bit), int32(Value));       
+            Result = tools.array.mex_bitsetFlag16(Array, Flag, int32(Bit), int32(Value), int32(UseMP));       
         case {'uint32','int32'}
-            Result = tools.array.mex_bitsetFlag32(Array, Flag, int32(Bit), int32(Value));       
+            Result = tools.array.mex_bitsetFlag32(Array, Flag, int32(Bit), int32(Value), int32(UseMP));       
         case {'uint64','int64'}
-            Result = tools.array.mex_bitsetFlag64(Array, Flag, int32(Bit), int32(Value));                   
+            Result = tools.array.mex_bitsetFlag64(Array, Flag, int32(Bit), int32(Value), int32(UseMP));                   
         otherwise
             error('tools.array.bitsetFlag - Unsupported data type');
     end

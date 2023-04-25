@@ -1,25 +1,97 @@
-% Package Unit-Test
-%
-% ### Requirements:
-%
-%
-%
-
 function Result = unitTest
     % Package Unit-Test
-	io.msgStyle(LogLevel.Test, '@start', 'tools.array test started');
-    
+	io.msgStyle(LogLevel.Test, '@start', 'tools.array test started');   
     test_bitset();
     %test_countVal();
-    return;
- 
+    return; 
     test_bit_or();
     test_bit_or_and();
-    test_bit_or_and_mex();
-	
+    test_bit_or_and_mex();	
 	io.msgStyle(LogLevel.Test, '@passed', 'tools.array test passed');
 	Result = true;
 end
+
+function Result = test_bitset()
+    %
+    io.msgLog(LogLevel.Test, 'tools.array.test_bitset test started');
+
+    % mex  mex_bitsetFlag32.cpp  COMPFLAGS="$COMPFLAGS /openmp"
+	
+	
+    % -------------------------------------------    
+    A=randi(1700,1700,'int32'); 
+    F=rand(1700,1700) > 0.9;
+    A(F) = bitset(A(F), 1, true);
+
+    array = zeros(3, 3, 'int32');
+    flag = false(3, 3);
+    flag(1,1) = true;
+    array = bitset(array, 5, true);
+    %disp(array);    
+    %array(flag) = bitset(array(flag), 2, true);    
+    %disp(array);    
+    % 
+    %b = tools.array.mex_bitsetFlag32(array, flag, int32(2), int32(false));
+    %disp(array);
+    %return;
+    
+    % -------------------------------------------    
+    Iters = 3;
+    Loop = 1;    
+    Rows = 100;
+    Cols = 100;
+    Bit = 1;
+    Value = 1;
+      
+    for SizeIter=1:10
+      
+        Array = zeros(Rows, Cols, 'int32');
+        Flag = rand(Rows, Cols) > 0.9;
+        Rows = Rows*2;
+        Cols = Cols*2;
+    
+        fprintf('\n[%d] Array Size: %d MB\n', SizeIter, int32(numel(Array)*4 / 1024 / 1024));
+        % -------------------------------------------
+        for Iter=1:Iters
+
+            % MATLAB version
+            MatlabResult = Array;
+            t = tic;
+            for L=1:Loop
+                MatlabResult(Flag) = bitset(Array(Flag), Bit, Value);
+            end
+            MatlabTime = toc(t);
+
+            % MEX version
+            t = tic;
+            for L=1:Loop        
+                MexResult = tools.array.mex_bitsetFlag32(Array, Flag, int32(Bit), int32(Value), int32(false));
+                %MexResult = tools.array.bitsetFlag(Array, Flag, Bit, Value);            
+            end
+            MexTime = toc(t);        
+            
+            % MEX with OpenMP
+            t = tic;
+            for L=1:Loop        
+                MpResult = tools.array.mex_bitsetFlag32(Array, Flag, int32(Bit), int32(Value), int32(true));
+                %MexResult = tools.array.bitsetFlag(Array, Flag, Bit, Value);            
+            end
+            MpTime = toc(t);                    
+
+            fprintf('Matlab: %.6f, Mex: %.6f, MexMP: %.6f\n', MatlabTime, MexTime, MpTime);
+            %fprintf('isequal...\n');
+            assert(isequal(MatlabResult, MexResult));               
+            assert(isequal(MatlabResult, MpResult));                           
+        end
+    end
+    
+    
+    io.msgStyle(LogLevel.Test, '@passed', 'tools.array.test_bitset passed')
+    Result = true;
+end
+
+
+
 
 %--------------------------------------------------------------------------
 function test_bit_or()
@@ -164,68 +236,5 @@ function Result = test_countVal()
     Result = true;
 end
 
-
-
 %--------------------------------------------------------------------------
-
-function Result = test_bitset()
-    %
-    io.msgLog(LogLevel.Test, 'tools.array.test_countVal test started');
-
-    % -------------------------------------------    
-    array = zeros(3, 3, 'int32');
-    flag = false(3, 3);
-    flag(1,1) = true;
-    array = bitset(array, 5, true);
-    %disp(array);
-    
-    %array(flag) = bitset(array(flag), 2, true);    
-    %disp(array);
-    
-    % 
-    b = tools.array.mex_bitsetFlag32(array, flag, int32(2), int32(false));
-    %disp(array);
-    
-    % -------------------------------------------    
-    Iters = 10;
-    Rows = 1700;
-    Cols = 1700;
-    Loop = 1000;
-    Array = zeros(Rows, Cols, 'int32');
-    Flag = false(Rows, Cols);
-    Flag(1,1) = true;
-    Flag(100,100) = true;
-    Flag(1000,1000) = true;
-    Bit = 1;
-    Value = 1;
- 
-    % -------------------------------------------
-    for Iter=1:Iters
-    
-        % MATLAB version
-        MatlabResult = Array;
-        t = tic;
-        for L=1:Loop
-            %MatlabResult = Array;
-            MatlabResult = bitset(Array, Bit, Value);
-            %MatlabResult(Flag) = bitset(Array(Flag), Bit, Value);
-        end
-        MatlabTime = toc(t);
-        
-        % MEX version
-        t = tic;
-        for L=1:Loop        
-            MexResult = tools.array.mex_bitsetFlag32(Array, Flag, int32(Bit), int32(Value));
-            %MexResult = tools.array.bitsetFlag(Array, Flag, Bit, Value);            
-        end
-        MexTime = toc(t);        
-                
-        fprintf('Matlab: %.6f, Mex: %.6f\n', MatlabTime, MexTime);
-        %assert(isequal(MatlabResult, MexResult));               
-    end
-           
-    io.msgStyle(LogLevel.Test, '@passed', 'tools.array test passed')
-    Result = true;
-end
-
 

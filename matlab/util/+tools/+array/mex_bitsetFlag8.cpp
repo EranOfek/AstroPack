@@ -17,4 +17,4 @@ typedef unsigned char __Type;
 #define MEX_UTYPE mxUINT8_CLASS
 
 // Include here the actual implementation that uses __Type, MEX_TYPE, UMEX_TYPE
-#include "mex_bitsetFlag_include.c"
+#include "mex_bitsetFlag_include.cpp"

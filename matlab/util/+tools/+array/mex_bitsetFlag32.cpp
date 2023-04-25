@@ -1,5 +1,5 @@
 //
-// mex_countVal32.c - Int32 implementation of countVal.
+// mex_bitsetFlag32.cpp - Int32 implementation of Array(Flag) = bitset(Array(Flag), Bit, Value).
 //
 // Autohr: Chen Tishler, 04/2023
 //=========================================================================
@@ -17,4 +17,4 @@ typedef unsigned int __Type;
 #define MEX_UTYPE mxUINT32_CLASS
 
 // Include here the actual implementation that uses __Type, MEX_TYPE, UMEX_TYPE
-#include "mex_countVal_include.c"
+#include "mex_bitsetFlag_include.cpp"
