@@ -558,6 +558,9 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                     %Obj(Iobj).HeaderData.Data = [];
                     %warning('header deleted!!')
                     Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+                    % add RA/Dec corners to header
+                    Obj(Iobj).HeaderData = addCornersCoo2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+                        
                 else
                     % assume Obj is AstroCatalog
                     Obj(Iobj) = Cat;

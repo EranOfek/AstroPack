@@ -1,4 +1,4 @@
-function [FN,SubDir]=writeProduct(Obj, FNin, Args)
+function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
     % Write AstroImage/AstroCatalog/MergedSources data products using FileNames object
     %   The file names are generated using the FileNames object
     % Input  : - An AstroImage/AstroCatalog/MatchedSources/struct object.
@@ -59,9 +59,12 @@ function [FN,SubDir]=writeProduct(Obj, FNin, Args)
     %                   Default is [].
     %            'FullPath' - Like 'Type', but for 'FullPath'.
     %                   Default is [].
+    %            'WriteEmpty' - Logical indicating if to write an empty
+    %                   product. Default is false.
     % Output : - A FileNames object for the written files
     %            (Product='Image').
     %          - Used SubDir.
+    %          - Status structure, with status per problem.
     % Author : Eran Ofek (Apr 2023)
 
     arguments
@@ -96,6 +99,7 @@ function [FN,SubDir]=writeProduct(Obj, FNin, Args)
 
         Args.BasePath               = [];
         Args.FullPath               = [];
+        Args.WriteEmpty logical     = false;
     end
 
     if Args.Save
@@ -159,6 +163,8 @@ function [FN,SubDir]=writeProduct(Obj, FNin, Args)
 
         % loop for writing the products
         
+        Status = [];
+        Istat  = 0;
         switch class(Obj)
             case 'AstroImage'
                 % AstroImage input
@@ -167,20 +173,30 @@ function [FN,SubDir]=writeProduct(Obj, FNin, Args)
                     % generate file names
                     OutFileNames = FN.genFull('Product',Args.Product{Iprod}, 'LevelPath',Args.LevelPath);
                     for Iobj=1:1:Nobj
-                            % create dir only on first file
+                        % create dir only on first file
+                        if ~isempty(Obj(Iobj).Image) || Args.WriteEmpty
                             Obj(Iobj).write1(OutFileNames{Iobj}, Args.Product{Iprod},...
-                                             'FileType',FN.FileType{1},...
-                                             'IsSimpleFITS',Args.IsSimpleFITS,...
-                                             'WriteHeader',WriteHeader(Iprod),...
-                                             'MkDir',Iobj==1);
+                                         'FileType',FN.FileType{1},...
+                                         'IsSimpleFITS',Args.IsSimpleFITS,...
+                                         'WriteHeader',WriteHeader(Iprod),...
+                                         'MkDir',Iobj==1 && Iprod==1);
+                        else
+                            Istat = Istat + 1;
+                            Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', OutFileNames{Iobj}, Args.Product{Iprod});
+                        end
                     end
                 end
             case 'AstroCatalog'
                 % AstroCatalog input
                 OutFileNames = FN.genFull('Product','Cat', 'LevelPath',Args.LevelPath);
                 for Iobj=1:1:Nobj
-                    Obj(Iobj).write1(OutFileNames{Iobj},...
+                    if ~isempty(Obj(Iobj).ColNames) || Args.WriteEmpty
+                        Obj(Iobj).write1(OutFileNames{Iobj},...
                                      'FileType',FN.FileType{1});
+                    else
+                        Istat = Istat + 1;
+                        Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', OutFileNames{Iobj}, 'CatData');
+                    end
                 end
 
             case 'MatchedSources'
@@ -189,8 +205,13 @@ function [FN,SubDir]=writeProduct(Obj, FNin, Args)
                 FN.FileType = {'hdf5'};
                 OutFileNames = FN.genFull('Product','MergedMat', 'LevelPath',Args.LevelPath);
                 for Iobj=1:1:Nobj
-                    Obj(Iobj).write1(OutFileNames{Iobj},...
+                    if ~isempty(Obj(Iobj).Fields) || Args.WriteEmpty
+                        Obj(Iobj).write1(OutFileNames{Iobj},...
                                      'FileType',FN.FileType{1});
+                    else
+                        Istat = Istat + 1;
+                        Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', OutFileNames{Iobj}, 'MergedMat');
+                    end
                 end
 
             

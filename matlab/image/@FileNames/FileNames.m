@@ -430,8 +430,10 @@ classdef FileNames < Component
             if isnumeric(Obj.Time)
                 JD = Obj.Time;
             else
-                DateVec = convert.strFN2date(Obj.Time);
+                FlagN   = cellfun(@ischar, Obj.Time,'UniformOutput',true);
+                DateVec = convert.strFN2date(Obj.Time(FlagN));
                 JD      = celestial.time.julday(DateVec(:,[3 2 1 4 5 6]));
+                JD(~FlagN) = NaN;
             end
                 
         end
@@ -445,11 +447,16 @@ classdef FileNames < Component
             
             if isnumeric(Obj.Time)
                 N         = numel(Obj.Time);
+                FlagN     = isnan(Obj.Time);
+                Obj.Time(FlagN) = 2451545;
                 DateVec   = celestial.time.jd2date(Obj.Time, 'H');
                 DateArray = datestr(DateVec(:,[3 2 1 4 5 6]),'yyyymmdd.HHMMSS.FFF');
                 Str       = cell(N,1);
                 for I=1:1:N
                     Str{I} = DateArray(I,:);
+                end
+                if sum(FlagN)>0
+                    Str{FlagN} = NaN;
                 end
                 Obj.Time = Str;
             end

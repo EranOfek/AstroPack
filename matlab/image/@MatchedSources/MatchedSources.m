@@ -1342,19 +1342,23 @@ classdef MatchedSources < Component
             Result = nan(size(Obj));
 
             for Iobj=1:1:Nobj
-                switch Fun
-                    case 'mid'
-                        Result(Iobj) = (min(Obj(Iobj).JD) + max(Obj(Iobj).JD)).*0.5;
-                    case 'median'
-                        Result(Iobj) = median(Obj(Iobj).JD);
-                    case 'mean'
-                        Result(Iobj) = mean(Obj(Iobj).JD);
-                    case 'range'
-                        Result(Iobj) = range(Obj(Iobj).JD);
-                    case 'std'
-                        Result(Iobj) = std(Obj(Iobj).JD);
-                    otherwise
-                        error('Unknown Fun option');
+                if isempty(Obj(Iobj).JD)
+                    Result(Iobj) = NaN;
+                else
+                    switch Fun
+                        case 'mid'
+                            Result(Iobj) = (min(Obj(Iobj).JD) + max(Obj(Iobj).JD)).*0.5;
+                        case 'median'
+                            Result(Iobj) = median(Obj(Iobj).JD);
+                        case 'mean'
+                            Result(Iobj) = mean(Obj(Iobj).JD);
+                        case 'range'
+                            Result(Iobj) = range(Obj(Iobj).JD);
+                        case 'std'
+                            Result(Iobj) = std(Obj(Iobj).JD);
+                        otherwise
+                            error('Unknown Fun option');
+                    end
                 end
             end
         end

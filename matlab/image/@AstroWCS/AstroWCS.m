@@ -397,7 +397,7 @@ classdef AstroWCS < Component
 
     methods    % Functions to construct AstroHeader from AstroWCS
    
-       function Header = wcs2header(Obj,Header)
+        function Header = wcs2header(Obj, Header)
             % Convert AstroWCS object to new AstroHeader object or update an existing AstroHeader object
             % Input  : - AstroWCS object.
             %          - Optional AstroHeader object in which to update key/par
@@ -425,7 +425,73 @@ classdef AstroWCS < Component
             % Add/create all keywords
             KeyCell = Obj.wcs2keyCell;
             Header.replaceVal(KeyCell(:,1),KeyCell(:,2),'Comment',KeyCell(:,3));
+        end
+
+        function [Header,RA,Dec] = addCornersCoo2header(Obj, Header, Args)
+            % Add RA/Dec of image corners to header
+            % Input  : - A single element AstroWCS object.
+            %          - A AstroHeader object.
+            %          * ...,key,val,...
+            %            'CCDSEC' - Either a CCDSEC [Xmin Xmax Ymin Ymax]
+            %                   or a keyword header that contains the
+            %                   CCSSEC for which the corners should be
+            %                   calculated and added.
+            %                   Alternatively, this can be a cell array in
+            %                   which each element is a CCDSEC or header
+            %                   keword. Im this case, corners will be added
+            %                   for each CCDSEC.
+            %                   If header keyword doesnt exist, then
+            %                   corners will not be written to header.
+            %                   Default is {'CCDSEC','UNIQSEC'}
+            %            'OutKeysRA' - Header kewords in which the RA
+            %                   corners should be added. This is a cell
+            %                   array of cell arrys per each CCDSEC.
+            %                   Default is {{'RA1','RA2','RA3','RA4'}, {'RAU1','RAU2','RAU3','RAU4'}}
+            %            'OutKeysDec' - Like 'OutKeysRA', but for Dec.
+            %                   Default is {{'DEC1','DEC2','DEC3','DEC4'}, {'DECU1','DECU2','DECU3','DECU4'}}
+            %            'OutUnits' - Output units of coordinates.
+            %                   Default is 'deg'.
+            % Output : - An updated header object.
+            %          - RA of corners of last CCDSEC element.
+            %          - Dec of corners of last CCDSEC element.
+            % Author : Eran Ofek (Apr 2023)
+            % Example: [Header,RA,Dec] = addCornersCoo2header(Obj, Header);
+
+            arguments
+                Obj(1,1)
+                Header(1,1)
+                Args.CCDSEC          = {'CCDSEC','UNIQSEC'};
+                Args.OutKeysRA cell  = {{'RA1','RA2','RA3','RA4'}, {'RAU1','RAU2','RAU3','RAU4'}};
+                Args.OutKeysDec cell = {{'DEC1','DEC2','DEC3','DEC4'}, {'DECU1','DECU2','DECU3','DECU4'}};
+                Args.OutUnits        = 'deg';
+            end
+
+            if ~iscell(Args.CCDSEC)
+                Args.CCDSEC = {Args.CCDSEC};
+            end
+            Nccdsec = numel(Args.CCDSEC);
+            for Iccdsec=1:1:Nccdsec
+                if isnumeric(Args.CCDSEC{Iccdsec})
+                    % CCDSEC is already numeric
+
+                else
+                    % CCDSEC is an header keyword - get value
+                    [Args.CCDSEC{Iccdsec}] = getVal(Header, Args.CCDSEC{Iccdsec}, 'ReadCCDSEC',true);
+                end
+
+                % CCDSEC to corners
+                if ~isnan(Args.CCDSEC{Iccdsec})
+                    % only if keyword value exist
+                    Corners   = Args.CCDSEC{Iccdsec}([1 3; 2 3; 2 4 ;1 4]);
+                    [RA, Dec] = Obj.xy2sky(Corners(:,1), Corners(:,2), 'OutUnits',Args.OutUnits);
+
+                    Header = replaceVal(Header,[Args.OutKeysRA{Iccdsec}, Args.OutKeysDec{Iccdsec}] ,[RA(:).', Dec(:).']);
+                end
+
+            end
+
        end
+
    
        function KeyCell = wcs2keyCell(Obj)
             % Create a cell array of WCS fields from AstroWCS object
