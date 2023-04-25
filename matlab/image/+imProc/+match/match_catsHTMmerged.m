@@ -93,21 +93,25 @@ function Result = match_catsHTMmerged(Obj, Args)
                 % FFU: need to debug: got here
                 
                 ResInd.Obj1_IndInObj2(FlagNaN) = NaN;
-                
-                % new code
-                %MergedCatFlag = zeros(numel(ResInd.Obj2_IndInObj1), 1, 'uint32'); 
-                %bitor(MergedCatFlag(~FlagNaN), CatH.Catalog(Iref,Args.MergedCatMaskCol)
-                
-                
-                % old code
+               
                 MergedCatFlag = zeros(numel(ResInd.Obj2_IndInObj1),1);
-                Nref = numel(ResInd.Obj1_IndInObj2);
-                for Iref=1:1:Nref
-                    if ~isnan(ResInd.Obj1_IndInObj2(Iref))
-                        IndCat = ResInd.Obj1_IndInObj2(Iref);
-                        MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), double(CatH.Catalog(Iref,Args.MergedCatMaskCol)));
-                    end
-                end                                               
+               
+                % new code faster
+                IndNN  = find(~isnan(ResInd.Obj1_IndInObj2));
+                IndCat = ResInd.Obj1_IndInObj2(IndNN);
+                MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), (CatH.Catalog(IndNN,Args.MergedCatMaskCol)));
+                
+
+                % old code - slower
+%                 Nref = numel(ResInd.Obj1_IndInObj2);
+%                 for Iref=1:1:Nref
+%                     if ~isnan(ResInd.Obj1_IndInObj2(Iref))
+%                         IndCat = ResInd.Obj1_IndInObj2(Iref);
+%                         MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), double(CatH.Catalog(Iref,Args.MergedCatMaskCol)));
+%                     end
+%                 end 
+                
+
             else
                 % Ref is CatH
                 % Cat need to be sorted

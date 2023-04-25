@@ -619,6 +619,7 @@ classdef DemonLAST < Component
                     end
                 elseif iscell(Msg)
                     % do nothing - already in cell format
+                    Lines = Msg;
                 else
                     error('Unknown Msg option');
                 end
@@ -1157,7 +1158,7 @@ classdef DemonLAST < Component
                 if Ngroup==1
                     if FN_Sci_Groups(1).nfiles<=Args.MinNumIMageVisit
                         
-                        Msg = 'Waiting for more images to analyze';
+                        Msg{1} = 'Waiting for more images to analyze';
                         Obj.writeLog(Msg);
 
                         SunInfo = celestial.SolarSys.get_sun;
@@ -1190,7 +1191,7 @@ classdef DemonLAST < Component
                         
                         % call visit pipeline
                         
-                        Msg = sprintf('pipline.DemonLAST executing pipeline for group %d - First image: %s',Igroup, RawImageList{end});
+                        Msg{1} = sprintf('pipline.DemonLAST executing pipeline for group %d - First image: %s',Igroup, RawImageList{end});
                         Obj.writeLog(Msg);
 
                         try
