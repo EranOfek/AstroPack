@@ -1,7 +1,7 @@
 function [Result, BackIm] = filterSources(Obj, Args)
     % Generate a background image filtered from sources using sucessive filtering
-    %   The image is populated in the Back field or returned as an
-    %   IBackImage object.
+    %   The image is populated in the Back field or returned as a
+    %   BackImage object.
     % Description: This routine filter out sources from an image and
     %       generate an approximate background image.
     %       The following steps are implemented:

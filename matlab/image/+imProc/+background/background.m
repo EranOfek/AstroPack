@@ -60,12 +60,7 @@ function Result = background(Obj, Args)
     %            'CreateNewObj' - Indicating if the output
     %                   is a new copy of the input (true), or an
     %                   handle of the input (false).
-    %                   If empty (default), then this argument will
-    %                   be set by the number of output args.
-    %                   If 0, then false, otherwise true.
-    %                   This means that IC.fun, will modify IC,
-    %                   while IB=IC.fun will generate a new copy in
-    %                   IB.
+    %                   Default is false.
     %            'AddHeaderInfo' - A logical indicating if to add header
     %                   keywords with background and variance statistics.
     %                   Including the following keys: {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR'};
@@ -92,7 +87,7 @@ function Result = background(Obj, Args)
         
         Args.KeepScaled(1,1) logical     = false;
         Args.ReCalcBack(1,1) logical     = true;
-        Args.CreateNewObj                = [];
+        Args.CreateNewObj logical        = false;
         
         % header
         Args.AddHeaderInfo(1,1) logical  = true;
@@ -107,13 +102,6 @@ function Result = background(Obj, Args)
         Args.VarPropIn char              = 'Data';
     end
     
-    if isempty(Args.CreateNewObj)
-        if nargout==0
-            Args.CreateNewObj = false;
-        else
-            Args.CreateNewObj = true;
-        end
-    end
     if Args.CreateNewObj
         Result = Obj.copy();
     else
