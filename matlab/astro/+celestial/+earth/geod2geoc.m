@@ -1,6 +1,6 @@
 function [Geoc,GeocCart]=geod2geoc(Geod,RefEllips)
 % Convert Geodetic coordinates to Geocentric coordinates
-% Package: celestial.Earth
+% Package: celestial.earth
 % Description: Convert Geodetic coordinates to Geocentric coordinates
 %              using specified reference ellipsoid.
 % Input  : - Geodetic coordinates. This is three column matrix of the
@@ -24,7 +24,7 @@ function [Geoc,GeocCart]=geod2geoc(Geod,RefEllips)
 % Tested : Matlab 5.3
 %     By : Eran O. Ofek                    Jan 2000
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [Geoc,GeocCart]=celestial.Earth.geod2geoc([1 1 100]);
+% Example: [Geoc,GeocCart]=celestial.earth.geod2geoc([1 1 100]);
 % Reliable: 2
 %--------------------------------------------------------------------------
 if (nargin==1)
@@ -41,7 +41,7 @@ if (length(Geod(1,:))==2)
    Geod = [Geod, zeros(N,1)];
 end
 
-RefEllipsData = celestial.Earth.refellipsoid(RefEllips);
+RefEllipsData = celestial.earth.refellipsoid(RefEllips);
 A = RefEllipsData(1);
 F = RefEllipsData(2);
 

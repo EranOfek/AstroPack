@@ -7,10 +7,12 @@
 %        tools.array.assoc_range - Index of points in each bin.
 %       tools.array.bitand_array - Perform a bitand operation along all elements in an array.
 %        tools.array.bitor_array - Perform a bitor operation along all elements in an array.
+%         tools.array.bitsetFlag - Given an N-D Array, count the number of elements
 %        tools.array.blockmatrix - blockmatrix: reshape N-D matrix such that blocks of elements are adjacent
 %          tools.array.bsx_nsize - bsx_nsize gets multiple of array sizes (i.e. result of the size function),
 %           tools.array.bsx_size - bsx_size gets two arrays S1,S2 and calculates the size of the result
 %        tools.array.check_range - Replace out of bound indices with bound indices.
+%           tools.array.countVal - Given an N-D Array, count the number of elements
 %         tools.array.delete_ind - Delete a column/s or row/s from a matrix.
 %        tools.array.find_ranges - Indices of vector values found within one of several ranges.
 %   tools.array.find_ranges_flag - Check if values are within some ranges.

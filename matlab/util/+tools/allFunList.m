@@ -9,10 +9,12 @@
 %        tools.array.assoc_range - Index of points in each bin.
 %       tools.array.bitand_array - Perform a bitand operation along all elements in an array.
 %        tools.array.bitor_array - Perform a bitor operation along all elements in an array.
+%         tools.array.bitsetFlag - Given an N-D Array, count the number of elements
 %        tools.array.blockmatrix - blockmatrix: reshape N-D matrix such that blocks of elements are adjacent
 %          tools.array.bsx_nsize - bsx_nsize gets multiple of array sizes (i.e. result of the size function),
 %           tools.array.bsx_size - bsx_size gets two arrays S1,S2 and calculates the size of the result
 %        tools.array.check_range - Replace out of bound indices with bound indices.
+%           tools.array.countVal - Given an N-D Array, count the number of elements
 %         tools.array.delete_ind - Delete a column/s or row/s from a matrix.
 %        tools.array.find_ranges - Indices of vector values found within one of several ranges.
 %   tools.array.find_ranges_flag - Check if values are within some ranges.
@@ -82,6 +84,7 @@
 %   tools.code.prep_maat_website - Prepare the Matlab Astronomy & AStrophysics Toolbox website
 % tools.code.read_user_pass_file - Read user/password from file
 %            tools.code.unitTest - Package Unit-Test
+%         tools.deriv.allFunList - Functions and Classes list for the tools.deriv package
 %    tools.deriv.numerical_deriv - Numerical derivative of vectors
 %          tools.find.allFunList - Functions and Classes list for the tools.find package
 %            tools.find.bin_sear - Binary search for a value in a sorted vector.
@@ -95,6 +98,7 @@
 %        tools.find.groupCounter - Group a vector of counters into successive numbers.
 %           tools.find.mfind_bin - Binary search on a sorted vector running simolutnously on multiple values.
 %            tools.find.unitTest - Package Unit-Test
+%           tools.gui.allFunList - Functions and Classes list for the tools.gui package
 %           tools.gui.stopButton - Create a stop button
 %       tools.install.allFunList - Functions and Classes list for the tools.install package
 %     tools.install.downloadData - 
@@ -134,6 +138,7 @@
 % tools.math.fit.ransacLinearModel - Fit a general linear model using a simplified RANSAC-like scheme
 %      tools.math.fun.allFunList - Functions and Classes list for the tools.math.fun package
 %    tools.math.fun.chebyshevFun - Generate an anonymous function for Chebyshev polynomials (using
+%          tools.math.fun.sincos - Insert a column/s or row/s to a specific position in a matrix.
 %   tools.math.geometry.Contents - 
 % tools.math.geometry.allFunList - Functions and Classes list for the tools.math.geometry package
 % tools.math.geometry.boundingCircle - fit the smallest-radius bounding circle to set of X, Y points
@@ -293,6 +298,7 @@
 %         tools.struct.structcut - Select elements in structure fields by indices.
 %          tools.struct.unitTest - Package Unit-Test
 % tools.struct.writeStructCsv_mex_test - 
+%         tools.table.allFunList - Functions and Classes list for the tools.table package
 %            tools.table.fprintf - fprintf for tables
 %           tools.table.isColumn - Check if columns exist in table
  help tools.allFunList

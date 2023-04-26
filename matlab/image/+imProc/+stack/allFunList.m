@@ -8,6 +8,7 @@
 %           imProc.stack.funCube - Apply function/s on a single cube
 % imProc.stack.functionalResponse - Fit the pixel response to light as a function of intensity in a cube of images
 %         imProc.stack.makeMovie - Display and create a movie file from images in AstroImage or cube.
+%            imProc.stack.mosaic - Make a mosaic sky image from a set of input AstroImages
 %    imProc.stack.subtractOffset - Remove offset (constant) from AstroImage
 %          imProc.stack.unitTest - unitTest for the Stack class
  help imProc.stack.allFunList

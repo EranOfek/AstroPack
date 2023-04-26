@@ -73,7 +73,7 @@ MetLong   = RefLong + DL;
 MetCoo    = [MetLong, MetLat];
 
 % convert meteor position to cart. coo
-[MetGeocCoo,Vm] = celestial.Earth.geod2geoc([MetLong, MetLat, H], DATUM);
+[MetGeocCoo,Vm] = celestial.earth.geod2geoc([MetLong, MetLat, H], DATUM);
 
 Az      = zeros(CooSize(1),1);
 Alt     = zeros(CooSize(1),1);
@@ -82,12 +82,12 @@ Alt(1)  = RefAlt;
 Dist    = zeros(CooSize(1),1);
 Dist(1) = Dist1;
 % do for each point in list
-for I=2:1:CooSize(1),
+for I=2:1:CooSize(1)
    PLong = CooList(I,1);
    PLat  = CooList(I,2);
    PH    = CooList(I,3);
    
-   [GeocCoo,V2] = celestial.Earth.geod2geoc(CooList(I,:), DATUM);
+   [GeocCoo,V2] = celestial.earth.geod2geoc(CooList(I,:), DATUM);
    
    % Zeta = earth_center-observer-meteor angle
    V       = V2.*(V2 - Vm);
