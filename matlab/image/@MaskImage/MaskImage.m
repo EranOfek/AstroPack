@@ -122,7 +122,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                 end
 
                 if Args.UseMex
-                    Result(Iobj).Image = tools.array.mex_bitsetFlag32(Result(Iobj).Image, Flag, SetVal, true, true);
+                    Result(Iobj).Image = tools.array.bitsetFlag(Result(Iobj).Image, Flag, SetVal, true, true);
                 else
 
                     % use indices instead of flags - maybe faster in some cases
