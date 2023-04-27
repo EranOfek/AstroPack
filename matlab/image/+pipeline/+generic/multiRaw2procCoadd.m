@@ -260,6 +260,11 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.AddProjName2Header logical       = true;
         Args.AddFieldID2Header logical        = true;
         
+        % PSF phot for single images
+        Args.SingleImAddPSF logical                   = true;
+        Args.SingleImconstructPSFArgs cell            = {};
+        Args.SingleImPsfPhot logical                  = true;
+
         % save products
         Args.SaveAll               = [];  % empty - check individuals
         Args.SaveProcIm logical    = true;
@@ -272,6 +277,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.SaveCoaddCat logical  = true;
         Args.SaveCoaddPSF logical  = true;
         Args.SaveAsteroids logical = true;
+
 
     end
     
@@ -374,6 +380,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                                                       'findMeasureSourcesArgs',Args.findMeasureSourcesArgs,...
                                                                                       'ColCell',Args.ColCell,...
                                                                                       'Threshold',Args.Threshold,...
+                                                                                      'AddPSF',Args.SingleImAddPSF,...
+                                                                                      'constructPSFArgs',Args.SingleImconstructPSFArgs,...
+                                                                                      'PsfPhot',Args.SingleImPsfPhot,...
                                                                                       Args.singleRaw2procArgs{:});
             %toc
             
@@ -391,6 +400,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                                          'findMeasureSourcesArgs',Args.findMeasureSourcesArgs,...
                                                                          'ColCell',Args.ColCell,...
                                                                          'Threshold',Args.Threshold,...
+                                                                         'AddPSF',Args.SingleImAddPSF,...
+                                                                         'constructPSFArgs',Args.SingleImconstructPSFArgs,...
+                                                                         'PsfPhot',Args.SingleImPsfPhot,...
                                                                          Args.singleRaw2procArgs{:});
             %toc
             

@@ -15,7 +15,15 @@ function Result = test_bitset()
     %
     io.msgLog(LogLevel.Test, 'tools.array.test_bitset test started');
 
-    % mex  mex_bitsetFlag32.cpp  COMPFLAGS="$COMPFLAGS /openmp"
+    %
+    % Windows: 
+    %
+    %   mex  mex_bitsetFlag32.cpp  COMPFLAGS="$COMPFLAGS /openmp"
+    %
+    % Linux:
+    %
+    %   mex mex_bitsetFlag32.cpp CXXFLAGS='$CXXFLAGS -fopenmp' LDFLAGS='$LDFLAGS -fopenmp'
+    %
 	
 	
     % -------------------------------------------    
@@ -36,7 +44,7 @@ function Result = test_bitset()
     %return;
     
     % -------------------------------------------    
-    Iters = 3;
+    Iters = 10;
     Loop = 1;    
     Rows = 100;
     Cols = 100;
@@ -74,14 +82,22 @@ function Result = test_bitset()
             t = tic;
             for L=1:Loop        
                 MpResult = tools.array.mex_bitsetFlag32(Array, Flag, int32(Bit), int32(Value), int32(true));
-                %MexResult = tools.array.bitsetFlag(Array, Flag, Bit, Value);            
             end
             MpTime = toc(t);                    
 
-            fprintf('Matlab: %.6f, Mex: %.6f, MexMP: %.6f\n', MatlabTime, MexTime, MpTime);
+            % MEX via bitsetFlag
+            t = tic;
+            for L=1:Loop        
+                WrapperResult = tools.array.bitsetFlag(Array, Flag, Bit, Value);            
+            end
+            WrapperTime = toc(t);                    
+
+            
+            fprintf('Matlab: %.6f, Mex: %.6f, MexMP: %.6f, Wrapper: %0.6f, Ratio: %0.2f\n', MatlabTime, MexTime, MpTime, WrapperTime, MatlabTime/WrapperTime);
             %fprintf('isequal...\n');
             assert(isequal(MatlabResult, MexResult));               
             assert(isequal(MatlabResult, MpResult));                           
+            assert(isequal(MatlabResult, WrapperResult));                           
         end
     end
     
