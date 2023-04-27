@@ -61,11 +61,25 @@ AstroPack/MAATv2 supports astronomical catalog access via three channels:
   The <a href="">telescope</a> package includes tools for signal-to-noise calculations and speckle images simulations.
   
 ### Spectra and filters
+
+Tools to analyze astronomical spectra, database of astronomical spectra, and a database of astronomical telescope filters.
+
 ### Time series analysis
 
-Tools for time series analysis mainly available in the <a href="">timeseries</a> and <a href="">TimeDelay</a> packages.
+Tools for time series analysis including periodicity searches, and time delay estimation (e.g., <a href="https://ui.adsabs.harvard.edu/abs/2021MNRAS.506..864S/abstract">Springer & Ofek 2021a</a>, <a href="https://ui.adsabs.harvard.edu/abs/2021MNRAS.508.3166S/abstract">Springer & Ofek 2021b</a>).
   
 ### Cosmology
+
+Tools for calculating comsological distances and related properties.
+
 ### Gravitational lensing
+
+Basic tools for gravitational lensing.
+
 ### Statistics
+
+Tools for statistical analysis.
+
 ### General utilities
+
+Tools for I/O, WWW access, array and other classes manipulation, and more.
