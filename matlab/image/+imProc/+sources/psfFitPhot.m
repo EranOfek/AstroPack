@@ -83,6 +83,8 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
         Args.mexCutout logical       = true;
         Args.Circle logical          = false;
         Args.psfPhotCubeArgs cell    = {};
+
+        Args.ColSN                   = 'SN_3';  % if empty don't use
     end
     
     ResultObj = Obj;
@@ -105,6 +107,12 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
             PSF = Args.PSF;
         end
         
+        if isempty(Args.ColSN)
+            SN = [];
+        else
+            SN = getCol(Obj(Iobj).CatData, Args.ColSN);
+        end
+
         if isempty(Args.XY)
             % get X/Y ccordinates from catalog
             
@@ -156,7 +164,8 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                                                                 'FitRadius',Args.FitRadius,...
                                                                 'backgroundCubeArgs',Args.backgroundCubeArgs,...
                                                                 Args.psfPhotCubeArgs{:});
-                                                                
+             
+        
         % source measured position is at:
         % RoundX + Result.DX
         Result.RoundX = RoundX;
