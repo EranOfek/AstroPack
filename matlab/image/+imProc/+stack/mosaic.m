@@ -37,8 +37,9 @@ function Mosaic = mosaic(Args)
 %     RA1  = zeros(1,NImage);  RA2 = zeros(1,NImage); 
 %     DEC1 = zeros(1,NImage); DEC2 = zeros(1,NImage); 
 
-    Corn = zeros(NImage,4,2);
-    Cent = zeros(NImage,2);
+    Corn    = zeros(NImage,4,2);
+    Cent    = zeros(NImage,2);
+    Xsize   = zeros(NImage,1); Ysize = zeros(NImage,1);
     
     % read in the borders of the input images
     %
@@ -49,16 +50,22 @@ function Mosaic = mosaic(Args)
         
     for Img = 1:1:NImage
         
-        Xsize = size(AI(Img).Image,1);
-        Ysize = size(AI(Img).Image,2);
+        % copy the image extensions to pixel matrices
+        
+%         Input(Img) = AI(Img).Image;
+        
+        Xsize(Img) = size(AI(Img).Image,1);
+        Ysize(Img) = size(AI(Img).Image,2);
         
         % AI.cooImage gets data from the header and not from the
         % WCS with AI.WCS.xy2sky: is it exactly the same?
-        Corn(Img,:,:) = AI(Img).cooImage([1 Xsize 1 Ysize]).Corners;
-        Cent(Img,:)   = AI(Img).cooImage([1 Xsize 1 Ysize]).Center;
+        
+        Corn(Img,:,:) = AI(Img).cooImage([1 Xsize(Img) 1 Ysize(Img)]).Corners;
+        Cent(Img,:)   = AI(Img).cooImage([1 Xsize(Img) 1 Ysize(Img)]).Center;
         
 %         [RA1(Img), DEC1(Img)]  = AI(Img).WCS.xy2sky(1,1);
 %         [RA2(Img), DEC2(Img)]  = AI(Img).WCS.xy2sky(Xsize,Ysize);
+
         
     end
     
@@ -72,20 +79,20 @@ function Mosaic = mosaic(Args)
     
     RAcenter = (RA2m + RA1m)/2; DECcenter = (DEC2m + DEC1m)/2; 
     
-    % plot the sky regions of the input images
-    
-    figure(1); hold on
-    
-    for Img = 1:1:NImage    
-        plot([Corn(Img,1,1) Corn(Img,2,1) Corn(Img,3,1) Corn(Img,4,1) Corn(Img,1,1)], ...
-             [Corn(Img,1,2) Corn(Img,2,2) Corn(Img,3,2) Corn(Img,4,2) Corn(Img,1,2)]);
-        text(Cent(Img,1),Cent(Img,2), num2str(Img) );
-    end
-    plot(RAcenter,DECcenter,'rd','MarkerSize',10);
-    plot([RA1m  RA2m  RA2m  RA1m  RA1m], ...
-         [DEC1m DEC1m DEC2m DEC2m DEC1m], 'LineWidth',2,'Color',[.6 0 0]);
-    xlabel RA; ylabel DEC;
-    hold off
+%     % plot the sky regions of the input images
+%     
+%     figure(1); hold on
+%     
+%     for Img = 1:1:NImage    
+%         plot([Corn(Img,1,1) Corn(Img,2,1) Corn(Img,3,1) Corn(Img,4,1) Corn(Img,1,1)], ...
+%              [Corn(Img,1,2) Corn(Img,2,2) Corn(Img,3,2) Corn(Img,4,2) Corn(Img,1,2)]);
+%         text(Cent(Img,1),Cent(Img,2), num2str(Img) );
+%     end
+%     plot(RAcenter,DECcenter,'rd','MarkerSize',10);
+%     plot([RA1m  RA2m  RA2m  RA1m  RA1m], ...
+%          [DEC1m DEC1m DEC2m DEC2m DEC1m], 'LineWidth',2,'Color',[.6 0 0]);
+%     xlabel RA; ylabel DEC;
+%     hold off
 
     % determine the pixel size of the mosaic
     
@@ -96,11 +103,10 @@ function Mosaic = mosaic(Args)
     NPix2 = ceil( SizeDEC / PixScale );   
     
     cprintf('hyper','%s%4.0f%s%4.0f%s\n','The mosaic size is ',NPix1,' x ',NPix2,' pixels');
-    % why not 6400 x 9600 pix? is the real LAST pixel size larger than 1.25"?
     
-    ImageM = zeros(NPix1, NPix2);
+    ImageM = zeros(NPix2, NPix1);  % because in the AstroImage the storage is reverted
     
-    AIm = AstroImage({ImageM'});
+    AIm = AstroImage({ImageM});
     
     % find the image most close to the center of the mosaic and copy the
     % WCS from it into the WCS of the mosaic image
@@ -124,19 +130,91 @@ function Mosaic = mosaic(Args)
     fprintf('%s%4.0f%s%3.2f%s%4.0f%s\n','The nearest tile center number',CentNum, ' is at ', ...
            Dist0*60,' arcmin = ',Dist0/PixScale,' pix from the mosaic center');  
        
+    % read the WCS from the tile number CentNum into an AstroHeader
+       
+    AH = AI(CentNum).WCS.wcs2header; 
+           
     % determine mosaic pixel coordinates of the reference pixel 
     % of the tile number CentNum
     
-    % read the WCS from the nearest tile into an AstroHeader
-       
-    AH = AI(CentNum).WCS.wcs2header; 
+    CRVAL1   = AH.getVal('CRVAL1');
+    CRVAL2   = AH.getVal('CRVAL2');
+    CRPIX1   = AH.getVal('CRPIX1');
+    CRPIX2   = AH.getVal('CRPIX2');
     
     % change the pixel coordinates of the reference point
+     
+    DeltaRA  = CRVAL1 - RAcenter;
+    DeltaDEC = CRVAL2 - DECcenter;
+    DeltaX   = DeltaRA/PixScale;
+    DeltaY   = DeltaDEC/PixScale;
+    CRPIX1_new = CRPIX1 + DeltaX + NPix1/2; 
+    CRPIX2_new = CRPIX2 + DeltaY + NPix2/2;
     
-    % create a new WCS from the AstroHeader and attach it to the mosaic image
+    AH.setVal('CRPIX1',CRPIX1_new);
+    AH.setVal('CRPIX2',CRPIX2_new);
     
-    AW = AstroWCS.header2wcs(AH);
+    % create a new WCS from the updated AstroHeader and attach it to the mosaic image
     
-    AIm = AstroImage({ImageM'},'WCS', AW);
+    AIm.WCS = AstroWCS.header2wcs(AH);
+    
+    % plot the sky regions of the input images and the reference points
+    
+    [RAref, DECref] = AIm.WCS.xy2sky(CRPIX1_new,CRPIX2_new);
+    
+    figure(2); hold on
+    
+    for Img = 1:1:NImage    
+        plot([Corn(Img,1,1) Corn(Img,2,1) Corn(Img,3,1) Corn(Img,4,1) Corn(Img,1,1)], ...
+             [Corn(Img,1,2) Corn(Img,2,2) Corn(Img,3,2) Corn(Img,4,2) Corn(Img,1,2)]);
+        text(Cent(Img,1),Cent(Img,2), num2str(Img) );
+    end
+    
+    plot(RAcenter,DECcenter,'rd','MarkerSize',10);
+    plot([RA1m  RA2m  RA2m  RA1m  RA1m], ...
+         [DEC1m DEC1m DEC2m DEC2m DEC1m], 'LineWidth',2,'Color',[.6 0 0]);
+    plot(RAref,DECref,'bo','MarkerSize',10);
+    xlabel RA; ylabel DEC;
+    hold off    
+    
+    % fill in the data from the input images
+    
+    for Img = 1:1:1 % NImage
+        
+        fprintf('%s%4.0d%s%4.0d\n','Processing tile ',Img,' out of ',NImage);
+
+%         % appeared very slow 
+%         for iX = 1:1:Xsize(Img)
+%             
+%             fprintf('%s%4.0d%s%4.0d\n','Processing row ',iX,' out of ',Xsize(Img));
+%             
+%             for iY = 1:1:Ysize(Img)
+%                 
+%                 [RA, DEC]  = AI(Img).WCS.xy2sky(iX,iY);
+%                 [Xin, Yin] = AIm.WCS.sky2xy(RA,DEC);
+%                 Xim = round(Xin); Yim = round(Yin);  % shall we use subpixel resolution here?
+%                 AIm.Image(Xim,Yim) = AI(Img).Image(iX,iY);
+%                 
+%             end
+%         end
+
+          % determine the position of the first pixel
+          
+          [RA1, DEC1]   = AI(Img).WCS.xy2sky(1,1);
+          [X1,  Y1]     = AIm.WCS.sky2xy(RA1,DEC1);
+          X1r = round(X1); Y1r = round(Y1);
+          
+          AIm.ImageData.Data(X1r:X1r+Xsize(Img)-1, Y1r:Y1r+Ysize(Img)-1) = AI(Img).ImageData.Data;
+          
+%           for iX = 1:1:Xsize(Img)
+%               for iY = 1:1:Ysize(Img)
+%                   
+%                   %AIm.Image(X1r+iX-1,Y1r+iY-1) = AI(Img).Image(iX,iY);
+%                   AIm.ImageData.Data(X1r+iX-1,Y1r+iY-1) = AI(Img).ImageData.Data(iX,iY);
+%                   
+%               end
+%           end
+              
+    end
     
 end
