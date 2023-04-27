@@ -65,6 +65,8 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             %            'UseFlags' - A logical indicating if to use flags
             %                   or indices (speed considerations).
             %                   Default is true.
+            %            'UseMex' - Use the tools.array.mex_bitsetFlag
+            %                   mex function. Default is true.
             % Output : - An ImageMaks object.
             % Author : Eran Ofek (May 2021)
             % Example:
@@ -82,6 +84,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                 Args.DefBitDict BitDictionary     = BitDictionary('BitMask.Image.Default');
                 Args.CreateNewObj logical         = false;
                 Args.UseFlags logical             = false;
+                Args.UseMex logical               = true;
             end
             
             if Args.CreateNewObj
@@ -118,13 +121,17 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                     Result(Iobj).Image = Result(Iobj).Dict.Class(zeros(SizeImage));
                 end
 
-
-                % use indices instead of flags - maybe faster in some cases
-                if Args.UseFlags
-                    Result(Iobj).Image(Flag) = bitset(Result(Iobj).Image(Flag), BitInd, SetVal);
+                if Args.UseMex
+                    Result(Iobj).Image = tools.array.mex_bitsetFlag32(Result(Iobj).Image, Flag, SetVal, true, true);
                 else
-                    Ind = find(Flag);
-                    Result(Iobj).Image(Ind) = bitset(Result(Iobj).Image(Ind), BitInd, SetVal);
+
+                    % use indices instead of flags - maybe faster in some cases
+                    if Args.UseFlags
+                        Result(Iobj).Image(Flag) = bitset(Result(Iobj).Image(Flag), BitInd, SetVal);
+                    else
+                        Ind = find(Flag);
+                        Result(Iobj).Image(Ind) = bitset(Result(Iobj).Image(Ind), BitInd, SetVal);
+                    end
                 end
             end
             
