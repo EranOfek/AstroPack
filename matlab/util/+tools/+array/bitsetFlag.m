@@ -1,25 +1,19 @@
 function Result = bitsetFlag(Array, Flag, Bit, Value, UseMex, UseMP)
-    % Given an N-D Array, count the number of elements
-    % that are exactly equal to the value in Val.
-    % UseNot is an argument indicating if to count the number of 
-    % elements that are not equal Val.
-    % 
-    % For example:
-    % tools.array.countVal([1 2;3 NaN], NaN, true) will return 3
-    % tools.array.countVal([1 2;3 NaN], NaN, false) will return 1
-    % 
-    % Why? sum(Array(~isnan(Array)) is slow.
-    % 
-    % Need a single, double, int16, int32, unit16, uint32 versions.
     %
-    % Input  : - An array of integers.
-    %          - Value to compare
-    %          - Flag, true to count number of not equal elements
-    %          - Flag, true to use MEX optimization.
+    % Input  : - Array - Array of integers
+    %          - Flags - Array of logical flags
+    %          - Bit - Bit number
+    %          - Value - 0 or 1
+    %          - UseMex - true to use MEX optimization
+    %          - UseMP - true to use threads
+    %
     % Output : - The result of the operation.
     %
     % Author : Chen Tishler, April 2023
-    % Example: Val=tools.array.countVal(Array);
+    % Example: 
+    %    Array = zeros(3, 3, 'int32');
+    %    Flag = rand(3, 3) > 0.9;
+    %    Result = tools.array.bitsetFlag(Array, Flag, 1, 1);            
     %----------------------------------------------------------------------
     arguments
         Array                   % Input array
