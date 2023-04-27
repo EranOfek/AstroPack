@@ -13,6 +13,14 @@
 //      https://www.mathworks.com/matlabcentral/answers/237411-can-i-make-use-of-openmp-in-my-matlab-mex-files
 //
 //
+// Windows: 
+//    
+//   mex  mex_bitsetFlag32.cpp  COMPFLAGS="$COMPFLAGS /openmp"
+//
+// Linux:
+//
+//   mex mex_bitsetFlag32.cpp CXXFLAGS='$CXXFLAGS -fopenmp' LDFLAGS='$LDFLAGS -fopenmp'
+//
 
 #include <stdio.h>
 #include <omp.h>
