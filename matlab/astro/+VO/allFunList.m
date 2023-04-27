@@ -86,6 +86,7 @@
 %        VO.SkyMapper.allFunList - Functions and Classes list for the VO.SkyMapper package
 % VO.SkyMapper.skymapper_cat_search - Cone search the SkyMapper online catalog.
 % VO.SkyMapper.skymapper_cutout_link - Generate a URL link to SkyMapper image cutouts.
+%            VO.Swift.allFunList - Functions and Classes list for the VO.Swift package
 %            VO.Swift.getGRB_cat - get and read the Swift online GRB catalog
 %             VO.Swift.getXRT_LC - get Swift/XRT light curve of a GRB from the Swift UK database
 %              VO.TNS.allFunList - Functions and Classes list for the VO.TNS package
@@ -152,6 +153,8 @@
 %     VO.prep.wget_all_skymapper - SHORT DESCRIPTION HERE
 %        VO.prep.wget_all_usnob1 - Retrieve USNO-B1 catalog from VizieR and format into HDF5/HTM (catsHTM)
 %        VO.prep.wget_pulsar_cat - Read ATNF pulsar catalog from the web into an AstCat object.
+%        VO.prep.GAIA.allFunList - Functions and Classes list for the VO.prep.GAIA package
+%    VO.prep.GAIA.dr1.allFunList - Functions and Classes list for the VO.prep.GAIA.dr1 package
 % VO.prep.GAIA.dr1.gaia_dr1_build_cat - Build the GAIA-DR1 fast access catalog
 % VO.prep.GAIA.dr1.gaia_dr1_cat_columns - Get the GAIA-DR1 secondary catalog column names
 % VO.prep.GAIA.dr1.gaia_dr1_read_file - Read GAIA-DR1 file for reformatting purposses
@@ -159,6 +162,7 @@
 % VO.prep.GAIA.dr1.gaia_dr1_readall_select - Select GAIA sources in Dec zone for constructing GAIA catalog
 % VO.prep.GAIA.dr1.get_files_gaia_dr1 - Get GAIA DR1 files from GAIA archive
 %  VO.prep.GAIA.dr1.get_tgas_dr1 - Retrieve and format the GAIA-DR1 TGAS catalog
+%    VO.prep.GAIA.dr3.allFunList - Functions and Classes list for the VO.prep.GAIA.dr3 package
 % VO.prep.GAIA.dr3.downloadPrepSpecGAIA - Download GAIA low-resolution spectra files and format into HDF5 catalog.
 %  VO.prep.GAIA.dr3.prepGAIAspec - Reformat the GAIA sampled spectra into HDF5 files and generate a
 %  VO.prep.GAIA.dr3.prepGAIAvari - The catalog doesn't contain RA/Dec so use VizierR to download

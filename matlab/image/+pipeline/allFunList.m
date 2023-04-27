@@ -25,6 +25,7 @@
 %      pipeline.last.runPipeLAST - Script for running the LAST pipeline
 % pipeline.last.singleFullImageReduction - Analyze a full farme LAST images
 %         pipeline.last.unitTest - Package Unit-Test
+% pipeline.lastAnalysis.allFunList - Functions and Classes list for the pipeline.lastAnalysis package
 % pipeline.lastAnalysis.inspectAsteroidsPM - Inspect all asteroid candidates in  proc dirs
 % pipeline.lastAnalysis.searchVarMerged - 
 %   pipeline.ultrasat.allFunList - Functions and Classes list for the pipeline.ultrasat package

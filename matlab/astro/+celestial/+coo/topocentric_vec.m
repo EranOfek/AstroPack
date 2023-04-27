@@ -66,7 +66,7 @@ else
 end
 
 
-[Geoc,GeocCart] = celestial.Earth.geod2geoc(Geod,RefEllips);
+[Geoc,GeocCart] = celestial.earth.geod2geoc(Geod,RefEllips);
 GeocCart = GeocCart.';
 if (size(GeocCart,2)==1)
    GeocCart = GeocCart*ones(1,N);

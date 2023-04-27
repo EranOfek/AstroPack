@@ -17,7 +17,7 @@ function Data=refellipsoid(RefEllips)
 % Tested : Matlab 5.3
 %     By : Eran O. Ofek                    Jun 2000
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: Data=celestial.Earth.refellipsoid('WGS84')
+% Example: Data=celestial.earth.refellipsoid('WGS84')
 % Reliable: 2
 %--------------------------------------------------------------------------
 

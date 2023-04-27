@@ -16,7 +16,7 @@ function [Res]=satellite_mag(varargin)
 % License: GNU general public license version 3
 %     By : Eran O. Ofek                    Dec 2019
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: Res=celestial.Earth.satellite_mag
+% Example: Res=celestial.earth.satellite_mag
 % Reliable: 2
 %--------------------------------------------------------------------------
 
@@ -56,7 +56,7 @@ if 1==0
     %DistV=logspace(log10(300),log10(1e7),100)';
     Nd   = numel(DistV);
     for Id=1:1:Nd
-        Res=celestial.Earth.satellite_mag('Area',1,'Dist',DistV(Id));
+        Res=celestial.earth.satellite_mag('Area',1,'Dist',DistV(Id));
         %Res.Mag
         LengthPix  = min(6000,Res.AngV.*ExpTime./PixScale);
         LengthFWHM = min(6000./FWHM,Res.AngV.*ExpTime./FWHM);
@@ -114,7 +114,7 @@ if 1==0
     for Idist=1:1:Ndist
         for Ivel=1:1:Nvel
             
-            Res=celestial.Earth.satellite_mag('Area',1,'Dist',VecDist(Idist));
+            Res=celestial.earth.satellite_mag('Area',1,'Dist',VecDist(Idist));
             %Res.Mag
             LengthPix  = min(1024,AngVel(Idist,Ivel).*ExpTime./PixScale);
             LengthFWHM = min(1024./FWHM,AngVel(Idist,Ivel).*ExpTime./FWHM);

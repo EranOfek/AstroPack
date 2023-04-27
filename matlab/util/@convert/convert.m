@@ -125,7 +125,7 @@ classdef convert
             m    = 1;                            % meter
             km   = 1000;                         % km
             mile = 1609;                         % mile
-            earth_rad = celestial.Earth.refellipsoid('WGS84');
+            earth_rad = celestial.earth.refellipsoid('WGS84');
             earth_rad = earth_rad(1);                      % Earth equatorial radius (WGS84)
             au   = constant.au('SI');      % au
             ly   = constant.ly('SI');      % light-year

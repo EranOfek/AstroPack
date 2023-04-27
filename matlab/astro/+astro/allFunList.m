@@ -3,6 +3,7 @@
 %               astro.allFunList - Functions and Classes list for the astro package
 %                     astro.help - Show MLX manual
 %                 astro.unitTest - Package Unit-Test
+%     astro.asteroids.allFunList - Functions and Classes list for the astro.asteroids package
 % astro.asteroids.asteroidSizeDistribution - 
 % astro.asteroids.collisionLightCurveKernel - 
 % astro.asteroids.fitCollisionLightCurve - 

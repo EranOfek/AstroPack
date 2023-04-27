@@ -1,6 +1,6 @@
 function [V,W,EGM]=earth_gravity_field(R,Phi,Lambda,varargin)
 % Calculate the Earth gravity field for a set of locations.
-% Package: celestial.Earth
+% Package: celestial.earth
 % Description: Calculate the Earth gravity field for a set of locations.
 %              For both rotating and non rotating Earth.
 %              Mean IRTF pole is assumed.
@@ -32,7 +32,7 @@ function [V,W,EGM]=earth_gravity_field(R,Phi,Lambda,varargin)
 % Tested : Matlab R2014a
 %     By : Eran O. Ofek                    Jul 2014
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [V,W,EGM]=celestial.Earth.earth_gravity_field(6731e5,1,1);
+% Example: [V,W,EGM]=celestial.earth.earth_gravity_field(6731e5,1,1);
 % Reliable: 2
 %--------------------------------------------------------------------------
 

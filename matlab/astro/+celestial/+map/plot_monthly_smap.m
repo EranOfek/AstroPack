@@ -141,7 +141,7 @@ import celestial.stars.*
 import celestial.time.*
 import celestial.SolarSys.*
 import celestial.coo.*
-import celestial.Earth.*
+import celestial.earth.*
 
 % M2
 MagFun   = [-30 12;...

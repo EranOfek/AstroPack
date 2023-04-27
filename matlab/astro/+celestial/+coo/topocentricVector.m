@@ -43,7 +43,7 @@ function [G, Gdot] = topocentricVector(JD_UT1, GeoPos, Args)
         Gdot = zeros(3,N);
         for I=1:1:N
             
-            [~,GeocCart] = celestial.Earth.geod2geoc(GeoPos, Args.RefEllipsoid);
+            [~,GeocCart] = celestial.earth.geod2geoc(GeoPos, Args.RefEllipsoid);
 
             LAST = celestial.time.lst(JD_UT1(I), 0, 'a');     % calculate app. sidereal time at Greenwich
             LAST = LAST.*2.*pi;             % convert to radians

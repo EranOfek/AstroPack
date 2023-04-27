@@ -20,6 +20,7 @@
 % tools.math.fit.ransacLinearModel - Fit a general linear model using a simplified RANSAC-like scheme
 %      tools.math.fun.allFunList - Functions and Classes list for the tools.math.fun package
 %    tools.math.fun.chebyshevFun - Generate an anonymous function for Chebyshev polynomials (using
+%          tools.math.fun.sincos - Insert a column/s or row/s to a specific position in a matrix.
 %   tools.math.geometry.Contents - 
 % tools.math.geometry.allFunList - Functions and Classes list for the tools.math.geometry package
 % tools.math.geometry.boundingCircle - fit the smallest-radius bounding circle to set of X, Y points

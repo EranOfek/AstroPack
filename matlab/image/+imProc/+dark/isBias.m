@@ -36,8 +36,7 @@ function [Result,Flag] = isBias(AI, Args)
     %            individaul tests.
     % Author : Eran Ofek (May 2021)
     % Example: A=AstroImage('LAST.*_dark.fits');
-    %          D=imProc.image.Dark;
-    %          [Result,Flag] = D.isBias(A)
+    %          F=imProc.image.isBias(A);
 
     arguments
         AI AstroImage

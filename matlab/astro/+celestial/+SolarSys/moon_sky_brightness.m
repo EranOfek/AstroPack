@@ -56,7 +56,7 @@ else
 end
 
 % Geodetic to Geocentric
-[GeocPos]=celestial.Earth.geod2geoc(GeodPos,'WGS84');
+[GeocPos]=celestial.earth.geod2geoc(GeodPos,'WGS84');
 
 % Moon & Sun Position
 [MoonRA,MoonDec,MoonHP] = celestial.SolarSys.mooncool(JD,GeocPos);

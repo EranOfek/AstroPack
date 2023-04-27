@@ -77,6 +77,7 @@
 % imProc.instCharc.plotReadNoiseDistribution - Plot readout noise disyribution from a set of bias images
 % imProc.instCharc.readNoiseFromBias - Estimate the read noise from bias mage/s in native units.
 %      imProc.instCharc.unitTest - unitTest for imProc.instCharc
+%           imProc.io.allFunList - Functions and Classes list for the imProc.io package
 %         imProc.io.writeProduct - Write AstroImage/AstroCatalog/MergedSources data products using FileNames object
 %         imProc.mask.allFunList - Functions and Classes list for the imProc.mask package
 % imProc.mask.interpOverMaskedPix - Interpolate over pixels with specific bit mask
@@ -125,6 +126,7 @@
 %           imProc.stack.funCube - Apply function/s on a single cube
 % imProc.stack.functionalResponse - Fit the pixel response to light as a function of intensity in a cube of images
 %         imProc.stack.makeMovie - Display and create a movie file from images in AstroImage or cube.
+%            imProc.stack.mosaic - Make a mosaic sky image from a set of input AstroImages
 %    imProc.stack.subtractOffset - Remove offset (constant) from AstroImage
 %          imProc.stack.unitTest - unitTest for the Stack class
 %         imProc.stat.allFunList - Functions and Classes list for the imProc.stat package

@@ -24,7 +24,7 @@ function Geod=geoc2geod(Geoc,RefEllips,Accuracy)
 % Tested : Matlab 5.3
 %     By : Eran O. Ofek                    Jan 2000
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: Geod=celestial.Earth.geoc2geod([1 1 7000]);
+% Example: Geod=celestial.earth.geoc2geod([1 1 7000]);
 % Reliable: 2
 %------------------------------------------------------------------------------
 if (nargin==1),
@@ -48,7 +48,7 @@ ARCSEC = 1./(3600.*RAD);       % arcsec in radians
 N = length(Geoc(:,1));
 
 
-RefEllipsData = celestial.Earth.refellipsoid(RefEllips);
+RefEllipsData = celestial.earth.refellipsoid(RefEllips);
 A = RefEllipsData(1);
 F = RefEllipsData(2);
 
