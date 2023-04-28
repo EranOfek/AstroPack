@@ -22,7 +22,7 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
         Args.AddPlanets  = {'799','899'};  % Uranus, Neptune
         Args.PlanetsRadius = [25362, 24622];
 
-        Args.ObsCoo    = [35 32];
+        Args.ObsCoo    = [35 30 0.415];
         Args.MaxSunAlt = -11.0;
         Args.MinAlt    = 25;
         

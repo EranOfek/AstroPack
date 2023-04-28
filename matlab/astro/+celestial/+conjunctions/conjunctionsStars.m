@@ -1,5 +1,5 @@
 function Result=conjunctionsStars(Table, Args)
-    % Search for conjunctions between a Solar system object and a GAIA star
+    % Search for conjunctions between a Solar system object and GAIA stars
     % Input  : - An Astrocatalog object containing the ephemeris for a
     %            Solar system object. Can be generated using celestial.SolarSys.jpl_horizons
     %          * ...,key,val,...
