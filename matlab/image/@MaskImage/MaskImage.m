@@ -84,7 +84,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                 Args.DefBitDict BitDictionary     = BitDictionary('BitMask.Image.Default');
                 Args.CreateNewObj logical         = false;
                 Args.UseFlags logical             = false;
-                Args.UseMex logical               = false;
+                Args.UseMex logical               = true;
             end
             
             if Args.CreateNewObj
@@ -122,7 +122,9 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                 end
 
                 if Args.UseMex
-                    Result(Iobj).Image = tools.array.bitsetFlag(Result(Iobj).Image, Flag, SetVal, true, true);
+                    if ~isempty(Flag)
+                        Result(Iobj).Image = tools.array.bitsetFlag(Result(Iobj).Image, Flag, SetVal, true, true);
+                    end
                 else
 
                     % use indices instead of flags - maybe faster in some cases
