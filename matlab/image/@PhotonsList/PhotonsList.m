@@ -1,5 +1,9 @@
 % Class for time-tagged events table/images
 %
+% Examples:
+%      P=PhotonsList('acisf00366N006_evt2.fits');
+
+%
 % #functions (autogen)
 % TimeTagImage - what to read?
 % coo2pix -
@@ -17,7 +21,7 @@ classdef PhotonsList < Component
         
         Events(1,1) AstroCatalog
         BadTimes(:,2)                     = zeros(0,2);
-        Image
+        Image                             = [];
         X
         Y
         HeaderData(1,1) AstroHeader                      % maybe redundent if part of AstroImage
@@ -43,11 +47,33 @@ classdef PhotonsList < Component
     end
     
     methods % constructor
-        function Obj = PhotonsList(varargin)
-            % what to read?
+        function Obj = PhotonsList(List)
+            % PhotonsList constructor
+            % Input  : - If empty, return a single enpty PhotonsList
+            %            object.
+            %            If a char array or a cell of char arrays, then
+            %            will read each photon events file into a
+            %            PhotonsList object.
+            % Output : - A PhotonsList object.
+            % Author : Eran Ofek (Apr 2023)
             
-            Obj.Image       = ImageComponent;
-            Obj.Events      = AstroCatalog;
+            arguments
+                List   = [];
+            end
+            
+            if isempty(List)
+                Iobj = 1;
+                Obj(Iobj).Image  = [];
+            else
+                if ~iscell(List)
+                    List = {List};
+                end
+                
+                Nlist = numel(List);
+                for Iobj=1:1:Nlist
+                    Obj(Iobj).Events = PhotonsList.readPhotonsList1(List{Ilist});
+                end
+            end
             
         end
         
@@ -94,6 +120,7 @@ classdef PhotonsList < Component
             % Input  : - A FITS file name to read.
             %          * ...,key,val,...
             %            'HDU' - HDU number in the FITS image.
+            %            'HeaderHDU' - Header HDU. Default is 1.
             % Output : - A PhotonsList object.
             % Author : Eran Ofek (Feb 2022)
             % Obj = PhotonsList.readPhotonsList1('/data/euler/eran/work/Chandra/ao21/cat2/22335/acisf22335_repro_evt2.fits');
@@ -110,21 +137,36 @@ classdef PhotonsList < Component
             %ImIO = ImageIO(File, 'HDU',Args.HDU, 'IsTable',true , 'readTableArgs',{'OutTable','astrocatalog'});
             
             %[Out, HeaderT] = FITS.readTable1(File,'HDUnum',Args.HDU, 'OutTable','AstroCatalog');
-            [Out, HeaderT] = FITS.readTable1(File,'HDUnum',Args.HDU, 'OutTable','AstroCatalog', 'BreakRepCol',false);
+            [Out, HeaderT] = FITS.readTable1(File,'HDUnum',Args.HDU, 'OutTable','AstroCatalog', 'BreakRepCol',false, 'TableType','bintable');
+            
+            % read header
+            [HeadCell] = FITS.readHeader1(File, Args.HeaderHDU);
+            Obj.HeaderData.Data = HeadCell;
+            Obj.Events = Out;
             
             % get WCS from HeaderT
             
             % BUG HERE!!!
             %Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT);
             
-            % Swift-XRT
-            Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT, 'Num1',2,'Num2',3);
             
-            % read header
-            [HeadCell] = FITS.readHeader1(File, Args.HeaderHDU);
+            Telescope = Obj.HeaderData.getVal('TELESCOP');
+            switch lower(Telescope)
+                case 'chandra'
+                    % Chandra
+                    Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT, 'Num1',11,'Num2',12);
+                case 'XRT'
+                    % Swift-XRT
+                    Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT, 'Num1',2,'Num2',3);
+                otherwise
+                    error('Unknown X-ray telescope');
+            end
             
-            Obj.HeaderData.Data = HeadCell;
-            Obj.Events = Out;
+            
+            
+            
+            
+            
             
         end
         
