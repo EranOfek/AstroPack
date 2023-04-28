@@ -130,7 +130,7 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
     else
         %[~,Pos]                       = imUtil.image.local_maxima(SN,1,Args.Threshold,Args.Conn);
         % much faster:
-        [Pos] = imUtil.sources.findLocalMax(SN, 'Variance',1, 'Threshold',Args.Threshold,'Conn',Args.Conn, 'Algo','findlocal');
+        [Pos] = imUtil.sources.findLocalMax(SN, 'Variance',1, 'Threshold',Args.Threshold,'Conn',Args.Conn, 'Algo','findlocalmex'); %findlocal');
         
         % Pos contains:  [X,Y,SN,index]
     end

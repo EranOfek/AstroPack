@@ -309,7 +309,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     
     if Args.MergedMatchMergedCat
         % match against external catalogs
-        MergedCat = imProc.match.match_catsHTMmerged(MergedCat, 'SameField',false, 'CreateNewObj',false, 'SwitchRefCat',true);
+        MergedCat = imProc.match.match_catsHTMmerged(MergedCat, 'SameField',false, 'CreateNewObj',false);
     end
     
     % DEBUG

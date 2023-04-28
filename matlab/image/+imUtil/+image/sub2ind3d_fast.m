@@ -4,6 +4,7 @@ function Ind=sub2ind3d_fast(Size,Y,X,Z)
 % Input  : - Array size [Y,X].
 %          - Y (i) positions (whole pixels)
 %          - X (j) positions (whole pixels)
+%          - Z (k) positions (whole pixels)
 % Output : - Linear index of position in array in uint32 format.
 % License: GNU general public license version 3
 % Tested : Matlab R2015b
@@ -13,5 +14,6 @@ function Ind=sub2ind3d_fast(Size,Y,X,Z)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-Ind = uint32((Z-1).*Size(1).*Size(2) + Size(1).*(X-1) + Y);
+%Ind = uint32((Z-1).*Size(1).*Size(2) + Size(1).*(X-1) + Y);
+Ind = uint32((Z-1).*Size(1).*Size(2)) + uint32(Size(1).*(X-1) + Y);
 

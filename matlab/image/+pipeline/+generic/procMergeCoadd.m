@@ -269,7 +269,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     
     if Args.CoaddMatchMergedCat
         % match against external catalogs
-        Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false, 'SwitchRefCat',true);
+        Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false);
     end
     
     % match Coadd catalog against MergedCat
