@@ -246,7 +246,7 @@ classdef Cosmology < Component
                     Obj.OmegaL = 0.6911;
                     Obj.ErrOmegaL = [0.0062 0.0062];
 
-                    Obj.OmegaK     =  1;
+                    Obj.OmegaK     =  0;
                     Obj.ErrOmegaK  = [NaN NaN];
                     
                     Obj.OmegaB_H2  = 0.02230;
@@ -270,7 +270,7 @@ classdef Cosmology < Component
         
     end
 
-    methods
+    methods  % cosmological functions
         function Result = e_z(Obj, Z)
             % Calculate E(z) cosmological function
             % Description: Calculate E(z) cosmological function, which is
@@ -287,6 +287,72 @@ classdef Cosmology < Component
             Result = 1./sqrt(Obj.OmegaRad.*(1+Z).^4 + Obj.OmegaM.*(1+Z).^3 + Obj.OmegaK.*(1+Z).^2 + Obj.OmegaL);
         end
         
+        
+        function Result = ad_dist(Obj, Z1, Z2, Args)
+            % Calculate the filled beam angular diameter distance between two redshifts
+            % Description: Calculate the filled beam angular diameter distance
+            %              between two redshifts along the line of sight.
+            %              Use the cosmological parameters indicated by the
+            %              class.
+            % Input  : - An astro.Cosmology object.
+            %          - A vector of z1 (or end of interation).
+            %          - A vector of z2. If empty, then integrate from z=0
+            %            to the z indicated in the previous argument.
+            %            Default is [].
+            %          * ...,key,val,...
+            %            'OutUnits' - Output units. Default is 'pc'.
+            %            'AbsTol' - Integration tol. Default is 1e-4.
+            % Output : - Angular diameter distance (in OutUnits units).
+            % Author : Eran Ofek (Apr 2023)
+            
+            arguments
+                Obj
+                Z1
+                Z2             = [];
+                Args.OutUnits  = 'pc';
+                Args.AbsTol    = 1e-4;
+            end
+            
+            if isempty(Z2)
+                Z2 = Z1;
+                Z1 = 0;
+            end
+            
+            Nz1 = numel(Z1);
+            Nz2 = numel(Z2);
+            
+            Nz  = max(Nz1, Nz2);
+            Z1  = Z1(:).*ones(Nz,1);
+            Z2  = Z2(:).*ones(Nz,1);
+
+            H0 = Obj.H0.*100000./(constant.pc.*1e6); % convert H0 to cgs
+            R0 = constant.c./H0;  % cm.
+
+            IntVal = zeros(Nz,1);
+            for I=1:1:Nz
+               % integrate inv_e_z from z1 to z2
+               IntVal(I) = integral(@Obj.e_z, Z1(I), Z2(I), 'AbsTol',Args.AbsTol); %,Tol,[],CosmoPars(2:end));
+            end
+
+            OmegaTot  = Obj.OmegaM + Obj.OmegaL + Obj.OmegaRad;
+
+            if (OmegaTot>1)
+                % k=+1   close
+                Chi12 = sqrt(abs(OmegaTot - 1)).*IntVal;
+                Dist  = R0.*sin(Chi12)./((1+Z2).*sqrt(OmegaTot-1));
+            elseif (OmegaTot<1)
+                % k=-1   open
+                Chi12 = sqrt(abs(OmegaTot - 1)).*IntVal;
+                Dist  = R0.*sinh(Chi12)./((1+Z2).*sqrt(1-OmegaTot));
+            else
+                % k=0    flat
+                Chi12 = IntVal;
+                Dist  = R0.*Chi12./(1+Z2);
+            end
+
+            % convert cm to OutUnits
+            Result = convert.length('cm', Args.OutUnits, Dist);
+        end
         
     end
 

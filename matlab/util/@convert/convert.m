@@ -355,7 +355,7 @@ classdef convert
         function Val = length(In, Out, Val)
             % Convert length units
             % Input  : - Input units:
-            %            'cm'|'m'|'mm'|'ang'|...
+            %            'cm'|'m'|'mm'|'ang'|'pc'|'kpc'|...
             %          - Output units (like input).
             %          - Input value. Default is 1.
             % Output : - Converted output value.
@@ -386,6 +386,10 @@ classdef convert
                     Val = Val.*constant.au;
                 case 'pc'
                     Val = Val.*constant.pc;
+                case 'kpc'
+                    Val = Val.*constant.pc.*1000;
+                case 'mpc'
+                    Val = Val.*constant.pc.*1e6;
                 case 'earthr'
                     Val = Val.*constant.EarthR;
                 case 'sunr'
@@ -422,6 +426,10 @@ classdef convert
                     Val = Val./constant.au;
                 case 'pc'
                     Val = Val./constant.pc;
+                case 'kpc'
+                    Val = Val./(constant.pc.*1000);
+                case 'mpc'
+                    Val = Val./(constant.pc.*1e6);
                 case 'earthr'
                     Val = Val./constant.EarthR;
                 case 'sunr'
