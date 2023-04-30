@@ -84,7 +84,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                 Args.DefBitDict BitDictionary     = BitDictionary('BitMask.Image.Default');
                 Args.CreateNewObj logical         = false;
                 Args.UseFlags logical             = false;
-                Args.UseMex logical               = true;
+                Args.UseMex logical               = false;
             end
             
             if Args.CreateNewObj
