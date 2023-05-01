@@ -57,8 +57,8 @@ classdef FileNames < Component
     end
     
     properties (Hidden, Constant)
-        ListType        = { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'focus', 'sci', 'wave', 'type' };
-        ListLevel       = {'log', 'raw', 'proc', 'stack', 'ref', 'coadd', 'merged', 'calib', 'junk'};
+        ListType        = { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'focus', 'sci', 'wave', 'type' , 'log'};
+        ListLevel       = { 'raw', 'proc', 'stack', 'ref', 'coadd', 'merged', 'calib', 'junk'};
         ListProduct     = { 'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat', 'Asteroids'};
     end
     
@@ -576,6 +576,8 @@ classdef FileNames < Component
             %            'Level' - If given (e.g., 'proc') will override
             %                   Level name (but will not modify the
             %                   object). Default is '';
+            %            'IsLog' - A logical indicating if to generate a
+            %                   log file name. Default si false;
             % Output : - A cell array of file names.
             % Author : Eran Ofek (Dec 2022)
         
@@ -585,6 +587,7 @@ classdef FileNames < Component
                 Args.ReturnChar logical = false;
                 Args.Product            = '';
                 Args.Level              = '';
+                Args.IsLog logical      = false;
             end
             
             if isempty(Ind)
@@ -603,81 +606,103 @@ classdef FileNames < Component
                 if ~isempty(Ind)
                     Itime = Ind;
                 end
-                FilterStr = Obj.getProp('Filter',Itime);
-                if isnumeric(FilterStr)
-                    if isnan(FilterStr)
-                        FilterStr = '';
-                    else
-                        FilterStr = sprintf('%d',FilterStr);
-                    end
-                end
-                FieldIDStr = Obj.getProp('FieldID',Itime);
-                if isnumeric(FieldIDStr) && ~isnan(FieldIDStr)
-                    if isnan(FieldIDStr)
-                        FieldIDStr = '';
-                    else
-                        FieldIDStr = sprintf(Obj.FormatFieldID,FieldIDStr);
-                    end
-                end
-                CounterStr = Obj.getProp('Counter',Itime);
-                if isnumeric(CounterStr)
-                    if isnan(CounterStr)
-                        CounterStr = '';
-                    else
-                        CounterStr = sprintf(Obj.FormatCounter,CounterStr);
-                    end
-                end
-                CCDIDStr = Obj.getProp('CCDID',Itime);
-                if isnumeric(CCDIDStr)
-                    if isnan(CCDIDStr)
-                        CCDIDStr = '';
-                    else
-                        CCDIDStr = sprintf(Obj.FormatCCDID,CCDIDStr);
-                    end
-                end
-                CropIDStr = Obj.getProp('CropID',Itime);
-                if isnumeric(CropIDStr)
-                    if isnan(CropIDStr)
-                        CropIDStr = '';
-                    else
-                        CropIDStr = sprintf(Obj.FormatCropID,CropIDStr);
-                    end
-                end
-                VersionStr = Obj.getProp('Version',Itime);
-                if isnumeric(VersionStr)
-                    VersionStr = sprintf(Obj.FormatVersion,VersionStr);
-                end
                 
-                if isempty(Args.Product)
-                    ProductStr = Obj.getProp('Product',Itime);
-                else
-                    ProductStr = Args.Product;
-                    if iscell(ProductStr)
-                        ProductStr = ProductStr{1};
-                    end
-                end
                 
-                if isempty(Args.Level)
-                    LevelStr = Obj.getProp('Level',Itime);
-                else
-                    LevelStr = Args.Level;
-                end
-                
-                % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
-                FileName{Itime} = sprintf('%s_%s_%s_%s_%s_%s_%s_%s_%s_%s_%s.%s',...
+                if Args.IsLog
+                    % generate log files
+                    OnlyDate    = Obj.getDateDir(1,true);
+                    OnlyDate    = strrep(OnlyDate, filesep, '');
+                    
+                    FileName{Itime} = sprintf('%s_%s_%s_%s_%s_%s_%s_%s_%s_%s_%s.%s',...
                                             Obj.getProp('ProjName',Itime),...
-                                            Obj.getProp('Time',Itime),...
-                                            FilterStr,...
-                                            FieldIDStr,...
-                                            CounterStr,...
-                                            CCDIDStr,...
-                                            CropIDStr,...
-                                            Obj.getProp('Type',Itime),...
-                                            LevelStr,...
-                                            ProductStr,...
-                                            VersionStr,...
-                                            Obj.getProp('FileType',Itime));
+                                            OnlyDate,...
+                                            '',...
+                                            '',...
+                                            '',...
+                                            '',...
+                                            '',...
+                                            'log',...
+                                            '',...
+                                            '',...
+                                            '',...
+                                            'log');
+                else
                                             
+                    FilterStr = Obj.getProp('Filter',Itime);
+                    if isnumeric(FilterStr)
+                        if isnan(FilterStr)
+                            FilterStr = '';
+                        else
+                            FilterStr = sprintf('%d',FilterStr);
+                        end
+                    end
+                    FieldIDStr = Obj.getProp('FieldID',Itime);
+                    if isnumeric(FieldIDStr) && ~isnan(FieldIDStr)
+                        if isnan(FieldIDStr)
+                            FieldIDStr = '';
+                        else
+                            FieldIDStr = sprintf(Obj.FormatFieldID,FieldIDStr);
+                        end
+                    end
+                    CounterStr = Obj.getProp('Counter',Itime);
+                    if isnumeric(CounterStr)
+                        if isnan(CounterStr)
+                            CounterStr = '';
+                        else
+                            CounterStr = sprintf(Obj.FormatCounter,CounterStr);
+                        end
+                    end
+                    CCDIDStr = Obj.getProp('CCDID',Itime);
+                    if isnumeric(CCDIDStr)
+                        if isnan(CCDIDStr)
+                            CCDIDStr = '';
+                        else
+                            CCDIDStr = sprintf(Obj.FormatCCDID,CCDIDStr);
+                        end
+                    end
+                    CropIDStr = Obj.getProp('CropID',Itime);
+                    if isnumeric(CropIDStr)
+                        if isnan(CropIDStr)
+                            CropIDStr = '';
+                        else
+                            CropIDStr = sprintf(Obj.FormatCropID,CropIDStr);
+                        end
+                    end
+                    VersionStr = Obj.getProp('Version',Itime);
+                    if isnumeric(VersionStr)
+                        VersionStr = sprintf(Obj.FormatVersion,VersionStr);
+                    end
+
+                    if isempty(Args.Product)
+                        ProductStr = Obj.getProp('Product',Itime);
+                    else
+                        ProductStr = Args.Product;
+                        if iscell(ProductStr)
+                            ProductStr = ProductStr{1};
+                        end
+                    end
+
+                    if isempty(Args.Level)
+                        LevelStr = Obj.getProp('Level',Itime);
+                    else
+                        LevelStr = Args.Level;
+                    end
+
+                    % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
+                    FileName{Itime} = sprintf('%s_%s_%s_%s_%s_%s_%s_%s_%s_%s_%s.%s',...
+                                                Obj.getProp('ProjName',Itime),...
+                                                Obj.getProp('Time',Itime),...
+                                                FilterStr,...
+                                                FieldIDStr,...
+                                                CounterStr,...
+                                                CCDIDStr,...
+                                                CropIDStr,...
+                                                Obj.getProp('Type',Itime),...
+                                                LevelStr,...
+                                                ProductStr,...
+                                                VersionStr,...
+                                                Obj.getProp('FileType',Itime));
+                end
             end
             if Args.ReturnChar && Ntime==1
                 FileName = FileName{1};
