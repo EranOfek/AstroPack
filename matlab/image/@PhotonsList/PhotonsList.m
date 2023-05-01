@@ -1,6 +1,8 @@
 % Class for time-tagged events table/images
 %
 % Examples:
+%      % get data:
+%      VO.Chandra.wget_obsid(366)
 %      P=PhotonsList('acisf00366N006_evt2.fits');
 %      or:
 %      P=PhotonsList.readPhotonsList1('acisf00366N006_evt2.fits');
@@ -192,6 +194,8 @@ classdef PhotonsList < Component
             %          * ...,key,val,...
             %            'HDU' - HDU number in the FITS image.
             %            'HeaderHDU' - Header HDU. Default is 1.
+            %            'ReadBadTimes' - Read bad times from file.
+            %                   Default is true.
             % Output : - A PhotonsList object.
             % Author : Eran Ofek (Feb 2022)
             % Obj = PhotonsList.readPhotonsList1('/data/euler/eran/work/Chandra/ao21/cat2/22335/acisf22335_repro_evt2.fits');
@@ -209,6 +213,12 @@ classdef PhotonsList < Component
             
             %[Out, HeaderT] = FITS.readTable1(File,'HDUnum',Args.HDU, 'OutTable','AstroCatalog');
             [Out, HeaderT] = FITS.readTable1(File,'HDUnum',Args.HDU, 'OutTable','AstroCatalog', 'BreakRepCol',true, 'TableType','bintable');
+            
+            if Args.ReadBadTimes
+                % Chandra HDU 3 [Start, End] times
+                % Chandra HDU 4 [Start, End] good times
+                Obj.BadTimes = zeros(0,2);
+            end
             
             % read header
             [HeadCell] = FITS.readHeader1(File, Args.HeaderHDU);
