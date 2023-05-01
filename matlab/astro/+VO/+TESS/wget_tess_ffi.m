@@ -36,6 +36,17 @@ function wget_tess_ffi(Sector, FilesType, Args)
     List = www.find_urls(Args.BaseURL, 'strfind',StrFind);
     List = regexprep(List, 'https:/missions', 'https://archive.stsci.edu/missions');
     
+    % get curl scripts
+    Nl = numel(List);
+    for Il=1:1:Nl
+        CurlScript = webread(List{Il});
+        CurlScript = char(CurlScript).';
+        
+        Str = regexprep(CurlScript, 'curl.{1,80}fits https','https');
+        Str = regexprep(Str, '#!/bin/sh','');
+        % conver lines of char arrays to cell
+        
+    end
     % wget the curl files
     www.pwget(List,'--no-check-certificate -U Mozilla', Args.Nwget);
    
