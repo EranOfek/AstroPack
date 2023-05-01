@@ -7,7 +7,7 @@ function wget_tess_ffi(Sector, FilesType, Args)
     %          * ...,key,val,...
     %            'Nwget' - Number of files to retireve simultanosuly.
     %            'BaseURL' - Default is
-    %            'https://archive.stsci.edu/tess/bulk_downloads/bulk_downloads_ffi-tp-lc-dv.html'
+    %                   'https://archive.stsci.edu/tess/bulk_downloads/bulk_downloads_ffi-tp-lc-dv.html'
     % Output : null
     % Author : Eran Ofek (May 2023)
     % Example: VO.TESS.wget_tess_ffi
@@ -45,10 +45,13 @@ function wget_tess_ffi(Sector, FilesType, Args)
         Str = regexprep(CurlScript, 'curl.{1,80}fits https','https');
         Str = regexprep(Str, '#!/bin/sh','');
         % conver lines of char arrays to cell
+        Cell = regexp(Str,'\n','split');
+        Flag = contains(Cell,'https://');
+        Cell = Cell(Flag);
+    
+        % wget all the files
+        www.pwget(Cell,'--no-check-certificate -U Mozilla', Args.Nwget);
         
-    end
-    % wget the curl files
-    www.pwget(List,'--no-check-certificate -U Mozilla', Args.Nwget);
-   
+    end    
     
 end
