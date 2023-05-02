@@ -1,12 +1,9 @@
-function [Result] = fitPolyHyp(Obj, Args)
+function Result = fitPolyHyp(T, Mag, Args)
     % Hypothesis testing between fitting polynomials of various degrees to
-    %   a matrix of light curves in a MatchedSources object (with unknown errors).
-    %   Like timeSeries.fit.fitPolyHyp, but for a MatchedSources class.
-    % Input  : - A MatchedSources object.
+    % a matrix of light curves (with unknown errors).
+    % Input  : - A vector of times.
+    %          - A matrix of light curves [Epochs X Sources]
     %          * ...,key,vals,...
-    %            'MagFieldNames' - A cell array of dictionary field names
-    %                   for the Magnitude matrix in the MatchedSources
-    %                   object.
     %            'PolyDeg' - A cell array in wich each element contains all
     %                   the degrees of the polynomial to fit.
     %                   E.g., [0:1:2], is a full 2nd deg polynomial.
@@ -41,28 +38,61 @@ function [Result] = fitPolyHyp(Obj, Args)
     %            .ProbChi2 - (return only if ProbChi2=true). - The
     %                   probability to reject the null hypothesis.
     % Author : Eran Ofek (Sep 2021)
-    % Example: MS = MatchedSources;
-    %          MS.addMatrix(rand(100,200),'FLUX')
-    %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
-    %          Result = lcUtil.fitPolyHyp(MS);
+    % Example: T   = (1:1:20)./1440;
+    %          Mag = randn(20,500);
+    %          Res = timeSeries.fit.fitPolyHyp(T, Mag);
     
     arguments
-        Obj(1,1) MatchedSources
-        
-        Args.MagFieldNames               = AstroCatalog.DefNamesMag;
+        T
+        Mag
         Args.PolyDeg cell                = {[0], [0:1:1], [0:1:2], [0:1:3], [0:1:4], [0:1:5]};
         Args.SubtractMeanT(1,1) logical  = true;
         Args.NormT(1,1) logical          = true;
         Args.CalcProb(1,1) logical       = false;
     end
     
-    % get field name from dictionary
-    [FieldName] = getFieldNameDic(Obj, Args.MagFieldNames);
+    if Args.SubtractMeanT
+        T = T - mean(T);
+    end
     
-    % get Mag matrix
-    Mag = getMatrix(Obj, FieldName);
+    if Args.NormT
+        T = T./max(abs(T));
+    end
     
-    % poly hypothesis testing
-    Result = timeSeries.fit.fitPolyHyp(Obj.JD, Mag);
+   
+    NpolyDeg       = numel(Args.PolyDeg);
+    [Nepoch, Nsrc] = size(Mag);
+    H              = zeros(Nepoch, NpolyDeg);
+    for IpolyDeg=1:1:NpolyDeg
+        PolyDeg = Args.PolyDeg{IpolyDeg};
+        H = T(:).^(PolyDeg(:).');  % design matrix for polynomial
+        % LSQ for all LCs simultanously
+        Par      = H\Mag;
+        Resid    = Mag - H*Par;
+        ResidStd = std(Resid, [], 1);
+        Ndof     = Nepoch - numel(PolyDeg);
+        
+        if IpolyDeg==1
+            % estimate the error normalization factor
+            % this is done only for the "null" hypothesis defined as the
+            % first cell in PolyDeg
+            Chi2norm = sqrt(sum(Resid.^2, 1)./Ndof);
+        end
+        
+        Chi2 = sum((Resid./Chi2norm).^2);
+        
+        Result(IpolyDeg).PolyDeg   = PolyDeg;
+        Result(IpolyDeg).Npar      = numel(PolyDeg);
+        Result(IpolyDeg).Par       = Par;
+        Result(IpolyDeg).Chi2      = Chi2;
+        Result(IpolyDeg).Ndof      = Ndof;
+        Result(IpolyDeg).ResidStd  = ResidStd;
+        Result(IpolyDeg).DeltaChi2 = Result(1).Chi2 - Result(IpolyDeg).Chi2;
+        Result(IpolyDeg).DeltaNdof = Result(IpolyDeg).Npar - Result(1).Npar;
+        % probability to reject the null hypothesis
+        if Args.CalcProb
+            Result(IpolyDeg).ProbChi2  = chi2cdf(Result(IpolyDeg).DeltaChi2, Result(IpolyDeg).DeltaNdof);
+        end
+    end
     
 end

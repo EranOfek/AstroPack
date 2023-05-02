@@ -1991,7 +1991,7 @@ classdef MatchedSources < Component
 
                 switch lower(Args.Method)
                     case 'binning'
-                        B = timeseries.binning([Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:)] ,Args.BinSize,[NaN NaN], {'MidBin',@numel, @median, @tools.math.stat.rstd});
+                        B = timeSeries.bin.binning([Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:)] ,Args.BinSize,[NaN NaN], {'MidBin',@numel, @median, @tools.math.stat.rstd});
                         Result(Iobj).B = B;
                         %Result(Iobj).EstimatedStdPar = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
                         Result(Iobj).InterpMeanStd = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
@@ -2130,7 +2130,7 @@ classdef MatchedSources < Component
                 % add bins to plot
                 hold on;
                 
-                B = timeseries.binning([AxisX(:), AxisY(:)], Args.BinSize, [NaN NaN], {'MidBin', @mean, @std, @numel});
+                B = timeSeries.bin.binning([AxisX(:), AxisY(:)], Args.BinSize, [NaN NaN], {'MidBin', @mean, @std, @numel});
                 if Args.DivideErrBySqrtN
                     plot.errorxy([B(:,1), B(:,2), B(:,3)./sqrt(B(:,4))],'Marker',Args.BinMarker,'MarkerEdgeColor',Args.BinColor,'MarkerFaceColor',Args.BinColor,'MarkerSize',Args.BinMarkerSize);
                 else
@@ -2154,7 +2154,7 @@ classdef MatchedSources < Component
                 SN = SN(:);
                 MagVec = Obj.SrcData.MAG_APER_3(:);
                 FlagNN = ~isnan(SN);
-                B = timeseries.binning([MagVec(FlagNN),1.086./SN(FlagNN)+0.0008],0.5,[10 18]);
+                B = timeSeries.bin.binning([MagVec(FlagNN),1.086./SN(FlagNN)+0.0008],0.5,[10 18]);
                 hold on;
                 semilogy(B(:,1),B(:,3),'r-')
                 
@@ -2182,7 +2182,7 @@ classdef MatchedSources < Component
 %                 VecX   = AxisX(FlagNN);
 %                 SN     = SN(FlagNN);
 %                 
-%                 B=timeseries.binning([VecX(:), 1.086./SN(:)],0.5,[NaN NaN],{'MidBin',@tools.math.stat.nanmedian,@numel});
+%                 B=timeSeries.bin.binning([VecX(:), 1.086./SN(:)],0.5,[NaN NaN],{'MidBin',@tools.math.stat.nanmedian,@numel});
 %                 FlagNN = ~isnan(B(:,2));
 %                 B = B(FlagNN,:);
 %                 hold on;
