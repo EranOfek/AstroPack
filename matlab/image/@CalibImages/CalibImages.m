@@ -881,7 +881,8 @@ classdef CalibImages < Component
             
 
             if Args.Convert2single
-                ImObj.cast('single')
+                Obj.cast('single');
+                ImObj.cast('single');
             end
             % identify all possible filters
             ImFilt        = getStructKey(ImObj, Args.FilterKey, Args.getStructKeyArgs{:});
