@@ -1,4 +1,4 @@
-function IllumMat=spec_illum(Mat,SemiBinX,FitMethod,Order,CollapseMethod);
+function IllumMat=spec_illum(Mat,SemiBinX,FitMethod,Order,CollapseMethod)
 %--------------------------------------------------------------------------
 % spec_illum function                                               ImSpec
 % Description: Create an illumination calibration image for
