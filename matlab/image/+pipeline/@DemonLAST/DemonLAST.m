@@ -653,7 +653,9 @@ classdef DemonLAST < Component
                     end
                     if Args.WriteLog
                         if iscell(Msg)
-                            Obj.Logger.msgLog(Level, Msg{1});
+                            for I=1:1:numel(Msg)
+                                Obj.Logger.msgLog(Level, Msg{I});
+                            end
                         else
                             Obj.Logger.msgLog(Level, Msg);
                         end
