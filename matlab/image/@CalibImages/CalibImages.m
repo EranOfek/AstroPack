@@ -881,7 +881,6 @@ classdef CalibImages < Component
             
 
             if Args.Convert2single
-                Obj.cast('single');
                 ImObj.cast('single');
             end
             % identify all possible filters
