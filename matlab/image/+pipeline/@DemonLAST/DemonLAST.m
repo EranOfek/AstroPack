@@ -22,6 +22,7 @@ classdef DemonLAST < Component
         Node         = 1;
         DataDir      = 1;
         CamNumber    = [];
+        %HostName     = [];
 
         BasePath     = [];
         NewPath      = 'new';    % if start with '/' then abs path
@@ -309,10 +310,15 @@ classdef DemonLAST < Component
                 HostName = Args.HostName;
             end
 
-            'need to remove this line when going to production - getBasePath'
-            HostName = 'last02w'
+            %'need to remove this line when going to production - getBasePath'
+            %HostName = 'last02w'
 
+            if numel(HostName)<6
+                HostName       = 'last01e';
+                warning('HostName has less than 6 chars');
+            end
             MountNumberStr = HostName(5:6);
+            
          
             [CameraNumber,Side] = pipeline.DemonLAST.dataDir2cameraNumber(DataDir,HostName);
             ProjName            = pipeline.DemonLAST.constructProjectName(Args.ProjectName, Args.Node, MountNumberStr, CameraNumber);
@@ -594,7 +600,7 @@ classdef DemonLAST < Component
 
         end
 
-        function writeLog(Obj, Msg, Args)
+        function writeLog(Obj, Msg, Level, Args)
             % write a log message to screen and log file
             % Input  : - A pipeline.DemonLAST object.
             %          - One of the following:
@@ -612,6 +618,7 @@ classdef DemonLAST < Component
             arguments
                 Obj
                 Msg
+                Level LogLevel           = LogLevel.Verbose; % All       Assert    Debug     DebugEx   Error     Fatal     Info      None      Perf      Test      unitTest  Verbose   Warnin
                 Args.WriteLog logical    = true;
                 Args.WriteDev logical    = true;
             end
@@ -642,12 +649,41 @@ classdef DemonLAST < Component
                         fprintf('%s\n', Lines{Il});
                     end
                     if Args.WriteLog
-                        
+                        Obj.Logger.msgLog(Level, Msg);
                     end
                 end
             end
         end
 
+        function Obj=setLogFile(Obj, Args)
+            % Set the log file name according to current date
+            % Input  : - A pipeline.DemonLAST object.
+            %          * ...,key,val,...
+            %            'ProjName' - Project name. If empty, read from
+            %                   system. Default is [].
+            % Output : - A pipeline.DemonLAST object in which the Logger
+            %            property is updated with the log file name.
+            % Author : Eran Ofek (May 2023)
+
+            arguments
+                Obj
+                Args.ProjName = [];
+            end
+
+            if isempty(Args.ProjName)
+            end
+
+            [~,~,~,~,ProjName,~]=getPath(Obj);
+
+            FN = FileNames;
+            FN.ProjName = ProjName;
+            FN.Time     = celestial.time.julday;
+            LogFileName = FN.genFile('IsLog',true, 'ReturnChar',true);
+            LogFileName = fullfile(Obj.LogPath, LogFileName);
+
+            Obj.Logger.LogF.FileName = LogFileName;
+
+        end
 
     end
 
@@ -874,6 +910,8 @@ classdef DemonLAST < Component
             %                   CalibImages. Default is true.
             %            'Move2raw' - Move images to raw dir after
             %                   processing. Default is true.
+            %            'Convert2single' - A logical indicating if to
+            %                   convert the images to single. Default is true.
             % Output : - A pipeline.DemonLAST with updated CI property.
             %          - FileNames object of raw flat images.
             %          - FileNames object of proc flat master image.
@@ -896,6 +934,7 @@ classdef DemonLAST < Component
                 Args.Repopulate logical   = true;
                 Args.ClearVar logical     = true;
                 Args.Move2raw logical     = true;
+                Args.Convert2single logical = true;
             end
 
             if ~exist(Obj.CI, 'Bias',{'Image','Mask'})
@@ -968,6 +1007,9 @@ classdef DemonLAST < Component
                         AI = AstroImage(FlatList);
     
                         % subtract bias/dark
+                        if Args.Convert2single
+                            AI.cast('single');
+                        end
                         AI = imProc.dark.debias(AI, Obj.CI.Bias, Args.debiasArgs{:});
     
                         CI = CalibImages;
@@ -1143,6 +1185,9 @@ classdef DemonLAST < Component
     
             Cont = true;
             while Cont
+                % set Logger log file 
+                Obj.setLogFile;
+
                 % prep Master dark and move to raw/ dir
                 [Obj, FN_Dark] = Obj.prepMasterDark('Move2raw',true);
                     
@@ -1196,6 +1241,9 @@ classdef DemonLAST < Component
                 for Igroup=1:1:Ngroup
                     % for each visit
                     if FN_Sci_Groups(Igroup).nfiles>Args.MinNumIMageVisit
+
+                        % set Logger log file 
+                        Obj.setLogFile;
 
                         RawImageList = FN_Sci_Groups(Igroup).genFull('FullPath',NewPath);
     
