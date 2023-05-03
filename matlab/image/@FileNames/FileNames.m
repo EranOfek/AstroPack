@@ -59,7 +59,7 @@ classdef FileNames < Component
     properties (Hidden, Constant)
         ListType        = { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'focus', 'sci', 'wave', 'type' , 'log'};
         ListLevel       = { 'raw', 'proc', 'stack', 'ref', 'coadd', 'merged', 'calib', 'junk'};
-        ListProduct     = { 'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat', 'Asteroids'};
+        ListProduct     = { 'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat', 'Asteroids','Pipeline'};
     end
     
     
@@ -607,7 +607,15 @@ classdef FileNames < Component
                     Itime = Ind;
                 end
                 
-                
+                if isempty(Args.Product)
+                    ProductStr = Obj.getProp('Product',Itime);
+                else
+                    ProductStr = Args.Product;
+                    if iscell(ProductStr)
+                        ProductStr = ProductStr{1};
+                    end
+                end
+
                 if Args.IsLog
                     % generate log files
                     OnlyDate    = Obj.getDateDir(1,true);
@@ -623,7 +631,7 @@ classdef FileNames < Component
                                             '',...
                                             'log',...
                                             '',...
-                                            '',...
+                                            ProductStr,...
                                             '',...
                                             'log');
                 else
@@ -673,14 +681,7 @@ classdef FileNames < Component
                         VersionStr = sprintf(Obj.FormatVersion,VersionStr);
                     end
 
-                    if isempty(Args.Product)
-                        ProductStr = Obj.getProp('Product',Itime);
-                    else
-                        ProductStr = Args.Product;
-                        if iscell(ProductStr)
-                            ProductStr = ProductStr{1};
-                        end
-                    end
+                    
 
                     if isempty(Args.Level)
                         LevelStr = Obj.getProp('Level',Itime);

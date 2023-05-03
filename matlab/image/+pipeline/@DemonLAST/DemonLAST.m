@@ -623,7 +623,7 @@ classdef DemonLAST < Component
                 Msg
                 Level LogLevel           = LogLevel.Info; % All       Assert    Debug     DebugEx   Error     Fatal     Info      None      Perf      Test      unitTest  Verbose   Warnin
                 Args.WriteLog logical    = true;
-                Args.WriteDev logical    = true;
+                Args.WriteDev logical    = false;
             end
 
             if ~isempty(Msg)
@@ -652,7 +652,11 @@ classdef DemonLAST < Component
                         fprintf('%s\n', Lines{Il});
                     end
                     if Args.WriteLog
-                        Obj.Logger.msgLog(Level, Msg);
+                        if iscell(Msg)
+                            Obj.Logger.msgLog(Level, Msg{1});
+                        else
+                            Obj.Logger.msgLog(Level, Msg);
+                        end
                     end
                 end
             end
@@ -681,7 +685,7 @@ classdef DemonLAST < Component
             FN = FileNames;
             FN.ProjName = ProjName;
             FN.Time     = celestial.time.julday;
-            LogFileName = FN.genFile('IsLog',true, 'ReturnChar',true);
+            LogFileName = FN.genFile('IsLog',true, 'ReturnChar',true, 'Product','Pipeline');
             Path        = Obj.LogPath;
             mkdir(Path);
             LogFileName = fullfile(Path, LogFileName);
