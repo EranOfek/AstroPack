@@ -16,7 +16,9 @@ function Result = specWeight(SpecSrc, RadSrc, PSFdata, Args)
     %            
     % Tested : Matlab R2020b
     %     By : A. Krassilchtchikov et al.    Feb 2023
-    % Example: PSF = imUtil.psf.specWeight( PSFdata, RadSrc, Rad, Spec );
+    % Examples: PSF = imUtil.psf.specWeight( SpecSrc, RadSrc, PSFdata);
+    %           PSF = imUtil.psf.specWeight( SpecSrc, RadSrc, PSFdata, ...
+    %           'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, 'Lambda', WavePSF, 'SpecLam', Wave);
 
     arguments
         
