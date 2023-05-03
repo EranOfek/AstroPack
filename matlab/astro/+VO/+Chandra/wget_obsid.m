@@ -1,4 +1,4 @@
-function URL=wget_obsid(ObsID,varargin)
+function URL=wget_obsid(ObsID, Args)
 % Get all the files associated with a Chandra ObsID
 % Package: VO.Chandra
 % Description: Get all the files associated with a Chandra ObsID
@@ -8,21 +8,13 @@ function URL=wget_obsid(ObsID,varargin)
 % Input  : - ObsID
 %          * Arbitrary number of pairs of arguments: ...,keyword,value,...
 %            where keyword are one of the followings:
-%            'Download' - Indicating what to download:
-%                         'all' - all data (default).
-%                         'primary' - only data in primary directory.
-%                         'secondary' - only data in secondary directory.
-%            'Output'   - Output data in a 'flat' structure' or
-%                         'dir' (directory) structure.
-%                         'none' - do not copy.
-%                         Default is 'dir'.
-%            'Ungzip'   - ungzip data {true|false}. Default is true.
-%            'CopyTo'   - Directory in which to cd before copying data.
-%            'ReGet'    - Get files again if 'primary' dir exist 
-%                         in directory {true|false}. Default is false.
-%            'Extra'    - Extra parameters for wget.
-%            'MaxGet'   - Maximum number of files for parallel get
-%                         (see www.pwget.m). Default is 10.
+%            'BasePath' - Directory in which to copy the data.
+%                   If empty, then use current dir.
+%                   Default is [].
+%            'Unzip' - Logical indicating if to gunzip files.
+%                   Default is false.
+%            'Npwget' - Number of files to download simoltanously.
+%                   Default is 10.
 % Output : null
 % Tested : Matlab R2014a
 %     By : Eran O. Ofek                    Jan 2015
@@ -31,28 +23,15 @@ function URL=wget_obsid(ObsID,varargin)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-%DefV.ChandraCat    = [];
-DefV.Download      = 'all';   % {'all'|'primary'|'evt'}
-DefV.Output        = 'dir_full';   % {'dir_full'|'dir_obsid'|'flat'}
-DefV.Ungzip        = true;
-DefV.CopyTo        = [];
-DefV.UnGzip        = true;
-DefV.ReGet         = false;
-DefV.Extra         = '';
-DefV.MaxGet        = 10;
-DefV.BaseURL       = 'https://cxc.cfa.harvard.edu/cdaftp/science/';
-InPar = InArg.populate_keyval(DefV,varargin,mfilename);
+arguments
+    ObsID
+    Args.BasePath        = [];
+    Args.Unzip logical   = true;
+    Args.Npwget          = 10;
+    Args.RemoveBase      = 'https://cxc.cfa.harvard.edu/cdaftp/science/';
+    
+end
 
-
-% if (isempty(InPar.ChandraCat))
-%     Cat = VO.Chandra.build_obsid_cat('GetInfo',false,'Verbose',false);
-% else
-%     if (ischar(InPar.ChandraCat))
-%         Cat = load2(InPar.ChandraCat);
-%     else
-%         Cat = InPar.ChandraCat;
-%     end
-% end
 
 Cat = cats.X.ChandraObs;
 
@@ -62,11 +41,46 @@ Iobs  = find(Cat.Cat.ObsID==ObsID);
 %URL  = Cat(Iobs).URL;
 URL   = Cat.Cat.URL{Iobs};
 
+[List,IsDir,FileName]=www.r_files_url(URL);
 
+    
 PWD = pwd;
-if (InPar.CopyTo)
-    cd(InPar.CopyTo);
+if isempty(Args.BasePath)
+    BasePath = pwd;
+else
+    BasePath = Args.BasePath;
+    cd(BasePath);
 end
+
+
+
+
+RelFiles = regexprep(List, Args.RemoveBase, '');
+Dirs     = fileparts(RelFiles);
+UniqueDirs = unique(Dirs);
+
+Nun = numel(UniqueDirs);
+for Iun=1:1:Nun
+    Flag = strcmp(Dirs, UniqueDirs{Iun});
+    
+    cd(BasePath);
+    mkdir(UniqueDirs{Iun});
+    cd(UniqueDirs{Iun});
+    
+    www.pwget(List(Flag), '--no-check-certificate -U Mozilla', Args.Npwget);
+    
+    
+    if Args.Unzip
+        pause(30);
+        %gunzip('*.gz');
+        system('gzip -d *.gz');
+    end
+end
+
+
+
+
+if 1==0
 
 % check if directory is populated
 if (exist('primary','dir')>0 && ~InPar.ReGet)
@@ -177,4 +191,9 @@ else
     end
 
 end  
+
+
+end
+
+
 cd(PWD);                        

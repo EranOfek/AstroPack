@@ -67,10 +67,10 @@ function Result = match_catsHTMmerged(Obj, Args)
     
     for Iobj=1:1:Nobj
         if isa(Obj, 'AstroImage')
-            Cat = Obj(Iobj).CatData;
+            Cat = Result(Iobj).CatData;
         else
             % input is AstroCatalog
-            Cat = Obj(Iobj);
+            Cat = Result(Iobj);
         end
         
         if ~isemptyCatalog(Cat)
@@ -84,6 +84,7 @@ function Result = match_catsHTMmerged(Obj, Args)
 
 
             if Args.SwitchRefCat
+                error('Known BUG! - use SwitchRefCat=false')
                 % Ref is Cat
                 % no need to sort - catsHTM already sorted
                 ResInd = imProc.match.matchReturnIndices(CatH, Cat, 'CooType','sphere',...
@@ -97,19 +98,19 @@ function Result = match_catsHTMmerged(Obj, Args)
                 MergedCatFlag = zeros(numel(ResInd.Obj2_IndInObj1),1);
                
                 % new code faster
-                IndNN  = find(~isnan(ResInd.Obj1_IndInObj2));
-                IndCat = ResInd.Obj1_IndInObj2(IndNN);
-                MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), (CatH.Catalog(IndNN,Args.MergedCatMaskCol)));
-                
+%                 IndNN  = find(~isnan(ResInd.Obj1_IndInObj2));
+%                 IndCat = ResInd.Obj1_IndInObj2(IndNN);
+%                 MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), (CatH.Catalog(IndNN,Args.MergedCatMaskCol)));
+%                 
 
                 % old code - slower
-%                 Nref = numel(ResInd.Obj1_IndInObj2);
-%                 for Iref=1:1:Nref
-%                     if ~isnan(ResInd.Obj1_IndInObj2(Iref))
-%                         IndCat = ResInd.Obj1_IndInObj2(Iref);
-%                         MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), double(CatH.Catalog(Iref,Args.MergedCatMaskCol)));
-%                     end
-%                 end 
+                Nref = numel(ResInd.Obj1_IndInObj2);
+                for Iref=1:1:Nref
+                    if ~isnan(ResInd.Obj1_IndInObj2(Iref))
+                        IndCat = ResInd.Obj1_IndInObj2(Iref);
+                        MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), double(CatH.Catalog(Iref,Args.MergedCatMaskCol)));
+                    end
+                end 
                 
 
             else
@@ -130,13 +131,26 @@ function Result = match_catsHTMmerged(Obj, Args)
                 FlagNaN = ResInd.Obj2_Dist > CatH.Catalog(:,Args.MergedCatRadiusCol);
                 ResInd.Obj2_IndInObj1(FlagNaN) = NaN;
                 MergedCatFlag = zeros(numel(ResInd.Obj1_IndInObj2),1);
-                Nref = numel(ResInd.Obj2_IndInObj1);
-                for Iref=1:1:Nref
-                    if ~isnan(ResInd.Obj2_IndInObj1(Iref))
-                        IndCat = ResInd.Obj2_IndInObj1(Iref);
-                        MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), double(CatH.Catalog(Iref,Args.MergedCatMaskCol)));
-                    end
+
+%                 Nref = numel(ResInd.Obj2_IndInObj1);
+%                 for Iref=1:1:Nref
+%                     if ~isnan(ResInd.Obj2_IndInObj1(Iref))
+%                         IndCat = ResInd.Obj2_IndInObj1(Iref);
+%                         MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), double(CatH.Catalog(Iref,Args.MergedCatMaskCol)));
+%                     end
+%                 end
+
+                % A bit faster:
+                IndNN = find(~isnan(ResInd.Obj2_IndInObj1));
+                NINN  = numel(IndNN);
+                for Ininn=1:1:NINN
+                    Iref = IndNN(Ininn);
+                    IndCat = ResInd.Obj2_IndInObj1(Iref);
+                    MergedCatFlag(IndCat) = bitor(MergedCatFlag(IndCat), (CatH.Catalog(Iref,Args.MergedCatMaskCol)));
                 end
+                
+
+
             end  % if Args.SwitchRefCat
             
             % Insert column to catalog

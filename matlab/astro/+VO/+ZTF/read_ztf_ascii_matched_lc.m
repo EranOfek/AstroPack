@@ -334,7 +334,7 @@ function IndAllLC=calc_prop(Data,Nlast,Col)
             MinMag(IobjP) = min(Data(IobjP).LC(Col.Mag,:));
             Chi2(IobjP)    = sum((Data(IobjP).LC(Col.Mag,:) - MeanMag(IobjP)).^2./Data(IobjP).LC(Col.MagErr,:).^2);
 
-            P = timeseries.period_normnl(Data(IobjP).LC( [Col.HMJD, Col.Mag],:).',FreqVec);
+            P = timeSeries.period.period_normnl(Data(IobjP).LC( [Col.HMJD, Col.Mag],:).',FreqVec);
 
             [MaxPower(IobjP),MaxInd] = max(P(:,2));
             FreqMaxPower(IobjP) = FreqVec(MaxInd);

@@ -87,7 +87,7 @@ switch lower(Args.BinMethod)
     case 'bin'
         % binning of resid vs. mag
 
-        B = timeseries.binningFast([Mag, Resid], Args.BinSize, Args.MagRange, {'MidBin',Args.FunMean,Args.FunStd,@numel});
+        B = timeSeries.bin.binningFast([Mag, Resid], Args.BinSize, Args.MagRange, {'MidBin',Args.FunMean,Args.FunStd,@numel});
         % interpolate B over missing points
         Res.InterpMeanResid = interp1(B(:,1), B(:,2), Mag, Args.InterpMethod,'extrap');
         Res.InterpStdResid  = interp1(B(:,1), B(:,3), Mag, Args.InterpMethod,'extrap');

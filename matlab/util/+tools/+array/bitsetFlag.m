@@ -9,7 +9,7 @@ function Result = bitsetFlag(Array, Flag, Bit, Value, UseMex, UseMP)
     %
     % Output : - The result of the operation.
     %
-    % Author : Chen Tishler, April 2023
+    % Author : Chen Tishler (Apr 2023)
     % Example: 
     %    Array = zeros(3, 3, 'int32');
     %    Flag = rand(3, 3) > 0.9;

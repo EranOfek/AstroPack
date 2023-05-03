@@ -154,6 +154,10 @@ if (~isempty(Args.match))
    List = List(~tools.cell.isempty_cell(regexp(List,Args.match)));
 end
 
+% Check if http is in name:
+
+
+
 if (nargout>1)
     % check if link is a directory
     Nlist = numel(List);

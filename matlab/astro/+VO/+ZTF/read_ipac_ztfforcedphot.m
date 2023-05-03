@@ -101,7 +101,7 @@ FlagGood = Table.forcediffimchisq < InPar.Max_forcediffimchisq & ...
 Table      = addvars(Table,FlagGood);
 
 %plot(Table.jd-2450000,Table.forcediffimflux,'.')  % forcediffimfluxuncap
-%B = timeseries.binning([Table.jd, Table.forcediffimflux, Table.forcediffimfluxuncap],InPar.BinSize,[],{'MeanBin',@nanmean,@rstd,@numel});
+%B = timeSeries.bin.binning([Table.jd, Table.forcediffimflux, Table.forcediffimfluxuncap],InPar.BinSize,[],{'MeanBin',@nanmean,@rstd,@numel});
 %Data = [Table.jd, Table.forcediffimflux, Table.forcediffimfluxuncap];
 
 Data = [Table.jd, Table.Flux, Table.FluxErr];
@@ -128,7 +128,7 @@ for Ifilter=1:1:Nfilter
     end
     
 
-    B    = timeseries.binning(Data(FilterList(Ifilter).Ind,:),InPar.BinSize,[NaN NaN],{'MeanBin',@nanmedian,@tools.math.stat.rstd,@numel});
+    B    = timeSeries.bin.binning(Data(FilterList(Ifilter).Ind,:),InPar.BinSize,[NaN NaN],{'MeanBin',@nanmedian,@tools.math.stat.rstd,@numel});
     Flag = ~isnan(B(:,1));
     B    = B(Flag,:);
     Err  = B(:,3)./sqrt(B(:,4));

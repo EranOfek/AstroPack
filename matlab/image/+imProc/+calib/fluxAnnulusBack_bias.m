@@ -86,7 +86,7 @@ function [Result, Obj] = fluxAnnulusBack_bias(Obj, Args)
         LogData  = log10(Data(FlagGood,:));
         
         % binning
-        B  = timeseries.binning(LogData,Args.BinningLog,[NaN NaN],{'MeanBin', @median});
+        B  = timeSeries.bin.binning(LogData,Args.BinningLog,[NaN NaN],{'MeanBin', @median});
         NN = ~isnan(B(:,2));
         B  = B(NN,:);
         
