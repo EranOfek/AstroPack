@@ -609,6 +609,9 @@ classdef DemonLAST < Component
             %            As truct array with messages in the .Msg field.
             %            An MException object.
             %            Empty (do nothing).
+            %          - A LogLevel object with the specified message
+            %            level. See LogLeve.<tab> for options.
+            %            Default is LogLevel.Info
             %          * ...,key,val,...
             %            'WriteLog' - write log file. Default is true.
             %            'WriteDev' - write to screen. Default is true.
@@ -618,7 +621,7 @@ classdef DemonLAST < Component
             arguments
                 Obj
                 Msg
-                Level LogLevel           = LogLevel.Verbose; % All       Assert    Debug     DebugEx   Error     Fatal     Info      None      Perf      Test      unitTest  Verbose   Warnin
+                Level LogLevel           = LogLevel.Info; % All       Assert    Debug     DebugEx   Error     Fatal     Info      None      Perf      Test      unitTest  Verbose   Warnin
                 Args.WriteLog logical    = true;
                 Args.WriteDev logical    = true;
             end
