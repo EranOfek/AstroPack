@@ -679,7 +679,9 @@ classdef DemonLAST < Component
             FN.ProjName = ProjName;
             FN.Time     = celestial.time.julday;
             LogFileName = FN.genFile('IsLog',true, 'ReturnChar',true);
-            LogFileName = fullfile(Obj.LogPath, LogFileName);
+            Path        = Obj.LogPath;
+            mkdir(Path);
+            LogFileName = fullfile(Path, LogFileName);
 
             Obj.Logger.LogF.FileName = LogFileName;
 
@@ -1216,7 +1218,7 @@ classdef DemonLAST < Component
                     if FN_Sci_Groups(1).nfiles<=Args.MinNumIMageVisit
                         
                         Msg{1} = 'Waiting for more images to analyze';
-                        Obj.writeLog(Msg);
+                        Obj.writeLog(Msg, LogLevel.Info);
 
                         SunInfo = celestial.SolarSys.get_sun;
                         if SunInfo.Alt>0
@@ -1252,7 +1254,7 @@ classdef DemonLAST < Component
                         % call visit pipeline
                         
                         Msg{1} = sprintf('pipline.DemonLAST executing pipeline for group %d - First image: %s',Igroup, RawImageList{end});
-                        Obj.writeLog(Msg);
+                        Obj.writeLog(Msg, LogLevel.Info);
 
                         try
                             tic;
@@ -1269,31 +1271,31 @@ classdef DemonLAST < Component
                                                    'Level','proc',...
                                                    'LevelPath','proc',...
                                                    'FindSubDir',true);
-                            Obj.writeLog(Status);
+                            Obj.writeLog(Status, LogLevel.Info);
         
                             [~,~,Status]=imProc.io.writeProduct(Coadd, FN_I, 'Product',{'Image','Mask','Cat','PSF'}, 'WriteHeader',[true false true false],...
                                                    'Level','coadd',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
-                            Obj.writeLog(Status);
+                            Obj.writeLog(Status, LogLevel.Info);
 
                             [~,~,Status]=imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
                                                    'Level','merged',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
-                            Obj.writeLog(Status);
+                            Obj.writeLog(Status, LogLevel.Info);
 
                             [~,~,Status]=imProc.io.writeProduct(MatchedS, FN_I, 'Product',{'MergedMat'}, 'WriteHeader',[false],...
                                                    'Level','merged',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
-                            Obj.writeLog(Status);
+                            Obj.writeLog(Status, LogLevel.Info);
 
                             [~,~,Status]=imProc.io.writeProduct(ResultAsteroids, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
                                                    'Level','merged',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
-                            Obj.writeLog(Status);
+                            Obj.writeLog(Status, LogLevel.Info);
 
                             % Write images and catalogs to DB
     
@@ -1314,8 +1316,8 @@ classdef DemonLAST < Component
     
                             % extract errors
                             ErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, ME.stack(1).line);
-                            warning(ErrorMsg);
-                            Obj.writeLog(ErrorMsg);
+                            %warning(ErrorMsg);
+                            Obj.writeLog(ErrorMsg, LogLevel.Error);
 
                             % write log file
     
@@ -1323,15 +1325,15 @@ classdef DemonLAST < Component
                             io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull('FullPath',FailedPath));
     
                             ErrorMsg = sprintf('pipeline.DemonLAST: %d images moved to failed directory',numel(RawImageList));
-                            warning(ErrorMsg);
-                            Obj.writeLog(ErrorMsg);
+                            %warning(ErrorMsg);
+                            Obj.writeLog(ErrorMsg, LogLevel.Error);
                         end
     
     
                         % write summary and run time to log
                         Msg{1} = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd analyzed %d images starting at %s',numel(RawImageList), FN_Sci_Groups(Igroup).Time{1});
                         Msg{2} = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd run time [s]: %6.1f', RunTime);
-                        Obj.writeLog(Msg);                        
+                        Obj.writeLog(Msg, LogLevel.Info);                        
     
                         
                         
