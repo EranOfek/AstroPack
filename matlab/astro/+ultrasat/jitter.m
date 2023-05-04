@@ -3,7 +3,7 @@ function JPSF = jitter (PSF, Cat, Args)
     % Package: ultrasat
     % Description: Blur an array of ULTRASAT PSFs due to the S/C jitter
     %          - PSF: an initial array of PSF images to be blurred
-    %          - Src: an array of source X, Y coordinates on a detector tile
+    %          - Cat: an array of source X, Y coordinates on a detector tile
     %          - Args.Exposure: exposure in [s]
     %          - Args.SigmaX0: S/C jittering in the X direction
     %          - Args.SigmaY0: S/C jittering in the Y direction

@@ -8,7 +8,7 @@ function Rad = containment (Args)
     %            
     % Tested : Matlab R2020b
     %     By : A. Krassilchtchikov et al.    Feb 2023
-    % Example: Rad = containment (PSF, 0.5)
+    % Example: Rad = imUtil.psf.containment (PSF, 0.5)
     
     arguments
         
