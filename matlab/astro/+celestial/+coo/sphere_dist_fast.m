@@ -34,20 +34,20 @@ Dist = acos(sin(Dec_1).*sin(Dec_2) + cos(Dec_1).*cos(Dec_2).*cos(RA_1-RA_2));
 
 
 
-if (nargout>1)
-   dRA = RA_1-RA_2;
-   SinPA = sin(dRA).*cos(Dec_2)./sin(Dist);
-   CosPA = (sin(Dec_2).*cos(Dec_1) - cos(Dec_2).*sin(Dec_1).*cos(dRA))./sin(Dist);
-  
-   Ang    = atan2(real(SinPA),real(CosPA));
-   %PA(PA<0) = 2.*pi + PA(PA<0);
-   
-   I     = find(Ang<0);
-   Ang(I) = 2.*pi + Ang(I);
-   
-   if nargout>2
-        PA    = atan2(real(SinPA),-real(CosPA));
-        PA(PA<0) = PA(PA<0) + 2.*pi;
-   end
-
-end
+% if (nargout>1)
+%    dRA = RA_1-RA_2;
+%    SinPA = sin(dRA).*cos(Dec_2)./sin(Dist);
+%    CosPA = (sin(Dec_2).*cos(Dec_1) - cos(Dec_2).*sin(Dec_1).*cos(dRA))./sin(Dist);
+%   
+%    Ang    = atan2(real(SinPA),real(CosPA));
+%    %PA(PA<0) = 2.*pi + PA(PA<0);
+%    
+%    I     = find(Ang<0);
+%    Ang(I) = 2.*pi + Ang(I);
+%    
+%    if nargout>2
+%         PA    = atan2(real(SinPA),-real(CosPA));
+%         PA(PA<0) = PA(PA<0) + 2.*pi;
+%    end
+% 
+% end

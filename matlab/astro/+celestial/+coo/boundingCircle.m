@@ -29,15 +29,23 @@ else
     error('Must provide either Lon,Lat, or CD1,CD2,CD3');
 end
 
-RangeCD1 = range(CD1);
-RangeCD2 = range(CD2);
-RangeCD3 = range(CD3);
-MidCD1   = mean(RangeCD1);
-MidCD2   = mean(RangeCD2);
-MidCD3   = mean(RangeCD3);
+
+MidCD1   = median(CD1,'all','omitnan');
+MidCD2   = median(CD2,'all','omitnan');
+MidCD3   = median(CD3,'all','omitnan');
+
+% RangeCD1 = range(CD1);
+% RangeCD2 = range(CD2);
+% RangeCD3 = range(CD3);
+% MidCD1   = mean(RangeCD1);
+% MidCD2   = mean(RangeCD2);
+% MidCD3   = mean(RangeCD3);
+
 [MidLon, MidLat] = celestial.coo.cosined2coo(MidCD1, MidCD2, MidCD3);
 
-[BestCoo, BestRadius] = fminsearch(@radiusForCenter,[MidLon, MidLat]);
+Options = optimset('MaxFunEvals',1000, 'TolX',1e-5);
+
+[BestCoo, BestRadius] = fminsearch(@radiusForCenter,[MidLon, MidLat], Options);
 
     function Radius = radiusForCenter(Center)
         % maximum radius between center and data points

@@ -16,12 +16,17 @@ arguments
     Y
 end
 
-RangeX = range(X);
-RangeY = range(Y);
-MidX   = mean(RangeX);
-MidY   = mean(RangeY);
+% RangeX = range(X);
+% RangeY = range(Y);
+% MidX   = mean(RangeX);
+% MidY   = mean(RangeY);
 
-[BestXY, BestRadius] = fminsearch(@radiusForCenter,[MidX,MidY]);
+MidX = median(X,'all','omitnan');
+MidY = median(Y,'all','omitnan');
+
+Options = optimset('MaxFunEvals',1000, 'TolX',min(range(X),range(Y))./1000);
+
+[BestXY, BestRadius] = fminsearch(@radiusForCenter,[MidX,MidY], Options);
 
     function Radius = radiusForCenter(CenterXY)
         % maximum radius between center and data points
