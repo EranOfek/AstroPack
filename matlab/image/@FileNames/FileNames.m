@@ -749,72 +749,77 @@ classdef FileNames < Component
 
             end
             
-            if isempty(Ind)
-                if ischar(Obj.Time)
-                    Ntime = 1;
+            if nfiles(Obj)==0
+                Path = {''};
+            else
+
+                if isempty(Ind)
+                    if ischar(Obj.Time)
+                        Ntime = 1;
+                    else
+                        Ntime = numel(Obj.Time);
+                    end
                 else
-                    Ntime = numel(Obj.Time);
+                    Ntime = 1;
                 end
-            else
-                Ntime = 1;
-            end
-            
-            if ~isempty(Args.BasePath)
-                %Obj.BasePath = Args.BasePath;
-                BasePath = Args.BasePath;
-            else
-                BasePath = Obj.BasePath;
-            end
-
-            if ~isempty(Args.FullPath)
-                %Obj.FullPath = Args.FullPath;
-                FullPath = Args.FullPath;
-            else
-                FullPath = Obj.FullPath;
-            end
-            
-            if isempty(FullPath)
-                Path = cell(Ntime,1);
-                for Itime=1:1:Ntime
-                    if ~isempty(Ind)
-                        Itime = Ind;
-                    end
-
-                    if isempty(Args.Level)
-                        % get Level from object:
-                        Level = getProp(Obj, 'Level', Itime);
-                    else
-                        % Level supplied by arguments
-                        Level = Args.Level;
-                    end
-
-                    % /euler1/archive/LAST/<ProjName>/new
-                    % /euler1/archive/LAST/<ProjName>/2022/12/01/raw
-                    % /euler1/archive/LAST/<ProjName>/2022/12/01/proc
-                    % /euler1/archive/LAST/<ProjName>/2022/12/01/proc/1
-                    DateDir = getDateDir(Obj, Itime, true);
-                    if Obj.BasePathIncludeProjName
-                        % BasePath already include the ProjName
-                        Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
-                                        BasePath, filesep, ...
-                                        DateDir, filesep, ...
-                                        Level);
-                    else
-                        Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
-                                        BasePath, filesep, ...
-                                        getProp(Obj, 'ProjName', Itime),...
-                                        DateDir, filesep, ...
-                                        Level);
-                    end
-
-                    if Args.AddSubDir
-                        Path{Itime} = sprintf('%s%s%s',Path{Itime},filesep,...
-                                                       getProp(Obj, 'SubDir', Itime));
-                    end
+                
+                if ~isempty(Args.BasePath)
+                    %Obj.BasePath = Args.BasePath;
+                    BasePath = Args.BasePath;
+                else
+                    BasePath = Obj.BasePath;
                 end
-
-            else
-                Path = {FullPath};
+    
+                if ~isempty(Args.FullPath)
+                    %Obj.FullPath = Args.FullPath;
+                    FullPath = Args.FullPath;
+                else
+                    FullPath = Obj.FullPath;
+                end
+                
+                if isempty(FullPath)
+                    Path = cell(Ntime,1);
+                    for Itime=1:1:Ntime
+                        if ~isempty(Ind)
+                            Itime = Ind;
+                        end
+    
+                        if isempty(Args.Level)
+                            % get Level from object:
+                            Level = getProp(Obj, 'Level', Itime);
+                        else
+                            % Level supplied by arguments
+                            Level = Args.Level;
+                        end
+    
+                        % /euler1/archive/LAST/<ProjName>/new
+                        % /euler1/archive/LAST/<ProjName>/2022/12/01/raw
+                        % /euler1/archive/LAST/<ProjName>/2022/12/01/proc
+                        % /euler1/archive/LAST/<ProjName>/2022/12/01/proc/1
+                        DateDir = getDateDir(Obj, Itime, true);
+                        if Obj.BasePathIncludeProjName
+                            % BasePath already include the ProjName
+                            Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
+                                            BasePath, filesep, ...
+                                            DateDir, filesep, ...
+                                            Level);
+                        else
+                            Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
+                                            BasePath, filesep, ...
+                                            getProp(Obj, 'ProjName', Itime),...
+                                            DateDir, filesep, ...
+                                            Level);
+                        end
+    
+                        if Args.AddSubDir
+                            Path{Itime} = sprintf('%s%s%s',Path{Itime},filesep,...
+                                                           getProp(Obj, 'SubDir', Itime));
+                        end
+                    end
+    
+                else
+                    Path = {FullPath};
+                end
             end
 
             if Args.ReturnChar && numel(Path)==1
