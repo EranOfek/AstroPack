@@ -1,7 +1,7 @@
 function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
-    % Make an artificial image with rotated and jitter-blurred source PSFs injected to the catalog postions     
+    % Make an artificial image with rotated and jitter-blurred source PSFs injected to the catalog positions     
     % Package: imUtil.art
-    % Description: Make an artificial image with rotated and jitter-blurred source PSFs injected to the catalog postions
+    % Description: Make an artificial image with rotated and jitter-blurred source PSFs injected to the catalog positions
     %          - X, Y, CPS      : pixel coordinates and countrates of the sources
     %          - SizeX, SizeY   : pixel sizes of the image containing the source PSFs
     %          - PSF            : either a single 2D PSF for all the object or 
@@ -19,7 +19,7 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     %            
     % Tested : Matlab R2020b
     %     By : A. Krassilchtchikov et al.    Feb 2023
-    % Example: [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF,...
+    % Example: [Image, JPSF] = imUtil.art.injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF,...
     %                                        'PSFScaling',5,'RotatePSF',-90,'Jitter',1);
 
     arguments
