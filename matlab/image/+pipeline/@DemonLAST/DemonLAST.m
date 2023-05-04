@@ -1212,7 +1212,9 @@ classdef DemonLAST < Component
 
                 % move focus images
                 FN_Foc   = FileNames.generateFromFileName(Args.TempRawFocus);
-                FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',[], 'DestPath', [], 'Level','raw', 'Type','focus');
+                FN_Foc.BasePath = Obj.BasePath;
+                FN_Foc.FullPath = [];
+                FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',[], 'DestPath', FN_Foc.genPath, 'Level','raw', 'Type','focus');
                 
                 % look for new images
                 FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci, 'FullPath',false);

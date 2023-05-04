@@ -123,7 +123,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
 
                 if Args.UseMex
                     if ~isempty(Flag)
-                        save('MI.mat','Result','Iobj','Flag','SetVal','-v7.3');
+                        
                         if numel(Flag)==numel(Result(Iobj).Image)
                             % assume that Flag in logical array of the same
                             % size 
