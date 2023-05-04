@@ -437,6 +437,28 @@ classdef FileNames < Component
             end
                 
         end
+
+        function JD = juldayFun(Obj, Fun)
+            % Apply a function on the JD of each element of a FileNames object.
+            % Input  : - A FileNames object.
+            %          - Function handle. Default is @min.
+            % Output : - An array of FUN(JD) for each element.
+            % Author : Eran Ofek (May 2023)
+
+            arguments
+                Obj
+                Fun   = @min;
+            end
+
+            Nobj = numel(Obj);
+            JD   = zeros(size(Obj));
+            for Iobj=1:1:Nobj
+                JD(Iobj) = Fun(Obj(Iobj).julday);
+            end
+
+
+        end
+
         
         function Obj = jd2str(Obj)
             % Convert JD in Time property to file name strings
@@ -1355,6 +1377,29 @@ classdef FileNames < Component
             end
             
         end
+
+        function [Obj, SI] = sortByFunJD(Obj, Direction, Fun)
+            % Sort elements in FileNames object by mean/min JD of entries in each element.
+            % Input  : - A FileNames object (multi-element possible).
+            %          - Sort direction: 'ascend' (default), or 'descend'.
+            %          - Function. Default is @min.
+            % Output : - A FileNames object in which the entries are sorted
+            %            by JD.
+            %          - A vector of sorted indices.
+            % Author : Eran Ofek (Dec 2022)
+            
+            arguments
+                Obj
+                Direction = 'ascend';
+                Fun       = @min;
+            end
+
+            JD = Obj.juldayFun(Fun);
+            [~,SI] = sort(JD, Direction);
+            Obj = Obj(SI);
+            
+        end
+
         
         function [SunAlt] = sunAlt(Obj, Args)
             % Calculate Sun Altitude for images in FileNames object
