@@ -231,7 +231,11 @@ classdef AstroWCS < Component
 
             if sum(Obj.ResFit.FlagSrc)<Args.MinStarsForRegional
                 % treat images with small number of stars
-                Obj.Success = Obj.ResFit.ErrorOnMean < (Args.MaxErrorOnMean./ARCSEC_DEG);
+                if isempty(Obj.ResFit.ErrorOnMean)
+                    Obj.Success = false;
+                else
+                    Obj.Success = Obj.ResFit.ErrorOnMean < (Args.MaxErrorOnMean./ARCSEC_DEG);
+                end
             else
                 [BinN, ~, BinMedian] = tools.math.stat.bin2dFun(Obj.ResFit.SrcX(Obj.ResFit.FlagSrc),...
                                                                 Obj.ResFit.SrcY(Obj.ResFit.FlagSrc),...

@@ -1222,7 +1222,7 @@ classdef DemonLAST < Component
                 [FN_Sci] = selectBy(FN_Sci, 'Type', {'sci','science'}, 'CreateNewObj',false);
                 [FN_Sci] = selectBy(FN_Sci, 'Level', 'raw', 'CreateNewObj',false);
                 [~, FN_Sci_Groups] = FN_Sci.groupByCounter('MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
-                FN_Sci_Groups = FN_Sci_Groups.sortByJD(Args.SortDirection);
+                FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
                 Ngroup = numel(FN_Sci_Groups);
                 
                 if Ngroup==1
