@@ -20,9 +20,10 @@ function Mosaic = mosaic(Args)
         
     end
     
-    % set some image parameters
+    % set some constants and image parameters
     
-    RAD = 180./pi;                      % the radian
+    RAD  = 180./pi;                     % the radian
+    Tiny = 1e-14;                       % a small, but nonzero constant
     
     PixScale = Args.PixScale / 3600;    % [deg] pixel scale
     
@@ -40,59 +41,45 @@ function Mosaic = mosaic(Args)
     Corn    = zeros(NImage,4,2);
     Cent    = zeros(NImage,2);
     Xsize   = zeros(NImage,1); Ysize = zeros(NImage,1);
+    Exptime = zeros(NImage,1);
     
-    % read in the borders of the input images
-    %
-    % NB: in the case of LAST the input images are aligned so that North
-    % is up and West is to the right, but with ULTRASAT it would not be so, 
-    % and the corners of the image will not determine the border values of
-    % RA, DEC !
+    % read in the borders of the input images and their exposure times
         
     for Img = 1:1:NImage
         
+        % read the exposures
+        
+        Position = strcmp(AI(Img).Header,'EXPTIME');            % extract a header
+        Exptime(Img) = AI(Img).Header{Position,2};
+        
         % copy the image extensions to pixel matrices
-        
-%         Input(Img) = AI(Img).Image;
-        
+                
         Xsize(Img) = size(AI(Img).Image,1);
         Ysize(Img) = size(AI(Img).Image,2);
         
+        Corn(Img,:,:) = AI(Img).cooImage([1 Xsize(Img) 1 Ysize(Img)]).Corners;
+        Cent(Img,:)   = AI(Img).cooImage([1 Xsize(Img) 1 Ysize(Img)]).Center;
+
         % AI.cooImage gets data from the header and not from the
         % WCS with AI.WCS.xy2sky: is it exactly the same?
         
-        Corn(Img,:,:) = AI(Img).cooImage([1 Xsize(Img) 1 Ysize(Img)]).Corners;
-        Cent(Img,:)   = AI(Img).cooImage([1 Xsize(Img) 1 Ysize(Img)]).Center;
-        
-%         [RA1(Img), DEC1(Img)]  = AI(Img).WCS.xy2sky(1,1);
-%         [RA2(Img), DEC2(Img)]  = AI(Img).WCS.xy2sky(Xsize,Ysize);
+%         [RA11(Img), DEC11(Img)]  = AI(Img).WCS.xy2sky(1,1);
+%         [RA22(Img), DEC22(Img)]  = AI(Img).WCS.xy2sky(Xsize,Ysize);
+%         [RA21(Img), DEC21(Img)]  = AI(Img).WCS.xy2sky(Xsize,1);
+%         [RA12(Img), DEC12(Img)]  = AI(Img).WCS.xy2sky(1,Ysize);
 
         
     end
     
     % determine the sky size of the mosaic 
     
-%     RA1m  = min([RA1 RA2]);    RA2m  = max([RA1 RA2]);
-%     DEC1m = min([DEC1 DEC2]);  DEC2m = max([DEC1 DEC2]);
+%     RA1m  = min([RA11 RA22  RA21  RA12]);  RA2m  = max([RA11 RA22  RA21  RA12]);
+%     DEC1m = min([DEC1 DEC2 DEC21 DEC12]);  DEC2m = max([DEC1 DEC2 DEC21 DEC12]);
     
     RA1m  = min(Corn(:,:,1),[],'all');  RA2m = max(Corn(:,:,1),[],'all');
     DEC1m = min(Corn(:,:,2),[],'all'); DEC2m = max(Corn(:,:,2),[],'all');
     
     RAcenter = (RA2m + RA1m)/2; DECcenter = (DEC2m + DEC1m)/2; 
-    
-%     % plot the sky regions of the input images
-%     
-%     figure(1); hold on
-%     
-%     for Img = 1:1:NImage    
-%         plot([Corn(Img,1,1) Corn(Img,2,1) Corn(Img,3,1) Corn(Img,4,1) Corn(Img,1,1)], ...
-%              [Corn(Img,1,2) Corn(Img,2,2) Corn(Img,3,2) Corn(Img,4,2) Corn(Img,1,2)]);
-%         text(Cent(Img,1),Cent(Img,2), num2str(Img) );
-%     end
-%     plot(RAcenter,DECcenter,'rd','MarkerSize',10);
-%     plot([RA1m  RA2m  RA2m  RA1m  RA1m], ...
-%          [DEC1m DEC1m DEC2m DEC2m DEC1m], 'LineWidth',2,'Color',[.6 0 0]);
-%     xlabel RA; ylabel DEC;
-%     hold off
 
     % determine the pixel size of the mosaic
     
@@ -104,7 +91,9 @@ function Mosaic = mosaic(Args)
     
     cprintf('hyper','%s%4.0f%s%4.0f%s\n','The mosaic size is ',NPix1,' x ',NPix2,' pixels');
     
-    ImageM = zeros(NPix2, NPix1);  % because in the AstroImage the storage is reverted
+    % because in the AstroImage the storage is reverted, NPix2 comes first
+    ImageM = zeros(NPix2, NPix1);        % the count number
+    ExposM = Tiny * ones(NPix2, NPix1);  % the exposure map (will appear in the denominator)
     
     AIm = AstroImage({ImageM});
     
@@ -137,12 +126,11 @@ function Mosaic = mosaic(Args)
     % determine mosaic pixel coordinates of the reference pixel 
     % of the tile number CentNum
     
-    CRVAL1   = AH.getVal('CRVAL1');
-    CRVAL2   = AH.getVal('CRVAL2');
-    CRPIX1   = AH.getVal('CRPIX1');
-    CRPIX2   = AH.getVal('CRPIX2');
+    CRVAL1   = AH.getVal('CRVAL1'); CRVAL2   = AH.getVal('CRVAL2');
+    CRPIX1   = AH.getVal('CRPIX1'); CRPIX2   = AH.getVal('CRPIX2');
     
-    % change the pixel coordinates of the reference point
+    % change the pixel coordinates of the reference point 
+    % NEED TO CHECK THIS!
      
     DeltaRA  = CRVAL1 - RAcenter;
     DeltaDEC = CRVAL2 - DECcenter;
@@ -179,42 +167,33 @@ function Mosaic = mosaic(Args)
     
     % fill in the data from the input images
     
-    for Img = 1:1:1 % NImage
+    for Img = 1:1:24 %NImage
         
-        fprintf('%s%4.0d%s%4.0d\n','Processing tile ',Img,' out of ',NImage);
-
-%         % appeared very slow 
-%         for iX = 1:1:Xsize(Img)
-%             
-%             fprintf('%s%4.0d%s%4.0d\n','Processing row ',iX,' out of ',Xsize(Img));
-%             
-%             for iY = 1:1:Ysize(Img)
-%                 
-%                 [RA, DEC]  = AI(Img).WCS.xy2sky(iX,iY);
-%                 [Xin, Yin] = AIm.WCS.sky2xy(RA,DEC);
-%                 Xim = round(Xin); Yim = round(Yin);  % shall we use subpixel resolution here?
-%                 AIm.Image(Xim,Yim) = AI(Img).Image(iX,iY);
-%                 
-%             end
-%         end
+          fprintf('%s%4.0d%s%4.0d\n','Processing tile ',Img,' out of ',NImage);
 
           % determine the position of the first pixel
           
-          [RA1, DEC1]   = AI(Img).WCS.xy2sky(1,1);
-          [X1,  Y1]     = AIm.WCS.sky2xy(RA1,DEC1);
-          X1r = round(X1); Y1r = round(Y1);
+          [RA1, DEC1]     = AI(Img).WCS.xy2sky(1,1);
+          [XX1,  YY1]     = AIm.WCS.sky2xy(RA1,DEC1);
+          X1 = round(XX1);        Y1 = round(YY1); 
+          X2 = X1 + Xsize(Img)-1; Y2 = Y1 + Ysize(Img)-1;  
           
-          AIm.ImageData.Data(X1r:X1r+Xsize(Img)-1, Y1r:Y1r+Ysize(Img)-1) = AI(Img).ImageData.Data;
-          
-%           for iX = 1:1:Xsize(Img)
-%               for iY = 1:1:Ysize(Img)
-%                   
-%                   %AIm.Image(X1r+iX-1,Y1r+iY-1) = AI(Img).Image(iX,iY);
-%                   AIm.ImageData.Data(X1r+iX-1,Y1r+iY-1) = AI(Img).ImageData.Data(iX,iY);
-%                   
-%               end
-%           end
+          if X1 < 1 || Y1 < 1 || X2 > NPix2 || Y2 > NPix1
               
+              cprintf('err','Out of image borders, exiting..\n');
+              return;
+              
+          end
+          
+          % add image to the mosaic:
+          
+          AIm.ImageData.Data( X1:X2, Y1:Y2 ) = AIm.ImageData.Data( X1:X2, Y1:Y2 ) + ...
+                                               AI(Img).ImageData.Data( 1:Xsize(Img),1:Ysize(Img) );
+                                    
+          % add flat exposure map to the mosaic exposure map:
+          ExposM( X1:X2, Y1:Y2 ) = ExposM( X1:X2, Y1:Y2 ) + ...
+                                   Exptime(Img) * ones( Xsize(Img), Ysize(Img) );
+                            
     end
     
 end
