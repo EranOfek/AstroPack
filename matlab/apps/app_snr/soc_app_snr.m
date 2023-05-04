@@ -23,7 +23,7 @@ function soc_app_snr()
     %b = testme(3);
     %disp(b);
     
-    load2('1.mat');
+    %load2('1.mat');
     %disp(a);
     
     if isdeployed
