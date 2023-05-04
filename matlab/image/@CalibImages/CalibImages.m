@@ -709,7 +709,7 @@ classdef CalibImages < Component
             % for each sub image
             
             if Args.Convert2single
-                ImObj.cast('single')
+                ImObj.cast('single');
             end
             [BiasImage, ~, ~] = imProc.dark.bias(ImObj, Args.BiasArgs{:});
             
@@ -881,7 +881,6 @@ classdef CalibImages < Component
             
 
             if Args.Convert2single
-                Obj.cast('single');
                 ImObj.cast('single');
             end
             % identify all possible filters
