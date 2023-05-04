@@ -1677,7 +1677,7 @@ classdef FileNames < Component
                     case 'delete'
                         PWD = pwd;
                         cd(SrcPath);
-                        io.files.delete_cell(FN.genFile());
+                        io.files.delete_cell(Obj.genFile());
                         cd(PWD);
                     case 'copy'
                         error('copy not yet implemented');
