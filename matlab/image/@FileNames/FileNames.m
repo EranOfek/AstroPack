@@ -1673,7 +1673,7 @@ classdef FileNames < Component
     
                 switch Args.Operator
                     case 'move'
-                        io.files.moveFiles(FN.genFile(), Args.OutName, SrcPath, DestPath);
+                        io.files.moveFiles(Obj.genFile(), Args.OutName, SrcPath, DestPath);
                     case 'delete'
                         PWD = pwd;
                         cd(SrcPath);
