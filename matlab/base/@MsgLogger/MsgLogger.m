@@ -190,14 +190,17 @@ classdef MsgLogger < handle
                 return
             end
 			
+            % Check if first element is cell array
+            is_cell = ~isempty(varargin) && iscell(varargin{1});
+                
             % Always use msgStyle to print errors in red color
-            if Level == LogLevel.Error || Level == LogLevel.Fatal || Level == LogLevel.Assert
+            if (Level == LogLevel.Error || Level == LogLevel.Fatal || Level == LogLevel.Assert) && ~is_cell
                 Obj.msgStyle(Level, '@error', varargin{:});
                 return
             end
 
             % Always use msgStyle to print warnings in red color
-            if Level == LogLevel.Warning
+            if (Level == LogLevel.Warning) && ~is_cell
                 Obj.msgStyle(Level, '@warn', varargin{:});
                 return
             end
@@ -216,22 +219,45 @@ classdef MsgLogger < handle
 
             % Log to display			
             if LogToDisplay
-                fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
-                fprintf(varargin{:});
-    			fprintf('\n');
+                if is_cell
+                    cellArray = varargin{1};
+                    for i = 1:numel(cellArray)
+                        fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
+                        fprintf(cellArray{i});
+                        fprintf('\n');
+                    end
+                else
+                    fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
+                    fprintf(varargin{:});
+                    fprintf('\n');
+                end
             end
 
             % Log to file
             if LogToFile
                 if ~isempty(Obj.LogF)
-                    Obj.LogF.write2(sprintf('[%s]', LevStr), varargin{:});
+                    if is_cell
+                        cellArray = varargin{1};
+                        for i = 1:numel(cellArray)                        
+                            Obj.LogF.write2(sprintf('[%s]', LevStr), cellArray{i});
+                        end
+                    else                    
+                        Obj.LogF.write2(sprintf('[%s]', LevStr), varargin{:});
+                    end
                 end
             end
             
             % Log to Syslog
             if LogToSyslog
                 if ~isempty(Obj.Syslog)
-                    Obj.Syslog.sendMessage(Level, varargin{:});
+                    if is_cell
+                        cellArray = varargin{1};
+                        for i = 1:numel(cellArray)
+                            Obj.Syslog.sendMessage(Level, cellArray{i});
+                        end
+                    else                    
+                        Obj.Syslog.sendMessage(Level, varargin{:});
+                    end
                 end
             end
         end

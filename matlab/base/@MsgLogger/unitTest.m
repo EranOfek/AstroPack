@@ -57,6 +57,9 @@ function Result = unitTest()
     M.msgStyle(LogLevel.Test, 'blue', 'Message in blue');
     M.msgStyle(LogLevel.Test, 'red', 'Message in red');
 
+    % Array
+    M.msgLog(LogLevel.Error, {'A', 'B', 'C'});
+    
     % Test exception
     try
         throw(MException('MyFunc:MyExType', 'This is my message'));
