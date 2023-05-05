@@ -52,7 +52,7 @@ AstroPack/MAATv2 supports astronomical catalog access via three channels:
   2. The <a href="https://github.com/EranOfek/AstroPack/wiki/cats">cats</a> package that can be use to store and access small catalogs (i.e., up to tens of milions of entries).
   3. Web access of catalogs - e.g., VizieR, SDSS, PS1, GALAEX.
   
-### Virtual Observatory excess
+### Virtual Observatory access
   
   The <a href="">VO</a> package include tools for accessing several astronomical databases and for formatting catalogs.
   
