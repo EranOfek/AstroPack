@@ -1,6 +1,6 @@
 function Result=collapse(Image, Args)
     %
-    % Example: R=randn(100,100); R(30,30)=200;
+    % Example: R=randn(100,100); R(30,:)=R(30,:)+1;
     %          Res=specUtil.trace.collapse(R,'Fun','mean');
     
     arguments
@@ -57,7 +57,9 @@ function Result=collapse(Image, Args)
     
     SN = Result./Std;
     
-   Flag= (SN > Args.Threshold).*islocalmax(Result)
+   Flag= logical((SN > Args.Threshold).*islocalmax(Result));
+   SN(Flag)
+   
     
     'a'
     
