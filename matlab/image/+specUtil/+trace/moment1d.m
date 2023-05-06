@@ -5,7 +5,9 @@ function moment1d(Array, Pos, Args)
         Array
         Pos
         Args.Dim = 1;
-        Args.WinHalfSize = 7;
+        Args.WinHalfSize   = 7;
+        Args.WeightFun     = 
+        Args.WeightFunArgs = 
     end
     
     if Args.Dim==2
