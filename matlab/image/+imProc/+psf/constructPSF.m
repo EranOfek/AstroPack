@@ -65,31 +65,37 @@ function [Result, Summary] = constructPSF(Obj, Args)
         Nsrc = size(PsfXY,1);
         Summary(Iobj).Nsrc = Nsrc;
         
-        % get flux for normalization
-        Norm = 1./Flux;
-                
-        % constructPSF_cutouts
-        Args.SumMethod = 'median';
-        [Mean, Var, Nim] = imUtil.psf.constructPSF_cutouts(Obj(Iobj).Image, PsfXY, Args.constructPSF_cutoutsArgs{:},...
-                                                           'Norm',Norm,...
-                                                           'Back',Back,...
-                                                           'SmoothWings',Args.SmoothWings,...
-                                                           'SumMethod',Args.SumMethod,...
-                                                           'ReCenter',Args.ReCenter,...
-                                                           'MomRadius',Args.HalfSize);
-                    
-        if ~isempty(Args.TypePSF)
-            Mean = Args.TypePSF(Mean);
-            Var  = Args.TypePSF(Var);
-        end
-        % populate the PSFData
-        if OutIsImage
-            Result(Iobj).PSFData.DataPSF = Mean;
-            Result(Iobj).PSFData.DataVar = Var;
+        Result(Iobj).PSFData.Nstars = Nsrc;
+
+        if Nsrc==0
+            % NO PSF candidates found - skip PSF
         else
-            Result(Iobj).DataPSF = Mean;
-            Result(Iobj).DataVar = Var;
+
+            % get flux for normalization
+            Norm = 1./Flux;
+                    
+            % constructPSF_cutouts
+            Args.SumMethod = 'median';
+            [Mean, Var, Nim] = imUtil.psf.constructPSF_cutouts(Obj(Iobj).Image, PsfXY, Args.constructPSF_cutoutsArgs{:},...
+                                                               'Norm',Norm,...
+                                                               'Back',Back,...
+                                                               'SmoothWings',Args.SmoothWings,...
+                                                               'SumMethod',Args.SumMethod,...
+                                                               'ReCenter',Args.ReCenter,...
+                                                               'MomRadius',Args.HalfSize);
+                        
+            if ~isempty(Args.TypePSF)
+                Mean = Args.TypePSF(Mean);
+                Var  = Args.TypePSF(Var);
+            end
+            % populate the PSFData
+            if OutIsImage
+                Result(Iobj).PSFData.DataPSF = Mean;
+                Result(Iobj).PSFData.DataVar = Var;
+            else
+                Result(Iobj).DataPSF = Mean;
+                Result(Iobj).DataVar = Var;
+            end
         end
-        
     end
 end

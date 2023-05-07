@@ -107,84 +107,89 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
             PSF = Args.PSF;
         end
         
-        if isempty(Args.ColSN)
-            SN = [];
-        else
-            SN = getCol(Obj(Iobj).CatData, Args.ColSN);
-        end
+        if ~isempty(PSF)
 
-        if isempty(Args.XY)
-            % get X/Y ccordinates from catalog
-            
-            XY = getXY(Obj(Iobj).CatData, 'ColX',Args.ColX, 'ColY', Args.ColY);
-            if isempty(XY)
-                % find sources
-                [Src] = imUtil.sources.findSources(Obj(Iobj).Image,...
-                                                        'BackIm',Obj(Iobj).Back,...
-                                                        'VarIm',Obj(Iobj).Var,...
-                                                        'Psf',PSF);
-                                                        
-                XY = [Src.XPEAK, Src.YPEAK];
-                Back = Src.BACK_IM;
-                Std  = Src.STD_IM;
+            if isempty(Args.ColSN)
+                SN = [];
             else
-                % get also the Back and STD
-                Back = getCol(Obj(Iobj).CatData, Args.ColBack);
-                if isempty(Args.ColVar)
-                    if isempty(Args.ColStd)
-                        error('Either ColStd or ColVar must be provided');
-                    end
-                    Std = getCol(Obj(Iobj).CatData, Args.ColStd);
+                SN = getCol(Obj(Iobj).CatData, Args.ColSN);
+            end
+    
+            if isempty(Args.XY)
+                % get X/Y ccordinates from catalog
+                
+                XY = getXY(Obj(Iobj).CatData, 'ColX',Args.ColX, 'ColY', Args.ColY);
+                if isempty(XY)
+                    % find sources
+                    [Src] = imUtil.sources.findSources(Obj(Iobj).Image,...
+                                                            'BackIm',Obj(Iobj).Back,...
+                                                            'VarIm',Obj(Iobj).Var,...
+                                                            'Psf',PSF);
+                                                            
+                    XY = [Src.XPEAK, Src.YPEAK];
+                    Back = Src.BACK_IM;
+                    Std  = Src.STD_IM;
                 else
-                    Std = sqrt(getCol(Obj(Iobj).CatData, Args.ColVar));
-                end
-            end 
-        else
-            % XY provided by user
-            XY = Args.XY;
-            % get Back/Var at these positions
-            Ind  = imUtil.image.sub2ind_fast(size(Obj(Iobj).Image), XY(:,1), XY(:,2));
-            Back = Obj(Iobj).Back(Ind);
-            Var  = Obj(Iobj).Var(Ind);
-            Std  = sqrt(Var);
-        end
-        
-        % subtract Background
-        ImageSubBack = Obj(Iobj).Image - Obj(Iobj).Back;
-        
-        % get Cube of stamps around sources
-        [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(ImageSubBack, XY(:,1), XY(:,2), Args.HalfSize, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
-        
-        % PSF fitting
-        
-        % Cube is Background subtracted
-        [Result, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
-                                                                'Std',Std,...
-                                                                'Back',0,...
-                                                                'FitRadius',Args.FitRadius,...
-                                                                'backgroundCubeArgs',Args.backgroundCubeArgs,...
-                                                                Args.psfPhotCubeArgs{:});
-             
-        
-        % source measured position is at:
-        % RoundX + Result.DX
-        Result.RoundX = RoundX;
-        Result.RoundY = RoundY;
-        Result.X = Result.RoundX + Result.DX;
-        Result.Y = Result.RoundY + Result.DY;
-        
-        
-        % second iteration - need to round X/Y???
-        %Image = imUtil.cut.cutouts2image(Cube, Obj(Iobj).Image, X, Y)
-        
-        
-        % add sources to catalog
-        % calculate magnitude
-        if Args.UpdateCat
-            ResultObj(Iobj).CatData.insertCol(double([Result.X, Result.Y, Result.Flux, Result.Mag, Result.Chi2./Result.Dof,Result.SNm]),...
-                                    Inf,...
-                                    {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'PSF_CHI2DOF','SN'},...
-                                    {'pix',    'pix',    '',          'mag',     '',''});
+                    % get also the Back and STD
+                    Back = getCol(Obj(Iobj).CatData, Args.ColBack);
+                    if isempty(Args.ColVar)
+                        if isempty(Args.ColStd)
+                            error('Either ColStd or ColVar must be provided');
+                        end
+                        Std = getCol(Obj(Iobj).CatData, Args.ColStd);
+                    else
+                        Std = sqrt(getCol(Obj(Iobj).CatData, Args.ColVar));
+                    end
+                end 
+            else
+                % XY provided by user
+                XY = Args.XY;
+                % get Back/Var at these positions
+                Ind  = imUtil.image.sub2ind_fast(size(Obj(Iobj).Image), XY(:,1), XY(:,2));
+                Back = Obj(Iobj).Back(Ind);
+                Var  = Obj(Iobj).Var(Ind);
+                Std  = sqrt(Var);
+            end
+            
+            % subtract Background
+            ImageSubBack = Obj(Iobj).Image - Obj(Iobj).Back;
+            
+            % get Cube of stamps around sources
+            [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(ImageSubBack, XY(:,1), XY(:,2), Args.HalfSize, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
+            
+            % PSF fitting
+            
+            % Cube is Background subtracted
+            [Result, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
+                                                                    'Std',Std,...
+                                                                    'Back',0,...
+                                                                    'FitRadius',Args.FitRadius,...
+                                                                    'backgroundCubeArgs',Args.backgroundCubeArgs,...
+                                                                    Args.psfPhotCubeArgs{:});
+                 
+            
+            % source measured position is at:
+            % RoundX + Result.DX
+            Result.RoundX = RoundX;
+            Result.RoundY = RoundY;
+            Result.X = Result.RoundX + Result.DX;
+            Result.Y = Result.RoundY + Result.DY;
+            
+            
+            % second iteration - need to round X/Y???
+            %Image = imUtil.cut.cutouts2image(Cube, Obj(Iobj).Image, X, Y)
+            
+            
+            % add sources to catalog
+            % calculate magnitude
+            if Args.UpdateCat
+                ResultObj(Iobj).CatData.insertCol(double([Result.X, Result.Y, Result.Flux, Result.Mag, Result.Chi2./Result.Dof,Result.SNm]),...
+                                        Inf,...
+                                        {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'PSF_CHI2DOF','SN'},...
+                                        {'pix',    'pix',    '',          'mag',     '',''});
+            end
+        else % empty PSF
+            % PSF is empty - skip
         end
     end
     

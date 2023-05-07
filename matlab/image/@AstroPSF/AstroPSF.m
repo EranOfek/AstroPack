@@ -46,6 +46,8 @@ classdef AstroPSF < Component
         ArgVals cell      = {};
         ArgNames cell     = {'X','Y','Color','Flux'};
         StampSize         = [];
+        
+        Nstars            = NaN;  % If Nstars=NaN, then PSF wasn't constructed yet.
     end
     
     methods % Constructor
