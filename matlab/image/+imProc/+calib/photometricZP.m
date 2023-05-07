@@ -201,6 +201,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     'BackMag',cell(Nobj,1));
                 
           
+    PhotCat = [];
     for Iobj=1:1:Nobj
         if isa(Obj, 'AstroCatalog')
             Cat = Result(Iobj);
