@@ -109,6 +109,7 @@ classdef LastDb < Component
 
             % Columns with index
             Q.addColumn(TN, 'filename', 'varchar(256)', '', 'index', true);
+            Q.addColumn(TN, 'xxhash',   'bigint', '', 'index', true);            
             Q.addColumn(TN, 'ra',       'double', 'default 0', 'index', true);
             Q.addColumn(TN, 'dec',      'double', 'default 0', 'index', true);
             Q.addColumn(TN, 'jd',       'double', 'default 0', 'index', true);
@@ -177,7 +178,7 @@ classdef LastDb < Component
 
 
     methods
-        function Result = addRawImage(Obj, FileName, AH, AddCols)
+        function Result = addRawImage(Obj, FileName, AH, AddCols, Args)
             % Insert RAW image columns to raw_images table
             % Input :  - LastDb object
             %          - FileName
@@ -193,9 +194,10 @@ classdef LastDb < Component
                 FileName            % Image file name
                 AH                  % AstroHeader
                 AddCols = []        % struct
+                Args.Xxhash = []    % Optional 
             end
-
-            Result = Obj.addImage('raw_images', FileName, AH, AddCols);
+                           
+            Result = Obj.addImage('raw_images', FileName, AH, AddCols, Args);
         end
         
         
@@ -221,7 +223,7 @@ classdef LastDb < Component
         end
         
                 
-        function Result = addImage(Obj, TableName, FileName, AH, AddCols)
+        function Result = addImage(Obj, TableName, FileName, AH, AddCols, Args)
             % Insert AstroHeader to specified table.
             % Input :  - LastDb object
             %          - TableName
@@ -235,14 +237,39 @@ classdef LastDb < Component
             % Example : createTables()
             arguments
                 Obj                 %
-                TableName           %
-                FileName            % Image file name
-                AH                  % AstroHeader
-                AddCols = []        % struct
+                TableName           % Table name to insert to
+                FileName            % Image FITS file name
+                AH                  % AstroHeader to insert 
+                AddCols = []        % struct - optional additional columns (i.e. AddCols.ColName = ColValue, etc.)
+                Args.Xxhash = []    % When specified, insert also column 'xxhash' with this value
+                Args.Select = false % When true and Xxhash is specified, first check if image already exists
             end
 
             Q = Obj.Query;
 
+            % Xxhash is speicified
+            if ~isempty(Args.xxhash)
+                
+                % When Select is true, first check if row already exists
+                if Args.Select
+                    DataSet = Obj.Query.select('*', 'TableName', TableName, 'Where', sprintf('xxhash = %d', Args.Xxhash));
+                    Exist = false;
+                    for i=1:numel(DataSet)
+                        % Compare file name
+                        if DataSet(i).Data.filename
+                        if Exist
+                        end
+                    end
+                end
+                
+                % Insert it to table
+                if isempty(AddCols)
+                    AddCols = struct;
+                end
+                AddCols.xxhash = Args.Xxhash;
+            end
+            
+            
             % Add FileName to header
             AH.insertKey({'filename', FileName, 'Image file name'}, 'end');
             
@@ -321,5 +348,3 @@ classdef LastDb < Component
     end
 
 end
-
-

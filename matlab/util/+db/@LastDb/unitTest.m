@@ -10,9 +10,13 @@ function Result = unitTest()
 
     % Load AstroHeader object from image FITS file
     AH = AstroHeader();
-    FileName = 'c:/ultrasat/last/LAST.01.08.04_20230125.192423.674_clear_143+41_010_001_001_sci_raw_Image_1.txt';        
-    AH.readFromTextFile(FileName);   
+    TxtFileName = 'c:/ultrasat/last/LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.txt';           
+    %TxtFileName = 'c:/ultrasat/last/LAST.01.08.04_20230125.192423.674_clear_143+41_010_001_001_sci_raw_Image_1.txt';        
+    AH.readFromTextFile(TxtFileName);   
     
+    FitsFileName = 'c:/ultrasat/last/LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.fits';
+    %AH = AstroHeader(FitsFileName);
+
     % Create LastDb object with default connection parameters
     TestSSH = true;
     if TestSSH
