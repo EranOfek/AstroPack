@@ -343,7 +343,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                                                                 'SearchRadius',Args.RefineSearchRadius,...
                                                                                                 'IncludeDistortions',true,...
                                                                                                 'CreateNewObj',false);
-
+               
                 % FFU - treatment in case of a failure
 
             end

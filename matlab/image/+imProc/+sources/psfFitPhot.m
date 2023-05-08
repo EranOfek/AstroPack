@@ -88,6 +88,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
     end
     
     ResultObj = Obj;
+    Result    = [];
     
     if isa(Args.PSF, 'function_handle')
         Args.PSF = Args.PSF(Args.PSFArgs{:});
