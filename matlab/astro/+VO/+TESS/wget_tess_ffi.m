@@ -50,7 +50,8 @@ function wget_tess_ffi(Sector, FilesType, Args)
         Cell = Cell(Flag);
     
         % wget all the files
-        www.pwget(Cell,'--no-check-certificate -U Mozilla', Args.Nwget);
+        Files = regexprep(Cell,'http.+/','');
+        www.pwget(Cell,'--no-check-certificate -U Mozilla', Args.Nwget, 'OutFile',Files);
         
     end    
     
