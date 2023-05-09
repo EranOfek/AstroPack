@@ -129,7 +129,7 @@ end
 
 % check that all files arrived
 if (Nlink>1)
-    io.files.files_arrived(Files);
+    io.files.files_arrived(Files{end});
     
 %     Arrived = false;
 %     Dir1 = Util.files.dir_cell(Files);
