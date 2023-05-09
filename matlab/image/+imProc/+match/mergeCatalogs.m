@@ -155,7 +155,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     
     
     
-    for Ifields=1:1:Nfields
+   for Ifields=1:1:Nfields
         if FlagGood(Ifields)
             MatchedS(Ifields) = MatchedSources;
 

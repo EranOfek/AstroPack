@@ -95,6 +95,9 @@ function [Result, ResInd, Matched] = unifiedSourcesCatalog(Obj, Args)
             Cat = Obj(Iobj);
         end
             
+        % check if there is a valid RA/Dec in catalog
+        %LonLat = getLonLat(Cat);
+
         %       The matched catalog result has the same number of
         %       sources as in the Obj2 catalog, and for each Obj2 source,
         %       the nearest source in Obj1 is listed. If there is no

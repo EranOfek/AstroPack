@@ -443,6 +443,7 @@ classdef FileNames < Component
             % Input  : - A FileNames object.
             %          - Function handle. Default is @min.
             % Output : - An array of FUN(JD) for each element.
+            %            For empty elements return NaN.
             % Author : Eran Ofek (May 2023)
 
             arguments
@@ -453,7 +454,12 @@ classdef FileNames < Component
             Nobj = numel(Obj);
             JD   = zeros(size(Obj));
             for Iobj=1:1:Nobj
-                JD(Iobj) = Fun(Obj(Iobj).julday);
+                Tmp = Fun(Obj(Iobj).julday);
+                if isempty(Tmp)
+                    JD(Iobj) = NaN;
+                else
+                    JD(Iobj) = Tmp;
+                end
             end
 
 
@@ -1646,10 +1652,14 @@ classdef FileNames < Component
         function Result=nfiles(Obj)
             % Return number of files in a FileNames object
             % Input  : - A FileNames object
-            % Output : - Number of files.
+            % Output : - Number of files in each FileNames element.
             % Author : Eran Ofek (Apr 2023)
 
-            Result = numel(Obj.Time);
+            Nobj = numel(Obj);
+            Result = zeros(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = numel(Obj(Iobj).Time);
+            end
         end
 
         function moveImages(Obj, Args)
@@ -1808,7 +1818,19 @@ classdef FileNames < Component
             I = Ind(I);
         end
         
-        
+        function Result = isemptyFile(Obj)
+            % Check if all elements of FileNames object contain no files
+            % Input  : - A FileName object.
+            % Output : - Return true if no files in object.
+            % Author : Eran Ofek (May 2023)
+
+            if sum(Obj.nfiles)==0
+                Result = true;
+            else
+                Result = false;
+            end
+
+        end
         
         
         

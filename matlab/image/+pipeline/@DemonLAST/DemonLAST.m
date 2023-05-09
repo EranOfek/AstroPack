@@ -1225,19 +1225,17 @@ classdef DemonLAST < Component
                 FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
                 Ngroup = numel(FN_Sci_Groups);
                 
-                if Ngroup==1
-                    if FN_Sci_Groups(1).nfiles<=Args.MinNumIMageVisit
-                        
-                        Msg{1} = 'Waiting for more images to analyze';
-                        Obj.writeLog(Msg, LogLevel.Info);
-
-                        SunInfo = celestial.SolarSys.get_sun;
-                        if SunInfo.Alt>0
-                            % Sun above horizon
-                            pause(Args.PauseDay)
-                        else
-                            pause(Args.PauseNight);
-                        end
+                MaxNfiles = max(FN_Sci_Groups.nfiles);
+                if MaxNfiles<=Args.MinNumIMageVisit
+                    Msg{1} = 'Waiting for more images to analyze';
+                    Obj.writeLog(Msg, LogLevel.Info);
+    
+                    SunInfo = celestial.SolarSys.get_sun;
+                    if SunInfo.Alt>0
+                        % Sun above horizon
+                        pause(Args.PauseDay)
+                    else
+                        pause(Args.PauseNight);
                     end
                 end
                 

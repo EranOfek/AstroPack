@@ -614,7 +614,7 @@ classdef MatchedSources < Component
             
             arguments
                 Obj
-                AT
+                AT                                         % AstroCatalog | AstroImage
                 Args.JD                              = []; % of empty put 1:N
                 Args.CooType                         = 'sphere';
                 Args.Radius                          = 3;
