@@ -21,8 +21,8 @@ function Result=moment1d(Array, Pos, Args)
     %                   matrix.
     %            .X2 - Second central moment for each colum (row, if Dim=2) in
     %                   the input matrix.
-    %            .WX1
-    %            .WX2
+    %            .X1W - Weighted 1st moment.
+    %            .X2W - Weighted 2nd moment.
     %            .Xinit - Initial X position.
     % Author : Eran Ofek (May 2023)
     % Example: % No noise - initail pos is best pos
@@ -35,6 +35,7 @@ function Result=moment1d(Array, Pos, Args)
     %          % with noise
     %          Result=specUtil.trace.moment1d(Array+randn(size(Array)).*0.001, 101+randn(1,200).*1);
     %          max(abs(Result.X1-101))  % max error
+    %          max(abs(Result.X1W-101))  % max error using weighted moments
     
     arguments
         Array
@@ -42,6 +43,7 @@ function Result=moment1d(Array, Pos, Args)
         Args.Dim = 1;
         Args.WinHalfSize   = 7;
         Args.MaxIter       = 10;
+        Args.WeightSigma   = 3;
         %Args.WeightFun     = 
         %Args.WeightFunArgs = 
         
@@ -67,14 +69,18 @@ function Result=moment1d(Array, Pos, Args)
     Center = Args.WinHalfSize + 1;
     Norm   = sum(Cutout, 1);
     
-    Iiter     = 0;
-    Result.X1 = 0;
-    Cont      = true;
+    Iiter      = 0;
+    Result.X1  = 0;
+    Result.X1W = 0;
+    
+    Cont       = true;
     while Cont
         Iiter = Iiter + 1;
         % X1 is a row vector and X is a column vector
         Xcoo   = (-Args.WinHalfSize:1:Args.WinHalfSize).' - Result.X1;
     
+        
+        
         % Calculate the non-weighted 1st and 2nd moments:
         
         XC     = Xcoo.*Cutout;
@@ -84,6 +90,19 @@ function Result=moment1d(Array, Pos, Args)
         % 2nd moment
         Result.X2   = sum(Xcoo.*XC)./Norm;
        
+        % calculate the weighted moments:
+        
+        % Weight function
+        XcooW   = (-Args.WinHalfSize:1:Args.WinHalfSize).' - Result.X1W;
+        W      = normpdf(XcooW, 0, Args.WeightSigma);
+        NormW  = sum(Cutout.*W, 1);
+        XCW    = XcooW.*Cutout.*W;
+        X1W    = sum(XCW, 1)./NormW;
+        Result.X1W = Result.X1W + X1W;
+        % 2nd moment
+        Result.X2W   = sum(Xcoo.*XCW)./NormW;
+       
+        
         if Iiter>=Args.MaxIter
             Cont = false;
         end
@@ -91,6 +110,7 @@ function Result=moment1d(Array, Pos, Args)
         
     end
     Result.X1    = RoundedPos + Result.X1;
+    Result.X1W   = RoundedPos + Result.X1W;
     Result.Xinit = Pos;
     
     
