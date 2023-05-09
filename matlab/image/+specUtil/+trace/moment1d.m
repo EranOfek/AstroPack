@@ -3,6 +3,10 @@ function Result=moment1d(Array, Pos, Args)
     %   Given an array in which each colum (or row) is treated as a 1-D
     %   vector for which the 1st and 2nd central moments are needed,
     %   calculate these moments iteratively
+    %   The function calculates both the moments and the weighted moments,
+    %   where the weighted moments are weighted by a Gaussian with width
+    %   defined by the 'WeightSigma paramaeter.
+    %   The weighted 1st moment should be used as it is much more accurate.
     % Input  : - A matrix or vector.
     %          - Initial position of the 1st moment positin.
     %            If Dim=1, this is the Y position (I-coordinate) of the initial
@@ -15,7 +19,8 @@ function Result=moment1d(Array, Pos, Args)
     %                   Default is 7.
     %            'MaxIter' - Maximum number of iterations.
     %                   Default is 10.
-    %            ''
+    %            'WeightSigma' - The Gaussian sigma-width used in the
+    %                   calculation of the weighted moments.
     % Output : - A structure with the following fields:
     %            .X1 - First central moment for each colum (row, if Dim=2) in the input
     %                   matrix.
