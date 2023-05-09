@@ -1,5 +1,6 @@
 function traceLocalMax(Image, Args)
     %
+    % 
     
     arguments
         Image
