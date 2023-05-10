@@ -101,7 +101,7 @@ function doStartup()
     end
     
     if (isempty(AstroPackDataPath))
-        fprintf('Warning: Can not find AstroPack Data directory, set ASTROPACK_DATA_PATH (default is ~/matlab/data on Linux, C:\AstroPack\matlab\data on Windows');
+        fprintf('Warning: Can not find AstroPack Data directory, set ASTROPACK_DATA_PATH (default is ~/matlab/data on Linux, C:\\AstroPack\\matlab\\data on Windows');
     end    
 
 
