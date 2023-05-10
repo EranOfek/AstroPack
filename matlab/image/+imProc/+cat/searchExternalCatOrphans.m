@@ -1,4 +1,4 @@
-function searchExternalCatOrphans(Obj, Args)
+function Result=searchExternalCatOrphans(Obj, Args)
     % Search for orphans using MergedCat external catalog information
     %   This function is for the selection of sources that do not appear in
     %   external catalog (orphans). The program works with AstroCatalog
@@ -18,6 +18,8 @@ function searchExternalCatOrphans(Obj, Args)
     end
 
     Nobj = numel(Obj);
+
+    Result = AstroCatalog;
     for Iobj=1:1:Nobj
 
         if isa(Obj, 'AstroImage')
@@ -38,7 +40,7 @@ function searchExternalCatOrphans(Obj, Args)
         % save candidates to table:
         % [ColExtra, ColFLAGS, ColMergedMask, Iobj]
 
-
+        
 
     end
 
