@@ -15,6 +15,7 @@ function [SN, Peaks] = peakDetectionFilter1(Array, Dim, Args)
     %                   Default is 3.
     %            'Filter' - A vector cotaining the filter. If scalar then
     %                   this is the sigma-width of a Gaussian filter.
+    %                   If empty, then do not filter.
     %                   Default is 2.
     %            'FilterLen' - Filter half-length in units of sigma-width
     %                   (relevant when Filter is scalar).
@@ -72,7 +73,11 @@ function [SN, Peaks] = peakDetectionFilter1(Array, Dim, Args)
     
     
     % filter
-    FiltArray = conv2(Array, Filter, 'same');
+    if isempty(Filter)
+        FiltArray = Array;
+    else
+        FiltArray = conv2(Array, Filter, 'same');
+    end
     
     StdFiltArray = StdArray .* Norm;
     
