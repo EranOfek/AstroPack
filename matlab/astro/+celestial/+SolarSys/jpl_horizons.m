@@ -48,6 +48,7 @@ DefV.OutputColumns       = '1,9,10,13,19,20,23,24';  % https://ssd.jpl.nasa.gov/
 DefV.OutCoo              = 'rad';
 DefV.CENTER              = '500'; %'@sun'; %code for observer location. Earth -  '500', GAIA - '500@-139479', '675' - Palomar
 DefV.WebOptions          = weboptions;
+DefV.TimeOut             = 10;   % [s]
 InPar = InArg.populate_keyval(DefV,varargin,mfilename);
 
 if any(size(InPar.StartJD,2)==[3 4 6])
@@ -154,6 +155,7 @@ end
 
     
 UrlCommand = sprintf('%s%s',BaseURL,AllCommand);
+InPar.WebOptions.Timeout = InPar.TimeOut;
 Data = webread(UrlCommand,InPar.WebOptions);
 
 % read header
