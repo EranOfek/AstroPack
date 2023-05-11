@@ -10,13 +10,14 @@ function Mosaic = mosaic(Args)
     %            
     % Tested : Matlab R2020b
     %     By : A. Krassilchtchikov et al.    May 2023
-    % Example: Mosaic = mosaic();
+    % Example: Mosaic = mosaic('DataDir','/home/sasha/Obs1/','InputImages','LAST*coadd_Image*.fits','PixScale',1.25);
 
     arguments
         
         Args.DataDir        =    '/home/sasha/Obs1/';            % The directory containing the input images
         Args.InputImages    =    'LAST*coadd_Image*.fits';       % The mask of the input image filenames
         Args.PixScale       =    1.25;                           % [arcsec] The pixel scale (LAST by def.)
+        Args.Crop           =    [20 20 20 20];                  % X1 X2 Y1 Y2 margin sizes of the input images to be cut out
         
     end
     
@@ -38,28 +39,38 @@ function Mosaic = mosaic(Args)
 %     RA1  = zeros(1,NImage);  RA2 = zeros(1,NImage); 
 %     DEC1 = zeros(1,NImage); DEC2 = zeros(1,NImage); 
 
-    Corn    = zeros(NImage,4,2);
-    Cent    = zeros(NImage,2);
-    Xsize   = zeros(NImage,1); Ysize = zeros(NImage,1);
     Exptime = zeros(NImage,1);
+    Corn    = zeros(NImage,4,2);    Cent    = zeros(NImage,2);
+    Xsize   = zeros(NImage,1);      Ysize   = zeros(NImage,1);
+
+    % test output:
     
-    % read in the borders of the input images and their exposure times
+%     OutFITSName = sprintf('%s','!./testoutput1.fits'); 
+%     imUtil.util.fits.fitswrite(AI(1).Image',OutFITSName);       
+    
+    % read in the borders of the input images and their exposure times, 
+    % crop the the input images so that border effects are eliminated
         
     for Img = 1:1:NImage
         
-        % read the exposures
+        % read the exposures:
         
-        Position = strcmp(AI(Img).Header,'EXPTIME');            % extract a header
-        Exptime(Img) = AI(Img).Header{Position,2};
+        Position     = strcmp(AI(Img).Header,'EXPTIME');            % extract a header
+        Exptime(Img) = AI(Img).Header{Position,2};                  % get the value
         
-        % copy the image extensions to pixel matrices
+        % find the image sizes:
                 
         Xsize(Img) = size(AI(Img).Image,1);
         Ysize(Img) = size(AI(Img).Image,2);
         
         Corn(Img,:,:) = AI(Img).cooImage([1 Xsize(Img) 1 Ysize(Img)]).Corners;
         Cent(Img,:)   = AI(Img).cooImage([1 Xsize(Img) 1 Ysize(Img)]).Center;
-
+        
+        % crop the images:
+        
+        CCDSEC = [Args.Crop(1) Xsize(Img)-Args.Crop(2) Args.Crop(3) Ysize(Img)-Args.Crop(4)];
+        AI(Img).crop(CCDSEC,'UpdateCat',0);
+              
         % AI.cooImage gets data from the header and not from the
         % WCS with AI.WCS.xy2sky: is it exactly the same?
         
@@ -71,6 +82,11 @@ function Mosaic = mosaic(Args)
         
     end
     
+    % test output:
+    
+%     OutFITSName = sprintf('%s','!./testoutput2.fits'); 
+%     imUtil.util.fits.fitswrite(AI(1).Image',OutFITSName);   
+    
     % determine the sky size of the mosaic 
     
 %     RA1m  = min([RA11 RA22  RA21  RA12]);  RA2m  = max([RA11 RA22  RA21  RA12]);
@@ -81,6 +97,22 @@ function Mosaic = mosaic(Args)
     
     RAcenter = (RA2m + RA1m)/2; DECcenter = (DEC2m + DEC1m)/2; 
 
+    % plot the sky regions of the input images and the reference points 
+    
+    figure(1); hold on
+    
+    for Img = 1:1:NImage    
+        plot([Corn(Img,1,1) Corn(Img,2,1) Corn(Img,3,1) Corn(Img,4,1) Corn(Img,1,1)], ...
+             [Corn(Img,1,2) Corn(Img,2,2) Corn(Img,3,2) Corn(Img,4,2) Corn(Img,1,2)]);
+        text(Cent(Img,1),Cent(Img,2), num2str(Img) );
+    end
+    
+    plot(RAcenter,DECcenter,'rd','MarkerSize',10);
+    plot([RA1m  RA2m  RA2m  RA1m  RA1m], ...
+         [DEC1m DEC1m DEC2m DEC2m DEC1m], 'LineWidth',2,'Color',[.6 0 0]);
+    xlabel RA; ylabel DEC;
+    hold off    
+    
     % determine the pixel size of the mosaic
     
     SizeRA  = RAD * celestial.coo.sphere_dist(RA1m    , DECcenter, RA2m,     DECcenter,'deg');
@@ -96,6 +128,81 @@ function Mosaic = mosaic(Args)
     ExposM = Tiny * ones(NPix2, NPix1);  % the exposure map (will appear in the denominator)
     
     AIm = AstroImage({ImageM});
+    
+    % make a WCS of the mosaic image from scratch 
+    
+    AIm.WCS = AstroWCS();
+    AIm.WCS.ProjType  = 'TAN';
+    AIm.WCS.ProjClass = 'ZENITHAL';
+    AIm.WCS.CooName   = {'RA'  'DEC'};
+    AIm.WCS.CTYPE     = {'RA---TAN','DEC---TAN'};
+    AIm.WCS.CUNIT     = {'deg', 'deg'};
+    AIm.WCS.CD(1,1)   = PixScale;
+    AIm.WCS.CD(2,2)   = PixScale;  
+    AIm.WCS.CRVAL(1)  = RAcenter;
+    AIm.WCS.CRVAL(2)  = DECcenter;
+    AIm.WCS.CRPIX(1)  = ceil(NPix1/2);
+    AIm.WCS.CRPIX(2)  = ceil(NPix2/2);
+    AIm.WCS.AlphaP    = RAcenter;
+    AIm.WCS.DeltaP    = DECcenter;
+    AIm.WCS.PhiP      = 180; 
+    
+    % a check: convert the pixel coordinates to sky coordinates:
+    
+%     [RA,DEC] = AIm.WCS.xy2sky(1,        1)
+%     [RA,DEC] = AIm.WCS.xy2sky(1,    NPix2)
+%     [RA,DEC] = AIm.WCS.xy2sky(NPix1,NPix2)
+%     [RA,DEC] = AIm.WCS.xy2sky(NPix1,    1)
+
+    [X,Y] = meshgrid(1:NPix1,1:NPix2);
+    [RA,DEC] = AIm.WCS.xy2sky(X,Y);
+    
+    % determine new image sizes (after they are cropped)
+    
+    Img = 1;
+    
+    Xsize(Img) = size(AI(Img).Image,1);
+    Ysize(Img) = size(AI(Img).Image,2);
+    
+    % make a grid of 
+    
+    [Xim1,Yim1]    = meshgrid(1:Xsize(1),1:Ysize(1));
+    [RAim1,DECim1] = AI(1).WCS.xy2sky(Xim1,Yim1);  
+    
+    Image1    = reshape(AI(1).ImageData.Image, Xsize(1) * Ysize(1), 1);
+    
+    RAvec  = reshape(RA',NPix1 * NPix2,1);
+    DECvec = reshape(DEC',NPix1 * NPix2,1);
+    
+    RAim1vec  = reshape(RAim1' ,Xsize(1) * Ysize(1),1);
+    DECim1vec = reshape(DECim1',Xsize(1) * Ysize(1),1);
+    
+%     CPS = interp2(RAim1vec,DECim1vec,AI(1).ImageData.Image,RAvec,DECvec,'EXTRAPVAL',0);
+    CPS = interp2(RAim1vec,DECim1vec,AI(1).ImageData.Image,9.,-6.,'EXTRAPVAL',0);
+
+%   All the interpolation methods require that X and Y be monotonic and
+%   plaid (as if they were created using MESHGRID).  If you provide two
+%   monotonic vectors, interp2 changes them to a plaid internally.
+%   X and Y can be non-uniformly spaced.
+    
+%     CPS = interp2(RAim1vec,DECim1vec,Image1,RAvec,DECvec,'EXTRAPVAL',0);
+    % Vq = INTERP2(X,Y,V,Xq,Yq) 
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     % find the image most close to the center of the mosaic and copy the
     % WCS from it into the WCS of the mosaic image
@@ -146,9 +253,9 @@ function Mosaic = mosaic(Args)
     
     AIm.WCS = AstroWCS.header2wcs(AH);
     
-    % plot the sky regions of the input images and the reference points
-    
     [RAref, DECref] = AIm.WCS.xy2sky(CRPIX1_new,CRPIX2_new);
+    
+    % plot the sky regions of the input images and the reference points 
     
     figure(2); hold on
     
@@ -195,5 +302,6 @@ function Mosaic = mosaic(Args)
                                    Exptime(Img) * ones( Xsize(Img), Ysize(Img) );
                             
     end
+    
     
 end
