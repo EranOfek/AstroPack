@@ -107,7 +107,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Args.ZP         = 25; 
     end
     
-    warning('BUG: convergence is not very good - need a better algorithm')
+    % warning('BUG: convergence is not very good - need a better algorithm')
     
     % background treatment
     % 1. do nothing
