@@ -127,7 +127,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                         if numel(Flag)==numel(Result(Iobj).Image)
                             % assume that Flag in logical array of the same
                             % size 
-                            Result(Iobj).Image = tools.array.bitsetFlag(Result(Iobj).Image, Flag, SetVal, true, true);
+                            Result(Iobj).Image = tools.array.bitsetFlag(Result(Iobj).Image, Flag, BitInd, SetVal, true, true);
                         else
                             % Flag is indices:
                             Result(Iobj).Image(Flag) = bitset(Result(Iobj).Image(Flag), BitInd, SetVal);
@@ -309,13 +309,26 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
     
     methods % bit statistics
         function [Tab, Result] = bitStat(Obj, Args)
+            % Calculate bit mask statistics.
+            %   How many times each bit appaers in an image.
+            % Input  : - A MaskImage object.
+            %          * ...,key,val,...
+            %            'CCDSEC' - CCDSEC in which to calculate bit stat.
+            %                   If empty, use entire image.
+            %                   Default is [].
+            %            'Show' - A logical iondicating if to display stat
+            %                   on screen. Default is true.
+            %            'DataProp' - Internal.
+            % Output : - A Table of bit stat summary.
             %
             % Example: Stat = Bias.MaskData.bitStat
             
             arguments
                 Obj
                 Args.CCDSEC             = [];
+                Args.Show logical       = true;
                 Args.DataProp           = 'Image';
+                
             end
             
             
@@ -331,7 +344,12 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                     Result(Iobj).FracBit(Ibit+1) = Result(Iobj).SumBit(Ibit+1)./Npix;
                 end
                 Tab(Iobj).BitSummary = cell2table([Result(Iobj).BitName(:), num2cell(Result(Iobj).SumBit)', num2cell(Result(Iobj).FracBit)']);
+                Tab(Iobj).BitSummary.Properties.VariableNames = {'BitMask Name','Number','Fraction'};
+                if Args.Show
+                    Tab(Iobj).BitSummary
+                end
             end
+            
             
             
         end

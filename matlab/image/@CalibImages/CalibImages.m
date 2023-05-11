@@ -1306,7 +1306,9 @@ classdef CalibImages < Component
             [Nobj, Nim] = Obj.checkObjImageSize(Image);
                   
             % populate calibration images in a different function
-                        
+                  
+            Result.createMask;
+            
             for Iim=1:1:Nobj
                 % FFU: Iobj = min(Iim, Nobj);
                 
