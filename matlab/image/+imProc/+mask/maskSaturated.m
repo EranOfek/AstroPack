@@ -39,12 +39,7 @@ function [Result, FlagSat, FlagNL] = maskSaturated(Obj, Args)
     %            'CreateNewObj' - Indicating if the output
     %                   is a new copy of the input (true), or an
     %                   handle of the input (false).
-    %                   If empty (default), then this argument will
-    %                   be set by the number of output args.
-    %                   If 0, then false, otherwise true.
-    %                   This means that IC.fun, will modify IC,
-    %                   while IB=IC.fun will generate a new copy in
-    %                   IB.
+    %                   Default is false.
     %            Some additional hidden arguments
     % Output : - An AstroImage object in which the MaskData is set with
     %            saturated and non-linear pixels.
@@ -75,7 +70,7 @@ function [Result, FlagSat, FlagNL] = maskSaturated(Obj, Args)
         Args.NonLinPix2NaN(1,1) logical= false;
         
         Args.DefBitDict                = BitDictionary('BitMask.Image.Default');
-        Args.CreateNewObj              = [];
+        Args.CreateNewObj              = false;
         
         % hidden
         Args.ImageProp char            = 'ImageData';
@@ -85,13 +80,6 @@ function [Result, FlagSat, FlagNL] = maskSaturated(Obj, Args)
         
     end
     
-    if isempty(Args.CreateNewObj)
-        if nargout==0
-            Args.CreateNewObj = false;
-        else
-            Args.CreateNewObj = true;
-        end
-    end
     if Args.CreateNewObj
         Result = Obj.copy();
     else

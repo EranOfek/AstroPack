@@ -877,6 +877,27 @@ classdef AstroImage < Component
             end
             
         end
+    
+        function Obj = createMask(Obj, Type)
+            % If not exist, create an MaskImage of zeros in an AstroImage object.
+            % Input  : - An AstroImage object.
+            % Output : - If MaskImage does not exist, then create one with
+            %            zeros.
+            % Author : Eran Ofek (May 2023)
+
+            arguments
+                Obj
+                Type   = 'uint32';
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if isempty(Obj(Iobj).MaskData.Data)
+                    Obj(Iobj).MaskData.Data = zeros(size(Obj(Iobj).Image), Type);
+                end
+            end
+
+        end
     end
     
     methods (Access=private)  % private functions
@@ -1675,12 +1696,7 @@ classdef AstroImage < Component
             %            'CreateNewObj' - Indicating if the output
             %                   is a new copy of the input (true), or an
             %                   handle of the input (false).
-            %                   If empty (default), then this argument will
-            %                   be set by the number of output args.
-            %                   If 0, then false, otherwise true.
-            %                   This means that IC.fun, will modify IC,
-            %                   while IB=IC.fun will generate a new copy in
-            %                   IB.
+            %                   Default is false.
             % Output : - An AstroImage object.
             % Author : Eran Ofek (May 2021)
             % Example: AI = AstroImage({rand(3,3)},'Mask',{uint32(zeros(3,3))})
@@ -1694,24 +1710,13 @@ classdef AstroImage < Component
                 Flag                         % matrix of logicals
                 BitName                      % name or bit index (start with zero)
                 SetVal                 = 1;
-                Args.CreateNewObj      = [];
+                Args.CreateNewObj logical = false;
             end
             
-            if isempty(Args.CreateNewObj)
-                if nargout==0
-                    Args.CreateNewObj = false;
-                    Result = Obj;
-                else
-                    % create new obj
-                    Args.CreateNewObj = true;
-                    Result = Obj.copy();
-                end
+            if Args.CreateNewObj
+                Result = Obj.copy();
             else
-                if Args.CreateNewObj
-                    Result = Obj.copy();
-                else
-                    Result = Obj;
-                end
+                Result = Obj;
             end
                     
             Nobj = numel(Obj);

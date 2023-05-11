@@ -57,7 +57,9 @@ classdef BitDictionary < Component
                     Obj.Dic.(Obj.ColBitDescription){Ifn} = St.(FN{Ifn}){2};
                     Obj.Dic.(Obj.ColBitInd)(Ifn)         = St.(FN{Ifn}){1};
                 end
-                Obj.Nbit  = ceil(Nfn./8).*8;
+                
+                Options  = [8 16 32 64];
+                Obj.Nbit = Options(find(ceil(Nfn./Options)==1,1,'first'));
                 switch Obj.Nbit
                     case 8
                         Obj.Class = @uint8;

@@ -8,12 +8,13 @@ function Result=searchExternalCatOrphans(Obj, Args)
     %   from the bit mask).
     %   It return a list of candidate orphans.
 
+    % Example: Result = imProc.cat.searchExternalCatOrphans(Coadd(2));
 
     arguments
         Obj                                             % AstroCatalog | AstroImage
         Args.ColFLAGS              = 'FLAGS';
         Args.ColMergedCatMask      = 'MergedCatMask';
-        Args.ColExtra              = {'RA','Dec','SN_1','SN_3','Nobs','PSF_CHI2DOF','MAG_PSF','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS','MAG_APER_3','MAGERR_APER_3','X',Y','X2','Y2','XY'};
+        Args.ColExtra              = {'RA','Dec','SN_1','SN_3','Nobs','PSF_CHI2DOF','MAG_PSF','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS','MAG_APER_3','MAGERR_APER_3','X','Y','X2','Y2','XY'};
         
     end
 
@@ -29,12 +30,13 @@ function Result=searchExternalCatOrphans(Obj, Args)
             Cat = Obj(Iobj);
         end
 
-        ColFlags    = getCol(Args.ColFLAGS);
-        ColExtCat   = getCol(Args.ColMergedCatMask);
-        ColExtra    = getCol(Args.ColExtra);
+        ColFlags       = Cat.getCol(Args.ColFLAGS);
+        ColMergedCat   = Cat.getCol(Args.ColMergedCatMask);
+        ColExtra       = Cat.getCol(Args.ColExtra);
        
         % select sources with no external catalog match
 
+        
         % select sources with no bad flags
 
         % save candidates to table:
