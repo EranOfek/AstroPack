@@ -79,6 +79,7 @@ function usimImage =  usim ( Args )
                         cprintf('hyper','ULTRASAT simulation started\n');
                         fprintf('%s%d%s%s\n','The total requested exposure is ',Exposure,...
                                 ' seconds for tile ',Args.Tile);
+                        fprintf('%s%d%s\n','The requested PSF resolution is 1/',Args.ImRes,' of the pixel size');
                             
                         % performance speed test
                         tic; tstart = clock;
