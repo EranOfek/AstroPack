@@ -14,6 +14,10 @@ function [Cat]=jpl_horizons(varargin)
 %                   Default is 2451545.5
 %            'GeodCoo' - If empty use Geocentric observer.
 %                   Otherwise provide [Lon, Lat, Height] in [deg deg km].
+%                   Example (LAST): [35.0407331, 30.0529838 0.4154]
+%                   Alternatively can provide a string containing the
+%                   observatory code (only if appears in
+%                   celestial.earth.observatoryCoo).
 %                   Default is [].
 %            'DateFormat' - Default is 'JD'.
 %            'StepSize' - Default is 1.
@@ -46,12 +50,17 @@ DefV.CENTER              = '500'; %'@sun'; %code for observer location. Earth - 
 DefV.WebOptions          = weboptions;
 InPar = InArg.populate_keyval(DefV,varargin,mfilename);
 
-if size(InPar.StartJD,2)==3
+if any(size(InPar.StartJD,2)==[3 4 6])
     InPar.StartJD = celestial.time.julday(InPar.StartJD);
 end
 
-if size(InPar.StopJD,2)==3
+if any(size(InPar.StopJD,2)==[3 4 6])
     InPar.StopJD = celestial.time.julday(InPar.StopJD);
+end
+
+if ischar(InPar.GeodCoo)
+    [ObsCoo]=celestial.earth.observatoryCoo('ObsCode',InPar.GeodCoo);
+    InPar.GeodCoo = [ObsCoo.Lon, ObsCoo.Lat, ObsCoo.Height./1000];
 end
 
 BaseURL = 'https://ssd.jpl.nasa.gov/horizons_batch.cgi?';
