@@ -85,7 +85,6 @@ classdef LastDb < Component
             TN = 'raw_images';
             Q.createTable('TableName', TN, 'AutoPk', 'pk', 'Drop', false);
             Result = Obj.addCommonImageColumns(Q, TN);
-
         end
 
 
@@ -109,7 +108,8 @@ classdef LastDb < Component
 
             % Columns with index
             Q.addColumn(TN, 'filename', 'varchar(256)', '', 'index', true);
-            Q.addColumn(TN, 'xxhash',   'bigint', '', 'index', true);            
+            Q.addColumn(TN, 'xxhash',   'bigint', '', 'index', true);
+            Q.addColumn(TN, 'md5',   'varchar(80)', '', 'index', true);                        
             Q.addColumn(TN, 'ra',       'double', 'default 0', 'index', true);
             Q.addColumn(TN, 'dec',      'double', 'default 0', 'index', true);
             Q.addColumn(TN, 'jd',       'double', 'default 0', 'index', true);
@@ -234,14 +234,14 @@ classdef LastDb < Component
             %            The following keys are available:
             % Output  : True on success
             % Author  : Chen Tishler (02/2023)
-            % Example : createTables()
+            % Example : addImage(
             arguments
                 Obj                 %
                 TableName           % Table name to insert to
                 FileName            % Image FITS file name
                 AH                  % AstroHeader to insert 
                 AddCols = []        % struct - optional additional columns (i.e. AddCols.ColName = ColValue, etc.)
-                Args.Xxhash = []    % When specified, insert also column 'xxhash' with this value
+                Args.xxhash = []    % When specified, insert also column 'xxhash' with this value
                 Args.Select = false % When true and Xxhash is specified, first check if image already exists
             end
 
@@ -254,11 +254,11 @@ classdef LastDb < Component
                 if Args.Select
                     DataSet = Obj.Query.select('*', 'TableName', TableName, 'Where', sprintf('xxhash = %d', Args.Xxhash));
                     Exist = false;
-                    for i=1:numel(DataSet)
-                        % Compare file name
-                        if DataSet(i).Data.filename
-                        if Exist
-                        end
+                    if numel(DataSet) > 0
+                        Exist = true;
+                        
+                        % @Todo - Discuss what we need to do here
+                        return;
                     end
                 end
                 
@@ -268,8 +268,7 @@ classdef LastDb < Component
                 end
                 AddCols.xxhash = Args.Xxhash;
             end
-            
-            
+                        
             % Add FileName to header
             AH.insertKey({'filename', FileName, 'Image file name'}, 'end');
             

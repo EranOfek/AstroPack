@@ -14,7 +14,9 @@ function Result = unitTest()
     %TxtFileName = 'c:/ultrasat/last/LAST.01.08.04_20230125.192423.674_clear_143+41_010_001_001_sci_raw_Image_1.txt';        
     AH.readFromTextFile(TxtFileName);   
     
-    FitsFileName = 'c:/ultrasat/last/LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.fits';
+    %FitsFileName = 'c:/ultrasat/last/LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.fits';
+    FitsFileName = 'c:/ultrasat/last/a1.fits';
+    xx = xxhash('FileName', FitsFileName);
     %AH = AstroHeader(FitsFileName);
 
     % Create LastDb object with default connection parameters
