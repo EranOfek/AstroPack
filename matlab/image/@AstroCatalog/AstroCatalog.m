@@ -882,27 +882,51 @@ classdef AstroCatalog < AstroTable
                 [ColIndX] = colnameDict2ind(Obj(Iobj),Args.ColX);
                 [ColIndY] = colnameDict2ind(Obj(Iobj),Args.ColY);
                 
-                Flag = Obj(Iobj).Catalog(:,ColIndX) >= CCDSEC(Isec,1) & ...
-                       Obj(Iobj).Catalog(:,ColIndX) <= CCDSEC(Isec,2) & ...
-                       Obj(Iobj).Catalog(:,ColIndY) >= CCDSEC(Isec,3) & ...
-                       Obj(Iobj).Catalog(:,ColIndY) <= CCDSEC(Isec,4);
-                   
+                if istable(Obj(Iobj).Catalog)
+                    ColNames = Obj(Iobj).ColNames;
+                    Flag = Obj(Iobj).Catalog.(ColNames{ColIndX}) >= CCDSEC(Isec,1) & ...
+                           Obj(Iobj).Catalog.(ColNames{ColIndX}) <= CCDSEC(Isec,2) & ...
+                           Obj(Iobj).Catalog.(ColNames{ColIndY}) >= CCDSEC(Isec,3) & ...
+                           Obj(Iobj).Catalog.(ColNames{ColIndY}) <= CCDSEC(Isec,4);
+                else
+                    Flag = Obj(Iobj).Catalog(:,ColIndX) >= CCDSEC(Isec,1) & ...
+                           Obj(Iobj).Catalog(:,ColIndX) <= CCDSEC(Isec,2) & ...
+                           Obj(Iobj).Catalog(:,ColIndY) >= CCDSEC(Isec,3) & ...
+                           Obj(Iobj).Catalog(:,ColIndY) <= CCDSEC(Isec,4);
+                end
+                
                 Result(Imax).Catalog = Obj(Iobj).Catalog(Flag,:);
                 
                 if Args.UpdateXY
                     % update XY coordinates
-                    Result(Imax).Catalog(:,ColIndX) = Result(Imax).Catalog(:,ColIndX) - CCDSEC(Isec,1) + 1;
-                    Result(Imax).Catalog(:,ColIndY) = Result(Imax).Catalog(:,ColIndY) - CCDSEC(Isec,3) + 1;
-                    
-                    % update additional coordinates
-                    if ~isempty(Args.AddX)
-                        [ColIndX] = colnameDict2ind(Obj(Iobj), Args.AddX);
+                    if istable(Obj(Iobj).Catalog)
+                        Result(Imax).Catalog.(ColNames{ColIndX}) = Result(Imax).Catalog.(ColNames{ColIndX}) - CCDSEC(Isec,1) + 1;
+                        Result(Imax).Catalog.(ColNames{ColIndY}) = Result(Imax).Catalog.(ColNames{ColIndY}) - CCDSEC(Isec,3) + 1;
+
+                        % update additional coordinates
+                        if ~isempty(Args.AddX)
+                            [ColIndX] = colnameDict2ind(Obj(Iobj), Args.AddX);
+                            Result(Imax).Catalog.(ColNames{ColIndX}) = Result(Imax).Catalog.(ColNames{ColIndX}) - CCDSEC(Isec,1) + 1;
+                        end
+
+                        if ~isempty(Args.AddY)
+                            [ColIndY] = colnameDict2ind(Obj(Iobj), Args.AddY);
+                            Result(Imax).Catalog.(ColNames{ColIndY}) = Result(Imax).Catalog.(ColNames{ColIndY}) - CCDSEC(Isec,3) + 1;
+                        end
+                    else
                         Result(Imax).Catalog(:,ColIndX) = Result(Imax).Catalog(:,ColIndX) - CCDSEC(Isec,1) + 1;
-                    end
-                    
-                    if ~isempty(Args.AddY)
-                        [ColIndY] = colnameDict2ind(Obj(Iobj), Args.AddY);
                         Result(Imax).Catalog(:,ColIndY) = Result(Imax).Catalog(:,ColIndY) - CCDSEC(Isec,3) + 1;
+
+                        % update additional coordinates
+                        if ~isempty(Args.AddX)
+                            [ColIndX] = colnameDict2ind(Obj(Iobj), Args.AddX);
+                            Result(Imax).Catalog(:,ColIndX) = Result(Imax).Catalog(:,ColIndX) - CCDSEC(Isec,1) + 1;
+                        end
+
+                        if ~isempty(Args.AddY)
+                            [ColIndY] = colnameDict2ind(Obj(Iobj), Args.AddY);
+                            Result(Imax).Catalog(:,ColIndY) = Result(Imax).Catalog(:,ColIndY) - CCDSEC(Isec,3) + 1;
+                        end
                     end
                 end
             end
