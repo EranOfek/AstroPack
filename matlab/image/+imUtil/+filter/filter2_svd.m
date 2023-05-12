@@ -1,10 +1,11 @@
-function [Result, SUV] = conv2_svd(Array, Kernel, N, Tol, Shape)
-    % Fast 2-D convolution using SVD approximation.
-    %   For low-rand approximation of the small kernel, this function is about 2
-    %   times faster compared with conv2.
+function [Result, SUV] = filter2_svd(Array, Kernel, N, Tol, Shape)
+    % Fast 2-D filter using SVD approximation.
+    %   For low-rand approximation of the small kernel, this function is
+    %   about 10% faster compared with filter2.
     %   For a convolution with a Gaussian kernel, 1st order will provide an
     %   accurate results.
-    %   Note that the MATLAB built in filter2 function already uses SVD.
+    %   Note that the MATLAB built in filter2 function already uses SVD,
+    %   but this is slighly faster.
     % Input  : - A 2-D array.
     %          - A 2-D kernel.
     %          - SVD approximation order. Default is 1.
@@ -19,10 +20,10 @@ function [Result, SUV] = conv2_svd(Array, Kernel, N, Tol, Shape)
     %            Inspired by a code by David Young
     % Example : Kernel=imUtil.kernel2.gauss;
     %           Array = rand(1700,1700);
-    %           R = imUtil.filter.conv2_svd(Array, Kernel);
-    %           % compare with regular conv2
-    %           R1 = conv2(Array, Kernel,'same'); sum(abs(R-R1),'all') 
-    %           R2 = imUtil.filter.conv2_fft(Array, Kernel); sum(abs(R-R2),'all') 
+    %           R = imUtil.filter.filter2_svd(Array, Kernel);
+    %           % compare with regular filter2
+    %           R1 = filter2(Array, Kernel,'same'); sum(abs(R-R1),'all') 
+    %           R2 = imUtil.filter.filter2_fft(Array, Kernel); sum(abs(R-R2),'all') 
     
     arguments
         Array
@@ -31,7 +32,6 @@ function [Result, SUV] = conv2_svd(Array, Kernel, N, Tol, Shape)
         Tol     = [];
         Shape   = 'same';
     end
-    
    
     % Not contributing to speedup
     %if iscell(Kernel)
@@ -39,6 +39,8 @@ function [Result, SUV] = conv2_svd(Array, Kernel, N, Tol, Shape)
     %    U = Kernel{2};
     %    V = Kernel{3};
     %else
+    
+    Kernel = rot90(Kernel,2);
     
     % Descompose Kernel
     [U, S, V] = svd(Kernel);
@@ -60,7 +62,6 @@ function [Result, SUV] = conv2_svd(Array, Kernel, N, Tol, Shape)
         % Convolve with rows and columns seperatly
         if I==1
             %Result = conv2(conv2(Array, S(I)*U(:,I), Shape), V(:,I).', Shape);
-            % faster:
             Result = conv2(S(I)*U(:,I), V(:,I).', Array, Shape);
         else
             Result = Result + conv2(conv2(Array, S(I)*U(:,I), Shape), V(:,I).', Shape);
