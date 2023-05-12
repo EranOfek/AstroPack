@@ -287,7 +287,6 @@ classdef Cosmology < Component
             Result = 1./sqrt(Obj.OmegaRad.*(1+Z).^4 + Obj.OmegaM.*(1+Z).^3 + Obj.OmegaK.*(1+Z).^2 + Obj.OmegaL);
         end
         
-        
         function Result = ad_dist(Obj, Z1, Z2, Args)
             % Calculate the filled beam angular diameter distance between two redshifts
             % Description: Calculate the filled beam angular diameter distance
@@ -352,6 +351,86 @@ classdef Cosmology < Component
 
             % convert cm to OutUnits
             Result = convert.length('cm', Args.OutUnits, Dist);
+        end
+        
+        function [DL, DM] = lum_dist(Obj, Z, Args)
+            % Calculate luminosity distance and distance modulus.
+            % Description: Compute luminosity distance from redshift and cosmological
+            %              parameters.
+            % Input  : - An astro.Cosmology object.
+            %          - Array of redshifts.
+            %          * ...,key,val,...
+            %            'OutUnits' - Output units of distance.
+            %                   Default is 'pc'.
+            %            'AbsTol' - Integration abs. tol. for convergence.
+            %                   Default is 1e-4.
+            % Output : - Luminosity distance (default in pc).
+            %          - Distance modulus [mag].
+            % Reference : Perlmutter et al. 1997 ApJ, 483, 565
+            %             Oke & Sandage 1968 ApJ, 154, 21
+            %             Peterson, B.M., 1997, AGN, p.165
+            % Author : Eran Ofek (Jul 2001)
+            % Example: C=astro.Cosmology;
+            %          [DL, DM]=C.lum_dist([2 1])
+            
+            arguments
+                Obj
+                Z
+                Args.OutUnits  = 'pc';
+                Args.AbsTol    = 1e-4;
+            end
+           
+            C  = constant.c;    % speed of light [cm/s]
+            Pc = constant.pc;   % Parsec [cm]
+
+            H0       = Obj.H0;
+            OmegaM   = Obj.OmegaM;
+            OmegaL   = Obj.OmegaL;
+            OmegaRad = Obj.OmegaRad;
+
+            % convert H0 to cm/sec/sec
+            H0 = H0.*100000./(Pc.*1e6);
+
+
+            % where is OmegaR?
+            if ((OmegaM+OmegaL)>1)
+               %Lx = inline('sin(x)','x');
+               Lx = @(x) sin(x);
+               K  = 1 - OmegaM - OmegaL;
+            elseif ((OmegaM+OmegaL)<1)
+               %Lx = inline('sinh(x)','x');
+               Lx = @(x) sinh(x);
+               K  = 1 - OmegaM - OmegaL;
+            else
+               % OmegaM + OmegaL == 1
+               %Lx = inline('x','x');
+               Lx = @(x) x;
+               K  = 1;
+            end
+
+            N  = numel(Z);
+            DL = zeros(size(Z));
+            for I=1:1:N
+               ZI = Z(I);
+
+               %Int = inline('((1+ZI).^2.*(1+OmegaM.*ZI) - ZI.*(2+ZI).*OmegaL).^(-1./2)','ZI','OmegaM','OmegaL');
+               Int = @(ZI) ((1+ZI).^2.*(1+OmegaM.*ZI) - ZI.*(2+ZI).*OmegaL).^(-1./2);
+
+               %DL_Int = quad(Int,0,ZI,[],[],OmegaM,OmegaL);
+               DL_Int = integral(Int,0,ZI, 'AbsTol',Args.AbsTol);
+
+               DL(I) = (C.*(1+ZI)./(H0.*sqrt(abs(K)))).*Lx(sqrt(abs(K)).*DL_Int);
+
+            end
+
+            % luminosity distance in Parsecs:
+            DL = convert.length('cm',Args.OutUnits, DL);
+
+            % distance modulus:
+            if (nargout>1)
+               DM = 5.*log10(DL./10);
+            end
+            
         end
         
     end
