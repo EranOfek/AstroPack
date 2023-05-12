@@ -433,6 +433,59 @@ classdef Cosmology < Component
             
         end
         
+        function T = lookback_time(Obj, Z1, Z2)
+            % Compute the cosmological lookback time between z1 and z2
+            % Description: Compute the cosmological lookback time, between two events
+            %              in redshift z1 and z2, and given the cosmology.
+            %              (Assuming matter dominated universe - Z<1000).
+            % Input  : - An astro.Cosmology object.
+            %          - An array of z1
+            %          - An array of z2. If empty, thenn z1=0 and the
+            %            z1 argument specify z2.
+            % Output : - Lookback time [seconds].
+            % Reference : Lahav et al. 1991, MNRAS, 251, 128
+            % Author : Eran Ofek (Jul 2001)
+            % Example: C=astro.Cosmology;
+            %          C.lookback_time([2 1])
+            %          C.lookback_time([0.5 0.5],[1 2])
+           
+            arguments
+                Obj
+                Z1
+                Z2     = [];
+            end
+            
+            C  = constant.c;       % speed of light [cm/sec]
+            Pc = constant.pc;      % Parsec [cm]
+            
+            H0       = Obj.H0;
+            OmegaM   = Obj.OmegaM;
+            OmegaL   = Obj.OmegaL;
+            OmegaRad = Obj.OmegaRad;
+
+            % convert H0 to cm/sec/sec
+            H0_cgs = H0.*100000./(Pc.*1e6);
+
+            if isempty(Z2) 
+                Z2 = Z1;
+                Z1 = zeros(size(Z2));
+            end
+
+            A_high = 1./(1+Z1);
+            A_low  = 1./(1+Z2);
+
+            % lookback time integrand (still need to divide by H0)
+            %lookback_fun = inline('sqrt(A./(OmegaL.*A.^3 + (1-OmegaM-OmegaL).*A + OmegaM))','A','OmegaM','OmegaL');
+            lookback_fun = @(A,OmegaM,OmegaL) sqrt(A./(OmegaL.*A.^3 + (1-OmegaM-OmegaL).*A + OmegaM));
+
+            T = zeros(size(Z1));
+            for I=1:1:numel(T)
+               T(I) = quadl(lookback_fun,A_low(I),A_high(I),[],[] ,OmegaM, OmegaL);
+               T(I) = T(I)./H0_cgs;
+            end
+                        
+        end
+        
     end
 
     methods(Static) % Unit test
