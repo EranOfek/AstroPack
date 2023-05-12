@@ -40,7 +40,7 @@ M       = bsxfun(@minus,Data,mean(Data));
 PS      = zeros(Nf,Ns);
 %PS(:,1) = FreqVec;
 for FreqInd=1:1:Nf
-   PS(FreqInd,:) = abs(nansum(bsxfun(@times,M,exp(-2.*pi.*1i.*T.*FreqVec(FreqInd))))).^2./N;
+   PS(FreqInd,:) = abs(sum(bsxfun(@times,M,exp(-2.*pi.*1i.*T.*FreqVec(FreqInd))),1,'omitnan')).^2./N;
 end
 
 switch lower(Norm)

@@ -49,7 +49,11 @@ end
 
 % 
 %PS = [FreqVec, abs(sum(bsxfun(@times,M.',exp(-2*pi*1i.*FreqVec * T.')),2)).^2./N];         
-PS = [FreqVec, abs(sum(bsxfun(@times,M.',exp(-2*pi*1i.*bsxfun(@times,FreqVec,T.'))),2)).^2./N];   % faster!
+%PS = [FreqVec, abs(sum(bsxfun(@times,M.',exp(-2*pi*1i.*bsxfun(@times,FreqVec,T.'))),2)).^2./N];   % faster!
+
+FreqVec = FreqVec(:).';
+PS = [FreqVec.', [abs(sum(M.*exp(-2*pi*1i.*FreqVec.*T),1,'omitnan')).^2./N].'];
+
 
 switch lower(Norm)
  case 'amp'
