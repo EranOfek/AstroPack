@@ -141,6 +141,7 @@ classdef ds9 < handle
             
             if nargin==0
                 ds9.open;
+                pause(2);
             else
                 ds9.disp(Image,varargin{:});
                 clear Obj; % Output Object Not Assigned, therefore need to clear it
