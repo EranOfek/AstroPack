@@ -7,8 +7,8 @@
 % startup.m folder:
 %
 % Linux:   
-%   Eran    - /home/eran/???
-%   Yossi   - /home/???
+%   Eran    - /home/eran/Documents/MATLAB/startup.m (Check)
+%   Yossi   - /home/yossi/Documents/MATLAB/startup.m (Check)
 %   Chen VM - /home/chent/Documents/MATLAB/startup.m
 %
 % Windows: 
@@ -16,134 +16,226 @@
 %   Chen Laptop  - C:\Users\chent\OneDrive\Documents\MATLAB\startup.m
 %
 
-fprintf('AstroPack startup.m started: %s\n', mfilename('fullpath'));
-fprintf('Master startup.m file is located in AstroPack/matlab/startup\n');
-
-% Print compiler flags
-if isdeployed
-    fprintf('startup: isdeployed = true\n');
-end    
-if ismcc
-    fprintf('startup: ismcc = true\n');
-end        
+function startup(Args)
+    % Startup file for AstroPack
+    % Input  : ...,key,val,...
+    %          'setGraphics' - Default is true.
+    %          'setRandomNumbers' - Default is true.
+    %          'setFormat' - Default is true.
+    %          'setBaseVariables' - Default is true.
+    %          
+    %          'AstroPack_BasePath' - Path in which the AstroPack is
+    %                   installed. If empty, then use default
+    %                   ('~matlab/AstroPack). Default is [].
+    %          'AstroPack_DataPath' - Path in which the Data dir is
+    %                   instaalled. If empty, then use default
+    %                   ('~matlab/data). Default is [].
+    %          'AstroPack_CatsHTMPath' - Path in which the catsHTM is
+    %                   installed. Default is '/euler/catsHTM'.
+    %          'AstroPack_ConfigPath' - Path in which the config is
+    %                   instaalled. If empty, then use default
+    %                   ('~matlab/AstroPack/config). Default is [].
+    %
+    %          'EnvVar_BasePath' - Optional environment variable that
+    %                   contaisn the AstroPack path. If the env. var content is
+    %                   empty, then will use the AstroPack_BasePath
+    %                   argument. Default is 'ASTROPACK_PATH'.
+    %          'EnvVar_DataPath' - Like 'EnvVar_BasePath', but for the data
+    %                   dir. Default is 'ASTROPACK_DATA_PATH'.
+    %          'EnvVar_CatsHTMPath' - Like 'EnvVar_BasePath', but for the data
+    %                   dir. Default is 'ASTROPACK_CATSHTM_PATH'.
+    %          'EnvVar_ConfigPath' - Like 'EnvVar_BasePath', but for the data
+    %                   dir. Default is 'ASTROPACK_CONFIG_PATH'.
+    % Author : Eran Ofek (Jan 2022)
+    % Example: startup,
+    %          startup('AstroPack_CatsHTMPath','/last01/data/catsHTM','AstroPack_BasePath',  '/home/last01/ocs/matlab/LAST/AstroPack', 'AstroPack_ConfigPath','/home/last01/ocs/matlab/LAST/AstroPack/config', 'AstroPack_DataPath','/home/last01/ocs/matlab/data');
+    
+    arguments
+        Args.setGraphics logical         = true;
+        Args.setRandomNumbers logical    = true;
+        Args.setFormat logical           = true;
+        Args.setBaseVariables logical    = true;
+        
+        Args.AstroPack_BasePath          = [];  % e.g., '/home/eran/matlab/AstroPack'. If empty set to ~HOME/matlab/AstroPack, unless env var. exist
+        Args.AstroPack_DataPath          = [];  % e.g., '/home/eran/matlab/data'. If empty set to ~HOME/matlab/data, unless env var. exist
+        Args.AstroPack_CatsHTMPath       = '/euler/catsHTM';
+        Args.AstroPack_ConfigPath        = [];
+        Args.AstroPack_ULTRASAT          = [];
+        
+        Args.EnvVar_BasePath             = 'ASTROPACK_PATH';
+        Args.EnvVar_DataPath             = 'ASTROPACK_DATA_PATH';
+        Args.EnvVar_CatsHTMPath          = 'ASTROPACK_CATSHTM_PATH';
+        Args.EnvVar_ConfigPath           = 'ASTROPACK_CONFIG_PATH';
+    end
+    
+    PWD = pwd;
+    
+    if Args.setGraphics
+        setGraphics();
+    end
+    if Args.setRandomNumbers
+        setRandomNumbers();
+    end
+    if Args.setFormat
+        setFormat();
+    end
+    if Args.setBaseVariables
+        setBaseVariables();
+    end
     
     
-% Do the actual work
-doStartup();
+    % get HomeDir
+    if (ismac || isunix)
+        % Linux / Mac
+        HomeDir = getenv('HOME');
+    else
+        HomeDir = getenv('HOMEPATH');
+    end
+    
+    %
+    if isempty(Args.AstroPack_BasePath)
+        % set to default value
+        Args.AstroPack_BasePath = sprintf('%s%s%s%s%s',HomeDir,filesep,'matlab',filesep,'AstroPack');
+    end
+    if isempty(Args.AstroPack_DataPath)
+        % set to default value
+        Args.AstroPack_DataPath = sprintf('%s%s%s%s%s',HomeDir,filesep,'matlab',filesep,'data');
+    end
+    if isempty(Args.AstroPack_ULTRASAT)
+        % set to default value
+        Args.AstroPack_ULTRASAT = sprintf('%s%s%s%s%s',HomeDir,filesep,'matlab',filesep,'data',filesep,'ULTRASAT');
+    end
+    if isempty(Args.AstroPack_CatsHTMPath)
+        % set to default value
+        Args.AstroPack_CatsHTMPath = '/euler/catsHTM';
+    end
+    if isempty(Args.AstroPack_ConfigPath)
+        % set to default value
+        Args.AstroPack_ConfigPath = sprintf('%s%s%s',HomeDir,filesep,'config');
+    end
+    
+    % get base path
+    BasePath    = getEnvOrUseDefult(Args.EnvVar_BasePath, Args.AstroPack_BasePath);
+    DataPath    = getEnvOrUseDefult(Args.EnvVar_DataPath, Args.AstroPack_DataPath);
+    CatsHTMPath = getEnvOrUseDefult(Args.EnvVar_CatsHTMPath, Args.AstroPack_CatsHTMPath);
+    ConfigPath  = getEnvOrUseDefult(Args.EnvVar_ConfigPath, Args.AstroPack_ConfigPath);
+    
+    % get list of directories to add to path
+    DirList     = struct;
+    DirList = defaultDirs_AstroPack_BasePath(DirList, BasePath);
+    DirList = defaultDirs_AstroPack_DataPath(DirList, DataPath);
+    DirList = defaultDirs_AstroPack_CatsHTMPath(DirList, CatsHTMPath);
+    DirList = defaultDirs_AstroPack_ConfigPath(DirList, ConfigPath);
+    
+    
+    %----------------------------------------------------------------------
+    % Folders installed by Installer.install(), note that Installer.prep_cats()
+    % is automatically called when installing 'cats' (same as the older
+    % VO.prep.prep.data.dir() function)
+    InstallerDataDir = DataPath;
+    DirList.InstallerData = {{InstallerDataDir},...
+                             {InstallerDataDir, 'spec'},...
+                             {InstallerDataDir, 'spec/SpecGalQSO/'},...
+                             {InstallerDataDir, 'spec/PicklesStellarSpec/'}};
+    %----------------------------------------------------------------------
+    % add all DirList to path
+    FN  = fieldnames(DirList);
+    Nfn = numel(FN);
+    warning off;
+    PathCount = 0;
+    for Ifn=1:1:Nfn
+        Tmp = DirList.(FN{Ifn});
+        Ndir = numel(Tmp);
+        for Idir=1:1:Ndir
+            FullPath = sprintf('%s%s%s%s%s%s%s',fullfile(Tmp{Idir}{:}));
+            % fprintf('AstroPack startup addpath: %s\n', FullPath);
+            if exist(FullPath,'dir')
+                addpath(FullPath);
+                PathCount = PathCount + 1;
+            end
+        end
+    end
+    fprintf('AstroPack startup addpath count: %d\n', PathCount);
+    fprintf('AstroPack startup done: %s\n', mfilename('fullpath'));
+    
+    
+    cd(PWD);
+end
 
-fprintf('AstroPack startup.m done: %s\n', mfilename('fullpath'));
-fprintf('Remember to set environment variable ASTROPACK_PATH to AstroPack root folder, for example /home/eran/matlab/AstroPack\n');
-fprintf('Remember to set environment variable ASTROPACK_DATA_PATH to AstroPack root folder, for example ~/matlab/data\n');
-fprintf('Remember to set environment variable ASTROPACK_CONFIG_PATH to configuration files folder, if not set, repo config/ is used\n');
 
-%--------------------------------------------------------------------------
-function doStartup()
-
-    fprintf('AstroPack doStartup() started: %s\n', mfilename('fullpath'));
-
-    % display numbers format
-    format short g
-
-    % random numbers
-    % randomizing the seed of the matlab random number generator
-    %rand('state',sum(100*clock));
-    rng('shuffle');
-
-
+function setGraphics
     % define graphics defaults
     % set the plot AxesFontSize and AxesFontName default
     set(0,'DefaultAxesFontSize',14);
     set(0,'DefaultAxesFontName','times');
+end
 
+function setRandomNumbers
+    % random numbers
+    % randomizing the seed of the matlab random number generator
+    %rand('state',sum(100*clock));
+    rng('shuffle');
+end
 
+function setFormat
+    % display numbers format
+    format short g
+end
+
+function setBaseVariables
     % define in session constants
     % Assign variables to the matlab workspace
     assignin('base','RAD',180./pi);    % Radian
+end
 
-
-    % BaseDir
-    MatlabDir    = 'matlab';          %%% <--- EDIT IF NEEDED
-    AstroPackDir = 'AstroPack';       %%% <--- EDIT IF NEEDED
-    CatsHTMDir   = '/euler/catsHTM';  %%% <--- EDIT IF NEEDED - use '', if no catsHTM - Add Windows support!
-
-    if (ismac || isunix)
-        % Linux / Mac
-        HomeDir = getenv('HOME');
-        AstroPackPath = getenv('ASTROPACK_PATH');
-        if isempty(AstroPackPath)    
-            AstroPackPath = fullfile(HomeDir, MatlabDir, AstroPackDir);
-        end
-        
-        AstroPackDataPath = getenv('ASTROPACK_DATA_PATH');        
-        if isempty(AstroPackPath)    
-            AstroPackDataPath = fullfile(HomeDir, MatlabDir, 'data');
-        end        
-    else
-        % Windows
-        HomeDir = getenv('HOMEPATH');
-        AstroPackPath = getenv('ASTROPACK_PATH');    
-        if isempty(AstroPackPath)
-            AstroPackPath = fullfile(HomeDir, MatlabDir, AstroPackDir);
-        end
-        
-        AstroPackDataPath = getenv('ASTROPACK_DATA_PATH');    
-        if isempty(AstroPackDataPath)
-            AstroPackDataPath = 'C:/AstroPack/matlab/data';  % @Todo - Fix to use C:\AstroPack from getenv
-        end            
-    end
-
-    if (isempty(HomeDir))
-        error('Can not find home directory environment variable - edit the startup.m file accordingly');
-    end
-
-    if (isempty(AstroPackPath))
-        error('Can not find AstroPack directory, set ASTROPACK_PATH - edit the startup.m file accordingly');
-    end
-    
-    if (isempty(AstroPackDataPath))
-        fprintf('Warning: Can not find AstroPack Data directory, set ASTROPACK_DATA_PATH (default is ~/matlab/data on Linux, C:\\AstroPack\\matlab\\data on Windows');
-    end    
-
-
-    % Configuation path, default is in repo config/ 
-    AstroPackConfigPath = getenv('ASTROPACK_CONFIG_PATH');
-    if isempty(AstroPackConfigPath)
-        AstroPackConfigPath = fullfile(AstroPackPath, 'config');
-    end
-    fprintf('AstroPackConfigPath: %s\n', AstroPackConfigPath);
-    fprintf('AstroPackDataPath: %s\n', AstroPackDataPath);
-    %----------------------------------------------------------------------
-    % addpath for AstroPack
-    % This is a cell array of cell arrays
-    % Each cell contains one path to add.
-    % The inside cell gives the directory path - e.g., {'matlab','astro'} means .../matlab/astro/
-    % Check with @Eran if we can remove the 'data' folders because they are
-    % part of Installer
-    DirList.AstroPack = {...
-             {AstroPackPath,'data','test_images','fits_samples'},...
-			 {AstroPackPath,'..','data','SolarSystem','Time'},...
-			 {AstroPackPath,'..','data','SolarSystem','VSOPE87'},...
- 			 {AstroPackPath,'..','data','SolarSystem','MinorPlanets'},...
-			 {AstroPackPath,'..','data'},...
-			 {AstroPackPath,'..','data','spec','GAIA_SpecTemplate'},...
-             {AstroPackPath,'matlab','astro'},...
-             {AstroPackPath,'matlab','base'},...
-             {AstroPackPath,'matlab','external'},...
-             {AstroPackPath,'matlab',fullfile('external','Inpaint_nans')},...
-             {AstroPackPath,'matlab',fullfile('external','str2doubles','str2doubles')},...
-             {AstroPackPath,'matlab','mex'},...             
-             {AstroPackPath,'matlab',fullfile('mex','writematrix')},...             
-             {AstroPackPath,'matlab','image'},...
-             {AstroPackPath,'matlab','pipeline'},...
-             {AstroPackPath,'matlab','util'},...
-             {AstroPackPath,'matlab','soc'},...
-             {AstroPackPath,'matlab','help'},...
-             {AstroPackPath,'matlab','obsolete'}
+function DirList=defaultDirs_AstroPack_BasePath(DirList,BasePath)
+    % location relative to ~AstroPack/
+    DirList.AstroPack_BasePath = {...   
+             {BasePath,'matlab','astro'},...
+             {BasePath,'matlab','base'},...
+             {BasePath,'matlab','external'},...
+             {BasePath,'matlab','external','mie_scattering'},...
+             {BasePath,'matlab','external','kdtree','toolbox'},...
+             {BasePath,'matlab','external','mcount'},...
+             {BasePath,'matlab','external','str2doubles','str2doubles'},...
+             {BasePath,'matlab','external','VChooseK'},...
+             {BasePath,'matlab',fullfile('external','Inpaint_nans')},...
+             {BasePath,'matlab','external','mcmcstat-master'},...
+             {BasePath,'matlab','external','mcmcstat-master','src'},...
+             {BasePath,'matlab','mex'},...
+             {BasePath,'matlab',fullfile('mex','writematrix')},...
+             {BasePath,'matlab','image'},...
+             {BasePath,'matlab','pipeline'},...
+             {BasePath,'matlab','soc'},...
+             {BasePath,'matlab','util'},...
+             {BasePath,'matlab','help'},...
+             {BasePath,'matlab','obsolete'}            
              };
+end
 
-    %----------------------------------------------------------------------
-    if ~isempty(CatsHTMDir)
-        DirList.CatsHTM = {{CatsHTMDir,'2MASS'},...
+function DirList=defaultDirs_AstroPack_DataPath(DirList, BasePath)
+    % location relative to ~AstroPack/
+    DirList.AstroPack_DataPath = {...
+             {BasePath,'SolarSystem','Time'},...
+             {BasePath,'SolarSystem','VSOPE87'},...
+             {BasePath,'SolarSystem','MinorPlanets'},...
+             {BasePath},...
+             {BasePath,'spec','GAIA_SpecTemplate'},...
+             {BasePath,'spec','Sun'},...
+             {BasePath,'TestImages'},...
+             };
+end
+
+function DirList=defaultDirs_AstroPack_ConfigPath(DirList, BasePath)
+    % location relative to ~AstroPack/
+    DirList.AstroPack_ConfigPath = {...
+             {BasePath,'config'},...
+             };
+end
+
+function DirList=defaultDirs_AstroPack_CatsHTMPath(DirList, CatsHTMDir)
+    % location relative to ~AstroPack/
+    DirList.CatsHTM = {{CatsHTMDir,'2MASS'},...
                            {CatsHTMDir,'2MASSxsc'},...
                            {CatsHTMDir,'AAVSO_VSX'},...
                            {CatsHTMDir,'AKARI'},...
@@ -156,24 +248,30 @@ function doStartup()
                            {CatsHTMDir,'GAIA','DR2'},...
                            {CatsHTMDir,'GAIA','DR2_19'},...
                            {CatsHTMDir,'GAIA','DRE3'},...
+                           {CatsHTMDir,'GAIA','DR3'},...
+                           {CatsHTMDir,'GAIA','DR3extraGal'},...
                            {CatsHTMDir,'GALEX','DR6Plus7'},...
-                           {CatsHTMDir,'GLADE'},...
+                           {CatsHTMDir,'GLADE','v1'},...
+                           {CatsHTMDir,'GLADE','plus'},...
                            {CatsHTMDir,'GLIMPSE'},...
                            {CatsHTMDir,'HST','HSCv2'},...
                            {CatsHTMDir,'IPHAS','DR2'},...
                            {CatsHTMDir,'LAMOST','DR4'},...
+                           {CatsHTMDir,'MergedCat','V2'},...
                            {CatsHTMDir,'NED','20180502'},...
                            {CatsHTMDir,'NOAO'},...
                            {CatsHTMDir,'NVSS'},...
                            {CatsHTMDir,'PGC'},...
                            {CatsHTMDir,'PS1'},...
                            {CatsHTMDir,'PTFpc'},...
+                           {CatsHTMDir,'QSO','Flesch2021'},...
                            {CatsHTMDir,'ROSATfsc'},...
                            {CatsHTMDir,'SDSS','DR10'},...
                            {CatsHTMDir,'SDSS','DR14offset'},...
                            {CatsHTMDir,'Simbad_PM200'},...
                            {CatsHTMDir,'SkyMapper'},...
                            {CatsHTMDir,'SpecSDSS','DR14'},...
+                           {CatsHTMDir,'SpecSDSS','DR17'},...
                            {CatsHTMDir,'Spitzer','IRACgc'},...
                            {CatsHTMDir,'Spitzer','SAGE'},...
                            {CatsHTMDir,'SWIREz'},...
@@ -184,51 +282,49 @@ function doStartup()
                            {CatsHTMDir,'URAT1'},...
                            {CatsHTMDir,'VISTA'},...
                            {CatsHTMDir,'VISTA','Viking','DR2'},...
+                           {CatsHTMDir,'VLASS','ep1'},...
                            {CatsHTMDir,'VST','ATLAS','DR3'},...
                            {CatsHTMDir,'VST','KiDS','DR3'},...
+                           {CatsHTMDir,'WD','WDEDR3'},...
                            {CatsHTMDir,'WISE'},...
                            {CatsHTMDir,'XMM'},...
                            {CatsHTMDir,'ZTF','LCDR1'},...
                            {CatsHTMDir,'ZTF','SrcLCDR1'},...
-                           {CatsHTMDir,'ZTF','ztfDR1var'}};                     
-    end       
-    %----------------------------------------------------------------------
-    % Folders installed by Installer.install(), note that Installer.prep_cats()
-    % is automatically called when installing 'cats' (same as the older
-    % VO.prep.prep.data.dir() function)
-    InstallerDataDir = AstroPackDataPath;
-    DirList.InstallerData = {{InstallerDataDir},...
-                             {InstallerDataDir, 'spec'},...
-                             {InstallerDataDir, 'spec/SpecGalQSO/'},...
-                             {InstallerDataDir, 'spec/PicklesStellarSpec/'}};       
-    %----------------------------------------------------------------------
-    % add all DirList to path                 
-    FN  = fieldnames(DirList);
-    Nfn = numel(FN);    
-    PathCount = 0;   
-    if ~(ismcc || isdeployed)
-        warning off;
-    end    
-    if ~isdeployed        
-        for Ifn=1:1:Nfn
-            Tmp = DirList.(FN{Ifn});
-            Ndir = numel(Tmp);
-            for Idir=1:1:Ndir
-                FullPath = sprintf('%s%s%s%s%s%s%s',fullfile(Tmp{Idir}{:}));
-                addpath(FullPath);
-                PathCount = PathCount + 1;
-            end
-        end    
+                           {CatsHTMDir,'ZTF','ztfDR1var'}};
+end
+
+
+    
+%--- utility functions ---    
+
+function Str = cellElements2str(Cell, PreStr)
+    %
+    
+    if ~iscell(Cell)
+        Str = Cell;
+    else
+        N = numel(Cell);
+        Str = Cell{1};
+        for I=2:1:N
+            Str = sprintf('%s%s%s',Str,filesep,Cell{I});
+        end
+    end
+    if nargin>1
+        Str = sprintf('%s%s%s',PreStr,filesep,Str);
+    end
+end
+
+
+function EnvVar = getEnvOrUseDefult(EnVarName, DefaultVal)
+    %
+    EnvVar = getenv(EnVarName);
+    if isempty(EnvVar)
+        EnvVar = DefaultVal;
     end
     
-    fprintf('AstroPack doStartup() addpath count: %d\n', PathCount);    
-    if ~(ismcc || isdeployed)
-        warning on;
+    if isempty(EnvVar)
+        error('Can not find definition to %s - Either edit startup, or set up the environment variable with this name');
     end
-
-    % fprintf('AstroPack doStartup() cd: %s\n', AstroPackPath);
-    % cd(AstroPackPath);
-
-    fprintf('AstroPack doStartup() done: %s\n', mfilename('fullpath'));
-
+    
 end
+
