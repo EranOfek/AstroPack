@@ -34,6 +34,14 @@ function Result=searchExternalCatOrphans(Obj, Args)
     %                   A transient candidate should not have these 
     %                   FLAGS. Default is
     %                   {'Saturated','NaN','Negative','Spike','CR_DeltaHT','NearEdge','Overlap'}.
+    %            'RemoveFlagsSoft' - A cella array of FLAGS to remove, if
+    %                   they appear for a source with S/N<SoftSN.
+    %                   Default is {'HighRN','DarkHighVal','Hole'}
+    %            'SoftSN' - SoftSN is the S/N below to remove sources in
+    %                   which on of the RemoveFlagsSoft bits are on.
+    %                   Default is 8.
+    %            'ColSN' - The column name for the S/N to use for the
+    %                   SoftSN argument. Default is 'SN_3'.
     %
     % Output : - An AstroCatalog object with all the transient candidates.
     % Author : Eran Ofek (May 2023)
@@ -50,10 +58,15 @@ function Result=searchExternalCatOrphans(Obj, Args)
         
         Args.SrcBitMask            = [];
         Args.RemoveFlags           = {'Saturated','NaN','Negative','Spike','CR_DeltaHT','NearEdge','Overlap'};
+
+        Args.RemoveFlagsSoft       = {'HighRN','DarkHighVal','Hole'};
+        Args.SoftSN                = 8;
+        Args.ColSN                 = 'SN_3';
+
+        Args.RemoveCooNaN logical  = true;
         
     end
     
-    Ncol = numel(Args.ColExtra) + 3;
     
     if isa(Obj, 'AstroImage')
         BD = Obj(1).MaskData.Dict;
@@ -74,6 +87,7 @@ function Result=searchExternalCatOrphans(Obj, Args)
     Nobj = numel(Obj);
 
     Result   = AstroCatalog;
+    Ncol     = numel(Args.ColExtra) + 4;
     CandCat  = zeros(0, Ncol);
     
     for Iobj=1:1:Nobj
@@ -94,18 +108,35 @@ function Result=searchExternalCatOrphans(Obj, Args)
         % select sources with no bad flags
         FlagBad        = BD.findBit(ColFlags, Args.RemoveFlags, 'Method','any');
         
+        if Args.RemoveCooNaN
+            XY = Cat.getXY;
+            FlagBadCoo    = isnan(sum(XY,2));
+        else
+            FlagBadCoo    = false(size(FlagBad));
+        end
 
-        FlagCand       = ~FlagInCat & ~FlagBad;
+        if isempty(Args.RemoveFlagsSoft)
+            FlagBadSoft = false(size(FlagBad));
+        else
+            FlagBadSoft = BD.findBit(ColFlags, Args.RemoveFlagsSoft, 'Method','any');
+            ColSNsoft   = Cat.getCol(Args.ColSN);
+            FlagBadSoft = FlagBadSoft & (ColSNsoft < Args.SoftSN);
+        end
+
+        FlagCand       = ~FlagInCat & ~FlagBad & ~FlagBadCoo & ~FlagBadSoft;
+        Icand          = find(FlagCand);
         Ncand          = sum(FlagCand);
         
         % save candidates to table:
-        % [ColExtra, ColFLAGS, ColMergedMask, Iobj]
-        CandCat = [CandCat; [ColExtra(FlagCand,:), ColFLAGS(FlagCand), ColMergedCat(FlagCand), Iobj+ones(Ncand,1)]];
+        % [ColExtra, ColFLAGS, ColMergedMask, Iobj, Icand]
+        CandCat = [CandCat; [ColExtra(Icand,:), ColFlags(Icand), ColMergedCat(Icand), Iobj+zeros(Ncand,1), Icand]];
         
+        %BD.bitdec2name(ColFlags(Icand))
+
     end
 
     Result = AstroCatalog;
     Result.Catalog  = CandCat;
-    Result.ColNames = [Args.ColExtra, Args.ColFLAGS, Args.ColMergedCatMask, 'Iobj'];
+    Result.ColNames = [Args.ColExtra, Args.ColFLAGS, Args.ColMergedCatMask, 'Iobj', 'Icand'];
 
 end

@@ -1273,6 +1273,8 @@ classdef DemonLAST < Component
                                                                        'BasePath', BasePath,...
                                                                        'SaveAll',false);
     
+                            CoaddTransienst = imProc.cat.searchExternalCatOrphans(Coadd);
+
                             % save data products
                             FN_I = FN_Sci_Groups(Igroup).reorderEntries(1, 'CreateNewObj',true);
         
