@@ -120,7 +120,6 @@ classdef AstroImage < Component
         Mask
         Header  % e.g., Header, Header('EXPTIME'), Header({'EXPTIME','IMTYPE'}), Header('IMTYPE',{additional args to keyVal})
         Key
-        Cat     % e.g., Cat, Cat([1 3]), Cat('RA'), Cat({'RA','Dec'})
         PSF
         %WCS
     end
@@ -128,6 +127,8 @@ classdef AstroImage < Component
     properties (SetAccess = public)
         % Data
         %ImageData(1,1) NoisyImage
+        
+        Table     = [];
         
         ImageData(1,1) SciImage              %= SciImage;
         BackData(1,1) BackImage              %= BackImage;
@@ -684,6 +685,19 @@ classdef AstroImage < Component
             Obj.ImageData.Image = Data;
         end
         
+        function Data = get.Table(Obj)
+            % Get Catdata.Catalog in table format
+            % To update set it to []
+           
+            if isempty(Obj.Table)
+                Data = array2table(Obj.CatData.Catalog);
+                Data.Properties.VariableNames = Obj.CatData.ColNames;
+                Obj.Table = Data;
+            else
+                Data = Obj.Table;
+            end
+        end
+        
         function Data = get.Image(Obj)
             % getter for Image - get image from ImageData property
             Data = Obj.ImageData.Image;
@@ -746,6 +760,8 @@ classdef AstroImage < Component
             Data = Obj.PSFData.DataPSF;
             
         end
+        
+       
     end
     
     methods (Static)  % static methods
