@@ -30,32 +30,33 @@ function Mosaic = mosaic(Args)
     
     % read the input images
     
-    tic
-    
-    cprintf('hyper','%s\n','Reading input images..');
+            cprintf('hyper','%s\n','Mosaicking started'); tic
+            fprintf('Reading input images.. ');
 
     cd(Args.DataDir);
-    FN=FileNames.generateFromFileName( Args.InputImages );
-    AI=AstroImage.readFileNames(FN);  
+    FN = FileNames.generateFromFileName( Args.InputImages );
+    AI = AstroImage.readFileNames( FN) ;  
     
     NImage = size(AI,2);                % determine the number of images to be merged
     
-%     RA1  = zeros(1,NImage);  RA2 = zeros(1,NImage); 
-%     DEC1 = zeros(1,NImage); DEC2 = zeros(1,NImage); 
+            fprintf('%d%s\n',NImage,' images loaded');
+    
+%     RA11  = zeros(1,NImage);  RA22 = RA11; RA12 = RA11; RA21 = RA11; 
+%     DEC11 = zeros(1,NImage); DEC22 = DEC11; DEC12 = DEC11; DEC21 = DEC11; 
 
     Exptime = zeros(NImage,1);
     Corn    = zeros(NImage,4,2);    Cent    = zeros(NImage,2);
     Xsize   = zeros(NImage,1);      Ysize   = zeros(NImage,1);
 
-    % test output: why is the resulting FITS image so weird?
-    
-    AI(10).write1('!./testoutput0.fits');
-    
-    TestOutputImage = double ( AI(10).ImageData.Image ); % does not help..
-    imUtil.util.fits.fitswrite(TestOutputImage,'!./testoutput1.fits');    
-    
-    % read in the borders of the input images and their exposure times, 
-    % crop the the input images so that border effects are eliminated
+            % test output: why is the resulting FITS image so weird in the first case?
+        
+%             TestOutputImage = double ( AI(1).ImageData.Image ); % double does not help..
+%             imUtil.util.fits.fitswrite(TestOutputImage,'!./testoutput1.fits');    
+
+            AI(1).write1('!./testoutput0.fits'); % this works fine
+            
+    % determine the borders of the input images and read their exposure times, 
+    % crop the input images so that border effects are eliminated
         
     for Img = 1:1:NImage
         
@@ -64,7 +65,7 @@ function Mosaic = mosaic(Args)
         Position     = strcmp(AI(Img).Header,'EXPTIME');            % extract a header
         Exptime(Img) = AI(Img).Header{Position,2};                  % get the value
         
-        % find the image sizes:
+        % determine the image sizes and find their corners:
                 
         Xsize(Img) = size(AI(Img).Image,1);
         Ysize(Img) = size(AI(Img).Image,2);
@@ -81,7 +82,7 @@ function Mosaic = mosaic(Args)
         Ysize(Img) = size(AI(Img).Image,2);
               
         % AI.cooImage gets data from the header and not from the
-        % WCS with AI.WCS.xy2sky: is it exactly the same?
+        % WCS with AI.WCS.xy2sky: is it exactly the same in all the cases?
         
 %         [RA11(Img), DEC11(Img)]  = AI(Img).WCS.xy2sky(1,1);
 %         [RA22(Img), DEC22(Img)]  = AI(Img).WCS.xy2sky(Xsize,Ysize);
@@ -90,39 +91,39 @@ function Mosaic = mosaic(Args)
         
     end
     
-    % test output: the resulting FITS image is still very weird?
-    
-    AI(10).write1('!./testoutput0_cropped.fits');
-    
-    imUtil.util.fits.fitswrite(AI(10).ImageData.Image,'!./testoutput1_cropped.fits');       
-    
+            % test output: the resulting FITS image is still very weird in the first case?
+            
+%             imUtil.util.fits.fitswrite(AI(1).ImageData.Image,'!./testoutput1_cropped.fits');       
+
+            AI(1).write1('!./testoutput0_cropped.fits');
+            
     % determine the sky size of the mosaic 
     
-%     RA1m  = min([RA11 RA22  RA21  RA12]);  RA2m  = max([RA11 RA22  RA21  RA12]);
-%     DEC1m = min([DEC1 DEC2 DEC21 DEC12]);  DEC2m = max([DEC1 DEC2 DEC21 DEC12]);
+%     RA1m  = min([RA11 RA22  RA21  RA12]);    RA2m  = max([RA11 RA22  RA21  RA12]);
+%     DEC1m = min([DEC11 DEC22 DEC21 DEC12]);  DEC2m = max([DEC11 DEC22 DEC21 DEC12]);
     
     RA1m  = min(Corn(:,:,1),[],'all');  RA2m = max(Corn(:,:,1),[],'all');
     DEC1m = min(Corn(:,:,2),[],'all'); DEC2m = max(Corn(:,:,2),[],'all');
     
     RAcenter = (RA2m + RA1m)/2; DECcenter = (DEC2m + DEC1m)/2; 
 
-    % plot the sky regions of the input images and the reference points 
-    
-    figure(1); hold on
-    
-    for Img = 1:1:NImage    
-        plot([Corn(Img,1,1) Corn(Img,2,1) Corn(Img,3,1) Corn(Img,4,1) Corn(Img,1,1)], ...
-             [Corn(Img,1,2) Corn(Img,2,2) Corn(Img,3,2) Corn(Img,4,2) Corn(Img,1,2)]);
-        text(Cent(Img,1),Cent(Img,2), num2str(Img) );
-    end
-    
-    plot(RAcenter,DECcenter,'rd','MarkerSize',10);
-    plot([RA1m  RA2m  RA2m  RA1m  RA1m], ...
-         [DEC1m DEC1m DEC2m DEC2m DEC1m], 'LineWidth',2,'Color',[.6 0 0]);
-    xlabel RA; ylabel DEC;
-    hold off    
-    
-    % determine the pixel size of the mosaic
+            % plot the sky regions of the input images and the reference points 
+
+            figure(1); hold on
+
+            for Img = 1:1:NImage    
+                plot([Corn(Img,1,1) Corn(Img,2,1) Corn(Img,3,1) Corn(Img,4,1) Corn(Img,1,1)], ...
+                     [Corn(Img,1,2) Corn(Img,2,2) Corn(Img,3,2) Corn(Img,4,2) Corn(Img,1,2)]);
+                text(Cent(Img,1),Cent(Img,2), num2str(Img) );
+            end
+
+            plot(RAcenter,DECcenter,'rd','MarkerSize',10);
+            plot([RA1m  RA2m  RA2m  RA1m  RA1m], ...
+                 [DEC1m DEC1m DEC2m DEC2m DEC1m], 'LineWidth',2,'Color',[.6 0 0]);
+            xlabel RA; ylabel DEC;
+            hold off    
+
+    % determine the sky and pixel size of the mosaic
     
     SizeRA  = RAD * celestial.coo.sphere_dist(RA1m    , DECcenter, RA2m,     DECcenter,'deg');
     SizeDEC = RAD * celestial.coo.sphere_dist(RAcenter, DEC1m,     RAcenter, DEC2m,    'deg');
@@ -130,11 +131,12 @@ function Mosaic = mosaic(Args)
     NPix1 = ceil( SizeRA  / PixScale );    
     NPix2 = ceil( SizeDEC / PixScale );    
     
-    cprintf('hyper','%s%4.0f%s%4.0f%s\n','The mosaic size is ',NPix1,' x ',NPix2,' pixels');
+            cprintf('hyper','%s%4.0f%s%4.0f%s\n','The mosaic size is ',NPix1,' x ',NPix2,' pixels');
     
-    % 
-    ImageM = zeros(NPix1, NPix2);        % the count number
-    ExposM = Tiny * ones(NPix1, NPix2);  % the exposure map (will appear in the denominator)
+    % make arrays for the mosaic count map and exposure map 
+    
+    ImageM = zeros(NPix1, NPix2);        % the counts map
+    ExposM = Tiny * ones(NPix1, NPix2);  % the exposure map (will appear in the denominator, thus use Tiny values)
     
     AIm = AstroImage({ImageM});
     
@@ -156,70 +158,123 @@ function Mosaic = mosaic(Args)
     AIm.WCS.DeltaP    = DECcenter;
     AIm.WCS.PhiP      = 180; 
     
-    % a check: convert the pixel coordinates to sky coordinates:
+%                 % a check: convert the pixel coordinates to sky coordinates:
+% 
+%                 [RA,DEC] = AIm.WCS.xy2sky(1,        1)
+%                 [RA,DEC] = AIm.WCS.xy2sky(1,    NPix2)
+%                 [RA,DEC] = AIm.WCS.xy2sky(NPix1,NPix2)
+%                 [RA,DEC] = AIm.WCS.xy2sky(NPix1,    1)
+
+    % trying to warp the input images according to the new WCS frame: 
+    % whole NaN images appear in AI2 for any sampling?
     
-%     [RA,DEC] = AIm.WCS.xy2sky(1,        1)
-%     [RA,DEC] = AIm.WCS.xy2sky(1,    NPix2)
-%     [RA,DEC] = AIm.WCS.xy2sky(NPix1,NPix2)
-%     [RA,DEC] = AIm.WCS.xy2sky(NPix1,    1)
-    
-%     AI2 = imProc.transIm.imwarp(AI,AIm.WCS,'Sampling',1); % produces whole NaN images for any sampling?
-%     AI2 = imProc.transIm.imwarp(AI(1),AIm.WCS,'Sampling',1); % produces whole NaN images for any sampling?
-    
+%     AI2 = imProc.transIm.imwarp(AI,AIm.WCS,'Sampling',1); 
+%     AI2 = imProc.transIm.imwarp(AI(1),AIm.WCS,'Sampling',1); 
+
+    % interp2 or griddedinterpolant would not work because we do not have
+    % a regular grid in RAimg DECimg (interpolation requires a monotonic
+    % and pleid grid)
+
+    % simply remap each of the pixels
+
     for Img = 1:1:NImage
         
-        fprintf('%s%4.0d%s%4.0d\n','Processing tile ',Img,' out of ',NImage);
+                fprintf('%s%4.0d%s%4.0d\n','Processing tile ',Img,' out of ',NImage);
+        
+        SubImage = AI(Img).ImageData.Image;
         
         % get a grid of RA, DEC of a subimage and convert them to X, Y of the merged image
         
-        [Ximg, Yimg]    = meshgrid( 1:Xsize(Img), 1:Ysize(Img) );  % a grid of subimage pixels
+        [Ximg, Yimg]    = meshgrid( 1:Ysize(Img), 1:Xsize(Img) );  % a grid of subimage pixels !NOTE: Ximg is of Ysize!
         [RAimg, DECimg] = AI(Img).WCS.xy2sky(Ximg, Yimg);          % RA, DEC of subimage pixels
-        [X, Y]      = AIm.WCS.sky2xy(RAimg, DECimg);               % mosaic pixel coordinates corresponding to the subimage pixels
+        [X, Y]          = AIm.WCS.sky2xy(RAimg, DECimg);           % mosaic pixel coordinates corresponding to the subimage pixels
         
-%             % make a displacement matrix: (how could we use it?)
+%             % here we can make a displacement matrix, but how should we use it?
 %             Disp(:,:,1) = Ximg-X;
 %             Disp(:,:,2) = Yimg-Y;
-    
-        X = round(X); Y = round(Y); % the pixel coordinates from sky2xy are not whole numbers: should we redistribute this counts?
-        
-        SubImage = AI(Img).ImageData.Image;
 
-        for iX = 1:1:Xsize(Img)  -1  % why -1?
-            for iY = 1:1:Ysize(Img)
-                ImageM ( X(iX,iY), Y(iX,iY) ) = ImageM ( X(iX,iY), Y(iX,iY) ) + SubImage (iX, iY);
-                ExposM ( X(iX,iY), Y(iX,iY) ) = ExposM ( X(iX,iY), Y(iX,iY) ) + Exptime(Img);
+
+%         X = round(X); Y = round(Y);         % the pixel coordinates from sky2xy are not whole numbers: how should we redistribute this counts?
+% 
+%         for iX = 1:1:Xsize(Img)   
+%             for iY = 1:1:Ysize(Img)  
+%                                
+%                 ImageM ( X(iX,iY), Y(iX,iY) ) = ImageM ( X(iX,iY), Y(iX,iY) ) + SubImage (iX, iY);  % add counts from the subimage to the mosaic
+%                 ExposM ( X(iX,iY), Y(iX,iY) ) = ExposM ( X(iX,iY), Y(iX,iY) ) + Exptime(Img);       % add exposure of a subimage to the mosaic
+%                 
+%             end
+%         end
+
+
+        X0 = floor(X);   Y0 = floor(Y);    
+        X1 = X-X0;       Y1 = Y-Y0;    X1Y1 = X1 .* Y1;       
+
+        for iX = 1:1:Xsize(Img)   
+            for iY = 1:1:Ysize(Img)  
+
+                S = SubImage (iX, iY);
+                
+                X11 = X0(iX,iY); Y11 = Y0(iX,iY);
+                
+                ImageM ( X11  , Y11 )   = ImageM ( X11  , Y11 )   + S * ( 1 - X1(iX,iY) ) * (1 - Y1(iX,iY) );
+                ImageM ( X11+1, Y11+1 ) = ImageM ( X11+1, Y11+1 ) + S * X1Y1(iX,iY); 
+                ImageM ( X11+1, Y11 )   = ImageM ( X11+1, Y11 )   + S * X1(iX,iY) * (1 - Y1(iX,iY) );
+                ImageM ( X11  , Y11+1 ) = ImageM ( X11  , Y11+1 ) + S * ( 1 - X1(iX,iY) ) * Y1(iX,iY); 
+                
+                ExposM ( X11  , Y11 )   = ExposM ( X11, Y11 )     + Exptime(Img) * ( 1 - X1(iX,iY) ) * (1 - Y1(iX,iY) );      
+                ExposM ( X11+1, Y11+1 ) = ExposM ( X11+1, Y11+1 ) + Exptime(Img) * X1Y1(iX,iY); 
+                ExposM ( X11+1, Y11 )   = ExposM ( X11+1, Y11 )   + Exptime(Img) * X1(iX,iY) * (1 - Y1(iX,iY) );
+                ExposM ( X11  , Y11+1 ) = ExposM ( X11  , Y11+1 ) + Exptime(Img) * ( 1 - X1(iX,iY) ) * Y1(iX,iY); 
+                
             end
         end
-
+        
     end
+    
+    % flux conservation check
+    
+    FluxM   = sum(ImageM,'all');
+    for Img = 1:1:NImage; FluxAI(Img) = sum ( AI(Img).Image,'all'); end
+    Cons    = abs( 1- FluxM / sum(FluxAI,'all') );
+    fprintf('%s%6.3d\n','Total flux conservation: ',Cons);
     
     % make a CPS image 
     
     CPS = ImageM ./ ExposM;
     
-    figure(2)
+%             % illustartive plots of the counts, exposure, and CPS
+% 
+%             figure(2)
+% 
+%             subplot(1,2,1); imagesc(ImageM);
+%             subplot(1,2,2); imagesc(ExposM);
+% 
+%             figure(3)
+% 
+%             imagesc(CPS);
     
-    subplot(1,2,1); imagesc(ImageM);
-    subplot(1,2,2); imagesc(ExposM);
-    
-    figure(3)
-    
-    imagesc(CPS);
-    
-    % test output: the resulting FITS image is still very weird? 
+    % test output
     
     AICPS = AstroImage({CPS'});
     AICPS.WCS = AIm.WCS;
     AH = AICPS.WCS.wcs2header;       % make a header from the WCS
     AICPS.HeaderData.Data = AH.Data; % add the header data to the AstroImage
+    CPSOutputName = '!./CPS_Obs1.fits';
+    AICPS.write1(CPSOutputName); % write the fits image with the WCS data in the header
     
-    AICPS.write1('!./testCPS.fits');
+%     % the resulting FITS image is still very weird? 
+%     imUtil.util.fits.fitswrite(CPS','!./testoutput_CPS.fits');   
     
-    imUtil.util.fits.fitswrite(CPS','!./testoutput_CPS.fits');   
+    cprintf('hyper','Mosaic constructed \n');
     
     toc
     
-    fprintf('Mosaic constructed');
+end
+
+
+
+
+
 
 %     % make a grid of RA, DEC on the merged image
 % 
@@ -358,5 +413,3 @@ function Mosaic = mosaic(Args)
 %                             
 %     end
 %     
-    
-end
