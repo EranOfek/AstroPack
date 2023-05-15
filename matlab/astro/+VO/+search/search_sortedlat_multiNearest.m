@@ -62,8 +62,7 @@ else
     Inear = tools.find.mfind_bin(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]);
 end
 
-
-% Inear(Ilat) is a two column matrix [low, high] index for each latitud
+% Inear(Ilat) is a two column matrix [low, high] index for each latitude
 % search
 Ilowhigh = double(Inear(Ilat));
 Ilow     = Ilowhigh(:,1);

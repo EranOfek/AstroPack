@@ -47,7 +47,7 @@ arguments
     Radius
     FlagUnique                   = [];
     DistFun function_handle      = @celestial.coo.sphere_dist_fast;
-    Args.UseMex logical          = true;
+    Args.UseMex logical          = false;
 end
 
 if Radius<0

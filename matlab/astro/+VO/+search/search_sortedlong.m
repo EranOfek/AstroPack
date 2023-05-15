@@ -25,7 +25,7 @@ arguments
     Long
     Lat
     Radius
-    Args.UseMex logical = true;
+    Args.UseMex logical = false;
 end
 
 Col.Lon = 1;
