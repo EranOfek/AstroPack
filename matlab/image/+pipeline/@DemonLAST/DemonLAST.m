@@ -1273,6 +1273,7 @@ classdef DemonLAST < Component
                                                                        'BasePath', BasePath,...
                                                                        'SaveAll',false);
     
+                            
                             CoaddTransienst = imProc.cat.searchExternalCatOrphans(Coadd);
 
                             % save data products
@@ -1307,6 +1308,16 @@ classdef DemonLAST < Component
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
                             Obj.writeLog(Status, LogLevel.Info);
+
+
+                            % save CoaddTransienst
+                            if CoaddTransienst.sizeCatalog>0
+                                [~,~,Status]=imProc.io.writeProduct(CoaddTransienst, FN_I, 'Product',{'TransientsCat'}, 'WriteHeader',[false],...
+                                                       'Level','merged',...
+                                                       'LevelPath','proc',...
+                                                       'SubDir',FN_Proc.SubDir);
+                                Obj.writeLog(Status, LogLevel.Info);
+                            end
 
                             % Write images and catalogs to DB
     

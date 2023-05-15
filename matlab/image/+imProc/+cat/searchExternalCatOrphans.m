@@ -63,6 +63,9 @@ function Result=searchExternalCatOrphans(Obj, Args)
         Args.SoftSN                = 8;
         Args.ColSN                 = 'SN_3';
 
+        Args.ColSN_delta           = {'SN_1','SN_3'};
+        Args.SN_delta              = 1;
+
         Args.RemoveCooNaN logical  = true;
         
     end
@@ -94,9 +97,11 @@ function Result=searchExternalCatOrphans(Obj, Args)
 
         if isa(Obj, 'AstroImage')
             Cat = Obj(Iobj).CatData;
+            JD  = Obj(Iobj).julday;
         else
             % AstroCatalog | AstroTable
             Cat = Obj(Iobj);
+            JD  = Cat.JD;
         end
 
         ColFlags       = Cat.getCol(Args.ColFLAGS);
@@ -123,13 +128,26 @@ function Result=searchExternalCatOrphans(Obj, Args)
             FlagBadSoft = FlagBadSoft & (ColSNsoft < Args.SoftSN);
         end
 
-        FlagCand       = ~FlagInCat & ~FlagBad & ~FlagBadCoo & ~FlagBadSoft;
+        if isempty(Args.ColSN_delta)
+            FlagSNdBad     = false(size(FlagBad));
+        else
+            SNd            = Cat.getCol(Args.ColSN_delta);
+            SNd            = SNd(:,1) - SNd(:,2);
+            FlagSNdBad     = SNd<Args.SN_delta;
+        end
+
+        FlagCand       = ~FlagInCat & ~FlagBad & ~FlagBadCoo & ~FlagBadSoft & ~FlagSNdBad;
         Icand          = find(FlagCand);
         Ncand          = sum(FlagCand);
         
         % save candidates to table:
         % [ColExtra, ColFLAGS, ColMergedMask, Iobj, Icand]
-        CandCat = [CandCat; [ColExtra(Icand,:), ColFlags(Icand), ColMergedCat(Icand), Iobj+zeros(Ncand,1), Icand]];
+        if Ncand==0
+            VecIobj = zeros(0,1);
+        else
+            VecIobj = repmat(Iobj,[Ncand, 1]);
+        end
+        CandCat = [CandCat; [ColExtra(Icand,:), ColFlags(Icand), ColMergedCat(Icand), VecIobj, Icand]];
         
         %BD.bitdec2name(ColFlags(Icand))
 
@@ -138,5 +156,8 @@ function Result=searchExternalCatOrphans(Obj, Args)
     Result = AstroCatalog;
     Result.Catalog  = CandCat;
     Result.ColNames = [Args.ColExtra, Args.ColFLAGS, Args.ColMergedCatMask, 'Iobj', 'Icand'];
+
+    % Add JD:
+    Result.JD = JD;
 
 end
