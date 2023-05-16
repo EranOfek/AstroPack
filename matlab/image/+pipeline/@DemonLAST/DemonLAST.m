@@ -1128,14 +1128,14 @@ classdef DemonLAST < Component
             if ismember('bias',lower(Args.ReadProduct))
                 FN_Bias = FileNames.generateFromFileName(Args.BiasTemplate);
                 [~,~,~,FN_Bias] = FN_Bias.selectLastJD;
-                Obj.CI.Bias = AstroImage.readFileNames(FN_Bias, 'AddProduct',Args.AddImages);
+                Obj.CI.Bias = AstroImage.readFileNamesObj(FN_Bias, 'AddProduct',Args.AddImages);
             end
 
             % read latest flat image
             if ismember('flat',lower(Args.ReadProduct))
                 FN_Flat = FileNames.generateFromFileName(Args.FlatTemplate);
                 [~,~,~,FN_Flat] = FN_Flat.selectLastJD;
-                Obj.CI.Flat = AstroImage.readFileNames(FN_Flat, 'AddProduct',Args.AddImages);
+                Obj.CI.Flat = AstroImage.readFileNamesObj(FN_Flat, 'AddProduct',Args.AddImages);
             end
 
             % Read linearity file
@@ -1168,6 +1168,9 @@ classdef DemonLAST < Component
                 Args.AbortFileName = '~/abortPipe';
                 Args.multiRaw2procCoaddArgs = {};
 
+                Args.StartJD       = -Inf;    % refers onlt to Science observations: JD, or [D M Y]
+                Args.EndJD         = Inf;
+
                 Args.DeleteSciDayTime logical = false;
                 Args.DeleteSunAlt  = 0;
 
@@ -1190,7 +1193,15 @@ classdef DemonLAST < Component
             PWD = pwd;
             cd(NewPath);
 
-            
+            if numel(Args.StartJD)>1
+                Args.StartJD = celestial.time.julday(Args.StartJD);
+            end
+            if numel(Args.EndJD)>1
+                Args.EndJD = celestial.time.julday(Args.EndJD);
+            end
+
+
+
             GUI_Text = sprintf('Abort : Pipeline');
             [StopGUI, Hstop]  = tools.gui.stopButton('Msg',GUI_Text);
     
@@ -1221,6 +1232,12 @@ classdef DemonLAST < Component
                 [FN_Sci] = selectBy(FN_Sci, 'Product', 'Image', 'CreateNewObj',false);
                 [FN_Sci] = selectBy(FN_Sci, 'Type', {'sci','science'}, 'CreateNewObj',false);
                 [FN_Sci] = selectBy(FN_Sci, 'Level', 'raw', 'CreateNewObj',false);
+
+                % select observations by date
+                FN_JD  = FN_Sci.julday;
+                FlagJD = FN_JD>Args.StartJD & FN_JD<Args.EndJD;
+                FN_Sci = reorderEntries(FN_Sci, FlagJD);
+
                 [~, FN_Sci_Groups] = FN_Sci.groupByCounter('MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
                 FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
                 Ngroup = numel(FN_Sci_Groups);
@@ -1273,6 +1290,9 @@ classdef DemonLAST < Component
                                                                        'BasePath', BasePath,...
                                                                        'SaveAll',false);
     
+                            
+                            CoaddTransienst = imProc.cat.searchExternalCatOrphans(Coadd);
+
                             % save data products
                             FN_I = FN_Sci_Groups(Igroup).reorderEntries(1, 'CreateNewObj',true);
         
@@ -1305,6 +1325,16 @@ classdef DemonLAST < Component
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
                             Obj.writeLog(Status, LogLevel.Info);
+
+
+                            % save CoaddTransienst
+                            if CoaddTransienst.sizeCatalog>0
+                                [~,~,Status]=imProc.io.writeProduct(CoaddTransienst, FN_I, 'Product',{'TransientsCat'}, 'WriteHeader',[false],...
+                                                       'Level','merged',...
+                                                       'LevelPath','proc',...
+                                                       'SubDir',FN_Proc.SubDir);
+                                Obj.writeLog(Status, LogLevel.Info);
+                            end
 
                             % Write images and catalogs to DB
     

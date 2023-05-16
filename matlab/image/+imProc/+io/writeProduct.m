@@ -188,7 +188,8 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                 end
             case 'AstroCatalog'
                 % AstroCatalog input
-                OutFileNames = FN.genFull('Product','Cat', 'LevelPath',Args.LevelPath);
+                %OutFileNames = FN.genFull('Product','Cat', 'LevelPath',Args.LevelPath);
+                OutFileNames = FN.genFull('Product',Args.Product{1}, 'LevelPath',Args.LevelPath);
                 for Iobj=1:1:Nobj
                     if ~isempty(Obj(Iobj).ColNames) || Args.WriteEmpty
                         Obj(Iobj).write1(OutFileNames{Iobj},...

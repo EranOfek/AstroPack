@@ -120,7 +120,6 @@ classdef AstroImage < Component
         Mask
         Header  % e.g., Header, Header('EXPTIME'), Header({'EXPTIME','IMTYPE'}), Header('IMTYPE',{additional args to keyVal})
         Key
-        Cat     % e.g., Cat, Cat([1 3]), Cat('RA'), Cat({'RA','Dec'})
         PSF
         %WCS
     end
@@ -128,6 +127,8 @@ classdef AstroImage < Component
     properties (SetAccess = public)
         % Data
         %ImageData(1,1) NoisyImage
+        
+        Table     = [];
         
         ImageData(1,1) SciImage              %= SciImage;
         BackData(1,1) BackImage              %= BackImage;
@@ -349,6 +350,7 @@ classdef AstroImage < Component
     end
 
     methods (Static) % utilities
+        
         function Obj = imageIO2AstroImage(ImIO, DataProp, Scale, FileNames, CopyHeader, Obj)
             % Convert an ImageIO object into an AstroImage object
             % Input  : - An ImageIO object.
@@ -622,12 +624,13 @@ classdef AstroImage < Component
             end
         end
         
-        function Result = readFileNames(ObjFN, Args)
+        function Result = readFileNamesObj(ObjFN, Args)
             % Read images contained in a FileNames object into an AstroImage object.
             %   Optionally read not only the image but also additional
             %   products (e.g., 'Cat','PSF').
-            % Input  : - A FileNames object from which file names can be
-            %            generated.
+            % Input  : - A single element FileNames object from which file names can be
+            %            generated, or a file name with optional wild cards,
+            %            or a cell array of file names.
             %          * ...,key,val,...
             %            'Path' - A path for the files. If given then will
             %                   override the genPath method.
@@ -645,7 +648,7 @@ classdef AstroImage < Component
             % Example: 
             
             arguments
-                ObjFN(1,1) FileNames
+                ObjFN
                 Args.Path                     = [];
                 Args.MainProduct char         = 'Image';
                 Args.AddProduct               = {'Mask','Cat'};        
@@ -656,8 +659,15 @@ classdef AstroImage < Component
                 Args.AddProduct = {Args.AddProduct};
             end
             
+            if isa(ObjFN, 'FileNames')
+                % already a FileNames object
+            else
+                ObjFN = FileNames.generateFromFileName(ObjFN);
+            end
+
+
             FilesList = ObjFN.genFull('Product',Args.MainProduct, 'FullPath',Args.Path);
-            
+        
             Nprod  = numel(Args.AddProduct);
             if Nprod==0
                 AI_Args = {};
@@ -672,7 +682,6 @@ classdef AstroImage < Component
             if Args.PopulateWCS
                 Result = populateWCS(Result);
             end
-            
         end
     end
 
@@ -682,6 +691,19 @@ classdef AstroImage < Component
             % setter for Image - store image in ImageData property
             %Obj.(Relations.Image).Image = Data;  % can use this instead
             Obj.ImageData.Image = Data;
+        end
+        
+        function Data = get.Table(Obj)
+            % Get Catdata.Catalog in table format
+            % To update set it to []
+           
+            if isempty(Obj.Table)
+                Data = array2table(Obj.CatData.Catalog);
+                Data.Properties.VariableNames = Obj.CatData.ColNames;
+                Obj.Table = Data;
+            else
+                Data = Obj.Table;
+            end
         end
         
         function Data = get.Image(Obj)
@@ -746,6 +768,8 @@ classdef AstroImage < Component
             Data = Obj.PSFData.DataPSF;
             
         end
+        
+       
     end
     
     methods (Static)  % static methods

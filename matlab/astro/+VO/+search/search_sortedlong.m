@@ -25,7 +25,7 @@ arguments
     Long
     Lat
     Radius
-    Args.UseMex logical = true;
+    Args.UseMex logical = false;
 end
 
 Col.Lon = 1;
@@ -55,8 +55,8 @@ else
         MinLong2 = MinLong;
         MaxLong2 = 2.*pi;
         if Args.UseMex
-            Inear1 = binarySearch(Cat(:,Col.Lon),[MinLong1, MaxLong1]);
-            Inear2 = binarySearch(Cat(:,Col.Lon),[MinLong2, MaxLong2]);
+            Inear1 = uint32(binarySearch(Cat(:,Col.Lon),[MinLong1, MaxLong1]));
+            Inear2 = uint32(binarySearch(Cat(:,Col.Lon),[MinLong2, MaxLong2]));
         else
             Inear1 = tools.find.mfind_bin(Cat(:,Col.Lon),[MinLong1, MaxLong1]);
             Inear2 = tools.find.mfind_bin(Cat(:,Col.Lon),[MinLong2, MaxLong2]);
@@ -76,8 +76,8 @@ else
         MinLong2 = mod(MinLong,2.*pi);
         MaxLong2 = 2.*pi;
         if Args.UseMex
-            Inear1 = binarySearch(Cat(:,Col.Lon),[MinLong1, MaxLong1]);
-            Inear2 = binarySearch(Cat(:,Col.Lon),[MinLong2, MaxLong2]);
+            Inear1 = uint32(binarySearch(Cat(:,Col.Lon),[MinLong1, MaxLong1]));
+            Inear2 = uint32(binarySearch(Cat(:,Col.Lon),[MinLong2, MaxLong2]));
         else
             Inear1 = tools.find.mfind_bin(Cat(:,Col.Lon),[MinLong1, MaxLong1]);
             Inear2 = tools.find.mfind_bin(Cat(:,Col.Lon),[MinLong2, MaxLong2]);
@@ -92,7 +92,7 @@ else
         
     else
         if Args.UseMex
-            Inear = binarySearch(Cat(:,Col.Lon),[MinLong, MaxLong]);
+            Inear = uint32(binarySearch(Cat(:,Col.Lon),[MinLong, MaxLong]));
         else
             Inear = tools.find.mfind_bin(Cat(:,Col.Lon),[MinLong, MaxLong]);
         end

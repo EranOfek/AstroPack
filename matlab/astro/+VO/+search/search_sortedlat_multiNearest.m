@@ -40,7 +40,7 @@ arguments
     Radius
     DistFun function_handle      = @celestial.coo.sphere_dist_fast;
     DistFunArgs cell             = {};
-    Args.UseMex logical          = true;
+    Args.UseMex logical          = false;
 end
 
 
@@ -57,13 +57,12 @@ Ilat  = [(1:1:Nlat).', (1:1:Nlat).'+Nlat];
 
 Ncat  = size(Cat,1);
 if Args.UseMex
-    Inear = binarySearch(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]);
+    Inear = uint32(binarySearch(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]));
 else
     Inear = tools.find.mfind_bin(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]);
 end
 
-
-% Inear(Ilat) is a two column matrix [low, high] index for each latitud
+% Inear(Ilat) is a two column matrix [low, high] index for each latitude
 % search
 Ilowhigh = double(Inear(Ilat));
 Ilow     = Ilowhigh(:,1);

@@ -47,7 +47,7 @@ arguments
     Radius
     FlagUnique                   = [];
     DistFun function_handle      = @celestial.coo.sphere_dist_fast;
-    Args.UseMex logical          = true;
+    Args.UseMex logical          = false;
 end
 
 if Radius<0
@@ -74,7 +74,7 @@ Ilat  = [(1:1:Nlat).', (1:1:Nlat).'+Nlat];
 
 Ncat  = size(Cat,1);
 if Args.UseMex
-    Inear = binarySearch(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]);
+    Inear = uint32(binarySearch(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]));
 else
     Inear = tools.find.mfind_bin(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]);
 end
