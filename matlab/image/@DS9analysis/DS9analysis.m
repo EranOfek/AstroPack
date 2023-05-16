@@ -18,12 +18,12 @@
 classdef DS9analysis < handle
 
     properties
-        Current           % AstroImage | if Index, then load image number Ind from Images / per frame
+        Current           = 1; % Index or 'prev'/...
         Images            % AstroImage | FileNames | cell
 
 
     end
-    
+
     % A static class
     
     
@@ -40,42 +40,54 @@ classdef DS9analysis < handle
     methods % setters/getters
         function set.Current(Obj, Input)
             % setter for Current
-            % Input  : - 
-
-            if isa(Input, 'AstroImage')
+            % Input  : - self.
+            %          - One of the following:
+            %            A vector of indices of elements in the Images
+            %               property to load to the Current property.
+            %            'prev'|'next'|'first'|'last' - In the current frame
+            %               load previous/... image from Images.
+           
+            if isnumeric(Input)
                 % do nothing
-                Obj.Current = Input;
-                
-            elseif isnumeric(Input)
-                % Vector of indeces (index per frame), with NaNs for no change
-                Nframe = numel(Input);
-                for Iframe=1:1:Nframe
-                    if isnan(Input(Iframe))
-                        % do not change AstroImage content
-                    else
-                        if Iframe>numel(Obj.Images)
-                            error('Number of indeces (%d) must corresponds to the numer of el;ements in Images (%d)',Nframe,numel(Obj.Images));
-                        end
-                        Obj.Current(Iframe) = Obj.Images(Iframe);
-                    end
-                end
             elseif ischar(Input)
                 % change only current frame
+                CurrentFrame = ds9.frame;
+                Nim = numel(Obj.Images);
                 switch lower(Input)
+                    case 'first'
+                        Obj.Current(CurrentFrame) = 1;
+                    case 'last'
+                        Obj.Current(CurrentFrame) = Nim;
                     case 'prev'
-
+                        Ind = Obj.Current(CurrentFrame);
+                        Ind = Ind - 1;
+                        Ind = mod(Ind, Nim) + 1;
+                        Obj.Current(CurrentFrame) = Ind;
+                    case 'next'
+                        Ind = Obj.Current(CurrentFrame);
+                        Ind = Ind + 1;
+                        Ind = mod(Ind, Nim) + 1;
+                        Obj.Current(CurrentFrame) = Ind;
                     otherwise
                         error('Unknown Input option');
                 end
             else
                 error('Unsupported Input class');
             end
+            
+            Obj.Input = Input;
+            
+            % check consistency
+            
+            if max(Input)>numel(Obj.Images)
+                error('Maximum index specified (%d) is larger than the number of elements in Images (%d)', max(Input), numel(Obj.Images));
+            end
 
-
-                Nim = numel(Input);
-                for Iim=1:1:Nim
-                    ds9.disp(Input(Iim), Iim);
-                end
+            Nim = numel(Obj.Input);
+            for Iim=1:1:Nim
+                Ind = Obj.Input(Iim);
+                ds9.disp(Obj.Images(Ind), Iim);
+            end
                 
         end
 
