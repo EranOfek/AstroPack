@@ -173,7 +173,8 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
 
             [Coadd(Ifields), ResultCoadd(Ifields).CoaddN] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
                                                                                                  'Cube',PreAllocCube,...
-                                                                                                 'StackMethod',Args.StackMethod);
+                                                                                                 'StackMethod',Args.StackMethod,...
+                                                                                                 'StackArgs',{'Nsigma',[2 2]});
 
 
             % Background
