@@ -24,8 +24,10 @@ classdef DS9analysis < handle
 
     end
 
-    % A static class
     
+    properties (Hidden)
+        Prev              = [];
+    end
     
     methods % Constructor method
         function Obj = DS9analysis(Image,varargin)
@@ -47,38 +49,52 @@ classdef DS9analysis < handle
             %            'prev'|'next'|'first'|'last' - In the current frame
             %               load previous/... image from Images.
            
+            CurrentFrame = ds9.frame;
+            Nim = numel(Obj.Images);
+            
+            Obj.Prev = Obj.Current;
+            Prev     = Obj.Prev;
+            Current  = Prev;
+            
             if isnumeric(Input)
-                % do nothing
+                % change only current frame
+                Current   = Prev;
+                Current(CurrentFrame) = Input;
+                Obj.Current = Current;
+                
+            elseif iscell(Input)
+                % Change all elements
+                Current = cell2mat(Input);
+                Obj.Current = Current;
+                
             elseif ischar(Input)
                 % change only current frame
-                CurrentFrame = ds9.frame;
-                Nim = numel(Obj.Images);
+                Current   = Prev;
+                
                 switch lower(Input)
                     case 'first'
-                        Obj.Current(CurrentFrame) = 1;
+                        Ind = 1;
                     case 'last'
-                        Obj.Current(CurrentFrame) = Nim;
+                        Ind = Nim;
                     case 'prev'
                         Ind = Obj.Current(CurrentFrame);
                         Ind = Ind - 1;
                         Ind = mod(Ind, Nim) + 1;
-                        Obj.Current(CurrentFrame) = Ind;
                     case 'next'
                         Ind = Obj.Current(CurrentFrame);
                         Ind = Ind + 1;
                         Ind = mod(Ind, Nim) + 1;
-                        Obj.Current(CurrentFrame) = Ind;
                     otherwise
                         error('Unknown Input option');
                 end
+                Current(CurrentFrame) = Ind;
+                Obj.Current = Current;
+                
             else
                 error('Unsupported Input class');
             end
-            
-            Obj.Input = Input;
-            
+                        
             % check consistency
-            
             if max(Input)>numel(Obj.Images)
                 error('Maximum index specified (%d) is larger than the number of elements in Images (%d)', max(Input), numel(Obj.Images));
             end
