@@ -7,8 +7,8 @@ function [Result] = forcedPhot(Obj, Args)
     %       The output is written either to an AstroCatalaog object or
     %       added to the AstroCatalog in the AstroImage.
     % Input  : - An AstroImage object.
-    %            The AstroImage must iunclude an header or a populated
-    %            AstroWCS; A populated AstroCatalog.
+    %            The AstroImage must iunclude: an header or a populated
+    %            AstroWCS; and A populated AstroCatalog.
     %          * ...,key,val,...
     %            'Coo' - A two column matrix of [X, Y] or [RA, Dec]
     %                   coordinates of positions in the image for which to
