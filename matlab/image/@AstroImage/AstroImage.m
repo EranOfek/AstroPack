@@ -350,6 +350,7 @@ classdef AstroImage < Component
     end
 
     methods (Static) % utilities
+        
         function Obj = imageIO2AstroImage(ImIO, DataProp, Scale, FileNames, CopyHeader, Obj)
             % Convert an ImageIO object into an AstroImage object
             % Input  : - An ImageIO object.
@@ -623,12 +624,13 @@ classdef AstroImage < Component
             end
         end
         
-        function Result = readFileNames(ObjFN, Args)
+        function Result = readFileNamesObj(ObjFN, Args)
             % Read images contained in a FileNames object into an AstroImage object.
             %   Optionally read not only the image but also additional
             %   products (e.g., 'Cat','PSF').
-            % Input  : - A FileNames object from which file names can be
-            %            generated.
+            % Input  : - A single element FileNames object from which file names can be
+            %            generated, or a file name with optional wild cards,
+            %            or a cell array of file names.
             %          * ...,key,val,...
             %            'Path' - A path for the files. If given then will
             %                   override the genPath method.
@@ -646,7 +648,7 @@ classdef AstroImage < Component
             % Example: 
             
             arguments
-                ObjFN(1,1) FileNames
+                ObjFN
                 Args.Path                     = [];
                 Args.MainProduct char         = 'Image';
                 Args.AddProduct               = {'Mask','Cat'};        
@@ -657,8 +659,15 @@ classdef AstroImage < Component
                 Args.AddProduct = {Args.AddProduct};
             end
             
+            if isa(ObjFN, 'FileNames')
+                % already a FileNames object
+            else
+                ObjFN = FileNames.generateFromFileName(ObjFN);
+            end
+
+
             FilesList = ObjFN.genFull('Product',Args.MainProduct, 'FullPath',Args.Path);
-            
+        
             Nprod  = numel(Args.AddProduct);
             if Nprod==0
                 AI_Args = {};
@@ -673,7 +682,6 @@ classdef AstroImage < Component
             if Args.PopulateWCS
                 Result = populateWCS(Result);
             end
-            
         end
     end
 
