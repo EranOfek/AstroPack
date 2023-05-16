@@ -18,15 +18,13 @@
 classdef DS9analysis < handle
 
     properties
-        Current           = 1; % Index or 'prev'/...
         Images            % AstroImage | FileNames | cell
-
+        Frame2Ind    = [1];
 
     end
 
     
     properties (Hidden)
-        Prev              = [];
     end
     
     methods % Constructor method
@@ -40,102 +38,99 @@ classdef DS9analysis < handle
     end
 
     methods % setters/getters
-        function set.Current(Obj, Input)
-            % setter for Current
+        function set.Frame2Ind(Obj, Input)
+            % Setter for Frame2Ind (which image index to displa in each frame).
             % Input  : - self.
-            %          - One of the following:
-            %            A vector of indices of elements in the Images
-            %               property to load to the Current property.
-            %            'prev'|'next'|'first'|'last' - In the current frame
-            %               load previous/... image from Images.
-           
-            CurrentFrame = ds9.frame;
-            Nim = numel(Obj.Images);
+            %          - A vector of image indices per each frame.
+            %            if image index is NaN then skip frame.
             
-            Obj.Prev = Obj.Current;
-            Prev     = Obj.Prev;
-            Current  = Prev;
             
-            if isnumeric(Input)
-                % change only current frame
-                Current   = Prev;
-                Current(CurrentFrame) = Input;
-                Obj.Current = Current;
-                
-            elseif iscell(Input)
-                % Change all elements
-                Current = cell2mat(Input);
-                Obj.Current = Current;
-                
-            elseif ischar(Input)
-                % change only current frame
-                Current   = Prev;
-                
-                switch lower(Input)
-                    case 'first'
-                        Ind = 1;
-                    case 'last'
-                        Ind = Nim;
-                    case 'prev'
-                        Ind = Obj.Current(CurrentFrame);
-                        Ind = Ind - 1;
-                        Ind = mod(Ind, Nim) + 1;
-                    case 'next'
-                        Ind = Obj.Current(CurrentFrame);
-                        Ind = Ind + 1;
-                        Ind = mod(Ind, Nim) + 1;
-                    otherwise
-                        error('Unknown Input option');
+            Nframe = ds9.frame;
+            Ninput = numel(Input);
+            Nim    = numel(Obj.Images);
+            if max(Input)<Nim
+                error('Max. image index (%d) must be smaller or equal to the numbre of Images (%d)', max(Input), Nim);
+            end
+            
+            for Iinput=1:1:Ninput
+                Iim = Input(Iinput);
+                if isnan(Iim)
+                    % do not display an image in frame
+                else
+                    ds9.disp(Obj.Images(Iim), Iinput);
                 end
-                Current(CurrentFrame) = Ind;
-                Obj.Current = Current;
-                
-            else
-                error('Unsupported Input class');
             end
-                        
-            % check consistency
-            if max(Input)>numel(Obj.Images)
-                error('Maximum index specified (%d) is larger than the number of elements in Images (%d)', max(Input), numel(Obj.Images));
+            % delete extra frames
+            for I=Nframe:-1:Ninput+1
+                ds9.delete_frame;
             end
-
-            Nim = numel(Obj.Input);
-            for Iim=1:1:Nim
-                Ind = Obj.Input(Iim);
-                ds9.disp(Obj.Images(Ind), Iim);
-            end
-                
         end
-
-        function set.Images(Obj, Input)
-            % setter for Images
-            % Input  : - An AstroImage | FileNames | cell object
-
-            switch class(Obj)
-                case 'AstroImage'
-                    Obj.Images = Input;
-
-                    Obj.Current = Obj.Images(1);
-                case 'FileNames'
-
-                case 'cell'
-
-                otherwise
-                    error('Images property must be of AStroImages or FileNames class');
-            end
-
-        end
+            
+        
     end
 
     methods % display
-        % frame - go to frame
+        % frame
+        % disp(Ind, or [AstroImage, Ind])
         % 
     end
 
     methods  % switch images in frame
-        % sortByTime
+        function AI = getImage(Obj, Ind)
+            % Get image by index from Images property
+            % Input  : - self.
+            %          - Index of image in the AstroImage|FileNames|cell
+            % Output : - A single element AstroImage object.
+            
+            switch class(Obj.Images)
+                case 'AstroImage'
+                    AI = Obj.Images(Ind);
+                case 'FileNames'
+                    FN = reorderEntries(Obj.Images, Ind, 'CreateNewObj',true);
+                    AI = AstroImages.readFromFileNamesObj(FN);
+                case 'cell'
+                    AI = AstroImages(Obj.Images{Ind});
+                otherwise
+                    error('Unknown Images class');
+            end
+            
+        end
+        
+        function Obj=sortByJD(Obj)
+            % Sor the Images property by images JD
+            % Input  : - self.
+            % Output : - self in which the Images are sorted by JD.
+            % Author : Eran Ofek (May 2023)
+            
+            switch class(Obj.Images)
+                case 'AstroImage'
+                    JD = Obj.Images.julday;
+                    [~,SI] = sort(JD(:));
+                    Obj.Images = Obj.Images(SI);
+                case 'FileNames'
+                    Obj.Images.sortByJD;
+                case 'cell'
+                    error('Can not sort by time an Images cell property of class cell');
+            end
+        end
+        
         % goto: next | prev | first | last | ind
         
+    end
+    
+    methods  % tools
+        % [XY, RADec] = moments
+        % getMask
+        % getBack
+        % getVar
+        % plot
+        % plotAll  % in all frames
+        % nearest
+        % near(Radius)
+        % nearestAll
+        % XY=getXY
+        % RADec=getCoo
+        % forcedPhot
     end
 
 
