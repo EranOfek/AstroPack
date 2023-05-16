@@ -1168,6 +1168,9 @@ classdef DemonLAST < Component
                 Args.AbortFileName = '~/abortPipe';
                 Args.multiRaw2procCoaddArgs = {};
 
+                Args.StartJD       = -Inf;    % refers onlt to Science observations: JD, or [D M Y]
+                Args.EndJD         = Inf;
+
                 Args.DeleteSciDayTime logical = false;
                 Args.DeleteSunAlt  = 0;
 
@@ -1190,7 +1193,15 @@ classdef DemonLAST < Component
             PWD = pwd;
             cd(NewPath);
 
-            
+            if numel(Args.StartJD)>1
+                Args.StartJD = celestial.time.julday(Args.StartJD);
+            end
+            if numel(Args.EndJD)>1
+                Args.EndJD = celestial.time.julday(Args.EndJD);
+            end
+
+
+
             GUI_Text = sprintf('Abort : Pipeline');
             [StopGUI, Hstop]  = tools.gui.stopButton('Msg',GUI_Text);
     
@@ -1221,6 +1232,12 @@ classdef DemonLAST < Component
                 [FN_Sci] = selectBy(FN_Sci, 'Product', 'Image', 'CreateNewObj',false);
                 [FN_Sci] = selectBy(FN_Sci, 'Type', {'sci','science'}, 'CreateNewObj',false);
                 [FN_Sci] = selectBy(FN_Sci, 'Level', 'raw', 'CreateNewObj',false);
+
+                % select observations by date
+                FN_JD  = FN_Sci.julday;
+                FlagJD = FN_JD>Args.StartJD & FN_JD<Args.EndJD;
+                FN_Sci = reorderEntries(FN_Sci, FlagJD);
+
                 [~, FN_Sci_Groups] = FN_Sci.groupByCounter('MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
                 FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
                 Ngroup = numel(FN_Sci_Groups);

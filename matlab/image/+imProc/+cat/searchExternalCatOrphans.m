@@ -64,7 +64,7 @@ function Result=searchExternalCatOrphans(Obj, Args)
         Args.ColSN                 = 'SN_3';
 
         Args.ColSN_delta           = {'SN_1','SN_3'};
-        Args.SN_delta              = 1;
+        Args.SN_delta              = -1;
 
         Args.RemoveCooNaN logical  = true;
         
@@ -133,7 +133,7 @@ function Result=searchExternalCatOrphans(Obj, Args)
         else
             SNd            = Cat.getCol(Args.ColSN_delta);
             SNd            = SNd(:,1) - SNd(:,2);
-            FlagSNdBad     = SNd<Args.SN_delta;
+            FlagSNdBad     = SNd>Args.SN_delta;
         end
 
         FlagCand       = ~FlagInCat & ~FlagBad & ~FlagBadCoo & ~FlagBadSoft & ~FlagSNdBad;
