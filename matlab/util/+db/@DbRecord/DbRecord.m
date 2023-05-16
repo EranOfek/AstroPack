@@ -63,8 +63,9 @@ classdef DbRecord < Base
             % Example : MyRec = db.DbRecord(Mat, 'FieldA,FieldB');
             %           MyRec = db.DbRecord('csvfile.csv');
             arguments
-                Data = [];           % Input data
-                Args.ColNames = [];  % Required when Data is Cell or Matrix
+                Data = [];              % Input data
+                Args.ColNames = [];     % Required when Data is Cell or Matrix
+                Args.Lowercase = true;  %
             end
             
             if ischar(Args.ColNames)
@@ -109,8 +110,17 @@ classdef DbRecord < Base
                         Stru = struct;
                         for Row=1:Rows
                             Key = Data{Row, 1};
-                            Value = Data{Row, 2};
-                            Stru.(Key) = Value;
+                            Value = Data{Row, 2};                            
+                            
+                            % Convert key to lowercase and replace invalid chars with '_'
+                            if ischar(Key)
+                                if Args.Lowercase
+                                    Key = lower(Key);
+                                end
+                                
+                                Key = replace(Key, '-', '_');                                                        
+                                Stru.(Key) = Value;
+                            end
                         end
                         Obj.Data = Stru;
                     else

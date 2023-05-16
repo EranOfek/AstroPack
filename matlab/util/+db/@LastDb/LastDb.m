@@ -31,11 +31,11 @@ classdef LastDb < Component
             %
             arguments
                 % These arguments are used when both DbQuery and DbCon are NOT set:
-                Args.Host          = 'localhost'     % 'socsrv'        % Host name or IP address
-                Args.Port          = 63331           % 5432            % Port number
+                Args.Host          = 'socsrv' %localhost'     % 'socsrv'        % Host name or IP address
+                Args.Port          = 5432 % 63331           % 5432            % Port number
                 Args.DatabaseName  = 'lastdb'        % 'last_operational'
                 Args.UserName      = 'postgres'      % User name
-                Args.Password      = 'postgres'      % 'PassRoot'      % Password
+                Args.Password      = 'PassRoot' %'postgres'      % 'PassRoot'      % Password
             end
 
             %
@@ -109,7 +109,6 @@ classdef LastDb < Component
             % Columns with index
             Q.addColumn(TN, 'filename', 'varchar(256)', '', 'index', true);
             Q.addColumn(TN, 'xxhash',   'bigint', '', 'index', true);
-            Q.addColumn(TN, 'md5',   'varchar(80)', '', 'index', true);                        
             Q.addColumn(TN, 'ra',       'double', 'default 0', 'index', true);
             Q.addColumn(TN, 'dec',      'double', 'default 0', 'index', true);
             Q.addColumn(TN, 'jd',       'double', 'default 0', 'index', true);
@@ -178,7 +177,7 @@ classdef LastDb < Component
 
 
     methods
-        function Result = addRawImage(Obj, FileName, AH, AddCols, Args)
+        function Result = addRawImage(Obj, FileName, AH, Args)
             % Insert RAW image columns to raw_images table
             % Input :  - LastDb object
             %          - FileName
@@ -193,11 +192,12 @@ classdef LastDb < Component
                 Obj                 %
                 FileName            % Image file name
                 AH                  % AstroHeader
-                AddCols = []        % struct
-                Args.Xxhash = []    % Optional 
+                Args.AddCols = []   % struct
+                Args.xxhash = []    % Optional
+                Args.Select = false %
             end
                            
-            Result = Obj.addImage('raw_images', FileName, AH, AddCols, Args);
+            Result = Obj.addImage('raw_images', FileName, AH, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select);
         end
         
         
@@ -219,11 +219,11 @@ classdef LastDb < Component
                 AddCols = []        % struct
             end
 
-            Result = Obj.addImage('proc_images', FileName, AH, AddCols);
+            %Result = Obj.addImage('proc_images', FileName, AH, AddCols);
         end
         
                 
-        function Result = addImage(Obj, TableName, FileName, AH, AddCols, Args)
+        function Result = addImage(Obj, TableName, FileName, AH, Args)
             % Insert AstroHeader to specified table.
             % Input :  - LastDb object
             %          - TableName
@@ -240,7 +240,7 @@ classdef LastDb < Component
                 TableName           % Table name to insert to
                 FileName            % Image FITS file name
                 AH                  % AstroHeader to insert 
-                AddCols = []        % struct - optional additional columns (i.e. AddCols.ColName = ColValue, etc.)
+                Args.AddCols = []   % struct - optional additional columns (i.e. AddCols.ColName = ColValue, etc.)
                 Args.xxhash = []    % When specified, insert also column 'xxhash' with this value
                 Args.Select = false % When true and Xxhash is specified, first check if image already exists
             end
@@ -250,34 +250,33 @@ classdef LastDb < Component
             % Xxhash is speicified
             if ~isempty(Args.xxhash)
                 
+                Args.Select = true;
+                
                 % When Select is true, first check if row already exists
                 if Args.Select
-                    DataSet = Obj.Query.select('*', 'TableName', TableName, 'Where', sprintf('xxhash = %d', Args.Xxhash));
-                    Exist = false;
-                    if numel(DataSet) > 0
-                        Exist = true;
-                        
-                        % @Todo - Discuss what we need to do here
+                    DataSet = Obj.Query.select('*', 'TableName', TableName, 'Where', sprintf('xxhash = ''%s''', Args.xxhash));
+                    if numel(DataSet.Data) > 0
+                        Result = true;
                         return;
                     end
                 end
                 
                 % Insert it to table
-                if isempty(AddCols)
-                    AddCols = struct;
+                if isempty(Args.AddCols)
+                    Args.AddCols = struct;
                 end
-                AddCols.xxhash = Args.Xxhash;
+                Args.AddCols.xxhash = Args.xxhash;
             end
                         
             % Add FileName to header
             AH.insertKey({'filename', FileName, 'Image file name'}, 'end');
             
             % Add additional columns from struct to AstroHeader
-            if ~isempty(AddCols)
-                Fields = fieldnames(AddCols);
+            if ~isempty(Args.AddCols)
+                Fields = fieldnames(Args.AddCols);
                 for i=1:numel(Fields)
                     Field = Fields{i};
-                    Value = AddCols.(Field);
+                    Value = Args.AddCols.(Field);
                     Field = lower(Field);
                     AH.insertKey({Field, Value, ''}, 'end');
                 end

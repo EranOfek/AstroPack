@@ -1,51 +1,48 @@
+function Result = onesExcept(Array, Flag, Bit, Value, UseMex, UseMP)
+    %
+    % Input  : - Array - Array of integers
+    %          - Flags - Array of logical flags
+    %          - Bit - Bit number
+    %          - Value - 0 or 1
+    %          - UseMex - true to use MEX optimization
+    %          - UseMP - true to use threads
+    %
+    % Output : - The result of the operation.
+    %
+    % Author : Chen Tishler (Apr 2023)
+    % Example: 
+    %    Array = zeros(3, 3, 'int32');
+    %    Flag = rand(3, 3) > 0.9;
+    %    Result = tools.array.bitsetFlag(Array, Flag, 1, 1);            
+    %----------------------------------------------------------------------
+    arguments
+        Array                   % Input array
+        Flag
+        Bit
+        Value = true;           % Value to look for
+        UseMex = true;          % False: Use MATLAB implementaion, True: Use MEX implementation
+        UseMP = true;           % True: Use threading with OpenMP
+    end
 
-Another example for a slow process:
-
-X = ones(___,'like',p) specifies that X has the same data type, sparsity, and complexity (real or complex) as the numeric variable p.
-
-W = ones(size(Mat), 'like',Image);
-Flag = Mat>Scalar;
-W(Flag) = 0;
-
---- 
-
-Result = tools.array.onesExcept(Size, Flag, ExceptVal, Type, )
-
-ExceptVal default is 0.
-Type default is double.
-
-
-
-
-act as matlab and c++ expert. 
-what this matlab code does:
-
-W = ones(size(Mat) 'like',Image);
-Flag = Mat>Scalar;
-W(Flag) = 0;
-ChatGPT
-
-As a language model with knowledge of MATLAB and C++, I can help you understand the given MATLAB code.
-
-The code provided performs the following operations:
-
-    Creates a matrix 'W' with the same size as 'Mat' and the same data type as 'Image'. All the elements of 'W' are initially set to 1.
-
-matlab
-
-W = ones(size(Mat), 'like', Image);
-
-    Creates a logical matrix 'Flag' with the same size as 'Mat'. Each element of 'Flag' is set to true (1) if the corresponding element of 'Mat' is greater than the scalar value 'Scalar', otherwise it is set to false (0).
-
-matlab
-
-Flag = Mat > Scalar;
-
-    Sets the elements of 'W' to 0, where the corresponding elements of 'Flag' are true (1).
-
-matlab
-
-W(Flag) = 0;
-
-Overall, the code generates a matrix 'W' with the same size as 'Mat' and the same data type as 'Image', where the elements of 'W' are 0 if the corresponding element of 'Mat' is greater than 'Scalar', and 1 otherwise.
-
+    % MATLAB implementation
+    if ~UseMex
+        Result = bitset(Array(Flag), Bit, Value);
+        return;
+    end
+    
+    % MEX implementation
+    % Call function according to input data type
+    C = lower(class(Array));    
+    switch C
+        case {'uint8','int8'}
+            Result = tools.array.mex_bitsetFlag8(Array,  Flag, int32(Bit), int32(Value), int32(UseMP));               
+        case {'uint16','int16'}
+            Result = tools.array.mex_bitsetFlag16(Array, Flag, int32(Bit), int32(Value), int32(UseMP));       
+        case {'uint32','int32'}
+            Result = tools.array.mex_bitsetFlag32(Array, Flag, int32(Bit), int32(Value), int32(UseMP));       
+        case {'uint64','int64'}
+            Result = tools.array.mex_bitsetFlag64(Array, Flag, int32(Bit), int32(Value), int32(UseMP));                   
+        otherwise
+            error('tools.array.bitsetFlag - Unsupported data type');
+    end
+end

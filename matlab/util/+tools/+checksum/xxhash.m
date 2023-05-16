@@ -16,13 +16,19 @@ function Result = xxhash(Args)
         Args.Data = [];            % Input array
         Args.FileName = [];        % Input filename
         Args.Seed = 0;             %
+        Args.Hex = true;
     end
 
     if ~isempty(Args.Data)
-        Result = mex_xxhash(Args.Data, int64(Args.Seed));
+        Result = tools.checksum.mex_xxhash(Args.Data, int64(Args.Seed));
     elseif ~isempty(Args.FileName)
-        Result = mex_xxhashFile(Args.FileName, int64(Args.Seed));
+        Result = tools.checksum.mex_xxhashFile(Args.FileName, int64(Args.Seed));
     else
         error('xxhash - Invalid argument');
+    end
+    
+    % Convert to Hex string
+    if Args.Hex
+        Result = sprintf('%016x', Result);
     end
 end
