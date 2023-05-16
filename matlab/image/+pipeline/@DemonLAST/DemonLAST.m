@@ -1128,14 +1128,14 @@ classdef DemonLAST < Component
             if ismember('bias',lower(Args.ReadProduct))
                 FN_Bias = FileNames.generateFromFileName(Args.BiasTemplate);
                 [~,~,~,FN_Bias] = FN_Bias.selectLastJD;
-                Obj.CI.Bias = AstroImage.readFileNames(FN_Bias, 'AddProduct',Args.AddImages);
+                Obj.CI.Bias = AstroImage.readFileNamesObj(FN_Bias, 'AddProduct',Args.AddImages);
             end
 
             % read latest flat image
             if ismember('flat',lower(Args.ReadProduct))
                 FN_Flat = FileNames.generateFromFileName(Args.FlatTemplate);
                 [~,~,~,FN_Flat] = FN_Flat.selectLastJD;
-                Obj.CI.Flat = AstroImage.readFileNames(FN_Flat, 'AddProduct',Args.AddImages);
+                Obj.CI.Flat = AstroImage.readFileNamesObj(FN_Flat, 'AddProduct',Args.AddImages);
             end
 
             % Read linearity file
