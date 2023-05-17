@@ -45,8 +45,9 @@ function Result = imwarp(Obj, Trans, Args)
     %                   Default is true.
     %
     %            'ReplaceNaN' - Replace NaN with FillVall. Default is true.
-    %            'TransWCS' - A logical indicatinf if to transform the WCS into the new reference
-    %                   frame. Default is true [NOT YET AVAILABALE].
+    %            'TransWCS' - A logical indicatinf if to copy the reference WCS
+    %                   to the transformed image WCS and header.
+    %                   Default is true.
     %
     %            'CreateNewObj' - A logical indicating if the output is a
     %                   new copy of the input AstroImage (true), or just an handle
@@ -83,7 +84,7 @@ function Result = imwarp(Obj, Trans, Args)
         
         Args.CreateNewObj logical      = true;
         Args.GetAllFields logical      = false;  % if CreateNewObj=true & GetAllFields=false then the other fields are not copied
-        Args.CopyHeader logical        = true; % copy header even if GellAllFields=false
+        Args.CopyHeader logical        = true; % copy header even if GetlAllFields=false
     end
     
     Nobj = numel(Obj);
@@ -160,6 +161,7 @@ function Result = imwarp(Obj, Trans, Args)
             for Iobj=1:1:Nobj
                 DispField(Iobj).DF  = xy2refxy(Obj(Iobj).WCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Trans, 'Sampling', Args.Sampling);
             end
+            OutWCS = Trans.copy;
         elseif isa(Trans, 'AstroImage')
             % Convert AstroWCS in AstroImage to displacment field
             IsDisplacment   = true;
@@ -183,8 +185,10 @@ function Result = imwarp(Obj, Trans, Args)
 
                 DispField(Iobj).DF  = xy2refxy(DataWCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Trans.WCS, 'Sampling', Args.Sampling);
             end
+            OutWCS = Trans.WCS.copy;
         elseif isa(Trans, 'affine2d')
             ImWarpTransformation = Trans;
+            OutWCS = [];
         elseif isa(Trans, 'Tran2D')
             error('Tran2D option is not yet supported');
         elseif isa(Trans, 'struct')
@@ -192,6 +196,7 @@ function Result = imwarp(Obj, Trans, Args)
             % The struct must contains a .DF field
             IsDisplacment   = true;
             DispField = Trans;
+            OutWCS = [];
         else
             error('Unknown Trans (2nd input argument) object option'); 
         end
@@ -308,7 +313,12 @@ function Result = imwarp(Obj, Trans, Args)
         
         if Args.TransWCS
             % Transform the WCS into the new reference frame
-            warning('WCS transformation is not yet available');
+            if isempty(OutWCS)
+                warning('TransWCS=true option is not available for non-WCS transformations')
+            else
+                Result(Iobj).WCS = OutWCS;
+                Result(Iobj).HeaderData = wcs2header(Result(Iobj).WCS, Result(Iobj).HeaderData);
+            end
         end
         
     end
