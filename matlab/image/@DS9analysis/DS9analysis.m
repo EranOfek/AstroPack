@@ -18,14 +18,14 @@
 classdef DS9analysis < handle
 
     properties
-        Current           % AstroImage | if Index, then load image number Ind from Images / per frame
         Images            % AstroImage | FileNames | cell
-
+        Frame2Ind    = [1];
 
     end
+
     
-    % A static class
-    
+    properties (Hidden)
+    end
     
     methods % Constructor method
         function Obj = DS9analysis(Image,varargin)
@@ -38,76 +38,108 @@ classdef DS9analysis < handle
     end
 
     methods % setters/getters
-        function set.Current(Obj, Input)
-            % setter for Current
-            % Input  : - 
-
-            if isa(Input, 'AstroImage')
-                % do nothing
-                Obj.Current = Input;
-                
-            elseif isnumeric(Input)
-                % Vector of indeces (index per frame), with NaNs for no change
-                Nframe = numel(Input);
-                for Iframe=1:1:Nframe
-                    if isnan(Input(Iframe))
-                        % do not change AstroImage content
-                    else
-                        if Iframe>numel(Obj.Images)
-                            error('Number of indeces (%d) must corresponds to the numer of el;ements in Images (%d)',Nframe,numel(Obj.Images));
-                        end
-                        Obj.Current(Iframe) = Obj.Images(Iframe);
-                    end
-                end
-            elseif ischar(Input)
-                % change only current frame
-                switch lower(Input)
-                    case 'prev'
-
-                    otherwise
-                        error('Unknown Input option');
-                end
-            else
-                error('Unsupported Input class');
+        function set.Frame2Ind(Obj, Input)
+            % Setter for Frame2Ind (which image index to displa in each frame).
+            % Input  : - self.
+            %          - A vector of image indices per each frame.
+            %            if image index is NaN then skip frame.
+            
+            
+            Nframe = ds9.frame;
+            Ninput = numel(Input);
+            Nim    = numel(Obj.Images);
+            if max(Input)<Nim
+                error('Max. image index (%d) must be smaller or equal to the numbre of Images (%d)', max(Input), Nim);
             end
-
-
-                Nim = numel(Input);
-                for Iim=1:1:Nim
-                    ds9.disp(Input(Iim), Iim);
+            
+            for Iinput=1:1:Ninput
+                Iim = Input(Iinput);
+                if isnan(Iim)
+                    % do not display an image in frame
+                else
+                    ds9.disp(Obj.Images(Iim), Iinput);
                 end
-                
-        end
-
-        function set.Images(Obj, Input)
-            % setter for Images
-            % Input  : - An AstroImage | FileNames | cell object
-
-            switch class(Obj)
-                case 'AstroImage'
-                    Obj.Images = Input;
-
-                    Obj.Current = Obj.Images(1);
-                case 'FileNames'
-
-                case 'cell'
-
-                otherwise
-                    error('Images property must be of AStroImages or FileNames class');
             end
-
+            % delete extra frames
+            for I=Nframe:-1:Ninput+1
+                ds9.delete_frame;
+            end
         end
+            
+        
     end
 
     methods % display
-        % frame - go to frame
+        % frame
+        
+        function disp(Ind, AI)
+            %
+           
+            if isnumeric(Ind)
+                
+            end
+            
+        end
+        
         % 
     end
 
     methods  % switch images in frame
-        % sortByTime
+        function AI = getImage(Obj, Ind)
+            % Get image by index from Images property
+            % Input  : - self.
+            %          - Index of image in the AstroImage|FileNames|cell
+            % Output : - A single element AstroImage object.
+            
+            switch class(Obj.Images)
+                case 'AstroImage'
+                    AI = Obj.Images(Ind);
+                case 'FileNames'
+                    FN = reorderEntries(Obj.Images, Ind, 'CreateNewObj',true);
+                    AI = AstroImages.readFromFileNamesObj(FN);
+                case 'cell'
+                    AI = AstroImages(Obj.Images{Ind});
+                otherwise
+                    error('Unknown Images class');
+            end
+            
+        end
+        
+        function Obj=sortByJD(Obj)
+            % Sor the Images property by images JD
+            % Input  : - self.
+            % Output : - self in which the Images are sorted by JD.
+            % Author : Eran Ofek (May 2023)
+            
+            switch class(Obj.Images)
+                case 'AstroImage'
+                    JD = Obj.Images.julday;
+                    [~,SI] = sort(JD(:));
+                    Obj.Images = Obj.Images(SI);
+                case 'FileNames'
+                    Obj.Images.sortByJD;
+                case 'cell'
+                    error('Can not sort by time an Images cell property of class cell');
+            end
+        end
+        
         % goto: next | prev | first | last | ind
         
+    end
+    
+    methods  % tools
+        % [XY, RADec] = moments
+        % getMask
+        % getBack
+        % getVar
+        % plot
+        % plotAll  % in all frames
+        % nearest
+        % near(Radius)
+        % nearestAll
+        % XY=getXY
+        % RADec=getCoo
+        % forcedPhot
     end
 
 
