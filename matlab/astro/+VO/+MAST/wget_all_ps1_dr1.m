@@ -103,7 +103,8 @@ while ~StopLoop
     FailLoad = true;
     while FailLoad
         try
-            SF = load('SummaryMaster.txt');
+			% @Deploy
+            SF = io.files.load1('SummaryMaster.txt');
             FailLoad = false;
         catch
             fprintf('Failed loading SummaryMaster.txt - wait 3s\n');
