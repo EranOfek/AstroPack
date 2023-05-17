@@ -8,24 +8,25 @@ function Result = unitTest()
     io.msgStyle(LogLevel.Test, '@start', 'LastDb test started')
     io.msgLog(LogLevel.Test, 'Postgres database "unittest" should exist');
 
-    % Load AstroHeader object from image FITS file
-    AH = AstroHeader();
-    TxtFileName = 'c:/ultrasat/last/LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.txt';           
-    %TxtFileName = 'c:/ultrasat/last/LAST.01.08.04_20230125.192423.674_clear_143+41_010_001_001_sci_raw_Image_1.txt';        
-    AH.readFromTextFile(TxtFileName);   
-    
-    %FitsFileName = 'c:/ultrasat/last/LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.fits';
-    FitsFileName = 'c:/ultrasat/last/a1.fits';
-    xx = xxhash('FileName', FitsFileName);
-    %AH = AstroHeader(FitsFileName);
+    % Required on Windows, need to compile it with mex in this folder
+    addpath('external/str2doubles/str2doubles');
 
     % Create LastDb object with default connection parameters
-    TestSSH = true;
+    TestSSH = false;
     if TestSSH
         db.LastDb.setupSSH();
     end
     
     LDB = db.LastDb();
+   
+    
+    % Insert new row to table
+    FitsFileName = 'c:/ultrasat/last/a1.fits';
+    AH = AstroHeader(FitsFileName);    
+    xx = tools.checksum.xxhash('FileName', FitsFileName);
+    assert(~isempty(xx));
+    %LDB.addImage('raw_images', FitsFileName, AH, 'xxhash', xx);
+    LDB.addRawImage(FitsFileName, AH, 'xxhash', xx);    
     
     % Create tables (optional)
     CreateTables = false;
@@ -33,8 +34,42 @@ function Result = unitTest()
         LDB.createTables();
     end
 
+    % Load AstroHeader object from image FITS file, convert to DbRecord
+    FitsFileName = 'c:\ultrasat\last\a1.fits';
+    AH = AstroHeader(FitsFileName);    
+    R = db.DbRecord(AH);    
+   
+    FitsFileName = 'c:\ultrasat\last\sample.image.fits';
+    AH = AstroHeader(FitsFileName);    
+        
+    AH = AstroHeader();    
+    TxtFileName = 'c:/ultrasat/last/LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.txt';           
+    AH.readFromTextFile(TxtFileName);   
+    
+    AH = AstroHeader();    
+    TxtFileName = 'c:/ultrasat/last/LAST.01.08.04_20230125.192423.674_clear_143+41_010_001_001_sci_raw_Image_1.txt';        
+    AH.readFromTextFile(TxtFileName);   
+         
+    TxtFileName = 'c:/ultrasat/last/h1.txt';
+    AH = AstroHeader();
+    AH.readFromTextFile(TxtFileName);   
+    
+    
+    % 
+    FitsFileName = 'c:/ultrasat/last/a1.fits';
+    xx = tools.checksum.xxhash('FileName', FitsFileName);
+    assert(xx ~= 0);
+    AH = AstroHeader(FitsFileName);    
+       
     % Insert new row to table
-    LDB.addRawImage(FileName, AH);
+    FitsFileName = 'c:/ultrasat/last/a1.fits';
+    xx = tools.checksum.xxhash('FileName', FitsFileName);
+    assert(xx ~= 0);    
+    LDB.addImage('raw_images', FitsFileName, AH, 'xxhash', xx);
+    LDB.addRawImage(FitsFileName, AH, 'xxhash', xx);
+    
+    %
+    LDB.addRawImage(FitsFileName, AH, 'xxhash', xx, 'Select', true);    
     
     % Insert with additional fields, field are converted to LOWERCASE
     % Overwrite existing fields of AstroHeader, ignore columns that does 
