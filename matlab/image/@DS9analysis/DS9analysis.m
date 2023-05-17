@@ -323,7 +323,7 @@ classdef DS9analysis < handle
             Xpix      = round(X);
             Ypix      = round(Y);
             if isempty(AI.Mask)
-                error('No Maks image');
+                error('No Mask image');
             end
             MaskVal   = AI.Mask(Ypix,Xpix);
             MaskName  = AI.MaskData.Dict.bitdec2name(MaskVal);
@@ -331,8 +331,44 @@ classdef DS9analysis < handle
 
         end
 
-        % getBack
-        % getVar
+        function [Back, Var, X, Y, AI] = getBack(Obj, Coo, Args)
+            % Get Back/Var values at user clicked/specified position
+            % Input  : - self.
+            %          - If empty, then prompt the user to click the ds9
+            %            window in a give position.
+            %            Alterantively, a vector of [RA, Dec] in decimal or
+            %            radians.
+            %            Or, a cell of sexagesimal coordinates {RA, Dec}.
+            %          * ...,key,val,...
+            %            'CooSys' - Coordinate system of user specified
+            %                   coordinates: 'sphere'|'pix'. Default is 'sphere.
+            %            'CooUnits' - Coordinates units. Default is 'deg'.
+            % Output : - Background value.
+            %          - Variance value.
+            %          - Clicked X position.
+            %          - Clicked Y position.
+            %          - AstroImage on which the operation was performed.
+            % Author : Eran Ofek (May 2023)
+            
+            arguments
+                Obj
+                Coo    = [];
+                Args.CooSys   = 'sphere';
+                Args.CooUnits = 'deg';
+            end
+
+            [X, Y, Val, AI] = getXY(Obj, Coo, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
+            
+            Xpix      = round(X);
+            Ypix      = round(Y);
+            if isempty(AI.Back) || isempty(AI.Var)
+                error('No Back or Var image');
+            end
+            Back = AI.Back(Ypix, Xpix);
+            Var  = AI.Var(Ypix, Xpix);            
+            
+        end
+            
         % plot
         % plotAll  % in all frames
         
