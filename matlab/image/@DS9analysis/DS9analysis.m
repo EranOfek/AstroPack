@@ -204,10 +204,96 @@ classdef DS9analysis < handle
     end
 
     methods  % tools
-        % [XY, RADec] = moments
+        function [M1, M2, Aper, RADec, AI] = moments(Obj, Coo, Args)
+            % Measure 1st, 2nd moments, and aper phot at user click or specified position.
+            % Input  : - self.
+            %          - If empty, then prompt the user to click the ds9
+            %            window in a give position.
+            %            Alterantively, a vector of [RA, Dec] in decimal or
+            %            radians.
+            %            Or, a cell of sexagesimal coordinates {RA, Dec}.
+            %          * ...,key,val,...
+            %            'CooSys' - Coordinate system of user specified
+            %                   coordinates: 'sphere'|'pix'. Default is 'sphere.
+            %            'CooUnits' - Coordinates units. Default is 'deg'.
+            %
+            %            'HalfSize' - Moments stamp half size.
+            %                   Default is 7.
+            %            'MaxIter' - Maximum number of moment estimation
+            %                   iterations. Default is 10.
+            %            'MaxStep' -  Maximum step size (pixels) in X and Y shifts
+            %                   allowd in each iteration. Default is 0.1.
+            %            'AperRadius' - Vector of aperture radii, in which to calculate
+            %                   aperture photometry.
+            %                   Default is [2 4 6].
+            %            'Annulus' - Vector of inner and outer radius of background
+            %                   annulus. Default is [10 14].
+            %            'OutUnits' - Units of output RA, Dec position
+            %                   based on 1st moments. Default is 'deg'.
+            % Output : - A structure with 1st moment information:
+            %            .RoundX - Vector of roundex X position
+            %            .RoundY - Vector of roundex Y position
+            %            .DeltaLastX - Vector of the X shifts in the last position
+            %                   iteration.
+            %            .DeltaLastY - Vector of the Y shifts in the last position
+            %                   iteration.
+            %            .Iter - Number of position iterations.
+            %            .X    - 1st moment X position
+            %            .Y    - 1st moment Y position.
+            %            .Xstart - Starting X position,
+            %            .Ystart - Starting Y position.
+            %           - A second momement information.
+            %             A structure with the following fields.
+            %             .X2 - X^2 2nd moment.
+            %             .Y2 - Y.^2 2nd moment.
+            %             .XY - X*Y 2nd moment.
+            %           - Photometry information. A structure with the following fields.
+            %             .AperRadius - Vector of apertures radius.
+            %             .AperPhot - Matrix of aperture photometry. Column per
+            %                         aperture.
+            %             .AperArea - Matrix of apertures area. Column per aperture.
+            %             .BoxPhot  - Vector of the full box photometry (if requested)
+            %             .AnnulusBack - Annulus background.
+            %             .AnnulusStd - Annulus StD.
+            %             .WeightedAper - Weighted photometry. Weighted by the user
+            %                           specified weight function.
+            %           - [RA, Dec] of of 1st moemnt position.
+            %           - The AstroImage object from which the information
+            %             was extracted.
+            % Author : Eran Ofek (May 2023)
+            
+            arguments
+                Obj
+                Coo              = [];
+                Args.CooSys      = 'sphere';
+                Args.CooUnits    = 'deg';
+                
+                Args.HalfSize    = 7;
+                Args.MaxIter     = 10;
+                Args.MaxStep     = 0.1;
+                Args.AperRadius  = [2 4 6];
+                Args.Annulus     = [10 14];
+                Args.OutUnits    = 'deg';
+            end
+
+            [X, Y, Val, AI] = getXY(Obj, Coo, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
+            
+            
+            [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(AI.Image, X, Y, Args.HalfSize);
+            [M1, M2, Aper]               = imUtil.image.moment2(Cube, X, Y, 'SubBack',true,...
+                                                                            'MaxIter',Args.MaxIter,...
+                                                                            'MaxStep',Args.MaxStep,...
+                                                                            'AperRadius',Args.AperRadius,...
+                                                                            'Annulus',Args.Annulus);
+            if nargout>3
+                [RA, Dec] = AI.WCS.xy2sky(M1.X, M1.Y, 'OutUnits',Args.OutUnits);
+                RADec = [RA, Dec];
+            end
+                
+        end
         
         function [MaskName, MaskVal]=getMask(Obj, Coo, Args)
-            % Get Mask bit values/names at cser clicked/specified position
+            % Get Mask bit values/names at user clicked/specified position
             % Input  : - self.
             %          - If empty, then prompt the user to click the ds9
             %            window in a give position.
