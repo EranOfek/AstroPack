@@ -6,8 +6,9 @@ function getGRB_cat(FileName)
     % https://swift.gsfc.nasa.gov/archive/grb_table/
     
     % get https://swift.gsfc.nasa.gov/archive/grb_table/tmp/grb_table_1656573191.txt
+	% @Deploy	
     FileName = 'grb_table_1656573191.txt';
-    S = readtable(FileName,'DurationType','text');
+    S = io.files.readtable2(FileName, 'DurationType','text');
     
     % with columns
     %Col
