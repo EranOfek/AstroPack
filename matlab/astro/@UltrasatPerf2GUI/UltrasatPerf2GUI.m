@@ -1,4 +1,4 @@
-classdef UltrasatPerf2GUI < Base
+classdef UltrasatPerf2GUI < Component
     % UP2GUI Summary of this class goes here
     % Detailed explanation goes here
     %
@@ -29,7 +29,16 @@ classdef UltrasatPerf2GUI < Base
             % Author  : Arie Blumenzweig (2023)
             % Example : UG = UltrasatPerf2GUI();
             
-            Obj.UP = load(Obj.MatFileName, 'UP');
+            Obj.setName('UltrasatPerf2GUI');            
+            FName = Obj.MatFileName;
+            
+            % Temporary solution!!! @Todo @Chen (2023/05/17)
+            if isdeployed
+                FName = fullfile('c:/soc/snr/aws_matlab/', Obj.MatFileName);
+            end
+            Obj.msgLog(LogLevel.Debug, 'UltrasatPerf2GUI:load: %s', FName);
+            Obj.UP = load(FName, 'UP');
+            %Obj.UP = load(Obj.MatFileName, 'UP');
             Obj.Sources = string({Obj.UP.UP.Specs.ObjName});
         end
         
@@ -84,7 +93,7 @@ classdef UltrasatPerf2GUI < Base
             %
             Result.ResultSnr = [];
             Result.ResultLimitingMagnitude = [];
-            Result.message = ''; %string(nan);
+            Result.message = 'calcSNR: started';
             
             %
             args.ExpTime = Args.ExpTime;
@@ -111,6 +120,7 @@ classdef UltrasatPerf2GUI < Base
             % Put output results
             Result.ResultSnr = round(out.SNRm, 2);
             Result.ResultLimitingMagnitude = round(out.LimMag, 2);
+            Result.message = 'calcSNR: OK';
         end
         
         
