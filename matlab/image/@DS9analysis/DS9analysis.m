@@ -292,6 +292,8 @@ classdef DS9analysis < handle
                 
         end
         
+        % forcedPhot
+        
         function [MaskName, MaskVal]=getMask(Obj, Coo, Args)
             % Get Mask bit values/names at user clicked/specified position
             % Input  : - self.
@@ -377,7 +379,6 @@ classdef DS9analysis < handle
         % near(Radius)
         % nearestAll
         % RADec=getCoo
-        % forcedPhot
     end
 
 
