@@ -51,10 +51,10 @@ function Result=searchExternalCatOrphans(Obj, Args)
         Obj                                             % AstroCatalog | AstroImage
         Args.ColFLAGS              = 'FLAGS';
         Args.ColMergedCatMask      = 'MergedCatMask';
-        Args.ColExtra              = {'RA','Dec','SN_1','SN_3','Nobs','PSF_CHI2DOF','MAG_PSF','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS','MAG_APER_3','MAGERR_APER_3','X','Y','X2','Y2','XY'};
+        Args.ColExtra              = {'RA','Dec','SN_1','SN_3','SN_5','Nobs','PSF_CHI2DOF','MAG_PSF','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS','MAG_APER_3','MAGERR_APER_3','X','Y','X2','Y2','XY'};
         
         Args.MergedCatBitMask      = 'BitMask.MergedCat.Default';
-        Args.RemoveCat             = {'GAIA_DRE3', 'PS1_DR1', 'DECaLS_DR4'};
+        Args.RemoveCat             = {'GAIA_DRE3', 'PS1_DR1', 'DECaLS_DR4', 'SDSS_DR10'};
         
         Args.SrcBitMask            = [];
         Args.RemoveFlags           = {'Saturated','NaN','Negative','Spike','CR_DeltaHT','NearEdge','Overlap'};
