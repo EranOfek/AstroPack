@@ -1,6 +1,9 @@
 
 function Result = unitTest()
     % FileProcessor.unitTest
+
+    MsgLogger.setLogLevel(LogLevel.Debug, 'type', 'file');
+    MsgLogger.setLogLevel(LogLevel.Debug, 'type', 'disp');            
     
     io.msgLog(LogLevel.Test, 'FileProcessor test started');
 
@@ -98,7 +101,7 @@ function fileProcessorCallback(FileName)
     end
 
     % Write output JSON file
-    io.msgLog(LogLevel.Info, 'Out.message: %s, result: %s', out.message, out.result);
+    io.msgLog(LogLevel.Info, 'Out.message: %s, result: %d, json_text: %s', out.message, out.result, out.json_text);
     out_json = jsonencode(out);
     fid = fopen(TmpFileName, 'wt');
     fprintf(fid, out_json);
@@ -189,9 +192,9 @@ function [Result, Message] = doProcessSnr(Params)
             Params = rmfield(Params, 'BlackBodyTemperature');
         end
         
-        UG = UltrasatPerf2GUI();
+        UsatPerf2GUI = UltrasatPerf2GUI();
         ArgsCell = namedargs2cell(Params);
-        Result = UG.calcSNR(ArgsCell{:});
+        Result = UsatPerf2GUI.calcSNR(ArgsCell{:});
     catch ex
         Result.message = sprintf("error: UG threw exception identifier='%s' with message='%s'", ex.identifier, ex.message);
     end
