@@ -71,7 +71,16 @@ classdef DS9analysis < handle
 
     methods % display
         % frame
-        % disp(Ind, or [AstroImage, Ind])
+        
+        function disp(Ind, AI)
+            %
+           
+            if isnumeric(Ind)
+                
+            end
+            
+        end
+        
         % 
     end
 
