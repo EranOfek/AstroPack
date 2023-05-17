@@ -1,6 +1,8 @@
 function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
     % Write AstroImage/AstroCatalog/MergedSources data products using FileNames object
-    %   The file names are generated using the FileNames object
+    %   The file names are generated using the FileNames object.
+    %   For input AstroImage the FileName in the ImageData property is
+    %   updated with the given file name.
     % Input  : - An AstroImage/AstroCatalog/MatchedSources/struct object.
     %            A MatchedSources will be wriite as hdf5 file.
     %            A struct will be save as a mat file.
@@ -180,6 +182,8 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                                          'IsSimpleFITS',Args.IsSimpleFITS,...
                                          'WriteHeader',WriteHeader(Iprod),...
                                          'MkDir',Iobj==1 && Iprod==1);
+                            % Update FileName in Obj
+                            Obj.ImageData.FileName = OutFileNames{Iobj};
                         else
                             Istat = Istat + 1;
                             Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', OutFileNames{Iobj}, Args.Product{Iprod});

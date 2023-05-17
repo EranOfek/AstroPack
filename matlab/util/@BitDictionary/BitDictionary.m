@@ -37,6 +37,8 @@ classdef BitDictionary < Component
             % Input  : Dictionary file name to load.
             %          Default is 'BitMask.Image.Default'
             % Example: BD=BitDictionary('BitMask.Image.Default')
+            %          BD=BitDictionary('BitMask.MergedCat.Default')
+            % Author : Eran Ofek (May 2021)
             
             arguments
                 DictionaryName char    = 'BitMask.Image.Default';

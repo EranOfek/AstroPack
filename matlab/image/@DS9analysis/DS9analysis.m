@@ -18,20 +18,30 @@
 classdef DS9analysis < handle
 
     properties
-        Images            % AstroImage | FileNames | cell
+        Images                % AstroImage | FileNames | cell
         Frame2Ind    = [1];
 
+        MapInd       = [];
     end
 
     
-    properties (Hidden)
-    end
+    %properties (Hidden)
+    %end
     
     methods % Constructor method
-        function Obj = DS9analysis(Image,varargin)
+        function Obj = DS9analysis(Image, DispInd)
             %
 
-            % open ds9 if doesn't exist
+            arguments
+                Image   = [];
+                DispInd = 1;
+            end
+
+            if ~isempty(Image)
+                Obj.Images = Image;
+
+
+            end
 
         end
 
@@ -72,14 +82,14 @@ classdef DS9analysis < handle
     methods % display
         % frame
         
-        function disp(Ind, AI)
-            %
-           
-            if isnumeric(Ind)
-                
-            end
-            
-        end
+        % function disp(Ind, AI)
+        %     %
+        % 
+        %     if isnumeric(Ind)
+        % 
+        %     end
+        % 
+        % end
         
         % 
     end
@@ -91,6 +101,10 @@ classdef DS9analysis < handle
             %          - Index of image in the AstroImage|FileNames|cell
             % Output : - A single element AstroImage object.
             
+            if isempty(Obj.Images)
+                error('Images is not populated');
+            end
+
             switch class(Obj.Images)
                 case 'AstroImage'
                     AI = Obj.Images(Ind);
@@ -110,7 +124,7 @@ classdef DS9analysis < handle
             % Input  : - self.
             % Output : - self in which the Images are sorted by JD.
             % Author : Eran Ofek (May 2023)
-            
+
             switch class(Obj.Images)
                 case 'AstroImage'
                     JD = Obj.Images.julday;
@@ -122,22 +136,160 @@ classdef DS9analysis < handle
                     error('Can not sort by time an Images cell property of class cell');
             end
         end
-        
+        % 
         % goto: next | prev | first | last | ind
         
     end
     
+    methods  % basic utilities
+        function [X, Y, Val, AI] = getXY(Obj, Coo, Args)
+            % Get X/Y position for user clicked/specified position
+            % Input  : - self.
+            %          - If empty, then prompt the user to click the ds9
+            %            window in a give position.
+            %            Alterantively, a vector of [RA, Dec] in decimal or
+            %            radians.
+            %            Or, a cell of sexagesimal coordinates {RA, Dec}.
+            %          * ...,key,val,...
+            %            'CooSys' - Coordinate system of user specified
+            %                   coordinates: 'sphere'|'pix'. Default is 'sphere.
+            %            'CooUnits' - Coordinates units. Default is 'deg'.
+            % Output : - X position.
+            %          - Y position.
+            %          - Image value at position.
+            %          - AstroImage at current frame for which
+            %            positions/values where obtained.
+            % Author : Eran Ofek (May 2023)
+
+            arguments
+                Obj
+                Coo    = [];
+                Args.CooSys   = 'sphere';
+                Args.CooUnits = 'deg';
+            end
+
+            Frame = str2double(ds9.frame);
+            Ind   = Obj.MapInd(Frame);
+            AI    = Obj.getImage(Ind);
+
+
+            if isempty(Coo)
+                [X, Y, PixVal] = ds9.getpos(1);
+            else
+                if iscell(Coo)
+                    % assume Coo in sexagesimal coordinates
+                    [X, Y] = AI.WCS.sky2xy(Coo{1}, Coo{2});
+                else
+
+                    switch lower(CooSys)
+                        case 'sphere'
+                            [X, Y] = AI.WCS.sky2xy(Coo(1), Coo(2), 'InUnits',Args.CooUnits);
+                        case 'pix'
+                            X = Coo(1);
+                            Y = Coo(2);
+                        otherwise
+                            error('Unknown CooSys option');
+                    end
+                end
+            end
+
+            if nargout>2
+                Xpix      = round(X);
+                Ypix      = round(Y);
+                Val       = AI.Image(Ypix, Xpix);
+            end
+
+        end
+
+    end
+
     methods  % tools
         % [XY, RADec] = moments
-        % getMask
+        
+        function [MaskName, MaskVal]=getMask(Obj, Coo, Args)
+            % Get Mask bit values/names at cser clicked/specified position
+            % Input  : - self.
+            %          - If empty, then prompt the user to click the ds9
+            %            window in a give position.
+            %            Alterantively, a vector of [RA, Dec] in decimal or
+            %            radians.
+            %            Or, a cell of sexagesimal coordinates {RA, Dec}.
+            %          * ...,key,val,...
+            %            'CooSys' - Coordinate system of user specified
+            %                   coordinates: 'sphere'|'pix'. Default is 'sphere.
+            %            'CooUnits' - Coordinates units. Default is 'deg'.
+            % Output : - A cell array of bit mask names at the specified
+            %            position. If empty, then bit mask is 0.
+            %          - Bit mask decimal value.
+            % Author : Eran Ofek (May 2023)
+
+            arguments
+                Obj
+                Coo    = [];
+                Args.CooSys   = 'sphere';
+                Args.CooUnits = 'deg';
+            end
+
+            [X, Y, Val, AI] = getXY(Obj, Coo, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
+            
+            Xpix      = round(X);
+            Ypix      = round(Y);
+            if isempty(AI.Mask)
+                error('No Maks image');
+            end
+            MaskVal   = AI.Mask(Ypix,Xpix);
+            MaskName  = AI.MaskData.Dict.bitdec2name(MaskVal);
+            MaskName  = MaskName{1};
+
+        end
+
         % getBack
         % getVar
         % plot
         % plotAll  % in all frames
-        % nearest
+        
+        function [Result,Dist,CatInd]=near(Obj, Coo, Radius, Args)
+            %
+
+            arguments
+                Obj
+                Coo    = [];
+                Radius = 10;  % pix
+                Args.CooSys   = 'sphere';
+                Args.CooUnits = 'deg';
+                Args.OutType  = 'table';  % 'table'|'astrocatalog'
+            end
+            
+            [X, Y, Val, AI] = getXY(Obj, Coo, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
+
+
+            if AI.CatData.sizeCatalog==0
+                error('Source catalog in AstroImage is empty');
+            end
+
+            CatXY = AI.CatData.getXY;
+
+            Dist  = sqrt( (CatXY(:,1)-X).^2 + (CatXY(:,2)-Y).^2);
+
+            Flag = Dist<Radius;
+            CatInd = find(Flag);
+            Dist   = Dist(CatInd);
+            switch lower(Args.OutType)
+                case 'table'
+                    Result = AI.CatData.toTable;
+                    Result = Result(CatInd,:);
+                case 'astrocatalog'
+                    Result = AI.CatData.copy;
+                    Result.Catalog = Result.Catalog(CatInd,:);
+                otherwise
+                    error('Unknown OutType option');
+            end
+
+
+        end
+
         % near(Radius)
         % nearestAll
-        % XY=getXY
         % RADec=getCoo
         % forcedPhot
     end
