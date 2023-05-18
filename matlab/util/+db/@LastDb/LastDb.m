@@ -118,8 +118,8 @@ classdef LastDb < Component
 
             % Columns without index
             Q.addColumn(TN, 'bitpix',   'smallint', 'default 0');
-            Q.addColumn(TN, 'maxis1',   'smallint', 'default 0');
-            Q.addColumn(TN, 'maxis2',   'smallint', 'default 0');
+            Q.addColumn(TN, 'naxis1',   'smallint', 'default 0');
+            Q.addColumn(TN, 'naxis2',   'smallint', 'default 0');
             Q.addColumn(TN, 'object',   'varchar', "default ''");
             Q.addColumn(TN, 'expmode',  'varchar(80)', "default ''");
             Q.addColumn(TN, 'counter',  'integer', 'default 0');
