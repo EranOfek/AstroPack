@@ -373,8 +373,30 @@ classdef DS9analysis < handle
         % plotAll  % in all frames
         
         function [Result,Dist,CatInd]=near(Obj, Coo, Radius, Args)
-            %
-
+            % Get sources in AstroImage catalog within search radius from clicked/specified position.
+            % Input  : - self.
+            %          - If empty, then prompt the user to click the ds9
+            %            window in a give position.
+            %            Alterantively, a vector of [RA, Dec] in decimal or
+            %            radians.
+            %            Or, a cell of sexagesimal coordinates {RA, Dec}.
+            %          * ...,key,val,...
+            %            'CooSys' - Coordinate system of user specified
+            %                   coordinates: 'sphere'|'pix'. Default is 'sphere.
+            %            'CooUnits' - Coordinates units. Default is 'deg'.
+            %            'OutType' - Type of output catalog:
+            %                   'table' | 'astrocatalog'.
+            %                   Default is 'table'.
+            % Output : - Catalog of of sources within search radius,
+            %            obtained from the CatData property in the
+            %            AstroImage object associated with the current
+            %            image.
+            %          - Vector of distances [pix] from the clicked search
+            %            position, for each source in the output catalog.
+            %          - Vector of indices of the returned sources in the
+            %            original AstroCatalog in the AstroImage.
+            % Author : Eran Ofek (May 2023)
+            
             arguments
                 Obj
                 Coo    = [];
@@ -385,7 +407,6 @@ classdef DS9analysis < handle
             end
             
             [X, Y, Val, AI] = getXY(Obj, Coo, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
-
 
             if AI.CatData.sizeCatalog==0
                 error('Source catalog in AstroImage is empty');
@@ -412,7 +433,6 @@ classdef DS9analysis < handle
 
         end
 
-        % near(Radius)
         % nearestAll
         % RADec=getCoo
     end
