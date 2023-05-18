@@ -3,8 +3,8 @@ function Image = cutouts2image(Cube, Image, X, Y, Args)
     % Input  : - A cube of stamps, where the 3rd dimension is the
     %            stamp/cutout index.
     %          - Image to which the cutouts will be inserted.
-    %          - X position of the cutout centers.
-    %          - Y position of the cutout centers.
+    %          - X position of the cutout centers in the new image.
+    %          - Y position of the cutout centers in the new image.
     %          * ...,key,val,...
     %            'SubCubeX' - [start end] of stamps X coordinates to insert
     %                   to image. If empty, then will use [1 StampXsize].
