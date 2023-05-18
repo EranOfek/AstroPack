@@ -227,6 +227,7 @@ classdef DS9analysis < handle
             %            .PApix - P.A. 
             %            .X - X of two points
             %            .Y - Y of two points
+            %            If WCS is available, the following are calculated:
             %            .RA - RA of two points.
             %            .Dec - Dec of two points.
             %            .DistAng - Angular distance.
