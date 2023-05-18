@@ -51,13 +51,13 @@ function Val=bitor_array(Array, Dim, UseMex)
         if UseMex && (ndims(Array) <= 3) && (Dim <= ndims(Array))
             switch Nbit
                 case 8
-                    Val = tools.array.mex_bitor_array8(Array, Dim);       
+                    Val = tools.array.mex.mex_bitor_array8(Array, Dim);       
                 case 16
-                    Val = tools.array.mex_bitor_array16(Array, Dim);       
+                    Val = tools.array.mex.mex_bitor_array16(Array, Dim);       
                 case 32
-                    Val = tools.array.mex_bitor_array32(Array, Dim);       
+                    Val = tools.array.mex.mex_bitor_array32(Array, Dim);       
                 case 64
-                    Val = tools.array.mex_bitor_array64(Array, Dim);       
+                    Val = tools.array.mex.mex_bitor_array64(Array, Dim);       
             end    
         else
             Val = 0;
