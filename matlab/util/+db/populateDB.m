@@ -13,7 +13,7 @@ function Result = populateDB( ImageFiles, Args )
     arguments
         
         ImageFiles             % input images
-        Args.DBname  = 'LAST'; % DB type
+        Args.DBname  = 'LAST'; % DB name
         Args.DBtable = 'RAW';  % DB table
         Args.Hash    = 1;      % whether to calculate a hashsum and add it to the table
         
@@ -29,49 +29,55 @@ function Result = populateDB( ImageFiles, Args )
         
         case 'last'
             
-            switch lower(Args.DBtable)
+            % Create a LastDb object with default connection parameters
+            LDB = db.LastDb();
+                    
+            for Img = 1:1:NImg
+                       
+                AH    = AstroHeader(ImageFiles(Img), 1); 
+                        
+                if Args.Hash
+                    Sum_h64 = tools.checksum.xxhash('FileName', char( ImageFiles(Img) ) ); 
+                else
+                    Sum_h64 = '';
+                end
+            
+                % populate the DB
                 
-                case 'raw'
-                    
-                    % Create a LastDb object with default connection parameters
-                    LDB = db.LastDb();
-                    
-                    % populate the DB:
-                    
-                    for Img = 1:1:NImg
-                        
-                        AH    = AstroHeader(ImageFiles(Img), 1); 
-                        
-                        if Args.Hash
-                            Sum_h64 = tools.checksum.xxhash('FileName', char( ImageFiles(Img) ) ); 
-                        else
-                            Sum_h64 = '';
-                        end
-                        
+                switch lower(Args.DBtable)          
+                
+                    case 'raw'
+            
                         LDB.addRawImage(AH.File, AH, 'xxhash', Sum_h64);
 
-                    end
+                    case 'proc'
+                   
+                        LDB.addProcImage(AH.File, AH, 'xxhash', Sum_h64);
+                        
+                    otherwise
                     
-                    % Queries and deleting records (tuples):
-%     
-%                     Q = db.DbQuery('lastdb:raw_images');
-%                     Q.select('*', 'TableName','raw_images','OutType','Table')
-%                     Q.select('*', 'TableName','raw_images','Where', 'filename like ''%143%''','OutType','Table')
-%                     Q.deleteRecord('TableName', 'raw_images', 'Where', 'filename like ''%143%''')
-%                     
-                otherwise
-                    
-                    cprintf('err','The requested table does not exist, exiting..');
-                    return
-                    
+                        cprintf('err','The requested table does not exist, exiting..');
+                        return
+                        
+                end
+                
             end
-            
+                    
+            % Queries and deleting records (tuples):
+%     
+%           Q = db.DbQuery('lastdb:raw_images');
+%           Q.select('*', 'TableName','raw_images','OutType','Table')
+%           Q.select('*', 'TableName','raw_images','Where', 'filename like ''%143%''','OutType','Table')
+%           Q.deleteRecord('TableName', 'raw_images', 'Where', 'filename like ''%143%''')          
+                                
         otherwise
             
             cprintf('err','The requested DB does not exist, exiting..');
             return
                     
     end
+    
+    %
     
     cprintf('hyper','The requested DB successfully populated with image metadata');
     Result = 0;   % successfully populated
