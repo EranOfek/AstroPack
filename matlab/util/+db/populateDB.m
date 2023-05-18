@@ -52,7 +52,9 @@ function Result = populateDB( ImageFiles, Args )
 
                     case 'proc'
                    
-                        LDB.addProcImage(AH.File, AH, 'xxhash', Sum_h64);
+%                         LDB.addProcImage(AH.File, AH, 'xxhash', Sum_h64);
+                        cprintf('err','The requested table does not exist yet, exiting..');
+                        return
                         
                     otherwise
                     
@@ -79,7 +81,7 @@ function Result = populateDB( ImageFiles, Args )
     
     %
     
-    cprintf('hyper','The requested DB successfully populated with image metadata');
+    cprintf('hyper','The requested DB successfully populated with image metadata.\n');
     Result = 0;   % successfully populated
 
 end
