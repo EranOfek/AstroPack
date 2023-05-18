@@ -1,4 +1,4 @@
-% Usage: [cutouts, image_subtracted] = mexCutout(image, positions, cut_size, pad_value=0, replace_value=0, debug_bit=0, use_memcpy=1); 
+% Usage: [cutouts, image_subtracted] = mex_cutout(image, positions, cut_size, pad_value=0, replace_value=0, debug_bit=0, use_memcpy=1); 
 %
 % INPUTS: 
 %   -image: provide a full frame image to cut from. Can handle double 

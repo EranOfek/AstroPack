@@ -5,7 +5,7 @@
 #include <string.h>
 
 //===========================================================================
-// File:     mexCutout.cpp
+// File:     mex_cutout.cpp
 // Author:
 // Bugfixes: Chen Tishler, Sep. 2022
 //
