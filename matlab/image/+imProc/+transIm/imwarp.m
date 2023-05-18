@@ -60,6 +60,10 @@ function Result = imwarp(Obj, Trans, Args)
     %            'CopyHeader' - A logical indicating if to copy the header
     %                   (used only if GetAllFields=false).
     %                   Default is true.
+    %            'CopYPSF' - A logical indicating if to copy the PSF from
+    %                   the original AstroImage to the transformed AstroImage.
+    %                   Will create a new PSFData object.
+    %                   Default is true.
     % Output : - 
     % Author : Eran Ofek (Nov 2021)
     % Example: imProc.transIm.imwarp
@@ -85,6 +89,7 @@ function Result = imwarp(Obj, Trans, Args)
         Args.CreateNewObj logical      = true;
         Args.GetAllFields logical      = false;  % if CreateNewObj=true & GetAllFields=false then the other fields are not copied
         Args.CopyHeader logical        = true; % copy header even if GetlAllFields=false
+        Args.CopyPSF logical           = true;
     end
     
     Nobj = numel(Obj);
@@ -319,6 +324,10 @@ function Result = imwarp(Obj, Trans, Args)
                 Result(Iobj).WCS = OutWCS;
                 Result(Iobj).HeaderData = wcs2header(Result(Iobj).WCS, Result(Iobj).HeaderData);
             end
+        end
+
+        if Args.CopyPSF
+            Result(Iobj).PSFData = Obj(Iobj).PSFData.copy;
         end
         
     end
