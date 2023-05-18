@@ -154,6 +154,8 @@ classdef DS9analysis < handle
             %            'CooSys' - Coordinate system of user specified
             %                   coordinates: 'sphere'|'pix'. Default is 'sphere.
             %            'CooUnits' - Coordinates units. Default is 'deg'.
+            %            'Msg' - Printed message for mouse click:
+            %                   Default is 'Select point in ds9 using mouse'
             % Output : - X position.
             %          - Y position.
             %          - Image value at position.
@@ -164,8 +166,9 @@ classdef DS9analysis < handle
             arguments
                 Obj
                 Coo    = [];
-                Args.CooSys   = 'sphere';
-                Args.CooUnits = 'deg';
+                Args.CooSys    = 'sphere';
+                Args.CooUnits  = 'deg';
+                Args.Msg       = 'Select point in ds9 using mouse';
             end
 
             Frame = str2double(ds9.frame);
@@ -174,6 +177,7 @@ classdef DS9analysis < handle
 
 
             if isempty(Coo)
+                fprintf('%s\n',Args.Msg);
                 [X, Y, PixVal] = ds9.getpos(1);
             else
                 if iscell(Coo)
@@ -204,6 +208,69 @@ classdef DS9analysis < handle
     end
 
     methods  % tools
+        function Result = dist(Obj, Coo, Args)
+            % Calculate distance between two specified points in ds9
+            % Input  : - self.
+            %          - If empty, then prompt the user to click the ds9
+            %            window in a give position.
+            %            Alterantively, a vector of [RA, Dec] in decimal or
+            %            radians.
+            %            Or, a cell of sexagesimal coordinates {RA, Dec}.
+            %          * ...,key,val,...
+            %            'CooSys' - Coordinate system of user specified
+            %                   coordinates: 'sphere'|'pix'. Default is 'sphere.
+            %            'CooUnits' - Coordinates units. Default is 'deg'.
+            %            'OutUnits' - Units of output angular properties.
+            %                   Default is 'deg'.
+            % Output : - A structure with the following fields:
+            %            .DistPix - Distance [pix]
+            %            .PApix - P.A. 
+            %            .X - X of two points
+            %            .Y - Y of two points
+            %            .RA - RA of two points.
+            %            .Dec - Dec of two points.
+            %            .DistAng - Angular distance.
+            %            .PAang - P.A. relative to the North
+            % Author : Eran Ofek (May 2023)
+            
+            
+            arguments
+                Obj
+                Coo              = [];  % [X1 Y1; X2 Y2]
+                Args.CooSys      = 'sphere';
+                Args.CooUnits    = 'deg';
+                Args.OutUnits    = 'deg';
+            end
+            
+            if isempty(Coo)
+                [X1, Y1, Val1, AI] = getXY(Obj, Coo, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits, 'Msg','Select point 1 in ds9 using mouse');
+                [X2, Y2, Val2, ~]  = getXY(Obj, Coo, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits, 'Msg','Select point 2 in ds9 using mouse');
+            else
+                X1 = Coo(1,1);
+                Y1 = Coo(1,2);
+                X2 = Coo(2,1);
+                Y2 = Coo(2,2);
+            end
+            Result.DistPix = sqrt((X1-X2).^2 + (Y1-Y2).^2);
+            Result.PApix   = atan2(Y2-Y1, X2-X1);
+            Result.X   = [X1, X2];
+            Result.Y   = [Y1, Y2];
+            
+            % check if WCS is available
+            if AI.WCS.Success
+                [Result.RA, Result.Dec] = AI.WCS.xy2sky(Result.X, Result.Y 'OutUnits',Args.OutUnits);
+                
+                Factor = convert.angular(Args.OutUnits, 'rad', 1);
+                RA     = RA.*Factor;
+                Dec    = Dec.*Factor;
+                [Result.DistAng, Result.PA] = celestial.coo.sphere_dist(RA(1), Dec(1), RA(2), Dec(2));
+                Result.DistAng = convert.angular('rad', Args.OutUnits, Result.DistAng);
+                Result.PAang   = convert.angular('rad', Args.OutUnits, Result.PA);
+                
+            end
+            
+        end
+        
         function [M1, M2, Aper, RADec, AI] = moments(Obj, Coo, Args)
             % Measure 1st, 2nd moments, and aper phot at user click or specified position.
             % Input  : - self.
