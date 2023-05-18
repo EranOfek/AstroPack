@@ -6,4 +6,4 @@ typedef double __FLOAT;
 // MATLAB Data Types
 #define MEX_FLOAT mxDOUBLE_CLASS
 
-#include "findLocalMaxAboveThreshold_mex_include.c"
+#include "mex_findLocalMaxAboveThreshold_include.cpp"
