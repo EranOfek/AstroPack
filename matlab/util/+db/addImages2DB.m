@@ -31,30 +31,10 @@ function Result = addImages2DB(Args)
     end
     
     % call the sub to populate the database
+                        
+    db.populateDB ( Imfiles, 'DBname', 'LAST', 'DBtable', 'RAW', 'Hash', Args.Hash );
     
-    switch lower(Args.DBname)
-        
-        case 'last'
-            
-            switch lower(Args.DBtable)
-                
-                case 'raw'
-                    
-                    db.populateDB ( Imfiles, 'DBname', 'LAST', 'DBtable', 'RAW', 'Hash', Args.Hash );
-                    
-                otherwise
-                    
-                    cprintf('err','The requested table does not exist, exiting..');
-                    return
-                    
-            end
-            
-        otherwise
-            
-            cprintf('err','The requested DB does not exist, exiting..');
-            return
-            
-    end
+    % assign the Result value
     
     Result = 0;   % success
 
