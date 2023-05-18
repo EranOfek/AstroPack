@@ -32,11 +32,18 @@ function Result = addImages2DB(Args)
     
     % call the sub to populate the database
                         
-    db.populateDB ( Imfiles, 'DBname', 'LAST', 'DBtable', 'RAW', 'Hash', Args.Hash );
+    db.populateDB ( Imfiles, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
     
     % assign the Result value
     
     Result = 0;   % success
+    
+                % Queries and deleting records (tuples):
+%     
+%           Q = db.DbQuery('lastdb:raw_images');
+%           Q.select('*', 'TableName','raw_images','OutType','Table')
+%           Q.select('*', 'TableName','raw_images','Where', 'filename like ''%143%''','OutType','Table')
+%           Q.deleteRecord('TableName', 'raw_images', 'Where', 'filename like ''%143%''')          
 
 end
 
