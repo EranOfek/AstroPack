@@ -43,13 +43,13 @@ function Result = countVal(Array, Val, UseNot, UseMex)
     C = lower(class(Array));
     switch C
         case {'uint16','int16'}
-            Result = tools.array.mex_countVal16(Array, int16(Val), UseNot);       
+            Result = tools.array.mex.mex_countVal16(Array, int16(Val), UseNot);       
         case {'uint32','int32'}
-            Result = tools.array.mex_countVal32(Array, int32(Val), UseNot);       
+            Result = tools.array.mex.mex_countVal32(Array, int32(Val), UseNot);       
         case {'single'}
-            Result = tools.array.mex_countValSingle(Array, single(Val), UseNot);       
+            Result = tools.array.mex.mex_countValSingle(Array, single(Val), UseNot);       
         case {'double'}
-            Result = tools.array.mex_countValDouble(Array, double(Val), UseNot);       
+            Result = tools.array.mex.mex_countValDouble(Array, double(Val), UseNot);       
         otherwise
             error('tools.array.countVal - Unsupported data type');
     end

@@ -42,7 +42,7 @@ NdimImage = ndims(Image);
 if NdimImage==2
     % Image is 2D - build a cube of 2D stamps
     if Args.mexCutout
-        [Cube]=imUtil.cut.mexCutout(Image,[X,Y],Args.Radius.*2+1);
+        [Cube]=imUtil.cut.mex.mex_cutout(Image,[X,Y],Args.Radius.*2+1);
         Cube  = squeeze(Cube);
         RoundX = round(X);
         RoundY = round(Y);

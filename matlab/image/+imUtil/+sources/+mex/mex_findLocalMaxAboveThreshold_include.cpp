@@ -9,6 +9,7 @@
 //
 // originally at D:\GitHub\AstroPack\matlab\image\+imUtil\+sources
 #include <stdio.h>
+#include <math.h>
 #include "mex.h"
 #include "matrix.h"
 

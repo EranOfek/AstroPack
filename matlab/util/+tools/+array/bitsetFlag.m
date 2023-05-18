@@ -35,13 +35,13 @@ function Result = bitsetFlag(Array, Flag, Bit, Value, UseMex, UseMP)
     C = lower(class(Array));    
     switch C
         case {'uint8','int8'}
-            Result = tools.array.mex_bitsetFlag8(Array,  Flag, int32(Bit), int32(Value), int32(UseMP));               
+            Result = tools.array.mex.mex_bitsetFlag8(Array,  Flag, int32(Bit), int32(Value), int32(UseMP));               
         case {'uint16','int16'}
-            Result = tools.array.mex_bitsetFlag16(Array, Flag, int32(Bit), int32(Value), int32(UseMP));       
+            Result = tools.array.mex.mex_bitsetFlag16(Array, Flag, int32(Bit), int32(Value), int32(UseMP));       
         case {'uint32','int32'}
-            Result = tools.array.mex_bitsetFlag32(Array, Flag, int32(Bit), int32(Value), int32(UseMP));       
+            Result = tools.array.mex.mex_bitsetFlag32(Array, Flag, int32(Bit), int32(Value), int32(UseMP));       
         case {'uint64','int64'}
-            Result = tools.array.mex_bitsetFlag64(Array, Flag, int32(Bit), int32(Value), int32(UseMP));                   
+            Result = tools.array.mex.mex_bitsetFlag64(Array, Flag, int32(Bit), int32(Value), int32(UseMP));                   
         otherwise
             error('tools.array.bitsetFlag - Unsupported data type');
     end

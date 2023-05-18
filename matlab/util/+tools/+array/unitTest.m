@@ -39,7 +39,7 @@ function Result = test_bitset()
     %array(flag) = bitset(array(flag), 2, true);    
     %disp(array);    
     % 
-    %b = tools.array.mex_bitsetFlag32(array, flag, int32(2), int32(false));
+    %b = tools.array.mex.mex_bitsetFlag32(array, flag, int32(2), int32(false));
     %disp(array);
     %return;
     
@@ -73,7 +73,7 @@ function Result = test_bitset()
             % MEX version
             t = tic;
             for L=1:Loop        
-                MexResult = tools.array.mex_bitsetFlag32(Array, Flag, int32(Bit), int32(Value), int32(false));
+                MexResult = tools.array.mex.mex_bitsetFlag32(Array, Flag, int32(Bit), int32(Value), int32(false));
                 %MexResult = tools.array.bitsetFlag(Array, Flag, Bit, Value);            
             end
             MexTime = toc(t);        
@@ -81,7 +81,7 @@ function Result = test_bitset()
             % MEX with OpenMP
             t = tic;
             for L=1:Loop        
-                MpResult = tools.array.mex_bitsetFlag32(Array, Flag, int32(Bit), int32(Value), int32(true));
+                MpResult = tools.array.mex.mex_bitsetFlag32(Array, Flag, int32(Bit), int32(Value), int32(true));
             end
             MpTime = toc(t);                    
 
