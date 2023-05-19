@@ -1823,6 +1823,71 @@ classdef MatchedSources < Component
 %         end
     end
     
+    methods % conversions
+        function Result=convert2AstroCatalog(Obj, Args)
+            % Convert MatchedSources object into an AstroCatalog
+            %   The AstroCatalog will include a JD column followed by the
+            %   fields in the MatchedSources object.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            'SameEpochBlock' - A logical indicating if to
+            %                   order the sources by epoch blocks (true),
+            %                   or by source blocks (false).
+            %                   Default is true.
+            % Output : - An AstroCatalog object with the data sotored in
+            %            the MatchedSources Data property.
+            % Author : Eran Ofek (May 2023)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix([1 2 3; 4 5 6],'FLUX')
+            %          MS.addMatrix({rand(2,3), rand(2,3), rand(2,3)},{'MAG','X','Y'})
+            %          T = MS.convert2AstroCatalog;
+            %          T = MS.convert2AstroCatalog('SameEpochBlock',false);
+            
+            arguments
+                Obj(1,1)
+                Args.SameEpochBlock logical    = true;
+            end
+            
+            if isempty(Obj.Nepoch) || isempty(Obj.Nsrc)
+                % empty MatchedSources
+                Result = [];
+            else
+                Nfields = numel(Obj.Fields);
+                Array   = zeros(Obj.Nsrc.*Obj.Nepoch, Nfields+1);
+                JD      = Obj.JD;
+                if isempty(JD)
+                    JD = (1:1:Obj.Nepoch).';
+                end
+                JD = JD(:);
+                for If=1:1:Nfields
+                    if Args.SameEpochBlock
+                        % write blocks of the same epoch followed by next
+                        % epoch
+                        if If==1
+                            Vector = repmat(JD, [1 Obj.Nsrc]).';
+                            Vector = Vector(:);
+                        else
+                            Vector = Obj.Data.(Obj.Fields{If-1}).';
+                            Vector = Vector(:);
+                        end
+                    else
+                        % write block of same sources in differnt epochs,
+                        % followed by next source
+                        if If==1
+                            Vector = repmat(JD, [Obj.Nsrc, 1]);
+                        else
+                            Vector = Obj.Data.(Obj.Fields{If-1})(:);
+                        end
+                    end
+                    
+                    Array(:,If) = Vector;
+                end
+                Result = AstroCatalog({Array}, 'ColNames',[{'JD'}, Obj.Fields(:)']);
+            end
+            
+        end
+    end
+    
     methods % light curves analysis
         function [PSD, Freq] = psd(Obj, Args)
             % Estimate the mean power spectral density of all the sources.
