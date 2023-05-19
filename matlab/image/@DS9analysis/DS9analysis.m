@@ -142,7 +142,7 @@ classdef DS9analysis < handle
     end
     
     methods  % basic utilities
-        function [X, Y, Val, AI] = getXY(Obj, Coo, Mode, Args)
+        function [X, Y, Val, AI, Key] = getXY(Obj, Coo, Mode, Args)
             % Get X/Y position for user clicked/specified position
             % Input  : - self.
             %          - If empty, then prompt the user to click the ds9
@@ -165,6 +165,7 @@ classdef DS9analysis < handle
             %          - Image value at position.
             %          - AstroImage at current frame for which
             %            positions/values where obtained.
+            %          - Clicked key.
             % Author : Eran Ofek (May 2023)
 
             arguments
@@ -180,10 +181,11 @@ classdef DS9analysis < handle
             Ind   = Obj.MapInd(Frame);
             AI    = Obj.getImage(Ind);
 
-
+            
+            Key = [];
             if isempty(Coo)
                 fprintf('%s\n',Args.Msg);
-                [X, Y, PixVal] = ds9.getpos(1);
+                [X, Y, PixVal, Key] = ds9.getpos(1);
             else
                 if iscell(Coo)
                     % assume Coo in sexagesimal coordinates
@@ -265,7 +267,7 @@ classdef DS9analysis < handle
             
             % check if WCS is available
             if AI.WCS.Success
-                [Result.RA, Result.Dec] = AI.WCS.xy2sky(Result.X, Result.Y 'OutUnits',Args.OutUnits);
+                [Result.RA, Result.Dec] = AI.WCS.xy2sky(Result.X, Result.Y, 'OutUnits',Args.OutUnits);
                 
                 Factor = convert.angular(Args.OutUnits, 'rad', 1);
                 RA     = RA.*Factor;
@@ -646,6 +648,27 @@ classdef DS9analysis < handle
         % RADec=getCoo
     end
 
+    methods % imexam
+        function Result=imexam(Obj, Coo, Args)
+            % Interactive image examination tool
+            
+            arguments
+                Obj
+                Coo
+                Args
+            end
+            
+            Cont = true;
+            while Cont
+                [X, Y, Val, AI, Key] = getXY(Obj, Coo, Mode, Args);
+                
+                
+                
+            end
+            
+            
+        end
+    end
 
 
     methods (Static) % Unit-Test
