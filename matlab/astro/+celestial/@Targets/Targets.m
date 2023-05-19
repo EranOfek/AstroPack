@@ -874,6 +874,24 @@ classdef Targets < Component
     end
     
     methods % weights and priority
+
+        
+        function [Obj, P, Ind]=cadence_fields_predefined(Obj, JD)
+            % observed according to predefined priority (order in
+            % list if no priority given). Switch to next target
+            % when MaxNobs reached.
+            % implemented by Nora
+                    
+            SEC_DAY = 86400;
+            
+            TimeOnTarget = (Obj.NperVisit+1).*Obj.ExpTime/SEC_DAY; % days
+            [FlagAllVisible, ~] = isVisible(Obj, JD,'MinVisibilityTime',TimeOnTarget);
+            FlagObserve = (Obj.GlobalCounter<Obj.MaxNobs) & FlagAllVisible;
+                    
+            P = Obj.Priority.*FlagObserve;
+            [~,Ind] = max(P);  
+            
+            
         function [Obj, P, Ind]=cadence_fields_cont(Obj, JD)
             % Implement "fields_cont" cadence
             %   Given a list of selected fields - observe each field
@@ -1037,6 +1055,14 @@ classdef Targets < Component
                     [Obj, P, Ind] = Obj.cadence_fields_cont(JD);
 
                 case 'predefined'
+                    % observed according to predefined priority (order in
+                    % list if no priority given). Switch to next target
+                    % when MaxNobs reached.
+                    % implemented by Nora
+                    
+                    [Obj, P, Ind]=cadence_predefined(Obj, JD);
+                    
+            
                     
                 case 'survey'
                     % prioritize target for survey with pre defined
