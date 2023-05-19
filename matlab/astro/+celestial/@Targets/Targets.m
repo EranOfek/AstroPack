@@ -400,7 +400,8 @@ classdef Targets < Component
             N = numel(Obj.RA);
             VecN = (1:1:N).';
             FID = fopen(FileName,'w');
-            fprintf(FID, '%6d   %9.5f %9.5f\n', [VecN(:), Obj.RA(:), Obj.Dec(:)].');
+            %fprintf(FID, 'RA    Dec    Index   TargetName DeltaRA    DeltaDec   ExpTime    NperVisit  MaxNobs    LastJD GlobalCounter  NightCounter   Priority\n');
+            fprintf(FID, '%9.5f %9.5f    %6d    \n', [Obj.RA(:), Obj.Dec(:), VecN(:)].');
             fclose(FID);
             
         end
