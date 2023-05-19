@@ -89,6 +89,7 @@
 %            VO.Swift.allFunList - Functions and Classes list for the VO.Swift package
 %            VO.Swift.getGRB_cat - get and read the Swift online GRB catalog
 %             VO.Swift.getXRT_LC - get Swift/XRT light curve of a GRB from the Swift UK database
+%             VO.TESS.allFunList - Functions and Classes list for the VO.TESS package
 %          VO.TESS.wget_tess_ffi - Get TESS Full Image Frames (FFI)
 %              VO.TNS.allFunList - Functions and Classes list for the VO.TNS package
 %              VO.TNS.read_table - SHORT DESCRIPTION HERE
