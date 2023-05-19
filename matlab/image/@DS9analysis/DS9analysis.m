@@ -375,6 +375,11 @@ classdef DS9analysis < handle
             %
             %            'forcedPhotArgs' - A cell array of additional
             %                   arguments to pass to imProc.sources.forcedPhot
+            %            'OutType' - Output type:
+            %                   'ms' - A MatchedSources object.
+            %                   'ac' - An AstroCatalog object.
+            %                   't'  - A table object.
+            %                   Default is 't'.
             % Output : - A MatchedSources object with the output measured
             %            forced photometry parameters.
             % Author : Eran Ofek (May 2023)
@@ -386,11 +391,25 @@ classdef DS9analysis < handle
                 Args.CooUnits    = 'deg';
                 
                 Args.forcedPhotArgs cell = {};
+                Args.OutType             = 't';
             end
             
             [X, Y, Val, AI] = getXY(Obj, Coo, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
             
-            Result = imProc.sources.forcedPhot(AI,'Coo',[X Y], 'AddRefStarsDist',false, 'Moving',false, Args.forcedPhotArgs{:});
+            MS = imProc.sources.forcedPhot(AI,'Coo',[X Y], 'AddRefStarsDist',false, 'Moving',false, Args.forcedPhotArgs{:});
+            
+            switch lower(Args.OutType)
+                case {'ms','matchedsources'}
+                    % do nothing
+                    Result = MS;
+                case {'ac','astrocatalog'}
+                    Result = MS.convert2AstroCatalog;
+                case {'t','table'}
+                    Result = MS.convert2AstroCatalog;
+                    Result = Result.toTable;
+                otherwise
+                    error('Unknown OutType option');
+            end
             
         end
             
