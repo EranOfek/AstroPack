@@ -360,8 +360,40 @@ classdef DS9analysis < handle
                 
         end
         
-        % forcedPhot
-        
+        function Result = forcedPhot(Obj, Coo, Args)
+            % Forced photometry on specified position in ds9.
+            % Input  : - self.
+            %          - If empty, then prompt the user to click the ds9
+            %            window in a give position.
+            %            Alterantively, a vector of [RA, Dec] in decimal or
+            %            radians.
+            %            Or, a cell of sexagesimal coordinates {RA, Dec}.
+            %          * ...,key,val,...
+            %            'CooSys' - Coordinate system of user specified
+            %                   coordinates: 'sphere'|'pix'. Default is 'sphere.
+            %            'CooUnits' - Coordinates units. Default is 'deg'.
+            %
+            %            'forcedPhotArgs' - A cell array of additional
+            %                   arguments to pass to imProc.sources.forcedPhot
+            % Output : - A MatchedSources object with the output measured
+            %            forced photometry parameters.
+            % Author : Eran Ofek (May 2023)
+            
+            arguments
+                Obj
+                Coo              = [];  % [X1 Y1; X2 Y2]
+                Args.CooSys      = 'sphere';
+                Args.CooUnits    = 'deg';
+                
+                Args.forcedPhotArgs cell = {};
+            end
+            
+            [X, Y, Val, AI] = getXY(Obj, Coo, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
+            
+            Result = imProc.sources.forcedPhot(AI,'Coo',[X Y], 'AddRefStarsDist',false, 'Moving',false, Args.forcedPhotArgs{:});
+            
+        end
+            
         function [MaskName, MaskVal]=getMask(Obj, Coo, Args)
             % Get Mask bit values/names at user clicked/specified position
             % Input  : - self.
