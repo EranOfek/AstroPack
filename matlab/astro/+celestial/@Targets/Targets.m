@@ -876,7 +876,7 @@ classdef Targets < Component
     methods % weights and priority
 
         
-        function [Obj, P, Ind]=cadence_fields_predefined(Obj, JD)
+        function [Obj, P, Ind]=cadence_predefined(Obj, JD)
             % observed according to predefined priority (order in
             % list if no priority given). Switch to next target
             % when MaxNobs reached.
@@ -889,7 +889,9 @@ classdef Targets < Component
             FlagObserve = (Obj.GlobalCounter<Obj.MaxNobs) & FlagAllVisible;
                     
             P = Obj.Priority.*FlagObserve;
-            [~,Ind] = max(P);  
+            [~,Ind] = max(P);
+            
+        end
             
             
         function [Obj, P, Ind]=cadence_fields_cont(Obj, JD)
@@ -1060,9 +1062,14 @@ classdef Targets < Component
                     % when MaxNobs reached.
                     % implemented by Nora
                     
-                    [Obj, P, Ind]=cadence_predefined(Obj, JD);
+                    [Obj, P, Ind] = Obj.cadence_predefined(JD);
                     
             
+                case 'cycle'
+                    % observe according to predefined priority (order in
+                    % list if no priority given). Move to next field when
+                    % NperVisit reached.
+                    
                     
                 case 'survey'
                     % prioritize target for survey with pre defined
