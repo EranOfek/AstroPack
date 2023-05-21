@@ -46,7 +46,7 @@
 %       prep_QE
 
 
-classdef UltrasatPerf < Base
+classdef UltrasatPerf < Component
     % Component should contain:
     
     properties (Access = public)
@@ -109,7 +109,7 @@ classdef UltrasatPerf < Base
     end
         
     methods  % Constructor
-        function Obj = UltrasatPerf(Nobj,Args)
+        function Obj = UltrasatPerf(Nobj, Args)
             % Basic constructor for UltrasatPerf class.
             % Input  : - A vector of the requested size of the empty
             %            AstroWCS object (e.g., [2 2]).
@@ -123,21 +123,29 @@ classdef UltrasatPerf < Base
                 Nobj           = 1;   % array size
                 Args.PSF_name  = 'chromPSF_1';
                 Args.calcPerf  = false;
+                Args.Init = true;           % True to initialize, added by @Chen, 21/05/2023 for debugging
             end
             
-            % create an empty AstroWCS object
-            List = cell(Nobj);
-            Nh = numel(List);
-            for Ih=1:1:Nh
-                Obj(Ih).Rdeg = Obj(Ih).Rmm * convert.angular('rad','deg') / Obj(Ih).FLmm; % Fill Rdeg
-                Obj(Ih).populate_Design('PSF_name',Args.PSF_name); % Populate design
-                if Args.calcPerf
-                    Obj(Ih).calculatePerformance;
-                end
+            Obj.setName('UltrasatPerf');            
+            Obj.msgLog(LogLevel.Debug, 'constructor started');
+            
+            if Args.Init
                 
+                % create an empty AstroWCS object
+                List = cell(Nobj);
+                Nh = numel(List);
+                for Ih=1:1:Nh
+                    Obj(Ih).Rdeg = Obj(Ih).Rmm * convert.angular('rad','deg') / Obj(Ih).FLmm; % Fill Rdeg
+                    Obj(Ih).populate_Design('PSF_name',Args.PSF_name); % Populate design
+                    if Args.calcPerf
+                        Obj(Ih).calculatePerformance;
+                    end
+
+                end
+                Obj = reshape(Obj,size(List));
             end
-            Obj = reshape(Obj,size(List));
             
+            Obj.msgLog(LogLevel.Debug, 'constructor done');
         end
         
     end

@@ -169,7 +169,11 @@ classdef LogFile < handle
                     fprintf(Obj.Fid, '\n');
                 end
             else
-                fprintf(Obj.Fid, varargin{:});
+                if numel(varargin) == 1
+                    fprintf(Obj.Fid, '%s', varargin{:});
+                else
+                    fprintf(Obj.Fid, varargin{:});
+                end
                 fprintf(Obj.Fid, '\n');
             end
 

@@ -29,17 +29,24 @@ classdef UltrasatPerf2GUI < Component
             % Author  : Arie Blumenzweig (2023)
             % Example : UG = UltrasatPerf2GUI();
             
-            Obj.setName('UltrasatPerf2GUI');            
+            Obj.setName('UltrasatPerf2GUI');
+            Obj.msgLog(LogLevel.Debug, 'constructor started');
+            
             FName = Obj.MatFileName;
             
             % Temporary solution!!! @Todo @Chen (2023/05/17)
-            if isdeployed
-                FName = fullfile('c:/soc/snr/aws_matlab/', Obj.MatFileName);
+            if true %isdeployed
+                FName = fullfile('c:/soc/snr/snr_matlab/', Obj.MatFileName);
             end
             Obj.msgLog(LogLevel.Debug, 'UltrasatPerf2GUI:load: %s', FName);
             Obj.UP = load(FName, 'UP');
+            assert(~isempty(Obj.UP.UP));
+            
             %Obj.UP = load(Obj.MatFileName, 'UP');
             Obj.Sources = string({Obj.UP.UP.Specs.ObjName});
+            Obj.msgLog(LogLevel.Debug, 'UltrasatPerf2GUI: Sources: %d', numel(Obj.Sources));
+            
+            Obj.msgLog(LogLevel.Debug, 'constructor done');
         end
         
         
