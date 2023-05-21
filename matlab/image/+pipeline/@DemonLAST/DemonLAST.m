@@ -169,11 +169,13 @@ classdef DemonLAST < Component
         end
 
         function set.DataDir(Obj, Val)
-            % Set DataDir
+            % Set DataDir and modify BasePath
             
-            
+            Obj.DataDir = Val;
+            Obj.BasePath = Obj.getPath;
             
         end
+        
         
     end
       
