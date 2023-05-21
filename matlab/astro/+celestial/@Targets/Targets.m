@@ -400,7 +400,8 @@ classdef Targets < Component
             N = numel(Obj.RA);
             VecN = (1:1:N).';
             FID = fopen(FileName,'w');
-            fprintf(FID, '%6d   %9.5f %9.5f\n', [VecN(:), Obj.RA(:), Obj.Dec(:)].');
+            %fprintf(FID, 'RA    Dec    Index   TargetName DeltaRA    DeltaDec   ExpTime    NperVisit  MaxNobs    LastJD GlobalCounter  NightCounter   Priority\n');
+            fprintf(FID, '%9.5f %9.5f    %6d    \n', [Obj.RA(:), Obj.Dec(:), VecN(:)].');
             fclose(FID);
             
         end
@@ -873,6 +874,48 @@ classdef Targets < Component
     end
     
     methods % weights and priority
+
+        function [Obj, P, Ind]=cadence_highest_setting(Obj, JD)
+            % observe the highest field that has crossed the Meridian (= is
+            % setting), fields near pole don't have to be setting
+            % implemented by Nora in May 2023
+                    
+            SEC_DAY = 86400;
+            
+            TimeOnTarget = (Obj.NperVisit+1).*Obj.ExpTime/SEC_DAY; % days
+            [FlagAllVisible, ~] = isVisible(Obj, JD,'MinVisibilityTime',TimeOnTarget);
+            FlagObserve = (Obj.GlobalCounter<Obj.MaxNobs) & FlagAllVisible;
+            
+            [~,Alt] = Obj.azalt(JD);
+            P = Alt/90+1;
+            [HA, LST]=Obj.ha(JD);
+            FlagSetting = (HA>0) | (Obj.Dec>75); % fields with Dec>75 don't have to be setting
+            
+            P = P.*FlagObserve.*FlagSetting;
+            [~,Ind] = max(P);
+            
+        end
+            
+        
+        
+        function [Obj, P, Ind]=cadence_predefined(Obj, JD)
+            % observed according to predefined priority (order in
+            % list if no priority given). Switch to next target
+            % when MaxNobs reached.
+            % implemented by Nora in May 2023
+                    
+            SEC_DAY = 86400;
+            
+            TimeOnTarget = (Obj.NperVisit+1).*Obj.ExpTime/SEC_DAY; % days
+            [FlagAllVisible, ~] = isVisible(Obj, JD,'MinVisibilityTime',TimeOnTarget);
+            FlagObserve = (Obj.GlobalCounter<Obj.MaxNobs) & FlagAllVisible;
+                    
+            P = Obj.Priority.*FlagObserve;
+            [~,Ind] = max(P);
+            
+        end
+            
+            
         function [Obj, P, Ind]=cadence_fields_cont(Obj, JD)
             % Implement "fields_cont" cadence
             %   Given a list of selected fields - observe each field
@@ -1036,6 +1079,26 @@ classdef Targets < Component
                     [Obj, P, Ind] = Obj.cadence_fields_cont(JD);
 
                 case 'predefined'
+                    % observed according to predefined priority (order in
+                    % list if no priority given). Switch to next target
+                    % when MaxNobs reached.
+                    % implemented by Nora
+                    
+                    [Obj, P, Ind] = Obj.cadence_predefined(JD);
+                    
+                case 'highestsetting'
+                    % observe the highest field that has crossed the Meridian 
+                    % (= is setting), fields near pole don't have to be 
+                    % setting 
+                    % implemented by Nora in May 2023
+                    [Obj, P, Ind] = Obj.cadence_highest_setting(JD);
+                    
+                    
+                case 'cycle'
+                    % observe according to predefined priority (order in
+                    % list if no priority given). Move to next field when
+                    % NperVisit reached.
+                    
                     
                 case 'survey'
                     % prioritize target for survey with pre defined

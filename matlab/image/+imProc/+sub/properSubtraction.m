@@ -1,11 +1,13 @@
 function Result = properSubtraction(ObjNew, ObjRef, Args)
     %
+    % Example: AI2_1=imProc.transIm.imwarp(AI2, AI1);
+    %          D = imProc.sub.properSubtraction(AI2_1, AI1);
 
     arguments
         ObjNew AstroImage
         ObjRef AstroImage
         Args.backgroundArgs cell          = {};
-        Args.MeanVarFun fumction_handle   = @tools.math.stat.nanmedian;
+        Args.MeanVarFun function_handle   = @tools.math.stat.nanmedian;
         Args.RefBack                      = [];  % can use to overide Ref background level
         Args.ReplaceNanN logical          = true;
         Args.ReplaceNanR logical          = true;
@@ -47,26 +49,10 @@ function Result = properSubtraction(ObjNew, ObjRef, Args)
         error('%d out of %d PSFData property in the Ref images are empty', sum(IsEmptyRefPSF), N_R);
     end
 
-
-
-    
-
-    
+ 
     for Imax=1:1:Nmax
-        In = min(N_N, Imax);
         Ir = min(N_R, Imax);
-
-        % get PSF and pad and shift
-        Pn = ObjNew(In).PSFData.getPSF;
-        Pr = ObjRef(Ir).PSFData.getPSF;
-
-        % get std
-        Sigma_n = Args.MeanVarFun(ObjeNew(In).Var);
-        Sigma_r = Args.MeanVarFun(ObjeRef(Ir).Var);
-
-        % get flux normalization
-        %Fn = 
-        %Fr = 
+        In = min(N_N, Imax);
 
         % subtract background
         N = ObjNew(In).Image - ObjNew(In).Back;
@@ -78,13 +64,39 @@ function Result = properSubtraction(ObjNew, ObjRef, Args)
 
         % replace NaNs
         if Args.ReplaceNanN
-            N = ImUtil.image.replaceVal(N, NaN, 0);
+            N = imUtil.image.replaceVal(N, NaN, 0);
         end
         if Args.ReplaceNanR
-            R = ImUtil.image.replaceVal(R, NaN, 0);
+            R = imUtil.image.replaceVal(R, NaN, 0);
         end
 
+
+        % get PSF and pad and shift
+        Pr = ObjRef(Ir).PSFData.padShift(size(R), 'fftshift','fftshift');
+        Pn = ObjNew(In).PSFData.padShift(size(N), 'fftshift','fftshift');
+        
+        
+
+        % get std
+        SigmaR = sqrt(Args.MeanVarFun(ObjRef(Ir).Var));
+        SigmaN = sqrt(Args.MeanVarFun(ObjNew(In).Var));
+        
+
+        % get flux normalization
+        Fn = 1
+        Fr = 1
+
+        
         % Image subtraction
+        R_hat = fft2(R);
+        N_hat = fft2(N);
+        Pr_hat = fft2(Pr);
+        Pn_hat = fft2(Pn);
+        [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(R_hat, N_hat, Pr_hat, Pn_hat, SigmaR, SigmaN, Fr, Fn);
+        D=ifft2(D_hat);
+        
+        'a'
+
 
 
 

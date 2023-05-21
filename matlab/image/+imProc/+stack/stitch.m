@@ -20,7 +20,9 @@ function StitchedImage = stitch(Args)
         Args.InputImages    =    'LAST*coadd_Image*.fits';       % The mask of the input image filenames
         Args.PixScale       =    1.25;                           % [arcsec] The pixel scale (LAST by def.)
         Args.Crop           =    [20 20 20 20];                  % X1 X2 Y1 Y2 margin sizes of the input images to be cropped out
-        Args.Method         =    'redistribute'                  % 
+        Args.Method         =    'redistribute';                 % pixel redistribution method on the mosaic image
+        Args.Exposure       =    0;                              % exposure time to be written into the header of the mosaic image
+        Args.ZP             =    0;                              % zero point to be written into the header of the mosaic image
         
     end
     
@@ -302,6 +304,19 @@ function StitchedImage = stitch(Args)
     % add an exposure keyword
     CPSOutputName = '!./CPS_Obs1a.fits';
     StitchedImage.write1(CPSOutputName); % write the fits image with the WCS data in the header
+    
+    % add some keywords to the header
+    if Args.Exposure ~= 0  % use the user-provided exposure time 
+        StitchedImage.setKeyVal('EXPTIME',Args.Exposure);
+    else                   % use the exposure time from the first image in the list
+        StitchedImage.setKeyVal('EXPTIME',Exptime(1));
+    end
+    
+    if Args.ZP ~= 0  % use the user-provided exposure time 
+        StitchedImage.setKeyVal('ZP',Args.ZP);
+    else                   % use the exposure time from the first image in the list
+        StitchedImage.setKeyVal('ZP',AI(1).ZP); % 'PH_ZP'
+    end
     
 %     % the resulting FITS image is still very weird? 
 %     imUtil.util.fits.fitswrite(CPS','!./testoutput_CPS.fits');   

@@ -142,7 +142,7 @@ classdef DS9analysis < handle
     end
     
     methods  % basic utilities
-        function [X, Y, Val, AI] = getXY(Obj, Coo, Args)
+        function [X, Y, Val, AI, Key] = getXY(Obj, Coo, Mode, Args)
             % Get X/Y position for user clicked/specified position
             % Input  : - self.
             %          - If empty, then prompt the user to click the ds9
@@ -150,31 +150,42 @@ classdef DS9analysis < handle
             %            Alterantively, a vector of [RA, Dec] in decimal or
             %            radians.
             %            Or, a cell of sexagesimal coordinates {RA, Dec}.
+            %          - Mode: Number of cliked mouse points to select, or
+            %            'q' for multiple points selection
+            %            terminated by clicking 'q'.
+            %            Default is 1.
             %          * ...,key,val,...
             %            'CooSys' - Coordinate system of user specified
             %                   coordinates: 'sphere'|'pix'. Default is 'sphere.
             %            'CooUnits' - Coordinates units. Default is 'deg'.
+            %            'Msg' - Printed message for mouse click:
+            %                   Default is 'Select point in ds9 using mouse'
             % Output : - X position.
             %          - Y position.
             %          - Image value at position.
             %          - AstroImage at current frame for which
             %            positions/values where obtained.
+            %          - Clicked key.
             % Author : Eran Ofek (May 2023)
 
             arguments
                 Obj
                 Coo    = [];
-                Args.CooSys   = 'sphere';
-                Args.CooUnits = 'deg';
+                Mode   = 1;
+                Args.CooSys    = 'sphere';
+                Args.CooUnits  = 'deg';
+                Args.Msg       = 'Select point in ds9 using mouse';
             end
 
             Frame = str2double(ds9.frame);
             Ind   = Obj.MapInd(Frame);
             AI    = Obj.getImage(Ind);
 
-
+            
+            Key = [];
             if isempty(Coo)
-                [X, Y, PixVal] = ds9.getpos(1);
+                fprintf('%s\n',Args.Msg);
+                [X, Y, PixVal, Key] = ds9.getpos(1);
             else
                 if iscell(Coo)
                     % assume Coo in sexagesimal coordinates
@@ -204,7 +215,140 @@ classdef DS9analysis < handle
     end
 
     methods  % tools
-        function [M1, M2, Aper, RADec, AI] = moments(Obj, Coo, Args)
+        function Result = dist(Obj, Coo, Args)
+            % Calculate distance between two specified points in ds9
+            % Input  : - self.
+            %          - If empty, then prompt the user to click the ds9
+            %            window in a give position.
+            %            Alterantively, a vector of [RA, Dec] in decimal or
+            %            radians.
+            %            Or, a cell of sexagesimal coordinates {RA, Dec}.
+            %          * ...,key,val,...
+            %            'CooSys' - Coordinate system of user specified
+            %                   coordinates: 'sphere'|'pix'. Default is 'sphere.
+            %            'CooUnits' - Coordinates units. Default is 'deg'.
+            %            'OutUnits' - Units of output angular properties.
+            %                   Default is 'deg'.
+            % Output : - A structure with the following fields:
+            %            .DistPix - Distance [pix]
+            %            .PApix - P.A. 
+            %            .X - X of two points
+            %            .Y - Y of two points
+            %            If WCS is available, the following are calculated:
+            %            .RA - RA of two points.
+            %            .Dec - Dec of two points.
+            %            .DistAng - Angular distance.
+            %            .PAang - P.A. relative to the North
+            % Author : Eran Ofek (May 2023)
+            
+            
+            arguments
+                Obj
+                Coo              = [];  % [X1 Y1; X2 Y2]
+                Args.CooSys      = 'sphere';
+                Args.CooUnits    = 'deg';
+                Args.OutUnits    = 'deg';
+            end
+            
+            Mode = 1;
+            if isempty(Coo)
+                [X1, Y1, Val1, AI] = getXY(Obj, Coo, Mode, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits, 'Msg','Select point 1 in ds9 using mouse');
+                [X2, Y2, Val2, ~]  = getXY(Obj, Coo, Mode, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits, 'Msg','Select point 2 in ds9 using mouse');
+            else
+                X1 = Coo(1,1);
+                Y1 = Coo(1,2);
+                X2 = Coo(2,1);
+                Y2 = Coo(2,2);
+            end
+            Result.DistPix = sqrt((X1-X2).^2 + (Y1-Y2).^2);
+            Result.PApix   = atan2(Y2-Y1, X2-X1);
+            Result.X   = [X1, X2];
+            Result.Y   = [Y1, Y2];
+            
+            % check if WCS is available
+            if AI.WCS.Success
+                [Result.RA, Result.Dec] = AI.WCS.xy2sky(Result.X, Result.Y, 'OutUnits',Args.OutUnits);
+                
+                Factor = convert.angular(Args.OutUnits, 'rad', 1);
+                RA     = RA.*Factor;
+                Dec    = Dec.*Factor;
+                [Result.DistAng, Result.PA] = celestial.coo.sphere_dist(RA(1), Dec(1), RA(2), Dec(2));
+                Result.DistAng = convert.angular('rad', Args.OutUnits, Result.DistAng);
+                Result.PAang   = convert.angular('rad', Args.OutUnits, Result.PA);
+                
+            end
+            
+        end
+        
+        function Result = radial(Obj, Coo, Mode, Args)
+            % Calculate radial plots around selected positions.
+            % Input  : - self.
+            %          - If empty, then prompt the user to click the ds9
+            %            window in a give position.
+            %            Alterantively, a vector of [RA, Dec] in decimal or
+            %            radians.
+            %            Or, a cell of sexagesimal coordinates {RA, Dec}.
+            %          - Mode: Number of cliked mouse points to select, or
+            %            'q' for multiple points selection
+            %            terminated by clicking 'q'.
+            %            Default is 1.
+            %          * ...,key,val,...
+            %            'Center' - A logical indicating if to center the
+            %                   radial plot on the nearest 1st moment position.
+            %                   Default is true.
+            %            'Radius' - radius of radiual plot.
+            %                   Default is 15 pix.
+            %            'Step' - Bin size step of the radial plot.
+            %                   Default is 1 pix.
+            %            'CooSys' - Coordinate system of user specified
+            %                   coordinates: 'sphere'|'pix'. Default is 'sphere.
+            %            'CooUnits' - Coordinates units. Default is 'deg'.
+            %            'Plot' - A logical indicating if to plot the last
+            %                   radial plot (pixel mean value vs. radius).
+            %                   Default is true.
+            % Output : - A structure array with element per selected
+            %            position.
+            %            The following fields are available:
+            %            .R - radius
+            %            .N - number of points in each radius bin.
+            %            .MeanR - Mean radius of points in bin.
+            %            .MeanV - Mean image val of points in bin.
+            %            .MedV - Median image val of points in bin.
+            %            .StdV - Std image val of points in bin.
+            
+            arguments
+                Obj
+                Coo              = [];  % [X1 Y1; X2 Y2]
+                Mode             = 1;
+                Args.Center logical    = true;
+                Args.Radius            = 15;
+                Args.Step              = 1;
+                Args.CooSys            = 'sphere';
+                Args.CooUnits          = 'deg';
+                Args.moments2args cell = {};
+                
+                Args.Plot logical      = true;
+            end
+            
+            [X, Y, Val, AI] = getXY(Obj, Coo, Mode, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
+            
+            Cube = imUtil.cut.image2cutouts(AI.Image, X, Y, Args.Radius);
+            
+            Xcut = Args.Radius + 1;
+            Ycut = Args.Radius + 1;
+            
+            [M1, M2, Aper] = imUtil.image.moment2(Cube, Xcut, Ycut, Args.moments2args{:});
+            
+            % calc radial profiles
+            Result = imUtil.psf.radialProfile(Cube, M1.X, M1.Y, 'Radius',Args.Radius, 'Step',Args.Step);
+            
+            if Args.Plot
+                plot(Result(end).R, Result(end).MeanV, 'k-');
+            end
+            
+        end
+        
+        function [M1, M2, Aper, RADec, AI] = moments(Obj, Coo, Mode, Args)
             % Measure 1st, 2nd moments, and aper phot at user click or specified position.
             % Input  : - self.
             %          - If empty, then prompt the user to click the ds9
@@ -212,6 +356,10 @@ classdef DS9analysis < handle
             %            Alterantively, a vector of [RA, Dec] in decimal or
             %            radians.
             %            Or, a cell of sexagesimal coordinates {RA, Dec}.
+            %          - Mode: Number of cliked mouse points to select, or
+            %            'q' for multiple points selection
+            %            terminated by clicking 'q'.
+            %            Default is 1.
             %          * ...,key,val,...
             %            'CooSys' - Coordinate system of user specified
             %                   coordinates: 'sphere'|'pix'. Default is 'sphere.
@@ -265,6 +413,7 @@ classdef DS9analysis < handle
             arguments
                 Obj
                 Coo              = [];
+                Mode             = 1;
                 Args.CooSys      = 'sphere';
                 Args.CooUnits    = 'deg';
                 
@@ -276,7 +425,7 @@ classdef DS9analysis < handle
                 Args.OutUnits    = 'deg';
             end
 
-            [X, Y, Val, AI] = getXY(Obj, Coo, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
+            [X, Y, Val, AI] = getXY(Obj, Coo, Mode, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
             
             
             [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(AI.Image, X, Y, Args.HalfSize);
@@ -292,8 +441,64 @@ classdef DS9analysis < handle
                 
         end
         
-        % forcedPhot
-        
+        function Result = forcedPhot(Obj, Coo, Mode, Args)
+            % Forced photometry on specified position in ds9.
+            % Input  : - self.
+            %          - If empty, then prompt the user to click the ds9
+            %            window in a give position.
+            %            Alterantively, a vector of [RA, Dec] in decimal or
+            %            radians.
+            %            Or, a cell of sexagesimal coordinates {RA, Dec}.
+            %          - Mode: Number of cliked mouse points to select, or
+            %            'q' for multiple points selection
+            %            terminated by clicking 'q'.
+            %            Default is 1.
+            %          * ...,key,val,...
+            %            'CooSys' - Coordinate system of user specified
+            %                   coordinates: 'sphere'|'pix'. Default is 'sphere.
+            %            'CooUnits' - Coordinates units. Default is 'deg'.
+            %
+            %            'forcedPhotArgs' - A cell array of additional
+            %                   arguments to pass to imProc.sources.forcedPhot
+            %            'OutType' - Output type:
+            %                   'ms' - A MatchedSources object.
+            %                   'ac' - An AstroCatalog object.
+            %                   't'  - A table object.
+            %                   Default is 't'.
+            % Output : - A MatchedSources object with the output measured
+            %            forced photometry parameters.
+            % Author : Eran Ofek (May 2023)
+            
+            arguments
+                Obj
+                Coo              = [];  % [X1 Y1; X2 Y2]
+                Mode             = 1;
+                Args.CooSys      = 'sphere';
+                Args.CooUnits    = 'deg';
+                
+                Args.forcedPhotArgs cell = {};
+                Args.OutType             = 't';
+            end
+            
+            [X, Y, Val, AI] = getXY(Obj, Coo, Mode, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
+            
+            MS = imProc.sources.forcedPhot(AI,'Coo',[X(:) Y(:)], 'AddRefStarsDist',false, 'Moving',false, Args.forcedPhotArgs{:});
+            
+            switch lower(Args.OutType)
+                case {'ms','matchedsources'}
+                    % do nothing
+                    Result = MS;
+                case {'ac','astrocatalog'}
+                    Result = MS.convert2AstroCatalog;
+                case {'t','table'}
+                    Result = MS.convert2AstroCatalog;
+                    Result = Result.toTable;
+                otherwise
+                    error('Unknown OutType option');
+            end
+            
+        end
+            
         function [MaskName, MaskVal]=getMask(Obj, Coo, Args)
             % Get Mask bit values/names at user clicked/specified position
             % Input  : - self.
@@ -331,7 +536,7 @@ classdef DS9analysis < handle
 
         end
 
-        function [Back, Var, X, Y, AI] = getBack(Obj, Coo, Args)
+        function [Back, Var, X, Y, AI] = getBack(Obj, Coo, Mode, Args)
             % Get Back/Var values at user clicked/specified position
             % Input  : - self.
             %          - If empty, then prompt the user to click the ds9
@@ -339,6 +544,10 @@ classdef DS9analysis < handle
             %            Alterantively, a vector of [RA, Dec] in decimal or
             %            radians.
             %            Or, a cell of sexagesimal coordinates {RA, Dec}.
+            %          - Mode: Number of cliked mouse points to select, or
+            %            'q' for multiple points selection
+            %            terminated by clicking 'q'.
+            %            Default is 1.
             %          * ...,key,val,...
             %            'CooSys' - Coordinate system of user specified
             %                   coordinates: 'sphere'|'pix'. Default is 'sphere.
@@ -353,11 +562,12 @@ classdef DS9analysis < handle
             arguments
                 Obj
                 Coo    = [];
+                Mode   = 1;
                 Args.CooSys   = 'sphere';
                 Args.CooUnits = 'deg';
             end
 
-            [X, Y, Val, AI] = getXY(Obj, Coo, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
+            [X, Y, Val, AI] = getXY(Obj, Coo, Mode, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
             
             Xpix      = round(X);
             Ypix      = round(Y);
@@ -406,7 +616,8 @@ classdef DS9analysis < handle
                 Args.OutType  = 'table';  % 'table'|'astrocatalog'
             end
             
-            [X, Y, Val, AI] = getXY(Obj, Coo, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
+            Mode  = 1;
+            [X, Y, Val, AI] = getXY(Obj, Coo, Mode, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
 
             if AI.CatData.sizeCatalog==0
                 error('Source catalog in AstroImage is empty');
@@ -437,6 +648,27 @@ classdef DS9analysis < handle
         % RADec=getCoo
     end
 
+    methods % imexam
+        function Result=imexam(Obj, Coo, Args)
+            % Interactive image examination tool
+            
+            arguments
+                Obj
+                Coo
+                Args
+            end
+            
+            Cont = true;
+            while Cont
+                [X, Y, Val, AI, Key] = getXY(Obj, Coo, Mode, Args);
+                
+                
+                
+            end
+            
+            
+        end
+    end
 
 
     methods (Static) % Unit-Test
