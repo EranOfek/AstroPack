@@ -23,11 +23,11 @@ function []=astrometry_refine(AC,varargin)
 % Reliable: 
 %--------------------------------------------------------------------------
 
+% @Chen
+DefV.EpochJD              = 0;
+DefV.ColX                 = 0;
+DefV.ColY                 = 0;
 
-DefV.EpochJD              = 
-
-DefV.ColX                 = 
-DefV.ColY                 =
 DefV.ColRA                = {'RA','ALPHAWIN_J2000'};
 DefV.ColDec               = {'Dec','DELTAWIN_J2000'};
 DefV.CooUnits             = 'rad';
