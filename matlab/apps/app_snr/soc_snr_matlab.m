@@ -10,13 +10,15 @@
 % See: https://www.mathworks.com/help/compiler/mcc.html
 % See: https://www.mathworks.com/help/compiler/isdeployed.html
 %
+% NOTE: To run in from within MATLAB, you have to change folder
+%       to the folder of this file (i.e. app_snr/)
 %==========================================================================
 
-function soc_app_snr()
+function soc_snr_matlab()
     % SNR App
 
     % Set logfile name
-	fprintf('soc_app_snr started\n');
+	fprintf('soc_snr_matlab started\n');
     LogFile.getSingleton('FileName', 'soc_app_snr');
     
     %addpath('c:\temp');
@@ -27,13 +29,13 @@ function soc_app_snr()
     %disp(a);
     
     if isdeployed
-        fprintf('soc_app_snr: isdeployed = TRUE\n');
+        fprintf('soc_snr_matlab: isdeployed = TRUE\n');
         locate_externapp = which(fullfile('soc_app_snr.exe'));
         fprintf('which: %s\n', locate_externapp);
     end    
     
     if ismcc
-        fprintf('soc_app_snr: ismcc = TRUE\n');
+        fprintf('soc_snr_matlab: ismcc = TRUE\n');
     end        
     
     %path();
@@ -53,6 +55,14 @@ function soc_app_snr()
         fprintf('Comp.Config.Data.MsgLogger.FileName: %s\n', Comp.Config.Data.MsgLogger.FileName);
     %end
 
+    % 09:50:58.133 [DBG] doProcessSnr: creating UltrasatPerf2GUI
+    % 09:50:58.176 [DBG] UltrasatPerf2GUI: UltrasatPerf2GUI:load: c:\soc\snr\snr_matlab\P90_UP_test_60_ZP_Var_Cern_21.mat
+    % Warning: Variable 'UP' originally saved as a UltrasatPerf cannot be instantiated as an object and will be read in as a uint32.
+
+    fprintf('Calling: Perf = UltrasatPerf(Init, false);\n');    
+    Perf = UltrasatPerf('Init', false);
+    fprintf('UltrasatPerf done\n');
+    
     %try
         %if ~isdeployed
             fprintf('Calling FileProcessor.unitTest\n');
@@ -63,7 +73,7 @@ function soc_app_snr()
         %fprintf('soc_app_snr exception\n');
     %end
     
-    fprintf('soc_app_snr done\n');
+    fprintf('soc_snr_matlab done\n');
 end
 
 
@@ -77,5 +87,3 @@ function var = load2(fn)
     end
     disp(a);
 end
-
-

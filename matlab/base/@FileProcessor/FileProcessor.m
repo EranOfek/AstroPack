@@ -126,7 +126,7 @@ classdef FileProcessor < Component
                             
                         % Process single file
                         FileName = fullfile(List(i).folder, FName);
-                        Obj.msgLog(LogLevel.Verbose, FileName);
+                        Obj.msgLog(LogLevel.Verbose, 'process: %s', FileName);
                         
                         % This calls the derived function processFileImpl()
                         try

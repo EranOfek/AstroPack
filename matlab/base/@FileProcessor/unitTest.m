@@ -176,8 +176,7 @@ function [Result, Message] = doProcessSnr(Params)
     % Author  : Arie B. (2023)
     % Example : 
 
-    io.msgLog(LogLevel.Info, 'doProcessSnr started');
-    Message = sprintf('MATLAB: processSnr: R: %s', Params.R);
+    io.msgLog(LogLevel.Debug, 'doProcessSnr: started - Params:');
     disp(Params);
  
     % Calculate
@@ -192,11 +191,18 @@ function [Result, Message] = doProcessSnr(Params)
             Params = rmfield(Params, 'BlackBodyTemperature');
         end
         
+        io.msgLog(LogLevel.Debug, 'doProcessSnr: creating UltrasatPerf2GUI');
         UsatPerf2GUI = UltrasatPerf2GUI();
+        
+        io.msgLog(LogLevel.Debug, 'doProcessSnr: calling namedargs2cell');
         ArgsCell = namedargs2cell(Params);
+        
+        io.msgLog(LogLevel.Debug, 'doProcessSnr: calling calcSNR');
         Result = UsatPerf2GUI.calcSNR(ArgsCell{:});
+        
+        io.msgLog(LogLevel.Debug, 'doProcessSnr: calling calcSNR done');
     catch ex
-        Result.message = sprintf("error: UG threw exception identifier='%s' with message='%s'", ex.identifier, ex.message);
+        Result.message = sprintf("doProcessSnr: error: UG threw exception identifier='%s' with message='%s'", ex.identifier, ex.message);
     end
 
     %
@@ -204,6 +210,6 @@ function [Result, Message] = doProcessSnr(Params)
     Message = Result.message;
     Result = rmfield(Result, 'message');
     
-    io.msgLog(LogLevel.Info, 'doProcessSnr done');    
+    io.msgLog(LogLevel.Debug, 'doProcessSnr: done');    
 end
 
