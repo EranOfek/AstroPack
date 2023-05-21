@@ -244,7 +244,11 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
                                                                                                            Args.astrometryCoreArgs{:});
                 %
                 %ResultRefineFit(Iim).WCS.populateSuccess;
-                Sucess(Iim) = ResultRefineFit(Iim).WCS.Success;
+                if isempty(ResultRefineFit(Iim).WCS)
+                    Sucess(Iim) = false;
+                else
+                    Sucess(Iim) = ResultRefineFit(Iim).WCS.Success;
+                end
             end
                                                                                                       
             if ~UseRefine || ~Sucess(Iim)
