@@ -168,6 +168,13 @@ classdef DemonLAST < Component
 
         end
 
+        function set.DataDir(Obj, Val)
+            % Set DataDir
+            
+            
+            
+        end
+        
     end
       
     methods (Static) % path and files
