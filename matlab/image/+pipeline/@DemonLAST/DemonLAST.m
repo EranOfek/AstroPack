@@ -661,13 +661,7 @@ classdef DemonLAST < Component
                         fprintf('%s\n', Lines{Il});
                     end
                     if Args.WriteLog
-                        if iscell(Msg)
-                            for I=1:1:numel(Msg)
-                                Obj.Logger.msgLog(Level, Msg{I});
-                            end
-                        else
-                            Obj.Logger.msgLog(Level, Msg);
-                        end
+                        Obj.Logger.msgLog(Level, Lines{Il});
                     end
                 end
             end
@@ -1300,7 +1294,7 @@ classdef DemonLAST < Component
                                                                        'SaveAll',false);
     
                             
-                            CoaddTransienst = imProc.cat.searchExternalCatOrphans(Coadd);
+                            %CoaddTransienst = imProc.cat.searchExternalCatOrphans(Coadd);
 
                             % save data products
                             FN_I = FN_Sci_Groups(Igroup).reorderEntries(1, 'CreateNewObj',true);
@@ -1369,6 +1363,8 @@ classdef DemonLAST < Component
                             %warning(ErrorMsg);
                             Obj.writeLog(ErrorMsg, LogLevel.Error);
 
+                            Obj.writeLog(ME, LogLevel.Error);
+                            
                             % write log file
     
                             % move images to failed/ dir
