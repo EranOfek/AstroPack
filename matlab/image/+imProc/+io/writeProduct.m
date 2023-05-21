@@ -183,7 +183,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                                          'WriteHeader',WriteHeader(Iprod),...
                                          'MkDir',Iobj==1 && Iprod==1);
                             % Update FileName in Obj
-                            Obj.ImageData.FileName = OutFileNames{Iobj};
+                            Obj(Iobj).ImageData.FileName = OutFileNames{Iobj};
                         else
                             Istat = Istat + 1;
                             Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', OutFileNames{Iobj}, Args.Product{Iprod});
