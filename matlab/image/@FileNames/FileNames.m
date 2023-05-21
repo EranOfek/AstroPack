@@ -432,8 +432,9 @@ classdef FileNames < Component
             else
                 FlagN   = cellfun(@ischar, Obj.Time,'UniformOutput',true);
                 DateVec = convert.strFN2date(Obj.Time(FlagN));
-                JD      = celestial.time.julday(DateVec(:,[3 2 1 4 5 6]));
-                JD(~FlagN) = NaN;
+                JD      = nan(numel(FlagN),1);
+                JD(FlagN)  = celestial.time.julday(DateVec(:,[3 2 1 4 5 6]));
+                %JD(~FlagN) = NaN;
             end
                 
         end
