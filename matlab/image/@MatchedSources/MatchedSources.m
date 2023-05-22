@@ -1362,6 +1362,94 @@ classdef MatchedSources < Component
                 end
             end
         end
+    
+    end
+
+    methods % add aux. Data matrices
+        function Obj=addAirMassPA(Obj, Args)
+            % Add Airmass, Parallactic angle, Az, Alt to MatchedSources
+            %   Based on RA, Dec, JD in MatchedSources objects add fields.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            'GeoCoo' - A mandatory Geodetic position for which
+            %                   to calculate AM, PA, Az, Alt.
+            %                   [Lon(deg), Lat(deg)].
+            %            'ColRA' - Col field of RA data in MatchedSources
+            %                   object. Default is MatchedSources.DefNamesRA
+            %            'ColDec' - Col field of Dec data in MatchedSources
+            %                   object. Default is MatchedSources.DefNamesDec
+            %            'InUnits' - [RA,Dec] Coordinates input units.
+            %                   Default is 'deg'.
+            %            'OutUnits' - [Az, ALt, PA] coordinates output
+            %                   units. Default is 'deg'.
+            %            'AddAM' - Add AM. Default is true.
+            %            'AddPA' - Add PA. Default is true.
+            %            'AddAz' - Add Az. Default is false.
+            %            'AddAlt' - Add Alt. Default is false.
+            %            'FieldAM' - Added AM field name.
+            %                   Default is 'AM'.
+            %            'FieldPA' - Added PA field name.
+            %                   Default is 'PA'.
+            %            'FieldAz' - Added Az field name.
+            %                   Default is 'Az'.
+            %            'FieldAlt' - Added Alt field name.
+            %                   Default is 'Alt'.
+            % Output : - An updated MatchedSources object with the added
+            %            data.
+            % Author : Eran Ofek (May 2023)
+            % Example: MS = MS.addAirMassPA('GeoCoo',[35.041,30.053]);
+
+            arguments
+                Obj
+                Args.GeoCoo       = [];   % [deg deg km]
+                Args.ColRA        = MatchedSources.DefNamesRA;
+                Args.ColDec       = MatchedSources.DefNamesDec;
+                Args.InUnits      = 'deg';
+                Args.OutUnits     = 'deg';
+
+                Args.AddAM logical   = true;
+                Args.AddPA logical   = true;
+                Args.AddAz logical   = false;
+                Args.AddAlt logical  = false;
+                
+                Args.FieldAM         = 'AM';
+                Args.FieldPA         = 'PA';
+                Args.FieldAz         = 'Az';
+                Args.FieldAlt        = 'Alt';
+
+            end
+
+            RAD = 180./pi;
+
+            if isempty(Args.GeoCoo)
+                error('Geodetic position must be provided');
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                [FieldRA]  = getFieldNameDic(Obj, Args.ColRA);
+                [FieldDec] = getFieldNameDic(Obj, Args.ColDec);
+
+                [Az, Alt, AM, PA] = celestial.coo.radec2azalt(Obj(Iobj).JD, Obj(Iobj).Data.(FieldRA), Obj(Iobj).Data.(FieldDec), 'GeoCoo',Args.GeoCoo, 'InUnits',Args.InUnits, 'OutUnits',Args.OutUnits);
+            
+                % add fields to Data:
+                if Args.AddAM
+                    Obj(Iobj) = addMatrix(Obj(Iobj), AM, Args.FieldAM, '');
+                end
+                if Args.AddPA
+                    Obj(Iobj) = addMatrix(Obj(Iobj), PA, Args.FieldPA, '');
+                end
+                if Args.AddAz
+                    Obj(Iobj) = addMatrix(Obj(Iobj), Az, Args.FieldAz, '');
+                end
+                if Args.AddAlt
+                    Obj(Iobj) = addMatrix(Obj(Iobj), Alt, Args.FieldAlt, '');
+                end
+
+
+            end
+
+        end
     end
     
     methods % design matrix
