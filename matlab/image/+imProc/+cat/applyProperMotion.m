@@ -24,12 +24,7 @@ function Result = applyProperMotion(Obj, EpochIn, EpochOut, Args)
     %            'CreateNewObj' - Indicating if the output
     %                   is a new copy of the input (true), or an
     %                   handle of the input (false).
-    %                   If empty (default), then this argument will
-    %                   be set by the number of output args.
-    %                   If 0, then false, otherwise true.
-    %                   This means that IC.fun, will modify IC,
-    %                   while IB=IC.fun will generate a new copy in
-    %                   IB.
+    %                   Default is false.
     % Output : - An AstroCatalog object with the RA/Dec at the new epoch.
     % Author : Eran Ofek (May 2021)
     % Requires: VSOP87 data directory
@@ -51,16 +46,9 @@ function Result = applyProperMotion(Obj, EpochIn, EpochOut, Args)
         Args.ColPM_Dec cell        = Obj(1).DefNamesPMDec;
         Args.ColRV cell            = Obj(1).DefNamesRV;
         Args.ColPlx cell           = Obj(1).DefNamesPlx;
-        Args.CreateNewObj          = [];
+        Args.CreateNewObj logical  = false;
     end
     
-    if isempty(Args.CreateNewObj)
-        if nargout==0
-            Args.CreateNewObj = false;
-        else
-            Args.CreateNewObj = true;
-        end
-    end
     if Args.CreateNewObj
         Result = Obj.copy();
     else
