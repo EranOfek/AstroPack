@@ -465,26 +465,35 @@ classdef AstroImage < Component
                 Args.FileNames cell         = {};
             end
             
-                
-            switch lower(Args.DataProp)
-                case {'imagedata','backdata','vardata','maskdata','psfdata'}
-                    ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
-                                             'FileType',Args.FileType,...
-                                             'CCDSEC',Args.CCDSEC,...
-                                             'IsTable',false,...
-                                             'ReadHeader',Args.ReadHeader,...
-                                             'UseRegExp',Args.UseRegExp);
-                case {'cat','catdata'}
-                    ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
-                                             'FileType',Args.FileType,...
-                                             'IsTable',true,...
-                                             'ReadHeader',Args.ReadHeader,...
-                                             'UseRegExp',Args.UseRegExp);
-                otherwise
-                    error('DataProp %s is not supported',Args.DataProp);
+            try
+                switch lower(Args.DataProp)
+                    case {'imagedata','backdata','vardata','maskdata','psfdata'}
+                        ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
+                                                 'FileType',Args.FileType,...
+                                                 'CCDSEC',Args.CCDSEC,...
+                                                 'IsTable',false,...
+                                                 'ReadHeader',Args.ReadHeader,...
+                                                 'UseRegExp',Args.UseRegExp);
+                    case {'cat','catdata'}
+                        ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
+                                                 'FileType',Args.FileType,...
+                                                 'IsTable',true,...
+                                                 'ReadHeader',Args.ReadHeader,...
+                                                 'UseRegExp',Args.UseRegExp);
+                    otherwise
+                        error('DataProp %s is not supported',Args.DataProp);
+                end
+                Obj = AstroImage.imageIO2AstroImage(ImIO, Args.DataProp, Args.Scale, Args.FileNames, Args.ReadHeader, Args.Obj);
+            catch
+                if iscell(FileName)
+                    Tmp = FileName{1};
+                else
+                    Tmp = FileName;
+                end
+                warning('Image %s not found - skip upload',Tmp);
+                ImIO = ImageIO; % empty ImageIO
+                Obj = AstroImage.imageIO2AstroImage(ImIO, Args.DataProp, Args.Scale, Args.FileNames, Args.ReadHeader, Args.Obj);
             end
-            Obj = AstroImage.imageIO2AstroImage(ImIO, Args.DataProp, Args.Scale, Args.FileNames, Args.ReadHeader, Args.Obj);
-            
             
         end
          
@@ -651,7 +660,7 @@ classdef AstroImage < Component
                 ObjFN
                 Args.Path                     = [];
                 Args.MainProduct char         = 'Image';
-                Args.AddProduct               = {'Mask','Cat'};        
+                Args.AddProduct               = {'Mask','Cat','PSF'};        
                 Args.PopulateWCS logical      = true;
             end
             

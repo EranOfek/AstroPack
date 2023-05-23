@@ -112,8 +112,9 @@ function [Result, ResInd, Matched] = unifiedSourcesCatalog(Obj, Args)
                                                                 'CooType',Args.CooType);
                                                                 
         IndCatNaN = isnan(ResMatch.Obj2_IndInObj1);
+
         Result.Catalog = [Result.Catalog; Cat.Catalog(IndCatNaN, [ColIndX, ColIndY])];
-      
+        
         if nargout>1
             Ncat                      = size(Result.Catalog, 1);
             Nnan                      = sum(IndCatNaN);
