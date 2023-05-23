@@ -557,11 +557,14 @@ classdef MatchedSources < Component
                 if ~all(Nrow==Nrow(1))
                     error('For AstroTable/AstroCatalog input, all catalogs must have the same number of rows');
                 end
-                            
+                     
                 [Res, Summary, N_Ep, Units] = imProc.match.matched2matrix(Matrix, FieldName, true);
+              
                 Obj.addMatrix(Res);
                 for Ifn=1:1:Nf
-                    Obj.Units.(FieldName{Ifn}) = Units.(FieldName{Ifn});
+                    if isfield(Units, FieldName{Ifn})
+                        Obj.Units.(FieldName{Ifn}) = Units.(FieldName{Ifn});
+                    end
                 end
                 
 %

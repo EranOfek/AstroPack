@@ -88,17 +88,20 @@ function [Res, Summary, N_Ep, Units] = matched2matrix(MatchedObj, Cols, IsEpochB
     % For each selected column
     for Icol=1:1:Ncol
         % for each catalog
-        for Icat=1:1:Ncat
-            % E.g., Res.XWIN_IMAGE(:,10) = MatchedObj(10).Cat(:,Column)
-            Res.(ColName{Icol})(:,Icat) = MatchedObj(Icat).(CatField)(:,ColInd(Icol));
-        end
-        if nargout>3
-            Units.(ColName{Icol}) = getColUnits(MatchedObj(Icat), ColName{Icol});
+        if ~isnan(ColInd(Icol))
+            for Icat=1:1:Ncat
+                % E.g., Res.XWIN_IMAGE(:,10) = MatchedObj(10).Cat(:,Column)
+                Res.(ColName{Icol})(:,Icat) = MatchedObj(Icat).(CatField)(:,ColInd(Icol));
+            end
+            if nargout>3
+                Units.(ColName{Icol}) = getColUnits(MatchedObj(Icat), ColName{Icol});
+            end
         end
         if IsEpochByInd
             % transpose the matrix
             Res.(ColName{Icol}) = Res.(ColName{Icol}).';
         end
+        
     end
 
 
