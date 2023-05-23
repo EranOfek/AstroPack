@@ -1,12 +1,13 @@
 function [StitchedImage, AH, RemappedXY] = stitch(Args)
     % Make a mosaic sky image from a set of input AstroImages
-    % Package: imProc.stack
-    % Description: Make a mosaic sky image from a set of input AstroImages
-    % Input:   - Args.DataDir       : The directory containing the input images
-    %          - Args.InputImages   : The mask of the input image filenames
-    %          - Args.PixScale      : [arcsec] The pixel scale (LAST by def.)
-    %          - Args.Crop          : X1 X2 Y1 Y2 margin sizes of the input images to be cropped out
-    %          - Args.Method        : pixel redistribution method on the mosaic image
+    % Package: imProc.stack 
+    % Input:   - 
+    %          * ...,key,val,...
+    %          'DataDir'       : The directory containing the input images
+    %          'InputImages'   : The mask of the input image filenames
+    %          'PixScale'      : [arcsec] The pixel scale (LAST by def.)
+    %          'Crop'          : X1 X2 Y1 Y2 margin sizes of the input images to be cropped out
+    %          'Method'        : pixel redistribution method on the mosaic image
     %          
     % Output : - StitchedImage: an AstroImage containing a mosaic made of all the input images
     %          - AH: the header of the mosaic image containing the exposure, ZP and the WCS
@@ -14,7 +15,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
     %          coordinates from each of the input images: [Image number, Xremapped, Yremapped, 1 -> X or 2 -> Y]
     %            
     % Tested : Matlab R2020b
-    %     By : A. Krassilchtchikov et al. May 2023, function name copyright: Y. Shvartzvald
+    % Author : A. Krassilchtchikov et al. (May 2023), function name copyright: Y. Shvartzvald
     % Example: Mosaic = imProc.stack.stitch('DataDir','/home/sasha/Obs1/','InputImages','LAST*coadd_Image*.fits','PixScale',1.25);
 
     arguments
@@ -223,7 +224,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
     
     % flux conservation check
     
-    FluxM   = sum(ImageM,'all');
+    FluxM   = sum(ImageM,'all'); FluxAI = zeros(NImage,1);
     for Img = 1:1:NImage 
         FluxAI(Img) = sum ( AI(Img).Image(Args.Crop(1):Xsize(Img)-Args.Crop(2),Args.Crop(3):Ysize(Img)-Args.Crop(4)),'all'); 
     end

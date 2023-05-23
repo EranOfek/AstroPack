@@ -7,17 +7,18 @@ function Image = addImageRedistributePixels(Image, Image1, X, Y, Args)
     %          - Image1       : the augmenting image (or a cutout thereof) of size Nx x Ny
     %          - X, Y         : 2D arrays of pixel coordinate redistribution (remapping), 
     %                           each of size Nx x Ny or smaller (if only part of Image1 is requested)
-    %          - Args.Nx      : Nx rows of Image1 are remapped
-    %          - Args.Ny      : Ny columns of Image1 are remapped
-    %          - Args.XL      : first XL rows of Image1 are not remapped
-    %          - Args.YL      : first YL columns of Image1 are not remapped
-    %          - Args.Method  : redistribute the signal between 4 neighbouring pixels of Image (default) or put
+    %          * ...,key,val,...   
+    %          'Nx'      : Nx rows of Image1 are remapped
+    %          'Ny'      : Ny columns of Image1 are remapped
+    %          'XL'      : first XL rows of Image1 are not remapped
+    %          'YL'      : first YL columns of Image1 are not remapped
+    %          'Method'  : redistribute the signal between 4 neighbouring pixels of Image (default) or put
     %          all the signal into the nearest pixel (some pixels of the Image will be empty)
     %          
     % Output : - Image (a 2D array): = Image + Image1[XL:XL+NX-1,YL:YL+NY-1] (redistributed)
     %            
     % Tested : Matlab R2020b
-    %     By : A. Krassilchtchikov et al. May 2023
+    % Author : A. Krassilchtchikov et al. (May 2023)
     % Example: Image = imProc.stack.addImageRedistributePixels(Image0, Image1, X, Y, 'Nx', NX, 'Ny', NY, 'XL', XL, 'YL', YL);
 
     arguments
@@ -46,8 +47,7 @@ function Image = addImageRedistributePixels(Image, Image1, X, Y, Args)
     % check if there exists redistribution data for all the requested area of Image1 
     
     if size(X,1) < Args.Nx || size(Y,1) < Args.Nx || size(X,2) < Args.Ny || size(Y,2) < Args.Ny
-        cprintf('err','The size of a pixel redistribution array in addImageRedistributePixels is insufficient, exiting..\n');
-        return
+        error('The size of a pixel redistribution array in addImageRedistributePixels is insufficient, exiting..\n');
     end
      
     %
@@ -146,8 +146,7 @@ function Image = addImageRedistributePixels(Image, Image1, X, Y, Args)
             
         otherwise
             
-            cprintf('err','Incorrect flux redistribution method, exiting..')
-            return 
+            error('Incorrect flux redistribution method, exiting..'); 
             
     end
     

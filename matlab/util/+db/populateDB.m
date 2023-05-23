@@ -2,20 +2,21 @@ function Result = populateDB( ImageFiles, Args )
     % Populate a database with a list of input images
     % Description: Populate a database with a list of input images
     % Input:   - ImageFiles         : a vector of input file names
-    %          - Args.DBname        : DB name
-    %          - Args.DBtable       : DB table
-    %          - Args.Hash          : whether to calculate a hashsum of the file and add it to the table
-    %          
+    %          * ...,key,val,...
+    %          'DBname'        : DB name
+    %          'DBtable'       : DB table
+    %          'Hash'          : whether to calculate a hashsum of the file and add it to the table
+    % Output : scalar success flag (0 -- images successfully added to the DB)         
     % Tested : Matlab R2020b
     %     By : A. Krassilchtchikov et al.    May 2023
     % Example: db.populateDB ( Imfiles, 'DBtype', 'LAST', 'DBtable', 'RAW', 'Hash', Args.Hash );
 
     arguments
         
-        ImageFiles             % input images
-        Args.DBname  = 'LAST'; % DB name
-        Args.DBtable = 'RAW';  % DB table
-        Args.Hash    = 1;      % whether to calculate a hashsum and add it to the table
+        ImageFiles                     % input images
+        Args.DBname  = 'LAST';         % DB name
+        Args.DBtable = 'RAW';          % DB table
+        Args.Hash logical = true;      % whether to calculate a hashsum and add it to the table
         
     end
     
@@ -53,13 +54,11 @@ function Result = populateDB( ImageFiles, Args )
                     case 'proc'
                    
 %                         LDB.addProcImage(AH.File, AH, 'xxhash', Sum_h64);
-                        cprintf('err','The requested table does not exist yet, exiting..');
-                        return
+                        error('The requested table does not exist yet, exiting..');
                         
                     otherwise
                     
-                        cprintf('err','The requested table does not exist, exiting..');
-                        return
+                        error('The requested table does not exist yet, exiting..');
                         
                 end
                 
@@ -74,8 +73,7 @@ function Result = populateDB( ImageFiles, Args )
                                 
         otherwise
             
-            cprintf('err','The requested DB does not exist, exiting..');
-            return
+            error('The requested DB does not exist, exiting..');
                     
     end
     

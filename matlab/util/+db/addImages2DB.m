@@ -1,24 +1,26 @@
 function Result = addImages2DB(Args)
     % Add images from a directory to a database
     % Description: Add images from a directory to a database
-    % Input:   - Args.DataDir       : the root directory of a tree to search images within
-    %          - Args.InputImages   : the mask of the input image filenames
-    %          - Args.DBname        : DB name
-    %          - Args.DBtable       : DB table
-    %          - Args.Hash          : whether to calculate a hashsum of the file and add it to the table
-    %          
+    % Input:   - 
+    %          * ...,key,val,...
+    %          'DataDir'       : the root directory of a tree to search images within
+    %          'InputImages'   : the mask of the input image filenames
+    %          'DBname'        : DB name
+    %          'DBtable'       : DB table
+    %          'Hash'          : whether to calculate a hashsum of the file and add it to the table
+    % Output : scalar success flag (0 -- images successfully added to the DB)
     % Tested : Matlab R2020b
-    %     By : A. Krassilchtchikov et al.    May 2023
-    % Example: db.addImages()
+    % Author : A. Krassilchtchikov et al. (May 2023)
+    % Example: db.addImages('DataDir','/home/sasha/Raw2/','DBname','LAST','DBtable','RAW');
     
     
     arguments
         
         Args.DataDir        =    '/home/sasha/Raw2/';                % The directory containing the input images
         Args.InputImages    =    'LAST*sci*raw_Image*.fits';         % The mask of the input image filenames
-        Args.DBname         =    'LAST'
-        Args.DBtable        =    'RAW'
-        Args.Hash           =    1
+        Args.DBname         =    'LAST';
+        Args.DBtable        =    'RAW';
+        Args.Hash  logical  =    true;
         
     end
     
