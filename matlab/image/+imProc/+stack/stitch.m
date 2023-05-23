@@ -10,10 +10,11 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
     %          
     % Output : - StitchedImage: an AstroImage containing a mosaic made of all the input images
     %          - AH: the header of the mosaic image containing the exposure, ZP and the WCS
-    %          - RemappedXY: a 3D-matrix containing the remapped X, Y pixel coordinates from each of the input images
+    %          - RemappedXY: a 4D-matrix containing the remapped X, Y pixel
+    %          coordinates from each of the input images: [Image number, Xremapped, Yremapped, 1 -> X or 2 -> Y]
     %            
     % Tested : Matlab R2020b
-    %     By : A. Krassilchtchikov et al. May 2023
+    %     By : A. Krassilchtchikov et al. May 2023, function name copyright: Y. Shvartzvald
     % Example: Mosaic = imProc.stack.stitch('DataDir','/home/sasha/Obs1/','InputImages','LAST*coadd_Image*.fits','PixScale',1.25);
 
     arguments
@@ -28,7 +29,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
         
     end
     
-    % set some constants and image parameters
+    % set some constants and image parameters 
     
     RAD  = 180./pi;                     % the radian
     Tiny = 1e-14;                       % a small, but nonzero constant
@@ -44,7 +45,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
     FN = FileNames.generateFromFileName( Args.InputImages );
     AI = AstroImage.readFileNamesObj( FN) ;  
     
-    NImage = size(AI,2);                % determine the number of images to be merged
+    NImage = size(AI,2);                % determine the number of images to be merged    
     
             fprintf('%d%s\n',NImage,' images loaded');
     
@@ -153,6 +154,8 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
     ImageM = zeros(NPix1, NPix2);        % the counts map
     ExposM = Tiny * ones(NPix1, NPix2);  % the exposure map (will appear in the denominator, thus use Tiny values)
     
+    RemappedXY = zeros(NImage,max(Xsize),max(Ysize),2);
+    
     AIm = AstroImage({ImageM});
     
     % make a simple TAN WCS of the mosaic image from scratch 
@@ -201,72 +204,20 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
         [RAimg, DECimg] = AI(Img).WCS.xy2sky(Ximg, Yimg);          % RA, DEC of subimage pixels
         [X, Y]          = AIm.WCS.sky2xy(RAimg, DECimg);           % mosaic pixel coordinates corresponding to the subimage pixels
         
+        RemappedXY(Img,XL:XR,YL:YR,1) = X; RemappedXY(Img,XL:XR,XL:YR,2) = Y; % save the remapped grid as one of the function's outputs
+        
         Xred = XR - XL + 1;    % the reduced number of pixels
         Yred = YR - YL + 1;    % the reduced number of pixels
 
 %             % here we can make a displacement matrix, but how should we use it?
 %             Disp(:,:,1) = Ximg-X;
 %             Disp(:,:,2) = Yimg-Y;
-        
-        % Note: the pixel coordinates from sky2xy are not whole numbers,
-        % so we are to choose a count redistribution method (see below)
-        
-        switch lower(Args.Method)
-            
-            case 'direct'   % will lead to empty pixels in the image, but does smear the dimest objects 
-                
-                X0 = round(X); Y0 = round(Y);        
 
-                for iX = 1:1:Xred      %   
-                    
-                    imX = iX + XL;
-                    
-                    for iY = 1:1:Yred  %                          
-                        
-                        imY = iY + YL;
-                        
-                        ImageM ( X0(iX,iY), Y0(iX,iY) ) = ImageM ( X0(iX,iY), Y0(iX,iY) ) + SubImage (imX, imY);  % add counts from the subimage to the mosaic
-                        ExposM ( X0(iX,iY), Y0(iX,iY) ) = ExposM ( X0(iX,iY), Y0(iX,iY) ) + Exptime(Img);         % add exposure of a subimage to the mosaic
+        ImageM = imProc.stack.addImageRedistributePixels(ImageM, SubImage, X, Y, 'Nx', Xred, 'Ny', Yred, ...
+                                                         'XL', XL, 'YL', YL,'Method',Args.Method);
+        ExposM = imProc.stack.addImageRedistributePixels(ExposM, Exptime(Img), X, Y, 'Nx', Xred, 'Ny', Yred, ...
+                                                         'XL', XL, 'YL', YL,'Method',Args.Method);
 
-                    end
-                end
-                
-            case 'redistribute' % will make a smoother image with no holes, but can smear the dimmest objects 
-
-                X0 = floor(X);   Y0 = floor(Y);    
-                X1 = X-X0;       Y1 = Y-Y0;    X1Y1 = X1 .* Y1;       
-
-                for iX = 1:1:Xred 
-                    
-                    imX = iX + XL;
-                    
-                    for iY = 1:1:Yred 
-                        
-                        imY = iY + YL;
-
-                        S = SubImage (imX, imY);
-
-                        X11 = X0(iX,iY); Y11 = Y0(iX,iY);
-
-                        ImageM ( X11  , Y11 )   = ImageM ( X11  , Y11 )   + S * ( 1 - X1(iX,iY) ) * (1 - Y1(iX,iY) );
-                        ImageM ( X11+1, Y11+1 ) = ImageM ( X11+1, Y11+1 ) + S * X1Y1(iX,iY); 
-                        ImageM ( X11+1, Y11 )   = ImageM ( X11+1, Y11 )   + S * X1(iX,iY) * (1 - Y1(iX,iY) );
-                        ImageM ( X11  , Y11+1 ) = ImageM ( X11  , Y11+1 ) + S * ( 1 - X1(iX,iY) ) * Y1(iX,iY); 
-
-                        ExposM ( X11  , Y11 )   = ExposM ( X11, Y11 )     + Exptime(Img) * ( 1 - X1(iX,iY) ) * (1 - Y1(iX,iY) );      
-                        ExposM ( X11+1, Y11+1 ) = ExposM ( X11+1, Y11+1 ) + Exptime(Img) * X1Y1(iX,iY); 
-                        ExposM ( X11+1, Y11 )   = ExposM ( X11+1, Y11 )   + Exptime(Img) * X1(iX,iY) * (1 - Y1(iX,iY) );
-                        ExposM ( X11  , Y11+1 ) = ExposM ( X11  , Y11+1 ) + Exptime(Img) * ( 1 - X1(iX,iY) ) * Y1(iX,iY); 
-
-                    end
-                end
-                
-            otherwise
-                
-                cprintf('err','Incorrect flux redistribution method, exiting..')
-                return
-                
-        end
         
     end
     
@@ -318,11 +269,12 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
     AH = StitchedImage.Header;               % save the header back from the AstroImage
     
     % make a FITS file:
-    CPSOutputName = '!./CPS_Obs1a.fits';
-%    CPSOutputName = '!.'/FN.ProjName{1};
+%     CPSOutputName = '!./CPS_Obs1a.fits';  
+    CPSOutputName = strcat('!./',FN.ProjName{1},'_',FN.Time{1},'_',FN.FieldID{1},'_stitched.fits');
     StitchedImage.write1(CPSOutputName); % write the image and header to a FITS file
     
-    cprintf('hyper','Mosaic constructed, see the output AstroImage and FITS image.\n');    
+    cprintf('hyper','Mosaic constructed, see the output AstroImage and FITS image file.\n');    
+    fprintf('%s\n',CPSOutputName(4:end));
     toc
     
 end
