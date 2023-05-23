@@ -1,13 +1,13 @@
-function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(R_hat, N_hat, Pr_hat, Pn_hat, SigmaR, SigmaN, Fr, Fn, Args)
+function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
     % Return the D_hat subtraction image
-    % Input  : - R_hat
-    %          - N_hat
-    %          - Pr_hat
+    % Input  : - N_hat
+    %          - R_hat
     %          - Pn_hat
-    %          - SigmaR
+    %          - Pr_hat
     %          - SigmaN
-    %          - Fr
+    %          - SigmaR
     %          - Fn
+    %          - Fr
     %          * ...,key,val,...
     %            'AbsFun' - absolute value function.
     %                   Default is @(X) abs(X)
@@ -23,14 +23,14 @@ function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(R_hat, N_ha
     % Author : Eran Ofek (Apr 2022)
     
     arguments
-        R_hat
         N_hat
-        Pr_hat
+        R_hat
         Pn_hat
-        SigmaR
+        Pr_hat
         SigmaN
-        Fr
+        SigmaR
         Fn
+        Fr
         Args.AbsFun   = @(X) abs(X);
         Args.Eps      = 0;
     end

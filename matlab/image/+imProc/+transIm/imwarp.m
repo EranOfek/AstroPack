@@ -64,7 +64,7 @@ function Result = imwarp(Obj, Trans, Args)
     %                   the original AstroImage to the transformed AstroImage.
     %                   Will create a new PSFData object.
     %                   Default is true.
-    % Output : - 
+    % Output : - An AstroImage object containing the input images registered to the reference images.
     % Author : Eran Ofek (Nov 2021)
     % Example: imProc.transIm.imwarp
     
