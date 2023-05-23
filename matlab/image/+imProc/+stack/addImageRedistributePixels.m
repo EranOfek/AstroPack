@@ -106,6 +106,44 @@ function Image = addImageRedistributePixels(Image, Image1, X, Y, Args)
                 end
             end
             
+        case 'interp' % using imresize, extremely slow.. 54774 seconds !
+            
+            Scale = 4; % resizing scale
+            
+            X0 = floor(X); Y0 = floor(Y);
+            
+            X1 = ceil( (2 * Scale - 1) .* (X-X0) ); Y1 = ceil( (2 * Scale - 1 ) .* (Y-Y0) );  
+            
+            for iX = 1:1:Args.Nx
+                
+                imX = iX + Args.XL;
+                
+                for iY = 1:1:Args.Ny
+                    
+                    imY = iY + Args.YL; 
+                       
+                    if numel(Image1) == 1 
+                        S = Image1;  % if the new image is a constant (e.g., exposure time), we may still need such a redistribution matching that of the flux
+                    else
+                        S = Image1 (imX, imY); 
+                    end
+                    
+                    X11 = X0(iX,iY); Y11 = Y0(iX,iY);
+                    
+                    Stamp = Image( X11:X11+1 , Y11:Y11+1 );
+                    
+                    StampScaled = imresize(Stamp, Scale, 'bilinear');
+                    
+                    StampScaled ( X1(iX,iY), Y1(iX,iY) ) = StampScaled ( X1(iX,iY), Y1(iX,iY) ) + S * Scale^2. ;
+                    
+                    Stamp = imresize(StampScaled, 1./Scale, 'bilinear');
+                    
+                    Image( X11:X11+1 , Y11:Y11+1 ) = Stamp;
+                    
+                end
+                
+            end
+            
         otherwise
             
             cprintf('err','Incorrect flux redistribution method, exiting..')
