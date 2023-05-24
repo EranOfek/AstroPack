@@ -53,7 +53,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
     %                   Default is {}.
     % Output : - The input AstroImage object, where the following column
     %            names were optionally added to the AStroCatalog:
-    %            {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'PSF_CHI2DOF'}
+    %            {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'MAGERR_PSF', 'PSF_CHI2DOF'}
     %          - A structure array with the PSF fitting data.
     % Author : Eran Ofek (Feb 2022)
     % Example: AI=AstroImage('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
@@ -175,6 +175,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
             Result.RoundY = RoundY;
             Result.X = Result.RoundX + Result.DX;
             Result.Y = Result.RoundY + Result.DY;
+            Result.MagErr = 1.086./Result.SNm;     % mag err
             
             
             % second iteration - need to round X/Y???
@@ -184,10 +185,10 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
             % add sources to catalog
             % calculate magnitude
             if Args.UpdateCat
-                ResultObj(Iobj).CatData.insertCol(double([Result.X, Result.Y, Result.Flux, Result.Mag, Result.Chi2./Result.Dof,Result.SNm]),...
+                ResultObj(Iobj).CatData.insertCol(double([Result.X, Result.Y, Result.Flux, Result.Mag, Result.MagErr, Result.Chi2./Result.Dof,Result.SNm]),...
                                         Inf,...
-                                        {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'PSF_CHI2DOF','SN'},...
-                                        {'pix',    'pix',    '',          'mag',     '',''});
+                                        {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'MAGERR_PSF', 'PSF_CHI2DOF','SN'},...
+                                        {'pix',    'pix',    '',          'mag',     'mag',        '',''});
             end
         else % empty PSF
             % PSF is empty - skip
