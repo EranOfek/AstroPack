@@ -129,12 +129,6 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
                                                                               'ColNmatchName',Args.ColNmatchName);
         
         
-%         % match sources
-%         if Args.catsHTMisRef
-%             [MatchedObj, UnMatchedObj, TruelyUnMatched] = imProc.match.match(Obj, CatH, 'Radius',Args.Radius, 'RadiusUnits',Args.RadiusUnits);
-%         else
-%             [MatchedObj, UnMatchedObj, TruelyUnMatched] = imProc.match.match(CatH, Obj, 'Radius',Args.Radius, 'RadiusUnits',Args.RadiusUnits);
-%         end
 
     end
 end

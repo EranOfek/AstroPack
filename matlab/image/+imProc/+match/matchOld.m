@@ -1,4 +1,4 @@
-function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args)
+function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = matchOld(Obj1, Obj2, Args)
     % Match two catalogs in AstroCatalog objects
     %       This function returens: a matched source catalog, and an
     %       unmatched source catalog.
@@ -58,6 +58,8 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
     %            'ColCatY' - Like 'ColCatX', but for the Y coordinate.
     %            'ColRefX' - Like 'ColCatX', but for te ref catalog.
     %            'ColRefY' - Like 'ColRefX', but for the Y coordinate.
+    %            'CreateNewObj' - Create a new ouput object.
+    %                   Default is true.
     % Output : - An AstroCatalog object of matched sources.
     %            Numeber of sources equal to that of the number
     %            of sources in the second object (Obj2).
@@ -76,7 +78,7 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
     %           AC.ColNames = {'RA','Dec'}; AC.ColUnits = {'rad','rad'};
     %           AC2 = AstroCatalog; AC2.Catalog  = [1 2; 1 1; 2.001 0; 3 -1; 3 0]
     %           AC2.ColNames = {'RA','Dec'}; AC2.ColUnits = {'rad','rad'};
-    %           [MC,UM,TUM] = imProc.match.match(AC,AC2,'Radius',0.01,'RadiusUnits','rad')
+    %           [MC,UM,TUM] = imProc.match.matchOld(AC,AC2,'Radius',0.01,'RadiusUnits','rad')
 
     arguments
         Obj1
@@ -95,7 +97,7 @@ function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args
         Args.NmatchColPos                = Inf;
         Args.NmatchColName char          = 'Nmatch';
         
-        Args.CreateNewObj logical        = false;
+        Args.CreateNewObj logical        = true;
         
         % if given will override ColX/ColY
         Args.CooType                     = '';  % pix' | 'sphere'
