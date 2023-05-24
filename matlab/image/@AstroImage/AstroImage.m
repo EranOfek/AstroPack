@@ -2165,6 +2165,97 @@ classdef AstroImage < Component
                 varargout{Iic} = CellIC{Iic}.funUnaryScalar(Operator, 'OpArgs',Args.OpArgs, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn);
             end
         end
+
+        function varargout = funUnaryScalarWithMask(Obj, Operator, Args)
+            % Apply a scalar-output function on pixels in AstrooImage selected by their Mask values.
+            % % Input  : - An AstroImage object (multi elements supported)
+            %          - Operator (a function handle, e.g., @mean).
+            %          * ...,key,val,...
+            %            'OpArgs' - A cell array of additional arguments to
+            %                   pass to the operator. Default is {}.
+            %            'CCDSEC' - CCDSEC on which to operate:
+            %                   [Xmin, Xmax, Ymin, Ymax].
+            %                   Use [] for the entire image.
+            %                   If not [], then DataPropIn/Out will be
+            %                   modified to 'Image'.
+            %            'BitNames' - A cell array of bit mask names. The
+            %                   operator will be applied only on pixels
+            %                   that their bit mask is on (or off).
+            %                   For example {'Saturated'} will select
+            %                   saturated pixels.
+            %                   Default is {}.
+            %            'UseNot' - If true, then select pixels specified
+            %                   by BitNames that are on. If false, then
+            %                   select off pixels. Default is false.
+            %            'Method' - 'all'|'any'. When selecting pixels
+            %                   using multiple bit names, use all pixels or
+            %                   any pixels. Default is 'all'.
+            %
+            %            'DataProp' - A cell array of AstroImage data
+            %                   properties on which the operator will operated.
+            %                   Default is
+            %                   {'ImageData','BackData','VarData','MaskData'}.
+            %            'DataPropIn' - Data property in the ImageComponent
+            %                   on which the operator
+            %                   will be operated. Default is 'Data'.
+            % Output : - An array in which each element corresponds to the operator applied
+            %            to an DataProp in the AstroImage object.
+            %            If operator returns empty, then this function will
+            %            return NaN.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: % mean of saturated pixels
+            %          AI.funUnaryScalarWithMask(@mean,{'Saturated'}) 
+            %          % mean of non-saturated pixels
+            %          AI.funUnaryScalarWithMask(@mean,{'Saturated'},'UseNot',true)
+            %          % mean of pixels that are non saturated and non HighRN
+            %          AI.funUnaryScalarWithMask(@mean,{'Saturated', 'HighRN'},'UseNot',true)
+
+            arguments
+                Obj
+                Operator function_handle
+                Args.OpArgs cell                = {};
+                Args.CCDSEC                     = [];
+                Args.BitNames cell              = {};
+                Args.UseNot logical             = false;
+                Args.Method                     = 'all';
+                Args.DataProp                   = {'ImageData','BackData','VarData','MaskData'};
+                Args.DataPropIn                 = 'Data';
+            end
+
+            Ndp  = numel(Args.DataProp);
+            if nargout>Ndp
+                error('Requested %d output for %d DataProp',Nout,Ndp);
+            end
+            
+
+            Nobj = numel(Obj);
+            for Iout=1:1:nargout
+                varargout{Iout} = nan(size(Obj));
+            end
+            for Iobj=1:1:Nobj
+                if isempty(Args.BitNames)
+                    
+                else
+                    Flag = findBit(Obj(Iobj).MaskData, Args.BitNames, 'Method',Args.Method, 'OutType','mat');
+                    for Idp=1:1:nargout
+                        if isempty(Obj(Iobj).(Args.DataProp{Idp}).(Args.DataPropIn))
+                            varargout{Idp}(Iobj) = Operator(Obj(Iobj).(Args.DataProp{Idp}).(Args.DataPropIn), Args.OpArgs{:});
+                        else
+                            if Args.UseNot
+                                varargout{Idp}(Iobj) = Operator(Obj(Iobj).(Args.DataProp{Idp}).(Args.DataPropIn)(~Flag), Args.OpArgs{:});
+                            else
+                                varargout{Idp}(Iobj) = Operator(Obj(Iobj).(Args.DataProp{Idp}).(Args.DataPropIn)(Flag), Args.OpArgs{:});
+                            end
+                        end
+                    end
+
+
+
+                end
+
+
+            end
+        end
                 
         function Result = funBinaryProp(Obj1, Obj2, Operator, Args)
             % Apply binary function on a single property of AstroImage

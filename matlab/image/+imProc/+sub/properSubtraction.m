@@ -115,14 +115,20 @@ function Result = properSubtraction(ObjNew, ObjRef, Args)
         Pn_hat = fft2(Pn);
         [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr);
         D=ifft2(D_hat);
+        S_hat = D_hat.*conj(Pd_hat);
+        S = ifft2(S_hat);
+        S = S - median(S,'all','omitnan');
+        S = S./tools.math.stat.rstd(S,'all');
 
-        [D, Pd, S, Scorr] = imUtil.properSub.subtraction(N, R, Pn, Pr, SigmaN, SigmaR, 'SigmaAstN',[0.1 0.1], 'SigmaAstR',[0.1 0.1]);
+
+        [D, Pd, S, Scorr] = imUtil.properSub.subtraction(N, R, Pn, Pr, SigmaN, SigmaR, 'SigmaAstN',[0.1 0.1], 'SigmaAstR',[0.1 0.1], 'EmpiricalNorm',false);
 
         % remove from D regions that are NaNs in R or N
         D(FlagNaN) = NaN;
         S(FlagNaN) = NaN;
         Scorr(FlagNaN) = NaN;
 
+        %ds9(single(abs(S)>5).*S,3)
         'a'
 
 

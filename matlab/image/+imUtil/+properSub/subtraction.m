@@ -58,6 +58,15 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
     %                   If true, use M*conj(M).
     %                   If false, use abs(M).
     %                   Default is false.
+    %            
+    %            'AnalyticNorm' - Normalize S analitically. Default is true.
+    %            'EmpiricalNorm' - Normalize S and Scorr empirically by
+    %                   subtracting the mean and dividing by the std.
+    %                   Default is false.
+    %            'MeanFun' - Mean function for 'EmpiricalNorm'.
+    %                   Default is @tools.math.stat.nanmedian
+    %            'StdFun' - Std function for 'EmpiricalNorm'.
+    %                   Default is @tools.math.stat.rstd
     % Output : - (D_hat) Proper subtraction difference image in real space.
     %            In Fourier domain if OutIsFFT=true.
     %          - (Pd_hat) The PSF of D.
