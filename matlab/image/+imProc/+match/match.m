@@ -91,9 +91,16 @@ function [Result1, ResInd, UnMatched1, UnMatched2]=match(Obj1, Obj2, Args)
             error('Obj2 must be of AstroImage or AstroCatalog class');
         end
 
-        % check that Cat1 is sorted
-        if ~Cat1.IsSorted
-            Cat1.sortrows('Dec');
+        %check that Cat1 is sorted
+        switch Args.CooType
+            case 'pix'
+                [ColInd, ~, ~] = Cat1.colnameDict2ind(AstroCatalog.DefNamesY);
+                Cat1.sortrows(ColInd);
+            case 'sphere'
+                [ColInd, ~, ~] = Cat1.colnameDict2ind(AstroCatalog.DefNamesDec);
+                Cat1.sortrows(ColInd);
+            otherwise
+                error('Unknown CooType option');
         end
 
         % Match Cat1 and Cat2

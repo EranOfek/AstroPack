@@ -94,6 +94,7 @@ function Result = imwarp(Obj, Trans, Args)
     
     Nobj = numel(Obj);
     
+    OutWCS = [];
     % create a new copy
     if Args.CreateNewObj
         if Args.GetAllFields
@@ -193,6 +194,7 @@ function Result = imwarp(Obj, Trans, Args)
             OutWCS = Trans.WCS.copy;
         elseif isa(Trans, 'affine2d')
             ImWarpTransformation = Trans;
+            Ntran = numel(ImWarpTransformation);
             OutWCS = [];
         elseif isa(Trans, 'Tran2D')
             error('Tran2D option is not yet supported');
@@ -256,6 +258,8 @@ function Result = imwarp(Obj, Trans, Args)
     % Not clear what to do about this
     %OutView = affineOutputView(sizeA, ImWarpTransformation)
     
+    
+
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
         
@@ -273,8 +277,10 @@ function Result = imwarp(Obj, Trans, Args)
             TranArg = DispField(Iobj).DF;
             OutView = [];
         else
-            TranArg = ImWarpTransformation(Iobj);
-            OutView = affineOutputView(SizeInput, ImWarpTransformation(Iobj),'BoundsStyle','CenterOutput');
+            Ntran   = numel(ImWarpTransformation);
+            Itran   = min(Ntran,Iobj);
+            TranArg = ImWarpTransformation(Itran);
+            OutView = affineOutputView(SizeInput, ImWarpTransformation(Itran),'BoundsStyle','CenterOutput');
         end
         
         for Iprop=1:1:Nprop

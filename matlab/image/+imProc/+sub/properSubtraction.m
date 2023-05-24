@@ -1,6 +1,10 @@
 function Result = properSubtraction(ObjNew, ObjRef, Args)
     %
-    % Example: AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN','CreateNewObj',true);
+    % Example: AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
+    %          AIreg= imProc.background.background(AIreg,'SubSizeXY',[]);    
+    %          AIreg=imProc.sources.findMeasureSources(AIreg);           
+    %          m=imProc.match.match(AIreg(1),AIreg(2),'CooType','pix')
+
     %          D = imProc.sub.properSubtraction(AIreg(2), AIreg(1));
 
     arguments

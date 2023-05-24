@@ -1,5 +1,5 @@
-function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
-    % Match an AstroCatalog object with catsHTM catalog
+function [Result, ResInd, CatH] = returnMatched_catsHTM(Obj, CatName, Args)
+    % Return a catsHTM catalog matched to an AstroCatalog object.
     % Input  : - An AstroCatalog or an AstroImage object (multi
     %            elements supported). The AStroCatalog object will
     %            be matched against a catsHTM catalog.
@@ -41,10 +41,8 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
     %          - Select lines only from the input catalog. Only sources
     %            with matches are selected.
     % Author : Eran Ofek (Apr 2021)
-    % Example: AC=AstroCatalog({'asu.fit'},'HDU',2);
-    %          M = imProc.cat.Match;
-    %          M.coneSearch(AC,[1 1],'Radius',3600);
-    %          [MatchedObj, UnMatchedObj, TruelyUnMatched, CatH] = M.match_catsHTM(AC,'GAIADR2')
+    % Example: [Result, ResInd, CatH] = imProc.match.returnMatched_catsHTM(AI, 'GAIADR3');
+    %          
 
     arguments
         Obj
@@ -69,7 +67,7 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
 
     % convert AstroImage to AstroCatalog
     if isa(Obj,'AstroImage')
-        Obj = astroImage2AstroCatalog(Obj,'CreateNewObj',Args.CreateNewObj);
+        Obj = astroImage2AstroCatalog(Obj,'CreateNewObj',false);
     elseif isa(Obj,'AstroCatalog')
         % do nothing
     elseif isnumeric(Obj)
@@ -94,11 +92,12 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
         SelObj = AstroCatalog(size(Obj));
     end
     
-    CatH = AstroCatalog(size(Obj));  % output of catsHTM
+    CatH   = AstroCatalog(size(Obj));  % output of catsHTM
+    Result = AstroCatalog(size(Obj));
     for Iobj=1:1:Nobj
         if isempty(Args.Coo) || isempty(Args.CatRadius)
             % get coordinates using boundingCircle
-            [CircX, CircY, CircR] = Obj(Iobj).boundingCircle('OutUnits','rad');
+            [CircX, CircY, CircR] = Obj(Iobj).boundingCircle('OutUnits','rad', 'CooType','sphere');
             Args.Coo                 = [CircX, CircY];
             Args.CatRadius      = CircR;
             Args.CooUnits       = 'rad';
@@ -110,25 +109,19 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
         CatH(Iobj)  = catsHTM.cone_search(CatName, Args.Coo(Icoo,1), Args.Coo(Icoo,2), Args.CatRadius, 'RadiusUnits',Args.CatRadiusUnits, 'Con',Args.Con, 'OutType','astrocatalog');
 
         if Args.catsHTMisRef
-            ResInd = imProc.match.matchReturnIndices(Obj, CatH, 'CooType','sphere',...
+            ResInd(Iobj) = imProc.match.matchReturnIndices(Obj, CatH, 'CooType','sphere',...
                                                             'Radius',Args.Radius,...
                                                             'RadiusUnits',Args.RadiusUnits);
         else                                          
             % default!
-            ResInd = imProc.match.matchReturnIndices(CatH, Obj, 'CooType','sphere',...
+            ResInd(Iobj) = imProc.match.matchReturnIndices(CatH, Obj, 'CooType','sphere',...
                                                             'Radius',Args.Radius,...
                                                             'RadiusUnits',Args.RadiusUnits);
         end
         
-        [Result(Iobj), SelObj] = insertCol_matchIndices(Result(Iobj), ResInd, 'AddColDist',Args.AddColDist,...
-                                                                              'ColDistPos',Args.ColDistPos,...
-                                                                              'ColDistName',Args.ColDistName,...
-                                                                              'ColDistUnits',Args.ColDistUnits,...
-                                                                              'AddColNmatch',Args.AddColNmatch,...
-                                                                              'ColNmatchPos',Args.ColNmatchPos,...
-                                                                              'ColNmatchName',Args.ColNmatchName);
         
-        
+        Result(Iobj) = CatH(Iobj).selectRows(ResInd(Iobj).Obj2_IndInObj1, 'CreateNewObj',true);
+       
 
     end
 end

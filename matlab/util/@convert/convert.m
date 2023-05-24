@@ -1301,6 +1301,7 @@ classdef convert
                 Tmp = cell2mat(Tmp);
             end
             N  = numel(Tmp);
+            DateVec = [];
             for I=1:1:N
                 DateVec(I,1) = str2double(Tmp(I).Y);
                 DateVec(I,2) = str2double(Tmp(I).M);

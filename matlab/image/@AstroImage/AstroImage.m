@@ -2242,7 +2242,9 @@ classdef AstroImage < Component
             end
             for Iobj=1:1:Nobj
                 if isempty(Args.BitNames)
-                    
+                    for Idp=1:1:nargout
+                        varargout{Idp}(Iobj) = Operator(Obj(Iobj).(Args.DataProp{Idp}).(Args.DataPropIn), Args.OpArgs{:});
+                    end
                 else
                     Flag = findBit(Obj(Iobj).MaskData, Args.BitNames, 'Method',Args.Method, 'OutType','mat');
                     for Idp=1:1:nargout
