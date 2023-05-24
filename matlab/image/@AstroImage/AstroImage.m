@@ -474,12 +474,20 @@ classdef AstroImage < Component
                                                  'IsTable',false,...
                                                  'ReadHeader',Args.ReadHeader,...
                                                  'UseRegExp',Args.UseRegExp);
+                        
                     case {'cat','catdata'}
                         ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
                                                  'FileType',Args.FileType,...
                                                  'IsTable',true,...
                                                  'ReadHeader',Args.ReadHeader,...
                                                  'UseRegExp',Args.UseRegExp);
+
+                        % if isempty(Args.Obj)
+                        %     Obj = AstroImage;
+                        % else
+                        %     Obj = Args.Obj;
+                        % end
+                        % Obj.CatData = FITS.readTable1(FileName, 'HDUnum',Args.HDU, 'OutTable','astrocatalog', 'TableType','bintable');
                     otherwise
                         error('DataProp %s is not supported',Args.DataProp);
                 end

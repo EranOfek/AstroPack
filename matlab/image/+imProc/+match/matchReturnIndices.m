@@ -67,7 +67,7 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         Args.ColCatY                     = [];
         Args.ColRefX                     = [];
         Args.ColRefY                     = [];
-        Args.CreateNewObj(1,1) logical   = false; % fir the sorted version of Obj1
+        Args.CreateNewObj(1,1) logical   = false; % for the sorted version of Obj1
         
     end    
 
