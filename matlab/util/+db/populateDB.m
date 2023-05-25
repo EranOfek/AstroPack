@@ -6,6 +6,7 @@ function Result = populateDB( ImageFiles, Args )
     %          'DBname'        : DB name
     %          'DBtable'       : DB table
     %          'Hash'          : whether to calculate a hashsum of the file and add it to the table
+    %          'FileNames'     : an optinal cell array of file names 
     % Output : scalar success flag (0 -- images successfully added to the DB)         
     % Tested : Matlab R2020b
     %     By : A. Krassilchtchikov et al.    May 2023
@@ -14,11 +15,27 @@ function Result = populateDB( ImageFiles, Args )
     arguments
         
         ImageFiles                     % input images
-        Args.DBname  = 'LAST';         % DB name
-        Args.DBtable = 'RAW';          % DB table
+        Args.DBname       = 'LAST';    % DB name
+        Args.DBtable      = 'RAW';     % DB table
         Args.Hash logical = true;      % whether to calculate a hashsum and add it to the table
+        Args.FileNames    = {};        % an optional cell array of file names (for the case the first argument is not a file list)
         
     end
+    
+    
+    if Args.FileNames == {} && ( isa(ImageFiles(1), 'AstroImage') ||  isa(ImageFiles(1), 'AstroHeader') )
+        Args.Hash = false;
+    end
+    
+%     Input  : - Either a cell array of file names, or an AstroImage object, or AstroHeader object.
+%             * ...,key,val,...
+%               'DBname'
+%               'DBtable'
+%               'Hash' - default is true.
+%               'FileNames' - Optional cell array of files names. If not provided, 
+% and first input is not a cell of file names, then set 'Hash' to false, and write warning. Default is {}.
+% 
+
     
     % determine the number of input images:
     
@@ -35,7 +52,13 @@ function Result = populateDB( ImageFiles, Args )
                     
             for Img = 1:1:NImg
                        
-                AH    = AstroHeader(ImageFiles(Img), 1); 
+                if isa( ImageFiles(Img), 'AstroImage' )
+                    AH = ImageFiles(Img).Header;
+                elseif isa( ImageFiles(Img), 'AstroHeader' )
+                    AH = ImageFiles(Img);
+                else
+                    AH    = AstroHeader(ImageFiles(Img), 1); 
+                end
                         
                 if Args.Hash
                     Sum_h64 = tools.checksum.xxhash('FileName', char( ImageFiles(Img) ) ); 
