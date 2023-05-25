@@ -39,6 +39,11 @@ function [Result, ResInd, CatH] = returnMatched_catsHTM(Obj, CatName, Args)
     %            'applyProperMotionArgs' - A cell array of arguments to
     %                   pass to imProc.cat.applyProperMotion
     %                   Default is {}.
+    %            'ColEpoch' - Column name containing the epoch of the
+    %                   catalog. Default is 'Epoch'.
+    %            'EpochUnits' - Units of the epoch (in 'ColEpoch').
+    %                   See convert.time for option.
+    %                   Default is 'J' (i.e., Julian years).
     %
     % Output : - The requested catsHTM catalog matched to the input
     %            catalog. I.e., The number of lines in this catalog are
