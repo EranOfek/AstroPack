@@ -29,17 +29,21 @@ function [Result, ResInd, CatH] = returnMatched_catsHTM(Obj, CatName, Args)
     %                   catsHTM catalog is treated as the reference
     %                   catalog. Default is false.
     %                   If true, then the output is the same but for the catsHTM catalog.
-    %            'AddColDist' - Default is true.
-    %            'ColDistPos' - Default is Inf.
-    %            'ColDistName' - Default is 'Dist'.
-    %            'ColDistUnits' - Default is 'arcsec'.
-    %            'AddColNmatch' - Default is true.
-    %            'ColNmatchPos' - Default is Inf.
-    %            'ColNmatchName' - Default is 'Nmatch'.
-    % Output : - The input catalog with added columns for the nearest match
-    %            in the catsHTM catalog.
-    %          - Select lines only from the input catalog. Only sources
-    %            with matches are selected.
+    %            'ApplyPM' - A logical indicating if to correct the
+    %                   coordinates in the catsHTM catalog to proper motion and
+    %                   parallax. This may work for some catalogs (e.g.,
+    %                   'GAIADR3'). Default is true.
+    %            'applyProperMotionArgs' - A cell array of arguments to
+    %                   pass to imProc.cat.applyProperMotion
+    %                   Default is {}.
+    %
+    % Output : - The requested catsHTM catalog matched to the input
+    %            catalog. I.e., The number of lines in this catalog are
+    %            equal to thre number of lines in the input catalog and the
+    %            sources are matched.
+    %          - The structure array of matched indices as returned by
+    %            imProc.match.matchReturnIndices
+    %          - The catsHTM catalog for the field before matching.
     % Author : Eran Ofek (Apr 2021)
     % Example: [Result, ResInd, CatH] = imProc.match.returnMatched_catsHTM(AI, 'GAIADR3');
     %          
@@ -56,48 +60,35 @@ function [Result, ResInd, CatH] = returnMatched_catsHTM(Obj, CatName, Args)
         Args.Con                 = {};
         Args.catsHTMisRef        = false;
         
-        Args.AddColDist logical   = true;
-        Args.ColDistPos           = Inf;
-        Args.ColDistName          = 'Dist';
-        Args.ColDistUnits         = 'arcsec';
-        Args.AddColNmatch logical = true;
-        Args.ColNmatchPos         = Inf;
-        Args.ColNmatchName        = 'Nmatch';
+        Args.ApplyPM logical     = true; % will work for GAIA only
+        Args.applyProperMotionArgs cell = {};
+        Args.ColEpoch                   = 'Epoch';   % epoch col name in catsHTM catalog
+        Args.EpochUnits                 = 'J';  % 'J' for Julian years, 'JD' for JD,... see convert.time
+        
+        %Args.AddColDist logical   = true;
+        %Args.ColDistPos           = Inf;
+        %Args.ColDistName          = 'Dist';
+        %Args.ColDistUnits         = 'arcsec';
+        %Args.AddColNmatch logical = true;
+        %Args.ColNmatchPos         = Inf;
+        %Args.ColNmatchName        = 'Nmatch';
     end
 
-    % convert AstroImage to AstroCatalog
-    if isa(Obj,'AstroImage')
-        Obj = astroImage2AstroCatalog(Obj,'CreateNewObj',false);
-    elseif isa(Obj,'AstroCatalog')
-        % do nothing
-    elseif isnumeric(Obj)
-        error('Input Obj is of unsupported class');
-    else
-        error('Input Obj is of unsupported class');
-    end
-
-
-    if isempty(Args.Coo) || isempty(Args.Radius)
-        UseUserCoo = true;
-    else
-        UseUserCoo = false;
-    end
-
-
-    Nobj = numel(Obj);
-    MatchedObj = AstroCatalog(size(Obj));
-    
-    Result = Obj.copy();
-    if nargout>1
-        SelObj = AstroCatalog(size(Obj));
-    end
-    
     CatH   = AstroCatalog(size(Obj));  % output of catsHTM
     Result = AstroCatalog(size(Obj));
     for Iobj=1:1:Nobj
+        if isa(Obj, 'AstroImage')
+            CatIn = Obj(Iobj).CatData;
+            JD    = Obj(Iobj).julday;
+        else
+            % assuming an AstroCatalog object
+            CatIn = Obj(Iobj);
+            JD    = Obj(Iobj).JD;
+        end
+        
         if isempty(Args.Coo) || isempty(Args.CatRadius)
             % get coordinates using boundingCircle
-            [CircX, CircY, CircR] = Obj(Iobj).boundingCircle('OutUnits','rad', 'CooType','sphere');
+            [CircX, CircY, CircR] = CatIn(Iobj).boundingCircle('OutUnits','rad', 'CooType','sphere');
             Args.Coo                 = [CircX, CircY];
             Args.CatRadius      = CircR;
             Args.CooUnits       = 'rad';
@@ -108,13 +99,25 @@ function [Result, ResInd, CatH] = returnMatched_catsHTM(Obj, CatName, Args)
         Icoo = 1;
         CatH(Iobj)  = catsHTM.cone_search(CatName, Args.Coo(Icoo,1), Args.Coo(Icoo,2), Args.CatRadius, 'RadiusUnits',Args.CatRadiusUnits, 'Con',Args.Con, 'OutType','astrocatalog');
 
+        % apply PM/plx
+        if Args.ApplyPM
+            % Get EpochIn from catalog
+            EpochIn = CatH(Iobj).getCol(Args.ColEpoch);  % Julian year
+            
+            Result = imProc.cat.applyProperMotion(CatH(Iobj), EpochIn(1), JD,    'CreateNewObj',false,...
+                                                                                 'EpochInUnits',Args.EpochUnits,...
+                                                                                 'EpochOutUnits','jd',...
+                                                                                 Args.applyProperMotionArgs{:});
+    
+        end
+        
         if Args.catsHTMisRef
-            ResInd(Iobj) = imProc.match.matchReturnIndices(Obj, CatH, 'CooType','sphere',...
+            ResInd(Iobj) = imProc.match.matchReturnIndices(CatIn, CatH, 'CooType','sphere',...
                                                             'Radius',Args.Radius,...
                                                             'RadiusUnits',Args.RadiusUnits);
         else                                          
             % default!
-            ResInd(Iobj) = imProc.match.matchReturnIndices(CatH, Obj, 'CooType','sphere',...
+            ResInd(Iobj) = imProc.match.matchReturnIndices(CatH, CatIn, 'CooType','sphere',...
                                                             'Radius',Args.Radius,...
                                                             'RadiusUnits',Args.RadiusUnits);
         end
