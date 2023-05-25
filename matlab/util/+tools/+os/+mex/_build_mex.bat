@@ -7,12 +7,8 @@ rem >mex  mex_bitsetFlag32.cpp  COMPFLAGS="$COMPFLAGS /openmp"
 set Options=COMPFLAGS="$COMPFLAGS /openmp"
 rem /arch:AVX512
 
-call mex mex_times8.cpp %Options%
-call mex mex_times16.cpp %Options%
-call mex mex_times32.cpp %Options%
-call mex mex_times64.cpp %Options%
-call mex mex_timesSingle.cpp %Options%
-call mex mex_timesDouble.cpp %Options%
+call mex is_avx512_supported.cpp %Options%
+
 
 :exit
 pause
