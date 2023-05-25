@@ -3,8 +3,11 @@ function [Result, ResInd, CatH] = returnMatched_catsHTM(Obj, CatName, Args)
     % Input  : - An AstroCatalog or an AstroImage object (multi
     %            elements supported). The AStroCatalog object will
     %            be matched against a catsHTM catalog.
-    %          - catsHTM catalog name (e.g., 'GAIADR2').
+    %          - catsHTM catalog name (e.g., 'GAIADR3').
     %            See catsHTM.catalogs for possible options.
+    %            Alternatively, this can be an Astrocatalog object
+    %            containing the catsHTM catalog of the field after applying
+    %            proper motion, but before matching.
     %          * ...,key,val,...
     %            'Coo' - [RA, Dec] of coordinates to search.
     %                   If empty, then will attempt to find this
@@ -96,19 +99,24 @@ function [Result, ResInd, CatH] = returnMatched_catsHTM(Obj, CatName, Args)
         else
             Args.Coo = convert.angular(Args.CooUnits,'rad',Args.Coo);
         end
-        Icoo = 1;
-        CatH(Iobj)  = catsHTM.cone_search(CatName, Args.Coo(Icoo,1), Args.Coo(Icoo,2), Args.CatRadius, 'RadiusUnits',Args.CatRadiusUnits, 'Con',Args.Con, 'OutType','astrocatalog');
+        
+        if isa(CatName, 'AstroCatalog')
+            % catalog is already provided
+            CatH(Iobj) = CatName(Iobj);
+        else
+            Icoo = 1;
+            CatH(Iobj)  = catsHTM.cone_search(CatName, Args.Coo(Icoo,1), Args.Coo(Icoo,2), Args.CatRadius, 'RadiusUnits',Args.CatRadiusUnits, 'Con',Args.Con, 'OutType','astrocatalog');
+        
+            % apply PM/plx
+            if Args.ApplyPM
+                % Get EpochIn from catalog
+                EpochIn = CatH(Iobj).getCol(Args.ColEpoch);  % Julian year
 
-        % apply PM/plx
-        if Args.ApplyPM
-            % Get EpochIn from catalog
-            EpochIn = CatH(Iobj).getCol(Args.ColEpoch);  % Julian year
-            
-            Result = imProc.cat.applyProperMotion(CatH(Iobj), EpochIn(1), JD,    'CreateNewObj',false,...
-                                                                                 'EpochInUnits',Args.EpochUnits,...
-                                                                                 'EpochOutUnits','jd',...
-                                                                                 Args.applyProperMotionArgs{:});
-    
+                Result = imProc.cat.applyProperMotion(CatH(Iobj), EpochIn(1), JD,    'CreateNewObj',false,...
+                                                                                     'EpochInUnits',Args.EpochUnits,...
+                                                                                     'EpochOutUnits','jd',...
+                                                                                     Args.applyProperMotionArgs{:});
+            end
         end
         
         if Args.catsHTMisRef
