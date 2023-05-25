@@ -8,7 +8,7 @@ function Result = addImages2DB(Args)
     %          'DBname'        : DB name
     %          'DBtable'       : DB table
     %          'Hash'          : whether to calculate a hashsum of the file and add it to the table
-    % Output : scalar success flag (0 -- images successfully added to the DB)
+    % Output : - scalar success flag (0 -- images successfully added to the DB)
     % Tested : Matlab R2020b
     % Author : A. Krassilchtchikov et al. (May 2023)
     % Example: db.addImages('DataDir','/home/sasha/Raw2/','DBname','LAST','DBtable','RAW');
@@ -16,7 +16,7 @@ function Result = addImages2DB(Args)
     
     arguments
         
-        Args.DataDir        =    '/home/sasha/Raw2/';                % The directory containing the input images
+        Args.DataDir        =    '/home/alexk/Raw/';                % The directory containing the input images
         Args.InputImages    =    'LAST*sci*raw_Image*.fits';         % The mask of the input image filenames
         Args.DBname         =    'LAST';
         Args.DBtable        =    'RAW';
@@ -26,17 +26,29 @@ function Result = addImages2DB(Args)
     
     % get a list of input files according to the input mask 
     
-    Images  = dir ( fullfile(Args.DataDir,'**',Args.InputImages) );
-    Imfiles = string(zeros(numel(Images),1));
-    Str = repmat({''}, numel(Images),1);
-    for Img = 1:1: numel(Images)
-        Imfiles(Img) = fullfile(Images(Img).folder, Images(Img).name);
+    ImageFiles  = dir ( fullfile(Args.DataDir,'**',Args.InputImages) );
+
+    Imfiles = repmat({''}, numel(ImageFiles),1);
+
+    Images  = Imfiles;
+    Headers = Imfiles;
+
+    for Img = 1:1: numel(ImageFiles)
+
+        Imfiles{Img} = fullfile(ImageFiles(Img).folder, ImageFiles(Img).name);
+        Images{Img} = AstroImage(Imfiles(Img));
+        Headers{Img} = AstroHeader;
+        Headers{Img}.Data = Images{Img}.Header;
+
     end
     
     % call the sub to populate the database
                         
-    db.populateDB ( Imfiles, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+%     db.populateDB ( ImageFiles, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+%     db.populateDB ( Images, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+    db.populateDB ( Headers, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
     
+
     % assign the Result value
     
     Result = 0;   % success

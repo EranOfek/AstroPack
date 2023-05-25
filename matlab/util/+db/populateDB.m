@@ -1,20 +1,24 @@
-function Result = populateDB( ImageFiles, Args )
-    % Populate a database with a list of input images
-    % Description: Populate a database with a list of input images
-    % Input:   - ImageFiles         : a vector of input file names
+function Result = populateDB( Data, Args )
+    % Populate a database with metadata (header data) from a list of input images
+    % Description: Populate a database with metadata (header data) from a list of input images
+    % Input:   - Data : a cell array containing either 
+    %               a) file names of FITS images or
+    %               b) AstroImages or
+    %               c) AstroHeaders
     %          * ...,key,val,...
     %          'DBname'        : DB name
     %          'DBtable'       : DB table
     %          'Hash'          : whether to calculate a hashsum of the file and add it to the table
-    %          'FileNames'     : an optinal cell array of file names 
+    %          'FileNames'     : an optinal cell array of file names (if
+    %          only AstroImages or AstroHeaders are provided)
     % Output : scalar success flag (0 -- images successfully added to the DB)         
     % Tested : Matlab R2020b
-    %     By : A. Krassilchtchikov et al.    May 2023
+    % Author : A. Krassilchtchikov et al. (May 2023)
     % Example: db.populateDB ( Imfiles, 'DBtype', 'LAST', 'DBtable', 'RAW', 'Hash', Args.Hash );
 
     arguments
         
-        ImageFiles                     % input images
+        Data                           % input images (file names or AstroImages) or AstroHeaders
         Args.DBname       = 'LAST';    % DB name
         Args.DBtable      = 'RAW';     % DB table
         Args.Hash logical = true;      % whether to calculate a hashsum and add it to the table
@@ -22,24 +26,15 @@ function Result = populateDB( ImageFiles, Args )
         
     end
     
-    
-    if Args.FileNames == {} && ( isa(ImageFiles(1), 'AstroImage') ||  isa(ImageFiles(1), 'AstroHeader') )
-        Args.Hash = false;
-    end
-    
-%     Input  : - Either a cell array of file names, or an AstroImage object, or AstroHeader object.
-%             * ...,key,val,...
-%               'DBname'
-%               'DBtable'
-%               'Hash' - default is true.
-%               'FileNames' - Optional cell array of files names. If not provided, 
-% and first input is not a cell of file names, then set 'Hash' to false, and write warning. Default is {}.
-% 
-
-    
     % determine the number of input images:
     
-    NImg = numel(ImageFiles);
+    NImg = numel(Data);
+    
+    % check whether it is possible to get files for the hash sum
+
+    if numel(Args.FileNames) ~= NImg && ( isa(Data{1}, 'AstroImage') ||  isa(Data{1}, 'AstroHeader') )
+        Args.Hash = false;
+    end
     
     % populate the database
     
@@ -52,16 +47,16 @@ function Result = populateDB( ImageFiles, Args )
                     
             for Img = 1:1:NImg
                        
-                if isa( ImageFiles(Img), 'AstroImage' )
-                    AH = ImageFiles(Img).Header;
-                elseif isa( ImageFiles(Img), 'AstroHeader' )
-                    AH = ImageFiles(Img);
+                if isa( Data{Img}, 'AstroImage' )
+                    AH = Data{Img}.Header;
+                elseif isa( Data{Img}, 'AstroHeader' )
+                    AH = Data{Img};
                 else
-                    AH    = AstroHeader(ImageFiles(Img), 1); 
+                    AH = AstroHeader( Data(Img), 1 ); 
                 end
                         
                 if Args.Hash
-                    Sum_h64 = tools.checksum.xxhash('FileName', char( ImageFiles(Img) ) ); 
+                    Sum_h64 = tools.checksum.xxhash('FileName', char( Data(Img) ) ); 
                 else
                     Sum_h64 = '';
                 end
