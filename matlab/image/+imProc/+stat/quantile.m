@@ -7,7 +7,7 @@ function [Out, varargout] = quantile(Obj, Quant, varargin)
     %       By default NaNs are omitted.
     % Input  : - An AstroImage object.
     %          - Quantile (between 0 and 1).
-    %          * Arbitrary arguments to pass to AstroImage/funUnaryScalar.
+    %          * Arbitrary arguments to pass to AstroImage/funUnaryScalarWithMask.
     % Output : * By default will return up to 4 output arguments for the
     %            quantile value of the Image, Back, Var and Mask.
     %            Each argument is an array which size equal to the size of
@@ -19,8 +19,10 @@ function [Out, varargout] = quantile(Obj, Quant, varargin)
     %          [a,b] = imProc.stat.quantile(AI, 0.3)
     %          AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
     %          [a,b,c] = imProc.stat.quantile(AI, 0.95)
+    %          quantile on non saturated pixels
+    %          [a,b]=imProc.stat.quantile(AI,'BitNames',{'Saturated'},'UseNot',true)
     
-    [Out, varargout{1:nargout-1}] = funUnaryScalar(Obj, @quantile, 'OpArgs',{Quant, 'all'}, varargin{:});
+    [Out, varargout{1:nargout-1}] = funUnaryScalarWithMask(Obj, @quantile, 'OpArgs',{Quant, 'all'}, varargin{:});
     
     
 end

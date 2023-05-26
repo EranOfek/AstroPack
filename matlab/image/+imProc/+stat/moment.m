@@ -7,7 +7,7 @@ function [Out, varargout] = moment(Obj, Order, varargin)
     %       By default NaNs are omitted.
     % Input  : - An AstroImage object.
     %          - Moment order.
-    %          * Arbitrary arguments to pass to AstroImage/funUnaryScalar.
+    %          * Arbitrary arguments to pass to AstroImage/funUnaryScalarWithMask.
     % Output : * By default will return up to 4 output arguments for the
     %            quantile value of the Image, Back, Var and Mask.
     %            Each argument is an array which size equal to the size of
@@ -19,8 +19,10 @@ function [Out, varargout] = moment(Obj, Order, varargin)
     %          [a,b] = imProc.stat.moment(AI, 4)
     %          AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
     %          [a,b,c] = imProc.stat.moment(AI, 5)
+    %          moment on non saturated pixels
+    %          [a,b]=imProc.stat.moment(AI,'BitNames',{'Saturated'},'UseNot',true)
     
-    [Out, varargout{1:nargout-1}] = funUnaryScalar(Obj, @moment, 'OpArgs',{Order, 'all'}, varargin{:});
+    [Out, varargout{1:nargout-1}] = funUnaryScalarWithMask(Obj, @moment, 'OpArgs',{Order, 'all'}, varargin{:});
     
     
 end

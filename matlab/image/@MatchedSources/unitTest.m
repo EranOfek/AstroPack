@@ -54,8 +54,8 @@ function Result = unitTest()
 	AC2 = AstroCatalog;
 	AC2.Catalog  = [1 2; 1 1; 2.001 0; 3 -1; 3 0];
 	AC2.ColNames = {'RA','Dec'}; AC2.ColUnits = {'rad','rad'};
-	[MC,UM,TUM] = imProc.match.match(AC,AC2,'Radius',0.01,'RadiusUnits','rad');
-	[MC,UM,TUM] = imProc.match.match([AC;AC2; AC; AC2],AC2,'Radius',0.01,'RadiusUnits','rad');
+	[MC,UM,TUM] = imProc.match.matchOld(AC,AC2,'Radius',0.01,'RadiusUnits','rad');
+	[MC,UM,TUM] = imProc.match.matchOld([AC;AC2; AC; AC2],AC2,'Radius',0.01,'RadiusUnits','rad');
 	% run addMatrix with AstroCatalog input
 	MS = MatchedSources;
 	MS.addMatrix(MC,{'RA','Dec'});

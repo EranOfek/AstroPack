@@ -977,7 +977,9 @@ classdef AstroTable < Component
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 if istable(Obj(Iobj).Catalog)
-                    Obj(Iobj).Catalog = table2array(Obj(Iobj).Catalog);
+                    Obj(Iobj).ColNames = Obj(Iobj).Catalog.Properties.VariableNames;
+                    Obj(Iobj).ColUnits = Obj(Iobj).Catalog.Properties.VariableUnits;
+                    Obj(Iobj).Catalog  = table2array(Obj(Iobj).Catalog);
                 end
             end
         end

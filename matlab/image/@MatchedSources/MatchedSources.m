@@ -557,11 +557,14 @@ classdef MatchedSources < Component
                 if ~all(Nrow==Nrow(1))
                     error('For AstroTable/AstroCatalog input, all catalogs must have the same number of rows');
                 end
-                            
+                     
                 [Res, Summary, N_Ep, Units] = imProc.match.matched2matrix(Matrix, FieldName, true);
+              
                 Obj.addMatrix(Res);
                 for Ifn=1:1:Nf
-                    Obj.Units.(FieldName{Ifn}) = Units.(FieldName{Ifn});
+                    if isfield(Units, FieldName{Ifn})
+                        Obj.Units.(FieldName{Ifn}) = Units.(FieldName{Ifn});
+                    end
                 end
                 
 %
@@ -1273,7 +1276,7 @@ classdef MatchedSources < Component
                 
         end
         
-        function Result = SelectByEpoch(Obj, EpochSelect, Args)
+        function Result = selectByEpoch(Obj, EpochSelect, Args)
             % Selected entries in MatchedSources object by epoch index or ranges
             % Input  : - A MatchedSources object.
             %          - A vector of indices or logical flags corresponding
@@ -1287,7 +1290,7 @@ classdef MatchedSources < Component
             % Output : - A MatchedSources object with the seclected
             %            epoch.
             % Author : Eran Ofek (Jan 2023)
-            % Example: Result = SelectByEpoch(Obj, [1 2 3]');
+            % Example: Result = selectByEpoch(Obj, [1 2 3]');
             
             arguments
                 Obj
@@ -1362,6 +1365,198 @@ classdef MatchedSources < Component
                 end
             end
         end
+    
+    end
+
+    methods % add aux. Data matrices
+        function Obj=addAirMassPA(Obj, Args)
+            % Add Airmass, Parallactic angle, Az, Alt to MatchedSources
+            %   Based on RA, Dec, JD in MatchedSources objects add fields.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            'GeoCoo' - A mandatory Geodetic position for which
+            %                   to calculate AM, PA, Az, Alt.
+            %                   [Lon(deg), Lat(deg)].
+            %            'FieldRA' - Col field of RA data in MatchedSources
+            %                   object. Default is MatchedSources.DefNamesRA
+            %            'FieldDec' - Col field of Dec data in MatchedSources
+            %                   object. Default is MatchedSources.DefNamesDec
+            %            'InUnits' - [RA,Dec] Coordinates input units.
+            %                   Default is 'deg'.
+            %            'OutUnits' - [Az, ALt, PA] coordinates output
+            %                   units. Default is 'deg'.
+            %            'AddAM' - Add AM. Default is true.
+            %            'AddPA' - Add PA. Default is true.
+            %            'AddAz' - Add Az. Default is false.
+            %            'AddAlt' - Add Alt. Default is false.
+            %            'FieldAM' - Added AM field name.
+            %                   Default is 'AM'.
+            %            'FieldPA' - Added PA field name.
+            %                   Default is 'PA'.
+            %            'FieldAz' - Added Az field name.
+            %                   Default is 'Az'.
+            %            'FieldAlt' - Added Alt field name.
+            %                   Default is 'Alt'.
+            % Output : - An updated MatchedSources object with the added
+            %            data.
+            % Author : Eran Ofek (May 2023)
+            % Example: MS = MS.addAirMassPA('GeoCoo',[35.041,30.053]);
+
+            arguments
+                Obj
+                Args.GeoCoo       = [];   % [deg deg km]
+                Args.FieldRA      = MatchedSources.DefNamesRA;
+                Args.FieldDec     = MatchedSources.DefNamesDec;
+                Args.InUnits      = 'deg';
+                Args.OutUnits     = 'deg';
+
+                Args.AddAM logical   = true;
+                Args.AddPA logical   = true;
+                Args.AddAz logical   = false;
+                Args.AddAlt logical  = false;
+                
+                Args.FieldAM         = 'AM';
+                Args.FieldPA         = 'PA';
+                Args.FieldAz         = 'Az';
+                Args.FieldAlt        = 'Alt';
+
+            end
+
+            RAD = 180./pi;
+
+            if isempty(Args.GeoCoo)
+                error('Geodetic position must be provided');
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                [FieldRA]  = getFieldNameDic(Obj, Args.FieldRA);
+                [FieldDec] = getFieldNameDic(Obj, Args.FieldDec);
+
+                [Az, Alt, AM, PA] = celestial.coo.radec2azalt(Obj(Iobj).JD, Obj(Iobj).Data.(FieldRA), Obj(Iobj).Data.(FieldDec), 'GeoCoo',Args.GeoCoo, 'InUnits',Args.InUnits, 'OutUnits',Args.OutUnits);
+            
+                % add fields to Data:
+                if Args.AddAM
+                    Obj(Iobj) = addMatrix(Obj(Iobj), AM, Args.FieldAM, '');
+                end
+                if Args.AddPA
+                    Obj(Iobj) = addMatrix(Obj(Iobj), PA, Args.FieldPA, '');
+                end
+                if Args.AddAz
+                    Obj(Iobj) = addMatrix(Obj(Iobj), Az, Args.FieldAz, '');
+                end
+                if Args.AddAlt
+                    Obj(Iobj) = addMatrix(Obj(Iobj), Alt, Args.FieldAlt, '');
+                end
+
+
+            end
+
+        end
+    
+        function Obj=addExtMagColor(Obj, Args)
+            % Add magnitude/color from external catalog into a MatchedSources object
+            %   FFU: Non-efficient code.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            See code
+            % Output : - The MatchedSources object with the external
+            %            catalog magnitude and color added.
+            % Author : Eran Ofek (May 2023)
+
+            arguments
+                Obj
+                Args.Catalog       = 'GAIADR3';
+                Args.ColMag        = 'phot_g_mean_mag';
+                Args.ColColor      = {'phot_bp_mean_mag','phot_rp_mean_mag'};  % single column or two columns
+                Args.ColCoo        = {'RA','Dec'};
+                Args.SearchRadius  = 2;
+                Args.SearchUnits   = 'arcsec';
+
+                Args.FieldRA      = MatchedSources.DefNamesRA;
+                Args.FieldDec     = MatchedSources.DefNamesDec;
+                Args.CooUnits     = 'deg';
+
+                Args.Insert2Data logical = false;
+                Args.FieldMag            = 'ExtMag';
+                Args.FieldColor          = 'ExtColor';
+                Args.FieldExtRA          = 'ExtRA';
+                Args.FieldExtDec         = 'ExtDec';
+                Args.ApplyPM logical     = true;
+            end
+
+            RAD = 180./pi;
+
+            ConvertFactor = convert.angular(Args.CooUnits, 'rad');
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                [FieldRA]  = getFieldNameDic(Obj, Args.FieldRA);
+                [FieldDec] = getFieldNameDic(Obj, Args.FieldDec);
+
+                RA  = median(Obj(Iobj).Data.(FieldRA), 1, 'omitnan');
+                Dec = median(Obj(Iobj).Data.(FieldDec), 1, 'omitnan');
+
+                Nra = numel(RA);
+                MagVector   = nan(1, Nra);
+                ColorVector = nan(1, Nra);
+                for Ira=1:1:Nra
+                    if ~isnan(RA(Ira)) && ~isnan(Dec(Ira))
+                        [Cat] = catsHTM.cone_search(Args.Catalog, RA(Ira).*ConvertFactor, Dec(Ira).*ConvertFactor, Args.SearchRadius,...
+                                        'RadiusUnits',Args.SearchUnits, 'OutType','astrocatalog');
+
+                        EpochOut = convert.time(mean(Obj(Iobj).JD), 'JD','J');
+
+                        if Cat.sizeCatalog>0 && Args.ApplyPM
+                            Cat = imProc.cat.applyProperMotion(Cat, Cat.Catalog(1,3), EpochOut,'EpochInUnits','J','EpochOutUnits','J','ApplyPlx',true);
+                        end
+
+                        Mag   = Cat.getCol(Args.ColMag);
+                        Color = Cat.getCol(Args.ColColor);
+                        Coo   = Cat.getCol(Args.ColCoo);
+
+                        switch numel(Mag)
+                            case 0
+                                Mag   = NaN;
+                                Color = NaN;
+                                Coo   = [NaN NaN];
+                            case 1
+                                % do nothing
+
+                            otherwise
+                                Mag   = NaN;
+                                Color = NaN;
+                                Coo   = [NaN NaN];
+                        end
+                        
+                        if numel(Color)==2
+                            Color = Color(1) - Color(2);
+                        end
+
+                        MagVector(Ira)   = Mag;
+                        ColorVector(Ira) = Color;
+                        RAVector(Ira)    = Coo(1);
+                        DecVector(Ira)   = Coo(2);
+
+                    end
+                end
+
+                if Args.Insert2Data
+                    Obj(Iobj).Data.(Args.FieldMag)   = repmat(MagVector, Obj(Iobj).Nepoch, 1);
+                    Obj(Iobj).Data.(Args.FieldColor) = repmat(ColorVector, Obj(Iobj).Nepoch, 1);
+                end
+                % insert to SrcData
+                Obj(Iobj).SrcData.(Args.FieldMag)    = MagVector;
+                Obj(Iobj).SrcData.(Args.FieldColor)  = ColorVector;
+
+                Obj(Iobj).SrcData.(Args.FieldExtRA)  = RAVector.*RAD;
+                Obj(Iobj).SrcData.(Args.FieldExtDec) = DecVector.*RAD;
+
+            end
+
+        end
+            
+    
     end
     
     methods % design matrix

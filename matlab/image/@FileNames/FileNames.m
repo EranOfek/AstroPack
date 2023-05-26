@@ -258,13 +258,18 @@ classdef FileNames < Component
             %                   then use current directory. If false or
             %                   empty, use class default.
             %                   Default is true.
+            %            'WarningIfEmpty' - A logical indicating if to
+            %                   print a warning in case the outpout FileNames
+            %                   object contains no files.
+            %                   Default is true.
             % Output : - A FileNames object containing the file names.
             % Author : Eran Ofek (Dec 2022)
             % Example: FN=FileNames.generateFromFileName('LAST*.fits');
             
             arguments
                 List
-                Args.FullPath = true;
+                Args.FullPath                 = true;
+                Args.WarningIfEmpty logical   = true;
             end
             
             
@@ -309,6 +314,12 @@ classdef FileNames < Component
                                 
             end
             
+            if Args.WarningIfEmpty
+                if Obj.nfiles==0
+                    warning('No files matching the requested names were found - output FileNames object contain no files');
+                end
+            end
+
         end
     end
     
@@ -432,8 +443,9 @@ classdef FileNames < Component
             else
                 FlagN   = cellfun(@ischar, Obj.Time,'UniformOutput',true);
                 DateVec = convert.strFN2date(Obj.Time(FlagN));
-                JD      = celestial.time.julday(DateVec(:,[3 2 1 4 5 6]));
-                JD(~FlagN) = NaN;
+                JD      = nan(numel(FlagN),1);
+                JD(FlagN)  = celestial.time.julday(DateVec(:,[3 2 1 4 5 6]));
+                %JD(~FlagN) = NaN;
             end
                 
         end

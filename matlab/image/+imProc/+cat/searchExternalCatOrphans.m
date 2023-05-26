@@ -104,53 +104,56 @@ function Result=searchExternalCatOrphans(Obj, Args)
             JD  = Cat.JD;
         end
 
-        ColFlags       = Cat.getCol(Args.ColFLAGS);
-        ColMergedCat   = Cat.getCol(Args.ColMergedCatMask);
-        ColExtra       = Cat.getCol(Args.ColExtra);
-       
-        % select sources with no external catalog match
-        FlagInCat      = MergedCatBD.findBit(ColMergedCat, Args.RemoveCat, 'Method','any');
-        % select sources with no bad flags
-        FlagBad        = BD.findBit(ColFlags, Args.RemoveFlags, 'Method','any');
-        
-        if Args.RemoveCooNaN
-            XY = Cat.getXY;
-            FlagBadCoo    = isnan(sum(XY,2));
-        else
-            FlagBadCoo    = false(size(FlagBad));
-        end
+        % verify Cat is not empty
+        if Cat.sizeCatalog>0
+            
+            ColFlags       = Cat.getCol(Args.ColFLAGS);
+            ColMergedCat   = Cat.getCol(Args.ColMergedCatMask);
+            ColExtra       = Cat.getCol(Args.ColExtra);
 
-        if isempty(Args.RemoveFlagsSoft)
-            FlagBadSoft = false(size(FlagBad));
-        else
-            FlagBadSoft = BD.findBit(ColFlags, Args.RemoveFlagsSoft, 'Method','any');
-            ColSNsoft   = Cat.getCol(Args.ColSN);
-            FlagBadSoft = FlagBadSoft & (ColSNsoft < Args.SoftSN);
-        end
+            % select sources with no external catalog match
+            FlagInCat      = MergedCatBD.findBit(ColMergedCat, Args.RemoveCat, 'Method','any');
+            % select sources with no bad flags
+            FlagBad        = BD.findBit(ColFlags, Args.RemoveFlags, 'Method','any');
 
-        if isempty(Args.ColSN_delta)
-            FlagSNdBad     = false(size(FlagBad));
-        else
-            SNd            = Cat.getCol(Args.ColSN_delta);
-            SNd            = SNd(:,1) - SNd(:,2);
-            FlagSNdBad     = SNd>Args.SN_delta;
-        end
+            if Args.RemoveCooNaN
+                XY = Cat.getXY;
+                FlagBadCoo    = isnan(sum(XY,2));
+            else
+                FlagBadCoo    = false(size(FlagBad));
+            end
 
-        FlagCand       = ~FlagInCat & ~FlagBad & ~FlagBadCoo & ~FlagBadSoft & ~FlagSNdBad;
-        Icand          = find(FlagCand);
-        Ncand          = sum(FlagCand);
-        
-        % save candidates to table:
-        % [ColExtra, ColFLAGS, ColMergedMask, Iobj, Icand]
-        if Ncand==0
-            VecIobj = zeros(0,1);
-        else
-            VecIobj = repmat(Iobj,[Ncand, 1]);
-        end
-        CandCat = [CandCat; [ColExtra(Icand,:), ColFlags(Icand), ColMergedCat(Icand), VecIobj, Icand]];
-        
-        %BD.bitdec2name(ColFlags(Icand))
+            if isempty(Args.RemoveFlagsSoft)
+                FlagBadSoft = false(size(FlagBad));
+            else
+                FlagBadSoft = BD.findBit(ColFlags, Args.RemoveFlagsSoft, 'Method','any');
+                ColSNsoft   = Cat.getCol(Args.ColSN);
+                FlagBadSoft = FlagBadSoft & (ColSNsoft < Args.SoftSN);
+            end
 
+            if isempty(Args.ColSN_delta)
+                FlagSNdBad     = false(size(FlagBad));
+            else
+                SNd            = Cat.getCol(Args.ColSN_delta);
+                SNd            = SNd(:,1) - SNd(:,2);
+                FlagSNdBad     = SNd>Args.SN_delta;
+            end
+
+            FlagCand       = ~FlagInCat & ~FlagBad & ~FlagBadCoo & ~FlagBadSoft & ~FlagSNdBad;
+            Icand          = find(FlagCand);
+            Ncand          = sum(FlagCand);
+
+            % save candidates to table:
+            % [ColExtra, ColFLAGS, ColMergedMask, Iobj, Icand]
+            if Ncand==0
+                VecIobj = zeros(0,1);
+            else
+                VecIobj = repmat(Iobj,[Ncand, 1]);
+            end
+            CandCat = [CandCat; [ColExtra(Icand,:), ColFlags(Icand), ColMergedCat(Icand), VecIobj, Icand]];
+
+            %BD.bitdec2name(ColFlags(Icand))
+        end
     end
 
     Result = AstroCatalog;

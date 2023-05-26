@@ -1,16 +1,24 @@
 function Result = properSubtraction(ObjNew, ObjRef, Args)
     %
-    % Example: AI2_1=imProc.transIm.imwarp(AI2, AI1);
-    %          D = imProc.sub.properSubtraction(AI2_1, AI1);
+    % Example: AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
+    %          AIreg= imProc.background.background(AIreg,'SubSizeXY',[]);    
+    %          AIreg=imProc.sources.findMeasureSources(AIreg);           
+    %          m=imProc.match.match(AIreg(1),AIreg(2),'CooType','pix')
+
+    %          D = imProc.sub.properSubtraction(AIreg(2), AIreg(1));
 
     arguments
         ObjNew AstroImage
         ObjRef AstroImage
-        Args.backgroundArgs cell          = {};
-        Args.MeanVarFun function_handle   = @tools.math.stat.nanmedian;
+        Args.backgroundArgs cell          = {'SubSizeXY',[]};
+        Args.MeanVarFun function_handle   = @tools.math.stat.nanmean;
         Args.RefBack                      = [];  % can use to overide Ref background level
         Args.ReplaceNanN logical          = true;
         Args.ReplaceNanR logical          = true;
+
+        Args.NewZP                        = 'PH_ZP';
+        Args.RefZP                        = 'PH_ZP';
+
     end
 
     N_N  = numel(ObjNew);
@@ -62,6 +70,9 @@ function Result = properSubtraction(ObjNew, ObjRef, Args)
             R = ObjRef(Ir).Image - Args.RefBack;
         end
 
+        % Find regions in N or R that are NaN (for later on)
+        FlagNaN = isnan(N) | isnan(R); 
+
         % replace NaNs
         if Args.ReplaceNanN
             N = imUtil.image.replaceVal(N, NaN, 0);
@@ -70,6 +81,23 @@ function Result = properSubtraction(ObjNew, ObjRef, Args)
             R = imUtil.image.replaceVal(R, NaN, 0);
         end
 
+        % get photometriz zer point
+        if ischar(Args.NewZP)
+            ZP_New = ObjNew(In).HeaderData.getVal(Args.NewZP);
+            Fn     = 10.^(-0.4.*ZP_New);
+        else
+            Fn     = Args.NewZP;
+        end
+        if ischar(Args.RefZP)
+            ZP_Ref = ObjRef(In).HeaderData.getVal(Args.RefZP);
+            Fr     = 10.^(-0.4.*ZP_Ref);
+        else
+            Fr     = Args.RefZP;
+        end
+        % normalize Fr and Fn such that Fn=1
+        Fr = Fn./Fr; %Fr./Fn; - why?
+        Fn = 1;
+        
 
         % get PSF and pad and shift
         Pr = ObjRef(Ir).PSFData.padShift(size(R), 'fftshift','fftshift');
@@ -78,23 +106,33 @@ function Result = properSubtraction(ObjNew, ObjRef, Args)
         
 
         % get std
-        SigmaR = sqrt(Args.MeanVarFun(ObjRef(Ir).Var));
-        SigmaN = sqrt(Args.MeanVarFun(ObjNew(In).Var));
+        SigmaR = sqrt(Args.MeanVarFun(ObjRef(Ir).Var, 'all'));
+        SigmaN = sqrt(Args.MeanVarFun(ObjNew(In).Var, 'all'));
+                
         
 
-        % get flux normalization
-        Fn = 1
-        Fr = 1
 
-        
         % Image subtraction
         R_hat = fft2(R);
         N_hat = fft2(N);
         Pr_hat = fft2(Pr);
         Pn_hat = fft2(Pn);
-        [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(R_hat, N_hat, Pr_hat, Pn_hat, SigmaR, SigmaN, Fr, Fn);
+        [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr);
         D=ifft2(D_hat);
-        
+        S_hat = D_hat.*conj(Pd_hat);
+        S = ifft2(S_hat);
+        S = S - median(S,'all','omitnan');
+        S = S./tools.math.stat.rstd(S,'all');
+
+
+        [D, Pd, S, Scorr] = imUtil.properSub.subtraction(N, R, Pn, Pr, SigmaN, SigmaR, 'SigmaAstN',[0.1 0.1], 'SigmaAstR',[0.1 0.1], 'EmpiricalNorm',false);
+
+        % remove from D regions that are NaNs in R or N
+        D(FlagNaN) = NaN;
+        S(FlagNaN) = NaN;
+        Scorr(FlagNaN) = NaN;
+
+        %ds9(single(abs(S)>5).*S,3)
         'a'
 
 

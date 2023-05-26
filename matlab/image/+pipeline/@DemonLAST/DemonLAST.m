@@ -661,13 +661,7 @@ classdef DemonLAST < Component
                         fprintf('%s\n', Lines{Il});
                     end
                     if Args.WriteLog
-                        if iscell(Msg)
-                            for I=1:1:numel(Msg)
-                                Obj.Logger.msgLog(Level, Msg{I});
-                            end
-                        else
-                            Obj.Logger.msgLog(Level, Msg);
-                        end
+                        Obj.Logger.msgLog(Level, Lines{Il});
                     end
                 end
             end
@@ -1179,6 +1173,7 @@ classdef DemonLAST < Component
 
                 Args.StartJD       = -Inf;    % refers onlt to Science observations: JD, or [D M Y]
                 Args.EndJD         = Inf;
+                Args.ReloadCalib logical = true; % look for new dark/flat images and load - if false: CI must be provided
 
                 Args.DeleteSciDayTime logical = false;
                 Args.DeleteSunAlt  = 0;
@@ -1209,6 +1204,12 @@ classdef DemonLAST < Component
                 Args.EndJD = celestial.time.julday(Args.EndJD);
             end
 
+            if ~Args.ReloadCalib
+                [IsEmB, IsEmF] = Obj.CI.isemptyProp({'Bias','Flat'});
+                if IsEmB || IsEmF
+                    error('For ReloadCalib=false, a populated CalibImages (CI) with Bias and Flat images must be provided');
+                end
+            end
 
 
             GUI_Text = sprintf('Abort : Pipeline');
@@ -1219,11 +1220,13 @@ classdef DemonLAST < Component
                 % set Logger log file 
                 Obj.setLogFile;
 
-                % prep Master dark and move to raw/ dir
-                [Obj, FN_Dark] = Obj.prepMasterDark('Move2raw',true);
-                    
-                % prep Master flat and move to raw/ dir
-                [Obj, FN_Flat] = Obj.prepMasterFlat('Move2raw',true);
+                if Args.ReloadCalib
+                    % prep Master dark and move to raw/ dir
+                    [Obj, FN_Dark] = Obj.prepMasterDark('Move2raw',true);
+                        
+                    % prep Master flat and move to raw/ dir
+                    [Obj, FN_Flat] = Obj.prepMasterFlat('Move2raw',true);
+                end
                 
                 % delete test images taken during daytime
                 if Args.DeleteSciDayTime
@@ -1300,7 +1303,7 @@ classdef DemonLAST < Component
                                                                        'SaveAll',false);
     
                             
-                            CoaddTransienst = imProc.cat.searchExternalCatOrphans(Coadd);
+                            %CoaddTransienst = imProc.cat.searchExternalCatOrphans(Coadd);
 
                             % save data products
                             FN_I = FN_Sci_Groups(Igroup).reorderEntries(1, 'CreateNewObj',true);
@@ -1339,13 +1342,13 @@ classdef DemonLAST < Component
 
 
                             % save CoaddTransienst
-                            if CoaddTransienst.sizeCatalog>0
-                                [~,~,Status]=imProc.io.writeProduct(CoaddTransienst, FN_I, 'Product',{'TransientsCat'}, 'WriteHeader',[false],...
-                                                       'Level','merged',...
-                                                       'LevelPath','proc',...
-                                                       'SubDir',FN_Proc.SubDir);
-                                Obj.writeLog(Status, LogLevel.Info);
-                            end
+                            % if CoaddTransienst.sizeCatalog>0
+                            %     [~,~,Status]=imProc.io.writeProduct(CoaddTransienst, FN_I, 'Product',{'TransientsCat'}, 'WriteHeader',[false],...
+                            %                            'Level','merged',...
+                            %                            'LevelPath','proc',...
+                            %                            'SubDir',FN_Proc.SubDir);
+                            %     Obj.writeLog(Status, LogLevel.Info);
+                            % end
 
                             % Write images and catalogs to DB
     
@@ -1369,6 +1372,8 @@ classdef DemonLAST < Component
                             %warning(ErrorMsg);
                             Obj.writeLog(ErrorMsg, LogLevel.Error);
 
+                            Obj.writeLog(ME, LogLevel.Error);
+                            
                             % write log file
     
                             % move images to failed/ dir

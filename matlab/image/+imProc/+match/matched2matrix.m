@@ -41,8 +41,8 @@ function [Res, Summary, N_Ep, Units] = matched2matrix(MatchedObj, Cols, IsEpochB
     %          AC2.Catalog  = [1 2; 1 1; 2.001 0; 3 -1; 3 0];
     %          AC2.ColNames = {'RA','Dec'}; AC2.ColUnits = {'rad','rad'};
     %          AC2.getCooTypeAuto
-    %          [MC,UM,TUM] = imProc.match.match(AC,AC2,'Radius',0.01,'RadiusUnits','rad');
-    %          [MC,UM,TUM] = imProc.match.match([AC;AC2; AC; AC2],AC2,'Radius',0.01,'RadiusUnits','rad');
+    %          [MC,UM,TUM] = imProc.match.matchOld(AC,AC2,'Radius',0.01,'RadiusUnits','rad');
+    %          [MC,UM,TUM] = imProc.match.matchOld([AC;AC2; AC; AC2],AC2,'Radius',0.01,'RadiusUnits','rad');
     %             
     %          [Res, Summary, N_Ep] = imProc.match.matched2matrix(MC, 'RA')
     %          
@@ -88,17 +88,20 @@ function [Res, Summary, N_Ep, Units] = matched2matrix(MatchedObj, Cols, IsEpochB
     % For each selected column
     for Icol=1:1:Ncol
         % for each catalog
-        for Icat=1:1:Ncat
-            % E.g., Res.XWIN_IMAGE(:,10) = MatchedObj(10).Cat(:,Column)
-            Res.(ColName{Icol})(:,Icat) = MatchedObj(Icat).(CatField)(:,ColInd(Icol));
-        end
-        if nargout>3
-            Units.(ColName{Icol}) = getColUnits(MatchedObj(Icat), ColName{Icol});
+        if ~isnan(ColInd(Icol))
+            for Icat=1:1:Ncat
+                % E.g., Res.XWIN_IMAGE(:,10) = MatchedObj(10).Cat(:,Column)
+                Res.(ColName{Icol})(:,Icat) = MatchedObj(Icat).(CatField)(:,ColInd(Icol));
+            end
+            if nargout>3
+                Units.(ColName{Icol}) = getColUnits(MatchedObj(Icat), ColName{Icol});
+            end
         end
         if IsEpochByInd
             % transpose the matrix
             Res.(ColName{Icol}) = Res.(ColName{Icol}).';
         end
+        
     end
 
 

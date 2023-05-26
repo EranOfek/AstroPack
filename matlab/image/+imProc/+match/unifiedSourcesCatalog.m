@@ -112,8 +112,9 @@ function [Result, ResInd, Matched] = unifiedSourcesCatalog(Obj, Args)
                                                                 'CooType',Args.CooType);
                                                                 
         IndCatNaN = isnan(ResMatch.Obj2_IndInObj1);
+
         Result.Catalog = [Result.Catalog; Cat.Catalog(IndCatNaN, [ColIndX, ColIndY])];
-      
+        
         if nargout>1
             Ncat                      = size(Result.Catalog, 1);
             Nnan                      = sum(IndCatNaN);
@@ -122,18 +123,7 @@ function [Result, ResInd, Matched] = unifiedSourcesCatalog(Obj, Args)
             ResInd(Iobj).IndInObj     = find(IndCatNaN);
         end
     
-%         [~, UnMatchedObj] = imProc.match.match(Cat, Result, 'CooType',Args.CooType,...
-%                                                             'Radius',Args.Radius,...
-%                                                             'RadiusUnits',Args.RadiusUnits,...
-%                                                             'AddIndInRef',false,...
-%                                                             'AddDistCol',false,...
-%                                                             'ColCatX',ColIndX,...
-%                                                             'ColCatY',ColIndY,...
-%                                                             'ColRefX',1,...
-%                                                             'ColRefY',2);
-%         
-%         % add UnMatchedObj to MergedCoo
-%         Result = merge([Result, UnMatchedObj], {ColNameX{1}, ColNameY{1}});
+
     end
     
     % sort the Result by the second column (Declination)

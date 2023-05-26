@@ -58,6 +58,15 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
     %                   If true, use M*conj(M).
     %                   If false, use abs(M).
     %                   Default is false.
+    %            
+    %            'AnalyticNorm' - Normalize S analitically. Default is true.
+    %            'EmpiricalNorm' - Normalize S and Scorr empirically by
+    %                   subtracting the mean and dividing by the std.
+    %                   Default is false.
+    %            'MeanFun' - Mean function for 'EmpiricalNorm'.
+    %                   Default is @tools.math.stat.nanmedian
+    %            'StdFun' - Std function for 'EmpiricalNorm'.
+    %                   Default is @tools.math.stat.rstd
     % Output : - (D_hat) Proper subtraction difference image in real space.
     %            In Fourier domain if OutIsFFT=true.
     %          - (Pd_hat) The PSF of D.
@@ -133,7 +142,7 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         Pr_hat = fftshift(Pr_hat);
     end
     
-    [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(R_hat, N_hat, Pr_hat, Pn_hat, SigmaR, SigmaN, Fr, Fn, 'AbsFun',AbsFun, 'Eps',Args.Eps);
+    [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, 'AbsFun',AbsFun, 'Eps',Args.Eps);
     
     % denominator of D
 %     D_den     = (SigmaN.^2 .* Fr.^2) .* AbsFun(Pr_hat).^2 + (SigmaR.^2 .*Fn.^2) .* AbsFun(Pn_hat).^2 + Args.Eps;

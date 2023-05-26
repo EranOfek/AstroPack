@@ -1,5 +1,5 @@
 function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
-    % Match an AstroCatalog object with catsHTM catalog
+    % Match an AstroCatalog object with catsHTM catalog and add columns to catalog.
     % Input  : - An AstroCatalog or an AstroImage object (multi
     %            elements supported). The AStroCatalog object will
     %            be matched against a catsHTM catalog.
@@ -109,15 +109,15 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
         Icoo = 1;
         CatH(Iobj)  = catsHTM.cone_search(CatName, Args.Coo(Icoo,1), Args.Coo(Icoo,2), Args.CatRadius, 'RadiusUnits',Args.CatRadiusUnits, 'Con',Args.Con, 'OutType','astrocatalog');
 
-        if catsHTMisRef
+        if Args.catsHTMisRef
             ResInd = imProc.match.matchReturnIndices(Obj, CatH, 'CooType','sphere',...
                                                             'Radius',Args.Radius,...
-                                                            'RadiusUnits',Args.radiusUnits);
+                                                            'RadiusUnits',Args.RadiusUnits);
         else                                          
             % default!
             ResInd = imProc.match.matchReturnIndices(CatH, Obj, 'CooType','sphere',...
                                                             'Radius',Args.Radius,...
-                                                            'RadiusUnits',Args.radiusUnits);
+                                                            'RadiusUnits',Args.RadiusUnits);
         end
         
         [Result(Iobj), SelObj] = insertCol_matchIndices(Result(Iobj), ResInd, 'AddColDist',Args.AddColDist,...
@@ -129,12 +129,6 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
                                                                               'ColNmatchName',Args.ColNmatchName);
         
         
-%         % match sources
-%         if Args.catsHTMisRef
-%             [MatchedObj, UnMatchedObj, TruelyUnMatched] = imProc.match.match(Obj, CatH, 'Radius',Args.Radius, 'RadiusUnits',Args.RadiusUnits);
-%         else
-%             [MatchedObj, UnMatchedObj, TruelyUnMatched] = imProc.match.match(CatH, Obj, 'Radius',Args.Radius, 'RadiusUnits',Args.RadiusUnits);
-%         end
 
     end
 end

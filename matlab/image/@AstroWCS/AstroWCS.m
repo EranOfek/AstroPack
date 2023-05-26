@@ -1247,8 +1247,8 @@ classdef AstroWCS < Component
                     error('wrong XY dimensions');
             end
                     
-            [Alpha, Delta]  = Obj.xy2sky(PX,PY);
-            [refPX,refPY] = RefWCS.sky2xy(Alpha,Delta);
+            [Alpha, Delta] = Obj.xy2sky(PX,PY);
+            [refPX,refPY]  = RefWCS.sky2xy(Alpha,Delta);
             DX = PX-refPX;
             DY = PY-refPY;
             

@@ -172,11 +172,17 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                 % AstroImage input
 
                 for Iprod=1:1:Nprod
+                    
                     % generate file names
+                    %FN_Iobj = FN.reorderEntries(Iobj, 'CreateNewObj',true);
                     OutFileNames = FN.genFull('Product',Args.Product{Iprod}, 'LevelPath',Args.LevelPath);
                     for Iobj=1:1:Nobj
                         % create dir only on first file
+                        
+                        
                         if ~isempty(Obj(Iobj).Image) || Args.WriteEmpty
+                            
+                            
                             Obj(Iobj).write1(OutFileNames{Iobj}, Args.Product{Iprod},...
                                          'FileType',FN.FileType{1},...
                                          'IsSimpleFITS',Args.IsSimpleFITS,...

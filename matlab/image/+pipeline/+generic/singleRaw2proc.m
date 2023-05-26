@@ -321,6 +321,19 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         % FFU: flags Holes
         % imProc.mask.maskHoles
 
+        % Estimate PSF
+        if Args.AddPSF
+            [SI] = imProc.psf.constructPSF(SI, Args.constructPSFArgs{:});
+            % add PSF FWHM to header
+            imProc.psf.fwhm(SI);
+
+            if Args.PsfPhot
+                % PSF photometry
+                [SI, ResPSF] = imProc.sources.psfFitPhot(SI, 'CreateNewObj',false);                                   
+            end
+
+        end
+
         
         % Astrometry, including update coordinates in catalog
         if Args.DoAstrometry
@@ -388,18 +401,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
 
         end
 
-        % Estimate PSF
-        if Args.AddPSF
-            [SI] = imProc.psf.constructPSF(SI, Args.constructPSFArgs{:});
-            % add PSF FWHM to header
-            imProc.psf.fwhm(SI);
-            
-            if Args.PsfPhot
-                % PSF photometry
-                [SI, ResPSF] = imProc.sources.psfFitPhot(SI, 'CreateNewObj',false);                                   
-            end
-            
-        end
+        
         
         % delete properties
         SI.deleteProp(Args.DeletePropAfterSrcFinding);
