@@ -3,6 +3,7 @@ function [SN, Peaks] = peakDetectionFilter1(Array, Dim, Args)
     %   Use filtering (e.g., with a Gaussian) to find local maxima in
     %   vectors (columns or rows in a matrix) above some threshold (in
     %   units of sigma).
+    %   The filtering is done simolutanosly to all columns/rows.
     % Input  : - A vector or a 2-D array.
     %          - Dimension in which to search for local maxim.
     %            Default is 1.
