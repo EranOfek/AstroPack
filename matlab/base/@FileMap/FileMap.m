@@ -45,7 +45,6 @@ classdef FileMap < Component
                 Obj.StorageFileName = 'c:/temp/FileMap1';
             end
         end
-
     end
 
 
@@ -80,7 +79,6 @@ classdef FileMap < Component
         end
 
 
-
         function Result = add(Obj, Path)
             %
             % Input   : - Path
@@ -99,17 +97,23 @@ classdef FileMap < Component
         end
 
 
-        function Result = findFile(Obj, FileName)
+        function Result = findFile(Obj, FileName, Args)
             %
             % Input   : - File name
             %
             %           * Pairs of ...,key,val,...
             %             The following keys are available:
+            %             'Single' - 
             %
             % Output  : - Full file name
             % Author  : Chen Tishler (Dec. 2022)
             % Example :
-
+            arguments
+                Obj
+                FileName
+                Args.Single = true          %
+            end
+            
             Result = '';           
             if ~contains(FileName, '/') && ~contains(FileName, '\')
                 FName = FileName;
@@ -118,37 +122,13 @@ classdef FileMap < Component
                 end                
                 if Obj.Map.isKey(FName)
                     F = Obj.Map(FName);
-                    Result = fullfile(F.folder, FileName);
-                else
-                end
-            else
-                Result = FileName;
-            end
-        end
-
-
-        function Result = findFile1(Obj, FileName)
-            %
-            % Input   : - File name
-            %
-            %           * Pairs of ...,key,val,...
-            %             The following keys are available:
-            %
-            % Output  : - Full file name
-            % Author  : Chen Tishler (Dec. 2022)
-            % Example :
-
-            Result = '';
-            if ~contains(FileName, '/') && ~contains(FileName, '\')
-                FName = FileName;
-                if Obj.IgnoreCase
-                    FName = lower(FName);
-                end                                
-                if Obj.Map.isKey(FName)
-                    F = Obj.Map(FName);
-                    if numel(F.folder) == 1
-                        Result = fullfile(F.folder{1}, FileName);
+                    if Args.Single
+                        if numel(F.folder) == 1
+                            Result = fullfile(F.folder{1}, FileName);
+                        else
+                        end
                     else
+                        Result = fullfile(F.folder, FileName);
                     end
                 else
                 end
