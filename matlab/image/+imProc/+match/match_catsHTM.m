@@ -1,5 +1,5 @@
 function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
-    % Match an AstroCatalog object with catsHTM catalog
+    % Match an AstroCatalog object with catsHTM catalog and add columns to catalog.
     % Input  : - An AstroCatalog or an AstroImage object (multi
     %            elements supported). The AStroCatalog object will
     %            be matched against a catsHTM catalog.

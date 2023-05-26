@@ -1,5 +1,6 @@
 function Matched = matchedReturnCat(PosCat,Obj,Args)
     % Match AsstroCatalogs and return array of matched catalogs.
+    %   OBSOLOETE: use imProc.match.match instead.
     % Input  : - An AstroCatalog object containing a single element catalog
     %            with X and Y positions.
     %          - A multi-element AstroCatalog or AstroImage object.
