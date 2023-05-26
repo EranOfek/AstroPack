@@ -318,7 +318,7 @@ if ~exist(results_fname,'file')
     end
     return
 else
-    load(results_fname);
+    io.files.load1(results_fname);
 end
 
 % find confidence level for each peak and find their probablity order

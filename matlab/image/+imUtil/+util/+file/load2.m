@@ -15,7 +15,7 @@ function Var=load2(MatFile,varargin)
 %--------------------------------------------------------------------------
 
 
-Tmp = load(MatFile,varargin{:});
+Tmp = io.files.load1(MatFile,varargin{:});
 if (isstruct(Tmp))
    FN  = fieldnames(Tmp);
    if (length(FN)==1)

@@ -191,8 +191,7 @@ for If=1:1:Nfile
     
     tic;
 	
-	% @Deploy
-    TT = io.files.readtable2(File,'Delimiter',',','CommentStyle','#','NumHeaderLines',1,'TreatAsMissing','null');
+    TT = io.files.readtable1(File,'Delimiter',',','CommentStyle','#','NumHeaderLines',1,'TreatAsMissing','null');
     TT = TT(:,SelectedCol);
     TT.Properties.VariableNames = ColNames(:,2).';
     NT = size(TT, 1);

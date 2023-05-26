@@ -181,7 +181,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %%%%%%%%%%%%%%%%%%%% load the matlab object with the ULTRASAT properties:
     
     UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');   
-    load(UP_db,'UP'); 
+    io.files.load1(UP_db,'UP'); 
     % is it possible to read just some of the UP structures: UP.TotT, UP.wavelength and, possibly, UP.Specs?
     % we can save them as separate .mat objects and read those  
         
@@ -460,7 +460,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                             fprintf('Reading PSF database.. '); 
     
     PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF',Args.ImRes,'.mat');
-    ReadDB = struct2cell ( load(PSF_db) ); % PSF data at chosen resolution
+    ReadDB = struct2cell ( io.files.load1(PSF_db) ); % PSF data at chosen resolution
     PSFdata = ReadDB{2}; 
     
 %     if ( size(PSFdata,3) ~= Nwave ) || ( size(PSFdata,4) ~= Nrad )

@@ -4046,8 +4046,7 @@ classdef DS9_new < handle
                     Args.KeepFile = true;
                 otherwise
 				
-					% @Deploy
-                    Table = files.io.readtable2(FileName, 'FileType','delimitedtext', 'Delimiter','\t'); 
+                    Table = files.io.readtable1(FileName, 'FileType','delimitedtext', 'Delimiter','\t'); 
                     switch lower(Args.OutType)
                         case 'table'
                             Data = Table;

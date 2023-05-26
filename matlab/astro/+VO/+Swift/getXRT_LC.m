@@ -49,7 +49,7 @@ function Table = getXRT_LC(Name, Args)
     cd(Id);
     
 	% @Deploy	
-    Table = io.files.readtable2('flux_plain.dat','Delimiter','\t','NumHeaderLines',9);
+    Table = io.files.readtable1('flux_plain.dat','Delimiter','\t','NumHeaderLines',9);
     
     if ~Args.SaveDir
         % delete dir

@@ -442,27 +442,27 @@ classdef UltrasatPerf < Component
             end
 
             % Obscuration
-            load(fullfile(UltrasatPerf.RawDataDir,Args.OBSC_name));
+            io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.OBSC_name));
             OBSC = eval(Args.OBSC_name);
             Obj.obscuration = interp1(OBSC.Rdeg,OBSC.obscuration,Obj.Rdeg,Args.interp_mthd);
             
             % CaF2
-            load(fullfile(UltrasatPerf.RawDataDir,Args.CaF2_name));
+            io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.CaF2_name));
             CaF2_AR = eval(Args.CaF2_name);
             Obj.T_CaF2 = interp1(CaF2_AR.wavelength,CaF2_AR.transmission,Obj.wavelength,Args.interp_mthd);
             
             % FS
-            load(fullfile(UltrasatPerf.RawDataDir,Args.FS_name));
+            io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.FS_name));
             FS_AR = eval(Args.FS_name);
             Obj.T_FS = interp1(FS_AR.wavelength,FS_AR.transmission,Obj.wavelength,Args.interp_mthd);
             
             % Mirror
-            load(fullfile(UltrasatPerf.RawDataDir,Args.Mirror_name));
+            io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.Mirror_name));
             Mirror = eval(Args.Mirror_name);
             Obj.R_Mirror = interp1(Mirror.wavelength,Mirror.transmission,Obj.wavelength,Args.interp_mthd);
             
             % Filter
-            load(fullfile(UltrasatPerf.RawDataDir,Args.Filter_name));
+            io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.Filter_name));
             Filter = eval(Args.Filter_name);
             Obj.T_Filter = interp2(Filter.angles,Filter.wavelength,Filter.transmission,Obj.AOI_grid',Obj.wavelength,Args.interp_mthd,-1);
             Obj.T_Filter(Obj.T_Filter<0) = nan;
@@ -484,20 +484,20 @@ classdef UltrasatPerf < Component
             Obj.populate_QE;
             
             % OLD - QE AOIw
-            %load(fullfile(UltrasatPerf.RawDataDir,Args.QE_subDir,Args.QE_name));
+            %io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.QE_subDir,Args.QE_name));
             %QE_table = eval(Args.QE_name);
             %QE_mat = table2array(QE_table(:,2:end));
             %Obj.QE = interp2(Obj.Rdeg,QE_table.wavelength,QE_mat,Obj.Rdeg,Obj.wavelength,Args.interp_mthd);  % assuming same R   
             
             
             % OLD - chromPSF
-            %load(fullfile(UltrasatPerf.RawDataDir,Args.PSF_name));
+            %io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.PSF_name));
             %PSF_table = eval(Args.PSF_name);
             %PSF = table2array(PSF_table(:,2:end));
             %Obj.chromPSF = interp2(Obj.Rdeg,PSF_table.wavelength,PSF,Obj.Rdeg,Obj.wavelength,Args.interp_mthd);  % assuming same R 
             
             % chromPSF
-            load(fullfile(UltrasatPerf.RawDataDir,Args.EE50_subDir,Args.PSF_name));
+            io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.EE50_subDir,Args.PSF_name));
             cPSF = eval(Args.PSF_name);
             if max(abs(cPSF.Rdeg-Obj.Rdeg))>1e-5
                 error('PSF Rdeg do not match');
@@ -585,7 +585,7 @@ classdef UltrasatPerf < Component
            
             Below_bool = false;
             if ~isempty(Args.Fname_below_220)
-                load(fullfile(UltrasatPerf.RawDataDir,Args.QE_subDir,Args.Fname_below_220));
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.QE_subDir,Args.Fname_below_220));
                 if contains(Args.QE_name,'Tstd')
                     QE_below_IB = interp1(QE_below_220nm.wavelength,QE_below_220nm.Tstd,Obj.wavelength(F1));
                 elseif  contains(Args.QE_name,'T1')
@@ -611,7 +611,7 @@ classdef UltrasatPerf < Component
                 curr_angle = regexprep(currQEname,[Args.QE_name '_'],'');
                 mQE_angles(i) = str2double(curr_angle);
                 
-                load([mQE_list(i).folder '/' mQE_list(i).name]);
+                io.files.load1([mQE_list(i).folder '/' mQE_list(i).name]);
                 currQE = eval(currQEname);
                 
                 interp_wl_mQE(:,i) = interp1(currQE.wavelength,currQE.R_qe,Obj.wavelength,Args.interp_mthd);
@@ -631,7 +631,7 @@ classdef UltrasatPerf < Component
         
         function Obj = read_AOI_dist(Obj,AOI_file_fullpath) 
             
-            aoi_MC = load(AOI_file_fullpath);
+            aoi_MC = io.files.load1(AOI_file_fullpath);
             edges = [Obj.AOI_grid-(Obj.AOI_grid(2)-Obj.AOI_grid(1))/2 ;Obj.AOI_grid(end)+(Obj.AOI_grid(2)-Obj.AOI_grid(1))/2];
             Obj.AOI_dist = zeros(numel(Obj.AOI_grid),size(aoi_MC,2));
             for i = 1:size(aoi_MC,2)
@@ -912,7 +912,7 @@ classdef UltrasatPerf < Component
             end
             
             
-            QE = readtable(fullfile(UltrasatPerf.RawDataDir,Args.QE_subDir,CSV_Fname));
+            QE = io.files.readtable1(fullfile(UltrasatPerf.RawDataDir,Args.QE_subDir,CSV_Fname));
             QE_break_col = find(contains(QE.Properties.VariableNames,Args.QE_break_str));
             N_QE = numel(QE_break_col);
             QE_names = cell(N_QE,1);
@@ -987,7 +987,7 @@ classdef UltrasatPerf < Component
            
             Below_bool = false;
             if ~isempty(Args.Fname_below_220)
-                load(fullfile(UltrasatPerf.RawDataDir,Args.QE_subDir,Args.Fname_below_220));
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.QE_subDir,Args.Fname_below_220));
                 if contains(Fname_inband,'Tstd')
                     QE_below_IB = interp1(QE_below_220nm.wavelength,QE_below_220nm.Tstd,Args.wavelength(F1));
                 elseif  contains(Fname_inband,'T1')
@@ -1002,12 +1002,12 @@ classdef UltrasatPerf < Component
                 F2 = F2 | F1;
             end
             
-            load(fullfile(UltrasatPerf.RawDataDir,Args.QE_subDir,Fname_inband));
+            io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.QE_subDir,Fname_inband));
             QE_IB = eval(Fname_inband);
             
             Above_bool = false;
             if ~isempty(Fname_above_280nm)
-                load(fullfile(UltrasatPerf.RawDataDir,Args.QE_subDir,Fname_above_280nm));
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.QE_subDir,Fname_above_280nm));
                 QE_above_IB = eval(Fname_above_280nm);
                 Above_bool = true;
             else

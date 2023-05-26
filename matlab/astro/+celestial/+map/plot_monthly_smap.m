@@ -521,7 +521,7 @@ switch Cat
      StarCat = cats.bright.mag6;
     
  otherwise
-    load(Cat);
+    io.files.load1(Cat);
     
     K = findstr(Cat,'.');
     CatS = Cat(1:K-1);
@@ -575,7 +575,7 @@ end
 %---------------------------------
 switch ConLines
  case 'yes'
-    load('ConstellationLines.mat');
+    io.files.load1('ConstellationLines.mat');
     CL = ConstellationLines;
     CL = CL.Cat;
     clear ConstellationLines;
@@ -618,7 +618,7 @@ end
 %---------------------
 switch MW
  case 'yes'
-    load('MilkyWay.mat');
+    io.files.load1('MilkyWay.mat');
 
     %--- Precess coordinates ---
     switch Precess

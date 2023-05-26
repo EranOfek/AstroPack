@@ -77,7 +77,7 @@ classdef DbRecord < Base
                 
                 % Load from CSV file
                 if ischar(Data)
-                    Obj.Data = table2struct(readtable(Data));
+                    Obj.Data = table2struct(io.files.readtable1(Data));
                     
                 % Load from memory data
                 elseif isstruct(Data)
@@ -355,7 +355,7 @@ classdef DbRecord < Base
             % Output  : - true on success, data will be loaded to Obj.Data
             % Author  : Chen Tishler (2021)
             % Example : Rec.readCsv('/tmp/data1.csv')
-            Table = readtable(FileName);
+            Table = io.files.readtable1(FileName);
             Obj.Data = table2struct(Table);
             Result = true;
         end

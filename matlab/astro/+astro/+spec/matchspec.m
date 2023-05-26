@@ -1702,7 +1702,7 @@ TempColI    = str2num(get(findobj(gcbf,'Tag','edit_TempColI'),'String'));
 TempColErr  = str2num(get(findobj(gcbf,'Tag','edit_TempColErr'),'String'));
 
 [FileName,FilePath] = uigetfile;
-Temp                = load([FilePath,FileName]);
+Temp                = io.files.load1([FilePath,FileName]);
 if (size(Temp,2)>2),
    Template            = Temp(:,[TempColW, TempColI, TempColErr]);
 else
@@ -1819,7 +1819,7 @@ SpecColI    = str2num(get(findobj(gcbf,'Tag','edit_SpecColI'),'String'));
 SpecColErr  = str2num(get(findobj(gcbf,'Tag','edit_SpecColErr'),'String'));
 
 [FileName,FilePath] = uigetfile;
-Sp                  = load([FilePath,FileName]);
+Sp                  = io.files.load1([FilePath,FileName]);
 if (size(Sp,2)>2),
    Spec            = Sp(:,[SpecColW, SpecColI, SpecColErr]);
 else

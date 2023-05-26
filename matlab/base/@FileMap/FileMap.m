@@ -1,6 +1,11 @@
 
 classdef FileMap < Component
-    %
+    % FileMap is a map object used to solve the problem that in deployed
+    % (compiled) MATLAB applications, it is not possible to call addpath()
+    % and therefore we need a mechanism to find files.
+    % See also:
+    %       base/fileMapFind.m    
+    %       util/+io/+files/load2.m
     %
 
     % Properties
@@ -40,7 +45,6 @@ classdef FileMap < Component
                 Obj.StorageFileName = 'c:/temp/FileMap1';
             end
         end
-
     end
 
 
@@ -75,7 +79,6 @@ classdef FileMap < Component
         end
 
 
-
         function Result = add(Obj, Path)
             %
             % Input   : - Path
@@ -94,17 +97,23 @@ classdef FileMap < Component
         end
 
 
-        function Result = findFile(Obj, FileName)
+        function Result = findFile(Obj, FileName, Args)
             %
             % Input   : - File name
             %
             %           * Pairs of ...,key,val,...
             %             The following keys are available:
+            %             'Single' - 
             %
             % Output  : - Full file name
             % Author  : Chen Tishler (Dec. 2022)
             % Example :
-
+            arguments
+                Obj
+                FileName
+                Args.Single = true          %
+            end
+            
             Result = '';           
             if ~contains(FileName, '/') && ~contains(FileName, '\')
                 FName = FileName;
@@ -113,37 +122,13 @@ classdef FileMap < Component
                 end                
                 if Obj.Map.isKey(FName)
                     F = Obj.Map(FName);
-                    Result = fullfile(F.folder, FileName);
-                else
-                end
-            else
-                Result = FileName;
-            end
-        end
-
-
-        function Result = findFile1(Obj, FileName)
-            %
-            % Input   : - File name
-            %
-            %           * Pairs of ...,key,val,...
-            %             The following keys are available:
-            %
-            % Output  : - Full file name
-            % Author  : Chen Tishler (Dec. 2022)
-            % Example :
-
-            Result = '';
-            if ~contains(FileName, '/') && ~contains(FileName, '\')
-                FName = FileName;
-                if Obj.IgnoreCase
-                    FName = lower(FName);
-                end                                
-                if Obj.Map.isKey(FName)
-                    F = Obj.Map(FName);
-                    if numel(F.folder) == 1
-                        Result = fullfile(F.folder{1}, FileName);
+                    if Args.Single
+                        if numel(F.folder) == 1
+                            Result = fullfile(F.folder{1}, FileName);
+                        else
+                        end
                     else
+                        Result = fullfile(F.folder, FileName);
                     end
                 else
                 end
@@ -190,10 +175,12 @@ classdef FileMap < Component
                         F.folder{1} = Files(i).folder;
                         Obj.Map(fname) = F;
                     else
-                        % Already exists
+                        % Already exists - add to end of list
                         F = Obj.Map(fname);
-                        F.folder{end+1} = Files(i).folder;
-                        Obj.Map(fname) = F;
+                        if ~ismember(F.folder, Files(i).folder) 
+                            F.folder{end+1} = Files(i).folder;
+                            Obj.Map(fname) = F;
+                        end
                     end
                 end
             end
@@ -202,7 +189,7 @@ classdef FileMap < Component
 
         function saveMap(Obj)
             % Save to file
-            Obj.msgLog(LogLevel.Info, 'saveMap: Items: %d, %s', Obj.Map.Count, Obj.StorageFileName);
+            Obj.msgLog(LogLevel.Info, 'saveMap: Items: %d, File: %s', Obj.Map.Count, Obj.StorageFileName);
             if ~isempty(Obj.StorageFileName)
                 M = Obj.Map;
                 save(Obj.StorageFileName, 'M');
@@ -212,7 +199,7 @@ classdef FileMap < Component
 
         function loadMap(Obj)
             % Load from file
-            Obj.msgLog(LogLevel.Info, 'loadMap: %s', Obj.StorageFileName);
+            Obj.msgLog(LogLevel.Info, 'loadMap: File: %s', Obj.StorageFileName);
             if ~isempty(Obj.StorageFileName)
                 load(Obj.StorageFileName);
                 Obj.Map = M;
@@ -241,7 +228,7 @@ classdef FileMap < Component
                         end
                     end
                 end
-                Obj.msgLog(LogLevel.Info, 'Found %d files with duplicate names, %d files out of %d total files', DupCount, DupListCount, FileCount);
+                Obj.msgLog(LogLevel.Info, 'checkDuplicates: Found %d files with duplicate names, %d files out of %d total files', DupCount, DupListCount, FileCount);
             end            
         end
         

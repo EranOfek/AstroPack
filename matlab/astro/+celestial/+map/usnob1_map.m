@@ -229,7 +229,6 @@ end
 switch Gal
  case 'y'
  
- 	% @Deploy
     io.files.load1('pgc.mat'); 
     PGC = pgc;
     clear pgc;
@@ -258,7 +257,6 @@ end
 switch Stars
  case 'y'
  
- 	% @Deploy
     io.files.load1('tyc2_11.mat'); 
     Tyc2 = tyc2_11;
     clear tyc2_11;

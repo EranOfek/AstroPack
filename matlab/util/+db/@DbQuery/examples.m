@@ -122,7 +122,7 @@ function Result = examples()
     CsvFileName = Q.select('*', 'TableName', 'master_table', 'Limit', 1000, 'UseCopy', true, 'Load', false);
     fprintf('CSV file: %s\n', CsvFileName);
     if isfile(CsvFileName)
-        Tab = readtable(CsvFileName);
+        Tab = io.files.readtable1(CsvFileName);
         sz = size(Tab);
         fprintf('Rows: %d, Cols: %d\n', sz(1), sz(2));
     end       

@@ -49,7 +49,7 @@ function simImage = simulate_ULTRASAT_image (Args)
 
             
             DataFile = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/subaru_hsc_udf_30x30min_g27.5.mat'); 
-            load (DataFile);  % load Mag_G, ColorT, Spec, NumSrc
+            io.files.load1(DataFile);  % load Mag_G, ColorT, Spec, NumSrc
             
             % make 3 times more objects to fit the GALEX distribution:
             
@@ -256,7 +256,7 @@ function simImage = simulate_ULTRASAT_image (Args)
             else % read in the catalog and spectra to be modelled
                                 
                 DataFile = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/GALEX_CESAM_cat.mat'); 
-                load (DataFile);  % load Cat, MagU, MagNUV, Spec 
+                io.files.load1(DataFile);  % load Cat, MagU, MagNUV, Spec 
                 
             end
         

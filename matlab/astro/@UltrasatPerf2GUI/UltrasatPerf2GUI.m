@@ -39,10 +39,10 @@ classdef UltrasatPerf2GUI < Component
                 FName = fullfile('c:/soc/snr/snr_matlab/', Obj.MatFileName);
             end
             Obj.msgLog(LogLevel.Debug, 'UltrasatPerf2GUI:load: %s', FName);
-            Obj.UP = load(FName, 'UP');
+            Obj.UP = io.files.load1(FName, 'UP');
             assert(~isempty(Obj.UP.UP));
             
-            %Obj.UP = load(Obj.MatFileName, 'UP');
+            %Obj.UP = io.files.load1(Obj.MatFileName, 'UP');
             Obj.Sources = string({Obj.UP.UP.Specs.ObjName});
             Obj.msgLog(LogLevel.Debug, 'UltrasatPerf2GUI: Sources: %d', numel(Obj.Sources));
             
