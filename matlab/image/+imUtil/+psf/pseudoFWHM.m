@@ -1,18 +1,21 @@
-function [Xsize, Ysize] = pseudoFWHM (Args)
+function [Xsize, Ysize] = pseudoFWHM (PSFin, Args)
     % Measure pseudo FWHM width in a PSF stamp at a given flux level
     % Package: imUtil.psf
     % Description: Measure pseudo FWHM width in a PSF stamp at a given flux level
-    %          - Args.PSF: a 2D array containing the PSF stamp 
-    %          - Args.Level: signal level relative to the maximum, 0.5 is default
-    % Output : - Rad: pseudo FWHM width in pixels
+    % Input:  - PSFin: a 2D array containing the PSF stamp 
+    %         * ...,key,val,...
+    %         'Level' - signal level relative to the maximum, 0.5 is default
+    %
+    % Output : - Xsize: pseudo FWHM X-width (in pixels)
+    %          - Ysize: pseudo FWHM Y-width (in pixels)
     %            
     % Tested : Matlab R2020b
-    %     By : A. Krassilchtchikov et al.    Feb 2023
-    % Example: [FWHM_X, FWHM_Y] = pseudoFWHM (PSF, 0.5)
+    % Author : A. Krassilchtchikov et al. (Feb 2023)
+    % Example: [FWHM_X, FWHM_Y] = pseudoFWHM (PSF, 'Level', 0.8)
     
     arguments
         
-        Args.PSF
+        PSFin                    % the input PSF stamp
         
         Args.Level     =    0.5; % at half maximum
         
@@ -20,7 +23,7 @@ function [Xsize, Ysize] = pseudoFWHM (Args)
     
     % normalize the PSF stamp to 1:
     
-    PSF = Args.PSF / sum(Args.PSF,'all');
+    PSF = PSFin / sum(PSFin,'all');
 
     % find the maximal level:
 

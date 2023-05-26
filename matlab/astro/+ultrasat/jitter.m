@@ -2,19 +2,20 @@ function JPSF = jitter (PSF, Cat, Args)
     % Blur an array of ULTRASAT PSFs due to the S/C jitter
     % Package: ultrasat
     % Description: Blur an array of ULTRASAT PSFs due to the S/C jitter
-    %          - PSF: an initial array of PSF images to be blurred
+    % Input:   - PSF: an initial array of PSF images to be blurred
     %          - Cat: an array of source X, Y coordinates on a detector tile
-    %          - Args.Exposure: exposure in [s]
-    %          - Args.SigmaX0: S/C jittering in the X direction
-    %          - Args.SigmaY0: S/C jittering in the Y direction
-    %          - Args.Rotation: S/C rotation jittering angle
-    %          - Args.Scaling: ULTRASAT pixel size / PSF pixel size
-    % Output : - BlurredImage 
+    %          * ...,key,val,...
+    %          'Exposure' - exposure in [s]
+    %          'SigmaX0'  - S/C jittering in the X direction
+    %          'SigmaY0'  - S/C jittering in the Y direction
+    %          'Rotation' - S/C rotation jittering angle
+    %          'Scaling'  - ULTRASAT pixel size / PSF pixel size
+    % Output : - JPSF: a PSF image (2D array) blurred due to S/C jitter
     %            
     % Tested : Matlab R2020b
-    %     By : A. Krassilchtchikov et al.    Feb 2023
+    % Author : A. Krassilchtchikov et al. (Feb 2023)
     % Example: JPSF = ultrasat.jitter(PSF, Cat, ...
-    % 'Exposure',300,'SigmaX0',2.,'SigmaY0',2.,'Rotation',10);
+    %                 'Exposure',300,'SigmaX0',2.,'SigmaY0',2.,'Rotation',10);
     
     arguments
         

@@ -1,29 +1,33 @@
-function usimImage =  usim ( Args ) 
+function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args ) 
     % Make a simulated ULTRASAT image from a source catalog
     % Package: ultrasat
     % Description: Make a simulated ULTRASAT image from a source catalog
-    % Input:    
-    %       -  Args.InCat (a catalog of simulated sources or the number of sources to generate randomly)
-    %       -  Args.InMag (a vector of source magnitudes or 1 magnitude for all the sources)
-    %       -  Args.InMagFilt (the filter[s] of source magnitudes)
-    %       -  Args.InSpec (individual spectra or one spectral model for all the objects)
-    %       -  Args.Exposure (image exposure)
-    %       -  Args.Tile (name of the ULTRASAT tile)
-    %       -  Args.ImRes (image resolution in 1/pix units)
-    %       -  Args.RotAng (tile rotation angle[s] relative to the axis of the raw PSF database)
-    %       -  Args.ArraySizeLimit (the maximal array size, machine-dependent, determines the method in specWeight)
-    %       -  Args.NoiseDark (dark current noise)
-    %       -  Args.NoiseSky  (sky background)
-    %       -  Args.NoisePoisson (Poisson noise)
-    %       -  Args.NoiseReadout (Read-out noise)
-    %       -  Args.Inj (injection method, technical)
-    %       -  Args.OutType (type of output image: FITS, AstroImage object, RAW object)
-    %       -  Args.Dir (the output directory)
-    % Output : - usimImage (simulated AstroImage object, FITS file output, RAW file output)           
+    % Input: -    
+    %       * ...,key,val,... 
+    %       'InCat'     - a catalog of simulated sources or the number of sources to generate randomly
+    %       'InMag'     - a vector of source magnitudes or 1 magnitude for all the sources
+    %       'InMagFilt' - the filter[s] for which the source magnitudes are defined
+    %       'InSpec'    - individual spectra or one spectral model for all the objects
+    %       'Exposure'  - image exposure
+    %       'Tile'      - name of the ULTRASAT tile ('A','B','C','D')
+    %       'ImRes'     - image resolution in 1/pix units (allowed values: 1, 2, 5, 10, 47.5)
+    %       'RotAng'    - tile rotation angle[s] relative to the axis of the raw PSF database
+    %       'ArraySizeLimit' - the maximal array size, machine-dependent, determines the method in specWeight
+    %       'NoiseDark'      - dark current noise (1/0)
+    %       'NoiseSky'       - sky background (1/0)
+    %       'NoisePoisson'   - Poisson noise (1/0)
+    %       'NoiseReadout'   - Read-out noise (1/0)
+    %       'Inj'            - source injection method (technical)
+    %       'OutType'        - type of output image: FITS, AstroImage object, RAW object
+    %       'Dir'            - the output directory
+    % Output : - an AstroImage object with filled Catalog property 
+    %            (also a FITS image file output + ds9 region files, RAW file output)           
+    %          - an array of per-object AstroPSFs
+    %          - an ADU image (simple array)
     % Tested : Matlab R2020b
-    %     By : A. Krassilchtchikov et al.   Mar 2023
+    % Author : A. Krassilchtchikov et al. (Mar 2023)
     % Example: Sim = ultrasat.usim('InCat',10) 
-    % put in 10 sources at random positions with the default spectrum and flux  
+    % simulate with 10 sources at random positions with the default spectrum and magnitude0  
   
     arguments  
         
@@ -82,11 +86,11 @@ function usimImage =  usim ( Args )
                         fprintf('%s%d%s\n','The requested PSF resolution is 1/',Args.ImRes,' of the pixel size');
                             
                         % performance speed test
-                        tic; tstart = clock;
+                        tic; tstart = datetime("now"); 
     
     %%%%%%%%%%%%%%%%%%%%% Simulation parameters and some physical constants
     
-    Eps = 1e-12;            % precision (currently not employed?)
+%     Eps = 1e-12;            % precision (currently not employed)
     
     C   = constant.c;       % the speed of light in vacuum, [cm/s]
     H   = constant.h;       % the Planck constant, [erg s]   
@@ -103,7 +107,7 @@ function usimImage =  usim ( Args )
     
     WavePSF = linspace(MinWave,MaxWave,91); % lab PSF grid points in wavelength
     
-    PixRat  = 47.5; % the ratio of the ULTRASAT pixel size to that of the lab PSF image (currently not employed?)
+%     PixRat  = 47.5; % the ratio of the ULTRASAT pixel size to that of the lab PSF image (currently not employed)
         
     %%%%%%%%%%%%%%%%%%%% the spectral grid used for countrate calculations
 
@@ -120,7 +124,7 @@ function usimImage =  usim ( Args )
     FocalLength = 360;    % [mm] 
     PixelSizeMm = 9.5e-3; % [mm] pixel size 
     PixSizeDeg  = ( PixelSizeMm / FocalLength ) * RAD;  % [deg] pixel size  
-    PixSize     = PixSizeDeg * 3600; % [arcsec] 
+%     PixSize     = PixSizeDeg * 3600; % [arcsec] 
     
     DAper       = 33.;                   % [cm]    aperture diameter
     SAper       = pi * DAper ^ 2 / 4;    % [cm(2)] aperture area
@@ -152,8 +156,7 @@ function usimImage =  usim ( Args )
             
         otherwise
             
-            cprintf('err','Invalid tile name, exiting..\n');
-            return
+            error('Invalid tile name, exiting..');   
         
     end
     
@@ -237,9 +240,8 @@ function usimImage =  usim ( Args )
                             
     else
         
-                            cprintf('err','Incorrect catalog input, exiting ...\n'); 
-                            return
-        
+                            error('Incorrect catalog input, exiting..'); 
+                                    
     end
 
     %%%%%%%%%%%%%%%%%%%%% obtain radial distances of the sources from the INNER CORNER of the tile 
@@ -253,6 +255,7 @@ function usimImage =  usim ( Args )
         RadSrc(Isrc) = sqrt( ( CatX(Isrc) - X0 )^2 + ( CatY(Isrc) - Y0 )^2 ) *  PixSizeDeg; % the source radii [deg]
         
         TotT(Isrc,:) = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc(Isrc));          % regrid the throughput 
+
     end
     
     %%%%%%%%%%%%%%%%%%%%% read or generate source spectra
@@ -265,27 +268,27 @@ function usimImage =  usim ( Args )
 
     % read the input spectra or generate synthetic spectra 
     
-        %%% TEST: use the Stellar Spectra from UP.Specs
-        if false  
-    
-            fprintf('TEST RUN: using stellar spectra from UP.Specs ..');
-
-            for Isrc = 1:1:NumSrc
-                % stellar spectra from Pickles. NB: these are normalized to 1 at 5556 Ang !
-                %Pick(Isrc) = UP.Specs( rem(Isrc,43)+1 ); 
-                %Pick(Isrc) = UP.Specs(17); % a G0.0V star 
-                %Pick(Isrc) = UP.Specs(27); % an M0.0V star 
-                if rem(Isrc,2) == 0 % for Cat2 catalog
-                    Pick(Isrc) = UP.Specs(17); % UP.Specs(17); 
-                else
-                    Pick(Isrc) = UP.Specs(27); % UP.Specs(27); 
-                end
-            end
-            
-            Args.InSpec = Pick(1:NumSrc);
-
-        end
-        %%% END TEST 
+                %%% TEST: use the Stellar Spectra from UP.Specs
+%                 if false  
+%             
+%                     fprintf('TEST RUN: using stellar spectra from UP.Specs ..');
+%         
+%                     for Isrc = 1:1:NumSrc
+%                         % stellar spectra from Pickles. NB: these are normalized to 1 at 5556 Ang !
+%                         %Pick(Isrc) = UP.Specs( rem(Isrc,43)+1 ); 
+%                         %Pick(Isrc) = UP.Specs(17); % a G0.0V star 
+%                         %Pick(Isrc) = UP.Specs(27); % an M0.0V star 
+%                         if rem(Isrc,2) == 0 % for Cat2 catalog
+%                             Pick(Isrc) = UP.Specs(17); % UP.Specs(17); 
+%                         else
+%                             Pick(Isrc) = UP.Specs(27); % UP.Specs(27); 
+%                         end
+%                     end
+%                     
+%                     Args.InSpec = Pick(1:NumSrc);
+%         
+%                 end
+                %%% END TEST 
     
     switch isa(Args.InSpec,'AstroSpec') || isa(Args.InSpec,'AstSpec')
         
@@ -297,8 +300,7 @@ function usimImage =  usim ( Args )
                     
                 if numel( Args.InSpec{2} ) ~= NumSrc && numel( Args.InSpec{2} ) ~= 1
                     
-                    cprintf('err','\n The number of input temperatures is incorrect, exiting..\n')
-                    return
+                    error('The size of input temperature array is incorrect, exiting..');
                     
                 end
                                
@@ -320,8 +322,7 @@ function usimImage =  usim ( Args )
                     
                 if numel( Args.InSpec{2} ) ~= NumSrc && numel( Args.InSpec{2} ) ~= 1
                     
-                    cprintf('err','\n The number of input spectral indexes is incorrect, exiting..\n')
-                    return
+                    error('The size of input spectral indexe array is incorrect, exiting..');
                     
                 end
                 
@@ -356,14 +357,12 @@ function usimImage =  usim ( Args )
 
                     end
                 else
-                    cprintf('err','\n Number of columns or rows in the spectral input table is incorrect, exiting..\n')
-                    return
+                    error('Number of columns or rows in the spectral input table is incorrect, exiting..');
                 end
                 
                 otherwise
                 
-                cprintf('err','Spectral parameters not properly defined in uSim, exiting..\n');
-                return
+                error('Spectral parameters not properly defined in uSim, exiting..');
                 
             end
             
@@ -395,23 +394,23 @@ function usimImage =  usim ( Args )
                             tic
     
     
-    %%%%%%%%%%%%%% TEST input: a flat spectrum the 240-280 band, null otherwise
-    if false
-        
-        fprintf('TEST input: flat spectrum in the 240-280 band\n');
-        
-        for Iwave = 1:1:Nwave
-            for Isrc = 1:1:NumSrc
-                if (Wave(Iwave) < 2400) || (Wave(Iwave) > 2800) 
-                    SpecIn(Isrc,Iwave) = 0.;
-                else
-                    SpecIn(Isrc,Iwave) = 1.;
-                end
-            end
-        end
-            
-    end
-    %%%%%%%%%%%%%%% END TEST
+                    % TEST input: a flat spectrum the 240-280 band, null otherwise
+%                     if false
+%                         
+%                         fprintf('TEST input: flat spectrum in the 240-280 band\n');
+%                         
+%                         for Iwave = 1:1:Nwave
+%                             for Isrc = 1:1:NumSrc
+%                                 if (Wave(Iwave) < 2400) || (Wave(Iwave) > 2800) 
+%                                     SpecIn(Isrc,Iwave) = 0.;
+%                                 else
+%                                     SpecIn(Isrc,Iwave) = 1.;
+%                                 end
+%                             end
+%                         end
+%                             
+%                     end
+                    % END TEST
     
     %%%%%%%%%%%%%%%%%%%%%  rescale the spectra to the input magnitudes 
     
@@ -466,8 +465,7 @@ function usimImage =  usim ( Args )
     
 %     if ( size(PSFdata,3) ~= Nwave ) || ( size(PSFdata,4) ~= Nrad )
     if size(PSFdata,4) ~= Nrad 
-        cprintf('err','PSF array size mismatch, exiting..\n');
-        return
+        error('PSF array size mismatch, exiting..');
     end
     
                             fprintf('done\n'); 
@@ -477,9 +475,9 @@ function usimImage =  usim ( Args )
     %%%%%%%%%%%%%%%%%%%%%  S_i(λ)*Th(λ,r_i) with their PSF_i(λ,r_i) over the frequency range 
     %%%%%%%%%%%%%%%%%%%%%  and obtain spectrum-weighted PSF_i for each source
     
-    Nx = size(PSFdata,1); 
-    Ny = size(PSFdata,2);
-    WPSF = zeros( Nx, Ny, NumSrc );
+%     Nx = size(PSFdata,1); 
+%     Ny = size(PSFdata,2);
+%     WPSF = zeros( Nx, Ny, NumSrc );
     
                             fprintf('Weighting source PSFs with their spectra.. ');
                     
@@ -561,8 +559,9 @@ function usimImage =  usim ( Args )
     
     end
     
-    % make sky background and variance images?
-    Emptybox = zeros(ImageSizeX,ImageSizeY);
+    % make sky background and variance images
+
+%     Emptybox = zeros(ImageSizeX,ImageSizeY);
         
     % make an AstroImage (note, the image is to be transposed!)
     usimImage = AstroImage( {ImageSrcNoise'} ,'Back',{NoiseLevel}, 'Var',{ImageBkg},'Cat',{Args.InCat.Catalog});   
@@ -606,9 +605,10 @@ function usimImage =  usim ( Args )
 
     %%%%%%%%%%%%%%%%%%%%    
     
-                    elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
-                    cprintf('hyper','%s%4.0f%s\n','Simulation completed in ',etime(clock,tstart),...
-                                         ' sec, see the generated images')
+                    elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
+                    tstop = datetime("now");
+                    cprintf('hyper','%s%s%s\n','Simulation completed in ',tstop-tstart,...
+                                         ' , see the generated images')
 
     %%%%%%%%%%%%%%%%%%%% post modeling checks
 %     
@@ -621,14 +621,14 @@ function usimImage =  usim ( Args )
     Coords = MeasuredCat.Catalog(:,1:2);
     SNRs = MeasuredCat.Catalog(:,8:12);
     Mag_Aper = MeasuredCat.Catalog(:,23:25);
-    Mag_Aper_err = MeasuredCat.Catalog(:,26:28);
+%     Mag_Aper_err = MeasuredCat.Catalog(:,26:28);
     Summary = [Coords SNRs(:,4:5) Mag_Aper(:,2:3)]; 
     
     idx5 = Summary(:,3) > 5; % take only sources over 5 sigma
     Summ5 = Summary(idx5,:); 
     
-    idx3 = Summary(:,3) > 3; % take only sources over 3 sigma
-    Summ3 = Summary(idx3,:); 
+%     idx3 = Summary(:,3) > 3; % take only sources over 3 sigma
+%     Summ3 = Summary(idx3,:); 
     
     OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'detected.reg');
     DS9_new.regionWrite([Summ5(:,1) Summ5(:,2)],'FileName',OutRegName,'Color','red','Marker','o','Size',1,'Width',4);     
