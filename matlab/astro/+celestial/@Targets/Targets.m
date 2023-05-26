@@ -433,7 +433,7 @@ classdef Targets < Component
             else
                 % assume file input
                 % attemp to read using readtable
-                Table = readtable(Table);
+                Table = io.files.readtable1(Table);
             end
 
             Cols  = Table.Properties.VariableNames;

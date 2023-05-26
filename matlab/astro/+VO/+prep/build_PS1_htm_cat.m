@@ -21,9 +21,9 @@ Nind = numel(Ind);
 % addpath('/raid/eran/Catalogue/PS1/PS_Tile/Z6');
 % addpath('/raid/eran/Catalogue/PS1/PS_Tile/Z7');
 
-load('SummaryMaster.txt')  % SummaryMaster [Tile #src]
+io.files.load1('SummaryMaster.txt')  % SummaryMaster [Tile #src]
 SummaryMaster=sortrows(SummaryMaster,1);
-load('TileListPS1.mat');   % TileList [CenterRA,CenterDec,MinRA,MaxRA,MinDec,MaxDec]  [deg]
+io.files.load1('TileListPS1.mat');   % TileList [CenterRA,CenterDec,MinRA,MaxRA,MinDec,MaxDec]  [deg]
 TileSize = 0.2;  % [deg]
 
 % missing fields

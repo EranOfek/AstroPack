@@ -1,4 +1,4 @@
-function Var = readtable2(TableFile,varargin)
+function Var = readtable1(TableFile,varargin)
     % Load table file into a variable, this is a simple wrapper around
     % readtable(). When running under 'isdeployed', and file name does not
     % contain path, use fileMapFind to locate the file.
@@ -10,9 +10,9 @@ function Var = readtable2(TableFile,varargin)
     % Example: 
 
     % @Deploy - Use singleton file mapper to locate the file
-    io.msgLog(LogLevel.Debug, 'readtable2: %s', TableFile);
+    io.msgLog(LogLevel.Debug, 'readtable1: %s', TableFile);
     if isdeployed    
-        if ~isfile(TableFile)
+        if ~isfile(TableFile)        
             FileName = fileMapFind(TableFile);
         end
     end

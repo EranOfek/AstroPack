@@ -21,14 +21,14 @@ if nargin<1
    disp(sprintf('Loading %s',file))
 end
 if strncmp(fliplr(file),'tam.',4)
-   s=load(file);
+   s = io.files.load1(file);
    if strncmp(file,'ss',2)              % to load sschain.mat
      zchain = s.sschain;
    else
      zchain = s.chain;
    end
 else
-   zchain  = load(file,'-ascii');
+   zchain = io.files.load1(file,'-ascii');
 end
 [m,n]   = size(zchain);
 weights = zchain(:,n);
@@ -37,11 +37,11 @@ chain   = zeros(nsimu,n-1);
 if nargout>1 % load also usrfunmat
    if exist('usrfunmat.mat') == 2
      disp('Loading usrfunmat.mat')
-     s=load('usrfunmat.mat');
+     s = io.files.load1('usrfunmat.mat');
      zumat = s.usrfunmat;
    elseif exist('usrfunmat.dat') == 2
      disp('Loading usrfunmat.dat')
-     zumat=load('usrfunmat.dat','-ascii');
+     zumat = io.files.load1('usrfunmat.dat','-ascii');
    else
      error('usrfunmat not found')
    end

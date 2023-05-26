@@ -47,9 +47,10 @@ InPar.ColCellFile = sprintf(InPar.ColCellFile,CatName);
 
 %Ncol = 45;
 %Ncol = 8;
-load(InPar.ColCellFile);
-Ncol  = numel(ColCell);
 
+io.files.load1(InPar.ColCellFile);
+
+Ncol  = numel(ColCell);
 
 MinDec = Dec - Radius;
 MaxDec = Dec + Radius;

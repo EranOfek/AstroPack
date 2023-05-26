@@ -14,8 +14,11 @@ function Var = load2(MatFile,varargin)
     % Reliable: 2
 
     % @Deploy - Use singleton file mapper to locate the file
+    io.msgLog(LogLevel.Debug, 'load2: %s', MatFile);
     if isdeployed
-        MatFile = fileMapFind(MatFile);
+        if ~isfile(MatFile)        
+            MatFile = fileMapFind(MatFile);
+        end
     end
 
     Tmp = load(MatFile, varargin{:});

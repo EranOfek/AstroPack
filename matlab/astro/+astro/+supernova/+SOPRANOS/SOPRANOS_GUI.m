@@ -160,7 +160,7 @@ else
     pathname = '.';
 end
 
-data=load(fullfile(pathname,filename));
+data=io.files.load1(fullfile(pathname,filename));
 
 nBands = length(data.bands);
 bandsStr = cell(nBands,1);
@@ -392,7 +392,7 @@ function LoadSettings_Callback(hObject, eventdata, handles)
 if (filename == 0)
     return
 end
-settings=load(fullfile(pathname,filename));
+settings=io.files.load1(fullfile(pathname,filename));
 numbers={'OneGraph','TwoGraphs','ThreeGraphs'};
 
 handles.SOPRANOS.UserData.data = settings.data;
@@ -2084,7 +2084,7 @@ if strcmpi(policy, 'reuse') & ishandle(hsingleton)
     return;
 end
 % load SOPRANOS_GUI.mat
-load([mfilename('fullpath') '.mat'])
+io.files.load1([mfilename('fullpath') '.mat'])
 
 appdata = [];
 appdata.GUIDEOptions = struct(...

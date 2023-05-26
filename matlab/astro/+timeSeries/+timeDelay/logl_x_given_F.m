@@ -41,9 +41,9 @@ function [LogL_xF,LogL_GF,LogL_F]=logl_x_given_F(Pars, FitPar, Limits, w, G_w, t
 if nargin==0
     params = jsondecode(fileread('/home/eran/matlab/TimeDelay/Ofer/qtd_sim_4/sims_4.json'));
 
-    t   = load('/home/eran/matlab/TimeDelay/Ofer/qtd_sim_4/output_txt/sims_4/t.txt')';
-    F_t = load('/home/eran/matlab/TimeDelay/Ofer/qtd_sim_4/output_txt/sims_4/F_t.txt')';
-    x_t = load('/home/eran/matlab/TimeDelay/Ofer/qtd_sim_4/output_txt/sims_4/x_t.txt')';
+    t   = io.files.load1('/home/eran/matlab/TimeDelay/Ofer/qtd_sim_4/output_txt/sims_4/t.txt')';
+    F_t = io.files.load1('/home/eran/matlab/TimeDelay/Ofer/qtd_sim_4/output_txt/sims_4/F_t.txt')';
+    x_t = io.files.load1('/home/eran/matlab/TimeDelay/Ofer/qtd_sim_4/output_txt/sims_4/x_t.txt')';
 
     sigma_x = params.sigma_x_prop * abs(params.x_1 - params.x_2);
     sigma_F = params.sigma_F_prop * params.f_dc;

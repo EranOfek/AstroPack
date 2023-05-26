@@ -9,8 +9,11 @@ function Var = load1(MatFile, varargin)
     % Author : Chen Tishler, Dec 2022
     % Example: 
     
+    io.msgLog(LogLevel.Debug, 'load1: %s', MatFile);
     if isdeployed
-        MatFile = fileMapFind(MatFile);
+        if ~isfile(MatFile)
+            MatFile = fileMapFind(MatFile);
+        end
     end
     
     Var = load(MatFile, varargin{:});

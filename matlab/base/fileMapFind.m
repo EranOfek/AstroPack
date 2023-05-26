@@ -1,4 +1,4 @@
-function Result = FileMapFind(FileName, Single)
+function Result = FileMapFind(FileName, Args)
     % Use singleton FileMap object to locate file, when it does not include
     % a path. This is required to solve the 'addpath issue' for compiled
     % applications.
@@ -12,14 +12,20 @@ function Result = FileMapFind(FileName, Single)
     % Author : Chen Tishler, Dec. 2022
     arguments
         FileName
-        Single = true
+        Args.Single = true
+        Args.Assert = true
     end
     
-    if Single
+    io.msgLog(LogLevel.Debug, 'FileMapFind: %s', FileName);
+    if Args.Single
         Result = FileMap.getSingleton().findFile1(FileName);
-        assert(numel(Result) > 0);
+        if Args.Assert
+            assert(numel(Result) > 0);
+        end
     else
         Result = FileMap.getSingleton().findFile(FileName);
-        assert(numel(Result) > 0);
+        if Args.Assert
+            assert(numel(Result) > 0);
+        end
     end
 end

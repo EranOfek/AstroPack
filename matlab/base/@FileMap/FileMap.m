@@ -1,6 +1,11 @@
 
 classdef FileMap < Component
-    %
+    % FileMap is a map object used to solve the problem that in deployed
+    % (compiled) MATLAB applications, it is not possible to call addpath()
+    % and therefore we need a mechanism to find files.
+    % See also:
+    %       base/fileMapFind.m    
+    %       util/+io/+files/load2.m
     %
 
     % Properties
@@ -190,10 +195,12 @@ classdef FileMap < Component
                         F.folder{1} = Files(i).folder;
                         Obj.Map(fname) = F;
                     else
-                        % Already exists
+                        % Already exists - add to end of list
                         F = Obj.Map(fname);
-                        F.folder{end+1} = Files(i).folder;
-                        Obj.Map(fname) = F;
+                        if ~ismember(F.folder, Files(i).folder) 
+                            F.folder{end+1} = Files(i).folder;
+                            Obj.Map(fname) = F;
+                        end
                     end
                 end
             end
@@ -202,7 +209,7 @@ classdef FileMap < Component
 
         function saveMap(Obj)
             % Save to file
-            Obj.msgLog(LogLevel.Info, 'saveMap: Items: %d, %s', Obj.Map.Count, Obj.StorageFileName);
+            Obj.msgLog(LogLevel.Info, 'saveMap: Items: %d, File: %s', Obj.Map.Count, Obj.StorageFileName);
             if ~isempty(Obj.StorageFileName)
                 M = Obj.Map;
                 save(Obj.StorageFileName, 'M');
@@ -212,7 +219,7 @@ classdef FileMap < Component
 
         function loadMap(Obj)
             % Load from file
-            Obj.msgLog(LogLevel.Info, 'loadMap: %s', Obj.StorageFileName);
+            Obj.msgLog(LogLevel.Info, 'loadMap: File: %s', Obj.StorageFileName);
             if ~isempty(Obj.StorageFileName)
                 load(Obj.StorageFileName);
                 Obj.Map = M;
@@ -241,7 +248,7 @@ classdef FileMap < Component
                         end
                     end
                 end
-                Obj.msgLog(LogLevel.Info, 'Found %d files with duplicate names, %d files out of %d total files', DupCount, DupListCount, FileCount);
+                Obj.msgLog(LogLevel.Info, 'checkDuplicates: Found %d files with duplicate names, %d files out of %d total files', DupCount, DupListCount, FileCount);
             end            
         end
         

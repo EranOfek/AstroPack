@@ -36,8 +36,7 @@ while (feof(FID)==0)
    if (isempty(strfind(Line(1),'%'))==1 && isempty(strfind(Line(1),'#'))==1)
       I = I + 1;
       FileCell{I} = Line;
-
-      OutF = feval(Function,load(Line),varargin{:});
+      OutF = feval(Function, io.files.load1(Line), varargin{:});
 
       switch SaveType
        case 'c'

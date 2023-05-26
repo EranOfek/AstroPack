@@ -42,7 +42,7 @@ priors.Vs = VecVs;
 
 % postfix = filename(6:end-4);
 % if exist(sprintf('fminsearch_%s.mat',postfix),'file')
-%     load(sprintf('fminsearch_%s.mat',postfix));
+%     io.files.load1(sprintf('fminsearch_%s.mat',postfix));
 % else
 for ipeak = 1:length(Vs_in)
     fprintf('Finding the maximum in the vicinity of peak #%1d, Rs=%4.0f, Vs=%4.2f\n', ipeak, Rs_in(ipeak), Vs_in(ipeak)/10^8.5);

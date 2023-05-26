@@ -19,46 +19,58 @@ function soc_snr_matlab()
 
     % Set logfile name
 	fprintf('soc_snr_matlab started\n');
-    LogFile.getSingleton('FileName', 'soc_app_snr');
-    
-    %addpath('c:\temp');
-    %b = testme(3);
-    %disp(b);
-    
-    %load2('1.mat');
-    %disp(a);
-    
+    LogFile.getSingleton('FileName', 'soc_snr_matlab');
+            
     if isdeployed
         fprintf('soc_snr_matlab: isdeployed = TRUE\n');
-        locate_externapp = which(fullfile('soc_app_snr.exe'));
+        locate_externapp = which(fullfile('soc_snr_matlab.exe'));
         fprintf('which: %s\n', locate_externapp);
     end    
     
     if ismcc
         fprintf('soc_snr_matlab: ismcc = TRUE\n');
-    end        
-    
-    %path();
-    
-    if ~(ismcc || isdeployed)
-        %addpath('D:\Ultrasat\AstroPack.git\');
-        %addpath('D:\Ultrasat\AstroPack.git\matlab');
-        %addpath('D:\Ultrasat\AstroPack.git\matlab\external');
-        %addpath('D:\Ultrasat\AstroPack.git\config');
+    end           
+
+    % Test that we can find file 'Gal_Sc.txt'
+    if true %isdeployed
+        FName = 'Gal_Sc.txt';
+        fprintf('\n\n\nChecking: %s\n', FName);
+        fprintf('Before loadMap:\n');
+        fprintf('which:\n');
+        which(FName)
+        MatFile = fileMapFind(FName, 'Assert', false);
+        fprintf('FileMap: %s\n', MatFile);
+
+        FMap = FileMap.getSingleton();
+        if isunix
+            FMap.StorageFileName = '/tmp/FileMap';
+        else
+            FMap.StorageFileName = 'c:/soc/snr/snr_matlab/FileMap';
+        end
+            
+        FMap.loadMap();    
+        fprintf('\nCalling FileMap.addAll ...\n');
+        FMap.addAll(true);    
+
+        fprintf('After loadMap\n');
+        fprintf('which:\n');
+        which(FName)    
+        MatFile = fileMapFind(FName, 'Assert', false);
+        fprintf('FileMap: %s\n', MatFile);
+        fprintf('\n\n\n');
     end
-    
 
-    %if ~isdeployed
-        fprintf('Creating Comp\n');
-        Comp = Component();
-        fprintf('Config.Path: %s\n', Comp.Config.Path);
-        fprintf('Comp.Config.Data.MsgLogger.FileName: %s\n', Comp.Config.Data.MsgLogger.FileName);
-    %end
+    % Create component to trigger Config loading
+    fprintf('Creating Comp\n');
+    Comp = Component();
+    fprintf('Config.Path: %s\n', Comp.Config.Path);
+    fprintf('Comp.Config.Data.MsgLogger.FileName: %s\n', Comp.Config.Data.MsgLogger.FileName);
 
-    % 09:50:58.133 [DBG] doProcessSnr: creating UltrasatPerf2GUI
-    % 09:50:58.176 [DBG] UltrasatPerf2GUI: UltrasatPerf2GUI:load: c:\soc\snr\snr_matlab\P90_UP_test_60_ZP_Var_Cern_21.mat
-    % Warning: Variable 'UP' originally saved as a UltrasatPerf cannot be instantiated as an object and will be read in as a uint32.
-
+    % Call UltrasatPerf() to force the mcc compiler linking this class and
+    % its related sources. Otherwise we will get this error:
+    %     09:50:58.133 [DBG] doProcessSnr: creating UltrasatPerf2GUI
+    %     09:50:58.176 [DBG] UltrasatPerf2GUI: UltrasatPerf2GUI:load: c:\soc\snr\snr_matlab\P90_UP_test_60_ZP_Var_Cern_21.mat
+    %     Warning: Variable 'UP' originally saved as a UltrasatPerf cannot be instantiated as an object and will be read in as a uint32.    
     fprintf('Calling: Perf = UltrasatPerf(Init, false);\n');    
     Perf = UltrasatPerf('Init', false);
     fprintf('UltrasatPerf done\n');
@@ -70,20 +82,8 @@ function soc_snr_matlab()
             fprintf('Returned from FileProcessor.unitTest\n');
         %end
     %catch
-        %fprintf('soc_app_snr exception\n');
+        %fprintf('soc_snr_matlab exception\n');
     %end
     
     fprintf('soc_snr_matlab done\n');
-end
-
-
-function var = load2(fn)
-    if isdeployed
-        disp('Deploy!!!');
-        fn = fullfile('c:\temp', fn);
-        var = load(fn);
-    else
-        var = load(fn);
-    end
-    disp(a);
 end
