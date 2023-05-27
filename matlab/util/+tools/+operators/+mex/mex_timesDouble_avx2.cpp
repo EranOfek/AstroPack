@@ -1,7 +1,15 @@
 //
-// mex_timesDouble.cpp
+// mex_timesDouble_avx2.cpp
 //
 // Autohr: Chen Tishler, 05/2023
+//
+// Compile on Windows with Visual Studio:
+//
+//      mex mex_timesDouble_avx2.cpp COMPFLAGS="$COMPFLAGS /openmp /arch:AVX2"
+//
+// Compile on Linux:
+//
+//      mex -v CXXFLAGS='$CXXFLAGS -fopenmp -mavx2' LDFLAGS='$LDFLAGS -fopenmp' CXXOPTIMFLAGS='-O3 -DNDEBUG' mex_timesDouble_avx2.cpp
 //=========================================================================
 
 // __Type - Alias for the C data type that we compile for.

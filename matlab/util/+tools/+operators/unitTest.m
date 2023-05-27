@@ -57,7 +57,7 @@ function Result = test_times()
 
                     % MEX version with/without OpenMP
                     t = tic;
-                    tools.operators.times(A, B, true, true, true);
+                    tools.operators.times(A, B, true, UseMP, UseAVX);
                     MexTime = toc(t);
 
                     fprintf('%s - Array Size: %3d M items - Matlab: %.6f --- OpenMP: %d, AVX: %d, Mex: %.6f, Ratio: %0.2f\n', Type, int32(numel(A) / 1024 / 1024), MatlabTime, UseMP, UseAVX, MexTime, MatlabTime/MexTime);
