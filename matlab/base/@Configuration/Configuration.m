@@ -374,7 +374,7 @@ classdef Configuration < handle
     
     methods (Static) % static utility functions for getting arguments
         function [Data,KeyVal]=argsFromConfig(ConfigObj, ConfigName, Args)
-            % Get argumnts from config file
+            % Get argumnts from config file as a struct and a cell of key,val,...
             %   Given a configuration object get specific configuartion structure
             %   by its name (i.e., file name).
             % Input  : - A Configuration object. If empty, then will load the
