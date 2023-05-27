@@ -29,8 +29,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     }
 
     // Get pointers to the data in the input arrays
-    double *A = mxGetPr(prhs[0]);
-    double *B = mxGetPr(prhs[1]);
+    __Type *A = (__Type*)mxGetData(prhs[0]);
+    __Type *B = (__Type*)mxGetData(prhs[1]);
 
     // Get the number of elements in the input arrays
     mwSize numel = mxGetNumberOfElements(prhs[0]);

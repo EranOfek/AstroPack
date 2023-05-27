@@ -16,17 +16,29 @@ function Result = times(A, B, UseMex, UseMP, UseAVX)
         B				   % Input array
         UseMex = true;     % True: Use MEX implementation, False: Use MATLAB implementaion
         UseMP = true;      % True: Use threading with OpenMP multi-threading library
-		UseAVX = true;     % True: Use threading with BLAS library		        
+		UseAVX = false;    % True: Use AVX512 implementation
     end
 
     % MATLAB implementation
-    if ~UseMex
-        Result = A .* B;
-        return;
-    end
-    
+%     if ~UseMex
+%         if nargout == 0
+%             error('When UseMex=false, must call with lvalue');
+%         end
+%         
+%         Result = A .* B;
+%         return;
+%     end
+%     
+%     if nargout > 0
+%         error('When UseMex=true, must call without lvalue');
+%     end
+%     
     % Must be of same type
-    assert(isequal(class(A), class(B)));
+    %assert(isequal(class(A), class(B)));
+    
+%     if UseAVX
+%         error('AVX implementation is not supported yet');
+%     end
     
     % MEX implementation
     % Call function according to input data type

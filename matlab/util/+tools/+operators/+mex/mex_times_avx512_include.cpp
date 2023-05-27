@@ -8,7 +8,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         mexErrMsgIdAndTxt("MATLAB:mex_times:invalidNumInputs", "Two to four inputs required.");
     }
 
-    // Check if the input arguments are of the correct type (double)
+    // Check if the input arguments are of the correct type
     if (!mxIsDouble(prhs[0]) || !mxIsDouble(prhs[1])) {
         mexErrMsgIdAndTxt("MATLAB:mex_times:notDouble", "First two inputs must be of type double.");
     }
@@ -19,8 +19,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     }
 
     // Get pointers to the data in the input arrays
-    double *A = mxGetPr(prhs[0]);
-    double *B = mxGetPr(prhs[1]);
+    __Type *A = mxGetPr(prhs[0]);
+    __Type *B = mxGetPr(prhs[1]);
 
     // Get the number of elements in the input arrays
     mwSize numel = mxGetNumberOfElements(prhs[0]);
