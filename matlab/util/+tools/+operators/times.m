@@ -16,7 +16,7 @@ function Result = times(A, B, UseMex, UseMP, UseAVX)
         B				   % Input array
         UseMex = true;     % True: Use MEX implementation, False: Use MATLAB implementaion
         UseMP = true;      % True: Use threading with OpenMP multi-threading library
-		UseAVX = false;    % True: Use AVX512 implementation
+		UseAVX = false;    % True: Use AVX2/AVX512 implementation
     end
 
     % MATLAB implementation
@@ -55,7 +55,18 @@ function Result = times(A, B, UseMex, UseMP, UseAVX)
         case {'single'}
              tools.operators.mex.mex_timesSingle(A, B, int32(UseMP));                   
         case {'double'}
-            tools.operators.mex.mex_timesDouble(A, B, int32(UseMP));                   			
+            if UseAVX
+                avx = tools.os.get_avx_supported();
+                if avx == 2
+                    tools.operators.mex.mex_timesDouble_avx2(A, B, int32(UseMP));
+                elseif avx == 512
+                    tools.operators.mex.mex_timesDouble_avx512(A, B, int32(UseMP));
+                else
+                    tools.operators.mex.mex_timesDouble(A, B, int32(UseMP));
+                end
+            else
+                tools.operators.mex.mex_timesDouble(A, B, int32(UseMP));
+            end
         otherwise
             error('tools.operators.times - Unsupported data type');
     end

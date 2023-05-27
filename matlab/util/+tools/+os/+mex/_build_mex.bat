@@ -5,8 +5,9 @@ rem call mex -R2020b mex_bitor_array32_threads.c mf_threads.c -lut
 rem >mex  mex_bitsetFlag32.cpp  COMPFLAGS="$COMPFLAGS /openmp"
 
 set Options=COMPFLAGS="$COMPFLAGS /openmp"
-rem /arch:AVX512
+set OptionsAVX=COMPFLAGS="$COMPFLAGS /openmp /arch:AVX512"
 
+call mex is_avx2_supported.cpp %Options%
 call mex is_avx512_supported.cpp %Options%
 
 
