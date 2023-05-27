@@ -372,7 +372,85 @@ classdef Configuration < handle
         
     end
     
-    methods (Static) % static utility functions
+    methods (Static) % static utility functions for getting arguments
+        function [Data,KeyVal]=argsFromConfig(ConfigObj, ConfigName, Args)
+            % Get argumnts from config file
+            %   Given a configuration object get specific configuartion structure
+            %   by its name (i.e., file name).
+            % Input  : - A Configuration object. If empty, then will load the
+            %            singelton Configuration object.
+            %          - Configuration file name (Name of configuration).
+            %            E.g., 'Header.Time.KeyNames'.
+            %            Alternatively, this is a structure, in which the
+            %            configuration file name is stored in the field specified
+            %            by the 'ConfigField' argument.
+            %          * ...,key,val,...
+            %            'ConfigField' - If the second input argument is a
+            %                   structure then this is the field name that stores
+            %                   the configuration file name.
+            %                   Default is 'ConfigArgs' (i.e., the name will be
+            %                   stored in Args.ConfigArgs).
+            %            'TestField' - If not empty, then will search for this
+            %                   field name in the output structure and will generate an
+            %                   error if the field does not exist.
+            %                   Default is 'FileName'.
+            %            'RmFields' - A cell array of field names to remove
+            %                   from the output Data structire.
+            %                   Default is {'FileName'}.
+            % Output : - The structure containing the configuration data
+            %            corresponding to the requested file name.
+            %          - The configuration structure represented as a cell
+            %            array of ...,key,val,...
+            % Author : Eran Ofek (May 2023)
+            % Example: [Data,KeyVal]=Configuration.argsFromConfig([],'Header.Time.KeyNames')
+
+            arguments
+                ConfigObj          % Configuration object, if empty load default 
+                ConfigName         % Either char of name, or an Args structure, 
+                Args.ConfigField         = 'ConfigArgs';
+                Args.TestField           = 'FileName';     % if empty do not test Data
+                Args.RmFields            = {'FileName'};
+            end
+
+            if isempty(ConfigObj)
+                % load singelton configuration object
+                ConfigObj = Configuration.getSingleton;
+            end
+
+            % 
+            if ischar(ConfigName)
+                %[S,F]=tools.struct.string2fields(ConfigObj.Data,'Header.Time.KeyNames')
+                [Data, Failed]=tools.struct.string2fields(ConfigObj.Data, ConfigName);
+
+            elseif isstruct(ConfigName)
+                % ConfigName is in Args struct:
+                [Data, Failed]=tools.struct.string2fields(ConfigObj.Data, ConfigName.(Args.ConfigField));
+            else
+                error('Unknown ConfigName class - must be char array or structure');
+            end
+
+            if Failed
+                error('Can not find Config file: %s in the Configuration object',ConfigName);
+            end
+
+            % check that Data is valid (i.e., containing a FileName field
+            if ~isempty(Args.TestField)
+                if ~isfield(Data, Args.TestField)
+                    error('TestField: %s can not be found in config Data struct',Args.TestField);
+                end
+            end
+            % remove fields from Data
+            Data = rmfield(Data, Args.RmFields);
+
+            if nargout>1
+                KeyVal = tools.struct.struct2keyval(Data);
+            end
+        end
+        
+
+        
+        
+        % What is this function?
         function Args = getArgsFromConfig(Input, Config, Args)
             % Retrieve arguments from configuration file
             %   
@@ -415,6 +493,7 @@ classdef Configuration < handle
                 Args = tools.struct.copyProp(Struct, Args, {}, true);
             end
         end
+        
     end
     
     %======================================================================
