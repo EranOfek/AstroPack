@@ -34,6 +34,9 @@ bool is_avx512_supported()
 
 bool is_avx512_supported() 
 {
+    return __builtin_cpu_supports("avx512f");
+    
+#ifdef never    
     //mexPrintf("Linux is_avx512_supported\n");
 
     unsigned int eax = 0, ebx = 0, ecx = 0, edx = 0;
@@ -56,6 +59,7 @@ bool is_avx512_supported()
 
     // If we reach this point, all required AVX-512 features are supported
     return true;
+#endif    
 }
 #endif
 

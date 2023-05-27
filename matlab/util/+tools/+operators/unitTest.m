@@ -23,8 +23,8 @@ function Result = test_times()
     assert(isequal(A, C));       
 
     % -------------------------------------------
-    for UseMP=0:1
-        for UseAVX=0:1    
+    for UseMP=1:1
+        for UseAVX=1:1    
             for TypeIter=4:4    
                 Rows = 1000;
                 Cols = 1000;
@@ -52,7 +52,9 @@ function Result = test_times()
 
                     % MATLAB version - Note that it handles int overflow
                     t = tic;
+                    profile on;
                     MatlabResult = A .* B;
+                    profile off;
                     MatlabTime = toc(t);
 
                     % MEX version with/without OpenMP
