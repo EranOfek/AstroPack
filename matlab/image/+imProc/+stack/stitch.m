@@ -12,7 +12,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
     % Output : - StitchedImage: an AstroImage containing a mosaic made of all the input images
     %          - AH: the header of the mosaic image containing the exposure, ZP and the WCS
     %          - RemappedXY: a 4D-matrix containing the remapped X, Y pixel
-    %          coordinates from each of the input images: [Image number, Xremapped, Yremapped, 1 -> X or 2 -> Y]
+    %            coordinates from each of the input images: [Image number, Xremapped, Yremapped, 1 -> X or 2 -> Y]
     %            
     % Tested : Matlab R2020b
     % Author : A. Krassilchtchikov et al. (May 2023), function name copyright: Y. Shvartzvald
@@ -179,8 +179,10 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
 
     % trying to warp the input images according to the new WCS frame: 
     % whole NaN images appear in AI2 for any sampling?
+    % Something with the displacement matrix? 
 
-%     AI2 = imProc.transIm.imwarp(AI,AIm.WCS,'Sampling',10); 
+%      AI2 = imProc.transIm.imwarp(AI,AIm.WCS,'Sampling',10,...
+%          'InterpMethod','bilinear','SmoothEdges',0,'ReplaceNaN',0); 
 %     AI2 = imProc.transIm.imwarp(AI,AIm.WCS,'Sampling',1); 
 %     AI2 = imProc.transIm.imwarp(AI(1),AIm.WCS,'Sampling',1); 
 
