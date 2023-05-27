@@ -213,7 +213,7 @@ switch lower(Algo)
         Mag      = -48.6 - 2.5.*log10(Fnu);
         
      case 'vega'
-        load vega_spec.mat;
+        io.files.load1('vega_spec.mat');
         switch lower(Device)
             case 'bol'
                 VegaF   = astro.spec.eq_sampling(vega_spec,Tran,Tran(:,1));

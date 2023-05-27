@@ -206,9 +206,9 @@ Alp =  0.0026;   %???
 
 
 % load files
-load ELP1.mat
-load ELP2.mat
-load ELP3.mat
+io.files.load1('ELP1.mat');
+io.files.load1('ELP2.mat');
+io.files.load1('ELP3.mat');
 
 %ELP1-3
 
@@ -226,99 +226,99 @@ Sl = sum(((ELP1(:,5)+DA1)*OnesJD).*sin(ELP1(:,1)*D + ELP1(:,2)*Lt + ELP1(:,3)*L 
 Sb = sum(((ELP2(:,5)+DA2)*OnesJD).*sin(ELP2(:,1)*D + ELP2(:,2)*Lt + ELP2(:,3)*L + ELP2(:,4)*F));
 Sr = sum(((ELP3(:,5)+DA3)*OnesJD).*cos(ELP3(:,1)*D + ELP3(:,2)*Lt + ELP3(:,3)*L + ELP3(:,4)*F));
 
-load ELP4.mat
-load ELP5.mat
-load ELP6.mat
+io.files.load1('ELP4.mat');
+io.files.load1('ELP5.mat');
+io.files.load1('ELP6.mat');
 
 %ELP4-6
 Sl = Sl + sum((ELP4(:,7)*OnesJD).*sin(ELP4(:,1)*Zeta + ELP4(:,2)*D_l + ELP4(:,3)*Lt_l + ELP4(:,4)*L_l + ELP4(:,5)*F_l + (ELP4(:,6)*OnesJD)./RAD));
 Sb = Sb + sum((ELP5(:,7)*OnesJD).*sin(ELP5(:,1)*Zeta + ELP5(:,2)*D_l + ELP5(:,3)*Lt_l + ELP5(:,4)*L_l + ELP5(:,5)*F_l + (ELP5(:,6)*OnesJD)./RAD));
 Sr = Sr + sum((ELP6(:,7)*OnesJD).*sin(ELP6(:,1)*Zeta + ELP6(:,2)*D_l + ELP6(:,3)*Lt_l + ELP6(:,4)*L_l + ELP6(:,5)*F_l + (ELP6(:,6)*OnesJD)./RAD));
 
-load ELP7.mat
-load ELP8.mat
-load ELP9.mat
+io.files.load1('ELP7.mat');
+io.files.load1('ELP8.mat');
+io.files.load1('ELP9.mat');
 
 %ELP7-9
 Sl = Sl + T.*sum((ELP7(:,7)*OnesJD).*sin(ELP7(:,1)*Zeta + ELP7(:,2)*D_l + ELP7(:,3)*Lt_l + ELP7(:,4)*L_l + ELP7(:,5)*F_l + (ELP7(:,6)*OnesJD)./RAD));
 Sb = Sb + T.*sum((ELP8(:,7)*OnesJD).*sin(ELP8(:,1)*Zeta + ELP8(:,2)*D_l + ELP8(:,3)*Lt_l + ELP8(:,4)*L_l + ELP8(:,5)*F_l + (ELP8(:,6)*OnesJD)./RAD));
 Sr = Sr + T.*sum((ELP9(:,7)*OnesJD).*sin(ELP9(:,1)*Zeta + ELP9(:,2)*D_l + ELP9(:,3)*Lt_l + ELP9(:,4)*L_l + ELP9(:,5)*F_l + (ELP9(:,6)*OnesJD)./RAD));
 
-load ELP10.mat
-load ELP11.mat
-load ELP12.mat
+io.files.load1('ELP10.mat');
+io.files.load1('ELP11.mat');
+io.files.load1('ELP12.mat');
 
 %ELP10-12
 Sl = Sl + sum((ELP10(:,13)*OnesJD).*sin(ELP10(:,1)*Me + ELP10(:,2)*V +ELP10(:,3)*M_l + ELP10(:,4)*Ma + ELP10(:,5)*J + ELP10(:,6)*S + ELP10(:,7)*U + ELP10(:,8)*N + ELP10(:,9)*D_l + ELP10(:,10)*L_l + ELP10(:,11)*F_l + (ELP10(:,12)*OnesJD)./RAD));
 Sb = Sb + sum((ELP11(:,13)*OnesJD).*sin(ELP11(:,1)*Me + ELP11(:,2)*V +ELP11(:,3)*M_l + ELP11(:,4)*Ma + ELP11(:,5)*J + ELP11(:,6)*S + ELP11(:,7)*U + ELP11(:,8)*N + ELP11(:,9)*D_l + ELP11(:,10)*L_l + ELP11(:,11)*F_l + (ELP11(:,12)*OnesJD)./RAD));
 Sr = Sr + sum((ELP12(:,13)*OnesJD).*sin(ELP12(:,1)*Me + ELP12(:,2)*V +ELP12(:,3)*M_l + ELP12(:,4)*Ma + ELP12(:,5)*J + ELP12(:,6)*S + ELP12(:,7)*U + ELP12(:,8)*N + ELP12(:,9)*D_l + ELP12(:,10)*L_l + ELP12(:,11)*F_l + (ELP12(:,12)*OnesJD)./RAD));
 
-load ELP13.mat
-load ELP14.mat
-load ELP15.mat
+io.files.load1('ELP13.mat');
+io.files.load1('ELP14.mat');
+io.files.load1('ELP15.mat');
 
 %ELP13-15
 Sl = Sl + T.*sum((ELP13(:,13)*OnesJD).*sin(ELP13(:,1)*Me + ELP13(:,2)*V +ELP13(:,3)*M_l + ELP13(:,4)*Ma + ELP13(:,5)*J + ELP13(:,6)*S + ELP13(:,7)*U + ELP13(:,8)*N + ELP13(:,9)*D_l + ELP13(:,10)*L_l + ELP13(:,11)*F_l + (ELP13(:,12)*OnesJD)./RAD));
 Sb = Sb + T.*sum((ELP14(:,13)*OnesJD).*sin(ELP14(:,1)*Me + ELP14(:,2)*V +ELP14(:,3)*M_l + ELP14(:,4)*Ma + ELP14(:,5)*J + ELP14(:,6)*S + ELP14(:,7)*U + ELP14(:,8)*N + ELP14(:,9)*D_l + ELP14(:,10)*L_l + ELP14(:,11)*F_l + (ELP14(:,12)*OnesJD)./RAD));
 Sr = Sr + T.*sum((ELP15(:,13)*OnesJD).*sin(ELP15(:,1)*Me + ELP15(:,2)*V +ELP15(:,3)*M_l + ELP15(:,4)*Ma + ELP15(:,5)*J + ELP15(:,6)*S + ELP15(:,7)*U + ELP15(:,8)*N + ELP15(:,9)*D_l + ELP15(:,10)*L_l + ELP15(:,11)*F_l + (ELP15(:,12)*OnesJD)./RAD));
 
-load ELP16.mat
-load ELP17.mat
-load ELP18.mat
+io.files.load1('ELP16.mat');
+io.files.load1('ELP17.mat');
+io.files.load1('ELP18.mat');
 
 %ELP16-18
 Sl = Sl + sum((ELP16(:,13)*OnesJD).*sin(ELP16(:,1)*Me + ELP16(:,2)*V +ELP16(:,3)*M_l + ELP16(:,4)*Ma + ELP16(:,5)*J + ELP16(:,6)*S + ELP16(:,7)*U + ELP16(:,8)*D_l + ELP16(:,9)*Lt_l + ELP16(:,10)*L_l + ELP16(:,11)*F_l + (ELP16(:,12)*OnesJD)./RAD));
 Sb = Sb + sum((ELP17(:,13)*OnesJD).*sin(ELP17(:,1)*Me + ELP17(:,2)*V +ELP17(:,3)*M_l + ELP17(:,4)*Ma + ELP17(:,5)*J + ELP17(:,6)*S + ELP17(:,7)*U + ELP17(:,8)*D_l + ELP17(:,9)*Lt_l + ELP17(:,10)*L_l + ELP17(:,11)*F_l + (ELP17(:,12)*OnesJD)./RAD));
 Sr = Sr + sum((ELP18(:,13)*OnesJD).*sin(ELP18(:,1)*Me + ELP18(:,2)*V +ELP18(:,3)*M_l + ELP18(:,4)*Ma + ELP18(:,5)*J + ELP18(:,6)*S + ELP18(:,7)*U + ELP18(:,8)*D_l + ELP18(:,9)*Lt_l + ELP18(:,10)*L_l + ELP18(:,11)*F_l + (ELP18(:,12)*OnesJD)./RAD));
 
-load ELP19.mat
-load ELP20.mat
-load ELP21.mat
+io.files.load1('ELP19.mat');
+io.files.load1('ELP20.mat');
+io.files.load1('ELP21.mat');
 
 %ELP19-21
 Sl = Sl + T.*sum((ELP19(:,13)*OnesJD).*sin(ELP19(:,1)*Me + ELP19(:,2)*V +ELP19(:,3)*M_l + ELP19(:,4)*Ma + ELP19(:,5)*J + ELP19(:,6)*S + ELP19(:,7)*U + ELP19(:,8)*D_l + ELP19(:,9)*Lt_l + ELP19(:,10)*L_l + ELP19(:,11)*F_l + (ELP19(:,12)*OnesJD)./RAD));
 Sb = Sb + T.*sum((ELP20(:,13)*OnesJD).*sin(ELP20(:,1)*Me + ELP20(:,2)*V +ELP20(:,3)*M_l + ELP20(:,4)*Ma + ELP20(:,5)*J + ELP20(:,6)*S + ELP20(:,7)*U + ELP20(:,8)*D_l + ELP20(:,9)*Lt_l + ELP20(:,10)*L_l + ELP20(:,11)*F_l + (ELP20(:,12)*OnesJD)./RAD));
 Sr = Sr + T.*sum((ELP21(:,13)*OnesJD).*sin(ELP21(:,1)*Me + ELP21(:,2)*V +ELP21(:,3)*M_l + ELP21(:,4)*Ma + ELP21(:,5)*J + ELP21(:,6)*S + ELP21(:,7)*U + ELP21(:,8)*D_l + ELP21(:,9)*Lt_l + ELP21(:,10)*L_l + ELP21(:,11)*F_l + (ELP21(:,12)*OnesJD)./RAD));
 
-load ELP22.mat
-load ELP23.mat
-load ELP24.mat
+io.files.load1('ELP22.mat');
+io.files.load1('ELP23.mat');
+io.files.load1('ELP24.mat');
 
 %ELP22-24
 Sl = Sl + sum((ELP22(:,7)*OnesJD).*sin(ELP22(:,2)*D_l + ELP22(:,3)*Lt_l + ELP22(:,4)*L_l + ELP22(:,5)*F_l + (ELP22(:,6)*OnesJD)./RAD));
 Sb = Sb + sum((ELP23(:,7)*OnesJD).*sin(ELP23(:,2)*D_l + ELP23(:,3)*Lt_l + ELP23(:,4)*L_l + ELP23(:,5)*F_l + (ELP23(:,6)*OnesJD)./RAD));
 Sr = Sr + sum((ELP24(:,7)*OnesJD).*sin(ELP24(:,2)*D_l + ELP24(:,3)*Lt_l + ELP24(:,4)*L_l + ELP24(:,5)*F_l + (ELP24(:,6)*OnesJD)./RAD));
 
-load ELP25.mat
-load ELP26.mat
-load ELP27.mat
+io.files.load1('ELP25.mat');
+io.files.load1('ELP26.mat');
+io.files.load1('ELP27.mat');
 
 %ELP25-27
 Sl = Sl + T.*sum((ELP25(:,7)*OnesJD).*sin(ELP25(:,2)*D_l + ELP25(:,3)*Lt_l + ELP25(:,4)*L_l + ELP25(:,5)*F_l + (ELP25(:,6)*OnesJD)./RAD));
 Sb = Sb + T.*sum((ELP26(:,7)*OnesJD).*sin(ELP26(:,2)*D_l + ELP26(:,3)*Lt_l + ELP26(:,4)*L_l + ELP26(:,5)*F_l + (ELP26(:,6)*OnesJD)./RAD));
 Sr = Sr + T.*sum((ELP27(:,7)*OnesJD).*sin(ELP27(:,2)*D_l + ELP27(:,3)*Lt_l + ELP27(:,4)*L_l + ELP27(:,5)*F_l + (ELP27(:,6)*OnesJD)./RAD));
 
-load ELP28.mat
-load ELP29.mat
-load ELP30.mat
+io.files.load1('ELP28.mat');
+io.files.load1('ELP29.mat');
+io.files.load1('ELP30.mat');
 
 %ELP22-24
 Sl = Sl + sum((ELP28(:,7)*OnesJD).*sin(ELP28(:,2)*D_l + ELP28(:,3)*Lt_l + ELP28(:,4)*L_l + ELP28(:,5)*F_l + (ELP28(:,6)*OnesJD)./RAD));
 Sb = Sb + sum((ELP29(:,7)*OnesJD).*sin(ELP29(:,2)*D_l + ELP29(:,3)*Lt_l + ELP29(:,4)*L_l + ELP29(:,5)*F_l + (ELP29(:,6)*OnesJD)./RAD));
 Sr = Sr + sum((ELP30(:,7)*OnesJD).*sin(ELP30(:,2)*D_l + ELP30(:,3)*Lt_l + ELP30(:,4)*L_l + ELP30(:,5)*F_l + (ELP30(:,6)*OnesJD)./RAD));
 
-load ELP31.mat
-load ELP32.mat
-load ELP33.mat
+io.files.load1('ELP31.mat');
+io.files.load1('ELP32.mat');
+io.files.load1('ELP33.mat');
 
 %ELP22-24
 Sl = Sl + sum((ELP31(:,7)*OnesJD).*sin(ELP31(:,2)*D_l + ELP31(:,3)*Lt_l + ELP31(:,4)*L_l + ELP31(:,5)*F_l + (ELP31(:,6)*OnesJD)./RAD));
 Sb = Sb + sum((ELP32(:,7)*OnesJD).*sin(ELP32(:,2)*D_l + ELP32(:,3)*Lt_l + ELP32(:,4)*L_l + ELP32(:,5)*F_l + (ELP32(:,6)*OnesJD)./RAD));
 Sr = Sr + sum((ELP33(:,7)*OnesJD).*sin(ELP33(:,2)*D_l + ELP33(:,3)*Lt_l + ELP33(:,4)*L_l + ELP33(:,5)*F_l + (ELP33(:,6)*OnesJD)./RAD));
 
-load ELP34.mat
-load ELP35.mat
-load ELP36.mat
+io.files.load1('ELP34.mat');
+io.files.load1('ELP35.mat');
+io.files.load1('ELP36.mat');
 
 %ELP34-36
 Sl = Sl + T2Vec.*sum((ELP34(:,7)*OnesJD).*sin(ELP34(:,2)*D_l + ELP34(:,3)*Lt_l + ELP34(:,4)*L_l + ELP34(:,5)*F_l + (ELP34(:,6)*OnesJD)./RAD));

@@ -14,11 +14,11 @@ function [jd, mjd, cps, cpserr, flux, fluxerr, prevRef, percRef ,RA, Dec, DiscMJ
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-load InfoAll.mat
+io.files.load1('InfoAll.mat');
 
 ind = find(strcmp([Info.Name],sn_name(4:end)));
 if isempty(ind) && strcmp(sn_name,'12sim')
-    load InfoTest.mat
+    io.files.load1('InfoTest.mat');
     ind = 1;
 end
     

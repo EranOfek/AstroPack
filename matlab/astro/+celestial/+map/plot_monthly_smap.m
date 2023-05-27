@@ -506,7 +506,7 @@ end
 %---------------------------
 switch Cat
  case 'mag6'
-    load mag6.mat;
+    io.files.load1('mag6.mat');
     StarCat = mag6;
     clear mag6;
 
@@ -910,7 +910,7 @@ for Ipl=1:1:Nplanets
        case 'Icon'
 %          error('Icon option not available yet');
           set(gcf,'CurrentAxes',H_MainAxis);
-          load Icon.mat
+          io.files.load1('Icon.mat');
           PlanetSize = [0.1 0.1];
 	  PlanetColorRange = [0 1];
           % convert X,Y coordinates to axes position coordinates
