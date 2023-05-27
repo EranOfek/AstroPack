@@ -181,7 +181,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %%%%%%%%%%%%%%%%%%%% load the matlab object with the ULTRASAT properties:
     
     UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');   
-    io.files.load1(UP_db,'UP'); 
+    UPerf = io.files.load1(UP_db,'UP'); 
+    UP = UPerf.UP;
+%     load(UP_db,'UP'); 
     % is it possible to read just some of the UP structures: UP.TotT, UP.wavelength and, possibly, UP.Specs?
     % we can save them as separate .mat objects and read those  
         
