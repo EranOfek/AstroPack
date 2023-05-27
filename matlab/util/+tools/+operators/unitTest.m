@@ -13,29 +13,32 @@ function Result = test_times()
     %
     io.msgLog(LogLevel.Test, 'tools.operators.times test started');
 
-    A = [1 2; 3 4]
-    B = [5 6; 7 8]
+    A = [1 2; 3 4];
+    B = [5 6; 7 8];
 
-    A = A.*B;
+    C = A.*B;
+    disp(C);
 
-    ExpectedA = [5 12; 21 32]
+    tools.operators.times(A, B);
+    disp(A);
+    assert(isequal(A, C));
+    
+    ExpectedC = [5 12; 21 32];
 
     % -------------------------------------------
     Iters = 10;
     Loop = 1;
     Rows = 100;
     Cols = 100;
-    Bit = 1;
-    Value = 1;
 
     for SizeIter=1:10
 
-        Array = zeros(Rows, Cols, 'int32');
-        Flag = rand(Rows, Cols) > 0.9;
+        A = rand(Rows, Cols, 'int32');
+        B = rand(Rows, Cols, 'int32');
         Rows = Rows*2;
         Cols = Cols*2;
 
-        fprintf('\n[%d] Array Size: %d MB\n', SizeIter, int32(numel(Array)*4 / 1024 / 1024));
+        fprintf('\n[%d] Array Size: %d MB\n', SizeIter, int32(numel(A)*4 / 1024 / 1024));
         % -------------------------------------------
         for Iter=1:Iters
 
@@ -43,14 +46,14 @@ function Result = test_times()
             MatlabResult = Array;
             t = tic;
             for L=1:Loop
-                MatlabResult = A .* B
+                MatlabResult = A .* B;
             end
             MatlabTime = toc(t);
 
             % MEX version
             t = tic;
             for L=1:Loop
-                MexResult = tools.operators.mex.mex_times32(A, B, (true), int32(true));
+                MexResult = tools.operators.mex.mex_times32(A, B, int32(true));
             end
             MexTime = toc(t);
 

@@ -1,4 +1,4 @@
-function Result = times(A, B)
+function Result = times(A, B, UseMex, UseMP, UseAVX)
     %
     % Input  : - A - Array
     %          - B - 
@@ -15,32 +15,35 @@ function Result = times(A, B)
         A                  % Input & Output array
         B				   % Input array
         UseMex = true;     % True: Use MEX implementation, False: Use MATLAB implementaion
-		UseBLAS = true;    % True: Use threading with BLAS library		
         UseMP = true;      % True: Use threading with OpenMP multi-threading library
+		UseAVX = true;     % True: Use threading with BLAS library		        
     end
 
     % MATLAB implementation
     if ~UseMex
-        Result = A .* B
+        Result = A .* B;
         return;
     end
     
+    % Must be of same type
+    assert(isequal(class(A), class(B)));
+    
     % MEX implementation
     % Call function according to input data type
-    C = lower(class(Array));    
+    C = lower(class(A));    
     switch C
         case {'uint8','int8'}
-             Result = tools.operators.times.mex.mex_times8(A, B, int32(UseBLAS), int32(UseMP));                               
+             tools.operators.mex.mex_times8(A, B, int32(UseMP));                               
         case {'uint16','int16'}
-             Result = tools.operators.times.mex.mex_times16(A, B, int32(UseBLAS), int32(UseMP));                   
+             tools.operators.mex.mex_times16(A, B, int32(UseMP));                   
         case {'uint32','int32'}
-             Result = tools.operators.times.mex.mex_times32(A, B, int32(UseBLAS), int32(UseMP));                               
+             tools.operators.mex.mex_times32(A, B, int32(UseMP));                               
         case {'uint64','int64'}
-             Result = tools.operators.times.mex.mex_times64(A, B, int32(UseBLAS), int32(UseMP));                               
+             tools.operators.mex.mex_times64(A, B, int32(UseMP));                               
         case {'single'}
-             Result = tools.operators.times.mex.mex_timesSingle(A, B, int32(UseBLAS), int32(UseMP));                   
+             tools.operators.mex.mex_timesSingle(A, B, int32(UseMP));                   
         case {'double'}
-            Result = tools.operators.times.mex.mex_timesDouble(A, B, int32(UseBLAS), int32(UseMP));                   			
+            tools.operators.mex.mex_timesDouble(A, B, int32(UseMP));                   			
         otherwise
             error('tools.operators.times - Unsupported data type');
     end

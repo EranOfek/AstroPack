@@ -5,17 +5,18 @@ function Result = specWeight(SpecSrc, RadSrc, PSFdata, Args)
     % Input  : - SpecSrc (SrcNum, Intensity) : an array of source spectra 
     %          - RadSrc  (SrcNum, RadDistance): an array of radial distances of the sources from the detector tile reference point
     %          - PSFdata: a 4-D matrix of experimental PSF: (X, Y, wavelength, radius) 
-    %          - Args.Rad: a vector of radial distances of the lab PSFs 
-    %          - Args.Lambda: a vector of wavelengths of the lab PSFs 
-    %          - Args.SpecLam: a vector of wavelengths of the source spectra
-    %          - Args.SizeLimit: the maximal array size in Gb determines
-    %          the calculation method: a too large array may cause out of
-    %          memory error, while for a smaller array a faster algorithm
-    %          can be employed (see below)
+    %          * ...,key,val,...
+    %          'Rad'        - a vector of radial distances of the lab PSFs 
+    %          'Lambda'     - a vector of wavelengths of the lab PSFs 
+    %          'SpecLam'    - a vector of wavelengths of the source spectra
+    %          'SizeLimit'  - the maximal array size in Gb determines
+    %                         the calculation method: a too large array may cause out of
+    %                         memory error, while for a smaller array a faster algorithm
+    %                         can be employed (see below)
     % Output : - Result(X,Y, SrcNum): A 3-D matrix of spectrum-weighted PSFs
     %            
     % Tested : Matlab R2020b
-    %     By : A. Krassilchtchikov et al.    Feb 2023
+    % Author : A. Krassilchtchikov et al. (Feb 2023)
     % Examples: PSF = imUtil.psf.specWeight( SpecSrc, RadSrc, PSFdata);
     %           PSF = imUtil.psf.specWeight( SpecSrc, RadSrc, PSFdata, ...
     %           'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, 'Lambda', WavePSF, 'SpecLam', Wave);
@@ -105,7 +106,7 @@ function Result = specWeight(SpecSrc, RadSrc, PSFdata, Args)
 
         % sum over the wavelengths and delete the degenerate dimension 
 
-        SumL  = squeeze( sum(Wcube,3) ); 
+        SumL  = squeeze( sum( Wcube,3 ) ); 
 
         % normalize 
         Result = SumL ./ sum( SumL, [1,2] );

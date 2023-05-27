@@ -2,7 +2,7 @@ function Image = directInjectSources (Image0, Cat, Scaling, PSF)
     % Inject sources to catalog positions with PSFs scaled by the Scaling factor 
     % Package: imUtil.art
     % Description: Inject sources to catalog positions with PSFs scaled by the Scaling factor 
-    %          - Image0: a 2D array containing the initial image 
+    % Input:   - Image0: a 2D array containing the initial image 
     %          - Cat: an 3-column table: X, Y, full band flux normalization
     %          - Scaling: a scaling factor, typically > 1
     %          - PSF: a 2+1 D array of source PSFs
@@ -10,7 +10,7 @@ function Image = directInjectSources (Image0, Cat, Scaling, PSF)
     % Output : - Image: a 2D array containing the resulting image
     %            
     % Tested : Matlab R2020b
-    %     By : A. Krassilchtchikov et al.    Feb 2023
+    % Author : A. Krassilchtchikov et al. (Feb 2023)
     % Example: Image1 = imUtil.art.directInjectSources (Image0,Cat,Scaling,PSF)
 
     % image summation methods: 
@@ -30,7 +30,7 @@ function Image = directInjectSources (Image0, Cat, Scaling, PSF)
     SizeY  = size(PSF,2);
     NumSrc = size(PSF,3); 
     
-    Src    = zeros( SizeX, SizeY );
+%     Src    = zeros( SizeX, SizeY );
     
     for Isrc = 1:1:NumSrc
         

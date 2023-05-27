@@ -1,18 +1,19 @@
-function Rad = containment (Args)
+function Rad = containment (PSFin, Args)
     % Measure the radius of signal containment in a PSF stamp at a given level
     % Package: imUtil.psf
     % Description: Measure the radius of signal containment in a PSF stamp at a given level 
-    %          - Args.PSF: a 2D array containing the PSF stamp 
-    %          - Args.Level: signal containment level [0-1], 0.5 is default
+    % Input: - PSFin: a 2D array containing the PSF stamp 
+    %         * ...,key,val,... 
+    %         'Level' signal containment level [0-1], 0.5 is default
     % Output : - Rad: containment radius in pixels
     %            
     % Tested : Matlab R2020b
-    %     By : A. Krassilchtchikov et al.    Feb 2023
-    % Example: Rad = imUtil.psf.containment (PSF, 0.5)
+    % Author : A. Krassilchtchikov et al. (Feb 2023)
+    % Example: Rad = imUtil.psf.containment (PSF, 'Level', 0.8)
     
     arguments
         
-        Args.PSF
+        PSFin                    % the input PSF stamp
         
         Args.Level     =    0.5; % 50% containment
         
@@ -20,14 +21,14 @@ function Rad = containment (Args)
     
     % normalize the PSF stamp to 1:
     
-    PSF = Args.PSF / sum(Args.PSF,'all');
+    PSF = PSFin / sum(PSFin,'all');
     
     % find the smaller size of an M x N array:
     
     Size       = min ( size(PSF,1), size(PSF,2) );
     HalfSize   = floor( (Size+1)/2 );
         
-    Rad = 0;
+%     Rad = 0;
     
     Isc      = 0;
     Encircle = 0;

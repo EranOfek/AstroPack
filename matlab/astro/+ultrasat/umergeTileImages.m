@@ -1,18 +1,20 @@
-function umergeTileImages (Args)
+function MergedImage = umergeTileImages (Args)
     % Make a 4-tile ULTRASAT image from 4 separate tile images     
     % Package: ultrasat
     % Description: Make a 4-tile ULTRASAT image from 4 separate tile images
-    %          - Args.A      : name of the .mat object with a presimulated image of tile A
-    %          - Args.B      : name of the .mat object with a presimulated image of tile B
-    %          - Args.C      : name of the .mat object with a presimulated image of tile C
-    %          - Args.D      : name of the .mat object with a presimulated image of tile D
-    %          - Args.OutDir : output directory 
+    % Input:   -
+    %          * ...,key,val,...
+    %          'A'      : name of the .mat object with a pre-simulated image of tile A
+    %          'B'      : name of the .mat object with a pre-simulated image of tile B
+    %          'C'      : name of the .mat object with a pre-simulated image of tile C
+    %          'D'      : name of the .mat object with a pre-simulated image of tile D
+    %          'OutDir' : output directory 
     %          
     % Output : - Image: a 2D fits image containing the resulting source image 
     %                  
     % Tested : Matlab R2020b
-    %     By : A. Krassilchtchikov et al.    Feb 2023
-    % Example: Image = umergeTileImages (Args)
+    % Author : A. Krassilchtchikov et al.  (Feb 2023)
+    % Example: Image = umergeTileImages ('A','A.mat','B','B.mat','C','C.mat','D','D.mat')
     %                                        
     
     arguments
@@ -39,10 +41,10 @@ function umergeTileImages (Args)
         
     Ngap        = ceil( 1e3 * GapMm / PixelSize); 
     
-    Nx          = 2 * TileSizeX + Ngap;
-    Ny          = 2 * TileSizeY + Ngap;
+%     Nx          = 2 * TileSizeX + Ngap;
+%     Ny          = 2 * TileSizeY + Ngap;
     
-    Image = zeros(Nx, Ny);
+%     MergedImage = zeros(Nx, Ny);
     
     % read in the data
     
@@ -69,11 +71,11 @@ function umergeTileImages (Args)
     
     % sum the arrays
     
-    Image = Image + imA + imB + imC + imD;
+    MergedImage = imA + imB + imC + imD;
     
     % output: a FITS image
     
     OutFITSName = sprintf('%s%s%s','!',Args.OutDir,'/SimImage_merged.fits'); 
-    imUtil.util.fits.fitswrite(Image',OutFITSName);   
+    imUtil.util.fits.fitswrite(MergedImage',OutFITSName);   
     
 end

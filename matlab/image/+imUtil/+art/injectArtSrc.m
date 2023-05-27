@@ -2,23 +2,23 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     % Make an artificial image with rotated and jitter-blurred source PSFs injected to the catalog positions     
     % Package: imUtil.art
     % Description: Make an artificial image with rotated and jitter-blurred source PSFs injected to the catalog positions
-    %          - X, Y, CPS      : pixel coordinates and countrates of the sources
+    % Input:   - X, Y, CPS      : pixel coordinates and countrates of the sources
     %          - SizeX, SizeY   : pixel sizes of the image containing the source PSFs
     %          - PSF            : either a single 2D PSF for all the object or 
     %                             a 3D array of individual PSFs
-    %          - Args.PSFScaling: Image pixel size / PSF pixel size ratio
-    %          - Args.RotatePSF : PSF rotation angle, either a single value
+    %          * ...,key,val,...
+    %          'PSFScaling'     - Image pixel size / PSF pixel size ratio
+    %          'RotatePSF'      - PSF rotation angle, either a single value
     %                             for all the sources or a vector of angles
-    %          - Args.Jitter    : apply PSF blurring due to the S/C jitter  
-    %          - Args.Method    : source injection method, either 'direct' 
-    %                             or 'PSFshift'
-    %          - Args.MeasurePSF: whether to measure PSF flux containment and pseudo-FWHM (diagnostics)
+    %          'Jitter'         - apply PSF blurring due to the S/C jitter  
+    %          'Method'         - source injection method, either 'direct' or 'PSFshift'
+    %          'MeasurePSF'     - whether to measure PSF flux containment and pseudo-FWHM (diagnostics)
     %          
     % Output : - Image: a 2D array containing the resulting source image 
-    %                   and a 2+1 D array of rotated and jittered source PSFs
+    %          - JPSF:  a 2+1 D array of rotated and jittered source PSFs
     %            
     % Tested : Matlab R2020b
-    %     By : A. Krassilchtchikov et al.    Feb 2023
+    % Author : A. Krassilchtchikov et al. (Feb 2023)
     % Example: [Image, JPSF] = imUtil.art.injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF,...
     %                                        'PSFScaling',5,'RotatePSF',-90,'Jitter',1);
 
@@ -52,8 +52,7 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     % consistency checks
 
     if size(X,1) ~= size(Y,1) || size(X,1) ~= NumSrc
-        cprintf('err','Input sizes inconsistent in injectArtSrc, exiting..');
-        return
+        error('Input sizes inconsistent in injectArtSrc, exiting..');
     end
 
     % rotate the PSFs (if needed)  
@@ -108,17 +107,17 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
 
         ContWidth   = ContWidth  / Args.PSFScaling ;  % convert to image pixel size    
         PseudoFWHM  = PseudoFWHM / Args.PSFScaling ;  % convert to image pixel size
+
+            % some visual tests
+    
+        figure(2); plot(sqrt(X.^2+Y.^2).*5.44./3600, ContWidth * 5.44,'*'); % 5.44 arcsec pixel size for ULTRASAT
+        xlabel('Radius, deg'); ylabel('50% encirclement radius, arcsec')
+    
+        figure(3); plot(sqrt(X.^2+Y.^2).*5.44./3600, PseudoFWHM * 5.44,'*'); 
+        xlabel('Radius, deg'); ylabel('pseudoFWHM, arcsec')
     
     end
-   
-    % some visual tests
-    
-%       figure(2); plot(sqrt(X.^2+Y.^2).*5.44./3600, ContWidth * 5.44,'*'); % 5.44 arcsec pixel size for ULTRASAT
-%       xlabel('Radius, deg'); ylabel('50% encirclement radius, arcsec')
-%     
-%       figure(3); plot(sqrt(X.^2+Y.^2).*5.44./3600, PseudoFWHM * 5.44,'*'); 
-%       xlabel('Radius, deg'); ylabel('pseudoFWHM, arcsec')
-   
+
     % PSF injection: inject all the rotated source PSFs into the blank image 
   
     switch lower(Args.Method)
@@ -126,8 +125,7 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
         case 'fftshift'
                    
             if rem( size(JPSF,1) , 2) == 0 
-                cprintf('err','The size of RotPSF is even, while imUtil.art.injectSources accepts odd size only! Exiting..');
-                return
+                error('The size of RotPSF is even, while imUtil.art.injectSources accepts odd size only! Exiting..');
             end
     
             Image = imUtil.art.injectSources(Image0,Cat,JPSF); 
@@ -138,8 +136,7 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     
         otherwise
         
-        cprintf('err','Injection method not defined! Exiting..\n');
-        return
+            error('Injection method not defined! Exiting..');
         
     end
 
