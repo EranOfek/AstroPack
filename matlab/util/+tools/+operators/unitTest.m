@@ -27,8 +27,8 @@ function Result = test_times()
         for UseAVX=0:0
             for TypeIter=4:4    
                 fprintf('\n');
-                Rows = 16384;  %512;
-                Cols = 16384;  %512;
+                Rows = 1638;  %512;
+                Cols = 1638;  %512;
                 for SizeIter=1:1
                     clear A;
                     clear B;
