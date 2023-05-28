@@ -9,7 +9,7 @@ classdef LastDb < Component
 
     methods
         function Obj = LastDb(Args)
-            % Create new DbQuery obeject
+            % Create new DbQuery object
             % To use SSH Tunnel, run SSH on local machine, and specify its port:
             %       ssh -L 63331:localhost:5432 ocs@10.23.1.25
             %

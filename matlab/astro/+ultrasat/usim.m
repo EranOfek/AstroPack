@@ -12,6 +12,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'Tile'      - name of the ULTRASAT tile ('A','B','C','D')
     %       'ImRes'     - image resolution in 1/pix units (allowed values: 1, 2, 5, 10, 47.5)
     %       'RotAng'    - tile rotation angle[s] relative to the axis of the raw PSF database
+    %       'AddWCS'    - whether to add a WCS/Header data so that the image is centered in the sky at RAcenter, DECcenter (J2000)
+    %       'RAcenter'  - the RA, deg of the central pixel (if requested)
+    %       'DECcenter' - the DEC, deg of the central pixel (if requested)
     %       'ArraySizeLimit' - the maximal array size, machine-dependent, determines the method in specWeight
     %       'NoiseDark'      - dark current noise (1/0)
     %       'NoiseSky'       - sky background (1/0)
@@ -60,12 +63,17 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.RotAng          = 0;            % tile rotation angle relative to the axis of the raw PSF database (deg)
                                              % may be a vector with individual angle for each of the sources
                                              
+        Args.AddWCS logical  = false;        % whether to add a WCS to the output image
+        
+        Args.RAcenter        = 214.99;       % will be used only if Args.AddWCS = 1; the default value is GALEX GROTH_00
+        Args.DECcenter       = 52.78;        % will be used only if Args.AddWCS = 1; the default value is GALEX GROTH_00
+                                             
         Args.ArraySizeLimit  = 8;            % [Gb] the limit determines the method employed in inUtil.psf.specWeight
         
-        Args.NoiseDark       = 1;            % Dark count noise
-        Args.NoiseSky        = 1;            % Sky background 
-        Args.NoisePoisson    = 1;            % Poisson noise
-        Args.NoiseReadout    = 1;            % Read-out noise
+        Args.NoiseDark logical = true;       % Dark count noise
+        Args.NoiseSky  logical = true;       % Sky background 
+        Args.NoisePoisson logical = true;    % Poisson noise
+        Args.NoiseReadout logical = true;    % Read-out noise
                                              % (see details in imUtil.art.noise)
                                              
         Args.Inj             = 'direct';     % source injection method can be either 'FFTshift' or 'direct'
@@ -567,8 +575,38 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     % make an AstroImage (note, the image is to be transposed!)
     usimImage = AstroImage( {ImageSrcNoise'} ,'Back',{NoiseLevel}, 'Var',{ImageBkg},'Cat',{Args.InCat.Catalog});   
 
-    % add some keywords and values to the image header % TBD
-    funHeader(usimImage, @insertKey, {'DATEOBS','2026-01-01T00:00:00','';'EXPTIME', Exposure,''});  
+    % add a simple WCS centered at a given point in the sky
+    
+    if Args.AddWCS
+    
+        usimImage.WCS = AstroWCS();
+        usimImage.WCS.ProjType  = 'TAN';
+        usimImage.WCS.ProjClass = 'ZENITHAL';
+        usimImage.WCS.CooName   = {'RA'  'DEC'};
+        usimImage.WCS.CTYPE     = {'RA---TAN','DEC---TAN'};
+        usimImage.WCS.CUNIT     = {'deg', 'deg'};
+        usimImage.WCS.CD(1,1)   = PixSizeDeg;
+        usimImage.WCS.CD(2,2)   = PixSizeDeg;  
+        usimImage.WCS.CRVAL(1)  = Args.RAcenter;
+        usimImage.WCS.CRVAL(2)  = Args.DECcenter;
+        usimImage.WCS.CRPIX(1)  = ImageSizeX/2;
+        usimImage.WCS.CRPIX(2)  = ImageSizeY/2;
+        usimImage.WCS.AlphaP    = Args.RAcenter;
+        usimImage.WCS.DeltaP    = Args.DECcenter;
+        usimImage.WCS.PhiP      = 180; 
+        
+        AH = usimImage.WCS.wcs2header;       % make a header from the WCS
+        usimImage.HeaderData.Data = AH.Data; % add the header data to the AstroImage
+
+    end
+    
+%     % add some keywords and values to the image header % TBD
+
+     usimImage.setKeyVal('EXPTIME',Exposure);
+     usimImage.setKeyVal('DATEOBS','2026-01-01T00:00:00');
+%     funHeader(usimImage, @insertKey, {'DATEOBS','2026-01-01T00:00:00','';'EXPTIME', Exposure,''});  
+
+%         AH = usimImage.Header;               % save the header back from the AstroImage
        
     % save the object in a .mat file for a future usage:
     OutObjName = sprintf('%s%s%s','SimImage_tile',Args.Tile,'.mat');   
@@ -580,7 +618,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         % NB: when writing to a fits image, we need to transpose the image
         OutFITSName = sprintf('%s%s%s%s%s','!',Args.OutDir,'/SimImage_tile',Args.Tile,'.fits'); 
 %         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName,'Header',{'EXPTIME', Exposure,''});  %  DOES NOT WORK
-        imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName);   
+%         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName);   
+        usimImage.write1(OutFITSName); % write the image and header to a FITS file
         
         % an accompanying region file: 
         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'.reg');
@@ -637,15 +676,15 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 end
 
 
-% Remove it when load1() works fine
-function test_load1()
-  UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');
-  
-  clear UP;
-  io.files.load1(UP_db, 'UP');
-  disp(UP.wavelength);
-  
-  clear UP;
-  UP = io.files.load1(UP_db, 'UP');
-  disp(UP.wavelength);  
-end
+% % Remove it when load1() works fine
+% function test_load1()
+%   UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');
+%   
+%   clear UP;
+%   io.files.load1(UP_db, 'UP');
+%   disp(UP.wavelength);
+%   
+%   clear UP;
+%   UP = io.files.load1(UP_db, 'UP');
+%   disp(UP.wavelength);  
+% end
