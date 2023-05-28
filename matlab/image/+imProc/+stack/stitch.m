@@ -20,7 +20,8 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     % Example: Mosaic = imProc.stack.stitch('DataDir','/home/sasha/Obs1/','InputImages','LAST*coadd_Image*.fits','PixScale',1.25);
 
     arguments
-        InputImages    =    'LAST*coadd_Image*.fits';       % The mask of the input image filenames
+        
+        InputImages         =    'LAST*coadd_Image*.fits';       % The mask of the input image filenames
         Args.DataDir        =    '/home/sasha/Obs1/';            % The directory containing the input images
         Args.PixScale       =    1.25;                           % [arcsec] The pixel scale (LAST by def.)
         Args.Crop           =    [20 20 20 20];                  % X1 X2 Y1 Y2 margin sizes of the input images to be cropped out
@@ -41,10 +42,18 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     
             cprintf('hyper','%s\n','Mosaicking started'); tic
             fprintf('Reading input images.. ');
+            
+    if isa(InputImages,'AstroImage')
+        
+        AI = InputImages;
+        
+    else
 
-    cd(Args.DataDir);
-    FN = FileNames.generateFromFileName( Args.InputImages );
-    AI = AstroImage.readFileNamesObj( FN) ;  
+        cd(Args.DataDir);
+        FN = FileNames.generateFromFileName( InputImages );
+        AI = AstroImage.readFileNamesObj( FN ) ;  
+
+    end
     
     NImage = size(AI,2);                % determine the number of images to be merged    
     
@@ -273,7 +282,11 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     
     % make a FITS file:
 %     CPSOutputName = '!./CPS_Obs1a.fits';  
-    CPSOutputName = strcat('!./',FN.ProjName{1},'_',FN.Time{1},'_',FN.FieldID{1},'_stitched.fits');
+    if isa(InputImages,'AstroImage')
+        CPSOutputName = strcat('!./','stitched_image.fits');
+    else
+        CPSOutputName = strcat('!./',FN.ProjName{1},'_',FN.Time{1},'_',FN.FieldID{1},'_stitched_image.fits');
+    end
     StitchedImage.write1(CPSOutputName); % write the image and header to a FITS file
     
     cprintf('hyper','Mosaic constructed, see the output AstroImage and FITS image file.\n');    
