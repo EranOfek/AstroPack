@@ -1229,7 +1229,7 @@ classdef AstroWCS < Component
             arguments
                 Obj
                 XY
-                RefWCS AstroWCS
+                RefWCS(1,1) AstroWCS
                 Args.Sampling       = 1;
             end
             
@@ -1260,6 +1260,7 @@ classdef AstroWCS < Component
                 D(:,:,2) = DY;
             end
         end
+        
     end
 
     methods % plots
