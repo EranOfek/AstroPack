@@ -125,7 +125,7 @@ function Result = properSubtraction(ObjNew, ObjRef, Args)
         S = S./tools.math.stat.rstd(S,'all');
 
 
-        [D, Pd, S, Scorr] = imUtil.properSub.subtraction(N, R, Pn, Pr, SigmaN, SigmaR, 'SigmaAstN',[0.1 0.1], 'SigmaAstR',[0.1 0.1], 'EmpiricalNorm',false);
+        [D, Pd, S, Scorr] = imUtil.properSub.subtraction(N, R, Pn, Pr, SigmaN, SigmaR, 'SigmaAstN',[0.1 0.1], 'SigmaAstR',[0.1 0.1], 'EmpiricalNorm',true);
 
         % remove from D regions that are NaNs in R or N
         D(FlagNaN) = NaN;
