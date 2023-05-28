@@ -18,7 +18,7 @@ function List=filelist(FileName, Args)
         FileName
         Args.UseRegExp logical      = false;
         Args.ReadFromFile logical   = true;
-        Args.AddPath logical        = false;
+        Args.AddPath logical        = true;
     end
 
     if Args.ReadFromFile
