@@ -5,6 +5,8 @@
 // mex -v CXXFLAGS='$CXXFLAGS -fopenmp' LDFLAGS='$LDFLAGS -fopenmp' CXXOPTIMFLAGS='-O3 -DNDEBUG' mex_timesDouble.cpp
 //
 
+typedef long long int64;
+
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) 
 {
 	mxClassID class_id;
@@ -39,19 +41,19 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     __Type *B = (__Type*)mxGetData(prhs[1]);
 
     // Get the number of elements in the input arrays
-    mwSize numel = mxGetNumberOfElements(prhs[0]);
+    int64 numel = mxGetNumberOfElements(prhs[0]);
 
     // Check if the optional argument is provided and is scalar
-    bool useOpenMP = (nrhs == 3) && (mxGetScalar(prhs[2]) != 0);
+    bool useOpenMP = (nrhs == 3) && (*((int*)mxGetData(prhs[2])) != 0);
     //mexPrintf("OpenMP: %d\n", useOpenMP);
 
-    int remainder = numel % 8;
-    int simd_size = numel - remainder;
+    int64 remainder = numel % 8;
+    int64 simd_size = numel - remainder;
 
     // Perform the element-wise multiplication and store the result in A
     if (useOpenMP) {
         #pragma omp parallel for
-        for (int i = 0; i < simd_size; i += 8) {
+        for (int64 i = 0; i < simd_size; i += 8) {
             A[i+0] *= B[i+0];
             A[i+1] *= B[i+1];
             A[i+2] *= B[i+2];
@@ -63,7 +65,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         }
     } 
     else {
-        for (int i = 0; i < simd_size; i += 8) {
+        for (int64 i = 0; i < simd_size; i += 8) {
             A[i+0] *= B[i+0];
             A[i+1] *= B[i+1];
             A[i+2] *= B[i+2];
@@ -77,7 +79,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
     if (numel-simd_size > 0) {
         //mexPrintf("remainder: %d\n", numel-simd_size);
-        for (int i = simd_size; i < numel;  i++) {
+        for (int64 i = simd_size; i < numel;  i++) {
             A[i] *= B[i];
         }    
     }    

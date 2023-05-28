@@ -8,9 +8,12 @@ set Options=COMPFLAGS="$COMPFLAGS /openmp"
 set OptionsAVX2=COMPFLAGS="$COMPFLAGS /openmp /arch:AVX2"
 set OptionsAVX512=COMPFLAGS="$COMPFLAGS /openmp /arch:AVX512"
 
-call mex mex_timesDouble.cpp %OptionsAVX%
+call mex mex_timesDouble.cpp %Options%
 call mex mex_timesDouble_avx2.cpp %OptionsAVX2%
+goto exit
+
 call mex mex_timesDouble_avx512.cpp %OptionsAVX512%
+
 
 call mex mex_times8.cpp %Options%
 call mex mex_times16.cpp %Options%

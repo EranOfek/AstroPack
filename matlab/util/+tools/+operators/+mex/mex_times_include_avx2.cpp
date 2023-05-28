@@ -6,6 +6,8 @@
 // mex -v CXXFLAGS='$CXXFLAGS -fopenmp -mavx2' LDFLAGS='$LDFLAGS -fopenmp' CXXOPTIMFLAGS='-O3 -DNDEBUG' mex_timesDouble_avx2.cpp
 //
 
+typedef long long int64;
+
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) 
 {
 	mxClassID class_id;
@@ -41,10 +43,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     __Type *B = (__Type*)mxGetData(prhs[1]);
 
     // Get the number of elements in the input arrays
-    mwSize numel = mxGetNumberOfElements(prhs[0]);
+    int64 numel = mxGetNumberOfElements(prhs[0]);
 
     // Check if the optional argument is provided and is scalar
-    bool useOpenMP = (nrhs == 3) && (mxGetScalar(prhs[2]) != 0);
+    bool useOpenMP = (nrhs == 3) && (*((int*)mxGetData(prhs[2])) != 0);
     //mexPrintf("OpenMP: %d\n", useOpenMP);
    
 #ifdef _OPENMP
@@ -60,14 +62,14 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     //mexPrintf("Current thread number: %d\n", threadNum);
 #endif
 
-    int remainder = numel % 8;
-    int simd_size = numel - remainder;
+    int64 remainder = numel % 8;
+    int64 simd_size = numel - remainder;
 
     // Perform the element-wise multiplication and store the result in A
     if (useOpenMP) 
 	{       
         #pragma omp parallel for
-        for (int i = 0; i < simd_size; i += 8) {
+        for (int64 i = 0; i < simd_size; i += 8) {
 
             // 4x doubles
             __m256d vecA1 = _mm256_load_pd(&A[i]);			              
@@ -84,7 +86,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     } 
 	else 
 	{
-        for (int i = 0; i < simd_size; i += 8) {
+        for (int64 i = 0; i < simd_size; i += 8) {
 
             // 4x doubles
             __m256d vecA1 = _mm256_load_pd(&A[i]);			              
@@ -103,7 +105,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     // Handle remainder    
     if (numel-simd_size > 0) {
         //mexPrintf("remainder: %d\n", numel-simd_size);
-        for (int i = simd_size; i < numel;  i++) {
+        for (int64 i = simd_size; i < numel;  i++) {
             A[i] *= B[i];
         }    
     }
