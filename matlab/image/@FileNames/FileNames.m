@@ -275,7 +275,7 @@ classdef FileNames < Component
             
             
             if ischar(List)
-                List = io.files.filelist(List);
+                List = io.files.filelist(List, 'AddPath',false);
             elseif iscell(List)
                 List = List;
             else
@@ -297,8 +297,11 @@ classdef FileNames < Component
             Nlist = numel(List);
             for Ilist=1:1:Nlist
                 SplitName = regexp(List{Ilist},'_','split');
+                % make sure the first splitted term doesn't contain the
+                % path
+                [SplitNameCell] = split(SplitName{1}, filesep);
                 
-                Obj.ProjName{Ilist} = SplitName{1};
+                Obj.ProjName{Ilist} = SplitNameCell{end};
                 Obj.Time{Ilist}     = SplitName{2};
                 Obj.Filter{Ilist}   = SplitName{3};
                 Obj.FieldID{Ilist}  = SplitName{4};
