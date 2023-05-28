@@ -9,6 +9,9 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     %          'PixScale'      : [arcsec] The pixel scale (LAST by def.)
     %          'Crop'          : X1 X2 Y1 Y2 margin sizes of the input images to be cropped out
     %          'Method'        : pixel redistribution method on the mosaic image
+    %          'Exposure'      : exposure time to be written into the header of the mosaic image
+    %          'ZP'            : zero point to be written into the header of the mosaic image
+    %          'LASTnaming'    : whether the image file names are in the LAST convention form
     %          
     % Output : - StitchedImage: an AstroImage containing a mosaic made of all the input images
     %          - AH: the header of the mosaic image containing the exposure, ZP and the WCS
@@ -28,6 +31,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         Args.Method         =    'redistribute';                 % pixel redistribution method on the mosaic image
         Args.Exposure       =    0;                              % exposure time to be written into the header of the mosaic image
         Args.ZP             =    0;                              % zero point to be written into the header of the mosaic image
+        Args.LASTnaming logical = true;                          % whether the image file names are in the LAST convention form
         
     end
     
@@ -46,12 +50,22 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     if isa(InputImages,'AstroImage')
         
         AI = InputImages;
+        AI = populateWCS(AI); % TBC: do we really need it in all the cases? 
         
     else
 
         cd(Args.DataDir);
-        FN = FileNames.generateFromFileName( InputImages );
-        AI = AstroImage.readFileNamesObj( FN ) ;  
+        
+        if Args.LASTnaming
+            
+            FN = FileNames.generateFromFileName( InputImages );
+            AI = AstroImage.readFileNamesObj( FN ) ;  
+            
+        else % TBD: list the files and read them into AIs, also make additions to the output file name back
+            
+            error('The input file names do not comply to the LAST naming convention');
+            
+        end
 
     end
     
@@ -84,7 +98,9 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         Exptime(Img) = AI(Img).Header{Position,2};                  % get the value
         
         Position     = strcmp(AI(Img).Header,'PH_ZP');              % extract a header
-        PH_ZP(Img)   = AI(Img).Header{Position,2};                  % get the value
+        if max(Position,[],'all') > 0
+            PH_ZP(Img)   = AI(Img).Header{Position,2};              % get the value
+        end
         
         % determine the image sizes and find their corners:
                 
@@ -209,8 +225,8 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         
         % get a grid of RA, DEC of a subimage and convert them to X, Y of the merged image
         
-        XL = Args.Crop(1); XR = Xsize(Img)-Args.Crop(2);
-        YL = Args.Crop(3); YR = Ysize(Img)-Args.Crop(4);
+        XL = Args.Crop(1)+1; XR = Xsize(Img)-Args.Crop(2);
+        YL = Args.Crop(3)+1; YR = Ysize(Img)-Args.Crop(4);
         
         [Ximg, Yimg]    = meshgrid( YL:YR, XL:XR );                % a grid of subimage pixels !NOTE: Ximg is of Ysize!
         [RAimg, DECimg] = AI(Img).WCS.xy2sky(Ximg, Yimg);          % RA, DEC of subimage pixels
@@ -226,9 +242,9 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
 %             Disp(:,:,2) = Yimg-Y;
 
         ImageM = imProc.stack.addImageRedistributePixels(ImageM, SubImage, X, Y, 'Nx', Xred, 'Ny', Yred, ...
-                                                         'XL', XL, 'YL', YL,'Method',Args.Method);
+                                                         'XL', XL-1, 'YL', YL-1,'Method',Args.Method);
         ExposM = imProc.stack.addImageRedistributePixels(ExposM, Exptime(Img), X, Y, 'Nx', Xred, 'Ny', Yred, ...
-                                                         'XL', XL, 'YL', YL,'Method',Args.Method);
+                                                         'XL', XL-1, 'YL', YL-1,'Method',Args.Method);
 
         
     end
@@ -237,7 +253,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     
     FluxM   = sum(ImageM,'all'); FluxAI = zeros(NImage,1);
     for Img = 1:1:NImage 
-        FluxAI(Img) = sum ( AI(Img).Image(Args.Crop(1):Xsize(Img)-Args.Crop(2),Args.Crop(3):Ysize(Img)-Args.Crop(4)),'all'); 
+        FluxAI(Img) = sum ( AI(Img).Image(Args.Crop(1)+1:Xsize(Img)-Args.Crop(2),Args.Crop(3)+1:Ysize(Img)-Args.Crop(4)),'all'); 
     end
     Cons    = abs( 1- FluxM / sum(FluxAI,'all') );
     fprintf('%s%6.3d\n','Total flux conservation: ',Cons);

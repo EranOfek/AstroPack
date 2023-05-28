@@ -12,8 +12,8 @@ function Image = addImageRedistributePixels(Image, Image1, X, Y, Args)
     %          'Ny'      : Ny columns of Image1 are remapped
     %          'XL'      : first XL rows of Image1 are not remapped
     %          'YL'      : first YL columns of Image1 are not remapped
-    %          'Method'  : redistribute the signal between 4 neighbouring pixels of Image (default) or put
-    %          all the signal into the nearest pixel (some pixels of the Image will be empty)
+    %          'Method'  : 'redistribute' the signal between 4 neighbouring pixels of Image (default) 
+    %                    : 'direct' put all the signal into the nearest pixel (some pixels of the Image will be empty)
     %          
     % Output : - Image (a 2D array): = Image + Image1[XL:XL+NX-1,YL:YL+NY-1] (redistributed)
     %            
@@ -47,7 +47,7 @@ function Image = addImageRedistributePixels(Image, Image1, X, Y, Args)
     % check if there exists redistribution data for all the requested area of Image1 
     
     if size(X,1) < Args.Nx || size(Y,1) < Args.Nx || size(X,2) < Args.Ny || size(Y,2) < Args.Ny
-        error('The size of a pixel redistribution array in addImageRedistributePixels is insufficient, exiting..\n');
+        error('The size of a pixel redistribution array in addImageRedistributePixels is insufficient, exiting..');
     end
      
     %
