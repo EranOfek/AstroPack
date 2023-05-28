@@ -1,10 +1,11 @@
-function [StitchedImage, AH, RemappedXY] = stitch(Args)
+function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     % Make a mosaic sky image from a set of input AstroImages
     % Package: imProc.stack 
-    % Input:   - 
+    % Input:   - A mask FITS file namesto stich into a single large image.
+    %            Alternatively, this can be asn AstroImage object
+    %            containing the images.
     %          * ...,key,val,...
     %          'DataDir'       : The directory containing the input images
-    %          'InputImages'   : The mask of the input image filenames
     %          'PixScale'      : [arcsec] The pixel scale (LAST by def.)
     %          'Crop'          : X1 X2 Y1 Y2 margin sizes of the input images to be cropped out
     %          'Method'        : pixel redistribution method on the mosaic image
@@ -19,9 +20,8 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
     % Example: Mosaic = imProc.stack.stitch('DataDir','/home/sasha/Obs1/','InputImages','LAST*coadd_Image*.fits','PixScale',1.25);
 
     arguments
-        
+        InputImages    =    'LAST*coadd_Image*.fits';       % The mask of the input image filenames
         Args.DataDir        =    '/home/sasha/Obs1/';            % The directory containing the input images
-        Args.InputImages    =    'LAST*coadd_Image*.fits';       % The mask of the input image filenames
         Args.PixScale       =    1.25;                           % [arcsec] The pixel scale (LAST by def.)
         Args.Crop           =    [20 20 20 20];                  % X1 X2 Y1 Y2 margin sizes of the input images to be cropped out
         Args.Method         =    'redistribute';                 % pixel redistribution method on the mosaic image
