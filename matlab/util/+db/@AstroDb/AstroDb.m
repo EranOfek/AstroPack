@@ -498,7 +498,7 @@ classdef AstroDb < Component
         
         %%%%%%%%% functions added by @kra
         
-        function [TupleID, Result] = populateDB( Obj, Data, Args )
+        function [TupleID, Result] = populateImageDB( Obj, Data, Args )
             % Populate a database with metadata (header data) from a list of input images
             % Description: Populate a database with metadata (header data) from a list of input images
             % Input :  - an AstroDb object 
@@ -516,7 +516,7 @@ classdef AstroDb < Component
             % Tested : Matlab R2020b
             % Author : A. Krassilchtchikov (May 2023)
             % Example: LDB = db.AstroDb(); 
-            %          LDB.populateDB ( Imfiles, 'DBtype', 'LAST', 'DBtable', 'raw_images', 'Hash', Args.Hash );
+            %          LDB.populateImageDB ( Imfiles, 'DBtype', 'LAST', 'DBtable', 'raw_images', 'Hash', Args.Hash );
 
             arguments
 
@@ -665,9 +665,9 @@ classdef AstroDb < Component
 
         % call the sub to populate the database (3 variants)
 
-        TupleID = Obj.populateDB ( Obj, Imfiles, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
-        TupleID = Obj.populateDB ( Obj, Headers, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
-        TupleID = Obj.populateDB ( Obj, Images,  'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+        TupleID = Obj.populateImageDB ( Obj, Imfiles, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+        TupleID = Obj.populateImageDB ( Obj, Headers, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+        TupleID = Obj.populateImageDB ( Obj, Images,  'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
 
         fprintf('%s%d','Inserted tuples:',TupleID);
 
