@@ -23,12 +23,12 @@ function Result = test_times()
     assert(isequal(A, C));       
 
     % -------------------------------------------
-    for UseMP=0:1
+    for UseMP=1:1
         for UseAVX=0:0
             for TypeIter=4:4    
                 fprintf('\n');
-                Rows = 16384;  %512;
-                Cols = 16384;  %512;
+                Rows = 1700;
+                Cols = 1700;
                 for SizeIter=1:1
                     clear A;
                     clear B;
@@ -70,28 +70,29 @@ function Result = test_times()
                     for Iter=1:MexIters
                         % MEX version with/without OpenMP
                         t = tic;
-                        %tools.operators.times(A, B, true, UseMP, UseAVX);
+                        tools.operators.times(A, B);  %, true, UseMP, UseAVX);
                         %if UseAVX
                         %    tools.operators.mex.mex_timesDouble_avx2(A, B, int32(UseMP));
                         %else
-                            tools.operators.mex.mex_timesDouble(A, B, int32(UseMP));
+                            %tools.operators.mex.mex_timesDouble(A, B, int32(UseMP));
                         %end
                         MexTime = toc(t);
                         MexTimeTotal = MexTimeTotal + MexTime;
                         fprintf('%s - Array Size: %3d M items - Matlab: %.6f --- OpenMP: %d, AVX: %d, Mex: %.6f, Ratio: %0.2f\n', Type, int32(numel(A) / 1024 / 1024), MatlabTime, UseMP, UseAVX, MexTime, MatlabTime/MexTime);
+                        
+                        if MexIters == 1
+                            if ~isequal(MatlabResult, A)
+                                printf('NOT EQUAL\n');                            
+                            end
+                            assert(isequal(MatlabResult, A));                        
+                        end
+                    
                     end
                     MexTime = MexTimeTotal / MexIters;
                     %--------------------------------------------------
                     
                     fprintf('AVER: %s - Array Size: %3d M items - Matlab: %.6f --- OpenMP: %d, AVX: %d, Mex: %.6f, Ratio: %0.2f\n', Type, int32(numel(A) / 1024 / 1024), MatlabTime, UseMP, UseAVX, MexTime, MatlabTime/MexTime);
-                    
-                    %fprintf('%s - Array Size: %3d M items - Matlab: %.6f --- OpenMP: %d, AVX: %d, Mex: %.6f, Ratio: %0.2f\n', Type, int32(numel(A) / 1024 / 1024), MatlabTime, UseMP, UseAVX, MexTime, MatlabTime/MexTime);
-                    %if ~isequal(MatlabResult, A)
-                        %fprintf('NOT EQUAL\n');
-                    %end
-
-                    %assert(isequal(MatlabResult, A));
-                
+                                    
                     Rows = int32(Rows*2);
                     Cols = int32(Cols*2); 
                 end
