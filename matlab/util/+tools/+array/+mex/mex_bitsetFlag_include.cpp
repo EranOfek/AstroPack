@@ -1,81 +1,17 @@
-// See: edit([matlabroot '/extern/examples/mex/explore.c']);
-// See: edit([matlabroot '/extern/examples/refbook/matrixDivide.c']);
 //
-// Access element in 2D array: 
-//    val = input[ col*rows + row ];
+// mex_bitsetFlag_include.cpp
 //
-// Access element in 3D array:
-//    val = input[ col*rows + row + dep*cols*rows ];
+// Author: Chen Tishler, May 2023
 //
 //
-// OpenMP:
+// Flags for cmex.py:
 //
-//      https://www.mathworks.com/matlabcentral/answers/237411-can-i-make-use-of-openmp-in-my-matlab-mex-files
-//
-//
-// Windows: 
-//    
-//   mex  mex_bitsetFlag32.cpp  COMPFLAGS="$COMPFLAGS /openmp"
-//
-// Linux:
-//
-//   mex mex_bitsetFlag32.cpp CXXFLAGS='$CXXFLAGS -fopenmp' LDFLAGS='$LDFLAGS -fopenmp'
+// 		$dtype: int8, int16, int32, int64
 //
 
-#include <stdio.h>
 #include <omp.h>
 #include "mex.h"
 #include "matrix.h"
-
-// For Ctrl-C detection http://www.caam.rice.edu/~wy1/links/mex_ctrl_c_trick/
-#if defined (_WIN32)
-    #include <windows.h>
-#elif defined (__linux__)
-    #include <unistd.h>
-#endif
-
-#ifdef __cplusplus
-    extern "C" bool utIsInterruptPending();
-#else
-    extern bool utIsInterruptPending();
-#endif
-      
-#ifdef never
-static int debug_bit = 1;
-bool force=false;
-void msglog(const char* s)
-{
-    if ((debug_bit > 0) || force) {
-        mexPrintf("%s\n", s);
-        FILE* fp = fopen("c:\\temp\\mex_msglog.log", "a");
-        if (fp) {
-            fwrite(s, 1, strlen(s), fp);
-            fwrite("\n", 1, 1, fp);
-            fclose(fp);
-        }
-    }
-}
-
-//-------------------------------------------------------------------------
-// The gateway function
-//
-// mexFunction is not a routine you call. Rather, mexFunction is the name 
-// of the gateway function in C which every MEX function requires. 
-// When you invoke a MEX function, MATLAB finds and loads the corresponding 
-// MEX function of the same name. MATLAB then searches for a symbol named 
-// mexFunction within the MEX function. If it finds one, it calls the MEX 
-// function using the address of the mexFunction symbol. MATLAB displays 
-// an error message if it cannot find a routine named mexFunction inside 
-// the MEX function.
-//
-// Input Arguments    
-//
-//    int nlhs              - Number of output arguments
-//    mxArray* plhs[]       - Output arguments
-//    int nrhs              - Number of input arguments
-//    const mxArray* prhs[] - Input arguments
-// 
-	
 
 // Function to get dimensions of mxArray as a C-string
 char* dimsStr(mwSize ndims, const mwSize *dims)
@@ -94,6 +30,7 @@ char* dimsStr(mwSize ndims, const mwSize *dims)
     return s;
 }
 #endif
+
 
 void mexFunction( 
         int nlhs, mxArray *plhs[],          // Output arguments

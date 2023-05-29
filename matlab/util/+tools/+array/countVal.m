@@ -22,10 +22,11 @@ function Result = countVal(Array, Val, UseNot, UseMex)
     % Example: Val=tools.array.countVal(Array);
     %----------------------------------------------------------------------
     arguments
-        Array                   % Input array
-        Val                     % Value to look for
-        UseNot = false;         % False: Count items equal to Val, True: Count items non-equal to Val
-        UseMex = true;          % False: Use MATLAB implementaion, True: Use MEX implementation
+        Array               % Input array
+        Val                 % Value to look for
+        UseNot = false;     % False: Count items equal to Val, True: Count items non-equal to Val
+        UseMex = true;     	% True: Use MEX implementation, False: Use MATLAB implementaion
+        UseMP = true;      	% True: Use threading with OpenMP multi-threading library
     end
 
     % MATLAB implementation
@@ -43,13 +44,13 @@ function Result = countVal(Array, Val, UseNot, UseMex)
     C = lower(class(Array));
     switch C
         case {'uint16','int16'}
-            Result = tools.array.mex.mex_countVal16(Array, int16(Val), UseNot);       
+            Result = tools.array.mex.mex_countVal_int16(Array, int16(Val), UseNot);       
         case {'uint32','int32'}
-            Result = tools.array.mex.mex_countVal32(Array, int32(Val), UseNot);       
+            Result = tools.array.mex.mex_countVal_int32(Array, int32(Val), UseNot);       
         case {'single'}
-            Result = tools.array.mex.mex_countValSingle(Array, single(Val), UseNot);       
+            Result = tools.array.mex.mex_countVal_intSingle(Array, single(Val), UseNot);       
         case {'double'}
-            Result = tools.array.mex.mex_countValDouble(Array, double(Val), UseNot);       
+            Result = tools.array.mex.mex_countVal_intDouble(Array, double(Val), UseNot);       
         otherwise
             error('tools.array.countVal - Unsupported data type');
     end

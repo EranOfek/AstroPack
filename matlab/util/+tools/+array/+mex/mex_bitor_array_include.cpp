@@ -1,6 +1,14 @@
-// See: edit([matlabroot '/extern/examples/mex/explore.c']);
-// See: edit([matlabroot '/extern/examples/refbook/matrixDivide.c']);
 //
+// mex_times_include.cpp
+//
+// Author: Chen Tishler, May 2023
+//
+//
+// Flags for cmex.py:
+//
+// 		$dtype: int8, int16, int32, int64
+//
+
 // Access element in 2D array: 
 //    val = input[ col*rows + row ];
 //
@@ -8,50 +16,16 @@
 //    val = input[ col*rows + row + dep*cols*rows ];
 //
 
-#include <stdio.h>
 #include "mex.h"
 #include "matrix.h"
 
-// For Ctrl-C detection http://www.caam.rice.edu/~wy1/links/mex_ctrl_c_trick/
-#if defined (_WIN32)
-    #include <windows.h>
-#elif defined (__linux__)
-    #include <unistd.h>
-#endif
-
-#ifdef __cplusplus
-    extern "C" bool utIsInterruptPending();
-#else
-    extern bool utIsInterruptPending();
-#endif
-    
-//-------------------------------------------------------------------------
-// The gateway function
-//
-// mexFunction is not a routine you call. Rather, mexFunction is the name 
-// of the gateway function in C which every MEX function requires. 
-// When you invoke a MEX function, MATLAB finds and loads the corresponding 
-// MEX function of the same name. MATLAB then searches for a symbol named 
-// mexFunction within the MEX function. If it finds one, it calls the MEX 
-// function using the address of the mexFunction symbol. MATLAB displays 
-// an error message if it cannot find a routine named mexFunction inside 
-// the MEX function.
-//
-// Input Arguments    
-//
-//    int nlhs              - Number of output arguments
-//    mxArray* plhs[]       - Output arguments
-//    int nrhs              - Number of input arguments
-//    const mxArray* prhs[] - Input arguments
-// 
-	
 void mexFunction( 
         int nlhs, mxArray *plhs[],          // Output arguments
         int nrhs, const mxArray *prhs[])    // Input arguments
 {
     // Input
-    __Int* input, val;
-    __Int* out;
+    __Type* input, val;
+    __Type* out;
     int dim = 1;    
     mwSize rows, cols, deps;
     mwSize row, col, dep;
@@ -77,7 +51,7 @@ void mexFunction(
     
     // Parse input matrix
     class_id    = mxGetClassID(prhs[0]);        
-    input       = (__Int*)mxGetData(prhs[0]);
+    input       = (__Type*)mxGetData(prhs[0]);
     input_ndims = mxGetNumberOfDimensions(prhs[0]);
     input_size  = mxGetDimensions(prhs[0]);      
     input_type  = mxGetClassName(prhs[0]);
@@ -92,12 +66,7 @@ void mexFunction(
         mexPrintf("Sparse array is not supported yet\n");  
         return;        
     }
-    
-    //mexPrintf("input_ndims: %d\n", input_ndims);  
-    //mexPrintf("input_size: %d, %d, %d\n", input_size[0], input_size[1], input_size[2]);
-    //mexPrintf("input_type: %s\n", input_type);
-    //mexPrintf("dim: %d\n", dim);  
-        
+           
     // Validate input params
     if ((input_ndims != 2) && (input_ndims != 3)) {
         mexPrintf("Invalid ndims of input matrix, supported ndims is 2 or 3: %d\n", input_ndims);  
@@ -117,7 +86,7 @@ void mexFunction(
             output_size[0] = 1;
             output_size[1] = input_size[1];        
             plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
-            out = (__Int*)mxGetData(plhs[0]);                    
+            out = (__Type*)mxGetData(plhs[0]);                    
                  
             //
             for (col = 0;  col < cols;  col++) {
@@ -136,7 +105,7 @@ void mexFunction(
             output_size[0] = input_size[0];
             output_size[1] = 1;        
             plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
-            out = (__Int*)mxGetData(plhs[0]);                    
+            out = (__Type*)mxGetData(plhs[0]);                    
 
             //
             for (row = 0;  row < rows;  row++) {                        
@@ -174,7 +143,7 @@ void mexFunction(
             output_size[1] = input_size[1];
             output_size[2] = input_size[2];
             plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
-            out = (__Int*)mxGetData(plhs[0]);                                
+            out = (__Type*)mxGetData(plhs[0]);                                
             
             //
             for (dep = 0;  dep < deps;  dep++) {
@@ -195,7 +164,7 @@ void mexFunction(
             output_size[1] = 1;
             output_size[2] = input_size[2];        
             plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
-            out = (__Int*)mxGetData(plhs[0]);                                
+            out = (__Type*)mxGetData(plhs[0]);                                
             
             //
             for (dep = 0;  dep < deps;  dep++) {            
@@ -215,7 +184,7 @@ void mexFunction(
             output_size[0] = input_size[0];
             output_size[1] = input_size[1];            
             plhs[0] = mxCreateNumericArray(output_ndims, output_size, class_id, mxREAL);
-            out = (__Int*)mxGetData(plhs[0]);                                
+            out = (__Type*)mxGetData(plhs[0]);                                
             
             //
             for (row = 0;  row < rows;  row++) {                        
@@ -229,7 +198,4 @@ void mexFunction(
             }        
         }
     }
-  
-    //mexPrintf("output_ndims: %d\n", output_ndims);  
-    //mexPrintf("output_size:  %d, %d, %d\n", output_size[0], output_size[1], output_size[2]); 
 }

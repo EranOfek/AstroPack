@@ -1,3 +1,14 @@
+//
+// mex_onesExcept_include.cpp
+//
+// Author: Chen Tishler, May 2023
+//
+//
+// Flags for cmex.py:
+//
+// 		$dtype: int8, int16, int32, int64, single, double
+//
+
 #include "mex.h"
 #include <omp.h>
 
