@@ -757,6 +757,16 @@ classdef AstroImage < Component
             % getter for MaskImage
             Data = Obj.MaskData.Image;
         end
+
+        function Obj = set.PSF(Obj, Data)
+            % setter for PSFData
+            Obj.PSFData.Data = Data;
+        end
+
+        function Data = get.PSF(Obj)
+            % getter for PSFData
+            Data = Obj.PSFData.Data;
+        end
         
         function Data = get.Header(Obj)
             % getter for Header
@@ -778,14 +788,6 @@ classdef AstroImage < Component
             Data = Obj.WCS;
                 
         end
-
-        function Data = get.PSF(Obj)
-            % getter for PSF
-           
-            Data = Obj.PSFData.DataPSF;
-            
-        end
-        
        
     end
     

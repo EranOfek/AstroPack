@@ -11,12 +11,14 @@ function Result = addImages2DB(Args)
     % Output : - scalar success flag (0 -- images successfully added to the DB)
     % Tested : Matlab R2020b
     % Author : A. Krassilchtchikov et al. (May 2023)
-    % Example: db.addImages('DataDir','/home/sasha/Raw2/','DBname','LAST','DBtable','RAW');
+    % Examples: db.addImages2DB('DataDir','/home/sasha/Raw2/','DBname','LAST','DBtable','RAW');
+    %           db.addImages2DB('DataDir','/home/sasha/Obs2/','InputImages','LAST*sci*proc_Image*.fits','DBtable','PROC')
+    %           db.addImages2DB('DataDir','/home/sasha/Obs2/','InputImages','LAST*sci*coadd_Image*.fits','DBtable','COADD')
     
     
     arguments
         
-        Args.DataDir        =    '/home/alexk/Raw/';                % The directory containing the input images
+        Args.DataDir        =    '/home/sasha/Raw/';                % The directory containing the input images
         Args.InputImages    =    'LAST*sci*raw_Image*.fits';         % The mask of the input image filenames
         Args.DBname         =    'LAST';
         Args.DBtable        =    'RAW';
@@ -44,9 +46,9 @@ function Result = addImages2DB(Args)
     
     % call the sub to populate the database
                         
-%     db.populateDB ( ImageFiles, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+    db.populateDB ( Imfiles, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
 %     db.populateDB ( Images, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
-    db.populateDB ( Headers, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+%     db.populateDB ( Headers, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
     
 
     % assign the Result value

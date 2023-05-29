@@ -1,13 +1,15 @@
 function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
-    % Return the D_hat subtraction image
-    % Input  : - N_hat
-    %          - R_hat
-    %          - Pn_hat
-    %          - Pr_hat
-    %          - SigmaN
-    %          - SigmaR
-    %          - Fn
-    %          - Fr
+    % Return the D_hat subtraction image (Fourier transform of proper subtraction)
+    % Input  : - N_hat (Fourier Transform of new image).
+    %          - R_hat (Fourier Transform of ref image).
+    %          - Pn_hat (Fourier Transform of new image PSF with size equal
+    %            to the new image size).
+    %            Prior to FT, the PSF should be in the image corner.
+    %          - Pr_hat (like Pn_hat, but for the ref image).
+    %          - SigmaN (std of new image background).
+    %          - SigmaR (std of ref image background).
+    %          - Fn (New image flux normalization).
+    %          - Fr(Ref image flux normalization).
     %          * ...,key,val,...
     %            'AbsFun' - absolute value function.
     %                   Default is @(X) abs(X)

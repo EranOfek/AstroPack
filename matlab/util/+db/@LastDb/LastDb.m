@@ -9,7 +9,7 @@ classdef LastDb < Component
 
     methods
         function Obj = LastDb(Args)
-            % Create new DbQuery obeject
+            % Create new DbQuery object
             % To use SSH Tunnel, run SSH on local machine, and specify its port:
             %       ssh -L 63331:localhost:5432 ocs@10.23.1.25
             %
@@ -67,7 +67,6 @@ classdef LastDb < Component
             Result = true;
         end
 
-
         function Result = createTable_raw_images(Obj)
             % Create or update definitions of LAST database tables
             % Input :  - LastDb object
@@ -83,6 +82,46 @@ classdef LastDb < Component
             % Create table
             Q = Obj.Query;
             TN = 'raw_images';
+            Q.createTable('TableName', TN, 'AutoPk', 'pk', 'Drop', false);
+            Result = Obj.addCommonImageColumns(Q, TN);
+        end
+
+
+        function Result = createTable_proc_images(Obj)
+            % Create or update definitions of LAST database tables
+            % Input :  - LastDb object
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : createTables()
+            arguments
+                Obj
+            end
+
+            % Create table
+            Q = Obj.Query;
+            TN = 'proc_images';
+            Q.createTable('TableName', TN, 'AutoPk', 'pk', 'Drop', false);
+            Result = Obj.addCommonImageColumns(Q, TN);
+        end
+
+        
+        function Result = createTable_coadd_images(Obj)
+            % Create or update definitions of LAST database tables
+            % Input :  - LastDb object
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : createTables()
+            arguments
+                Obj
+            end
+
+            % Create table
+            Q = Obj.Query;
+            TN = 'coadd_images';
             Q.createTable('TableName', TN, 'AutoPk', 'pk', 'Drop', false);
             Result = Obj.addCommonImageColumns(Q, TN);
         end
@@ -108,7 +147,7 @@ classdef LastDb < Component
 
             % Columns with index
             Q.addColumn(TN, 'filename', 'varchar(256)', '', 'index', true);
-            Q.addColumn(TN, 'xxhash',   'bigint', '', 'index', true);
+            Q.addColumn(TN, 'xxhash',   'varchar(80)', '', 'index', true);
             Q.addColumn(TN, 'ra',       'double', 'default 0', 'index', true);
             Q.addColumn(TN, 'dec',      'double', 'default 0', 'index', true);
             Q.addColumn(TN, 'jd',       'double', 'default 0', 'index', true);
@@ -168,6 +207,95 @@ classdef LastDb < Component
             
             % Additional
             Q.addColumn(TN, 'procstat', 'varchar(256)', "default ''", 'Comment', 'Additional user data');
+            
+            % added by @kra:
+            
+            if strcmp(TN,'proc_images')
+                
+                Q.addColumn(TN, 'fieldid',      'varchar(80)', "default ''");
+                Q.addColumn(TN, 'timezone',     'single', 'default 0');
+                Q.addColumn(TN, 'ccdid',        'single', 'default 0');
+                Q.addColumn(TN, 'cropid',       'single', 'default 0');
+                Q.addColumn(TN, 'level',        'varchar(80)', "default ''");
+                Q.addColumn(TN, 'version',      'varchar(80)', "default ''");
+                Q.addColumn(TN, 'subdir',       'varchar(80)', "default ''");
+                Q.addColumn(TN, 'overscan',     'varchar(80)', "default ''");
+                Q.addColumn(TN, 'origgain',     'single', 'default 0');
+                Q.addColumn(TN, 'ccdsec',       'varchar(80)', "default ''");
+                Q.addColumn(TN, 'origsec',      'varchar(80)', "default ''");
+                Q.addColumn(TN, 'origusec',     'varchar(80)', "default ''");
+                Q.addColumn(TN, 'uniqsec',      'varchar(80)', "default ''");
+                Q.addColumn(TN, 'meanbck',      'double', 'default 0');
+                Q.addColumn(TN, 'medbck',       'double', 'default 0');
+                Q.addColumn(TN, 'stdbck',       'double', 'default 0');
+                Q.addColumn(TN, 'meanvar',      'double', 'default 0');
+                Q.addColumn(TN, 'medvar',       'double', 'default 0');
+                Q.addColumn(TN, 'ast_nsrc',     'single', 'default 0');
+                Q.addColumn(TN, 'ast_arms',     'double', 'default 0');
+                Q.addColumn(TN, 'ast_errm',     'double', 'default 0');
+                Q.addColumn(TN, 'wcsaxes',      'smallint', 'default 0');
+                Q.addColumn(TN, 'radesys',      'varchar(80)', "default ''");
+                Q.addColumn(TN, 'lonpole',      'single', 'default 0');
+                Q.addColumn(TN, 'latpole',      'single', 'default 0');
+                Q.addColumn(TN, 'ctype1',       'varchar(80)', "default ''");
+                Q.addColumn(TN, 'ctype2',       'varchar(80)', "default ''");
+                Q.addColumn(TN, 'cunit1',       'varchar(80)', "default ''");
+                Q.addColumn(TN, 'cunit2',       'varchar(80)', "default ''");
+                Q.addColumn(TN, 'crpix1',       'double', 'default 0');
+                Q.addColumn(TN, 'crpix2',       'double', 'default 0');
+                Q.addColumn(TN, 'crval1',       'double', 'default 0');
+                Q.addColumn(TN, 'crval2',       'double', 'default 0');
+                Q.addColumn(TN, 'cd1_1',        'double', 'default 0');
+                Q.addColumn(TN, 'cd1_2',        'double', 'default 0');
+                Q.addColumn(TN, 'cd2_1',        'double', 'default 0');
+                Q.addColumn(TN, 'cd2_2',        'double', 'default 0');
+                Q.addColumn(TN, 'ra1',          'double', 'default 0');
+                Q.addColumn(TN, 'ra2',          'double', 'default 0');
+                Q.addColumn(TN, 'ra3',          'double', 'default 0');
+                Q.addColumn(TN, 'ra4',          'double', 'default 0');
+                Q.addColumn(TN, 'dec1',         'double', 'default 0');
+                Q.addColumn(TN, 'dec2',         'double', 'default 0');
+                Q.addColumn(TN, 'dec3',         'double', 'default 0');
+                Q.addColumn(TN, 'dec4',         'double', 'default 0');
+                Q.addColumn(TN, 'rau1',         'double', 'default 0');
+                Q.addColumn(TN, 'rau2',         'double', 'default 0');
+                Q.addColumn(TN, 'rau3',         'double', 'default 0');
+                Q.addColumn(TN, 'rau4',         'double', 'default 0');
+                Q.addColumn(TN, 'decu1',        'double', 'default 0');
+                Q.addColumn(TN, 'decu2',        'double', 'default 0');
+                Q.addColumn(TN, 'decu3',        'double', 'default 0');
+                Q.addColumn(TN, 'decu4',        'double', 'default 0');
+                Q.addColumn(TN, 'ph_zp',        'double', 'default 0');
+                Q.addColumn(TN, 'ph_col1',      'double', 'default 0');
+                Q.addColumn(TN, 'ph_medc',      'double', 'default 0');
+                Q.addColumn(TN, 'ph_rms',       'double', 'default 0');
+                Q.addColumn(TN, 'ph_nsrc',      'single', 'default 0');
+                Q.addColumn(TN, 'ph_magsy',     'varchar(80)', "default ''");
+                Q.addColumn(TN, 'linmag',       'double', 'default 0');
+                Q.addColumn(TN, 'backmag',      'double', 'default 0');
+                Q.addColumn(TN, 'fwhm',         'double', 'default 0');
+                Q.addColumn(TN, 'med_a',        'double', 'default 0');
+                Q.addColumn(TN, 'med_b',        'double', 'default 0');
+                Q.addColumn(TN, 'med_th',       'double', 'default 0');
+                                
+            end
+            
+            if strcmp(TN,'coadd_images')
+                
+                Q.addColumn(TN, 'ncoadd',       'single', 'default 0');
+                Q.addColumn(TN, 'coaddop',      'varchar(80)', "default ''");
+                Q.addColumn(TN, 'avncoadd',     'single', 'default 0');
+                Q.addColumn(TN, 'mincoadd',     'smallint', 'default 0');
+                Q.addColumn(TN, 'midjd',        'double', 'default 0');
+                Q.addColumn(TN, 'minjd',        'double', 'default 0');
+                Q.addColumn(TN, 'maxjd',        'double', 'default 0');
+                Q.addColumn(TN, 'sublevel',     'varchar(80)', "default ''");
+                Q.addColumn(TN, 'gm_ratex',     'double', 'default 0');
+                Q.addColumn(TN, 'gm_stdx',      'double', 'default 0');
+                Q.addColumn(TN, 'gm_ratey',     'double', 'default 0');
+                Q.addColumn(TN, 'gm_stdy',      'double', 'default 0');
+                
+            end
 
             Obj.msgLog(LogLevel.Info, 'addCommonImageColumns done');
             Result = true;
@@ -201,7 +329,7 @@ classdef LastDb < Component
         end
         
         
-        function Result = addProcImage(Obj, FileName, AH, AddCols)
+        function Result = addProcImage(Obj, FileName, AH, Args)
             % Insert PROC image columns to table
             % Input :  - LastDb object
             %          - FileName
@@ -211,18 +339,44 @@ classdef LastDb < Component
             %            The following keys are available:
             % Output  : True on success
             % Author  : Chen Tishler (02/2023)
-            % Example : createTables()
+            % Example : 
             arguments
                 Obj                 %
                 FileName            % Image file name
                 AH                  % AstroHeader
-                AddCols = []        % struct
+                Args.AddCols = []   % struct
+                Args.xxhash = []    % Optional
+                Args.Select = false %
             end
 
-            %Result = Obj.addImage('proc_images', FileName, AH, AddCols);
+            Result = Obj.addImage('proc_images', FileName, AH, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select);
         end
         
+         
+        function Result = addCoaddImage(Obj, FileName, AH, Args)
+            % Insert PROC image columns to table
+            % Input :  - LastDb object
+            %          - FileName
+            %          - AstroHeader
+            %          - Optionally additional columns in struct
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : 
+            arguments
+                Obj                 %
+                FileName            % Image file name
+                AH                  % AstroHeader
+                Args.AddCols = []   % struct
+                Args.xxhash = []    % Optional
+                Args.Select = false %
+            end
+
+            Result = Obj.addImage('coadd_images', FileName, AH, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select);
+        end
                 
+        
         function Result = addImage(Obj, TableName, FileName, AH, Args)
             % Insert AstroHeader to specified table.
             % Input :  - LastDb object

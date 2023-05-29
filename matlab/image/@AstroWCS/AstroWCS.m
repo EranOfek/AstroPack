@@ -1229,7 +1229,7 @@ classdef AstroWCS < Component
             arguments
                 Obj
                 XY
-                RefWCS AstroWCS
+                RefWCS(1,1) AstroWCS
                 Args.Sampling       = 1;
             end
             
@@ -1260,6 +1260,7 @@ classdef AstroWCS < Component
                 D(:,:,2) = DY;
             end
         end
+        
     end
 
     methods % plots
@@ -1320,72 +1321,76 @@ classdef AstroWCS < Component
             Result = AstroWCS(size(AH));
             for Iobj=1:1:Nobj
                 
-                % Read all single val parmeters
-                KeyValStruct = AH(Iobj).getStructKey({'NAXIS','WCSAXES','LONPOLE','LATPOLE'});
-                
-                % if WCSAXES is not available use NAXIS as default
-                Result(Iobj).NAXIS = KeyValStruct.NAXIS;
-                Result(Iobj).WCSAXES = KeyValStruct.WCSAXES;
-                if (Result(Iobj).WCSAXES==0)
-                    Result(Iobj).WCSAXES = Result(Iobj).NAXIS;
-                end
-                
-                if Args.read2axes
-                    Result(Iobj).WCSAXES = 2;
-                    Result(Iobj).NAXIS   = 2;
-                end
-            
-                Naxis = Result(Iobj).WCSAXES;
-
-                % prepare mutli axis keys
-                KeyCtype = cell(1,Naxis);
-                KeyCunit = cell(1,Naxis);
-                KeyCrpix = cell(1,Naxis);
-                KeyCrval = cell(1,Naxis);
-                for Iaxis1 = 1:1:Naxis
-                    KeyCtype{Iaxis1} = sprintf('CTYPE%d',Iaxis1);
-                    KeyCunit{Iaxis1} = sprintf('CUNIT%d',Iaxis1);
-                    KeyCrpix{Iaxis1} = sprintf('CRPIX%d',Iaxis1);
-                    KeyCrval{Iaxis1} = sprintf('CRVAL%d',Iaxis1);
-                end
-
-                % Get CTYPE and transalte to projection information (ProjType,
-                % ProjClass) and CooName and CUNIT
-                Result(Iobj).CTYPE = AH(Iobj).getCellKey(KeyCtype);
-                Result(Iobj).CUNIT = AH(Iobj).getCellKey(KeyCunit);
-                Result(Iobj).read_ctype;
-            
-                if isnumeric(Result(Iobj).CTYPE{1}) && any(isnan(Result(Iobj).CTYPE{1}))
-                    Result(Iobj).Success = false;
+                if AH(Iobj).numKeys==0
+                    warning('Can not generate WCS because header is empty');
                 else
-                    [Result(Iobj).RADESYS, Result(Iobj).EQUINOX] = Result(Iobj).read_radesys_equinox(AH(Iobj));
-
-                    % Get base WCS info
-                    if ~isnan(KeyValStruct.LONPOLE)
-                        Result(Iobj).LONPOLE = KeyValStruct.LONPOLE;
+                    % Read all single val parmeters
+                    KeyValStruct = AH(Iobj).getStructKey({'NAXIS','WCSAXES','LONPOLE','LATPOLE'});
+                    
+                    % if WCSAXES is not available use NAXIS as default
+                    Result(Iobj).NAXIS = KeyValStruct.NAXIS;
+                    Result(Iobj).WCSAXES = KeyValStruct.WCSAXES;
+                    if (Result(Iobj).WCSAXES==0)
+                        Result(Iobj).WCSAXES = Result(Iobj).NAXIS;
                     end
-                    if ~isnan(KeyValStruct.LATPOLE)
-                        Result(Iobj).LATPOLE = KeyValStruct.LATPOLE;
+                    
+                    if Args.read2axes
+                        Result(Iobj).WCSAXES = 2;
+                        Result(Iobj).NAXIS   = 2;
                     end
-
-                    Result(Iobj).CRPIX = cell2mat(AH(Iobj).getCellKey(KeyCrpix));
-                    Result(Iobj).CRVAL = cell2mat(AH(Iobj).getCellKey(KeyCrval));
-                    Result(Iobj).CD = Result(Iobj).build_CD(AH(Iobj),Naxis);
-
-                    % Read distortions
-                    % look for PV coeficients
-                    Result(Iobj).PV = Result(Iobj).build_PV_from_Header(AH(Iobj), Result(Iobj).ProjType);
-
-                    % For TAN-SIP try to get RevPV (TODO generlize)
-                    if strcmpi(Result(Iobj).ProjType,'tan-sip')
-                        Result(Iobj).RevPV = AstroWCS.build_TANSIP_from_Header(AH(Iobj),true);
+                
+                    Naxis = Result(Iobj).WCSAXES;
+    
+                    % prepare mutli axis keys
+                    KeyCtype = cell(1,Naxis);
+                    KeyCunit = cell(1,Naxis);
+                    KeyCrpix = cell(1,Naxis);
+                    KeyCrval = cell(1,Naxis);
+                    for Iaxis1 = 1:1:Naxis
+                        KeyCtype{Iaxis1} = sprintf('CTYPE%d',Iaxis1);
+                        KeyCunit{Iaxis1} = sprintf('CUNIT%d',Iaxis1);
+                        KeyCrpix{Iaxis1} = sprintf('CRPIX%d',Iaxis1);
+                        KeyCrval{Iaxis1} = sprintf('CRVAL%d',Iaxis1);
                     end
-
-                    % populate proj Meta
-                    Result(Iobj).populate_projMeta;
-
-                    % assume header solution is good
-                    Result(Iobj).Success = true;
+    
+                    % Get CTYPE and transalte to projection information (ProjType,
+                    % ProjClass) and CooName and CUNIT
+                    Result(Iobj).CTYPE = AH(Iobj).getCellKey(KeyCtype);
+                    Result(Iobj).CUNIT = AH(Iobj).getCellKey(KeyCunit);
+                    Result(Iobj).read_ctype;
+                
+                    if isnumeric(Result(Iobj).CTYPE{1}) && any(isnan(Result(Iobj).CTYPE{1}))
+                        Result(Iobj).Success = false;
+                    else
+                        [Result(Iobj).RADESYS, Result(Iobj).EQUINOX] = Result(Iobj).read_radesys_equinox(AH(Iobj));
+    
+                        % Get base WCS info
+                        if ~isnan(KeyValStruct.LONPOLE)
+                            Result(Iobj).LONPOLE = KeyValStruct.LONPOLE;
+                        end
+                        if ~isnan(KeyValStruct.LATPOLE)
+                            Result(Iobj).LATPOLE = KeyValStruct.LATPOLE;
+                        end
+    
+                        Result(Iobj).CRPIX = cell2mat(AH(Iobj).getCellKey(KeyCrpix));
+                        Result(Iobj).CRVAL = cell2mat(AH(Iobj).getCellKey(KeyCrval));
+                        Result(Iobj).CD = Result(Iobj).build_CD(AH(Iobj),Naxis);
+    
+                        % Read distortions
+                        % look for PV coeficients
+                        Result(Iobj).PV = Result(Iobj).build_PV_from_Header(AH(Iobj), Result(Iobj).ProjType);
+    
+                        % For TAN-SIP try to get RevPV (TODO generlize)
+                        if strcmpi(Result(Iobj).ProjType,'tan-sip')
+                            Result(Iobj).RevPV = AstroWCS.build_TANSIP_from_Header(AH(Iobj),true);
+                        end
+    
+                        % populate proj Meta
+                        Result(Iobj).populate_projMeta;
+    
+                        % assume header solution is good
+                        Result(Iobj).Success = true;
+                    end
                 end
             end
         end

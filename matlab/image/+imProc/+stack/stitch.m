@@ -1,13 +1,18 @@
-function [StitchedImage, AH, RemappedXY] = stitch(Args)
+function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     % Make a mosaic sky image from a set of input AstroImages
     % Package: imProc.stack 
-    % Input:   - 
+    % Input:   - A mask FITS file namesto stich into a single large image.
+    %            Alternatively, this can be asn AstroImage object
+    %            containing the images.
     %          * ...,key,val,...
     %          'DataDir'       : The directory containing the input images
-    %          'InputImages'   : The mask of the input image filenames
     %          'PixScale'      : [arcsec] The pixel scale (LAST by def.)
     %          'Crop'          : X1 X2 Y1 Y2 margin sizes of the input images to be cropped out
     %          'Method'        : pixel redistribution method on the mosaic image
+    %          'Exposure'      : exposure time to be written into the header of the mosaic image
+    %          'ZP'            : zero point to be written into the header of the mosaic image
+    %          'LASTnaming'    : whether the image file names are in the LAST convention form
+    %          'SizeMargin'    : number of margin pixels added to X and Y size of the mosaic image
     %          
     % Output : - StitchedImage: an AstroImage containing a mosaic made of all the input images
     %          - AH: the header of the mosaic image containing the exposure, ZP and the WCS
@@ -20,14 +25,17 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
 
     arguments
         
+        InputImages         =    'LAST*coadd_Image*.fits';       % The mask of the input image filenames
         Args.DataDir        =    '/home/sasha/Obs1/';            % The directory containing the input images
-        Args.InputImages    =    'LAST*coadd_Image*.fits';       % The mask of the input image filenames
         Args.PixScale       =    1.25;                           % [arcsec] The pixel scale (LAST by def.)
         Args.Crop           =    [20 20 20 20];                  % X1 X2 Y1 Y2 margin sizes of the input images to be cropped out
         Args.Method         =    'redistribute';                 % pixel redistribution method on the mosaic image
         Args.Exposure       =    0;                              % exposure time to be written into the header of the mosaic image
         Args.ZP             =    0;                              % zero point to be written into the header of the mosaic image
-        
+        Args.LASTnaming logical = true;                          % whether the image file names are in the LAST convention form
+        Args.SizeMargin     =    [30 30];                        % number of margin pixels added to X and Y size of the mosaic
+                                                                 % (needed due to the insufficient accurancy of the mosaic size determination)
+                                                                 
     end
     
     % set some constants and image parameters 
@@ -41,10 +49,28 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
     
             cprintf('hyper','%s\n','Mosaicking started'); tic
             fprintf('Reading input images.. ');
+            
+    if isa(InputImages,'AstroImage')
+        
+        AI = InputImages;
+        AI = populateWCS(AI); % TBC: do we really need it in all the cases? 
+        
+    else
 
-    cd(Args.DataDir);
-    FN = FileNames.generateFromFileName( Args.InputImages );
-    AI = AstroImage.readFileNamesObj( FN) ;  
+        cd(Args.DataDir);
+        
+        if Args.LASTnaming
+            
+            FN = FileNames.generateFromFileName( InputImages );
+            AI = AstroImage.readFileNamesObj( FN ) ;  
+            
+        else % TBD: list the files and read them into AIs, also make additions to the output file name back
+            
+            error('The input file names do not comply to the LAST naming convention');
+            
+        end
+
+    end
     
     NImage = size(AI,2);                % determine the number of images to be merged    
     
@@ -75,7 +101,9 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
         Exptime(Img) = AI(Img).Header{Position,2};                  % get the value
         
         Position     = strcmp(AI(Img).Header,'PH_ZP');              % extract a header
-        PH_ZP(Img)   = AI(Img).Header{Position,2};                  % get the value
+        if max(Position,[],'all') > 0
+            PH_ZP(Img)   = AI(Img).Header{Position,2};              % get the value
+        end
         
         % determine the image sizes and find their corners:
                 
@@ -145,10 +173,12 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
     SizeRA  = RAD * celestial.coo.sphere_dist(RA1m    , DECcenter, RA2m,     DECcenter,'deg');
     SizeDEC = RAD * celestial.coo.sphere_dist(RAcenter, DEC1m,     RAcenter, DEC2m,    'deg');
     
-    NPix1 = ceil( SizeRA  / PixScale );    
-    NPix2 = ceil( SizeDEC / PixScale );    
+    NPix1 = ceil( SizeRA  / PixScale ) + Args.SizeMargin(1);    
+    NPix2 = ceil( SizeDEC / PixScale ) + Args.SizeMargin(2);    
     
             cprintf('hyper','%s%4.0f%s%4.0f%s\n','The mosaic size is ',NPix1,' x ',NPix2,' pixels');
+            fprintf('%s%4.0f%4.0f%4.0f%4.0f\n','Number of pixels cropped out from each of the input images (XL, XR, YL, YR): '...
+                    ,Args.Crop);
     
     % make arrays for the mosaic count map and exposure map 
     
@@ -200,8 +230,8 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
         
         % get a grid of RA, DEC of a subimage and convert them to X, Y of the merged image
         
-        XL = Args.Crop(1); XR = Xsize(Img)-Args.Crop(2);
-        YL = Args.Crop(3); YR = Ysize(Img)-Args.Crop(4);
+        XL = Args.Crop(1)+1; XR = Xsize(Img)-Args.Crop(2);
+        YL = Args.Crop(3)+1; YR = Ysize(Img)-Args.Crop(4);
         
         [Ximg, Yimg]    = meshgrid( YL:YR, XL:XR );                % a grid of subimage pixels !NOTE: Ximg is of Ysize!
         [RAimg, DECimg] = AI(Img).WCS.xy2sky(Ximg, Yimg);          % RA, DEC of subimage pixels
@@ -217,9 +247,9 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
 %             Disp(:,:,2) = Yimg-Y;
 
         ImageM = imProc.stack.addImageRedistributePixels(ImageM, SubImage, X, Y, 'Nx', Xred, 'Ny', Yred, ...
-                                                         'XL', XL, 'YL', YL,'Method',Args.Method);
+                                                         'XL', XL-1, 'YL', YL-1,'Method',Args.Method);
         ExposM = imProc.stack.addImageRedistributePixels(ExposM, Exptime(Img), X, Y, 'Nx', Xred, 'Ny', Yred, ...
-                                                         'XL', XL, 'YL', YL,'Method',Args.Method);
+                                                         'XL', XL-1, 'YL', YL-1,'Method',Args.Method);
 
         
     end
@@ -228,7 +258,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
     
     FluxM   = sum(ImageM,'all'); FluxAI = zeros(NImage,1);
     for Img = 1:1:NImage 
-        FluxAI(Img) = sum ( AI(Img).Image(Args.Crop(1):Xsize(Img)-Args.Crop(2),Args.Crop(3):Ysize(Img)-Args.Crop(4)),'all'); 
+        FluxAI(Img) = sum ( AI(Img).Image(Args.Crop(1)+1:Xsize(Img)-Args.Crop(2),Args.Crop(3)+1:Ysize(Img)-Args.Crop(4)),'all'); 
     end
     Cons    = abs( 1- FluxM / sum(FluxAI,'all') );
     fprintf('%s%6.3d\n','Total flux conservation: ',Cons);
@@ -273,7 +303,11 @@ function [StitchedImage, AH, RemappedXY] = stitch(Args)
     
     % make a FITS file:
 %     CPSOutputName = '!./CPS_Obs1a.fits';  
-    CPSOutputName = strcat('!./',FN.ProjName{1},'_',FN.Time{1},'_',FN.FieldID{1},'_stitched.fits');
+    if isa(InputImages,'AstroImage')
+        CPSOutputName = strcat('!./','stitched_image.fits');
+    else
+        CPSOutputName = strcat('!./',FN.ProjName{1},'_',FN.Time{1},'_',FN.FieldID{1},'_stitched_image.fits');
+    end
     StitchedImage.write1(CPSOutputName); % write the image and header to a FITS file
     
     cprintf('hyper','Mosaic constructed, see the output AstroImage and FITS image file.\n');    
