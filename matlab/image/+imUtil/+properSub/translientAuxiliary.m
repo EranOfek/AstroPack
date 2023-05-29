@@ -55,8 +55,8 @@ function [Z2Prefactors,Norm] = translientAuxiliary(Pn, Pr, SigmaN, SigmaR, Args)
 
     M     = size(Pnhat,1); % assume square images for now
 
-% because of linearization of the translation phase (Delta*K), 
-% it is not 2*Pi periodic, so use negative frequancies.
+% because the linearization of the translation phase (Delta*K), 
+% it is not 2*Pi periodic, use negative frequancies.
     FreqArr = fftshift(-ceil(M/2):(floor(M/2)-1));
     [Kx,Ky] = meshgrid(FreqArr);
 
