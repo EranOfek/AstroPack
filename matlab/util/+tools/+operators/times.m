@@ -3,6 +3,9 @@ function Result = times(A, B, UseMex, UseMP, UseAVX)
     % Input  : - A - Array
     %          - B - 
     %
+	%          - UseMex - true to use MEX optimization
+    %          - UseMP - true to use threading
+	%
     % Output : - The result of the operation.
     %
     % Author : Chen Tishler (Apr 2023)
@@ -12,11 +15,11 @@ function Result = times(A, B, UseMex, UseMP, UseAVX)
     %    Result = tools.array.bitsetFlag(Array, Flag, 1, 1);            
     %----------------------------------------------------------------------
     arguments
-        A                  % Input & Output array
-        B				   % Input array
-        UseMex = true;     % True: Use MEX implementation, False: Use MATLAB implementaion
-        UseMP = true;      % True: Use threading with OpenMP multi-threading library
-		UseAVX = false;    % True: Use AVX2/AVX512 implementation
+        A                	% Input & Output array
+        B				   	% Input array
+        UseMex = true;     	% True: Use MEX implementation, False: Use MATLAB implementaion
+        UseMP = true;      	% True: Use threading with OpenMP multi-threading library
+		UseAVX = false;    	% True: Use AVX2/AVX512 implementation
     end
 
     % MATLAB implementation
@@ -45,24 +48,22 @@ function Result = times(A, B, UseMex, UseMP, UseAVX)
     C = lower(class(A));    
     switch C
         case {'uint8','int8'}
-             tools.operators.mex.mex_times8(A, B, int32(UseMP));                               
+             tools.operators.mex.mex_times_int8(A, B, int32(UseMP));                               
         case {'uint16','int16'}
-             tools.operators.mex.mex_times16(A, B, int32(UseMP));                   
+             tools.operators.mex.mex_times_int16(A, B, int32(UseMP));                   
         case {'uint32','int32'}
-             tools.operators.mex.mex_times32(A, B, int32(UseMP));                               
+             tools.operators.mex.mex_times_int32(A, B, int32(UseMP));                               
         case {'uint64','int64'}
-             tools.operators.mex.mex_times64(A, B, int32(UseMP));                               
+             tools.operators.mex.mex_times_int64(A, B, int32(UseMP));                               
         case {'single'}
-             tools.operators.mex.mex_timesSingle(A, B, int32(UseMP));                   
+             tools.operators.mex.mex_times_single(A, B, int32(UseMP));                   
         case {'double'}
             if UseAVX
                 avx = tools.os.get_avx_supported();
                 if avx == 2
                     tools.operators.mex.mex_timesDouble_avx2(A, B, int32(UseMP));
-                elseif avx == 512
-                    tools.operators.mex.mex_timesDouble_avx512(A, B, int32(UseMP));
-                else
-                    tools.operators.mex.mex_timesDouble(A, B, int32(UseMP));
+				else
+                    tools.operators.mex.mex_times_double(A, B, int32(UseMP));
                 end
             else
                 tools.operators.mex.mex_timesDouble(A, B, int32(UseMP));

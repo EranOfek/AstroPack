@@ -1,9 +1,16 @@
+//
+// mex_times_include.cpp
+//
+// Author: Chen Tishler, May 2023
+//
+//
+// Flags for cmex.py:
+//
+// 		$dtype: int8, int16, int32, int64, single, double
+//
+
 #include "mex.h"
 #include <omp.h>
-
-//
-// mex -v CXXFLAGS='$CXXFLAGS -fopenmp' LDFLAGS='$LDFLAGS -fopenmp' CXXOPTIMFLAGS='-O3 -DNDEBUG' mex_timesDouble.cpp
-//
 
 typedef long long int64;
 
@@ -43,10 +50,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     // Get the number of elements in the input arrays
     int64 numel = mxGetNumberOfElements(prhs[0]);
 
-    // Check if the optional argument is provided and is scalar
-    bool useOpenMP = (nrhs == 3) && (*((int*)mxGetData(prhs[2])) != 0);
-    //mexPrintf("OpenMP: %d\n", useOpenMP);
-
+    // Check argument UseMP
+    bool useOpenMP = (nrhs < 3) && (*((int*)mxGetData(prhs[2])) != 0);
+	if (numel < 256)
+		useOpenMP = false;
+	
     int64 remainder = numel % 8;
     int64 simd_size = numel - remainder;
 
