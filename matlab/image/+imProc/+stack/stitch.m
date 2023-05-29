@@ -12,6 +12,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     %          'Exposure'      : exposure time to be written into the header of the mosaic image
     %          'ZP'            : zero point to be written into the header of the mosaic image
     %          'LASTnaming'    : whether the image file names are in the LAST convention form
+    %          'SizeMargin'    : number of margin pixels added to X and Y size of the mosaic image
     %          
     % Output : - StitchedImage: an AstroImage containing a mosaic made of all the input images
     %          - AH: the header of the mosaic image containing the exposure, ZP and the WCS
@@ -32,7 +33,9 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         Args.Exposure       =    0;                              % exposure time to be written into the header of the mosaic image
         Args.ZP             =    0;                              % zero point to be written into the header of the mosaic image
         Args.LASTnaming logical = true;                          % whether the image file names are in the LAST convention form
-        
+        Args.SizeMargin     =    [30 30];                        % number of margin pixels added to X and Y size of the mosaic
+                                                                 % (needed due to the insufficient accurancy of the mosaic size determination)
+                                                                 
     end
     
     % set some constants and image parameters 
@@ -170,10 +173,12 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     SizeRA  = RAD * celestial.coo.sphere_dist(RA1m    , DECcenter, RA2m,     DECcenter,'deg');
     SizeDEC = RAD * celestial.coo.sphere_dist(RAcenter, DEC1m,     RAcenter, DEC2m,    'deg');
     
-    NPix1 = ceil( SizeRA  / PixScale );    
-    NPix2 = ceil( SizeDEC / PixScale );    
+    NPix1 = ceil( SizeRA  / PixScale ) + Args.SizeMargin(1);    
+    NPix2 = ceil( SizeDEC / PixScale ) + Args.SizeMargin(2);    
     
             cprintf('hyper','%s%4.0f%s%4.0f%s\n','The mosaic size is ',NPix1,' x ',NPix2,' pixels');
+            fprintf('%s%4.0f%4.0f%4.0f%4.0f\n','Number of pixels cropped out from each of the input images (XL, XR, YL, YR): '...
+                    ,Args.Crop);
     
     % make arrays for the mosaic count map and exposure map 
     
