@@ -38,6 +38,8 @@ function [Result]=imwarp1(Obj, Trans, Args)
     %                   argument.
     %                   If empty, then do not warp the Mask image.
     %                   Default is 'Mask'.
+    %
+    %            'Sampling' - Sampling rate of WCS [pix]. Default is 10.
     %            'InterpMethod' -  An interpolation method for the images
     %                   in the properties listed in the DataProp argument.
     %                   Default is 'cubic'.
@@ -79,6 +81,8 @@ function [Result]=imwarp1(Obj, Trans, Args)
         
         Args.DataProp                  = {'Image', 'Back', 'Var'};
         Args.DataPropMask              = 'Mask'
+
+        Args.Sampling                  = 10;
         Args.InterpMethod              = 'cubic';
         Args.InterpMethodMask          = 'nearest';
         
@@ -102,12 +106,16 @@ function [Result]=imwarp1(Obj, Trans, Args)
         Result  = Obj;
     end
     
+    Nobj = numel(Obj);
+
     % Delete CatData
     if Args.DeleteCat
         if ~Args.CreateNewObj
             warning('Delete CatData object - will result in deleting the CatData object in the input AstroImage');
         end
-        Result.deleteProp({'CatData'});
+        for Iobj=1:1:Nobj
+            Result(Iobj).CatData = AstroCatalog;
+        end
     end
     
     % Delete WCS
@@ -115,7 +123,9 @@ function [Result]=imwarp1(Obj, Trans, Args)
         if ~Args.CreateNewObj
             warning('Delete WCS object - will result in deleting the WCS object in the input AstroImage');
         end
-        Result.deleteProp({'WCS'});
+        for Iobj=1:1:Nobj
+            Result(Iobj).WCS = AstroWCS;
+        end
     end
     
     % Delete Header
@@ -123,7 +133,9 @@ function [Result]=imwarp1(Obj, Trans, Args)
         if ~Args.CreateNewObj
             warning('Delete Header object - will result in deleting the Header object in the input AstroImage');
         end
-        Result.deleteProp({'HeaderData'});
+        for Iobj=1:1:Nobj
+            Result(Iobj).HeaderData = AstroHeader;
+        end
     end
     
     % Treat the diffrent cases of Trans:
@@ -202,8 +214,9 @@ function [Result]=imwarp1(Obj, Trans, Args)
     % if IsDisplacment=true: DispField,    otherwise: ImWarpTransformation
     % Also populated: Ntran, OutWCS
     
-    Nobj = numel(Obj);
     
+    Nprop = numel(Args.DataProp);
+
     for Iobj=1:1:Nobj
         
         % get the FillVal for each image:
@@ -275,7 +288,8 @@ function [Result]=imwarp1(Obj, Trans, Args)
             if isempty(OutWCS)
                 warning('TransWCS=true option is not available for non-WCS transformations')
             else
-                Result(Iobj).WCS = OutWCS;
+                Iwcs = min(Iobj, Ntran);
+                Result(Iobj).WCS = OutWCS(Iwcs);
                 Result(Iobj).HeaderData = wcs2header(Result(Iobj).WCS, Result(Iobj).HeaderData);
             end
         end

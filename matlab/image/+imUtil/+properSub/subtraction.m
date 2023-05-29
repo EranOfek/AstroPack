@@ -203,10 +203,12 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
     
         if ApplySourceNoise || ApplyAstNoise
             % denominator of S_corr
-            Vcorr     = sqrt(Vcorr);
+            %Vcorr     = sqrt(Vcorr);
 
             S         = ifft2(S_hat);
-            Scorr     = S./Vcorr;
+            Scorr     = S./sqrt(Vcorr);
+
+            %Scorr = S./sqrt(Vcorr./median(Vcorr,'all','omitnan'));
         else
             Scorr     = [];
         end

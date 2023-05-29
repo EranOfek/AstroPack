@@ -1,4 +1,4 @@
-function Result = properSubtraction(ObjNew, ObjRef, Args)
+function [D, S, Scorr] = properSubtraction(ObjNew, ObjRef, Args)
     %
     % Example: AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
     %          AIreg= imProc.background.background(AIreg,'SubSizeXY',[]);    
@@ -57,7 +57,10 @@ function Result = properSubtraction(ObjNew, ObjRef, Args)
         error('%d out of %d PSFData property in the Ref images are empty', sum(IsEmptyRefPSF), N_R);
     end
 
- 
+    D     = ObjNew.copy;
+    S     = ObjNew.copy;
+    Scorr = ObjNew.copy;
+
     for Imax=1:1:Nmax
         Ir = min(N_R, Imax);
         In = min(N_N, Imax);
@@ -112,31 +115,70 @@ function Result = properSubtraction(ObjNew, ObjRef, Args)
         
 
 
+
         % Image subtraction
         R_hat = fft2(R);
         N_hat = fft2(N);
         Pr_hat = fft2(Pr);
         Pn_hat = fft2(Pn);
         [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr);
-        D=ifft2(D_hat);
+        ImageD=ifft2(D_hat);
+        
+        Pd     = ifft2(Pd_hat);
+        Pd     = imUtil.psf.full2stamp(Pd);
+
+        tic;
         S_hat = D_hat.*conj(Pd_hat);
-        S = ifft2(S_hat);
-        S = S - median(S,'all','omitnan');
-        S = S./tools.math.stat.rstd(S,'all');
+        ImageS = ifft2(S_hat);
+        toc
+
+        tic;
+        ImageS = imUtil.filter.filter2_fast(ImageD, Pd);
+        toc
+
+        %[Z2,Zhat,Norm] = imUtil.properSub.translient(N.*Fn, R.*Fr, Pn, Pr, SigmaN, SigmaR);
 
 
-        [D, Pd, S, Scorr] = imUtil.properSub.subtraction(N, R, Pn, Pr, SigmaN, SigmaR, 'SigmaAstN',[0.1 0.1], 'SigmaAstR',[0.1 0.1], 'EmpiricalNorm',true);
+        % FrVec = (0.9:0.01:1.1)';
+        % Nr = numel(FrVec);
+        % for II=1:1:Nr
+        %     Fr= FrVec(II)
+
+        %[ImageD, Pd, ImageS, ImageScorr] = imUtil.properSub.subtraction(N, R, Pn, Pr, SigmaN, SigmaR, 'Fn',Fn, 'Fr',Fr, 'SigmaAstN',[0.05 0.05], 'SigmaAstR',[0.05 0.05], 'EmpiricalNorm',false);
 
         % remove from D regions that are NaNs in R or N
-        D(FlagNaN) = NaN;
-        S(FlagNaN) = NaN;
-        Scorr(FlagNaN) = NaN;
+        ImageD(FlagNaN) = NaN;
+        ImageS(FlagNaN) = NaN;
+        %ImageScorr(FlagNaN) = NaN;
 
+        ImageS = ImageS - median(ImageS,'all','omitnan');
+        ImageS = ImageS./tools.math.stat.rstd(ImageS,'all');
+        
+        %ImageScorr = ImageScorr - median(ImageScorr,'all','omitnan');
+        %ImageScorr = ImageScorr./tools.math.stat.rstd(ImageScorr,'all');
+
+
+        % D(II).Image = ImageD;
+        % D(II).PSF   = Pd;
+        % 
+        % S(II).Image = ImageS;
+        % S(II).PSF   = Pd;
+        % 
+        % Scorr(II).Image = ImageScorr;
+        % Scorr(II).PSF   = Pd;
+
+        D(In).Image = ImageD;
+        D(In).PSF   = Pd;
+
+        S(In).Image = ImageS;
+        S(In).PSF   = Pd;
+
+        %Scorr(In).Image = ImageScorr;
+        %Scorr(In).PSF   = Pd;
+
+        %end
         %ds9(single(abs(S)>5).*S,3)
         'a'
-
-
-
 
     end
 

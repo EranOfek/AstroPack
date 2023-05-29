@@ -515,6 +515,20 @@ classdef AstroHeader < Component
     end   
     
     methods  % getVal, etc.
+        function Nline=numKeys(Obj)
+            % Return the number of lines/keywords in each header
+            % Input  : - An AstroHeader object.
+            % Output : - An array with the number of lines in each header.
+            % Author : Eran Ofek (May 2023)
+
+            Nobj=numel(Obj);
+            Nline = zeros(size(Obj));
+            for Iobj=1:1:Nobj
+                Nline(Iobj) = size(Obj(Iobj).Data,1);
+            end
+
+        end
+
         function [Val, Key, Comment, Nfound] = getVal(Obj, KeySynonym, Args)
             % get a single keyword value where the keyword appears first in a dictionary.
             % Input  : - A single element AstroHeader object

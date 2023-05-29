@@ -15,6 +15,8 @@ function PSF = psf_zeroConverge(PSF, Args)
     %                   Default is @imUtil.kernel2.gauss.
     %            'KernelSigma' - First argument to pass to the kernel
     %                   function. Default is 1.5.
+    %            'SetNegativeTo0' - A logical indicating if to set negative
+    %                   values to 0. Default is true.
     % Output : - The new PSF.
     % Author : Eran Ofek (Dec 2021)
     % Example: PSF = imUtil.psf.psf_zeroConverge(ones(16,16),'Method','radius')
@@ -26,6 +28,7 @@ function PSF = psf_zeroConverge(PSF, Args)
         Args.Radius            = 5;        % radius above to set the zero (Radius method)
         Args.Kernel            = @imUtil.kernel2.gauss
         Args.KernelSigma       = 1.5
+        Args.SetNegativeTo0 logical = true;
     end
     
     switch lower(Args.Method)
@@ -50,11 +53,14 @@ function PSF = psf_zeroConverge(PSF, Args)
             Kernel      = Kernel./ValAtRadius;
             Kernel(Kernel>1) = 1;
             
-            % multiply the PSF by the kenel (at the edges)
+            % multiply the PSF by the kernel (at the edges)
             PSF = Kernel.*PSF;
             
         otherwise
             error('Unknown Method option');
+    end
+    if Args.SetNegativeTo0
+        PSF(PSF<0) = 0;
     end
 
 end
