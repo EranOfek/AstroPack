@@ -574,7 +574,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
     % make an AstroImage (note, the image is to be transposed!)
     usimImage = AstroImage( {ImageSrcNoise'} ,'Back',{NoiseLevel}, 'Var',{ImageBkg},'Cat',{Args.InCat.Catalog});   
-
+    
     % add a simple WCS centered at a given point in the sky
     
     if Args.AddWCS
@@ -607,6 +607,20 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 %     funHeader(usimImage, @insertKey, {'DATEOBS','2026-01-01T00:00:00','';'EXPTIME', Exposure,''});  
 
 %         AH = usimImage.Header;               % save the header back from the AstroImage
+
+    % TBD: make a rotated image (also need to rotate the source catalog!)
+    % either use imrotate or imwarp, but first need to rotate the WCS and
+    % then warp in respect to rotated WCS? 
+    
+    % makes a larger image due to the rotation
+%     ImRot = imrotate(ImageSrcNoise, 45., 'bilinear', 'loose'); 
+%     size(ImRot)     
+   
+     % cuts the sides of the image so that to keep the dimensions of the intial AI
+%     theta = 45; tform = affine2d([cosd(theta) -sind(theta) 0; sind(theta) cosd(theta) 0; 0 0 1]);
+%     ImRot2 = imProc.transIm.imwarp1(usimImage,tform);
+%     size(ImRot2.Image)
+
        
     % save the object in a .mat file for a future usage:
     OutObjName = sprintf('%s%s%s','SimImage_tile',Args.Tile,'.mat');   
