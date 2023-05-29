@@ -71,9 +71,12 @@ function Result = populateDB( Data, Args )
 
                     case 'proc'
                    
-%                         LDB.addProcImage(AH.File, AH, 'xxhash', Sum_h64);
-                        error('The requested table does not exist yet, exiting..');
-                        
+                        LDB.addProcImage(AH.File, AH, 'xxhash', Sum_h64);
+
+                    case 'coadd'
+            
+                        LDB.addCoaddImage(AH.File, AH, 'xxhash', Sum_h64);
+
                     otherwise
                     
                         error('The requested table does not exist yet, exiting..');
