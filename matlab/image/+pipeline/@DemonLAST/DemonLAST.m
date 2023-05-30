@@ -1173,7 +1173,7 @@ classdef DemonLAST < Component
 
                 Args.StartJD       = -Inf;    % refers onlt to Science observations: JD, or [D M Y]
                 Args.EndJD         = Inf;
-                Args.ReloadCalib logical = true; % look for new dark/flat images and load - if false: CI must be provided
+                Args.ReloadCalib logical = false; % look for new dark/flat images and load - if false: CI must be provided
 
                 Args.DeleteSciDayTime logical = false;
                 Args.DeleteSunAlt  = 0;
