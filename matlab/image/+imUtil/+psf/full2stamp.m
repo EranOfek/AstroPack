@@ -17,6 +17,10 @@ function Stamp=full2stamp(Full, Args)
     %            'zeroConvArgs' - A cell array of arguments to pass to
     %                   imUtil.psf.psf_zeroConverge
     %                   Default is {}.
+    %            'Norm' - Normalize the PSF stamp by this value.
+    %                   If true, then will normalize the PSF by its sum
+    %                   (such that integral will be 1).
+    %                   Default is true.
     % Output : - A PSF (centered) in a stamp.
     % Author : Eran Ofek (May 2023)
     % Example: Stamp=imUtil.psf.full2stamp(imUtil.kernel2.gauss(2,[101 101]), 'IsCorner',false)
@@ -28,6 +32,7 @@ function Stamp=full2stamp(Full, Args)
         Args.Recenter logical    = false;
         Args.zeroConv logical    = true;
         Args.zeroConvArgs cell   = {};
+        Args.Norm                = true;
     end
 
     SizeFull   = size(Full);
@@ -53,4 +58,13 @@ function Stamp=full2stamp(Full, Args)
     if Args.zeroConv
         Stamp = imUtil.psf.psf_zeroConverge(Stamp, Args.zeroConvArgs{:});
     end
+
+    if islogical(Args.Norm)
+        if Args.Norm
+            Stamp = Stamp./sum(Stamp,[1 2]);
+        end
+    else
+        Stamp = Stamp./Args.Norm;
+    end
+
 end

@@ -9,6 +9,7 @@ function [Kr_hat, Kn_hat, V_Sr, V_Sn, Vcorr] = sourceNoise(Fr, Fn, Pr_hat, Pn_ha
     %          - (VN) new variance.
     %          - (VR) ref variance.
     %          - Absolute value function - e.g., @(X) conj(X).*X or @(X) abs(X);
+    %            Default is @(x) abs(X)
     % Output : - kr_hat
     %          - kn_hat
     %          - V_Sr
@@ -16,6 +17,17 @@ function [Kr_hat, Kn_hat, V_Sr, V_Sn, Vcorr] = sourceNoise(Fr, Fn, Pr_hat, Pn_ha
     %          - Vcorr Variance for S_corr (source noise corrected S).
     % Author : Eran Ofek (Apr 2022)
     
+    arguments
+        Fr
+        Fn
+        Pr_hat
+        Pn_hat
+        D_den
+        VN
+        VR
+        AbsFun   = @(x) abs(x);
+
+    end
     
     % ZOGY Equations 26-29
     Kr_hat    = Fr.*Fn.^2.*conj(Pr_hat).*AbsFun(Pn_hat).^2./D_den;
