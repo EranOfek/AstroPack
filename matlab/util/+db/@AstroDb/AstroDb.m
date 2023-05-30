@@ -614,7 +614,7 @@ classdef AstroDb < Component
 
         end
 
-        
+        %%%%%%%%%
         
         function [Result] = addImages2DB( Obj, Args )
         % Add images from a directory to a database
@@ -676,6 +676,10 @@ classdef AstroDb < Component
         Result = 0;   % success
 
         end
+
+        %%%%%%%%%
+
+        
 
         %%%%%%%%% end functions added by @kra
          
