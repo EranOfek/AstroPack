@@ -1,4 +1,4 @@
-function Result = imwarp(Obj, Trans, Args)
+function [Result]=imwarp(Obj, Trans, Args)
     % Apply the imwarp function on AstroImage object
     %   The Header, CatData, and PSF are not transformed.
     % Input  : - An AstroImage object
@@ -13,8 +13,20 @@ function Result = imwarp(Obj, Trans, Args)
     %            6. Tran2D object
     %            7. An affine transformation object
     %               struct array with displacement fields in DF field.
-    %            
+    %   
     %          * ...,key,val,...
+    %            'DeleteCat' - Delete the catalog (CatData) for the output
+    %                   AstroImage. If 'CreateNeObj'=false, then this will
+    %                   also delete the CatData property from the input
+    %                   AstroImage. Default is true.
+    %            'DeleteWCS' - The same as DeleteCat, but for the WCS
+    %                   information.
+    %                   Note that if TransWCS=true, then the WCS of the
+    %                   registerd image will be repopulated with the
+    %                   correct WCS.
+    %                   Default is true.
+    %            'DeleteHeader' - The same as DeleteCat, but for the
+    %                   HeaderData property. Default is false.
     %            'DataProp' - A cell array of data properies in the input
     %                   AstroImage on which to operate the imwarp transformation
     %                   with the interpolation provided by the InterpMethod 
@@ -26,15 +38,14 @@ function Result = imwarp(Obj, Trans, Args)
     %                   argument.
     %                   If empty, then do not warp the Mask image.
     %                   Default is 'Mask'.
+    %
+    %            'Sampling' - Sampling rate of WCS [pix]. Default is 10.
     %            'InterpMethod' -  An interpolation method for the images
     %                   in the properties listed in the DataProp argument.
     %                   Default is 'cubic'.
     %            'InterpMethodMask' - An interpolation method for the images
     %                   in the properties listed in the DataPropMask argument.
     %                   Default is 'nearest'.
-    %            'DeleteProp' - A cell array of Data properties to delete
-    %                   from the output AstroImage after the transformation was
-    %                   applied. Default is {}.
     %
     %            'FillValues' - Replace NaNs/out of range with the
     %                   following numeric value. If a char array then will replace
@@ -53,70 +64,84 @@ function Result = imwarp(Obj, Trans, Args)
     %                   new copy of the input AstroImage (true), or just an handle
     %                   to the original input (false).
     %                   Default is true.
-    %            'GetAllFields' - A logical indicating if to copy all
-    %                   fields. If false, then only the header will be
-    %                   copied (only if CopyHeader=true).
-    %                   Default is false.
-    %            'CopyHeader' - A logical indicating if to copy the header
-    %                   (used only if GetAllFields=false).
-    %                   Default is true.
     %            'CopYPSF' - A logical indicating if to copy the PSF from
     %                   the original AstroImage to the transformed AstroImage.
     %                   Will create a new PSFData object.
     %                   Default is true.
     % Output : - An AstroImage object containing the input images registered to the reference images.
     % Author : Eran Ofek (Nov 2021)
-    % Example: imProc.transIm.imwarp
+    % Example: RegisteredAI = imProc.transIm.imwarp(AI, WCS);
     
     arguments
-        Obj AstroImage
-        Trans                          = [0 0];
-        Args.Sampling                  = 10;
+        Obj
+        Trans
+        Args.DeleteCat logical         = true;
+        Args.DeleteWCS logical         = true;
+        Args.DeleteHeader logical      = false;
         
         Args.DataProp                  = {'Image', 'Back', 'Var'};
         Args.DataPropMask              = 'Mask'
+
+        Args.Sampling                  = 10;
         Args.InterpMethod              = 'cubic';
         Args.InterpMethodMask          = 'nearest';
-        Args.DeleteProp                = {};
         
         Args.FillValues                = 'back';
         Args.SmoothEdges logical       = true;
-        
-        Args.ReplaceNaN logical        = true;  % replace NaN with FillVal
+        Args.ReplaceNaN logical        = true;  % replace NaN with FillVal | not working on mask
    
         Args.TransWCS logical          = true;
         
         Args.CreateNewObj logical      = true;
-        Args.GetAllFields logical      = false;  % if CreateNewObj=true & GetAllFields=false then the other fields are not copied
-        Args.CopyHeader logical        = true; % copy header even if GetlAllFields=false
+        Args.CopyHeader logical        = true; % copy header
         Args.CopyPSF logical           = true;
+       
+    end
+    
+    FieldName = 'DF';
+    
+    if Args.CreateNewObj
+        Result  = Obj.copy;
+    else
+        Result  = Obj;
     end
     
     Nobj = numel(Obj);
-    
-    OutWCS = [];
-    % create a new copy
-    if Args.CreateNewObj
-        if Args.GetAllFields
-            Result = Obj.copy;
-        else
-            % create a new empty AstroImage object
-            Result = AstroImage(size(Obj));
-            % copy Header
-            if Args.CopyHeader
-                for Iobj=1:1:Nobj
-                    Result(Iobj).HeaderData = Obj(Iobj).HeaderData;
-                end
-            end
+
+    % Delete CatData
+    if Args.DeleteCat
+        if ~Args.CreateNewObj
+            warning('Delete CatData object - will result in deleting the CatData object in the input AstroImage');
         end
-    else
-        Result = Obj;
+        for Iobj=1:1:Nobj
+            Result(Iobj).CatData = AstroCatalog;
+        end
     end
     
-    % number of data properties to transform
-    Nprop = numel(Args.DataProp);
+    % Delete WCS
+    if Args.DeleteWCS
+        if ~Args.CreateNewObj
+            warning('Delete WCS object - will result in deleting the WCS object in the input AstroImage');
+        end
+        for Iobj=1:1:Nobj
+            Result(Iobj).WCS = AstroWCS;
+        end
+    end
     
-    IsDisplacment   = false;
+    % Delete Header
+    if Args.DeleteHeader
+        if ~Args.CreateNewObj
+            warning('Delete Header object - will result in deleting the Header object in the input AstroImage');
+        end
+        for Iobj=1:1:Nobj
+            Result(Iobj).HeaderData = AstroHeader;
+        end
+    end
+    
+    % Treat the diffrent cases of Trans:
+    IsDisplacment   = false;  % This parameter is set to true if using imwarp with displacment field / otherwise affine transformation
+    % affine trans will be stored in: ImWarpTransformation array
+    % displacment field will be stored in: DispField struct array
     if isnumeric(Trans)
         % Trans can be:
         % a two column [X Y] shift matrix
@@ -136,133 +161,65 @@ function Result = imwarp(Obj, Trans, Args)
             for Itran=1:1:NrowSh
                 ImWarpTransformation(Itran) = affine2d([1 0 0; 0 1 0; Trans(Itran,1) Trans(Itran,2) 1]);
             end
+            Ntran = NrowSh;
         elseif all(size(Trans)==[3 3])
             % A 3x3 matrix
             % assume this is an affine transformation
             
             ImWarpTransformation = affine2d(Trans);
+            Ntran                = numel(Trans);
+            
         elseif ndims(Trans)==3 && size(Trans,3)==2
             % A 3D cube in which 3rd dim has size of 2
             % Assume this is a distortion field
-            IsDisplacment   = true;
-            DispField(1).DF = Trans;
+            IsDisplacment            = true;
+            DispField(1).(FieldName) = Trans;
+            Ntran                    = 1;
         else
             error('Unknown Trans (2nd input argument) numeric option'); 
         end
-    else
-        % Trans can be:
-        % AstroImage with AstroWCS
-        % AstroWCS
-        % Tran2D object
-        % An affine transformation object
-        % struct array with displacement fields in DF
         
-        if isa(Trans, 'AstroWCS')
-            % Convert AstroWCS to displacment field
-            IsDisplacment   = true;
-            
-            [ImageSizeY, ImageSizeX]   = sizeImage(Obj);
+    elseif isa(Trans, 'AstroWCS')
+        % Convert AstroWCS to displacment field
+        IsDisplacment   = true;
+        
+        [DispField, OutWCS] = imProc.transIm.wcs2displacment(Obj, Trans, 'Sampling',Args.Sampling, 'FieldName',FieldName);
+        Ntran = numel(DispField);
 
-            DispField = struct('DF',cell(Nobj,1));
-            for Iobj=1:1:Nobj
-                DispField(Iobj).DF  = xy2refxy(Obj(Iobj).WCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Trans, 'Sampling', Args.Sampling);
-            end
-            OutWCS = Trans.copy;
-        elseif isa(Trans, 'AstroImage')
-            % Convert AstroWCS in AstroImage to displacment field
-            IsDisplacment   = true;
-            
-            [ImageSizeY, ImageSizeX]   = sizeImage(Obj);
+    elseif isa(Trans, 'AstroImage')
+        % Convert AstroWCS in AstroImage to displacment field
+        IsDisplacment   = true;
+        
+        [DispField, OutWCS] = imProc.transIm.wcs2displacment(Obj, Trans, 'Sampling',Args.Sampling, 'FieldName',FieldName);
+        Ntran = numel(DispField);
 
-            DispField = struct('DF',cell(Nobj,1));
-
-            if ~Trans.WCS.Success
-                Trans.populateWCS;
-            end 
-
-            for Iobj=1:1:Nobj
-                if ~isempty(Obj(Iobj).WCS) && Obj(Iobj).WCS.Success
-                    DataWCS = Obj(Iobj).WCS;
-                else
-                    % attempt to generate WCS from header
-                    Obj(Iobj).populateWCS;
-                    DataWCS = Obj(Iobj).WCS;
-                end
-
-                DispField(Iobj).DF  = xy2refxy(DataWCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Trans.WCS, 'Sampling', Args.Sampling);
-            end
-            OutWCS = Trans.WCS.copy;
-        elseif isa(Trans, 'affine2d')
-            ImWarpTransformation = Trans;
-            Ntran = numel(ImWarpTransformation);
-            OutWCS = [];
-        elseif isa(Trans, 'Tran2D')
-            error('Tran2D option is not yet supported');
-        elseif isa(Trans, 'struct')
-            % assume as truct array of displacment fields
-            % The struct must contains a .DF field
-            IsDisplacment   = true;
-            DispField = Trans;
-            OutWCS = [];
-        else
-            error('Unknown Trans (2nd input argument) object option'); 
-        end
+    elseif isa(Trans, 'struct')
+        % assume as truct array of displacment fields
+        % The struct must contains a .DF field
+        IsDisplacment   = true;
+        DispField      = Trans;
+        OutWCS         = [];
+        Ntran          = numel(DispField);
+    elseif isa(Trans, 'affine2d')
+        ImWarpTransformation = Trans;
+        OutWCS   = [];
+        Ntran    = numel(ImWarpTransformation);
+    elseif isa(Trans, 'Tran2D')
+        error('Tran2D option is not yet supported');
+    else
+        error('Unknown Trans (2nd input argument) object option'); 
     end
     
-    
-%     if isempty(Args.DisplacmentField) && isempty(Args.RefWCS)
-%         IsDisplacment = false;
-%         if isempty(Args.AffineMat)
-%             % use ShiftXY
-%             % convert shifts to affine2d
-%             [NrowSh, NcolSh] = size(Args.ShiftXY);
-%             if NcolSh~=2
-%                 error('Number of columns in ShiftXY must be 2');
-%             end
-%             
-%             for Itran=1:1:NrowSh
-%                 ImWarpTransformation(Itran) = affine2d([1 0 0; 0 1 0; Args.ShiftXY(Itran,1) Args.ShiftXY(Itran,2) 1]);
-%             end
-%             
-%         else
-%             % use affine2d
-%             if isa(Args.AffineMat, 'affine2d')
-%                 ImWarpTransformation = Args.AffineMat;
-%             else
-%                 % single matrix of affine tran
-%                 ImWarpTransformation = affine2d(Args.AffineMat);
-%             end
-%                 
-%         end
-%     else 
-%         IsDisplacment = true;
-%         if isempty(Args.RefWCS)
-%             if isempty(Args.DisplacmentField)
-%                 error('Either RefWCS or DisplacmentField must be provided');
-%             end
-%             
-%             DispField(1).DF = Args.DisplacmentField; 
-%         
-%         else
-%             % generate displacment field for pairs of images
-%             [ImageSizeY, ImageSizeX]   = sizeImage(Obj);
-% 
-%             DispField = struct('DF',cell(Nobj,1));
-%             for Iobj=1:1:Nobj
-%                 DispField(Iobj).DF  = xy2refxy(Obj(Iobj).WCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Args.RefWCS, 'Sampling', 10);
-%             end
-%         end
-%     end
-   
-    % set OutView
-    % Not clear what to do about this
-    %OutView = affineOutputView(sizeA, ImWarpTransformation)
+    % At this time the following variables are available:
+    % if IsDisplacment=true: DispField,    otherwise: ImWarpTransformation
+    % Also populated: Ntran, OutWCS
     
     
+    Nprop = numel(Args.DataProp);
 
-    Nobj = numel(Obj);
     for Iobj=1:1:Nobj
         
+        % get the FillVal for each image:
         if ischar(Args.FillValues)
             % use median of background
             FillVal = median(Obj(Iobj).Back,[1 2],'omitnan');
@@ -272,7 +229,9 @@ function Result = imwarp(Obj, Trans, Args)
         
         SizeInput = size(Obj(Iobj).(Args.DataProp{1}));
         
-        
+        % treat the two cases:
+        % transformation is in: DispField
+        % transformation is in: ImWarpTransformation (affine)
         if IsDisplacment
             TranArg = DispField(Iobj).DF;
             OutView = [];
@@ -283,6 +242,7 @@ function Result = imwarp(Obj, Trans, Args)
             OutView = affineOutputView(SizeInput, ImWarpTransformation(Itran),'BoundsStyle','CenterOutput');
         end
         
+        % applying imwarp for each image property (except Mask):
         for Iprop=1:1:Nprop
             if ~isemptyImage(Obj(Iobj), Args.DataProp{Iprop})
                 
@@ -320,14 +280,16 @@ function Result = imwarp(Obj, Trans, Args)
             end
         end
         
-        Result(Iobj) = deleteProp(Result(Iobj), Args.DeleteProp);
+        % Delete additional properties:
+        %Result(Iobj) = deleteProp(Result(Iobj), Args.DeleteProp);
         
         if Args.TransWCS
             % Transform the WCS into the new reference frame
             if isempty(OutWCS)
                 warning('TransWCS=true option is not available for non-WCS transformations')
             else
-                Result(Iobj).WCS = OutWCS;
+                Iwcs = min(Iobj, Ntran);
+                Result(Iobj).WCS = OutWCS(Iwcs);
                 Result(Iobj).HeaderData = wcs2header(Result(Iobj).WCS, Result(Iobj).HeaderData);
             end
         end
@@ -336,8 +298,6 @@ function Result = imwarp(Obj, Trans, Args)
             Result(Iobj).PSFData = Obj(Iobj).PSFData.copy;
         end
         
-    end
-    
-    
+    end % for Iobj=1:1:Nobj
     
 end
