@@ -875,7 +875,7 @@ classdef MatchedSources < Component
             %                   If char, then will first search for all
             %                   field names in the first element of the
             %                   MatchedSources object that contains this
-            %                   substring. All the releveant fields will be
+            %                   substring. All the releveant GAIfields will be
             %                   put in a cell array. Will apply the ZP for
             %                   all fields in the cell array.
             %                   Default is 'MAG'.
