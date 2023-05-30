@@ -44,6 +44,7 @@ classdef Component < Base
     % Properties
     properties (SetAccess = public)
         Name        = []                % Name string
+        DataType AstroDataType 
         
         Config Configuration            % Configuration, deafult is system configuration
         Logger MsgLogger                % Logger, default is system logger

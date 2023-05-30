@@ -37,6 +37,7 @@ classdef SciImage < ImageComponent
             % (ImageComponent) constructor
             
             Obj@ImageComponent(varargin{:});
+            Obj.DataType = AstroDataType.Data;
         end
 
     end

@@ -118,6 +118,7 @@ classdef AstroImage < Component
         Back
         Var
         Mask
+        Exp
         Header  % e.g., Header, Header('EXPTIME'), Header({'EXPTIME','IMTYPE'}), Header('IMTYPE',{additional args to keyVal})
         Key
         PSF
@@ -134,6 +135,7 @@ classdef AstroImage < Component
         BackData(1,1) BackImage              %= BackImage;
         VarData(1,1) VarImage                %= VarImage;
         MaskData(1,1) MaskImage              %= MaskImage;
+        ExpData(1,1) ExpImage
         
         HeaderData(1,1) AstroHeader          %= AstroHeader;
         CatData(1,1) AstroCatalog            %= AstroCatalog;
@@ -149,7 +151,8 @@ classdef AstroImage < Component
         Relations   = struct('Image','ImageData',...
                              'Back','BackData',...
                              'Var','VarData',...
-                             'Mask','MaskData');
+                             'Mask','MaskData',...
+                             'Exp','ExpData');
         
         
     end
@@ -191,6 +194,12 @@ classdef AstroImage < Component
             %                   mask image. Default is [].
             %            'MaskDict' - Mask bit dictionary.
             %                   Default is 'BitMask.Image.Default'.
+            %            'Exp' - The same as the file name argument, but
+            %                   for a Exp image. Default is [].
+            %            'ExpHDU' - The same as HDU, but for the
+            %                   Exp image. Default is [].
+            %            'ExpScale' - The same as scale, but for the
+            %                   Exp image. Default is [].
             %            'FileType' - If empty, use auto detection.
             %                   Default is [].
             %            'UseRegExp' - Ues regexp for file name
@@ -223,6 +232,10 @@ classdef AstroImage < Component
                 Args.MaskHDU                  = [];
                 Args.MaskScale                = [];
                 Args.MaskDict                 = 'BitMask.Image.Default';
+                
+                Args.Exp                      = [];
+                Args.ExpHDU                   = [];
+                Args.ExpScale                 = [];
                 
                 Args.PSF                      = [];
                 Args.PSFHDU                   = [];
@@ -286,10 +299,10 @@ classdef AstroImage < Component
                                                                         'FileNames',FN);
                                                                         
                         % Other data properties
-                        ListProp  = {'Back','Var','Mask', 'PSF','Cat'};
-                        ListData  = {'BackData','VarData','MaskData', 'PSFData','CatData'};
-                        ListHDU   = {'BackHDU','VarHDU','MaskHDU', 'PSFHDU','CatHDU'};
-                        ListScale = {'BackScale','VarScale','MaskScale', 'PSFScale','CatScale'};
+                        ListProp  = {'Back','Var','Mask', 'Exp', 'PSF','Cat'};
+                        ListData  = {'BackData','VarData','MaskData', 'ExpData', 'PSFData','CatData'};
+                        ListHDU   = {'BackHDU','VarHDU','MaskHDU', 'ExpHDU', 'PSFHDU','CatHDU'};
+                        ListScale = {'BackScale','VarScale','MaskScale', 'ExpScale', 'PSFScale','CatScale'};
                         
                         Nlist = numel(ListProp);
                         for Ilist=1:1:Nlist
@@ -762,7 +775,17 @@ classdef AstroImage < Component
             % getter for MaskImage
             Data = Obj.MaskData.Image;
         end
-
+        
+        function Obj = set.Exp(Obj, Data)
+            % setter for ExpImage
+            Obj.ExpData.Image = Data;
+        end
+        
+        function Data = get.Exp(Obj)
+            % getter for ExpImage
+            Data = Obj.ExpData.Image;
+        end
+        
         function Obj = set.PSF(Obj, Data)
             % setter for PSFData
             Obj.PSFData.Data = Data;

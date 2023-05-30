@@ -34,8 +34,14 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
     
     
     methods % Constructor
-       
-
+        function Obj=MaskImage(varargin)
+            % Constructor of MaskImage class using the superclass
+            % (ImageComponent) constructor
+            
+            Obj@ImageComponent(varargin{:});
+            Obj.DataType = AstroDataType.Mask;
+        end
+        
     end
   
     methods % Setters/Getters

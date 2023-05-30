@@ -131,7 +131,7 @@ classdef AstroPSF < Component
                         % matrix format
                         Obj.(FieldName) = File;
                     end
-
+                    Obj.DataType = AstroDataType.PSF;
                 end % end if isempty...
             end % end for Ifield
             

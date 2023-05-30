@@ -1,17 +1,17 @@
-% BackImage class
+% ExpImage class
 %   This is a subclass of ImageComponent
-% Description: BackImage inherits from ImageComponent and it doesn't have
+% Description: ExpImage inherits from ImageComponent and it doesn't have
 %   any special capabilities. It is intended for storing background images.
-% Author : Eran Ofek (Apr 2021)
+% Author : Eran Ofek (May 2023)
 % Dependencies:
-% Example : B = BackImage;
+% Example : B = ExpImage;
 
 % #functions (autogen)
 % BackImage - Constructor of BackImage class using the superclass (ImageComponent) constructor
 % #/functions (autogen)
 %
 
-classdef BackImage < ImageComponent
+classdef ExpImage < ImageComponent
     
     properties (Hidden, SetAccess = public)
     end
@@ -26,12 +26,13 @@ classdef BackImage < ImageComponent
     
     methods % Constructor
        
-        function Obj = BackImage(varargin)
+        function Obj = ExpImage(varargin)
             % Constructor of BackImage class using the superclass
             % (ImageComponent) constructor
             
             Obj@ImageComponent(varargin{:});
-            Obj.DataType = AstroDataType.Back;
+            Obj.DataType = AstroDataType.ExpTime;
+            
         end
 
     end
