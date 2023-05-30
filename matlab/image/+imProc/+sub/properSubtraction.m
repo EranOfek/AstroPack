@@ -1,4 +1,4 @@
-function [D, S, Scorr] = properSubtraction(ObjNew, ObjRef, Args)
+function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
     %
     % Example: AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
     %          AIreg= imProc.background.background(AIreg,'SubSizeXY',[]);    
@@ -60,17 +60,24 @@ function [D, S, Scorr] = properSubtraction(ObjNew, ObjRef, Args)
     D     = ObjNew.copy;
     S     = ObjNew.copy;
     Scorr = ObjNew.copy;
+    Z2    = ObjNew.copy;
 
     for Imax=1:1:Nmax
         Ir = min(N_R, Imax);
         In = min(N_N, Imax);
 
         % subtract background
+        Nwb = ObjNew(In).Image;
+        Rwb = ObjRef(Ir).Image;
+
         N = ObjNew(In).Image - ObjNew(In).Back;
+        BackN = ObjNew(In).Back;
         if isempty(Args.RefBack)
             R = ObjRef(Ir).Image - ObjRef(Ir).Back;
+            BackR = ObjRef(Ir).Back;
         else
             R = ObjRef(Ir).Image - Args.RefBack;
+            BackR = Args.RefBack;
         end
 
         % Find regions in N or R that are NaN (for later on)
@@ -136,8 +143,21 @@ function [D, S, Scorr] = properSubtraction(ObjNew, ObjRef, Args)
         ImageS = imUtil.filter.filter2_fast(ImageD, Pd);
         toc
 
-        %[Z2,Zhat,Norm] = imUtil.properSub.translient(N.*Fn, R.*Fr, Pn, Pr, SigmaN, SigmaR);
 
+        FlagN      = isnan(Nwb);
+        Nwb(FlagN) = median(BackN,'all','omitnan');
+        FlagN      = isnan(Rwb);
+        Rwb(FlagN) = median(BackR,'all','omitnan');
+
+        [Kr_hat, Kn_hat, V_Sr, V_Sn, Vcorr] = imUtil.properSub.sourceNoise(Fr, Fn, Pr_hat, Pn_hat, D_den, Nwb.*4.7, Rwb.*4.7);
+        ImageScorr = ImageS./sqrt(Vcorr);
+        
+        %VcorrNorm = Vcorr./median(Vcorr,'all','omitnan');
+        %ImageScorr = ImageS./VcorrNorm;
+
+        [ImageZ2,Zhat,Norm] = imUtil.properSub.translient(N.*Fn, R.*Fr, Pn, Pr, SigmaN, SigmaR);
+        ImageZ2 = ImageZ2 - median(ImageZ2,'all','omitnan');
+        ImageZ2 = ImageZ2./tools.math.stat.rstd(ImageZ2,'all');
 
         % FrVec = (0.9:0.01:1.1)';
         % Nr = numel(FrVec);
@@ -149,13 +169,13 @@ function [D, S, Scorr] = properSubtraction(ObjNew, ObjRef, Args)
         % remove from D regions that are NaNs in R or N
         ImageD(FlagNaN) = NaN;
         ImageS(FlagNaN) = NaN;
-        %ImageScorr(FlagNaN) = NaN;
+        ImageScorr(FlagNaN) = NaN;
 
         ImageS = ImageS - median(ImageS,'all','omitnan');
         ImageS = ImageS./tools.math.stat.rstd(ImageS,'all');
         
-        %ImageScorr = ImageScorr - median(ImageScorr,'all','omitnan');
-        %ImageScorr = ImageScorr./tools.math.stat.rstd(ImageScorr,'all');
+        ImageScorr = ImageScorr - median(ImageScorr,'all','omitnan');
+        ImageScorr = ImageScorr./tools.math.stat.rstd(ImageScorr,'all');
 
 
         % D(II).Image = ImageD;
@@ -173,8 +193,10 @@ function [D, S, Scorr] = properSubtraction(ObjNew, ObjRef, Args)
         S(In).Image = ImageS;
         S(In).PSF   = Pd;
 
-        %Scorr(In).Image = ImageScorr;
-        %Scorr(In).PSF   = Pd;
+        Scorr(In).Image = ImageScorr;
+        Scorr(In).PSF   = Pd;
+
+        Z2(In).Image = ImageZ2;
 
         %end
         %ds9(single(abs(S)>5).*S,3)
