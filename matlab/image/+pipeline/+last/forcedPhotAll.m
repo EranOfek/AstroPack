@@ -62,7 +62,7 @@ function MS=forcedPhotAll(Args)
         
         % get all files
         FN = FileNames(Args.FileTemp);
-        AI = AstroImage.readFileNames(FN,'Path',sprintf('.%s',filesep));
+        AI = AstroImage.readFileNamesObj(FN,'Path',sprintf('.%s',filesep));
         JD = AI.julday;
         
         if ~isempty(Args.EphemTable)

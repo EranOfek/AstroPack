@@ -1,14 +1,16 @@
 
-classdef LastDb < Component
+classdef AstroDb < Component
 
     % Properties
     properties (SetAccess = public)
         Query = []          % DbQuery object
+        Telescope = 'LAST'  % Telescope object
     end
 
 
     methods
-        function Obj = LastDb(Args)
+        
+        function Obj = AstroDb(Args)
             % Create new DbQuery object
             % To use SSH Tunnel, run SSH on local machine, and specify its port:
             %       ssh -L 63331:localhost:5432 ocs@10.23.1.25
@@ -50,10 +52,12 @@ classdef LastDb < Component
             Obj.msgLog(LogLevel.Info, 'Connected, Postgres version: %s', pgver);
             assert(contains(pgver, 'PostgreSQL'));            
         end
+        
     end
 
 
     methods
+        
         function Result = createTables(Obj)
             % Create or update definitions of LAST database tables
             % Input :  - LastDb object
@@ -490,7 +494,191 @@ classdef LastDb < Component
                     io.msgLog(LogLevel.Error, 'setupSSH: FAILED to execute, make sure that psql is found on your PATH: %s', Cmd);
                 end            
             end
-        end        
+        end
+        
+        %%%%%%%%% functions added by @kra
+        
+        function [TupleID, Result] = populateImageDB( Obj, Data, Args )
+            % Populate a database with metadata (header data) from a list of input images
+            % Description: Populate a database with metadata (header data) from a list of input images
+            % Input :  - an AstroDb object 
+            %          - Data : a cell array containing either 
+            %               a) file names of FITS images or b) a name template
+            %               b) a vector of AstroImages 
+            %               c) a vector of AstroHeaders
+            %          * ...,key,val,...
+            %          'DBname'        : DB name
+            %          'DBtable'       : DB table
+            %          'Hash'          : whether to calculate a hashsum of the file and add it to the table
+            %          'FileNames'     : an optinal cell array of file names (if
+            %          only AstroImages or AstroHeaders are provided)
+            % Output : scalar success flag (0 -- images successfully added to the DB)         
+            % Tested : Matlab R2020b
+            % Author : A. Krassilchtchikov (May 2023)
+            % Example: LDB = db.AstroDb(); 
+            %          LDB.populateImageDB ( Imfiles, 'DBtype', 'LAST', 'DBtable', 'raw_images', 'Hash', Args.Hash );
+
+            arguments
+
+                Obj
+                Data                                % input images (file names or AstroImages) or AstroHeaders
+                Args.DBname       = 'LAST';         % DB name
+                Args.DBtable      = 'raw_images';   % DB table
+                Args.Hash logical = true;           % whether to calculate a hashsum and add it to the table
+                Args.FileNames    = {};             % an optional cell array of file names (for the case the first argument is not a file list)
+
+            end
+
+            % determine the number of input images:
+
+            NImg = numel(Data);
+
+            % check whether it is possible to get files for the hash sum
+
+            if numel(Args.FileNames) ~= NImg && ( isa(Data(1), 'AstroImage') ||  isa(Data(1), 'AstroHeader') )
+                Args.Hash = false;
+            end
+
+            % populate the database
+
+            switch lower(Args.DBname)
+
+                case 'last'
+
+                    for Img = 1:1:NImg
+
+                        if isa( Data(Img), 'AstroImage' )
+                            AH = AstroHeader;
+                            AH.Data = Data(Img).Header;
+                        elseif isa( Data(Img), 'AstroHeader' )
+                            AH = Data(Img);
+                        else
+                            AH = AstroHeader( Data(Img), 1 ); 
+                        end
+                        
+                        if ~isa(AH.File,string)
+                            AH.File='';
+                        end 
+
+                        if Args.Hash
+                            Sum_h64 = tools.checksum.xxhash('FileName', char( Data(Img) ) ); 
+                        else
+                            Sum_h64 = '';
+                        end
+
+                        % populate the DB
+
+                        switch lower(Args.DBtable)          
+
+                            case 'raw_images'
+
+                                Obj.addRawImage(AH.File, AH, 'xxhash', Sum_h64);
+
+                            case 'proc_images'
+
+                                Obj.addProcImage(AH.File, AH, 'xxhash', Sum_h64);
+
+                            case 'coadd_images'
+
+                                Obj.addCoaddImage(AH.File, AH, 'xxhash', Sum_h64);
+
+                            otherwise
+
+                                error('The requested table does not exist yet, exiting..');
+
+                        end
+
+                    end
+
+                otherwise
+
+                    error('The requested DB does not exist, exiting..');
+
+            end
+
+            %
+
+            cprintf('hyper','The requested DB successfully populated with image metadata.\n');
+            
+ %          Obj.Query.deleteRecord('TableName', 'raw_images', 'Where', 'filename like ''%143%''')          
+
+%             Result = Obj.Query.select('pk', 'TableName',lower(Args.DBtable),'Where', 'ra > 179','OutType','Table');
+            Result = Obj.Query.select('pk', 'TableName',lower(Args.DBtable),'Where', 'filename like "%UU%"','OutType','Table');
+
+            % ask Chen to implement the "just added" criterion for the query
+            if ~Result
+                TupleID = 0;              
+            else
+                TupleID = Result.pk;
+            end
+
+        end
+
+        
+        
+        function [Result] = addImages2DB( Obj, Args )
+        % Add images from a directory to a database
+        % Description: Add images from a directory to a database
+        % Input:   - 
+        %          * ...,key,val,...
+        %          'DataDir'       : the root directory of a tree to search images within
+        %          'InputImages'   : the mask of the input image filenames
+        %          'DBname'        : DB name
+        %          'DBtable'       : DB table
+        %          'Hash'          : whether to calculate a hashsum of the file and add it to the table
+        % Output : - scalar success flag (0 -- images successfully added to the DB)
+        % Tested : Matlab R2020b
+        % Author : A. Krassilchtchikov et al. (May 2023)
+        % Examples: A = db.AstroDb; 
+        %           A.addImages2DB(A,'DataDir','/home/sasha/Raw2/','DBname','LAST','DBtable','raw_images');
+        %           A.addImages2DB(A,'DataDir','/home/sasha/Obs2/','InputImages','LAST*sci*proc_Image*.fits','DBtable','proc_images')
+        %           A.addImages2DB(A,'DataDir','/home/sasha/Obs2/','InputImages','LAST*sci*coadd_Image*.fits','DBtable','coadd_images')
+    
+        arguments
+
+            Obj
+            Args.DataDir        =    '/home/sasha/Raw/';                % The directory containing the input images
+            Args.InputImages    =    'LAST*sci*raw_Image*.fits';         % The mask of the input image filenames
+            Args.DBname         =    'LAST';
+            Args.DBtable        =    'RAW';
+            Args.Hash  logical  =    true;
+
+        end
+
+        % get a list of input files according to the input mask 
+
+        ImageFiles  = dir ( fullfile(Args.DataDir,'**',Args.InputImages) );
+
+        ImNum = numel(ImageFiles);
+
+        Imfiles = repmat({''}, ImNum, 1);
+        Images  = repmat(AstroImage(), ImNum, 1);
+        Headers = repmat(AstroHeader(), ImNum, 1);
+
+        for Img = 1:1:ImNum
+
+            Imfiles{Img} = fullfile(ImageFiles(Img).folder, ImageFiles(Img).name);
+            Images(Img) = AstroImage(Imfiles(Img));
+            Headers(Img).Data = Images(Img).Header;
+
+        end
+
+        % call the sub to populate the database (3 variants)
+
+        TupleID = Obj.populateImageDB ( Obj, Imfiles, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+        TupleID = Obj.populateImageDB ( Obj, Headers, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+        TupleID = Obj.populateImageDB ( Obj, Images,  'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+
+        fprintf('%s%d','Inserted tuples:',TupleID);
+
+        % assign the Result value
+
+        Result = 0;   % success
+
+        end
+
+        %%%%%%%%% end functions added by @kra
+         
     end
     
     

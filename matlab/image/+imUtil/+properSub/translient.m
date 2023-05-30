@@ -17,8 +17,10 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     %            reference image.  
     %          * ...,key,val,...
     %            'Fn' - The new image (N) flux calibration factor.
+    %                   Will multiply N.
     %                   Default is 1.
     %            'Fr' - The reference image (R) flux calibration factor.
+    %                   Will multiply R.
     %                   Default is 1.  
     %            'IsImFFT' - A logical indicating if the input N and R
     %                   images are in Fourier domain. Default is false.
@@ -69,9 +71,9 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
         error('Translient input images should be square')
     end
 
-    N = N/Args.Fn;
+    N = N.*Args.Fn;
     SigmaN = SigmaN/Args.Fn;
-    R = R/Args.Fr;
+    R = R.*Args.Fr;
     SigmaR = SigmaR/Args.Fr;
    
     if Args.IsImFFT

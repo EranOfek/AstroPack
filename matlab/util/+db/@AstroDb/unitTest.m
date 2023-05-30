@@ -5,19 +5,19 @@ function Result = unitTest()
     % On Linux, use DataGrip by JetBrains
 
     MsgLogger.getSingleton().setLogLevel(LogLevel.Debug, 'type', 'all');
-    io.msgStyle(LogLevel.Test, '@start', 'LastDb test started')
+    io.msgStyle(LogLevel.Test, '@start', 'AstroDb test started')
     io.msgLog(LogLevel.Test, 'Postgres database "unittest" should exist');
 
     % Required on Windows, need to compile it with mex in this folder
     addpath('external/str2doubles/str2doubles');
 
-    % Create LastDb object with default connection parameters
+    % Create AstroDb object with default connection parameters
     TestSSH = false;
     if TestSSH
-        db.LastDb.setupSSH();
+        db.AstroDb.setupSSH();
     end
     
-    LDB = db.LastDb();
+    LDB = db.AstroDb();
    
     
     % Insert new row to table
@@ -92,6 +92,6 @@ function Result = unitTest()
     end
     
     % Done
-    io.msgStyle(LogLevel.Test, '@passed', 'LastDb test passed')
+    io.msgStyle(LogLevel.Test, '@passed', 'AstroDb test passed')
     Result = true;
 end

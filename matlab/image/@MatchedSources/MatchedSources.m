@@ -227,9 +227,10 @@ classdef MatchedSources < Component
             end
             
             List = io.files.rdir(FileTemplate);
-            FN   = FileNames(List);
+            List = fullfile({List.folder},{List.name}).';
+            %FN   = FileNames(List);
             %FN.FormatVersion = '%03d';
-            List = FN.genFile;
+            %List = FN.genFile;
             
             Nlist = numel(List);   
    

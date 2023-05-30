@@ -441,15 +441,20 @@ classdef FileNames < Component
             % Output : - A vector of JD, one per time in object.
             % Author : Eran Ofek (Dec 2022)
             
-            if isnumeric(Obj.Time)
-                JD = Obj.Time;
+
+            if isempty(Obj.Time)
+                Obj.Time = [];
+                JD       = [];
             else
-                FlagN   = cellfun(@ischar, Obj.Time,'UniformOutput',true);
-                DateVec = convert.strFN2date(Obj.Time(FlagN));
-                JD      = nan(numel(FlagN),1);
-                JD(FlagN)  = celestial.time.julday(DateVec(:,[3 2 1 4 5 6]));
-               
-                %JD(~FlagN) = NaN;
+                if isnumeric(Obj.Time)
+                    JD = Obj.Time;
+                else
+                    FlagN   = cellfun(@ischar, Obj.Time,'UniformOutput',true);
+                    DateVec = convert.strFN2date(Obj.Time(FlagN));
+                    JD      = nan(numel(FlagN),1);
+                    JD(FlagN)  = celestial.time.julday(DateVec(:,[3 2 1 4 5 6]));
+                    %JD(~FlagN) = NaN;
+                end
             end
                 
         end
