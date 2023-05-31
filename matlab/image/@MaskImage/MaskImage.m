@@ -39,7 +39,8 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             % (ImageComponent) constructor
             
             Obj@ImageComponent(varargin{:});
-            Obj.DataType = AstroDataType.Mask;
+            Obj.DataType    = AstroDataType.Mask;
+            Obj.ScaleMethod = 'nearest';   % Use nearest interpolation for MaskData
         end
         
     end

@@ -485,7 +485,7 @@ classdef AstroImage < Component
             
             try
                 switch lower(Args.DataProp)
-                    case {'imagedata','backdata','vardata','maskdata','psfdata'}
+                    case {'imagedata','backdata','vardata','maskdata','psfdata','expdata'}
                         ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
                                                  'FileType',Args.FileType,...
                                                  'CCDSEC',Args.CCDSEC,...
@@ -519,6 +519,7 @@ classdef AstroImage < Component
                 warning('Image %s not found - skip upload',Tmp);
                 ImIO = ImageIO; % empty ImageIO
                 Obj = AstroImage.imageIO2AstroImage(ImIO, Args.DataProp, Args.Scale, Args.FileNames, Args.ReadHeader, Args.Obj);
+                            
             end
             
         end
@@ -3327,6 +3328,42 @@ classdef AstroImage < Component
         end
     end
        
+    methods % utilities
+        function Obj=setAutoScale(Obj, Args)
+            % Set the Scale of the Back/Var/Mask/Exp images such that the image size will be equal to the Image data.
+            % Input  : - An AstroImage object.
+            %          * ...,key,val,...
+            % Output : - Update the AstroImage object such that the Scale
+            %            property in the ImageComponent objects is set such
+            %            that the returned image sizes will be equal to the
+            %            Image size.
+            % Author : Eran Ofek (May 2023)
+
+            arguments
+                Obj
+                Args.ImageProp = {'Back','Var','Mask','Exp'};
+            end
+
+            Nprop = numel(Args.ImageProp);
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                SizeImage = Obj(Iobj).sizeImage('Image');
+                for Iprop=1:1:Nprop
+                    SizeProp = Obj(Iobj).sizeImage(Args.ImageProp{Iprop});
+                    Scale    = SizeImage./SizeProp;
+                    
+                    FN = fieldnames(Obj.Relations);
+                    Ind = strcmp(FN, Args.ImageProp{Iprop});
+                    DataProp = Obj.Relations.(FN{Ind});
+
+                    Obj(Iobj).(DataProp).Scale = Scale;
+                end
+            end
+
+        end
+    end
+
     %----------------------------------------------------------------------
     methods (Access = protected)
         function NewObj = copyElement(Obj)
