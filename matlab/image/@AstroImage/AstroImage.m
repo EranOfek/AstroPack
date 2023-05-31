@@ -3329,6 +3329,29 @@ classdef AstroImage < Component
     end
        
     methods % utilities
+        function DataProp = depandentProp2DataProp(Obj, Prop)
+            % Depandent property to data property containing the ImageComponent object.
+            %   Given a dependent data property (e.g., 'Image') convert to
+            %   property name containing the ImageComponent object (e.g., 'ImageData').
+            % Input  : - An AstroImage object.
+            %          - Dependent property (e.g., 'Image','Back','Exp')
+            % Output : - The property name containing the data corresponding 
+            %            to the dependent property
+            %            (e.g., 'ImageData','BackData','ExpData').
+            % Author : Eran Ofek (May 2023)
+            % Example: AI.depandentProp2DataProp('Exp')
+            
+            arguments
+                Obj(1,1)
+                Prop char
+            end
+            
+            FN = fieldnames(Obj.Relations);            
+            Flag = strcmp(FN, Prop);
+            DataProp = Obj.Relations.(FN{Flag});
+            
+        end
+        
         function Obj=setAutoScale(Obj, Args)
             % Set the Scale of the Back/Var/Mask/Exp images such that the image size will be equal to the Image data.
             % Input  : - An AstroImage object.
@@ -3345,7 +3368,7 @@ classdef AstroImage < Component
             end
 
             Nprop = numel(Args.ImageProp);
-
+            
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 SizeImage = Obj(Iobj).sizeImage('Image');
@@ -3353,9 +3376,10 @@ classdef AstroImage < Component
                     SizeProp = Obj(Iobj).sizeImage(Args.ImageProp{Iprop});
                     Scale    = SizeImage./SizeProp;
                     
-                    FN = fieldnames(Obj.Relations);
-                    Ind = strcmp(FN, Args.ImageProp{Iprop});
-                    DataProp = Obj.Relations.(FN{Ind});
+                    DataProp = Obj(Iobj).depandentProp2DataProp(Args.ImageProp{Iprop});
+                    %FN = fieldnames(Obj.Relations);
+                    %Ind = strcmp(FN, Args.ImageProp{Iprop});
+                    %DataProp = Obj.Relations.(FN{Ind});
 
                     Obj(Iobj).(DataProp).Scale = Scale;
                 end
