@@ -51,6 +51,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
     %            'psfPhotCubeArgs' - A cell array of additional arguments
     %                   to pass to imUtil.sources.psfPhotCube.
     %                   Default is {}.
+    %            'ZP' - ZP for magnitude calculations. Default is 25.
     % Output : - The input AstroImage object, where the following column
     %            names were optionally added to the AStroCatalog:
     %            {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'MAGERR_PSF', 'PSF_CHI2DOF'}
@@ -83,6 +84,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
         Args.mexCutout logical       = true;
         Args.Circle logical          = false;
         Args.psfPhotCubeArgs cell    = {};
+        Args.ZP                      = 25;
 
         Args.ColSN                   = 'SN_3';  % if empty don't use
     end
@@ -165,6 +167,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                                                                     'Std',Std,...
                                                                     'Back',0,...
                                                                     'FitRadius',Args.FitRadius,...
+                                                                    'ZP',Args.ZP,...
                                                                     'backgroundCubeArgs',Args.backgroundCubeArgs,...
                                                                     Args.psfPhotCubeArgs{:});
                  
