@@ -815,7 +815,7 @@ classdef AstroDb < Component
         
         
         function [TupleID, Result] = populateCatDB( Obj, Data, Args )
-            % Populate a database with data a list of catalog files or AstroCatalogs
+            % Populate a database with data from a list of catalog files or AstroCatalogs
             % Input :  - an AstroDb object 
             %          - Data : a cell array containing either 
             %               a) file names of catalogs or b) a name template
@@ -980,7 +980,50 @@ classdef AstroDb < Component
 
         %%%%%%%%%
 
-        
+        function Result = updateByTupleID(Obj, Table, TupleID, Colname, Colval)
+        % Update DB table column values for the specified tuple numbers 
+        % Input :  - Obj    : the database object
+        %          - Table  : the table name
+        %          - TupleID: a vector of tuple IDs
+        %          - Colname: name of the column to be changed 
+        %          - Colval : the new column value
+        % Output : - success flag (0 -- images successfully changed the values in the DB)
+        % Tested : Matlab R2020b
+        % Author : A. Krassilchtchikov (May 2023)
+        % Examples: A = db.AstroDb; 
+        %           A.updateByTupleID(A,'proc_images',[2:10],'ra',218)
+        %           (change 'ra' to 218 in tuples with ids from 2 to 10 in the 'proc_images' table)
+        %           A.updateByTupleID(A,'raw_images',Tuples,'procstat','seeing 0.5')
+        %           (change 'procstat' to 'seeing 0.5' for tuples listed in the vector Tuples)
+            
+            arguments
+                
+                Obj
+                
+                Table              % DB table name
+                
+                TupleID            % a vector of unique tuple ids
+                
+                Colname            % name of column to change
+                
+                Colval             % column value to insert for the given tuple ids
+                
+            end
+            
+            if isnumeric(Colval)
+                Action = strcat(Colname,' = ',num2str(Colval));
+            else
+                Action = strcat(Colname,' = ''',Colval,'''');
+            end
+               
+            for ITup = 1:1:numel(TupleID)
+                
+                Cond = strcat('pk =', int2str( TupleID(ITup) ));
+                Result = Obj.Query.update(Action, 'TableName', Table, 'Where', Cond);
+                
+            end
+            
+        end
 
         %%%%%%%%% end functions added by @kra
          
