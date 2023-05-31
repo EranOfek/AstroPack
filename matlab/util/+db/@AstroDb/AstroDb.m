@@ -69,7 +69,7 @@ classdef AstroDb < Component
             Obj.createTable_raw_images();
             Obj.createTable_proc_images();
             Obj.createTable_coadd_images();
-            Obj.createTable_catalog();
+            Obj.createTable_src_catalog();
            
             Result = true;
         end
@@ -81,7 +81,7 @@ classdef AstroDb < Component
             %            The following keys are available:
             % Output  : True on success
             % Author  : Chen Tishler (02/2023)
-            % Example : createTables()
+            % Example : 
             arguments
                 Obj
             end
@@ -101,7 +101,7 @@ classdef AstroDb < Component
             %            The following keys are available:
             % Output  : True on success
             % Author  : Chen Tishler (02/2023)
-            % Example : createTables()
+            % Example : 
             arguments
                 Obj
             end
@@ -121,7 +121,7 @@ classdef AstroDb < Component
             %            The following keys are available:
             % Output  : True on success
             % Author  : Chen Tishler (02/2023)
-            % Example : createTables()
+            % Example : 
             arguments
                 Obj
             end
@@ -133,21 +133,21 @@ classdef AstroDb < Component
             Result = Obj.addCommonImageColumns(Q, TN);
         end
 
-         function Result = createTable_catalog(Obj)
+         function Result = createTable_src_catalog(Obj)
             % Create or update definitions of LAST database tables
             % Input :  - LastDb object
             %          * Pairs of ...,key,val,...
             %            The following keys are available:
             % Output  : True on success
             % Author  : Chen Tishler (02/2023)
-            % Example : createTables()
+            % Example : 
             arguments
                 Obj
             end
 
             % Create table
             Q = Obj.Query;
-            TN = 'catalog';
+            TN = 'src_catalog';
             Q.createTable('TableName', TN, 'AutoPk', 'pk', 'Drop', false);
             Result = Obj.addCommonCatalogColumns(Q, TN);
         end
@@ -348,129 +348,67 @@ classdef AstroDb < Component
             % Columns with index
             Q.addColumn(TN, 'filename', 'varchar(256)', '', 'index', true);
             Q.addColumn(TN, 'xxhash',   'varchar(80)', '', 'index', true);
-%             Q.addColumn(TN, 'imtype',   'varchar(80)', '', 'index', true);
-% 
-%     {'XPEAK'         }
-%     {'YPEAK'         }
-%     {'X1'            }
-%     {'Y1'            }
-%     {'X2'            }
-%     {'Y2'            }
-%     {'XY'            }
-%     {'SN_1'          }
-%     {'SN_2'          }
-%     {'SN_3'          }
-%     {'SN_4'          }
-%     {'SN_5'          }
-%     {'BACK_IM'       }
-%     {'VAR_IM'        }
-%     {'BACK_ANNULUS'  }
-%     {'STD_ANNULUS'   }
-%     {'FLUX_APER_1'   }
-%     {'FLUX_APER_2'   }
-%     {'FLUX_APER_3'   }
-%     {'FLUXERR_APER_1'}
-%     {'FLUXERR_APER_2'}
-%     {'FLUXERR_APER_3'}
-%     {'MAG_APER_1'    }
-%     {'MAG_APER_2'    }
-%     {'MAG_APER_3'    }
-%     {'MAGERR_APER_1' }
-%     {'MAGERR_APER_2' }
-%     {'MAGERR_APER_3' }
-%     {'FLUX_CONV_1'   }
-%     {'FLUX_CONV_2'   }
-%     {'FLUX_CONV_3'   }
-%     {'FLUX_CONV_4'   }
-%     {'FLUX_CONV_5'   }
-%     {'MAG_CONV_1'    }
-%     {'MAG_CONV_2'    }
-%     {'MAG_CONV_3'    }
-%     {'MAG_CONV_4'    }
-%     {'MAG_CONV_5'    }
-%     {'MAGERR_CONV_1' }
-%     {'MAGERR_CONV_2' }
-%     {'MAGERR_CONV_3' }
-%     {'MAGERR_CONV_4' }
-%     {'MAGERR_CONV_5' }
-%     {'FLAGS'         }
-%     {'X'             }
-%     {'Y'             }
-%     {'FLUX_PSF'      }
-%     {'MAG_PSF'       }
-%     {'PSF_CHI2DOF'   }
-%     {'SN'            }
-%     {'RA'            }
-%     {'Dec'           }
-%     {'MergedCatMask' }
-%     {'Nobs'          }
+%             Q.addColumn(TN, 'cattype',   'varchar(80)', '', 'index', true);
 
-%             % Columns without index
-%             Q.addColumn(TN, 'projname', 'varchar(256)', "default ''");
-%             Q.addColumn(TN, 'obslon',   'single', 'default 0');
-%             Q.addColumn(TN, 'obslat',   'single', 'default 0');
-%             Q.addColumn(TN, 'obsalt',   'single', 'default 0');
-%             Q.addColumn(TN, 'lst',      'single', 'default 0');
-%             Q.addColumn(TN, 'date_obs', 'varchar(80)', "default ''");
-% 
-%             %
-%             Q.addColumn(TN, 'm_ra',     'double', 'default 0');
-%             Q.addColumn(TN, 'm_dec',    'double', 'default 0');
-%             Q.addColumn(TN, 'm_ha',     'double', 'default 0');
-%             Q.addColumn(TN, 'm_jra',    'double', 'default 0');
-%             Q.addColumn(TN, 'm_jdec',   'double', 'default 0');
-%             Q.addColumn(TN, 'm_jha',    'double', 'default 0');
-%             Q.addColumn(TN, 'ha',       'double', 'default 0');
-% 
-%             %
-%             Q.addColumn(TN, 'equinox',  'single', 'default 0');
-%             Q.addColumn(TN, 'm_az',     'single', 'default 0');
-%             Q.addColumn(TN, 'm_alt',    'single', 'default 0');
-%             Q.addColumn(TN, 'az',       'single', 'default 0');
-%             Q.addColumn(TN, 'alt',      'single', 'default 0');
-%             Q.addColumn(TN, 'airmass',  'single', 'default 0');
-%             Q.addColumn(TN, 'trk_ra',   'single', 'default 0');
-%             Q.addColumn(TN, 'trk_dec',  'single', 'default 0');
-%             Q.addColumn(TN, 'mnttemp',  'single', 'default 0');
-%             Q.addColumn(TN, 'focus',    'single', 'default 0');
-%             Q.addColumn(TN, 'prvfocus', 'single', 'default 0');
-%             
-%             % Additional
-%             Q.addColumn(TN, 'procstat', 'varchar(256)', "default ''", 'Comment', 'Additional user data');
-%             
-%             % added by @kra:
-%                            
-%                 Q.addColumn(TN, 'fieldid',      'varchar(80)', "default ''");
-%                 Q.addColumn(TN, 'timezone',     'single', 'default 0');
-%                 Q.addColumn(TN, 'level',        'varchar(80)', "default ''");
-%                 Q.addColumn(TN, 'version',      'varchar(80)', "default ''");
-%                 Q.addColumn(TN, 'subdir',       'varchar(80)', "default ''");
-%                 Q.addColumn(TN, 'overscan',     'varchar(80)', "default ''");
-%                 Q.addColumn(TN, 'origgain',     'single', 'default 0');
-%                 Q.addColumn(TN, 'wcsaxes',      'smallint', 'default 0');
-%                 Q.addColumn(TN, 'radesys',      'varchar(80)', "default ''");
-%                 Q.addColumn(TN, 'lonpole',      'single', 'default 0');
-%                 Q.addColumn(TN, 'latpole',      'single', 'default 0');
-%                 Q.addColumn(TN, 'ctype1',       'varchar(80)', "default ''");
-%                 Q.addColumn(TN, 'ctype2',       'varchar(80)', "default ''");
-%                 Q.addColumn(TN, 'cunit1',       'varchar(80)', "default ''");
-%                 Q.addColumn(TN, 'cunit2',       'varchar(80)', "default ''");
-%                 Q.addColumn(TN, 'ph_zp',        'double', 'default 0');
-%                 Q.addColumn(TN, 'ph_col1',      'double', 'default 0');
-%                 Q.addColumn(TN, 'ph_medc',      'double', 'default 0');
-%                 Q.addColumn(TN, 'ph_rms',       'double', 'default 0');
-%                 Q.addColumn(TN, 'ph_nsrc',      'single', 'default 0');
-%                 Q.addColumn(TN, 'ph_magsy',     'varchar(80)', "default ''");
-%                 Q.addColumn(TN, 'linmag',       'double', 'default 0');
-%                 Q.addColumn(TN, 'backmag',      'double', 'default 0');
-%                 Q.addColumn(TN, 'midjd',        'double', 'default 0');
-%                 Q.addColumn(TN, 'minjd',        'double', 'default 0');
-%                 Q.addColumn(TN, 'maxjd',        'double', 'default 0');
-%                 Q.addColumn(TN, 'sublevel',     'varchar(80)', "default ''");
-%                 Q.addColumn(TN, 'gm_ratex',     'double', 'default 0');
-%                 Q.addColumn(TN, 'gm_stdx',      'double', 'default 0');
-%                 Q.addColumn(TN, 'gm_ratey',     'double', 'default 0');
-%                 Q.addColumn(TN, 'gm_stdy',      'double', 'default 0');
+            % Columns without index
+            Q.addColumn(TN, 'xpeak',        'smallint', 'default 0');
+            Q.addColumn(TN, 'ypeak',        'smallint', 'default 0');
+            Q.addColumn(TN, 'x1',           'single', 'default 0');
+            Q.addColumn(TN, 'y1',           'single', 'default 0');
+            Q.addColumn(TN, 'x2',           'single', 'default 0');
+            Q.addColumn(TN, 'y2',           'single', 'default 0');
+            Q.addColumn(TN, 'xy',           'single', 'default 0');
+            
+            Q.addColumn(TN, 'sn_1',         'single', 'default 0');
+            Q.addColumn(TN, 'sn_2',         'single', 'default 0');
+            Q.addColumn(TN, 'sn_3',         'single', 'default 0');
+            Q.addColumn(TN, 'sn_4',         'single', 'default 0');
+            Q.addColumn(TN, 'sn_5',         'single', 'default 0');
+            Q.addColumn(TN, 'back_im',      'single', 'default 0');
+            Q.addColumn(TN, 'var_im',       'single', 'default 0');
+            Q.addColumn(TN, 'back_annulus', 'single', 'default 0');
+            Q.addColumn(TN, 'std_annulus',  'single', 'default 0');
+            Q.addColumn(TN, 'flux_aper1',   'double', 'default 0');
+            Q.addColumn(TN, 'flux_aper2',   'double', 'default 0');
+            Q.addColumn(TN, 'flux_aper3',   'double', 'default 0');
+            Q.addColumn(TN, 'fluxerr_aper1','double', 'default 0');
+            Q.addColumn(TN, 'fluxerr_aper2','double', 'default 0');
+            Q.addColumn(TN, 'fluxerr_aper3','double', 'default 0');
+            Q.addColumn(TN, 'mag_aper1',    'double', 'default 0');
+            Q.addColumn(TN, 'mag_aper2',    'double', 'default 0');
+            Q.addColumn(TN, 'mag_aper3',    'double', 'default 0');
+            Q.addColumn(TN, 'magerr_aper1', 'double', 'default 0');
+            Q.addColumn(TN, 'magerr_aper2', 'double', 'default 0');
+            Q.addColumn(TN, 'magerr_aper3', 'double', 'default 0');
+            Q.addColumn(TN, 'flux_conv_1',  'double', 'default 0');
+            Q.addColumn(TN, 'flux_conv_2',  'double', 'default 0');
+            Q.addColumn(TN, 'flux_conv_3',  'double', 'default 0');
+            Q.addColumn(TN, 'flux_conv_4',  'double', 'default 0');
+            Q.addColumn(TN, 'flux_conv_5',  'double', 'default 0');
+            Q.addColumn(TN, 'mag_conv_1',   'double', 'default 0');
+            Q.addColumn(TN, 'mag_conv_2',   'double', 'default 0');
+            Q.addColumn(TN, 'mag_conv_3',   'double', 'default 0');
+            Q.addColumn(TN, 'mag_conv_4',   'double', 'default 0');
+            Q.addColumn(TN, 'mag_conv_5',   'double', 'default 0');
+            Q.addColumn(TN, 'magerr_conv_1','double', 'default 0');
+            Q.addColumn(TN, 'magerr_conv_2','double', 'default 0');
+            Q.addColumn(TN, 'magerr_conv_3','double', 'default 0');
+            Q.addColumn(TN, 'magerr_conv_4','double', 'default 0');
+            Q.addColumn(TN, 'magerr_conv_5','double', 'default 0');
+            Q.addColumn(TN, 'flags',        'smallint', 'default 0');
+            Q.addColumn(TN, 'x',            'single', 'default 0');
+            Q.addColumn(TN, 'y',            'single', 'default 0');
+            Q.addColumn(TN, 'flux_psf',     'double', 'default 0');
+            Q.addColumn(TN, 'mag_psf',      'double', 'default 0');
+            Q.addColumn(TN, 'psf_chi2dof',  'single', 'default 0');
+            Q.addColumn(TN, 'sn',           'double', 'default 0');
+            Q.addColumn(TN, 'ra',           'double', 'default 0');
+            Q.addColumn(TN, 'dec',          'double', 'default 0');
+            Q.addColumn(TN, 'mergedcatmask','integer', 'default 0');
+            Q.addColumn(TN, 'nobs',         'smallint', 'default 0');
+                        
+            % Additional
+            Q.addColumn(TN, 'procstat', 'varchar(256)', "default ''", 'Comment', 'Additional user data');             
                 
             Obj.msgLog(LogLevel.Info, 'addCommonCatalogColumns done');
             Result = true;
@@ -481,7 +419,7 @@ classdef AstroDb < Component
     methods
 
         function Result = addRawImage(Obj, FileName, AH, Args)
-            % Insert RAW image columns to raw_images table
+            % Insert RAW image header columns to raw_images table
             % Input :  - LastDb object
             %          - FileName
             %          - AstroHeader
@@ -505,7 +443,7 @@ classdef AstroDb < Component
         
         
         function Result = addProcImage(Obj, FileName, AH, Args)
-            % Insert PROC image columns to table
+            % Insert PROC image header columns to proc_images table
             % Input :  - LastDb object
             %          - FileName
             %          - AstroHeader
@@ -529,7 +467,7 @@ classdef AstroDb < Component
         
          
         function Result = addCoaddImage(Obj, FileName, AH, Args)
-            % Insert PROC image columns to table
+            % Insert COADD image header columns to coadd_images table
             % Input :  - LastDb object
             %          - FileName
             %          - AstroHeader
@@ -549,6 +487,29 @@ classdef AstroDb < Component
             end
 
             Result = Obj.addImage('coadd_images', FileName, AH, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select);
+        end
+                
+        function Result = addSrcCatalog(Obj, FileName, AC, Args)
+            % Insert source cataloge records to src_catalog table
+            % Input :  - LastDb object
+            %          - FileName
+            %          - AstroCatalog
+            %          - Optionally additional columns in struct
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : 
+            arguments
+                Obj                 %
+                FileName            % Image file name
+                AC                  % AstroCatalog
+                Args.AddCols = []   % struct
+                Args.xxhash = []    % Optional
+                Args.Select = false %
+            end
+
+            Result = Obj.addSrcCat('src_catalog', FileName, AC, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select);
         end
                 
         
@@ -616,6 +577,73 @@ classdef AstroDb < Component
             Result = true;
         end
         
+        
+        function Result = addSrcCat(Obj, TableName, FileName, AC, Args)
+                % Insert AstroHeader to specified table.
+                % Input :  - LastDb object
+                %          - TableName
+                %          - FileName
+                %          - AstroHeader
+                %          - struct - Optionally additional columns. MUST BE lowercase!
+                %          * Pairs of ...,key,val,...
+                %            The following keys are available:
+                % Output  : True on success
+                % Author  : Chen Tishler (02/2023)
+                % Example : addImage(
+                arguments
+                    Obj                 %
+                    TableName           % Table name to insert to
+                    FileName            % Image FITS file name
+                    AC                  % AstroHeader to insert 
+                    Args.AddCols = []   % struct - optional additional columns (i.e. AddCols.ColName = ColValue, etc.)
+                    Args.xxhash = []    % When specified, insert also column 'xxhash' with this value
+                    Args.Select = false % When true and Xxhash is specified, first check if image already exists
+                end
+
+                Q = Obj.Query;
+
+                % Xxhash is speicified
+                if ~isempty(Args.xxhash)
+
+                    Args.Select = true;
+
+                    % When Select is true, first check if row already exists
+                    if Args.Select
+                        DataSet = Obj.Query.select('*', 'TableName', TableName, 'Where', sprintf('xxhash = ''%s''', Args.xxhash));
+                        if numel(DataSet.Data) > 0
+                            Result = true;
+                            return;
+                        end
+                    end
+
+                    % Insert it to table
+                    if isempty(Args.AddCols)
+                        Args.AddCols = struct;
+                    end
+                    Args.AddCols.xxhash = Args.xxhash;
+                end
+
+                %%% NEED to add filename to an AstroCatalog object ? 
+                
+%                 % Add FileName to header
+%                 AH.insertKey({'filename', FileName, 'Image file name'}, 'end');
+% 
+%                 % Add additional columns from struct to AstroHeader
+%                 if ~isempty(Args.AddCols)
+%                     Fields = fieldnames(Args.AddCols);
+%                     for i=1:numel(Fields)
+%                         Field = Fields{i};
+%                         Value = Args.AddCols.(Field);
+%                         Field = lower(Field);
+%                         AH.insertKey({Field, Value, ''}, 'end');
+%                     end
+%                 end
+
+                % Insert AstroCatalog to table
+                Q.insert(AC, 'TableName', TableName, 'ColumnsOnly', true);
+                Result = true;
+            end
+
     end
 
     
@@ -727,7 +755,7 @@ classdef AstroDb < Component
                             AH = AstroHeader( Data(Img), 1 ); 
                         end
                         
-                        if ~isa(AH.File,string)
+                        if ~ischar(AH.File)
                             AH.File='';
                         end 
 
@@ -774,10 +802,112 @@ classdef AstroDb < Component
  %          Obj.Query.deleteRecord('TableName', 'raw_images', 'Where', 'filename like ''%143%''')          
 
 %             Result = Obj.Query.select('pk', 'TableName',lower(Args.DBtable),'Where', 'ra > 179','OutType','Table');
-            Result = Obj.Query.select('pk', 'TableName',lower(Args.DBtable),'Where', 'filename like "%UU%"','OutType','Table');
+            Result = Obj.Query.select('pk', 'TableName',lower(Args.DBtable),'Where', 'filename like ''%LAST%''','OutType','Table');
 
             % ask Chen to implement the "just added" criterion for the query
-            if ~Result
+            if numel(Result) == 0
+                TupleID = 0;              
+            else
+                TupleID = Result.pk;
+            end
+
+        end
+        
+        
+        function [TupleID, Result] = populateCatDB( Obj, Data, Args )
+            % Populate a database with data a list of catalog files or AstroCatalogs
+            % Input :  - an AstroDb object 
+            %          - Data : a cell array containing either 
+            %               a) file names of catalogs or b) a name template
+            %               b) a vector of AstroCatalogs 
+            %          * ...,key,val,...
+            %          'DBname'        : DB name
+            %          'DBtable'       : DB table
+            %          'Hash'          : whether to calculate a hashsum of the file and add it to the table
+            %          'FileNames'     : an optinal cell array of file names (if
+            %          only AstroCatalogs are provided)
+            % Output : scalar success flag (0 -- catalogs successfully added to the DB)         
+            % Tested : Matlab R2020b
+            % Author : A. Krassilchtchikov (May 2023)
+            % Example: LDB = db.AstroDb(); 
+            %          LDB.populateCatDB ( Catfiles, 'DBtype', 'LAST', 'DBtable', 'src_catalog', 'Hash', Args.Hash );
+
+            arguments
+
+                Obj
+                Data                                % input images (file names or AstroImages) or AstroHeaders
+                Args.DBname       = 'LAST';         % DB name
+                Args.DBtable      = 'raw_images';   % DB table
+                Args.Hash logical = true;           % whether to calculate a hashsum and add it to the table
+                Args.FileNames    = {};             % an optional cell array of file names (for the case the first argument is not a file list)
+
+            end
+
+            % determine the number of input catalogs:
+
+            NCat = numel(Data);
+
+            % check whether it is possible to get files for the hash sum
+
+            if numel(Args.FileNames) ~= NCat && isa(Data(1), 'AstroCatalog') 
+                Args.Hash = false;
+            end
+
+            % populate the database
+
+            switch lower(Args.DBname)
+
+                case 'last'
+
+                    for ICat = 1:1:NCat
+
+                        if isa( Data(ICat), 'AstroCatalog' )
+                            AC = Data(ICat);
+                        else
+                            AC = AstroCatalog( Data(Img), 1 ); 
+                        end
+                        
+                        if ~ischar(AC.File)
+                            AC.File='';
+                        end 
+
+                        if Args.Hash
+                            Sum_h64 = tools.checksum.xxhash('FileName', char( Data(Img) ) ); 
+                        else
+                            Sum_h64 = '';
+                        end
+
+                        % populate the DB
+
+                        switch lower(Args.DBtable)          
+
+                            case 'src_catalog'
+
+                                Obj.addSrcCatalog(AC.File, AC, 'xxhash', Sum_h64);
+
+                            otherwise
+
+                                error('The requested table does not exist yet, exiting..');
+
+                        end
+
+                    end
+
+                otherwise
+
+                    error('The requested DB does not exist, exiting..');
+
+            end
+
+            %
+
+            cprintf('hyper','The requested DB successfully populated with catalog data.\n');
+            
+%             Result = Obj.Query.select('pk', 'TableName',lower(Args.DBtable),'Where', 'ra > 179','OutType','Table');
+            Result = Obj.Query.select('pk', 'TableName',lower(Args.DBtable),'Where', 'filename like ''%LAST%''','OutType','Table');
+
+            % ask Chen to implement the "just added" criterion for the query
+            if numel(Result) == 0
                 TupleID = 0;              
             else
                 TupleID = Result.pk;
@@ -836,11 +966,11 @@ classdef AstroDb < Component
 
         % call the sub to populate the database (3 variants)
 
-        TupleID = Obj.populateImageDB ( Obj, Imfiles, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
-        TupleID = Obj.populateImageDB ( Obj, Headers, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
-        TupleID = Obj.populateImageDB ( Obj, Images,  'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+%        TupleID = Obj.populateImageDB ( Obj, Imfiles, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+         TupleID = Obj.populateImageDB ( Obj, Headers, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+%         TupleID = Obj.populateImageDB ( Obj, Images,  'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
 
-        fprintf('%s%d','Inserted tuples:',TupleID);
+        fprintf('%s%d\n','Inserted tuples:',TupleID);
 
         % assign the Result value
 
