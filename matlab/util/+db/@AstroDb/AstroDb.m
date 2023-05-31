@@ -55,7 +55,6 @@ classdef AstroDb < Component
         
     end
 
-
     methods
         
         function Result = createTables(Obj)
@@ -68,6 +67,10 @@ classdef AstroDb < Component
             % Example : createTables()
 
             Obj.createTable_raw_images();
+            Obj.createTable_proc_images();
+            Obj.createTable_coadd_images();
+            Obj.createTable_catalog();
+           
             Result = true;
         end
 
@@ -130,6 +133,24 @@ classdef AstroDb < Component
             Result = Obj.addCommonImageColumns(Q, TN);
         end
 
+         function Result = createTable_catalog(Obj)
+            % Create or update definitions of LAST database tables
+            % Input :  - LastDb object
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : createTables()
+            arguments
+                Obj
+            end
+
+            % Create table
+            Q = Obj.Query;
+            TN = 'catalog';
+            Q.createTable('TableName', TN, 'AutoPk', 'pk', 'Drop', false);
+            Result = Obj.addCommonCatalogColumns(Q, TN);
+        end
 
         function Result = addCommonImageColumns(Obj, Q, TN)
             % Add/update common image columns to table
@@ -304,11 +325,161 @@ classdef AstroDb < Component
             Obj.msgLog(LogLevel.Info, 'addCommonImageColumns done');
             Result = true;
         end
+
+
+        function Result = addCommonCatalogColumns(Obj, Q, TN)
+            % Add/update common image columns to table
+            % Input :  - LastDb object
+            %          - Q - DbQuery object (should be Obj.Query)
+            %          - TN - Table name
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : 
+            arguments
+                Obj                 %
+                Q                   %
+                TN                  %
+            end
+
+            Obj.msgLog(LogLevel.Info, 'addCommonImageColumns started');
+
+            % Columns with index
+            Q.addColumn(TN, 'filename', 'varchar(256)', '', 'index', true);
+            Q.addColumn(TN, 'xxhash',   'varchar(80)', '', 'index', true);
+%             Q.addColumn(TN, 'imtype',   'varchar(80)', '', 'index', true);
+% 
+%     {'XPEAK'         }
+%     {'YPEAK'         }
+%     {'X1'            }
+%     {'Y1'            }
+%     {'X2'            }
+%     {'Y2'            }
+%     {'XY'            }
+%     {'SN_1'          }
+%     {'SN_2'          }
+%     {'SN_3'          }
+%     {'SN_4'          }
+%     {'SN_5'          }
+%     {'BACK_IM'       }
+%     {'VAR_IM'        }
+%     {'BACK_ANNULUS'  }
+%     {'STD_ANNULUS'   }
+%     {'FLUX_APER_1'   }
+%     {'FLUX_APER_2'   }
+%     {'FLUX_APER_3'   }
+%     {'FLUXERR_APER_1'}
+%     {'FLUXERR_APER_2'}
+%     {'FLUXERR_APER_3'}
+%     {'MAG_APER_1'    }
+%     {'MAG_APER_2'    }
+%     {'MAG_APER_3'    }
+%     {'MAGERR_APER_1' }
+%     {'MAGERR_APER_2' }
+%     {'MAGERR_APER_3' }
+%     {'FLUX_CONV_1'   }
+%     {'FLUX_CONV_2'   }
+%     {'FLUX_CONV_3'   }
+%     {'FLUX_CONV_4'   }
+%     {'FLUX_CONV_5'   }
+%     {'MAG_CONV_1'    }
+%     {'MAG_CONV_2'    }
+%     {'MAG_CONV_3'    }
+%     {'MAG_CONV_4'    }
+%     {'MAG_CONV_5'    }
+%     {'MAGERR_CONV_1' }
+%     {'MAGERR_CONV_2' }
+%     {'MAGERR_CONV_3' }
+%     {'MAGERR_CONV_4' }
+%     {'MAGERR_CONV_5' }
+%     {'FLAGS'         }
+%     {'X'             }
+%     {'Y'             }
+%     {'FLUX_PSF'      }
+%     {'MAG_PSF'       }
+%     {'PSF_CHI2DOF'   }
+%     {'SN'            }
+%     {'RA'            }
+%     {'Dec'           }
+%     {'MergedCatMask' }
+%     {'Nobs'          }
+
+%             % Columns without index
+%             Q.addColumn(TN, 'projname', 'varchar(256)', "default ''");
+%             Q.addColumn(TN, 'obslon',   'single', 'default 0');
+%             Q.addColumn(TN, 'obslat',   'single', 'default 0');
+%             Q.addColumn(TN, 'obsalt',   'single', 'default 0');
+%             Q.addColumn(TN, 'lst',      'single', 'default 0');
+%             Q.addColumn(TN, 'date_obs', 'varchar(80)', "default ''");
+% 
+%             %
+%             Q.addColumn(TN, 'm_ra',     'double', 'default 0');
+%             Q.addColumn(TN, 'm_dec',    'double', 'default 0');
+%             Q.addColumn(TN, 'm_ha',     'double', 'default 0');
+%             Q.addColumn(TN, 'm_jra',    'double', 'default 0');
+%             Q.addColumn(TN, 'm_jdec',   'double', 'default 0');
+%             Q.addColumn(TN, 'm_jha',    'double', 'default 0');
+%             Q.addColumn(TN, 'ha',       'double', 'default 0');
+% 
+%             %
+%             Q.addColumn(TN, 'equinox',  'single', 'default 0');
+%             Q.addColumn(TN, 'm_az',     'single', 'default 0');
+%             Q.addColumn(TN, 'm_alt',    'single', 'default 0');
+%             Q.addColumn(TN, 'az',       'single', 'default 0');
+%             Q.addColumn(TN, 'alt',      'single', 'default 0');
+%             Q.addColumn(TN, 'airmass',  'single', 'default 0');
+%             Q.addColumn(TN, 'trk_ra',   'single', 'default 0');
+%             Q.addColumn(TN, 'trk_dec',  'single', 'default 0');
+%             Q.addColumn(TN, 'mnttemp',  'single', 'default 0');
+%             Q.addColumn(TN, 'focus',    'single', 'default 0');
+%             Q.addColumn(TN, 'prvfocus', 'single', 'default 0');
+%             
+%             % Additional
+%             Q.addColumn(TN, 'procstat', 'varchar(256)', "default ''", 'Comment', 'Additional user data');
+%             
+%             % added by @kra:
+%                            
+%                 Q.addColumn(TN, 'fieldid',      'varchar(80)', "default ''");
+%                 Q.addColumn(TN, 'timezone',     'single', 'default 0');
+%                 Q.addColumn(TN, 'level',        'varchar(80)', "default ''");
+%                 Q.addColumn(TN, 'version',      'varchar(80)', "default ''");
+%                 Q.addColumn(TN, 'subdir',       'varchar(80)', "default ''");
+%                 Q.addColumn(TN, 'overscan',     'varchar(80)', "default ''");
+%                 Q.addColumn(TN, 'origgain',     'single', 'default 0');
+%                 Q.addColumn(TN, 'wcsaxes',      'smallint', 'default 0');
+%                 Q.addColumn(TN, 'radesys',      'varchar(80)', "default ''");
+%                 Q.addColumn(TN, 'lonpole',      'single', 'default 0');
+%                 Q.addColumn(TN, 'latpole',      'single', 'default 0');
+%                 Q.addColumn(TN, 'ctype1',       'varchar(80)', "default ''");
+%                 Q.addColumn(TN, 'ctype2',       'varchar(80)', "default ''");
+%                 Q.addColumn(TN, 'cunit1',       'varchar(80)', "default ''");
+%                 Q.addColumn(TN, 'cunit2',       'varchar(80)', "default ''");
+%                 Q.addColumn(TN, 'ph_zp',        'double', 'default 0');
+%                 Q.addColumn(TN, 'ph_col1',      'double', 'default 0');
+%                 Q.addColumn(TN, 'ph_medc',      'double', 'default 0');
+%                 Q.addColumn(TN, 'ph_rms',       'double', 'default 0');
+%                 Q.addColumn(TN, 'ph_nsrc',      'single', 'default 0');
+%                 Q.addColumn(TN, 'ph_magsy',     'varchar(80)', "default ''");
+%                 Q.addColumn(TN, 'linmag',       'double', 'default 0');
+%                 Q.addColumn(TN, 'backmag',      'double', 'default 0');
+%                 Q.addColumn(TN, 'midjd',        'double', 'default 0');
+%                 Q.addColumn(TN, 'minjd',        'double', 'default 0');
+%                 Q.addColumn(TN, 'maxjd',        'double', 'default 0');
+%                 Q.addColumn(TN, 'sublevel',     'varchar(80)', "default ''");
+%                 Q.addColumn(TN, 'gm_ratex',     'double', 'default 0');
+%                 Q.addColumn(TN, 'gm_stdx',      'double', 'default 0');
+%                 Q.addColumn(TN, 'gm_ratey',     'double', 'default 0');
+%                 Q.addColumn(TN, 'gm_stdy',      'double', 'default 0');
+                
+            Obj.msgLog(LogLevel.Info, 'addCommonCatalogColumns done');
+            Result = true;
+        end
         
     end
 
-
     methods
+
         function Result = addRawImage(Obj, FileName, AH, Args)
             % Insert RAW image columns to raw_images table
             % Input :  - LastDb object
@@ -640,7 +811,7 @@ classdef AstroDb < Component
             Args.DataDir        =    '/home/sasha/Raw/';                % The directory containing the input images
             Args.InputImages    =    'LAST*sci*raw_Image*.fits';         % The mask of the input image filenames
             Args.DBname         =    'LAST';
-            Args.DBtable        =    'RAW';
+            Args.DBtable        =    'raw_images';
             Args.Hash  logical  =    true;
 
         end
