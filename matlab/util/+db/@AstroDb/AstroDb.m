@@ -3,18 +3,18 @@ classdef AstroDb < Component
 
     % Properties
     properties (SetAccess = public)
-        Query = []          % DbQuery object
-        Telescope = 'LAST'  % Telescope object
+        Query       = []      % DbQuery object
+        Telescope   = 'LAST'  % Telescope object
         
         % Database name
-        DnULTRASAT = '';
-        DnLAST = 'LAST';
+        DnULTRASAT  = '';
+        DnLAST      = 'LAST';
         
         % Table Names
-        TnRawImages = 'raw_images';
-        TnProcImages = 'proc_images';
-        TnCoaddImages = 'coadd_images';       
-        TnSrcCatalog = 'src_catalog';
+        TnRawImages     = 'raw_images';
+        TnProcImages    = 'proc_images';
+        TnCoaddImages   = 'coadd_images';       
+        TnSrcCatalog    = 'src_catalog';
     end
 
 
@@ -704,7 +704,7 @@ classdef AstroDb < Component
         %==================================================================
         %                     Functions added by @kra
         %==================================================================        
-        function [TupleID, Result] = populateImageDB(Obj, Data, Args)
+        function [TupleID] = populateImageDB(Obj, Data, Args)
             % Populate a database with metadata (header data) from a list of input images
             % Description: Populate a database with metadata (header data) from a list of input images
             % Input :  - an AstroDb object 
@@ -722,7 +722,7 @@ classdef AstroDb < Component
             % Tested : Matlab R2020b
             % Author : A. Krassilchtchikov (May 2023)
             % Example: LDB = db.AstroDb(); 
-            %          LDB.populateImageDB ( Imfiles, 'DBtype', 'LAST', 'DBtable', 'raw_images', 'Hash', Args.Hash );
+            %          LDB.populateImageDB ( LDB, Imfiles, 'DBtype', 'LAST', 'DBtable', 'raw_images', 'Hash', Args.Hash );
             arguments
                 Obj
                 Data                                % input images (file names or AstroImages) or AstroHeaders
@@ -734,6 +734,8 @@ classdef AstroDb < Component
 
             % determine the number of input images:
             NImg = numel(Data);
+           
+            TupleID = zeros(NImg,1);
 
             % check whether it is possible to get files for the hash sum
             if numel(Args.FileNames) ~= NImg && ( isa(Data(1), 'AstroImage') ||  isa(Data(1), 'AstroHeader') )
@@ -766,13 +768,13 @@ classdef AstroDb < Component
                         % populate the DB
                         switch Args.DBtable
                             case Obj.TnRawImages
-                                Obj.addRawImage(AH.File, AH, 'xxhash', Sum_h64);
+                                TupleID(Img) = Obj.addRawImage(AH.File, AH, 'xxhash', Sum_h64);
 
                             case Obj.TnProcImages
-                                Obj.addProcImage(AH.File, AH, 'xxhash', Sum_h64);
+                                TupleID(Img) = Obj.addProcImage(AH.File, AH, 'xxhash', Sum_h64);
 
                             case Obj.TnCoaddImages
-                                Obj.addCoaddImage(AH.File, AH, 'xxhash', Sum_h64);
+                                TupleID(Img) = Obj.addCoaddImage(AH.File, AH, 'xxhash', Sum_h64);
 
                             otherwise
                                 error('The requested table does not exist yet, exiting..');
@@ -784,23 +786,17 @@ classdef AstroDb < Component
             end
 
             %
+            fprintf('%s%d%s\n','Inserted ',numel(TupleID),' tuples');
             cprintf('hyper','The requested DB successfully populated with image metadata.\n');
             
- %          Obj.Query.deleteRecord('TableName', 'raw_images', 'Where', 'filename like ''%143%''')          
+%             Obj.Query.deleteRecord('TableName', 'raw_images', 'Where', 'filename like ''%143%''')          
+%             Obj.Query.select('*', 'TableName',lower(Args.DBtable),'Where', 'ra > 179','OutType','Table');
+%             Obj.Query.select('pk', 'TableName', lower(Args.DBtable), 'Where', 'filename like ''%LAST%''', 'OutType', 'Table');
 
-%             Result = Obj.Query.select('pk', 'TableName',lower(Args.DBtable),'Where', 'ra > 179','OutType','Table');
-            Result = Obj.Query.select('pk', 'TableName', lower(Args.DBtable), 'Where', 'filename like ''%LAST%''', 'OutType', 'Table');
-
-            % ask Chen to implement the "just added" criterion for the query
-            if numel(Result) == 0
-                TupleID = 0;              
-            else
-                TupleID = Result.pk;
-            end
         end
         
         
-        function [TupleID, Result] = populateCatDB( Obj, Data, Args )
+        function [TupleID] = populateCatDB( Obj, Data, Args )
             % Populate a database with data from a list of catalog files or AstroCatalogs
             % Input :  - an AstroDb object 
             %          - Data : a cell array containing either 
@@ -816,7 +812,7 @@ classdef AstroDb < Component
             % Tested : Matlab R2020b
             % Author : A. Krassilchtchikov (May 2023)
             % Example: LDB = db.AstroDb(); 
-            %          LDB.populateCatDB ( Catfiles, 'DBtype', 'LAST', 'DBtable', 'src_catalog', 'Hash', Args.Hash );
+            %          LDB.populateCatDB ( Catfiles, 'DBname', 'LAST', 'DBtable', 'src_catalog', 'Hash', Args.Hash );
             arguments
                 Obj
                 Data                                % input images (file names or AstroImages) or AstroHeaders
@@ -857,7 +853,7 @@ classdef AstroDb < Component
                         % populate the DB
                         switch lower(Args.DBtable)          
                             case 'src_catalog'
-                                Obj.addSrcCatalog(AC.File, AC, 'xxhash', Sum_h64);
+                                TupleID = Obj.addSrcCatalog(AC.File, AC, 'xxhash', Sum_h64);
 
                             otherwise
                                 error('The requested table does not exist yet, exiting..');
@@ -869,21 +865,16 @@ classdef AstroDb < Component
             end
 
             %
+            fprintf('%s%d%s\n','Inserted ',numel(TupleID),' tuples');
             cprintf('hyper','The requested DB successfully populated with catalog data.\n');
             
 %             Result = Obj.Query.select('pk', 'TableName',lower(Args.DBtable),'Where', 'ra > 179','OutType','Table');
-            Result = Obj.Query.select('pk', 'TableName',lower(Args.DBtable),'Where', 'filename like ''%LAST%''','OutType','Table');
+%             Result = Obj.Query.select('*', 'TableName',lower(Args.DBtable),'Where', 'filename like ''%LAST%''','OutType','Table');
 
-            % ask Chen to implement the "just added" criterion for the query
-            if numel(Result) == 0
-                TupleID = 0;              
-            else
-                TupleID = Result.pk;
-            end
         end
 
         
-        function [Result] = addImages2DB( Obj, Args )
+        function [TupleID] = addImages2DB( Obj, Args )
             % Add images from a directory to a database
             % Description: Add images from a directory to a database
             % Input:   - 
@@ -923,16 +914,13 @@ classdef AstroDb < Component
                 Headers(Img).Data = Images(Img).Header;
             end
 
-            % call the sub to populate the database (3 variants)
+            % call the sub to populate the database (3 variants: files, AI, AH)
 
-    %        TupleID = Obj.populateImageDB ( Obj, Imfiles, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
-             TupleID = Obj.populateImageDB ( Obj, Headers, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
-    %         TupleID = Obj.populateImageDB ( Obj, Images,  'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+            TupleID = Obj.populateImageDB ( Obj, Imfiles, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+%             TupleID = Obj.populateImageDB ( Obj, Headers, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+%             TupleID = Obj.populateImageDB ( Obj, Images,  'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
 
-            fprintf('%s%d\n','Inserted tuples:',TupleID);
-            % assign the Result value
-
-            Result = 0;   % success
+%             fprintf('%s%d%s\n','Inserted ',numel(TupleID),' tuples');
         end
 
         %%%%%%%%%

@@ -3,6 +3,11 @@ function Result = unitTest()
     % Unit-Test
     % On Windows, use SQL Manager Lite for PostgreSQL by EMS Software
     % On Linux, use DataGrip by JetBrains
+    
+    cprintf('hyper','Please, set the appropriate DataDir before running the test (see the next lines).\n');
+%     DataDir = 'c:/ultrasat/last/';        % Windows
+    DataDir = '/home/sasha/LAST/SampleData/'; % Linux
+    %%%%%%%%%%%%%%%%%%%%
 
     MsgLogger.getSingleton().setLogLevel(LogLevel.Debug, 'type', 'all');
     io.msgStyle(LogLevel.Test, '@start', 'AstroDb test started')
@@ -12,15 +17,21 @@ function Result = unitTest()
     addpath('external/str2doubles/str2doubles');
 
     % Create AstroDb object with default connection parameters
-    TestSSH = false;
+    TestSSH = true;
     if TestSSH
         db.AstroDb.setupSSH();
     end
     
     LDB = db.AstroDb();
+    
+    % Create tables (optional)
+    CreateTables = false;
+    if CreateTables
+        LDB.createTables();
+    end
       
-    % Insert new row to table
-    FitsFileName = 'c:/ultrasat/last/a1.fits';
+    % Insert new row to tables
+    FitsFileName = strcat(DataDir,'LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.fits');
     AH = AstroHeader(FitsFileName);    
     xx = tools.checksum.xxhash('FileName', FitsFileName);
     assert(~isempty(xx));
@@ -34,42 +45,67 @@ function Result = unitTest()
     pk = LDB.addRawImage(FitsFileName, AH, 'xxhash', xx);        
     disp(pk);
     
-    % Create tables (optional)
-    CreateTables = false;
-    if CreateTables
-        LDB.createTables();
+    % test PROC and COADD:
+    FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213718.470_clear_219+50_001_001_024_sci_proc_Image_1.fits');
+    AH = AstroHeader(FitsFileName);  
+    pk = LDB.addProcImage(FitsFileName, AH, 'xxhash', xx);        
+    disp(pk);
+    
+    FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213718.470_clear_219+50_001_001_024_sci_proc_Image_1.fits');
+    AH = AstroHeader(FitsFileName);  
+    pk = LDB.addCoaddImage(FitsFileName, AH, 'xxhash', xx);        
+    disp(pk);
+    
+    % test CAT (currently not available)
+    FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213408.398_clear_219+50_001_001_024_sci_coadd_Cat_1.fits');
+    AC = AstroHeader(FitsFileName);  
+%     pk = LDB.addSrcCatalog(FitsFileName, AC, 'xxhash', xx);  %% NEED TO MAKE IT WORK       
+    disp(pk);
+    
+    % test populateImageDB
+    ImageFiles  = dir ( fullfile(DataDir, '**', 'LAST*sci*raw_Image*.fits') );
+    ImNum = numel(ImageFiles);
+    Imfiles = repmat({''}, ImNum, 1);
+    Images  = repmat(AstroImage(), ImNum, 1);
+    Headers = repmat(AstroHeader(), ImNum, 1);
+    for Img = 1:1:ImNum
+        Imfiles{Img} = fullfile(ImageFiles(Img).folder, ImageFiles(Img).name);
+        Images(Img) = AstroImage(Imfiles(Img));
+        Headers(Img).Data = Images(Img).Header;
     end
-
+    pk = LDB.populateImageDB ( LDB, Imfiles, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', 'true' );
+    disp(pk);
+    pk = LDB.populateImageDB ( LDB, Images, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', 'true' );
+    disp(pk);
+    pk = LDB.populateImageDB ( LDB, Headers, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', 'true' );
+    disp(pk);
+    
+    % test updateByTupleID
+    LDB.updateByTupleID(LDB,'proc_images',pk,'ra',218)
+    
     % Load AstroHeader object from image FITS file, convert to DbRecord
-    FitsFileName = 'c:\ultrasat\last\a1.fits';
+    FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213408.398_clear_219+50_001_001_021_sci_coadd_Image_1.fits');
     AH = AstroHeader(FitsFileName);    
     R = db.DbRecord(AH);    
    
-    FitsFileName = 'c:\ultrasat\last\sample.image.fits';
-    AH = AstroHeader(FitsFileName);    
-        
     AH = AstroHeader();    
-    TxtFileName = 'c:/ultrasat/last/LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.txt';           
+    TxtFileName = strcat(DataDir,'LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.txt');           
     AH.readFromTextFile(TxtFileName);   
     
     AH = AstroHeader();    
-    TxtFileName = 'c:/ultrasat/last/LAST.01.08.04_20230125.192423.674_clear_143+41_010_001_001_sci_raw_Image_1.txt';        
+    TxtFileName = strcat(DataDir,'LAST.01.08.04_20230125.192423.674_clear_143+41_010_001_001_sci_raw_Image_1.txt');        
     AH.readFromTextFile(TxtFileName);   
          
-    TxtFileName = 'c:/ultrasat/last/h1.txt';
-    AH = AstroHeader();
-    AH.readFromTextFile(TxtFileName);     
-    
     % 
-    FitsFileName = 'c:/ultrasat/last/a1.fits';
+    FitsFileName = strcat(DataDir,'LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.fits');
     xx = tools.checksum.xxhash('FileName', FitsFileName);
-    assert(xx ~= 0);
+    assert(~strcmp(xx,''));
     AH = AstroHeader(FitsFileName);    
        
     % Insert new row to table
-    FitsFileName = 'c:/ultrasat/last/a1.fits';
+    FitsFileName = strcat(DataDir,'LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.fits');
     xx = tools.checksum.xxhash('FileName', FitsFileName);
-    assert(xx ~= 0);    
+    assert(~strcmp(xx,''));
     LDB.addImage('raw_images', FitsFileName, AH, 'xxhash', xx);
     LDB.addRawImage(FitsFileName, AH, 'xxhash', xx);
     
@@ -83,8 +119,8 @@ function Result = unitTest()
     AddCols.ProcStat = sprintf('My notes at %s', datestr(now, 'yyyy/mm/dd HH:MM:SS'));
     AddCols.focus = 77777;
     AddCols.DoesNotExist = 'blabla';
-    LDB.addRawImage(FileName, AH);
-    LDB.addRawImage(FileName, AH, AddCols);
+    LDB.addRawImage(FitsFileName, AH);
+    LDB.addRawImage(FitsFileName, AH, 'AddCols',AddCols);
     
     % Select numer of columns
     Count = LDB.Query.selectTableRowCount('TableName', 'raw_images');
