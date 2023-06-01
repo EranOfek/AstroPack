@@ -1,5 +1,5 @@
-function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
-    % Return the D_hat subtraction image (Fourier transform of proper subtraction)
+function [S_hat, D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionS(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
+    % Return the S_hat and D_hat subtraction images (Fourier transform of proper subtraction)
     %   The function can deal with cube inputs in which the image index is
     %   in the 3rd dimension.
     % Input  : - N_hat (Fourier Transform of new image).
@@ -25,15 +25,16 @@ function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_ha
     %            'IsFFT' - A logical indicating if the N_hat, R_hat, Pn_hat, Pr_hat
     %                   input arguments are in Fourier space.
     %                   Default is true.
-    % Output : - D_hat
+    % Output : - S_hat
+    %          - D_hat
     %          - Pd_hat
     %          - Fd
     %          - D_den
     %          - D_num
     %          - D_denSqrt
     % Author : Eran Ofek (Apr 2022)
-    % Example: [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(rand(25,25), rand(25,25), rand(25,25), rand(25,25), 1, 1, 1, 1)
-    %          [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(rand(25,25,4), rand(25,25,4), rand(25,25,4), rand(25,25,4), ones(4,1), ones(4,1), ones(4,1), ones(4,1))
+    % Example: [S_hat, D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionS(rand(25,25), rand(25,25), rand(25,25), rand(25,25), 1, 1, 1, 1)
+    %          [S_hat, D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionS(rand(25,25,4), rand(25,25,4), rand(25,25,4), rand(25,25,4), ones(4,1), ones(4,1), ones(4,1), ones(4,1))
     
     arguments
         N_hat
@@ -48,40 +49,11 @@ function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_ha
         Args.Eps           = 0;
         Args.IsFFT logical = true;
     end
-        
-    if ndims(N_hat)==3 && ndims(Fn)==2
-        % treat cube input
-        % assume F is given as a vector - move to the 3rd dim:
-        Fn = reshape(Fn(:),[1 1 numel(Fn)]);
-        Fr = reshape(Fr(:),[1 1 numel(Fr)]);
-    end
-    if ndims(N_hat)==3 && ndims(SigmaN)==2
-        % treat cube input
-        % assume SigmaN is given as a vector - move to the 3rd dim:
-        SigmaN = reshape(SigmaN(:),[1 1 numel(SigmaN)]);
-        SigmaR = reshape(SigmaR(:),[1 1 numel(SigmaR)]);
-    end
-
-    if Args.IsFFT
-        % N_hat, R_hat, Pn_hat, Pr_hat are in real space, calc their FT:
-        N_hat = fft2(N_hat);
-        R_hat = fft2(R_hat);
-        Pn_hat = fft2(Pn_hat);
-        Pr_hat = fft2(Pr_hat);
-    end
 
 
-    D_den     = (SigmaN.^2 .* Fr.^2) .* Args.AbsFun(Pr_hat).^2 + (SigmaR.^2 .*Fn.^2) .* Args.AbsFun(Pn_hat).^2 + Args.Eps;
-    D_num     = Fr.*Pr_hat.*N_hat - Fn.*Pn_hat.*R_hat;
-    D_denSqrt = sqrt(D_den);
-    D_hat     = D_num./D_denSqrt;
-    
-    Fd        = Fr .* Fn ./ sqrt( (SigmaN.*Fr).^2 + (SigmaR.*Fn).^2 );
-    
-    Pd_num    = Fr .* Fn .* Pr_hat .* Pn_hat;
-    Pd_den    = Fd .* D_denSqrt;
-    Pd_hat    = Pd_num./Pd_den;
-    
-    'HERE: need a function to clean Pd?'
+    [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args);
+    S_hat = D_hat.*conj(Pd_hat);
 
 end
+
+
