@@ -31,7 +31,9 @@ classdef VarImage < ImageComponent
             % (ImageComponent) constructor
             
             Obj@ImageComponent(varargin{:});
-            Obj.DataType = AstroDataType.Var;
+            for Iobj=1:1:numel(Obj)
+                Obj(Iobj).DataType = AstroDataType.Var;
+            end
         end
 
     end

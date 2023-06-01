@@ -49,13 +49,14 @@ function MergedImage = umergeTileImages (Args)
     % read in the data
     
     R = io.files.load1(Args.A);
-    imA = R.usimImage.Image;
+%     imA = R.usimImage.Image;
+    imA = R.Image;
     R = io.files.load1(Args.B);
-    imB = R.usimImage.Image;
+    imB = R.Image;
     R = io.files.load1(Args.C);
-    imC = R.usimImage.Image;
+    imC = R.Image;
     R = io.files.load1(Args.D);
-    imD = R.usimImage.Image;
+    imD = R.Image;
     
     % pad the quarter arrays with zeros
     
