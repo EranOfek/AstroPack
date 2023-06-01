@@ -98,7 +98,9 @@ classdef ImageIO < Component
                     for Iobj=1:1:Nobj
                         Obj(Iobj) = ImageIO([]);
                     end
+                    
                     Obj = reshape(Obj, FileNames);
+                    
                 else
                     if istable(FileNames)
                         Obj.Data    = FileNames;
