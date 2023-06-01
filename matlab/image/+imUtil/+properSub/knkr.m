@@ -1,6 +1,8 @@
-function [Kn_hat, Kr_hat, Kn, Kr]=knkr(Fn, Fr, Pn_hat, Pr_hat, D_den)
+function [Kn_hat, Kr_hat, Kn, Kr]=knkr(Fn, Fr, Pn_hat, Pr_hat, D_den, AbsFun)
     % Calculate the subtraction kr_hat and kn_hat
     %    ZOGY Equations 26-29
+    %   The function can deal with cube inputs in which the image index is
+    %   in the 3rd dimension.
     % Input  : - (Fn) Flux normalization of ref.
     %          - (Fr) Flux normalization of new.
     %          - (Pn_hat) fft of ref PSF.
@@ -13,7 +15,9 @@ function [Kn_hat, Kr_hat, Kn, Kr]=knkr(Fn, Fr, Pn_hat, Pr_hat, D_den)
     %          - kn
     %          - kr
     % Author : Eran Ofek (May 2023)
-    
+    % Example: [Kn_hat, Kr_hat, Kn, Kr]=imUtil.properSub.knkr(1, 1, rand(25,25), rand(25,25), rand(25,25))
+    %          [Kn_hat, Kr_hat, Kn, Kr]=imUtil.properSub.knkr(rand(3,1), rand(3,1), rand(25,25,3), rand(25,25,3), rand(25,25,3))
+
     arguments
         Fn
         Fr
@@ -25,6 +29,12 @@ function [Kn_hat, Kr_hat, Kn, Kr]=knkr(Fn, Fr, Pn_hat, Pr_hat, D_den)
     end
     
     % ZOGY Equations 26-29
+    if ndims(Pn_hat)==3 && ndims(Fr)==2
+        % treat cube input
+        Fn = reshape(Fn(:),[1 1 numel(Fn)]);
+        Fr = reshape(Fr(:),[1 1 numel(Fr)]);
+    end
+
     Kr_hat    = Fr.*Fn.^2.*conj(Pr_hat).*AbsFun(Pn_hat).^2./D_den;
     Kn_hat    = Fn.*Fr.^2.*conj(Pn_hat).*AbsFun(Pr_hat).^2./D_den;
     
