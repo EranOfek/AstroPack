@@ -2,6 +2,17 @@
 #
 # Author: Chen Tishler (May 2023)
 #
+# Usage:
+#
+#   -d directory    - Process folder with optionaliy subfolders (-r)
+#   -f filename     - Process file
+#   -r              - Recurse (process subfolders)
+#
+# Examples:
+#
+#   C:\Ultrasat\AstroPack.git\matlab\util\+tools>python3 ..\scripts\cmex.py -d +array/mex_bitsetFlag_include.cpp
+#   >python3 ..\scripts\cmex.py -f +array/+mex/mex_bitsetFlag_include.cpp
+#
 
 import os, glob, time, argparse, shutil, platform, subprocess
 from datetime import datetime
@@ -33,9 +44,9 @@ class MexCompiler:
         self.mex_cmd_output = {}
 
 
-    def log(self, msg, dt = False, color=None):
+    def log(self, msg, color=None):
         # Log message to file
-        msg_log(msg, dt=dt, color=color)
+        msg_log(msg, color=color)
 
 
     def run_mex(self, fn):
@@ -158,6 +169,7 @@ typedef double __Type;
 
         if '_include' in fname:
             self.process_include_file(fname)
+            return
 
         save_cwd = os.getcwd()
         folder, fn = os.path.split(fname)
@@ -221,8 +233,12 @@ typedef double __Type;
 
 def main():
 
-    print('Compile all MEX files in folder')
-    print('\n*** NOTE: You may need to type "clear all" in MATLAB to release the current compiled binary file.\n')
+    logger = init_log()
+    logger.use_dt = False
+    logger.use_pid = False
+
+    logger.msg_log('Compile all MEX files in folder')
+    logger.msg_log('\n*** NOTE: You may need to type "clear all" in MATLAB to release the current compiled binary file.\n')
 
 
     # Read command line options
@@ -235,16 +251,19 @@ def main():
     args = parser.parse_args()
 
     mc = MexCompiler()
-    folder = 'C:/Ultrasat/AstroPack.git/matlab/util/+tools/+operators/+mex'
-    folder = r'C:\Ultrasat\AstroPack.git\matlab\util\+tools\+checksum\+mex'
-    folder = r'C:\Ultrasat\AstroPack.git\matlab\util\+tools\+array'
-    mc.process_folder(folder)
+    #folder = 'C:/Ultrasat/AstroPack.git/matlab/util/+tools/+operators/+mex'
+    #folder = r'C:\Ultrasat\AstroPack.git\matlab\util\+tools\+checksum\+mex'
+    #folder = r'C:\Ultrasat\AstroPack.git\matlab\util\+tools\+array'
+    #mc.process_folder(folder)
 
     if args.dir:
-        mc.process_folder(args.dir, args.recurse)
+        mc.process_folder(os.path.abspath(args.dir), args.recurse)
     elif args.file:
-        mc.process_file(args.file)
-
+        mc.process_file(os.path.abspath(args.file))
+    else:
+        #fn = '../../+tools/+array/+mex/mex_bitsetFlag_include.cpp'
+        #mc.process_file(os.path.abspath(fn))
+        return
 
     mc.summary()
 

@@ -28,7 +28,10 @@ import os, sys, shutil, time, glob, uuid, hashlib, yaml, io, xmlplain, json, con
 import psutil
 from datetime import datetime
 #import system, yaml_utils
+import colorama
 from colorama import Fore, Back, Style
+
+colorama.init()
 
 # ===========================================================================
 
@@ -173,6 +176,7 @@ class Logger:
         self.logfile = None
         self.logfile_ex = None
         self.gui_com = None
+        self.use_dt = True
         self.use_pid = True
         self.pid = os.getpid()
         self.process_name = psutil.Process(self.pid).name()
@@ -222,11 +226,14 @@ class Logger:
         self.logfile_ex = open(self.filename_ex, 'a')
 
 
-    def msg_log(self, msg, type=None, comp=None, use_dt=True, dt=None, gui=True, gui_com=None, color=0, bkg=0xffffff, ex=None):
+    def msg_log(self, msg, type=None, comp=None, use_dt=None, dt=None, gui=None, gui_com=None, color=0, bkg=0xffffff, ex=None):
         # Write message to logfile.
 
         if not self.filename:
             self.init_log()
+
+        if not use_dt:
+            use_dt = self.use_dt
 
         #
         msg = self.get_msg_log_text(msg=msg, type=type, comp=comp, use_dt=use_dt, dt=dt, ex=ex)
@@ -343,8 +350,10 @@ def init_log(path=None, fname=None):
     if not default_logger:
         default_logger = Logger(path=path, fname=fname)
 
+    return default_logger
 
-def msg_log(msg, logger=None, type=None, comp=None, use_dt=True, dt=None, gui=True, gui_com=None, color=0, bkg=0xffffff, ex=None):
+
+def msg_log(msg, logger=None, type=None, comp=None, use_dt=None, dt=None, gui=None, gui_com=None, color=0, bkg=0xffffff, ex=None):
     #
     global default_logger
     if not logger:
