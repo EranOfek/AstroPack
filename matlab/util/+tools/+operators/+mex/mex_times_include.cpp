@@ -51,7 +51,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     int64 numel = mxGetNumberOfElements(prhs[0]);
 
     // Check argument UseMP
-    bool useOpenMP = (nrhs < 3) && (*((int*)mxGetData(prhs[2])) != 0);
+    bool useOpenMP = (nrhs < 3) || (*((int*)mxGetData(prhs[2])) != 0);
 	if (numel < 256)
 		useOpenMP = false;
 	
@@ -88,7 +88,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     if (numel-simd_size > 0) {
         //mexPrintf("remainder: %d\n", numel-simd_size);
         for (int64 i = simd_size; i < numel;  i++) {
+            //mexPrintf("loop %d: %lf * %lf\n", i, A[i], B[i]);
             A[i] *= B[i];
+            //mexPrintf(" = %lf\n", A[i]);
         }    
     }    
 }
