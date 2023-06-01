@@ -18,7 +18,7 @@ function Result = test_times()
     B = [5 6; 7 8];
     C = A.*B;
     disp(C);
-    tools.operators.times(A, B, true, true, true);
+    tools.operators.times(A, B);
     disp(A);
     assert(isequal(A, C));       
 
@@ -27,8 +27,8 @@ function Result = test_times()
         for UseAVX=0:0
             for TypeIter=4:4    
                 fprintf('\n');
-                Rows = 1700;
-                Cols = 1700;
+                Rows = 1638;
+                Cols = 1638;
                 for SizeIter=1:1
                     clear A;
                     clear B;
@@ -71,6 +71,8 @@ function Result = test_times()
                         % MEX version with/without OpenMP
                         t = tic;
                         tools.operators.times(A, B);  %, true, UseMP, UseAVX);
+                        %tools.operators.mex.mex_times_int32(A, B, int32(UseMP));                               
+
                         %if UseAVX
                         %    tools.operators.mex.mex_timesDouble_avx2(A, B, int32(UseMP));
                         %else
