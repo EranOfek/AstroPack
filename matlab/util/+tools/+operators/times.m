@@ -59,14 +59,14 @@ function Result = times(A, B, UseMex, UseMP, UseAVX)
              tools.operators.mex.mex_times_single(A, B, int32(UseMP));                   
         case {'double'}
             if UseAVX
-                avx = tools.os.get_avx_supported();
-                if avx == 2
-                    tools.operators.mex.mex_timesDouble_avx2(A, B, int32(UseMP));
-				else
-                    tools.operators.mex.mex_times_double(A, B, int32(UseMP));
-                end
+                %avx = tools.os.get_avx_supported();
+                %if avx == 2
+                %    tools.operators.mex.mex_timesDouble_avx2(A, B, int32(UseMP));
+				%else
+                tools.operators.mex.mex_times_double(A, B, int32(UseMP));
+                %end
             else
-                tools.operators.mex.mex_timesDouble(A, B, int32(UseMP));
+                tools.operators.mex.mex_times_double(A, B, int32(UseMP));
             end
         otherwise
             error('tools.operators.times - Unsupported data type');

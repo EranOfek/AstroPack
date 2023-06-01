@@ -16,8 +16,7 @@
 #   >python3 ..\scripts\cmex.py -f +array/+mex/mex_bitsetFlag_include.cpp
 #
 
-import os, glob, time, argparse, shutil, platform, subprocess
-from datetime import datetime
+import os, glob, argparse, subprocess
 from base import init_log, msg_log, Color
 
 
@@ -241,6 +240,7 @@ def main():
     logger.use_pid = False
 
     logger.msg_log('Compile all MEX files in folder')
+    logger.msg_log('by Chen Tishler, 05/2023')
     logger.msg_log('\n*** NOTE: You may need to type "clear all" in MATLAB to release the current compiled binary file.\n')
 
 
@@ -248,9 +248,11 @@ def main():
     parser = argparse.ArgumentParser()
 
     # Arguments
+    parser.add_argument('-a',       dest='all',     action='store_true', default=False, help='Compile all supported mex files under /matlab subfolder')
     parser.add_argument('-d',       dest='dir',     default=None, help='Folder to process')
     parser.add_argument('-f',       dest='file',    default=None, help='File to process')
     parser.add_argument('-r',       dest='recurse', action='store_true', default=False, help='Process subfolders')
+
     args = parser.parse_args()
 
     mc = MexCompiler()
@@ -259,7 +261,11 @@ def main():
     #folder = r'C:\Ultrasat\AstroPack.git\matlab\util\+tools\+array'
     #mc.process_folder(folder)
 
-    if args.dir:
+    if args.all:
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+        dir = os.path.abspath(os.path.join(cur_dir, '../..'))
+        mc.process_folder(os.path.abspath(dir), True)
+    elif args.dir:
         mc.process_folder(os.path.abspath(args.dir), args.recurse)
     elif args.file:
         mc.process_file(os.path.abspath(args.file))

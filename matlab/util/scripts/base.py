@@ -24,12 +24,12 @@
 #
 # ===========================================================================
 
-import os, sys, shutil, time, glob, uuid, hashlib, io, json, configparser
-import psutil
+import os, sys, time, configparser
 from datetime import datetime
-import colorama
-from colorama import Fore, Back, Style
+#import psutil
 
+from colorama import Fore, Back, Style
+import colorama
 colorama.init()
 
 # ===========================================================================
@@ -178,7 +178,7 @@ class Logger:
         self.use_dt = True
         self.use_pid = True
         self.pid = os.getpid()
-        self.process_name = psutil.Process(self.pid).name()
+        #self.process_name = psutil.Process(self.pid).name()
         self.last_date = ''
 
         # Special options
