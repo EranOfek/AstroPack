@@ -1,6 +1,9 @@
 function [AllResult,PM] = pointingModel(Files, Args)
-    % Calculate pointing model from a lsit of images.
-    %   
+    % Calculate pointing model from a lsit of images and write it to a configuration file.
+    % Input  : - File name template to analyze.
+    %            Default is 'LAST*PointingModel*sci*.fits'.
+    %          * ...,key,val,...
+    %            see code.
     % Example: R = pipeline.last.pointingModel([],'StartDate',[08 06 2022 17 54 00],'EndDate',[08 06 2022 18 06 00]);
     
     arguments
