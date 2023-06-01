@@ -628,13 +628,15 @@ classdef DbQuery < Component
             % Use all fields that exist in the table
             % See: https://www.programcreek.com/java-api-examples/?class=java.sql.Statement&method=executeUpdate
             T1 = tic();
-            RecSqlText = ['INSERT INTO ', string(Args.TableName).char, ' (', SqlColumns, ') VALUES (', SqlValues, ');'];
+            RecSqlText = ['INSERT INTO ', string(Args.TableName).char, ' (', SqlColumns, ') VALUES (', SqlValues, ')'];
             Obj.msgLog(LogLevel.Debug, 'insert: SqlText: %s', RecSqlText);
 
             % @Todo - RETURNING
             if ~isempty(Args.Returning)
-                RecSqlText = strcat(RecSqlText, 'RETURNING', Args.Returning);
+                RecSqlText = [RecSqlText, ' RETURNING ', Args.Returning];
             end
+            RecSqlText = [RecSqlText, ';'];
+            ReturningResults = [];
                         
             % Iterate struct array and insert in batchs
             RecIndex = 1;
@@ -681,12 +683,18 @@ classdef DbQuery < Component
                 % Execute the statement
                 % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
                 T3 = tic();
-                try
-                    Obj.JavaResultSet = Obj.JavaStatement.executeUpdate();
-                    
-                    % @Todo - RETURNING - Collect the return data
+                try                   
+                    % RETURNING - Collect the return data
                     if ~isempty(Args.Returning)
+                        Obj.JavaResultSet = Obj.JavaStatement.executeQuery();
+                        if Obj.JavaResultSet.next()
+                            ret = Obj.JavaResultSet.getInt(1);
+                            ReturningResults(end+1) = ret;
+                        end
                         
+                    % Without 
+                    else
+                        Obj.JavaResultSet = Obj.JavaStatement.executeUpdate();                        
                     end
             
                     Obj.ExecOk = true;
@@ -704,7 +712,11 @@ classdef DbQuery < Component
             if Obj.PerfLog
                 Obj.msgLog(LogLevel.Debug, 'insert time: %f', Obj.Toc);
             end
+            
             Result = Obj.ExecOk;
+            if ~isempty(Args.Returning)            
+                Result = ReturningResults(1);
+            end
         end
         %------------------------------------------------------------------
 

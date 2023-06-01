@@ -18,15 +18,21 @@ function Result = unitTest()
     end
     
     LDB = db.AstroDb();
-   
-    
+      
     % Insert new row to table
     FitsFileName = 'c:/ultrasat/last/a1.fits';
     AH = AstroHeader(FitsFileName);    
     xx = tools.checksum.xxhash('FileName', FitsFileName);
     assert(~isempty(xx));
     %LDB.addImage('raw_images', FitsFileName, AH, 'xxhash', xx);
-    LDB.addRawImage(FitsFileName, AH, 'xxhash', xx);    
+    pk = LDB.addRawImage(FitsFileName, AH, 'xxhash', xx);    
+    if ~isempty(pk)
+        disp(pk);
+        LDB.Query.deleteRecord('TableName', LDB.TnRawImages, 'Where', sprintf('pk = %d', pk));
+    end
+    
+    pk = LDB.addRawImage(FitsFileName, AH, 'xxhash', xx);        
+    disp(pk);
     
     % Create tables (optional)
     CreateTables = false;
@@ -52,8 +58,7 @@ function Result = unitTest()
          
     TxtFileName = 'c:/ultrasat/last/h1.txt';
     AH = AstroHeader();
-    AH.readFromTextFile(TxtFileName);   
-    
+    AH.readFromTextFile(TxtFileName);     
     
     % 
     FitsFileName = 'c:/ultrasat/last/a1.fits';
@@ -69,7 +74,7 @@ function Result = unitTest()
     LDB.addRawImage(FitsFileName, AH, 'xxhash', xx);
     
     %
-    LDB.addRawImage(FitsFileName, AH, 'xxhash', xx, 'Select', true);    
+    pk = LDB.addRawImage(FitsFileName, AH, 'xxhash', xx, 'Select', true);    
     
     % Insert with additional fields, field are converted to LOWERCASE
     % Overwrite existing fields of AstroHeader, ignore columns that does 
