@@ -509,15 +509,15 @@ classdef AstroDb < Component
             % Author  : Chen Tishler (02/2023)
             % Example : 
             arguments
-                Obj                 %
-                FileName            % Image file name
-                AC                  % AstroCatalog
-                Args.AddCols = []   % struct
-                Args.xxhash = []    % Optional
-                Args.Select = false %
+                Obj                         %
+                FileName                    % Catalog file name
+                AC                          % AstroCatalog
+                Args.AddCols = []           % struct
+                Args.Hash logical  = true   % 
+                Args.Select = false         %
             end
 
-            Result = Obj.addSrcCat(Obj.TnSrcCatalog, FileName, AC, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select);
+            Result = Obj.addSrcCat(Obj.TnSrcCatalog, FileName, AC, 'AddCols', Args.AddCols, 'Hash', Args.Hash, 'Select', Args.Select);
         end
                 
         
@@ -596,15 +596,15 @@ classdef AstroDb < Component
                 %            The following keys are available:
                 % Output  : Pk of inserted row on success, [] on failure
                 % Author  : Chen Tishler (02/2023)
-                % Example : addImage(
+                % Example : 
                 arguments
-                    Obj                 %
-                    TableName           % Table name to insert to
-                    FileName            % Image FITS file name
-                    AC                  % AstroHeader to insert 
-                    Args.AddCols = []   % struct - optional additional columns (i.e. AddCols.ColName = ColValue, etc.)
-                    Args.xxhash = []    % When specified, insert also column 'xxhash' with this value
-                    Args.Select = false % When true and Xxhash is specified, first check if image already exists
+                    Obj                         %
+                    TableName                   % Table name to insert to
+                    FileName                    % Image FITS file name
+                    AC                          % AstroCatalog to insert 
+                    Args.AddCols = []           % struct - optional additional columns (i.e. AddCols.ColName = ColValue, etc.)
+                    Args.Hash logical = true;   % 
+                    Args.Select = false         % When true and Hash is specified, first check if image already exists
                 end
 
                 Q = Obj.Query;
@@ -645,9 +645,9 @@ classdef AstroDb < Component
 %                     end
 %                 end
 
-                % Insert AstroCatalog to table
-                Q.insert(AC, 'TableName', TableName, 'ColumnsOnly', true);
-                Result = true;
+                % Insert AstroCatalog to the table
+                Pk = Q.insert(AC, 'TableName', TableName, 'ColumnsOnly', true, 'Returning', 'pk');
+                Result = Pk;
             end
 
     end
@@ -815,20 +815,15 @@ classdef AstroDb < Component
             %          LDB.populateCatDB ( Catfiles, 'DBname', 'LAST', 'DBtable', 'src_catalog', 'Hash', Args.Hash );
             arguments
                 Obj
-                Data                                % input images (file names or AstroImages) or AstroHeaders
-                Args.DBname       = Obj.DnLAST;     % DB name
-                Args.DBtable      = Obj.TnRawImages;% DB table
-                Args.Hash logical = true;           % whether to calculate a hashsum and add it to the table
-                Args.FileNames    = {};             % an optional cell array of file names (for the case the first argument is not a file list)
+                Data                                 % input images (file names or AstroImages) or AstroHeaders
+                Args.DBname       = Obj.DnLAST;      % DB name
+                Args.DBtable      = Obj.TnSrcCatalog;% DB table
+                Args.Hash logical = true;            % whether to calculate a hashsum of individual records and add it to the table
+                Args.FileNames    = {};              % an optional cell array of file names (for the case the first argument is not a file list)
             end
 
             % determine the number of input catalogs:
             NCat = numel(Data);
-            
-            % check whether it is possible to get files for the hash sum
-            if numel(Args.FileNames) ~= NCat && isa(Data(1), 'AstroCatalog') 
-                Args.Hash = false;
-            end
 
             % populate the database
             switch Args.DBname
@@ -836,25 +831,16 @@ classdef AstroDb < Component
                     for ICat = 1:1:NCat
                         if isa( Data(ICat), 'AstroCatalog' )
                             AC = Data(ICat);
+                            Filename = '';
                         else
-                            AC = AstroCatalog( Data(Img), 1 ); 
+                            AC = AstroCatalog( Data(ICat) ); 
+                            Filename =  char( Data(ICat) );
                         end
-                        
-                        if ~ischar(AC.File)
-                            AC.File='';
-                        end 
-
-                        if Args.Hash
-                            Sum_h64 = tools.checksum.xxhash('FileName', char( Data(Img) ) ); 
-                        else
-                            Sum_h64 = '';
-                        end
-
+                                                
                         % populate the DB
                         switch lower(Args.DBtable)          
-                            case 'src_catalog'
-                                TupleID = Obj.addSrcCatalog(AC.File, AC, 'xxhash', Sum_h64);
-
+                            case Obj.TnSrcCatalog
+                                TupleID = Obj.addSrcCatalog(Filename, AC, 'Hash', Args.Hash);
                             otherwise
                                 error('The requested table does not exist yet, exiting..');
                         end
@@ -867,9 +853,6 @@ classdef AstroDb < Component
             %
             fprintf('%s%d%s\n','Inserted ',numel(TupleID),' tuples');
             cprintf('hyper','The requested DB successfully populated with catalog data.\n');
-            
-%             Result = Obj.Query.select('pk', 'TableName',lower(Args.DBtable),'Where', 'ra > 179','OutType','Table');
-%             Result = Obj.Query.select('*', 'TableName',lower(Args.DBtable),'Where', 'filename like ''%LAST%''','OutType','Table');
 
         end
 
@@ -894,7 +877,7 @@ classdef AstroDb < Component
             arguments
                 Obj
                 Args.DataDir        =    '/home/sasha/Raw/';                % The directory containing the input images
-                Args.InputImages    =    'LAST*sci*raw_Image*.fits';         % The mask of the input image filenames
+                Args.InputImages    =    'LAST*sci*raw_Image*.fits';        % The mask of the input image filenames
                 Args.DBname         =    Obj.DnLAST;
                 Args.DBtable        =    Obj.TnRawImages;
                 Args.Hash  logical  =    true;
