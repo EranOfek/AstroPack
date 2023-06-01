@@ -24,10 +24,9 @@
 #
 # ===========================================================================
 
-import os, sys, shutil, time, glob, uuid, hashlib, yaml, io, xmlplain, json, configparser
+import os, sys, shutil, time, glob, uuid, hashlib, io, json, configparser
 import psutil
 from datetime import datetime
-#import system, yaml_utils
 import colorama
 from colorama import Fore, Back, Style
 

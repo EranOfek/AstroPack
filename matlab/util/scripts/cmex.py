@@ -8,8 +8,10 @@
 #   -f filename     - Process file
 #   -r              - Recurse (process subfolders)
 #
-# Examples:
+# Linux examples:
+#   /dev/AstroPack.git/matlab$ python3 util/scripts/cmex.py -d . -r
 #
+# Windows examples:
 #   C:\Ultrasat\AstroPack.git\matlab\util\+tools>python3 ..\scripts\cmex.py -d +array/mex_bitsetFlag_include.cpp
 #   >python3 ..\scripts\cmex.py -f +array/+mex/mex_bitsetFlag_include.cpp
 #
@@ -31,13 +33,14 @@ class MexCompiler:
         self.is_win = os.name == 'nt'
 
         #
+        self.mex_flags = ''  # '-v'
         self.ext_list = ['.c', '.cpp']
         self.win_mex = 'mex {} COMPFLAGS="$COMPFLAGS /openmp"'
         self.win_mex_avx2 = 'mex {} COMPFLAGS="$COMPFLAGS /openmp /arch:AVX2"'
         self.win_mex_avx512 = 'mex {} COMPFLAGS="$COMPFLAGS /openmp /arch:AVX512"'
-        self.linux_mex = "mex -v CXXFLAGS='$CXXFLAGS -fopenmp' LDFLAGS='$LDFLAGS -fopenmp' CXXOPTIMFLAGS='-O3 -DNDEBUG' {}"
-        self.linux_mex_avx2 = "mex -v CXXFLAGS='$CXXFLAGS -fopenmp -mavx2' LDFLAGS='$LDFLAGS -fopenmp' CXXOPTIMFLAGS='-O3 -DNDEBUG' {}"
-        self.linux_mex_avx512 = "mex -v CXXFLAGS='$CXXFLAGS -fopenmp -mavx2' LDFLAGS='$LDFLAGS -fopenmp' CXXOPTIMFLAGS='-O3 -DNDEBUG' {}"
+        self.linux_mex = "mex " + self.mex_flags + " CXXFLAGS='$CXXFLAGS -fopenmp' LDFLAGS='$LDFLAGS -fopenmp' CXXOPTIMFLAGS='-O3 -DNDEBUG' {}"
+        self.linux_mex_avx2 = "mex " + self.mex_flags + " CXXFLAGS='$CXXFLAGS -fopenmp -mavx2' LDFLAGS='$LDFLAGS -fopenmp' CXXOPTIMFLAGS='-O3 -DNDEBUG' {}"
+        self.linux_mex_avx512 = "mex " + self.mex_flags + " CXXFLAGS='$CXXFLAGS -fopenmp -mavx2' LDFLAGS='$LDFLAGS -fopenmp' CXXOPTIMFLAGS='-O3 -DNDEBUG' {}"
 
         #
         self.mex_cmd_list = []
