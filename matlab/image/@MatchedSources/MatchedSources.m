@@ -227,9 +227,10 @@ classdef MatchedSources < Component
             end
             
             List = io.files.rdir(FileTemplate);
-            FN   = FileNames(List);
+            List = fullfile({List.folder},{List.name}).';
+            %FN   = FileNames(List);
             %FN.FormatVersion = '%03d';
-            List = FN.genFile;
+            %List = FN.genFile;
             
             Nlist = numel(List);   
    
@@ -874,7 +875,7 @@ classdef MatchedSources < Component
             %                   If char, then will first search for all
             %                   field names in the first element of the
             %                   MatchedSources object that contains this
-            %                   substring. All the releveant fields will be
+            %                   substring. All the releveant GAIfields will be
             %                   put in a cell array. Will apply the ZP for
             %                   all fields in the cell array.
             %                   Default is 'MAG'.

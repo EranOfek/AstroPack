@@ -13,6 +13,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     %          'ZP'            : zero point to be written into the header of the mosaic image
     %          'LASTnaming'    : whether the image file names are in the LAST convention form
     %          'SizeMargin'    : number of margin pixels added to X and Y size of the mosaic image
+    %          'OutDir'        : output directory
     %          
     % Output : - StitchedImage: an AstroImage containing a mosaic made of all the input images
     %          - AH: the header of the mosaic image containing the exposure, ZP and the WCS
@@ -35,7 +36,8 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         Args.LASTnaming logical = true;                          % whether the image file names are in the LAST convention form
         Args.SizeMargin     =    [30 30];                        % number of margin pixels added to X and Y size of the mosaic
                                                                  % (needed due to the insufficient accurancy of the mosaic size determination)
-                                                                 
+        Args.OutDir         =   '.';                             % output directory
+
     end
     
     % set some constants and image parameters 
@@ -57,7 +59,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         
     else
 
-        cd(Args.DataDir);
+        cd(Args.DataDir)
         
         if Args.LASTnaming
             
@@ -268,15 +270,10 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     CPS = ImageM ./ ExposM;
     
 %             % illustartive plots of the counts, exposure, and CPS
-% 
 %             figure(2)
-% 
 %             subplot(1,2,1); imagesc(ImageM);
 %             subplot(1,2,2); imagesc(ExposM);
-% 
-%             figure(3)
-% 
-%             imagesc(CPS);
+%             figure(3); imagesc(CPS);
     
     % make the output structures
     
@@ -295,23 +292,25 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     
     if Args.ZP ~= 0  % use the user-provided exposure time 
         StitchedImage.setKeyVal('ZP',Args.ZP);
-    else                   % use the exposure time from the first image in the list
-        StitchedImage.setKeyVal('ZP',PH_ZP(1)); % 'PH_ZP'
+    else                   % use the zero point from the first image in the list
+        StitchedImage.setKeyVal('ZP',PH_ZP(1)); 
     end
     
     AH = StitchedImage.Header;               % save the header back from the AstroImage
     
     % make a FITS file:
-%     CPSOutputName = '!./CPS_Obs1a.fits';  
+
     if isa(InputImages,'AstroImage')
         CPSOutputName = strcat('!./','stitched_image.fits');
     else
         CPSOutputName = strcat('!./',FN.ProjName{1},'_',FN.Time{1},'_',FN.FieldID{1},'_stitched_image.fits');
     end
+
+    cd(Args.OutDir)
     StitchedImage.write1(CPSOutputName); % write the image and header to a FITS file
     
     cprintf('hyper','Mosaic constructed, see the output AstroImage and FITS image file.\n');    
-    fprintf('%s\n',CPSOutputName(4:end));
+    fprintf('%s\n',CPSOutputName(2:end));
     toc
     
 end

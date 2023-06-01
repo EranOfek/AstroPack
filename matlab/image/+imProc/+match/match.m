@@ -65,10 +65,10 @@ function [Result1, ResInd, UnMatched1, UnMatched2]=match(Obj1, Obj2, Args)
     Nobj2 = numel(Obj2);
     Nmax  = max(Nobj1, Nobj2);
 
-    if ~(Nobj1==1 || Nobj1==Namx)
+    if ~(Nobj1==1 || Nobj1==Nmax)
         error('Number of elements in Obj1 must be 1 or equal to the number of elements in Obj2');
     end
-    if ~(Nobj2==1 || Nobj2==Namx)
+    if ~(Nobj2==1 || Nobj2==Nmax)
         error('Number of elements in Obj2 must be 1 or equal to the number of elements in Obj1');
     end
 
@@ -139,10 +139,10 @@ function [Result1, ResInd, UnMatched1, UnMatched2]=match(Obj1, Obj2, Args)
 
 
         if isa(Result1, 'AstroImage')
-            Result1(Imax).CatData= Result1.CatData.selectRows(ResInd(Imax).Obj2_IndInObj1, 'IgnoreNaN',false, 'CreateNewObj',Args.CreateNewObj);
+            Result1(Imax).CatData= Result1(Imax).CatData.selectRows(ResInd(Imax).Obj2_IndInObj1, 'IgnoreNaN',false, 'CreateNewObj',Args.CreateNewObj);
         else
             % Result1 is an AstroCatalog object
-            Result1(Imax) = Result1.selecRows(ResInd(Imax).Obj2_IndInObj1, 'IgnoreNaN',false, 'CreateNewObj',Args.CreateNewObj);
+            Result1(Imax) = Result1(Imax).selectRows(ResInd(Imax).Obj2_IndInObj1, 'IgnoreNaN',false, 'CreateNewObj',Args.CreateNewObj);
         end
 
         

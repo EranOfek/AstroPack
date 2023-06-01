@@ -118,6 +118,7 @@ classdef AstroImage < Component
         Back
         Var
         Mask
+        Exp
         Header  % e.g., Header, Header('EXPTIME'), Header({'EXPTIME','IMTYPE'}), Header('IMTYPE',{additional args to keyVal})
         Key
         PSF
@@ -134,6 +135,7 @@ classdef AstroImage < Component
         BackData(1,1) BackImage              %= BackImage;
         VarData(1,1) VarImage                %= VarImage;
         MaskData(1,1) MaskImage              %= MaskImage;
+        ExpData(1,1) ExpImage
         
         HeaderData(1,1) AstroHeader          %= AstroHeader;
         CatData(1,1) AstroCatalog            %= AstroCatalog;
@@ -149,7 +151,8 @@ classdef AstroImage < Component
         Relations   = struct('Image','ImageData',...
                              'Back','BackData',...
                              'Var','VarData',...
-                             'Mask','MaskData');
+                             'Mask','MaskData',...
+                             'Exp','ExpData');
         
         
     end
@@ -191,6 +194,12 @@ classdef AstroImage < Component
             %                   mask image. Default is [].
             %            'MaskDict' - Mask bit dictionary.
             %                   Default is 'BitMask.Image.Default'.
+            %            'Exp' - The same as the file name argument, but
+            %                   for a Exp image. Default is [].
+            %            'ExpHDU' - The same as HDU, but for the
+            %                   Exp image. Default is [].
+            %            'ExpScale' - The same as scale, but for the
+            %                   Exp image. Default is [].
             %            'FileType' - If empty, use auto detection.
             %                   Default is [].
             %            'UseRegExp' - Ues regexp for file name
@@ -223,6 +232,10 @@ classdef AstroImage < Component
                 Args.MaskHDU                  = [];
                 Args.MaskScale                = [];
                 Args.MaskDict                 = 'BitMask.Image.Default';
+                
+                Args.Exp                      = [];
+                Args.ExpHDU                   = [];
+                Args.ExpScale                 = [];
                 
                 Args.PSF                      = [];
                 Args.PSFHDU                   = [];
@@ -286,10 +299,10 @@ classdef AstroImage < Component
                                                                         'FileNames',FN);
                                                                         
                         % Other data properties
-                        ListProp  = {'Back','Var','Mask', 'PSF','Cat'};
-                        ListData  = {'BackData','VarData','MaskData', 'PSFData','CatData'};
-                        ListHDU   = {'BackHDU','VarHDU','MaskHDU', 'PSFHDU','CatHDU'};
-                        ListScale = {'BackScale','VarScale','MaskScale', 'PSFScale','CatScale'};
+                        ListProp  = {'Back','Var','Mask', 'Exp', 'PSF','Cat'};
+                        ListData  = {'BackData','VarData','MaskData', 'ExpData', 'PSFData','CatData'};
+                        ListHDU   = {'BackHDU','VarHDU','MaskHDU', 'ExpHDU', 'PSFHDU','CatHDU'};
+                        ListScale = {'BackScale','VarScale','MaskScale', 'ExpScale', 'PSFScale','CatScale'};
                         
                         Nlist = numel(ListProp);
                         for Ilist=1:1:Nlist
@@ -300,13 +313,18 @@ classdef AstroImage < Component
                             end
                             if ~isempty(Args.(ListProp{Ilist}))
                                 % do not read header
-                                Obj = AstroImage.readImages2AstroImage(Args.(ListProp{Ilist}),'HDU',Args.(ListHDU{Ilist}),...
+                                try
+                                    Obj = AstroImage.readImages2AstroImage(Args.(ListProp{Ilist}),'HDU',Args.(ListHDU{Ilist}),...
                                                                             'Obj',Obj,...
                                                                             'FileType',Args.FileType,...
                                                                             'UseRegExp',Args.UseRegExp,...
                                                                             'Scale',Args.(ListScale{Ilist}),...
                                                                             'ReadHeader',false,...
                                                                             'DataProp',ListData{Ilist});
+                                catch
+                                    warning('Fail reading data product %s - likely does not exist in directory', ListProp{Ilist});
+                                end
+                                
                                 % treat integers in case of Mask
                                 switch ListProp{Ilist}
                                     case 'Mask'
@@ -467,7 +485,7 @@ classdef AstroImage < Component
             
             try
                 switch lower(Args.DataProp)
-                    case {'imagedata','backdata','vardata','maskdata','psfdata'}
+                    case {'imagedata','backdata','vardata','maskdata','psfdata','expdata'}
                         ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
                                                  'FileType',Args.FileType,...
                                                  'CCDSEC',Args.CCDSEC,...
@@ -501,6 +519,7 @@ classdef AstroImage < Component
                 warning('Image %s not found - skip upload',Tmp);
                 ImIO = ImageIO; % empty ImageIO
                 Obj = AstroImage.imageIO2AstroImage(ImIO, Args.DataProp, Args.Scale, Args.FileNames, Args.ReadHeader, Args.Obj);
+                            
             end
             
         end
@@ -757,7 +776,17 @@ classdef AstroImage < Component
             % getter for MaskImage
             Data = Obj.MaskData.Image;
         end
-
+        
+        function Obj = set.Exp(Obj, Data)
+            % setter for ExpImage
+            Obj.ExpData.Image = Data;
+        end
+        
+        function Data = get.Exp(Obj)
+            % getter for ExpImage
+            Data = Obj.ExpData.Image;
+        end
+        
         function Obj = set.PSF(Obj, Data)
             % setter for PSFData
             Obj.PSFData.Data = Data;
@@ -3299,6 +3328,66 @@ classdef AstroImage < Component
         end
     end
        
+    methods % utilities
+        function DataProp = depandentProp2DataProp(Obj, Prop)
+            % Depandent property to data property containing the ImageComponent object.
+            %   Given a dependent data property (e.g., 'Image') convert to
+            %   property name containing the ImageComponent object (e.g., 'ImageData').
+            % Input  : - An AstroImage object.
+            %          - Dependent property (e.g., 'Image','Back','Exp')
+            % Output : - The property name containing the data corresponding 
+            %            to the dependent property
+            %            (e.g., 'ImageData','BackData','ExpData').
+            % Author : Eran Ofek (May 2023)
+            % Example: AI.depandentProp2DataProp('Exp')
+            
+            arguments
+                Obj(1,1)
+                Prop char
+            end
+            
+            FN = fieldnames(Obj.Relations);            
+            Flag = strcmp(FN, Prop);
+            DataProp = Obj.Relations.(FN{Flag});
+            
+        end
+        
+        function Obj=setAutoScale(Obj, Args)
+            % Set the Scale of the Back/Var/Mask/Exp images such that the image size will be equal to the Image data.
+            % Input  : - An AstroImage object.
+            %          * ...,key,val,...
+            % Output : - Update the AstroImage object such that the Scale
+            %            property in the ImageComponent objects is set such
+            %            that the returned image sizes will be equal to the
+            %            Image size.
+            % Author : Eran Ofek (May 2023)
+
+            arguments
+                Obj
+                Args.ImageProp = {'Back','Var','Mask','Exp'};
+            end
+
+            Nprop = numel(Args.ImageProp);
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                SizeImage = Obj(Iobj).sizeImage('Image');
+                for Iprop=1:1:Nprop
+                    SizeProp = Obj(Iobj).sizeImage(Args.ImageProp{Iprop});
+                    Scale    = SizeImage./SizeProp;
+                    
+                    DataProp = Obj(Iobj).depandentProp2DataProp(Args.ImageProp{Iprop});
+                    %FN = fieldnames(Obj.Relations);
+                    %Ind = strcmp(FN, Args.ImageProp{Iprop});
+                    %DataProp = Obj.Relations.(FN{Ind});
+
+                    Obj(Iobj).(DataProp).Scale = Scale;
+                end
+            end
+
+        end
+    end
+
     %----------------------------------------------------------------------
     methods (Access = protected)
         function NewObj = copyElement(Obj)

@@ -64,6 +64,7 @@ classdef AstroCatalog < AstroTable
                 for Ifn=1:1:Nfn
                     Obj(Iobj).(FN{Ifn}) = AT(Iobj).(FN{Ifn});
                 end
+                Obj(Iobj).DataType = AstroDataType.Cat;
             end
                 
         end
