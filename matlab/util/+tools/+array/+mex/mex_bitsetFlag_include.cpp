@@ -9,10 +9,12 @@
 // 		$dtype: int8, int16, int32, int64
 //
 
+#include <stdlib.h>
 #include <omp.h>
 #include "mex.h"
 #include "matrix.h"
 
+#ifdef never    
 // Function to get dimensions of mxArray as a C-string
 char* dimsStr(mwSize ndims, const mwSize *dims)
 {

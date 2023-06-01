@@ -5,6 +5,7 @@
 
 import os, glob, time, argparse, shutil, platform, subprocess
 from datetime import datetime
+from base import init_log, msg_log, Color
 
 
 class MexCompiler:
@@ -17,11 +18,6 @@ class MexCompiler:
 
         """
         self.is_win = os.name == 'nt'
-        if self.is_win:
-            self.log_path = 'c:/temp/'
-        else:
-            self.log_path = '/tmp/'
-        self.logfile = open(os.path.join(self.log_path, 'cmex.log'), 'a')
 
         #
         self.ext_list = ['.c', '.cpp']
@@ -32,16 +28,14 @@ class MexCompiler:
         self.linux_mex_avx2 = "mex -v CXXFLAGS='$CXXFLAGS -fopenmp -mavx2' LDFLAGS='$LDFLAGS -fopenmp' CXXOPTIMFLAGS='-O3 -DNDEBUG' {}"
         self.linux_mex_avx512 = "mex -v CXXFLAGS='$CXXFLAGS -fopenmp -mavx2' LDFLAGS='$LDFLAGS -fopenmp' CXXOPTIMFLAGS='-O3 -DNDEBUG' {}"
 
+        #
+        self.mex_cmd_list = []
+        self.mex_cmd_output = {}
 
-    def log(self, msg, dt = False):
+
+    def log(self, msg, dt = False, color=None):
         # Log message to file
-        if msg == '': dt = False
-        if dt: msg = datetime.now().strftime('%d/%m/%y %H:%M:%S.%f')[:-3] + ' ' + msg
-        print(msg)
-        if self.logfile:
-            self.logfile.write(msg)
-            self.logfile.write("\n")
-            self.logfile.flush()
+        msg_log(msg, dt=dt, color=color)
 
 
     def run_mex(self, fn):
@@ -52,13 +46,18 @@ class MexCompiler:
             else:
                 cmd = self.linux_mex.format(fn)
 
-            self.log(f'[{os.getcwd()}] {cmd}')
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            #args = cmd_line.split()
-            #result = subprocess.run(args, capture_output=True, text=True)
+            cwd_cmd = f'[{os.getcwd()}] {cmd}'
+            self.mex_cmd_list.append(cwd_cmd)
+            self.log(cwd_cmd, color=Color.blue)
 
-            print(result.stdout)
-            print(result.stderr)
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            self.mex_cmd_output[cwd_cmd] = {'out': result.stdout, 'err': result.stderr }
+
+            if 'MEX completed successfully' in result.stdout:
+                self.log(result.stdout, color=Color.green)
+            else:
+                self.log(result.stdout, color=Color.black)
+            self.log(result.stderr, color=Color.red)
         except Exception as ex:
             self.log(str(ex))
 
@@ -71,7 +70,7 @@ class MexCompiler:
             if marker in line:
                 flags = line.split(marker)[1].strip().split(',')
                 flags = [flag.strip().lower() for flag in flags]
-                self.log(f'{marker}: {str(flags)}')
+                #self.log(f'{marker}: {str(flags)}')
 
         return flags
 
@@ -132,12 +131,16 @@ typedef double __Type;
 
             # Do NOT process auto-generated files
             if len(lines) > 0 and lines[0].startswith('// $Auto generated file'):
+                self.log(f'skipping auto-generated file: {fname}', color=Color.black)
                 return
 
             dtypes = []
             for line in lines:
                 flags = self.get_flags(line, '$dtype:')
-                if flags: dtypes = flags
+                if flags:
+                    dtypes = flags
+
+            self.log(f'\nprocessing INCLUDE file: {fname} - $dtype: {str(dtypes)}\n', color=Color.purple)
 
             for dtype in dtypes:
                 dtype_fn = self.write_dtype_file(fn, dtype)
@@ -166,6 +169,7 @@ typedef double __Type;
 
             # Do NOT process auto-generated files
             if len(lines) > 0 and lines[0].startswith('// $Auto generated file'):
+                self.log(f'skipping auto-generated file: {fname}', color=Color.black)
                 return
 
             self.run_mex(fn)
@@ -196,11 +200,29 @@ typedef double __Type;
                         else:
                             self.process_file(fname)
 
+    def summary(self):
+        self.log('\nSummary:\n')
+        for cmd in self.mex_cmd_list:
+            self.log(cmd)
+
+        self.log('\nError summary:\n')
+        for cmd in self.mex_cmd_output:
+            out = self.mex_cmd_output[cmd]
+            if out['err'] != '':
+                self.log(cmd, Color.blue)
+
+                if 'MEX completed successfully' in out['out']:
+                    self.log(out['out'], color=Color.green)
+                else:
+                    self.log(out['out'], color=Color.black)
+
+                self.log(out['err'], color=Color.red)
+
 
 def main():
 
     print('Compile all MEX files in folder')
-    print('NOTE: You may need to type "clear all" in MATLAB to release the current compiled binary file.')
+    print('\n*** NOTE: You may need to type "clear all" in MATLAB to release the current compiled binary file.\n')
 
 
     # Read command line options
@@ -215,14 +237,16 @@ def main():
     mc = MexCompiler()
     folder = 'C:/Ultrasat/AstroPack.git/matlab/util/+tools/+operators/+mex'
     folder = r'C:\Ultrasat\AstroPack.git\matlab\util\+tools\+checksum\+mex'
+    folder = r'C:\Ultrasat\AstroPack.git\matlab\util\+tools\+array'
     mc.process_folder(folder)
-    return
 
     if args.dir:
         mc.process_folder(args.dir, args.recurse)
-    else:
+    elif args.file:
         mc.process_file(args.file)
 
+
+    mc.summary()
 
 
 if __name__ == '__main__':

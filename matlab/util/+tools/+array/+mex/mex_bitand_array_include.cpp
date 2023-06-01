@@ -57,7 +57,7 @@ void mexFunction(
     input_type  = mxGetClassName(prhs[0]);
     
     // 
-    if ((class_id != MEX_INT) && (class_id != MEX_UINT)) {
+    if ((class_id != MEX_TYPE) && (class_id != MEX_UTYPE)) {
         mexPrintf("Input matrix integer type does not match this function\n");
         return;                
     }
