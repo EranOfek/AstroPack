@@ -29,7 +29,7 @@ function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_ha
     %                   are ffted (true) or in regular space (false).
     %                   Default is true.
     % Output : - D_hat
-    %          - Pd_hat
+    %          - Pd_hat - Note that Pd is not cleaned.
     %          - Fd
     %          - D_den
     %          - D_num
@@ -90,8 +90,9 @@ function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_ha
         % convert D and Pd to regular space
         D_hat  = ifft2(D_hat);
         Pd_hat = ifft2(Pd_hat); 
+        Pd     = Pd_hat;
+    else
+        Pd     = [];
     end
     
-    'HERE: need a function to clean Pd?'
-
 end
