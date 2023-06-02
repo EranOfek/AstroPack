@@ -517,6 +517,66 @@ classdef AstroPSF < Component
             end
         end
 
+        function Result = full2stamp(Obj, Args)
+            % Given a PSF contained in a full-size image, generate a stamp of the PSF.
+            % Input  : - An AstroPSF object containing a full-size image matrix or cube of PSFs. If a cube, then
+            %            the image index must be in the 3rd dimension.
+            %          * ...,key,val,...
+            %            'StampHalfSize' - Output stamp half size in [X,Y].
+            %                   Default is [7 7] (i.e., stamp will be 15 by 15).
+            %            'IsCorner' - A logical indicating if the PSF is in the
+            %                   image corner (true) or center (false) in the input
+            %                   full-size image.
+            %                   Default is true.
+            %            'Recenter' - Recenter the PSF using 1st moment estimation.
+            %                   Default is false (NOT AVAILABLE).
+            %            'zeroConv' - A logical indicating if to call the imUtil.psf.psf_zeroConverge
+            %                   in order to smooth the edges of the PSF.
+            %                   Default is true.
+            %            'zeroConvArgs' - A cell array of arguments to pass to
+            %                   imUtil.psf.psf_zeroConverge
+            %                   Default is {}.
+            %            'Norm' - Normalize the PSF stamp by this value.
+            %                   If true, then will normalize the PSF by its sum
+            %                   (such that integral will be 1).
+            %                   Default is true.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the input object.
+            %                   Default is false.
+            % Output : - An AstroPSF object with the updated PSF.
+            %            A PSF (centered) in a stamp.
+            % Author : Eran Ofek (Jun 2023)
+            % Example: 
+
+            arguments
+                Obj
+                Args.StampHalfSize        = [7 7];   % [X, Y]
+                Args.IsCorner logical     = true;
+                Args.Recenter logical     = false;
+                Args.zeroConv logical     = true;
+                Args.zeroConvArgs cell    = {};
+                Args.Norm                 = true;
+                Args.CreateNewObj logical = false;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Result(Iobj).Data = imUtil.psffull2stamp(Obj(Iobj).Data, 'StampHalfSize',Args.StampHalfSize,...
+                                                                         'IsCorner',Args.IsCorner,...
+                                                                         'Recenter',Args.Recenter,...
+                                                                         'zeroConv',Args.zeroConv,...
+                                                                         'zeroConvArgs',Args.zeroConvArgs,...
+                                                                         'Norm',Args.Norm);
+            end
+            
+        end
+        
         function Result = funUnary(Obj, OperatorOperatorArgs, OutType, DataProp, DataPropOut)
             %
            
