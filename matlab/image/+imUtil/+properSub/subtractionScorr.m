@@ -17,6 +17,23 @@ function [Scorr, S, D, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N
     %          - Fn (New image flux normalization).
     %          - Fr(Ref image flux normalization).
     %          * ...,key,val,...
+    %            'VN' - New image variance map including background and sources.
+    %                   If VN or VR are empty, then, do not add source
+    %                   noise.
+    %                   Default is [].
+    %            'VR' - Ref image variance map including background and sources.
+    %                   If VN or VR are empty, then, do not add source
+    %                   noise.
+    %                   Default is [].
+    %            'SigmaAstN' - The astrometric noise of the new image in [X, Y]
+    %                   If one colum is given then assume the noise in X and Y
+    %                   direction are identical.
+    %                   If several lines are given, then each line corresponds to
+    %                   the image index (in the image cube input).
+    %                   Default is [].
+    %            'SigmaAstR' - The  astrometric noise of the ref image in [X, Y].
+    %                   Default is [].
+    %
     %            'AbsFun' - absolute value function.
     %                   Default is @(X) abs(X)
     %            'Eps' - A small value to add to the demoninators in order
@@ -34,8 +51,7 @@ function [Scorr, S, D, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N
     %          - D_num
     %          - D_denSqrt
     % Author : Eran Ofek (Apr 2022)
-    % Example: [S_hat, D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionS(rand(25,25), rand(25,25), rand(25,25), rand(25,25), 1, 1, 1, 1)
-    %          [S_hat, D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionS(rand(25,25,4), rand(25,25,4), rand(25,25,4), rand(25,25,4), ones(4,1), ones(4,1), ones(4,1), ones(4,1))
+    % Example: [Scorr, S, D, Pd, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionScorr(rand(25,25), rand(25,25), rand(25,25), rand(25,25), 1, 1, 1, 1)
     
     arguments
         N_hat
@@ -47,7 +63,7 @@ function [Scorr, S, D, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N
         Fn
         Fr
         Args.VN               = [];
-        Args.VR               = [];
+        Args.VR               = []; 
         Args.SigmaAstN        = [];
         Args.SigmaAstR        = [];
         
@@ -71,13 +87,13 @@ function [Scorr, S, D, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N
     if isempty(Args.VN) || isempty(Args.VR)
         Vcorr = 0;
     else
-        [Vcorr]      = imUtil.properSub.sourceNoise(VN, VR, Kn, Kr);
+        [Vcorr]      = imUtil.properSub.sourceNoise(Args.VN, Args.VR, Kn, Kr);
     end
     
     if isempty(Args.SigmaAstN) || isempty(Args.SigmaAstR)
         Vast = 0;
     else
-        [Vast] = imUtilproperSub.astrometricNoise(N_hat, R_hat, Kn_hat, Kr_hat, SigmaAstN, SigmaAstR);
+        [Vast] = imUtil.properSub.astrometricNoise(N_hat, R_hat, Kn_hat, Kr_hat, Args.SigmaAstN, Args.SigmaAstR);
     end
     
     Scorr = S./sqrt(Vcorr + Vast);

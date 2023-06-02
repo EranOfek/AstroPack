@@ -25,7 +25,7 @@ function [S_hat, D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionS(N_ha
     %            'IsFFT' - A logical indicating if the input N_hat, R_hat, Pn_hat, Pr_hat
     %                   input arguments are in Fourier space.
     %                   Default is true.
-    %            'OutIsFFT' - A logical indicating if the output S, D and Pd
+    %            'IsOutFFT' - A logical indicating if the output S, D and Pd
     %                   are ffted (true) or in regular space (false).
     %                   Default is true.
     % Output : - S_hat
