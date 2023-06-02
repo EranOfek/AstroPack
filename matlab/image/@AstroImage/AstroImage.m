@@ -2593,6 +2593,9 @@ classdef AstroImage < Component
             %            'CalcMask' - A logical that state if to apply the
             %                   operator to the MaskData property.
             %                   Default is true.
+            %            'CalcExp' - A logical that state if to apply the
+            %                   operator to the ExpData property.
+            %                   Default is true.
             %            'CalcPSF' - A logical that state if to apply the
             %                   operator to the PSF property.
             %                   Default is true.
@@ -2650,6 +2653,7 @@ classdef AstroImage < Component
                 Args.CalcBack(1,1) logical     = true;
                 Args.CalcVar(1,1) logical      = true;
                 Args.CalcMask(1,1) logical     = true;
+                Args.CalcExp(1,1) logical      = true;
                 Args.CalcPSF(1,1) logical      = false;
                 Args.PropagateErr              = [];
                 Args.DeleteCat(1,1) logical    = false;
@@ -2733,6 +2737,17 @@ classdef AstroImage < Component
                                                                  'UseOrForMask',Args.UseOrForMask,...
                                                                  'Result',Result);
             end
+            if Args.CalcExp
+                Result = funBinaryProp(Obj1, Obj2, Operator, 'OpArgs',Args.OpArgs,...
+                                                                 'DataProp','ExpData',...
+                                                                 'DataPropIn',Args.DataPropIn,...
+                                                                 'CCDSEC',Args.CCDSEC,...
+                                                                 'CCDSEC1',Args.CCDSEC1,...
+                                                                 'CCDSEC2',Args.CCDSEC2,...
+                                                                 'CreateNewObj',Args.CreateNewObj,...
+                                                                 'UseOrForMask',Args.UseOrForMask,...
+                                                                 'Result',Result);
+            end
             if Args.CalcMask
                 Result = funBinaryProp(Obj1, Obj2, Operator, 'OpArgs',Args.OpArgs,...
                                                                  'DataProp','MaskData',...
@@ -2744,7 +2759,9 @@ classdef AstroImage < Component
                                                                  'UseOrForMask',Args.UseOrForMask,...
                                                                  'Result',Result);
             end
-                
+            
+            
+            
             if Args.CalcPSF
                 error('PSF funBinary is not implemented yet');
             end
