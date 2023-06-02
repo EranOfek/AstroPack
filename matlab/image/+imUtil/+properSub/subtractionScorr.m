@@ -1,5 +1,5 @@
-function [S_hat, D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionS(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
-    % Return the S_hat and D_hat subtraction images (Fourier transform of proper subtraction)
+function [Scorr, S, D, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
+    % Return the S_corr, S, D subtraction images (proper subtraction)
     %   The function can deal with cube inputs in which the image index is
     %   in the 3rd dimension.
     % Input  : - N_hat (Fourier Transform of new image).
@@ -25,12 +25,10 @@ function [S_hat, D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionS(N_ha
     %            'IsFFT' - A logical indicating if the input N_hat, R_hat, Pn_hat, Pr_hat
     %                   input arguments are in Fourier space.
     %                   Default is true.
-    %            'OutIsFFT' - A logical indicating if the output S, D and Pd
-    %                   are ffted (true) or in regular space (false).
-    %                   Default is true.
-    % Output : - S_hat
-    %          - D_hat
-    %          - Pd_hat
+    % Output : - S_corr
+    %          - S
+    %          - D
+    %          - Pd
     %          - Fd
     %          - D_den
     %          - D_num
@@ -48,10 +46,14 @@ function [S_hat, D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionS(N_ha
         SigmaR
         Fn
         Fr
+        Args.VN               = [];
+        Args.VR               = [];
+        Args.SigmaAstN        = [];
+        Args.SigmaAstR        = [];
+        
         Args.AbsFun           = @(X) abs(X);
         Args.Eps              = 0;
         Args.IsFFT logical    = true;
-        Args.IsOutFFT logical = true;
     end
 
 
@@ -59,12 +61,27 @@ function [S_hat, D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionS(N_ha
                                                                                  'AbsFun',Args.AbsFun, 'Eps',Args.Eps, 'IsOutFFT',true);
     S_hat = D_hat.*conj(Pd_hat);
     
-    if Args.IsOutFFT
-        % convert D and Pd to regular space
-        S_hat  = ifft2(S_hat);
-        D_hat  = ifft2(D_hat);
-        Pd_hat = ifft2(Pd_hat); 
+    % convert D and Pd to regular space
+    S  = ifft2(S_hat);
+    D  = ifft2(D_hat);
+    Pd = ifft2(Pd_hat); 
+    
+    
+    [Kn_hat, Kr_hat, Kn, Kr] = imUtil.properSub.knkr(Fn, Fr, Pn_hat, Pr_hat, D_den, Args.AbsFun);
+    if isempty(Args.VN) || isempty(Args.VR)
+        Vcorr = 0;
+    else
+        [Vcorr]      = imUtil.properSub.sourceNoise(VN, VR, Kn, Kr);
     end
+    
+    if isempty(Args.SigmaAstN) || isempty(Args.SigmaAstR)
+        Vast = 0;
+    else
+        [Vast] = imUtilproperSub.astrometricNoise(N_hat, R_hat, Kn_hat, Kr_hat, SigmaAstN, SigmaAstR);
+    end
+    
+    Scorr = S./sqrt(Vcorr + Vast);
+    
 end
 
 

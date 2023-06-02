@@ -1,4 +1,4 @@
-function [Vcorr, V_Sn, V_Sr] = sourceNoise(VN, VR, Kn, Kr, Args)
+function [Vcorr, V_Sn, V_Sr] = sourceNoise(VN, VR, Kn, Kr)
     % Calculate the subtraction source noise varainace based on kr_hat, kn_hat
     %    ZOGY Equations 26-29
     %   The function can deal with cube inputs in which the image index is
@@ -7,9 +7,6 @@ function [Vcorr, V_Sn, V_Sr] = sourceNoise(VN, VR, Kn, Kr, Args)
     %          - (VR) Ref image variance map.
     %          - k_n (calculated using imUtil.properSub.knkr).
     %          - k_r (calculated using imUtil.properSub.knkr)
-    %          * ...,key,val,...
-    %            'AbsFun' - Function handle for complex number absolute
-    %                   values. Default is @(x) abs(x)
     % Output : - Vcorr Variance for S_corr (source noise for S).
     %          - V_Sn
     %          - V_Sr
@@ -24,7 +21,6 @@ function [Vcorr, V_Sn, V_Sr] = sourceNoise(VN, VR, Kn, Kr, Args)
         VR
         Kn             = [];
         Kr             = [];
-        Args.AbsFun    = @(x) abs(x);
     end
     
     % ZOGY Equations 26-29

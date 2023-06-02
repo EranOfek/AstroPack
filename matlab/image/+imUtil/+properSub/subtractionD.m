@@ -22,8 +22,11 @@ function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_ha
     %            'Eps' - A small value to add to the demoninators in order
     %                   to avoid division by zero due to roundoff errors.
     %                   Default is 0. (If needed set to about 100.*eps).
-    %            'IsFFT' - A logical indicating if the N_hat, R_hat, Pn_hat, Pr_hat
+    %            'IsFFT' - A logical indicating if the input N_hat, R_hat, Pn_hat, Pr_hat
     %                   input arguments are in Fourier space.
+    %                   Default is true.
+    %            'OutIsFFT' - A logical indicating if the output D and Pd
+    %                   are ffted (true) or in regular space (false).
     %                   Default is true.
     % Output : - D_hat
     %          - Pd_hat
@@ -44,9 +47,10 @@ function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_ha
         SigmaR
         Fn
         Fr
-        Args.AbsFun        = @(X) abs(X);
-        Args.Eps           = 0;
-        Args.IsFFT logical = true;
+        Args.AbsFun           = @(X) abs(X);
+        Args.Eps              = 0;
+        Args.IsFFT logical    = true;
+        Args.IsOutFFT logical = true;
     end
         
     if ndims(N_hat)==3 && ndims(Fn)==2
@@ -81,6 +85,12 @@ function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_ha
     Pd_num    = Fr .* Fn .* Pr_hat .* Pn_hat;
     Pd_den    = Fd .* D_denSqrt;
     Pd_hat    = Pd_num./Pd_den;
+    
+    if ~Args.OutIsFFT
+        % convert D and Pd to regular space
+        D_hat  = ifft2(D_hat);
+        Pd_hat = ifft2(Pd_hat); 
+    end
     
     'HERE: need a function to clean Pd?'
 

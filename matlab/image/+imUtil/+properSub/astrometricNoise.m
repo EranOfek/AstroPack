@@ -1,4 +1,4 @@
-function [Vast, Vast_SN, Vast_SR]=astrometricNoise(N_hat, R_hat, Kn_hat, Kr_hat, SigmaAstN, SigmaAstR, Args)
+function [Vast, Vast_SN, Vast_SR]=astrometricNoise(N_hat, R_hat, Kn_hat, Kr_hat, SigmaAstN, SigmaAstR)
     % Calculate the subtraction astrometric noise varainace based on kr_hat, kn_hat
     %    ZOGY Equations 30-33
     %   The function can deal with cube inputs in which the image index is
@@ -15,9 +15,6 @@ function [Vast, Vast_SN, Vast_SR]=astrometricNoise(N_hat, R_hat, Kn_hat, Kr_hat,
     %            If several lines are given, then each line corresponds to
     %            the image index (in the image cube input).
     %          - The  astrometric noise of the ref image in [X, Y].
-    %          * ...,key,val,...
-    %            'AbsFun' - Function handle for complex number absolute
-    %                   values. Default is @(x) abs(x)
     % Output : - Vcorr Variance for S_corr (source noise for S).
     %          - V_Sn
     %          - V_Sr
@@ -35,7 +32,6 @@ function [Vast, Vast_SN, Vast_SR]=astrometricNoise(N_hat, R_hat, Kn_hat, Kr_hat,
         Kr_hat
         SigmaAstN = 0;
         SigmaAstR = 0;
-        Args.AbsFun    = @(x) abs(x);
     end
     
     if size(SigmaAstN,2)==1
