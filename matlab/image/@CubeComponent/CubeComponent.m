@@ -416,7 +416,9 @@ classdef CubeComponent < Component
             %            'DataProp' - Data property in the 'AstroImage' or
             %                   'ImageComponent' in which to write the collpased
             %                   matrix. Default is 'Image'.
-            % Output : - 
+            % Output : - The collapsed result, of applying the unary
+            %            function pixel-wise on the cube.
+            %            The output is a 2D array.
             % Author : Eran Ofek (Jun 2023)
             % Example: Im = AstroImage({ones(10,10), 2.*ones(10,10)}); 
             %          C=CubeComponent.images2cube(Im);             
@@ -474,6 +476,204 @@ classdef CubeComponent < Component
             end
         end
         
+    end
+    
+    methods % overload operators
+        function Result = sum(Obj, Args)
+            % Calculate the collapsed (pixel-wise) sum of CubeComponent object
+            %   Return a 2-D matrix
+            % Input  : - A CubeComponent object
+            %          * ...,key,val,...
+            %            'OutType' - Output type:
+            %                   'matrix' - A 2-D matrix containing the
+            %                       collapsed image.
+            %                       If CubeComponent has multi element then
+            %                       this will contain only the last element
+            %                       result.
+            %                   'cube' - A cube of a 2-D matrices per
+            %                           CubeComponent element.
+            %                   'AstroImage' - An AstroImage object of the
+            %                           collapsed images per CubeComponent element.
+            %                   'ImageComponent' - An ImageComponent object of the
+            %                           collapsed images per CubeComponent element.
+            %                   'CubeComponent' - A (new) CubeComponent object
+            %                           containing the collapse image.
+            %                   Default is 'Cube'.
+            % Output : - The collapsed result, of applying the unary
+            %            function (@sum) pixel-wise on the cube.
+            %            The output is a 2D array.
+            % Author : Eran Ofek (Jun 2023)
+            % Example: Im = AstroImage({ones(100,100), 2.*ones(100,100)}); 
+            %          C=CubeComponent.images2cube(Im);
+            %          C.sum
+
+            arguments
+                Obj
+                Args.OutType  = 'cube';
+            end
+            
+            Result=unaryFunCollapse(Obj, @sum, 'FunPreDimArgs',{},...
+                                               'FunPostDimArgs',{'omitnan'},...
+                                               'OutType',Args.OutType);
+                                           
+        end
+        
+        function Result = mean(Obj, Args)
+            % Calculate the collapsed (pixel-wise) mean of CubeComponent object
+            %   Return a 2-D matrix
+            % Input  : - A CubeComponent object
+            %          * ...,key,val,...
+            %            'OutType' - Output type:
+            %                   'matrix' - A 2-D matrix containing the
+            %                       collapsed image.
+            %                       If CubeComponent has multi element then
+            %                       this will contain only the last element
+            %                       result.
+            %                   'cube' - A cube of a 2-D matrices per
+            %                           CubeComponent element.
+            %                   'AstroImage' - An AstroImage object of the
+            %                           collapsed images per CubeComponent element.
+            %                   'ImageComponent' - An ImageComponent object of the
+            %                           collapsed images per CubeComponent element.
+            %                   'CubeComponent' - A (new) CubeComponent object
+            %                           containing the collapse image.
+            %                   Default is 'Cube'.
+            % Output : - The collapsed result, of applying the unary
+            %            function (@mean) pixel-wise on the cube.
+            %            The output is a 2D array.
+            % Author : Eran Ofek (Jun 2023)
+            % Example: Im = AstroImage({ones(100,100), 2.*ones(100,100)}); 
+            %          C=CubeComponent.images2cube(Im);
+            %          C.mean
+
+            arguments
+                Obj
+                Args.OutType  = 'cube';
+            end
+            
+            Result=unaryFunCollapse(Obj, @mean, 'FunPreDimArgs',{},...
+                                               'FunPostDimArgs',{'omitnan'},...
+                                               'OutType',Args.OutType);
+                                           
+        end
+        
+        function Result = median(Obj, Args)
+            % Calculate the collapsed (pixel-wise) median of CubeComponent object
+            %   Return a 2-D matrix
+            % Input  : - A CubeComponent object
+            %          * ...,key,val,...
+            %            'OutType' - Output type:
+            %                   'matrix' - A 2-D matrix containing the
+            %                       collapsed image.
+            %                       If CubeComponent has multi element then
+            %                       this will contain only the last element
+            %                       result.
+            %                   'cube' - A cube of a 2-D matrices per
+            %                           CubeComponent element.
+            %                   'AstroImage' - An AstroImage object of the
+            %                           collapsed images per CubeComponent element.
+            %                   'ImageComponent' - An ImageComponent object of the
+            %                           collapsed images per CubeComponent element.
+            %                   'CubeComponent' - A (new) CubeComponent object
+            %                           containing the collapse image.
+            %                   Default is 'Cube'.
+            % Output : - The collapsed result, of applying the unary
+            %            function (@median) pixel-wise on the cube.
+            %            The output is a 2D array.
+            % Author : Eran Ofek (Jun 2023)
+            % Example: Im = AstroImage({ones(100,100), 2.*ones(100,100)}); 
+            %          C=CubeComponent.images2cube(Im);
+            %          C.median
+
+            arguments
+                Obj
+                Args.OutType  = 'cube';
+            end
+            
+            Result=unaryFunCollapse(Obj, @median, 'FunPreDimArgs',{},...
+                                               'FunPostDimArgs',{'omitnan'},...
+                                               'OutType',Args.OutType);
+                                           
+        end
+        
+        function Result = std(Obj, Args)
+            % Calculate the collapsed (pixel-wise) std of CubeComponent object
+            %   Return a 2-D matrix
+            % Input  : - A CubeComponent object
+            %          * ...,key,val,...
+            %            'OutType' - Output type:
+            %                   'matrix' - A 2-D matrix containing the
+            %                       collapsed image.
+            %                       If CubeComponent has multi element then
+            %                       this will contain only the last element
+            %                       result.
+            %                   'cube' - A cube of a 2-D matrices per
+            %                           CubeComponent element.
+            %                   'AstroImage' - An AstroImage object of the
+            %                           collapsed images per CubeComponent element.
+            %                   'ImageComponent' - An ImageComponent object of the
+            %                           collapsed images per CubeComponent element.
+            %                   'CubeComponent' - A (new) CubeComponent object
+            %                           containing the collapse image.
+            %                   Default is 'Cube'.
+            % Output : - The collapsed result, of applying the unary
+            %            function (@std) pixel-wise on the cube.
+            %            The output is a 2D array.
+            % Author : Eran Ofek (Jun 2023)
+            % Example: Im = AstroImage({ones(100,100), 2.*ones(100,100)}); 
+            %          C=CubeComponent.images2cube(Im);
+            %          C.std
+
+            arguments
+                Obj
+                Args.OutType  = 'cube';
+            end
+            
+            Result=unaryFunCollapse(Obj, @std, 'FunPreDimArgs',{[]},...
+                                               'FunPostDimArgs',{'omitnan'},...
+                                               'OutType',Args.OutType);
+                                           
+        end
+        
+        function Result = rstd(Obj, Args)
+            % Calculate the collapsed (pixel-wise) rstd of CubeComponent object
+            %   Return a 2-D matrix
+            % Input  : - A CubeComponent object
+            %          * ...,key,val,...
+            %            'OutType' - Output type:
+            %                   'matrix' - A 2-D matrix containing the
+            %                       collapsed image.
+            %                       If CubeComponent has multi element then
+            %                       this will contain only the last element
+            %                       result.
+            %                   'cube' - A cube of a 2-D matrices per
+            %                           CubeComponent element.
+            %                   'AstroImage' - An AstroImage object of the
+            %                           collapsed images per CubeComponent element.
+            %                   'ImageComponent' - An ImageComponent object of the
+            %                           collapsed images per CubeComponent element.
+            %                   'CubeComponent' - A (new) CubeComponent object
+            %                           containing the collapse image.
+            %                   Default is 'Cube'.
+            % Output : - The collapsed result, of applying the unary
+            %            function (@tools.math.stat.rstd) pixel-wise on the cube.
+            %            The output is a 2D array.
+            % Author : Eran Ofek (Jun 2023)
+            % Example: Im = AstroImage({ones(100,100), 2.*ones(100,100)}); 
+            %          C=CubeComponent.images2cube(Im);
+            %          C.rstd
+
+            arguments
+                Obj
+                Args.OutType  = 'cube';
+            end
+            
+            Result=unaryFunCollapse(Obj, @tools.math.stat.rstd, 'FunPreDimArgs',{},...
+                                               'FunPostDimArgs',{},...
+                                               'OutType',Args.OutType);
+                                           
+        end
+                    
     end
     
    
