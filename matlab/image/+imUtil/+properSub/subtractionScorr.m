@@ -42,6 +42,12 @@ function [Scorr, S, D, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N
     %            'IsFFT' - A logical indicating if the input N_hat, R_hat, Pn_hat, Pr_hat
     %                   input arguments are in Fourier space.
     %                   Default is true.
+    %            'NormS' - A logical indicating if to subtract median and
+    %                   divide by RStD, from S, Scorr.
+    %                   Default is true.
+    %            'NormD' - - A logical indicating if to subtract median and
+    %                   divide by RStD, from D.
+    %                   Default is false.
     % Output : - S_corr
     %          - S
     %          - D
@@ -70,6 +76,9 @@ function [Scorr, S, D, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N
         Args.AbsFun           = @(X) abs(X);
         Args.Eps              = 0;
         Args.IsFFT logical    = true;
+        
+        Args.NormS logical    = true;
+        Args.NormD logical    = false;
     end
 
 
@@ -97,6 +106,19 @@ function [Scorr, S, D, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N
     end
     
     Scorr = S./sqrt(Vcorr + Vast);
+    
+    % normalize D
+    if Args.NormD
+        D = D - median(D, [1 2], 'omitnan');
+        D = D./tools.math.stat.rstd(D, [1 2]);
+    end
+    % normalize S and Scorr
+    if Args.NormS
+        S = S - median(S, [1 2], 'omitnan');
+        S = S./tools.math.stat.rstd(S, [1 2]);
+        Scorr = Scorr - median(Scorr, [1 2], 'omitnan');
+        Scorr = Scorr./tools.math.stat.rstd(Scorr, [1 2]);
+    end
     
 end
 

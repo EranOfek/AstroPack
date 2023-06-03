@@ -18,7 +18,16 @@ function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
 
         Args.NewZP                        = 'PH_ZP';
         Args.RefZP                        = 'PH_ZP';
-
+        
+        Args.SigmaAstN                    = 0;   % or keyword
+        Args.SigmaAstR                    = 0;   % or keyword
+        
+        Args.AbsFun           = @(X) abs(X);
+        Args.Eps              = 0;
+        
+        Args.NormS logical    = true;
+        Args.NormD logical    = false;
+        
     end
 
     N_N  = numel(ObjNew);
@@ -28,35 +37,44 @@ function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
     % --- Check for empty data and generate if needed ---
     % check for background and variance
     % check for PSF
-    [IsEmptyNewImage, IsEmptyNewBack, IsEmptyNewVar, IsEmptyNewPSF] = isemptyImage(ObjNew, {'Image','Back','Var', 'PSF'});
-    [IsEmptyRefImage, IsEmptyRefBack, IsEmptyRefVar, IsEmptyRefPSF] = isemptyImage(ObjRef, {'Image','Back','Var', 'PSF'});
+    % Check New
+    if isa(ObjNew, 'AstroImage')
+        [IsEmptyNewImage, IsEmptyNewBack, IsEmptyNewVar, IsEmptyNewPSF] = isemptyImage(ObjNew, {'Image','Back','Var', 'PSF'});
+        % Image
+        if any(IsEmptyNewImage)
+            error('%d out of %d ImageData property in the New images are empty', sum(IsEmptyNewImage), N_N);
+        end
+        % Back and Var
+        if any(IsEmptyNewBack) || any(IsEmptyNewVar)
+            % some Background/Variance are missing
+            % recalculate Back and Var
+            ObjNew = imProc.background.background(ObjNew, Args.backgroundArgs{:});
+        end
+        % PSF
+        if any(IsEmptyNewPSF)
+            error('%d out of %d PSFData property in the New images are empty', sum(IsEmptyNewPSF), N_N);
+        end
+    end
+    % Check Ref
+    if isa(ObjRef, 'AstroImage')    
+        [IsEmptyRefImage, IsEmptyRefBack, IsEmptyRefVar, IsEmptyRefPSF] = isemptyImage(ObjRef, {'Image','Back','Var', 'PSF'});
 
-    % Image
-    if any(IsEmptyNewImage)
-        error('%d out of %d ImageData property in the New images are empty', sum(IsEmptyNewImage), N_N);
-    end
-    if any(IsEmptyRefImage)
-        error('%d out of %d ImageData property in the Ref images are empty', sum(IsEmptyRefImage), N_R);
-    end
-    % Back and Var
-    if any(IsEmptyNewBack) || any(IsEmptyNewVar)
-        % some Background/Variance are missing
-        % recalculate Back and Var
-        ObjNew = imProc.background.background(ObjNew, Args.backgroundArgs{:});
-    end
-    if any(IsEmptyRefBack) || any(IsEmptyRefVar)
-        % some Background/Variance are missing
-        % recalculate Back and Var
-        ObjRef = imProc.background.background(ObjRef, Args.backgroundArgs{:});
-    end
-    % PSF
-    if any(IsEmptyNewPSF)
-        error('%d out of %d PSFData property in the New images are empty', sum(IsEmptyNewPSF), N_N);
-    end
-    if any(IsEmptyRefPSF)
-        error('%d out of %d PSFData property in the Ref images are empty', sum(IsEmptyRefPSF), N_R);
+        if any(IsEmptyRefImage)
+            error('%d out of %d ImageData property in the Ref images are empty', sum(IsEmptyRefImage), N_R);
+        end    
+    
+        if any(IsEmptyRefBack) || any(IsEmptyRefVar)
+            % some Background/Variance are missing
+            % recalculate Back and Var
+            ObjRef = imProc.background.background(ObjRef, Args.backgroundArgs{:});
+        end    
+    
+        if any(IsEmptyRefPSF)
+            error('%d out of %d PSFData property in the Ref images are empty', sum(IsEmptyRefPSF), N_R);
+        end
     end
 
+    % Allocate outputs:
     D     = ObjNew.copy;
     S     = ObjNew.copy;
     Scorr = ObjNew.copy;
@@ -66,10 +84,11 @@ function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
         Ir = min(N_R, Imax);
         In = min(N_N, Imax);
 
-        % subtract background
+        % keep the new and ref with background:
         Nwb = ObjNew(In).Image;
         Rwb = ObjRef(Ir).Image;
 
+        % subtract background
         N = ObjNew(In).Image - ObjNew(In).Back;
         BackN = ObjNew(In).Back;
         if isempty(Args.RefBack)
@@ -91,7 +110,7 @@ function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
             R = imUtil.image.replaceVal(R, NaN, 0);
         end
 
-        % get photometriz zer point
+        % get photometric zero point
         if ischar(Args.NewZP)
             ZP_New = ObjNew(In).HeaderData.getVal(Args.NewZP);
             Fn     = 10.^(-0.4.*ZP_New);
@@ -108,56 +127,71 @@ function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
         Fr = Fn./Fr; %Fr./Fn; - why?
         Fn = 1;
         
-
-        % get PSF and pad and shift
-        Pr = ObjRef(Ir).PSFData.padShift(size(R), 'fftshift','fftshift');
+        % get PSF and pad and shift 
         Pn = ObjNew(In).PSFData.padShift(size(N), 'fftshift','fftshift');
+        Pr = ObjRef(Ir).PSFData.padShift(size(R), 'fftshift','fftshift');
         
-        
-
         % get std
-        SigmaR = sqrt(Args.MeanVarFun(ObjRef(Ir).Var, 'all'));
         SigmaN = sqrt(Args.MeanVarFun(ObjNew(In).Var, 'all'));
-                
+        SigmaR = sqrt(Args.MeanVarFun(ObjRef(Ir).Var, 'all'));
         
-
-
-
+              
+        
         % Image subtraction
-        R_hat = fft2(R);
         N_hat = fft2(N);
-        Pr_hat = fft2(Pr);
+        R_hat = fft2(R);
         Pn_hat = fft2(Pn);
-        [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr);
-        ImageD=ifft2(D_hat);
+        Pr_hat = fft2(Pr);
         
-        Pd     = ifft2(Pd_hat);
-        Pd     = imUtil.psf.full2stamp(Pd);
-
-        tic;
-        S_hat = D_hat.*conj(Pd_hat);
-        ImageS = ifft2(S_hat);
-        toc
-
-        tic;
-        ImageS = imUtil.filter.filter2_fast(ImageD, Pd);
-        toc
-
-
+        % replace NaNs in Nwb and Rwb with median values
         FlagN      = isnan(Nwb);
         Nwb(FlagN) = median(BackN,'all','omitnan');
         FlagN      = isnan(Rwb);
         Rwb(FlagN) = median(BackR,'all','omitnan');
-
-        [Kr_hat, Kn_hat, V_Sr, V_Sn, Vcorr] = imUtil.properSub.sourceNoise(Fr, Fn, Pr_hat, Pn_hat, D_den, Nwb.*4.7, Rwb.*4.7);
-        ImageScorr = ImageS./sqrt(Vcorr);
         
-        %VcorrNorm = Vcorr./median(Vcorr,'all','omitnan');
-        %ImageScorr = ImageS./VcorrNorm;
+        [Scorr, S, D, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N_hat, R_hat,...
+                                                                              Pn_hat, Pr_hat,...
+                                                                              SigmaN, SigmaR,...
+                                                                              Fn, Fr,...
+                                                                              'VN',Nwb,...
+                                                                              'VR',Rwb,...
+                                                                              'SigmaAstN',Args.SigmaAstN,...
+                                                                              'SigmaAstR',Args.SigmaAstR,...
+                                                                              'AbsFun',Args.AbsFun,...
+                                                                              'Eps',Args.Eps,...
+                                                                              'NormS',Args.NormS,...
+                                                                              'NormD',Args.NormD,...
+                                                                              'IsFFT',true);
+                                                                               
+%         
+%         [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr);
+%         ImageD=ifft2(D_hat);
+%         
+%         Pd     = ifft2(Pd_hat);
+%         Pd     = imUtil.psf.full2stamp(Pd);
+% 
+%         tic;
+%         S_hat = D_hat.*conj(Pd_hat);
+%         ImageS = ifft2(S_hat);
+%         toc
+% 
+%         tic;
+%         ImageS = imUtil.filter.filter2_fast(ImageD, Pd);
+%         toc
 
         [ImageZ2,Zhat,Norm] = imUtil.properSub.translient(N.*Fn, R.*Fr, Pn, Pr, SigmaN, SigmaR);
         ImageZ2 = ImageZ2 - median(ImageZ2,'all','omitnan');
         ImageZ2 = ImageZ2./tools.math.stat.rstd(ImageZ2,'all');
+
+        
+
+        %[Kr_hat, Kn_hat, V_Sr, V_Sn, Vcorr] = imUtil.properSub.sourceNoise(Fr, Fn, Pr_hat, Pn_hat, D_den, Nwb.*4.7, Rwb.*4.7);
+        %ImageScorr = ImageS./sqrt(Vcorr);
+        
+        %VcorrNorm = Vcorr./median(Vcorr,'all','omitnan');
+        %ImageScorr = ImageS./VcorrNorm;
+
+        
 
         % FrVec = (0.9:0.01:1.1)';
         % Nr = numel(FrVec);

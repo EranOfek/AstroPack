@@ -8,7 +8,9 @@
 
 
 classdef CubeComponent < Component
-    
+    properties (Dependent)
+        Image
+    end
     
     properties (SetAccess = public)
         Data(:,:,:)
@@ -157,7 +159,15 @@ classdef CubeComponent < Component
     end
     
     methods % setter/getter
-       
+        function set.Image(Obj, Val)
+            % setter for dependent property Image
+            Obj.Data = Val;
+        end
+        function Result=get.Image(Obj)
+            % getter for dependent property Image
+            Result = Obj.Data;
+        end
+        
     end
     
     methods % utilities

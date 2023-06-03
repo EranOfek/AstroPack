@@ -109,6 +109,8 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
 
     end
     
+    error('need to be modified')
+    
     Fr = Args.Fr;
     Fn = Args.Fn;
     
