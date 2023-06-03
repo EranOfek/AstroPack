@@ -310,7 +310,150 @@ classdef CubeComponent < Component
     end
     
     methods % operators
+        function Result=unaryFunImage(Obj, Fun, Args)
+            % Apply a unary function on cube returning a vector with one element per image
+            % Input  : - A single element CubeComponent object
+            %          - A function handle for the function to execute on
+            %            each image in the cube. The function on each image
+            %            should return a scalar.
+            %            This function must be of the form:
+            %            Fun(Cube, ..., Dim,...), where Cube is the cube on
+            %            which we operate and Dim is the dimensions on
+            %            which to operate (e.g., for image index Dim=3,
+            %            this is [1 2]).
+            %          * ...,key,val,...
+            %            'FunPreDimArgs' - A cell array of arguments to
+            %                   pass to the function after the cube
+            %                   argument, but before the Dim argument.
+            %                   Default is {}.
+            %                   For some functions like @std, @min, @max
+            %                   this should be {[]}.
+            %            'FunPostDimArgs' - A cell array of arguments to
+            %                   pass to the function after the Dim
+            %                   argument.
+            %                   Default is {'omitnan'}.
+            %            'Squeeze' - A logical indicating if to squeeze the
+            %                   result.
+            %                   Default is false.
+            % Output : - A vector. Each element in the vector corresponds
+            %            to the output of the function on one image layer
+            %            in the cube.
+            % Author : Eran Ofek (Jun 2023)
+            % Example: Im = AstroImage({ones(10,10), 2.*ones(10,10)}); 
+            %          C=CubeComponent.images2cube(Im);             
+            %          unaryFunImage(C, @sum)
+            %          unaryFunImage(C, @sum, 'Squeeze',1)==[100;200]
+            
+            arguments
+                Obj(1,1)
+                Fun function_handle   % e.g., @sum
+                Args.FunPreDimArgs   = {};  % for some functions (e.g., @std this need to be {[]})
+                Args.FunPostDimArgs  = {'omitnan'};
+                Args.Squeeze logical = false;
+            end
+            
+            %Nobj = numel(Obj);
+            Iobj = 1;
+            DimXY = Obj(Iobj).dimXY;
+            
+            FunArgs = [Args.FunPreDimArgs, DimXY, Args.FunPostDimArgs];
+            Result  = Fun(Obj(Iobj).Data, FunArgs{:});
+                        
+            if Args.Squeeze
+                Result = squeeze(Result);
+            end
+        end
         
+        function Result=unaryFunCollapse(Obj, Fun, Args)
+            % Apply a unary function on cube returning a matrix corresponding to the collapse alonng Dim
+            % Input  : - A CubeComponent object
+            %          - A function handle for the function to execute on
+            %            each image in the cube. The function on the cube
+            %            should return an image, by collapse operator along
+            %            Dim (Dim property in the CubeComponent object).
+            %            This function must be of the form:
+            %            Fun(Cube, ..., Dim,...), where Cube is the cube on
+            %          * ...,key,val,...
+            %            'FunPreDimArgs' - A cell array of arguments to
+            %                   pass to the function after the cube
+            %                   argument, but before the Dim argument.
+            %                   Default is {}.
+            %                   For some functions like @std, @min, @max
+            %                   this should be {[]}.
+            %            'FunPostDimArgs' - A cell array of arguments to
+            %                   pass to the function after the Dim
+            %                   argument.
+            %                   Default is {'omitnan'}.
+            %            'Squeeze' - A logical indicating if to squeeze the
+            %                   result.
+            %                   Default is false.
+            %            'OutType' - Output type:
+            %                   'matrix' - A 2-D matrix containing the
+            %                       collapsed image.
+            %                       If CubeComponent has multi element then
+            %                       this will contain only the last element
+            %                       result.
+            %                   'cube' - A cube of a 2-D matrices per
+            %                           CubeComponent element.
+            %                   'AstroImage' - An AstroImage object of the
+            %                           collapsed images per CubeComponent element.
+            %                   'ImageComponent' - An ImageComponent object of the
+            %                           collapsed images per CubeComponent element.
+            %                   Default is 'Cube'.
+            %            'DataProp' - Data property in the 'AstroImage' or
+            %                   'ImageComponent' in which to write the collpased
+            %                   matrix. Default is 'Image'.
+            % Output : - 
+            % Author : Eran Ofek (Jun 2023)
+            % Example: Im = AstroImage({ones(10,10), 2.*ones(10,10)}); 
+            %          C=CubeComponent.images2cube(Im);             
+            %          R=unaryFunCollapse(C, @sum)
+            %          R=unaryFunCollapse(C, @sum, 'OutType','AstroImage')
+            %          R=unaryFunCollapse(C, @sum, 'OutType','ImageComponent')
+            
+            arguments
+                Obj
+                Fun function_handle   % e.g., @sum
+                Args.FunPreDimArgs   = {};  % for some functions (e.g., @std this need to be {[]})
+                Args.FunPostDimArgs  = {'omitnan'};
+                Args.Squeeze logical = false;
+                Args.OutType         = 'cube';  % 'matrix'|'cube'
+                Args.DataProp        = 'Image';
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+            
+                FunArgs = [Args.FunPreDimArgs, Obj(Iobj).Dim, Args.FunPostDimArgs];
+                Array  = Fun(Obj(Iobj).Data, FunArgs{:});
+
+                if Args.Squeeze
+                    Array = squeeze(Array);
+                end
+                
+                switch lower(Args.OutType)
+                    case 'matrix'
+                        Result = Array;
+                    case 'cube'
+                        if Iobj==1
+                            Result = zeros([size(Array), Nobj]);
+                        end
+                        Result(:,:,Iobj) = Array;
+                    case 'astroimage'
+                        if Iobj==1
+                            Result = AstroImage([Nobj 1]);
+                        end
+                        Result(Iobj).(Args.DataProp) = Array;
+                    case 'imagecomponent'
+                        if Iobj==1
+                            Result = ImageComponent([Nobj 1]);
+                        end
+                        Result(Iobj).(Args.DataProp) = Array;
+                    otherwise
+                        error('Unknown OutType option');
+                end
+            end
+        end
         
     end
     
