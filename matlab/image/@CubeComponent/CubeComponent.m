@@ -343,6 +343,7 @@ classdef CubeComponent < Component
             %          C=CubeComponent.images2cube(Im);             
             %          unaryFunImage(C, @sum)
             %          unaryFunImage(C, @sum, 'Squeeze',1)==[100;200]
+            %          unaryFunImage(C, @std, 'FunPreDimArgs',{[]})
             
             arguments
                 Obj(1,1)
@@ -399,6 +400,8 @@ classdef CubeComponent < Component
             %                           collapsed images per CubeComponent element.
             %                   'ImageComponent' - An ImageComponent object of the
             %                           collapsed images per CubeComponent element.
+            %                   'CubeComponent' - A (new) CubeComponent object
+            %                           containing the collapse image.
             %                   Default is 'Cube'.
             %            'DataProp' - Data property in the 'AstroImage' or
             %                   'ImageComponent' in which to write the collpased
@@ -409,7 +412,10 @@ classdef CubeComponent < Component
             %          C=CubeComponent.images2cube(Im);             
             %          R=unaryFunCollapse(C, @sum)
             %          R=unaryFunCollapse(C, @sum, 'OutType','AstroImage')
+            %          R=unaryFunCollapse(C, @sum, 'OutType','AstroImage', 'DataProp','Back')
             %          R=unaryFunCollapse(C, @sum, 'OutType','ImageComponent')
+            %          R=unaryFunCollapse(C, @std, 'FunPreDimArgs',{[]})
+            %          R=unaryFunCollapse(C, @sum, 'OutType','CubeComponent')
             
             arguments
                 Obj
@@ -449,6 +455,9 @@ classdef CubeComponent < Component
                             Result = ImageComponent([Nobj 1]);
                         end
                         Result(Iobj).(Args.DataProp) = Array;
+                    case 'cubecomponent'
+                        Result(Iobj) = CubeComponent;
+                        Result(Iobj).Data = Array;
                     otherwise
                         error('Unknown OutType option');
                 end
