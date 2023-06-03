@@ -443,9 +443,10 @@ classdef AstroDb < Component
                 Args.AddCols = []   % struct
                 Args.xxhash = []    % Optional
                 Args.Select = false %
+                Args.Force  = false % whether to insert a record with the same hash sum
             end
                            
-            Result = Obj.addImage(Obj.TnRawImages, FileName, AH, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select);
+            Result = Obj.addImage(Obj.TnRawImages, FileName, AH, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select,'Force',Args.Force);
         end
         
         
@@ -467,9 +468,10 @@ classdef AstroDb < Component
                 Args.AddCols = []   % struct
                 Args.xxhash = []    % Optional
                 Args.Select = false %
+                Args.Force  = false % whether to insert a record with the same hash sum
             end
 
-            Result = Obj.addImage(Obj.TnProcImages, FileName, AH, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select);
+            Result = Obj.addImage(Obj.TnProcImages, FileName, AH, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select,'Force',Args.Force);
         end
         
          
@@ -491,9 +493,10 @@ classdef AstroDb < Component
                 Args.AddCols = []   % struct
                 Args.xxhash = []    % Optional
                 Args.Select = false %
+                Args.Force  = false % whether to insert a record with the same hash sum
             end
 
-            Result = Obj.addImage(Obj.TnCoaddImages, FileName, AH, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select);
+            Result = Obj.addImage(Obj.TnCoaddImages, FileName, AH, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select,'Force',Args.Force);
         end
                 
         
@@ -541,6 +544,7 @@ classdef AstroDb < Component
                 Args.AddCols = []   % struct - optional additional columns (i.e. AddCols.ColName = ColValue, etc.)
                 Args.xxhash = []    % When specified, insert also column 'xxhash' with this value
                 Args.Select = false % When true and Xxhash is specified, first check if image already exists
+                Args.Force  = false % whether to insert a record with the same hash sum
             end
 
             Q = Obj.Query;
@@ -549,11 +553,11 @@ classdef AstroDb < Component
             if ~isempty(Args.xxhash)               
                 Args.Select = true;
                 
-                % When Select is true, first check if row already exists
-                if Args.Select
+                % When Select is true and Force is false, first check if row already exists
+                if Args.Select && ~Args.Force 
                     DataSet = Obj.Query.select('*', 'TableName', TableName, 'Where', sprintf('xxhash = ''%s''', Args.xxhash));
                     if numel(DataSet.Data) > 0
-                        Result = DataSet.Data(1).pk;
+                        Result = -DataSet.Data(1).pk;
                         return;
                     end
                 end
@@ -718,11 +722,12 @@ classdef AstroDb < Component
             %          'Hash'          : whether to calculate a hashsum of the file and add it to the table
             %          'FileNames'     : an optinal cell array of file names (if
             %          only AstroImages or AstroHeaders are provided)
+            %          'ForceInsert'   : if the record is inserted despite the existing copy (checked by the hashsum)
             % Output : scalar success flag (0 -- images successfully added to the DB)         
             % Tested : Matlab R2020b
             % Author : A. Krassilchtchikov (May 2023)
             % Example: LDB = db.AstroDb(); 
-            %          LDB.populateImageDB ( LDB, Imfiles, 'DBtype', 'LAST', 'DBtable', 'raw_images', 'Hash', Args.Hash );
+            %          LDB.populateImageDB ( LDB, Imfiles, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', Args.Hash );
             arguments
                 Obj
                 Data                                % input images (file names or AstroImages) or AstroHeaders
@@ -730,6 +735,7 @@ classdef AstroDb < Component
                 Args.DBtable      = Obj.TnRawImages;% DB table
                 Args.Hash logical = true;           % whether to calculate a hashsum and add it to the table
                 Args.FileNames    = {};             % an optional cell array of file names (for the case the first argument is not a file list)
+                Args.ForceInsert logical = false;   % if the record is inserted despite the existing copy (checked by the hashsum)
             end
 
             % determine the number of input images:
@@ -768,13 +774,13 @@ classdef AstroDb < Component
                         % populate the DB
                         switch Args.DBtable
                             case Obj.TnRawImages
-                                TupleID(Img) = Obj.addRawImage(AH.File, AH, 'xxhash', Sum_h64);
+                                TupleID(Img) = Obj.addRawImage(AH.File, AH, 'xxhash', Sum_h64, 'Force', Args.ForceInsert);
 
                             case Obj.TnProcImages
-                                TupleID(Img) = Obj.addProcImage(AH.File, AH, 'xxhash', Sum_h64);
+                                TupleID(Img) = Obj.addProcImage(AH.File, AH, 'xxhash', Sum_h64, 'Force', Args.ForceInsert);
 
                             case Obj.TnCoaddImages
-                                TupleID(Img) = Obj.addCoaddImage(AH.File, AH, 'xxhash', Sum_h64);
+                                TupleID(Img) = Obj.addCoaddImage(AH.File, AH, 'xxhash', Sum_h64, 'Force', Args.ForceInsert);
 
                             otherwise
                                 error('The requested table does not exist yet, exiting..');
