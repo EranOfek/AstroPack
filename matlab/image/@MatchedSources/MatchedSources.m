@@ -212,7 +212,7 @@ classdef MatchedSources < Component
             %                   to pass to the MatchedSources.read static function.
             %            'OrderPart' - If provided, will try to order the
             %                   objects by (Epoch,CropID).
-            %                   Default is 'CropID'.
+            %                   Default is [].
             %                   For more info about CropID see ImagePath
             %                   class.
             % Output : - A MatchedSources object.
@@ -223,7 +223,7 @@ classdef MatchedSources < Component
                 FileTemplate         = '*_sci_merged_MergedMat_*.hdf5';   
                 
                 Args.readArgs cell   = {};
-                Args.OrderPart       = 'CropID';   % [] - do not order
+                Args.OrderPart       = []; %'CropID';   % [] - do not order
             end
             
             List = io.files.rdir(FileTemplate);
