@@ -62,6 +62,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     %            .Flux - Vector of fitted fluxes.
     %            .SNm - S/N for measurment, assuming gain=1 (Poisson
     %                   errors).
+    %                   Note that if the source is negativem then S/N is
+    %                   also negative.
     %            .DX - Vector of fitted X positions relative the Xcenter.
     %            .DY - Vector of fitted Y positions relative the Xcenter.
     %            .Xinit - Xinit
@@ -254,7 +256,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     end
     
     Result.Flux = squeeze(Flux);
-    Result.SNm  = Result.Flux./sqrt(Result.Flux + (squeeze(StdBack)).^2);  % S/N for measurments
+    % SNm can be negaive if source is negative
+    Result.SNm  = sign(Result.SNm).*abs(Result.Flux)./sqrt(abs(Result.Flux) + (squeeze(StdBack)).^2);  % S/N for measurments
     Result.Mag  = convert.luptitude(Result.Flux, 10.^(0.4.*Args.ZP));
     Result.DX = DX(:);
     Result.DY = DY(:);

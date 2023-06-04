@@ -54,7 +54,10 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
     %            'ZP' - ZP for magnitude calculations. Default is 25.
     % Output : - The input AstroImage object, where the following column
     %            names were optionally added to the AStroCatalog:
-    %            {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'MAGERR_PSF', 'PSF_CHI2DOF'}
+    %            {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'MAGERR_PSF', 'PSF_CHI2DOF','SN'}
+    %            SN is the measurment S/N (negative oif flux is negative).
+    %            MAGERR_PSF is always positive as it is defined as
+    %            1.086/abs(SN).
     %          - A structure array with the PSF fitting data.
     % Author : Eran Ofek (Feb 2022)
     % Example: AI=AstroImage('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
@@ -178,7 +181,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
             Result.RoundY = RoundY;
             Result.X = Result.RoundX + Result.DX;
             Result.Y = Result.RoundY + Result.DY;
-            Result.MagErr = 1.086./Result.SNm;     % mag err
+            Result.MagErr = 1.086./abs(Result.SNm);     % mag err always positive
             
             
             % second iteration - need to round X/Y???
