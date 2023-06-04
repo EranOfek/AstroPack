@@ -303,6 +303,10 @@ classdef MatchedSources < Component
             %                   'mat' - Save the Data struct to a mat file.
             %                   'matobj' - Save the entire MatchedSource object to
             %                       a mat file.
+            %            'RealIfComplex' - A logical indicating if to take
+            %                   the real value (of a complex value).
+            %                   This is used only if FileType=hdf5.
+            %                   Default is true.
             % Output : - Return true if sucess.
             % Author : Eran Ofek (Jun 2021)
             % Example: MS = MatchedSources;
@@ -312,7 +316,8 @@ classdef MatchedSources < Component
             arguments
                 Obj(1,1)
                 FileName
-                Args.FileType      = 'hdf5';
+                Args.FileType             = 'hdf5';
+                Args.RealIfComplex logical = true;
             end
            
             switch lower(Args.FileType)
@@ -320,17 +325,22 @@ classdef MatchedSources < Component
                     Ndata = numel(Obj.Fields);
                     for Idata=1:1:Ndata
                         h5create(FileName, sprintf('/%s',Obj.Fields{Idata}), size(Obj.Data.(Obj.Fields{Idata})));
-                        h5write(FileName, sprintf('/%s',Obj.Fields{Idata}), Obj.Data.(Obj.Fields{Idata}));
+                        if Args.RealIfComplex
+                            h5write(FileName, sprintf('/%s',Obj.Fields{Idata}), real(Obj.Data.(Obj.Fields{Idata})));
+                        else
+                            h5write(FileName, sprintf('/%s',Obj.Fields{Idata}), Obj.Data.(Obj.Fields{Idata}));
+                        end
                     end
                     % save also the JD
                     h5create(FileName, '/JD', size(Obj.JD));
                     h5write(FileName,  '/JD', Obj.JD);
                 case {'mat'}
                     % save the Data structure
-                    save(FileName, Obj.Data, '-v7.3');
+                    Tmp = Obj.Data;
+                    save(FileName, 'Tmp', '-v7.3');
                 case {'matobj'}
                     % save the MatchedSources as object
-                    save(FileName, Obj, '-v7.3');
+                    save(FileName, 'Obj', '-v7.3');
                 otherwise
                     error('Unknown FileType option');
             end
