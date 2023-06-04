@@ -1184,6 +1184,8 @@ classdef DemonLAST < Component
                 Args.MinNumIMageVisit  = 5;
                 Args.PauseDay          = 60;
                 Args.PauseNight        = 10;
+
+                Args.SaveProd          = {'EpochImage', 'EpochMask', 'EpochCat', 'EpochPSF', 'VisitImage','VisitMask', 'VisitCat', 'VisitPSF', 'MergedCat', 'MergedMat', 'MergedAsteroids'};
             end
             
             % get path
@@ -1308,6 +1310,8 @@ classdef DemonLAST < Component
                             % save data products
                             FN_I = FN_Sci_Groups(Igroup).reorderEntries(1, 'CreateNewObj',true);
         
+                            %{'EpochImage', 'EpochMask', 'EpochCat', 'EpochPSF', 'VisitImage','VisitMask', 'VisitCat', 'VisitPSF', 'MergedCat', 'MergedMat', 'MergedAsteroids'};
+
                             % the following call also update the AllSI.ImageData.FileName
                             [FN_Proc,~,Status] = imProc.io.writeProduct(AllSI, FN_I, 'Product',{'Image','Mask','Cat'}, 'WriteHeader',[true false true],...
                                                    'Level','proc',...

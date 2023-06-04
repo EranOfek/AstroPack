@@ -1,4 +1,4 @@
-function [Scorr, S, D, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
+function [Scorr, S, D, Pd, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
     % Return the S_corr, S, D subtraction images (proper subtraction)
     %   The function can deal with cube inputs in which the image index is
     %   in the 3rd dimension.
@@ -42,6 +42,11 @@ function [Scorr, S, D, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N
     %            'IsFFT' - A logical indicating if the input N_hat, R_hat, Pn_hat, Pr_hat
     %                   input arguments are in Fourier space.
     %                   Default is true.
+    %            'SetToNaN' - A matrix of logical flags which size is equal
+    %                   to N and R. Before the normalization: D, S, Scorr,
+    %                   will be set to NaN when the flags map equal true.
+    %                   If empty, then skip this step.
+    %                   Default is [].
     %            'NormS' - A logical indicating if to subtract median and
     %                   divide by RStD, from S, Scorr.
     %                   Default is true.
@@ -76,14 +81,16 @@ function [Scorr, S, D, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N
         Args.AbsFun           = @(X) abs(X);
         Args.Eps              = 0;
         Args.IsFFT logical    = true;
-        
+    
+        Args.SetToNaN         = [];
         Args.NormS logical    = true;
         Args.NormD logical    = false;
+    
     end
 
 
     [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr,...
-                                                                                 'AbsFun',Args.AbsFun, 'Eps',Args.Eps, 'IsOutFFT',true);
+                                                                                 'AbsFun',Args.AbsFun, 'Eps',Args.Eps, 'IsFFT',true, 'IsOutFFT',true);
     S_hat = D_hat.*conj(Pd_hat);
     
     % convert D and Pd to regular space
@@ -91,6 +98,15 @@ function [Scorr, S, D, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N
     D  = ifft2(D_hat);
     Pd = ifft2(Pd_hat); 
     
+    if ~isempty(Args.SetToNaN)
+        D(Args.SetToNaN)     = NaN;
+        S(Args.SetToNaN)     = NaN;
+    end
+
+    if Args.NormS
+        S = S - median(S, [1 2], 'omitnan');
+        S = S./tools.math.stat.rstd(S, [1 2]);
+    end
     
     [Kn_hat, Kr_hat, Kn, Kr] = imUtil.properSub.knkr(Fn, Fr, Pn_hat, Pr_hat, D_den, Args.AbsFun);
     if isempty(Args.VN) || isempty(Args.VR)
@@ -107,6 +123,10 @@ function [Scorr, S, D, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N
     
     Scorr = S./sqrt(Vcorr + Vast);
     
+    if ~isempty(Args.SetToNaN)
+        Scorr(Args.SetToNaN) = NaN;
+    end
+
     % normalize D
     if Args.NormD
         D = D - median(D, [1 2], 'omitnan');
@@ -114,8 +134,6 @@ function [Scorr, S, D, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N
     end
     % normalize S and Scorr
     if Args.NormS
-        S = S - median(S, [1 2], 'omitnan');
-        S = S./tools.math.stat.rstd(S, [1 2]);
         Scorr = Scorr - median(Scorr, [1 2], 'omitnan');
         Scorr = Scorr./tools.math.stat.rstd(Scorr, [1 2]);
     end

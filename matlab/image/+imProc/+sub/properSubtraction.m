@@ -5,7 +5,7 @@ function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
     %          AIreg=imProc.sources.findMeasureSources(AIreg);           
     %          m=imProc.match.match(AIreg(1),AIreg(2),'CooType','pix')
 
-    %          D = imProc.sub.properSubtraction(AIreg(2), AIreg(1));
+    %          [D,S,Scorr,Z2] = imProc.sub.properSubtraction(AIreg(2), AIreg(1));
 
     arguments
         ObjNew AstroImage
@@ -19,8 +19,8 @@ function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
         Args.NewZP                        = 'PH_ZP';
         Args.RefZP                        = 'PH_ZP';
         
-        Args.SigmaAstN                    = 0;   % or keyword
-        Args.SigmaAstR                    = 0;   % or keyword
+        Args.SigmaAstN                    = 0.05;   % or keyword
+        Args.SigmaAstR                    = 0.05;   % or keyword
         
         Args.AbsFun           = @(X) abs(X);
         Args.Eps              = 0;
@@ -29,6 +29,32 @@ function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
         Args.NormD logical    = false;
         
     end
+
+    if 1==0
+        % Debug code:
+
+        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/1
+        AI(1) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.215545.030_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
+        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/2
+        AI(2) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.214904.914_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
+        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/3/
+        AI(3) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.214224.783_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
+        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/10/
+        AI(4) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.185210.755_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
+
+        AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
+        AIreg= imProc.background.background(AIreg,'SubSizeXY',[]);    
+        AIreg=imProc.sources.findMeasureSources(AIreg);           
+        m=imProc.match.match(AIreg(1),AIreg(2),'CooType','pix');
+
+        ds9(AIreg(1),1)
+        ds9(AIreg(2),2)
+
+        D = imProc.sub.properSubtraction(AIreg(2), AIreg(1));
+
+    end
+
+
 
     N_N  = numel(ObjNew);
     N_R  = numel(ObjRef);
@@ -128,8 +154,8 @@ function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
         Fn = 1;
         
         % get PSF and pad and shift 
-        Pn = ObjNew(In).PSFData.padShift(size(N), 'fftshift','fftshift');
-        Pr = ObjRef(Ir).PSFData.padShift(size(R), 'fftshift','fftshift');
+        Pn = ObjNew(In).PSFData.padShift(size(N), 'fftshift','fftshift', 'OutType','cube');
+        Pr = ObjRef(Ir).PSFData.padShift(size(R), 'fftshift','fftshift', 'OutType','cube');
         
         % get std
         SigmaN = sqrt(Args.MeanVarFun(ObjNew(In).Var, 'all'));
@@ -149,7 +175,7 @@ function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
         FlagN      = isnan(Rwb);
         Rwb(FlagN) = median(BackR,'all','omitnan');
         
-        [Scorr, S, D, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N_hat, R_hat,...
+        [ImageScorr, ImageS, ImageD, Pd, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionScorr(N_hat, R_hat,...
                                                                               Pn_hat, Pr_hat,...
                                                                               SigmaN, SigmaR,...
                                                                               Fn, Fr,...
@@ -159,31 +185,18 @@ function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
                                                                               'SigmaAstR',Args.SigmaAstR,...
                                                                               'AbsFun',Args.AbsFun,...
                                                                               'Eps',Args.Eps,...
+                                                                              'SetToNaN',FlagNaN,...
                                                                               'NormS',Args.NormS,...
                                                                               'NormD',Args.NormD,...
                                                                               'IsFFT',true);
                                                                                
-%         
-%         [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr);
-%         ImageD=ifft2(D_hat);
-%         
-%         Pd     = ifft2(Pd_hat);
-%         Pd     = imUtil.psf.full2stamp(Pd);
-% 
-%         tic;
-%         S_hat = D_hat.*conj(Pd_hat);
-%         ImageS = ifft2(S_hat);
-%         toc
-% 
-%         tic;
-%         ImageS = imUtil.filter.filter2_fast(ImageD, Pd);
-%         toc
+
 
         [ImageZ2,Zhat,Norm] = imUtil.properSub.translient(N.*Fn, R.*Fr, Pn, Pr, SigmaN, SigmaR);
         ImageZ2 = ImageZ2 - median(ImageZ2,'all','omitnan');
         ImageZ2 = ImageZ2./tools.math.stat.rstd(ImageZ2,'all');
 
-        
+                
 
         %[Kr_hat, Kn_hat, V_Sr, V_Sn, Vcorr] = imUtil.properSub.sourceNoise(Fr, Fn, Pr_hat, Pn_hat, D_den, Nwb.*4.7, Rwb.*4.7);
         %ImageScorr = ImageS./sqrt(Vcorr);
@@ -200,18 +213,6 @@ function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
 
         %[ImageD, Pd, ImageS, ImageScorr] = imUtil.properSub.subtraction(N, R, Pn, Pr, SigmaN, SigmaR, 'Fn',Fn, 'Fr',Fr, 'SigmaAstN',[0.05 0.05], 'SigmaAstR',[0.05 0.05], 'EmpiricalNorm',false);
 
-        % remove from D regions that are NaNs in R or N
-        ImageD(FlagNaN) = NaN;
-        ImageS(FlagNaN) = NaN;
-        ImageScorr(FlagNaN) = NaN;
-
-        ImageS = ImageS - median(ImageS,'all','omitnan');
-        ImageS = ImageS./tools.math.stat.rstd(ImageS,'all');
-        
-        ImageScorr = ImageScorr - median(ImageScorr,'all','omitnan');
-        ImageScorr = ImageScorr./tools.math.stat.rstd(ImageScorr,'all');
-
-
         % D(II).Image = ImageD;
         % D(II).PSF   = Pd;
         % 
@@ -221,16 +222,21 @@ function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
         % Scorr(II).Image = ImageScorr;
         % Scorr(II).PSF   = Pd;
 
-        D(In).Image = ImageD;
-        D(In).PSF   = Pd;
+        D(Imax).Image = ImageD;
+        D(Imax).PSF   = Pd;
+        % propagate the mask image
+        D(Imax).MaskData = funBinary(ObjNew(In).MaskData, ObjRef(Ir).MaskData,@bitor, 'CreateNewObj',true);
 
-        S(In).Image = ImageS;
-        S(In).PSF   = Pd;
 
-        Scorr(In).Image = ImageScorr;
-        Scorr(In).PSF   = Pd;
+        S(Imax).Image = ImageS;
+        S(Imax).PSF   = Pd;
+        S(Imax).MaskData = D(Imax).MaskData;
 
-        Z2(In).Image = ImageZ2;
+        Scorr(Imax).Image = ImageScorr;
+        Scorr(Imax).PSF   = Pd;
+        Scorr(Imax).MaskData = D(Imax).MaskData;
+
+        Z2(Imax).Image = ImageZ2;
 
         %end
         %ds9(single(abs(S)>5).*S,3)

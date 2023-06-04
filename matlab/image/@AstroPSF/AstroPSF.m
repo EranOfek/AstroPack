@@ -457,6 +457,13 @@ classdef AstroPSF < Component
             %                   'ifftshift' - apply ifftshift to the result.
             %                   'none' - Returned centered PSF.
             %                   Default is 'none'.
+            %            'OutType' - The output class:
+            %                   'AstroPSF' - Return an updated AstroPSF
+            %                       object.
+            %                   'cube' - Return a cube of PSFs in which the
+            %                       3rd index corresponds to the PSF index
+            %                       (i.e., element in input AstroPSF).
+            %                   Default is 'AstroPSF'.
             %            'CreateNewObj' - A logical indicating if to create
             %                   a new copy of the input object.
             %                   Default is true.
@@ -471,18 +478,31 @@ classdef AstroPSF < Component
                 Obj
                 NewSizeIJ
                 Args.fftshift    = 'none';
+                Args.OutType     = 'AstroPSF';
                 Args.CreateNewObj logical = true;
             end
 
-            if Args.CreateNewObj
-                Result = Obj.copy;
-            else
-                Result = Obj;
+            switch lower(Args.OutType)
+                case 'astropsf'
+                    if Args.CreateNewObj
+                        Result = Obj.copy;
+                    else
+                        Result = Obj;
+                    end
+                case 'cube'
+                    Result = zeros([NewSizeIJ, numel(Obj)]);
+                otherwise
+                    error('Unknown OutType option');
             end
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                Result(Iobj).Data = imUtil.psf.padShift(Obj(Iobj).getPSF, NewSizeIJ, 'fftshift',Args.fftshift);
+                switch lower(Args.OutType)
+                    case 'astropsf'
+                        Result(Iobj).Data = imUtil.psf.padShift(Obj(Iobj).getPSF, NewSizeIJ, 'fftshift',Args.fftshift);
+                    case 'cube'
+                        Result(:,:,Iobj) = imUtil.psf.padShift(Obj(Iobj).getPSF, NewSizeIJ, 'fftshift',Args.fftshift);
+                end
             end
         end
 

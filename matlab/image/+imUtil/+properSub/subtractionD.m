@@ -28,6 +28,9 @@ function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_ha
     %            'IsOutFFT' - A logical indicating if the output D and Pd
     %                   are ffted (true) or in regular space (false).
     %                   Default is true.
+    %            'CleanPd' - A logical indicating if to clean Pd (zero low
+    %                   frequencies).
+    %                   Default is true.
     % Output : - D_hat
     %          - Pd_hat - Note that Pd is not cleaned.
     %          - Fd
@@ -51,6 +54,7 @@ function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_ha
         Args.Eps              = 0;
         Args.IsFFT logical    = true;
         Args.IsOutFFT logical = true;
+        Args.CleanPd logical  = true;
     end
         
     if ndims(N_hat)==3 && ndims(Fn)==2
@@ -66,7 +70,7 @@ function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_ha
         SigmaR = reshape(SigmaR(:),[1 1 numel(SigmaR)]);
     end
 
-    if Args.IsFFT
+    if ~Args.IsFFT
         % N_hat, R_hat, Pn_hat, Pr_hat are in real space, calc their FT:
         N_hat = fft2(N_hat);
         R_hat = fft2(R_hat);
@@ -86,6 +90,15 @@ function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_ha
     Pd_den    = Fd .* D_denSqrt;
     Pd_hat    = Pd_num./Pd_den;
     
+
+    % clean Pd
+    % if Args.CleanPd
+    %     PdS    = imUtil.psf.full2stamp(ifft2(Pd_hat), 'IsCorner',true, 'StampHalfSize',[7 7]);
+    %     PdSS   = imUtil.psf.padShift(PdS,size(D_hat));
+    %     PdSS   = fftshift(fftshift(PdSS,1),2);
+    %     Pd_hat = fft2(PdSS);
+    % end
+
     if ~Args.IsOutFFT
         % convert D and Pd to regular space
         D_hat  = ifft2(D_hat);
