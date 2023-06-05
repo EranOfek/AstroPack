@@ -582,6 +582,10 @@ classdef AstroDb < Component
                 AH.replaceVal('PRVFOCUS',0);
             end
             
+            if AH.isKeyVal('FOCUS','')
+                AH.replaceVal('FOCUS',0);
+            end
+            
             % Add additional columns from struct to AstroHeader
             if ~isempty(Args.AddCols)
                 Fields = fieldnames(Args.AddCols);
@@ -780,6 +784,8 @@ classdef AstroDb < Component
                         else
                             Sum_h64 = '';
                         end
+                        
+                        fprintf('%s\n',AH.File); % DEBUG
 
                         % populate the DB
                         switch Args.DBtable
@@ -938,13 +944,26 @@ classdef AstroDb < Component
             
             Q = A.Query;
             
-            tic % ~ 6000 files 
-            
-            RawTuples = A.addImages2DB(A,'DataDir','/last01w/data2/archive/LAST.01.01.04/new', ...
-                                         'InputImages','LAST*sci*raw_Image*.fits', ...
-                                         'DBname','last_operational', 'DBtable','test_raw_images'); 
+            drawnow('update'); tic % ~ 6000 files at the speed about 1 file/sec -- too long?
+%             
+%             RawTuples = A.addImages2DB(A,'DataDir','/last01w/data2/archive/LAST.01.01.04/new', ...
+%                                          'InputImages','LAST*sci*raw_Image*.fits', ...
+%                                          'DBname','last_operational', 'DBtable','test_raw_images'); 
+%                                      
+%             
+%             ProcTuples = A.addImages2DB(A,'DataDir','/last01w/data1/archive/LAST.01.01.03/2023/05/03/proc/1', ...
+%                                          'InputImages','LAST*sci_proc_Image*.fits', ...
+%                                          'DBname','last_operational', 'DBtable','test_proc_images'); 
+%                                      
+            CoaddTuples = A.addImages2DB(A,'DataDir','/last01w/data1/archive/LAST.01.01.03/2023/05/03/proc/1', ...
+                                         'InputImages','LAST*sci_coadd_Image*.fits', ...
+                                         'DBname','last_operational', 'DBtable','test_coadd_images'); 
+                                     
             
             toc
+            
+            A.Query.select('*', 'TableName', 'test_coadd_images', 'Where', 'filename like ''%LAST%''', 'OutType', 'Table')
+            A.Query.select('*', 'TableName', 'test_proc_images', 'Where', 'filename like ''%LAST%''', 'OutType', 'Table')
             
         end
 
