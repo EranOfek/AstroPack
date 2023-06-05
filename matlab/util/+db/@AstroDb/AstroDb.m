@@ -572,6 +572,16 @@ classdef AstroDb < Component
             % Add FileName to header
             AH.insertKey({'filename', FileName, 'Image file name'}, 'end');
             
+            % Check for old-type AH values and correct them:
+            
+            if AH.isKeyVal('AIRMASS','')
+                AH.replaceVal('AIRMASS',0);
+            end
+            
+            if AH.isKeyVal('PRVFOCUS','')
+                AH.replaceVal('PRVFOCUS',0);
+            end
+            
             % Add additional columns from struct to AstroHeader
             if ~isempty(Args.AddCols)
                 Fields = fieldnames(Args.AddCols);
