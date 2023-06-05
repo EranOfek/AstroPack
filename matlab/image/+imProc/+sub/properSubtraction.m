@@ -43,7 +43,7 @@ function [D, S, Scorr, Z2, F_S] = properSubtraction(ObjNew, ObjRef, Args)
         AI(4) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.185210.755_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
 
         AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
-        AIreg= imProc.background.background(AIreg,'SubSizeXY',[]);    
+        AIreg= imProc.background.background(AIreg,'SubSizeXY',[256 256]);    
         AIreg=imProc.sources.findMeasureSources(AIreg);           
         m=imProc.match.match(AIreg(1),AIreg(2),'CooType','pix');
 
