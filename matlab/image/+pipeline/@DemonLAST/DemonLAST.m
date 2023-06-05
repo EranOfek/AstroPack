@@ -1173,7 +1173,7 @@ classdef DemonLAST < Component
 
                 Args.StartJD       = -Inf;    % refers onlt to Science observations: JD, or [D M Y]
                 Args.EndJD         = Inf;
-                Args.ReloadCalib logical = false; % look for new dark/flat images and load - if false: CI must be provided
+                Args.RegenCalib logical = false; % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
 
                 Args.DeleteSciDayTime logical = false;
                 Args.DeleteSunAlt  = 0;
@@ -1206,12 +1206,12 @@ classdef DemonLAST < Component
                 Args.EndJD = celestial.time.julday(Args.EndJD);
             end
 
-            if ~Args.ReloadCalib
-                [IsEmB, IsEmF] = Obj.CI.isemptyProp({'Bias','Flat'});
-                if IsEmB || IsEmF
-                    error('For ReloadCalib=false, a populated CalibImages (CI) with Bias and Flat images must be provided');
-                end
-            end
+            % if ~Args.RegenCalib
+            %     [IsEmB, IsEmF] = Obj.CI.isemptyProp({'Bias','Flat'});
+            %     if IsEmB || IsEmF
+            %         error('For ReloadCalib=false, a populated CalibImages (CI) with Bias and Flat images must be provided');
+            %     end
+            % end
 
 
             GUI_Text = sprintf('Abort : Pipeline');
@@ -1222,12 +1222,18 @@ classdef DemonLAST < Component
                 % set Logger log file 
                 Obj.setLogFile;
 
-                if Args.ReloadCalib
+                if Args.RegenCalib
                     % prep Master dark and move to raw/ dir
                     [Obj, FN_Dark] = Obj.prepMasterDark('Move2raw',true);
                         
                     % prep Master flat and move to raw/ dir
                     [Obj, FN_Flat] = Obj.prepMasterFlat('Move2raw',true);
+                else
+                    % reload calib only if not already loaded in CI
+                    [IsEmB, IsEmF] = Obj.CI.isemptyProp({'Bias','Flat'});
+                    if IsEmB || IsEmF
+                        Obj.loadCalib;
+                    end
                 end
                 
                 % delete test images taken during daytime
