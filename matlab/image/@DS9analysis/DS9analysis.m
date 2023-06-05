@@ -18,10 +18,13 @@
 classdef DS9analysis < handle
 
     properties
-        Images                % AstroImage | FileNames | cell
-        Frame2Ind    = [1];
+        Images               % AstroImage | FileNames | cell
+        Names cell   = {};
+
+        Frame2Ind    = [1];   % [ImageIndInFrame1, ImageIndInFram2,...]
 
         MapInd       = [];
+
     end
 
     
@@ -92,6 +95,120 @@ classdef DS9analysis < handle
         % end
         
         % 
+    end
+
+    methods  % display and load
+        function ImageInd=frame2ImageIndex(Obj, Frame)
+            % Retune ImageIndex from frame index
+            % Input  : - Self.
+            %          - Frame index. If empty, get currentframe from ds9
+            %            window. Default is [].
+            % Output : - Image index
+            % Author : Eran Ofek (Jun 2023)
+
+            arguments
+                Obj
+                Frame = [];
+            end
+
+            if isempty(Frame)
+                % get current frame
+                Frame = str2double(ds9.frame);
+            end
+
+            ImageInd = Obj.Frame2Ind(Frame);
+        end
+
+        function FrameInd=ImageIndex2Frame(Obj, ImageIndex)
+            % Return frame index from image index
+            % Input  : - Self.
+            % %        - Image index.
+            % Output : - Frame index.
+            % Author : Eran Ofek (Jun 2023)
+
+            FrameInd = find(Obj.Frame2Ind==ImageIndex);
+            if numel(FrameInd)~=1
+                error('Found %d corresponding frames to image index %d',numel(FrameInd),ImageIndex);
+            end
+
+        end
+
+        function Obj=load(Obj, Image, Args)
+            % Load images to a DS9analysis object
+            % Input  : - Self.
+            %          - An AstroImage object, or a cell array of images,
+            %            or a file name.
+            %            THe images will be loaded to frame 1..N according
+            %            to their order.
+            %          * ...,key,val,...
+            %            'Frames' - A vector of frames into to load the
+            %                   images. If empty, use 1..N.
+            %                   Default is [].
+            %            'LikeLAST' - A logical indicating if to read LAST like names.
+            %                   If true then will use AstroImage.readFileNamesObj
+            %                   to read images and thir corresponding Mask, PSF,
+            %                   Cat meta data.
+            %                   Default is true.
+            %            'Names' - A cell array of optional names to give
+            %                   the images. If given then the images can be
+            %                   accessed by names. Default is {}.
+            %            'Disp' - A logical indicating if to display the
+            %                   images. Default is true.
+            % Output : - An updated object.
+            % Author : Eran Ofek (Jun 2023)
+            % Example: D9.load([AIreg(2), AIreg(1), Scorr],'Names',{'N','R','Scorr'})
+
+            arguments
+                Obj
+                Image
+
+                Args.Frames              = [];
+                Args.LikeLAST logical    = true;
+                Args.Names               = {};
+                Args.Disp logical        = true;
+            end
+
+            if isa(Image, 'AstroImage')
+                AI = Image;
+            else
+                if LikeLAST
+                    AI = AstroImage.readFileNamesObj(Image);
+                else
+                    if ischar(Image) || iscell(Image)
+                        AI = AstroImage(Image);
+                    end
+                end
+            end
+
+            Nim = numel(AI);
+            if isempty(Args.Frames)
+                Frames = (1:1:Nim);
+            else
+                Frames = Args.Frames;
+            end
+           
+            for Iim=1:1:Nim
+                FrameInd = Frames(Iim);
+                if isempty(Obj.Images)
+                    Obj.Images = AstroImage;
+                end
+                Obj.Images(FrameInd) = AI(Iim);
+                if ~isempty(Args.Names)
+                    Obj.Names{Frames(Iim)} = Args.Names{Iim};
+                end
+            end
+
+            if Args.Disp
+                for Iim=1:1:Nim
+                    ds9.disp(Obj.Images(Iim), Frames(Iim));
+                end
+            end
+
+
+        end
+
+
+        
     end
 
     methods  % switch images in frame
@@ -178,7 +295,7 @@ classdef DS9analysis < handle
             end
 
             Frame = str2double(ds9.frame);
-            Ind   = Obj.MapInd(Frame);
+            Ind   = Frame; %Obj.MapInd(Frame);
             AI    = Obj.getImage(Ind);
 
             

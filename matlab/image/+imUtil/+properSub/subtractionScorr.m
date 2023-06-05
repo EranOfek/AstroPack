@@ -1,4 +1,4 @@
-function [Scorr, S, D, Pd, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
+function [Scorr, S, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt] = subtractionScorr(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
     % Return the S_corr, S, D subtraction images (proper subtraction)
     %   The function can deal with cube inputs in which the image index is
     %   in the 3rd dimension.
@@ -89,7 +89,7 @@ function [Scorr, S, D, Pd, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N_hat
     end
 
 
-    [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr,...
+    [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr,...
                                                                                  'AbsFun',Args.AbsFun, 'Eps',Args.Eps, 'IsFFT',true, 'IsOutFFT',true);
     S_hat = D_hat.*conj(Pd_hat);
     
@@ -98,6 +98,7 @@ function [Scorr, S, D, Pd, Fd, D_den, D_num, D_denSqrt] = subtractionScorr(N_hat
     D  = ifft2(D_hat);
     Pd = ifft2(Pd_hat); 
     
+
     if ~isempty(Args.SetToNaN)
         D(Args.SetToNaN)     = NaN;
         S(Args.SetToNaN)     = NaN;

@@ -1,4 +1,4 @@
-function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
+function [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
     % Return the D_hat subtraction image (Fourier transform of proper subtraction)
     %   The function can deal with cube inputs in which the image index is
     %   in the 3rd dimension.
@@ -34,12 +34,13 @@ function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_ha
     % Output : - D_hat
     %          - Pd_hat - Note that Pd is not cleaned.
     %          - Fd
+    %          - F_S
     %          - D_den
     %          - D_num
     %          - D_denSqrt
     % Author : Eran Ofek (Apr 2022)
-    % Example: [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(rand(25,25), rand(25,25), rand(25,25), rand(25,25), 1, 1, 1, 1)
-    %          [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(rand(25,25,4), rand(25,25,4), rand(25,25,4), rand(25,25,4), ones(4,1), ones(4,1), ones(4,1), ones(4,1))
+    % Example: [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(rand(25,25), rand(25,25), rand(25,25), rand(25,25), 1, 1, 1, 1)
+    %          [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(rand(25,25,4), rand(25,25,4), rand(25,25,4), rand(25,25,4), ones(4,1), ones(4,1), ones(4,1), ones(4,1))
     
     arguments
         N_hat
@@ -90,6 +91,12 @@ function [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_ha
     Pd_den    = Fd .* D_denSqrt;
     Pd_hat    = Pd_num./Pd_den;
     
+    if nargout>3
+        FnPn2 = Fn.^2.*Args.AbsFun(Pn_hat).^2;
+        FrPr2 = Fr.^2.*Args.AbsFun(Pr_hat).^2;
+        F_S   = sum(FnPn2 .* FrPr2./(SigmaN.^2 .* FrPr2 + SigmaR.^2 .* FnPn2 + Args.Eps),[1 2]);
+        F_S   = squeeze(F_S);
+    end
 
     % clean Pd
     % if Args.CleanPd

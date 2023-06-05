@@ -1,11 +1,11 @@
-function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
-    %
+function [D, S, Scorr, Z2, F_S] = properSubtraction(ObjNew, ObjRef, Args)
+    % 
     % Example: AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
     %          AIreg= imProc.background.background(AIreg,'SubSizeXY',[]);    
     %          AIreg=imProc.sources.findMeasureSources(AIreg);           
     %          m=imProc.match.match(AIreg(1),AIreg(2),'CooType','pix')
 
-    %          [D,S,Scorr,Z2] = imProc.sub.properSubtraction(AIreg(2), AIreg(1));
+    %          [D,S,Scorr,Z2, F_S] = imProc.sub.properSubtraction(AIreg(2), AIreg(1));
 
     arguments
         ObjNew AstroImage
@@ -175,7 +175,7 @@ function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
         FlagN      = isnan(Rwb);
         Rwb(FlagN) = median(BackR,'all','omitnan');
         
-        [ImageScorr, ImageS, ImageD, Pd, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionScorr(N_hat, R_hat,...
+        [ImageScorr, ImageS, ImageD, Pd, Fd, F_S, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionScorr(N_hat, R_hat,...
                                                                               Pn_hat, Pr_hat,...
                                                                               SigmaN, SigmaR,...
                                                                               Fn, Fr,...
@@ -237,10 +237,6 @@ function [D, S, Scorr, Z2] = properSubtraction(ObjNew, ObjRef, Args)
         Scorr(Imax).MaskData = D(Imax).MaskData;
 
         Z2(Imax).Image = ImageZ2;
-
-        %end
-        %ds9(single(abs(S)>5).*S,3)
-        'a'
 
     end
 

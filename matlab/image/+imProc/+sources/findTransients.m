@@ -1,6 +1,7 @@
-function findTransients(New, Ref, D, S, Scorr, Pd, Z2, Args)
+function Result=findTransients(New, Ref, D, S, Scorr, Z2, F_S, Args)
     %
-    % Example: imProc.sources.findTransients(AIreg(2), S, [], Z2)
+    % Example: imProc.sources.findTransients(AIreg(2), AIreg(1), D, S, Scorr, Z2)
+   
 
     arguments
         New AstroImage
@@ -8,8 +9,10 @@ function findTransients(New, Ref, D, S, Scorr, Pd, Z2, Args)
         D                          = [];
         S                          = [];
         Scorr                      = [];
-        Pd                         = [];
         Z2                         = [];
+        F_S                        = [];
+
+        Args.HalfSizePSF           = 7;
         Args.NormS logical         = true;
 
         Args.Threshold             = 5;
@@ -17,6 +20,14 @@ function findTransients(New, Ref, D, S, Scorr, Pd, Z2, Args)
         Args.BitCutHalfSize        = 3;
         % Args.CutHalfSize           = 12; must be like PSF size
         Args.psfPhotCubeArgs cell  = {};
+
+        % selection
+        Args.NewMask_BadHard       = {'Overlap','Edge','CR_DeltaHT','NaN'};
+        Args.RefMask_BadHard       = {'Saturated','Overlap','Edge','CR_DeltaHT','NaN'};
+        Args.NewMask_BadSoft       = {'HighRN', 'DarkHighVal', 'BiasFlaring', 'Hole', 'Interpolated', 'SrcNoiseDominated'};
+        Args.RefMask_BadSoft       = {'HighRN', 'DarkHighVal', 'BiasFlaring', 'Hole', 'Interpolated', 'SrcNoiseDominated'};
+
+        Args.Chi2dofLimits         = [0.5 2];
     end
 
     
@@ -24,22 +35,9 @@ function findTransients(New, Ref, D, S, Scorr, Pd, Z2, Args)
     for Iobj=1:1:Nobj
         % for each image
 
-        % filter D with Pd
-        if isempty(S)
-            ImS = imUtil.filter.filter2_fast(D(Iobj).Image, D(Iobj).PSF);
-        else
-            ImS = S(Iobj).Image;
-        end
-
-        % normalize S 
-        if Args.NormS
-            ImS = ImS - median(ImS,'all','omitnan');
-            ImS = ImS./tools.math.stat.rstd(ImS,'all');
-        end
-
         % find positive and negative sources in S
-        [PosLocalMax] = imUtil.sources.findLocalMax(ImS, 'Variance',1, 'Threshold',Args.Threshold, Args.findLocalMaxArgs{:});
-        [NegLocalMax] = imUtil.sources.findLocalMax(-ImS, 'Variance',1, 'Threshold',Args.Threshold, Args.findLocalMaxArgs{:});
+        [PosLocalMax] = imUtil.sources.findLocalMax(Scorr(Iobj).Image, 'Variance',1, 'Threshold',Args.Threshold, Args.findLocalMaxArgs{:});
+        [NegLocalMax] = imUtil.sources.findLocalMax(-Scorr.Image, 'Variance',1, 'Threshold',Args.Threshold, Args.findLocalMaxArgs{:});
         % Output *LocalMax contains: [X,Y,SN,ImageIndex,LinaerIndexIn2D]
         % Merge pos/neg lists and add sign to the SN column
         NegLocalMax(:,3) = -NegLocalMax(:,3);
@@ -52,43 +50,51 @@ function findTransients(New, Ref, D, S, Scorr, Pd, Z2, Args)
         RefMaskVal = Ref(Iobj).MaskData.bitwise_cutouts(LocalMax(:,1:2), 'or', 'HalfSize',Args.BitCutHalfSize);
         BD=BitDictionary;
 
-        NewFlagBad = BD.findBit(NewMaskVal, {'Overlap','Edge','CR_DeltaHT'}, 'Method','any');
-        RefFlagBad = BD.findBit(RefMaskVal, {'Overlap','Edge','CR_DeltaHT'}, 'Method','any');
+        NewFlagBad  = BD.findBit(NewMaskVal, Args.NewMask_BadHard, 'Method','any');
+        RefFlagBad  = BD.findBit(RefMaskVal, Args.RefMask_BadHard, 'Method','any');
+        NewFlagSoft = BD.findBit(NewMaskVal, Args.NewMask_BadSoft, 'Method','any');
+        RefFlagSoft = BD.findBit(RefMaskVal, Args.RefMask_BadSoft, 'Method','any');
+
         
 
 
         % PSF fit all candidates in the D image
-        CutHalfSize = (size(D(Iobj).PSF,1)-1).*0.5;
-        [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(D(Iobj).Image, LocalMax(:,1), LocalMax(:,2), CutHalfSize);
+        [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(D(Iobj).Image, LocalMax(:,1), LocalMax(:,2), Args.HalfSizePSF);
         % Change the sign of negative sources
         Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
-        [ResultD, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF', D(Iobj).PSF, Args.psfPhotCubeArgs{:});
+        Psf = imUtil.psf.full2stamp(D(Iobj).PSFData.getPSF, 'StampHalfSize',Args.HalfSizePSF.*ones(1,2));
+        [ResultD, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF', Psf, Args.psfPhotCubeArgs{:});
     
         Chi2dof = ResultD.Chi2./ResultD.Dof;
         Flag = Chi2dof>0.5 & Chi2dof<2;
 
         % PSF fit all candidates in the New image
+        CutHalfSize = (size(New(Iobj).PSFData.getPSF,1)-1).*0.5;
         [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(New(Iobj).Image, LocalMax(:,1), LocalMax(:,2), CutHalfSize);
         % Change the sign of negative sources
         Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
-        [ResultN, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF', D(Iobj).PSF, Args.psfPhotCubeArgs{:});
+        [ResultN, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF', New(Iobj).PSFData.getPSF, Args.psfPhotCubeArgs{:});
     
         % PSF fit all candidates in the Ref image
+        CutHalfSize = (size(Ref(Iobj).PSFData.getPSF,1)-1).*0.5;
         [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Ref(Iobj).Image, LocalMax(:,1), LocalMax(:,2), CutHalfSize);
         % Change the sign of negative sources
         Cube = Cube.*reshape(-sign(LocalMax(:,3)), [1 1 Nsrc]);
-        [ResultR, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF', D(Iobj).PSF, Args.psfPhotCubeArgs{:});
+        [ResultR, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF', Ref(Iobj).PSFData.getPSF, Args.psfPhotCubeArgs{:});
     
         % Scorr value at position
         ValScorr = Scorr(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
 
         %Chi2dof = ResultN.Chi2./ResultN.Dof;
-        Flag = Chi2dof>0.5 & Chi2dof<2 & ResultD.SNm>Args.Threshold & ...
-               ~NewFlagBad & ~RefFlagBad & ...
-               (ResultD.SNm./real(ResultN.SNm)>1.1 | ResultD.SNm./real(ResultR.SNm)>1.1) & ResultR.SNm<5;
-
-
-        'a'
+        Result(Iobj).Flag.Threshold = ResultD.SNm>Args.Threshold;
+        Result(Iobj).Flag.Chi2      = Chi2dof>Args.Chi2dofLimits(1) & Chi2dof<Args.Chi2dofLimits(2);
+        Result(Iobj).Flag.MaskHard  = ~NewFlagBad & ~RefFlagBad;
+        Result(Iobj).Flag.MaskSoft  = ~NewFlagSoft & ~RefFlagSoft;
+        Result(Iobj).Flag.SummaryHard = Result(Iobj).Flag.Threshold & Result(Iobj).Flag.Chi2 & Result(Iobj).Flag.MaskHard;
+        Result(Iobj).Ntran = sum(Result(Iobj).Flag.SummaryHard);
+        
+        Result(Iobj).Flux = ResultD.Flux; %.*F_S(Iobj);   % need to multiply by F_S
+        Result(Iobj).SNm  = ResultD.SNm;
 
 
     end
