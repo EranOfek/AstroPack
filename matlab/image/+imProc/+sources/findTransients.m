@@ -82,9 +82,11 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, F_S, Args)
         Cube = Cube.*reshape(-sign(LocalMax(:,3)), [1 1 Nsrc]);
         [ResultR, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF', Ref(Iobj).PSFData.getPSF, Args.psfPhotCubeArgs{:});
     
-        % Scorr value at position
+        % value at position
         ValScorr = Scorr(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
-
+        ValS     = S(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
+        ValZ2    = Z2(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
+        
         %Chi2dof = ResultN.Chi2./ResultN.Dof;
         Result(Iobj).Flag.Threshold = ResultD.SNm>Args.Threshold;
         Result(Iobj).Flag.Chi2      = Chi2dof>Args.Chi2dofLimits(1) & Chi2dof<Args.Chi2dofLimits(2);

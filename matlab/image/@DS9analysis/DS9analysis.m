@@ -21,9 +21,9 @@ classdef DS9analysis < handle
         Images               % AstroImage | FileNames | cell
         Names cell   = {};
 
-        Frame2Ind    = [1];   % [ImageIndInFrame1, ImageIndInFram2,...]
-
-        MapInd       = [];
+        % Frame2Ind    = [1];   % [ImageIndInFrame1, ImageIndInFram2,...]
+        % 
+        % MapInd       = [];
 
     end
 
@@ -51,33 +51,33 @@ classdef DS9analysis < handle
     end
 
     methods % setters/getters
-        function set.Frame2Ind(Obj, Input)
-            % Setter for Frame2Ind (which image index to displa in each frame).
-            % Input  : - self.
-            %          - A vector of image indices per each frame.
-            %            if image index is NaN then skip frame.
-            
-            
-            Nframe = ds9.frame;
-            Ninput = numel(Input);
-            Nim    = numel(Obj.Images);
-            if max(Input)<Nim
-                error('Max. image index (%d) must be smaller or equal to the numbre of Images (%d)', max(Input), Nim);
-            end
-            
-            for Iinput=1:1:Ninput
-                Iim = Input(Iinput);
-                if isnan(Iim)
-                    % do not display an image in frame
-                else
-                    ds9.disp(Obj.Images(Iim), Iinput);
-                end
-            end
-            % delete extra frames
-            for I=Nframe:-1:Ninput+1
-                ds9.delete_frame;
-            end
-        end
+        % function set.Frame2Ind(Obj, Input)
+        %     % Setter for Frame2Ind (which image index to displa in each frame).
+        %     % Input  : - self.
+        %     %          - A vector of image indices per each frame.
+        %     %            if image index is NaN then skip frame.
+        % 
+        % 
+        %     Nframe = ds9.frame;
+        %     Ninput = numel(Input);
+        %     Nim    = numel(Obj.Images);
+        %     if max(Input)<Nim
+        %         error('Max. image index (%d) must be smaller or equal to the numbre of Images (%d)', max(Input), Nim);
+        %     end
+        % 
+        %     for Iinput=1:1:Ninput
+        %         Iim = Input(Iinput);
+        %         if isnan(Iim)
+        %             % do not display an image in frame
+        %         else
+        %             ds9.disp(Obj.Images(Iim), Iinput);
+        %         end
+        %     end
+        %     % delete extra frames
+        %     for I=Nframe:-1:Ninput+1
+        %         ds9.delete_frame;
+        %     end
+        % end
             
         
     end
