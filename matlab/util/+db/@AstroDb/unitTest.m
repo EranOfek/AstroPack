@@ -31,7 +31,8 @@ function Result = unitTest()
     end
       
     % Insert new row to tables
-    FitsFileName = strcat(DataDir,'LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.fits');
+%     FitsFileName = strcat(DataDir,'LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.fits');
+    FitsFileName = strcat(DataDir,'LAST.01.01.04_20230308.112234.596_clear_191+31_001_001_001_sci_raw_Image_1.fits');
     AH = AstroHeader(FitsFileName);    
     xx = tools.checksum.xxhash('FileName', FitsFileName);
     assert(~isempty(xx));
