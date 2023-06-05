@@ -6,6 +6,7 @@ function H=calibDesignMatrix(Args)
     % Example: H=imUtil.calib.calibDesignMatrix('Nstar',3,'Nimage',5)
     %          H=imUtil.calib.calibDesignMatrix('Nstar',3,'Nimage',5,'StarProp',{[2 3 4]})
     %          H=imUtil.calib.calibDesignMatrix('Nstar',3,'Nimage',5,'StarProp',{[2 3 4],[11 12 13]})
+    %          H=imUtil.calib.calibDesignMatrix('Nstar',3,'Nimage',5,'StarProp',{[2 3 4]}, 'ImageProp', {[1 2 3 4 5]});
     
     
     arguments
@@ -19,9 +20,10 @@ function H=calibDesignMatrix(Args)
     % the Z_i block:
     % of the form: [1 0 0 ...; 1 0 0 ...; ...; 0 1 0 0 ...; ...]
     
-    NpropStar = numel(Args.StarProp);
+    NpropStar  = numel(Args.StarProp);
+    NpropImage = numel(Args.ImageProp);
     % allocate the design matrix:
-    H = zeros(Args.Nimage.*Args.Nstar, Args.Nimage + Args.Nstar + NpropStar);
+    H = zeros(Args.Nimage.*Args.Nstar, Args.Nimage + Args.Nstar + NpropStar + NpropImage);
     
     VecIm = (1:1:Args.Nimage).';
     %VecSt = Args.Nimage+(1:1:Args.Nstar).';
@@ -33,6 +35,11 @@ function H=calibDesignMatrix(Args)
         for Ip=1:1:NpropStar
             H(Iline, Args.Nimage+Args.Nstar + Ip) = Args.StarProp{Ip}(Ist).*ones(Args.Nimage,1);
         end
+        
+        for Ip=1:1:NpropImage
+            H(Iline,  Args.Nimage+Args.Nstar + NpropStar + Ip) = Args.ImageProp{Ip}(:);
+        end
+            
     end
       
    
