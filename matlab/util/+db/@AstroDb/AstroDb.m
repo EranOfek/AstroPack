@@ -944,6 +944,10 @@ classdef AstroDb < Component
             
             Q = A.Query;
             
+%             DataDir='/last01e/data2/archive/LAST.01.01.02/2023/04/28/proc/10/';
+            DataDir='/last01e/data1/archive/LAST.01.01.01/2023/04/';
+            
+            
             drawnow('update'); tic % ~ 6000 files at the speed about 1 file/sec -- too long?
 %             
 %             RawTuples = A.addImages2DB(A,'DataDir','/last01w/data2/archive/LAST.01.01.04/new', ...
@@ -951,13 +955,13 @@ classdef AstroDb < Component
 %                                          'DBname','last_operational', 'DBtable','test_raw_images'); 
 %                                      
 %             
-%             ProcTuples = A.addImages2DB(A,'DataDir','/last01w/data1/archive/LAST.01.01.03/2023/05/03/proc/1', ...
-%                                          'InputImages','LAST*sci_proc_Image*.fits', ...
-%                                          'DBname','last_operational', 'DBtable','test_proc_images'); 
-%                                      
-            CoaddTuples = A.addImages2DB(A,'DataDir','/last01w/data1/archive/LAST.01.01.03/2023/05/03/proc/1', ...
-                                         'InputImages','LAST*sci_coadd_Image*.fits', ...
-                                         'DBname','last_operational', 'DBtable','test_coadd_images'); 
+            ProcTuples = A.addImages2DB(A,'DataDir',DataDir, ...
+                                         'InputImages','LAST*sci_proc_Image*.fits', ...
+                                         'DBname','last_operational', 'DBtable','test_proc_images'); 
+                                     
+%             CoaddTuples = A.addImages2DB(A,'DataDir',DataDir, ...
+%                                          'InputImages','LAST*sci_coadd_Image*.fits', ...
+%                                          'DBname','last_operational', 'DBtable','test_coadd_images'); 
                                      
             
             toc
