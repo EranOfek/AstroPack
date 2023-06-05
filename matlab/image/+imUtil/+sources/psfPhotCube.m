@@ -257,7 +257,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     
     Result.Flux = squeeze(Flux);
     % SNm can be negaive if source is negative
-    Result.SNm  = sign(Result.SNm).*abs(Result.Flux)./sqrt(abs(Result.Flux) + (squeeze(StdBack)).^2);  % S/N for measurments
+    Result.SNm  = sign(Result.Flux).*abs(Result.Flux)./sqrt(abs(Result.Flux) + (squeeze(StdBack)).^2);  % S/N for measurments
     Result.Mag  = convert.luptitude(Result.Flux, 10.^(0.4.*Args.ZP));
     Result.DX = DX(:);
     Result.DY = DY(:);
