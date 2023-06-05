@@ -572,6 +572,16 @@ classdef AstroDb < Component
             % Add FileName to header
             AH.insertKey({'filename', FileName, 'Image file name'}, 'end');
             
+            % Check for old-type AH values and correct them:
+            
+            if AH.isKeyVal('AIRMASS','')
+                AH.replaceVal('AIRMASS',0);
+            end
+            
+            if AH.isKeyVal('PRVFOCUS','')
+                AH.replaceVal('PRVFOCUS',0);
+            end
+            
             % Add additional columns from struct to AstroHeader
             if ~isempty(Args.AddCols)
                 Fields = fieldnames(Args.AddCols);
@@ -894,13 +904,13 @@ classdef AstroDb < Component
 
             ImNum = numel(ImageFiles);
             Imfiles = repmat({''}, ImNum, 1);
-            Images  = repmat(AstroImage(), ImNum, 1);
-            Headers = repmat(AstroHeader(), ImNum, 1);
-
+%             Images  = repmat(AstroImage(), ImNum, 1);
+%             Headers = repmat(AstroHeader(), ImNum, 1);
+% 
             for Img = 1:1:ImNum
                 Imfiles{Img} = fullfile(ImageFiles(Img).folder, ImageFiles(Img).name);
-                Images(Img) = AstroImage(Imfiles(Img));
-                Headers(Img).Data = Images(Img).Header;
+%                 Images(Img) = AstroImage(Imfiles(Img));
+%                 Headers(Img).Data = Images(Img).Header;
             end
 
             % call the sub to populate the database (3 variants: files, AI, AH)
@@ -910,6 +920,32 @@ classdef AstroDb < Component
 %             TupleID = Obj.populateImageDB ( Obj, Images,  'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
 
 %             fprintf('%s%d%s\n','Inserted ',numel(TupleID),' tuples');
+        end
+
+        %%%%%%%%%
+             
+        function testDBlast0
+            
+            A = db.AstroDb('Host','10.23.1.25','DatabaseName','last_operational','UserName','postgres','Password','postgres','Port',5432);
+            
+            A.TnRawImages   = 'test_raw_images';
+            A.TnProcImages  = 'test_proc_images';
+            A.TnCoaddImages = 'test_coadd_images';
+            A.TnSrcCatalog  = 'test_src_catalog';
+            A.DnLAST        = 'last_operational';
+            
+%             createTables(A);
+            
+            Q = A.Query;
+            
+            tic % ~ 6000 files 
+            
+            RawTuples = A.addImages2DB(A,'DataDir','/last01w/data2/archive/LAST.01.01.04/new', ...
+                                         'InputImages','LAST*sci*raw_Image*.fits', ...
+                                         'DBname','last_operational', 'DBtable','test_raw_images'); 
+            
+            toc
+            
         end
 
         %%%%%%%%%
