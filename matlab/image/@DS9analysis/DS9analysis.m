@@ -82,20 +82,6 @@ classdef DS9analysis < handle
         
     end
 
-    methods % display
-        % frame
-        
-        % function disp(Ind, AI)
-        %     %
-        % 
-        %     if isnumeric(Ind)
-        % 
-        %     end
-        % 
-        % end
-        
-        % 
-    end
 
     methods  % display and load
         function ImageInd=frame2ImageIndex(Obj, Frame)
@@ -207,7 +193,43 @@ classdef DS9analysis < handle
 
         end
 
-
+        function [Frame, FrameName]=frame(Obj, Frame)
+            % set/get frame by index or name
+            % Input  : - Self.
+            %          - Frame index or frame name (one of the char arrays
+            %            in the Names property.
+            %            If empty, then will only return the current frame
+            %            index and name.
+            %            Default is [].
+            % Output : - Current frame index.
+            %          - Current frame name as indicated by the corresponding
+            %            element in the Names property.
+            %            If not available then return NaN.
+            % Author : Eran Ofek (Jun 2023)
+            
+            arguments
+                Obj
+                Frame  = [];
+            end
+           
+            
+            if isempty(Frame)
+                % get frame
+                Frame = str2double(ds9.frame);
+            else
+                % set frame
+                if ischar(Frame)
+                    Frame = find(strcmp(Obj.Names, Frame));
+                end
+                ds9.frame(Frame);
+            end
+            if numel(Obj.Names)>=FrameInd
+                FrameName = Obj.Names{Frame};
+            else
+                FrameName = NaN;
+            end
+            
+        end
         
     end
 
