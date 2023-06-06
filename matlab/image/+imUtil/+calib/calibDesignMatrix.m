@@ -58,8 +58,6 @@ function [H, ColNames]=calibDesignMatrix(Nimage, Nstar, Args)
         Args.AddCalibBlock logical = false;
     end
     
-    
-        
     % the Z_i block:
     % of the form: [1 0 0 ...; 1 0 0 ...; ...; 0 1 0 0 ...; ...]
     
