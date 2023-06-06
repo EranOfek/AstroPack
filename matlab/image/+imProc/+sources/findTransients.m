@@ -1,4 +1,4 @@
-function Result=findTransients(New, Ref, D, S, Scorr, Z2, F_S, Args)
+function Result=findTransients(New, Ref, D, S, Scorr, Z2, F_S, SdN, SdR, Args)
     %
     % Example: imProc.sources.findTransients(AIreg(2), AIreg(1), D, S, Scorr, Z2)
    
@@ -11,6 +11,8 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, F_S, Args)
         Scorr                      = [];
         Z2                         = [];
         F_S                        = [];
+        SdN                        = [];
+        SdR                        = [];
 
         Args.HalfSizePSF           = 7;
         Args.NormS logical         = true;
@@ -85,7 +87,21 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, F_S, Args)
         % value at position
         ValScorr = Scorr(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
         ValS     = S(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
-        ValZ2    = Z2(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
+        if isempty(SdN)
+            ValSdN = nan(Nsrc,1);
+        else
+            ValSdN   = SdN(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
+        end
+        if isempty(SdR)
+            ValSdR = nan(Nsrc,1);
+        else
+            ValSdR   = SdR(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
+        end
+        if isempty(Z2)
+            ValZ2 = nan(Nsrc,1);
+        else
+            ValZ2    = Z2(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
+        end
         
         %Chi2dof = ResultN.Chi2./ResultN.Dof;
         Result(Iobj).Flag.ThresholdD  = ResultD.SNm>Args.Threshold;
@@ -93,12 +109,13 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, F_S, Args)
         Result(Iobj).Flag.Chi2        = Chi2dof>Args.Chi2dofLimits(1) & Chi2dof<Args.Chi2dofLimits(2);
         Result(Iobj).Flag.MaskHard    = ~NewFlagBad & ~RefFlagBad;
         Result(Iobj).Flag.MaskSoft    = ~NewFlagSoft & ~RefFlagSoft;
-        Result(Iobj).Flag.SummaryHard = Result(Iobj).Flag.ThresholdScorr & Result(Iobj).Flag.Chi2 & Result(Iobj).Flag.MaskHard;
+        Result(Iobj).Flag.SummaryHard = Result(Iobj).Flag.ThresholdScorr & Result(Iobj).Flag.Chi2 & Result(Iobj).Flag.MaskHard & ValS>(ValSdN+1) & ValS>(ValSdR+1);
         Result(Iobj).Ntran = sum(Result(Iobj).Flag.SummaryHard);
         
         Result(Iobj).Flux = ResultD.Flux; %.*F_S(Iobj);   % need to multiply by F_S
         Result(Iobj).SNm  = ResultD.SNm;
         Result(Iobj).LocalMax = LocalMax;
+
 
 
     end

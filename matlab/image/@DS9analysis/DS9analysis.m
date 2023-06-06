@@ -223,7 +223,7 @@ classdef DS9analysis < handle
                 end
                 ds9.frame(Frame);
             end
-            if numel(Obj.Names)>=FrameInd
+            if numel(Obj.Names)>=Frame
                 FrameName = Obj.Names{Frame};
             else
                 FrameName = NaN;

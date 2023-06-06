@@ -1,11 +1,11 @@
-function [D, S, Scorr, Z2, F_S] = properSubtraction(ObjNew, ObjRef, Args)
+function [D, S, Scorr, Z2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef, Args)
     % 
     % Example: AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
     %          AIreg= imProc.background.background(AIreg,'SubSizeXY',[]);    
     %          AIreg=imProc.sources.findMeasureSources(AIreg);           
     %          m=imProc.match.match(AIreg(1),AIreg(2),'CooType','pix')
 
-    %          [D,S,Scorr,Z2, F_S] = imProc.sub.properSubtraction(AIreg(2), AIreg(1));
+    %          [D,S,Scorr,Z2, F_S, SdN, SdR] = imProc.sub.properSubtraction(AIreg(2), AIreg(1));
 
     arguments
         ObjNew AstroImage
@@ -21,8 +21,8 @@ function [D, S, Scorr, Z2, F_S] = properSubtraction(ObjNew, ObjRef, Args)
         Args.NewZP                        = 'PH_ZP';
         Args.RefZP                        = 'PH_ZP';
         
-        Args.SigmaAstN                    = 0.05;   % or keyword
-        Args.SigmaAstR                    = 0.05;   % or keyword
+        Args.SigmaAstN                    = 0.1;   % or keyword
+        Args.SigmaAstR                    = 0.1;   % or keyword
         
         Args.AbsFun           = @(X) abs(X);
         Args.Eps              = 0;
@@ -107,6 +107,8 @@ function [D, S, Scorr, Z2, F_S] = properSubtraction(ObjNew, ObjRef, Args)
     S     = ObjNew.copy;
     Scorr = ObjNew.copy;
     Z2    = ObjNew.copy;
+    SdN   = ObjNew.copy;
+    SdR   = ObjNew.copy;
 
     for Imax=1:1:Nmax
         Ir = min(N_R, Imax);
@@ -243,6 +245,9 @@ function [D, S, Scorr, Z2, F_S] = properSubtraction(ObjNew, ObjRef, Args)
         Scorr(Imax).MaskData = D(Imax).MaskData;
 
         Z2(Imax).Image = ImageZ2;
+
+        SdN(Imax).Image = SdeltaN;
+        SdR(Imax).Image = SdeltaR;
 
     end
 

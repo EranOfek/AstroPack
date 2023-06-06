@@ -53,6 +53,10 @@ function [Scorr, S, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, SdeltaR] =
     %            'NormD' - - A logical indicating if to subtract median and
     %                   divide by RStD, from D.
     %                   Default is false.
+    %            'NormDeltaAsS' - A logical indicating on how to normalize
+    %                   SdeltaN and SdeltaR. If true, then will use the
+    %                   median and std of S, and if false, will use their
+    %                   own median and std. Default is false.
     % Output : - S_corr
     %          - S
     %          - D
@@ -87,7 +91,7 @@ function [Scorr, S, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, SdeltaR] =
         Args.SetToNaN         = [];
         Args.NormS logical    = true;
         Args.NormD logical    = false;
-    
+        Args.NormDeltaAsS logical = false;
     end
 
 
