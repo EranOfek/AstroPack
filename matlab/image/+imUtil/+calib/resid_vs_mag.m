@@ -34,7 +34,7 @@ function [Flag,Res]=resid_vs_mag(Mag, Resid, Args)
 %                   data. Default is 3.
 %            'Plot' - A logical flag indicating if to plot the residuals
 %                   vs. mag. Default is false.
-% Output : - a vector of logical flags (one per mag/resid) indicating if
+% Output : - A vector of logical flags (one per mag/resid) indicating if
 %            the source residual is smaller than the threshold (true; good
 %            source) or above the threshold (false; outlier).
 %          - A structure with the following fields:

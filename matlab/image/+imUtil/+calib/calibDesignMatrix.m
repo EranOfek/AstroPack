@@ -38,9 +38,7 @@ function [H, ColNames]=calibDesignMatrix(Nimage, Nstar, Args)
     %          [H,CN]=imUtil.calib.calibDesignMatrix(5,3,'StarProp',{[2 3 4]}, 'ImageProp', {[1 2 3 4 5]});
     %          H1=imUtil.calib.calibDesignMatrix(5,3,'StarProp',{[2 3 4]}, 'ImageProp', {[1 2 3 4 5]}, 'Sparse',false);
     %          all(H1==H,'all')
-    
-    
-    
+        
     arguments
         Nimage
         Nstar
