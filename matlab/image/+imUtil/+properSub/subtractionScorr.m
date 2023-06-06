@@ -1,4 +1,4 @@
-function [Scorr, S, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt] = subtractionScorr(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
+function [Scorr, S, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, SdeltaR] = subtractionScorr(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
     % Return the S_corr, S, D subtraction images (proper subtraction)
     %   The function can deal with cube inputs in which the image index is
     %   in the 3rd dimension.
@@ -61,8 +61,10 @@ function [Scorr, S, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt] = subtractionScorr(
     %          - D_den
     %          - D_num
     %          - D_denSqrt
+    %          - SdeltaN
+    %          - SdeltaR
     % Author : Eran Ofek (Apr 2022)
-    % Example: [Scorr, S, D, Pd, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionScorr(rand(25,25), rand(25,25), rand(25,25), rand(25,25), 1, 1, 1, 1)
+    % Example: [Scorr, S, D, Pd, Fd, D_den, D_num, D_denSqrt, SdeltaN, SdeltaR] = imUtil.properSub.subtractionScorr(rand(25,25), rand(25,25), rand(25,25), rand(25,25), 1, 1, 1, 1)
     
     arguments
         N_hat
@@ -89,10 +91,14 @@ function [Scorr, S, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt] = subtractionScorr(
     end
 
 
-    [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr,...
+    [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt, P_deltaNhat, P_deltaRhat] = imUtil.properSub.subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr,...
                                                                                  'AbsFun',Args.AbsFun, 'Eps',Args.Eps, 'IsFFT',true, 'IsOutFFT',true);
-    S_hat = D_hat.*conj(Pd_hat);
-    
+    S_hat       = D_hat.*conj(Pd_hat);
+    if nargout>9
+        SdeltaN = ifft2(D_hat.*conj(P_deltaNhat));
+        SdeltaR = ifft2(D_hat.*conj(P_deltaRhat));
+    end
+
     % convert D and Pd to regular space
     S  = ifft2(S_hat);
     D  = ifft2(D_hat);

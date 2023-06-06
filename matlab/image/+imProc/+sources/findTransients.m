@@ -88,15 +88,17 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, F_S, Args)
         ValZ2    = Z2(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
         
         %Chi2dof = ResultN.Chi2./ResultN.Dof;
-        Result(Iobj).Flag.Threshold = ResultD.SNm>Args.Threshold;
-        Result(Iobj).Flag.Chi2      = Chi2dof>Args.Chi2dofLimits(1) & Chi2dof<Args.Chi2dofLimits(2);
-        Result(Iobj).Flag.MaskHard  = ~NewFlagBad & ~RefFlagBad;
-        Result(Iobj).Flag.MaskSoft  = ~NewFlagSoft & ~RefFlagSoft;
-        Result(Iobj).Flag.SummaryHard = Result(Iobj).Flag.Threshold & Result(Iobj).Flag.Chi2 & Result(Iobj).Flag.MaskHard;
+        Result(Iobj).Flag.ThresholdD  = ResultD.SNm>Args.Threshold;
+        Result(Iobj).Flag.ThresholdScorr = ValScorr>Args.Threshold;
+        Result(Iobj).Flag.Chi2        = Chi2dof>Args.Chi2dofLimits(1) & Chi2dof<Args.Chi2dofLimits(2);
+        Result(Iobj).Flag.MaskHard    = ~NewFlagBad & ~RefFlagBad;
+        Result(Iobj).Flag.MaskSoft    = ~NewFlagSoft & ~RefFlagSoft;
+        Result(Iobj).Flag.SummaryHard = Result(Iobj).Flag.ThresholdScorr & Result(Iobj).Flag.Chi2 & Result(Iobj).Flag.MaskHard;
         Result(Iobj).Ntran = sum(Result(Iobj).Flag.SummaryHard);
         
         Result(Iobj).Flux = ResultD.Flux; %.*F_S(Iobj);   % need to multiply by F_S
         Result(Iobj).SNm  = ResultD.SNm;
+        Result(Iobj).LocalMax = LocalMax;
 
 
     end

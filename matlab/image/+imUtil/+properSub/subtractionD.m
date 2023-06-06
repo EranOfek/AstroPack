@@ -1,4 +1,4 @@
-function [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt] = subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
+function [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt, P_deltaNhat, P_deltaRhat] = subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
     % Return the D_hat subtraction image (Fourier transform of proper subtraction)
     %   The function can deal with cube inputs in which the image index is
     %   in the 3rd dimension.
@@ -38,6 +38,8 @@ function [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt] = subtractionD(N_hat,
     %          - D_den
     %          - D_num
     %          - D_denSqrt
+    %          - P_deltaNhat (Eq. 129)
+    %          - P_deltaRhat (Eq. 133)
     % Author : Eran Ofek (Apr 2022)
     % Example: [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(rand(25,25), rand(25,25), rand(25,25), rand(25,25), 1, 1, 1, 1)
     %          [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(rand(25,25,4), rand(25,25,4), rand(25,25,4), rand(25,25,4), ones(4,1), ones(4,1), ones(4,1), ones(4,1))
@@ -85,7 +87,9 @@ function [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt] = subtractionD(N_hat,
     D_denSqrt = sqrt(D_den);
     D_hat     = D_num./D_denSqrt;
     
-    Fd        = Fr .* Fn ./ sqrt( (SigmaN.*Fr).^2 + (SigmaR.*Fn).^2 );
+    F_num     = sqrt( (SigmaN.*Fr).^2 + (SigmaR.*Fn).^2 );
+
+    Fd        = Fr .* Fn ./F_num;
     
     Pd_num    = Fr .* Fn .* Pr_hat .* Pn_hat;
     Pd_den    = Fd .* D_denSqrt;
@@ -113,6 +117,11 @@ function [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt] = subtractionD(N_hat,
         Pd     = Pd_hat;
     else
         Pd     = [];
+    end
+
+    if nargout>7
+        P_deltaNhat = Pr_hat.*F_num./D_denSqrt;
+        P_deltaRhat = Pn_hat.*F_num./D_denSqrt;
     end
     
 end
