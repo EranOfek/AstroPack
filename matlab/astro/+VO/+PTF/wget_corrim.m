@@ -127,8 +127,8 @@ Extrac = sprintf('--save-cookies=ptf.txt -O /dev/null');  % -O =>  write to file
 str = sprintf('http://irsa.ipac.caltech.edu/account/signon/login.do?josso_cmd=login&josso_username=%s&josso_password=%s',...
     InPar.User,InPar.Pass);
 
-www.pwget({str},Extrac,1);
-
+%www.pwget({str},Extrac,1);
+webread(str)
 
 
 % Search and Download 

@@ -201,34 +201,15 @@ function [D, S, Scorr, Z2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef, Ar
 
 
         [ImageZ2,Zhat,Norm] = imUtil.properSub.translient(N.*Fn, R.*Fr, Pn, Pr, SigmaN, SigmaR);
-        ImageZ2 = ImageZ2 - median(ImageZ2,'all','omitnan');
-        ImageZ2 = ImageZ2./tools.math.stat.rstd(ImageZ2,'all');
+
+        k = 1;  % chi^2 with k=1 dof
+        ExpectedMedian = k.*(1 - 2./(9.*k)).^3;
+
+        %ImageZ2 = ImageZ2 - median(ImageZ2,'all','omitnan') + ExpectedMedian;
+        ImageZ2 = ImageZ2./tools.math.stat.rstd(ImageZ2,'all').*sqrt(2.*k);
 
                 
 
-        %[Kr_hat, Kn_hat, V_Sr, V_Sn, Vcorr] = imUtil.properSub.sourceNoise(Fr, Fn, Pr_hat, Pn_hat, D_den, Nwb.*4.7, Rwb.*4.7);
-        %ImageScorr = ImageS./sqrt(Vcorr);
-        
-        %VcorrNorm = Vcorr./median(Vcorr,'all','omitnan');
-        %ImageScorr = ImageS./VcorrNorm;
-
-        
-
-        % FrVec = (0.9:0.01:1.1)';
-        % Nr = numel(FrVec);
-        % for II=1:1:Nr
-        %     Fr= FrVec(II)
-
-        %[ImageD, Pd, ImageS, ImageScorr] = imUtil.properSub.subtraction(N, R, Pn, Pr, SigmaN, SigmaR, 'Fn',Fn, 'Fr',Fr, 'SigmaAstN',[0.05 0.05], 'SigmaAstR',[0.05 0.05], 'EmpiricalNorm',false);
-
-        % D(II).Image = ImageD;
-        % D(II).PSF   = Pd;
-        % 
-        % S(II).Image = ImageS;
-        % S(II).PSF   = Pd;
-        % 
-        % Scorr(II).Image = ImageScorr;
-        % Scorr(II).PSF   = Pd;
 
         D(Imax).Image = ImageD;
         D(Imax).PSF   = Pd;
