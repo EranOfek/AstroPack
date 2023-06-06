@@ -111,11 +111,17 @@ function [Scorr, S, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, SdeltaR] =
     end
 
     if Args.NormS
-        S = S - median(S, [1 2], 'omitnan');
-        S = S./tools.math.stat.rstd(S, [1 2]);
+        MedS = median(S, [1 2], 'omitnan');
+        S = S - MedS;
+        StdS = tools.math.stat.rstd(S, [1 2]);
+        S = S./StdS;
 
         if Args.NormDeltaAsS
-            
+            SdeltaN = SdeltaN - MedS;
+            SdeltaN = SdeltaN./StdS;
+            SdeltaR = SdeltaR - MedS;
+            SdeltaR = SdeltaR./StdS;
+
         else
             SdeltaN = SdeltaN - median(SdeltaN, [1 2], 'omitnan');
             SdeltaN = SdeltaN./tools.math.stat.rstd(SdeltaN, [1 2]);
