@@ -113,6 +113,16 @@ function [Scorr, S, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, SdeltaR] =
     if Args.NormS
         S = S - median(S, [1 2], 'omitnan');
         S = S./tools.math.stat.rstd(S, [1 2]);
+
+        if Args.NormDeltaAsS
+            
+        else
+            SdeltaN = SdeltaN - median(SdeltaN, [1 2], 'omitnan');
+            SdeltaN = SdeltaN./tools.math.stat.rstd(SdeltaN, [1 2]);
+            SdeltaR = SdeltaR - median(SdeltaR, [1 2], 'omitnan');
+            SdeltaR = SdeltaR./tools.math.stat.rstd(SdeltaR, [1 2]);
+        end
+
     end
     
     [Kn_hat, Kr_hat, Kn, Kr] = imUtil.properSub.knkr(Fn, Fr, Pn_hat, Pr_hat, D_den, Args.AbsFun);
