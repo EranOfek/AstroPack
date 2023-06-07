@@ -69,8 +69,7 @@ classdef DemonLAST < Component
                 Args.BasePath    = [];
             end
             
-
-
+            
 
         end
         
@@ -845,7 +844,10 @@ classdef DemonLAST < Component
                         FN_Master.CropID   = {''};
                         FN_Master.ProjName = FN_Dark.ProjName{1};
         
-        
+                        if ~isfolder(Obj.CalibPath)
+                            mkdir(Obj.CalibPath);
+                        end
+
                         FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
                         write1(CI.Bias, FileN{1}, 'Image');
                         FN_Master.Product  = {'Mask'};
