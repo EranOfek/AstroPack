@@ -112,8 +112,8 @@ DefV.JD         = [-inf,inf];
 DefV.Filter     = {'g', 'r', 'ha656', 'ha663'};
 DefV.MaxGet     = 5;
 DefV.Extra      = '-nc -v'; % '-q -nc'; % Option to supply the extra wget switch parameters
-DefV.User       = {'~/matlab/passwords/ptf_archive_pass'};
-DefV.Pass       = [];
+DefV.User       = 'eran'; %{'~/matlab/passwords/ptf_archive_pass'};
+DefV.Pass       = 'palomar';  %[];
 
 %InPar = set_varargin_keyval(DefV,'y','use',varargin{:});
 InPar = InArg.populate_keyval(DefV,varargin,mfilename);
@@ -127,8 +127,8 @@ Extrac = sprintf('--save-cookies=ptf.txt -O /dev/null');  % -O =>  write to file
 str = sprintf('http://irsa.ipac.caltech.edu/account/signon/login.do?josso_cmd=login&josso_username=%s&josso_password=%s',...
     InPar.User,InPar.Pass);
 
-%www.pwget({str},Extrac,1);
-webread(str)
+www.pwget({str},Extrac,1);
+%webread(str)
 
 
 % Search and Download 
