@@ -1,4 +1,4 @@
-function Files=pwget(Links,Extra,MaxGet,Args)
+function Files=pwget(Links, Extra, MaxGet, Args)
 % Parallel wget to retrieve multiple files simultanously
 % Package: www
 % Description: Parallel wget function designed to retrieve multiple files
@@ -16,11 +16,14 @@ function Files=pwget(Links,Extra,MaxGet,Args)
 %            e.g., '-q'. Default is empty string ''.
 %          - Maxium wget commands to run in parallel.
 %            Default is 5.
-%          - An optional URL base to concatenate to the begining of each
-%            link. This is useful if the Links cell array contains only
-%            relative positions. Default is empty string ''.
-%            If empty matrix then use default.
-%          - Use function: 'wget'|'urlwrite'. Default is 'wget'.
+%          * ...,key,val,...
+%            'OutFiles' - A cell array of output file names.
+%                   Default is {}.
+%            'BaseURL' - An optional URL base to concatenate to the begining of each
+%                   link. This is useful if the Links cell array contains only
+%                   relative positions. Default is empty string ''.
+%                   If empty matrix then use default.
+%            'UseFun' - Use function: 'wget'|'urlwrite'. Default is 'wget'.
 % Output : Original names of retrieved files.
 % Tested : Matlab 2012a
 %     By : Eran O. Ofek                    Oct 2012
@@ -60,7 +63,7 @@ end
 % remove empty links
 Links = Links(~tools.cell.isempty_cell(Links));
 
-if numel(Args.OutFiles)~=numel(Links)
+if ~isempty(Args.OutFiles) && (numel(Args.OutFiles)~=numel(Links))
     error('Number of valid links must be equal to the number of files');
 end
 Files = Args.OutFiles;
