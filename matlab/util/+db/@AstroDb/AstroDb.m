@@ -516,7 +516,7 @@ classdef AstroDb < Component
                 FileName                    % Catalog file name
                 AC                          % AstroCatalog
                 Args.AddCols = []           % struct
-                Args.Hash logical  = true   % 
+                Args.Hash logical  = false  % 
                 Args.Select = false         %
             end
 
@@ -785,7 +785,7 @@ classdef AstroDb < Component
                             Sum_h64 = '';
                         end
                         
-                        fprintf('%s\n',AH.File); % DEBUG
+%                         fprintf('%s\n',AH.File); % DEBUG
 
                         % populate the DB
                         switch Args.DBtable
@@ -837,7 +837,7 @@ classdef AstroDb < Component
             %          LDB.populateCatDB ( Catfiles, 'DBname', 'LAST', 'DBtable', 'src_catalog', 'Hash', Args.Hash );
             arguments
                 Obj
-                Data                                 % input images (file names or AstroImages) or AstroHeaders
+                Data                                 % input catalogs
                 Args.DBname       = Obj.DnLAST;      % DB name
                 Args.DBtable      = Obj.TnSrcCatalog;% DB table
                 Args.Hash logical = true;            % whether to calculate a hashsum of individual records and add it to the table
