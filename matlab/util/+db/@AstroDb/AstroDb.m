@@ -546,6 +546,8 @@ classdef AstroDb < Component
                 Args.xxhash = []    % When specified, insert also column 'xxhash' with this value
                 Args.Select = false % When true and Xxhash is specified, first check if image already exists
                 Args.Force  = false % whether to insert a record with the same hash sum
+
+                Args.ReplaceKeyVal = {'AIRMASS','',0; 'PRVFOCUS','',0; 'FOCUS','',0};
             end
 
             Q = Obj.Query;
@@ -575,16 +577,11 @@ classdef AstroDb < Component
             
             % Check for old-type AH values and correct them:
             
-            if AH.isKeyVal('AIRMASS','')
-                AH.replaceVal('AIRMASS',0);
-            end
-            
-            if AH.isKeyVal('PRVFOCUS','')
-                AH.replaceVal('PRVFOCUS',0);
-            end
-            
-            if AH.isKeyVal('FOCUS','')
-                AH.replaceVal('FOCUS',0);
+            NrepKey = size(Args.ReplaceKeyVal,1);
+            for IrepKey=1:1:NrepKey
+                if AH.isKeyVal(Args.ReplaceKeyVal{1}, Args.ReplaceKeyVal{2})
+                    AH.replaceVal(Args.ReplaceKeyVal{1}, Args.ReplaceKeyVal{3});
+                end
             end
             
             % Add additional columns from struct to AstroHeader
@@ -746,7 +743,7 @@ classdef AstroDb < Component
             % Author : A. Krassilchtchikov (May 2023)
             % Example: LDB = db.AstroDb(); 
             %          LDB.populateImageDB(Imfiles, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', Args.Hash );
-            
+
             arguments
                 Obj
                 Data                                % input images (file names or AstroImages) or AstroHeaders
