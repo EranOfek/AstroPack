@@ -14,8 +14,10 @@ function Answer=unitTest
     InstMag = ZP + Mag.';
     InstMag = InstMag + MagErr.*randn(size(InstMag));
 
-    H=imUtil.calib.calibDesignMatrix(Nimage, Nstar);
+    H1=imUtil.calib.calibDesignMatrix(Nimage, Nstar,'Sparse',false);
+    H=imUtil.calib.calibDesignMatrix(Nimage, Nstar,'Sparse',true);
     
+    Par1 = H1\InstMag(:);
     Par = H\InstMag(:);
     
     ParZP = Par(1:Nimage);

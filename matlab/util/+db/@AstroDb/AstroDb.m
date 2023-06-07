@@ -1,4 +1,5 @@
-
+% db.AstroDB is a class for astronomical relational DB
+%
 classdef AstroDb < Component
 
     % Properties
@@ -671,7 +672,7 @@ classdef AstroDb < Component
     end
 
     
-    methods(Static)
+    methods (Static)
         function Result = setupSSH(Args)
             % Setup SSH Tunnel. DO NOT USE YET, we need to solve how to send
             % password to the command line.
@@ -719,6 +720,9 @@ classdef AstroDb < Component
             end
         end
 
+    end
+
+    methods
         %==================================================================
         %                     Functions added by @kra
         %==================================================================        
@@ -741,7 +745,7 @@ classdef AstroDb < Component
             % Tested : Matlab R2020b
             % Author : A. Krassilchtchikov (May 2023)
             % Example: LDB = db.AstroDb(); 
-            %          LDB.populateImageDB ( LDB, Imfiles, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', Args.Hash );
+            %          LDB.populateImageDB(Imfiles, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', Args.Hash );
             arguments
                 Obj
                 Data                                % input images (file names or AstroImages) or AstroHeaders
@@ -882,7 +886,7 @@ classdef AstroDb < Component
         function [TupleID] = addImages2DB( Obj, Args )
             % Add images from a directory to a database
             % Description: Add images from a directory to a database
-            % Input:   - 
+            % Input:   - Self.
             %          * ...,key,val,...
             %          'DataDir'       : the root directory of a tree to search images within
             %          'InputImages'   : the mask of the input image filenames
