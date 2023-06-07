@@ -90,12 +90,16 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, F_S, SdN, SdR, Args)
         if isempty(SdN)
             ValSdN = nan(Nsrc,1);
         else
-            ValSdN   = SdN(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
+            [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(SdN(Iobj).Image, LocalMax(:,1), LocalMax(:,2), 2);
+            ValSdN   = squeeze(max(Cube,[],[1 2]));
+            %ValSdN   = SdN(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
         end
         if isempty(SdR)
             ValSdR = nan(Nsrc,1);
         else
-            ValSdR   = SdR(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
+            [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(SdR(Iobj).Image, LocalMax(:,1), LocalMax(:,2), 2);
+            ValSdR   = squeeze(max(Cube,[],[1 2]));
+            %ValSdR   = SdR(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
         end
         if isempty(Z2)
             ValZ2 = nan(Nsrc,1);
@@ -106,17 +110,27 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, F_S, SdN, SdR, Args)
         %Chi2dof = ResultN.Chi2./ResultN.Dof;
         Result(Iobj).Flag.ThresholdD  = ResultD.SNm>Args.Threshold;
         Result(Iobj).Flag.ThresholdScorr = ValScorr>Args.Threshold;
+        Result(Iobj).Flag.ThresholdSfit  = ResultD.SNm>Args.Threshold;
+
+        Result(Iobj).Flag.NotCR          = abs(ValS)>(abs(ValSdN)+1) & abs(ValS)>(abs(ValSdR)+1);
+
         Result(Iobj).Flag.Chi2        = Chi2dof>Args.Chi2dofLimits(1) & Chi2dof<Args.Chi2dofLimits(2);
         Result(Iobj).Flag.MaskHard    = ~NewFlagBad & ~RefFlagBad;
         Result(Iobj).Flag.MaskSoft    = ~NewFlagSoft & ~RefFlagSoft;
-        Result(Iobj).Flag.SummaryHard = Result(Iobj).Flag.ThresholdScorr & Result(Iobj).Flag.Chi2 & Result(Iobj).Flag.MaskHard & ValS>(ValSdN+1) & ValS>(ValSdR+1);
+
+        Result(Iobj).Flag.SummaryHard = Result(Iobj).Flag.ThresholdScorr & Result(Iobj).Flag.Chi2 & Result(Iobj).Flag.ThresholdSfit & Result(Iobj).Flag.MaskHard & Result(Iobj).Flag.NotCR;
+        Result(Iobj).FlagSummaryHard  = Result(Iobj).Flag.SummaryHard;
         Result(Iobj).Ntran = sum(Result(Iobj).Flag.SummaryHard);
         
         Result(Iobj).Flux = ResultD.Flux; %.*F_S(Iobj);   % need to multiply by F_S
         Result(Iobj).SNm  = ResultD.SNm;
         Result(Iobj).LocalMax = LocalMax;
 
-
+        TranTable = AstroCatalog;
+        TranTable.ColNames = {'XPEAK','YPEAK','Scorr','PSF_SNm','Chi2_D','NewMaskVal','RefMaskVal','ValSdN','ValSdR', 'N_SNm','N_Chi2dof','N_Flux', 'R_SNm','R_Chi2dof','R_Flux'};
+        TranTable.Catalog  = [LocalMax(:,1:3),  ResultD.SNm, Chi2dof, NewMaskVal, RefMaskVal, ValSdN, ValSdR, ResultN.SNm, ResultN.Chi2./ResultN.Dof, ResultN.Flux, ResultR.SNm, ResultR.Chi2./ResultR.Dof, ResultR.Flux ]
+        Result(Iobj).TranTable = TranTable;
+        
 
     end
 

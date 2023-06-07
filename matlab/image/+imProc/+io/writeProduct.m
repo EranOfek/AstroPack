@@ -22,7 +22,9 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
     %                   If numeric empty, then use 'Level' argument.
     %                   Default is [].
     %            'Product' - A cell array of product names to
-    %                   write. Default is {'Image','Mask','Cat','PSF'}
+    %                   write. If one of the products is empty, then skip
+    %                   this product.
+    %                   Default is {'Image','Mask','Cat','PSF'}
     %            'WriteHeader' - A logical, or a vector of logicals
     %                   corresponding to each product and
     %                   indicating if to write an header for this
@@ -167,32 +169,37 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
         
         Status = [];
         Istat  = 0;
+        DirCreated = false;
         switch class(Obj)
             case 'AstroImage'
                 % AstroImage input
 
                 for Iprod=1:1:Nprod
                     
-                    % generate file names
-                    %FN_Iobj = FN.reorderEntries(Iobj, 'CreateNewObj',true);
-                    OutFileNames = FN.genFull('Product',Args.Product{Iprod}, 'LevelPath',Args.LevelPath);
-                    for Iobj=1:1:Nobj
-                        % create dir only on first file
-                        
-                        
-                        if ~isempty(Obj(Iobj).Image) || Args.WriteEmpty
+                    if ~isempty(Args.Product{Iprod})
+
+                        % generate file names
+                        %FN_Iobj = FN.reorderEntries(Iobj, 'CreateNewObj',true);
+                        OutFileNames = FN.genFull('Product',Args.Product{Iprod}, 'LevelPath',Args.LevelPath);
+                        for Iobj=1:1:Nobj
+                            % create dir only on first file
                             
                             
-                            Obj(Iobj).write1(OutFileNames{Iobj}, Args.Product{Iprod},...
-                                         'FileType',FN.FileType{1},...
-                                         'IsSimpleFITS',Args.IsSimpleFITS,...
-                                         'WriteHeader',WriteHeader(Iprod),...
-                                         'MkDir',Iobj==1 && Iprod==1);
-                            % Update FileName in Obj
-                            Obj(Iobj).ImageData.FileName = OutFileNames{Iobj};
-                        else
-                            Istat = Istat + 1;
-                            Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', OutFileNames{Iobj}, Args.Product{Iprod});
+                            if ~isempty(Obj(Iobj).Image) || Args.WriteEmpty
+                                
+                                
+                                Obj(Iobj).write1(OutFileNames{Iobj}, Args.Product{Iprod},...
+                                             'FileType',FN.FileType{1},...
+                                             'IsSimpleFITS',Args.IsSimpleFITS,...
+                                             'WriteHeader',WriteHeader(Iprod),...
+                                             'MkDir',~DirCreated);
+                                DirCreated = true;
+                                % Update FileName in Obj
+                                Obj(Iobj).ImageData.FileName = OutFileNames{Iobj};
+                            else
+                                Istat = Istat + 1;
+                                Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', OutFileNames{Iobj}, Args.Product{Iprod});
+                            end
                         end
                     end
                 end
