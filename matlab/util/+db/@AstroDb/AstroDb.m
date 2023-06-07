@@ -375,18 +375,18 @@ classdef AstroDb < Component
             Q.addColumn(TN, 'var_im',       'single', 'default 0');
             Q.addColumn(TN, 'back_annulus', 'single', 'default 0');
             Q.addColumn(TN, 'std_annulus',  'single', 'default 0');
-            Q.addColumn(TN, 'flux_aper1',   'double', 'default 0');
-            Q.addColumn(TN, 'flux_aper2',   'double', 'default 0');
-            Q.addColumn(TN, 'flux_aper3',   'double', 'default 0');
-            Q.addColumn(TN, 'fluxerr_aper1','double', 'default 0');
-            Q.addColumn(TN, 'fluxerr_aper2','double', 'default 0');
-            Q.addColumn(TN, 'fluxerr_aper3','double', 'default 0');
-            Q.addColumn(TN, 'mag_aper1',    'double', 'default 0');
-            Q.addColumn(TN, 'mag_aper2',    'double', 'default 0');
-            Q.addColumn(TN, 'mag_aper3',    'double', 'default 0');
-            Q.addColumn(TN, 'magerr_aper1', 'double', 'default 0');
-            Q.addColumn(TN, 'magerr_aper2', 'double', 'default 0');
-            Q.addColumn(TN, 'magerr_aper3', 'double', 'default 0');
+            Q.addColumn(TN, 'flux_aper_1',  'double', 'default 0');
+            Q.addColumn(TN, 'flux_aper_2',  'double', 'default 0');
+            Q.addColumn(TN, 'flux_aper_3',  'double', 'default 0');
+            Q.addColumn(TN, 'fluxerr_aper_1','double', 'default 0');
+            Q.addColumn(TN, 'fluxerr_aper_2','double', 'default 0');
+            Q.addColumn(TN, 'fluxerr_aper_3','double', 'default 0');
+            Q.addColumn(TN, 'mag_aper_1',    'double', 'default 0');
+            Q.addColumn(TN, 'mag_aper_2',    'double', 'default 0');
+            Q.addColumn(TN, 'mag_aper_3',    'double', 'default 0');
+            Q.addColumn(TN, 'magerr_aper_1', 'double', 'default 0');
+            Q.addColumn(TN, 'magerr_aper_2', 'double', 'default 0');
+            Q.addColumn(TN, 'magerr_aper_3', 'double', 'default 0');
             Q.addColumn(TN, 'flux_conv_1',  'double', 'default 0');
             Q.addColumn(TN, 'flux_conv_2',  'double', 'default 0');
             Q.addColumn(TN, 'flux_conv_3',  'double', 'default 0');
@@ -646,9 +646,7 @@ classdef AstroDb < Component
 %                         Args.AddCols = struct;
 %                     end
 %                     Args.AddCols.xxhash = Args.xxhash;
-%                 end
-
-                %%% NEED to add filename to an AstroCatalog object ? 
+%                 end 
                 
 %                 % Add FileName to header
 %                 AH.insertKey({'filename', FileName, 'Image file name'}, 'end');

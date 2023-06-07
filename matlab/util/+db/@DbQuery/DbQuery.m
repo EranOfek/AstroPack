@@ -1727,6 +1727,7 @@ classdef DbQuery < Component
                 % When Args.TableColumnList is specified, ignore columns not in list
                 if ~isempty(Args.TableColumnList)
                     if ~any(strcmpi(Args.TableColumnList, ColumnName))
+%                         fprintf('name mismatch?'); %debug
                         continue;
                     end
                 end
