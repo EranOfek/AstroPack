@@ -741,7 +741,7 @@ classdef AstroDb < Component
             % Tested : Matlab R2020b
             % Author : A. Krassilchtchikov (May 2023)
             % Example: LDB = db.AstroDb(); 
-            %          LDB.populateImageDB ( LDB, Imfiles, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', Args.Hash );
+            %          TupleIDs = LDB.populateImageDB ( LDB, Imfiles, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', Args.Hash );
             arguments
                 Obj
                 Data                                % input images (file names or AstroImages) or AstroHeaders
@@ -932,7 +932,8 @@ classdef AstroDb < Component
              
         function testDBlast0
             
-            A = db.AstroDb('Host','10.23.1.25','DatabaseName','last_operational','UserName','postgres','Password','postgres','Port',5432);
+            A = db.AstroDb('Host','10.23.1.25','DatabaseName','last_operational', ...
+                           'UserName','postgres','Password','postgres','Port',5432);
             
             A.TnRawImages   = 'test_raw_images';
             A.TnProcImages  = 'test_proc_images';
@@ -942,32 +943,35 @@ classdef AstroDb < Component
             
 %             createTables(A);
             
-            Q = A.Query;
+%             Q = A.Query;
             
 %             DataDir='/last01e/data2/archive/LAST.01.01.02/2023/04/28/proc/10/';
-            DataDir='/last01e/data1/archive/LAST.01.01.01/2023/04/';
+            DataDir = '/last01e/data1/archive/LAST.01.01.01/2023/04/';
             
-            
+            Table   = 'test_coadd_images';
+                        
             drawnow('update'); tic % ~ 6000 files at the speed about 1 file/sec -- too long?
-%             
-%             RawTuples = A.addImages2DB(A,'DataDir','/last01w/data2/archive/LAST.01.01.04/new', ...
-%                                          'InputImages','LAST*sci*raw_Image*.fits', ...
-%                                          'DBname','last_operational', 'DBtable','test_raw_images'); 
-%                                      
-%             
-            ProcTuples = A.addImages2DB(A,'DataDir',DataDir, ...
-                                         'InputImages','LAST*sci_proc_Image*.fits', ...
-                                         'DBname','last_operational', 'DBtable','test_proc_images'); 
-                                     
-%             CoaddTuples = A.addImages2DB(A,'DataDir',DataDir, ...
-%                                          'InputImages','LAST*sci_coadd_Image*.fits', ...
-%                                          'DBname','last_operational', 'DBtable','test_coadd_images'); 
-                                     
             
+            if strcmp(Table,'test_raw_images') 
+                RawTuples = A.addImages2DB(A,'DataDir','/last01w/data2/archive/LAST.01.01.04/new', ...
+                                             'InputImages','LAST*sci*raw_Image*.fits', ...
+                                             'DBname','last_operational', 'DBtable','test_raw_images'); 
+
+            elseif strcmp(Table,'test_proc_images')
+                ProcTuples = A.addImages2DB(A,'DataDir',DataDir, ...
+                                             'InputImages','LAST*sci_proc_Image*.fits', ...
+                                             'DBname','last_operational', 'DBtable','test_proc_images'); 
+                                         
+            elseif strcmp(Table,'test_coadd_images')
+                CoaddTuples = A.addImages2DB(A,'DataDir',DataDir, ...
+                                             'InputImages','LAST*sci_coadd_Image*.fits', ...
+                                             'DBname','last_operational', 'DBtable','test_coadd_images'); 
+            end
+
             toc
             
-            A.Query.select('*', 'TableName', 'test_coadd_images', 'Where', 'filename like ''%LAST%''', 'OutType', 'Table')
-            A.Query.select('*', 'TableName', 'test_proc_images', 'Where', 'filename like ''%LAST%''', 'OutType', 'Table')
+%             A.Query.select('*', 'TableName', 'test_coadd_images', 'Where', 'filename like ''%LAST%''', 'OutType', 'Table')
+%             A.Query.select('*', 'TableName', 'test_proc_images', 'Where', 'filename like ''%LAST%''', 'OutType', 'Table')
             
         end
 
