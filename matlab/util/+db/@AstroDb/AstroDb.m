@@ -895,9 +895,9 @@ classdef AstroDb < Component
             % Tested : Matlab R2020b
             % Author : A. Krassilchtchikov et al. (May 2023)
             % Examples: A = db.AstroDb; 
-            %           A.addImages2DB(A,'DataDir','/home/sasha/Raw2/','DBname','LAST','DBtable','raw_images');
-            %           A.addImages2DB(A,'DataDir','/home/sasha/Obs2/','InputImages','LAST*sci*proc_Image*.fits','DBtable','proc_images')
-            %           A.addImages2DB(A,'DataDir','/home/sasha/Obs2/','InputImages','LAST*sci*coadd_Image*.fits','DBtable','coadd_images')
+            %           A.addImages2DB('DataDir','/home/sasha/Raw2/','DBname','LAST','DBtable','raw_images');
+            %           A.addImages2DB('DataDir','/home/sasha/Obs2/','InputImages','LAST*sci*proc_Image*.fits','DBtable','proc_images')
+            %           A.addImages2DB('DataDir','/home/sasha/Obs2/','InputImages','LAST*sci*coadd_Image*.fits','DBtable','coadd_images')
             arguments
                 Obj
                 Args.DataDir        =    '/home/sasha/Raw/';                % The directory containing the input images
@@ -923,7 +923,7 @@ classdef AstroDb < Component
 
             % call the sub to populate the database (3 variants: files, AI, AH)
 
-            TupleID = Obj.populateImageDB ( Obj, Imfiles, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+            TupleID = Obj.populateImageDB ( Imfiles, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
 %             TupleID = Obj.populateImageDB ( Obj, Headers, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
 %             TupleID = Obj.populateImageDB ( Obj, Images,  'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
 
@@ -931,8 +931,18 @@ classdef AstroDb < Component
         end
 
         %%%%%%%%%
+        
+    end
+    methods(Static)
+        
+        %%%%%%%%%
              
-        function testDBlast0
+        function testDBlast0 (Args)
+            
+            arguments
+                Args.Table = 'test_raw_images';
+                Args.DataDir = '/last01e/data1/archive/LAST.01.01.01/2023/04/';
+            end
             
             A = db.AstroDb('Host','10.23.1.25','DatabaseName','last_operational', ...
                            'UserName','postgres','Password','postgres','Port',5432);
@@ -947,25 +957,20 @@ classdef AstroDb < Component
             
 %             Q = A.Query;
             
-%             DataDir='/last01e/data2/archive/LAST.01.01.02/2023/04/28/proc/10/';
-            DataDir = '/last01e/data1/archive/LAST.01.01.01/2023/04/';
-            
-            Table   = 'test_coadd_images';
-                        
             drawnow('update'); tic % ~ 6000 files at the speed about 1 file/sec -- too long?
             
-            if strcmp(Table,'test_raw_images') 
-                RawTuples = A.addImages2DB(A,'DataDir','/last01w/data2/archive/LAST.01.01.04/new', ...
+            if strcmp(Args.Table,'test_raw_images') 
+                RawTuples = A.addImages2DB('DataDir',Args.DataDir, ...
                                              'InputImages','LAST*sci*raw_Image*.fits', ...
                                              'DBname','last_operational', 'DBtable','test_raw_images'); 
 
             elseif strcmp(Table,'test_proc_images')
-                ProcTuples = A.addImages2DB(A,'DataDir',DataDir, ...
+                ProcTuples = A.addImages2DB('DataDir',DataDir, ...
                                              'InputImages','LAST*sci_proc_Image*.fits', ...
                                              'DBname','last_operational', 'DBtable','test_proc_images'); 
                                          
             elseif strcmp(Table,'test_coadd_images')
-                CoaddTuples = A.addImages2DB(A,'DataDir',DataDir, ...
+                CoaddTuples = A.addImages2DB('DataDir',DataDir, ...
                                              'InputImages','LAST*sci_coadd_Image*.fits', ...
                                              'DBname','last_operational', 'DBtable','test_coadd_images'); 
             end
