@@ -526,7 +526,8 @@ classdef AstroDb < Component
                 
         
         function Result = addImage(Obj, TableName, FileName, AH, Args)
-            % Insert AstroHeader to specified table.
+            % Insert AstroHeader to specified table
+            % NB: if Args.Force = false and we are trying to insert the same record twice, Result will be negative  
             % Input :  - LastDb object
             %          - TableName
             %          - FileName
@@ -547,7 +548,10 @@ classdef AstroDb < Component
                 Args.Select = false % When true and Xxhash is specified, first check if image already exists
                 Args.Force  = false % whether to insert a record with the same hash sum
 
-                Args.ReplaceKeyVal = {'AIRMASS','',0; 'PRVFOCUS','',0; 'FOCUS','',0};
+                Args.ReplaceKeyVal = {'AIRMASS','',0; 'PRVFOCUS','',0; 'FOCUS','',0; ...
+                                      'M_JRA','',0; 'M_JDEC','',0; 'M_JHA','',0; ...
+                                         'RA','',0;    'DEC','',0;    'HA','',0; ...
+                                         'AZ','',0;    'ALT','',0};
             end
 
             Q = Obj.Query;
