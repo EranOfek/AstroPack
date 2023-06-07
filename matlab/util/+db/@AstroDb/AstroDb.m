@@ -739,9 +739,10 @@ classdef AstroDb < Component
             %          'DBtable'       : DB table
             %          'Hash'          : whether to calculate a hashsum of the file and add it to the table
             %          'FileNames'     : an optinal cell array of file names (if
-            %          only AstroImages or AstroHeaders are provided)
+            %                            only AstroImages or AstroHeaders are provided)
             %          'ForceInsert'   : if the record is inserted despite the existing copy (checked by the hashsum)
-            % Output : scalar success flag (0 -- images successfully added to the DB)         
+            %          'Verbose'       : print filenames, whose headers are inserted 
+            % Output : scalar success flag (0 -- images successfully added to the DB)    
             % Tested : Matlab R2020b
             % Author : A. Krassilchtchikov (May 2023)
             % Example: LDB = db.AstroDb(); 
@@ -755,6 +756,7 @@ classdef AstroDb < Component
                 Args.Hash logical = true;           % whether to calculate a hashsum and add it to the table
                 Args.FileNames    = {};             % an optional cell array of file names (for the case the first argument is not a file list)
                 Args.ForceInsert logical = false;   % if the record is inserted despite the existing copy (checked by the hashsum)
+                Args.Verbose logical = false;       % print filenames, whose headers are inserted 
             end
 
             % determine the number of input images:
@@ -790,7 +792,9 @@ classdef AstroDb < Component
                             Sum_h64 = '';
                         end
                         
-%                         fprintf('%s\n',AH.File); % DEBUG
+                       if Args.Verbose
+                           fprintf('%s\n',AH.File);
+                       end
 
                         % populate the DB
                         switch Args.DBtable
@@ -936,6 +940,7 @@ classdef AstroDb < Component
         %%%%%%%%%
         
     end
+    
     methods(Static)
         
         %%%%%%%%%
@@ -956,11 +961,9 @@ classdef AstroDb < Component
             A.TnSrcCatalog  = 'test_src_catalog';
             A.DnLAST        = 'last_operational';
             
-%             createTables(A);
+%             createTables(A); % if the tables do not exist as of yet, need to create them
             
-%             Q = A.Query;
-            
-            drawnow('update'); tic % ~ 6000 files at the speed about 1 file/sec -- too long?
+            drawnow('update'); tic % ~ 6000 files at the speed about 1 file/sec -- too slow?
             
             if strcmp(Args.Table,'test_raw_images') 
                 RawTuples = A.addImages2DB('DataDir',Args.DataDir, ...
@@ -1026,8 +1029,7 @@ classdef AstroDb < Component
        
          
     end
-    
-    
+     
     methods(Static)
         Result = unitTest()
             % LastDb Unit-Test
