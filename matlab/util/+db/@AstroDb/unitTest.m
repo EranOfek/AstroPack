@@ -74,11 +74,11 @@ function Result = unitTest()
         Images(Img) = AstroImage(Imfiles(Img));
         Headers(Img).Data = Images(Img).Header;
     end
-    pk = LDB.populateImageDB ( LDB, Imfiles, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', 'true' );
+    pk = LDB.populateImageDB ( Imfiles, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', 'true' );
     disp(pk);
-    pk = LDB.populateImageDB ( LDB, Images, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', 'true' );
+    pk = LDB.populateImageDB ( Images, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', 'true' );
     disp(pk);
-    pk = LDB.populateImageDB ( LDB, Headers, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', 'true' );
+    pk = LDB.populateImageDB ( Headers, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', 'true' );
     disp(pk);
     
     % test updateByTupleID

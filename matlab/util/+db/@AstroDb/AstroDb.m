@@ -576,11 +576,10 @@ classdef AstroDb < Component
             AH.insertKey({'filename', FileName, 'Image file name'}, 'end');
             
             % Check for old-type AH values and correct them:
-            
             NrepKey = size(Args.ReplaceKeyVal,1);
             for IrepKey=1:1:NrepKey
-                if AH.isKeyVal(Args.ReplaceKeyVal{1}, Args.ReplaceKeyVal{2})
-                    AH.replaceVal(Args.ReplaceKeyVal{1}, Args.ReplaceKeyVal{3});
+                if AH.isKeyVal(Args.ReplaceKeyVal{IrepKey,1}, Args.ReplaceKeyVal{IrepKey,2})
+                    AH.replaceVal(Args.ReplaceKeyVal{IrepKey,1}, Args.ReplaceKeyVal{IrepKey,3});
                 end
             end
             
