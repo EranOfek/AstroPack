@@ -133,8 +133,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %                   the MergedCat input argument to the catalog of the
     %                   coadd image.
     %                   Default is {'Nobs'}.
-    
-    % Output : -
+    % Output : - A vector of AstroImage object containing the coadd images.
+    %            One image per field.
+    %          - A structure array containing information regarding the
+    %            coaddition process.
+    % Author : Eran Ofek (Jun 2023)
+    % Example: 
    
     arguments
         AllSI
