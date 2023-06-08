@@ -14,6 +14,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     %          'LASTnaming'    : whether the image file names are in the LAST convention form
     %          'SizeMargin'    : number of margin pixels added to X and Y size of the mosaic image
     %          'OutDir'        : output directory
+    %          'PlotBorders'   : whether to plot the sky region with original image stamps
     %          
     % Output : - StitchedImage: an AstroImage containing a mosaic made of all the input images
     %          - AH: the header of the mosaic image containing the exposure, ZP and the WCS
@@ -37,6 +38,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         Args.SizeMargin     =    [30 30];                        % number of margin pixels added to X and Y size of the mosaic
                                                                  % (needed due to the insufficient accurancy of the mosaic size determination)
         Args.OutDir         =   '.';                             % output directory
+        Args.PlotBorders logical   =   false;                    % whether to plot the sky region with original image stamps
 
     end
     
@@ -74,7 +76,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
 
     end
     
-    NImage = size(AI,2);                % determine the number of images to be merged    
+    NImage = size(AI,2);                % determine the number of images to be stitched    
     
             fprintf('%d%s\n',NImage,' images loaded');
     
@@ -154,21 +156,25 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     
     RAcenter = (RA2m + RA1m)/2; DECcenter = (DEC2m + DEC1m)/2; 
 
-            % plot the sky regions of the input images and the reference points 
+    % plot the sky regions of the input images and the reference points 
 
-%             figure(1); hold on
-% 
-%             for Img = 1:1:NImage    
-%                 plot([Corn(Img,1,1) Corn(Img,2,1) Corn(Img,3,1) Corn(Img,4,1) Corn(Img,1,1)], ...
-%                      [Corn(Img,1,2) Corn(Img,2,2) Corn(Img,3,2) Corn(Img,4,2) Corn(Img,1,2)]);
-%                 text(Cent(Img,1),Cent(Img,2), num2str(Img) );
-%             end
-% 
-%             plot(RAcenter,DECcenter,'rd','MarkerSize',10);
-%             plot([RA1m  RA2m  RA2m  RA1m  RA1m], ...
-%                  [DEC1m DEC1m DEC2m DEC2m DEC1m], 'LineWidth',2,'Color',[.6 0 0]);
-%             xlabel RA; ylabel DEC;
-%             hold off    
+    if Args.PlotBorders
+        
+            figure(1); hold on
+
+            for Img = 1:1:NImage    
+                plot([Corn(Img,1,1) Corn(Img,2,1) Corn(Img,3,1) Corn(Img,4,1) Corn(Img,1,1)], ...
+                     [Corn(Img,1,2) Corn(Img,2,2) Corn(Img,3,2) Corn(Img,4,2) Corn(Img,1,2)]);
+                text(Cent(Img,1),Cent(Img,2), num2str(Img) );
+            end
+
+            plot(RAcenter,DECcenter,'rd','MarkerSize',10);
+            plot([RA1m  RA2m  RA2m  RA1m  RA1m], ...
+                 [DEC1m DEC1m DEC2m DEC2m DEC1m], 'LineWidth',2,'Color',[.6 0 0]);
+            xlabel RA; ylabel DEC;
+            hold off    
+            
+    end
 
     % determine the sky and pixel size of the mosaic
     
