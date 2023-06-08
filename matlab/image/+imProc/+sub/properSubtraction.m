@@ -42,17 +42,17 @@ function [D, S, Scorr, Z2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef, Ar
         cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/3/
         AI(3) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.214224.783_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
         cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/10/
-        AI(4) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.185210.755_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
+        AI(4) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.185750.850_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
 
         AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
         AIreg= imProc.background.background(AIreg,'SubSizeXY',[]); %[256 256]);  
         AIreg=imProc.sources.findMeasureSources(AIreg);           
-        m=imProc.match.match(AIreg(1),AIreg(2),'CooType','pix');
+        m=imProc.match.match(AIreg(1),AIreg(4),'CooType','pix');
 
         ds9(AIreg(1),1)
         ds9(AIreg(2),2)
 
-        D = imProc.sub.properSubtraction(AIreg(2), AIreg(1));
+        [D,S,Scorr,Z2, F_S,SdN, SdR] = imProc.sub.properSubtraction(AIreg(:), AIreg(1));
 
     end
 
@@ -148,7 +148,7 @@ function [D, S, Scorr, Z2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef, Ar
             Fn     = Args.NewZP;
         end
         if ischar(Args.RefZP)
-            ZP_Ref = ObjRef(In).HeaderData.getVal(Args.RefZP);
+            ZP_Ref = ObjRef(Ir).HeaderData.getVal(Args.RefZP);
             Fr     = 10.^(-0.4.*ZP_Ref);
         else
             Fr     = Args.RefZP;
