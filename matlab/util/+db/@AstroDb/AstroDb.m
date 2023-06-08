@@ -663,7 +663,8 @@ classdef AstroDb < Component
 %                 end
 
                 % Insert AstroCatalog to the table
-                Pk = Q.insert(AC, 'TableName', TableName, 'ColumnsOnly', true, 'Returning', 'pk');
+%                 Pk = Q.insert(AC, 'TableName', TableName, 'ColumnsOnly', true, 'Returning', 'pk');
+                Pk = Q.insert(AC, 'TableName', TableName, 'ColumnsOnly', true, 'Returning', ''); % temporary switch off the Returning key
                 Result = Pk;
             end
 
