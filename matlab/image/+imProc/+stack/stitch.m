@@ -68,9 +68,15 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
             FN = FileNames.generateFromFileName( InputImages );
             AI = AstroImage.readFileNamesObj( FN ) ;  
             
-        else % TBD: list the files and read them into AIs, also make additions to the output file name back
+        else 
             
-            error('The input file names do not comply to the LAST naming convention');
+            ImageFiles  = dir ( InputImages ) ;
+            ImNum = numel(ImageFiles);
+            Imfiles = repmat({''}, ImNum, 1);
+            for Img = 1:1:ImNum
+                Imfiles{Img} = fullfile(ImageFiles(Img).folder, ImageFiles(Img).name);
+            end
+            AI = AstroImage.readFileNamesObj( Imfiles );
             
         end
 
@@ -306,7 +312,8 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     
     % make a FITS file:
 
-    if isa(InputImages,'AstroImage')
+%     if isa(InputImages,'AstroImage')
+    if ~exist('FN','var')
         CPSOutputName = strcat('!./','stitched_image.fits');
     else
         CPSOutputName = strcat('!./',FN.ProjName{1},'_',FN.Time{1},'_',FN.FieldID{1},'_stitched_image.fits');
