@@ -324,10 +324,10 @@ function Result = unitTest()
         error('AstroImage arithmatic problem')
     end
     % plus operator is not suppose to modify AI 
-    if ~all(AI.Image(1,1)==1)
+    if ~all(AI1.Image(1,1)==1)
         error('AstroImage arithmatic problem')
     end
-    if ~all(AI.Exp(1,1)==1)
+    if ~all(AI1.Exp(1,1)==1)
         error('AstroImage arithmatic problem')
     end
     
