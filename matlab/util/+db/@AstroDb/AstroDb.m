@@ -46,7 +46,7 @@ classdef AstroDb < Component
                 % These arguments are used when both DbQuery and DbCon are NOT set:
                 Args.Host          = 'socsrv' %localhost'     % 'socsrv'        % Host name or IP address
                 Args.Port          = 5432 % 63331           % 5432            % Port number
-                Args.DatabaseName  = 'lastdb'        % 'last_operational'
+                Args.DatabaseName  = 'lastdb'        % 'last_operational' at last0 node
                 Args.UserName      = 'postgres'      % User name
                 Args.Password      = 'PassRoot' %'postgres'      % 'PassRoot'      % Password
             end
@@ -415,7 +415,8 @@ classdef AstroDb < Component
             Q.addColumn(TN, 'nobs',         'smallint', 'default 0');
                         
             % Additional
-            Q.addColumn(TN, 'procstat', 'varchar(256)', "default ''", 'Comment', 'Additional user data');             
+            Q.addColumn(TN, 'procstat', 'varchar(256)', "default ''", 'Comment', 'Additional user data');    
+            Q.addColumn(TN, 'swvers', 'smallint', 'default 0', 'Comment', 'Software version');          
                 
             Obj.msgLog(LogLevel.Info, 'addCommonCatalogColumns done');
             Result = true;
@@ -609,7 +610,7 @@ classdef AstroDb < Component
                 % Input :  - LastDb object
                 %          - TableName
                 %          - FileName
-                %          - AstroHeader
+                %          - AstroCatalog
                 %          - struct - Optionally additional columns. MUST BE lowercase!
                 %          * Pairs of ...,key,val,...
                 %            The following keys are available:

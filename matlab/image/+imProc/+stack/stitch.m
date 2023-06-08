@@ -1,5 +1,5 @@
 function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
-    % Make a mosaic sky image from a set of input AstroImages
+    % Make a mosaic sky image from a set of input image files or AstroImages
     % Package: imProc.stack 
     % Input:   - A mask FITS file namesto stich into a single large image.
     %            Alternatively, this can be asn AstroImage object
@@ -22,7 +22,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     %            
     % Tested : Matlab R2020b
     % Author : A. Krassilchtchikov et al. (May 2023), function name copyright: Y. Shvartzvald
-    % Example: Mosaic = imProc.stack.stitch('DataDir','/home/sasha/Obs1/','InputImages','LAST*coadd_Image*.fits','PixScale',1.25);
+    % Example: [Mosaic, AH, RemappedXY] = imProc.stack.stitch('LAST*coadd_Image*.fits','DataDir','/home/sasha/Obs1/','PixScale',1.25);
 
     arguments
         
