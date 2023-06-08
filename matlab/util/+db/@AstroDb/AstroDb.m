@@ -960,7 +960,7 @@ classdef AstroDb < Component
             A.TnSrcCatalog  = 'test_src_catalog';
             A.DnLAST        = 'last_operational';
             
-%             createTables(A); % if the tables do not exist as of yet, need to create them
+%           createTables(A); % if the tables do not exist as of yet, need to create them
             
             drawnow('update'); tic % ~ 6000 files at the speed about 1 file/sec -- too slow?
             
