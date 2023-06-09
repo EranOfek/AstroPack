@@ -192,6 +192,84 @@ classdef AstroPSF < Component
         end
     end
     
+    methods % fitting
+        function [Result,FitRes] = fitFunPSF(Obj, Args)
+            % Fit a composite function to a PSF stamp and replace it.
+            %   The fitted function is any combination of imUtil.kernel2 like
+            %   functions. The function center is not fitted, and the free
+            %   parameters are the normalization of each function, followed by the
+            %   function parameters.
+            % Input  : - A PSF stamp.
+            %          * ...,key,val,...
+            %            'getPSFArgs' - A cell array of arguments to pass
+            %                   to the AStroPSF/getPSF method.
+            %                   Default is {}.
+            %            'Funs' - A cell array of functions to fit.
+            %                   Each function in the cell is of the form:
+            %                   PSF = Fun(Pars, SizeXY, PosXY), where PosXY=[]
+            %                   return the stamp center.
+            %                   Default is {@imUtil.kernel2.gauss}
+            %            'Par0' - A cell array of initial (guess) parameters for
+            %                   each one of the functions in 'Funs'.
+            %                   Default is {[2 2 0]}.
+            %            'Norm0' - A vector of normalizations, one per each function in
+            %                   'Funs'. Default is [1].
+            %            'PosXY' - The position of the functions center.
+            %                   If empty, use stamp center.
+            %                   Default is [].
+            %            'LB' - Lower bound for all free parameters in the order:
+            %                   [NormFun1, ParsFun1, NormFun2, ParsFun2,...]
+            %                   Default is [].
+            %            'UB' - Like 'LB', but for the upper bounds.
+            %                   Default is [].
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the input object.
+            %                   Default is false.
+            % Output : - An AstroPSF object in which the PSFData was
+            %            replaced with a fitted version of the PSF stamp.
+            %          - A structure with the following fields:
+            %            .Par - Best fitted parameters.
+            %            .ResNorm - RMS of best fit.
+            %            .Resid - Observed - Calculated residuals (note that lsqcurve
+            %               returns the calc-obs).
+            %            .ExitFlag - Exit flag of lsqcurvefit
+            %            .Output - Additional output of lsqcurvefit
+            %            .J - Jacobian.
+            % Author : Eran Ofek (Jun 2023)
+    
+            arguments
+                Obj
+                Args.getPSFArgs = {};
+                Args.Funs      = {@imUtil.kernel2.gauss};
+                Args.Par0      = {[2 2 0]};
+                Args.Norm0     = [1];
+                Args.PosXY     = [];
+                Args.LB        = [];
+                Args.UB        = [];
+                Args.CreateNewObj logical = false;
+            end
+       
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                P = Obj(Iobj).getPSF(Args.getPSFArgs{:});
+                
+                [FitRes(Iobj), Result(Iobj).PSFData] = imUtil.psf.fitFunPSF(P, 'Funs',Args.Funs,...
+                                            'Par0',Args.Par0,...
+                                            'Norm0',Args.Norm0,...
+                                            'PosXY',Args.PosXY,...
+                                            'LB',Args.LB,...
+                                            'UB',Args.UB);
+            end
+        end
+        
+    end
+    
     methods % generating PSF
         function Result = getPSF(Obj, DataPSF, FunPSF, StampSize, ArgVals, ArgNames)
             % get PSF from AstroPSF object
