@@ -1,5 +1,8 @@
 function generateFunListWebPage(Args)
-    %
+    % Generate an html file with sortable table of all functions and methods in AstroPack.
+    % Input  : 'WebFileName' - html file name to write.
+    %               Default is 'AstroPack_funlist.html'
+    % Author : Eran Ofek (Jan 2023)
     % Example: tools.code.generateFunListWebPage
    
     arguments
