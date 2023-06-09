@@ -27,4 +27,5 @@
 %             tools.os.systemarg - Running the UNIX system command.
 %              tools.os.unitTest - Package Unit-Test
 %             tools.os.user_name - Get user name
+%        tools.os.mex.allFunList - Functions and Classes list for the tools.os.mex package
  help tools.os.allFunList

@@ -4,6 +4,7 @@
 % imUtil.psf.constructPSF_cutouts - Given a background-subtracted image and PSF star positions, construct a mean PSF stamp from cutouts
 %         imUtil.psf.containment - Measure the radius of signal containment in a PSF stamp at a given level
 %     imUtil.psf.curve_of_growth - Calculate the curve of growth of a PSF
+%           imUtil.psf.fitFunPSF - Fit a composite function to a PSF stamp.
 %          imUtil.psf.full2stamp - Given a PSF contained in a full-size image, generate a stamp of the PSF.
 %       imUtil.psf.fwhm_fromBank - Measure the FWHM of an image by cross corr. with a Gaussian template bank
 %       imUtil.psf.image_quality - Measure the image quality as a function of position in image.

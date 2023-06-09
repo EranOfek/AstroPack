@@ -6,7 +6,7 @@
 %    tools.code.classifyAllFiles - Classify matlab-related files.
 %        tools.code.fun_template - Generate a function file template
 % tools.code.genPackage_allFunList - generate a file named allFunList in each subpackage containing the list of functions
-% tools.code.generateFunListWebPage - 
+% tools.code.generateFunListWebPage - Generate an html file with sortable table of all functions and methods in AstroPack.
 %        tools.code.generate_doc - arguments
 %           tools.code.getAllFun - Generate a list of all functions and methods
 % tools.code.identifySubPackagesInFolder - Identify all packages hierarchy in a folder name
@@ -17,6 +17,7 @@
 %   tools.code.prep_maat_website - Prepare the Matlab Astronomy & AStrophysics Toolbox website
 % tools.code.read_user_pass_file - Read user/password from file
 %            tools.code.unitTest - Package Unit-Test
+% tools.code.obsolete.allFunList - Functions and Classes list for the tools.code.obsolete package
 % tools.code.obsolete.install_maat - Install
 % tools.code.obsolete.prep_function_list - Prepare list of all functions in the Astro Toolbox
  help tools.code.allFunList

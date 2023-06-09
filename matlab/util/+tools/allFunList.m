@@ -44,6 +44,7 @@
 %               tools.array.trim - B = tools.array.trim(A, I1, I2, J1, J2)
 %       tools.array.unique_count - Unique values and count the number of apperances of each value.
 %           tools.array.unitTest - Package Unit-Test
+%     tools.array.mex.allFunList - Functions and Classes list for the tools.array.mex package
 % tools.array.mex.test_mex_bit_array32 - 
 % tools.array.mex.test_mex_bit_array64 - 
 %          tools.cell.allFunList - Functions and Classes list for the tools.cell package
@@ -67,15 +68,17 @@
 %     tools.cell.strNameDict2ind - Search the first appearance of string in dictionary in another cell.
 % tools.cell.unique_cell_grouping - Find unique lines in the cell matrix.
 %            tools.cell.unitTest - Package Unit-Test
+%      tools.checksum.allFunList - Functions and Classes list for the tools.checksum package
 %        tools.checksum.unitTest - test_xxhash();
 %          tools.checksum.xxhash - Compute xxHash value of given data or file.
+%  tools.checksum.mex.allFunList - Functions and Classes list for the tools.checksum.mex package
 %          tools.code.allFunList - Functions and Classes list for the tools.code package
 %        tools.code.analyzeMfile - Analyze m files. Count lines of code, identify functions, help, authors etc.
 % tools.code.breakClassToFunctions - Parse all functions from a class m file
 %    tools.code.classifyAllFiles - Classify matlab-related files.
 %        tools.code.fun_template - Generate a function file template
 % tools.code.genPackage_allFunList - generate a file named allFunList in each subpackage containing the list of functions
-% tools.code.generateFunListWebPage - 
+% tools.code.generateFunListWebPage - Generate an html file with sortable table of all functions and methods in AstroPack.
 %        tools.code.generate_doc - arguments
 %           tools.code.getAllFun - Generate a list of all functions and methods
 % tools.code.identifySubPackagesInFolder - Identify all packages hierarchy in a folder name
@@ -86,6 +89,7 @@
 %   tools.code.prep_maat_website - Prepare the Matlab Astronomy & AStrophysics Toolbox website
 % tools.code.read_user_pass_file - Read user/password from file
 %            tools.code.unitTest - Package Unit-Test
+% tools.code.obsolete.allFunList - Functions and Classes list for the tools.code.obsolete package
 % tools.code.obsolete.install_maat - Install
 % tools.code.obsolete.prep_function_list - Prepare list of all functions in the Astro Toolbox
 %         tools.deriv.allFunList - Functions and Classes list for the tools.deriv package
@@ -143,6 +147,7 @@
 %      tools.math.fun.allFunList - Functions and Classes list for the tools.math.fun package
 %    tools.math.fun.chebyshevFun - Generate an anonymous function for Chebyshev polynomials (using
 %          tools.math.fun.sincos - Insert a column/s or row/s to a specific position in a matrix.
+%  tools.math.fun.mex.allFunList - Functions and Classes list for the tools.math.fun.mex package
 %   tools.math.geometry.Contents - 
 % tools.math.geometry.allFunList - Functions and Classes list for the tools.math.geometry package
 % tools.math.geometry.boundingCircle - fit the smallest-radius bounding circle to set of X, Y points
@@ -234,9 +239,11 @@
 % tools.math.symbolic.symerror_calc - Calculate and evaluate symbolic errors
 % tools.math.symbolic.sympoly2d_2orders - Convert a 2D symbolic polynomials into vectors of orders and coef.
 %   tools.math.symbolic.unitTest - Package Unit-Test
+%     tools.operators.allFunList - Functions and Classes list for the tools.operators package
 %          tools.operators.test1 - Rows = 1000;
 %          tools.operators.times - 
 %       tools.operators.unitTest - Package Unit-Test
+% tools.operators.mex.allFunList - Functions and Classes list for the tools.operators.mex package
 %            tools.os.allFunList - Functions and Classes list for the tools.os package
 %                    tools.os.cd - Change dir function. If no arguments cd to home dir.
 %               tools.os.cdmkdir - cd to directory - if not exist than create
@@ -264,6 +271,7 @@
 %             tools.os.systemarg - Running the UNIX system command.
 %              tools.os.unitTest - Package Unit-Test
 %             tools.os.user_name - Get user name
+%        tools.os.mex.allFunList - Functions and Classes list for the tools.os.mex package
 %          tools.rand.allFunList - Functions and Classes list for the tools.rand package
 %            tools.rand.randi100 - Generate random integers in range 0..100
 %            tools.rand.unitTest - Package Unit-Test

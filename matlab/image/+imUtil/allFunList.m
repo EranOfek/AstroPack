@@ -10,6 +10,7 @@
 %    imUtil.asteroids.allFunList - Functions and Classes list for the imUtil.asteroids package
 % imUtil.asteroids.generateReportMPC - Generate an MPC asteroids/comet report
 % imUtil.asteroids.pairsMotionMatchKDTree - Given a list of [Time, X, Y] search for points which belong to the
+%   imUtil.astrometry.allFunList - Functions and Classes list for the imUtil.astrometry package
 % imUtil.astrometry.fitGlobalAstrometricModel - 
 %   imUtil.background.allFunList - Functions and Classes list for the imUtil.background package
 % imUtil.background.annulus_filter - Apply annului filters to an image
@@ -61,6 +62,7 @@
 %       imUtil.cut.subimage_grid - Partition image size into a grid of sub images
 %     imUtil.cut.subimages2image - construct the full image from sub-images
 %                imUtil.cut.trim - Trim an image or a cube using CCDSEC coordinates.
+%      imUtil.cut.mex.allFunList - Functions and Classes list for the imUtil.cut.mex package
 % imUtil.cut.mex.mexCutouts_unitTest - 
 %      imUtil.cut.mex.mex_cutout - Usage: [cutouts, image_subtracted] = mex_cutout(image, positions, cut_size, pad_value=0, replace_value=0, debug_bit=0, use_memcpy=1);
 %  imUtil.cut.image_partitioning - Partition a 2D image into sub images. OBSOLETE: use
@@ -177,6 +179,7 @@
 % imUtil.psf.constructPSF_cutouts - Given a background-subtracted image and PSF star positions, construct a mean PSF stamp from cutouts
 %         imUtil.psf.containment - Measure the radius of signal containment in a PSF stamp at a given level
 %     imUtil.psf.curve_of_growth - Calculate the curve of growth of a PSF
+%           imUtil.psf.fitFunPSF - Fit a composite function to a PSF stamp.
 %          imUtil.psf.full2stamp - Given a PSF contained in a full-size image, generate a stamp of the PSF.
 %       imUtil.psf.fwhm_fromBank - Measure the FWHM of an image by cross corr. with a Gaussian template bank
 %       imUtil.psf.image_quality - Measure the image quality as a function of position in image.
@@ -204,14 +207,21 @@
 %     imUtil.sources.polygonFlux - Calculate total flux within polygons in an image
 %     imUtil.sources.psfPhotCube - The core function for PSF-fitting photometry.
 %        imUtil.sources.unitTest - unitTest for imUtil.sources
+%  imUtil.sources.mex.allFunList - Functions and Classes list for the imUtil.sources.mex package
 % imUtil.sources.mex.mex_findLocalMaxAboveThreshold_double - Fast 2D local maxima finder - find local max above threshold value.
 % imUtil.sources.mex.mex_findLocalMaxAboveThreshold_single - Fast 2D local maxima finder - find local max above threshold value.
+%         imUtil.spec.allFunList - Functions and Classes list for the imUtil.spec package
+% imUtil.spec.extinction.allFunList - Functions and Classes list for the imUtil.spec.extinction package
 % imUtil.spec.extinction.applyAtmosphericExtinction - Apply extinction to spectrum
+% imUtil.spec.extract.allFunList - Functions and Classes list for the imUtil.spec.extract package
+%  imUtil.spec.stitch.allFunList - Functions and Classes list for the imUtil.spec.stitch package
+%   imUtil.spec.trace.allFunList - Functions and Classes list for the imUtil.spec.trace package
 %     imUtil.spec.trace.collapse - Collapse a 2-D image, including pre and post filtering, and peak detection.
 % imUtil.spec.trace.image2cutouts1d - Cut line-stamps from an array, around some central position.
 %     imUtil.spec.trace.moment1d - Calculate the 1st and 2nd 1-D moments on columns or rows of matrix
 % imUtil.spec.trace.peakDetectionFilter1 - Detect 1-D local maxima in columns or rows using 1-D filtering.
 %        imUtil.spec.trace.trace - 
+% imUtil.spec.waveCalib.allFunList - Functions and Classes list for the imUtil.spec.waveCalib package
 %        imUtil.tests.allFunList - Functions and Classes list for the imUtil.tests package
 %       imUtil.tests.worker_comm - 
 %        imUtil.trans.allFunList - Functions and Classes list for the imUtil.trans package

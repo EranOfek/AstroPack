@@ -153,6 +153,7 @@
 %                imProc.stat.std - Return the std of AstroImage object images.
 %           imProc.stat.unitTest - unitTest for the +imProc.stat package
 %                imProc.stat.var - Return the var of AstroImage object images.
+%          imProc.sub.allFunList - Functions and Classes list for the imProc.sub package
 %   imProc.sub.properSubtraction - 
 %        imProc.trans.allFunList - Functions and Classes list for the imProc.trans package
 %        imProc.trans.fitPattern - Match two catalogs using stars pattern and return approximate transformation

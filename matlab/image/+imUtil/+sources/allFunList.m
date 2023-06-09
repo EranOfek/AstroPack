@@ -15,6 +15,7 @@
 %     imUtil.sources.polygonFlux - Calculate total flux within polygons in an image
 %     imUtil.sources.psfPhotCube - The core function for PSF-fitting photometry.
 %        imUtil.sources.unitTest - unitTest for imUtil.sources
+%  imUtil.sources.mex.allFunList - Functions and Classes list for the imUtil.sources.mex package
 % imUtil.sources.mex.mex_findLocalMaxAboveThreshold_double - Fast 2D local maxima finder - find local max above threshold value.
 % imUtil.sources.mex.mex_findLocalMaxAboveThreshold_single - Fast 2D local maxima finder - find local max above threshold value.
  help imUtil.sources.allFunList

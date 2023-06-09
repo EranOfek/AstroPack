@@ -42,6 +42,7 @@
 %               tools.array.trim - B = tools.array.trim(A, I1, I2, J1, J2)
 %       tools.array.unique_count - Unique values and count the number of apperances of each value.
 %           tools.array.unitTest - Package Unit-Test
+%     tools.array.mex.allFunList - Functions and Classes list for the tools.array.mex package
 % tools.array.mex.test_mex_bit_array32 - 
 % tools.array.mex.test_mex_bit_array64 - 
  help tools.array.allFunList

@@ -11,6 +11,7 @@
 %       imUtil.cut.subimage_grid - Partition image size into a grid of sub images
 %     imUtil.cut.subimages2image - construct the full image from sub-images
 %                imUtil.cut.trim - Trim an image or a cube using CCDSEC coordinates.
+%      imUtil.cut.mex.allFunList - Functions and Classes list for the imUtil.cut.mex package
 % imUtil.cut.mex.mexCutouts_unitTest - 
 %      imUtil.cut.mex.mex_cutout - Usage: [cutouts, image_subtracted] = mex_cutout(image, positions, cut_size, pad_value=0, replace_value=0, debug_bit=0, use_memcpy=1);
 %  imUtil.cut.image_partitioning - Partition a 2D image into sub images. OBSOLETE: use

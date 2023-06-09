@@ -87,4 +87,5 @@
 % celestial.coo.topocentricVector - Calculate the topocentric vector of an observer.
 %  celestial.coo.topocentric_vec - Calculate the topocentric position and velocity vectors (OBSOLOETE)
 %         celestial.coo.unitTest - 
+%   celestial.coo.mex.allFunList - Functions and Classes list for the celestial.coo.mex package
  help celestial.coo.allFunList

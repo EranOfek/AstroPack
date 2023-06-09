@@ -185,6 +185,7 @@
 % celestial.coo.topocentricVector - Calculate the topocentric vector of an observer.
 %  celestial.coo.topocentric_vec - Calculate the topocentric position and velocity vectors (OBSOLOETE)
 %         celestial.coo.unitTest - 
+%   celestial.coo.mex.allFunList - Functions and Classes list for the celestial.coo.mex package
 %     celestial.earth.allFunList - Functions and Classes list for the celestial.earth package
 % celestial.earth.earth_gravity_field - Calculate the Earth gravity field for a set of locations.
 %      celestial.earth.geoc2geod - Convert Geocentric coordinates to Geodetic coordinates
