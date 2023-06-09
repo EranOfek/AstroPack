@@ -103,9 +103,7 @@ function [H, ColNames]=calibDesignMatrix(Nimage, Nstar, Args)
                 tools.cell.cellNumericSuffix(Args.MeanMag_PrefixName, [1:1:Nstar]), ...
                 StarPropNames,...
                 ImagePropNames];
-            
-    
-            
+                        
     VecIm = (1:1:Nimage).';
     %VecSt = Nimage+(1:1:Nstar).';
     for Ist=1:1:Nstar
@@ -129,8 +127,4 @@ function [H, ColNames]=calibDesignMatrix(Nimage, Nstar, Args)
         H(Iline,Irow) = diag(ones(Nstar,1));
     end
    
-    
-    
-    
-    
 end
