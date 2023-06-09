@@ -13,10 +13,15 @@ function IsClass = isClass(FileName)
     end
     
     % check if a class
-    Matched = regexp(SpStr, '[^%]\s*[^'']classdef \w+', 'match');
-    Matched = regexp(SpStr, '^classdef \w+', 'match');
-    if sum(~cellfun(@isempty, Matched))>0
-        IsClass = true;
+    if iscellstr(SpStr) 
+        Matched = regexp(SpStr, '[^%]\s*[^'']classdef \w+', 'match');
+
+        Matched = regexp(SpStr, '^classdef \w+', 'match');
+        if sum(~cellfun(@isempty, Matched))>0
+            IsClass = true;
+        else
+            IsClass = false;
+        end
     else
         IsClass = false;
     end
