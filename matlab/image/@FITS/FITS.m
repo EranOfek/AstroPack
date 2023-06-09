@@ -531,7 +531,8 @@ classdef FITS < handle
             for Ifile=1:1:Nfile
                 
                 % get header
-                Head     = FITS.get_head(ListTableName{1},InPar.HDUnum);
+                %Head     = FITS.get_head(ListTableName{1},InPar.HDUnum);
+                Head     = FITS.readHeader1(ListTableName{1},InPar.HDUnum);
                 % populate header
                 Out(Ifile).(HeaderField) = Head.(HeaderField);
                 
@@ -1287,7 +1288,8 @@ classdef FITS < handle
 
                     % read header
                     if (Args.ReadHead)
-                        H = FITS.get_head(ListIm{Iim},HDUnum(Ihdu),Args.PopWCS);
+                        %H = FITS.get_head(ListIm{Iim},HDUnum(Ihdu),Args.PopWCS);
+                        H = FITS.readHeader1(ListIm{Iim},HDUnum(Ihdu),Args.PopWCS);
                         Sim(Isim).(HeaderField) = H.(HeaderField);
                         Sim(Isim).(WCSField)    = H.(WCSField);
                     end
