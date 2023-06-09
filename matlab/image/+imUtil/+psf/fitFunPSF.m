@@ -63,7 +63,6 @@ function [Result, BestFitPSF]=fitFunPSF(PSF, Args)
     end
     
     Nfun  = numel(Args.Funs);
-    Nargs = 4;
     
     X0 = [];
     for IfunP=1:1:Nfun
@@ -76,7 +75,7 @@ function [Result, BestFitPSF]=fitFunPSF(PSF, Args)
     Result.Resid      = -Result.Resid;
     
     function Fun=FittedFun(Pars, Xdata)
-        %
+        % Internal function to generate the fitted PSF composite
         
         Fun  = zeros(SizeXY(2), SizeXY(1));
         IndP = 0;
@@ -87,9 +86,7 @@ function [Result, BestFitPSF]=fitFunPSF(PSF, Args)
             IndP = IndP(end);
         end
         
-        
     end
-       
     
 end
 
