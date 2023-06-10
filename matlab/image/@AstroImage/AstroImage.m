@@ -1867,9 +1867,9 @@ classdef AstroImage < Component
                     end
                 end
                 
-                if Args.ReCalcBack || isempty(Obj(Iobj).(Args.BackProp)
+                if Args.ReCalcBack || isempty(Obj(Iobj).(Args.BackProp))
                     % recalc background
-                    Result(Iobj) = imProc.background.background((Obj(Iobj), Args.backgroundArgs{:});
+                    Result(Iobj) = imProc.background.background(Obj(Iobj), Args.backgroundArgs{:});
                 end
                 
                 if Sub
