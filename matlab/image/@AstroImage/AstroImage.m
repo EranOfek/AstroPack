@@ -1798,6 +1798,89 @@ classdef AstroImage < Component
          
         end
         
+        function Result = subtractBackground(Obj, Args)
+            % Subtract background from image and set the IsBackSubtracted to true.
+            % Input  : - An AstroImage object.
+            %          * ...,key,val,...
+            %            'ReCalcBack' - Logical. Indicating if to re
+            %                   calculate background. If Back property is
+            %                   empty, the background will be calculated.
+            %                   Default is false.
+            %            'backgroundArgs' - A cell array of arguments to
+            %                   pass to the imProc.background.background 
+            %                   function.
+            %                   default is {}.
+            %            'SubIfIsBackSubtracted' - Logical. If true, will
+            %                   subtract the background even if the
+            %                   'IsBackSubtracted' property in the
+            %                   ImageComponent (store in 'ImageProp') is
+            %                   set to true.
+            %                   If false, and IsBackSubtracted=true, then
+            %                   the background will not be subtracted.
+            %                   Default is true.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the input object.
+            %                   Default is false.
+            %            'ImageProp' - Property name of the image from
+            %                   which to subtract the background.
+            %                   Default is 'Image'.
+            %            'BackProp' - Property name of the background image
+            %                   to subtract from the image.
+            %                   Default is 'Back'.
+            % Output : - An AstroImage object, in which the Image data is
+            %            background subtracted, and the IsBackSubtracted
+            %            property in the ImageComponent is set to true.
+            %            Note that if the background was calcaulated, and
+            %            createNewObj=true, it will be updated only in the
+            %            output object.
+            % Author : Eran Ofek (Jun 2023)
+            % Example: AI=AI.subtractBackground;
+            %          AI=AI.subtractBackground('backgroundArgs',{'SubSizeXY',[]});
+            
+           
+            arguments
+                Obj
+                Args.ReCalcBack logical             = false;
+                Args.backgroundArgs cell            = {};
+                Args.SubIfIsBackSubtracted logical  = true;
+                Args.CreateNewObj logical           = false;
+                Args.ImageProp                      = 'Image';
+                Args.BackProp                       = 'Back';
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if Args.SubIfIsBackSubtracted && Obj(Iobj).ImageData.IsBackSubtracted
+                    warning('Note that the IsBackSubtracted property in the ImageComponent of AstroImage %d is set to true - subtracting anyhow',Iobj);
+                    Sub = true;
+                else
+                    if Args.Obj(Iobj).ImageData.IsBackSubtracted
+                        Sub = false;
+                    else
+                        Sub = true;
+                    end
+                end
+                
+                if Args.ReCalcBack || isempty(Obj(Iobj).(Args.BackProp)
+                    % recalc background
+                    Result(Iobj) = imProc.background.background((Obj(Iobj), Args.backgroundArgs{:});
+                end
+                
+                if Sub
+                    Result(Iobj).Image = Result(Iobj).(Args.ImageProp) - Result(Iobj).(Args.BackProp);
+                    Result(Iobj).ImageData.IsBackSubtracted = true;
+                end
+            
+            end
+            
+        end
+        
     end
     
     methods % specific header functions
