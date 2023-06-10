@@ -1,5 +1,6 @@
 # AstroPack (a.k.a. MAATv2)
-Astronomy, Astrophysics, &amp; Image Processing Software Pacakge
+Astronomy, Astrophysics, &amp; Image Processing Software Pacakge.
+
 See <a href="https://github.com/EranOfek/AstroPack/wiki">wiki page</a> for details, instruction, and manual pages.
 
 Main Developers: <a href="https://www.weizmann.ac.il/physics/ofek/home">Eran Ofek</a>, Chen Tishler, Yossi Shvartzvald, Amir Sharon, Dan Elhanati, Noam Segev
