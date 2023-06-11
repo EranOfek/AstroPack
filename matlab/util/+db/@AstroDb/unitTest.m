@@ -24,6 +24,9 @@ function Result = unitTest()
     
     LDB = db.AstroDb();
     
+    Tables = LDB.Query.select('*','TableName','pg_tables','Where','schemaname = ''public''');
+    Tables.Data.tablename % show public tables in the DB
+    
     % Create tables (optional)
     CreateTables = false;
     if CreateTables
@@ -59,7 +62,7 @@ function Result = unitTest()
     % test CAT 
     FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213408.398_clear_219+50_001_001_024_sci_coadd_Cat_1.fits');
     AC = AstroCatalog(FitsFileName);  
-%     pk = LDB.addSrcCatalog(FitsFileName, AC); 
+    pk = LDB.addSrcCatalog(FitsFileName, AC); 
     disp(pk);
     
     % test populateImageDB
