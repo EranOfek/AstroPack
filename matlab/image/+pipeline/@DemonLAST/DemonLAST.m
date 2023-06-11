@@ -1310,10 +1310,7 @@ classdef DemonLAST < Component
                         Obj.writeLog(Msg, LogLevel.Info);
 
                         try
-                            if Igroup==10
-                                'a'
-                            end
-
+                         
                             tic;
                             [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
                                                                        Args.multiRaw2procCoaddArgs{:},...
