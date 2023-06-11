@@ -30,8 +30,7 @@ function Result = unitTest()
         LDB.createTables();
     end
       
-    % Insert new row to tables
-%     FitsFileName = strcat(DataDir,'LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.fits');
+    % Insert a new row to tables
     FitsFileName = strcat(DataDir,'LAST.01.01.04_20230308.112234.596_clear_191+31_001_001_001_sci_raw_Image_1.fits');
     AH = AstroHeader(FitsFileName);    
     xx = tools.checksum.xxhash('FileName', FitsFileName);
@@ -52,15 +51,15 @@ function Result = unitTest()
     pk = LDB.addProcImage(FitsFileName, AH, 'xxhash', xx);        
     disp(pk);
     
-    FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213718.470_clear_219+50_001_001_024_sci_proc_Image_1.fits');
+    FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213408.398_clear_219+50_001_001_021_sci_coadd_Image_1.fits');
     AH = AstroHeader(FitsFileName);  
     pk = LDB.addCoaddImage(FitsFileName, AH, 'xxhash', xx);        
     disp(pk);
     
-    % test CAT (currently not available)
+    % test CAT 
     FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213408.398_clear_219+50_001_001_024_sci_coadd_Cat_1.fits');
-    AC = AstroHeader(FitsFileName);  
-%     pk = LDB.addSrcCatalog(FitsFileName, AC, 'xxhash', xx);  %% NEED TO MAKE IT WORK       
+    AC = AstroCatalog(FitsFileName);  
+%     pk = LDB.addSrcCatalog(FitsFileName, AC); 
     disp(pk);
     
     % test populateImageDB
@@ -132,6 +131,12 @@ function Result = unitTest()
     if numel(Data.Data) > 0
         disp(Data.Data(end))
     end
+    
+%   LDB.Query.select('*', 'TableName', 'test_coadd_images', 'Where', 'filename like ''%LAST%''', 'OutType', 'Table')
+%   LDB.Query.select('*', 'TableName', 'test_proc_images', 'Where', 'filename like ''%LAST%''', 'OutType', 'Table')
+%   LDB.Query.deleteRecord('TableName', 'raw_images', 'Where', 'filename like ''%143%''')          
+%   LDB.Query.select('*', 'TableName',lower(Args.DBtable),'Where', 'ra > 179','OutType','Table');
+%   LDB.Query.select('pk', 'TableName', lower(Args.DBtable), 'Where', 'filename like ''%LAST%''', 'OutType', 'Table');
     
     % Done
     io.msgStyle(LogLevel.Test, '@passed', 'AstroDb test passed')
