@@ -415,7 +415,9 @@ classdef AstroDb < Component
             Q.addColumn(TN, 'ra',           'double', 'default 0');
             Q.addColumn(TN, 'dec',          'double', 'default 0');
             Q.addColumn(TN, 'mergedcatmask','integer', 'default 0');
-            Q.addColumn(TN, 'nobs',         'smallint', 'default 0');
+%             Q.addColumn(TN, 'nobs',         'smallint', 'default 0'); 
+%                                              smallint is incompatible with NaN values!
+            Q.addColumn(TN, 'nobs',         'single', 'default 0');
                         
             % Additional
             Q.addColumn(TN, 'procstat',    'varchar(256)', "default ''", 'Comment', 'Additional user data');    
