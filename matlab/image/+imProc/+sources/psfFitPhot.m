@@ -134,7 +134,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                                                             
                     XY = [Src.XPEAK, Src.YPEAK];
                     Back = Src.BACK_IM;
-                    Std  = Src.STD_IM;
+                    Std  = sqrt(Src.VAR_IM);
                 else
                     % get also the Back and STD
                     Back = getCol(Obj(Iobj).CatData, Args.ColBack);
