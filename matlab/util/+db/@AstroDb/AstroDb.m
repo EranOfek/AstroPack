@@ -415,7 +415,9 @@ classdef AstroDb < Component
             Q.addColumn(TN, 'ra',           'double', 'default 0');
             Q.addColumn(TN, 'dec',          'double', 'default 0');
             Q.addColumn(TN, 'mergedcatmask','integer', 'default 0');
-            Q.addColumn(TN, 'nobs',         'smallint', 'default 0');
+%             Q.addColumn(TN, 'nobs',         'smallint', 'default 0'); 
+%                                              smallint is incompatible with NaN values!
+            Q.addColumn(TN, 'nobs',         'single', 'default 0');
                         
             % Additional
             Q.addColumn(TN, 'procstat',    'varchar(256)', "default ''", 'Comment', 'Additional user data');    
@@ -448,7 +450,7 @@ classdef AstroDb < Component
                 Args.AddCols = []   % struct
                 Args.xxhash = []    % Optional
                 Args.Select = false %
-                Args.Force  = false % whether to insert a record with the same hash sum
+                Args.Force  = true  % whether to insert a record with the same hash sum
             end
                            
             Result = Obj.addImage(Obj.TnRawImages, FileName, AH, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select,'Force',Args.Force);
@@ -473,7 +475,7 @@ classdef AstroDb < Component
                 Args.AddCols = []   % struct
                 Args.xxhash = []    % Optional
                 Args.Select = false %
-                Args.Force  = false % whether to insert a record with the same hash sum
+                Args.Force  = true  % whether to insert a record with the same hash sum
             end
 
             Result = Obj.addImage(Obj.TnProcImages, FileName, AH, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select,'Force',Args.Force);
@@ -498,7 +500,7 @@ classdef AstroDb < Component
                 Args.AddCols = []   % struct
                 Args.xxhash = []    % Optional
                 Args.Select = false %
-                Args.Force  = false % whether to insert a record with the same hash sum
+                Args.Force  = true  % whether to insert a record with the same hash sum
             end
 
             Result = Obj.addImage(Obj.TnCoaddImages, FileName, AH, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select,'Force',Args.Force);
@@ -550,28 +552,32 @@ classdef AstroDb < Component
                 Args.AddCols = []   % struct - optional additional columns (i.e. AddCols.ColName = ColValue, etc.)
                 Args.xxhash = []    % When specified, insert also column 'xxhash' with this value
                 Args.Select = false % When true and Xxhash is specified, first check if image already exists
-                Args.Force  = false % whether to insert a record with the same hash sum
+                Args.Force  = true  % whether to insert a record with the same hash sum
 
                 Args.ReplaceKeyVal = {'AIRMASS','',0; 'PRVFOCUS','',0; 'FOCUS','',0; ...
-                                      'M_JRA','',0; 'M_JDEC','',0; 'M_JHA','',0; ...
-                                         'RA','',0;    'DEC','',0;    'HA','',0; ...
-                                         'AZ','',0;    'ALT','',0};
+                                        'M_JRA','',0;   'M_JDEC','',0; 'M_JHA','',0; ...
+                                           'RA','',0;      'DEC','',0;    'HA','',0; ...
+                                           'AZ','',0;      'ALT','',0};
             end
 
             Q = Obj.Query;
+            
+            ProcVers = 0;
 
             % Xxhash is speicified
             if ~isempty(Args.xxhash)               
                 Args.Select = true;
                 
-                % When Select is true and Force is false, first check if row already exists
-                if Args.Select && ~Args.Force 
+                % When Select is true, first check if the record already exists
+                if Args.Select  
                     DataSet = Obj.Query.select('*', 'TableName', TableName, 'Where', sprintf('xxhash = ''%s''', Args.xxhash));
-                    if numel(DataSet.Data) > 0
-%                         ProcVers = Obj.Query.select('procversion', 'TableName', TableName, 'Where', sprintf('xxhash = ''%s''', Args.xxhash));
-%                         ProcVers = Dataset() ? + 1;
-                        Result = -DataSet.Data(1).pk;
-                        return;
+                    if numel(DataSet.Data) > 0  % there is already a record with the same hash
+                        if ~Args.Force          % do not insert the same record
+                            Result = -DataSet.Data(end).pk;
+                            return;
+                        else
+                            ProcVers = DataSet.Data(end).procversion + 1;
+                        end
                     end
                 end
                 
@@ -606,7 +612,9 @@ classdef AstroDb < Component
             
             % Insert AstroHeader to table
             Pk = Q.insert(AH, 'TableName', TableName, 'ColumnsOnly', true, 'Returning', 'pk');
-            Obj.updateByTupleID(Obj,TableName,pk,'procversion',ProcVers+1);
+            if ProcVers > 0 % the same record should be inserted with the advancing procversion number
+                Obj.updateByTupleID(Obj,TableName,Pk,'procversion',ProcVers);
+            end
             Result = Pk;
         end
         
@@ -761,7 +769,7 @@ classdef AstroDb < Component
                 Args.DBtable      = Obj.TnRawImages;% DB table
                 Args.Hash logical = true;           % whether to calculate a hashsum and add it to the table
                 Args.FileNames    = {};             % an optional cell array of file names (for the case the first argument is not a file list)
-                Args.ForceInsert logical = false;   % if the record is inserted despite the existing copy (checked by the hashsum)
+                Args.ForceInsert logical = true;    % if the record is inserted despite the existing copy (checked by the hashsum)
                 Args.Verbose logical = false;       % print filenames, whose headers are inserted 
             end
 
@@ -826,10 +834,6 @@ classdef AstroDb < Component
             fprintf('%s%d%s\n','Inserted ',numel(TupleID),' tuples');
             cprintf('hyper','The requested DB successfully populated with image metadata.\n');
             
-%             Obj.Query.deleteRecord('TableName', 'raw_images', 'Where', 'filename like ''%143%''')          
-%             Obj.Query.select('*', 'TableName',lower(Args.DBtable),'Where', 'ra > 179','OutType','Table');
-%             Obj.Query.select('pk', 'TableName', lower(Args.DBtable), 'Where', 'filename like ''%LAST%''', 'OutType', 'Table');
-
         end
         
         
@@ -988,10 +992,7 @@ classdef AstroDb < Component
             end
 
             toc
-            
-%             A.Query.select('*', 'TableName', 'test_coadd_images', 'Where', 'filename like ''%LAST%''', 'OutType', 'Table')
-%             A.Query.select('*', 'TableName', 'test_proc_images', 'Where', 'filename like ''%LAST%''', 'OutType', 'Table')
-            
+                        
         end
 
         %%%%%%%%%
