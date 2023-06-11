@@ -9,9 +9,9 @@
 %   CommentDict - Dictionary of default comments
 %   TimeDict - Dictionary of time keywords and their conversion functions.
 %   IsKeyUpToDate - Is Ket structure up to date.
-
 %
-
+%
+%
 % #functions (autogen)
 % AstroHeader - Construct AstroHeader object and populate it with headers
 % createBasicHeader - Create an AstroHeader object with a basic header
@@ -68,7 +68,7 @@ classdef AstroHeader < Component
     end
     
 %         filename
-%         configPath = "";
+%         configPath = "";q
 %         data
 %         lines
 %         userData
@@ -116,7 +116,7 @@ classdef AstroHeader < Component
                 List = FileNames;
             else
                 % read file names
-                List = io.files.filelist(FileNames,'UseRegExp',Args.UseRegExp);
+                List = io.files.filelist(FileNames,'UseRegExp',Args.UseRegExp, 'AddPath', true);
                 if isempty(List)
                     error('No file was found in path');
                 end
@@ -164,6 +164,14 @@ classdef AstroHeader < Component
             end
             % return structure array of keys
             KeyS(Iobj) = KeyS;
+            
+        end
+        
+        function Obj=set.Key(Obj, Val)
+            % setter for Key property
+           
+            Obj.Key = Val;
+            
             
         end
         
@@ -507,6 +515,20 @@ classdef AstroHeader < Component
     end   
     
     methods  % getVal, etc.
+        function Nline=numKeys(Obj)
+            % Return the number of lines/keywords in each header
+            % Input  : - An AstroHeader object.
+            % Output : - An array with the number of lines in each header.
+            % Author : Eran Ofek (May 2023)
+
+            Nobj=numel(Obj);
+            Nline = zeros(size(Obj));
+            for Iobj=1:1:Nobj
+                Nline(Iobj) = size(Obj(Iobj).Data,1);
+            end
+
+        end
+
         function [Val, Key, Comment, Nfound] = getVal(Obj, KeySynonym, Args)
             % get a single keyword value where the keyword appears first in a dictionary.
             % Input  : - A single element AstroHeader object
@@ -1509,7 +1531,7 @@ classdef AstroHeader < Component
         % getCoo
         function [RA, Dec] = getCoo(Obj, Args)
             % get RA/Dec coordinates from header
-            % Input  : - An AstroHeader object.
+            % Input  : - A single element AstroHeader object.
             %          * ...,key,val,...
             %            'RA'  - Either an header keyword char containing
             %                    the RA keyword, or a cell array or char of
@@ -1533,7 +1555,7 @@ classdef AstroHeader < Component
             % Example: [RA, Dec] = getCoo(AI.HeaderData)
             
             arguments
-                Obj
+                Obj(1,1)
                 Args.RA         = 'RA';
                 Args.Dec        = 'DEC';
                 Args.Units      = 'deg';
@@ -1541,47 +1563,102 @@ classdef AstroHeader < Component
                 Args.getStructKeyArgs cell = {};
             end
             
+            % RA
             if ischar(Args.RA)
                 if contains(Args.RA, ':')
                     % RA is sexagesimal
-                    Args.RA = {Args.RA};
+                    RA = celestial.coo.convertdms(Args.RA, 'gH','r');
+                    RA = convert.angular('rad', Args.OutUnits, RA);
+                else
+                    % assume RA is a keyword name
+                    St      = Obj.getStructKey(Args.RA, Args.getStructKeyArgs{:});
+                    RA      = [St.(Args.RA)];
+                    if isnumeric(RA)
+                        RA      = convert.angular(Args.Units, Args.OutUnits, RA);
+                    else
+                        if contains(RA,':')
+                            % sexagesimal
+                            RA = celestial.coo.convertdms(RA, 'gH','r');
+                            RA = convert.angular('rad', Args.OutUnits, RA);
+                        else
+                            % assume numeric in string
+                            RA = str2doubleq(Args.RA);
+                        end
+                    end
                 end
+            elseif isnumeric(Args.RA)
+                RA = Args.RA;
+                RA      = convert.angular(Args.Units, Args.OutUnits, RA);
+            else
+                error('RA must be a numeric or char array')
             end
+
+            % Dec
             if ischar(Args.Dec)
                 if contains(Args.Dec, ':')
                     % Dec is sexagesimal
-                    Args.Dec = {Args.Dec};
+                    Dec = celestial.coo.convertdms(Args.Dec, 'gD','R');
+                    Dec = convert.angular('rad', Args.OutUnits, Dec);
+                else
+                    % assume Dec is a keyword name
+                    St      = Obj.getStructKey(Args.Dec, Args.getStructKeyArgs{:});
+                    Dec     = [St.(Args.Dec)];
+                    if isnumeric(Dec)
+                        Dec      = convert.angular(Args.Units, Args.OutUnits, Dec);
+                    else
+                        if contains(Dec,':')
+                            % sexagesimal
+                            Dec = celestial.coo.convertdms(Dec, 'gD','R');
+                            Dec = convert.angular('rad', Args.OutUnits, Dec);
+                        else
+                            % assume numeric in string
+                            Dec = str2doubleq(Args.Dec);
+                        end
+                    end
                 end
-            end
-            
-            % cell - sexagesimal, numeric[rad|deg], char-header keyword
-            if iscell(Args.RA)
-                Args.RA = celestial.coo.convertdms(Args.RA, 'SH', 'r');
-                RA      = convert.angular('rad', Args.OutUnits, Args.RA);
-            elseif isnumeric(Args.RA)
-                RA      = convert.angular(Args.Units, Args.OutUnits, Args.RA);
-            elseif ischar(Args.RA)
-                % get from header
-                St      = Obj.getStructKey(Args.RA, Args.getStructKeyArgs{:});
-                RA      = [St.(Args.RA)];
-                RA      = convert.angular(Args.Units, Args.OutUnits, RA);
-            else
-                error('Unknown RA input type');
-            end
-            
-              if iscell(Args.Dec)
-                Args.Dec = celestial.coo.convertdms(Args.Dec, 'SD', 'R');
-                Dec      = convert.angular('rad', Args.OutUnits, Args.Dec);
             elseif isnumeric(Args.Dec)
-                Dec      = convert.angular(Args.Units, Args.OutUnits, Args.Dec);
-            elseif ischar(Args.RA)
-                % get from header
-                St      = Obj.getStructKey(Args.Dec, Args.getStructKeyArgs{:});
-                Dec     = [St.(Args.Dec)];
-                Dec     = convert.angular(Args.Units, Args.OutUnits, Dec);
+                Dec = Args.Dec;
+                Dec      = convert.angular(Args.Units, Args.OutUnits, Dec);
             else
-                error('Unknown Dec input type');
+                error('Dec must be a numeric or char array')
             end
+
+
+            % if ischar(Args.Dec)
+            %     if contains(Args.Dec, ':')
+            %         % Dec is sexagesimal
+            %         Args.Dec = {Args.Dec};
+            %     end
+            % end
+            % 
+            % % cell - sexagesimal, numeric[rad|deg], char-header keyword
+            % if iscell(Args.RA)
+            %     Args.RA = celestial.coo.convertdms(Args.RA, 'SH', 'r');
+            %     RA      = convert.angular('rad', Args.OutUnits, Args.RA);
+            % elseif isnumeric(Args.RA)
+            %     RA      = convert.angular(Args.Units, Args.OutUnits, Args.RA);
+            % elseif ischar(Args.RA)
+            %     % get from header
+            %     St      = Obj.getStructKey(Args.RA, Args.getStructKeyArgs{:});
+            %     RA      = [St.(Args.RA)];
+            %     RA      = convert.angular(Args.Units, Args.OutUnits, RA);
+            % else
+            %     error('Unknown RA input type');
+            % end
+            % 
+            %   if iscell(Args.Dec)
+            %     Args.Dec = celestial.coo.convertdms(Args.Dec, 'SD', 'R');
+            %     Dec      = convert.angular('rad', Args.OutUnits, Args.Dec);
+            % elseif isnumeric(Args.Dec)
+            %     Dec      = convert.angular(Args.Units, Args.OutUnits, Args.Dec);
+            % elseif ischar(Args.RA)
+            %     % get from header
+            %     St      = Obj.getStructKey(Args.Dec, Args.getStructKeyArgs{:});
+            %     Dec     = [St.(Args.Dec)];
+            %     Dec     = convert.angular(Args.Units, Args.OutUnits, Dec);
+            % else
+            %     error('Unknown Dec input type');
+            % end
             
         end
         

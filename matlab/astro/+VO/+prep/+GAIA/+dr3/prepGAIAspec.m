@@ -26,7 +26,8 @@ function prepGAIAspec(Args)
     K     = 0;
     for Ifile=1:1:Nfile
         [Ifile, Nfile]
-        T = readtable(Files(Ifile).name, 'CommentStyle','#');
+
+        T = io.files.readtable1(Files(Ifile).name, 'CommentStyle','#');
         Nspec = size(T,1);
         Spec  = nan(Nspec, 2.*Nwave);
         for Ispec=1:1:Nspec

@@ -16,6 +16,12 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     %          - (SigmaR) the standard deviation of the background
     %            reference image.  
     %          * ...,key,val,...
+    %            'Fn' - The new image (N) flux calibration factor.
+    %                   Will multiply N.
+    %                   Default is 1.
+    %            'Fr' - The reference image (R) flux calibration factor.
+    %                   Will multiply R.
+    %                   Default is 1.  
     %            'IsImFFT' - A logical indicating if the input N and R
     %                   images are in Fourier domain. Default is false.
     %            'IsPsfFFT' - A logical indicating if the input Pn and Pr
@@ -48,6 +54,9 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
         SigmaN
         SigmaR
 
+        Args.Fn                            = 1;
+        Args.Fr                            = 1;
+
         Args.IsImFFT(1,1) logical     = false;
         Args.IsPsfFFT(1,1) logical    = false;
         Args.ShiftIm(1,1) logical     = false;
@@ -57,6 +66,15 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
 
         Args.NormalizeZ2(1,1) logical = false;
     end
+
+    if size(N,1) ~= size(N,2) || size(R,1) ~= size(R,2)
+        error('Translient input images should be square')
+    end
+
+    N = N.*Args.Fn;
+    SigmaN = SigmaN/Args.Fn;
+    R = R.*Args.Fr;
+    SigmaR = SigmaR/Args.Fr;
    
     if Args.IsImFFT
         Nhat = N;
@@ -80,6 +98,7 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
         Pnhat = fftshift(Pnhat);
         Prhat = fftshift(Prhat);
     end
+
 
     [Z2Prefactors,Norm] = imUtil.properSub.translientAuxiliary(Pnhat, Prhat, SigmaN, SigmaR, 'IsPsfFFT',true,'Eps',Args.Eps);
     

@@ -6,7 +6,7 @@ function [Out, varargout] = var(Obj, varargin)
     %       respectively.c
     %       By default NaNs are omitted.
     % Input  : - An AstroImage object.
-    %          * Arbitrary arguments to pass to AstroImage/funUnaryScalar.
+    %          * Arbitrary arguments to pass to AstroImage/funUnaryScalarWithMask.
     % Output : * By default will return up to 4 output arguments for the
     %            var value of the Image, Back, Var and Mask.
     %            Each argument is an array which size equal to the size of
@@ -18,8 +18,10 @@ function [Out, varargout] = var(Obj, varargin)
     %          [a,b] = imProc.stat.var(AI)
     %          AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
     %          [a,b,c] = imProc.stat.var(AI)
-    
-    [Out, varargout{1:nargout-1}] = funUnaryScalar(Obj, @var, 'OpArgs',{[],'all','omitnan'}, varargin{:});
+    %          var on non saturated pixels
+    %          [a,b]=imProc.stat.var(AI,'BitNames',{'Saturated'},'UseNot',true)
+
+    [Out, varargout{1:nargout-1}] = funUnaryScalarWithMask(Obj, @var, 'OpArgs',{[],'all','omitnan'}, varargin{:});
     
     
 end

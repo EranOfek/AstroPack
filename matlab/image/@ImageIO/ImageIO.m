@@ -98,7 +98,9 @@ classdef ImageIO < Component
                     for Iobj=1:1:Nobj
                         Obj(Iobj) = ImageIO([]);
                     end
+                    
                     Obj = reshape(Obj, FileNames);
+                    
                 else
                     if istable(FileNames)
                         Obj.Data    = FileNames;
@@ -119,7 +121,7 @@ classdef ImageIO < Component
                                     end
                                 end
                             else
-                                List = io.files.filelist(FileNames, 'UseRegExp',Args.UseRegExp);
+                                List = io.files.filelist(FileNames, 'UseRegExp',Args.UseRegExp, 'AddPath',true);
                             end
                         end
                     end
@@ -217,6 +219,7 @@ classdef ImageIO < Component
                     else
                         if Args.IsTable
                             [Data, Header] = FITS.readTable1(FileName, Args.readTableArgs{:});
+                            %Data = table2array(Data);
                         else
                             if Args.ReadData && nargout<2
                                 [Data] = FITS.read1(FileName, Args.HDU, 'CCDSEC',Args.CCDSEC);

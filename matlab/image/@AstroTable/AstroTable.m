@@ -977,7 +977,9 @@ classdef AstroTable < Component
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 if istable(Obj(Iobj).Catalog)
-                    Obj(Iobj).Catalog = table2array(Obj(Iobj).Catalog);
+                    Obj(Iobj).ColNames = Obj(Iobj).Catalog.Properties.VariableNames;
+                    Obj(Iobj).ColUnits = Obj(Iobj).Catalog.Properties.VariableUnits;
+                    Obj(Iobj).Catalog  = table2array(Obj(Iobj).Catalog);
                 end
             end
         end
@@ -1081,7 +1083,7 @@ classdef AstroTable < Component
             
         end
         
-        function Obj = replaceCol(Obj, NewData, ColNames, Pos)
+        function Obj = replaceCol(Obj, NewData, ColNames, Pos, ColUnits)
             % replace (or insert) columns in AstroTable
             % Input  : - An AstroTable object.
             %          - Data of columns to replace. This may be a matrix,
@@ -1093,6 +1095,8 @@ classdef AstroTable < Component
             %            input.
             %          - Column names to replace insert.
             %          - Position for new insertion. Default is Inf.
+            %          - Optional ColUnits cell for new columns.
+            %            Default is {}.
             % BUGS   : The function doesn't handle a mix of insert/replace.
             % Example: AC = AstroTable;
             %          AC(1).Catalog = rand(100,3);
@@ -1104,6 +1108,7 @@ classdef AstroTable < Component
                 NewData
                 ColNames                 = [];
                 Pos                      = Inf;
+                ColUnits                 = {};
             end
             
             Nobj   = numel(Obj);
@@ -1117,7 +1122,7 @@ classdef AstroTable < Component
                     ColInd   = colname2ind(Obj(Iobj),ColNames);
                     if all(isnan(ColInd))
                         % ColName doesn't exist - add
-                        insertCol(Obj(Iobj), NewData, Pos, ColNames);
+                        insertCol(Obj(Iobj), NewData, Pos, ColNames, ColUnits);
                     else
                         %NcolData = size(Obj(Iobj2).Catalog,2);
                         Iobj2    = min(Nobj2,Iobj);
@@ -1130,7 +1135,7 @@ classdef AstroTable < Component
                     ColInd   = colname2ind(Obj(Iobj),ColNames);
                     if all(isnan(ColInd))
                         % ColName doesn't exist - add
-                        insertCol(Obj(Iobj), NewData, Pos, ColNames);
+                        insertCol(Obj(Iobj), NewData, Pos, ColNames, ColUnits);
                     else
                         Obj(Iobj).Catalog(:,ColInd) = NewData;
                     end

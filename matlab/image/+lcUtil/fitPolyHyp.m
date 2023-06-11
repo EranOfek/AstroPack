@@ -1,7 +1,7 @@
 function [Result] = fitPolyHyp(Obj, Args)
     % Hypothesis testing between fitting polynomials of various degrees to
     %   a matrix of light curves in a MatchedSources object (with unknown errors).
-    %   Like timeseries.fitPolyHyp, but for a MatchedSources class.
+    %   Like timeSeries.fit.fitPolyHyp, but for a MatchedSources class.
     % Input  : - A MatchedSources object.
     %          * ...,key,vals,...
     %            'MagFieldNames' - A cell array of dictionary field names
@@ -63,6 +63,6 @@ function [Result] = fitPolyHyp(Obj, Args)
     Mag = getMatrix(Obj, FieldName);
     
     % poly hypothesis testing
-    Result = timeseries.fitPolyHyp(Obj.JD, Mag);
+    Result = timeSeries.fit.fitPolyHyp(Obj.JD, Mag);
     
 end

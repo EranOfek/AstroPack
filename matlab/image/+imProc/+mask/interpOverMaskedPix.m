@@ -43,7 +43,7 @@ function Result = interpOverMaskedPix(Obj, Args)
     
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
-        [~, ~, Ind] = findBit(Obj(Iobj).MaskData, Args.BitNamesToInterp);
+        [~, ~, Ind] = findBit(Obj(Iobj).MaskData, Args.BitNamesToInterp, 'Method','any');
         % set selected pixels to NaN
         Result(Iobj).Image(Ind) = NaN;
         % interpolate over staurated pixels

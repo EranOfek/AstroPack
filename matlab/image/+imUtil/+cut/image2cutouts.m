@@ -38,7 +38,7 @@ function [Cube, RoundX, RoundY, X, Y] = image2cutouts(Image, X, Y, MaxRadius, Ar
         %Args.mexCutout = false; %% FFU - BUG
         if Args.mexCutout
             % Note that the second argument must be a double
-            [Cube] = imUtil.cut.mexCutout(Image,double([X, Y]),MaxRadius.*2+1);
+            [Cube] = imUtil.cut.mex.mex_cutout(Image,double([X, Y]),MaxRadius.*2+1);
             Cube   = squeeze(Cube);
             RoundX = round(X);
             RoundY = round(Y);

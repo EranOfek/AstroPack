@@ -290,7 +290,6 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                     'WCS',cell(Nobj,1));
     
     for Iobj=1:1:Nobj
-        
         % for each element in AstroCatalog
         Iwcs = min(Iobj, Nwcs);
         
@@ -349,7 +348,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                 Cat = insertCol(Cat, [SrcRA, SrcDec], Inf, {CatColNameRA, CatColNameDec}, {'rad', 'rad'});
             end
         end
-    
+
         if GoodAstrometry
             if CooFromBoundingCircle || isempty(Args.RA) || isempty(Args.Dec)
                 CircleUnits         = 'deg';
@@ -527,6 +526,9 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                         Obj(Iobj).WCS = Result(Iobj).WCS;
                         % add WCS kesy to Header
                         Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+                        % add RA/Dec corners to header
+                        Obj(Iobj).HeaderData = addCornersCoo2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+
                     elseif isa(Obj, 'AstroCatalog')
                         Obj(Iobj)         = Cat;
                     else
@@ -534,7 +536,14 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                     end
                 end
             end
+        else % If GoodAstrometry
+            if isa(Args.CatName,'AstroCatalog')
+                AstrometricCat(Iobj) = Args.CatName(Iobj);
+            end
         end
+        
+        
+        
     end
                 
 end

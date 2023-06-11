@@ -1161,6 +1161,10 @@ classdef OrbitalEl < Base
             SearchRadiusRAD      = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
             QuickSearchBufferRAD = convert.angular(Args.SearchBufferUnits, 'rad', Args.QuickSearchBuffer);
             
+            RA  = convert.angular(Args.CooUnits,'rad', RA);
+            Dec = convert.angular(Args.CooUnits,'rad', Dec);
+            
+            
             if isinf(Args.MagLimit)
                 IncludeMag = false;
             else
@@ -1174,7 +1178,9 @@ classdef OrbitalEl < Base
             % quick and dirty
             for Iobj=1:1:Nobj
                 Cat    = ephem(ObjNew(Iobj), JD, 'GeoPos',[], 'MaxIterLT',0, 'IncludeMag',IncludeMag, 'OutUnitsDeg',false, 'OutType','mat', 'AddDesignation',false);
+                
                 Dist   = celestial.coo.sphere_dist_fast(RA, Dec, Cat(:,2), Cat(:,3));
+                
                 % within search radius and MagLimit
                 % RA - col 2
                 % Dec - col 3
@@ -1201,7 +1207,7 @@ classdef OrbitalEl < Base
                     [Result(Iobj), Flag] = imProc.match.coneSearch(Result(Iobj), [RA, Dec], 'CooType','sphere',...
                                                       'Radius',SearchRadiusRAD,...
                                                       'RadiusUnits','rad',...
-                                                      'CooUnits',Args.CooUnits,...
+                                                      'CooUnits','rad',...
                                                       'CreateNewObj',false,...
                                                       Args.coneSearchArgs{:});
                 end

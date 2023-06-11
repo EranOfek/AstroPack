@@ -15,6 +15,7 @@ function [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap]=subimage_grid(SizeXY,Args)
 %                    from each side. Default is [32 32].
 %            'MakeEqualSize' - A logical indicating if the sub image sizes
 %                   must be of equal size. Default is true.
+%            'MakeSquare' - Make square sub grid. Default is true. 
 % Output : - CCDSEC of the images with overlap [xmin, xmax, ymin, ymax].
 %            A line per sub image.
 %          - CCDSEC of the images without overlap.
@@ -35,6 +36,7 @@ arguments
     Args.Nxy                                             = [];
     Args.OverlapXY(1,2)                                  = [32  32];
     Args.MakeEqualSize logical                           = true;
+    Args.MakeSquare logical                              = true;
 end
 
 
@@ -102,6 +104,10 @@ NewNoOverlap = 1+[DX, WX-DX, DY, WY-DY];
 
 if Args.MakeEqualSize
     MaxXY = max([CCDSEC(:,2)-CCDSEC(:,1), CCDSEC(:,4)-CCDSEC(:,3)]);
+    if Args.MakeSquare
+        MM = max(MaxXY);
+        MaxXY = [MM MM];
+    end
     AddXY = MaxXY - [CCDSEC(:,2)-CCDSEC(:,1), CCDSEC(:,4)-CCDSEC(:,3)];
     
     FlagEdgeX = CCDSEC(:,2)==SizeXY(1);

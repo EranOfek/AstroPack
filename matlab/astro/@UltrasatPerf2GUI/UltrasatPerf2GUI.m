@@ -1,4 +1,4 @@
-classdef UltrasatPerf2GUI < Base
+classdef UltrasatPerf2GUI < Component
     % UP2GUI Summary of this class goes here
     % Detailed explanation goes here
     %
@@ -29,8 +29,24 @@ classdef UltrasatPerf2GUI < Base
             % Author  : Arie Blumenzweig (2023)
             % Example : UG = UltrasatPerf2GUI();
             
-            Obj.UP = load(Obj.MatFileName, 'UP');
+            Obj.setName('UltrasatPerf2GUI');
+            Obj.msgLog(LogLevel.Debug, 'constructor started');
+            
+            FName = Obj.MatFileName;
+            
+            % Temporary solution!!! @Todo @Chen (2023/05/17)
+            if true %isdeployed
+                FName = fullfile('c:/soc/snr/snr_matlab/', Obj.MatFileName);
+            end
+            Obj.msgLog(LogLevel.Debug, 'UltrasatPerf2GUI:load: %s', FName);
+            Obj.UP = io.files.load1(FName, 'UP');
+            assert(~isempty(Obj.UP.UP));
+            
+            %Obj.UP = io.files.load1(Obj.MatFileName, 'UP');
             Obj.Sources = string({Obj.UP.UP.Specs.ObjName});
+            Obj.msgLog(LogLevel.Debug, 'UltrasatPerf2GUI: Sources: %d', numel(Obj.Sources));
+            
+            Obj.msgLog(LogLevel.Debug, 'constructor done');
         end
         
         
@@ -84,7 +100,7 @@ classdef UltrasatPerf2GUI < Base
             %
             Result.ResultSnr = [];
             Result.ResultLimitingMagnitude = [];
-            Result.message = ''; %string(nan);
+            Result.message = 'calcSNR: started';
             
             %
             args.ExpTime = Args.ExpTime;
@@ -111,6 +127,7 @@ classdef UltrasatPerf2GUI < Base
             % Put output results
             Result.ResultSnr = round(out.SNRm, 2);
             Result.ResultLimitingMagnitude = round(out.LimMag, 2);
+            Result.message = 'calcSNR: OK';
         end
         
         

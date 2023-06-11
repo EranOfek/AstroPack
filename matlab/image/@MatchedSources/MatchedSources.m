@@ -212,7 +212,7 @@ classdef MatchedSources < Component
             %                   to pass to the MatchedSources.read static function.
             %            'OrderPart' - If provided, will try to order the
             %                   objects by (Epoch,CropID).
-            %                   Default is 'CropID'.
+            %                   Default is [].
             %                   For more info about CropID see ImagePath
             %                   class.
             % Output : - A MatchedSources object.
@@ -223,13 +223,14 @@ classdef MatchedSources < Component
                 FileTemplate         = '*_sci_merged_MergedMat_*.hdf5';   
                 
                 Args.readArgs cell   = {};
-                Args.OrderPart       = 'CropID';   % [] - do not order
+                Args.OrderPart       = []; %'CropID';   % [] - do not order
             end
             
             List = io.files.rdir(FileTemplate);
-            FN   = FileNames(List);
-            FN.FormatVersion = '%03d';
-            List = FN.genFile;
+            List = fullfile({List.folder},{List.name}).';
+            %FN   = FileNames(List);
+            %FN.FormatVersion = '%03d';
+            %List = FN.genFile;
             
             Nlist = numel(List);   
    
@@ -302,6 +303,10 @@ classdef MatchedSources < Component
             %                   'mat' - Save the Data struct to a mat file.
             %                   'matobj' - Save the entire MatchedSource object to
             %                       a mat file.
+            %            'RealIfComplex' - A logical indicating if to take
+            %                   the real value (of a complex value).
+            %                   This is used only if FileType=hdf5.
+            %                   Default is true.
             % Output : - Return true if sucess.
             % Author : Eran Ofek (Jun 2021)
             % Example: MS = MatchedSources;
@@ -311,7 +316,8 @@ classdef MatchedSources < Component
             arguments
                 Obj(1,1)
                 FileName
-                Args.FileType      = 'hdf5';
+                Args.FileType             = 'hdf5';
+                Args.RealIfComplex logical = true;
             end
            
             switch lower(Args.FileType)
@@ -319,17 +325,22 @@ classdef MatchedSources < Component
                     Ndata = numel(Obj.Fields);
                     for Idata=1:1:Ndata
                         h5create(FileName, sprintf('/%s',Obj.Fields{Idata}), size(Obj.Data.(Obj.Fields{Idata})));
-                        h5write(FileName, sprintf('/%s',Obj.Fields{Idata}), Obj.Data.(Obj.Fields{Idata}));
+                        if Args.RealIfComplex
+                            h5write(FileName, sprintf('/%s',Obj.Fields{Idata}), real(Obj.Data.(Obj.Fields{Idata})));
+                        else
+                            h5write(FileName, sprintf('/%s',Obj.Fields{Idata}), Obj.Data.(Obj.Fields{Idata}));
+                        end
                     end
                     % save also the JD
                     h5create(FileName, '/JD', size(Obj.JD));
                     h5write(FileName,  '/JD', Obj.JD);
                 case {'mat'}
                     % save the Data structure
-                    save(FileName, Obj.Data, '-v7.3');
+                    Tmp = Obj.Data;
+                    save(FileName, 'Tmp', '-v7.3');
                 case {'matobj'}
                     % save the MatchedSources as object
-                    save(FileName, Obj, '-v7.3');
+                    save(FileName, 'Obj', '-v7.3');
                 otherwise
                     error('Unknown FileType option');
             end
@@ -557,11 +568,14 @@ classdef MatchedSources < Component
                 if ~all(Nrow==Nrow(1))
                     error('For AstroTable/AstroCatalog input, all catalogs must have the same number of rows');
                 end
-                            
+                     
                 [Res, Summary, N_Ep, Units] = imProc.match.matched2matrix(Matrix, FieldName, true);
+              
                 Obj.addMatrix(Res);
                 for Ifn=1:1:Nf
-                    Obj.Units.(FieldName{Ifn}) = Units.(FieldName{Ifn});
+                    if isfield(Units, FieldName{Ifn})
+                        Obj.Units.(FieldName{Ifn}) = Units.(FieldName{Ifn});
+                    end
                 end
                 
 %
@@ -614,7 +628,7 @@ classdef MatchedSources < Component
             
             arguments
                 Obj
-                AT
+                AT                                         % AstroCatalog | AstroImage
                 Args.JD                              = []; % of empty put 1:N
                 Args.CooType                         = 'sphere';
                 Args.Radius                          = 3;
@@ -871,7 +885,7 @@ classdef MatchedSources < Component
             %                   If char, then will first search for all
             %                   field names in the first element of the
             %                   MatchedSources object that contains this
-            %                   substring. All the releveant fields will be
+            %                   substring. All the releveant GAIfields will be
             %                   put in a cell array. Will apply the ZP for
             %                   all fields in the cell array.
             %                   Default is 'MAG'.
@@ -1273,7 +1287,7 @@ classdef MatchedSources < Component
                 
         end
         
-        function Result = SelectByEpoch(Obj, EpochSelect, Args)
+        function Result = selectByEpoch(Obj, EpochSelect, Args)
             % Selected entries in MatchedSources object by epoch index or ranges
             % Input  : - A MatchedSources object.
             %          - A vector of indices or logical flags corresponding
@@ -1287,7 +1301,7 @@ classdef MatchedSources < Component
             % Output : - A MatchedSources object with the seclected
             %            epoch.
             % Author : Eran Ofek (Jan 2023)
-            % Example: Result = SelectByEpoch(Obj, [1 2 3]');
+            % Example: Result = selectByEpoch(Obj, [1 2 3]');
             
             arguments
                 Obj
@@ -1322,7 +1336,238 @@ classdef MatchedSources < Component
                 
             
         end
-        
+       
+        function Result = juldayFun(Obj, Fun)
+            % Apply function to JD column pf each MatchedSources element.
+            % Input  : - A MatchedSources object.
+            %          - One of the following scalar returning functions:
+            %            'mid' | 'median' | 'mean' | 'range' | 'std'
+            %            Default is 'mid'.
+            % Output : - A vector of results, one per MatchedSources
+            %            element.
+            % Author : Eran Ofek (Apr 2023)
+
+            arguments
+                Obj
+                Fun    = 'mid';
+            end
+
+            Nobj = numel(Obj);
+            Result = nan(size(Obj));
+
+            for Iobj=1:1:Nobj
+                if isempty(Obj(Iobj).JD)
+                    Result(Iobj) = NaN;
+                else
+                    switch Fun
+                        case 'mid'
+                            Result(Iobj) = (min(Obj(Iobj).JD) + max(Obj(Iobj).JD)).*0.5;
+                        case 'median'
+                            Result(Iobj) = median(Obj(Iobj).JD);
+                        case 'mean'
+                            Result(Iobj) = mean(Obj(Iobj).JD);
+                        case 'range'
+                            Result(Iobj) = range(Obj(Iobj).JD);
+                        case 'std'
+                            Result(Iobj) = std(Obj(Iobj).JD);
+                        otherwise
+                            error('Unknown Fun option');
+                    end
+                end
+            end
+        end
+    
+    end
+
+    methods % add aux. Data matrices
+        function Obj=addAirMassPA(Obj, Args)
+            % Add Airmass, Parallactic angle, Az, Alt to MatchedSources
+            %   Based on RA, Dec, JD in MatchedSources objects add fields.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            'GeoCoo' - A mandatory Geodetic position for which
+            %                   to calculate AM, PA, Az, Alt.
+            %                   [Lon(deg), Lat(deg)].
+            %            'FieldRA' - Col field of RA data in MatchedSources
+            %                   object. Default is MatchedSources.DefNamesRA
+            %            'FieldDec' - Col field of Dec data in MatchedSources
+            %                   object. Default is MatchedSources.DefNamesDec
+            %            'InUnits' - [RA,Dec] Coordinates input units.
+            %                   Default is 'deg'.
+            %            'OutUnits' - [Az, ALt, PA] coordinates output
+            %                   units. Default is 'deg'.
+            %            'AddAM' - Add AM. Default is true.
+            %            'AddPA' - Add PA. Default is true.
+            %            'AddAz' - Add Az. Default is false.
+            %            'AddAlt' - Add Alt. Default is false.
+            %            'FieldAM' - Added AM field name.
+            %                   Default is 'AM'.
+            %            'FieldPA' - Added PA field name.
+            %                   Default is 'PA'.
+            %            'FieldAz' - Added Az field name.
+            %                   Default is 'Az'.
+            %            'FieldAlt' - Added Alt field name.
+            %                   Default is 'Alt'.
+            % Output : - An updated MatchedSources object with the added
+            %            data.
+            % Author : Eran Ofek (May 2023)
+            % Example: MS = MS.addAirMassPA('GeoCoo',[35.041,30.053]);
+
+            arguments
+                Obj
+                Args.GeoCoo       = [];   % [deg deg km]
+                Args.FieldRA      = MatchedSources.DefNamesRA;
+                Args.FieldDec     = MatchedSources.DefNamesDec;
+                Args.InUnits      = 'deg';
+                Args.OutUnits     = 'deg';
+
+                Args.AddAM logical   = true;
+                Args.AddPA logical   = true;
+                Args.AddAz logical   = false;
+                Args.AddAlt logical  = false;
+                
+                Args.FieldAM         = 'AM';
+                Args.FieldPA         = 'PA';
+                Args.FieldAz         = 'Az';
+                Args.FieldAlt        = 'Alt';
+
+            end
+
+            RAD = 180./pi;
+
+            if isempty(Args.GeoCoo)
+                error('Geodetic position must be provided');
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                [FieldRA]  = getFieldNameDic(Obj, Args.FieldRA);
+                [FieldDec] = getFieldNameDic(Obj, Args.FieldDec);
+
+                [Az, Alt, AM, PA] = celestial.coo.radec2azalt(Obj(Iobj).JD, Obj(Iobj).Data.(FieldRA), Obj(Iobj).Data.(FieldDec), 'GeoCoo',Args.GeoCoo, 'InUnits',Args.InUnits, 'OutUnits',Args.OutUnits);
+            
+                % add fields to Data:
+                if Args.AddAM
+                    Obj(Iobj) = addMatrix(Obj(Iobj), AM, Args.FieldAM, '');
+                end
+                if Args.AddPA
+                    Obj(Iobj) = addMatrix(Obj(Iobj), PA, Args.FieldPA, '');
+                end
+                if Args.AddAz
+                    Obj(Iobj) = addMatrix(Obj(Iobj), Az, Args.FieldAz, '');
+                end
+                if Args.AddAlt
+                    Obj(Iobj) = addMatrix(Obj(Iobj), Alt, Args.FieldAlt, '');
+                end
+
+
+            end
+
+        end
+    
+        function Obj=addExtMagColor(Obj, Args)
+            % Add magnitude/color from external catalog into a MatchedSources object
+            %   FFU: Non-efficient code.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            See code
+            % Output : - The MatchedSources object with the external
+            %            catalog magnitude and color added.
+            % Author : Eran Ofek (May 2023)
+
+            arguments
+                Obj
+                Args.Catalog       = 'GAIADR3';
+                Args.ColMag        = 'phot_g_mean_mag';
+                Args.ColColor      = {'phot_bp_mean_mag','phot_rp_mean_mag'};  % single column or two columns
+                Args.ColCoo        = {'RA','Dec'};
+                Args.SearchRadius  = 2;
+                Args.SearchUnits   = 'arcsec';
+
+                Args.FieldRA      = MatchedSources.DefNamesRA;
+                Args.FieldDec     = MatchedSources.DefNamesDec;
+                Args.CooUnits     = 'deg';
+
+                Args.Insert2Data logical = false;
+                Args.FieldMag            = 'ExtMag';
+                Args.FieldColor          = 'ExtColor';
+                Args.FieldExtRA          = 'ExtRA';
+                Args.FieldExtDec         = 'ExtDec';
+                Args.ApplyPM logical     = true;
+            end
+
+            RAD = 180./pi;
+
+            ConvertFactor = convert.angular(Args.CooUnits, 'rad');
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                [FieldRA]  = getFieldNameDic(Obj, Args.FieldRA);
+                [FieldDec] = getFieldNameDic(Obj, Args.FieldDec);
+
+                RA  = median(Obj(Iobj).Data.(FieldRA), 1, 'omitnan');
+                Dec = median(Obj(Iobj).Data.(FieldDec), 1, 'omitnan');
+
+                Nra = numel(RA);
+                MagVector   = nan(1, Nra);
+                ColorVector = nan(1, Nra);
+                for Ira=1:1:Nra
+                    if ~isnan(RA(Ira)) && ~isnan(Dec(Ira))
+                        [Cat] = catsHTM.cone_search(Args.Catalog, RA(Ira).*ConvertFactor, Dec(Ira).*ConvertFactor, Args.SearchRadius,...
+                                        'RadiusUnits',Args.SearchUnits, 'OutType','astrocatalog');
+
+                        EpochOut = convert.time(mean(Obj(Iobj).JD), 'JD','J');
+
+                        if Cat.sizeCatalog>0 && Args.ApplyPM
+                            Cat = imProc.cat.applyProperMotion(Cat, Cat.Catalog(1,3), EpochOut,'EpochInUnits','J','EpochOutUnits','J','ApplyPlx',true);
+                        end
+
+                        Mag   = Cat.getCol(Args.ColMag);
+                        Color = Cat.getCol(Args.ColColor);
+                        Coo   = Cat.getCol(Args.ColCoo);
+
+                        switch numel(Mag)
+                            case 0
+                                Mag   = NaN;
+                                Color = NaN;
+                                Coo   = [NaN NaN];
+                            case 1
+                                % do nothing
+
+                            otherwise
+                                Mag   = NaN;
+                                Color = NaN;
+                                Coo   = [NaN NaN];
+                        end
+                        
+                        if numel(Color)==2
+                            Color = Color(1) - Color(2);
+                        end
+
+                        MagVector(Ira)   = Mag;
+                        ColorVector(Ira) = Color;
+                        RAVector(Ira)    = Coo(1);
+                        DecVector(Ira)   = Coo(2);
+
+                    end
+                end
+
+                if Args.Insert2Data
+                    Obj(Iobj).Data.(Args.FieldMag)   = repmat(MagVector, Obj(Iobj).Nepoch, 1);
+                    Obj(Iobj).Data.(Args.FieldColor) = repmat(ColorVector, Obj(Iobj).Nepoch, 1);
+                end
+                % insert to SrcData
+                Obj(Iobj).SrcData.(Args.FieldMag)    = MagVector;
+                Obj(Iobj).SrcData.(Args.FieldColor)  = ColorVector;
+
+                Obj(Iobj).SrcData.(Args.FieldExtRA)  = RAVector.*RAD;
+                Obj(Iobj).SrcData.(Args.FieldExtDec) = DecVector.*RAD;
+
+            end
+
+        end
+            
+    
     end
     
     methods % design matrix
@@ -1784,6 +2029,71 @@ classdef MatchedSources < Component
 %         end
     end
     
+    methods % conversions
+        function Result=convert2AstroCatalog(Obj, Args)
+            % Convert MatchedSources object into an AstroCatalog
+            %   The AstroCatalog will include a JD column followed by the
+            %   fields in the MatchedSources object.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            'SameEpochBlock' - A logical indicating if to
+            %                   order the sources by epoch blocks (true),
+            %                   or by source blocks (false).
+            %                   Default is true.
+            % Output : - An AstroCatalog object with the data sotored in
+            %            the MatchedSources Data property.
+            % Author : Eran Ofek (May 2023)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix([1 2 3; 4 5 6],'FLUX')
+            %          MS.addMatrix({rand(2,3), rand(2,3), rand(2,3)},{'MAG','X','Y'})
+            %          T = MS.convert2AstroCatalog;
+            %          T = MS.convert2AstroCatalog('SameEpochBlock',false);
+            
+            arguments
+                Obj(1,1)
+                Args.SameEpochBlock logical    = true;
+            end
+            
+            if isempty(Obj.Nepoch) || isempty(Obj.Nsrc)
+                % empty MatchedSources
+                Result = [];
+            else
+                Nfields = numel(Obj.Fields);
+                Array   = zeros(Obj.Nsrc.*Obj.Nepoch, Nfields+1);
+                JD      = Obj.JD;
+                if isempty(JD)
+                    JD = (1:1:Obj.Nepoch).';
+                end
+                JD = JD(:);
+                for If=1:1:Nfields
+                    if Args.SameEpochBlock
+                        % write blocks of the same epoch followed by next
+                        % epoch
+                        if If==1
+                            Vector = repmat(JD, [1 Obj.Nsrc]).';
+                            Vector = Vector(:);
+                        else
+                            Vector = Obj.Data.(Obj.Fields{If-1}).';
+                            Vector = Vector(:);
+                        end
+                    else
+                        % write block of same sources in differnt epochs,
+                        % followed by next source
+                        if If==1
+                            Vector = repmat(JD, [Obj.Nsrc, 1]);
+                        else
+                            Vector = Obj.Data.(Obj.Fields{If-1})(:);
+                        end
+                    end
+                    
+                    Array(:,If) = Vector;
+                end
+                Result = AstroCatalog({Array}, 'ColNames',[{'JD'}, Obj.Fields(:)']);
+            end
+            
+        end
+    end
+    
     methods % light curves analysis
         function [PSD, Freq] = psd(Obj, Args)
             % Estimate the mean power spectral density of all the sources.
@@ -1952,7 +2262,7 @@ classdef MatchedSources < Component
 
                 switch lower(Args.Method)
                     case 'binning'
-                        B = timeseries.binning([Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:)] ,Args.BinSize,[NaN NaN], {'MidBin',@numel, @median, @tools.math.stat.rstd});
+                        B = timeSeries.bin.binning([Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:)] ,Args.BinSize,[NaN NaN], {'MidBin',@numel, @median, @tools.math.stat.rstd});
                         Result(Iobj).B = B;
                         %Result(Iobj).EstimatedStdPar = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
                         Result(Iobj).InterpMeanStd = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
@@ -2091,7 +2401,7 @@ classdef MatchedSources < Component
                 % add bins to plot
                 hold on;
                 
-                B = timeseries.binning([AxisX(:), AxisY(:)], Args.BinSize, [NaN NaN], {'MidBin', @mean, @std, @numel});
+                B = timeSeries.bin.binning([AxisX(:), AxisY(:)], Args.BinSize, [NaN NaN], {'MidBin', @mean, @std, @numel});
                 if Args.DivideErrBySqrtN
                     plot.errorxy([B(:,1), B(:,2), B(:,3)./sqrt(B(:,4))],'Marker',Args.BinMarker,'MarkerEdgeColor',Args.BinColor,'MarkerFaceColor',Args.BinColor,'MarkerSize',Args.BinMarkerSize);
                 else
@@ -2115,7 +2425,7 @@ classdef MatchedSources < Component
                 SN = SN(:);
                 MagVec = Obj.SrcData.MAG_APER_3(:);
                 FlagNN = ~isnan(SN);
-                B = timeseries.binning([MagVec(FlagNN),1.086./SN(FlagNN)+0.0008],0.5,[10 18]);
+                B = timeSeries.bin.binning([MagVec(FlagNN),1.086./SN(FlagNN)+0.0008],0.5,[10 18]);
                 hold on;
                 semilogy(B(:,1),B(:,3),'r-')
                 
@@ -2143,7 +2453,7 @@ classdef MatchedSources < Component
 %                 VecX   = AxisX(FlagNN);
 %                 SN     = SN(FlagNN);
 %                 
-%                 B=timeseries.binning([VecX(:), 1.086./SN(:)],0.5,[NaN NaN],{'MidBin',@tools.math.stat.nanmedian,@numel});
+%                 B=timeSeries.bin.binning([VecX(:), 1.086./SN(:)],0.5,[NaN NaN],{'MidBin',@tools.math.stat.nanmedian,@numel});
 %                 FlagNN = ~isnan(B(:,2));
 %                 B = B(FlagNN,:);
 %                 hold on;

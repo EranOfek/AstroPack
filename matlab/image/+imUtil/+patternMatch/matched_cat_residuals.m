@@ -86,7 +86,7 @@ Nobs  = numel(Resid);
 if ~isempty(InPar.Mag)
     switch lower(InPar.MagMethod)
         case 'hist'
-            B = timeseries.binning([InPar.Mag, Resid],InPar.HistBin,InPar.HistRange,{'MidBin',@nanmedian,@numel});
+            B = timeSeries.bin.binning([InPar.Mag, Resid],InPar.HistBin,InPar.HistRange,{'MidBin',@nanmedian,@numel});
             Err = interp1(B(:,1),B(:,2),InPar.Mag,InPar.InterpMethod);
             Ndof = Nobs - sum(B(:,3)>1);
             

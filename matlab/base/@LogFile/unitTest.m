@@ -34,6 +34,11 @@ function Result = unitTest()
     MyLf.write('My log line one');
     MyLf.write('My log line two');    
     
+    MyLf = LogFile(fullfile(Path, 'MyLogFile'), 'DayFolder', true);
+    MyLf.write('My LogFile test started with TIMESTAMP');
+    MyLf.write('My log line one');
+    MyLf.write('My log line two');
+    
     % Done
     fprintf('LogFile test passed\n');
     Result = true;

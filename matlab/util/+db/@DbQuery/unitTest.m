@@ -185,7 +185,7 @@ function Result = testSelect(Q)
     assert(isa(R, 'db.DbRecord'));
     
     %CsvFileName = Q.select('*', 'TableName', 'master_table', 'Limit', Limit, 'UseCsv', true, 'Load', false');
-    %csvtemp = readtable(CsvFileName, 'ReadVariableNames', false);
+    %csvtemp = io.files.readtable1(CsvFileName, 'ReadVariableNames', false);
     %assert(~isempty(csvtemp));
     %assert(height(csvtemp) == length(R.Data));
     

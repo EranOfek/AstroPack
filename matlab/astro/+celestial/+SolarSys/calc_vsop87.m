@@ -139,8 +139,9 @@ B_Col = 18;
 C_Col = 19;
 P_Col = [3:14];
 % read modified VSOP87 file
-%VSOP87 = load(VSOP87_FileName);
-load(VSOP87_FileName);
+%VSOP87 = io.files.load1(VSOP87_FileName);
+
+io.files.load1(VSOP87_FileName);
 eval(sprintf('VSOP87 = %s%s;',FileBaseName,VSOP_Type));
 
 Pow = mod(VSOP87(:,1),10);

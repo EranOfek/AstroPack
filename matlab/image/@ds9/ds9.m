@@ -141,6 +141,7 @@ classdef ds9 < handle
             
             if nargin==0
                 ds9.open;
+                pause(2);
             else
                 ds9.disp(Image,varargin{:});
                 clear Obj; % Output Object Not Assigned, therefore need to clear it
@@ -740,6 +741,7 @@ classdef ds9 < handle
             delete(TmpName);
         end
         
+        
         function Result = read2AstroImage
             % Save a ds9 frame in an AstroImage object
             % Package: @ds9
@@ -1159,12 +1161,27 @@ classdef ds9 < handle
                    [X, Y] = getLonLat(Cat, 'deg', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec);
                    Args.Units = 'deg';
                end
-                
+               
+            elseif isa(Cat, 'AstroImage')
+                if numel(Cat)>1
+                    error('Input must be a single element AstroImage');
+                end
+                if IsXY
+                   [X, Y] = getXY(Cat.CatData, 'ColX', Args.ColNameX, 'ColY', Args.ColNameY);
+               else
+                   [X, Y] = getLonLat(Cat.CatData, 'deg', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec);
+                   Args.Units = 'deg';
+               end
             else
                 % Assume Cat is a two column matrix [X,Y]
                 X = Cat(:,1);
                 Y = Cat(:,2);
             end
+            
+            % remove NaN coordinates
+            FlagNaN = isnan(X) | isnan(Y);
+            X = X(~FlagNaN);
+            Y = Y(~FlagNaN);
             
             % In case of spherical coordinates - convert to deg
             if (~IsXY)
@@ -2507,14 +2524,14 @@ classdef ds9 < handle
                 Image = [];
             end
             
-            if (isempty(Image))
+            if isempty(Image)
                 % Read entire image from ds9
-                Image = ds9.read2sim;
+                Image = ds9.read2AstroImage;
             else
-                if (SIM.issim(Image))
+                if isa(Image, 'AstroImage')
                     % image already in SIM format - do nothing
                 else
-                    Image = images2sim(Image);
+                    Image = AstroImage(Image);
                 end
             end
             
@@ -2572,38 +2589,38 @@ classdef ds9 < handle
                         fprintf('Click on second point for vector cut plot\n');
                         [CooX2,CooY2,~,~]=ds9.getpos(1);
                         cla;  % clear axis
-                        Res(Ind).Res  = vector_prof(Image,[CooX,CooY],[CooX2,CooY2],...
+                        Res(Ind).Res  = vector_prof(Image.Image,[CooX,CooY],[CooX2,CooY2],...
                                                     'Plot',InPar.Plot,'PlotPar',InPar.PlotPar,'Field',InPar.Field);
                     case {'x','j'}
                         % plot x-axis vector around a single point
                         cla;  % clear axis
-                        Res(Ind).Res = vector_prof(Image,[CooX-InPar.SemiLen, CooY],...
+                        Res(Ind).Res = vector_prof(Image.Image,[CooX-InPar.SemiLen, CooY],...
                                                          [CooX+InPar.SemiLen, CooY],...
                                                    'Plot',InPar.Plot,'PlotPar',InPar.PlotPar,'Field',InPar.Field,...
                                                    'AxisType','x');
                     case {'y','i'}
                         % plot y-axis vector around a single point
                         cla;  % clear axis
-                        Res(Ind).Res = vector_prof(Image,[CooX, CooY-InPar.SemiLen],...
+                        Res(Ind).Res = vector_prof(Image.Image,[CooX, CooY-InPar.SemiLen],...
                                                          [CooX, CooY+InPar.SemiLen],...
                                                    'Plot',InPar.Plot,'PlotPar',InPar.PlotPar,'Field',InPar.Field,...
                                                    'AxisType','y');
                     case 's'
                         % plot surface
                         cla;  % clear axis
-                        Res(Ind).Res = local_surface(Image,[CooX, CooY],InPar.SemiLen,...
+                        Res(Ind).Res = local_surface(Image.Image,[CooX, CooY],InPar.SemiLen,...
                                                      'Plot',InPar.Plot,'PlotPar',InPar.PlotPar,'Field',InPar.Field,...
                                                      'PlotFun',@surface);
                                                  
                     case 'c'
                         % plot contour
                         cla; % clear axis
-                        Res(Ind).Res = local_surface(Image,[CooX, CooY],InPar.SemiLen,...
+                        Res(Ind).Res = local_surface(Image.Image,[CooX, CooY],InPar.SemiLen,...
                                                      'Plot',InPar.Plot,'PlotPar',InPar.PlotPar,'Field',InPar.Field,...
                                                      'PlotFun',@contour);
                     case 'm'
                         % first and second moments
-                        Res(Ind).Res = moments(Image,[CooX,CooY],...
+                        Res(Ind).Res = moments(Image.Image,[CooX,CooY],...
                                                'Field',InPar.Field,'Radius',InPar.Radius,...
                                                'Sigma',InPar.Sigma,'MaxIter',InPar.MaxIter);
                         Table = astcat_array2table(Res(Ind).Res);
@@ -2612,7 +2629,7 @@ classdef ds9 < handle
                         disp(Table.Cat)
                     case 'r'
                         % radial profile with centering
-                        ResM = moments(Image,[CooX,CooY],...
+                        ResM = moments(Image.Image,[CooX,CooY],...
                                                'Field',InPar.Field,'Radius',InPar.Radius,...
                                                'Sigma',InPar.Sigma,'MaxIter',InPar.MaxIter);
                         X = col_get(ResM,'XWIN_IMAGE');
@@ -2620,7 +2637,7 @@ classdef ds9 < handle
                         fprintf('Clicked position: X=%9.3f   Y=%9.3f\n',Res(Ind).CooX,Res(Ind).CooY);
                         fprintf('Centered position after %d iterations: X=%9.3f   Y=%9.3f\n',InPar.MaxIter,X,Y);
                         cla;  % clear axis
-                        Res(Ind).Res = rad_prof(Image,[X, Y],...
+                        Res(Ind).Res = rad_prof(Image.Image,[X, Y],...
                                                        InPar.Radius,...
                                                  'Plot',InPar.Plot,'PlotPar',InPar.PlotPar,...
                                                  'MeanFun',InPar.MeanFun,...
@@ -2631,7 +2648,7 @@ classdef ds9 < handle
                     case 'R'
                         % radial profile without centering
                         cla;  % clear axis
-                        Res(Ind).Res = rad_prof(Image,[CooX, CooY],...
+                        Res(Ind).Res = rad_prof(Image.Image,[CooX, CooY],...
                                                        InPar.Radius,...
                                                  'Plot',InPar.Plot,'PlotPar',InPar.PlotPar,...
                                                  'MeanFun',InPar.MeanFun,...
@@ -2641,7 +2658,7 @@ classdef ds9 < handle
                         
                         CatField = AstCat.CatField;
                         
-                        ResM = moments(Image,[CooX,CooY],...
+                        ResM = moments(Image.Image,[CooX,CooY],...
                                                'Field',InPar.Field,'Radius',InPar.Radius,...
                                                'Sigma',InPar.Sigma,'MaxIter',InPar.MaxIter);
                         X = col_get(ResM,'XWIN_IMAGE');
@@ -2650,7 +2667,7 @@ classdef ds9 < handle
                         fprintf('Clicked position: X=%9.3f   Y=%9.3f\n',Res(Ind).CooX,Res(Ind).CooY);
                         fprintf('Centered position after %d iterations: X=%9.3f   Y=%9.3f\n',InPar.MaxIter,X,Y);
                         
-                        [Res(Ind).Res,ColAper] = aper_phot(Image,[X, Y],...
+                        [Res(Ind).Res,ColAper] = aper_phot(Image.Image,[X, Y],...
                                                  'AperRad',InPar.AperRad,...
                                                  'Annulus',InPar.Annulus);
                                              
@@ -2672,7 +2689,7 @@ classdef ds9 < handle
                         fprintf('Clicked position: X=%9.3f   Y=%9.3f\n',Res(Ind).CooX,Res(Ind).CooY);
 
                         
-                        [Res(Ind).Res,ColAper] = aper_phot(Image,[CooX, CooY],...
+                        [Res(Ind).Res,ColAper] = aper_phot(Image.Image,[CooX, CooY],...
                                                  'AperRad',InPar.AperRad,...
                                                  'Annulus',InPar.Annulus);
                                              
@@ -2696,7 +2713,7 @@ classdef ds9 < handle
                         
                         CatField = AstCat.CatField;
                         
-                        [Res(Ind).Res,ColPSF] = psf_phot(Image,[CooX, CooY]);
+                        [Res(Ind).Res,ColPSF] = psf_phot(Image.Image,[CooX, CooY]);
                                                  
                                              
                         fprintf('PSF photometry\n');
@@ -2733,10 +2750,10 @@ classdef ds9 < handle
                         % Return the nearest source found using mextractor
                         % check if catalog exist
                         CatField = AstCat.CatField;
-                        if (~isfield_populated(Image,CatField))
-                            Image = InPar.ExtractionFun(Image,InPar.ExtractionFunPar{:});
+                        if (~isfield_populated(Image.Image,CatField))
+                            Image = InPar.ExtractionFun(Image.Image,InPar.ExtractionFunPar{:});
                         end
-                        [AstC,Dist] = near_coo(Image,CooX,CooY,InPar.SearchRad,'RadiusUnits','pix');
+                        [AstC,Dist] = near_coo(Image.Image,CooX,CooY,InPar.SearchRad,'RadiusUnits','pix');
                         D = col_get(Dist,'Dist');
                         [~,MinI] = min(D);
                         NearCat = row_select(Image,MinI);

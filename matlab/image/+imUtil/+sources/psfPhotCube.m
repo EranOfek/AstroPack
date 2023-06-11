@@ -44,6 +44,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     %                   Default is 0.2.
     %            'ConvThresh' - Convergence threshold. Default is 1e-4.
     %            'MaxIter' - Max number of iterations. Default is 10.
+    %            'SN' - Vector S/N to use for the conversion. (not useful)
+    %                   Default is [].
     %            'UseSourceNoise' - A string indicating if implement
     %                   source noise in the fit. The function use the 
     %                   last estimator of the psf flux by the current best 
@@ -51,7 +53,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     %                   'all' - use from the second iteration and on.
     %                   'last' - use only in the last (additional) iteration. 
     %                   'off' - only background noise. 
-    %                   Default is 'off'.
+    %                   Default is 'last'.
     %            'ZP' - ZP for magnitude calculations. Default is 25.
     % Output : - A structure with the following fields:
     %            .Chi2 - Vector of \chi^2 (element per stamp).
@@ -60,6 +62,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     %            .Flux - Vector of fitted fluxes.
     %            .SNm - S/N for measurment, assuming gain=1 (Poisson
     %                   errors).
+    %                   Note that if the source is negativem then S/N is
+    %                   also negative.
     %            .DX - Vector of fitted X positions relative the Xcenter.
     %            .DY - Vector of fitted Y positions relative the Xcenter.
     %            .Xinit - Xinit
@@ -94,16 +98,18 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Args.Xinit      = [];
         Args.Yinit      = [];
         
-        Args.SmallStep  = 1e-3;
-        Args.MaxStep    = 0.2;
+        Args.SmallStep  = 0.1; %3e-3; %3e-3; %1e-3;
+        Args.MaxStep    = 0.15;
         Args.ConvThresh = 1e-4;
-        Args.MaxIter    = 10;
+        Args.MaxIter    = 8;
+
+        Args.SN         = [];
         
-        Args.UseSourceNoise = 'off';
+        Args.UseSourceNoise = 'last'; %'off';
         Args.ZP         = 25; 
     end
     
-    warning('BUG: convergence is not very good - need a better algorithm')
+    % warning('BUG: convergence is not very good - need a better algorithm')
     
     % background treatment
     % 1. do nothing
@@ -151,6 +157,13 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Args.PSF = imUtil.kernel2.gauss(Args.PSF);
     end    
     
+    % adaptive conversion threshold 
+    if isempty(Args.SN)
+        ConvThresh = Args.ConvThresh;
+    else
+        ConvThresh = 0.1./Args.SN;
+    end
+
     WeightedPSF = sum(Args.PSF.^2, [1 2]); % for flux estimation
     
     X = Args.Xinit;
@@ -185,7 +198,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
             [~, Flux, ShiftedPSF]  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
             Std = sqrt(Flux.*ShiftedPSF+StdBack.^2);
         end
-        [StepX,StepY]  = gradDescentPSF(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2,H,Args.SmallStep,Args.MaxStep);
+        % AppFlux is approximate flux
+        [StepX,StepY,AppFlux]  = gradDescentPSF(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2,H,Args.SmallStep,Args.MaxStep);
         %{
         % calc \chi2 and gradient
         %Chi2     = internalCalcChi2(Cube, Std, Args.PSF, DX,                   DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
@@ -220,7 +234,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         
         
         % stoping criteria
-        ConvergeFlag = abs(StepX)<Args.ConvThresh & abs(StepY)<Args.ConvThresh;
+        ConvergeFlag = abs(StepX)<ConvThresh & abs(StepY)<ConvThresh;
         if all(ConvergeFlag)
             NotConverged = false;
         end
@@ -242,7 +256,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     end
     
     Result.Flux = squeeze(Flux);
-    Result.SNm  = Result.Flux./sqrt(Result.Flux + (squeeze(StdBack)).^2);  % S/N for measurments
+    % SNm can be negaive if source is negative
+    Result.SNm  = sign(Result.Flux).*abs(Result.Flux)./sqrt(abs(Result.Flux) + (squeeze(StdBack)).^2);  % S/N for measurments
     Result.Mag  = convert.luptitude(Result.Flux, 10.^(0.4.*Args.ZP));
     Result.DX = DX(:);
     Result.DY = DY(:);
@@ -266,10 +281,10 @@ end
 % Internal functions
 
 
-function [StepX,StepY]  = gradDescentPSF(Cube, Std, PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2,H,SmallStep,MaxStep)
+function [StepX,StepY,AppFlux]  = gradDescentPSF(Cube, Std, PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2,H,SmallStep,MaxStep)
 % Return the next gradient Descent step for the PSF's position fitting.
 
-        Chi2     = internalCalcChi2(Cube, Std, PSF, DX,                   DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
+        [Chi2,AppFlux]     = internalCalcChi2(Cube, Std, PSF, DX,                   DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
         Chi2_Dx  = internalCalcChi2(Cube, Std, PSF, DX+SmallStep,    DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
         Chi2_Dx2 = internalCalcChi2(Cube, Std, PSF, DX+SmallStep.*2, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
                 

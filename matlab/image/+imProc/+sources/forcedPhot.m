@@ -7,8 +7,8 @@ function [Result] = forcedPhot(Obj, Args)
     %       The output is written either to an AstroCatalaog object or
     %       added to the AstroCatalog in the AstroImage.
     % Input  : - An AstroImage object.
-    %            The AstroImage must iunclude an header or a populated
-    %            AstroWCS; A populated AstroCatalog.
+    %            The AstroImage must iunclude: an header or a populated
+    %            AstroWCS; and A populated AstroCatalog.
     %          * ...,key,val,...
     %            'Coo' - A two column matrix of [X, Y] or [RA, Dec]
     %                   coordinates of positions in the image for which to
@@ -130,7 +130,7 @@ function [Result] = forcedPhot(Obj, Args)
     %                   Default is false.
     %            'HalfSizePSF' - Half size of the constructed PSF (unless
     %                   PSF is provided). Default is 12 [pix].
-    %            'FitRadius' - Radius around source center to fit.
+    %            'FitRadihttps://github.com/EranOfek/AstroPack/wiki/MatchedSourcesus' - Radius around source center to fit.
     %                   This can be used in order to exclude regions
     %                   outside the stellar core.
     %                   Default is 3.
@@ -316,6 +316,8 @@ function [Result] = forcedPhot(Obj, Args)
             [Ny, Nx] = Obj(Iobj).sizeImage;
             %FlagIn      = X>1 & X<Nx & Y>1 & Y<Ny;
             FlagIn  = X>Args.MinEdgeDist & X<(Nx-Args.MinEdgeDist) & Y>Args.MinEdgeDist & Y<(Ny-Args.MinEdgeDist);        
+
+            %ResIn  = Obj(Iobj).isSkyCooInImage(MeanCoo(1), MeanCoo(2),'UNIQSEC',CooUnits);
 
             % force photometry on sources
             [M1,M2,Aper] = imUtil.image.moment2(Obj(Iobj).(Args.ImageProp), X, Y,...

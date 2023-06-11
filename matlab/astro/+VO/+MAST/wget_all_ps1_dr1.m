@@ -25,7 +25,7 @@ if (CreateTile)
     TileList = TileList(TileList(:,2)>-32,:);
     save TileListPS1.mat TileList
 else
-    load('TileListPS1.mat');
+    io.files.load1('TileListPS1.mat');
 end
 
 %%
@@ -102,8 +102,8 @@ while ~StopLoop
     
     FailLoad = true;
     while FailLoad
-        try
-            SF = load('SummaryMaster.txt');
+        try			
+            SF = io.files.load1('SummaryMaster.txt');
             FailLoad = false;
         catch
             fprintf('Failed loading SummaryMaster.txt - wait 3s\n');

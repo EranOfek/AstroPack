@@ -11,6 +11,9 @@ matlab\startup\startup.m
 # Log files
 *.log
 
+# Simulation outputs
+SimImage*
+usimImage*
 
 matlab_2021_10_05_before_copyObject/
 

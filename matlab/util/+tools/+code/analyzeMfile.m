@@ -37,6 +37,9 @@ function Report = analyzeMfile(FileName, Args)
     Report.IsClass = tools.code.isClass(SpStr);
     
     % count number of functions
+    if ~iscellstr(SpStr)
+        error('Error in file: %s',FileName);
+    end
     Matched  = regexp(SpStr, '^\s*function', 'match');
     Report.StartPosFunctions = find(~cellfun(@isempty, Matched));
     Report.NumFunctions      = sum(~cellfun(@isempty, Matched));

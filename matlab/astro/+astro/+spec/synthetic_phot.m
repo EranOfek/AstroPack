@@ -138,7 +138,7 @@ switch lower(MagSystem)
         NN = ~isnan(SpecFlam(:,1));
         hc = constant.h.*constant.c;
         
-        load vega_spec.mat;
+        io.files.load1('vega_spec.mat');
         switch lower(InPar.Device)
             case 'bol'
                 VegaF   = interp1(vega_spec(:,1),vega_spec(:,2),Wave,InPar.InterpMethod);

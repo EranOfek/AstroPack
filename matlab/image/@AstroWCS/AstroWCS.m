@@ -231,7 +231,11 @@ classdef AstroWCS < Component
 
             if sum(Obj.ResFit.FlagSrc)<Args.MinStarsForRegional
                 % treat images with small number of stars
-                Obj.Success = Obj.ResFit.ErrorOnMean < (Args.MaxErrorOnMean./ARCSEC_DEG);
+                if isempty(Obj.ResFit.ErrorOnMean)
+                    Obj.Success = false;
+                else
+                    Obj.Success = Obj.ResFit.ErrorOnMean < (Args.MaxErrorOnMean./ARCSEC_DEG);
+                end
             else
                 [BinN, ~, BinMedian] = tools.math.stat.bin2dFun(Obj.ResFit.SrcX(Obj.ResFit.FlagSrc),...
                                                                 Obj.ResFit.SrcY(Obj.ResFit.FlagSrc),...
@@ -397,7 +401,7 @@ classdef AstroWCS < Component
 
     methods    % Functions to construct AstroHeader from AstroWCS
    
-       function Header = wcs2header(Obj,Header)
+        function Header = wcs2header(Obj, Header)
             % Convert AstroWCS object to new AstroHeader object or update an existing AstroHeader object
             % Input  : - AstroWCS object.
             %          - Optional AstroHeader object in which to update key/par
@@ -425,7 +429,73 @@ classdef AstroWCS < Component
             % Add/create all keywords
             KeyCell = Obj.wcs2keyCell;
             Header.replaceVal(KeyCell(:,1),KeyCell(:,2),'Comment',KeyCell(:,3));
+        end
+
+        function [Header,RA,Dec] = addCornersCoo2header(Obj, Header, Args)
+            % Add RA/Dec of image corners to header
+            % Input  : - A single element AstroWCS object.
+            %          - A AstroHeader object.
+            %          * ...,key,val,...
+            %            'CCDSEC' - Either a CCDSEC [Xmin Xmax Ymin Ymax]
+            %                   or a keyword header that contains the
+            %                   CCSSEC for which the corners should be
+            %                   calculated and added.
+            %                   Alternatively, this can be a cell array in
+            %                   which each element is a CCDSEC or header
+            %                   keword. Im this case, corners will be added
+            %                   for each CCDSEC.
+            %                   If header keyword doesnt exist, then
+            %                   corners will not be written to header.
+            %                   Default is {'CCDSEC','UNIQSEC'}
+            %            'OutKeysRA' - Header kewords in which the RA
+            %                   corners should be added. This is a cell
+            %                   array of cell arrys per each CCDSEC.
+            %                   Default is {{'RA1','RA2','RA3','RA4'}, {'RAU1','RAU2','RAU3','RAU4'}}
+            %            'OutKeysDec' - Like 'OutKeysRA', but for Dec.
+            %                   Default is {{'DEC1','DEC2','DEC3','DEC4'}, {'DECU1','DECU2','DECU3','DECU4'}}
+            %            'OutUnits' - Output units of coordinates.
+            %                   Default is 'deg'.
+            % Output : - An updated header object.
+            %          - RA of corners of last CCDSEC element.
+            %          - Dec of corners of last CCDSEC element.
+            % Author : Eran Ofek (Apr 2023)
+            % Example: [Header,RA,Dec] = addCornersCoo2header(Obj, Header);
+
+            arguments
+                Obj(1,1)
+                Header(1,1)
+                Args.CCDSEC          = {'CCDSEC','UNIQSEC'};
+                Args.OutKeysRA cell  = {{'RA1','RA2','RA3','RA4'}, {'RAU1','RAU2','RAU3','RAU4'}};
+                Args.OutKeysDec cell = {{'DEC1','DEC2','DEC3','DEC4'}, {'DECU1','DECU2','DECU3','DECU4'}};
+                Args.OutUnits        = 'deg';
+            end
+
+            if ~iscell(Args.CCDSEC)
+                Args.CCDSEC = {Args.CCDSEC};
+            end
+            Nccdsec = numel(Args.CCDSEC);
+            for Iccdsec=1:1:Nccdsec
+                if isnumeric(Args.CCDSEC{Iccdsec})
+                    % CCDSEC is already numeric
+
+                else
+                    % CCDSEC is an header keyword - get value
+                    [Args.CCDSEC{Iccdsec}] = getVal(Header, Args.CCDSEC{Iccdsec}, 'ReadCCDSEC',true);
+                end
+
+                % CCDSEC to corners
+                if ~isnan(Args.CCDSEC{Iccdsec})
+                    % only if keyword value exist
+                    Corners   = Args.CCDSEC{Iccdsec}([1 3; 2 3; 2 4 ;1 4]);
+                    [RA, Dec] = Obj.xy2sky(Corners(:,1), Corners(:,2), 'OutUnits',Args.OutUnits);
+
+                    Header = replaceVal(Header,[Args.OutKeysRA{Iccdsec}, Args.OutKeysDec{Iccdsec}] ,[RA(:).', Dec(:).']);
+                end
+
+            end
+
        end
+
    
        function KeyCell = wcs2keyCell(Obj)
             % Create a cell array of WCS fields from AstroWCS object
@@ -1159,7 +1229,7 @@ classdef AstroWCS < Component
             arguments
                 Obj
                 XY
-                RefWCS AstroWCS
+                RefWCS(1,1) AstroWCS
                 Args.Sampling       = 1;
             end
             
@@ -1177,8 +1247,8 @@ classdef AstroWCS < Component
                     error('wrong XY dimensions');
             end
                     
-            [Alpha, Delta]  = Obj.xy2sky(PX,PY);
-            [refPX,refPY] = RefWCS.sky2xy(Alpha,Delta);
+            [Alpha, Delta] = Obj.xy2sky(PX,PY);
+            [refPX,refPY]  = RefWCS.sky2xy(Alpha,Delta);
             DX = PX-refPX;
             DY = PY-refPY;
             
@@ -1190,6 +1260,7 @@ classdef AstroWCS < Component
                 D(:,:,2) = DY;
             end
         end
+        
     end
 
     methods % plots
@@ -1250,72 +1321,76 @@ classdef AstroWCS < Component
             Result = AstroWCS(size(AH));
             for Iobj=1:1:Nobj
                 
-                % Read all single val parmeters
-                KeyValStruct = AH(Iobj).getStructKey({'NAXIS','WCSAXES','LONPOLE','LATPOLE'});
-                
-                % if WCSAXES is not available use NAXIS as default
-                Result(Iobj).NAXIS = KeyValStruct.NAXIS;
-                Result(Iobj).WCSAXES = KeyValStruct.WCSAXES;
-                if (Result(Iobj).WCSAXES==0)
-                    Result(Iobj).WCSAXES = Result(Iobj).NAXIS;
-                end
-                
-                if Args.read2axes
-                    Result(Iobj).WCSAXES = 2;
-                    Result(Iobj).NAXIS   = 2;
-                end
-            
-                Naxis = Result(Iobj).WCSAXES;
-
-                % prepare mutli axis keys
-                KeyCtype = cell(1,Naxis);
-                KeyCunit = cell(1,Naxis);
-                KeyCrpix = cell(1,Naxis);
-                KeyCrval = cell(1,Naxis);
-                for Iaxis1 = 1:1:Naxis
-                    KeyCtype{Iaxis1} = sprintf('CTYPE%d',Iaxis1);
-                    KeyCunit{Iaxis1} = sprintf('CUNIT%d',Iaxis1);
-                    KeyCrpix{Iaxis1} = sprintf('CRPIX%d',Iaxis1);
-                    KeyCrval{Iaxis1} = sprintf('CRVAL%d',Iaxis1);
-                end
-
-                % Get CTYPE and transalte to projection information (ProjType,
-                % ProjClass) and CooName and CUNIT
-                Result(Iobj).CTYPE = AH(Iobj).getCellKey(KeyCtype);
-                Result(Iobj).CUNIT = AH(Iobj).getCellKey(KeyCunit);
-                Result(Iobj).read_ctype;
-            
-                if isnumeric(Result(Iobj).CTYPE{1}) && any(isnan(Result(Iobj).CTYPE{1}))
-                    Result(Iobj).Success = false;
+                if AH(Iobj).numKeys==0
+                    warning('Can not generate WCS because header is empty');
                 else
-                    [Result(Iobj).RADESYS, Result(Iobj).EQUINOX] = Result(Iobj).read_radesys_equinox(AH(Iobj));
-
-                    % Get base WCS info
-                    if ~isnan(KeyValStruct.LONPOLE)
-                        Result(Iobj).LONPOLE = KeyValStruct.LONPOLE;
+                    % Read all single val parmeters
+                    KeyValStruct = AH(Iobj).getStructKey({'NAXIS','WCSAXES','LONPOLE','LATPOLE'});
+                    
+                    % if WCSAXES is not available use NAXIS as default
+                    Result(Iobj).NAXIS = KeyValStruct.NAXIS;
+                    Result(Iobj).WCSAXES = KeyValStruct.WCSAXES;
+                    if (Result(Iobj).WCSAXES==0)
+                        Result(Iobj).WCSAXES = Result(Iobj).NAXIS;
                     end
-                    if ~isnan(KeyValStruct.LATPOLE)
-                        Result(Iobj).LATPOLE = KeyValStruct.LATPOLE;
+                    
+                    if Args.read2axes
+                        Result(Iobj).WCSAXES = 2;
+                        Result(Iobj).NAXIS   = 2;
                     end
-
-                    Result(Iobj).CRPIX = cell2mat(AH(Iobj).getCellKey(KeyCrpix));
-                    Result(Iobj).CRVAL = cell2mat(AH(Iobj).getCellKey(KeyCrval));
-                    Result(Iobj).CD = Result(Iobj).build_CD(AH(Iobj),Naxis);
-
-                    % Read distortions
-                    % look for PV coeficients
-                    Result(Iobj).PV = Result(Iobj).build_PV_from_Header(AH(Iobj), Result(Iobj).ProjType);
-
-                    % For TAN-SIP try to get RevPV (TODO generlize)
-                    if strcmpi(Result(Iobj).ProjType,'tan-sip')
-                        Result(Iobj).RevPV = AstroWCS.build_TANSIP_from_Header(AH(Iobj),true);
+                
+                    Naxis = Result(Iobj).WCSAXES;
+    
+                    % prepare mutli axis keys
+                    KeyCtype = cell(1,Naxis);
+                    KeyCunit = cell(1,Naxis);
+                    KeyCrpix = cell(1,Naxis);
+                    KeyCrval = cell(1,Naxis);
+                    for Iaxis1 = 1:1:Naxis
+                        KeyCtype{Iaxis1} = sprintf('CTYPE%d',Iaxis1);
+                        KeyCunit{Iaxis1} = sprintf('CUNIT%d',Iaxis1);
+                        KeyCrpix{Iaxis1} = sprintf('CRPIX%d',Iaxis1);
+                        KeyCrval{Iaxis1} = sprintf('CRVAL%d',Iaxis1);
                     end
-
-                    % populate proj Meta
-                    Result(Iobj).populate_projMeta;
-
-                    % assume header solution is good
-                    Result(Iobj).Success = true;
+    
+                    % Get CTYPE and transalte to projection information (ProjType,
+                    % ProjClass) and CooName and CUNIT
+                    Result(Iobj).CTYPE = AH(Iobj).getCellKey(KeyCtype);
+                    Result(Iobj).CUNIT = AH(Iobj).getCellKey(KeyCunit);
+                    Result(Iobj).read_ctype;
+                
+                    if isnumeric(Result(Iobj).CTYPE{1}) && any(isnan(Result(Iobj).CTYPE{1}))
+                        Result(Iobj).Success = false;
+                    else
+                        [Result(Iobj).RADESYS, Result(Iobj).EQUINOX] = Result(Iobj).read_radesys_equinox(AH(Iobj));
+    
+                        % Get base WCS info
+                        if ~isnan(KeyValStruct.LONPOLE)
+                            Result(Iobj).LONPOLE = KeyValStruct.LONPOLE;
+                        end
+                        if ~isnan(KeyValStruct.LATPOLE)
+                            Result(Iobj).LATPOLE = KeyValStruct.LATPOLE;
+                        end
+    
+                        Result(Iobj).CRPIX = cell2mat(AH(Iobj).getCellKey(KeyCrpix));
+                        Result(Iobj).CRVAL = cell2mat(AH(Iobj).getCellKey(KeyCrval));
+                        Result(Iobj).CD = Result(Iobj).build_CD(AH(Iobj),Naxis);
+    
+                        % Read distortions
+                        % look for PV coeficients
+                        Result(Iobj).PV = Result(Iobj).build_PV_from_Header(AH(Iobj), Result(Iobj).ProjType);
+    
+                        % For TAN-SIP try to get RevPV (TODO generlize)
+                        if strcmpi(Result(Iobj).ProjType,'tan-sip')
+                            Result(Iobj).RevPV = AstroWCS.build_TANSIP_from_Header(AH(Iobj),true);
+                        end
+    
+                        % populate proj Meta
+                        Result(Iobj).populate_projMeta;
+    
+                        % assume header solution is good
+                        Result(Iobj).Success = true;
+                    end
                 end
             end
         end

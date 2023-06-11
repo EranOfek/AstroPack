@@ -34,8 +34,17 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
     
     
     methods % Constructor
-       
-
+        function Obj=MaskImage(varargin)
+            % Constructor of MaskImage class using the superclass
+            % (ImageComponent) constructor
+            
+            Obj@ImageComponent(varargin{:});
+            for Iobj=1:1:numel(Obj)
+                Obj(Iobj).DataType    = AstroDataType.Mask;
+                Obj(Iobj).ScaleMethod = 'nearest';   % Use nearest interpolation for MaskData
+            end
+        end
+        
     end
   
     methods % Setters/Getters
@@ -62,14 +71,19 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             %                   BitDictionary('BitMask.Image.Default').
             %            'CreateNewObj' - A logical indicating if to copy
             %                   the input object. Default is false.
+            %            'UseFlags' - A logical indicating if to use flags
+            %                   or indices (speed considerations).
+            %                   Default is true.
+            %            'UseMex' - Use the tools.array.mex_bitsetFlag
+            %                   mex function. Default is true.
             % Output : - An ImageMaks object.
             % Author : Eran Ofek (May 2021)
             % Example:
             %       MI=MaskImage;
             %       MI.Dict=BitDictionary('BitMask.Image.Default')
             %       Flag = false(3,3); Flag(1,2)=true;
-            %       Result = MI.maskSet1(Flag,'Saturated')
-            %       Result = MI.maskSet1(Flag,'Streak')
+            %       Result = MI.maskSet(Flag,'Saturated')
+            %       Result = MI.maskSet(Flag,'Streak')
             
             arguments
                 Obj
@@ -78,6 +92,8 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                 SetVal                            = 1;
                 Args.DefBitDict BitDictionary     = BitDictionary('BitMask.Image.Default');
                 Args.CreateNewObj logical         = false;
+                Args.UseFlags logical             = false;
+                Args.UseMex logical               = true;
             end
             
             if Args.CreateNewObj
@@ -114,7 +130,28 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                     Result(Iobj).Image = Result(Iobj).Dict.Class(zeros(SizeImage));
                 end
 
-                Result(Iobj).Image(Flag) = bitset(Result(Iobj).Image(Flag), BitInd, SetVal);
+                if Args.UseMex
+                    if ~isempty(Flag)
+                        
+                        if numel(Flag)==numel(Result(Iobj).Image)
+                            % assume that Flag in logical array of the same
+                            % size 
+                            Result(Iobj).Image = tools.array.bitsetFlag(Result(Iobj).Image, Flag, BitInd, SetVal, true, true);
+                        else
+                            % Flag is indices:
+                            Result(Iobj).Image(Flag) = bitset(Result(Iobj).Image(Flag), BitInd, SetVal);
+                        end
+                    end
+                else
+
+                    % use indices instead of flags - maybe faster in some cases
+                    if Args.UseFlags
+                        Result(Iobj).Image(Flag) = bitset(Result(Iobj).Image(Flag), BitInd, SetVal);
+                    else
+                        Ind = find(Flag);
+                        Result(Iobj).Image(Ind) = bitset(Result(Iobj).Image(Ind), BitInd, SetVal);
+                    end
+                end
             end
             
                  
@@ -281,13 +318,26 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
     
     methods % bit statistics
         function [Tab, Result] = bitStat(Obj, Args)
+            % Calculate bit mask statistics.
+            %   How many times each bit appaers in an image.
+            % Input  : - A MaskImage object.
+            %          * ...,key,val,...
+            %            'CCDSEC' - CCDSEC in which to calculate bit stat.
+            %                   If empty, use entire image.
+            %                   Default is [].
+            %            'Show' - A logical iondicating if to display stat
+            %                   on screen. Default is true.
+            %            'DataProp' - Internal.
+            % Output : - A Table of bit stat summary.
             %
             % Example: Stat = Bias.MaskData.bitStat
             
             arguments
                 Obj
                 Args.CCDSEC             = [];
+                Args.Show logical       = true;
                 Args.DataProp           = 'Image';
+                
             end
             
             
@@ -303,7 +353,12 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                     Result(Iobj).FracBit(Ibit+1) = Result(Iobj).SumBit(Ibit+1)./Npix;
                 end
                 Tab(Iobj).BitSummary = cell2table([Result(Iobj).BitName(:), num2cell(Result(Iobj).SumBit)', num2cell(Result(Iobj).FracBit)']);
+                Tab(Iobj).BitSummary.Properties.VariableNames = {'BitMask Name','Number','Fraction'};
+                if Args.Show
+                    Tab(Iobj).BitSummary
+                end
             end
+            
             
             
         end

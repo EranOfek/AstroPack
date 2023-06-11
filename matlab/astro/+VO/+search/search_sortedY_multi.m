@@ -1,4 +1,4 @@
-function [Ind,FlagUnique,MatchedInd]=search_sortedY_multi(Cat,Long,Lat,Radius,FlagUnique)
+function [Ind,FlagUnique,MatchedInd]=search_sortedY_multi(Cat,Long,Lat,Radius,FlagUnique, Args)
 % Search a single X/Y in a catalog sorted by Y (planar geometry)
 % Package: VO.search
 % Description: A low level function for a single cone search
@@ -12,6 +12,10 @@ function [Ind,FlagUnique,MatchedInd]=search_sortedY_multi(Cat,Long,Lat,Radius,Fl
 %            structure.
 %          - A vector of false with the length of the catalog,
 %            after first iteration provide the output.
+%          * ...,key,val,...
+%            'UseMex' - A logical indicating if to use the binarySearch mex
+%                   program instead of tools.find.mfind_bin
+%                   Default is true.
 % Output : - A strucure array in which the number of elements equal to the
 %            number of searched coordinates, and with the following
 %            fields:
@@ -32,6 +36,15 @@ function [Ind,FlagUnique,MatchedInd]=search_sortedY_multi(Cat,Long,Lat,Radius,Fl
 %          [Ind,~,MI]=VO.search.search_sortedY_multi(Cat+randn(10000,2).*0.1,Cat(:,1),Cat(:,2),1)
 % Reliable: 2
 
+arguments
+    Cat
+    Long
+    Lat
+    Radius
+    FlagUnique            = [];
+    Args.UseMex logical   = true;
+end
+
 
 if Radius<0
     CalcDist = true;
@@ -40,7 +53,7 @@ else
     CalcDist = false;
 end
 
-if (nargin<5)
+if isempty(FlagUnique)
     FlagUnique = false(size(Cat,1),1);
 end
 
@@ -64,7 +77,11 @@ Nlat  = numel(Lat); % number of latitudes to search
 Ilat  = [(1:1:Nlat).', (1:1:Nlat).'+Nlat];
 
 Ncat  = size(Cat,1);
-Inear = tools.find.mfind_bin(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]);
+if Args.UseMex
+    Inear = binarySearch(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]);
+else
+    Inear = tools.find.mfind_bin(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]);
+end
 
 % Inear(Ilat) is a two column matrix [low, high] index for each latitud
 % search

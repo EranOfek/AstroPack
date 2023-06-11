@@ -58,7 +58,7 @@ while (feof(FID)==0)
                 case {'%s','%c'}
                     Data{I,Icol} = sscanf(Line(FormatCell{Icol,1}:FormatCell{Icol,2}),FormatCell{Icol,3});
                 otherwise
-                    Data{I,Icol} = Util.string.str2num_nan(Line(FormatCell{Icol,1}:FormatCell{Icol,2}));
+                    Data{I,Icol} = tools.string.str2num_nan(Line(FormatCell{Icol,1}:FormatCell{Icol,2}));
             end
          end
       end

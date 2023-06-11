@@ -118,9 +118,9 @@ classdef AstroImage < Component
         Back
         Var
         Mask
+        Exp
         Header  % e.g., Header, Header('EXPTIME'), Header({'EXPTIME','IMTYPE'}), Header('IMTYPE',{additional args to keyVal})
         Key
-        Cat     % e.g., Cat, Cat([1 3]), Cat('RA'), Cat({'RA','Dec'})
         PSF
         %WCS
     end
@@ -129,10 +129,13 @@ classdef AstroImage < Component
         % Data
         %ImageData(1,1) NoisyImage
         
+        Table     = [];
+        
         ImageData(1,1) SciImage              %= SciImage;
         BackData(1,1) BackImage              %= BackImage;
         VarData(1,1) VarImage                %= VarImage;
         MaskData(1,1) MaskImage              %= MaskImage;
+        ExpData(1,1) ExpImage
         
         HeaderData(1,1) AstroHeader          %= AstroHeader;
         CatData(1,1) AstroCatalog            %= AstroCatalog;
@@ -148,7 +151,8 @@ classdef AstroImage < Component
         Relations   = struct('Image','ImageData',...
                              'Back','BackData',...
                              'Var','VarData',...
-                             'Mask','MaskData');
+                             'Mask','MaskData',...
+                             'Exp','ExpData');
         
         
     end
@@ -190,6 +194,12 @@ classdef AstroImage < Component
             %                   mask image. Default is [].
             %            'MaskDict' - Mask bit dictionary.
             %                   Default is 'BitMask.Image.Default'.
+            %            'Exp' - The same as the file name argument, but
+            %                   for a Exp image. Default is [].
+            %            'ExpHDU' - The same as HDU, but for the
+            %                   Exp image. Default is [].
+            %            'ExpScale' - The same as scale, but for the
+            %                   Exp image. Default is [].
             %            'FileType' - If empty, use auto detection.
             %                   Default is [].
             %            'UseRegExp' - Ues regexp for file name
@@ -222,6 +232,10 @@ classdef AstroImage < Component
                 Args.MaskHDU                  = [];
                 Args.MaskScale                = [];
                 Args.MaskDict                 = 'BitMask.Image.Default';
+                
+                Args.Exp                      = [];
+                Args.ExpHDU                   = [];
+                Args.ExpScale                 = [];
                 
                 Args.PSF                      = [];
                 Args.PSFHDU                   = [];
@@ -285,10 +299,10 @@ classdef AstroImage < Component
                                                                         'FileNames',FN);
                                                                         
                         % Other data properties
-                        ListProp  = {'Back','Var','Mask', 'PSF','Cat'};
-                        ListData  = {'BackData','VarData','MaskData', 'PSFData','CatData'};
-                        ListHDU   = {'BackHDU','VarHDU','MaskHDU', 'PSFHDU','CatHDU'};
-                        ListScale = {'BackScale','VarScale','MaskScale', 'PSFScale','CatScale'};
+                        ListProp  = {'Back','Var','Mask', 'Exp', 'PSF','Cat'};
+                        ListData  = {'BackData','VarData','MaskData', 'ExpData', 'PSFData','CatData'};
+                        ListHDU   = {'BackHDU','VarHDU','MaskHDU', 'ExpHDU', 'PSFHDU','CatHDU'};
+                        ListScale = {'BackScale','VarScale','MaskScale', 'ExpScale', 'PSFScale','CatScale'};
                         
                         Nlist = numel(ListProp);
                         for Ilist=1:1:Nlist
@@ -299,13 +313,18 @@ classdef AstroImage < Component
                             end
                             if ~isempty(Args.(ListProp{Ilist}))
                                 % do not read header
-                                Obj = AstroImage.readImages2AstroImage(Args.(ListProp{Ilist}),'HDU',Args.(ListHDU{Ilist}),...
+                                try
+                                    Obj = AstroImage.readImages2AstroImage(Args.(ListProp{Ilist}),'HDU',Args.(ListHDU{Ilist}),...
                                                                             'Obj',Obj,...
                                                                             'FileType',Args.FileType,...
                                                                             'UseRegExp',Args.UseRegExp,...
                                                                             'Scale',Args.(ListScale{Ilist}),...
                                                                             'ReadHeader',false,...
                                                                             'DataProp',ListData{Ilist});
+                                catch
+                                    warning('Fail reading data product %s - likely does not exist in directory', ListProp{Ilist});
+                                end
+                                
                                 % treat integers in case of Mask
                                 switch ListProp{Ilist}
                                     case 'Mask'
@@ -349,6 +368,7 @@ classdef AstroImage < Component
     end
 
     methods (Static) % utilities
+        
         function Obj = imageIO2AstroImage(ImIO, DataProp, Scale, FileNames, CopyHeader, Obj)
             % Convert an ImageIO object into an AstroImage object
             % Input  : - An ImageIO object.
@@ -463,26 +483,44 @@ classdef AstroImage < Component
                 Args.FileNames cell         = {};
             end
             
-                
-            switch lower(Args.DataProp)
-                case {'imagedata','backdata','vardata','maskdata','psfdata'}
-                    ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
-                                             'FileType',Args.FileType,...
-                                             'CCDSEC',Args.CCDSEC,...
-                                             'IsTable',false,...
-                                             'ReadHeader',Args.ReadHeader,...
-                                             'UseRegExp',Args.UseRegExp);
-                case {'cat','catdata'}
-                    ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
-                                             'FileType',Args.FileType,...
-                                             'IsTable',true,...
-                                             'ReadHeader',Args.ReadHeader,...
-                                             'UseRegExp',Args.UseRegExp);
-                otherwise
-                    error('DataProp %s is not supported',Args.DataProp);
+            try
+                switch lower(Args.DataProp)
+                    case {'imagedata','backdata','vardata','maskdata','psfdata','expdata'}
+                        ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
+                                                 'FileType',Args.FileType,...
+                                                 'CCDSEC',Args.CCDSEC,...
+                                                 'IsTable',false,...
+                                                 'ReadHeader',Args.ReadHeader,...
+                                                 'UseRegExp',Args.UseRegExp);
+                        
+                    case {'cat','catdata'}
+                        ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
+                                                 'FileType',Args.FileType,...
+                                                 'IsTable',true,...
+                                                 'ReadHeader',Args.ReadHeader,...
+                                                 'UseRegExp',Args.UseRegExp);
+
+                        % if isempty(Args.Obj)
+                        %     Obj = AstroImage;
+                        % else
+                        %     Obj = Args.Obj;
+                        % end
+                        % Obj.CatData = FITS.readTable1(FileName, 'HDUnum',Args.HDU, 'OutTable','astrocatalog', 'TableType','bintable');
+                    otherwise
+                        error('DataProp %s is not supported',Args.DataProp);
+                end
+                Obj = AstroImage.imageIO2AstroImage(ImIO, Args.DataProp, Args.Scale, Args.FileNames, Args.ReadHeader, Args.Obj);
+            catch
+                if iscell(FileName)
+                    Tmp = FileName{1};
+                else
+                    Tmp = FileName;
+                end
+                warning('Image %s not found - skip upload',Tmp);
+                ImIO = ImageIO; % empty ImageIO
+                Obj = AstroImage.imageIO2AstroImage(ImIO, Args.DataProp, Args.Scale, Args.FileNames, Args.ReadHeader, Args.Obj);
+                            
             end
-            Obj = AstroImage.imageIO2AstroImage(ImIO, Args.DataProp, Args.Scale, Args.FileNames, Args.ReadHeader, Args.Obj);
-            
             
         end
          
@@ -622,12 +660,13 @@ classdef AstroImage < Component
             end
         end
         
-        function Result = readFileNames(ObjFN, Args)
+        function Result = readFileNamesObj(ObjFN, Args)
             % Read images contained in a FileNames object into an AstroImage object.
             %   Optionally read not only the image but also additional
             %   products (e.g., 'Cat','PSF').
-            % Input  : - A FileNames object from which file names can be
-            %            generated.
+            % Input  : - A single element FileNames object from which file names can be
+            %            generated, or a file name with optional wild cards,
+            %            or a cell array of file names.
             %          * ...,key,val,...
             %            'Path' - A path for the files. If given then will
             %                   override the genPath method.
@@ -645,10 +684,10 @@ classdef AstroImage < Component
             % Example: 
             
             arguments
-                ObjFN(1,1) FileNames
+                ObjFN
                 Args.Path                     = [];
                 Args.MainProduct char         = 'Image';
-                Args.AddProduct               = {'Mask','Cat'};        
+                Args.AddProduct               = {'Mask','Cat','PSF'};        
                 Args.PopulateWCS logical      = true;
             end
             
@@ -656,8 +695,15 @@ classdef AstroImage < Component
                 Args.AddProduct = {Args.AddProduct};
             end
             
+            if isa(ObjFN, 'FileNames')
+                % already a FileNames object
+            else
+                ObjFN = FileNames.generateFromFileName(ObjFN);
+            end
+
+
             FilesList = ObjFN.genFull('Product',Args.MainProduct, 'FullPath',Args.Path);
-            
+        
             Nprod  = numel(Args.AddProduct);
             if Nprod==0
                 AI_Args = {};
@@ -672,7 +718,6 @@ classdef AstroImage < Component
             if Args.PopulateWCS
                 Result = populateWCS(Result);
             end
-            
         end
     end
 
@@ -682,6 +727,19 @@ classdef AstroImage < Component
             % setter for Image - store image in ImageData property
             %Obj.(Relations.Image).Image = Data;  % can use this instead
             Obj.ImageData.Image = Data;
+        end
+        
+        function Data = get.Table(Obj)
+            % Get Catdata.Catalog in table format
+            % To update set it to []
+           
+            if isempty(Obj.Table)
+                Data = array2table(Obj.CatData.Catalog);
+                Data.Properties.VariableNames = Obj.CatData.ColNames;
+                Obj.Table = Data;
+            else
+                Data = Obj.Table;
+            end
         end
         
         function Data = get.Image(Obj)
@@ -719,6 +777,26 @@ classdef AstroImage < Component
             Data = Obj.MaskData.Image;
         end
         
+        function Obj = set.Exp(Obj, Data)
+            % setter for ExpImage
+            Obj.ExpData.Image = Data;
+        end
+        
+        function Data = get.Exp(Obj)
+            % getter for ExpImage
+            Data = Obj.ExpData.Image;
+        end
+        
+        function Obj = set.PSF(Obj, Data)
+            % setter for PSFData
+            Obj.PSFData.Data = Data;
+        end
+
+        function Data = get.PSF(Obj)
+            % getter for PSFData
+            Data = Obj.PSFData.Data;
+        end
+        
         function Data = get.Header(Obj)
             % getter for Header
             Data = Obj.HeaderData.Data;
@@ -739,13 +817,7 @@ classdef AstroImage < Component
             Data = Obj.WCS;
                 
         end
-
-        function Data = get.PSF(Obj)
-            % getter for PSF
-           
-            Data = Obj.PSFData.DataPSF;
-            
-        end
+       
     end
     
     methods (Static)  % static methods
@@ -876,6 +948,27 @@ classdef AstroImage < Component
                 Result(Iobj) = isempty(Obj(Iobj).PSFData.Data);
             end
             
+        end
+    
+        function Obj = createMask(Obj, Type)
+            % If not exist, create an MaskImage of zeros in an AstroImage object.
+            % Input  : - An AstroImage object.
+            % Output : - If MaskImage does not exist, then create one with
+            %            zeros.
+            % Author : Eran Ofek (May 2023)
+
+            arguments
+                Obj
+                Type   = 'uint32';
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if isempty(Obj(Iobj).MaskData.Data)
+                    Obj(Iobj).MaskData.Data = zeros(size(Obj(Iobj).Image), Type);
+                end
+            end
+
         end
     end
     
@@ -1011,7 +1104,7 @@ classdef AstroImage < Component
     end
     
     methods % read / write
-        function write1(Obj, Name, DataProp, Args)
+        function Status=write1(Obj, Name, DataProp, Args)
             % Write a single data property in a single element AstroImage to file
             % Input  : - A single element AstroImage object.
             %          - File name to write.
@@ -1026,7 +1119,12 @@ classdef AstroImage < Component
             %            'OverWrite' - Default is false.
             %            'WriteTime' - Add the write time to header.
             %                   Default is false.
-            % Output : null
+            %            'Mkdir' - A logical indicating if to create
+            %                   directory if file name contains full path.
+            %                   Default is false.
+            %            'Status' - Status structure to which to append the
+            %                   new status.
+            % Output : - Status structure with entry per problem.
             % Author : Eran Ofek (Nov 2021)
             % Example: AllSI(1).write1('try1.fits')
             
@@ -1040,6 +1138,8 @@ classdef AstroImage < Component
                 Args.Append logical           = false;
                 Args.OverWrite logical        = false;
                 Args.WriteTime logical        = false;
+                Args.MkDir logical            = false;
+                Args.Status                   = [];
             end
             
             if Args.WriteHeader
@@ -1048,6 +1148,16 @@ classdef AstroImage < Component
                 HeaderData = [];
             end
             
+            if Args.MkDir
+                Path = fileparts(Name);
+                if ~isempty(Path)
+                    mkdir(Path);
+                end
+            end
+
+
+            Istat  = numel(Args.Status);
+            Status = Args.Status;
             switch lower(Args.FileType)
                 case 'fits'
                     switch DataProp
@@ -1058,22 +1168,32 @@ classdef AstroImage < Component
                                 otherwise
                                     HeaderDataToWrite = HeaderData;
                             end
-                            if Args.IsSimpleFITS
-                                FITS.writeSimpleFITS(Obj.(DataProp), Name, 'Header',HeaderDataToWrite); %,...
-                                                           %    'DataType',class(Obj.(DataProp)));
+
+                            if isempty(Obj.(DataProp))
+                                Istat = Istat + 1;
+                                Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', Name, DataProp);
                             else
-                                FITS.write(Obj.(DataProp), Name, 'Header',HeaderDataToWrite,...
-                                                               'DataType',class(Obj.(DataProp)),...
-                                                               'Append',Args.Append,...
-                                                               'OverWrite',Args.OverWrite,...
-                                                               'WriteTime',Args.WriteTime);
-                            end
-                        case {'Cat','CatData'}
-                            FITS.writeTable1(Obj.CatData, Name, 'Header',HeaderData,...
+                                if Args.IsSimpleFITS
+                                    FITS.writeSimpleFITS(Obj.(DataProp), Name, 'Header',HeaderDataToWrite); %,...
+                                                               %    'DataType',class(Obj.(DataProp)));
+                                else
+                                    FITS.write(Obj.(DataProp), Name, 'Header',HeaderDataToWrite,...
+                                                                   'DataType',class(Obj.(DataProp)),...
                                                                    'Append',Args.Append,...
                                                                    'OverWrite',Args.OverWrite,...
                                                                    'WriteTime',Args.WriteTime);
-                                                        
+                                end
+                            end
+                        case {'Cat','CatData'}
+                            if isempty(Obj.CatData.ColNames)
+                                stat = Istat + 1;
+                                Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, is empty - not saved', Name, 'CatData');
+                            else
+                                FITS.writeTable1(Obj.CatData, Name, 'Header',HeaderData,...
+                                                                   'Append',Args.Append,...
+                                                                   'OverWrite',Args.OverWrite,...
+                                                                   'WriteTime',Args.WriteTime);
+                            end
                         otherwise
                             % FFU
                             error('DataProp %s is not yet supported',DataProp);
@@ -1084,7 +1204,7 @@ classdef AstroImage < Component
             
         end
         
-        function write(Obj, Name, DataProp, Args)
+        function Status=write(Obj, Name, DataProp, Args)
             %
             % Example: AI.write(
             
@@ -1101,6 +1221,8 @@ classdef AstroImage < Component
                
             end
             
+            Istat  = 0;
+            Status = [];
             if ischar(Args.DataProp)
                 Args.DataProp = {Args.DataProp};
             end
@@ -1145,11 +1267,18 @@ classdef AstroImage < Component
                             else
                                 Header = [];
                             end
-                            FITS.write(Obj(Iobj).(Args.DataProp{Iprop}), Name{Iobj, Iprop}, 'Header',Header,...
+                            
+                            % Check that image exist
+                            if isempty(Obj(Iobj).(Args.DataProp{Iprop}))
+                                Istat = Istat + 1;
+                                Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved',Name{Iobj, Iprop}, Args.DataProp{Iprop});
+                            else
+                                FITS.write(Obj(Iobj).(Args.DataProp{Iprop}), Name{Iobj, Iprop}, 'Header',Header,...
                                                                                             'DataType',class(Obj(Iobj).(Args.DataProp{Iprop})),...
                                                                                             'Append',Args.Append,...
                                                                                             'OverWrite',Args.OverWrite,...
                                                                                             'WriteTime',Args.WriteTime);
+                            end
                         otherwise
                             error('DataProp %s not supported yet',Args.DataProp{Iprop});
                     end
@@ -1157,6 +1286,9 @@ classdef AstroImage < Component
             end
             
         end
+        
+
+        
         
     end
     
@@ -1636,12 +1768,7 @@ classdef AstroImage < Component
             %            'CreateNewObj' - Indicating if the output
             %                   is a new copy of the input (true), or an
             %                   handle of the input (false).
-            %                   If empty (default), then this argument will
-            %                   be set by the number of output args.
-            %                   If 0, then false, otherwise true.
-            %                   This means that IC.fun, will modify IC,
-            %                   while IB=IC.fun will generate a new copy in
-            %                   IB.
+            %                   Default is false.
             % Output : - An AstroImage object.
             % Author : Eran Ofek (May 2021)
             % Example: AI = AstroImage({rand(3,3)},'Mask',{uint32(zeros(3,3))})
@@ -1655,24 +1782,13 @@ classdef AstroImage < Component
                 Flag                         % matrix of logicals
                 BitName                      % name or bit index (start with zero)
                 SetVal                 = 1;
-                Args.CreateNewObj      = [];
+                Args.CreateNewObj logical = false;
             end
             
-            if isempty(Args.CreateNewObj)
-                if nargout==0
-                    Args.CreateNewObj = false;
-                    Result = Obj;
-                else
-                    % create new obj
-                    Args.CreateNewObj = true;
-                    Result = Obj.copy();
-                end
+            if Args.CreateNewObj
+                Result = Obj.copy();
             else
-                if Args.CreateNewObj
-                    Result = Obj.copy();
-                else
-                    Result = Obj;
-                end
+                Result = Obj;
             end
                     
             Nobj = numel(Obj);
@@ -1680,6 +1796,89 @@ classdef AstroImage < Component
                 Result.MaskData = maskSet(Result(Iobj).MaskData, Flag, BitName, SetVal, 'CreateNewObj', Args.CreateNewObj);
             end
          
+        end
+        
+        function Result = subtractBackground(Obj, Args)
+            % Subtract background from image and set the IsBackSubtracted to true.
+            % Input  : - An AstroImage object.
+            %          * ...,key,val,...
+            %            'ReCalcBack' - Logical. Indicating if to re
+            %                   calculate background. If Back property is
+            %                   empty, the background will be calculated.
+            %                   Default is false.
+            %            'backgroundArgs' - A cell array of arguments to
+            %                   pass to the imProc.background.background 
+            %                   function.
+            %                   default is {}.
+            %            'SubIfIsBackSubtracted' - Logical. If true, will
+            %                   subtract the background even if the
+            %                   'IsBackSubtracted' property in the
+            %                   ImageComponent (store in 'ImageProp') is
+            %                   set to true.
+            %                   If false, and IsBackSubtracted=true, then
+            %                   the background will not be subtracted.
+            %                   Default is true.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the input object.
+            %                   Default is false.
+            %            'ImageProp' - Property name of the image from
+            %                   which to subtract the background.
+            %                   Default is 'Image'.
+            %            'BackProp' - Property name of the background image
+            %                   to subtract from the image.
+            %                   Default is 'Back'.
+            % Output : - An AstroImage object, in which the Image data is
+            %            background subtracted, and the IsBackSubtracted
+            %            property in the ImageComponent is set to true.
+            %            Note that if the background was calcaulated, and
+            %            createNewObj=true, it will be updated only in the
+            %            output object.
+            % Author : Eran Ofek (Jun 2023)
+            % Example: AI=AI.subtractBackground;
+            %          AI=AI.subtractBackground('backgroundArgs',{'SubSizeXY',[]});
+            
+           
+            arguments
+                Obj
+                Args.ReCalcBack logical             = false;
+                Args.backgroundArgs cell            = {};
+                Args.SubIfIsBackSubtracted logical  = true;
+                Args.CreateNewObj logical           = false;
+                Args.ImageProp                      = 'Image';
+                Args.BackProp                       = 'Back';
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if Args.SubIfIsBackSubtracted && Obj(Iobj).ImageData.IsBackSubtracted
+                    warning('Note that the IsBackSubtracted property in the ImageComponent of AstroImage %d is set to true - subtracting anyhow',Iobj);
+                    Sub = true;
+                else
+                    if Args.Obj(Iobj).ImageData.IsBackSubtracted
+                        Sub = false;
+                    else
+                        Sub = true;
+                    end
+                end
+                
+                if Args.ReCalcBack || isempty(Obj(Iobj).(Args.BackProp))
+                    % recalc background
+                    Result(Iobj) = imProc.background.background(Obj(Iobj), Args.backgroundArgs{:});
+                end
+                
+                if Sub
+                    Result(Iobj).Image = Result(Iobj).(Args.ImageProp) - Result(Iobj).(Args.BackProp);
+                    Result(Iobj).ImageData.IsBackSubtracted = true;
+                end
+            
+            end
+            
         end
         
     end
@@ -2088,6 +2287,99 @@ classdef AstroImage < Component
                 varargout{Iic} = CellIC{Iic}.funUnaryScalar(Operator, 'OpArgs',Args.OpArgs, 'CCDSEC',Args.CCDSEC, 'DataPropIn',Args.DataPropIn);
             end
         end
+
+        function varargout = funUnaryScalarWithMask(Obj, Operator, Args)
+            % Apply a scalar-output function on pixels in AstrooImage selected by their Mask values.
+            % % Input  : - An AstroImage object (multi elements supported)
+            %          - Operator (a function handle, e.g., @mean).
+            %          * ...,key,val,...
+            %            'OpArgs' - A cell array of additional arguments to
+            %                   pass to the operator. Default is {}.
+            %            'CCDSEC' - CCDSEC on which to operate:
+            %                   [Xmin, Xmax, Ymin, Ymax].
+            %                   Use [] for the entire image.
+            %                   If not [], then DataPropIn/Out will be
+            %                   modified to 'Image'.
+            %            'BitNames' - A cell array of bit mask names. The
+            %                   operator will be applied only on pixels
+            %                   that their bit mask is on (or off).
+            %                   For example {'Saturated'} will select
+            %                   saturated pixels.
+            %                   Default is {}.
+            %            'UseNot' - If true, then select pixels specified
+            %                   by BitNames that are on. If false, then
+            %                   select off pixels. Default is false.
+            %            'Method' - 'all'|'any'. When selecting pixels
+            %                   using multiple bit names, use all pixels or
+            %                   any pixels. Default is 'all'.
+            %
+            %            'DataProp' - A cell array of AstroImage data
+            %                   properties on which the operator will operated.
+            %                   Default is
+            %                   {'ImageData','BackData','VarData','MaskData'}.
+            %            'DataPropIn' - Data property in the ImageComponent
+            %                   on which the operator
+            %                   will be operated. Default is 'Data'.
+            % Output : - An array in which each element corresponds to the operator applied
+            %            to an DataProp in the AstroImage object.
+            %            If operator returns empty, then this function will
+            %            return NaN.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: % mean of saturated pixels
+            %          AI.funUnaryScalarWithMask(@mean,{'Saturated'}) 
+            %          % mean of non-saturated pixels
+            %          AI.funUnaryScalarWithMask(@mean,{'Saturated'},'UseNot',true)
+            %          % mean of pixels that are non saturated and non HighRN
+            %          AI.funUnaryScalarWithMask(@mean,{'Saturated', 'HighRN'},'UseNot',true)
+
+            arguments
+                Obj
+                Operator function_handle
+                Args.OpArgs cell                = {};
+                Args.CCDSEC                     = [];
+                Args.BitNames cell              = {};
+                Args.UseNot logical             = false;
+                Args.Method                     = 'all';
+                Args.DataProp                   = {'ImageData','BackData','VarData','MaskData'};
+                Args.DataPropIn                 = 'Data';
+            end
+
+            Ndp  = numel(Args.DataProp);
+            if nargout>Ndp
+                error('Requested %d output for %d DataProp',Nout,Ndp);
+            end
+            
+
+            Nobj = numel(Obj);
+            for Iout=1:1:nargout
+                varargout{Iout} = nan(size(Obj));
+            end
+            for Iobj=1:1:Nobj
+                if isempty(Args.BitNames)
+                    for Idp=1:1:nargout
+                        varargout{Idp}(Iobj) = Operator(Obj(Iobj).(Args.DataProp{Idp}).(Args.DataPropIn), Args.OpArgs{:});
+                    end
+                else
+                    Flag = findBit(Obj(Iobj).MaskData, Args.BitNames, 'Method',Args.Method, 'OutType','mat');
+                    for Idp=1:1:nargout
+                        if isempty(Obj(Iobj).(Args.DataProp{Idp}).(Args.DataPropIn))
+                            varargout{Idp}(Iobj) = Operator(Obj(Iobj).(Args.DataProp{Idp}).(Args.DataPropIn), Args.OpArgs{:});
+                        else
+                            if Args.UseNot
+                                varargout{Idp}(Iobj) = Operator(Obj(Iobj).(Args.DataProp{Idp}).(Args.DataPropIn)(~Flag), Args.OpArgs{:});
+                            else
+                                varargout{Idp}(Iobj) = Operator(Obj(Iobj).(Args.DataProp{Idp}).(Args.DataPropIn)(Flag), Args.OpArgs{:});
+                            end
+                        end
+                    end
+
+
+
+                end
+
+
+            end
+        end
                 
         function Result = funBinaryProp(Obj1, Obj2, Operator, Args)
             % Apply binary function on a single property of AstroImage
@@ -2384,6 +2676,9 @@ classdef AstroImage < Component
             %            'CalcMask' - A logical that state if to apply the
             %                   operator to the MaskData property.
             %                   Default is true.
+            %            'CalcExp' - A logical that state if to apply the
+            %                   operator to the ExpData property.
+            %                   Default is true.
             %            'CalcPSF' - A logical that state if to apply the
             %                   operator to the PSF property.
             %                   Default is true.
@@ -2441,6 +2736,7 @@ classdef AstroImage < Component
                 Args.CalcBack(1,1) logical     = true;
                 Args.CalcVar(1,1) logical      = true;
                 Args.CalcMask(1,1) logical     = true;
+                Args.CalcExp(1,1) logical      = true;
                 Args.CalcPSF(1,1) logical      = false;
                 Args.PropagateErr              = [];
                 Args.DeleteCat(1,1) logical    = false;
@@ -2524,6 +2820,17 @@ classdef AstroImage < Component
                                                                  'UseOrForMask',Args.UseOrForMask,...
                                                                  'Result',Result);
             end
+            if Args.CalcExp
+                Result = funBinaryProp(Obj1, Obj2, Operator, 'OpArgs',Args.OpArgs,...
+                                                                 'DataProp','ExpData',...
+                                                                 'DataPropIn',Args.DataPropIn,...
+                                                                 'CCDSEC',Args.CCDSEC,...
+                                                                 'CCDSEC1',Args.CCDSEC1,...
+                                                                 'CCDSEC2',Args.CCDSEC2,...
+                                                                 'CreateNewObj',Args.CreateNewObj,...
+                                                                 'UseOrForMask',Args.UseOrForMask,...
+                                                                 'Result',Result);
+            end
             if Args.CalcMask
                 Result = funBinaryProp(Obj1, Obj2, Operator, 'OpArgs',Args.OpArgs,...
                                                                  'DataProp','MaskData',...
@@ -2535,7 +2842,9 @@ classdef AstroImage < Component
                                                                  'UseOrForMask',Args.UseOrForMask,...
                                                                  'Result',Result);
             end
-                
+            
+            
+            
             if Args.CalcPSF
                 error('PSF funBinary is not implemented yet');
             end
@@ -3119,6 +3428,66 @@ classdef AstroImage < Component
         end
     end
        
+    methods % utilities
+        function DataProp = depandentProp2DataProp(Obj, Prop)
+            % Depandent property to data property containing the ImageComponent object.
+            %   Given a dependent data property (e.g., 'Image') convert to
+            %   property name containing the ImageComponent object (e.g., 'ImageData').
+            % Input  : - An AstroImage object.
+            %          - Dependent property (e.g., 'Image','Back','Exp')
+            % Output : - The property name containing the data corresponding 
+            %            to the dependent property
+            %            (e.g., 'ImageData','BackData','ExpData').
+            % Author : Eran Ofek (May 2023)
+            % Example: AI.depandentProp2DataProp('Exp')
+            
+            arguments
+                Obj(1,1)
+                Prop char
+            end
+            
+            FN = fieldnames(Obj.Relations);            
+            Flag = strcmp(FN, Prop);
+            DataProp = Obj.Relations.(FN{Flag});
+            
+        end
+        
+        function Obj=setAutoScale(Obj, Args)
+            % Set the Scale of the Back/Var/Mask/Exp images such that the image size will be equal to the Image data.
+            % Input  : - An AstroImage object.
+            %          * ...,key,val,...
+            % Output : - Update the AstroImage object such that the Scale
+            %            property in the ImageComponent objects is set such
+            %            that the returned image sizes will be equal to the
+            %            Image size.
+            % Author : Eran Ofek (May 2023)
+
+            arguments
+                Obj
+                Args.ImageProp = {'Back','Var','Mask','Exp'};
+            end
+
+            Nprop = numel(Args.ImageProp);
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                SizeImage = Obj(Iobj).sizeImage('Image');
+                for Iprop=1:1:Nprop
+                    SizeProp = Obj(Iobj).sizeImage(Args.ImageProp{Iprop});
+                    Scale    = SizeImage./SizeProp;
+                    
+                    DataProp = Obj(Iobj).depandentProp2DataProp(Args.ImageProp{Iprop});
+                    %FN = fieldnames(Obj.Relations);
+                    %Ind = strcmp(FN, Args.ImageProp{Iprop});
+                    %DataProp = Obj.Relations.(FN{Ind});
+
+                    Obj(Iobj).(DataProp).Scale = Scale;
+                end
+            end
+
+        end
+    end
+
     %----------------------------------------------------------------------
     methods (Access = protected)
         function NewObj = copyElement(Obj)

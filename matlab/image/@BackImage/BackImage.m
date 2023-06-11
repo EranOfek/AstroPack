@@ -31,6 +31,9 @@ classdef BackImage < ImageComponent
             % (ImageComponent) constructor
             
             Obj@ImageComponent(varargin{:});
+            for Iobj=1:1:numel(Obj)
+                Obj(Iobj).DataType = AstroDataType.Back;
+            end
         end
 
     end

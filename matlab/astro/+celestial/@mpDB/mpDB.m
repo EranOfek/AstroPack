@@ -687,7 +687,7 @@ classdef mpDB < handle
                 
                 %EphemCatalog = celestial.mpDB.createEphemCatalog('Save',[]);
                 % load EphemCatalog
-                load EphemCatalog.mat;
+                io.files.load1('EphemCatalog.mat');
                 
             else
                 EphemCatalog = InPar.EphemCatalog;

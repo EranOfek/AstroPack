@@ -126,7 +126,7 @@ classdef FileProcessor < Component
                             
                         % Process single file
                         FileName = fullfile(List(i).folder, FName);
-                        Obj.msgLog(LogLevel.Verbose, FileName);
+                        Obj.msgLog(LogLevel.Verbose, 'process: %s', FileName);
                         
                         % This calls the derived function processFileImpl()
                         try
@@ -138,17 +138,23 @@ classdef FileProcessor < Component
                         % Move file to 'processed' folder
                         try
                             if ~isempty(Obj.ProcessedPath)
-                                ProcessedFileName = fullfile(Obj.ProcessedPath, FName);                        
-                                Obj.msgLog(LogLevel.Debug, 'Moving input file to processed folder: %s', ProcessedFileName);                            
-                                movefile(FileName, ProcessedFileName, 'f');                           
+                                if isfile(FileName)
+                                    ProcessedFileName = fullfile(Obj.ProcessedPath, FName);
+                                    Obj.msgLog(LogLevel.Debug, 'Moving input file to processed folder: %s', ProcessedFileName);                            
+                                    movefile(FileName, ProcessedFileName, 'f');                           
+                                end
                             else
                                 % Delete or rename to '~'...
                                 if Obj.DeleteProcessed
-                                    Obj.msgLog(LogLevel.Debug, 'Deleting procesed input file: %s', FileName);                            
-                                    delete(FileName);
+                                    if isfile(FileName)
+                                        Obj.msgLog(LogLevel.Debug, 'Deleting procesed input file: %s', FileName);                                                                    
+                                        delete(FileName);
+                                    end
                                 else
-                                    ProcessedFileName = fullfile(Obj.ProcessedPath, '~', FName);                        
-                                    movefile(FileName, ProcessedFileName, 'f');
+                                    ProcessedFileName = fullfile(Obj.ProcessedPath, '~', FName);
+                                    if isfile(FileName)
+                                        movefile(FileName, ProcessedFileName, 'f');
+                                    end
                                 end
                             end
                         catch

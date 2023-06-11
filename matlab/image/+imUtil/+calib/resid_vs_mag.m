@@ -34,7 +34,7 @@ function [Flag,Res]=resid_vs_mag(Mag, Resid, Args)
 %                   data. Default is 3.
 %            'Plot' - A logical flag indicating if to plot the residuals
 %                   vs. mag. Default is false.
-% Output : - a vector of logical flags (one per mag/resid) indicating if
+% Output : - A vector of logical flags (one per mag/resid) indicating if
 %            the source residual is smaller than the threshold (true; good
 %            source) or above the threshold (false; outlier).
 %          - A structure with the following fields:
@@ -87,7 +87,7 @@ switch lower(Args.BinMethod)
     case 'bin'
         % binning of resid vs. mag
 
-        B = timeseries.binningFast([Mag, Resid], Args.BinSize, Args.MagRange, {'MidBin',Args.FunMean,Args.FunStd,@numel});
+        B = timeSeries.bin.binningFast([Mag, Resid], Args.BinSize, Args.MagRange, {'MidBin',Args.FunMean,Args.FunStd,@numel});
         % interpolate B over missing points
         Res.InterpMeanResid = interp1(B(:,1), B(:,2), Mag, Args.InterpMethod,'extrap');
         Res.InterpStdResid  = interp1(B(:,1), B(:,3), Mag, Args.InterpMethod,'extrap');

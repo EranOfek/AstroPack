@@ -2,8 +2,10 @@ function K=line(Par,SizeXY,PosXY)
 % create a matrix or a cube of 2D normalized corcular shape in each image 
 % Package: +imUtil.kernel2
 % Input  : - (Par) A three or four column matrix of
-%            [Length, Width, Angle, Gap] of line. Ifthree columns are given
+%            [Length, Width, Angle, Gap, [sigma]] of line. If three columns are given
 %            then Gap is set to zero.
+%            sigma is an optional parameter. If given, then the output will
+%            be convolved with a Gaussian with this width.
 %            Length is the line length (odd number).
 %            Width is the line width.
 %            Angle is the angle in degrees as measured from the X-axis
@@ -70,8 +72,13 @@ for I=1:1:Ntemp
 
     Tmp = imrotate(Tmp,Angle(I),'nearest','crop');
     Tmp(MatR<Gap(I)) = 0;
+        
+    if size(Par,2)>4
+        % convolve with Gaussian
+        KG  = imUtil.kernel2.gauss(Par(I,5), SizeXY);
+        Tmp = conv2(Tmp, KG, 'same');
+    end
     
     K(:,:,I) =  Tmp./sum(Tmp,'all');
-    
 end
 

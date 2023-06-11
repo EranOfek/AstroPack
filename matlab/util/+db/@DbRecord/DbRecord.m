@@ -63,8 +63,9 @@ classdef DbRecord < Base
             % Example : MyRec = db.DbRecord(Mat, 'FieldA,FieldB');
             %           MyRec = db.DbRecord('csvfile.csv');
             arguments
-                Data = [];           % Input data
-                Args.ColNames = [];  % Required when Data is Cell or Matrix
+                Data = [];              % Input data
+                Args.ColNames = [];     % Required when Data is Cell or Matrix
+                Args.Lowercase = true;  %
             end
             
             if ischar(Args.ColNames)
@@ -76,7 +77,7 @@ classdef DbRecord < Base
                 
                 % Load from CSV file
                 if ischar(Data)
-                    Obj.Data = table2struct(readtable(Data));
+                    Obj.Data = table2struct(io.files.readtable1(Data));
                     
                 % Load from memory data
                 elseif isstruct(Data)
@@ -109,8 +110,17 @@ classdef DbRecord < Base
                         Stru = struct;
                         for Row=1:Rows
                             Key = Data{Row, 1};
-                            Value = Data{Row, 2};
-                            Stru.(Key) = Value;
+                            Value = Data{Row, 2};                            
+                            
+                            % Convert key to lowercase and replace invalid chars with '_'
+                            if ischar(Key)
+                                if Args.Lowercase
+                                    Key = lower(Key);
+                                end
+                                
+                                Key = replace(Key, '-', '_');                                                        
+                                Stru.(Key) = Value;
+                            end
                         end
                         Obj.Data = Stru;
                     else
@@ -345,7 +355,7 @@ classdef DbRecord < Base
             % Output  : - true on success, data will be loaded to Obj.Data
             % Author  : Chen Tishler (2021)
             % Example : Rec.readCsv('/tmp/data1.csv')
-            Table = readtable(FileName);
+            Table = io.files.readtable1(FileName);
             Obj.Data = table2struct(Table);
             Result = true;
         end

@@ -1,5 +1,22 @@
 % Class for time-tagged events table/images
 %
+% Examples:
+%      % get data:
+%      VO.Chandra.wget_obsid(366)
+%      P=PhotonsList('acisf00366N006_evt2.fits');
+%      or:
+%      P=PhotonsList.readPhotonsList1('acisf00366N006_evt2.fits');
+%      P.populateBadTimes
+%      [a,b] = P.nphotons
+%      P.selectEnergy([200 8000]);
+%      [a,b] = P.nphotons
+%      % populate the image field, X/Y correspinds to image [default is sky coo]
+%      P.constructImage; 
+%      % Add RA/Dec to catalog
+%      P.addSkyCoo
+
+
+%
 % #functions (autogen)
 % TimeTagImage - what to read?
 % coo2pix -
@@ -12,18 +29,31 @@
 %
 
 classdef PhotonsList < Component
+    properties (Dependent)
+        Header
+        Time
+        Energy
+        
+        SkyXY
+        TDetXY
+        DetXY
+        ChipXY
+        
+    end
     
     properties
         
         Events(1,1) AstroCatalog
         BadTimes(:,2)                     = zeros(0,2);
-        Image
-        X
-        Y
+        
         HeaderData(1,1) AstroHeader                      % maybe redundent if part of AstroImage
         Back BackImage
         Mask MaskImage
         WCS(1,1) AstroWCS
+        
+        Image                             = [];
+        X
+        Y
         
         %FlagGood(:,1) logical             = true(0,1);
         %FlagEnergy(:,1) logical           = true(0,1);
@@ -43,11 +73,33 @@ classdef PhotonsList < Component
     end
     
     methods % constructor
-        function Obj = PhotonsList(varargin)
-            % what to read?
+        function Obj = PhotonsList(List)
+            % PhotonsList constructor
+            % Input  : - If empty, return a single enpty PhotonsList
+            %            object.
+            %            If a char array or a cell of char arrays, then
+            %            will read each photon events file into a
+            %            PhotonsList object.
+            % Output : - A PhotonsList object.
+            % Author : Eran Ofek (Apr 2023)
             
-            Obj.Image       = ImageComponent;
-            Obj.Events      = AstroCatalog;
+            arguments
+                List   = [];
+            end
+            
+            if isempty(List)
+                Iobj = 1;
+                Obj(Iobj).Image  = [];
+            else
+                if ~iscell(List)
+                    List = {List};
+                end
+                
+                Nlist = numel(List);
+                for Iobj=1:1:Nlist
+                    Obj(Iobj) = PhotonsList.readPhotonsList1(List{Iobj});
+                end
+            end
             
         end
         
@@ -65,6 +117,53 @@ classdef PhotonsList < Component
             Result = Obj.Image;
         end
         
+        function Result = get.Header(Obj)
+            % Getter for Header
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Result = Obj(Iobj).HeaderData.Data;
+            end
+        end
+        
+        function Result = get.Time(Obj)
+            % Getter for Time column
+            
+            Result = getCol(Obj, Obj.ColTime);
+        end
+        
+        function Result = get.Energy(Obj)
+            % Getter for Energy column
+            
+            Result = getCol(Obj, Obj.ColEnergy);
+        end
+        
+        function XY = get.SkyXY(Obj)
+            % Getter for sky [X,Y] columns
+            
+            XY = getCol(Obj, Obj.ColSky);
+           
+        end
+        
+        function XY = get.TDetXY(Obj)
+            % Getter for TDet [X,Y] columns
+            
+            XY = getCol(Obj, Obj.ColTDet);
+           
+        end
+        
+        function XY = get.DetXY(Obj)
+            % Getter for Det [X,Y] columns
+            
+            XY = getCol(Obj, Obj.ColDet);
+           
+        end
+        
+        function XY = get.ChipXY(Obj)
+            % Getter for Chip [X,Y] columns
+            
+            XY = getCol(Obj, Obj.ColChip);
+        end
         
     end
     
@@ -94,6 +193,9 @@ classdef PhotonsList < Component
             % Input  : - A FITS file name to read.
             %          * ...,key,val,...
             %            'HDU' - HDU number in the FITS image.
+            %            'HeaderHDU' - Header HDU. Default is 1.
+            %            'ReadBadTimes' - Read bad times from file.
+            %                   Default is true.
             % Output : - A PhotonsList object.
             % Author : Eran Ofek (Feb 2022)
             % Obj = PhotonsList.readPhotonsList1('/data/euler/eran/work/Chandra/ao21/cat2/22335/acisf22335_repro_evt2.fits');
@@ -110,22 +212,37 @@ classdef PhotonsList < Component
             %ImIO = ImageIO(File, 'HDU',Args.HDU, 'IsTable',true , 'readTableArgs',{'OutTable','astrocatalog'});
             
             %[Out, HeaderT] = FITS.readTable1(File,'HDUnum',Args.HDU, 'OutTable','AstroCatalog');
-            [Out, HeaderT] = FITS.readTable1(File,'HDUnum',Args.HDU, 'OutTable','AstroCatalog', 'BreakRepCol',false);
+            [Out, HeaderT] = FITS.readTable1(File,'HDUnum',Args.HDU, 'OutTable','AstroCatalog', 'BreakRepCol',true, 'TableType','bintable');
+            
+            if Args.ReadBadTimes
+                % Chandra HDU 3 [Start, End] times
+                % Chandra HDU 4 [Start, End] good times
+                Obj.BadTimes = zeros(0,2);
+            end
+            
+            % read header
+            [HeadCell] = FITS.readHeader1(File, Args.HeaderHDU);
+            Obj.HeaderData.Data = HeadCell;
+            Obj.Events = Out;
             
             % get WCS from HeaderT
             
             % BUG HERE!!!
             %Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT);
             
-            % Swift-XRT
-            Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT, 'Num1',2,'Num2',3);
             
-            % read header
-            [HeadCell] = FITS.readHeader1(File, Args.HeaderHDU);
-            
-            Obj.HeaderData.Data = HeadCell;
-            Obj.Events = Out;
-            
+            Telescope = Obj.HeaderData.getVal('TELESCOP');
+            switch lower(Telescope)
+                case 'chandra'
+                    % Chandra
+                    Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT, 'Num1',11,'Num2',12);
+                case 'XRT'
+                    % Swift-XRT
+                    Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT, 'Num1',2,'Num2',3);
+                otherwise
+                    error('Unknown X-ray telescope');
+            end
+                        
         end
         
     end
@@ -176,6 +293,32 @@ classdef PhotonsList < Component
     
     
     methods % good times and selections
+        function [Result,ResultGood] = nphotons(Obj)
+            % count photons in image, including photons in good images
+            % Input  : - A PhotonsList object
+            % Output : - Total number of photons in each PhotonsList
+            %            element.
+            %          - Number of photons in good times in each PhotonsList
+            %            element.
+            % Author : Eran Ofek (Apr 2023)
+            
+           
+            Result = zeros(size(Obj));
+            Nobj   = numel(Obj);
+            for Iobj=1:1:Nobj
+                Result(Iobj) = sizeCatalog(Obj(Iobj).Events);
+            end
+            
+            if nargout>1
+                ResultGood = zeros(size(Obj));
+                for Iobj=1:1:Nobj
+                    [~,Flag]=Obj(Iobj).removeBadTimes('RemoveBadTimes',false);
+                    ResultGood(Iobj) = sum(~Flag.Flag);
+                end
+            end
+            
+        end
+        
         function [Obj] = populateBadTimes(Obj, Args)
             % Identify bad times and populate the bad times property.
             % Input  : - A PhotonsList object.
@@ -698,6 +841,10 @@ classdef PhotonsList < Component
             %          * ...,key,val,...
             %            'CooUnits' - Units of added coordinates.
             %                   Default is 'deg'.
+            %            'ColRA' - RA column name in the events table.
+            %                   Default is 'RA'.
+            %            'ColDec' - Dec column name in the events table.
+            %                   Default is 'Dec'.
             % Output : - A PhotonsList object with the added RA/Dec.
             % Author : Eran Ofek (Feb 2022)
             % Example: P=PhotonsList.readPhotonsList1('acisf21421N002_evt2.fits');
@@ -706,6 +853,8 @@ classdef PhotonsList < Component
             arguments
                 Obj
                 Args.CooUnits      = 'deg';
+                Args.ColRA         = 'RA';
+                Args.ColDec        = 'Dec';
             end
             
             Nobj = numel(Obj);
@@ -714,11 +863,8 @@ classdef PhotonsList < Component
                 [RA, Dec] = xy2sky(Obj(Iobj), XY(:,1), XY(:,2), 'OutUnits',Args.CooUnits);
                
                 % insert/replace columns
-                Obj(Iobj) = insertCol(Obj(Iobj).Events,...
-                                      [RA, Dec], Inf, {'RA','Dec'}, {Args.CooUnits, Args.CooUnits});
-%                 Obj(Iobj).Events.Catalog  = [Obj(Iobj).Events.Catalog, RA, Dec];
-%                 Obj(Iobj).Events.ColNames = [Obj(Iobj).Events.ColNames(:).', 'RA', 'Dec'];
-%                 Obj(Iobj).Events.ColUnits = [Obj(Iobj).Events.ColUnits(:).', Args.CooUnits, Args.CooUnits];
+                Obj(Iobj).Events = replaceCol(Obj(Iobj).Events, [RA, Dec], {Args.ColRA, Args.ColDec}, Inf, {Args.CooUnits, Args.CooUnits});
+        
             end
         end
     end

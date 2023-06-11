@@ -11,5 +11,5 @@ mkdir %ASTROPACK_DATA_PATH%
 mkdir %ASTROPACK_CONFIG_PATH%
 mkdir %ULTRASAT_PACK%
 
-soc_app_snr.exe
+soc_snr_matlab.exe
 

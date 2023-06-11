@@ -63,7 +63,7 @@ function Result = unitTest()
         % save AstrometricCat_PTF_Cropped.mat AstrometricCat
     else
         % GAIA catalog is not available locally
-        load AstrometricCat_PTF_Cropped.mat   % from some reason CooType = 'deg'?!
+        io.files.load1('AstrometricCat_PTF_Cropped.mat');   % from some reason CooType = 'deg'?!
         
         Tran = Tran2D('poly3');
         Tran.symPoly;

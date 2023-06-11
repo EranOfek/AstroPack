@@ -46,6 +46,8 @@ classdef AstroPSF < Component
         ArgVals cell      = {};
         ArgNames cell     = {'X','Y','Color','Flux'};
         StampSize         = [];
+        
+        Nstars            = NaN;  % If Nstars=NaN, then PSF wasn't constructed yet.
     end
     
     methods % Constructor
@@ -129,7 +131,7 @@ classdef AstroPSF < Component
                         % matrix format
                         Obj.(FieldName) = File;
                     end
-
+                    Obj.DataType = AstroDataType.PSF;
                 end % end if isempty...
             end % end for Ifield
             
@@ -188,6 +190,84 @@ classdef AstroPSF < Component
                 Result(Iobj) = isempty(Obj(Iobj).Data);
             end
         end
+    end
+    
+    methods % fitting
+        function [Result,FitRes] = fitFunPSF(Obj, Args)
+            % Fit a composite function to a PSF stamp and replace it.
+            %   The fitted function is any combination of imUtil.kernel2 like
+            %   functions. The function center is not fitted, and the free
+            %   parameters are the normalization of each function, followed by the
+            %   function parameters.
+            % Input  : - A PSF stamp.
+            %          * ...,key,val,...
+            %            'getPSFArgs' - A cell array of arguments to pass
+            %                   to the AStroPSF/getPSF method.
+            %                   Default is {}.
+            %            'Funs' - A cell array of functions to fit.
+            %                   Each function in the cell is of the form:
+            %                   PSF = Fun(Pars, SizeXY, PosXY), where PosXY=[]
+            %                   return the stamp center.
+            %                   Default is {@imUtil.kernel2.gauss}
+            %            'Par0' - A cell array of initial (guess) parameters for
+            %                   each one of the functions in 'Funs'.
+            %                   Default is {[2 2 0]}.
+            %            'Norm0' - A vector of normalizations, one per each function in
+            %                   'Funs'. Default is [1].
+            %            'PosXY' - The position of the functions center.
+            %                   If empty, use stamp center.
+            %                   Default is [].
+            %            'LB' - Lower bound for all free parameters in the order:
+            %                   [NormFun1, ParsFun1, NormFun2, ParsFun2,...]
+            %                   Default is [].
+            %            'UB' - Like 'LB', but for the upper bounds.
+            %                   Default is [].
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the input object.
+            %                   Default is false.
+            % Output : - An AstroPSF object in which the PSFData was
+            %            replaced with a fitted version of the PSF stamp.
+            %          - A structure with the following fields:
+            %            .Par - Best fitted parameters.
+            %            .ResNorm - RMS of best fit.
+            %            .Resid - Observed - Calculated residuals (note that lsqcurve
+            %               returns the calc-obs).
+            %            .ExitFlag - Exit flag of lsqcurvefit
+            %            .Output - Additional output of lsqcurvefit
+            %            .J - Jacobian.
+            % Author : Eran Ofek (Jun 2023)
+    
+            arguments
+                Obj
+                Args.getPSFArgs = {};
+                Args.Funs      = {@imUtil.kernel2.gauss};
+                Args.Par0      = {[2 2 0]};
+                Args.Norm0     = [1];
+                Args.PosXY     = [];
+                Args.LB        = [];
+                Args.UB        = [];
+                Args.CreateNewObj logical = false;
+            end
+       
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                P = Obj(Iobj).getPSF(Args.getPSFArgs{:});
+                
+                [FitRes(Iobj), Result(Iobj).PSFData] = imUtil.psf.fitFunPSF(P, 'Funs',Args.Funs,...
+                                            'Par0',Args.Par0,...
+                                            'Norm0',Args.Norm0,...
+                                            'PosXY',Args.PosXY,...
+                                            'LB',Args.LB,...
+                                            'UB',Args.UB);
+            end
+        end
+        
     end
     
     methods % generating PSF
@@ -443,10 +523,131 @@ classdef AstroPSF < Component
             
         end
         
+        function Result = padShift(Obj, NewSizeIJ, Args)
+            % Pad a PSF with zeros and shift its center
+            %   This function uses: imUtil.psf.padShift
+            % Input  : - self.
+            %          - The [I, J] size of the the required output zero
+            %            padded PSF.
+            %          * ...,key,val,...
+            %            'fftshift' - One of the following options:
+            %                   'fftshift' - apply fftshift to the result
+            %                   'ifftshift' - apply ifftshift to the result.
+            %                   'none' - Returned centered PSF.
+            %                   Default is 'none'.
+            %            'OutType' - The output class:
+            %                   'AstroPSF' - Return an updated AstroPSF
+            %                       object.
+            %                   'cube' - Return a cube of PSFs in which the
+            %                       3rd index corresponds to the PSF index
+            %                       (i.e., element in input AstroPSF).
+            %                   Default is 'AstroPSF'.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the input object.
+            %                   Default is true.
+            % Output : - An updated AstroPSF object.
+            % Example: R=AI.PSFData.padShift([100,100]);
+            %          % full example:
+            %          P=AstroPSF(imUtil.kernel2.gauss);
+            %          R = P.padShift([30 30]);
+            %          imUtil.image.moment2(R.Data,15 ,15)
+
+            arguments
+                Obj
+                NewSizeIJ
+                Args.fftshift    = 'none';
+                Args.OutType     = 'AstroPSF';
+                Args.CreateNewObj logical = true;
+            end
+
+            switch lower(Args.OutType)
+                case 'astropsf'
+                    if Args.CreateNewObj
+                        Result = Obj.copy;
+                    else
+                        Result = Obj;
+                    end
+                case 'cube'
+                    Result = zeros([NewSizeIJ, numel(Obj)]);
+                otherwise
+                    error('Unknown OutType option');
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                switch lower(Args.OutType)
+                    case 'astropsf'
+                        Result(Iobj).Data = imUtil.psf.padShift(Obj(Iobj).getPSF, NewSizeIJ, 'fftshift',Args.fftshift);
+                    case 'cube'
+                        Result(:,:,Iobj) = imUtil.psf.padShift(Obj(Iobj).getPSF, NewSizeIJ, 'fftshift',Args.fftshift);
+                end
+            end
+        end
+
+        function Result = full2stamp(Obj, Args)
+            % Given a PSF contained in a full-size image, generate a stamp of the PSF.
+            % Input  : - An AstroPSF object containing a full-size image matrix or cube of PSFs. If a cube, then
+            %            the image index must be in the 3rd dimension.
+            %          * ...,key,val,...
+            %            'StampHalfSize' - Output stamp half size in [X,Y].
+            %                   Default is [7 7] (i.e., stamp will be 15 by 15).
+            %            'IsCorner' - A logical indicating if the PSF is in the
+            %                   image corner (true) or center (false) in the input
+            %                   full-size image.
+            %                   Default is true.
+            %            'Recenter' - Recenter the PSF using 1st moment estimation.
+            %                   Default is false (NOT AVAILABLE).
+            %            'zeroConv' - A logical indicating if to call the imUtil.psf.psf_zeroConverge
+            %                   in order to smooth the edges of the PSF.
+            %                   Default is true.
+            %            'zeroConvArgs' - A cell array of arguments to pass to
+            %                   imUtil.psf.psf_zeroConverge
+            %                   Default is {}.
+            %            'Norm' - Normalize the PSF stamp by this value.
+            %                   If true, then will normalize the PSF by its sum
+            %                   (such that integral will be 1).
+            %                   Default is true.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the input object.
+            %                   Default is false.
+            % Output : - An AstroPSF object with the updated PSF.
+            %            A PSF (centered) in a stamp.
+            % Author : Eran Ofek (Jun 2023)
+            % Example: 
+
+            arguments
+                Obj
+                Args.StampHalfSize        = [7 7];   % [X, Y]
+                Args.IsCorner logical     = true;
+                Args.Recenter logical     = false;
+                Args.zeroConv logical     = true;
+                Args.zeroConvArgs cell    = {};
+                Args.Norm                 = true;
+                Args.CreateNewObj logical = false;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Result(Iobj).Data = imUtil.psf.full2stamp(Obj(Iobj).Data, 'StampHalfSize',Args.StampHalfSize,...
+                                                                         'IsCorner',Args.IsCorner,...
+                                                                         'Recenter',Args.Recenter,...
+                                                                         'zeroConv',Args.zeroConv,...
+                                                                         'zeroConvArgs',Args.zeroConvArgs,...
+                                                                         'Norm',Args.Norm);
+            end
+            
+        end
+        
         function Result = funUnary(Obj, OperatorOperatorArgs, OutType, DataProp, DataPropOut)
             %
            
-            Nobj = numel(Obj)
+            Nobj = numel(Obj);
             
             
         end

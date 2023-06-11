@@ -1360,7 +1360,7 @@ classdef catsHTM
             
             if (nargout>1)
                 File = sprintf('%s_htmColCell.mat',CatName);
-                load(File);
+                io.files.load1(File);
             end
             
         end
@@ -1376,7 +1376,7 @@ classdef catsHTM
             % Reliable: 2
             
             File = sprintf('%s_htmColCell.mat',CatName);
-            load(File);
+            io.files.load1(File);
             
             if (nargout>2)
                 Col = cell2struct(num2cell(1:1:numel(ColCell)),ColCell,2)
@@ -1740,7 +1740,7 @@ classdef catsHTM
             
             Args.ColCellFile = sprintf(Args.ColCellFile,CatName);
 
-            load(Args.ColCellFile);
+            io.files.load1(Args.ColCellFile);
             Ncol  = numel(ColCell);
 
             % number of additional constraints

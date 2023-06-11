@@ -23,8 +23,8 @@ function [Result, CroppedAI, Summary] = astrometryCropped(Image, Args)
         Args.CropType             = 'center';
         Args.SameField logical    = false;
         
-        Args.RA                           = 40; %'RA';
-        Args.Dec                          = 89.3; %'DEC';
+        Args.RA                           = 'RA';
+        Args.Dec                          = 'DEC';
         Args.CooUnits                     = 'deg';
         Args.CatName                      = 'GAIADR3';  % or AstroCatalog
         Args.CatRadius                    = 3600.*2.5;
@@ -65,7 +65,7 @@ function [Result, CroppedAI, Summary] = astrometryCropped(Image, Args)
     
     % create an AstroImage array with the images
     AI = AstroImage(Image);
-    
+    AI.cast('single');
     
     % astrometryCore arguments:
     FunArgs = {'RA',Args.RA,...

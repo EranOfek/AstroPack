@@ -22,8 +22,8 @@ function [List,IsDir,FileName]=r_files_url(URL,varargin)
 %--------------------------------------------------------------------------
 
 [ListU,IsDirU,FileNameU] = www.find_urls(URL,varargin{:});
-Ilink1     = Util.cell.isempty_cell(regexp(FileNameU,'\?C=','match'));
-Ilink2     = ~Util.cell.isempty_cell(regexp(ListU,'\.','match'));
+Ilink1     = tools.cell.isempty_cell(regexp(FileNameU,'\?C=','match'));
+Ilink2     = ~tools.cell.isempty_cell(regexp(ListU,'\.','match'));
 Ilink      = find(Ilink1 & Ilink2 & IsDirU);
 Ifile      = find(Ilink1 & Ilink2 & ~IsDirU);
 

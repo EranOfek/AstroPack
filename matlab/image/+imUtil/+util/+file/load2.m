@@ -14,7 +14,13 @@ function Var=load2(MatFile,varargin)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-
+% Executed only in deployed (compiled) app
+if isdeployed
+	if ~isfile(MatFile)
+		MatFile = fileMapFind(MatFile);
+	end
+end
+	
 Tmp = load(MatFile,varargin{:});
 if (isstruct(Tmp))
    FN  = fieldnames(Tmp);

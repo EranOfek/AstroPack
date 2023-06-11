@@ -1,5 +1,5 @@
 function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, SigmaR, Args)
-    % Proper image subtraction between two images (D, Pd, S, S_corr).
+    % OBSOLOTE - Proper image subtraction between two images (D, Pd, S, S_corr).
     %       Given a new (N) and reference (R) images, along with their
     %       respective PSFs (Pn and Pr), and background noise (SigmaN,
     %       SigmaR), and flux normalizations (Fn, Fr), apply the proper
@@ -58,6 +58,15 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
     %                   If true, use M*conj(M).
     %                   If false, use abs(M).
     %                   Default is false.
+    %            
+    %            'AnalyticNorm' - Normalize S analitically. Default is true.
+    %            'EmpiricalNorm' - Normalize S and Scorr empirically by
+    %                   subtracting the mean and dividing by the std.
+    %                   Default is false.
+    %            'MeanFun' - Mean function for 'EmpiricalNorm'.
+    %                   Default is @tools.math.stat.nanmedian
+    %            'StdFun' - Std function for 'EmpiricalNorm'.
+    %                   Default is @tools.math.stat.rstd
     % Output : - (D_hat) Proper subtraction difference image in real space.
     %            In Fourier domain if OutIsFFT=true.
     %          - (Pd_hat) The PSF of D.
@@ -100,6 +109,8 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
 
     end
     
+    error('need to be modified')
+    
     Fr = Args.Fr;
     Fn = Args.Fn;
     
@@ -133,7 +144,7 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         Pr_hat = fftshift(Pr_hat);
     end
     
-    [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(R_hat, N_hat, Pr_hat, Pn_hat, SigmaR, SigmaN, Fr, Fn, 'AbsFun',AbsFun, 'Eps',Args.Eps);
+    [D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = imUtil.properSub.subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, 'AbsFun',AbsFun, 'Eps',Args.Eps);
     
     % denominator of D
 %     D_den     = (SigmaN.^2 .* Fr.^2) .* AbsFun(Pr_hat).^2 + (SigmaR.^2 .*Fn.^2) .* AbsFun(Pn_hat).^2 + Args.Eps;
@@ -164,7 +175,7 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         % apply source noise 
         if ApplySourceNoise
             % ZOGY Equations 26-29
-            [Kr_hat, Kn_hat, V_Sr, V_Sn, Vcorr] = imUtil.properSub.sourceNoise(Fr, Fn, Pr_hat, Pn_hat, D_den, VN, VR, AbsFun);
+            [Kr_hat, Kn_hat, V_Sr, V_Sn, Vcorr] = imUtil.properSub.sourceNoise(Fr, Fn, Pr_hat, Pn_hat, D_den, Args.VN, Args.VR, AbsFun);
             
 %             Kr_hat    = Fr.*Fn.^2.*conj(Pr_hat).*AbsFun(Pn_hat).^2./D_den;
 %             Kn_hat    = Fn.*Fr.^2.*conj(Pn_hat).*AbsFun(Pr_hat).^2./D_den;
@@ -178,10 +189,12 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         % apply astrometric noise
 
         if ApplyAstNoise
-            Sn        = Kn_hat.*N_hat;
-            Sr        = Kr_hat.*R_hat;
+            [Kr_hat, Kn_hat] = imUtil.properSub.sourceNoise(Fr, Fn, Pr_hat, Pn_hat, D_den, Args.VN, Args.VR, AbsFun); % need to change later
+            Sn        = ifft2(Kn_hat.*N_hat);
+            Sr        = ifft2(Kr_hat.*R_hat);
             [GradNx, GradNy] = gradient(Sn);
             [GradRx, GradRy] = gradient(Sr);
+
             Vast_Sn   = Args.SigmaAstN(1).^2 .* GradNx.^2 + Args.SigmaAstN(2).^2 .* GradNy.^2;
             Vast_Sr   = Args.SigmaAstR(1).^2 .* GradRx.^2 + Args.SigmaAstR(2).^2 .* GradRy.^2;
             
@@ -192,10 +205,12 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
     
         if ApplySourceNoise || ApplyAstNoise
             % denominator of S_corr
-            Vcorr     = sqrt(Vcorr);
+            %Vcorr     = sqrt(Vcorr);
 
             S         = ifft2(S_hat);
-            Scorr     = S./Vcorr;
+            Scorr     = S./sqrt(Vcorr);
+
+            %Scorr = S./sqrt(Vcorr./median(Vcorr,'all','omitnan'));
         else
             Scorr     = [];
         end
@@ -209,13 +224,20 @@ function [D_hat, Pd_hat, S_hat, Scorr] = subtraction(N, R, Pn, Pr, SigmaN, Sigma
         S_hat  = ifft2(S_hat);
         % Scorr is already in real space
 
-        if Args.AnalyticNorm
-            S_hat = S_hat/(sqrt(sum(abs(Pd_hat(:)).^2))*Fd);
-        end
+        if Args.AnalyticNorm && ~Args.EmpiricalNorm
+            Norm = (sqrt(sum(abs(Pd_hat(:)).^2))*Fd);
+            S_hat = S_hat/Norm;
+%             Scorr = Scorr/Norm;
+        
 
-        if Args.EmpiricalNorm
+        elseif Args.EmpiricalNorm
             S_hat = S_hat - Args.MeanFun(S_hat,'all');
-            S_hat = S_hat./Args.StdFun(S_hat,'all');
+            Norm = Args.StdFun(S_hat,'all');
+            S_hat = S_hat./Norm;
+
+            Scorr = Scorr - Args.MeanFun(Scorr,'all');
+            Norm = Args.StdFun(Scorr,'all');
+            Scorr = Scorr./Norm;
         end
     else
         % convert Scorr to fft

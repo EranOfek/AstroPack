@@ -321,6 +321,19 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         % FFU: flags Holes
         % imProc.mask.maskHoles
 
+        % Estimate PSF
+        if Args.AddPSF
+            [SI] = imProc.psf.constructPSF(SI, Args.constructPSFArgs{:});
+            % add PSF FWHM to header
+            imProc.psf.fwhm(SI);
+
+            if Args.PsfPhot
+                % PSF photometry
+                [SI, ResPSF] = imProc.sources.psfFitPhot(SI, 'CreateNewObj',false);                                   
+            end
+
+        end
+
         
         % Astrometry, including update coordinates in catalog
         if Args.DoAstrometry
@@ -343,9 +356,20 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                                                                 'SearchRadius',Args.RefineSearchRadius,...
                                                                                                 'IncludeDistortions',true,...
                                                                                                 'CreateNewObj',false);
-
-                % FFU - treatment in case of a failure
-
+               
+                % % treatment in case of a failure
+                % This is a vector and doesnt work:
+                % if ~Result.AstrometricFit.WCS.Success
+                %     % astrometric refinement failed - try solve field
+                %     [Result.AstrometricFit, SI, AstrometricCat] = imProc.astrometry.astrometrySubImages(SI, Args.astrometrySubImagesArgs{:},...
+                %                                                                                 'EpochOut',JD,...
+                %                                                                                 'Scale',Args.Scale,...
+                %                                                                                 'CatName',Args.CatName,...
+                %                                                                                 'CooOffset',Args.CooOffset,...
+                %                                                                                 'CCDSEC', InfoCCDSEC.EdgesCCDSEC,...
+                %                                                                                 'Tran',Args.Tran,...
+                %                                                                                 'CreateNewObj',false);
+                % end
             end
 
             % plot for LAST pipeline paper
@@ -388,18 +412,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
 
         end
 
-        % Estimate PSF
-        if Args.AddPSF
-            [SI] = imProc.psf.constructPSF(SI, Args.constructPSFArgs{:});
-            % add PSF FWHM to header
-            imProc.psf.fwhm(SI);
-            
-            if Args.PsfPhot
-                % PSF photometry
-                [SI, ResPSF] = imProc.sources.psfFitPhot(SI, 'CreateNewObj',false);                                   
-            end
-            
-        end
+        
         
         % delete properties
         SI.deleteProp(Args.DeletePropAfterSrcFinding);

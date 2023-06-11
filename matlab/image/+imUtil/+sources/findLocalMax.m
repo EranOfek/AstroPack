@@ -84,16 +84,22 @@ function [Pos, BW, MaxIsn] = findLocalMax(Image, Args)
         case 'findlocalmex'
             if isa(SN,'double')
                 if nargout>1
-                    [IndLocalMax, Y, X, BW] = imUtil.sources.findLocalMaxAboveThreshold_mex_double(SN, Args.Threshold, Args.Conn);
+                    [IndLocalMax, Y, X, BW] = imUtil.sources.mex.mex_findLocalMaxAboveThreshold_double(SN, Args.Threshold, Args.Conn);
                 else
-                    [IndLocalMax, Y, X] = imUtil.sources.findLocalMaxAboveThreshold_mex_double(SN, Args.Threshold, Args.Conn);
+                    [IndLocalMax, Y, X] = imUtil.sources.mex.mex_findLocalMaxAboveThreshold_double(SN, Args.Threshold, Args.Conn);
                 end  
+                X = double(X);
+                Y = double(Y);
+                IndLocalMax = double(IndLocalMax);
             elseif isa(SN,'single')
                 if nargout>1
-                    [IndLocalMax, Y, X, BW] = imUtil.sources.findLocalMaxAboveThreshold_mex_single(SN, Args.Threshold, Args.Conn);
+                    [IndLocalMax, Y, X, BW] = imUtil.sources.mex.mex_findLocalMaxAboveThreshold_single(SN, Args.Threshold, Args.Conn);
                 else
-                    [IndLocalMax, Y, X] = imUtil.sources.findLocalMaxAboveThreshold_mex_single(SN, Args.Threshold, Args.Conn);
+                    [IndLocalMax, Y, X] = imUtil.sources.mex.mex_findLocalMaxAboveThreshold_single(SN, Args.Threshold, Args.Conn);
                 end  
+                X = double(X);
+                Y = double(Y);
+                IndLocalMax = double(IndLocalMax);
             else
                 error('findlocalmex supports only double or single input');
             end

@@ -37,6 +37,8 @@ classdef BitDictionary < Component
             % Input  : Dictionary file name to load.
             %          Default is 'BitMask.Image.Default'
             % Example: BD=BitDictionary('BitMask.Image.Default')
+            %          BD=BitDictionary('BitMask.MergedCat.Default')
+            % Author : Eran Ofek (May 2021)
             
             arguments
                 DictionaryName char    = 'BitMask.Image.Default';
@@ -57,7 +59,9 @@ classdef BitDictionary < Component
                     Obj.Dic.(Obj.ColBitDescription){Ifn} = St.(FN{Ifn}){2};
                     Obj.Dic.(Obj.ColBitInd)(Ifn)         = St.(FN{Ifn}){1};
                 end
-                Obj.Nbit  = ceil(Nfn./8).*8;
+                
+                Options  = [8 16 32 64];
+                Obj.Nbit = Options(find(ceil(Nfn./Options)==1,1,'first'));
                 switch Obj.Nbit
                     case 8
                         Obj.Class = @uint8;
@@ -231,6 +235,7 @@ classdef BitDictionary < Component
             
             % Note: de2bi() requires installation of Communications Toolbox
             % Consider rewriting this function for better performance
+            % Use int2bit instead
             Flag = logical(de2bi(DecVal,Obj.Nbit)); % dec 2 bin and cast as logicals
             for Ibit=1:1:Nbitval
                 BitName{Ibit}        = Obj.Dic.(Obj.ColBitName)(Flag(Ibit,:));

@@ -59,7 +59,7 @@ function Result = unitTest
     AC2.Catalog  = randPos;
     searchRad_rad =0.2;
     AC2.ColNames = {'RA','Dec'}; AC2.ColUnits = {'rad','rad'};
-    [MC,UM,TUM] = imProc.match.match(AC,AC2,'Radius',searchRad_rad,'RadiusUnits','rad');
+    [MC,UM,TUM] = imProc.match.matchOld(AC,AC2,'Radius',searchRad_rad,'RadiusUnits','rad');
     assert(sum(MC.getCol('Nmatch')) == sum(D(:)<=searchRad_rad),' imProc.match.match - number of matched sources do not agrees with distances');
     
     % match against catsHTM
@@ -84,8 +84,8 @@ function Result = unitTest
     AC2.Catalog = randPos ;
     AC2.ColNames = {'RA','Dec'}; AC2.ColUnits = {'rad','rad'};
     AC2.getCooType;
-    [MC,UM,TUM] = imProc.match.match(AC,AC2,'Radius',0.01,'RadiusUnits','rad');
-    [MC,UM,TUM] = imProc.match.match([AC;AC2; AC; AC2],AC2,'Radius',0.01,'RadiusUnits','rad');
+    [MC,UM,TUM] = imProc.match.matchOld(AC,AC2,'Radius',0.01,'RadiusUnits','rad');
+    [MC,UM,TUM] = imProc.match.matchOld([AC;AC2; AC; AC2],AC2,'Radius',0.01,'RadiusUnits','rad');
 
     [Res, Summary, N_Ep] = imProc.match.matched2matrix(MC, 'RA');
     

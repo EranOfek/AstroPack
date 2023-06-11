@@ -48,7 +48,8 @@ function Table = getXRT_LC(Name, Args)
     unzip(Id);
     cd(Id);
     
-    Table = readtable('flux_plain.dat','Delimiter','\t','NumHeaderLines',9);
+	% @Deploy	
+    Table = io.files.readtable1('flux_plain.dat','Delimiter','\t','NumHeaderLines',9);
     
     if ~Args.SaveDir
         % delete dir

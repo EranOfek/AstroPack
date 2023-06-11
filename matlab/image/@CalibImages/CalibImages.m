@@ -609,6 +609,45 @@ classdef CalibImages < Component
                 
         end
         
+        function [Result,Flag]=exist(Obj, Type, Prop)
+            % Check if Bias/Dark/Flat/... image is populated in a CalibImages object
+            % Input  : - A CalibImages object.
+            %          - Type: 'Bias', 'Dark', 'Flat'. Default is 'Bias'.
+            %          - Properties to check. Default is {'Image','Mask'}.
+            % Output : - A logical indicating if images of all properties
+            %            are non empty.
+            %          - A vector of logical indicating if each one of the
+            %            properties is non empty.
+            % Author : Eran Ofek (Apr 2023)
+            % Example: CI.exist('Dark')
+
+            arguments
+                Obj
+                Type  = 'Bias';
+                Prop  = {'Image','Mask'};
+            end
+
+
+            if ischar(Prop)
+                Prop = {Prop};
+            end
+            Nprop = numel(Prop);
+
+            Flag = false(Nprop,1);
+            if isempty(Obj.(Type))
+                %Result = false;
+            else
+                for Iprop=1:1:Nprop
+                    [Ny, Nx] = sizeImage(Obj.(Type), Prop{Iprop});
+                    if Ny>0 && Nx>0
+                        Flag(Iprop) = true;
+                    end
+                end
+            end
+
+            Result = all(Flag);
+
+        end
     end
     
     methods % calibration functions
@@ -632,6 +671,10 @@ classdef CalibImages < Component
             %            'image2subimagesArgs' - A cell array of additional
             %                   arguments to pass to imProc.image.image2subimages
             %                   function. Default is {}.
+            %            'Convert2single' - A logical indicating if to
+            %                   convert the image to single precsion before
+            %                   processing (needed if images are stored in
+            %                   e.g., uint16). Default is false.
             % Output : - A CalibImages object with the Bias field
             %            populated. This is an handle to the original input
             %            object.
@@ -646,6 +689,7 @@ classdef CalibImages < Component
                 Args.BiasArgs cell            = {};
                 Args.BlockSize                = [];  % empty - do not generate sub images
                 Args.image2subimagesArgs cell = {};
+                Args.Convert2single logical   = false;
             end
             
             if isa(ImObj,'AstroImage')
@@ -664,6 +708,9 @@ classdef CalibImages < Component
             
             % for each sub image
             
+            if Args.Convert2single
+                ImObj.cast('single');
+            end
             [BiasImage, ~, ~] = imProc.dark.bias(ImObj, Args.BiasArgs{:});
             
             if isempty(Args.BlockSize)
@@ -801,6 +848,10 @@ classdef CalibImages < Component
             %            'flatArgs' - A cell array of additional
             %                   arguments to pass to imProc.flat.flat.
             %                   Default is {}.
+            %            'Convert2single' - A logical indicating if to
+            %                   convert the image to single precsion before
+            %                   processing (needed if images are stored in
+            %                   e.g., uint16). Default is false.
             % Output : - A CalibImages object in which the new flat is
             %            populated.
             % Author : Eran Ofek (Oct 2021)
@@ -815,6 +866,7 @@ classdef CalibImages < Component
                 Args.getStructKeyArgs cell        = {};
                 Args.isFlatArgs cell              = {};
                 Args.flatArgs cell                = {};
+                Args.Convert2single logical       = false;
             end
             
             if isa(ImObj,'AstroImage')
@@ -827,6 +879,10 @@ classdef CalibImages < Component
                 ImObj = AstroImage(List);
             end
             
+
+            if Args.Convert2single
+                ImObj.cast('single');
+            end
             % identify all possible filters
             ImFilt        = getStructKey(ImObj, Args.FilterKey, Args.getStructKeyArgs{:});
             FilterList    = {ImFilt.FILTER};
@@ -1250,7 +1306,9 @@ classdef CalibImages < Component
             [Nobj, Nim] = Obj.checkObjImageSize(Image);
                   
             % populate calibration images in a different function
-                        
+                  
+            Result.createMask;
+            
             for Iim=1:1:Nobj
                 % FFU: Iobj = min(Iim, Nobj);
                 

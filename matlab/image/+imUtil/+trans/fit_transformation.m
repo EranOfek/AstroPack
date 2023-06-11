@@ -72,7 +72,7 @@ while Iter<InPar.Niter
 
         ResidTotal = sqrt(Res.Resid{1}.^2 + Res.Resid{2}.^2);
 
-        B = timeseries.binning([InPar.Mag, ResidTotal] ,InPar.MagBin,InPar.MagRange,{'MidBin',@median,@Util.stat.rstd,@numel});
+        B = timeSeries.bin.binning([InPar.Mag, ResidTotal] ,InPar.MagBin,InPar.MagRange,{'MidBin',@median,@Util.stat.rstd,@numel});
 
         Flag = B(:,4) >= InPar.MinNinBin;
         if (sum(Flag)>=InPar.MinNbin)

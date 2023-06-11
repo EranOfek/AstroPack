@@ -14,8 +14,11 @@ function [Cat]=jpl_horizons(varargin)
 %                   Default is 2451545.5
 %            'GeodCoo' - If empty use Geocentric observer.
 %                   Otherwise provide [Lon, Lat, Height] in [deg deg km].
+%                   Example (LAST): [35.0407331, 30.0529838 0.4154]
+%                   Alternatively can provide a string containing the
+%                   observatory code (only if appears in
+%                   celestial.earth.observatoryCoo).
 %                   Default is [].
-%            'DateFormat' - Default is 'JD'.
 %            'StepSize' - Default is 1.
 %            'StepSizeUnits' - Step size units. Default is 'd'.
 %            See code for additional arguments
@@ -25,6 +28,8 @@ function [Cat]=jpl_horizons(varargin)
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Exaurlmple: [Cat]=celestial.SolarSys.jpl_horizons;
 %          [Cat]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',celestial.time.julday([14 6 2018]),'StopJD',  celestial.time.julday([20 6 2018]));
+%          for LAST:
+%          [Cat]=celestial.SolarSys.jpl_horizons('ObjectInd','1999 AB12','StartJD',celestial.time.julday([14 6 2018]),'StopJD',  celestial.time.julday([20 6 2018]), 'GeodCoo', [35.0407331, 30.0529838 0.4154]);
 % Reliable: 2
 %--------------------------------------------------------------------------
 
@@ -37,21 +42,26 @@ DefV.ObjectInd           = '499;';   % semicolumn tells horizon its a small body
 DefV.StartJD             = 2451545.5;
 DefV.StopJD              = 2451555.5;
 DefV.GeodCoo             = [];  % [Lon, Lat, Height] % [deg deg km]
-DefV.DateFormat          = 'JD';
 DefV.StepSize            = 1;
 DefV.StepSizeUnits       = 'd';
 DefV.OutputColumns       = '1,9,10,13,19,20,23,24';  % https://ssd.jpl.nasa.gov/horizons.cgi?s_tset=1#top
 DefV.OutCoo              = 'rad';
 DefV.CENTER              = '500'; %'@sun'; %code for observer location. Earth -  '500', GAIA - '500@-139479', '675' - Palomar
 DefV.WebOptions          = weboptions;
+DefV.TimeOut             = 10;   % [s]
 InPar = InArg.populate_keyval(DefV,varargin,mfilename);
 
-if numel(InPar.StartJD)>3
+if any(size(InPar.StartJD,2)==[3 4 6])
     InPar.StartJD = celestial.time.julday(InPar.StartJD);
 end
 
-if numel(InPar.StopJD)>3
+if any(size(InPar.StopJD,2)==[3 4 6])
     InPar.StopJD = celestial.time.julday(InPar.StopJD);
+end
+
+if ischar(InPar.GeodCoo)
+    [ObsCoo]=celestial.earth.observatoryCoo('ObsCode',InPar.GeodCoo);
+    InPar.GeodCoo = [ObsCoo.Lon, ObsCoo.Lat, ObsCoo.Height./1000];
 end
 
 BaseURL = 'https://ssd.jpl.nasa.gov/horizons_batch.cgi?';
@@ -69,7 +79,16 @@ Str(I).value   = 1;
 
 I = I + 1;
 Str(I).command = 'COMMAND';
-Str(I).value   = InPar.ObjectInd;
+
+% Temporal designation in the format of 2000 AB123 should appear with a
+% space bar in between (i.e. 2000 AB123 and not 2000AB123). This condition
+% fix the wrong format
+if (length(InPar.ObjectInd)>5 && ~isempty(str2num(InPar.ObjectInd(1:4))) && ~strcmp(InPar.ObjectInd(5),' ') && isempty(str2num(InPar.ObjectInd(5))))
+   Str(I).value   = [InPar.ObjectInd(1:4),' ',InPar.ObjectInd(5:end)];
+else
+   Str(I).value   = InPar.ObjectInd;
+end
+
 
 if ~isempty(InPar.GeodCoo)
     I = I + 1;
@@ -101,12 +120,12 @@ Str(I).value   = 'OBSERVER';
 
 I = I + 1;
 Str(I).command = 'START_TIME';
-Str(I).value   = convert.time(InPar.StartJD,InPar.DateFormat,'StrDateO');
+Str(I).value   = convert.time(InPar.StartJD,'JD','StrDateO');
 Str(I).value   = Str(I).value{1};
 
 I = I + 1;
 Str(I).command = 'STOP_TIME';
-Str(I).value   = convert.time(InPar.StopJD,InPar.DateFormat,'StrDateO');
+Str(I).value   = convert.time(InPar.StopJD,'JD','StrDateO');
 Str(I).value   = Str(I).value{1};
 
 I = I + 1;
@@ -145,6 +164,7 @@ end
 
     
 UrlCommand = sprintf('%s%s',BaseURL,AllCommand);
+InPar.WebOptions.Timeout = InPar.TimeOut;
 Data = webread(UrlCommand,InPar.WebOptions);
 
 % read header
@@ -194,12 +214,12 @@ for Icol=1:1:Ncol
         case {'R.A._(ICRF/J2000.0)','R.A._(ICRF)','R.A._____(ICRF)'}
             C{Icol} = celestial.coo.convertdms(C{Icol},'SHb',OutCooUnits);
             ColCell{Icol}  = 'RA';
-            ColUnits{Icol} = 'OutCooUNits';
+            ColUnits{Icol} = InPar.OutCoo;
         
         case {'DEC_(ICRF/J2000.0)','DEC__(ICRF)' , 'DEC______(ICRF)'}
             C{Icol} = celestial.coo.convertdms(C{Icol},'SDb',OutCooUnits);
             ColCell{Icol}  = 'Dec';
-            ColUnits{Icol} = 'OutCooUNits';
+            ColUnits{Icol} = InPar.OutCoo;
         case 'APmag'
             C{Icol} = str2double(C{Icol});
             ColCell{Icol} = 'APmag';

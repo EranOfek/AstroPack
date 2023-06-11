@@ -233,7 +233,7 @@ function Result = unitTest()
     disp(sprintf('Max distance for Tran2D (TPV) (xy2sky<->sky2xy) is %.1f [mili-pix]',max(d_pix)*1000));            
 
     % Construct AstroWCS from Tran2D after real fit
-    load('Result.mat');
+    io.files.load1('Result.mat');
     NAXIS = 2;             CTYPE(1,:) = {'RA---TPV' 'DEC--TPV'}; CUNIT(1,:) = {'deg' 'deg'};
     CD = Result.ParWCS(1).CD;
     CRPIX =  Result.ParWCS(1).CRPIX;
@@ -249,7 +249,7 @@ function Result = unitTest()
 
     if have_ds9
         ds9(AI);
-        load('AstrometricCat_PTF_Cropped.mat');
+        io.files.load1('AstrometricCat_PTF_Cropped.mat');
         [PX,PY]  = AW.sky2xy(AstrometricCat.Catalog(:,1),AstrometricCat.Catalog(:,2),'InUnits','rad');
         ds9.plot([PX,PY]);
     end

@@ -124,7 +124,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
         Args.FitPM logical           = true;
         Args.fitMotionArgs cell      = {'Prob',1e-5};
         
-        Args.MatchedColums           = {'RA','Dec','X1','Y1','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','MAG_APER_2','MAGERR_APER_2','MAG_APER_3','MAGERR_APER_3','FLUX_APER_3','FLAGS','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};
+        Args.MatchedColums           = {'RA','Dec','X1','Y1','SN_1','SN_2','SN_3','SN_4','MAG_PSF','MAGERR_PSF','PSF_CHI2DOF','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','MAG_APER_2','MAGERR_APER_2','MAG_APER_3','MAGERR_APER_3','FLUX_APER_3','FLAGS','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};
         
         Args.ColNameFlags            = 'FLAGS';
         Args.ColNamesStat            = {'RA','Dec','X1','Y1','MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};  % must be a subset of MatchedColums
@@ -155,7 +155,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     
     
     
-    for Ifields=1:1:Nfields
+   for Ifields=1:1:Nfields
         if FlagGood(Ifields)
             MatchedS(Ifields) = MatchedSources;
 
@@ -291,7 +291,9 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
                 ColUnits{Icol} = '';
             end
 
+
             MergedCat(Ifields).Catalog  = Cat;
+            MergedCat(Ifields).JD       = (min(MatchedS(Ifields).JD) + max(MatchedS(Ifields).JD)).*0.5;  % Set JD to mid time
             MergedCat(Ifields).ColNames = ColNames;
             MergedCat(Ifields).ColUnits = ColUnits;
             % MatchedS is not sorted
@@ -307,7 +309,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     
     if Args.MergedMatchMergedCat
         % match against external catalogs
-        MergedCat = imProc.match.match_catsHTMmerged(MergedCat, 'SameField',false, 'CreateNewObj',false, 'SwitchRefCat',true);
+        MergedCat = imProc.match.match_catsHTMmerged(MergedCat, 'SameField',false, 'CreateNewObj',false);
     end
     
     % DEBUG

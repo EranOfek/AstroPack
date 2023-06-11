@@ -48,13 +48,13 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
         Args.MinNumberCoreSolutions              = 1;
         %Args.assessAstrometricQualityArgs cell   = {};
 
-        Args.CatRadius                           = 3600;
+        Args.CatRadius                           = 3600; %2700; %2700; %3600;
         Args.RangeX                              = [-1000 1000].*2.5;
         Args.RangeY                              = [-1000 1000].*2.5;
         Args.StepX                               = 2;
         Args.StepY                               = 2;
         Args.Flip                                = [1 1;-1 -1];
-        Args.RefRangeMag                         = [12 18.0];
+        Args.RefRangeMag                         = [10 17.0];  % [12 18]
         Args.SearchRadius                        = 6;
         Args.FilterSigma                         = 3;
     end
@@ -244,7 +244,11 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
                                                                                                            Args.astrometryCoreArgs{:});
                 %
                 %ResultRefineFit(Iim).WCS.populateSuccess;
-                Sucess(Iim) = ResultRefineFit(Iim).WCS.Success;
+                if isempty(ResultRefineFit(Iim).WCS)
+                    Sucess(Iim) = false;
+                else
+                    Sucess(Iim) = ResultRefineFit(Iim).WCS.Success;
+                end
             end
                                                                                                       
             if ~UseRefine || ~Sucess(Iim)

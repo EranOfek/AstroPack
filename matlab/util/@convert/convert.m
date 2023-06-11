@@ -125,7 +125,7 @@ classdef convert
             m    = 1;                            % meter
             km   = 1000;                         % km
             mile = 1609;                         % mile
-            earth_rad = celestial.Earth.refellipsoid('WGS84');
+            earth_rad = celestial.earth.refellipsoid('WGS84');
             earth_rad = earth_rad(1);                      % Earth equatorial radius (WGS84)
             au   = constant.au('SI');      % au
             ly   = constant.ly('SI');      % light-year
@@ -355,7 +355,7 @@ classdef convert
         function Val = length(In, Out, Val)
             % Convert length units
             % Input  : - Input units:
-            %            'cm'|'m'|'mm'|'ang'|...
+            %            'cm'|'m'|'mm'|'ang'|'pc'|'kpc'|...
             %          - Output units (like input).
             %          - Input value. Default is 1.
             % Output : - Converted output value.
@@ -386,6 +386,10 @@ classdef convert
                     Val = Val.*constant.au;
                 case 'pc'
                     Val = Val.*constant.pc;
+                case 'kpc'
+                    Val = Val.*constant.pc.*1000;
+                case 'mpc'
+                    Val = Val.*constant.pc.*1e6;
                 case 'earthr'
                     Val = Val.*constant.EarthR;
                 case 'sunr'
@@ -422,6 +426,10 @@ classdef convert
                     Val = Val./constant.au;
                 case 'pc'
                     Val = Val./constant.pc;
+                case 'kpc'
+                    Val = Val./(constant.pc.*1000);
+                case 'mpc'
+                    Val = Val./(constant.pc.*1e6);
                 case 'earthr'
                     Val = Val./constant.EarthR;
                 case 'sunr'
@@ -1293,6 +1301,7 @@ classdef convert
                 Tmp = cell2mat(Tmp);
             end
             N  = numel(Tmp);
+            DateVec = [];
             for I=1:1:N
                 DateVec(I,1) = str2double(Tmp(I).Y);
                 DateVec(I,2) = str2double(Tmp(I).M);

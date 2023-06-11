@@ -53,7 +53,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         Args.CoaddLessFrac                    = 0.6; % if number of imagesx in pix is below this frac, than open the CoaddLessImages bit - empty - ignore
         Args.BitName_CoaddLess                = 'CoaddLessImages';
         
-        Args.RemoveHighBackImages logical     = true;   % remove images which background differ from median back by 'HighBackNsigma' sigma
+        %Args.RemoveHighBackImages logical     = true;   % remove images which background differ from median back by 'HighBackNsigma' sigma
         Args.HighBackNsigma                   = 3;
         
         Args.ColX                             = 'X1';   % used for shift estimate
@@ -66,6 +66,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
 
         Args.AddGlobalMotion logical          = true;
         Args.constructPSFArgs cell            = {};
+        Args.psfFitPhotArgs cell              = {};
         
         Args.Col2copy cell                    = {'Nobs'};  % cell array of columns to copy from MergedCat to Coadd
     end
@@ -146,7 +147,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
             FlagGoodWCS = imProc.astrometry.isSuccessWCS(AllSI(:,Ifields));
 
             % Remove Images with high background
-            if Args.RemoveHighBackImages
+            if ~isempty(Args.HighBackNsigma)
                 MedBack = imProc.stat.median(AllSI(:,Ifields));
                 FlagGoodBack = MedBack < (median(MedBack) + Args.HighBackNsigma.*tools.math.stat.rstd(MedBack));
 
@@ -158,7 +159,10 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
             % no need to transform WCS - as this will be dealt later on
             % 'ShiftXY',ShiftXY,...
             % 'RefWCS',AllSI(1,Ifields).WCS,...
-            RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), ShiftXY,...
+            % if sum(FlagGood)<20
+            %     'a'
+            % end
+            RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), ShiftXY(FlagGood,:),...
                                                      'TransWCS',false,...
                                                      'FillValues',0,...
                                                      'ReplaceNaN',true,...
@@ -173,7 +177,8 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
 
             [Coadd(Ifields), ResultCoadd(Ifields).CoaddN] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
                                                                                                  'Cube',PreAllocCube,...
-                                                                                                 'StackMethod',Args.StackMethod);
+                                                                                                 'StackMethod',Args.StackMethod,...
+                                                                                                 'StackArgs',{'MeanFun',@tools.math.stat.nanmean, 'Nsigma',[2 2]});
 
 
             % Background
@@ -204,7 +209,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
 
 
             % PSF photometry
-            [Coadd(Ifields), ResPSF] = imProc.sources.psfFitPhot(Coadd(Ifields), 'CreateNewObj',false);                                   
+            [Coadd(Ifields), ResPSF] = imProc.sources.psfFitPhot(Coadd(Ifields), 'CreateNewObj',false, 'ZP',Args.ZP, Args.psfFitPhotArgs{:});                  
 
             % astrometry    
             % Note that if available, will use the "X" & "Y" positions produced
@@ -269,7 +274,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     
     if Args.CoaddMatchMergedCat
         % match against external catalogs
-        Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false, 'SwitchRefCat',true);
+        Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false);
     end
     
     % match Coadd catalog against MergedCat

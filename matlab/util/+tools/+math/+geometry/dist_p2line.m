@@ -8,7 +8,7 @@ function [MinDist,IP]=dist_p2line(Line,P0)
 %            defined by y=ax+b;
 %            If 2x2 matrix [x1 x2; y1 y2] is given then the line is
 %            defined as going through the points (x1,y1) and (x2,y2).
-%          - Point position [xp,yp].
+%          - Points position [xp,yp].
 % Output : - Minimum distance between line and point.
 %          - The coordinates (x,y) of the nearest-point-on-the-line
 %            to the point [xp,yp].

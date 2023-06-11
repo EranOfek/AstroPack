@@ -12,7 +12,7 @@ function [Long,Lat]=interp_diff_longlat(Time,LongLat,NewT,Deg,Check)
 % License: GNU general public license version 3
 %     By : Eran O. Ofek                    Aug 2019
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [Long,Lat]=Util.interp.interp_diff_longlat(
+% Example: [Long,Lat]=tools..interp.interp_diff_longlat(Time,LongLat,NewT)
 % Reliable: 
 %--------------------------------------------------------------------------
 
@@ -39,9 +39,9 @@ else
     error('unknown number of columns in LongLat - should be either 2 or 3');
 end
 
-[CXN] = Util.interp.interp_diff(Time,CX,NewT,Deg,Check);
-[CYN] = Util.interp.interp_diff(Time,CY,NewT,Deg,Check);
-[CZN] = Util.interp.interp_diff(Time,CZ,NewT,Deg,Check);
+[CXN] = tools.interp.interp_diff(Time,CX,NewT,Deg,Check);
+[CYN] = tools.interp.interp_diff(Time,CY,NewT,Deg,Check);
+[CZN] = tools.interp.interp_diff(Time,CZ,NewT,Deg,Check);
 
 [Long,Lat] = celestial.coo.cosined2coo(CXN,CYN,CZN);
 

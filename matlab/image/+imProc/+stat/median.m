@@ -6,7 +6,7 @@ function [Out, varargout] = median(Obj, varargin)
     %       respectively.
     %       By default NaNs are omitted.
     % Input  : - An AstroImage object.
-    %          * Arbitrary arguments to pass to AstroImage/funUnaryScalar.
+    %          * Arbitrary arguments to pass to AstroImage/funUnaryScalarWithMask.
     % Output : * By default will return up to 4 output arguments for the
     %            median value of the Image, Back, Var and Mask.
     %            Each argument is an array which size equal to the size of
@@ -18,8 +18,10 @@ function [Out, varargout] = median(Obj, varargin)
     %          [a,b] = imProc.stat.median(AI)
     %          AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
     %          [a,b,c] = imProc.stat.median(AI)
+    %          median on non saturated pixels
+    %          [a,b]=imProc.stat.median(AI,'BitNames',{'Saturated'},'UseNot',true)
     
-    [Out, varargout{1:nargout-1}] = funUnaryScalar(Obj, @median, 'OpArgs',{'all','omitnan'}, varargin{:});
+    [Out, varargout{1:nargout-1}] = funUnaryScalarWithMask(Obj, @median, 'OpArgs',{'all','omitnan'}, varargin{:});
     
     
 end

@@ -130,8 +130,10 @@ classdef ImageComponent < Component
                 end
             end % end if isempty...
             
-            % @Chen: Automatically generate Uuid ??
-            Obj.needMapKey();
+            % Removed 24/04/2023 by @Chen - according to Eran it consumes
+            % too much time and is not used at the moment.
+            % Obj.needMapKey();
+            
         end % end ImageComponent
     end
     

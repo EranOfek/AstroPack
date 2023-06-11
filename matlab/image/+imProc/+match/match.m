@@ -1,241 +1,151 @@
-function [MatchedObj, UnMatchedObj, TruelyUnMatchedObj] = match(Obj1, Obj2, Args)
-    % Match two catalogs in AstroCatalog objects
-    %       This function returens: a matched source catalog, and an
-    %       unmatched source catalog.
-    %       The matched catalog result has the same number of
-    %       sources as in the Obj2 catalog, and for each Obj2 source,
-    %       the nearest source in Obj1 is listed. If there is no
-    %       source within the search radius, then the entire line
-    %       contains NaNs.
-    %       The sources in Obj1 that doesn't have counterparts in
-    %       Obj2 are listed in the unmatched catalog.
-    %       The angular distance and index of the source in Obj1 may be
-    %       added to the matched catalog.
-    %       Also return a catalog of TruelyUnMatchedObj.
-    %       This exclude not only the nearest source within the
-    %       search radius, but all the sources in Obj1 which have
-    %       counterparts within the search radius.
-    % Input  : - An AstroCatalog/AstroImage object.
-    %            If multiple elements then each element will be
-    %            matched against the corresponding element (or a
-    %            single element) in the second object. 
-    %            If this object is not sorted, then the object will be
-    %            sorted (and modified).
-    %          - A second AstroCatalog object - The function will
-    %            attempt to match every source in this catalog with
-    %            objects in the first input catalog.
-    %          * ..., key, val,..
-    %            'Radius'  - Search radius. Default is 5.
-    %            'RadiusUnits' - Search radius units (if spherical
-    %                   coordinates search). Default is 'arcsec'.
-    %            'AddIndInRef' - A logical indicating if to add a
-    %                   column to Obj1 that include the index of
-    %                   the source in the reference catalog (Obj2).
+function [Result1, ResInd, UnMatched1, UnMatched2]=match(Obj1, Obj2, Args)
+    % Match the content of two AstroCatalog objects.
+    %   
+    % Output : - (Obj1) The first input object. An AstroCatalog or an AstroImage 
+    %            containing AstroCatalog in the CatData property.
+    %          - (Obj2) The second input object. An AstroCatalog or an AstroImage 
+    %            containing AstroCatalog in the CatData property.
+    %            The number of elemts in Obj2 is or equal to the number of
+    %            elemsnts in Obj1. Each elemnt in Obj1 will be matched
+    %            against the corresponding element in Obj2.
+    %          * ...,key,val,...
+    %            'Radius' - Search radius for matching. Default is 5.
+    %            'RadiusUnits' - Default is 'arcsec'.
+    %                   If 'CooType'=pix then the search units are pixels.
+    %            'CooType' - 'sphere'|'pix'. Default is 'sphere'.
+    %            'CreateNewObj' - Create a new output object. If false,
+    %                   then will update Obj1.
     %                   Default is true.
-    %            'IndInRefColName' - The column name of the Index
-    %                   in reference. Default is 'IndInRef'.
-    %            'IndInRefColPos' - Position of the IndInRef column
-    %                   name to add to Obj1. Default is Inf (i.e.,
-    %                   last column).
-    %            'DeleteExistIndInRef' - A logical indicating if to
-    %                   delete existing IndRefColName, before
-    %                   inserting the new column.
-    %                   Default is true.
-    %            'AddDistCol' - Add column distance to outout
-    %                   catalog. Default is true.
-    %            'DistUnits' - Distance units. Default is 'arcsec'.
-    %            'DistColName' - Distance column name.
-    %                   Default is 'Dist'.
-    %            'DistColPos' - Position of Distance column in
-    %                   output catalog. Default is Inf (i.e., last
-    %                   column).
-    %            'CooType' - CooType (i.e., 'pix','sphere').
-    %                   If empty, will use what is available in the catalog
-    %                   with preference for 'sphere'. Default is empty.
+    %
     %            'ColCatX' - If CooType is not empty, this is the column
     %                   names/index from which to select the catalog X
     %                   coordinate. Default is [].
     %            'ColCatY' - Like 'ColCatX', but for the Y coordinate.
     %            'ColRefX' - Like 'ColCatX', but for te ref catalog.
     %            'ColRefY' - Like 'ColRefX', but for the Y coordinate.
-    % Output : - An AstroCatalog object of matched sources.
-    %            Numeber of sources equal to that of the number
-    %            of sources in the second object (Obj2).
-    %            Data is taken from Obj1.
-    %            Entire line is NaN if no source found.
-    %          - An AstroCatalog object of unmatched sources.
-    %            Include all the sources in the first object that
-    %            are not matched.
-    %          - An AstroCatalog object of truely unmatched
-    %            sources. 
-    %            Include all the sources in the first object that
-    %            are not found in the search radius.
-    % Author : Eran Ofek (Apr 2021)
-    % Example : AC = AstroCatalog;
-    %           AC.Catalog  = [1 0; 1 2; 1 1; 2 -1; 2 0; 2.01 0];
-    %           AC.ColNames = {'RA','Dec'}; AC.ColUnits = {'rad','rad'};
-    %           AC2 = AstroCatalog; AC2.Catalog  = [1 2; 1 1; 2.001 0; 3 -1; 3 0]
-    %           AC2.ColNames = {'RA','Dec'}; AC2.ColUnits = {'rad','rad'};
-    %           [MC,UM,TUM] = imProc.match.match(AC,AC2,'Radius',0.01,'RadiusUnits','rad')
+    % Output : - An AstroImage or AstroCatalog object with the sources
+    %            in Obj1 matched to Obj2
+    %            In each catalog the number of lines is equal to the number
+    %            of lines in the Obj2 catalog.
+    %          - A structure array containing the main output of the
+    %            imProc.match.matchReturnIndices function.
+    %          - An AstroCatalog object of sources in Obj1 that are not in
+    %            Obj2.
+    %          - An AstroCatalog object of sources in Obj2 that are not in
+    %            Obj1.
+    %
+    % Author : Eran Ofek (May 2023)
+    % Example: R=imProc.match.match(AI1, AI2)
 
     arguments
         Obj1
         Obj2
+
         Args.Radius                      = 5;
         Args.RadiusUnits                 = 'arcsec';
-        Args.AddIndInRef(1,1) logical    = true;
-        Args.IndInRefColName char        = 'IndInRef';
-        Args.IndInRefColPos              = Inf;
-        Args.DeleteExistIndInRef         = true;
-        Args.AddDistCol(1,1) logical     = true;
-        Args.DistUnits                   = 'arcsec';
-        Args.DistColName char            = 'Dist';
-        Args.DistColPos                  = Inf;
-        Args.AddNmatchCol(1,1) logical   = true;
-        Args.NmatchColPos                = Inf;
-        Args.NmatchColName char          = 'Nmatch';
-        
-        Args.CreateNewObj logical        = false;
-        
         % if given will override ColX/ColY
-        Args.CooType                     = '';  % pix' | 'sphere'
+        Args.CooType                     = 'sphere';   % MUST BE SPECIFIED: 'pix' | 'sphere'
+        Args.CreateNewObj(1,1) logical   = true; % for the sorted version of Obj1
+
         Args.ColCatX                     = [];
         Args.ColCatY                     = [];
         Args.ColRefX                     = [];
         Args.ColRefY                     = [];
         
-        
-    end    
-    
-    % convert AstroImage to AstroCatalog: Obj1
-    if isa(Obj1,'AstroImage')
-        Obj1 = astroImage2AstroCatalog(Obj1,'CreateNewObj',Args.CreateNewObj);
-    elseif isa(Obj1,'AstroCatalog')
-        % do nothing
-    elseif isnumeric(Obj1)
-        error('Input Obj1 is of unsupported class');
-    else
-        error('Input Obj1 is of unsupported class');
     end
 
-     % convert AstroImage to AstroCatalog: Obj2
-    if isa(Obj2,'AstroImage')
-        Obj2 = astroImage2AstroCatalog(Obj2,'CreateNewObj',Args.CreateNewObj);
-    elseif isa(Obj2,'AstroCatalog')
-        % do nothing
-    elseif isnumeric(Obj2)
-        error('Input Obj2 is of unsupported class');
+    if Args.CreateNewObj
+        Result1 = Obj1.copy;
     else
-        error('Input Obj2 is of unsupported class');
+        Result1 = Obj1;
     end
+
 
     Nobj1 = numel(Obj1);
     Nobj2 = numel(Obj2);
     Nmax  = max(Nobj1, Nobj2);
-    
-    % select CooType
-    if isempty(Args.CooType)
-        % attempt to select automatically
-        [~, ~, CommonCooType] = getCommonCooType(Obj1, Obj2);
-    else
-        [CommonCooType{1:Nmax}] = deal(Args.CooType);
+
+    if ~(Nobj1==1 || Nobj1==Nmax)
+        error('Number of elements in Obj1 must be 1 or equal to the number of elements in Obj2');
+    end
+    if ~(Nobj2==1 || Nobj2==Nmax)
+        error('Number of elements in Obj2 must be 1 or equal to the number of elements in Obj1');
     end
 
-    MatchedObj         = AstroCatalog([Nmax,1]);
-    UnMatchedObj       = AstroCatalog([Nmax,1]);
-    TruelyUnMatchedObj = AstroCatalog([Nmax,1]);
     for Imax=1:1:Nmax
         Iobj1 = min(Imax, Nobj1);
         Iobj2 = min(Imax, Nobj2);
 
-        if isempty(CommonCooType{Imax})
-            error('CooType is not consistent while matching: Iobj1=%d, Iobj2=%d',Iobj1,Iobj2);
+        if isa(Obj1, 'AstroImage')
+            Cat1 = Result1(Iobj1).CatData;
+        elseif isa(Obj1, 'AstroCatalog')
+            Cat1 = Result1(Iobj1);
+        else
+            error('Obj1 must be of AstroImage or AstroCatalog class');
         end
-        
-        % Match Obj1(Iobj1) against Obj2(Iobj2)
-        if ~Obj1(Iobj1).IsSorted
-            [~, ColY] = getColCooForCooType(Obj1(Iobj1), CommonCooType{Imax});
-            Obj1(Iobj1).sortrows(ColY);
+        if isa(Obj2, 'AstroImage')
+            Cat2 = Obj2(Iobj2).CatData;
+        elseif isa(Obj1, 'AstroCatalog')
+            Cat2 = Obj2(Iobj2);
+        else
+            error('Obj2 must be of AstroImage or AstroCatalog class');
         end
-       
-        switch lower(CommonCooType{Imax})
-            case 'sphere'
-                DistFun = @celestial.coo.sphere_dist_fast;
-                Coo1    = getLonLat(Obj1(Iobj1), 'rad');
-                Coo2    = getLonLat(Obj2(Iobj2), 'rad');
 
-                RadiusRad = convert.angular(Args.RadiusUnits, 'rad', Args.Radius);
-                ConvertDist = true;
+        %check that Cat1 is sorted
+        switch Args.CooType
             case 'pix'
-                DistFun = @tools.math.geometry.plane_dist;
-                Coo1    = getXY(Obj1(Iobj1));
-                Coo2    = getXY(Obj2(Iobj2));
-
-                RadiusRad = Args.Radius;
-                ConvertDist = false;
+                [ColInd, ~, ~] = Cat1.colnameDict2ind(AstroCatalog.DefNamesY);
+                Cat1.sortrows(ColInd);
+            case 'sphere'
+                [ColInd, ~, ~] = Cat1.colnameDict2ind(AstroCatalog.DefNamesDec);
+                Cat1.sortrows(ColInd);
             otherwise
                 error('Unknown CooType option');
-        end   
-        % match
-
-        [IndTable, CatFlagNearest, CatFlagAll, IndInRef] = VO.search.search_sortedlat_multiNearest(Coo1,...
-                                                    Coo2(:,1), Coo2(:,2), RadiusRad, DistFun);
-
-        % Columns of IndTable:
-        % 1. Index of nearest source, within search radius, in Cat;
-        % 2. Distance;
-        % 3. Total number of matches within radius.
-
-        % add a column to the Cat (Obj1) with the index of the
-        % source in the Ref (Obj2)
-        if Args.AddIndInRef
-            if isColumn(Obj1(Iobj1), Args.IndInRefColName) && Args.DeleteExistIndInRef
-                % the IndInRef column already exist
-                deleteCol(Obj1(Iobj1), Args.IndInRefColName);
-            end
-
-            insertCol(Obj1(Iobj1), IndInRef, Args.IndInRefColPos , Args.IndInRefColName, {''});
         end
 
-        if nargout>0
-            % select nearest from each Ind
-            %Result1(Imax).Catalog = Obj1(Iobj1).Catalog ...
-            FlagNN = ~isnan(IndTable(:,1));
-            [Nrow2,Ncol2]   = size(Obj2(Iobj2).Catalog);
-            [Nrow1,Ncol1]   = size(Obj1(Iobj1).Catalog);
-            MatchedObj(Imax).Catalog = nan(Nrow2,Ncol1);
-            MatchedObj(Imax).Catalog(FlagNN,:) = Obj1(Iobj1).Catalog(IndTable(FlagNN,1),:);
+        % Match Cat1 and Cat2
+        ResInd(Imax) = imProc.match.matchReturnIndices(Cat1,Cat2, 'Radius',Args.Radius,...
+                                                            'RadiusUnits',Args.RadiusUnits,...
+                                                            'CooType',Args.CooType,...
+                                                            'ColCatX',Args.ColCatX,...
+                                                            'ColCatY',Args.ColCatY,...
+                                                            'ColRefX',Args.ColRefX,...
+                                                            'ColRefY',Args.ColRefY,...
+                                                            'CreateNewObj',Args.CreateNewObj);
+        %
+        % Unmatched catalogs
+        % need to be done before the matching, otherwise Result1 may
+        % changed
+        if nargout>2
+            UnMatched1(Imax) = AstroCatalog;
+            FlagNaN = isnan(ResInd(Imax).Obj1_IndInObj2);
+            if isa(Obj1, 'AstroImage')
+                UnMatched1(Imax) = Obj1.CatData.selectRows(FlagNaN, 'CreateNewObj',true);
+            else
+                UnMatched1(Imax) = Obj1.selectRows(FlagNaN, 'CreateNewObj',true);
+            end
 
-            % copy the common properties from Obj2
-            Obj1(Iobj1).copyProp(MatchedObj(Imax), {'ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
-
-            % add Dist column:
-            if Args.AddDistCol
-                if ConvertDist
-                    Dist = convert.angular('rad', Args.DistUnits, IndTable(:,2));
-                    DistUnits = Args.DistUnits;
+            if nargout>3
+                
+                UnMatched2(Imax) = AstroCatalog;
+                FlagNaN = isnan(ResInd(Imax).Obj2_IndInObj1);
+                if isa(Obj2, 'AstroImage')
+                    UnMatched2(Imax) = Obj2.CatData.selectRows(FlagNaN, 'CreateNewObj',true);
                 else
-                    Dist = IndTable(:,2);
-                    DistUnits = '';
-                end
-                insertCol(MatchedObj(Imax), Dist, Args.DistColPos , Args.DistColName, {DistUnits});
-            end
-
-            if Args.AddNmatchCol
-                insertCol(MatchedObj(Imax), IndTable(:,3), Args.NmatchColPos , Args.NmatchColName, {''});
-            end
-
-            % UnMatchedObj
-            if nargout>1
-                UnMatchedObj(Imax).Catalog = Obj1(Iobj1).Catalog(~CatFlagNearest,:);
-                UnMatchedObj(Imax) = copyProp(Obj1(Iobj2), UnMatchedObj(Imax), {'ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
-
-                if nargout>2
-                    TruelyUnMatchedObj(Imax).Catalog = Obj1(Iobj1).Catalog(~CatFlagAll,:);
-                    TruelyUnMatchedObj(Imax) = copyProp(Obj1(Iobj2), TruelyUnMatchedObj(Imax), {'ColNames','ColUnits','ColDesc','SortByCol','IsSorted'});
+                    UnMatched2(Imax) = Obj2.selectRows(FlagNaN, 'CreateNewObj',true);
                 end
             end
         end
+
+
+        if isa(Result1, 'AstroImage')
+            Result1(Imax).CatData= Result1(Imax).CatData.selectRows(ResInd(Imax).Obj2_IndInObj1, 'IgnoreNaN',false, 'CreateNewObj',Args.CreateNewObj);
+        else
+            % Result1 is an AstroCatalog object
+            Result1(Imax) = Result1(Imax).selectRows(ResInd(Imax).Obj2_IndInObj1, 'IgnoreNaN',false, 'CreateNewObj',Args.CreateNewObj);
+        end
+
+        
     end
 
 end

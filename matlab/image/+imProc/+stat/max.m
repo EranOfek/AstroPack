@@ -7,7 +7,7 @@ function [Out, varargout] = max(Obj, varargin)
     %       By default NaNs are omitted. A NaN value indicate the image is
     %       empty.
     % Input  : - An AstroImage object.
-    %          * Arbitrary arguments to pass to AstroImage/funUnaryScalar.
+    %          * Arbitrary arguments to pass to AstroImage/funUnaryScalarWithMask.
     % Output : * By default will return up to 4 output arguments for the
     %            max value of the Image, Back, Var and Mask.
     %            Each argument is an array which size equal to the size of
@@ -19,7 +19,9 @@ function [Out, varargout] = max(Obj, varargin)
     %          [a,b] = imProc.stat.max(AI)
     %          AI = AstroImage({rand(10,10), rand(10,10)},'Back',{rand(10,10), rand(10,10)});
     %          [a,b,c,d] = imProc.stat.max(AI)
+    %          max on non saturated pixels
+    %          [a,b]=imProc.stat.max(AI,'BitNames',{'Saturated'},'UseNot',true)
     
-    [Out, varargout{1:nargout-1}] = funUnaryScalar(Obj, @max, 'OpArgs',{[],'all'}, varargin{:});
+    [Out, varargout{1:nargout-1}] = funUnaryScalarWithMask(Obj, @max, 'OpArgs',{[],'all'}, varargin{:});
     
 end

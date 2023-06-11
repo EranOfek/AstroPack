@@ -96,6 +96,8 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     end
             
     if isempty(Args.Norm)
+        size(XY)
+        Args.Norm
         error('Norm argument must be provided');
     end
     

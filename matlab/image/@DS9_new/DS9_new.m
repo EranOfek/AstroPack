@@ -25,7 +25,7 @@
 %
 
 
-classdef DS9 < handle
+classdef DS9_new < handle
     properties
         MethodXPA              = 'ds9';   % Index of current active ID - 
         Frame                  = [];
@@ -4045,7 +4045,8 @@ classdef DS9 < handle
                 case 'file'
                     Args.KeepFile = true;
                 otherwise
-                    Table = readtable(FileName, 'FileType','delimitedtext', 'Delimiter','\t'); 
+				
+                    Table = files.io.readtable1(FileName, 'FileType','delimitedtext', 'Delimiter','\t'); 
                     switch lower(Args.OutType)
                         case 'table'
                             Data = Table;

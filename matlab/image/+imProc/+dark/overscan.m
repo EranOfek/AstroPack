@@ -133,7 +133,8 @@ function [Result, OverScanAI] = overscan(ImObj, Args)
         % perform analysis on OverScanImage
         switch lower(Args.Method)
             case 'globalmedian'
-                OverScanLine = median(OverScanImage,'all','omitnan');
+                %OverScanLine = median(OverScanImage,'all','omitnan');
+                OverScanLine = fast_median(OverScanImage(:)); % fast_median omits NaNs
             case 'globalmean'
                 OverScanLine = mean(OverScanImage,'all','omitnan');
             case 'median'

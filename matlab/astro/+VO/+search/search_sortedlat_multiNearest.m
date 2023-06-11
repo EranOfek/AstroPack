@@ -1,4 +1,4 @@
-function [IndTable,CatFlagNearest,CatFlagAll,IndInRef]=search_sortedlat_multiNearest(Cat,Long,Lat,Radius,DistFun, DistFunArgs)
+function [IndTable,CatFlagNearest,CatFlagAll,IndInRef]=search_sortedlat_multiNearest(Cat,Long,Lat,Radius,DistFun, DistFunArgs, Args)
 % Search a single long/lat in a catalog sorted by latitude
 % Package: VO.search
 % Description: A low level function for a single cone search
@@ -12,6 +12,10 @@ function [IndTable,CatFlagNearest,CatFlagAll,IndInRef]=search_sortedlat_multiNea
 %            Default is @celestial.coo.sphere_dist_fast.
 %          - A cell array of additional arguments to pass to the DistFun
 %            (after the 4th position).
+%          * ...,key,val,...
+%            'UseMex' - A logical indicating if to use the binarySearch mex
+%                   program instead of tools.find.mfind_bin
+%                   Default is true.
 % Output : - A three column matrix with, one line per line in Long,Lat.
 %            Columns are [Index of nearest source, within search radius, in
 %            Cat;
@@ -36,6 +40,7 @@ arguments
     Radius
     DistFun function_handle      = @celestial.coo.sphere_dist_fast;
     DistFunArgs cell             = {};
+    Args.UseMex logical          = false;
 end
 
 
@@ -51,9 +56,13 @@ Nlat  = numel(Lat); % number of latitudes to search
 Ilat  = [(1:1:Nlat).', (1:1:Nlat).'+Nlat];
 
 Ncat  = size(Cat,1);
-Inear = tools.find.mfind_bin(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]);
+if Args.UseMex
+    Inear = uint32(binarySearch(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]));
+else
+    Inear = tools.find.mfind_bin(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]);
+end
 
-% Inear(Ilat) is a two column matrix [low, high] index for each latitud
+% Inear(Ilat) is a two column matrix [low, high] index for each latitude
 % search
 Ilowhigh = double(Inear(Ilat));
 Ilow     = Ilowhigh(:,1);

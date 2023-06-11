@@ -15,7 +15,7 @@ function prepGAIAvari(Args)
      Files = dir('Vari*.csv');
      Nfile = numel(Files);
      for Ifile=1:1:Nfile
-         T = readtable(Files(Ifile).name,'CommentStyle','#');
+	     T = io.files.readtable1(Files(Ifile).name,'CommentStyle','#');
          
          T
      end

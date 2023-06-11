@@ -18,6 +18,8 @@ function Result = gainCorrect(Obj, Gain, Args)
     %                   in header. Default is 1.
     % Output : - An AstroImage object with gain=1 and updated header.
     %            NOTE: The catalog is not modified.
+    %            The DataType field of the AstroImage is modified to
+    %            Electrons
     % Author : Eran Ofek (Jul 2021)
     % Example: AI = AstroImage({rand(10,10)});
     %          imProc.calib.gainCorrect(AI)
@@ -68,7 +70,9 @@ function Result = gainCorrect(Obj, Gain, Args)
         
         % write old GAIN value
         Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, Args.OrigGainKey, 1./InvGain, Args.replaceValArgs{:});
-        
+               
+        % Set the DataType of the AstroImage to electrons
+        Result(Iobj).DataType = AstroDataType.Electrons;
     end
     
 end

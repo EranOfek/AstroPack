@@ -141,7 +141,7 @@ import celestial.stars.*
 import celestial.time.*
 import celestial.SolarSys.*
 import celestial.coo.*
-import celestial.Earth.*
+import celestial.earth.*
 
 % M2
 MagFun   = [-30 12;...
@@ -506,7 +506,7 @@ end
 %---------------------------
 switch Cat
  case 'mag6'
-    load mag6.mat;
+    io.files.load1('mag6.mat');
     StarCat = mag6;
     clear mag6;
 
@@ -521,7 +521,7 @@ switch Cat
      StarCat = cats.bright.mag6;
     
  otherwise
-    load(Cat);
+    io.files.load1(Cat);
     
     K = findstr(Cat,'.');
     CatS = Cat(1:K-1);
@@ -575,9 +575,9 @@ end
 %---------------------------------
 switch ConLines
  case 'yes'
-    load('ConstellationLines.mat');
-    %CL = ConstellationLines;
-    %CL = CL.Cat;
+    io.files.load1('ConstellationLines.mat');
+    CL = ConstellationLines;
+    CL = CL.Cat;
     clear ConstellationLines;
     %--- convert coordinates to radians ---
     CL_RA1  = CL(:,1); %celestial.coo.convertdms(CL(:,1:3),  'H','r');
@@ -618,7 +618,7 @@ end
 %---------------------
 switch MW
  case 'yes'
-    load('MilkyWay.mat');
+    io.files.load1('MilkyWay.mat');
 
     %--- Precess coordinates ---
     switch Precess
@@ -910,7 +910,7 @@ for Ipl=1:1:Nplanets
        case 'Icon'
 %          error('Icon option not available yet');
           set(gcf,'CurrentAxes',H_MainAxis);
-          load Icon.mat
+          io.files.load1('Icon.mat');
           PlanetSize = [0.1 0.1];
 	  PlanetColorRange = [0 1];
           % convert X,Y coordinates to axes position coordinates

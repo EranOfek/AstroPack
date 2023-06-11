@@ -1,9 +1,11 @@
-function [Dn_hat, Dr_hat] = subtractionDnDr(N, R, Pn, Pr, SigmaN, SigmaR, Args)
+function [Dn_hat, Dr_hat] = subtractionDnDr(N, R, Pn, Pr, SigmaN, SigmaR, Fn, Fr, Args)
     % The partial proper image subtraction between two images.
     %       These are Dn/Dr (Equations 37, 38) in Zackay, Ofek, & Gal-Yam
     %       (2016; ApJ 830, 27).
     %       Dn/Dr are required for estimating the flux correction ratio
     %       (beta= Fn/Fr).
+    %   The function can deal with cube inputs in which the image index is
+    %   in the 3rd dimension.
     % Input  : - The background sybtracted new image (N). This can be in
     %            the image domain or fourier domain (i.e., 'IsImFFT'=true).
     %          - Like N but, the background subtracted reference image (R).
@@ -17,6 +19,8 @@ function [Dn_hat, Dr_hat] = subtractionDnDr(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     %            image.
     %          - (SigmaR) the standar d deviation of the background
     %            reference image.
+    %          - (Fn) (New image flux normalization). Default is 1.
+    %          - (Fr) (Ref image flux normalization). Default is 1.
     %          * ...,key,val,...
     %            'Beta' - The flux ratio Fn/Fr. Default is 1.
     %            'OutIsFT' - A logical flag indicating if the output is in
@@ -44,6 +48,8 @@ function [Dn_hat, Dr_hat] = subtractionDnDr(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     % Example: Size=300;  N = randn(Size,Size); R=randn(Size,Size);
     %          Pn = randn(Size,Size); Pr=randn(Size,Size);
     %          [Dn,Dr] = imUtil.properSub.subtractionDnDr(N, R, Pn, Pr,1,1);
+    %          [Dn,Dr] = imUtil.properSub.subtractionDnDr(rand(25,25), rand(25,25), rand(25,25), rand(25,25),1,1);
+    %          [Dn,Dr] = imUtil.properSub.subtractionDnDr(rand(25,25,4), rand(25,25,4), rand(25,25,4), rand(25,25,4),ones(4,1),ones(4,1));
        
     arguments
         N         % Background subtracted N
@@ -52,6 +58,8 @@ function [Dn_hat, Dr_hat] = subtractionDnDr(N, R, Pn, Pr, SigmaN, SigmaR, Args)
         Pr        % must have the same size as N, with PSF in the corner
         SigmaN
         SigmaR
+        Fn          = 1;
+        Fr          = 1;
         
         Args.Beta                     = 1;
         
@@ -71,6 +79,19 @@ function [Dn_hat, Dr_hat] = subtractionDnDr(N, R, Pn, Pr, SigmaN, SigmaR, Args)
         AbsFun = @(X) abs(X);
     end
         
+    if ndims(N)==3 && ndims(Fn)==2
+        % treat cube input
+        % assume F is given as a vector - move to the 3rd dim:
+        Fn = reshape(Fn(:),[1 1 numel(Fn)]);
+        Fr = reshape(Fr(:),[1 1 numel(Fr)]);
+    end
+    if ndims(N)==3 && ndims(SigmaN)==2
+        % treat cube input
+        % assume SigmaN is given as a vector - move to the 3rd dim:
+        SigmaN = reshape(SigmaN(:),[1 1 numel(SigmaN)]);
+        SigmaR = reshape(SigmaR(:),[1 1 numel(SigmaR)]);
+    end
+
     % convert to fft
     if Args.IsImFFT
         N_hat = N;

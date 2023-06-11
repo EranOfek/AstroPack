@@ -25,10 +25,12 @@ classdef MsgLogger < handle
     properties (SetAccess = public)
         CurFileLevel LogLevel   % Current level for log file
         CurDispLevel LogLevel   % Current level for display
+        CurSyslogLevel LogLevel % Current level for display
         Console                 % True to print messages also to console
         Enabled logical         % True to enable logging, when false, calling msg..() function will do nothing
         UserData                % Optional user data
-        LogF LogFile            % Log file, used internally        
+        LogF LogFile            % Log file, used internally
+        Syslog io.Syslog        % Syslog logger
     end
 
     %--------------------------------------------------------
@@ -111,6 +113,7 @@ classdef MsgLogger < handle
             Obj.Enabled = true;
             Obj.CurFileLevel = LogLevel.All;
             Obj.CurDispLevel = LogLevel.All;
+            Obj.CurSyslogLevel = LogLevel.All;
             Obj.Console = Args.Console;
                        
             % Load configuration file only once
@@ -141,6 +144,7 @@ classdef MsgLogger < handle
             if ~isempty(Conf)
                 Obj.CurFileLevel = eval(Conf.MsgLogger.FileLevel);
                 Obj.CurDispLevel = eval(Conf.MsgLogger.DispLevel);
+                Obj.CurSyslogLevel = eval(Conf.MsgLogger.SyslogLevel);
                 Obj.Console = Conf.MsgLogger.Console;
 
                 % Use MaxFileSize from configuration
@@ -163,6 +167,11 @@ classdef MsgLogger < handle
                     'MaxFileSize', Args.MaxFileSize);
             end
             
+            v = ver;
+            if isunix && any(strcmp(cellstr(char(v.Name)), 'Instrument Control Toolbox'))
+                Obj.Syslog = io.Syslog();
+            end
+            
         end
     end
 
@@ -181,39 +190,74 @@ classdef MsgLogger < handle
                 return
             end
 			
+            % Check if first element is cell array
+            is_cell = ~isempty(varargin) && iscell(varargin{1});
+                
             % Always use msgStyle to print errors in red color
-            if Level == LogLevel.Error || Level == LogLevel.Fatal || Level == LogLevel.Assert
+            if (Level == LogLevel.Error || Level == LogLevel.Fatal || Level == LogLevel.Assert) && ~is_cell
                 Obj.msgStyle(Level, '@error', varargin{:});
                 return
             end
 
             % Always use msgStyle to print warnings in red color
-            if Level == LogLevel.Warning
+            if (Level == LogLevel.Warning) && ~is_cell
                 Obj.msgStyle(Level, '@warn', varargin{:});
                 return
             end
 			
 			LogToDisplay = Obj.Console && uint32(Level) <= uint32(Obj.CurDispLevel);
-			LogToFile = uint32(Level) <= uint32(Obj.CurFileLevel);			
+			LogToFile = uint32(Level) <= uint32(Obj.CurFileLevel);
+			LogToSyslog = uint32(Level) <= uint32(Obj.CurSyslogLevel);				
             if Obj.mustLog(Level)
                 LogToDisplay = true;
                 LogToFile = true;
+                LogToSyslog = true;
             end
             
             % Prepare prompt with level
-            LevStr = getLevelStr(Obj, Level);
+            LevStr = MsgLogger.getLevelStr(Level);
 
             % Log to display			
             if LogToDisplay
-                fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
-                fprintf(varargin{:});
-    			fprintf('\n');
+                if is_cell
+                    cellArray = varargin{1};
+                    for i = 1:numel(cellArray)
+                        fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
+                        fprintf(cellArray{i});
+                        fprintf('\n');
+                    end
+                else
+                    fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
+                    fprintf(varargin{:});
+                    fprintf('\n');
+                end
             end
 
             % Log to file
             if LogToFile
                 if ~isempty(Obj.LogF)
-                    Obj.LogF.write2(sprintf('[%s]', LevStr), varargin{:});
+                    if is_cell
+                        cellArray = varargin{1};
+                        for i = 1:numel(cellArray)                        
+                            Obj.LogF.write2(sprintf('[%s]', LevStr), cellArray{i});
+                        end
+                    else                    
+                        Obj.LogF.write2(sprintf('[%s]', LevStr), varargin{:});
+                    end
+                end
+            end
+            
+            % Log to Syslog
+            if LogToSyslog
+                if ~isempty(Obj.Syslog)
+                    if is_cell
+                        cellArray = varargin{1};
+                        for i = 1:numel(cellArray)
+                            Obj.Syslog.sendMessage(Level, cellArray{i});
+                        end
+                    else                    
+                        Obj.Syslog.sendMessage(Level, varargin{:});
+                    end
                 end
             end
         end
@@ -232,14 +276,16 @@ classdef MsgLogger < handle
             end
 
 			LogToDisplay = Obj.Console && uint32(Level) <= uint32(Obj.CurDispLevel);
-			LogToFile = uint32(Level) <= uint32(Obj.CurFileLevel);			
+			LogToFile = uint32(Level) <= uint32(Obj.CurFileLevel);
+			LogToSyslog = uint32(Level) <= uint32(Obj.CurSyslogLevel);			
             if Obj.mustLog(Level)
                 LogToDisplay = true;
                 LogToFile = true;
+                LogToSyslog = true;
             end            
             
             % Prepare prompt with log level
-            LevStr = getLevelStr(Obj, Level);
+            LevStr = MsgLogger.getLevelStr(Level);
 
             % Log to display
             if LogToDisplay
@@ -252,6 +298,13 @@ classdef MsgLogger < handle
             if LogToFile
                 if ~isempty(Obj.LogF)
                     Obj.LogF.write2(sprintf('[%s]', LevStr), varargin{:});
+                end
+            end
+            
+            % Log to Syslog
+            if LogToSyslog
+                if ~isempty(Obj.Syslog)
+                    Obj.Syslog.sendMessage(Level, varargin{:});
                 end
             end
         end
@@ -312,8 +365,94 @@ classdef MsgLogger < handle
                 Result = true;
             end
         end
+
+		function msgStack(Obj, Level, varargin)
+            % Log stack trace, @Todo - NOT fully tested yet!
+            % Input:   Level
+            %          varargin - fprintf arguments
+            % Output:  Log to file and console with msgLog()
+            % Example: Obj.msgStack(LogLevel.Error);
+            
+            [StackTrace, WorkspaceIndex] = dbstack;
+
+            Obj.msgLog(Level, varargin{:});
+            Obj.msgLog(Level, 'StackTrace:');
+
+            if numel(StackTrace) < 2
+                CallerName = 'session';
+                Line      = NaN;
+            else
+                va = sprintf(varargin{:});
+                for i = 2:numel(StackTrace)
+                    Msg = sprintf('File: %s, Line: #%d, Caller: %s, varargin: %s', StackTrace(i).file, StackTrace(i).line, StackTrace(i).name, va);
+                    Obj.msgLog(Level, Msg);
+                end
+            end
+
+            %Msg = sprintf('File: %s, Line: #%d, Caller: %s - %s', File, Line, CallerName, sprintf(varargin{:}));
+            %Obj.msgLog(Level, Msg);
+            Obj.msgLog(Level, '');
+        end
+    end
+
+
+
+    methods(Static) % Static functions
+
+        function Result = getSingleton(Args)
+            % Return singleton object, the default MsgLogger
+            % Input:   'FileName'       - 
+            %          'UseTimestamp'   -
+            %          'Console'        - 
+            % Output:  MsgLogger object
+            % Example: Logger = MsgLogger.getSingleton()
+            
+            arguments
+                Args.FileName       = 'AstroPackLog'    % File name, if empty, default name is used
+                Args.UseTimestamp   = false             % True to add timestamp to file name
+                Args.Console        = true              % True to enable console output
+            end
+            
+            persistent PersObj
+            if isempty(PersObj)
+                PersObj = MsgLogger('FileName', Args.FileName, 'UseTimestamp', ...
+                    Args.UseTimestamp, 'Console', Args.Console);
+            end
+            Result = PersObj;
+        end
+
+        function setLogLevel(Level, Args)
+            % Set current log level, Args.type is 'all', 'file', 'disp'
+            % Input:   Level  - 
+            %          'type' - 'all', 'file', 'disp', 'syslog'
+            % Output:  -
+            % Example: MsgLogger.getSingleton().setLogLevel(LogLevel.Debug)
+            
+            arguments
+                Level LogLevel
+                Args.type = 'all'
+            end
+
+            % Set global LogLevel
+            m = MsgLogger.getSingleton();
+
+            % Set file level
+            if strcmp(Args.type, 'all') || strcmp(Args.type, 'file')
+                m.CurFileLevel = Level;
+            end
+
+            % Set disp level
+            if strcmp(Args.type, 'all') || strcmp(Args.type, 'disp')
+                m.CurDispLevel = Level;
+            end
+
+            % Set syslog level
+            if strcmp(Args.type, 'all') || strcmp(Args.type, 'syslog')
+                m.CurSyslogLevel = Level;
+            end
+        end
         
-        function Result = getLevelStr(Obj, Level)
+        function Result = getLevelStr(Level)
             % Convert Level enumeation to string
             % Input:   Level - LogLevel enumeration (in file LogLeve.m)
             % Output:  char array
@@ -348,86 +487,51 @@ classdef MsgLogger < handle
             end
             Result = s;
         end
-
-		function msgStack(Obj, Level, varargin)
-            % Log stack trace, @Todo - NOT fully tested yet!
-            % Input:   Level
-            %          varargin - fprintf arguments
-            % Output:  Log to file and console with msgLog()
-            % Example: Obj.msgStack(LogLevel.Error);
+        
+        %
+        % We use a LIFO (stack) to store the program name
+        % This allows it to be temporarily set (as in a unit test)
+        %  and then restored to the previous value.
+        %
+        % The ProgramName can be used by, for example, the logging subsystem
+        %
+        function setProgramName(Name)            
+            % Pushes the given Name on top of the ProgramName stack, making
+            %  it the current one.
+            global ProgramNameLIFO;
             
-            [StackTrace, WorkspaceIndex] = dbstack;
-
-            Obj.msgLog(Level, varargin{:});
-            Obj.msgLog(Level, 'StackTrace:');
-
-            if numel(StackTrace) < 2
-                CallerName = 'session';
-                Line      = NaN;
+            if isempty(ProgramNameLIFO)
+                ProgramNameLIFO{1} = Name;
             else
-                va = sprintf(varargin{:});
-                for i = 2:numel(StackTrace)
-                    Msg = sprintf('File: %s, Line: #%d, Caller: %s, varargin: %s', StackTrace(i).file, StackTrace(i).line, StackTrace(i).name, va);
-                    Obj.msgLog(Level, Msg);
-                end
-            end
-
-            %Msg = sprintf('File: %s, Line: #%d, Caller: %s - %s', File, Line, CallerName, sprintf(varargin{:}));
-            %Obj.msgLog(Level, Msg);
-            Obj.msgLog(Level, '');
-        end
-    end
-
-
-    methods(Static) % Static functions
-
-        function Result = getSingleton(Args)
-            % Return singleton object, the default MsgLogger
-            % Input:   'FileName'       - 
-            %          'UseTimestamp'   -
-            %          'Console'        - 
-            % Output:  MsgLogger object
-            % Example: Logger = MsgLogger.getSingleton()
-            
-            arguments
-                Args.FileName       = 'AstroPackLog'    % File name, if empty, default name is used
-                Args.UseTimestamp   = false             % True to add timestamp to file name
-                Args.Console        = true              % True to enable console output
-            end
-            
-            persistent PersObj
-            if isempty(PersObj)
-                PersObj = MsgLogger('FileName', Args.FileName, 'UseTimestamp', ...
-                    Args.UseTimestamp, 'Console', Args.Console);
-            end
-            Result = PersObj;
-        end
-
-        function setLogLevel(Level, Args)
-            % Set current log level, Args.type is 'all', 'file', 'disp'
-            % Input:   Level  - 
-            %          'type' - 'all', 'file', 'disp'
-            % Output:  -
-            % Example: MsgLogger.getSingleton().setLogLevel(LogLevel.Debug)
-            
-            arguments
-                Level LogLevel
-                Args.type = 'all'
-            end
-
-            % Set global LogLevel
-            m = MsgLogger.getSingleton();
-
-            % Set file level
-            if strcmp(Args.type, 'all') || strcmp(Args.type, 'file')
-                m.CurFileLevel = Level;
-            end
-
-            % Set disp level
-            if strcmp(Args.type, 'all') || strcmp(Args.type, 'disp')
-                m.CurDispLevel = Level;
+                ProgramNameLIFO(2:end+1) = ProgramNameLIFO(1:end);
+                ProgramNameLIFO{1} = Name;
             end
         end
+        
+        function Name = getProgramName()
+            % Gets the Name on top of the ProgramName stack
+            global ProgramNameLIFO;
+            
+            if isempty(ProgramNameLIFO)
+                Name = [];
+            else
+                Name = ProgramNameLIFO{1};
+            end
+        end
+        
+        function LastName = unsetProgramName()  
+            % Pops the ProgramName stack, thus revealing the previous one
+            global ProgramNameLIFO;
+            
+            if ~isempty(ProgramNameLIFO)
+                LastName = ProgramNameLIFO{1};
+                ProgramNameLIFO(1:end-1) = ProgramNameLIFO(2:end);
+                ProgramNameLIFO(end) = [];
+            else
+                LastName = [];
+            end
+        end
+        
     end
 
 

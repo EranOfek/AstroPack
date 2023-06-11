@@ -127,7 +127,7 @@ arguments
     Args.WeightFun                                     = 1.5;    % sigma or function: @(r) exp(-r.^2./(2.*4))./(2.*pi.*4.^2);
     Args.Circle(1,1) logical                           = false;
     Args.MaxIter                                       = 10;
-    Args.MaxStep                                       = [];
+    Args.MaxStep                                       = 0.1;  % []
     Args.NoWeightFirstIter(1,1) logical                = true; %true; 
     Args.PosConvergence                                = 1e-4;
     Args.DynamicWindow(1,1) logical                    = true;

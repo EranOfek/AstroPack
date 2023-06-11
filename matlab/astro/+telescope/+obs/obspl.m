@@ -16,7 +16,7 @@ function fig = obspl(Keyword,Handle)
 RAD     = 180./pi;
 AirMass = 2.5; 
 
-load obspl
+io.files.load1('obspl');
 
 global ObsCoo;
 global Date;
