@@ -244,9 +244,10 @@ classdef AstroDb < Component
             
             % Additional
             Q.addColumn(TN, 'procstat', 'varchar(256)', "default ''", 'Comment', 'Additional user data');
+            Q.addColumn(TN, 'procversion', 'smallint', 'default 0'); 
             
             % added by @kra:           
-            if strcmp(TN, Obj.TnProcImages)                
+            if strcmp(TN, Obj.TnProcImages) || strcmp(TN, Obj.TnCoaddImages)
                 Q.addColumn(TN, 'fieldid',      'varchar(80)', "default ''");
                 Q.addColumn(TN, 'timezone',     'single', 'default 0');
                 Q.addColumn(TN, 'ccdid',        'single', 'default 0');
@@ -311,7 +312,9 @@ classdef AstroDb < Component
                 Q.addColumn(TN, 'fwhm',         'double', 'default 0');
                 Q.addColumn(TN, 'med_a',        'double', 'default 0');
                 Q.addColumn(TN, 'med_b',        'double', 'default 0');
-                Q.addColumn(TN, 'med_th',       'double', 'default 0');                                
+                Q.addColumn(TN, 'med_th',       'double', 'default 0');  
+
+                Q.addColumn(TN, 'pipeversion',  'varchar(80)', "default ''");  
             end
             
             if strcmp(TN, Obj.TnCoaddImages)
@@ -415,8 +418,8 @@ classdef AstroDb < Component
             Q.addColumn(TN, 'nobs',         'smallint', 'default 0');
                         
             % Additional
-            Q.addColumn(TN, 'procstat', 'varchar(256)', "default ''", 'Comment', 'Additional user data');    
-            Q.addColumn(TN, 'swvers', 'smallint', 'default 0', 'Comment', 'Software version');          
+            Q.addColumn(TN, 'procstat',    'varchar(256)', "default ''", 'Comment', 'Additional user data');    
+            Q.addColumn(TN, 'pipeversion', 'varchar(80)', "default ''");  
                 
             Obj.msgLog(LogLevel.Info, 'addCommonCatalogColumns done');
             Result = true;
@@ -565,6 +568,8 @@ classdef AstroDb < Component
                 if Args.Select && ~Args.Force 
                     DataSet = Obj.Query.select('*', 'TableName', TableName, 'Where', sprintf('xxhash = ''%s''', Args.xxhash));
                     if numel(DataSet.Data) > 0
+%                         ProcVers = Obj.Query.select('procversion', 'TableName', TableName, 'Where', sprintf('xxhash = ''%s''', Args.xxhash));
+%                         ProcVers = Dataset() ? + 1;
                         Result = -DataSet.Data(1).pk;
                         return;
                     end
@@ -601,6 +606,7 @@ classdef AstroDb < Component
             
             % Insert AstroHeader to table
             Pk = Q.insert(AH, 'TableName', TableName, 'ColumnsOnly', true, 'Returning', 'pk');
+            Obj.updateByTupleID(Obj,TableName,pk,'procversion',ProcVers+1);
             Result = Pk;
         end
         
