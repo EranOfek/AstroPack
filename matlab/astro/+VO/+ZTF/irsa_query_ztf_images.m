@@ -177,7 +177,7 @@ end
 %Res
 
 
-[Table,ColCell] = VO.util.read_casjobs_table(InPar.OutTable,'OutType','table');
+[Table,ColCell] = VO.Util.read_casjobs_table(InPar.OutTable,'OutType','table');
 
 switch lower(InPar.OutType)
     case 'mat'
