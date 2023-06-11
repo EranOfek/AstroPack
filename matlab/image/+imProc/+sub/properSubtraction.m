@@ -41,8 +41,10 @@ function [D, S, Scorr, Z2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef, Ar
         AI(2) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.214904.914_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
         cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/3/
         AI(3) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.214224.783_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
+        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/9/
+        AI(4) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.210217.556_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
         cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/10/
-        AI(4) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.185750.850_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
+        AI(5) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.185750.850_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
 
         AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
         AIreg= imProc.background.background(AIreg,'SubSizeXY',[]); %[256 256]);  

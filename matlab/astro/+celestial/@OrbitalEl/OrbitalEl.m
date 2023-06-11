@@ -822,6 +822,11 @@ classdef OrbitalEl < Base
             %                   Default is false.
             %            'TolInt' - Tolerance of the integration ODE's.
             %                   Default is 1e-10.
+            %            'ObserverEphem' - A matrix contain observer position [au] and velocities [au/d] in
+            %                   Heliocentric coordinates for each epoch. The columns are [x,y,z,vx,vy,vz]. 
+            %                   If empty, the function will use EarthEphem and GeoPos.
+            %                   In case of size [Nepoch,3], the function assume zero velocity.
+            %                   Defauls is [].
             % Output : - Output ephemerides with the following columns:
             %            {'JD', 'RA', 'Dec', 'R', 'Delta','SOT','STO', 'Mag'}
             %            and units:
@@ -866,6 +871,7 @@ classdef OrbitalEl < Base
                 Args.AddDesignation(1,1) logical = true;  % works only for AstroCatalog output
                 Args.Integration(1,1) logical    = false; %false; 
                 Args.TolInt                      = 1e-10; 
+                Args.ObserverEphem               = []; % Heliocentric coordinate of observer - [x,y,z,vx,vy,vz]
             end
             RAD  = 180./pi;
             Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
@@ -945,6 +951,12 @@ classdef OrbitalEl < Base
                     %atan(Ztarget./sqrt(Xtarget.^2 + Ytarget.^2)).*RAD
 
                     % rectangular ecliptic coordinates of Earth with equinox of J2000
+                    if ~isempty(Args.ObserverEphem)
+                        
+                        E_H = Args.ObserverEphem(It,1:3)';
+                        E_dotH = Args.ObserverEphem(It,4:6)';
+                    else
+                    
                     switch lower(Args.EarthEphem)
                         case 'vsop87'
                             [E_H,E_dotH] = celestial.SolarSys.calc_vsop87(Time(It), 'Earth', 'a', 'd');
@@ -959,11 +971,11 @@ classdef OrbitalEl < Base
                             
                             % convert to eclipic coordinates
                             
-                            
                         otherwise
                             error('Unknown EarthEphem option');
+                            
                     end
-
+                    end
                     Gau = celestial.coo.topocentricVector(Time(It), Args.GeoPos, 'OutUnits','au',...
                                                                              'RefEllipsoid',Args.RefEllipsoid,...
                                                                              'Convert2ecliptic',true,...
