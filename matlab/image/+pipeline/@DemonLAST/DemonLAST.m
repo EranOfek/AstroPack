@@ -1171,6 +1171,7 @@ classdef DemonLAST < Component
                 Args.MaxInGroup    = 20;
                 Args.SortDirection = 'descend';  % analyze last image first
                 Args.AbortFileName = '~/abortPipe';
+                Args.StopButton logical = true;
                 Args.multiRaw2procCoaddArgs = {};
 
                 Args.StartJD       = -Inf;    % refers onlt to Science observations: JD, or [D M Y]
@@ -1221,9 +1222,11 @@ classdef DemonLAST < Component
             % end
 
 
-            GUI_Text = sprintf('Abort : Pipeline');
-            [StopGUI, Hstop]  = tools.gui.stopButton('Msg',GUI_Text);
-    
+            if Args.StopButton
+                GUI_Text = sprintf('Abort : Pipeline');
+                [StopGUI, Hstop]  = tools.gui.stopButton('Msg',GUI_Text);
+            end
+
             Cont = true;
             while Cont
                 % set Logger log file 
@@ -1415,7 +1418,7 @@ classdef DemonLAST < Component
                         
                         
                         % check if stop loop
-                        if StopGUI()
+                        if Args.StopButton && StopGUI()
                             Cont = false;
                         end
                         if isfile(Args.AbortFileName)
