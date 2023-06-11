@@ -4,8 +4,9 @@ function [Mean,Var]=filter2_var(Mat,Radius)
 % Description: Calculate the variance and mean filter of an image in
 %              circular apertures.
 % Input  : - A matrix.
-%          - Filter radius, or [inner, outer] filter radii of annulus
-%            filter.
+%          - Filter radius,
+%            or [inner, outer] filter radii of annulus filter,
+%            or [A, B, cov] for Gaussian filter.
 % Output : - The variance filter.
 %          - The mean filter.
 % License: GNU general public license version 3
@@ -17,11 +18,17 @@ function [Mean,Var]=filter2_var(Mat,Radius)
 %--------------------------------------------------------------------------
 
 
-if numel(Radius)==1
-    CircFilter = imUtil.kernel2.circ(Radius,ceil([Radius.*2+1 Radius.*2+1]));
-else
-    % assume Radius contains two elements
-    CircFilter = imUtil.kernel2.annulus(Radius);
+switch numel(Radius)
+    case 1
+        % circular filter
+        CircFilter = imUtil.kernel2.circ(Radius,ceil([Radius.*2+1 Radius.*2+1]));
+    case 2 
+        % annulus filter
+        CircFilter = imUtil.kernel2.annulus(Radius);
+    case 3
+        CircFilter = imUtil.kernel2.gauss(Radius);
+    otherwise
+        error('Unknown number of elements in the 2nd input argument');
 end
 
 Mean = imUtil.filter.filter2_fast(Mat,CircFilter);
