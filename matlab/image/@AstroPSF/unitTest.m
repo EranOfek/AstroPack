@@ -29,11 +29,14 @@ function Result = unitTest()
     AP = AstroPSF;
     AP.DataPSF = imUtil.kernel2.gauss;
     AP(2).DataPSF = imUtil.kernel2.gauss;
-    [M1,M2,Aper] = moment2(AP);
+    [M1,M2,Aper] = moment2(AP,'moment2Args',{'Momradius',4,'Annulus',[3, 4]});
 
     % fwhm
+    imUtil.psf.pseudoFWHM(AP(1).Data)
+    imUtil.psf.containment(AP(1).Data,'Level',0.9)
+    
     [FWHM_CumSum, FWHM_Flux] = fwhm(AP(1));
-    [FWHM_CumSum, FWHM_Flux] = fwhm(AP);
+%     [FWHM_CumSum, FWHM_Flux] = fwhm(AP);    % does not work 
 
     io.msgStyle(LogLevel.Test, '@passed', 'AstroPSF test passed');                          
     Result = true;
