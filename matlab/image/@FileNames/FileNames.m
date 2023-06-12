@@ -904,6 +904,10 @@ classdef FileNames < Component
             %            'AddSubDir' - A logical indicating if to
             %                   automatically add numerical SubDir.
             %                   Default is true.
+            %            'RemoveLeadingStr' - If not empty, then this is a
+            %                   string that will be searched in the
+            %                   FullName output and will be replaced with
+            %                   ''. Default is [].
             % Output : - A cell array of full file name and path.
             % Author : Eran Ofek (Dec 2022)
             
@@ -918,6 +922,7 @@ classdef FileNames < Component
                 Args.Level     = '';
                 Args.LevelPath = [];
                 Args.AddSubDir logical = true;
+                Args.RemoveLeadingStr = [];
             end
             
             if isempty(Args.LevelPath) && isnumeric(Args.LevelPath)
@@ -938,6 +943,11 @@ classdef FileNames < Component
             if Args.ReturnChar && numel(FullName)==1
                 FullName = FullName{1};
             end
+
+            if ~isempty(Args.RemoveLeadingStr)
+                FullName = strrep(FullName, Args.RemoveLeadingStr, '');
+            end
+
             
         end
         
