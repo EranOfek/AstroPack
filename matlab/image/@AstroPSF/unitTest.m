@@ -35,9 +35,23 @@ function Result = unitTest()
     imUtil.psf.pseudoFWHM(AP(1).Data)
     imUtil.psf.containment(AP(1).Data,'Level',0.9)
     
-    [FWHM_CumSum, FWHM_Flux] = fwhm(AP(1));
-%     [FWHM_CumSum, FWHM_Flux] = fwhm(AP);    % does not work 
-
+%     [FWHM_CumSum, FWHM_Flux] = fwhm(AP(1));
+    [FWHM_CumSum, FWHM_Flux] = fwhm(AP);    
+    
+    % extended data structures (currently in DataPSF2)
+    
+    AP = AstroPSF;
+    P0 = imUtil.kernel2.gauss;
+    AP.StampSize = size(P0);
+    
+    T1 = [1.2  0.3 0;  -0.1 0.9 0; 0 0 1]';  % the last column shall read: 0 0 1
+    T2 = [-0.5 0.4 0;   1 0.5   0; 0 0 1]';
+    P1 = imwarp(P0, affine2d(T1));
+    P2 = imwarp(P0, affine2d(T2));
+    
+    
+    
+    %
     io.msgStyle(LogLevel.Test, '@passed', 'AstroPSF test passed');                          
     Result = true;
 end
