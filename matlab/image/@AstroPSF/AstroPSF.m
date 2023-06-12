@@ -457,7 +457,7 @@ classdef AstroPSF < Component
             X = (SizeCube(2)-1).*0.5;
             Y = (SizeCube(1)-1).*0.5;
             
-            [varargout{1:nargout}] = imUtil.image.moment2(Cube, X, Y, Args.moment2Args{:});
+            [varargout{1:nargout}] = imUtil.image.moment2(Cube, X, Y, Args.moment2Args{:}, 'SubBack',false);
             
         end
         

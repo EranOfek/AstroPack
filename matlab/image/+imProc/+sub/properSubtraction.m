@@ -54,7 +54,7 @@ function [D, S, Scorr, Z2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef, Ar
         ds9(AIreg(1),1)
         ds9(AIreg(2),2)
 
-        [D,S,Scorr,Z2, F_S,SdN, SdR] = imProc.sub.properSubtraction(AIreg(:), AIreg(1));
+        [DD,S,Scorr,Z2, F_S,SdN, SdR] = imProc.sub.properSubtraction(AIreg(3), AIreg(1));
 
     end
 
