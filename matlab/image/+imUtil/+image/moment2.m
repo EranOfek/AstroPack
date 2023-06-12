@@ -59,7 +59,7 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %                       the first moment (i.e., forced photometry).
 %                       Default is 10.
 %            'MaxStep' - Maximum step size (pixels) in X and Y shifts
-%                       allowd in each iteration. Default is 0.1.
+%                       allowd in each iteration. Default is 0.15.
 %            'NoWeightFirstIter' - A flag indicating if not to apply weight
 %                       on the first itearation. Default is true.
 %            'PosConvergence' - Position convergence. Default is 1e-4.
@@ -108,9 +108,9 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %      By: Eran O. Ofek                       Apr 2020             
 % Example: Image = rand(1024,1024); X=rand(1e4,1).*1023+1; Y=rand(1e4,1).*1023+1;
 %          [M1,M2,Aper]=imUtil.image.moment2(Image,X,Y);
-%          Matrix = imUtil.kernel2.gauss(2, [16 16]);
+%          Matrix = imUtil.kernel2.gauss(2, [31 31]);
 %          [M1,M2,Aper]=imUtil.image.moment2(Matrix,16,16)
-%          [M1,M2,Aper]=imUtil.image.moment2(Matrix,16,16,'WeightFun',@(r) 1)
+%          [M1,M2,Aper]=imUtil.image.moment2(Matrix,8,8,'WeightFun',@(r) 1)
 %          Cube = imUtil.kernel2.gauss([2;2.1;2.2], [31 31]);
 %          [M1,M2,Aper]=imUtil.image.moment2(Cube,16,16)
 
@@ -127,7 +127,7 @@ arguments
     Args.WeightFun                                     = 1.5;    % sigma or function: @(r) exp(-r.^2./(2.*4))./(2.*pi.*4.^2);
     Args.Circle(1,1) logical                           = false;
     Args.MaxIter                                       = 10;
-    Args.MaxStep                                       = 0.1;  % []
+    Args.MaxStep                                       = 0.15;  % []
     Args.NoWeightFirstIter(1,1) logical                = true; %true; 
     Args.PosConvergence                                = 1e-4;
     Args.DynamicWindow(1,1) logical                    = true;
@@ -152,7 +152,7 @@ MaxRadius  = max(Args.MomRadius, Args.Annulus(2));   % need to be larger than al
 Naper      = numel(Args.AperRadius);
 
 
-[Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, X, Y);    
+[Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, X, Y, MaxRadius);    
 
 SizeCube = size(Cube);
 SizeCube = cast(SizeCube, 'like',Image);
@@ -180,6 +180,11 @@ Nsrc = numel(X);
 % estimation
 if Args.SubBack || nargout>2
     % Annulus background
+
+    if MaxRadius>(SizeCube(1)*0.5)
+        error('MaxRadius is larger than stamp size');
+    end
+
     BackFilter = nan(size(MatR2));
     BackFilter(MatR2>Args.Annulus(1).^2 & MatR2<(Args.Annulus(2).^2)) = 1;
     BackCube = BackFilter.*Cube;
@@ -260,7 +265,7 @@ else
     M1.DeltaLastX = Inf; %RelX1;
     M1.DeltaLastY = Inf; %RelY1;
     Iter = 0;
-    while Iter<Args.MaxIter && any(abs(M1.DeltaLastX)>Args.PosConvergence) && any(abs(M1.DeltaLastY)>Args.PosConvergence)
+    while Iter<Args.MaxIter && (any(abs(M1.DeltaLastX)>Args.PosConvergence) || any(abs(M1.DeltaLastY)>Args.PosConvergence))
         Iter = Iter + 1;
         % the MatX/MatY cube - shifted to the first moment position
         MatXcen = MatX - reshape(CumRelX1,1,1,Nsrc);
