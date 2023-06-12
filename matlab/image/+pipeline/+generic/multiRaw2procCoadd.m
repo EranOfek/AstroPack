@@ -195,6 +195,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.SubDir = NaN;  % NaN- autosubdir; '' no sub dir
         Args.BasePath = '/last02w/data1/archive'; %'/raid/eran/archive'; %'/euler/archive';
 
+        Args.KeySoftVer                       = 'PIPEVER';
+
         Args.CCDSEC                           = [];  % which CCDSEC to analuze - empty foe entire image  [xmin xmax ymin ymax]
         Args.CalibImages CalibImages          = [];
         Args.Dark                             = []; % [] - do nothing
@@ -353,6 +355,10 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         error('No good images found');
     end
     
+    % update header with SoftVersion keyword
+    VerString = tools.git.getVersion;
+    AI.setKeyVal(Args.KeySoftVer,VerString);
+
     
     %Nsub = 24;
     %AllSI = AstroImage([Nim, Nsub]);

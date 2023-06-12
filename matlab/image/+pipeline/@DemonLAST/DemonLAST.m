@@ -1297,6 +1297,9 @@ classdef DemonLAST < Component
                 
 
                 for Igroup=1:1:Ngroup
+                    if Igroup==9
+                        'a'
+                    end
                     % for each visit
                     if FN_Sci_Groups(Igroup).nfiles>Args.MinNumIMageVisit
 
@@ -1321,6 +1324,8 @@ classdef DemonLAST < Component
                                                                        'BasePath', BasePath,...
                                                                        'SaveAll',false);
     
+                            Msg{1} = sprintf('pipline.DemonLAST finish executing pipeline - start saving data',Igroup, RawImageList{end});
+                            Obj.writeLog(Msg, LogLevel.Info);
                             
                             %CoaddTransienst = imProc.cat.searchExternalCatOrphans(Coadd);
 
