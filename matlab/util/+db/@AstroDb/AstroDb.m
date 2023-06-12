@@ -314,7 +314,7 @@ classdef AstroDb < Component
                 Q.addColumn(TN, 'med_b',        'double', 'default 0');
                 Q.addColumn(TN, 'med_th',       'double', 'default 0');  
 
-                Q.addColumn(TN, 'pipeversion',  'varchar(80)', "default ''");  
+                Q.addColumn(TN, 'pipever',  'varchar(80)', "default ''");  
             end
             
             if strcmp(TN, Obj.TnCoaddImages)
@@ -421,7 +421,7 @@ classdef AstroDb < Component
                         
             % Additional
             Q.addColumn(TN, 'procstat',    'varchar(256)', "default ''", 'Comment', 'Additional user data');    
-            Q.addColumn(TN, 'pipeversion', 'varchar(80)', "default ''");  
+            Q.addColumn(TN, 'pipever', 'varchar(80)', "default ''");  
                 
             Obj.msgLog(LogLevel.Info, 'addCommonCatalogColumns done');
             Result = true;
