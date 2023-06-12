@@ -47,7 +47,16 @@ classdef AstroPSF < Component
         ArgNames cell     = {'X','Y','Color','Flux'};
         StampSize         = [];
         
-        Nstars            = NaN;  % If Nstars=NaN, then PSF wasn't constructed yet.
+        Nstars            = NaN;  % If Nstars=NaN, then PSF wasn't constructed yet
+        
+        DataPSF2          = [];
+        
+        DimDef  cell      = {'WaveMono', 'WaveBand', 'WaveTemp', 'WaveSpType', 'WaveColor',...
+                             'PosR', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'};
+        DimAxis cell      = cell(1,10);       
+        
+        FWHM              = []; 
+        
     end
     
     methods % Constructor
