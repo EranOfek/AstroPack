@@ -55,7 +55,8 @@ classdef AstroPSF < Component
                              'PosR', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'};
         DimAxis cell      = cell(1,10);       
         
-        FWHM              = []; 
+        FWHM              = [];  % for each of the points in the DimDef space ?
+        ContainmentR      = [];  % for each of the points in the DimDef space ?
         
     end
     
