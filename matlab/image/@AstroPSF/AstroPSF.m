@@ -406,7 +406,7 @@ classdef AstroPSF < Component
         
         
         function [varargout] = moment2(Obj, Args)
-            % Calculate the moments and perture photometry of PSFs
+            % Calculate the moments and aperture photometry of PSFs
             %   using the imUtil.image.moment2 function.
             % Input  : - An AstroPSF object in which all the PSFs have the
             %            same size.

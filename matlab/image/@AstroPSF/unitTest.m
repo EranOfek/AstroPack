@@ -32,6 +32,7 @@ function Result = unitTest()
     [M1,M2,Aper] = moment2(AP);
 
     % fwhm
+    [FWHM_CumSum, FWHM_Flux] = fwhm(AP(1));
     [FWHM_CumSum, FWHM_Flux] = fwhm(AP);
 
     io.msgStyle(LogLevel.Test, '@passed', 'AstroPSF test passed');                          
