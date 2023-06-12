@@ -56,7 +56,7 @@ function [Result]=imwarp(Obj, Trans, Args)
     %                   Default is true.
     %
     %            'ReplaceNaN' - Replace NaN with FillVall. Default is true.
-    %            'TransWCS' - A logical indicatinf if to copy the reference WCS
+    %            'TransWCS' - A logical indicating if to copy the reference WCS
     %                   to the transformed image WCS and header.
     %                   Default is true.
     %            'RefWCS' - A WCS to store in the output registered images.

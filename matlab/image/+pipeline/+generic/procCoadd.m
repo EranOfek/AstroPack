@@ -271,8 +271,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % if sum(FlagGood)<20
             %     'a'
             % end
+            
+            error('Need to update - copy from procMergedCoadd')
+
             if isempty(Args.MatchedS)
                 Igood = find(FlagGood, 1, 'first');
+
                 RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), AllSI(Igood, Ifields).WCS,...
                                                      'TransWCS',false,...
                                                      'FillValues',0,...
