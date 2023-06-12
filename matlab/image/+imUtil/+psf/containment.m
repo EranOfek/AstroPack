@@ -50,7 +50,7 @@ function Rad = containment (PSFin, Args)
     
     if Encircle < Args.Level
         fprintf('Warining! The required level not reached, probably, due to a rectangular PSF matrix!\n');
-        fprintf('%s%4.1f','The encircled fraction is only',Encircle);
+        fprintf('%s%4.1f\n','The encircled fraction is only',Encircle);
     end
     
 end
