@@ -117,7 +117,7 @@ function [Result]=imwarp(Obj, Trans, Args)
     if ~isempty(Args.RefWCS)
         Args.TransWCS = true;
     end
-    
+
     % Delete CatData
     if Args.DeleteCat
         if ~Args.CreateNewObj
@@ -188,6 +188,7 @@ function [Result]=imwarp(Obj, Trans, Args)
         else
             error('Unknown Trans (2nd input argument) numeric option'); 
         end
+        OutWCS = [];
         
     elseif isa(Trans, 'AstroWCS')
         % Convert AstroWCS to displacment field
