@@ -84,16 +84,18 @@ function [Result,AISub] = psfFitPhotIter(AI,Args)
     [Imsz1,Imsz2] =AISub.sizeImage;
 
     for Iiter = 1:1:Niter
-        if Args.ReCalcBack
+        if Args.ReCalcBack % recalculate background
             AISub = imProc.background.background(AISub,Args.backgroundArgs{:});
         end
-        AISub = imProc.sources.findSources(AISub,'Psf',AISub.PSF,'Threshold',Threshold(Iiter));
+        % Source detection using the psf from AISub 
+        AISub = imProc.sources.findSources(AISub,'Psf',AISub.PSF,'Threshold',Threshold(Iiter),Args.findSourcesArgs{:});
         AISub.CatData.Catalog = double(AISub.CatData.Catalog);
         if AISub.CatData.isemptyCatalog
             continue;
         end
+        % psf photometry. The use of SN_1 isn't robust.
         [AISub] = imProc.sources.psfFitPhot(AISub,'PSF',AISub.PSF,'ColSN','SN_1','HalfSize',floor(numel(AISub.PSF(:,1))/2),Args.psfFitPhotArgs{:});
-        if ~isempty(Args.ColNameIter)
+        if ~isempty(Args.ColNameIter) % Add iter number to the catalog.
             AISub.CatData.insertCol((Iiter).*ones(numel(AISub.CatData.Catalog(:,1)),2) ,Inf,{Args.ColNameIter},{''});
         end
         SrcCat = AISub.CatData.getCol({'X','Y','FLUX_PSF'});
