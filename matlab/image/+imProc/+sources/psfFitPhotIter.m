@@ -113,7 +113,7 @@ function [Result,AISub] = psfFitPhotIter(AI,Args)
             Result = AI;
             Result.CatData = Cat;
 
-        case 'astrotable'
+        case 'astrocatalog'
             Result = Cat;
         otherwise
             error('Unknown OutType option');
