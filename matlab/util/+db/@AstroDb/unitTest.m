@@ -23,6 +23,7 @@ function Result = unitTest()
     end
     
     LDB = db.AstroDb();
+    LDB.Dname = 'lastdb';
     
     Tables = LDB.Query.select('*','TableName','pg_tables','Where','schemaname = ''public''');
     Tables.Data.tablename % show public tables in the DB
@@ -76,11 +77,11 @@ function Result = unitTest()
         Images(Img) = AstroImage(Imfiles(Img));
         Headers(Img).Data = Images(Img).Header;
     end
-    pk = LDB.populateImageDB ( Imfiles, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', 'true' );
+    pk = LDB.populateImageDB ( Imfiles, 'raw_images', 'DBname', LDB.Dname, 'Hash', 'true' );
     disp(pk);
-    pk = LDB.populateImageDB ( Images, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', 'true' );
+    pk = LDB.populateImageDB ( Images, 'raw_images', 'DBname', LDB.Dname, 'Hash', 'true' );
     disp(pk);
-    pk = LDB.populateImageDB ( Headers, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', 'true' );
+    pk = LDB.populateImageDB ( Headers, 'raw_images', 'DBname', LDB.Dname, 'Hash', 'true' );
     disp(pk);
     
     % test updateByTupleID

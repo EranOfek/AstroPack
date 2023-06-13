@@ -8,10 +8,10 @@ classdef AstroDb < Component
         Telescope   = 'LAST'  % Telescope object
         
         % Database name
-        DnULTRASAT  = '';
-        DnLAST      = 'LAST';
+        Dname       = 'last_operational';
         
         % Table Names
+%         Tname       = 'raw_images'
         TnRawImages     = 'raw_images';
         TnProcImages    = 'proc_images';
         TnCoaddImages   = 'coadd_images';       
@@ -49,6 +49,7 @@ classdef AstroDb < Component
                 Args.DatabaseName  = 'lastdb'        % 'last_operational' at last0 node
                 Args.UserName      = 'postgres'      % User name
                 Args.Password      = 'PassRoot' %'postgres'      % 'PassRoot'      % Password
+                Args.ListTables logical = true; % whether to put out a list of public tables
             end
 
             %
@@ -61,7 +62,13 @@ classdef AstroDb < Component
             % Query database version, to verify that we have a connection
             pgver = Obj.Query.getDbVersion();
             Obj.msgLog(LogLevel.Info, 'Connected, Postgres version: %s', pgver);
-            assert(contains(pgver, 'PostgreSQL'));            
+            assert(contains(pgver, 'PostgreSQL'));   
+            
+            if Args.ListTables
+                TableList = Obj.Query.select('*','TableName','pg_tables','Where','schemaname = ''public''');
+                cprintf('hyper','%s\n','The DB contains the following public tables:')
+                TableList.Data.tablename
+            end
         end
         
     end
@@ -740,7 +747,7 @@ classdef AstroDb < Component
         %==================================================================
         %                     Functions added by @kra
         %==================================================================        
-        function [TupleID] = populateImageDB(Obj, Data, Args)
+        function [TupleID] = populateImageDB(Obj, Data, Table, Args)
             % Populate a database with metadata (header data) from a list of input images
             % Description: Populate a database with metadata (header data) from a list of input images
             % Input :  - an AstroDb object 
@@ -749,8 +756,8 @@ classdef AstroDb < Component
             %               b) a vector of AstroImages 
             %               c) a vector of AstroHeaders
             %          * ...,key,val,...
-            %          'DBname'        : DB name
-            %          'DBtable'       : DB table
+            %          - Table : table name
+            %          'DBname'       : DB table
             %          'Hash'          : whether to calculate a hashsum of the file and add it to the table
             %          'FileNames'     : an optinal cell array of file names (if
             %                            only AstroImages or AstroHeaders are provided)
@@ -765,8 +772,8 @@ classdef AstroDb < Component
             arguments
                 Obj
                 Data                                % input images (file names or AstroImages) or AstroHeaders
-                Args.DBname       = Obj.DnLAST;     % DB name
-                Args.DBtable      = Obj.TnRawImages;% DB table
+                Table                               % DB table
+                Args.DBname       = Obj.Dname;      % DB name
                 Args.Hash logical = true;           % whether to calculate a hashsum and add it to the table
                 Args.FileNames    = {};             % an optional cell array of file names (for the case the first argument is not a file list)
                 Args.ForceInsert logical = true;    % if the record is inserted despite the existing copy (checked by the hashsum)
@@ -785,7 +792,7 @@ classdef AstroDb < Component
 
             % populate the database
             switch Args.DBname
-                case Obj.DnLAST
+                case Obj.Dname
                     for Img = 1:1:NImg
                         if isa( Data(Img), 'AstroImage' )
                             AH = AstroHeader;
@@ -811,7 +818,7 @@ classdef AstroDb < Component
                        end
 
                         % populate the DB
-                        switch Args.DBtable
+                        switch Table
                             case Obj.TnRawImages
                                 TupleID(Img) = Obj.addRawImage(AH.File, AH, 'xxhash', Sum_h64, 'Force', Args.ForceInsert);
 
@@ -837,7 +844,7 @@ classdef AstroDb < Component
         end
         
         
-        function [TupleID] = populateCatDB( Obj, Data, Args )
+        function [TupleID] = populateCatDB( Obj, Data, Table, Args )
             % Populate a database with data from a list of catalog files or AstroCatalogs
             % Input :  - an AstroDb object 
             %          - Data : a cell array containing either 
@@ -857,8 +864,8 @@ classdef AstroDb < Component
             arguments
                 Obj
                 Data                                 % input catalogs
-                Args.DBname       = Obj.DnLAST;      % DB name
-                Args.DBtable      = Obj.TnSrcCatalog;% DB table
+                Table
+                Args.DBname       = Obj.Dname;       % DB name
                 Args.Hash logical = true;            % whether to calculate a hashsum of individual records and add it to the table
                 Args.FileNames    = {};              % an optional cell array of file names (for the case the first argument is not a file list)
             end
@@ -868,7 +875,7 @@ classdef AstroDb < Component
 
             % populate the database
             switch Args.DBname
-                case Obj.DnLAST
+                case Obj.Dname
                     for ICat = 1:1:NCat
                         if isa( Data(ICat), 'AstroCatalog' )
                             AC = Data(ICat);
@@ -879,7 +886,7 @@ classdef AstroDb < Component
                         end
                                                 
                         % populate the DB
-                        switch lower(Args.DBtable)          
+                        switch lower(Table)          
                             case Obj.TnSrcCatalog
                                 TupleID = Obj.addSrcCatalog(Filename, AC, 'Hash', Args.Hash);
                             otherwise
@@ -919,7 +926,7 @@ classdef AstroDb < Component
                 Obj
                 Args.DataDir        =    '/home/sasha/Raw/';                % The directory containing the input images
                 Args.InputImages    =    'LAST*sci*raw_Image*.fits';        % The mask of the input image filenames
-                Args.DBname         =    Obj.DnLAST;
+                Args.DBname         =    Obj.Dname;
                 Args.DBtable        =    Obj.TnRawImages;
                 Args.Hash  logical  =    true;
             end
@@ -941,8 +948,8 @@ classdef AstroDb < Component
             % call the sub to populate the database (3 variants: files, AI, AH)
 
             TupleID = Obj.populateImageDB ( Imfiles, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
-%             TupleID = Obj.populateImageDB ( Obj, Headers, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
-%             TupleID = Obj.populateImageDB ( Obj, Images,  'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+%             TupleID = Obj.populateImageDB ( Headers, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
+%             TupleID = Obj.populateImageDB ( Images,  'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
 
 %             fprintf('%s%d%s\n','Inserted ',numel(TupleID),' tuples');
         end
@@ -969,7 +976,7 @@ classdef AstroDb < Component
             A.TnProcImages  = 'test_proc_images';
             A.TnCoaddImages = 'test_coadd_images';
             A.TnSrcCatalog  = 'test_src_catalog';
-            A.DnLAST        = 'last_operational';
+            A.Dname        = 'last_operational';
             
 %           createTables(A); % if the tables do not exist as of yet, need to create them
             
@@ -981,12 +988,12 @@ classdef AstroDb < Component
                                              'DBname','last_operational', 'DBtable','test_raw_images'); 
 
             elseif strcmp(Table,'test_proc_images')
-                ProcTuples = A.addImages2DB('DataDir',DataDir, ...
+                ProcTuples = A.addImages2DB('DataDir',Args.DataDir, ...
                                              'InputImages','LAST*sci_proc_Image*.fits', ...
                                              'DBname','last_operational', 'DBtable','test_proc_images'); 
                                          
             elseif strcmp(Table,'test_coadd_images')
-                CoaddTuples = A.addImages2DB('DataDir',DataDir, ...
+                CoaddTuples = A.addImages2DB('DataDir',Args.DataDir, ...
                                              'InputImages','LAST*sci_coadd_Image*.fits', ...
                                              'DBname','last_operational', 'DBtable','test_coadd_images'); 
             end
