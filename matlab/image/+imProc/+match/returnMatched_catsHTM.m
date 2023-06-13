@@ -84,6 +84,7 @@ function [Result, ResInd, CatH] = returnMatched_catsHTM(Obj, CatName, Args)
 
     CatH   = AstroCatalog(size(Obj));  % output of catsHTM
     Result = AstroCatalog(size(Obj));
+    Nobj   = numel(Obj);
     for Iobj=1:1:Nobj
         if isa(Obj, 'AstroImage')
             CatIn = Obj(Iobj).CatData;
