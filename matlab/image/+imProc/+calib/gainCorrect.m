@@ -70,7 +70,7 @@ function Result = gainCorrect(Obj, Gain, Args)
         end
         
         % write old GAIN value
-        Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, Args.OrigGainKey, 1./InvGain, Args.replaceValArgs{:});
+        Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, Args.OrigGainKey, Gain, Args.replaceValArgs{:});
                
         % Set the DataType of the AstroImage to electrons
         Result(Iobj).DataType = AstroDataType.Electrons;
