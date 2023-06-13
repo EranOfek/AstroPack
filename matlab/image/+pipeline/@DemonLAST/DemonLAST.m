@@ -1194,6 +1194,9 @@ classdef DemonLAST < Component
                 Args.SaveMergedCat     = true;
                 Args.SaveMergedMat     = true;
                 Args.SaveAsteroids     = true;
+
+                Args.DB_InsertRaw      = false;
+                Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational', 'UserName','postgres','Password','postgres','Port',5432};
             end
             
             % get path
@@ -1389,6 +1392,14 @@ classdef DemonLAST < Component
                             % Write ready-to-transfer
                             writeStatus(Obj, FN_Proc.genPath);
                             writeStatus(Obj, fileparts(RawImageListFinal{1}));
+
+
+                            % Insert images to DB tables
+                            % Insert raw images
+                            if Args.DB_InsertRaw
+                                ADB = db.AstroDb(Args.AstroDBArgs{:});
+
+                            end
 
                             RunTime = toc;
                         catch ME
