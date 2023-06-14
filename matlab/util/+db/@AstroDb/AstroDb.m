@@ -1,8 +1,64 @@
 % db.AstroDB is a class for astronomical relational DB
 %
+% Properties :
+%         Query       - DbQuery object (filled when a DB object is created)
+%         Tables      - the list of existing DB tables (filled when a DB object is created)
+%         Tname       - current table name (overriden by a user input to the Obj.insert function)
+%         Telescope   - Telescope name
+%
+% Functionality :
+%
+% AstroDb -
+% createImageTable - Create or update definitions of image tables
+% createcatalogTable - Create or update definitions of catalog tables
+% createLASTtables - Create or update definitions of LAST database tables
+% addCommonImageColumns - Add/update common image columns to table
+% addCommonCatalogColumns - Add/update common catalog columns to table
+% addImage - Insert AstroHeader data to the specified table
+% addCatalog - Insert AstroCatalog records to src_catalog table
+% insert - insert image header or catalog data into an AstroDb database
+%          (the data injection function to be called by the user)
+% updateByTupleID - update DB table column values for the specified tuple numbers
+%          (the data manipulation function to be called by the user)
+% 
+%
+% TODO:
+% make a dependent LASTDb class with more particular table and connection parameters
+%
+% Examples:
+% % create a DB object with the default parameters:
+% A = db.AstroDb; 
+% % create a DB object with some more user-defined parameters:
+% A = db.AstroDb('Host', '10.23.1.1', 'DatabaseName', 'last_operational', 'UserName', 'myuser', 'Password', 'mypwd', 'Port', 5432);
+% % view the list of existing tables:
+% A.Tables
+% % re-create the raw_images table (existing data will be lost):
+% A.createImageTable('raw_images','Drop',1);
+% % Add to the DB metadata from RAW level images contained in the /home/sasha/Raw2/ directory according to the internal template:
+% TupleIDs = A.insert('LAST*raw*Ima*fits','DataDir','/home/sasha/Raw2/','Table','raw_images');
+% % Add to the DB metadata from RAW level images contained in a vector of AstroImages (AI):
+% TupleIDs = A.insert(AI,'Table','raw_images');
+% % Add to the DB metadata from PROC level images contained in the /home/sasha/Obs2/ directory according to the template:
+% TupleIDs = A.insert('LAST*proc*Ima*fits','DataDir','/home/sasha/Obs2/','Table','proc_images');
+% % Same, but do not insert the records which already exist in the table:
+% TupleIDs = A.insert('LAST*proc*Ima*fits','DataDir','/home/sasha/Obs2/','Table','proc_images','Force',0);
+% % Add to the DB metadata from COADD level images contained in the /home/sasha/Obs2/ directory according to the template:
+% TupleIDs = A.insert('LAST*coadd*Ima*fits','DataDir','/home/sasha/Obs2/','Table','coadd_images');
+% % Add to the DB metadata from COADD level images contained in a vector of AstroHeaders (AH):
+% TupleIDs = A.insert(AH,'Table','coadd_images'); 
+% % Same, but also put out the processed file names:
+% TupleIDs = A.insert('LAST*coadd*Ima*fits','DataDir','/home/sasha/Obs2/','Table','coadd_images','Verbose',1);
+% % Add to the DB source data from COADD level catalogs in the /home/sasha/Obs2/ directory according to the template:
+% TupleIDs = A.insert('LAST*coadd*Cat*fits','DataDir','/home/sasha/Obs2/','Type','cat','Table','src_catalog');
+% % Add to the DB source data from COADD level catalogs contained in a vector of AstroCatalogs (AC):
+% TupleIDs = A.insert(AC,'Type','cat','Table','src_catalog');
+% % Change 'ra' to 218 in tuples with ids from 2 to 10 in the 'proc_images' table
+% A.updateByTupleID('proc_images',[2:10],'ra',218)
+% % Change 'procstat' to 'seeing 0.5' for tuples listed in the vector Tuples)
+% A.updateByTupleID('raw_images',Tuples,'procstat','seeing 0.5')    
+%
 classdef AstroDb < Component
 
-    % Properties
     properties (SetAccess = public)
         Query       = []      % DbQuery object (filled when a DB object is created)
         Tables      = []      % the list of existing DB tables (filled when a DB object is created)
@@ -74,7 +130,7 @@ classdef AstroDb < Component
     methods % creation/removal of image and catalog tables (generic)
         
         function Result = createImageTable(Obj, TableName, Args)
-            % Create or update definitions of LAST database tables
+            % Create or update definitions of image tables
             % Input :  - LastDb object
             %          * Pairs of ...,key,val,...
             %            The following keys are available:
@@ -96,8 +152,8 @@ classdef AstroDb < Component
         end
 
 
-         function Result = createCatalogTable(Obj, TableName, Args)
-            % Create or update definitions of LAST database tables
+        function Result = createCatalogTable(Obj, TableName, Args)
+            % Create or update definitions of of catalog tables
             % Input :  - LastDb object
             %          * Pairs of ...,key,val,...
             %            The following keys are available:
@@ -139,7 +195,7 @@ classdef AstroDb < Component
             Result = true;
         end
 
-        function Result = addCommonImageColumns(Obj, Q, TN)
+       function Result = addCommonImageColumns(Obj, Q, TN)
             % Add/update common image columns to table
             % Input :  - LastDb object
             %          - Q - DbQuery object (should be Obj.Query)
@@ -312,8 +368,8 @@ classdef AstroDb < Component
         end
 
 
-        function Result = addCommonCatalogColumns(Obj, Q, TN)
-            % Add/update common image columns to table
+       function Result = addCommonCatalogColumns(Obj, Q, TN)
+            % Add/update common catalog columns to table
             % Input :  - LastDb object
             %          - Q - DbQuery object (should be Obj.Query)
             %          - TN - Table name
@@ -497,7 +553,7 @@ classdef AstroDb < Component
         
         
         function Result = addCatalog(Obj, TableName, AC, Args)
-            % Insert source cataloge records to src_catalog table
+            % Insert source catalog records to src_catalog table
             % Input :  - LastDb object
             %          - FileName
             %          - AstroCatalog
