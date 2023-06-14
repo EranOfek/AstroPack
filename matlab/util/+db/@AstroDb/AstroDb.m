@@ -819,8 +819,8 @@ classdef AstroDb < Component
     methods (Static) % unitTest and examples
         Result = unitTest()
             % AstroDb Unit-Test
-        Result = testDBlast0()
-            % Examples
+%         Result = testDBlast0()
+%             % Examples
     end
 
 end
