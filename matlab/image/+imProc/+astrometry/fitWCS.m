@@ -73,7 +73,7 @@ function [Tran, ParWCS, ResFit, WCS] = fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg
         Args.Flip               = [1 1];
         Args.ProjType           = 'TPV';
         Args.TranMethod         = 'TPV';
-        Args.Tran               = Tran2d;
+        Args.Tran               = Tran2D;
         Args.ExtraData          = [];
         Args.ErrPos
         Args.Niter

@@ -1196,6 +1196,7 @@ classdef DemonLAST < Component
                 Args.SaveAsteroids     = true;
 
                 Args.DB_InsertRaw      = false;
+                Args.DB_Table_Raw      = 'test_raw_images';
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational', 'UserName','postgres','Password','postgres','Port',5432};
             end
             
@@ -1300,9 +1301,7 @@ classdef DemonLAST < Component
                 
 
                 for Igroup=1:1:Ngroup
-                    if Igroup==9
-                        'a'
-                    end
+                   
                     % for each visit
                     if FN_Sci_Groups(Igroup).nfiles>Args.MinNumIMageVisit
 
@@ -1398,7 +1397,7 @@ classdef DemonLAST < Component
                             % Insert raw images
                             if Args.DB_InsertRaw
                                 ADB = db.AstroDb(Args.AstroDBArgs{:});
-
+                                ADB.populateImageDB(AllSI, Args.DB_Table_Raw);
                             end
 
                             RunTime = toc;
