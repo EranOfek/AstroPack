@@ -107,7 +107,7 @@ function Result = unitTest
     % operate against a scalar for each image
     R   = funBinary([IC1, IC2],num2cell([1 3]),@plus,'CreateNewObj',true);
     if ~all(abs(R(1).Image - IC1.Image - 1)<1e-8,'all') || ~all(abs(R(2).Image - IC2.Image - 3)<1e-8,'all')
-        error('Problem with arithmatics');
+        error('Problem with arithmetics');
     end
     R   = funBinary([IC1],[1 3],@plus,'CreateNewObj',true);
 
