@@ -177,7 +177,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         
         Args.ProjType                           = 'TPV';
         Args.TranMethod                         = 'TPV';
-        Args.Tran                               = Tran2D('poly3');
+        Args.Tran                               = Tran2D('poly4');
         Args.ErrPos                             = 0.01;
         Args.ExtraData                          = [];
         Args.Niter                              = 2;
@@ -192,7 +192,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         Args.InterpMethod                       = 'linear';
         Args.ThresholdSigma                     = 3;
         
-        Args.CatName                            = 'GAIAEDR3';  % or AstroCatalog
+        Args.CatName                            = 'GAIADR3';  % or AstroCatalog
         Args.CatOrigin                          = 'catsHTM';
         Args.CatRadius                          = 1400;
         Args.CatRadiusUnits                     = 'arcsec'
@@ -363,6 +363,11 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                     [CenterX, CenterY, CenterRadius] = boundingCircle(Cat,'CooType','pix');
                     [Args.RA, Args.Dec] = xy2sky(WCS, CenterX, CenterY, 'OutUnits',CircleUnits,...
                                                   'includeDistortion',Args.IncludeDistortions);
+                    if isempty(Args.Scale)
+                        % get scale from WCS
+                        Args.Scale = WCS.getScale;
+                    end
+
                     Args.CatRadius      = CenterRadius .* Args.Scale;
                     Args.CatRadiusUnits = 'arcsec';
                     Args.CooUnits       = CircleUnits;

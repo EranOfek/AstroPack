@@ -242,7 +242,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         % Astrometry
         Args.Scale                            = 1.25;
-        Args.Tran                             = Tran2D('poly4'); %Tran2D('cheby1_3'); %Tran2D('poly3');
+        Args.Tran                             = Tran2D('poly3'); %Tran2D('cheby1_3'); %Tran2D('poly3');
         %Args.astrometryCoreArgs cell          = {};
         Args.astrometrySubImagesArgs cell     = {};
         Args.astrometryRefineArgs cell        = {};
