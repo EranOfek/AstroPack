@@ -38,6 +38,15 @@ function Result=astrometryQualityData(Obj, Args)
     %            'ColCatDec' - Column name in the input catalog containing the
     %                   Dec. Default is AstroCatalog.DefNamesDec
     %
+    %            'cell2d_statArgs' - A cell array of arguments to pass to
+    %                   tools.math.stat.cell2d_stat
+    %                   Default is {}.
+    %            'MagLimit' - Mag limit to use when calculating cell
+    %                   statistics.
+    %                   Default is 17.
+    %            'Nbin' - Number of binx to use in [X,Y] for cell
+    %                   statistics.
+    %                   Default is [3 3].
     %    Argumnets passed to: imProc.match.returnMatched_catsHTM
     %            'Coo' - [RA, Dec] of coordinates to search.
     %                   If empty, then will attempt to find this
@@ -79,8 +88,8 @@ function Result=astrometryQualityData(Obj, Args)
     %          can be derived. One element per input catalog element.
     %          The following fields are available:
     %          (All coordinates are in radians)
-    %          .DeltaRA - RA_cat - RA_ref
-    %          .DeltaDec - Dec_cat - Dec_ref
+    %          .DeltaRA - RA_cat - RA_ref [arcsec]
+    %          .DeltaDec - Dec_cat - Dec_ref [arcsec]
     %          .CatRADec - [RA, Dec] of input cat.
     %          .RefRADec - [RA, Dec] of ref.
     %          .CatXY    - [X,Y] of input cat.
@@ -90,8 +99,10 @@ function Result=astrometryQualityData(Obj, Args)
     %          .Color    - Colors.
     %          .PixelPhaseX - Pixel phase in X.
     %          .PixelPhaseY - Pixel phase in Y.
-    %          .MedShiftRAmas - Median RA shift in mas.
-    %          .MedShiftDecmas - Median Dec shift in mas.
+    %          .MedShiftRAmas - Median RA shift in arcsec.
+    %          .MedShiftDecmas - Median Dec shift in arcsec.
+    %          .ResidRA_XY - Statistics of residual in RA as a function of Y,X. [arcsec]
+    %          .ResidDec_XY - Statistics of residual in Dec as a function of Y,X. [arcsec]
     % Author : Eran Ofek (May 2023)
     % Example: R=imProc.astrometry.astrometryQualityData(AI);
     
@@ -117,7 +128,10 @@ function Result=astrometryQualityData(Obj, Args)
         Args.MagFromRef logical    = true;
         Args.ColMag                = 'phot_bp_mean_mag';
         Args.ColColor              = {'phot_bp_mean_mag','phot_rp_mean_mag'};  % single column or two columns
-        
+        Args.cell2d_statArgs       = {};
+        Args.MagLimit              = 17;
+        Args.Nbin                  = [3 3];
+
         Args.ColRefRA      = AstroCatalog.DefNamesRA;
         Args.ColRefDec     = AstroCatalog.DefNamesDec;
         Args.ColCatRA      = AstroCatalog.DefNamesRA;
@@ -128,6 +142,7 @@ function Result=astrometryQualityData(Obj, Args)
     end
     
     RAD = 180./pi;
+    ARCSEC_DEG = 3600;
 
     
     
@@ -196,11 +211,16 @@ function Result=astrometryQualityData(Obj, Args)
         Result(Iobj).PixelPhaseY = mod(Result(Iobj).CatXY(:,2), 1);
         
         % rms vs. position
+        Result(Iobj).DeltaRA         = Result(Iobj).DeltaRA  .* RAD.*ARCSEC_DEG;      % [arcsec]
+        Result(Iobj).DeltaDec        = Result(Iobj).DeltaDec .* RAD.*ARCSEC_DEG;      % [arcsec]
 
+        F = Mag<Args.MagLimit;
+        Result(Iobj).ResidRA_XY      = tools.math.stat.cell2d_stat(Result(Iobj).CatXY(F,1), Result(Iobj).CatXY(F,2), Result(Iobj).DeltaRA(F), Args.cell2d_statArgs{:},  'NbinX',Args.Nbin(1), 'NbinY',Args.Nbin(2));
+        Result(Iobj).ResidDec_XY     = tools.math.stat.cell2d_stat(Result(Iobj).CatXY(F,1), Result(Iobj).CatXY(F,2), Result(Iobj).DeltaDec(F), Args.cell2d_statArgs{:}, 'NbinX',Args.Nbin(1), 'NbinY',Args.Nbin(2));
 
         % Summary
-        Result(Iobj).MedShiftRAmas  = median(Result(Iobj).DeltaRA.*RAD.*3600.*1000, 1, 'omitnan');
-        Result(Iobj).MedShiftDecmas = median(Result(Iobj).DeltaDec.*RAD.*3600.*1000, 1, 'omitnan');
+        Result(Iobj).MedShiftRAmas  = median(Result(Iobj).DeltaRA, 1, 'omitnan');     % [arcsec]
+        Result(Iobj).MedShiftDecmas = median(Result(Iobj).DeltaDec, 1, 'omitnan');    % [arcsec]
     
     end
     
