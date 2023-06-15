@@ -1397,7 +1397,7 @@ classdef DemonLAST < Component
                             % Insert raw images
                             if Args.DB_InsertRaw
                                 ADB = db.AstroDb(Args.AstroDBArgs{:});
-                                ADB.populateImageDB(AllSI, Args.DB_Table_Raw);
+                                ADB.insert(AllSI, 'Table',Args.DB_Table_Raw);
                             end
 
                             RunTime = toc;
