@@ -299,6 +299,7 @@ classdef AstroDb < Component
                 Q.addColumn(TN, 'med_th',       'double', 'default 0');  
 
                 Q.addColumn(TN, 'pipever',  'varchar(80)', "default ''");  
+                
             end
             
             if strcmp(TN, 'coadd_images')
