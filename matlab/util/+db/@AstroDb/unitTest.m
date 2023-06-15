@@ -23,7 +23,6 @@ function Result = unitTest()
     end
     
     LDB = db.AstroDb();
-    LDB.Dname = 'lastdb';
     
     Tables = LDB.Query.select('*','TableName','pg_tables','Where','schemaname = ''public''');
     Tables.Data.tablename % show public tables in the DB
@@ -40,30 +39,30 @@ function Result = unitTest()
     xx = tools.checksum.xxhash('FileName', FitsFileName);
     assert(~isempty(xx));
     %LDB.addImage('raw_images', FitsFileName, AH, 'xxhash', xx);
-    pk = LDB.addRawImage(FitsFileName, AH, 'xxhash', xx);    
+    pk = LDB.addImage('raw_images',FitsFileName, AH, 'xxhash', xx);    
     if ~isempty(pk)
         disp(pk);
-        LDB.Query.deleteRecord('TableName', LDB.TnRawImages, 'Where', sprintf('pk = %d', pk));
+        LDB.Query.deleteRecord('TableName', 'raw_images', 'Where', sprintf('pk = %d', pk));
     end
     
-    pk = LDB.addRawImage(FitsFileName, AH, 'xxhash', xx);        
+    pk = LDB.addImage('raw_images',FitsFileName, AH, 'xxhash', xx);        
     disp(pk);
     
     % test PROC and COADD:
     FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213718.470_clear_219+50_001_001_024_sci_proc_Image_1.fits');
     AH = AstroHeader(FitsFileName);  
-    pk = LDB.addProcImage(FitsFileName, AH, 'xxhash', xx);        
+    pk = LDB.addImage('proc_images',FitsFileName, AH, 'xxhash', xx);        
     disp(pk);
     
     FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213408.398_clear_219+50_001_001_021_sci_coadd_Image_1.fits');
     AH = AstroHeader(FitsFileName);  
-    pk = LDB.addCoaddImage(FitsFileName, AH, 'xxhash', xx);        
+    pk = LDB.addImage('coadd_images',FitsFileName, AH, 'xxhash', xx);        
     disp(pk);
     
     % test CAT 
     FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213408.398_clear_219+50_001_001_024_sci_coadd_Cat_1.fits');
     AC = AstroCatalog(FitsFileName);  
-    pk = LDB.addSrcCatalog(FitsFileName, AC); 
+    pk = LDB.addCatalog('src_catalog', AC); 
     disp(pk);
     
     % test populateImageDB
@@ -77,15 +76,15 @@ function Result = unitTest()
         Images(Img) = AstroImage(Imfiles(Img));
         Headers(Img).Data = Images(Img).Header;
     end
-    pk = LDB.populateImageDB ( Imfiles, 'raw_images', 'DBname', LDB.Dname, 'Hash', 'true' );
+    pk = LDB.insert ( Imfiles, 'Table', 'raw_images' );
     disp(pk);
-    pk = LDB.populateImageDB ( Images, 'raw_images', 'DBname', LDB.Dname, 'Hash', 'true' );
+    pk = LDB.insert ( Images, 'Table', 'raw_images' );
     disp(pk);
-    pk = LDB.populateImageDB ( Headers, 'raw_images', 'DBname', LDB.Dname, 'Hash', 'true' );
+    pk = LDB.insert ( Headers, 'Table', 'raw_images');
     disp(pk);
     
     % test updateByTupleID
-    LDB.updateByTupleID(LDB,'proc_images',pk,'ra',218)
+    LDB.updateByTupleID('proc_images',pk,'ra',218)
     
     % Load AstroHeader object from image FITS file, convert to DbRecord
     FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213408.398_clear_219+50_001_001_021_sci_coadd_Image_1.fits');
@@ -111,10 +110,9 @@ function Result = unitTest()
     xx = tools.checksum.xxhash('FileName', FitsFileName);
     assert(~strcmp(xx,''));
     LDB.addImage('raw_images', FitsFileName, AH, 'xxhash', xx);
-    LDB.addRawImage(FitsFileName, AH, 'xxhash', xx);
     
     %
-    pk = LDB.addRawImage(FitsFileName, AH, 'xxhash', xx, 'Select', true);    
+    pk = LDB.addImage('raw_images', FitsFileName, AH, 'xxhash', xx, 'Select', true);    
     
     % Insert with additional fields, field are converted to LOWERCASE
     % Overwrite existing fields of AstroHeader, ignore columns that does 
@@ -123,8 +121,8 @@ function Result = unitTest()
     AddCols.ProcStat = sprintf('My notes at %s', datestr(now, 'yyyy/mm/dd HH:MM:SS'));
     AddCols.focus = 77777;
     AddCols.DoesNotExist = 'blabla';
-    LDB.addRawImage(FitsFileName, AH);
-    LDB.addRawImage(FitsFileName, AH, 'AddCols',AddCols);
+    LDB.addImage('raw_images',FitsFileName, AH);
+    LDB.addImage('raw_images',FitsFileName, AH, 'AddCols',AddCols);
     
     % Select numer of columns
     Count = LDB.Query.selectTableRowCount('TableName', 'raw_images');
