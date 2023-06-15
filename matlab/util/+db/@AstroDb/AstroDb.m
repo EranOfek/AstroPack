@@ -499,7 +499,7 @@ classdef AstroDb < Component
             
             % The same record should be inserted with the advancing procversion number
             if ProcVers > 0 
-                Obj.updateByTupleID(TableName, Pk, 'procversion', ProcVers);
+                Obj.updateByTupleID(Pk, 'procversion', ProcVers, 'Table', TableName);
             end
             Result = Pk;
         end

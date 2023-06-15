@@ -84,7 +84,7 @@ function Result = unitTest()
     disp(pk);
     
     % test updateByTupleID
-    LDB.updateByTupleID('proc_images',pk,'ra',218)
+    LDB.updateByTupleID(pk,'ra',218, 'Table', 'proc_images')
     
     % Load AstroHeader object from image FITS file, convert to DbRecord
     FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213408.398_clear_219+50_001_001_021_sci_coadd_Image_1.fits');
