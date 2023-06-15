@@ -126,55 +126,6 @@ classdef AstroDb < Component
         end
         
     end
-
-    methods % creation/removal of image and catalog tables (generic)
-        
-        function Result = createImageTable(Obj, TableName, Args)
-            % Create or update definitions of image tables
-            % Input :  - LastDb object
-            %          * Pairs of ...,key,val,...
-            %            The following keys are available:
-            % Output  : True on success
-            % Author  : Chen Tishler (02/2023)
-            % Example : 
-            arguments
-                Obj
-                TableName
-                Args.AddCommonColumns = true
-                Args.Drop = false
-            end
-
-            % Create table
-            Obj.Query.createTable('TableName', TableName, 'AutoPk', 'pk', 'Drop', Args.Drop);
-            if Args.AddCommonColumns                
-                Result = Obj.addCommonImageColumns(Obj.Query, TableName);
-            end
-        end
-
-
-        function Result = createCatalogTable(Obj, TableName, Args)
-            % Create or update definitions of of catalog tables
-            % Input :  - LastDb object
-            %          * Pairs of ...,key,val,...
-            %            The following keys are available:
-            % Output  : True on success
-            % Author  : Chen Tishler (02/2023)
-            % Example : 
-            arguments
-                Obj
-                TableName
-                Args.AddCommonColumns = true
-                Args.Drop = false                
-            end
-
-            % Create table
-            Obj.Query.createTable('TableName', TableName, 'AutoPk', 'pk', 'Drop', Args.Drop);
-            if Args.AddCommonColumns
-                Result = Obj.addCommonCatalogColumns(Obj.Query, TableName);
-            end
-         end
-
-    end
     
     methods % LAST-specfic structure of image and catalog tables
         
@@ -346,6 +297,8 @@ classdef AstroDb < Component
                 Q.addColumn(TN, 'med_th',       'double', 'default 0');  
 
                 Q.addColumn(TN, 'pipever',  'varchar(80)', "default ''");  
+                Q.addColumn(TN, 'raw_image_id',  'integer', 'default 0');  
+                
             end
             
             if strcmp(TN, 'coadd_images')
@@ -546,7 +499,7 @@ classdef AstroDb < Component
             
             % The same record should be inserted with the advancing procversion number
             if ProcVers > 0 
-                Obj.updateByTupleID(TableName, Pk, 'procversion', ProcVers);
+                Obj.updateByTupleID(Pk, 'procversion', ProcVers, 'Table', TableName);
             end
             Result = Pk;
         end
@@ -726,37 +679,62 @@ classdef AstroDb < Component
             
         end
         
-        function Result = updateByTupleID(Obj, Table, TupleID, Colname, Colval)
+        function Result = updateByTupleID(Obj, TupleID, Colname, Colval, Args)
             % Update DB table column values for the specified tuple numbers 
             % Input :  - Obj    : the database object
-            %          - Table  : the table name
             %          - TupleID: a vector of tuple IDs
             %          - Colname: name of the column to be changed 
             %          - Colval : the new column value
+            %          * ...,key,val,...
+            %          'Table'  : table name (by default = Obj.Tname)
+            %
             % Output : - success flag (0 -- images successfully changed the values in the DB)
             % Tested : Matlab R2020b
             % Author : A. Krassilchtchikov (May 2023)
             % Examples: A = db.AstroDb; 
-            %           A.updateByTupleID('proc_images',[2:10],'ra',218)
+            %           A.updateByTupleID([2:10],'ra',218,'Table','proc_images')
             %           (change 'ra' to 218 in tuples with ids from 2 to 10 in the 'proc_images' table)
-            %           A.updateByTupleID('raw_images',Tuples,'procstat','seeing 0.5')
+            %           A.updateByTupleID(Tuples,'procstat','seeing 0.5','Table','raw_images')
             %           (change 'procstat' to 'seeing 0.5' for tuples listed in the vector Tuples)
             arguments
                 Obj
-                Table              % DB table name
                 TupleID            % a vector of unique tuple ids
                 Colname            % name of column to change
                 Colval             % column value to insert for the given tuple ids
+                Args.Table  = '';  % table name (by def. take from the Object property)
             end
-
-            if isnumeric(Colval)
-                Action = strcat(Colname,' = ',num2str(Colval));
+            
+            % choose, which table to manipulate and check if it exists in the database
+            if ~isempty(Args.Table)
+                Table = Args.Table;
             else
-                Action = strcat(Colname,' = ''',Colval,'''');
+                Table = Obj.Tname;
             end
+            
+            if ~ismember(Table, Obj.Tables)
+                error('The requested table does not exist in the database')
+            end
+            
+            NTup = numel(TupleID);
+            Val  = zeros(NTup,1);
 
+            % update the values
             for ITup = 1:1:numel(TupleID)
+                
                 Cond = strcat('pk =', int2str( TupleID(ITup) ));
+                
+                if numel(Colval) < 2
+                    Val(ITup) = Colval;
+                else
+                    Val(ITup) = Colval(ITup);
+                end
+                
+                if isnumeric( Val(ITup) )
+                    Action = strcat(Colname, ' = ', num2str( Val(ITup) ));
+                else
+                    Action = strcat(Colname, ' = ''', Val(ITup), '''');
+                end
+
                 Obj.Query.update(Action, 'TableName', Table, 'Where', Cond);
             end
             
@@ -766,6 +744,55 @@ classdef AstroDb < Component
          
     end
     
+    methods % creation/removal of image and catalog tables (generic)
+        
+        function Result = createImageTable(Obj, TableName, Args)
+            % Create or update definitions of image tables
+            % Input :  - LastDb object
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : 
+            arguments
+                Obj
+                TableName
+                Args.AddCommonColumns = true
+                Args.Drop = false
+            end
+
+            % Create table
+            Obj.Query.createTable('TableName', TableName, 'AutoPk', 'pk', 'Drop', Args.Drop);
+            if Args.AddCommonColumns                
+                Result = Obj.addCommonImageColumns(Obj.Query, TableName);
+            end
+        end
+
+
+        function Result = createCatalogTable(Obj, TableName, Args)
+            % Create or update definitions of of catalog tables
+            % Input :  - LastDb object
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : 
+            arguments
+                Obj
+                TableName
+                Args.AddCommonColumns = true
+                Args.Drop = false                
+            end
+
+            % Create table
+            Obj.Query.createTable('TableName', TableName, 'AutoPk', 'pk', 'Drop', Args.Drop);
+            if Args.AddCommonColumns
+                Result = Obj.addCommonCatalogColumns(Obj.Query, TableName);
+            end
+         end
+
+    end
+
     methods (Static) % setup SSH tunnel (TBD)
         function Result = setupSSH(Args)
             % Setup SSH Tunnel. DO NOT USE YET, we need to solve how to send

@@ -411,6 +411,7 @@ classdef AstroImage < Component
             for Iobj=1:1:Nobj
                 if strcmp(DataProp, 'CatData')
                     Obj(Iobj).(DataProp).Catalog  = ImIO(Iobj).Data;
+                    Obj(Iobj).(DataProp).table2array;
                 else
                     Obj(Iobj).(DataProp).Data  = ImIO(Iobj).Data;
                     Obj(Iobj).(DataProp).Scale = Scale;

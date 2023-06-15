@@ -319,27 +319,28 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         % FileList is a cell array of images
                                                                                          
         AI = AstroImage(FilesList, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
-
-        % add ProjName to header
-        if Args.AddProjName2Header
-            Nfile = numel(AI);
-            for Ifile=1:1:Nfile
-                [~,FileNameStr] = fileparts(FilesList{Ifile});
-                SplitStr = split(FileNameStr,'_');
-                AI(Ifile).HeaderData.replaceVal('PROJNAME',SplitStr{1});
-            end
-        end
-        
-        % ADd FieldID to header
-        if Args.AddFieldID2Header
-            Nfile = numel(AI);
-            for Ifile=1:1:Nfile
-                [~,FileNameStr] = fileparts(FilesList{Ifile});
-                SplitStr = split(FileNameStr,'_');
-                AI(Ifile).HeaderData.replaceVal('FIELDID',SplitStr{4});
-            end
-        end        
     end
+
+    % add ProjName to header
+    if Args.AddProjName2Header
+        Nfile = numel(AI);
+        for Ifile=1:1:Nfile
+            [~,FileNameStr] = fileparts(FilesList{Ifile});
+            SplitStr = split(FileNameStr,'_');
+            AI(Ifile).HeaderData.replaceVal('PROJNAME',SplitStr{1});
+        end
+    end
+    
+    % ADd FieldID to header
+    if Args.AddFieldID2Header
+        Nfile = numel(AI);
+        for Ifile=1:1:Nfile
+            [~,FileNameStr] = fileparts(FilesList{Ifile});
+            SplitStr = split(FileNameStr,'_');
+            AI(Ifile).HeaderData.replaceVal('FIELDID',SplitStr{4});
+        end
+    end        
+    
         
     % make sure images are in single format
     AI = AI.cast('single');

@@ -24,6 +24,8 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     %                   imProc.cat.applyProperMotion for more options).
     %                   If empty, will not apply proper motion and
     %                   parallax.
+    %                   This must be a scalar, and if not will use the first image
+    %                   JD.
     %                   Default is [].
     %            'EpochIn' - If given, then will override catalog epoch.
     %                   Default units are 'JD'.
@@ -125,7 +127,7 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
                         EpochIn = Args.EpochIn;
                         EpochInUnits = 'jd';
                     end                    
-                    Result = imProc.cat.applyProperMotion(Result, EpochIn, Args.EpochOut, Args.argsProperMotion{:},'EpochInUnits',EpochInUnits, 'CreateNewObj',false);
+                    Result = imProc.cat.applyProperMotion(Result, EpochIn(:), Args.EpochOut(1), Args.argsProperMotion{:},'EpochInUnits',EpochInUnits, 'CreateNewObj',false);
                 end
 
                 % coordinates are in radians

@@ -1320,7 +1320,13 @@ classdef DemonLAST < Component
                         try
                          
                             tic;
-                            [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
+
+                            AI = AstroImage(FilesList, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
+                            % Insert AI to DB
+
+
+                            % Instead of AI, it used to be: RawImageList
+                            [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2procCoadd(AI, 'CalibImages',Obj.CI,...
                                                                        Args.multiRaw2procCoaddArgs{:},...
                                                                        'SubDir',NaN,...
                                                                        'BasePath', BasePath,...
@@ -1395,9 +1401,20 @@ classdef DemonLAST < Component
 
                             % Insert images to DB tables
                             % Insert raw images
-                            if Args.DB_InsertRaw
-                                ADB = db.AstroDb(Args.AstroDBArgs{:});
-                                ADB.populateImageDB(AllSI, Args.DB_Table_Raw);
+                            ADB = db.AstroDb(Args.AstroDBArgs{:});
+                            if Args.Insert2DB
+                                [ID_RawImage, OK] = ADB.insert(SI, 'Table',Args.DB_Table_Raw, 'FileNames',...);
+                                Msg{1} = sprintf('Insert images to LAST raw images table - success: %d', OK);
+                                Obj.writeLog(Msg, LogLevel.Info);
+                           
+                                [ID_ProcImage, OK] = ADB.insert(AllSI, 'Table',Args.DB_Table_Proc);
+                                Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
+                                Obj.writeLog(Msg, LogLevel.Info);
+                                % there are ~N*24 ProcImages, and only N
+                                % RawImages
+                                ID_RawImage = repmat(ID_RawImage,1, 24);
+                                ID_RawImage = ID_RawImage(:);
+                                OK = ADB.updateByTupleID(Args.DB_Table_Proc, ID_ProcImage, 'rawimageid', ID_RawImage);
                             end
 
                             RunTime = toc;
