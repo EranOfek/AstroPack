@@ -177,7 +177,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         
         Args.ProjType                           = 'TPV';
         Args.TranMethod                         = 'TPV';
-        Args.Tran                               = Tran2D('poly4');
+        Args.Tran                               = Tran2D('poly3');
         Args.ErrPos                             = 0.01;
         Args.ExtraData                          = [];
         Args.Niter                              = 2;
