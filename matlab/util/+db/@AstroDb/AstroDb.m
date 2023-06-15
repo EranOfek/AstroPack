@@ -127,54 +127,7 @@ classdef AstroDb < Component
         
     end
 
-    methods % creation/removal of image and catalog tables (generic)
-        
-        function Result = createImageTable(Obj, TableName, Args)
-            % Create or update definitions of image tables
-            % Input :  - LastDb object
-            %          * Pairs of ...,key,val,...
-            %            The following keys are available:
-            % Output  : True on success
-            % Author  : Chen Tishler (02/2023)
-            % Example : 
-            arguments
-                Obj
-                TableName
-                Args.AddCommonColumns = true
-                Args.Drop = false
-            end
-
-            % Create table
-            Obj.Query.createTable('TableName', TableName, 'AutoPk', 'pk', 'Drop', Args.Drop);
-            if Args.AddCommonColumns                
-                Result = Obj.addCommonImageColumns(Obj.Query, TableName);
-            end
-        end
-
-
-        function Result = createCatalogTable(Obj, TableName, Args)
-            % Create or update definitions of of catalog tables
-            % Input :  - LastDb object
-            %          * Pairs of ...,key,val,...
-            %            The following keys are available:
-            % Output  : True on success
-            % Author  : Chen Tishler (02/2023)
-            % Example : 
-            arguments
-                Obj
-                TableName
-                Args.AddCommonColumns = true
-                Args.Drop = false                
-            end
-
-            % Create table
-            Obj.Query.createTable('TableName', TableName, 'AutoPk', 'pk', 'Drop', Args.Drop);
-            if Args.AddCommonColumns
-                Result = Obj.addCommonCatalogColumns(Obj.Query, TableName);
-            end
-         end
-
-    end
+   
     
     methods % LAST-specfic structure of image and catalog tables
         
@@ -766,6 +719,55 @@ classdef AstroDb < Component
          
     end
     
+    methods % creation/removal of image and catalog tables (generic)
+        
+        function Result = createImageTable(Obj, TableName, Args)
+            % Create or update definitions of image tables
+            % Input :  - LastDb object
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : 
+            arguments
+                Obj
+                TableName
+                Args.AddCommonColumns = true
+                Args.Drop = false
+            end
+
+            % Create table
+            Obj.Query.createTable('TableName', TableName, 'AutoPk', 'pk', 'Drop', Args.Drop);
+            if Args.AddCommonColumns                
+                Result = Obj.addCommonImageColumns(Obj.Query, TableName);
+            end
+        end
+
+
+        function Result = createCatalogTable(Obj, TableName, Args)
+            % Create or update definitions of of catalog tables
+            % Input :  - LastDb object
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : 
+            arguments
+                Obj
+                TableName
+                Args.AddCommonColumns = true
+                Args.Drop = false                
+            end
+
+            % Create table
+            Obj.Query.createTable('TableName', TableName, 'AutoPk', 'pk', 'Drop', Args.Drop);
+            if Args.AddCommonColumns
+                Result = Obj.addCommonCatalogColumns(Obj.Query, TableName);
+            end
+         end
+
+    end
+
     methods (Static) % setup SSH tunnel (TBD)
         function Result = setupSSH(Args)
             % Setup SSH Tunnel. DO NOT USE YET, we need to solve how to send

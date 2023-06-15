@@ -1398,6 +1398,7 @@ classdef DemonLAST < Component
                             if Args.DB_InsertRaw
                                 ADB = db.AstroDb(Args.AstroDBArgs{:});
                                 ADB.insert(AllSI, 'Table',Args.DB_Table_Raw);
+                                ADB.updateByTupleID(Args.DB_Table_Raw, TupleID, Colname, Colval)
                             end
 
                             RunTime = toc;
