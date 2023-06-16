@@ -67,7 +67,6 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
             fprintf('Failed %d',Iast);
         end
     end
-
     
     Npl = numel(Args.AddPlanets);
     for Ipl=1:1:Npl
