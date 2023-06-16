@@ -109,6 +109,9 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
         if isempty(Args.PSF)
             % try to read PSF from AstroPSF
             PSF = ResultObj(Iobj).PSFData.getPSF;
+            if isempty(PSF)
+                error('No PSF found in AstroImage');
+            end
         else
             PSF = Args.PSF;
         end
