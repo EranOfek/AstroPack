@@ -1402,20 +1402,20 @@ classdef DemonLAST < Component
                             % Insert images to DB tables
                             % Insert raw images
                             ADB = db.AstroDb(Args.AstroDBArgs{:});
-                            if Args.Insert2DB
-                                [ID_RawImage, OK] = ADB.insert(SI, 'Table',Args.DB_Table_Raw, 'FileNames',...);
-                                Msg{1} = sprintf('Insert images to LAST raw images table - success: %d', OK);
-                                Obj.writeLog(Msg, LogLevel.Info);
-                           
-                                [ID_ProcImage, OK] = ADB.insert(AllSI, 'Table',Args.DB_Table_Proc);
-                                Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
-                                Obj.writeLog(Msg, LogLevel.Info);
-                                % there are ~N*24 ProcImages, and only N
-                                % RawImages
-                                ID_RawImage = repmat(ID_RawImage,1, 24);
-                                ID_RawImage = ID_RawImage(:);
-                                OK = ADB.updateByTupleID(Args.DB_Table_Proc, ID_ProcImage, 'rawimageid', ID_RawImage);
-                            end
+%                             if Args.Insert2DB
+%                                 [ID_RawImage, OK] = ADB.insert(SI, 'Table',Args.DB_Table_Raw, 'FileNames',...);
+%                                 Msg{1} = sprintf('Insert images to LAST raw images table - success: %d', OK);
+%                                 Obj.writeLog(Msg, LogLevel.Info);
+%                            
+%                                 [ID_ProcImage, OK] = ADB.insert(AllSI, 'Table',Args.DB_Table_Proc);
+%                                 Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
+%                                 Obj.writeLog(Msg, LogLevel.Info);
+%                                 % there are ~N*24 ProcImages, and only N
+%                                 % RawImages
+%                                 ID_RawImage = repmat(ID_RawImage,1, 24);
+%                                 ID_RawImage = ID_RawImage(:);
+%                                 OK = ADB.updateByTupleID(Args.DB_Table_Proc, ID_ProcImage, 'rawimageid', ID_RawImage);
+%                             end
 
                             RunTime = toc;
                         catch ME
