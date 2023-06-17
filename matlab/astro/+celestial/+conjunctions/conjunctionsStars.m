@@ -33,7 +33,6 @@ function Result=conjunctionsStars(Table, Args)
         Args.ThresholdOccRad = 4;
 
         Args.InterpStep      = 10./86400;
-
         Args.Result          = [];  % concat results
         
         Args.GAIA_Cols = {'RA','Dec','phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag'};
