@@ -30,7 +30,7 @@ function Result=conjunctionsStars(Table, Args)
 
         Args.EphemColMag     = 'APmag';
         Args.OcculterRadius  = 1000;     % [km]
-        Args.ThresholdOccRad = 3;
+        Args.ThresholdOccRad = 4;
 
         Args.InterpStep      = 10./86400;
 
