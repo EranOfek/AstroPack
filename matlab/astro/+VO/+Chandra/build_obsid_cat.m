@@ -79,6 +79,7 @@ if ~InPar.Collect
         catch
             pause(120);
             www.pwget({Evt2url});
+            pause(10);
         end
 
         %H = FITS.get_head(EvtFileName,2);

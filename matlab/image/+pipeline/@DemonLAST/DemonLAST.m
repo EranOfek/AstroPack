@@ -1433,7 +1433,8 @@ classdef DemonLAST < Component
                             %     Obj.writeLog(Msg, LogLevel.Info);
                             % 
                             
-                            %     ProcFileName = FN_Proc.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName)
+                            %     ProcFileName =
+                            %     FN_Proc.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
 
                             %     [ID_ProcImage, OK] = ADB.insert(AllSI, 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName);
                             %     Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
