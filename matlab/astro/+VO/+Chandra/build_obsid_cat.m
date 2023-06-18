@@ -81,7 +81,8 @@ if ~InPar.Collect
             www.pwget({Evt2url});
         end
 
-        H = FITS.get_head(EvtFileName,2);
+        %H = FITS.get_head(EvtFileName,2);
+        H = FITS.readHeader1(EvtFileName,2);
         delete(EvtFileName)
 
         for Ikey=1:1:Nkey
