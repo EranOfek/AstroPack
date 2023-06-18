@@ -75,10 +75,10 @@ if ~InPar.Collect
         Data(Ievt).url     = Evt2url(1:end-8);
 
         try
-            www.pwget({Evt2url});
+            www.pwget({Evt2url},'--no-check-certificate -U Mozilla');
         catch
             pause(120);
-            www.pwget({Evt2url});
+            www.pwget({Evt2url},'--no-check-certificate -U Mozilla');
             pause(10);
         end
 
