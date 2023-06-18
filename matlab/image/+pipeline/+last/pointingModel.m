@@ -11,7 +11,7 @@ function [AllResult,PM] = pointingModel(Files, Args)
         Args.Dirs                         = 'ALL'; %{};
         Args.StartDate                    = [];
         Args.EndDate                      = [];
-        Args.Nfiles                       = 115;  % use only last N files
+        Args.Nfiles                       = 108;  % use only last N files
         %Args.Dir                          = pwd;
         Args.astrometryCroppedArgs cell   = {};
         %Args.backgroundArgs cell          = {};
@@ -136,6 +136,10 @@ function [AllResult,PM] = pointingModel(Files, Args)
         PM = [HADec, MeanResidHA, MeanResidDec];
         Flag = any(isnan(PM),2);
         PM   = PM(~Flag,:);
+        
+        % add these values to avoid extrapolation at dec 90 deg
+        AtPole = [-135 90 0 0; -90 90 0 0; -45 90 0 0; 0 90 0 0; 45 90 0 0; 90 90 0 0; 135 90 0 0];
+        PM = [PM; AtPole];
         
         if ~isempty(Args.ConfigFile)
             % write config file
