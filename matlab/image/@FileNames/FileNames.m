@@ -1102,112 +1102,6 @@ classdef FileNames < Component
             end
             
         end        
-                
-%         function Result = AAAupdateForAstroImage(Obj, AI, Args)
-%             % Update an FileNames object using the headers of AstroImage
-%             %   Update the Time, CropID, and Counter in a FileNames object
-%             %   from the header information of an AstroImage object.
-%             % Input  : - A FileNames object.
-%             %            For size restriction see the 'SelectFirst'
-%             %            argument.
-%             %          - A AstroImage object.
-%             %          * ...,key,val,...
-%             %            'CreateNewObj' - Create a new copy of the input
-%             %                   object. Default is true.
-%             %            'SelectFirst' - A logical indicating if to take
-%             %                   the rest of the FileNames properties from
-%             %                   the first file in FileNames.
-%             %                   Default is true.
-%             %                   If false, then number of elements in
-%             %                   FileNames must be 1 or equal to the number
-%             %                   of elements in the AstroImage object.
-%             %            'GetHeaderJD' - Update JD from header. Default is true.
-%             %            'GetHeaderCropID' - Update CropID from header.
-%             %                   Default is true.
-%             %            'GetHeaderCounter' - Update Counter from header.
-%             %                   Default is true.
-%             %            'KeyCropID' - Header keyword containing the
-%             %                   CropID. Default is 'CROPID'.
-%             %            'KeyCounter' - Header keyword containing the
-%             %                   Counter. Default is 'COUNTER'.
-%             % Output : - An updated FileNames object.
-%             %            Number of files equal and corresponding to the
-%             %            number of AstroImage elements.
-%             % Author : Eran Ofek (Apr 2023)
-%             % Example: Result = updateForAstroImage(FN_Sci_GroupsProc(Igroup), AllSI)
-% 
-%             arguments
-%                 Obj(1,1)
-%                 AI AstroImage
-%                 Args.CreateNewObj logical   = true;
-%                 Args.SelectFirst logical    = true;
-%                 
-%                 Args.GetHeaderJD logical       = true;
-% 
-%                 Args.AI_CropID_FromHeader logical  = true;
-%                 Args.CropID_FromINdex logical      = true;
-% 
-%                 Args.AI_Counter_FromHeader logical = true;
-%                 Args.Counter_Zero logical          = true;
-% 
-% 
-% 
-%                 Args.GetHeaderCropID logical   = true;      % for AstroImage
-%                 Args.GetIndexCropID logical    = true;      % for AstroTable/MatchedSources
-% 
-%                 Args.GetHeaderCounter logical  = true;
-%                 Args.KeyCropID              = 'CROPID';
-%                 Args.KeyCounter             = 'COUNTER';
-%             end
-% 
-%             if Args.CreateNewObj
-%                 Result = Obj.copy;
-%             else
-%                 Result = Obj;
-%             end
-% 
-%             if Args.SelectFirst
-%                 Result.reorderEntries(1);
-%             end
-% 
-%             Nfiles = Result.nfiles;
-%             Nai    = numel(AI);
-% 
-%             if ~(Nfiles==1 || Nai==Nfiles)
-%                 error('FileNames object number of files must be 1 or equal to the number of elements in the AStroImage object');
-%             end
-% 
-%             if Args.GetHeaderJD
-%                 JD = AI.julday;
-%             end
-% 
-%             U_JD    = nan(Nai,1);
-%             CropID  = nan(Nai,1);
-%             Counter = nan(Nai,1);
-% 
-%             for Iai=1:1:Nai
-%                 if Args.GetHeaderJD
-%                     U_JD(Iai) = JD(Iai);
-%                 else
-%                     U_JD = [];
-%                 end
-% 
-%                  
-%                 if Args.GetHeaderCropID
-%                     CropID(Iai) = AI(Iai).HeaderData.getVal(Args.KeyCropID);
-%                 else
-%                     CroPID = [];
-%                 end
-%                 if Args.GetHeaderCounter
-%                     Counter(Iai) = AI(Iai).HeaderData.getVal(Args.KeyCounter);
-%                 else
-%                     Counter = [];
-%                 end
-%             end
-% 
-%             Result.updateIfNotEmpty('Counter',Counter, 'CROPID',CropID, 'Time',U_JD);
-%             
-%         end
 
         function Result=updateFromObjectInfo(Obj, DataObj, Args)
             % Update an FileNames object using the metadata
@@ -1437,7 +1331,6 @@ classdef FileNames < Component
             
         end
 
-        
         function [SunAlt] = sunAlt(Obj, Args)
             % Calculate Sun Altitude for images in FileNames object
             % Input  : - An FileNames object

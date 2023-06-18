@@ -1,4 +1,4 @@
-function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd] = multiRaw2procCoadd(FilesList, Args)
+function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd, RawHeader] = multiRaw2procCoadd(FilesList, Args)
     % Basic processing of a multiple raw image, of the same field, into a processed images and coadd image
     %   Including:
     %       Reading the image
@@ -344,7 +344,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
     % make sure images are in single format
     AI = AI.cast('single');
-    
+
+    RawHeader = astroImage2AstroHeader(AI, 'CreateNewObj',true);
+
 
     % search for bad images
     [Result,~] = imProc.stat.identifyBadImages(AI, 'CCDSEC',Args.IdentifyBadImagesCCDSEC);

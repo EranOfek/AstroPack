@@ -25,6 +25,7 @@ classdef DemonLAST < Component
         %HostName     = [];
 
         BasePath     = [];
+   
         NewPath      = 'new';    % if start with '/' then abs path
         CalibPath    = 'calib';  % if start with '/' then abs path
         FailedPath   = 'failed'; % if start with '/' then abs path
@@ -393,6 +394,21 @@ classdef DemonLAST < Component
 
     
     methods % utilities
+
+        function Result=getBasePathWithOutProjName(Obj)
+            % Get the BasePath without the last directory
+            % Input  : - self
+            % Output : - BasePath from which the last dir is removed.
+            % Author : Eran Ofek (Jun 2023)
+            
+            Ind = strfind(Obj.BasePath, filesep);
+            if isempty(Ind)
+                Result = Obj.BasePath;
+            else
+                Result = Obj.BasePath(1:Ind(end)-1);
+            end
+
+        end
 
         function [Path,CameraNumber,Side,HostName,ProjName,MountNumberStr]=getPath(Obj, SubDir, Args)
             % get base path, computer, data, camera,...
@@ -1200,6 +1216,8 @@ classdef DemonLAST < Component
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational', 'UserName','postgres','Password','postgres','Port',5432};
             end
             
+            ADB = [];
+
             % get path
             %[NewPath,CameraNumber,Side,HostName,ProjName,MountNumberStr]=getPath(Obj, Args.NewSubDir, 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
             %[BasePath] = getPath(Obj, '', 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
@@ -1326,7 +1344,7 @@ classdef DemonLAST < Component
 
 
                             % Instead of AI, it used to be: RawImageList
-                            [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
+                            [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
                                                                        Args.multiRaw2procCoaddArgs{:},...
                                                                        'SubDir',NaN,...
                                                                        'BasePath', BasePath,...
@@ -1350,7 +1368,7 @@ classdef DemonLAST < Component
                             Obj.writeLog(Status, LogLevel.Info);
         
                             % the following call also update the Coadd.ImageData.FileName
-                            [~,~,Status]=imProc.io.writeProduct(Coadd, FN_I, 'Product',Args.SaveVisitProduct, 'WriteHeader',[true false true false],...
+                            [FN_Coadd,~,Status]=imProc.io.writeProduct(Coadd, FN_I, 'Product',Args.SaveVisitProduct, 'WriteHeader',[true false true false],...
                                                    'Level','coadd',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
@@ -1401,21 +1419,40 @@ classdef DemonLAST < Component
 
                             % Insert images to DB tables
                             % Insert raw images
-                            ADB = db.AstroDb(Args.AstroDBArgs{:});
-%                             if Args.Insert2DB
-%                                 [ID_RawImage, OK] = ADB.insert(SI, 'Table',Args.DB_Table_Raw, 'FileNames',...);
-%                                 Msg{1} = sprintf('Insert images to LAST raw images table - success: %d', OK);
-%                                 Obj.writeLog(Msg, LogLevel.Info);
-%                            
-%                                 [ID_ProcImage, OK] = ADB.insert(AllSI, 'Table',Args.DB_Table_Proc);
-%                                 Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
-%                                 Obj.writeLog(Msg, LogLevel.Info);
-%                                 % there are ~N*24 ProcImages, and only N
-%                                 % RawImages
-%                                 ID_RawImage = repmat(ID_RawImage,1, 24);
-%                                 ID_RawImage = ID_RawImage(:);
-%                                 OK = ADB.updateByTupleID(Args.DB_Table_Proc, ID_ProcImage, 'rawimageid', ID_RawImage);
-%                             end
+                            
+                            % 
+                            % if Args.Insert2DB
+                            %     if isempty(ADB)
+                            %         % connect to DB
+                            %         ADB = db.AstroDb(Args.AstroDBArgs{:});
+                            %     end
+                            %     % insert raw images to DB:
+                            %     RawFileName = regexprep(RawImageList,'.*/','');
+                            %     [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawFileName);
+                            %     Msg{1} = sprintf('Insert images to LAST raw images table - success: %d', OK);
+                            %     Obj.writeLog(Msg, LogLevel.Info);
+                            % 
+                            
+                            %     ProcFileName = FN_Proc.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName)
+
+                            %     [ID_ProcImage, OK] = ADB.insert(AllSI, 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName);
+                            %     Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
+                            %     Obj.writeLog(Msg, LogLevel.Info);
+                            %     % there are ~N*24 ProcImages, and only N
+                            %     % RawImages
+                            %     ID_RawImage = repmat(ID_RawImage,1, 24);
+                            %     ID_RawImage = ID_RawImage(:);
+                            %     OK = ADB.updateByTupleID(Args.DB_Table_Proc, ID_ProcImage, 'rawimageid', ID_RawImage);
+
+
+                            % save Coadd images to DB
+                            %
+                            %     CoaddFileName = FN_Coadd.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName)
+                            %     [ID_ProcImage, OK] = ADB.insert(Coadd, 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName);
+                            %     Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
+                            %     Obj.writeLog(Msg, LogLevel.Info);
+
+                            % end
 
                             RunTime = toc;
                         catch ME
