@@ -99,6 +99,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %%%%%%%%%%%%%%%%%%%%% Simulation parameters and some physical constants
     
 %     Eps = 1e-12;            % precision (currently not employed)
+    Tiny = 1e-30;
     
     C   = constant.c;       % the speed of light in vacuum, [cm/s]
     H   = constant.h;       % the Planck constant, [erg s]   
@@ -263,7 +264,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
         RadSrc(Isrc) = sqrt( ( CatX(Isrc) - X0 )^2 + ( CatY(Isrc) - Y0 )^2 ) *  PixSizeDeg; % the source radii [deg]
         
-        TotT(Isrc,:) = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc(Isrc));          % regrid the throughput 
+        TotT(Isrc,:) = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc(Isrc), 'linear', Tiny);          % regrid the throughput 
 
     end
     
