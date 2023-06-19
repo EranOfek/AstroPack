@@ -1,5 +1,5 @@
 function Defects= equaliseLineMean(AstroImg,Args)
-% equalize an image by compensating, line by line, the average of the line
+% equalise an image by compensating, line by line, the average of the line
 %  background. This is useful notably for PTF images, which have been
 %  incorrectly debiased, causing a striped background disomogeneity.
 % Algorithm: for each line, background pixels are selected as those with
@@ -27,7 +27,7 @@ function Defects= equaliseLineMean(AstroImg,Args)
 %   Im=uint16(rand(120,160)*2^15);
 %   Im(40:75,:)=Im(40:75,:)+uint16(3301);
 %   AI=AstroImage(Im);
-%   Defects=equaliseLineMean(AI,'Plot',true);
+%   Defects=imProc.calib.equaliseLineMean(AI,'Plot',true);
 %
 % Author: Enrico Segre, June 2023
 %
