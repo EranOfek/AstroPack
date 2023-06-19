@@ -967,6 +967,7 @@ classdef DemonLAST < Component
                 Args.ClearVar logical     = true;
                 Args.Move2raw logical     = true;
                 Args.Convert2single logical = true;
+                Args.OverWrite logical      = true;
             end
 
             if ~exist(Obj.CI, 'Bias',{'Image','Mask'})
@@ -1067,13 +1068,13 @@ classdef DemonLAST < Component
         
         
                         FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                        write1(CI.Flat, FileN{1}, 'Image');
+                        write1(CI.Flat, FileN{1}, 'Image', 'Overwrite',Args.Overwrite);
                         FN_Master.Product  = {'Mask'};
                         FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                        write1(CI.Flat, FileN{1}, 'Mask');
+                        write1(CI.Flat, FileN{1}, 'Mask', 'Overwrite',Args.Overwrite);
                         FN_Master.Product  = {'Var'};
                         FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                        write1(CI.Flat, FileN{1}, 'Var');
+                        write1(CI.Flat, FileN{1}, 'Var', 'Overwrite',Args.Overwrite);
                         
                         % keep in CI.Bias 
                         Obj.CI.Flat = CI.Flat;
