@@ -1220,7 +1220,7 @@ classdef DemonLAST < Component
                 Args.DB_Table_Proc     = 'test_proc_images';
                 Args.DB_Table_Coadd    = 'test_coadd_images';
                 Args.DB_Table_Cat      = 'test_src_catalog';
-                Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational', 'UserName','postgres','Password','postgres','Port',5432};
+                Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};
             end
             
             ADB = [];
