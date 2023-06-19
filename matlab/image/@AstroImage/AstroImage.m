@@ -812,7 +812,7 @@ classdef AstroImage < Component
             % getter for WCS
             % if empty, attempt to create from header
             
-            if isempty(Obj.WCS) && ~isempty(Obj.HeaderData)
+            if strcmp(Obj.WCS.ProjType,'none') && ~isempty(Obj.HeaderData)
                 Obj.WCS = AstroWCS.header2wcs(Obj.HeaderData);
             end
             Data = Obj.WCS;
