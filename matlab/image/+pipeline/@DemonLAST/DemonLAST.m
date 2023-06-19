@@ -944,6 +944,8 @@ classdef DemonLAST < Component
             %                   processing. Default is true.
             %            'Convert2single' - A logical indicating if to
             %                   convert the images to single. Default is true.
+            %            'OverWrite' - Over write files.
+            %                   Default is true.
             % Output : - A pipeline.DemonLAST with updated CI property.
             %          - FileNames object of raw flat images.
             %          - FileNames object of proc flat master image.
@@ -1068,13 +1070,13 @@ classdef DemonLAST < Component
         
         
                         FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                        write1(CI.Flat, FileN{1}, 'Image', 'Overwrite',Args.Overwrite);
+                        write1(CI.Flat, FileN{1}, 'Image', 'Overwrite',Args.OverWrite);
                         FN_Master.Product  = {'Mask'};
                         FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                        write1(CI.Flat, FileN{1}, 'Mask', 'Overwrite',Args.Overwrite);
+                        write1(CI.Flat, FileN{1}, 'Mask', 'Overwrite',Args.OverWrite);
                         FN_Master.Product  = {'Var'};
                         FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                        write1(CI.Flat, FileN{1}, 'Var', 'Overwrite',Args.Overwrite);
+                        write1(CI.Flat, FileN{1}, 'Var', 'Overwrite',Args.OverWrite);
                         
                         % keep in CI.Bias 
                         Obj.CI.Flat = CI.Flat;
