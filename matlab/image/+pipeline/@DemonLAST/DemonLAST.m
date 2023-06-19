@@ -1219,6 +1219,7 @@ classdef DemonLAST < Component
                 Args.DB_Table_Raw      = 'test_raw_images';
                 Args.DB_Table_Proc     = 'test_proc_images';
                 Args.DB_Table_Coadd    = 'test_coadd_images';
+                Args.DB_Table_Cat      = 'test_src_catalog';
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational', 'UserName','postgres','Password','postgres','Port',5432};
             end
             
@@ -1455,6 +1456,13 @@ classdef DemonLAST < Component
                                 [ID_ProcImage, OK] = ADB.insert(Coadd, 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName);
                                 Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
                                 Obj.writeLog(Msg, LogLevel.Info);
+                                
+                                % insert coadd catalogs into the DB:
+%                                 CatFileName = FN_Cat.genFull('LevelPath','proc');
+%                                 CatFileName = '';
+%                                 [ID_ProcCat, OK] = ADB.insert(MergedCat, 'Table',Args.DB_Table_Cat, 'FileNames', CatFileName,'Type','cat');
+%                                 Msg{1} = sprintf('Insert catalog objects to LAST catalog table - success: %d', OK);
+%                                 Obj.writeLog(Msg, LogLevel.Info);
 
                             end
 
