@@ -1217,6 +1217,8 @@ classdef DemonLAST < Component
                 Args.Insert2DB         = false;
                 Args.DB_InsertRaw      = false;
                 Args.DB_Table_Raw      = 'test_raw_images';
+                Args.DB_Table_Proc     = 'test_proc_images';
+                Args.DB_Table_Coadd    = 'test_coadd_images';
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational', 'UserName','postgres','Password','postgres','Port',5432};
             end
             
@@ -1430,29 +1432,26 @@ classdef DemonLAST < Component
                                     % connect to DB
                                     ADB = db.AstroDb(Args.AstroDBArgs{:});
                                 end
-                                % insert raw images to DB:
-                                RawFileName = regexprep(RawImageList,'.*/','');
+                                % insert raw images into the DB:
+                                RawFileName = RawImageListFinal; % regexprep(RawImageList,'.*/','');
                                 [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawFileName);
                                 Msg{1} = sprintf('Insert images to LAST raw images table - success: %d', OK);
                                 Obj.writeLog(Msg, LogLevel.Info);
-                            
-                            
-                                %ProcFileName =
-                                FN_Proc.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
-
+                                                        
+                                % insert proc images into the DB:
+%                                 FN_Proc.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
+                                ProcFileName = FN_Proc.genFull;
                                 [ID_ProcImage, OK] = ADB.insert(AllSI, 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName);
                                 Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
                                 Obj.writeLog(Msg, LogLevel.Info);
-                                % there are ~N*24 ProcImages, and only N
-                                % RawImages
+                                % there are ~N*24 ProcImages, and only N RawImages
                                 ID_RawImage = repmat(ID_RawImage,1, 24);
                                 ID_RawImage = ID_RawImage(:);
                                 OK = ADB.updateByTupleID(Args.DB_Table_Proc, ID_ProcImage, 'rawimageid', ID_RawImage);
 
-
-                            save Coadd images to DB
-                            
-                                CoaddFileName = FN_Coadd.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName)
+                                % insert coadd images into the DB:
+%                                 FN_Coadd.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
+                                CoaddFileName = FN_Coadd.genFull;
                                 [ID_ProcImage, OK] = ADB.insert(Coadd, 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName);
                                 Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
                                 Obj.writeLog(Msg, LogLevel.Info);
