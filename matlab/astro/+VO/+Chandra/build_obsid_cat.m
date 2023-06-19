@@ -85,23 +85,23 @@ if ~InPar.Collect
         %H = FITS.get_head(EvtFileName,2);
         try
             H.Header = FITS.readHeader1(EvtFileName,2);
-        catch
-            'a'
-        end
-        delete(EvtFileName)
-
-        for Ikey=1:1:Nkey
-
-            FlagK = strcmp(H.Header(:,1),Key2read{Ikey});
-            Val   = H.Header{FlagK,2};
-            if ~isempty(strfind(Key2read{Ikey},'DATE'))
-                Val = celestial.time.julday(Val);
+      
+            delete(EvtFileName)
+    
+            for Ikey=1:1:Nkey
+    
+                FlagK = strcmp(H.Header(:,1),Key2read{Ikey});
+                Val   = H.Header{FlagK,2};
+                if ~isempty(strfind(Key2read{Ikey},'DATE'))
+                    Val = celestial.time.julday(Val);
+                end
+                % store data ins tructure
+                KeyTmp = regexprep(Key2read{Ikey},'-','');
+                Data(Ievt).(KeyTmp) = Val;
             end
-            % store data ins tructure
-            KeyTmp = regexprep(Key2read{Ikey},'-','');
-            Data(Ievt).(KeyTmp) = Val;
+        catch
+            warning('Failed on file %d',Ievt);
         end
-
 
         if (InPar.Verbose)
             fprintf('ObsID=%d   %d  %d\n',Data(Ievt).ObsID);
