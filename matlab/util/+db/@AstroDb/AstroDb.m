@@ -99,10 +99,14 @@ classdef AstroDb < Component
                 Args.Host          = 'socsrv' %localhost'     % 'socsrv'        % Host name or IP address
                 Args.Port          = 5432 % 63331           % 5432            % Port number
                 Args.DatabaseName  = 'lastdb'        % 'last_operational' at last0 node
-                Args.UserName      = 'postgres'      % User name
-                Args.Password      = 'PassRoot' %'postgres'      % 'PassRoot'      % Password
+                Args.UserName      = ''      % User name
+                Args.Password      = ''      % Password
                 Args.ListTables logical = true; % whether to put out a list of public tables
             end
+            
+            PM = PasswordsManager;
+            Args.UserName = PM.search(Args.DatabaseName).User;
+            Args.Password = PM.search(Args.DatabaseName).Pass;
 
             %
             Obj.setName(Args.DatabaseName);
