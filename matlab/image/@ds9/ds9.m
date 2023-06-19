@@ -1514,7 +1514,7 @@ classdef ds9 < handle
             
             if ~isempty(MarkerColor)
                 Args.Color  = MarkerColor(1);
-                Args.Marker = MarkerColr{2};
+                Args.Marker = MarkerColor(2);
             end
             switch lower(Args.Color)
                 case {'r','red'}
@@ -1542,18 +1542,19 @@ classdef ds9 < handle
             end
             
             varargin = {'Coo',Args.Coo, 'Units','deg', 'Color',Args.Color, 'Marker',Args.Marker,...
-                        'Size',Args.Size, 'Width',Args.Width,...
+                        'Size',Args.MarkerSize, 'Width',Args.Width,...
                         'Text',Args.Text, 'Font',Args.Font, 'FontSize', Args.FontSize, 'FontStyle',Args.FontStyle,...
                         'ColNameX',Args.ColNameX, 'ColNameY',Args.ColNameY,...
                         'ColNameRA',Args.ColNameRA, 'ColNameDec',Args.ColNameDec};
             
-            
-            FileName = ds9.write_region(Cat, varargin{:});
-            ds9.load_region(FileName);
-            if (DeleteFile)
-                delete(FileName);
-                FileName = [];
-            end
+            % I think this is mistakenly copied from .plot and .line?xy,
+            %  and not relevant here
+            % FileName = ds9.write_region(Cat, varargin{:});
+            % ds9.load_region(FileName);
+            % if (DeleteFile)
+            %     delete(FileName);
+            %     FileName = [];
+            % end
                       
         end
                 
