@@ -24,6 +24,7 @@ function [AllResult,PM] = pointingModel(Files, Args)
         Args.ObsCoo                       = [35 30];  % [deg]
         Args.ConfigFile                   = '';
     end
+    
     RAD = 180./pi;
     
     if isempty(Files)
