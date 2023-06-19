@@ -1217,6 +1217,8 @@ classdef DemonLAST < Component
                 Args.Insert2DB         = false;
                 Args.DB_InsertRaw      = false;
                 Args.DB_Table_Raw      = 'test_raw_images';
+                Args.DB_Table_Proc     = 'test_proc_images';
+                Args.DB_Table_Coadd    = 'test_coadd_images';
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational', 'UserName','postgres','Password','postgres','Port',5432};
             end
             
@@ -1431,8 +1433,8 @@ classdef DemonLAST < Component
                                     ADB = db.AstroDb(Args.AstroDBArgs{:});
                                 end
                                 % insert raw images to DB:
-                                RawFileName = regexprep(RawImageList,'.*/','');
-                                [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawFileName);
+%                                 RawFileName = regexprep(RawImageList,'.*/','');
+                                [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawImageListFinal);
                                 Msg{1} = sprintf('Insert images to LAST raw images table - success: %d', OK);
                                 Obj.writeLog(Msg, LogLevel.Info);
                             
@@ -1440,7 +1442,7 @@ classdef DemonLAST < Component
                                 %ProcFileName =
                                 FN_Proc.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
 
-                                [ID_ProcImage, OK] = ADB.insert(AllSI, 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName);
+                                [ID_ProcImage, OK] = ADB.insert(AllSI, 'Table',Args.DB_Table_Proc, 'FileNames',FN_Proc.genFull);
                                 Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
                                 Obj.writeLog(Msg, LogLevel.Info);
                                 % there are ~N*24 ProcImages, and only N
