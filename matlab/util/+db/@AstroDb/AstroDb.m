@@ -610,7 +610,7 @@ classdef AstroDb < Component
                         if isa( Data(IData), 'AstroCatalog' )
                             AC = Data(IData);                            
                             if numel(Args.FileNames) == NData % a separate list of file names is provided
-                                Filename = Args.FileNames(IData);
+                                Filename = Args.FileNames{IData};
                             else
                                 Filename = '';
                             end
@@ -632,7 +632,7 @@ classdef AstroDb < Component
                         if isa( Data(IData), 'AstroHeader' )
                             AH = Data(IData);
                             if numel(Args.FileNames) == NData % a separate list of file names is provided
-                                Filename = Args.FileNames(IData);
+                                Filename = Args.FileNames{IData};
                             elseif ~isempty(AH.File)
                                 Filename = AH.File;
                             else
@@ -642,7 +642,7 @@ classdef AstroDb < Component
                             AH = AstroHeader;
                             AH.Data = Data(IData).Header;
                             if numel(Args.FileNames) == NData % a separate list of file names is provided
-                                Filename = Args.FileNames(IData);
+                                Filename = Args.FileNames{IData};
                             elseif ~isempty(AH.File)
                                 Filename = AH.File;
                             else
