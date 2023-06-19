@@ -31,7 +31,7 @@ function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower)
     
     arguments
         Array
-        Log             = true;
+        Log             = false;
         IgnoreNaN       = false;
         Accuracy        = 0.1;
         MinN            = 10;
@@ -53,7 +53,7 @@ function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower)
     else
         if Log
             % remove negative numbers
-            %Fnneg = Array>0;
+            % Fnneg = Array>0;
             % Array = log10(Array(Array>0));
             % faster to use log
             %Array = single(Array);

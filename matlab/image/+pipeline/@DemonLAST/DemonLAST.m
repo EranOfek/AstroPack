@@ -944,6 +944,8 @@ classdef DemonLAST < Component
             %                   processing. Default is true.
             %            'Convert2single' - A logical indicating if to
             %                   convert the images to single. Default is true.
+            %            'OverWrite' - Over write files.
+            %                   Default is true.
             % Output : - A pipeline.DemonLAST with updated CI property.
             %          - FileNames object of raw flat images.
             %          - FileNames object of proc flat master image.
@@ -967,6 +969,7 @@ classdef DemonLAST < Component
                 Args.ClearVar logical     = true;
                 Args.Move2raw logical     = true;
                 Args.Convert2single logical = true;
+                Args.OverWrite logical      = true;
             end
 
             if ~exist(Obj.CI, 'Bias',{'Image','Mask'})
@@ -1067,13 +1070,13 @@ classdef DemonLAST < Component
         
         
                         FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                        write1(CI.Flat, FileN{1}, 'Image');
+                        write1(CI.Flat, FileN{1}, 'Image', 'Overwrite',Args.OverWrite);
                         FN_Master.Product  = {'Mask'};
                         FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                        write1(CI.Flat, FileN{1}, 'Mask');
+                        write1(CI.Flat, FileN{1}, 'Mask', 'Overwrite',Args.OverWrite);
                         FN_Master.Product  = {'Var'};
                         FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                        write1(CI.Flat, FileN{1}, 'Var');
+                        write1(CI.Flat, FileN{1}, 'Var', 'Overwrite',Args.OverWrite);
                         
                         % keep in CI.Bias 
                         Obj.CI.Flat = CI.Flat;
@@ -1214,6 +1217,8 @@ classdef DemonLAST < Component
                 Args.Insert2DB         = false;
                 Args.DB_InsertRaw      = false;
                 Args.DB_Table_Raw      = 'test_raw_images';
+                Args.DB_Table_Proc     = 'test_proc_images';
+                Args.DB_Table_Coadd    = 'test_coadd_images';
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational', 'UserName','postgres','Password','postgres','Port',5432};
             end
             
@@ -1428,16 +1433,16 @@ classdef DemonLAST < Component
                                     ADB = db.AstroDb(Args.AstroDBArgs{:});
                                 end
                                 % insert raw images to DB:
-                                RawFileName = regexprep(RawImageList,'.*/','');
-                                [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawFileName);
+%                                 RawFileName = regexprep(RawImageList,'.*/','');
+                                [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawImageListFinal);
                                 Msg{1} = sprintf('Insert images to LAST raw images table - success: %d', OK);
                                 Obj.writeLog(Msg, LogLevel.Info);
                             
                             
-                                ProcFileName =
+                                %ProcFileName =
                                 FN_Proc.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
 
-                                [ID_ProcImage, OK] = ADB.insert(AllSI, 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName);
+                                [ID_ProcImage, OK] = ADB.insert(AllSI, 'Table',Args.DB_Table_Proc, 'FileNames',FN_Proc.genFull);
                                 Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
                                 Obj.writeLog(Msg, LogLevel.Info);
                                 % there are ~N*24 ProcImages, and only N

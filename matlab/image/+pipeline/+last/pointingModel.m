@@ -11,7 +11,7 @@ function [AllResult,PM] = pointingModel(Files, Args)
         Args.Dirs                         = 'ALL'; %{};
         Args.StartDate                    = [];
         Args.EndDate                      = [];
-        Args.Nfiles                       = 108;  % use only last N files
+        Args.Nfiles                       = Inf;  % use only last N files
         %Args.Dir                          = pwd;
         Args.astrometryCroppedArgs cell   = {};
         %Args.backgroundArgs cell          = {};
@@ -66,7 +66,9 @@ function [AllResult,PM] = pointingModel(Files, Args)
             Keys = AI.getStructKey({'RA','DEC','HA','M_JRA','M_JDEC','M_JHA','JD','LST'});
             try
                 [R, CAI, S] = imProc.astrometry.astrometryCropped(List{Ilist}, 'RA',Keys.RA, 'Dec',Keys.DEC, 'CropSize',[],Args.astrometryCroppedArgs{:});
-            catch
+            catch ME
+                ME
+                
                 fprintf('Failed on image %d\n',Ilist);
 
                 S.CenterRA = NaN;
