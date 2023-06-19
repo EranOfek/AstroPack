@@ -44,8 +44,9 @@ classdef PasswordsManager < Component
             end
             
             Obj.Passwords = tools.struct.string2fields(Obj.Config.Data, PassFile);
-            Obj.Passwords = rmfield(Obj.Passwords, 'FileName');
-            
+            if isstruct(Obj.Passwords)
+                Obj.Passwords = rmfield(Obj.Passwords, 'FileName');
+            end
         end
     end
 
@@ -79,6 +80,14 @@ classdef PasswordsManager < Component
                 IsExact logical = true;
             end
             
+            if isempty(Obj.Passwords)
+                error('Passwords configuration file %s was not found',Obj.PassFile);
+            else
+                if ~isstruct(Obj.Passwords)
+                    error('Passwords property must contain a structure');
+                end
+            end
+
             FieldsName = fieldnames(Obj.Passwords);
             Nfn        = numel(FieldsName);
             switch lower(Type)
