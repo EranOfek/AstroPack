@@ -1434,7 +1434,7 @@ classdef DemonLAST < Component
                                 Obj.writeLog(Msg, LogLevel.Info);
                             
                             
-                                ProcFileName =
+                                %ProcFileName =
                                 FN_Proc.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
 
                                 [ID_ProcImage, OK] = ADB.insert(AllSI, 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName);
