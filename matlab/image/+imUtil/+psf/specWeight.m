@@ -43,6 +43,8 @@ function Result = specWeight(SpecSrc, RadSrc, PSFdata, Args)
     
     %
     
+    Tiny = 1e-30;
+    
     Nx      = size(PSFdata,1);  
     Ny      = size(PSFdata,2);
     NLam    = size(PSFdata,3);
@@ -93,7 +95,7 @@ function Result = specWeight(SpecSrc, RadSrc, PSFdata, Args)
         
         % rescale the data array to the actual source positions:
         
-        PSFdataS = interpn(X,Y,Lam, Args.Rad, PSFdata, X,Y,Lam, RadSrc);
+        PSFdataS = interpn(X,Y,Lam, Args.Rad, PSFdata, X,Y,Lam, RadSrc, 'linear', Tiny);
         
         % put the spectrum into the right dimension
         % NOTE that the Spec array should be transposed before reshaping! 
@@ -117,7 +119,7 @@ function Result = specWeight(SpecSrc, RadSrc, PSFdata, Args)
         
             % rescale the data array to the actual source positions
 
-            PSFdataS = interpn(X,Y,Lam, Args.Rad, PSFdata, X,Y,Lam, RadSrc(Isrc));
+            PSFdataS = interpn(X,Y,Lam, Args.Rad, PSFdata, X,Y,Lam, RadSrc(Isrc), 'linear', Tiny);
 
             % put the spectrum into the right dimension
             % NOTE that the Spec array should be transposed before reshaping! 
