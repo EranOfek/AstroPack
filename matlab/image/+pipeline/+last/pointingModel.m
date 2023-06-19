@@ -66,7 +66,9 @@ function [AllResult,PM] = pointingModel(Files, Args)
             Keys = AI.getStructKey({'RA','DEC','HA','M_JRA','M_JDEC','M_JHA','JD','LST'});
             try
                 [R, CAI, S] = imProc.astrometry.astrometryCropped(List{Ilist}, 'RA',Keys.RA, 'Dec',Keys.DEC, 'CropSize',[],Args.astrometryCroppedArgs{:});
-            catch
+            catch ME
+                ME
+                
                 fprintf('Failed on image %d\n',Ilist);
 
                 S.CenterRA = NaN;
