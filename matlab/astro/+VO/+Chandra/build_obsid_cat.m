@@ -83,7 +83,11 @@ if ~InPar.Collect
         end
 
         %H = FITS.get_head(EvtFileName,2);
-        H.Header = FITS.readHeader1(EvtFileName,2);
+        try
+            H.Header = FITS.readHeader1(EvtFileName,2);
+        catch
+            'a'
+        end
         delete(EvtFileName)
 
         for Ikey=1:1:Nkey
