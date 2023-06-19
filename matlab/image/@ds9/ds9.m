@@ -1547,14 +1547,13 @@ classdef ds9 < handle
                         'ColNameX',Args.ColNameX, 'ColNameY',Args.ColNameY,...
                         'ColNameRA',Args.ColNameRA, 'ColNameDec',Args.ColNameDec};
             
-            % I think this is mistakenly copied from .plot and .line?xy,
-            %  and not relevant here
-            % FileName = ds9.write_region(Cat, varargin{:});
-            % ds9.load_region(FileName);
-            % if (DeleteFile)
-            %     delete(FileName);
-            %     FileName = [];
-            % end
+            FileName = ds9.write_region(Cat, varargin{:});
+            ds9.load_region(FileName);
+            DeleteFile=true;
+            if (DeleteFile)
+                delete(FileName);
+                FileName = [];
+            end
                       
         end
                 
