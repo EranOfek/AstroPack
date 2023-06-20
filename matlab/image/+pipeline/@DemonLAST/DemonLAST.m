@@ -619,7 +619,7 @@ classdef DemonLAST < Component
 
             FileName = fullfile(Path,Args.FileName);
             FID = fopen(FileName,'w+');
-            fprintf(FID,'%s %s',datestr(now,'yyyy-mm-ddTHH:MM:SS'),Args.Msg);
+            fprintf(FID,'%s %s\n',datestr(now,'yyyy-mm-ddTHH:MM:SS'),Args.Msg);
             fclose(FID);
 
         end
