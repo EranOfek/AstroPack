@@ -1,14 +1,110 @@
 function Result = unitTest
     % Package Unit-Test
-	io.msgStyle(LogLevel.Test, '@start', 'tools.array test started');   
-    test_bitset();
+	io.msgStyle(LogLevel.Test, '@start', 'tools.array test started');
+    
+    test_onesexcept();
+    
+%     test_bitset();
     %test_countVal();
-    return; 
-    test_bit_or();
-    test_bit_or_and();
-    test_bit_or_and_mex();	
+%     return; 
+%     test_bit_or();
+%     test_bit_or_and();
+%     test_bit_or_and_mex();	
 	io.msgStyle(LogLevel.Test, '@passed', 'tools.array test passed');
 	Result = true;
+end
+
+function Result = test_onesexcept()
+    io.msgLog(LogLevel.Test, 'tools.array.onesexcept test started');
+    
+    % Checking basic functionality and comparing mex and matlab
+    UseMex = 0;
+    UseMP = 0;
+    mat = [3 6 9; 4 7 11];
+    scalar = 5;
+    image = 1;
+    matlab_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);
+    
+    UseMex = 1;
+    mex_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);
+    
+    assert(isequal(matlab_res, mex_res));
+    
+    
+    iters = 10;
+    
+    for arr_sizes=1:4
+        
+        arr_size = power(10,arr_sizes);
+        
+        for var_types=1:6
+
+            MatlabTimeTotal = 0;
+            MexTimeTotal = 0;
+            MatlabTime = 0;
+            MexTime = 0;
+
+            for iter=1:iters
+
+                image = 1;
+                mat = rand(arr_size)*1000;
+                scalar = rand(1)*1000;        
+
+                switch var_types
+                    case 1
+                        mat = int8(mat);
+                        scalar = int8(scalar);
+                        var_name = 'int8';
+                    case 2
+                        mat = int16(mat);
+                        scalar = int16(scalar);
+                        var_name = 'int16';
+                    case 3
+                        mat = int32(mat);
+                        scalar = int32(scalar);
+                        var_name = 'int32';
+                    case 4
+                        mat = int64(mat);
+                        scalar = int64(scalar);
+                        var_name = 'int64';
+                    case 5
+                        mat = single(mat);
+                        scalar = single(scalar);
+                        var_name = 'single';
+                    case 6
+                        mat = double(mat);
+                        scalar = double(scalar);
+                        var_name = 'double';
+                end
+
+                UseMex = 0;
+                t = tic;
+                matlab_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);        
+                MatlabTime = toc(t);
+                MatlabTimeTotal = MatlabTimeTotal + MatlabTime;
+
+
+                UseMex = 1;
+                t = tic;
+                mex_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);
+                MexTime = toc(t);
+                MexTimeTotal = MexTimeTotal + MexTime;
+
+                assert(isequal(matlab_res, mex_res));
+
+            end
+
+            MatlabTime = MatlabTimeTotal / iters;
+            MexTime = MexTimeTotal / iters;
+
+            fprintf('Array_size: %d, Var_type: %s, Matlab: %.6f, Mex: %.6f, Ratio: %0.2f\n', arr_size, var_name, MatlabTime, MexTime, MatlabTime/MexTime);
+
+        end
+    end
+    
+    io.msgStyle(LogLevel.Test, '@passed', 'tools.array.onesExcept passed')
+    Result = true;    
+
 end
 
 function Result = test_bitset()
