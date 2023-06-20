@@ -1,8 +1,8 @@
-function Result = interpImageConv(Image, Args)
+function Image = interpImageConv(Image, Args)
     % Interpolate image over NaNs using conv2_nan
     %   Will work only if the kernel is larger thn the contogous blocks of
     %   NaNs.
-    % Input  : - A matrix.
+    % Input  : - A matrix.ImageNaNImageNaN
     %          * ...,key,val,...
     %            'Kernel' - A kernel matrix, or a function handle that generates
     %                   a kernel. Default is @imUtil.kernel2.gauss.
@@ -36,7 +36,9 @@ function Result = interpImageConv(Image, Args)
     else
         Kernel = Args.Kernel(Args.KernelArgs{:});
     end
-    Result = imUtil.filter.conv2_nan(Image, Kernel, Args.UseFFT, Args.PadMethod);
+    Ind     = find(isnan(Image));
+    Result2 = imUtil.filter.conv2_nan(Image, Kernel, Args.UseFFT, Args.PadMethod);
+    Image(Ind) = Result2(Ind);
     
 end
     

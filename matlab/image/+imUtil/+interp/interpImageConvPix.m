@@ -1,5 +1,6 @@
 function Conv2 = interpImageConvPix(Image, Kernel, PosIJ)
     % Interpolate over nan using 2D local convolution.
+    %   Use imUtil.interp.interpImageConv
     % Input  : - 
     % Example: [MatX, MatY] = meshgrid((1:1:100),(1:1:100));
     %          Image = MatX.*MatY + randn(100,100).*0.01;
@@ -25,7 +26,9 @@ function Conv2 = interpImageConvPix(Image, Kernel, PosIJ)
     end
     
     if isempty(PosIJ)
-        [Inan, Jnan] = find(isnan(Image));
+        %[Inan, Jnan] = find(isnan(Image));
+        K = find(isnan(Image));
+        [Inan, Jnan] = imUtil.image.ind2sub_fast(size(Image), K);
         
         % a bit slower
         %ISnan = find(isnan(Image));
