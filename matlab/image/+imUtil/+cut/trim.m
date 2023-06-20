@@ -11,6 +11,7 @@ function [TrimedData, CCDSEC]=trim(Data, CCDSEC, Type, FillVal)
 %                 or [Xhalfsize, Yhalfsize] around central pixel if type =
 %                 'center'.
 %          - Type. Either 'ccdsec', or 'center'.
+%            Default is 'ccdsec'.
 %          - Fill value. In case that the trim section is near the edge,
 %            this is the fill value to insert into the edge, such that the
 %            trim section will have the requires size. If empty, then
@@ -22,7 +23,7 @@ function [TrimedData, CCDSEC]=trim(Data, CCDSEC, Type, FillVal)
 %     By : Eran O. Ofek                    Sep 2016
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: D=rand(100,100);
-%          imUtil.image.trim(D,[2 10 2 10])
+%          imUtil.cut.trim(D,[2 10 2 10])
 % Reliable: 2
 %--------------------------------------------------------------------------
 
