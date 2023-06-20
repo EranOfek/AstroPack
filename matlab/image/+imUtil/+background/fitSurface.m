@@ -89,7 +89,7 @@ function [Result, Surface]=fitSurface(Image, Args)
          
         Par          = H(Result.Flag,:)\SelectedPix(Result.Flag);
         Result.Resid = SelectedPix - H*Par;
-        Result.RMS   = std(Result.vResid(Result.Flag));
+        Result.RMS   = std(Result.Resid(Result.Flag));
         
         if Iiter~=Args.Niter
             % not final iteration

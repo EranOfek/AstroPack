@@ -11,9 +11,11 @@ function SubIm=trim2d(Image,CCDSEC)
     SubIm = Image(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
 
     % This is slower:
-    % IndI = (CCDSEC(3):CCDSEC(4));
-    % IndJ = (CCDSEC(1):CCDSEC(2));
-    % Ind = tools.array.sub2ind_fast(size(Image), IndI.', IndJ);
-    % SubIm = Image(Ind);
+    %IndI = (CCDSEC(3):CCDSEC(4));
+    %IndJ = (CCDSEC(1):CCDSEC(2));
+    %Ind = tools.array.sub2ind_fast(size(Image), IndI.', IndJ);
+    %Ind = tools.array.sub2ind_fast(size(Image), (CCDSEC(3):CCDSEC(4)).', (CCDSEC(1):CCDSEC(2)));
+    
+    %SubIm = Image(Ind);
 
 end
