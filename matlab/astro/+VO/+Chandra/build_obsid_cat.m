@@ -63,6 +63,7 @@ if ~InPar.Collect
     ListEvt = ListURL(FlagEvt);
     Nevt    = numel(ListEvt);
 
+    FlagGood = true(Nevt,1);
     for Ievt=1:1:Nevt
         [Ievt, Nevt]
         Evt2url = ListEvt{Ievt};
@@ -100,6 +101,7 @@ if ~InPar.Collect
                 Data(Ievt).(KeyTmp) = Val;
             end
         catch
+            FlagGood(Ievt) = false;
             warning('Failed on file %d',Ievt);
         end
 
@@ -109,6 +111,7 @@ if ~InPar.Collect
 
     end    
 
+    Data = Data(FlagGood);
 
     switch lower(InPar.OutType)
         case 'struct'
