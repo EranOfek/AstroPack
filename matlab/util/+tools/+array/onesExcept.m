@@ -1,48 +1,57 @@
-function Result = onesExcept(Array, Flag, Bit, Value, UseMex, UseMP)
+function Result = onesExcept(Mat, Scalar, Image, UseMex, UseMP)
     %
-    % Input  : - Array - Array of integers
-    %          - Flags - Array of logical flags
-    %          - Bit - Bit number
-    %          - Value - 0 or 1
+    % Input  : - Mat - input matrix
+    %          - Scalar - scalar value to compare
+    %          - Image - Datatype input
     %          - UseMex - true to use MEX optimization
     %          - UseMP - true to use threading
     %
     % Output : - The result of the operation.
     %
-    % Author : Chen Tishler (Apr 2023)
+    % Author : Chen Tishler, Dan Elhanati (Apr 2023)
     % Example: 
-    %    Array = zeros(3, 3, 'int32');
-    %    Flag = rand(3, 3) > 0.9;
-    %    Result = tools.array.bitsetFlag(Array, Flag, 1, 1);            
+    % UseMex = 0;
+    % UseMP = 0;
+    % mat = [3 6 9; 4 7 11];
+    % scalar = 5;
+    % image = 1;
+    % matlab_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);
+
     %----------------------------------------------------------------------
     arguments
-        Array              	% Input array
-        Flag			   	%
-        Bit					%
-        Value = true;      	% Value to look for
+        Mat              	% Input array
+        Scalar
+        Image			   	%        
         UseMex = true;     	% True: Use MEX implementation, False: Use MATLAB implementaion
         UseMP = true;      	% True: Use threading with OpenMP multi-threading library
     end
 
     % MATLAB implementation
     if ~UseMex
-        Result = bitset(Array(Flag), Bit, Value);
+        W = ones(size(Mat), 'like',Image);
+        Flag = Mat>Scalar;
+        W(Flag) = 0;
+        Result = W;
         return;
     end
     
     % MEX implementation
     % Call function according to input data type
-    C = lower(class(Array));    
+    C = lower(class(Mat));    
     switch C
         case {'uint8','int8'}
-            Result = tools.array.mex.mex_bitsetFlag_int8(Array,  Flag, int32(Bit), int32(Value), int32(UseMP));               
+            Result = tools.array.mex.mex_onesExcept_int8(Mat, Scalar, Image);               
         case {'uint16','int16'}
-            Result = tools.array.mex.mex_bitsetFlag_int16(Array, Flag, int32(Bit), int32(Value), int32(UseMP));       
+            Result = tools.array.mex.mex_onesExcept_int16(Mat, Scalar, Image);
         case {'uint32','int32'}
-            Result = tools.array.mex.mex_bitsetFlag_int32(Array, Flag, int32(Bit), int32(Value), int32(UseMP));       
+            Result = tools.array.mex.mex_onesExcept_int32(Mat, Scalar, Image);
         case {'uint64','int64'}
-            Result = tools.array.mex.mex_bitsetFlag_int64(Array, Flag, int32(Bit), int32(Value), int32(UseMP));                   
+            Result = tools.array.mex.mex_onesExcept_int64(Mat, Scalar, Image);
+        case {'single'}
+            Result = tools.array.mex.mex_onesExcept_single(Mat, Scalar, Image);
+        case {'double'}
+            Result = tools.array.mex.mex_onesExcept_double(Mat, Scalar, Image);
         otherwise
-            error('tools.array.bitsetFlag - Unsupported data type');
+            error('tools.array.onExcept - Unsupported data type');
     end
 end
