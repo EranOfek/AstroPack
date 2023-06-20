@@ -189,15 +189,6 @@ function simImage = simulate_ULTRASAT_image (Args)
 
                 end
 
-                
-                
-                
-                
-                
-                
-                
-                
-                
             end 
 
             % run the simulation 
@@ -267,60 +258,81 @@ function simImage = simulate_ULTRASAT_image (Args)
             
         case 'distribution'
             
-            MagL = 13; MagH = 26; Delta_m = 0.2; % the distribution grid in Mag (GALEX NUV)
             
-            MagBins = (MagH - MagL) / Delta_m; 
+            if ~Args.Same % model a new distribution 
             
-            Mag       = zeros(MagBins,1);
-            Src30min  = zeros(MagBins,1);
-            
-            for iMag = 1:1:MagBins
-                
-                Mag(iMag)  = MagL + (iMag - 1) * Delta_m;
-                
-                SrcDeg     = 10.^( 0.35 * Mag(iMag) - 4.9 );  % fitted from the GALEX data
-                Src30min(iMag) = ceil( SrcDeg / 4 ); 
-                
-            end
-            
-            NumSrc = sum(Src30min,'all');
-            
-            Cat  = zeros(NumSrc,2);
-            MagU = zeros(NumSrc,1);
-            
-            Isrc = 0;
+                MagL = 13; MagH = 26; Delta_m = 0.2; % the distribution grid in Mag (GALEX NUV)
 
-            for iMag = 1:1:MagBins
-                
-                for jSrc = 1:1:Src30min(iMag)
-                    
-                     Isrc = Isrc +1;
-                    
-                     Cat(Isrc,1) = floor( 1800 + 333 * rand ); % about 4.2 deg from the corner
-                     Cat(Isrc,2) = floor( 1800 + 333 * rand ); % hence using ULTRASAT R11 filter
+                MagBins = (MagH - MagL) / Delta_m; 
 
-                    % divide the population into 3 colours 
+                Mag       = zeros(MagBins,1);
+                Src30min  = zeros(MagBins,1);
 
-                        if      rem(Isrc,3) == 1
-                            Spec(Isrc,:) = AstroSpec.blackBody(Wave',3500);
-                        elseif  rem(Isrc,3) == 2
-                            Spec(Isrc,:) = AstroSpec.blackBody(Wave',5800);
-                        else
-                            Spec(Isrc,:) = AstroSpec.blackBody(Wave',20000);
-                        end
-                        
-                    % recalculate the magnitudes into the ULTRASAT R system
-                    
-                    S          = scaleSynphot(Spec(Isrc,:), Mag(iMag), 'GALEX', 'NUV');
-                    MagU(Isrc) = astro.spec.synthetic_phot([Wave', S.Flux],'ULTRASAT','R11','AB');                    
-                    
+                for iMag = 1:1:MagBins
+
+                    Mag(iMag)  = MagL + (iMag - 1) * Delta_m;
+
+                    SrcDeg     = 10.^( 0.35 * Mag(iMag) - 4.9 );  % fitted from the GALEX data
+                    Src30min(iMag) = ceil( SrcDeg / 4 ); 
+
                 end
-                    
+
+                NumSrc = sum(Src30min,'all');
+
+                Cat  = zeros(NumSrc,2);
+                MagU = zeros(NumSrc,1);
+
+                Isrc = 0;
+
+                for iMag = 1:1:MagBins
+
+                    for jSrc = 1:1:Src30min(iMag)
+
+                         Isrc = Isrc +1;
+
+%                          Cat(Isrc,1) = floor( 1800 + 333 * rand ); % about 4.22 deg from the corner
+%                          Cat(Isrc,2) = floor( 1800 + 333 * rand ); % hence using ULTRASAT R11 filter
+                         
+%                          Cat(Isrc,1) = floor( 30 + 333 * rand ); % about 0.42 deg from the corner
+%                          Cat(Isrc,2) = floor( 30 + 333 * rand ); % hence using ULTRASAT R2 filter
+%                          
+                         Cat(Isrc,1) = floor( 3783 + 333 * rand ); % about 8.44 deg from the corner
+                         Cat(Isrc,2) = floor( 3783 + 333 * rand ); % hence using ULTRASAT R21 filter
+
+
+                        % divide the population into 3 colours 
+
+                            if      rem(Isrc,3) == 1
+                                Spec(Isrc,:) = AstroSpec.blackBody(Wave',3500);
+                            elseif  rem(Isrc,3) == 2
+                                Spec(Isrc,:) = AstroSpec.blackBody(Wave',5800);
+                            else
+                                Spec(Isrc,:) = AstroSpec.blackBody(Wave',20000);
+                            end
+
+                        % recalculate the magnitudes into the ULTRASAT R system
+
+                        S          = scaleSynphot(Spec(Isrc,:), Mag(iMag), 'GALEX', 'NUV');
+                        MagU(Isrc) = astro.spec.synthetic_phot([Wave', S.Flux],'ULTRASAT','R21','AB');                    
+
+                    end
+
+                end
+                
+                % save the catalog for the case you wish to repeat the same setup
+
+                save('fitted_distr_cat.mat', 'Cat','MagU', 'Spec','-v7.3');
+                
+            else
+                % read in the catalog and spectra to be modelled
+                                
+                DataFile = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/fitted_distr8.44deg_cat.mat'); 
+                io.files.load1(DataFile);  % load Cat, MagU, Spec 
+                
             end
 
             simImage = ultrasat.usim('InCat',Cat,'InMag',MagU,'InSpec',Spec,'Exposure',[Args.ExpNum 300],...
-                                     'InMagFilt',{'ULTRASAT','R11'},'OutDir',Args.OutDir);
-
+                                     'InMagFilt',{'ULTRASAT','R21'},'OutDir',Args.OutDir);
             
         otherwise
             

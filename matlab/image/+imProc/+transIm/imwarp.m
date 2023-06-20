@@ -56,9 +56,14 @@ function [Result]=imwarp(Obj, Trans, Args)
     %                   Default is true.
     %
     %            'ReplaceNaN' - Replace NaN with FillVall. Default is true.
-    %            'TransWCS' - A logical indicatinf if to copy the reference WCS
+    %            'TransWCS' - A logical indicating if to copy the reference WCS
     %                   to the transformed image WCS and header.
     %                   Default is true.
+    %            'RefWCS' - A WCS to store in the output registered images.
+    %                   If given this will override the TransWCS=true/false
+    %                   option.
+    %                   This is useful for a non-WCS transformations.
+    %                   Default is empty (not used).
     %
     %            'CreateNewObj' - A logical indicating if the output is a
     %                   new copy of the input AstroImage (true), or just an handle
@@ -91,6 +96,7 @@ function [Result]=imwarp(Obj, Trans, Args)
         Args.ReplaceNaN logical        = true;  % replace NaN with FillVal | not working on mask
    
         Args.TransWCS logical          = true;
+        Args.RefWCS                    = [];  % override input ref WCS
         
         Args.CreateNewObj logical      = true;
         Args.CopyHeader logical        = true; % copy header
@@ -107,6 +113,10 @@ function [Result]=imwarp(Obj, Trans, Args)
     end
     
     Nobj = numel(Obj);
+
+    if ~isempty(Args.RefWCS)
+        Args.TransWCS = true;
+    end
 
     % Delete CatData
     if Args.DeleteCat
@@ -178,6 +188,7 @@ function [Result]=imwarp(Obj, Trans, Args)
         else
             error('Unknown Trans (2nd input argument) numeric option'); 
         end
+        OutWCS = [];
         
     elseif isa(Trans, 'AstroWCS')
         % Convert AstroWCS to displacment field
@@ -285,12 +296,17 @@ function [Result]=imwarp(Obj, Trans, Args)
         
         if Args.TransWCS
             % Transform the WCS into the new reference frame
-            if isempty(OutWCS)
-                warning('TransWCS=true option is not available for non-WCS transformations')
+            if isempty(OutWCS) && isempty(Args.RefWCS)
+                warning('TransWCS=true option is not available for non-WCS transformations - ALternatively, give RefWCS');
             else
-                Iwcs = min(Iobj, Ntran);
-                Result(Iobj).WCS = OutWCS(Iwcs);
-                Result(Iobj).HeaderData = wcs2header(Result(Iobj).WCS, Result(Iobj).HeaderData);
+                if ~isempty(Args.RefWCS)
+                    Result(Iobj).WCS = Args.RefWCS.copy;
+                    Result(Iobj).HeaderData = wcs2header(Result(Iobj).WCS, Result(Iobj).HeaderData);
+                else
+                    Iwcs = min(Iobj, Ntran);
+                    Result(Iobj).WCS = OutWCS(Iwcs);
+                    Result(Iobj).HeaderData = wcs2header(Result(Iobj).WCS, Result(Iobj).HeaderData);
+                end
             end
         end
 

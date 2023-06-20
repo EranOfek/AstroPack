@@ -65,6 +65,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         Args.DeleteVarBeforeCoadd logical     = false;
 
         Args.AddGlobalMotion logical          = true;
+        Args.UseShift logical                 = true;
         Args.constructPSFArgs cell            = {};
         Args.psfFitPhotArgs cell              = {};
         
@@ -162,13 +163,24 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
             % if sum(FlagGood)<20
             %     'a'
             % end
-            RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), ShiftXY(FlagGood,:),...
-                                                     'TransWCS',false,...
+            
+            % Note that the RefWCS is given because we are using the
+            % ShiftXY option:
+
+            if Args.UseShift
+                RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), ShiftXY(FlagGood,:),...
+                                                     'RefWCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
                                                      'FillValues',0,...
                                                      'ReplaceNaN',true,...
                                                      'CreateNewObj',~Args.ReturnRegisteredAllSI);
-
-
+            else
+                % Use WCS:
+                RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), AllSI(find(FlagGood,1,'first'),Ifields),...
+                                                     'TransWCS',true,...
+                                                     'FillValues',0,...
+                                                     'ReplaceNaN',true,...
+                                                     'CreateNewObj',~Args.ReturnRegisteredAllSI);
+            end
 
             % use sigma clipping...
             % 1. NOTE that the mean image is returned so that the effective gain

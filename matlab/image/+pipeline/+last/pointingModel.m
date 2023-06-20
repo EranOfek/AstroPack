@@ -11,7 +11,7 @@ function [AllResult,PM] = pointingModel(Files, Args)
         Args.Dirs                         = 'ALL'; %{};
         Args.StartDate                    = [];
         Args.EndDate                      = [];
-        Args.Nfiles                       = 108;  % use only last N files
+        Args.Nfiles                       = Inf;  % use only last N files
         %Args.Dir                          = pwd;
         Args.astrometryCroppedArgs cell   = {};
         %Args.backgroundArgs cell          = {};
@@ -24,6 +24,7 @@ function [AllResult,PM] = pointingModel(Files, Args)
         Args.ObsCoo                       = [35 30];  % [deg]
         Args.ConfigFile                   = '';
     end
+    
     RAD = 180./pi;
     
     if isempty(Files)
@@ -66,7 +67,9 @@ function [AllResult,PM] = pointingModel(Files, Args)
             Keys = AI.getStructKey({'RA','DEC','HA','M_JRA','M_JDEC','M_JHA','JD','LST'});
             try
                 [R, CAI, S] = imProc.astrometry.astrometryCropped(List{Ilist}, 'RA',Keys.RA, 'Dec',Keys.DEC, 'CropSize',[],Args.astrometryCroppedArgs{:});
-            catch
+            catch ME
+                ME
+                
                 fprintf('Failed on image %d\n',Ilist);
 
                 S.CenterRA = NaN;
@@ -136,6 +139,10 @@ function [AllResult,PM] = pointingModel(Files, Args)
         PM = [HADec, MeanResidHA, MeanResidDec];
         Flag = any(isnan(PM),2);
         PM   = PM(~Flag,:);
+        
+        % add these values to avoid extrapolation at dec 90 deg
+        AtPole = [-135 90 0 0; -90 90 0 0; -45 90 0 0; 0 90 0 0; 45 90 0 0; 90 90 0 0; 135 90 0 0];
+        PM = [PM; AtPole];
         
         if ~isempty(Args.ConfigFile)
             % write config file

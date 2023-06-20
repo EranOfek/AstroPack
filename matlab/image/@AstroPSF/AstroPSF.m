@@ -47,7 +47,17 @@ classdef AstroPSF < Component
         ArgNames cell     = {'X','Y','Color','Flux'};
         StampSize         = [];
         
-        Nstars            = NaN;  % If Nstars=NaN, then PSF wasn't constructed yet.
+        Nstars            = NaN;  % If Nstars=NaN, then PSF wasn't constructed yet
+        
+        DataPSF2          = [];
+        
+        DimDef  cell      = {'WaveMono', 'WaveBand', 'WaveTemp', 'WaveSpType', 'WaveColor',...
+                             'PosR', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'};
+        DimAxis cell      = cell(1,10);       
+        
+        FWHM              = [];  % for each of the points in the DimDef space ?
+        ContainmentR      = [];  % for each of the points in the DimDef space ?
+        
     end
     
     methods % Constructor
@@ -406,7 +416,7 @@ classdef AstroPSF < Component
         
         
         function [varargout] = moment2(Obj, Args)
-            % Calculate the moments and perture photometry of PSFs
+            % Calculate the moments and aperture photometry of PSFs
             %   using the imUtil.image.moment2 function.
             % Input  : - An AstroPSF object in which all the PSFs have the
             %            same size.
@@ -457,7 +467,7 @@ classdef AstroPSF < Component
             X = (SizeCube(2)-1).*0.5;
             Y = (SizeCube(1)-1).*0.5;
             
-            [varargout{1:nargout}] = imUtil.image.moment2(Cube, X, Y, Args.moment2Args{:});
+            [varargout{1:nargout}] = imUtil.image.moment2(Cube, X, Y, Args.moment2Args{:}, 'SubBack',false);
             
         end
         

@@ -5,6 +5,11 @@ function Cat=build_obsid_cat(varargin)
 %              over the entire Chandra image archive.
 % Input  : * Arbitrary number of pairs of arguments: ...,keyword,value,...
 %            where keyword are one of the followings:
+%            'Collect' - If true, then will collect all the AO files in the
+%                   cats.X.Chandra dir and make a master catalog.
+%                   If false, then will just create a catalog for a
+%                   specific AO by going over the Chandra website.
+%                   Default is false.
 %            'AO'      - AO to download. Default is 'ao01'.
 %            'GetInfo' - Get information [JD, RA, Dec] for each ObsID
 %                        in addition to the OBSID and its location
@@ -63,6 +68,7 @@ if ~InPar.Collect
     ListEvt = ListURL(FlagEvt);
     Nevt    = numel(ListEvt);
 
+    FlagGood = true(Nevt,1);
     for Ievt=1:1:Nevt
         [Ievt, Nevt]
         Evt2url = ListEvt{Ievt};
@@ -75,27 +81,34 @@ if ~InPar.Collect
         Data(Ievt).url     = Evt2url(1:end-8);
 
         try
-            www.pwget({Evt2url});
+            www.pwget({Evt2url},'--no-check-certificate -U Mozilla');
         catch
             pause(120);
-            www.pwget({Evt2url});
+            www.pwget({Evt2url},'--no-check-certificate -U Mozilla');
+            pause(10);
         end
 
-        H = FITS.get_head(EvtFileName,2);
-        delete(EvtFileName)
-
-        for Ikey=1:1:Nkey
-
-            FlagK = strcmp(H.Header(:,1),Key2read{Ikey});
-            Val   = H.Header{FlagK,2};
-            if ~isempty(strfind(Key2read{Ikey},'DATE'))
-                Val = celestial.time.julday(Val);
+        %H = FITS.get_head(EvtFileName,2);
+        try
+            H.Header = FITS.readHeader1(EvtFileName,2);
+      
+            delete(EvtFileName)
+    
+            for Ikey=1:1:Nkey
+    
+                FlagK = strcmp(H.Header(:,1),Key2read{Ikey});
+                Val   = H.Header{FlagK,2};
+                if ~isempty(strfind(Key2read{Ikey},'DATE'))
+                    Val = celestial.time.julday(Val);
+                end
+                % store data ins tructure
+                KeyTmp = regexprep(Key2read{Ikey},'-','');
+                Data(Ievt).(KeyTmp) = Val;
             end
-            % store data ins tructure
-            KeyTmp = regexprep(Key2read{Ikey},'-','');
-            Data(Ievt).(KeyTmp) = Val;
+        catch
+            FlagGood(Ievt) = false;
+            warning('Failed on file %d',Ievt);
         end
-
 
         if (InPar.Verbose)
             fprintf('ObsID=%d   %d  %d\n',Data(Ievt).ObsID);
@@ -103,6 +116,7 @@ if ~InPar.Collect
 
     end    
 
+    Data = Data(FlagGood);
 
     switch lower(InPar.OutType)
         case 'struct'
@@ -152,6 +166,7 @@ else
     Dir = dir(SearchName);
     Ndir = numel(Dir);
     for Idir=1:1:Ndir
+        Idir
         ChandraObs(Idir) = io.files.load2(Dir(Idir).name);
     end
     ChandraObs = merge(ChandraObs);

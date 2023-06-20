@@ -109,6 +109,9 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
         if isempty(Args.PSF)
             % try to read PSF from AstroPSF
             PSF = ResultObj(Iobj).PSFData.getPSF;
+            if isempty(PSF)
+                error('No PSF found in AstroImage');
+            end
         else
             PSF = Args.PSF;
         end
@@ -134,7 +137,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                                                             
                     XY = [Src.XPEAK, Src.YPEAK];
                     Back = Src.BACK_IM;
-                    Std  = Src.STD_IM;
+                    Std  = sqrt(Src.VAR_IM);
                 else
                     % get also the Back and STD
                     Back = getCol(Obj(Iobj).CatData, Args.ColBack);

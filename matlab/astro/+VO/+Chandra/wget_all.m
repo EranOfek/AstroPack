@@ -1,4 +1,4 @@
-function wget_all
+function wget_all(varargin)
 % wget all Chandra observations in cats.X.ChandraObs
 % Package: VO
 % Description: 
@@ -28,7 +28,7 @@ for Iid=1:1:Nid
     fprintf('wget ObsID=%d  (dir %d out of %d)\n',ObsID,Iid,Nid);
     fprintf('---------------------------------\n');
     
-    VO.Chandra.wget_obsid(ObsID)
+    VO.Chandra.wget_obsid(ObsID, varargin{:});
     
     pause(1);
     

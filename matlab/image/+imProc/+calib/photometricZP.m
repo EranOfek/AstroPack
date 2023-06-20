@@ -4,7 +4,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %       sources against a photometric catalog, and calculate the zero
     %       point (ZP) of the catalog.
     %       If input is an AstroImage, the photometric ZP will be
-    %       calculated only if the WCS.Sucess is true.
+    %       calculated only if the WCS.Success is true.
     % Input  : - An AstroImage or AstroCatalog object.
     %          * ...,key,val,...
     %            'Radius' - Matching radius between the catalog and

@@ -38,6 +38,15 @@ function Result=astrometryQualityData(Obj, Args)
     %            'ColCatDec' - Column name in the input catalog containing the
     %                   Dec. Default is AstroCatalog.DefNamesDec
     %
+    %            'cell2d_statArgs' - A cell array of arguments to pass to
+    %                   tools.math.stat.cell2d_stat
+    %                   Default is {}.
+    %            'MagLimit' - Mag limit to use when calculating cell
+    %                   statistics.
+    %                   Default is 17.
+    %            'Nbin' - Number of binx to use in [X,Y] for cell
+    %                   statistics.
+    %                   Default is [3 3].
     %    Argumnets passed to: imProc.match.returnMatched_catsHTM
     %            'Coo' - [RA, Dec] of coordinates to search.
     %                   If empty, then will attempt to find this
@@ -79,8 +88,8 @@ function Result=astrometryQualityData(Obj, Args)
     %          can be derived. One element per input catalog element.
     %          The following fields are available:
     %          (All coordinates are in radians)
-    %          .DeltaRA - RA_cat - RA_ref
-    %          .DeltaDec - Dec_cat - Dec_ref
+    %          .DeltaRA - RA_cat - RA_ref [arcsec]
+    %          .DeltaDec - Dec_cat - Dec_ref [arcsec]
     %          .CatRADec - [RA, Dec] of input cat.
     %          .RefRADec - [RA, Dec] of ref.
     %          .CatXY    - [X,Y] of input cat.
@@ -90,7 +99,10 @@ function Result=astrometryQualityData(Obj, Args)
     %          .Color    - Colors.
     %          .PixelPhaseX - Pixel phase in X.
     %          .PixelPhaseY - Pixel phase in Y.
-    % 
+    %          .MedShiftRAmas - Median RA shift in arcsec.
+    %          .MedShiftDecmas - Median Dec shift in arcsec.
+    %          .ResidRA_XY - Statistics of residual in RA as a function of Y,X. [arcsec]
+    %          .ResidDec_XY - Statistics of residual in Dec as a function of Y,X. [arcsec]
     % Author : Eran Ofek (May 2023)
     % Example: R=imProc.astrometry.astrometryQualityData(AI);
     
@@ -114,18 +126,31 @@ function Result=astrometryQualityData(Obj, Args)
         
         % internal argumnets
         Args.MagFromRef logical    = true;
-        Args.ColMag                = AstroCatalog.DefNamesMag;
-        Args.ColColor      = {'phot_bp_mean_mag','phot_rp_mean_mag'};  % single column or two columns
-        
+        Args.ColMag                = 'phot_bp_mean_mag';
+        Args.ColColor              = {'phot_bp_mean_mag','phot_rp_mean_mag'};  % single column or two columns
+        Args.cell2d_statArgs       = {};
+        Args.MagLimit              = 17;
+        Args.Nbin                  = [3 3];
+
         Args.ColRefRA      = AstroCatalog.DefNamesRA;
         Args.ColRefDec     = AstroCatalog.DefNamesDec;
         Args.ColCatRA      = AstroCatalog.DefNamesRA;
         Args.ColCatDec     = AstroCatalog.DefNamesDec;
+        Args.ColCatX       = AstroCatalog.DefNamesX;
+        Args.ColCatY       = AstroCatalog.DefNamesY;
         
     end
     
-    % Match the input catalog against the reference catalog
-    [MatchedRefCat, ResInd, CatH] = imProc.match.returnMatched_catsHTM(Obj, 'CatName',Args.CatName,...
+    RAD = 180./pi;
+    ARCSEC_DEG = 3600;
+
+    
+    
+    % Calc statistics and quality
+    Nobj = numel(Obj);
+    for Iobj=1:1:Nobj
+        % Match the input catalog against the reference catalog
+        [MatchedRefCat(Iobj), ResInd(Iobj), CatH] = imProc.match.returnMatched_catsHTM(Obj(Iobj), Args.CatName,...
                                                         'Coo',Args.Coo,...
                                                         'CooUnits',Args.CooUnits,...
                                                         'Radius',Args.Radius,...
@@ -138,29 +163,26 @@ function Result=astrometryQualityData(Obj, Args)
                                                         'applyProperMotionArgs',Args.applyProperMotionArgs,...
                                                         'ColEpoch',Args.ColEpoch,...
                                                         'EpochUnits',Args.EpochUnits);
-    
-    % Calc statistics and quality
-    Nobj = numel(Obj);
-    for Iobj=1:1:Nobj
+
         % get RA/Dec
         if isa(Obj, 'AstroImage')
-            CatRADec = Obj(Iobj).CatData.getLonLat('rad', 'ColLon',Args.ColCatRA, 'ColLat',ColCatDec);
-            CatXY    = Obj(Iobj).CatData.getXY('ColX',Args.ColCatX, 'ColY',ColCatY);
+            CatRADec = Obj(Iobj).CatData.getLonLat('rad', 'ColLon',Args.ColCatRA, 'ColLat',Args.ColCatDec);
+            CatXY    = Obj(Iobj).CatData.getXY('ColX',Args.ColCatX, 'ColY',Args.ColCatY);
         else
             % assuming Obj is AstroCatalog
-            CatRADec = Obj(Iobj).getLonLat('rad', 'ColLon',Args.ColCatRA, 'ColLat',ColCatDec);
+            CatRADec = Obj(Iobj).getLonLat('rad', 'ColLon',Args.ColCatRA, 'ColLat',Args.ColCatDec);
             CatXY    = Obj(Iobj).getXY('ColX',Args.ColCatX, 'ColY',ColCatY);
         end
-        RefRADec = MatchedRefCat(Iobj).getLonLat('rad', 'ColLon',Args.ColRefRA, 'ColLat',ColRefDec);
+        RefRADec = MatchedRefCat(Iobj).getLonLat('rad', 'ColLon',Args.ColRefRA, 'ColLat',Args.ColRefDec);
         
         
         Result(Iobj).DeltaRA  = CatRADec(:,1) - RefRADec(:,1);
         Result(Iobj).DeltaDec = CatRADec(:,2) - RefRADec(:,2);
         % make sure DeltaRA is not larger than pi
-        FlagPI = DeltaRA>pi;
+        FlagPI = Result(Iobj).DeltaRA>pi;
         Result(Iobj).DeltaRA(FlagPI) = Result(Iobj).DeltaRA(FlagPI) - 2.*pi;
         
-        [Result(Iobj).DeltaDist, Result(Iobj).PA] = celestial.coo.sphere_dist_fast(CatRADec(:,1), CatRADec(:,2), RefRADec(:,1), RefRADec(:,2));
+        [Result(Iobj).DeltaDist, Result(Iobj).PA] = celestial.coo.sphere_dist(CatRADec(:,1), CatRADec(:,2), RefRADec(:,1), RefRADec(:,2));
         Result(Iobj).CatRADec = CatRADec;
         Result(Iobj).RefRADec = RefRADec;
         Result(Iobj).CatXY    = CatXY;
@@ -189,6 +211,16 @@ function Result=astrometryQualityData(Obj, Args)
         Result(Iobj).PixelPhaseY = mod(Result(Iobj).CatXY(:,2), 1);
         
         % rms vs. position
+        Result(Iobj).DeltaRA         = Result(Iobj).DeltaRA  .* RAD.*ARCSEC_DEG;      % [arcsec]
+        Result(Iobj).DeltaDec        = Result(Iobj).DeltaDec .* RAD.*ARCSEC_DEG;      % [arcsec]
+
+        F = Mag<Args.MagLimit;
+        Result(Iobj).ResidRA_XY      = tools.math.stat.cell2d_stat(Result(Iobj).CatXY(F,1), Result(Iobj).CatXY(F,2), Result(Iobj).DeltaRA(F), Args.cell2d_statArgs{:},  'NbinX',Args.Nbin(1), 'NbinY',Args.Nbin(2));
+        Result(Iobj).ResidDec_XY     = tools.math.stat.cell2d_stat(Result(Iobj).CatXY(F,1), Result(Iobj).CatXY(F,2), Result(Iobj).DeltaDec(F), Args.cell2d_statArgs{:}, 'NbinX',Args.Nbin(1), 'NbinY',Args.Nbin(2));
+
+        % Summary
+        Result(Iobj).MedShiftRAmas  = median(Result(Iobj).DeltaRA, 1, 'omitnan');     % [arcsec]
+        Result(Iobj).MedShiftDecmas = median(Result(Iobj).DeltaDec, 1, 'omitnan');    % [arcsec]
     
     end
     

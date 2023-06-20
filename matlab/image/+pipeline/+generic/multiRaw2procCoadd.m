@@ -1,4 +1,4 @@
-function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd] = multiRaw2procCoadd(FilesList, Args)
+function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd, RawHeader] = multiRaw2procCoadd(FilesList, Args)
     % Basic processing of a multiple raw image, of the same field, into a processed images and coadd image
     %   Including:
     %       Reading the image
@@ -195,6 +195,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.SubDir = NaN;  % NaN- autosubdir; '' no sub dir
         Args.BasePath = '/last02w/data1/archive'; %'/raid/eran/archive'; %'/euler/archive';
 
+        Args.KeySoftVer                       = 'PIPEVER';
+
         Args.CCDSEC                           = [];  % which CCDSEC to analuze - empty foe entire image  [xmin xmax ymin ymax]
         Args.CalibImages CalibImages          = [];
         Args.Dark                             = []; % [] - do nothing
@@ -240,7 +242,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         % Astrometry
         Args.Scale                            = 1.25;
-        Args.Tran                             = Tran2D('poly3');
+        Args.Tran                             = Tran2D('poly3'); %Tran2D('cheby1_3'); %Tran2D('poly3');
         %Args.astrometryCoreArgs cell          = {};
         Args.astrometrySubImagesArgs cell     = {};
         Args.astrometryRefineArgs cell        = {};
@@ -317,31 +319,34 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         % FileList is a cell array of images
                                                                                          
         AI = AstroImage(FilesList, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
-
-        % add ProjName to header
-        if Args.AddProjName2Header
-            Nfile = numel(AI);
-            for Ifile=1:1:Nfile
-                [~,FileNameStr] = fileparts(FilesList{Ifile});
-                SplitStr = split(FileNameStr,'_');
-                AI(Ifile).HeaderData.replaceVal('PROJNAME',SplitStr{1});
-            end
-        end
-        
-        % ADd FieldID to header
-        if Args.AddFieldID2Header
-            Nfile = numel(AI);
-            for Ifile=1:1:Nfile
-                [~,FileNameStr] = fileparts(FilesList{Ifile});
-                SplitStr = split(FileNameStr,'_');
-                AI(Ifile).HeaderData.replaceVal('FIELDID',SplitStr{4});
-            end
-        end        
     end
+
+    % add ProjName to header
+    if Args.AddProjName2Header
+        Nfile = numel(AI);
+        for Ifile=1:1:Nfile
+            [~,FileNameStr] = fileparts(FilesList{Ifile});
+            SplitStr = split(FileNameStr,'_');
+            AI(Ifile).HeaderData.replaceVal('PROJNAME',SplitStr{1});
+        end
+    end
+    
+    % ADd FieldID to header
+    if Args.AddFieldID2Header
+        Nfile = numel(AI);
+        for Ifile=1:1:Nfile
+            [~,FileNameStr] = fileparts(FilesList{Ifile});
+            SplitStr = split(FileNameStr,'_');
+            AI(Ifile).HeaderData.replaceVal('FIELDID',SplitStr{4});
+        end
+    end        
+    
         
     % make sure images are in single format
     AI = AI.cast('single');
-    
+
+    RawHeader = astroImage2AstroHeader(AI, 'CreateNewObj',true);
+
 
     % search for bad images
     [Result,~] = imProc.stat.identifyBadImages(AI, 'CCDSEC',Args.IdentifyBadImagesCCDSEC);
@@ -353,6 +358,10 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         error('No good images found');
     end
     
+    % update header with SoftVersion keyword
+    VerString = tools.git.getVersion;
+    AI.setKeyVal(Args.KeySoftVer,VerString);
+
     
     %Nsub = 24;
     %AllSI = AstroImage([Nim, Nsub]);
@@ -373,6 +382,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                                                       'CatName',Args.CatName,...
                                                                                       'CooOffset',Args.CooOffset,...
                                                                                       'DeletePropAfterSrcFinding',Args.DeletePropAfterSrcFinding,...
+                                                                                      'Tran',Args.Tran,...
                                                                                       'astrometrySubImagesArgs',Args.astrometrySubImagesArgs,...
                                                                                       'astrometryRefineArgs',Args.astrometryRefineArgs,...
                                                                                       'RefineSearchRadius',Args.RefineSearchRadius,...
@@ -393,6 +403,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                                          'CooOffset',Args.CooOffset,...
                                                                          'WCS',AllSI(Iim-1,:),...
                                                                          'DeletePropAfterSrcFinding',Args.DeletePropAfterSrcFinding,...
+                                                                         'Tran',Args.Tran,...
                                                                          'astrometrySubImagesArgs',Args.astrometrySubImagesArgs,...
                                                                          'astrometryRefineArgs',Args.astrometryRefineArgs,...
                                                                          'RefineSearchRadius',Args.RefineSearchRadius,...
@@ -453,17 +464,17 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     end
     
     
-    DataProp = {'Image','Mask','Cat','PSF'};
-    IP = ImagePath.generateImagePathFromProduct(AllSI, 'PropFromHeader',true,...
-                                                          'DataDirFromProjName',true,...
-                                                          'CropID_FromInd',false,...
-                                                          'AutoSubDir',AutoSubDir,...
-                                                          'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir',''});
-    ProjName = IP(1).ProjName;
-    
-    Args.SubDir = IP(1).SubDir;                                                  
-    writeProduct(IP, AllSI, 'Save',Args.SaveProcIm || Args.SaveProcMask || Args.SaveProcCat,...
-                            'SaveFields', DataProp([Args.SaveProcIm, Args.SaveProcMask, Args.SaveProcCat, false]));
+    % DataProp = {'Image','Mask','Cat','PSF'};
+    % IP = ImagePath.generateImagePathFromProduct(AllSI, 'PropFromHeader',true,...
+    %                                                       'DataDirFromProjName',true,...
+    %                                                       'CropID_FromInd',false,...
+    %                                                       'AutoSubDir',AutoSubDir,...
+    %                                                       'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir',''});
+    % ProjName = IP(1).ProjName;
+    % 
+    % Args.SubDir = IP(1).SubDir;                                                  
+    % writeProduct(IP, AllSI, 'Save',Args.SaveProcIm || Args.SaveProcMask || Args.SaveProcCat,...
+    %                         'SaveFields', DataProp([Args.SaveProcIm, Args.SaveProcMask, Args.SaveProcCat, false]));
     
     
     Args.ReturnRegisteredAllSI = false;
@@ -471,6 +482,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     % coadd the sub images of each field
     % generate a mask and a catalog for each coadd image
     % generate a PSF for each field.
+    
     [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd] = pipeline.generic.procMergeCoadd(AllSI,...
                                                                                              'mergeCatalogsArgs',Args.mergeCatalogsArgs,...
                                                                                              'MergedMatchMergedCat',Args.MergedMatchMergedCat,...
@@ -519,29 +531,29 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     
  
     % Save individual coadd images
-    DataProp = {'Image','Mask','Cat','PSF'};
-    IP = ImagePath.generateImagePathFromProduct(Coadd, 'PropFromHeader',true,...
-                                                          'DataDirFromProjName',false,...
-                                                          'AutoSubDir',false,...
-                                                          'CropID_FromInd',false,...
-                                                          'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir','', 'PathLevel','proc'});
-    IP.setAllVal('ProjName',ProjName);
-    IP.setAllVal('DataDir',ProjName);
-    
-    
-    FlagGood = ~isemptyImage(Coadd);
-    writeProduct(IP(FlagGood), Coadd(FlagGood), 'Save', Args.SaveCoaddIm || Args.SaveCoaddMask || Args.SaveCoaddCat || Args.SaveCoaddPSF,...
-                            'SaveFields', DataProp([Args.SaveCoaddIm, Args.SaveCoaddMask, Args.SaveCoaddCat, Args.SaveCoaddPSF]));
-      
-    % save MergedCat
-    writeProduct(IP(FlagGood), MergedCat(FlagGood), 'Save',Args.SaveMatchCat, 'Product','Cat', 'Level','merged', 'WriteFunArgs', {'FileType','fits'}, 'SaveFields',{'Cat'});
-    
-    % Save MatchedS
-    writeProduct(IP(FlagGood), MatchedS(FlagGood), 'Save',Args.SaveMatchMat, 'Product','MergedMat', 'Level','merged', 'WriteFunArgs', {'FileType','hdf5'}, 'SaveFields',{'Cat'}, 'FileType','hdf5');
-    
-    % save Asteroids MAT file
-    Igood = find(FlagGood, 1);
-    writeProduct(IP(Igood), ResultAsteroids, 'Save',Args.SaveAsteroids, 'Product','Asteroids', 'Level','proc');
+    % DataProp = {'Image','Mask','Cat','PSF'};
+    % IP = ImagePath.generateImagePathFromProduct(Coadd, 'PropFromHeader',true,...
+    %                                                       'DataDirFromProjName',false,...
+    %                                                       'AutoSubDir',false,...
+    %                                                       'CropID_FromInd',false,...
+    %                                                       'SetProp',{'Product','Image', 'SubDir',Args.SubDir, 'BasePath',Args.BasePath, 'DataDir','', 'PathLevel','proc'});
+    % IP.setAllVal('ProjName',ProjName);
+    % IP.setAllVal('DataDir',ProjName);
+    % 
+    % 
+    % FlagGood = ~isemptyImage(Coadd);
+    % writeProduct(IP(FlagGood), Coadd(FlagGood), 'Save', Args.SaveCoaddIm || Args.SaveCoaddMask || Args.SaveCoaddCat || Args.SaveCoaddPSF,...
+    %                         'SaveFields', DataProp([Args.SaveCoaddIm, Args.SaveCoaddMask, Args.SaveCoaddCat, Args.SaveCoaddPSF]));
+    % 
+    % % save MergedCat
+    % writeProduct(IP(FlagGood), MergedCat(FlagGood), 'Save',Args.SaveMatchCat, 'Product','Cat', 'Level','merged', 'WriteFunArgs', {'FileType','fits'}, 'SaveFields',{'Cat'});
+    % 
+    % % Save MatchedS
+    % writeProduct(IP(FlagGood), MatchedS(FlagGood), 'Save',Args.SaveMatchMat, 'Product','MergedMat', 'Level','merged', 'WriteFunArgs', {'FileType','hdf5'}, 'SaveFields',{'Cat'}, 'FileType','hdf5');
+    % 
+    % % save Asteroids MAT file
+    % Igood = find(FlagGood, 1);
+    % writeProduct(IP(Igood), ResultAsteroids, 'Save',Args.SaveAsteroids, 'Product','Asteroids', 'Level','proc');
     
 end
 

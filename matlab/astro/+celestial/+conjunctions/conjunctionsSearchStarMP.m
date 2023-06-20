@@ -62,19 +62,19 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
             Hmag = E(Ie).MagPar(1);
             [OcculterRadius] = celestial.SolarSys.asteroid_radius(Hmag, 0.15);
         
-            Result = celestial.SolarSys.conjunctionsStars(EphemCat, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',OcculterRadius);
+            Result = celestial.conjunctions.conjunctionsStars(EphemCat, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',OcculterRadius);
         catch ME
+            ME
             fprintf('Failed %d',Iast);
         end
     end
-
     
     Npl = numel(Args.AddPlanets);
     for Ipl=1:1:Npl
         [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',Args.AddPlanets{Ipl}, 'StartJD',Args.StartDate,'StopJD',Args.EndDate, 'StepSize',3,'StepSizeUnits','h');
     
         ObjName = Args.AddPlanets{Ipl};
-        Result = celestial.SolarSys.conjunctionsStars(EphemCat, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',Args.PlanetsRadius(Ipl));
+        Result = celestial.conjunctions.conjunctionsStars(EphemCat, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',Args.PlanetsRadius(Ipl));
     end
     
     if ~isempty(Result)
@@ -93,7 +93,9 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
                          Table.MagMP,...
                          Table.RA.*RAD,...
                          Table.Dec.*RAD,'VariableNames',{'ObjName','Date','MagStar_Bp','ImPar_InOccAngRadUnits','AngSpeed','CrossingTime','MagAst','RA','Dec'});
-                     
+    
+    %Table = sortrows(TableCompact, 'JD');
+    
                      
     %FID=fopen('Occ.txt','w');
     %tools.table.fprintf(FID,'%20s  %25s  %7.2f %6.2f %6.3f %5.1f %6.2f  %10.6f %10.6f\n',T);

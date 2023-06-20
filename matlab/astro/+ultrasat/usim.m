@@ -99,6 +99,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %%%%%%%%%%%%%%%%%%%%% Simulation parameters and some physical constants
     
 %     Eps = 1e-12;            % precision (currently not employed)
+    Tiny = 1e-30;
     
     C   = constant.c;       % the speed of light in vacuum, [cm/s]
     H   = constant.h;       % the Planck constant, [erg s]   
@@ -237,8 +238,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
         NumSrc = Args.InCat;  % the number of fake sources
 
-        CatX    = max(1, floor( ImageSizeX * rand(NumSrc,1) )); 
-        CatY    = max(1, floor( ImageSizeY * rand(NumSrc,1) )); 
+        CatX    = max(0.51, ImageSizeX * rand(NumSrc,1) ); 
+        CatY    = max(0.51, ImageSizeY * rand(NumSrc,1) ); 
         
         RA      = zeros(NumSrc,1);  % will be determined below if a WCS is set
         DEC     = zeros(NumSrc,1);  % -//-
@@ -263,7 +264,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
         RadSrc(Isrc) = sqrt( ( CatX(Isrc) - X0 )^2 + ( CatY(Isrc) - Y0 )^2 ) *  PixSizeDeg; % the source radii [deg]
         
-        TotT(Isrc,:) = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc(Isrc));          % regrid the throughput 
+        TotT(Isrc,:) = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc(Isrc), 'linear', Tiny);          % regrid the throughput 
 
     end
     
@@ -552,7 +553,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     
                             fprintf('Compiling output structures and writing files..\n'); drawnow('update'); tic
        
-    % if we generated a fake catalog above, make a catalog table here
+    % if we generated a fake catalog above, make a catalog table here 
     if ~isa(Args.InCat,'AstroCatalog')
         Cat = [CatX CatY CatFlux InMag RA DEC];
         Args.InCat = AstroCatalog({Cat},'ColNames',{'X','Y','Counts','MAG','RAJ2000','DEJ2000'},'HDU',1);
@@ -634,6 +635,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 %         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName,'Header',{'EXPTIME', Exposure,''});  %  DOES NOT WORK
 %         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName);   
         usimImage.write1(OutFITSName); % write the image and header to a FITS file
+        
+        % make a text file with the input catalog:
+        fileID = fopen('SimImage_InCat.txt','w'); 
+        fprintf(fileID,'%7.1f %7.1f %5.2f %d\n',Cat(:,(1:4))');
+        fclose(fileID);
         
         % an accompanying region file: 
         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'.reg');

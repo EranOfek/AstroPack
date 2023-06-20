@@ -1,31 +1,83 @@
 % db.AstroDB is a class for astronomical relational DB
 %
+% Properties :
+%         Query       - DbQuery object (filled when a DB object is created)
+%         Tables      - the list of existing DB tables (filled when a DB object is created)
+%         Tname       - current table name (overriden by a user input to the Obj.insert function)
+%         Telescope   - Telescope name
+%
+% Functionality :
+%
+% AstroDb -
+% createImageTable - Create or update definitions of image tables
+% createcatalogTable - Create or update definitions of catalog tables
+% createLASTtables - Create or update definitions of LAST database tables
+% addCommonImageColumns - Add/update common image columns to table
+% addCommonCatalogColumns - Add/update common catalog columns to table
+% addImage - Insert AstroHeader data to the specified table
+% addCatalog - Insert AstroCatalog records to src_catalog table
+% insert - insert image header or catalog data into an AstroDb database
+%          (the data injection function to be called by the user)
+% updateByTupleID - update DB table column values for the specified tuple numbers
+%          (the data manipulation function to be called by the user)
+% 
+%
+% TODO:
+% make a dependent LASTDb class with more particular table and connection parameters
+%
+% Examples:
+% % create a DB object with the default parameters:
+% A = db.AstroDb; 
+% % create a DB object with some more user-defined parameters:
+% A = db.AstroDb('Host', '10.23.1.1', 'DatabaseName', 'last_operational', 'UserName', 'myuser', 'Password', 'mypwd', 'Port', 5432);
+% % view the list of existing tables:
+% A.Tables
+% % re-create the raw_images table (existing data will be lost):
+% A.createImageTable('raw_images','Drop',1);
+% % Add to the DB metadata from RAW level images contained in the /home/sasha/Raw2/ directory according to the internal template:
+% TupleIDs = A.insert('LAST*raw*Ima*fits','DataDir','/home/sasha/Raw2/','Table','raw_images');
+% % Add to the DB metadata from RAW level images contained in a vector of AstroImages (AI):
+% TupleIDs = A.insert(AI,'Table','raw_images');
+% % Add to the DB metadata from PROC level images contained in the /home/sasha/Obs2/ directory according to the template:
+% TupleIDs = A.insert('LAST*proc*Ima*fits','DataDir','/home/sasha/Obs2/','Table','proc_images');
+% % Same, but do not insert the records which already exist in the table:
+% TupleIDs = A.insert('LAST*proc*Ima*fits','DataDir','/home/sasha/Obs2/','Table','proc_images','Force',0);
+% % Add to the DB metadata from COADD level images contained in the /home/sasha/Obs2/ directory according to the template:
+% TupleIDs = A.insert('LAST*coadd*Ima*fits','DataDir','/home/sasha/Obs2/','Table','coadd_images');
+% % Add to the DB metadata from COADD level images contained in a vector of AstroHeaders (AH):
+% TupleIDs = A.insert(AH,'Table','coadd_images'); 
+% % Same, but also put out the processed file names:
+% TupleIDs = A.insert('LAST*coadd*Ima*fits','DataDir','/home/sasha/Obs2/','Table','coadd_images','Verbose',1);
+% % Add to the DB source data from COADD level catalogs in the /home/sasha/Obs2/ directory according to the template:
+% TupleIDs = A.insert('LAST*coadd*Cat*fits','DataDir','/home/sasha/Obs2/','Type','cat','Table','src_catalog');
+% % Add to the DB source data from COADD level catalogs contained in a vector of AstroCatalogs (AC):
+% TupleIDs = A.insert(AC,'Type','cat','Table','src_catalog');
+% % Change 'ra' to 218 in tuples with ids from 2 to 10 in the 'proc_images' table
+% A.updateByTupleID('proc_images',[2:10],'ra',218)
+% % Change 'procstat' to 'seeing 0.5' for tuples listed in the vector Tuples)
+% A.updateByTupleID('raw_images',Tuples,'procstat','seeing 0.5')    
+%
 classdef AstroDb < Component
 
-    % Properties
     properties (SetAccess = public)
-        Query       = []      % DbQuery object
-        Telescope   = 'LAST'  % Telescope object
+        Query       = []      % DbQuery object (filled when a DB object is created)
+        Tables      = []      % the list of existing DB tables (filled when a DB object is created)
+        Tname       = 'raw_images'; % current table name (overriden by a user input to the Obj.insert function)
+        Telescope   = 'LAST'  % Telescope name
         
-        % Database name
-        DnULTRASAT  = '';
-        DnLAST      = 'LAST';
-        
-        % Table Names
-        TnRawImages     = 'raw_images';
-        TnProcImages    = 'proc_images';
-        TnCoaddImages   = 'coadd_images';       
-        TnSrcCatalog    = 'src_catalog';
+%       These will be later transfered to the LastDb class:
+%         TnRawImages     = 'raw_images';
+%         TnProcImages    = 'proc_images';
+%         TnCoaddImages   = 'coadd_images';       
+%         TnSrcCatalog    = 'src_catalog';
     end
 
-
-    methods
+    methods % construction of an AstroDb object 
         
         function Obj = AstroDb(Args)
             % Create new DbQuery object
             % To use SSH Tunnel, run SSH on local machine, and specify its port:
             %       ssh -L 63331:localhost:5432 ocs@10.23.1.25
-            %
             %
             % Input : - 
             %           * Pairs of ...,key,val,...
@@ -47,12 +99,17 @@ classdef AstroDb < Component
                 Args.Host          = 'socsrv' %localhost'     % 'socsrv'        % Host name or IP address
                 Args.Port          = 5432 % 63331           % 5432            % Port number
                 Args.DatabaseName  = 'lastdb'        % 'last_operational' at last0 node
-                Args.UserName      = 'postgres'      % User name
-                Args.Password      = 'PassRoot' %'postgres'      % 'PassRoot'      % Password
+                Args.UserName      = ''      % User name
+                Args.Password      = ''      % Password
+                Args.ListTables logical = true; % whether to put out a list of public tables
             end
+            
+            PM = PasswordsManager;
+            Args.UserName = PM.search(Args.DatabaseName).User;
+            Args.Password = PM.search(Args.DatabaseName).Pass;
 
             %
-            Obj.setName('LastDb');
+            Obj.setName(Args.DatabaseName);
             
             % Create DbQuery object
             Obj.msgLog(LogLevel.Info, 'Connecting to server %s:%d, database: %s, user: %s/%s', Args.Host, Args.Port, Args.DatabaseName, Args.UserName, Args.Password);
@@ -61,110 +118,39 @@ classdef AstroDb < Component
             % Query database version, to verify that we have a connection
             pgver = Obj.Query.getDbVersion();
             Obj.msgLog(LogLevel.Info, 'Connected, Postgres version: %s', pgver);
-            assert(contains(pgver, 'PostgreSQL'));            
+            assert(contains(pgver, 'PostgreSQL'));   
+            
+            % List tables, if the user asks for it
+            if Args.ListTables
+                TableList = Obj.Query.select('*','TableName','pg_tables','Where','schemaname = ''public''');
+                cprintf('hyper','%s\n','The DB contains the following public tables:')
+                Obj.Tables = extractfield(TableList.Data,'tablename');
+                Obj.Tables
+            end
         end
         
     end
-
-    methods
+    
+    methods % LAST-specfic structure of image and catalog tables
         
-        function Result = createTables(Obj)
+       function Result = createLASTtables(Obj)
             % Create or update definitions of LAST database tables
             % Input :  - LastDb object
             %          * Pairs of ...,key,val,...
             %            The following keys are available:
             % Output  : True on success
             % Author  : Chen Tishler (02/2023)
-            % Example : createTables()
+            % Example : createLASTtables()
 
-            Obj.createTable_raw_images();
-            Obj.createTable_proc_images();
-            Obj.createTable_coadd_images();
-            Obj.createTable_src_catalog();
+            Obj.createImageTable('raw_images','Drop',false);
+            Obj.createImageTable('proc_images','Drop',false);
+            Obj.createImageTable('coadd_images','Drop',false);
+            Obj.createCatalogTable('src_catalog','Drop',false);
            
             Result = true;
         end
 
-        function Result = createTable_raw_images(Obj)
-            % Create or update definitions of LAST database tables
-            % Input :  - LastDb object
-            %          * Pairs of ...,key,val,...
-            %            The following keys are available:
-            % Output  : True on success
-            % Author  : Chen Tishler (02/2023)
-            % Example : 
-            arguments
-                Obj
-            end
-
-            % Create table
-            Q = Obj.Query;
-            TN = Obj.TnRawImages;
-            Q.createTable('TableName', TN, 'AutoPk', 'pk', 'Drop', false);
-            Result = Obj.addCommonImageColumns(Q, TN);
-        end
-
-
-        function Result = createTable_proc_images(Obj)
-            % Create or update definitions of LAST database tables
-            % Input :  - LastDb object
-            %          * Pairs of ...,key,val,...
-            %            The following keys are available:
-            % Output  : True on success
-            % Author  : Chen Tishler (02/2023)
-            % Example : 
-            arguments
-                Obj
-            end
-
-            % Create table
-            Q = Obj.Query;
-            TN = Obj.TnProcImages;
-            Q.createTable('TableName', TN, 'AutoPk', 'pk', 'Drop', false);
-            Result = Obj.addCommonImageColumns(Q, TN);
-        end
-
-        
-        function Result = createTable_coadd_images(Obj)
-            % Create or update definitions of LAST database tables
-            % Input :  - LastDb object
-            %          * Pairs of ...,key,val,...
-            %            The following keys are available:
-            % Output  : True on success
-            % Author  : Chen Tishler (02/2023)
-            % Example : 
-            arguments
-                Obj
-            end
-
-            % Create table
-            Q = Obj.Query;
-            TN = Obj.TnCoaddImages;
-            Q.createTable('TableName', TN, 'AutoPk', 'pk', 'Drop', false);
-            Result = Obj.addCommonImageColumns(Q, TN);
-        end
-
-         function Result = createTable_src_catalog(Obj)
-            % Create or update definitions of LAST database tables
-            % Input :  - LastDb object
-            %          * Pairs of ...,key,val,...
-            %            The following keys are available:
-            % Output  : True on success
-            % Author  : Chen Tishler (02/2023)
-            % Example : 
-            arguments
-                Obj
-            end
-
-            % Create table
-            Q = Obj.Query;
-            TN = Obj.TnSrcCatalog;
-            Q.createTable('TableName', TN, 'AutoPk', 'pk', 'Drop', false);
-            Result = Obj.addCommonCatalogColumns(Q, TN);
-         end
-
-        
-        function Result = addCommonImageColumns(Obj, Q, TN)
+       function Result = addCommonImageColumns(Obj, Q, TN)
             % Add/update common image columns to table
             % Input :  - LastDb object
             %          - Q - DbQuery object (should be Obj.Query)
@@ -247,7 +233,7 @@ classdef AstroDb < Component
             Q.addColumn(TN, 'procversion', 'smallint', 'default 0'); 
             
             % added by @kra:           
-            if strcmp(TN, Obj.TnProcImages) || strcmp(TN, Obj.TnCoaddImages)
+            if strcmp(TN, 'proc_images') || strcmp(TN, 'coadd_images')
                 Q.addColumn(TN, 'fieldid',      'varchar(80)', "default ''");
                 Q.addColumn(TN, 'timezone',     'single', 'default 0');
                 Q.addColumn(TN, 'ccdid',        'single', 'default 0');
@@ -314,10 +300,12 @@ classdef AstroDb < Component
                 Q.addColumn(TN, 'med_b',        'double', 'default 0');
                 Q.addColumn(TN, 'med_th',       'double', 'default 0');  
 
-                Q.addColumn(TN, 'pipeversion',  'varchar(80)', "default ''");  
+                Q.addColumn(TN, 'pipever',  'varchar(80)', "default ''");  
+                Q.addColumn(TN, 'raw_image_id',  'integer', 'default 0');  
+                
             end
             
-            if strcmp(TN, Obj.TnCoaddImages)
+            if strcmp(TN, 'coadd_images')
                 Q.addColumn(TN, 'ncoadd',       'single', 'default 0');
                 Q.addColumn(TN, 'coaddop',      'varchar(80)', "default ''");
                 Q.addColumn(TN, 'avncoadd',     'single', 'default 0');
@@ -337,8 +325,8 @@ classdef AstroDb < Component
         end
 
 
-        function Result = addCommonCatalogColumns(Obj, Q, TN)
-            % Add/update common image columns to table
+       function Result = addCommonCatalogColumns(Obj, Q, TN)
+            % Add/update common catalog columns to table
             % Input :  - LastDb object
             %          - Q - DbQuery object (should be Obj.Query)
             %          - TN - Table name
@@ -421,7 +409,7 @@ classdef AstroDb < Component
                         
             % Additional
             Q.addColumn(TN, 'procstat',    'varchar(256)', "default ''", 'Comment', 'Additional user data');    
-            Q.addColumn(TN, 'pipeversion', 'varchar(80)', "default ''");  
+            Q.addColumn(TN, 'pipever', 'varchar(80)', "default ''");  
                 
             Obj.msgLog(LogLevel.Info, 'addCommonCatalogColumns done');
             Result = true;
@@ -429,108 +417,8 @@ classdef AstroDb < Component
         
     end
 
-    
-    methods
-
-        function Result = addRawImage(Obj, FileName, AH, Args)
-            % Insert RAW image header columns to raw_images table
-            % Input :  - LastDb object
-            %          - FileName
-            %          - AstroHeader
-            %          - Optionally additional columns in struct
-            %          * Pairs of ...,key,val,...
-            %            The following keys are available:
-            % Output  : Pk of inserted row on success, [] on failure
-            % Author  : Chen Tishler (02/2023)
-            % Example : createTables()
-            arguments
-                Obj                 %
-                FileName            % Image file name
-                AH                  % AstroHeader
-                Args.AddCols = []   % struct
-                Args.xxhash = []    % Optional
-                Args.Select = false %
-                Args.Force  = true  % whether to insert a record with the same hash sum
-            end
-                           
-            Result = Obj.addImage(Obj.TnRawImages, FileName, AH, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select,'Force',Args.Force);
-        end
-        
-        
-        function Result = addProcImage(Obj, FileName, AH, Args)
-            % Insert PROC image header columns to proc_images table
-            % Input :  - LastDb object
-            %          - FileName
-            %          - AstroHeader
-            %          - Optionally additional columns in struct
-            %          * Pairs of ...,key,val,...
-            %            The following keys are available:
-            % Output  : True on success
-            % Author  : Chen Tishler (02/2023)
-            % Example : 
-            arguments
-                Obj                 %
-                FileName            % Image file name
-                AH                  % AstroHeader
-                Args.AddCols = []   % struct
-                Args.xxhash = []    % Optional
-                Args.Select = false %
-                Args.Force  = true  % whether to insert a record with the same hash sum
-            end
-
-            Result = Obj.addImage(Obj.TnProcImages, FileName, AH, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select,'Force',Args.Force);
-        end
-        
-         
-        function Result = addCoaddImage(Obj, FileName, AH, Args)
-            % Insert COADD image header columns to coadd_images table
-            % Input :  - LastDb object
-            %          - FileName
-            %          - AstroHeader
-            %          - Optionally additional columns in struct
-            %          * Pairs of ...,key,val,...
-            %            The following keys are available:
-            % Output  : True on success
-            % Author  : Chen Tishler (02/2023)
-            % Example : 
-            arguments
-                Obj                 %
-                FileName            % Image file name
-                AH                  % AstroHeader
-                Args.AddCols = []   % struct
-                Args.xxhash = []    % Optional
-                Args.Select = false %
-                Args.Force  = true  % whether to insert a record with the same hash sum
-            end
-
-            Result = Obj.addImage(Obj.TnCoaddImages, FileName, AH, 'AddCols', Args.AddCols, 'xxhash', Args.xxhash, 'Select', Args.Select,'Force',Args.Force);
-        end
-                
-        
-        function Result = addSrcCatalog(Obj, FileName, AC, Args)
-            % Insert source cataloge records to src_catalog table
-            % Input :  - LastDb object
-            %          - FileName
-            %          - AstroCatalog
-            %          - Optionally additional columns in struct
-            %          * Pairs of ...,key,val,...
-            %            The following keys are available:
-            % Output  : True on success
-            % Author  : Chen Tishler (02/2023)
-            % Example : 
-            arguments
-                Obj                         %
-                FileName                    % Catalog file name
-                AC                          % AstroCatalog
-                Args.AddCols = []           % struct
-                Args.Hash logical  = false  % 
-                Args.Select = false         %
-            end
-
-            Result = Obj.addSrcCat(Obj.TnSrcCatalog, FileName, AC, 'AddCols', Args.AddCols, 'Hash', Args.Hash, 'Select', Args.Select);
-        end
-                
-        
+    methods % low level addImage and addCatalog functions             
+               
         function Result = addImage(Obj, TableName, FileName, AH, Args)
             % Insert AstroHeader to specified table
             % NB: if Args.Force = false and we are trying to insert the same record twice, Result will be negative  
@@ -543,7 +431,7 @@ classdef AstroDb < Component
             %            The following keys are available:
             % Output  : Pk of inserted row on success, [] on failure
             % Author  : Chen Tishler (02/2023)
-            % Example : addImage(
+            % Example : 
             arguments
                 Obj                 %
                 TableName           % Table name to insert to
@@ -552,7 +440,7 @@ classdef AstroDb < Component
                 Args.AddCols = []   % struct - optional additional columns (i.e. AddCols.ColName = ColValue, etc.)
                 Args.xxhash = []    % When specified, insert also column 'xxhash' with this value
                 Args.Select = false % When true and Xxhash is specified, first check if image already exists
-                Args.Force  = true  % whether to insert a record with the same hash sum
+                Args.Force  = true  % Whether to insert a record with the same hash sum, or create next version of the image
 
                 Args.ReplaceKeyVal = {'AIRMASS','',0; 'PRVFOCUS','',0; 'FOCUS','',0; ...
                                         'M_JRA','',0;   'M_JDEC','',0; 'M_JHA','',0; ...
@@ -612,81 +500,304 @@ classdef AstroDb < Component
             
             % Insert AstroHeader to table
             Pk = Q.insert(AH, 'TableName', TableName, 'ColumnsOnly', true, 'Returning', 'pk');
-            if ProcVers > 0 % the same record should be inserted with the advancing procversion number
-                Obj.updateByTupleID(Obj,TableName,Pk,'procversion',ProcVers);
+            
+            % The same record should be inserted with the advancing procversion number
+            if ProcVers > 0 
+                Obj.updateByTupleID(Pk, 'procversion', ProcVers, 'Table', TableName);
             end
             Result = Pk;
         end
         
         
-        function Result = addSrcCat(Obj, TableName, FileName, AC, Args)
-                % Insert AstroHeader to specified table.
-                % Input :  - LastDb object
-                %          - TableName
-                %          - FileName
-                %          - AstroCatalog
-                %          - struct - Optionally additional columns. MUST BE lowercase!
-                %          * Pairs of ...,key,val,...
-                %            The following keys are available:
-                % Output  : Pk of inserted row on success, [] on failure
-                % Author  : Chen Tishler (02/2023)
-                % Example : 
-                arguments
-                    Obj                         %
-                    TableName                   % Table name to insert to
-                    FileName                    % Image FITS file name
-                    AC                          % AstroCatalog to insert 
-                    Args.AddCols = []           % struct - optional additional columns (i.e. AddCols.ColName = ColValue, etc.)
-                    Args.Hash logical = true;   % 
-                    Args.Select = false         % When true and Hash is specified, first check if image already exists
+        function Result = addCatalog(Obj, TableName, AC, Args)
+            % Insert source catalog records to src_catalog table
+            % Input :  - LastDb object
+            %          - FileName
+            %          - AstroCatalog
+            %          - Optionally additional columns in struct
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : 
+            arguments
+                Obj                         %
+                TableName                   %
+                AC                          % AstroCatalog
+                Args.FileName = []          % Not implemented yet - Allow reading the catalog from file
+            end
+
+            % Insert AstroCatalog to the table
+            Pk = Obj.Query.insert(AC, 'TableName', TableName, 'ColumnsOnly', true, 'Returning', ''); % 'pk' - temporary switch off the Returning ke
+            Result = Pk;
+        end
+                
+    end
+
+    methods % user interface functions
+        
+        function [TupleID, Result] = insert(Obj, Data, Args)
+            % insert image header or catalog data into an AstroDb database
+            % Input : - Data: 
+            %               a) a cell arra of FITS file names or a FITS file name template
+            %               b) a vector of AstroImages 
+            %               c) a vector of AstroHeaders
+            %               d) a vector of AstroCatalogs
+            %         * ...,key,val,...
+            %         'Table'  : table name            
+            %         'Type'   : 'img' or 'cat'
+            %         'DataDir': if not empty, 'Data' should contain a filename template
+            %                    e.g., 'LAST*sci*raw_Image*.fits'
+            %         'Hash'   : insert a hash sum for each entry
+            %         'Force'  : insert a record from the file if the same
+            %                    record from the same file (same hash sum) has been inserted already
+            %         'Verbose': print names of the digested files
+            % Author : A. Krassilchtchikov (Jun 2023)
+            
+            arguments
+                Obj
+                Data                                % input images (file names or AstroImages) or AstroHeaders
+                Args.Table        = '';             % table name (by def. take from the Object property)
+                Args.Type         = 'img';          % data type: 'img' or 'cat'
+                Args.DataDir      = '';             % if not empty, 'Data' contains a filename template, 
+                                                    % e.g., 'LAST*sci*raw_Image*.fits'
+                Args.Hash logical = true;           % employ hash sums to check if the record is new
+                Args.Force logical= true;           % if the record is inserted despite the existing copy (checked by the hashsum)
+                Args.FileNames    = {};             % an optional cell array of file names (for the case the first argument is not a file list)
+                Args.Verbose logical = false;       % print filenames, whose headers are inserted 
+            end
+            
+            % choose, which table to manipulate and check if it exists in the database
+            if ~isempty(Args.Table)
+                Table = Args.Table;
+            else
+                Table = Obj.Tname;
+            end
+            
+            if ~ismember(Table, Obj.Tables)
+                error('The requested table does not exist in the database')
+            end
+            
+            % check basic input consistency:
+            if ( isa(Data(1), 'AstroImage') ||  isa(Data(1), 'AstroHeader') ) && strcmp(Args.Type,'cat') ...
+               || ( isa(Data(1), 'AstroCatalog') && strcmp(Args.Type,'img') )
+                error ('Actual data type does not match the Type parameter');
+            end
+            
+            % check if the input is a DataDir + filename template 
+            % and if so, make a cell array of data files:
+            if ~isempty(Args.DataDir)   
+                Files  = dir ( fullfile(Args.DataDir, '**', Data) );
+                NData  = numel(Files);
+                Data   = repmat({''}, NData, 1);
+                for IData = 1:1:NData
+                    Data{IData} = fullfile(Files(IData).folder, Files(IData).name);
+                end
+            end
+         
+            % determine the number of input files, images or catalogs:
+            NData = numel(Data);  
+            TupleID  = zeros(NData,1);
+
+            % check whether it is possible to get files for the hash sum
+            if numel(Args.FileNames) ~= NData && ...
+                    ( isa(Data(1), 'AstroImage') ||  isa(Data(1), 'AstroHeader') || isa(Data(1), 'AstroCatalog') )
+                Args.Hash = false;
+            end
+            
+            for IData = 1:1:NData
+                
+                switch lower(Args.Type)
+                    
+                    case 'cat'  % catalogs
+                        
+                        if isa( Data(IData), 'AstroCatalog' )
+                            AC = Data(IData);                            
+                            if numel(Args.FileNames) == NData % a separate list of file names is provided
+                                Filename = Args.FileNames{IData};
+                            else
+                                Filename = '';
+                            end
+                        else
+                            if Args.Verbose
+                               fprintf('%s\n', Data(IData) );
+                            end
+                            AC = AstroCatalog( Data(IData) ); % get AC from a file
+                            Filename =   char( Data(IData) ); 
+                        end
+
+                        % in fact, there will be many tuples for each of
+                        % the catalogs, so one does not make much sense
+                        % (TBD)
+                        TupleID(IData) = Obj.addCatalog(Table, AC, 'FileName', Filename);
+                        
+                    case 'img'  % images
+                        
+                        if isa( Data(IData), 'AstroHeader' )
+                            AH = Data(IData);
+                            if numel(Args.FileNames) == NData % a separate list of file names is provided
+                                Filename = Args.FileNames{IData};
+                            elseif ~isempty(AH.File)
+                                Filename = AH.File;
+                            else
+                                Filename = '';
+                            end
+                        elseif isa( Data(IData), 'AstroImage' )
+                            AH = AstroHeader;
+                            AH.Data = Data(IData).Header;
+                            if numel(Args.FileNames) == NData % a separate list of file names is provided
+                                Filename = Args.FileNames{IData};
+                            elseif ~isempty(AH.File)
+                                Filename = AH.File;
+                            else
+                                Filename = '';
+                            end
+                        else
+                            if Args.Verbose
+                               fprintf('%s\n', char( Data(IData) ) );
+                            end
+                            AH = AstroHeader( Data(IData), 1 );                            
+                            Filename = char( Data(IData) );
+                        end
+                        
+                        if Args.Hash && ~isempty(Filename)
+                            Sum_h64 = tools.checksum.xxhash('FileName', Filename ); 
+                        else
+                            Sum_h64 = '';
+                        end
+
+                        TupleID(IData) = Obj.addImage(Table, Filename, AH, 'xxhash', Sum_h64, 'Force', Args.Force);
+                        
+                    otherwise
+                        
+                        error('Illegal data type');
+                    
+                end
+                
+            end
+
+            fprintf('%s%d%s\n','Processed ', NData,' entries');
+            cprintf('blue','%s%s%s%s%s\n','Table ',Table,' successfully populated with ',Args.Type',' metadata');           
+
+            Result = true;
+            
+        end
+        
+        function Result = updateByTupleID(Obj, TupleID, Colname, Colval, Args)
+            % Update DB table column values for the specified tuple numbers 
+            % Input :  - Obj    : the database object
+            %          - TupleID: a vector of tuple IDs
+            %          - Colname: name of the column to be changed 
+            %          - Colval : the new column value
+            %          * ...,key,val,...
+            %          'Table'  : table name (by default = Obj.Tname)
+            %
+            % Output : - success flag (0 -- images successfully changed the values in the DB)
+            % Tested : Matlab R2020b
+            % Author : A. Krassilchtchikov (May 2023)
+            % Examples: A = db.AstroDb; 
+            %           A.updateByTupleID([2:10],'ra',218,'Table','proc_images')
+            %           (change 'ra' to 218 in tuples with ids from 2 to 10 in the 'proc_images' table)
+            %           A.updateByTupleID(Tuples,'procstat','seeing 0.5','Table','raw_images')
+            %           (change 'procstat' to 'seeing 0.5' for tuples listed in the vector Tuples)
+            arguments
+                Obj
+                TupleID            % a vector of unique tuple ids
+                Colname            % name of column to change
+                Colval             % column value to insert for the given tuple ids
+                Args.Table  = '';  % table name (by def. take from the Object property)
+            end
+            
+            % choose, which table to manipulate and check if it exists in the database
+            if ~isempty(Args.Table)
+                Table = Args.Table;
+            else
+                Table = Obj.Tname;
+            end
+            
+            if ~ismember(Table, Obj.Tables)
+                error('The requested table does not exist in the database')
+            end
+            
+            NTup = numel(TupleID);
+            Val  = zeros(NTup,1);
+
+            % update the values
+            for ITup = 1:1:numel(TupleID)
+                
+                Cond = strcat('pk =', int2str( TupleID(ITup) ));
+                
+                if numel(Colval) < 2
+                    Val(ITup) = Colval;
+                else
+                    Val(ITup) = Colval(ITup);
+                end
+                
+                if isnumeric( Val(ITup) )
+                    Action = strcat(Colname, ' = ', num2str( Val(ITup) ));
+                else
+                    Action = strcat(Colname, ' = ''', Val(ITup), '''');
                 end
 
-                Q = Obj.Query;
-
-                % Xxhash is speicified
-%                 if ~isempty(Args.xxhash)
-%                     Args.Select = true;
-% 
-%                     % When Select is true, first check if row already exists
-%                     if Args.Select
-%                         DataSet = Obj.Query.select('*', 'TableName', TableName, 'Where', sprintf('xxhash = ''%s''', Args.xxhash));
-%                         if numel(DataSet.Data) > 0
-%                             Result = true;
-%                             return;
-%                         end
-%                     end
-% 
-%                     % Insert it to table
-%                     if isempty(Args.AddCols)
-%                         Args.AddCols = struct;
-%                     end
-%                     Args.AddCols.xxhash = Args.xxhash;
-%                 end 
-                
-%                 % Add FileName to header
-%                 AH.insertKey({'filename', FileName, 'Image file name'}, 'end');
-% 
-%                 % Add additional columns from struct to AstroHeader
-%                 if ~isempty(Args.AddCols)
-%                     Fields = fieldnames(Args.AddCols);
-%                     for i=1:numel(Fields)
-%                         Field = Fields{i};
-%                         Value = Args.AddCols.(Field);
-%                         Field = lower(Field);
-%                         AH.insertKey({Field, Value, ''}, 'end');
-%                     end
-%                 end
-
-                % Insert AstroCatalog to the table
-%                 Pk = Q.insert(AC, 'TableName', TableName, 'ColumnsOnly', true, 'Returning', 'pk');
-                Pk = Q.insert(AC, 'TableName', TableName, 'ColumnsOnly', true, 'Returning', ''); % temporary switch off the Returning key
-                Result = Pk;
+                Obj.Query.update(Action, 'TableName', Table, 'Where', Cond);
             end
+            
+            Result = true;
+            
+          end
+         
+    end
+    
+    methods % creation/removal of image and catalog tables (generic)
+        
+        function Result = createImageTable(Obj, TableName, Args)
+            % Create or update definitions of image tables
+            % Input :  - LastDb object
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : 
+            arguments
+                Obj
+                TableName
+                Args.AddCommonColumns = true
+                Args.Drop = false
+            end
+
+            % Create table
+            Obj.Query.createTable('TableName', TableName, 'AutoPk', 'pk', 'Drop', Args.Drop);
+            if Args.AddCommonColumns                
+                Result = Obj.addCommonImageColumns(Obj.Query, TableName);
+            end
+        end
+
+
+        function Result = createCatalogTable(Obj, TableName, Args)
+            % Create or update definitions of of catalog tables
+            % Input :  - LastDb object
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : 
+            arguments
+                Obj
+                TableName
+                Args.AddCommonColumns = true
+                Args.Drop = false                
+            end
+
+            % Create table
+            Obj.Query.createTable('TableName', TableName, 'AutoPk', 'pk', 'Drop', Args.Drop);
+            if Args.AddCommonColumns
+                Result = Obj.addCommonCatalogColumns(Obj.Query, TableName);
+            end
+         end
 
     end
 
-    
-    methods (Static)
+    methods (Static) % setup SSH tunnel (TBD)
         function Result = setupSSH(Args)
             % Setup SSH Tunnel. DO NOT USE YET, we need to solve how to send
             % password to the command line.
@@ -736,310 +847,11 @@ classdef AstroDb < Component
 
     end
 
-    methods
-        %==================================================================
-        %                     Functions added by @kra
-        %==================================================================        
-        function [TupleID] = populateImageDB(Obj, Data, Args)
-            % Populate a database with metadata (header data) from a list of input images
-            % Description: Populate a database with metadata (header data) from a list of input images
-            % Input :  - an AstroDb object 
-            %          - Data : a cell array containing either 
-            %               a) file names of FITS images or b) a name template
-            %               b) a vector of AstroImages 
-            %               c) a vector of AstroHeaders
-            %          * ...,key,val,...
-            %          'DBname'        : DB name
-            %          'DBtable'       : DB table
-            %          'Hash'          : whether to calculate a hashsum of the file and add it to the table
-            %          'FileNames'     : an optinal cell array of file names (if
-            %                            only AstroImages or AstroHeaders are provided)
-            %          'ForceInsert'   : if the record is inserted despite the existing copy (checked by the hashsum)
-            %          'Verbose'       : print filenames, whose headers are inserted 
-            % Output : scalar success flag (0 -- images successfully added to the DB)    
-            % Tested : Matlab R2020b
-            % Author : A. Krassilchtchikov (May 2023)
-            % Example: LDB = db.AstroDb(); 
-            %          LDB.populateImageDB(Imfiles, 'DBname', 'LAST', 'DBtable', 'raw_images', 'Hash', Args.Hash );
-
-            arguments
-                Obj
-                Data                                % input images (file names or AstroImages) or AstroHeaders
-                Args.DBname       = Obj.DnLAST;     % DB name
-                Args.DBtable      = Obj.TnRawImages;% DB table
-                Args.Hash logical = true;           % whether to calculate a hashsum and add it to the table
-                Args.FileNames    = {};             % an optional cell array of file names (for the case the first argument is not a file list)
-                Args.ForceInsert logical = true;    % if the record is inserted despite the existing copy (checked by the hashsum)
-                Args.Verbose logical = false;       % print filenames, whose headers are inserted 
-            end
-
-            % determine the number of input images:
-            NImg = numel(Data);
-           
-            TupleID = zeros(NImg,1);
-
-            % check whether it is possible to get files for the hash sum
-            if numel(Args.FileNames) ~= NImg && ( isa(Data(1), 'AstroImage') ||  isa(Data(1), 'AstroHeader') )
-                Args.Hash = false;
-            end
-
-            % populate the database
-            switch Args.DBname
-                case Obj.DnLAST
-                    for Img = 1:1:NImg
-                        if isa( Data(Img), 'AstroImage' )
-                            AH = AstroHeader;
-                            AH.Data = Data(Img).Header;
-                        elseif isa( Data(Img), 'AstroHeader' )
-                            AH = Data(Img);
-                        else
-                            AH = AstroHeader( Data(Img), 1 ); 
-                        end
-                        
-                        if ~ischar(AH.File)
-                            AH.File='';
-                        end 
-
-                        if Args.Hash
-                            Sum_h64 = tools.checksum.xxhash('FileName', char( Data(Img) ) ); 
-                        else
-                            Sum_h64 = '';
-                        end
-                        
-                       if Args.Verbose
-                           fprintf('%s\n',AH.File);
-                       end
-
-                        % populate the DB
-                        switch Args.DBtable
-                            case Obj.TnRawImages
-                                TupleID(Img) = Obj.addRawImage(AH.File, AH, 'xxhash', Sum_h64, 'Force', Args.ForceInsert);
-
-                            case Obj.TnProcImages
-                                TupleID(Img) = Obj.addProcImage(AH.File, AH, 'xxhash', Sum_h64, 'Force', Args.ForceInsert);
-
-                            case Obj.TnCoaddImages
-                                TupleID(Img) = Obj.addCoaddImage(AH.File, AH, 'xxhash', Sum_h64, 'Force', Args.ForceInsert);
-
-                            otherwise
-                                error('The requested table does not exist yet, exiting..');
-                        end
-                    end
-
-                otherwise
-                    error('The requested DB does not exist, exiting..');
-            end
-
-            %
-            fprintf('%s%d%s\n','Inserted ',numel(TupleID),' tuples');
-            cprintf('hyper','The requested DB successfully populated with image metadata.\n');
-            
-        end
-        
-        
-        function [TupleID] = populateCatDB( Obj, Data, Args )
-            % Populate a database with data from a list of catalog files or AstroCatalogs
-            % Input :  - an AstroDb object 
-            %          - Data : a cell array containing either 
-            %               a) file names of catalogs or b) a name template
-            %               b) a vector of AstroCatalogs 
-            %          * ...,key,val,...
-            %          'DBname'        : DB name
-            %          'DBtable'       : DB table
-            %          'Hash'          : whether to calculate a hashsum of the file and add it to the table
-            %          'FileNames'     : an optinal cell array of file names (if
-            %          only AstroCatalogs are provided)
-            % Output : scalar success flag (0 -- catalogs successfully added to the DB)         
-            % Tested : Matlab R2020b
-            % Author : A. Krassilchtchikov (May 2023)
-            % Example: LDB = db.AstroDb(); 
-            %          LDB.populateCatDB ( Catfiles, 'DBname', 'LAST', 'DBtable', 'src_catalog', 'Hash', Args.Hash );
-            arguments
-                Obj
-                Data                                 % input catalogs
-                Args.DBname       = Obj.DnLAST;      % DB name
-                Args.DBtable      = Obj.TnSrcCatalog;% DB table
-                Args.Hash logical = true;            % whether to calculate a hashsum of individual records and add it to the table
-                Args.FileNames    = {};              % an optional cell array of file names (for the case the first argument is not a file list)
-            end
-
-            % determine the number of input catalogs:
-            NCat = numel(Data);
-
-            % populate the database
-            switch Args.DBname
-                case Obj.DnLAST
-                    for ICat = 1:1:NCat
-                        if isa( Data(ICat), 'AstroCatalog' )
-                            AC = Data(ICat);
-                            Filename = '';
-                        else
-                            AC = AstroCatalog( Data(ICat) ); 
-                            Filename =  char( Data(ICat) );
-                        end
-                                                
-                        % populate the DB
-                        switch lower(Args.DBtable)          
-                            case Obj.TnSrcCatalog
-                                TupleID = Obj.addSrcCatalog(Filename, AC, 'Hash', Args.Hash);
-                            otherwise
-                                error('The requested table does not exist yet, exiting..');
-                        end
-                    end
-
-                otherwise
-                    error('The requested DB does not exist, exiting..');
-            end
-
-            %
-            fprintf('%s%d%s\n','Inserted ',numel(TupleID),' tuples');
-            cprintf('hyper','The requested DB successfully populated with catalog data.\n');
-
-        end
-
-        
-        function [TupleID] = addImages2DB( Obj, Args )
-            % Add images from a directory to a database
-            % Description: Add images from a directory to a database
-            % Input:   - Self.
-            %          * ...,key,val,...
-            %          'DataDir'       : the root directory of a tree to search images within
-            %          'InputImages'   : the mask of the input image filenames
-            %          'DBname'        : DB name
-            %          'DBtable'       : DB table
-            %          'Hash'          : whether to calculate a hashsum of the file and add it to the table
-            % Output : - scalar success flag (0 -- images successfully added to the DB)
-            % Tested : Matlab R2020b
-            % Author : A. Krassilchtchikov et al. (May 2023)
-            % Examples: A = db.AstroDb; 
-            %           A.addImages2DB('DataDir','/home/sasha/Raw2/','DBname','LAST','DBtable','raw_images');
-            %           A.addImages2DB('DataDir','/home/sasha/Obs2/','InputImages','LAST*sci*proc_Image*.fits','DBtable','proc_images')
-            %           A.addImages2DB('DataDir','/home/sasha/Obs2/','InputImages','LAST*sci*coadd_Image*.fits','DBtable','coadd_images')
-            arguments
-                Obj
-                Args.DataDir        =    '/home/sasha/Raw/';                % The directory containing the input images
-                Args.InputImages    =    'LAST*sci*raw_Image*.fits';        % The mask of the input image filenames
-                Args.DBname         =    Obj.DnLAST;
-                Args.DBtable        =    Obj.TnRawImages;
-                Args.Hash  logical  =    true;
-            end
-
-            % get a list of input files according to the input mask 
-            ImageFiles  = dir ( fullfile(Args.DataDir, '**', Args.InputImages) );
-
-            ImNum = numel(ImageFiles);
-            Imfiles = repmat({''}, ImNum, 1);
-%             Images  = repmat(AstroImage(), ImNum, 1);
-%             Headers = repmat(AstroHeader(), ImNum, 1);
-% 
-            for Img = 1:1:ImNum
-                Imfiles{Img} = fullfile(ImageFiles(Img).folder, ImageFiles(Img).name);
-%                 Images(Img) = AstroImage(Imfiles(Img));
-%                 Headers(Img).Data = Images(Img).Header;
-            end
-
-            % call the sub to populate the database (3 variants: files, AI, AH)
-
-            TupleID = Obj.populateImageDB ( Imfiles, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
-%             TupleID = Obj.populateImageDB ( Obj, Headers, 'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
-%             TupleID = Obj.populateImageDB ( Obj, Images,  'DBname', Args.DBname, 'DBtable', Args.DBtable, 'Hash', Args.Hash );
-
-%             fprintf('%s%d%s\n','Inserted ',numel(TupleID),' tuples');
-        end
-
-        %%%%%%%%%
-        
-    end
-    
-    methods(Static)
-        
-        %%%%%%%%%
-             
-        function testDBlast0 (Args)
-            
-            arguments
-                Args.Table = 'test_raw_images';
-                Args.DataDir = '/last01e/data1/archive/LAST.01.01.01/2023/04/';
-            end
-            
-            A = db.AstroDb('Host','10.23.1.25','DatabaseName','last_operational', ...
-                           'UserName','postgres','Password','postgres','Port',5432);
-            
-            A.TnRawImages   = 'test_raw_images';
-            A.TnProcImages  = 'test_proc_images';
-            A.TnCoaddImages = 'test_coadd_images';
-            A.TnSrcCatalog  = 'test_src_catalog';
-            A.DnLAST        = 'last_operational';
-            
-%           createTables(A); % if the tables do not exist as of yet, need to create them
-            
-            drawnow('update'); tic % ~ 6000 files at the speed about 1 file/sec -- too slow?
-            
-            if strcmp(Args.Table,'test_raw_images') 
-                RawTuples = A.addImages2DB('DataDir',Args.DataDir, ...
-                                             'InputImages','LAST*sci*raw_Image*.fits', ...
-                                             'DBname','last_operational', 'DBtable','test_raw_images'); 
-
-            elseif strcmp(Table,'test_proc_images')
-                ProcTuples = A.addImages2DB('DataDir',DataDir, ...
-                                             'InputImages','LAST*sci_proc_Image*.fits', ...
-                                             'DBname','last_operational', 'DBtable','test_proc_images'); 
-                                         
-            elseif strcmp(Table,'test_coadd_images')
-                CoaddTuples = A.addImages2DB('DataDir',DataDir, ...
-                                             'InputImages','LAST*sci_coadd_Image*.fits', ...
-                                             'DBname','last_operational', 'DBtable','test_coadd_images'); 
-            end
-
-            toc
-                        
-        end
-
-        %%%%%%%%%
-
-        function Result = updateByTupleID(Obj, Table, TupleID, Colname, Colval)
-            % Update DB table column values for the specified tuple numbers 
-            % Input :  - Obj    : the database object
-            %          - Table  : the table name
-            %          - TupleID: a vector of tuple IDs
-            %          - Colname: name of the column to be changed 
-            %          - Colval : the new column value
-            % Output : - success flag (0 -- images successfully changed the values in the DB)
-            % Tested : Matlab R2020b
-            % Author : A. Krassilchtchikov (May 2023)
-            % Examples: A = db.AstroDb; 
-            %           A.updateByTupleID(A,'proc_images',[2:10],'ra',218)
-            %           (change 'ra' to 218 in tuples with ids from 2 to 10 in the 'proc_images' table)
-            %           A.updateByTupleID(A,'raw_images',Tuples,'procstat','seeing 0.5')
-            %           (change 'procstat' to 'seeing 0.5' for tuples listed in the vector Tuples)
-            arguments
-                Obj
-                Table              % DB table name
-                TupleID            % a vector of unique tuple ids
-                Colname            % name of column to change
-                Colval             % column value to insert for the given tuple ids
-            end
-
-            if isnumeric(Colval)
-                Action = strcat(Colname,' = ',num2str(Colval));
-            else
-                Action = strcat(Colname,' = ''',Colval,'''');
-            end
-
-            for ITup = 1:1:numel(TupleID)
-                Cond = strcat('pk =', int2str( TupleID(ITup) ));
-                Result = Obj.Query.update(Action, 'TableName', Table, 'Where', Cond);
-            end
-        end
-
-        %==================================================================        
-       
-         
-    end
-     
-    methods(Static)
+    methods (Static) % unitTest and examples
         Result = unitTest()
-            % LastDb Unit-Test
+            % AstroDb Unit-Test
+%         Result = testDBlast0()
+%             % Examples
     end
 
 end

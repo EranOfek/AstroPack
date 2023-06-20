@@ -411,6 +411,7 @@ classdef AstroImage < Component
             for Iobj=1:1:Nobj
                 if strcmp(DataProp, 'CatData')
                     Obj(Iobj).(DataProp).Catalog  = ImIO(Iobj).Data;
+                    Obj(Iobj).(DataProp).table2array;
                 else
                     Obj(Iobj).(DataProp).Data  = ImIO(Iobj).Data;
                     Obj(Iobj).(DataProp).Scale = Scale;
@@ -811,7 +812,7 @@ classdef AstroImage < Component
             % getter for WCS
             % if empty, attempt to create from header
             
-            if isempty(Obj.WCS) && ~isempty(Obj.HeaderData)
+            if strcmp(Obj.WCS.ProjType,'none') && ~isempty(Obj.HeaderData)
                 Obj.WCS = AstroWCS.header2wcs(Obj.HeaderData);
             end
             Data = Obj.WCS;
@@ -1072,7 +1073,7 @@ classdef AstroImage < Component
         end
         
         function Result = astroImage2AstroCatalog(Obj, Args)
-            % Convert the CataData in AstroImage object into an AstroCatalog object array.
+            % Convert the CatData in AstroImage object into an AstroCatalog object array.
             % Input  : - An AstroImage object (multi components supported).
             %          * ...,key,val,...
             %            'CreateNewObj' - A logical indicating if to create
@@ -1101,7 +1102,41 @@ classdef AstroImage < Component
                 end
             end
         end
+
+        function Result = astroImage2AstroHeader(Obj, Args)
+            % Convert the HeaderData in AstroImage object into an AstroHeader object array.
+            % Input  : - An AstroImage object (multi components supported).
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object or to provide and handle to
+            %                   the existing object. Default is false.
+            % Output : - An AstroHeader object.
+            %            Note that if CreateNewObj=false then changes in
+            %            this object will take place also in the original
+            %            AstroImage object.
+            % Author : Eran Ofek (Apr 2021)
+            % Example: AC= astroImage2AstroHeader(AI);
+            %          AC= astroImage2AstroHeader(AI,'CreateNewObj',true);
+            
+            arguments
+                Obj
+                Args.CreateNewObj(1,1) logical          = false;
+            end
+            
+            Result = AstroHeader(size(Obj));
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if Args.CreateNewObj
+                    Result(Iobj) = Obj(Iobj).HeaderData.copy();
+                else
+                    Result(Iobj) = Obj(Iobj).HeaderData;
+                end
+            end
+        end
     end
+
+
+    
     
     methods % read / write
         function Status=write1(Obj, Name, DataProp, Args)
