@@ -1125,6 +1125,13 @@ classdef DemonLAST < Component
             %            'AddImages' - Additional products to be loaded, in
             %                   addition to the 'Image' product.
             %                   Default is {'Mask'}.
+            %            'BiasNearJD' - If given this is a date [D M Y [H M S]]
+            %                   or JD, and will select the nearest in time
+            %                   bias file.
+            %                   Default is [].
+            %            'FlatNearJD' - Like 'BiasNearJD', but for flat
+            %                   file. Default is [].
+            %
             % Output : - A ipeline.DemonLAST object in which the CI
             %            property is populated with bias, flat, and
             %            linearity data.
@@ -1139,6 +1146,8 @@ classdef DemonLAST < Component
                 Args.BiasTemplate    = '*dark_proc_Image*.fits';
                 Args.FlatTemplate    = '*twflat_proc_Image*.fits';
                 Args.AddImages       = {'Mask'};
+                Args.BiasNearJD      = [];
+                Args.FlatNearJD      = [];
             end
 
             PWD = pwd;
@@ -1151,14 +1160,23 @@ classdef DemonLAST < Component
             % read latest bias image
             if ismember('bias',lower(Args.ReadProduct))
                 FN_Bias = FileNames.generateFromFileName(Args.BiasTemplate);
-                [~,~,~,FN_Bias] = FN_Bias.selectLastJD;
+                if isempty(Args.BiasNearJD)
+                    [~,~,~,FN_Bias] = FN_Bias.selectLastJD;
+                else
+                    [~,~,FN_Bias] = FN_Bias.selectNearest2JD(Args.BiasNearJD);
+                end
+                    
                 Obj.CI.Bias = AstroImage.readFileNamesObj(FN_Bias, 'AddProduct',Args.AddImages);
             end
 
             % read latest flat image
             if ismember('flat',lower(Args.ReadProduct))
                 FN_Flat = FileNames.generateFromFileName(Args.FlatTemplate);
-                [~,~,~,FN_Flat] = FN_Flat.selectLastJD;
+                if isempty(Args.FlatNearJD)
+                    [~,~,~,FN_Flat] = FN_Flat.selectLastJD;
+                else
+                    [~,~,FN_Flat] = FN_Flat.selectNearest2JD(Args.FlatNearJD);
+                end
                 Obj.CI.Flat = AstroImage.readFileNamesObj(FN_Flat, 'AddProduct',Args.AddImages);
             end
 
