@@ -1578,6 +1578,44 @@ classdef FileNames < Component
             end
         end
         
+        function [Ind, NearJD, Result]=selectNearest2JD(Obj, TargetJD)
+            % Return index of image which JD is nearest to some JD/date.
+            % Input  : - A FileNames object
+            %          - JD or date [D M Y [H M S]].
+            %            The function will select the file name with JD
+            %            nearest to this date.
+            %            If empty, use current JD.
+            %            Default is [].
+            % Output : - Index of image with largest JD
+            %          - JD of image with nearest JD
+            %          - A (new copy) FileNames object with the image with latest JD.
+            % Author : Eran Ofek (Mar 2023)
+            % Example: F=FileNames; F.Time=2451545;
+            %          F.selectNearest2JD(2451546)
+
+            
+            arguments
+                Obj
+                TargetJD = [];
+            end
+            
+            if isempty(TargetJD)
+                TargetJD = celestial.time.julday;
+            else
+                if size(TargetJD,2)>2
+                    TargetJD = celestial.time.julday(TargetJD);
+                end
+            end
+            
+            JD = Obj.julday;
+            [~, Ind] = min(abs(JD-TargetJD));
+            NearJD   = JD(Ind);
+            
+            if nargout>2
+                Result = reorderEntries(Obj, Ind, 'CreateNewObj',true);
+            end
+        end
+        
         function Result=nfiles(Obj)
             % Return number of files in a FileNames object
             % Input  : - A FileNames object
