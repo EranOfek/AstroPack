@@ -46,6 +46,12 @@ function Result = interpOverMaskedPix(Obj, Args)
         [~, ~, Ind] = findBit(Obj(Iobj).MaskData, Args.BitNamesToInterp, 'Method','any');
         % set selected pixels to NaN
         Result(Iobj).Image(Ind) = NaN;
+
+        if numel(Ind)>1e5
+            % too many band pixels
+            error('Too many bad pixels');e
+        end
+     
         % interpolate over staurated pixels
 
         Result(Iobj) = imProc.image.interpOverNan(Result(Iobj),...

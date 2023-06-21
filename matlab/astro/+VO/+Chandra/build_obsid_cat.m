@@ -5,6 +5,11 @@ function Cat=build_obsid_cat(varargin)
 %              over the entire Chandra image archive.
 % Input  : * Arbitrary number of pairs of arguments: ...,keyword,value,...
 %            where keyword are one of the followings:
+%            'Collect' - If true, then will collect all the AO files in the
+%                   cats.X.Chandra dir and make a master catalog.
+%                   If false, then will just create a catalog for a
+%                   specific AO by going over the Chandra website.
+%                   Default is false.
 %            'AO'      - AO to download. Default is 'ao01'.
 %            'GetInfo' - Get information [JD, RA, Dec] for each ObsID
 %                        in addition to the OBSID and its location
@@ -63,6 +68,7 @@ if ~InPar.Collect
     ListEvt = ListURL(FlagEvt);
     Nevt    = numel(ListEvt);
 
+    FlagGood = true(Nevt,1);
     for Ievt=1:1:Nevt
         [Ievt, Nevt]
         Evt2url = ListEvt{Ievt};
@@ -100,6 +106,7 @@ if ~InPar.Collect
                 Data(Ievt).(KeyTmp) = Val;
             end
         catch
+            FlagGood(Ievt) = false;
             warning('Failed on file %d',Ievt);
         end
 
@@ -109,6 +116,7 @@ if ~InPar.Collect
 
     end    
 
+    Data = Data(FlagGood);
 
     switch lower(InPar.OutType)
         case 'struct'
@@ -158,6 +166,7 @@ else
     Dir = dir(SearchName);
     Ndir = numel(Dir);
     for Idir=1:1:Ndir
+        Idir
         ChandraObs(Idir) = io.files.load2(Dir(Idir).name);
     end
     ChandraObs = merge(ChandraObs);

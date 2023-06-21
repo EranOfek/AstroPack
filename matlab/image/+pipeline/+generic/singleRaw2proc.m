@@ -75,7 +75,8 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                  'LEVEL','raw';...
                                                  'VERSION','1';...
                                                  'SUBDIR','';...
-                                                 'OVERSCAN','[6355 6388 1 9600]'};   % '[1 6354 1 9600]'};
+                                                 'LIGHTSEC','[1 6388 25 9600]';...
+                                                 'OVERSCAN','[6389 6422 1 9600]'};   % '[1 6354 1 9600]'};
                                              % 'COUNTER',1;...
         Args.UpdateHeader logical             = true;   % CROPID & LEVEL
         
@@ -101,8 +102,9 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         
         Args.maskSaturatedArgs cell           = {};
         Args.debiasArgs cell                  = {};
-        Args.SubtractOverscan logical         = false;
-        Args.FinalCrop                        = [1 6388 25 9600];  % if empty do nothing - FFU: read from header
+        Args.SubtractOverscan logical         = true;
+        Args.OverScan                         = 'OVERSCAN';
+        Args.FinalCrop                        = [1 6388 25 9600];  % if empty, then auto estimate
         Args.MethodOverScan                   = 'globalmedian';
         Args.NonLinCorr                       = [];
         Args.NonLinCorrArgs                   = {};
@@ -163,6 +165,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
     % Get Image
     OverscanValue = [];
     if ischar(File)
+        % This if section - NOT SUPPORTED - CHECK CAREFULLY
         if ~isempty(Args.Dir)
             File = sprintf('%s%s%s',Args.Dir, filesep, File);
         end
@@ -227,7 +230,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
     % processImages is a method of the CalibImages class
     % If NonLinCorr is empty, then will attempt taking it from the
     % CalibImages object.
-    AI = Args.CalibImages.processImages(AI, 'SubtractOverscan',false,...
+    AI = Args.CalibImages.processImages(AI, ...
                               'SingleFilter',true,...
                               'InterpolateOverBadPix',true,...
                               'BitNameBadPix',Args.BitNameBadPix,...
@@ -236,6 +239,8 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                               'maskSaturatedArgs',{},...
                               'debiasArgs',Args.debiasArgs,...
                               'SubtractOverscan',Args.SubtractOverscan,...
+                              'OverScan',Args.OverScan,...
+                              'FinalCrop',Args.FinalCrop,...
                               'MethodOverScan',Args.MethodOverScan,...
                               'NonLinCorr',Args.NonLinCorr,...
                               'NonLinCorrArgs',Args.NonLinCorrArgs,...
@@ -244,17 +249,17 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                               'MultiplyByGain',Args.MultiplyByGain);
                    
     % specail treatment of overscan
-    if ~isempty(OverscanValue)
-        for Iai=1:1:Nai
-            AI.Image = AI.Image - OverscanValue;
-        end
-    end
+    % if ~isempty(OverscanValue)
+    %     for Iai=1:1:Nai
+    %         AI.Image = AI.Image - OverscanValue;
+    %     end
+    % end
         
     % crop overscan
-    if ~isempty(Args.FinalCrop) && isempty(Args.CCDSEC)
-        % do this only for full images
-        AI.crop(Args.FinalCrop, 'UpdateWCS',false, 'CreateNewObj',false);
-    end
+    % if ~isempty(Args.FinalCrop) && isempty(Args.CCDSEC)
+    %     % do this only for full images
+    %     AI.crop(Args.FinalCrop, 'UpdateWCS',false, 'CreateNewObj',false);
+    % end
     
     % get JD from header
     JD = julday(AI.HeaderData);

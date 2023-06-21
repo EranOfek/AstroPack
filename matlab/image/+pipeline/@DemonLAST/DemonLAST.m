@@ -619,7 +619,7 @@ classdef DemonLAST < Component
 
             FileName = fullfile(Path,Args.FileName);
             FID = fopen(FileName,'w+');
-            fprintf(FID,'%s %s',datestr(now,'yyyy-mm-ddTHH:MM:SS'),Args.Msg);
+            fprintf(FID,'%s %s\n',datestr(now,'yyyy-mm-ddTHH:MM:SS'),Args.Msg);
             fclose(FID);
 
         end
@@ -1178,7 +1178,8 @@ classdef DemonLAST < Component
             % Example: cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/new
             %          D=pipeline.DemonLAST;
             %          D.setPath('/raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02')
-            %
+            %          
+            %          D.main('StartJD',[24 4 2023],'EndJD',[26 4 2023]);
 
             arguments
                 Obj

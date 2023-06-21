@@ -71,6 +71,7 @@ while Iter<=Args.MaxIter && NrejectNew~=0
         DataF = Data;
     else
         Zstat = (DataF - Mean)./(Std+Args.EpsilonStd);
+        
         %FlagGood = Zstat>(-abs(Args.Nsigma(1))) & Zstat<Args.Nsigma(2);
         IndBad   = find(Zstat<(-abs(Args.Nsigma(1))) | Zstat>Args.Nsigma(2));
         %DataF(~FlagGood) = NaN;

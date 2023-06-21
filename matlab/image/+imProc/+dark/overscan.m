@@ -7,13 +7,15 @@ function [Result, OverScanAI] = overscan(ImObj, Args)
     %                   the overscan region, or an [Xmin Xmax Ymin Ymax]
     %                   vector for the overscan.
     %                   Default is 'OVERSCAN'.
+    %            'FinalCrop' - Either a header keyword, or a [Xmin Xmax Ymin Ymax]
+    %                   containing the final image to keep.
+    %                   If empty, then will attempt to estimate using:
+    %                   imUtil.ccdsec.remove_edge_section.
+    %                   Default is [].
     %            'Subtract' - A logical indicating if to subtract
     %                   the overscan from the image. Default is true.
-    %            'RemoveOverScan' - A logical indicating if to crop
+    %            'TrimOverScan' - A logical indicating if to crop
     %                   out the overscan region. Default is true.
-    %            'RemoveOthers' - a logical indicating if to crop
-    %                   also the Back, Var, and Mask fields.
-    %                   Default is true (independent of RemoveOverScan).
     %            'OverScanDir' - Indicating the direction of the overscan:
     %                   'x'|'y'|1|2| [].
     %                   'x', or 2 means that the overscan is read along
@@ -39,24 +41,27 @@ function [Result, OverScanAI] = overscan(ImObj, Args)
     %            'MethodArgs' - A cell array of additional
     %                   arguments to pass to the method.
     %                   (Defaults are defined for each medthod).
-    %            'UpdateCCDSEC' - A logical indicating if to update
+    %            'UpdateHeader' - A logical indicating if to update
     %                   the CCDSEC header keyword in the header.
     %                   Will also update NAXIS* keywords.
+    %                   Will be considered only if RemoveOverScan=true.
     %                   Default is true.
-    %            'KeyCCDSEC' - Header keyword CCDSEC. Default is 'CCDSEC'.
+    %            'KeyCCDSEC' - Header keyword CCDSEC to update with the final CCDSEC.
+    %                   Default is 'CCDSEC'.
+    %
     %            'DataProp' - Data property on which to operate.
     %                   Defaultis 'ImageData'.
     %            'DataPropIn' - Data property, in the image component, on which to operate.
     %                   Defaultis 'Image'.
+    %
+    %            'TrimDataProp' - A cell array of data properties in the
+    %                   AstroImage to trim.
+    %                   Default is {'Image','Mask'}.
+    %
     %            'CreateNewObj' - Indicating if the output
     %                   is a new copy of the input (true), or an
     %                   handle of the input (false).
-    %                   If empty (default), then this argument will
-    %                   be set by the number of output args.
-    %                   If 0, then false, otherwise true.
-    %                   This means that IC.fun, will modify IC,
-    %                   while IB=IC.fun will generate a new copy in
-    %                   IB.
+    %                   Default is false.
     % Output : - An AstroImage object with the overscan subtracted
     %            (and croped) images.
     %          - OverScanAI is an AstroImage object that stores the
@@ -71,37 +76,45 @@ function [Result, OverScanAI] = overscan(ImObj, Args)
     arguments
         ImObj AstroImage
         Args.OverScan                    = 'OVERSCAN';  % keyword or CCDSEC
-        Args.Subtract(1,1) logical       = true;
-        Args.RemoveOverScan(1,1) logical = true;
-        Args.RemoveOthers(1,1) logical   = true;
+        Args.FinalCrop                   = []; % if empty, then auto find using imUtil.ccdsec.remove_edge_section
+        Args.Subtract logical            = true;
+        Args.TrimOverScan logical        = true;
+        
         Args.OverScanDir                 = []; % 'x'|'y',1,2,[]- auto
         Args.Method                      = 'globalmedian';
         Args.MethodArgs cell             = {50};
-        Args.UpdateCCDSEC(1,1) logical   = true;
+        Args.UpdateHeader logical        = true;
         Args.KeyCCDSEC                   = 'CCDSEC';
         Args.DataProp                    = 'ImageData';
         Args.DataPropIn                  = 'Image';
+        Args.TrimDataProp                = {'Image','Mask'};
 
-        Args.CreateNewObj                = [];
+        Args.CreateNewObj logical        = false;
     end
     DefArgSGolay = {3 50}; 
 
-    [Result, Args.CreateNewObj] = createNewObj(ImObj, Args.CreateNewObj, nargout);
+    if Args.CreateNewObj
+        Result = ImObj.copy;
+    else
+        Result = ImObj;
+    end
     
     Nim = numel(ImObj);
     if nargout>1
         OverScanAI = AstroImage(size(ImObj));
     end
+
     for Iim=1:1:Nim
         if ischar(Args.OverScan)
             % read from header
             OverScan = getVal(ImObj(Iim).HeaderData, Args.OverScan,'ReadCCDSEC',true);
         else
+            % assume OverScan is in CCDSEC format: [Xmin Xmax Ymin Ymax]
             OverScan = Args.OverScan;
         end
 
         % cut overscan
-        OverScanImage = ImObj(Iim).Image(OverScan(3):OverScan(4), OverScan(1):OverScan(2));
+        OverScanImage = Result(Iim).Image(OverScan(3):OverScan(4), OverScan(1):OverScan(2));
 
 
         % overscan direction
@@ -161,38 +174,69 @@ function [Result, OverScanAI] = overscan(ImObj, Args)
             Result(Iim).(Args.DataProp).(Args.DataPropIn) = Result.(Args.DataProp).(Args.DataPropIn) - OverScanLine;
         end
 
-        SizeOriginalImageIJ = size(Result.(Args.DataProp).(Args.DataPropIn));
-        CCDSEC = imUtil.ccdsec.remove_edge_section(SizeOriginalImageIJ, OverScan, Dir);
-        % remove overscan from image
-        if Args.RemoveOverScan
-            % calculate CCDSEC (the non-overscan region)
-            Result(Iim).(Args.DataProp).(Args.DataPropIn) = Result.(Args.DataProp).(Args.DataPropIn)(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
-        end
+        %SizeOriginalImageIJ = size(Result.(Args.DataProp).(Args.DataPropIn));
 
-        % remove overscan from other images
-        if Args.RemoveOthers
-            % calculate CCDSEC (the non-overscan region)
-            if ~isempty(Result(Iim).BackData.Data)
-                Result(Iim).BackData.Image = Result.BackData.Image(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
-            end
-            if ~isempty(Result(Iim).VarData.Data)
-                Result(Iim).VarData.Image = Result.VarData.Image(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
-            end
-            if ~isempty(Result(Iim).MaskData.Data)
-                Result(Iim).MaskData.Image = Result.MaskData.Image(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
-            end
+        if Args.TrimOverScan
+            Result(Iim) = imProc.dark.trimOverscan(Result(Iim), 'CreateNewObj',false,...
+                                                                'OverScan',OverScan,...
+                                                                'FinalCrop',Args.FinalCrop,...
+                                                                'OverScanDir',1,...
+                                                                'DataProp',Args.TrimDataProp,...
+                                                                'KeyCCDSEC',Args.KeyCCDSEC,...
+                                                                'UpdateHeader',Args.UpdateHeader);
         end
+        
 
-        % update Header
-        if Args.UpdateCCDSEC
-            StrCCDSEC = imUtil.ccdsec.ccdsec2str(CCDSEC);
-            Result(Iim).HeaderData.replaceVal(Args.KeyCCDSEC, {StrCCDSEC});
 
-            % update the NAXIS keywords
-            SizeImage = size(Result(Iim).(Args.DataProp).(Args.DataPropIn));
-            Result(Iim).HeaderData.replaceVal('NAXIS2', {SizeImage(1)});
-            Result(Iim).HeaderData.replaceVal('NAXIS1', {SizeImage(2)});
-        end
+
+
+            % % trim out the overscan region and update header
+            % 
+            % % get the final crop region
+            % if isempty(Args.FinalCrop)
+            %     % calculate from image size and overscan
+            %     CCDSEC = imUtil.ccdsec.remove_edge_section(SizeOriginalImageIJ, OverScan, Dir);
+            % else
+            %     if isnumeric(Args.FinalCrop)
+            %         CCDSEC = Args.FinalCrop;
+            %     else
+            %         % get from header
+            %         CCDSEC = getVal(ImObj(Iim).HeaderData, Args.FinalCrop, 'ReadCCDSEC',true);
+            %     end
+            % end
+            % 
+            % % remove/trim overscan from image
+            % %if Args.RemoveOverScan
+            %     % calculate CCDSEC (the non-overscan region)
+            % Result(Iim).(Args.DataProp).(Args.DataPropIn) = Result.(Args.DataProp).(Args.DataPropIn)(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
+            % %end
+            % 
+            % % remove overscan from other images
+            % if Args.RemoveOthers
+            %     % calculate CCDSEC (the non-overscan region)
+            %     if ~isempty(Result(Iim).BackData.Data)
+            %         Result(Iim).BackData.Image = Result.BackData.Image(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
+            %     end
+            %     if ~isempty(Result(Iim).VarData.Data)
+            %         Result(Iim).VarData.Image = Result.VarData.Image(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
+            %     end
+            %     if ~isempty(Result(Iim).MaskData.Data)
+            %         Result(Iim).MaskData.Image = Result.MaskData.Image(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
+            %     end
+            % 
+            % 
+            %     % update Header
+            %     if Args.UpdateCCDSEC
+            %         StrCCDSEC = imUtil.ccdsec.ccdsec2str(CCDSEC);
+            %         Result(Iim).HeaderData.replaceVal(Args.KeyCCDSEC, {StrCCDSEC});
+            % 
+            %         % update the NAXIS keywords
+            %         SizeImage = size(Result(Iim).(Args.DataProp).(Args.DataPropIn));
+            %         Result(Iim).HeaderData.replaceVal('NAXIS2', {SizeImage(1)});
+            %         Result(Iim).HeaderData.replaceVal('NAXIS1', {SizeImage(2)});
+            %     end
+            % end
+        %end
 
         % store over scan in AstroImage (only if requested)
         if nargout>1
