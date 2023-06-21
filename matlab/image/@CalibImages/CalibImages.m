@@ -1326,7 +1326,7 @@ classdef CalibImages < Component
             % FFU: dark
             
                 
-            % subtract overscan
+            % measure and subtract overscan
             if Args.SubtractOverscan
                 Result = Obj.overscan(Result, 'OverScan',Args.OverScan, 'Method',Args.MethodOverScan, 'CreateNewObj',false');
             end
@@ -1372,6 +1372,8 @@ classdef CalibImages < Component
                     Result(Iim).Image(FlagNeg) = 0;
                 end
             end
+
+            % trim overscan region
 
             
             % interpolate over saturated pixels

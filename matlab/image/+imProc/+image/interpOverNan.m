@@ -51,12 +51,12 @@ function Result = interpOverNan(Obj, Args)
         Result = Obj;
     end
     
-    if isnumeric(Args.Kernel)
-        KernelConv = Args.Kernel;
-    else
-        KernelConv = Args.Kernel(Args.KernelArgs{:});
-    end
-    KernelConv = single(KernelConv);
+    % if isnumeric(Args.Kernel)
+    %     KernelConv = Args.Kernel;
+    % else
+    %     KernelConv = Args.Kernel(Args.KernelArgs{:});
+    % end
+    % KernelConv = single(KernelConv);
     
     Nprop = numel(Args.DataProp); 
     Nobj  = numel(Obj);
@@ -79,11 +79,11 @@ function Result = interpOverNan(Obj, Args)
                         
                         Nimages = prod(SizeIm(3:end)); % number of images in the dim>2 indices
                         for Iimages=1:1:Nimages
-                            Result(Iobj).(Args.DataProp{Iprop})(:,:,Iimages) = imUtil.interp.interpImageConvPix(Obj(Iobj).(Args.DataProp{Iprop})(:,:,Iimages), KernelConv);
+                            Result(Iobj).(Args.DataProp{Iprop})(:,:,Iimages) = imUtil.interp.interpImageConvPix(Obj(Iobj).(Args.DataProp{Iprop})(:,:,Iimages), [], [], 'Kernel',Args.Kernel, 'KernelArgs',Args.KernelArgs);
                         end
                     else
                         % 2D image
-                        Result(Iobj).(Args.DataProp{Iprop}) = imUtil.interp.interpImageConvPix(Obj(Iobj).(Args.DataProp{Iprop}), KernelConv);
+                        Result(Iobj).(Args.DataProp{Iprop}) = imUtil.interp.interpImageConvPix(Obj(Iobj).(Args.DataProp{Iprop}), [], [], 'Kernel',Args.Kernel, 'KernelArgs',Args.KernelArgs);
                         
                     end
                                         

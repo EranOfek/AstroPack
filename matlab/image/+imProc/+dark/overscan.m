@@ -51,12 +51,7 @@ function [Result, OverScanAI] = overscan(ImObj, Args)
     %            'CreateNewObj' - Indicating if the output
     %                   is a new copy of the input (true), or an
     %                   handle of the input (false).
-    %                   If empty (default), then this argument will
-    %                   be set by the number of output args.
-    %                   If 0, then false, otherwise true.
-    %                   This means that IC.fun, will modify IC,
-    %                   while IB=IC.fun will generate a new copy in
-    %                   IB.
+    %                   Default is false.
     % Output : - An AstroImage object with the overscan subtracted
     %            (and croped) images.
     %          - OverScanAI is an AstroImage object that stores the
@@ -82,11 +77,15 @@ function [Result, OverScanAI] = overscan(ImObj, Args)
         Args.DataProp                    = 'ImageData';
         Args.DataPropIn                  = 'Image';
 
-        Args.CreateNewObj                = [];
+        Args.CreateNewObj logical        = false;
     end
     DefArgSGolay = {3 50}; 
 
-    [Result, Args.CreateNewObj] = createNewObj(ImObj, Args.CreateNewObj, nargout);
+    if Args.CreateNewObj
+        Result = ImObj.copy;
+    else
+        Result = ImObj;
+    end
     
     Nim = numel(ImObj);
     if nargout>1
