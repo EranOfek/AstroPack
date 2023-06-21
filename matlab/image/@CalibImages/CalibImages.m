@@ -1005,6 +1005,13 @@ classdef CalibImages < Component
             %                   the overscan region, or an [Xmin Xmax Ymin Ymax]
             %                   vector for the overscan.
             %                   Default is 'OVERSCAN'.
+            %            'TrimOverScan' - A logical indicating if to crop
+            %                   out the overscan region. Default is false.
+            %            'FinalCrop' - Either a header keyword, or a [Xmin Xmax Ymin Ymax]
+            %                   containing the final image to keep.
+            %                   If empty, then will attempt to estimate using:
+            %                   imUtil.ccdsec.remove_edge_section.
+            %                   Default is [].
             %            'OverScanDir' - Indicating the direction of the overscan:
             %                   'x'|'y'|1|2| [].
             %                   See imProc.dark.overscan for details.
@@ -1026,9 +1033,12 @@ classdef CalibImages < Component
                 Image AstroImage
                 Args.CreateNewObj logical    = false;   % refers to the Image and not the Obj!!!
                 Args.OverScan                = 'OVERSCAN';
+                Args.TrimOverScan logical    = false;
+                Args.FinalCrop               = [];
                 Args.OverScanDir             = [];
                 Args.Method                  = 'globalmedian';
                 Args.MethodArgs              = {};
+                Args.TrimDataProp            = {'Image','Mask'};
             end
             
             % create new copy of Image object
@@ -1045,10 +1055,11 @@ classdef CalibImages < Component
                 % Note taht CreateNewObj was already done (if needed)
                 Result(Iim) = imProc.dark.overscan(Result(Iim), 'CreateNewObj',false,...
                                                                 'Subtract',true,...
-                                                                'RemoveOverScan',true,...
-                                                                'RemoveOthers',true,...
+                                                                'TrimOverScan',false,...
                                                                 'OverScan',Args.OverScan,...
+                                                                'FinalCrop',Args.FinalCrop,...
                                                                 'OverScanDir',Args.OverScanDir,...
+                                                                'TrimDataProp',Args.TrimDataProp,...
                                                                 'Method',Args.Method,...
                                                                 'MethodArgs',Args.MethodArgs);
             end
@@ -1220,8 +1231,19 @@ classdef CalibImages < Component
             %                   the overscan region, or an [Xmin Xmax Ymin Ymax]
             %                   vector for the overscan.
             %                   Default is 'OVERSCAN'.
+            %           'FinalCrop' - Either a header keyword, or a [Xmin Xmax Ymin Ymax]
+            %                   containing the final image to keep.
+            %                   If empty, then will attempt to estimate using:
+            %                   imUtil.ccdsec.remove_edge_section.
+            %                   Default is [].
             %           'MethodOverScan' - see imProc.dark.overscan.
             %                   Default is 'globalmedian'.
+            %           'overscanArgs' - A cell array of additional
+            %                   arguments to pass to imProc.dark.overscan
+            %                   Default is {}.
+            %           'trimOverscanArgs' - A cell array of additional
+            %                   arguments to pass to imProc.dark.trimOverscan
+            %                   Default is {}.
             %           'NonLinCorr' - A correction table [Flux, CorrectionFactor]
             %                   or a structure with .Flux and .Corr fields.
             %                   The correction factor is either multiplicative or by
@@ -1280,7 +1302,10 @@ classdef CalibImages < Component
                 Args.debiasArgs cell                = {};
                 Args.SubtractOverscan logical       = true;
                 Args.OverScan                       = 'OVERSCAN';
+                Args.FinalCrop                      = [];
                 Args.MethodOverScan                 = 'globalmedian';
+                Args.overscanArgs cell              = {};
+                Args.trimOverscanArgs cell          = {};
                 Args.NonLinCorr                     = [];   % nonlinear correction table [flux, factor]
                 Args.NonLinCorrArgs cell            = {};   % args for imProc.calib.nonlinearCorrection
                 Args.deflatArgs cell                = {};
@@ -1324,11 +1349,11 @@ classdef CalibImages < Component
             Result = Obj.debias(Result, 'debiasArgs',Args.debiasArgs, 'CreateNewObj',false');
             
             % FFU: dark
-            
                 
             % measure and subtract overscan
             if Args.SubtractOverscan
-                Result = Obj.overscan(Result, 'OverScan',Args.OverScan, 'Method',Args.MethodOverScan, 'CreateNewObj',false');
+                %Result = Obj.overscan(Result, 'OverScan',Args.OverScan, 'Method',Args.MethodOverScan, 'FinalCrop',Args.FinalCrop, 'CreateNewObj',false');
+                Result = imProc.dark.overscan(Result, 'OverScan',Args.OverScan, 'Method',Args.MethodOverScan, 'FinalCrop',Args.FinalCrop, 'TrimOverScan',false, 'CreateNewObj',false', Args.overscanArgs{:});
             end
                 
             if isempty(Args.NonLinCorr)
@@ -1374,8 +1399,13 @@ classdef CalibImages < Component
             end
 
             % trim overscan region
+            Result = imProc.dark.trimOverscan(Result, 'OverScan',Args.OverScan,...
+                                                      'FinalCrop',Args.FinalCrop,...
+                                                      Args.trimOverscanArgs{:},...
+                                                      'CreateNewObj',false);
+          
 
-            
+
             % interpolate over saturated pixels
             if Args.InterpolateOverBadPix
                 % find saturated pixels and interpolate over

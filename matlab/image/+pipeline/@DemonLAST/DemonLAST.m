@@ -1178,7 +1178,8 @@ classdef DemonLAST < Component
             % Example: cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/new
             %          D=pipeline.DemonLAST;
             %          D.setPath('/raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02')
-            %
+            %          
+            %          D.main('StartJD',[24 4 2023],'EndJD',[26 4 2023]);
 
             arguments
                 Obj
