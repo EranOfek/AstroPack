@@ -8,7 +8,9 @@ function Result = psf_information_content(ImRes, Args)
         Args.Case  = 1;  % variant
         
     end
-               
+
+    cd /home/sasha/ULTRASAT/PSF/InformLoss/
+    
     Nrad    = 25; 
     Nwave   = 91;
     Rad     = linspace(0,10,Nrad);   % lab PSF grid points in radius    
@@ -77,31 +79,71 @@ function Result = psf_information_content(ImRes, Args)
         S   = 108;
         PSF = zeros(S,S,Nrad,3);
         ILbin = zeros(Nrad,Nrad,3);
+        
+        Dist_m = zeros(Nrad,3);
+        Dist_p = zeros(Nrad,3);
+        Dist_full = zeros(Nrad,3);
 
-        io.files.load1('/home/sasha/wpsf_3500.mat'); PSF(:,:,:,1) = WPSF;
-        io.files.load1('/home/sasha/wpsf_5800.mat'); PSF(:,:,:,2) = WPSF;
-        io.files.load1('/home/sasha/wpsf_20000.mat'); PSF(:,:,:,3) = WPSF;
+        io.files.load1('wpsf_3500.mat'); PSF(:,:,:,1) = WPSF;
+        io.files.load1('wpsf_5800.mat'); PSF(:,:,:,2) = WPSF;
+        io.files.load1('wpsf_20000.mat'); PSF(:,:,:,3) = WPSF;
 
         for T = 1:3
             for i = 1:Nrad
                 M0 = PSF(:,:,i,T);
-                for j = 1:Nrad 
+                
+                for j = 1:Nrad % each with each
                     M1 = PSF(:,:,j,T);
-                    IL = imUtil.psf.information_loss(M0, M1);
+                    IL = imUtil.psf.information_loss(M0, M1); 
                     if IL > 0.1
                         ILbin(i,j,T) = 1;
                     end
                 end
+                
+                for j = i-1:-1:1 % backwards
+                    M1 = PSF(:,:,j,T);
+                    IL = imUtil.psf.information_loss(M0, M1); 
+                    if IL > 0.1 
+                        Dist_m(i,T) = i-j;   
+                        break
+                    end
+                end
+                
+                for j = i+1:1:Nrad % forward
+                    M1 = PSF(:,:,j,T);
+                    IL = imUtil.psf.information_loss(M0, M1); 
+                    if IL > 0.1
+                        Dist_p(i,T) = j-i;
+                        break
+                    end
+                end
+                
             end
         end
-
+        
+        Dist_full = Dist_m + Dist_p;
+        
         figure(2)
     %     lab = sprintf('%5.1f',Rad(5:5:end));
     %     xticks(1:size(Rad, 2));
     %     xticklabels(lab);
         subplot(1,3,1); imagesc(ILbin(:,:,1)); title('3500 K'); 
-        subplot(1,3,2); imagesc(ILbin(:,:,2)); title('5800 K')
-        subplot(1,3,3); imagesc(ILbin(:,:,3)); title('20000 K')
+        subplot(1,3,2); imagesc(ILbin(:,:,2)); title('5800 K');
+        subplot(1,3,3); imagesc(ILbin(:,:,3)); title('20000 K');
+        
+        figure(4)
+        clf
+        hold on
+        plot(Dist_full(:,1))
+        plot(Dist_full(:,2))
+        plot(Dist_full(:,3))
+        xlabel 'linear scale 25 bins = 10 deg'
+        ylabel 'number of bins within 10% infomation loss'
+        grid minor
+        hold off
+%         legend('3500 K','5800 K','20000 K','Location','NorthEastOutside')
+        
+        return
     
         case 3
         % PSF dependence on the spectrum for different radii
@@ -150,10 +192,10 @@ function Result = psf_information_content(ImRes, Args)
         IL = zeros(NTemp,NTemp,NRad);
         ILbin = zeros(NTemp,NTemp,NRad);
 
-        io.files.load1('/home/sasha/wpsf4_3500.mat'); PSF(:,:,1,:) = WPSF;
-        io.files.load1('/home/sasha/wpsf4_5800.mat'); PSF(:,:,2,:) = WPSF;
-        io.files.load1('/home/sasha/wpsf4_10000.mat'); PSF(:,:,3,:) = WPSF;
-        io.files.load1('/home/sasha/wpsf4_20000.mat'); PSF(:,:,4,:) = WPSF;
+        io.files.load1('wpsf4_3500.mat'); PSF(:,:,1,:) = WPSF;
+        io.files.load1('wpsf4_5800.mat'); PSF(:,:,2,:) = WPSF;
+        io.files.load1('wpsf4_10000.mat'); PSF(:,:,3,:) = WPSF;
+        io.files.load1('wpsf4_20000.mat'); PSF(:,:,4,:) = WPSF;
 
         for IRad = 1:NRad
 
@@ -204,10 +246,10 @@ function Result = psf_information_content(ImRes, Args)
         IL = zeros(NTemp,NTemp,NRad);
         ILbin = zeros(NTemp,NTemp,NRad);
         
-        io.files.load1('/home/sasha/wpsf_r2.mat');  PSF(:,:,:,1) = WPSF;
-        io.files.load1('/home/sasha/wpsf_r11.mat'); PSF(:,:,:,2) = WPSF;
-        io.files.load1('/home/sasha/wpsf_r16.mat'); PSF(:,:,:,3) = WPSF;
-        io.files.load1('/home/sasha/wpsf_r22.mat'); PSF(:,:,:,4) = WPSF;    
+        io.files.load1('wpsf_r2.mat');  PSF(:,:,:,1) = WPSF;
+        io.files.load1('wpsf_r11.mat'); PSF(:,:,:,2) = WPSF;
+        io.files.load1('wpsf_r16.mat'); PSF(:,:,:,3) = WPSF;
+        io.files.load1('wpsf_r22.mat'); PSF(:,:,:,4) = WPSF;    
         
         for IRad = 1:NRad
 
@@ -240,7 +282,7 @@ function Result = psf_information_content(ImRes, Args)
         subplot(2,2,4); imagesc(ILbin(:,:,4)); title('8.75 deg')
 
         figure(7)
-        subplot(2,2,1); contour(LTemp,LTemp,IL(:,:,1),[0.05 0.1 0.3]); title('0.42 deg')
+        subplot(2,2,1); [c,h] = contour(LTemp,LTemp,IL(:,:,1),[0.05 0.1 0.3]); title('0.42 deg'); clabel(c);
         subplot(2,2,2); contour(LTemp,LTemp,IL(:,:,2),[0.05 0.1 0.3]); title('4.17 deg')
         subplot(2,2,3); contour(LTemp,LTemp,IL(:,:,3),[0.05 0.1 0.3]); title('6.25 deg')
         subplot(2,2,4); contour(LTemp,LTemp,IL(:,:,4),[0.05 0.1 0.3]); title('8.75 deg')
