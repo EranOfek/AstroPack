@@ -103,7 +103,7 @@ function Result = psf_information_content(ImRes, Args)
                 for j = i-1:-1:1 % backwards
                     M1 = PSF(:,:,j,T);
                     IL = imUtil.psf.information_loss(M0, M1); 
-                    if IL > 0.1 
+                    if IL < 0.10 
                         Dist_m(i,T) = i-j;   
                         break
                     end
@@ -112,7 +112,7 @@ function Result = psf_information_content(ImRes, Args)
                 for j = i+1:1:Nrad % forward
                     M1 = PSF(:,:,j,T);
                     IL = imUtil.psf.information_loss(M0, M1); 
-                    if IL > 0.1
+                    if IL < 0.10
                         Dist_p(i,T) = j-i;
                         break
                     end
@@ -121,7 +121,7 @@ function Result = psf_information_content(ImRes, Args)
             end
         end
         
-        Dist_full = Dist_m + Dist_p;
+        Dist_full = Dist_m + Dist_p + 1;
         
         figure(2)
     %     lab = sprintf('%5.1f',Rad(5:5:end));
@@ -134,9 +134,9 @@ function Result = psf_information_content(ImRes, Args)
         figure(4)
         clf
         hold on
-        plot(Dist_full(:,1))
-        plot(Dist_full(:,2))
-        plot(Dist_full(:,3))
+        plot(Dist_full(:,1),'*-');
+        plot(Dist_full(:,2),'+-')
+        plot(Dist_full(:,3),'o-')
         xlabel 'linear scale 25 bins = 10 deg'
         ylabel 'number of bins within 10% infomation loss'
         grid minor
