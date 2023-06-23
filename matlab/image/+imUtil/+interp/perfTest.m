@@ -4,12 +4,15 @@ function perfTest
     %%
     AI = AstroImage('LAST.00.01.01_20220303.224914.224_clear__001_001_001_sci_raw_Image_1.fits');
     Image  = double(AI.Image( 2000+(1:1700), 1000+(1:1700)));
+    Image  = 1000 + randn(1700,1700).*10;
     SizeIm = size(Image);
     
     Nsim = 1000;
     Irand = randi(SizeIm(1),Nsim,1);
     Jrand = randi(SizeIm(2),Nsim,1);
     Ind   = tools.array.sub2ind_fast(SizeIm, Irand, Jrand);
+    
+    TrueVal = 1000; % Image(Ind);
     
     Result = zeros(0,3);
     TestInd = 0;
@@ -23,9 +26,10 @@ function perfTest
         IntImage = inpaint_nans(ImageNaN, Method);
         T = toc;
         
-        Diff = IntImage(Ind) - Image(Ind);
+        Diff = IntImage(Ind) - TrueVal;
         Val  = Image(Ind);
         plot(Val, Diff./Val,'.')
+        hold on;
         TestInd = TestInd + 1;
         Result = [Result; [TestInd, T, tools.math.stat.rstd(Diff./Val)]];
     end
@@ -41,7 +45,7 @@ function perfTest
     tic;
     vq = griddata(MatX(Inn),MatY(Inn),ImageNaN(Inn),Jrand,Irand, 'v4');
     T = toc;
-    Diff = vq - Image(Ind);
+    Diff = vq - TrueVal;
     Val  = Image(Ind);
     plot(Val, Diff./Val,'.')
     TestInd = TestInd + 1;
@@ -57,7 +61,7 @@ function perfTest
     tic;
     vq = griddata(MatX(Inn),MatY(Inn),ImageNaN(Inn),Jrand,Irand, 'cubic');
     T = toc;
-    Diff = vq - Image(Ind);
+    Diff = vq - TrueVal;
     Val  = Image(Ind);
     plot(Val, Diff./Val,'.')
     TestInd = TestInd + 1;
@@ -71,7 +75,7 @@ function perfTest
     tic;
     IntImage = imUtil.interp.interpImageConv(ImageNaN); %, Kernel);
     T = toc;
-    Diff = IntImage(Ind) - Image(Ind);
+    Diff = IntImage(Ind) - TrueVal;
     Val  = Image(Ind);
     plot(Val, Diff./Val,'.')
     TestInd = TestInd + 1;
@@ -82,9 +86,9 @@ function perfTest
     ImageNaN(Ind) = NaN;
     Kernel = imUtil.kernel2.gauss;
     tic;
-    IntImage = imUtil.interp.interpImageConvPix(ImageNaN, Kernel, [Irand, Jrand]);
+    IntImage = imUtil.interp.interpImageConvPix(ImageNaN, Jrand, Irand); %Kernel, [Irand, Jrand]);
     T = toc;
-    Diff = IntImage(Ind) - Image(Ind);
+    Diff = IntImage(Ind) - TrueVal;
     Val  = Image(Ind);
     plot(Val, Diff./Val,'.')
     TestInd = TestInd + 1;
