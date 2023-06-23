@@ -45,6 +45,8 @@ function [Result]=imwarp(Obj, Trans, Args)
     %                   Default is 'cubic'.
     %            'BoundsStyle' - BoindsStyle argument for the imwarp
     %                   function.
+    %                   Do not modidy this argument unless you understand
+    %                   what it is doing.
     %                   Default is 'CenterOutput'.
     %            'InterpMethodMask' - An interpolation method for the images
     %                   in the properties listed in the DataPropMask argument.
