@@ -43,6 +43,9 @@ function [Result]=imwarp(Obj, Trans, Args)
     %            'InterpMethod' -  An interpolation method for the images
     %                   in the properties listed in the DataProp argument.
     %                   Default is 'cubic'.
+    %            'BoundsStyle' - BoindsStyle argument for the imwarp
+    %                   function.
+    %                   Default is 'CenterOutput'.
     %            'InterpMethodMask' - An interpolation method for the images
     %                   in the properties listed in the DataPropMask argument.
     %                   Default is 'nearest'.
@@ -90,6 +93,7 @@ function [Result]=imwarp(Obj, Trans, Args)
         Args.Sampling                  = 10;
         Args.InterpMethod              = 'cubic';
         Args.InterpMethodMask          = 'nearest';
+        Args.BoundsStyle               = 'CenterOutput';
         
         Args.FillValues                = 'back';
         Args.SmoothEdges logical       = true;
@@ -250,7 +254,10 @@ function [Result]=imwarp(Obj, Trans, Args)
             Ntran   = numel(ImWarpTransformation);
             Itran   = min(Ntran,Iobj);
             TranArg = ImWarpTransformation(Itran);
-            OutView = affineOutputView(SizeInput, ImWarpTransformation(Itran),'BoundsStyle','CenterOutput');
+            % BoundsStyle is likely incorrect
+            % see issue #105
+            % Try: "SameAsInput"
+            OutView = affineOutputView(SizeInput, ImWarpTransformation(Itran), 'BoundsStyle',Args.BoundsStyle);
         end
         
         % applying imwarp for each image property (except Mask):
