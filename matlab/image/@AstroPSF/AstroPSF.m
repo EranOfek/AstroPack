@@ -174,16 +174,7 @@ classdef AstroPSF < Component
     end
     
     methods (Static)  % static methods
-        function multiGaussianPSF(DataPSF, X, Y, Color, Flux)
-            %
-            % I = G1(x,y, sigmaX(X,Y,Color,Flux), sigmaY(X,Y,Color,Flux), rho(X,Y,Color,Flux) )
-            
-            
-            
-            
-        end
-            
-        
+ 
     end
     
     methods % utilities (e.g., isempty)
@@ -533,6 +524,9 @@ classdef AstroPSF < Component
             
         end
         
+    end
+    
+    methods % pad, shift, smooth edges
         function Result = padShift(Obj, NewSizeIJ, Args)
             % Pad a PSF with zeros and shift its center
             %   This function uses: imUtil.psf.padShift
@@ -654,29 +648,52 @@ classdef AstroPSF < Component
             
         end
         
-        function Result = funUnary(Obj, OperatorOperatorArgs, OutType, DataProp, DataPropOut)
-            %
-           
-            Nobj = numel(Obj);
+        function Result=suppressEdges(Obj, Args)
+            % Multiply the PSF by edge suppressing function (e.g., cosbell).
+            %   Useful in order to vrify that the PSF is zero padded and
+            %   approach zero smoothly.
+            % Input  : - An AstroPSF object.
+            %          * ...,key,val,...
+            %            'Fun' - A 2-D function that will multiply the PSF.
+            %                   The function is of the form F(Pars, SizeXY)
+            %                   Default is @imUtil.kernel2.cosbell
+            %            'FunPars' - Vector of parameters that will be
+            %                   passed as the first argument to the Fun.
+            %                   Default is 5 7
+            %            'MultVar' - Multiply also the DataVar property.
+            %                   Default is false.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the input object.
+            %                   Default is false.
+            % Output : - A corrected AstroPSF object.
+            % Author : Eran Ofek (Jun 2023)
+            % Example: P.suppressEdges;
             
+            arguments
+                Obj
+                Args.Fun                     = @imUtil.kernel2.cosbell;
+                Args.FunPars                 = [5 7];
+                Args.MultVar logical         = false;
+                Args.CreateNewObj logical    = false;                
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Nobj = numel(Obj);
+            Size = size(Result(1).DataPSF);
+            Fun  = Args.Fun(Args.FunPars, [Size(2) Size(1)]);
+            for Iobj=1:1:Nobj
+                Result(Iobj).DataPSF  = Result(Iobj).DataPSF .* Fun;
+                if Args,MultVar
+                    Result(Iobj).DataVar  = Result(Iobj).DataVar .* Fun;
+                end
+            end
             
         end
-        
-%         function selectPSF
-%
-%         end
-        
-%         function combinePSF
-%
-%         end
-
-%         function fit
-%
-%         end
-        
-%         function pad
-%
-%         end
 
     end
     
