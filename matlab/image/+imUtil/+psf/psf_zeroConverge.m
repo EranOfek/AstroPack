@@ -7,6 +7,8 @@ function PSF = psf_zeroConverge(PSF, Args)
     %                       radius from PSF center.
     %                   'kernel' - Multiple the PSF above some radius, by a
     %                       kernel.
+    %                   'mult' - Multiply PSF by a function ('Kernel') with
+    %                           arguments ('KernelSigma').
     %                   Default is 'kernel'.
     %            'Rdaius' - Radius for setting the PSF to zero, ot above which
     %                   to multiple the PSF by the kernel.
@@ -24,7 +26,7 @@ function PSF = psf_zeroConverge(PSF, Args)
     
     arguments
         PSF
-        Args.Method            = 'kernel';
+        Args.Method            = 'kernel';   % 'radius'|'kernel'|'mult'
         Args.Radius            = 5;        % radius above to set the zero (Radius method)
         Args.Kernel            = @imUtil.kernel2.gauss
         Args.KernelSigma       = 1.5
@@ -32,6 +34,12 @@ function PSF = psf_zeroConverge(PSF, Args)
     end
     
     switch lower(Args.Method)
+        case 'mult'
+            
+            Size = size(PSF);
+            Fun  = Args.Kernel(Args.KernelSigma, [Size(2) Size(1)]);
+            PSF  = PSF .* Fun;
+            
         case 'radius'
             SizePSF  = size(PSF);
             CenterIJ = (SizePSF -1).*0.5;

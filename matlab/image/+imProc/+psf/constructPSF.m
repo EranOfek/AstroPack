@@ -36,7 +36,9 @@ function [Result, Summary] = constructPSF(Obj, Args)
         
         Args.selectPsfStarsArgs cell        = {};
         Args.constructPSF_cutoutsArgs cell  = {};
-        Args.SmoothWings logical            = true;
+        Args.SmoothWings logical            = false; %true;
+        Args.SuppressEdges logical          = true;
+        Args.suppressEdgesArgs cell         = {};
         Args.ReCenter logical               = false;
         Args.TypePSF                        = []; % or '@single', '@double',...
         
@@ -95,6 +97,9 @@ function [Result, Summary] = constructPSF(Obj, Args)
             else
                 Result(Iobj).DataPSF = Mean;
                 Result(Iobj).DataVar = Var;
+            end
+            if Args.SuppressEdges
+                Result(Iobj) = Result(Iobj).suppressEdges(Args.suppressEdgesArgs{:});
             end
         end
     end
