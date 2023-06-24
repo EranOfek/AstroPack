@@ -393,7 +393,11 @@ classdef FITS < handle
                 % replace -eps with NaN
                 if Args.IdentifyNaN
                     Flag = Col.Data{Icol}<-9.1e-36 & Col.Data{Icol}>-9.2e-36;
-                    Col.Data{Icol}(Flag) = NaN;
+                     
+                    if ~islogical(Col.Data{Icol})
+                        Col.Data{Icol}(Flag) = NaN;
+                    end
+                   
                 end
                 
                 % Optionally convert value to specified type
