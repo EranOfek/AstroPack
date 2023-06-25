@@ -1232,7 +1232,7 @@ classdef AstroCatalog < AstroTable
         
         function Result = cat2csv(Obj, FileName, Args)
             % write an AstroCatalog to a csv text file
-            % Input  : - An AstroCatalog object
+            % Input  : - An AstroCatalog object or a vector of AC objects
             %          - name of the file to write to
             %        * ...,key,val,...
             %        'Append'   - append to an existing CSV file (no need to
@@ -1254,12 +1254,16 @@ classdef AstroCatalog < AstroTable
             else
                 FileID = fopen(FileName,'w');   
                 FirstSymb = {'#'};
-                FirstLine = [FirstSymb, Obj.ColNames];
+                FirstLine = [FirstSymb, Obj(1).ColNames];
                 writecell(FirstLine,FileName,'Delimiter',Args.Delimiter);
             end
             
-            dlmwrite(FileName, Obj.Catalog, 'delimiter', Args.Delimiter, ...
+            for Iobj = 1:1:numel(Obj)
+                
+                dlmwrite(FileName, Obj(Iobj).Catalog, 'delimiter', Args.Delimiter, ...
                          'precision',Args.Format,'-append')                     
+                     
+            end
             
             fclose(FileID);
             
