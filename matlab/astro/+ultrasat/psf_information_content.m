@@ -34,6 +34,8 @@ function Result = psf_information_content(ImRes, Args)
     
                             fprintf('done\n'); 
                             
+    PSFDim = size(PSFdata,1);
+                            
     switch Args.Case
         
         case 1
@@ -76,7 +78,7 @@ function Result = psf_information_content(ImRes, Args)
         case 2
         % PSF dependence on the radius for different BB temperatures
 
-        S   = 108;
+        S   = PSFDim;
         PSF = zeros(S,S,Nrad,3);
         ILbin = zeros(Nrad,Nrad,3);
         
@@ -84,9 +86,9 @@ function Result = psf_information_content(ImRes, Args)
         Dist_p = zeros(Nrad,3);
         Dist_full = zeros(Nrad,3);
 
-        io.files.load1('wpsf_3500.mat'); PSF(:,:,:,1) = WPSF;
-        io.files.load1('wpsf_5800.mat'); PSF(:,:,:,2) = WPSF;
-        io.files.load1('wpsf_20000.mat'); PSF(:,:,:,3) = WPSF;
+        io.files.load1('wpsf_3500_res2.mat'); PSF(:,:,:,1) = WPSF;
+        io.files.load1('wpsf_5800_res2.mat'); PSF(:,:,:,2) = WPSF;
+        io.files.load1('wpsf_20000_res2.mat'); PSF(:,:,:,3) = WPSF;
 
         for T = 1:3
             for i = 1:Nrad
@@ -185,7 +187,7 @@ function Result = psf_information_content(ImRes, Args)
     
         case 4
         % PSF dependence on the spectrum temperature
-        S   = 108;
+        S   = PSFDim;
         NTemp = 4;
         NRad  = 4;
         PSF = zeros(S,S,NTemp,NRad);
@@ -236,7 +238,7 @@ function Result = psf_information_content(ImRes, Args)
         
         case 5
             
-        S   = 108;
+        S   = PSFDim;
         
         NTemp = 100;
         VTemp = logspace(3.4,4.3,NTemp);
