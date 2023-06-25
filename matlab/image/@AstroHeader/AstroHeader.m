@@ -1843,6 +1843,47 @@ classdef AstroHeader < Component
             end
             
         end
+        
+        function Result = header2csv(Obj, FileName, Args)
+            % write an AstroHeader to a csv text file
+            % Input  : - An AstroHeader object or a vector of AH objects
+            %          - name of the file to write to
+            %        * ...,key,val,...
+            %        'Append'   - append to an existing CSV file (no need to
+            %        make a new file and write a line with column names
+            %        'Delimiter' - field delimiter
+            % Output : - a csv file
+            % Author : A. Krassilchtchikov (Jun 2023)
+            arguments
+            Obj
+            FileName            = 'astroheader.csv' % output file name
+            Args.Append logical = false % append or overwrite
+            Args.Delimiter      = ';' % '\t' is tab
+            end
+            
+            if Args.Append 
+                FileID = fopen(FileName,'a+');
+            else
+                FileID = fopen(FileName,'w');   
+                FirstSymb = {'#'};
+                FirstLine = [FirstSymb, Obj(1).Data{:,1}];
+                writecell(FirstLine,FileName,'Delimiter',Args.Delimiter);
+            end
+            
+            for Iobj = 1:1:numel(Obj)
+                
+                FirstSymb = {Obj(Iobj).File};
+                Line = [FirstSymb, Obj(Iobj).Data{:,2}];
+                writecell(Line,FileName,'Delimiter',Args.Delimiter,'WriteMode','append');
+                     
+            end
+            
+            fclose(FileID);
+            
+            Result = 0;
+            
+        end
+        
     end
     
     methods (Static)  % help and documentation
