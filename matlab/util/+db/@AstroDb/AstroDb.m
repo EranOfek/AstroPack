@@ -145,7 +145,8 @@ classdef AstroDb < Component
             Obj.createImageTable('raw_images','Drop',false);
             Obj.createImageTable('proc_images','Drop',false);
             Obj.createImageTable('coadd_images','Drop',false);
-            Obj.createCatalogTable('src_catalog','Drop',false);
+            Obj.createCatalogTable('proc_src_catalog','Drop',false);
+            Obj.createCatalogTable('coadd_src_catalog','Drop',false);
            
             Result = true;
         end
