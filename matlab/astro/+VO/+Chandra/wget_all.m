@@ -21,7 +21,7 @@ function wget_all(varargin)
 Cat = cats.X.ChandraObs;
 
 Nid = numel(Cat.Cat.ObsID);
-for Iid=154:1:Nid
+for Iid=1739:1:Nid
     ObsID = Cat.Cat.ObsID(Iid);
     
     fprintf('---------------------------------\n');
