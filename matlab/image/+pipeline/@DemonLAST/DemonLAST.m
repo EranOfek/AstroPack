@@ -1236,9 +1236,9 @@ classdef DemonLAST < Component
 
                 Args.Insert2DB         = false;
                 Args.DB_InsertRaw      = false;
-                Args.DB_Table_Raw      = 'test_raw_images';
-                Args.DB_Table_Proc     = 'test_proc_images';
-                Args.DB_Table_Coadd    = 'test_coadd_images';
+                Args.DB_Table_Raw      = 'raw_images';
+                Args.DB_Table_Proc     = 'proc_images';
+                Args.DB_Table_Coadd    = 'coadd_images';
                 Args.DB_Table_ProcCat  = 'test_proc_src_catalog';
                 Args.DB_Table_CoaddCat = 'test_coadd_src_catalog';
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};
