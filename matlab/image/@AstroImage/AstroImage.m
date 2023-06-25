@@ -595,7 +595,7 @@ classdef AstroImage < Component
             %                   Default is ''.
             %            'ReadProd' - Products to read:
             %                   Default is
-            %                   {'Image','Var','Back','Mask','PSF','Cat'}.
+            %                   {'Image','Var','Back','Mask','Exp','PSF','Cat'}.
             %            'HDU' - HDU number of HDF5 dataset name.
             %                   Default is 1.
             %            'FileType' - [] will attempt to identify
@@ -612,7 +612,7 @@ classdef AstroImage < Component
             arguments
                 FileBase
                 Args.Path        = '';
-                Args.ReadProd    = {'Image','Var','Back','Mask','PSF','Cat'};
+                Args.ReadProd    = {'Image','Var','Back','Mask','Exp','PSF','Cat'};
                 Args.HDU         = 1;
                 Args.FileType    = [];
                 Args.CCDSEC      = [];
@@ -858,7 +858,7 @@ classdef AstroImage < Component
             % Input  : - An AstroImage object (multi elements supported).
             %          - A cell array of data properties for which to check
             %            if empty.
-            %            Default is {'Image','Back','Var','Mask'}.
+            %            Default is {'Image','Back','Var','Mask','Exp'}.
             % Output : * One output per requested data property. For each
             %            data property, this is an array of logical
             %            indicating if the data isempty.
@@ -868,7 +868,7 @@ classdef AstroImage < Component
             
             arguments
                 Obj
-                Prop        = {'Image','Back','Var','Mask'};
+                Prop        = {'Image','Back','Var','Mask','Exp'};
             end
             
             if ischar(Prop)
@@ -1023,7 +1023,7 @@ classdef AstroImage < Component
             %                   it is independent of nargout.
             %            'DataProp' - A list of Data properties to copy.
             %                   Default is {'ImageData','BackData',
-            %                   'VarData', 'MaskData'}.
+            %                   'VarData', 'MaskData','ExpData'}.
             %                   The output are returned by this order.
             % Output : * An object per requested DataProp.
             %            By default, the first output arg is a SciImage
@@ -1038,7 +1038,7 @@ classdef AstroImage < Component
                 Obj
                 Args.ReturnImageComponent(1,1) logical  = false;
                 Args.CreateNewObj(1,1) logical          = false;
-                Args.DataProp                           = {'ImageData','BackData', 'VarData', 'MaskData'};
+                Args.DataProp                           = {'ImageData','BackData', 'VarData', 'MaskData','ExpData'};
             end
             
             
@@ -1196,7 +1196,7 @@ classdef AstroImage < Component
             switch lower(Args.FileType)
                 case 'fits'
                     switch DataProp
-                        case {'Image','Back','Var','Mask','PSF'}
+                        case {'Image','Back','Var','Mask','PSF','Exp'}
                             switch DataProp
                                 case 'PSF'
                                     HeaderDataToWrite = [];
@@ -1296,7 +1296,7 @@ classdef AstroImage < Component
             for Iobj=1:1:Nobj
                 for Iprop=1:1:Nprop
                     switch lower(Args.DataProp{Iprop})
-                        case {'image','back','var','mask'}
+                        case {'image','back','var','mask','exp'}
                             if Args.WriteHeader
                                 Header = Obj(Iobj).HeaderData.Data;
                             else
@@ -1340,7 +1340,7 @@ classdef AstroImage < Component
             %             Default is false.
             %          - A cell array of data properties which to transform
             %            to the new class. Default is
-            %            {'ImageData','BackData','VarData'}.;
+            %            {'ImageData','BackData','VarData','ExpData'}.;
             % Output : - An ImageComponent object in which the image 'Data'
             %            is transformed into the new type.
             % Author : Eran Ofek (May 2021)
@@ -1351,7 +1351,7 @@ classdef AstroImage < Component
                 Obj
                 NewClass               = 'single';
                 CreateNewObj logical   = false;
-                DataProp cell          = {'ImageData','BackData','VarData'};
+                DataProp cell          = {'ImageData','BackData','VarData','ExpData'};
             end
             
             if CreateNewObj
@@ -2002,7 +2002,7 @@ classdef AstroImage < Component
             %          * ...,key,val,...
             %            'DataProp' - Cell of image data properties for which to
             %                   return values. Default is 
-            %                   {'Image','Back','Var','Mask'}
+            %                   {'Image','Back','Var','Mask','Exp'}
             % Output : * Vector of values at requested image positions.
             %            Output argument per each 'DataProp' element.
             %            If pixel position is out of image bounds than
@@ -2015,7 +2015,7 @@ classdef AstroImage < Component
                 Obj(1,1)
                 X
                 Y                = [];
-                Args.DataProp    = {'Image','Back','Var','Mask'};
+                Args.DataProp    = {'Image','Back','Var','Mask','Exp'};
             end
             
             if ischar(Args.DataProp)
@@ -2289,7 +2289,7 @@ classdef AstroImage < Component
             %            'DataProp' - A cell array of AstroImage data
             %                   properties on which the operator will operated.
             %                   Default is
-            %                   {'ImageData','BackData','VarData','MaskData'}.
+            %                   {'ImageData','BackData','VarData','MaskData','ExpData'}.
             %            'DataPropIn' - Data property in the ImageComponent
             %                   on which the operator
             %                   will be operated. Default is 'Data'.
@@ -2307,7 +2307,7 @@ classdef AstroImage < Component
                 Operator function_handle
                 Args.OpArgs cell                = {};
                 Args.CCDSEC                     = [];
-                Args.DataProp                   = {'ImageData','BackData','VarData','MaskData'};
+                Args.DataProp                   = {'ImageData','BackData','VarData','MaskData','ExpData'};
                 Args.DataPropIn                 = 'Data';
             end
             
@@ -2351,7 +2351,7 @@ classdef AstroImage < Component
             %            'DataProp' - A cell array of AstroImage data
             %                   properties on which the operator will operated.
             %                   Default is
-            %                   {'ImageData','BackData','VarData','MaskData'}.
+            %                   {'ImageData','BackData','VarData','MaskData','ExpData'}.
             %            'DataPropIn' - Data property in the ImageComponent
             %                   on which the operator
             %                   will be operated. Default is 'Data'.
@@ -2375,7 +2375,7 @@ classdef AstroImage < Component
                 Args.BitNames cell              = {};
                 Args.UseNot logical             = false;
                 Args.Method                     = 'all';
-                Args.DataProp                   = {'ImageData','BackData','VarData','MaskData'};
+                Args.DataProp                   = {'ImageData','BackData','VarData','MaskData','ExpData'};
                 Args.DataPropIn                 = 'Data';
             end
 
@@ -2910,7 +2910,7 @@ classdef AstroImage < Component
             %          * ...,key,val,...
             %            'Type' - ['ccdsec'] | 'center'
             %            'DataProp' - A cell array of image data properties
-            %                   to crop. Default is {'ImageData','BackData','VarData','MaskData'}
+            %                   to crop. Default is {'ImageData','BackData','VarData','MaskData','ExpData'}
             %            'DataPropIn' - Data property on which to operate.
             %                   Default is 'Image'.
             %            'DeleteProp' - A cell array of properties to
@@ -2937,7 +2937,7 @@ classdef AstroImage < Component
                 Obj
                 CCDSEC
                 Args.Type                      = 'ccdsec'; % 'center' mat results in errors!
-                Args.DataProp cell             = {'ImageData','BackData','VarData','MaskData'};
+                Args.DataProp cell             = {'ImageData','BackData','VarData','MaskData','ExpData'};
                 Args.DataPropIn                = 'Image';
                 Args.DeleteProp cell           = {};
                 Args.UpdateCat(1,1) logical    = true;
@@ -3009,7 +3009,7 @@ classdef AstroImage < Component
             %                   Default is [50 50].
             %            'CooUnits' - RA/Dec units. Default is 'deg'.
             %            'DataProp' - A cell array of image data properties
-            %                   to crop. Default is {'ImageData','BackData','VarData','MaskData'}
+            %                   to crop. Default is {'ImageData','BackData','VarData','MaskData','ExpData'}
             %            'DataPropIn' - Data property on which to operate.
             %                   Default is 'Image'.
             %            'DeleteProp' - A cell array of properties to
@@ -3043,7 +3043,7 @@ classdef AstroImage < Component
                 Dec                                % scalar
                 Args.HalfSizeXY                = [50 50];  % [x y] pix
                 Args.CooUnits                  = 'deg';
-                Args.DataProp cell             = {'ImageData','BackData','VarData','MaskData'};
+                Args.DataProp cell             = {'ImageData','BackData','VarData','MaskData','ExpData'};
                 Args.DataPropIn                = 'Image';
                 Args.DeleteProp                = {};
                 Args.UpdateCat(1,1) logical    = true;
@@ -3537,6 +3537,7 @@ classdef AstroImage < Component
             NewObj.BackData     = Obj.BackData.copy();
             NewObj.VarData      = Obj.VarData.copy();
             NewObj.MaskData     = Obj.MaskData.copy();
+            NewObj.ExpData      = Obj.ExpData.copy();
             NewObj.HeaderData   = Obj.HeaderData.copy();
             NewObj.CatData      = Obj.CatData.copy();
             NewObj.PSFData      = Obj.PSFData.copy();
