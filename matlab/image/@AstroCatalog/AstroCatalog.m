@@ -1229,6 +1229,43 @@ classdef AstroCatalog < AstroTable
                 end
             end
         end
+        
+        function Result = cat2csv(Obj, FileName, Args)
+            % write an AstroCatalog to a csv text file
+            % Input  : - An AstroCatalog object
+            %          - name of the file to write to
+            %        * ...,key,val,...
+            %        'Append'   - append to an existing CSV file (no need to
+            %        make a new file and write a line with column names
+            %        'Delimiter' - field delimiter
+            %        'Format' - output format and precision
+            % Output : - a csv file
+            % Author : A. Krassilchtchikov (Jun 2023)
+            arguments
+            Obj
+            FileName            = 'astrocatalog.csv' % output file name
+            Args.Append logical = false % append or overwrite
+            Args.Delimiter      = ';' % '\t' is tab
+            Args.Format         = '%10.6e' % output format and precision
+            end
+            
+            if Args.Append 
+                FileID = fopen(FileName,'a+');
+            else
+                FileID = fopen(FileName,'w');   
+                FirstSymb = {'#'};
+                FirstLine = [FirstSymb, Obj.ColNames];
+                writecell(FirstLine,FileName,'Delimiter',Args.Delimiter);
+            end
+            
+            dlmwrite(FileName, Obj.Catalog, 'delimiter', Args.Delimiter, ...
+                         'precision',Args.Format,'-append')                     
+            
+            fclose(FileID);
+            
+            Result = 0;
+
+        end
     end
     
     methods (Static)
