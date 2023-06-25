@@ -1214,6 +1214,7 @@ classdef DemonLAST < Component
 
                 Args.StartJD       = -Inf;    % refers onlt to Science observations: JD, or [D M Y]
                 Args.EndJD         = Inf;
+                Args.StopWhenDone logical = false;
                 Args.RegenCalib logical = false; % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
 
                 Args.DeleteSciDayTime logical = false;
@@ -1534,6 +1535,12 @@ classdef DemonLAST < Component
                         end
                     end
                 end
+            
+                % stop when done
+                if Args.StopWhenDone
+                    Cont = false;
+                end
+
             end
             
             cd(PWD);
