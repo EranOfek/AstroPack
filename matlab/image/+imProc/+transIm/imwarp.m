@@ -95,7 +95,7 @@ function [Result]=imwarp(Obj, Trans, Args)
         Args.Sampling                  = 10;
         Args.InterpMethod              = 'cubic';
         Args.InterpMethodMask          = 'nearest';
-        Args.BoundsStyle               = 'SameAsInput'; %'CenterOutput';
+        Args.BoundsStyle               = 'CenterOutput'; %'SameAsInput'; %'CenterOutput';
         
         Args.FillValues                = 'back';
         Args.SmoothEdges logical       = true;
