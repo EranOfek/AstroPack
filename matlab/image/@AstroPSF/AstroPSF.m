@@ -662,6 +662,9 @@ classdef AstroPSF < Component
             %                   Default is 5 7
             %            'MultVar' - Multiply also the DataVar property.
             %                   Default is false.
+            %            'Norm' - A logical indicating if to normalize the
+            %                   sum of the PSF to 1.
+            %                   Default is true.
             %            'CreateNewObj' - A logical indicating if to create
             %                   a new copy of the input object.
             %                   Default is false.
@@ -674,6 +677,7 @@ classdef AstroPSF < Component
                 Args.Fun                     = @imUtil.kernel2.cosbell;
                 Args.FunPars                 = [5 7];
                 Args.MultVar logical         = false;
+                Args.Norm logical            = true;
                 Args.CreateNewObj logical    = false;                
             end
             
@@ -688,11 +692,26 @@ classdef AstroPSF < Component
             Fun  = Args.Fun(Args.FunPars, [Size(2) Size(1)]);
             for Iobj=1:1:Nobj
                 Result(Iobj).DataPSF  = Result(Iobj).DataPSF .* Fun;
-                if Args,MultVar
+                if Args.Norm
+                    Result(Iobj).normPSF;
+                end
+                if Args.MultVar
                     Result(Iobj).DataVar  = Result(Iobj).DataVar .* Fun;
                 end
             end
             
+        end
+
+        function Obj=normPSF(Obj)
+            % Normalize PSFs such there sum will be 1.
+            % Input  : - An AstroPSF object.
+            % Output : - An uppdated AstroPSF object (no new copy).
+            % Author : Eran Ofek (Jun 2023)
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).DataPSF = Obj(Iobj).DataPSF./ sum(Obj(Iobj).DataPSF,[1 2]);
+            end
         end
 
     end

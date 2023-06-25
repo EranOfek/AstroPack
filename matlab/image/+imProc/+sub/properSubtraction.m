@@ -40,7 +40,7 @@ function [D, S, Scorr, Z2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef, Ar
         cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/2
         AI(2) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.214904.914_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
         
-        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/3/
+        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/7/
         AI(3) = AstroImage.readFileNamesObj('LAST.01.02.01_2*010_sci_coadd_Image_1.fits');
 
         cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/9/

@@ -99,7 +99,7 @@ function [Result, Summary] = constructPSF(Obj, Args)
                 Result(Iobj).DataVar = Var;
             end
             if Args.SuppressEdges
-                Result(Iobj) = Result(Iobj).suppressEdges(Args.suppressEdgesArgs{:});
+                Result(Iobj).PSFData = Result(Iobj).PSFData.suppressEdges(Args.suppressEdgesArgs{:});
             end
         end
     end
