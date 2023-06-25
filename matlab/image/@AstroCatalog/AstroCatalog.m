@@ -1253,8 +1253,9 @@ classdef AstroCatalog < AstroTable
                 FileID = fopen(FileName,'a+');
             else
                 FileID = fopen(FileName,'w');   
-                FirstSymb = {'#'};
-                FirstLine = [FirstSymb, Obj(1).ColNames];
+%                 FirstSymb = {'#'};     % NOTE: probably, this symbol will not be accepted by DbQuery! 
+%                 FirstLine = [FirstSymb, Obj(1).ColNames];
+                FirstLine = Obj(1).ColNames; 
                 writecell(FirstLine,FileName,'Delimiter',Args.Delimiter);
             end
             
