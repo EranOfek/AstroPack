@@ -252,6 +252,9 @@ function [Result]=imwarp(Obj, Trans, Args)
         if IsDisplacment
             TranArg = DispField(Iobj).DF;
             OutView = [];
+
+          
+
         else
             Ntran   = numel(ImWarpTransformation);
             Itran   = min(Ntran,Iobj);

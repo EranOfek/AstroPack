@@ -99,8 +99,8 @@ function Result=astrometryQualityData(Obj, Args)
     %          .Color    - Colors.
     %          .PixelPhaseX - Pixel phase in X.
     %          .PixelPhaseY - Pixel phase in Y.
-    %          .MedShiftRAmas - Median RA shift in arcsec.
-    %          .MedShiftDecmas - Median Dec shift in arcsec.
+    %          .MedShiftRAas - Median RA shift in arcsec.
+    %          .MedShiftDecas - Median Dec shift in arcsec.
     %          .ResidRA_XY - Statistics of residual in RA as a function of Y,X. [arcsec]
     %          .ResidDec_XY - Statistics of residual in Dec as a function of Y,X. [arcsec]
     % Author : Eran Ofek (May 2023)
@@ -219,8 +219,8 @@ function Result=astrometryQualityData(Obj, Args)
         Result(Iobj).ResidDec_XY     = tools.math.stat.cell2d_stat(Result(Iobj).CatXY(F,1), Result(Iobj).CatXY(F,2), Result(Iobj).DeltaDec(F), Args.cell2d_statArgs{:}, 'NbinX',Args.Nbin(1), 'NbinY',Args.Nbin(2));
 
         % Summary
-        Result(Iobj).MedShiftRAmas  = median(Result(Iobj).DeltaRA, 1, 'omitnan');     % [arcsec]
-        Result(Iobj).MedShiftDecmas = median(Result(Iobj).DeltaDec, 1, 'omitnan');    % [arcsec]
+        Result(Iobj).MedShiftRAas   = median(Result(Iobj).DeltaRA, 1, 'omitnan');     % [arcsec]
+        Result(Iobj).MedShiftDecas  = median(Result(Iobj).DeltaDec, 1, 'omitnan');    % [arcsec]
     
     end
     
