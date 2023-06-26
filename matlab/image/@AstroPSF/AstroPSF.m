@@ -51,6 +51,8 @@ classdef AstroPSF < Component
         
         DataPSF2          = [];
         
+        DataPSF3          = [];
+        
         DimDef  cell      = {'WaveMono', 'WaveBand', 'WaveTemp', 'WaveSpType', 'WaveColor',...
                              'PosR', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'};
         DimAxis cell      = cell(1,10);       

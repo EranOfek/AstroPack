@@ -1245,7 +1245,7 @@ classdef AstroCatalog < AstroTable
             Obj
             FileName            = 'astrocatalog.csv' % output file name
             Args.Append logical = false % append or overwrite
-            Args.Delimiter      = ';' % '\t' is tab
+            Args.Delimiter      = ',' % '\t' is tab 
             Args.Format         = '%10.6e' % output format and precision
             end
             
