@@ -99,7 +99,7 @@ function Result = imwarp_old(Obj, Args)
 
             DispField = struct('DF',cell(Nobj,1));
             for Iobj=1:1:Nobj
-                DispField(Iobj).DF  = xy2refxy(Obj(Iobj).WCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Args.RefWCS, 'Sampling', 10);
+                DispField(Iobj).DF  = xy2refxyDisp(Obj(Iobj).WCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Args.RefWCS, 'Sampling', 10);
             end
         end
     end

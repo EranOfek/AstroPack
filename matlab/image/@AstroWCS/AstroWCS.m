@@ -1204,7 +1204,54 @@ classdef AstroWCS < Component
     end
     
     methods  % Functions related to xy2refxy
-        function [D,refPX,refPY,PX,PY]  = xy2refxy(Obj,XY,RefWCS,Args)
+         function [RefPX,RefPY,PX,PY]  = xy2refxy(Obj,XY,RefWCS,Args)
+            % Given X, Y coordinates in an image, convert to X,Y in reference coordinate system.
+            %   by using WCS info of both images to tranlstae XY to refXY.
+            % Input  : - A single element AstroWCS object.
+            %          - Either a four element region (i.e., CCDSEC)
+            %            [xmin,xmax,ymin,ymax].
+            %            This CCDSEC represents the image of the input
+            %            AstroWCS object.
+            %            Alternatively a two column matrix of [X Y] image size.
+            %          - A single refence AstroWCS object
+            %          * ...,key,val,...
+            %            'Sampling' - step size for sampling CCDSEC region.
+            %                   Default is 1
+            % Output : - Translated X pixel coordinates in reference image
+            %          - Translated Y pixel coordinates in reference image
+            %          - X pixel coordinates used
+            %          - Y pixel coordinates used
+            % Author : Yossi Shvartzvald (Dec 2021)
+            % Example:
+            %      [D,refPX,refPY,PX,PY]=Obj.xy2refxy([1,100,1,100],refWCS);
+            
+            arguments
+                Obj
+                XY
+                RefWCS(1,1) AstroWCS
+                Args.Sampling       = 1;
+            end
+            
+            switch size(XY,2)
+                case 4                              % i.e., CCDSEC
+                    if size(XY,1)>1
+                        error('wrong XY dimensions');
+                    else
+                        [PX,PY] = meshgrid(XY(1):Args.Sampling:XY(2),XY(3):Args.Sampling:XY(4));
+                    end
+                case 2                              % matrix of xy
+                   PX = XY(:,1);
+                   PY = XY(:,2);
+                otherwise
+                    error('wrong XY dimensions');
+            end
+                    
+            [Alpha, Delta] = Obj.xy2sky(PX,PY);
+            [RefPX,RefPY]  = RefWCS.sky2xy(Alpha,Delta);
+           
+         end
+
+        function [D,refPX,refPY,PX,PY]  = xy2refxyDisp(Obj,XY,RefWCS,Args)
             % Calculate the displacement field D between current image to refernce image,
             %   by using WCS info of both images to tranlstae XY to refXY.
             % Input  : - A single element AstroWCS object.

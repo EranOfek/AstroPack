@@ -51,7 +51,7 @@ function [DispField, OutWCS, FieldName]=wcs2displacment(Obj, Trans, Args)
         DispField = struct(Args.FieldName, cell(Nobj,1));
         for Iobj=1:1:Nobj
             Itran = min(Ntran, Iobj);
-            DispField(Iobj).(Args.FieldName)  = xy2refxy(Obj(Iobj).WCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Trans(Itran), 'Sampling', Args.Sampling);
+            DispField(Iobj).(Args.FieldName)  = xy2refxyDisp(Obj(Iobj).WCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Trans(Itran), 'Sampling', Args.Sampling);
         end
         OutWCS = Trans.copy;
     elseif isa(Trans, 'AstroImage')
@@ -74,7 +74,7 @@ function [DispField, OutWCS, FieldName]=wcs2displacment(Obj, Trans, Args)
                 DataWCS = Obj(Iobj).WCS;
             end
             
-            DispField(Iobj).(Args.FieldName)  = xy2refxy(DataWCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Trans.WCS, 'Sampling', Args.Sampling);
+            DispField(Iobj).(Args.FieldName)  = xy2refxyDisp(DataWCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Trans.WCS, 'Sampling', Args.Sampling);
             Itran        = min(Ntran, Iobj);
             OutWCS(Iobj) = Trans(Itran).WCS.copy;
         end

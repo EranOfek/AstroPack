@@ -215,9 +215,11 @@ function Result=astrometryQualityData(Obj, Args)
         Result(Iobj).DeltaDec        = Result(Iobj).DeltaDec .* RAD.*ARCSEC_DEG;      % [arcsec]
 
         F = Mag<Args.MagLimit;
-        Result(Iobj).ResidRA_XY      = tools.math.stat.cell2d_stat(Result(Iobj).CatXY(F,1), Result(Iobj).CatXY(F,2), Result(Iobj).DeltaRA(F), Args.cell2d_statArgs{:},  'NbinX',Args.Nbin(1), 'NbinY',Args.Nbin(2));
-        Result(Iobj).ResidDec_XY     = tools.math.stat.cell2d_stat(Result(Iobj).CatXY(F,1), Result(Iobj).CatXY(F,2), Result(Iobj).DeltaDec(F), Args.cell2d_statArgs{:}, 'NbinX',Args.Nbin(1), 'NbinY',Args.Nbin(2));
-
+        if sum(F)>10
+            Result(Iobj).ResidRA_XY      = tools.math.stat.cell2d_stat(Result(Iobj).CatXY(F,1), Result(Iobj).CatXY(F,2), Result(Iobj).DeltaRA(F), Args.cell2d_statArgs{:},  'NbinX',Args.Nbin(1), 'NbinY',Args.Nbin(2));
+            Result(Iobj).ResidDec_XY     = tools.math.stat.cell2d_stat(Result(Iobj).CatXY(F,1), Result(Iobj).CatXY(F,2), Result(Iobj).DeltaDec(F), Args.cell2d_statArgs{:}, 'NbinX',Args.Nbin(1), 'NbinY',Args.Nbin(2));
+        end
+        
         % Summary
         Result(Iobj).MedShiftRAas   = median(Result(Iobj).DeltaRA, 1, 'omitnan');     % [arcsec]
         Result(Iobj).MedShiftDecas  = median(Result(Iobj).DeltaDec, 1, 'omitnan');    % [arcsec]
