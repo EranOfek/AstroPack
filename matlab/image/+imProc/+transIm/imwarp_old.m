@@ -165,7 +165,7 @@ function Result = imwarp(Obj, Trans, Args)
 
             DispField = struct('DF',cell(Nobj,1));
             for Iobj=1:1:Nobj
-                DispField(Iobj).DF  = xy2refxy(Obj(Iobj).WCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Trans, 'Sampling', Args.Sampling);
+                DispField(Iobj).DF  = xy2refxyDisp(Obj(Iobj).WCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Trans, 'Sampling', Args.Sampling);
             end
             OutWCS = Trans.copy;
         elseif isa(Trans, 'AstroImage')
@@ -189,7 +189,7 @@ function Result = imwarp(Obj, Trans, Args)
                     DataWCS = Obj(Iobj).WCS;
                 end
 
-                DispField(Iobj).DF  = xy2refxy(DataWCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Trans.WCS, 'Sampling', Args.Sampling);
+                DispField(Iobj).DF  = xy2refxyDisp(DataWCS, [1, ImageSizeX(Iobj), 1, ImageSizeY(Iobj)], Trans.WCS, 'Sampling', Args.Sampling);
             end
             OutWCS = Trans.WCS.copy;
         elseif isa(Trans, 'affine2d')
