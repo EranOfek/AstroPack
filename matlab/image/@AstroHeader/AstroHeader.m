@@ -1844,7 +1844,7 @@ classdef AstroHeader < Component
             
         end
         
-        function Result = header2csv(Obj, FileName, Args)
+        function Result = writeCSV(Obj, FileName, Args)
             % write an AstroHeader to a csv text file
             % Input  : - An AstroHeader object or a vector of AH objects
             %          - name of the file to write to

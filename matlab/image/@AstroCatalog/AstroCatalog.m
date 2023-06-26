@@ -1230,47 +1230,54 @@ classdef AstroCatalog < AstroTable
             end
         end
         
-        function Result = cat2csv(Obj, FileName, Args)
-            % write an AstroCatalog to a csv text file
-            % Input  : - An AstroCatalog object or a vector of AC objects
-            %          - name of the file to write to
-            %        * ...,key,val,...
-            %        'Append'   - append to an existing CSV file (no need to
-            %        make a new file and write a line with column names
-            %        'Delimiter' - field delimiter
-            %        'Format' - output format and precision
-            % Output : - a csv file
-            % Author : A. Krassilchtchikov (Jun 2023)
-            arguments
-            Obj
-            FileName            = 'astrocatalog.csv' % output file name
-            Args.Append logical = false % append or overwrite
-            Args.Delimiter      = ',' % '\t' is tab 
-            Args.Format         = '%10.6e' % output format and precision
-            end
-            
-            if Args.Append 
-                FileID = fopen(FileName,'a+');
-            else
-                FileID = fopen(FileName,'w');   
-%                 FirstSymb = {'#'};     % NOTE: probably, this symbol will not be accepted by DbQuery! 
-%                 FirstLine = [FirstSymb, Obj(1).ColNames];
-                FirstLine = Obj(1).ColNames; 
-                writecell(FirstLine,FileName,'Delimiter',Args.Delimiter);
-            end
-            
-            for Iobj = 1:1:numel(Obj)
-                
-                dlmwrite(FileName, Obj(Iobj).Catalog, 'delimiter', Args.Delimiter, ...
-                         'precision',Args.Format,'-append')                     
-                     
-            end
-            
-            fclose(FileID);
-            
-            Result = 0;
-
-        end
+%         function Result = cat2csv(Obj, FileName, Args)
+%             % write an AstroCatalog to a csv text file
+%             % Input  : - An AstroCatalog object or a vector of AC objects
+%             %          - name of the file to write to
+%             %        * ...,key,val,...
+%             %        'Append'   - append to an existing CSV file (no need to
+%             %        make a new file and write a line with column names
+%             %        'Delimiter' - field delimiter
+%             %        'Format' - output format and precision
+%             % Output : - a csv file
+%             % Author : A. Krassilchtchikov (Jun 2023)
+%             % Example: Files  = dir ( fullfile('./', '**', '*Cat*') );
+%             %          NData  = numel(Files); Data   = repmat({''}, NData, 1);
+%             %          for IData = 1:1:NData
+%             %              Data{IData} = fullfile(Files(IData).folder, Files(IData).name);
+%             %          end
+%             %          AC = AstroCatalog(Data);
+%             %          AC.cat2csv('/home/ocs/cat.csv');
+%             arguments
+%             Obj
+%             FileName            = 'astrocatalog.csv' % output file name
+%             Args.Append logical = false % append or overwrite
+%             Args.Delimiter      = ',' % '\t' is tab 
+%             Args.Format         = '%10.6e' % output format and precision
+%             end
+%             
+%             if Args.Append 
+%                 FileID = fopen(FileName,'a+');
+%             else
+%                 FileID = fopen(FileName,'w');   
+% %                 FirstSymb = {'#'};     % NOTE: probably, this symbol will not be accepted by DbQuery! 
+% %                 FirstLine = [FirstSymb, Obj(1).ColNames];
+%                 FirstLine = Obj(1).ColNames; 
+%                 writecell(FirstLine,FileName,'Delimiter',Args.Delimiter);
+%             end
+%             
+%             for Iobj = 1:1:numel(Obj)
+%                 
+%                 dlmwrite(FileName, Obj(Iobj).Catalog, 'delimiter', Args.Delimiter, ...
+%                          'precision',Args.Format,'-append')                     
+%                      
+%             end
+%             
+%             fclose(FileID);
+%             
+%             Result = 0;
+% 
+%         end
     end
     
     methods (Static)
