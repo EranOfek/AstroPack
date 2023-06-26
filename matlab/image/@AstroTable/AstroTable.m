@@ -1893,6 +1893,7 @@ classdef AstroTable < Component
             %        make a new file and write a line with column names
             %        'Delimiter' - field delimiter
             %        'Format' - output format and precision
+            %        'Parallel' - parallel execution is efficient for large volumes
             % Output : - a csv file
             % Author : A. Krassilchtchikov (Jun 2023)
             % Example: Files  = dir ( fullfile('./', '**', '*Cat*') );
@@ -1908,26 +1909,40 @@ classdef AstroTable < Component
             Args.Append logical = false % append or overwrite
             Args.Delimiter      = ',' % '\t' is tab 
             Args.Format         = '%10.6e' % output format and precision
+            Args.Parallel logical = false % parallel execution is efficient for large volumes
             end
             
-            if Args.Append 
-                FileID = fopen(FileName,'a+');
-            else
-                FileID = fopen(FileName,'w');   
-%                 FirstSymb = {'#'};     % NOTE: probably, this symbol will not be accepted by DbQuery! 
-%                 FirstLine = [FirstSymb, Obj(1).ColNames];
+            if ~Args.Append 
+%                 FileID = fopen(FileName,'w+');   
                 FirstLine = Obj(1).ColNames; 
                 writecell(FirstLine,FileName,'Delimiter',Args.Delimiter);
+%                 fclose(FileID);
             end
             
-            for Iobj = 1:1:numel(Obj)
-                
-                dlmwrite(FileName, Obj(Iobj).Catalog, 'delimiter', Args.Delimiter, ...
-                         'precision',Args.Format,'-append')                     
-                     
-            end
+%             FileID = fopen(FileName,'a+'); 
+             
+%             formatSpecifier = strcat(Args.Format,Args.Delimiter); 
+%             numRepetitions = size(Obj(1).Catalog,2); 
+%             formatString = [repmat(formatSpecifier, 1, numRepetitions-1), strcat(Args.Format,'\n')]; 
             
-            fclose(FileID);
+            for Iobj = 1:numel(Obj)
+%                   fprintf(FileID,formatString,Obj(Iobj).Catalog');
+                  writematrix(Obj(Iobj).Catalog,FileName,'WriteMode','append'); 
+            end
+                        
+%             if Args.Parallel 
+%                 parfor Iobj = 1:numel(Obj)
+%                     dlmwrite(FileName, Obj(Iobj).Catalog, 'delimiter', Args.Delimiter, ...
+%                              'precision',Args.Format,'-append')                     
+%                 end
+%             else
+%                 for Iobj = 1:1:numel(Obj)
+%                     dlmwrite(FileName, Obj(Iobj).Catalog, 'delimiter', Args.Delimiter, ...
+%                          'precision',Args.Format,'-append')
+%                 end
+%             end
+            
+%             fclose(FileID);
             
             Result = 0;
 
