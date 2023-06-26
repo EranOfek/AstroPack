@@ -394,7 +394,7 @@ classdef AstroDb < Component
             Q.addColumn(TN, 'magerr_conv_3','double', 'default 0');
             Q.addColumn(TN, 'magerr_conv_4','double', 'default 0');
             Q.addColumn(TN, 'magerr_conv_5','double', 'default 0');
-            Q.addColumn(TN, 'flags',        'smallint', 'default 0');
+            Q.addColumn(TN, 'flags',        'integer', 'default 0');
             Q.addColumn(TN, 'x',            'single', 'default 0');
             Q.addColumn(TN, 'y',            'single', 'default 0');
             Q.addColumn(TN, 'flux_psf',     'double', 'default 0');
