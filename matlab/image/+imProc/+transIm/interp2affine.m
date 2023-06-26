@@ -29,7 +29,8 @@ function Result=interp2affine(Obj, AffineTran, Args)
     % Output : - A registered AstroImage, with the optional WCS copied from
     %            the provided WCS.
     % Author : Eran Ofek (Jun 2023)
-    % Example: AIreg1=imProc.transIm.interp2wcs(AI, AI(1))
+    % Example: AI = AstroImage({imUtil.kernel2.gauss});
+    %          AIreg=imProc.transIm.interp2affine(AI, [3 3])
 
     arguments
         Obj AstroImage
@@ -86,19 +87,21 @@ function Result=interp2affine(Obj, AffineTran, Args)
                 % assume numeric input
                 switch size(AffineTran,2)
                     case 2
-                        FullRefX = MatX + AffineTran(Iref,1);
-                        FullRefY = MatY + AffineTran(Iref,2);
+                        FullRefX = MatX - AffineTran(Iref,1);
+                        FullRefY = MatY - AffineTran(Iref,2);
                     otherwise
                         error('Numeric transformation - only two columns option is supported');
                 end
         end
        
         for Iprop=1:1:Nprop
-            switch Args.DataProp{Iprop}
-                case 'Mask'
-                    Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
-                otherwise
-                    Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
+            if ~isempty(Obj(Iobj).(Args.DataProp{Iprop}))
+                switch Args.DataProp{Iprop}
+                    case 'Mask'
+                        Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
+                    otherwise
+                        Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
+                end
             end
         end
 

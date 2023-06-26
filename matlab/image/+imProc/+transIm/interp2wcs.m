@@ -85,11 +85,13 @@ function Result=interp2wcs(Obj, Ref, Args)
         FullRefY = interp2(X, Y, RefY, VecX(:).', VecY(:), 'cubic');
 
         for Iprop=1:1:Nprop
-            switch Args.DataProp{Iprop}
-                case 'Mask'
-                    Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
-                otherwise
-                    Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
+            if ~isempty(Obj(Iobj).(Args.DataProp{Iprop}))
+                switch Args.DataProp{Iprop}
+                    case 'Mask'
+                        Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
+                    otherwise
+                        Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
+                end
             end
         end
 
