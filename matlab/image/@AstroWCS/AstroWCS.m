@@ -1204,8 +1204,8 @@ classdef AstroWCS < Component
     end
     
     methods  % Functions related to xy2refxy
-         function [refPX,refPY,PX,PY]  = xy2refxy(Obj,XY,RefWCS,Args)
-            % Calculate the X,Y coordinates in the reference frame.
+         function [RefPX,RefPY,PX,PY]  = xy2refxy(Obj,XY,RefWCS,Args)
+            % Given X, Y coordinates in an image, convert to X,Y in reference coordinate system.
             %   by using WCS info of both images to tranlstae XY to refXY.
             % Input  : - A single element AstroWCS object.
             %          - Either a four element region (i.e., CCDSEC)
@@ -1247,7 +1247,7 @@ classdef AstroWCS < Component
             end
                     
             [Alpha, Delta] = Obj.xy2sky(PX,PY);
-            [refPX,refPY]  = RefWCS.sky2xy(Alpha,Delta);
+            [RefPX,RefPY]  = RefWCS.sky2xy(Alpha,Delta);
            
          end
 

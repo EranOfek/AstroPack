@@ -1,7 +1,32 @@
 function Result=interp2wcs(Obj, Ref, Args)
     % Intepolate an image with a WCS into a new grid defined by a ref WCS.
-    % Input  : -
-    % Output : - 
+    % Input  : - An AstroImage object, with WCS updated.
+    %            Use populateWCS to update WCS from the header.
+    %          - An AstroWCS object, or AstroImage containing AstroWCS.
+    %            This is either a single element object, or have the same
+    %            number of elements as in the first input argument.
+    %            This is the reference WCS on which the input image will be
+    %            interpolated.
+    %          * ...,key,val,...
+    %            'InterpMethod' - Interpolation method for images.
+    %                   See interp2 for options.
+    %                   Default is 'cubic'.
+    %            'InterpMethodMask' - Interpolation method for the mask
+    %                   image. Default is 'nearest'.
+    %            'DataProp' - data properties in the AstroImage to
+    %                   interpolate.
+    %                   Default is {'Image','Mask'}.
+    %            'ExtrapVal' - Extrapolation value. Default is NaN.
+    %            'CopyPSF' - Copy PSF from input image. Default is true.
+    %            'CopyWCS' - Copy WCS from input image. Default is true.
+    %            'CopyHeader' - Copy Header from input image. Default is true.
+    %                   If CopyWCS is true, then will update header by the
+    %                   WCS.
+    %            'CreateNewObj' - A logical indicating if the copy
+    %                   operations of PSF, WCS, Header will be create a new
+    %                   copy of the handle object.
+    %                   Default is true.
+    % Output : - An AstroImage registered to the reference WCS.
     % Author : Eran Ofek (Jun 2023)
     % Example: AIreg1=imProc.transIm.interp2wcs(AI, AI(1))
 
@@ -11,11 +36,11 @@ function Result=interp2wcs(Obj, Ref, Args)
         Args.InterpMethod             = 'cubic';
         Args.InterpMethodMask         = 'nearest';
         Args.DataProp                 = {'Image','Mask'};
-        Args.ExtrapVal                = 0;
+        Args.ExtrapVal                = NaN;
         Args.CopyPSF logical          = true;
         Args.CopyWCS logical          = true;
         Args.CopyHeader logical       = true;
-        Args.CreateNewObj logical     = false;
+        Args.CreateNewObj logical     = true;
 
         Args.Sampling                 = 20;
         
@@ -60,9 +85,9 @@ function Result=interp2wcs(Obj, Ref, Args)
         for Iprop=1:1:Nprop
             switch Args.DataProp{Iprop}
                 case 'Mask'
-                    Result(Iobj).Image = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
+                    Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
                 otherwise
-                    Result(Iobj).Image = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
+                    Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
             end
         end
 
@@ -75,10 +100,11 @@ function Result=interp2wcs(Obj, Ref, Args)
         end
         if Args.CopyWCS
             if Args.CreateNewObj
-                Result(Iobj).WCS = Obj(Iobj).WCS.copy;
+                Result(Iobj).WCS = RefWCS(Iref).copy;
             else
-                Result(Iobj).WCS = Obj(Iobj).WCS;
+                Result(Iobj).WCS = RefWCS(Iref);
             end
+            %Result(Iobj).WCS = Obj(Iobj).WCS.copy;
         end
         if Args.CopyHeader
             if Args.CreateNewObj
@@ -88,7 +114,9 @@ function Result=interp2wcs(Obj, Ref, Args)
             end
 
             % update header
-            Result(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Result(Iobj).HeaderData);
+            if Args.CopyWCS
+                Result(Iobj).HeaderData = wcs2header(Result(Iobj).WCS, Result(Iobj).HeaderData);
+            end
         end
 
 
