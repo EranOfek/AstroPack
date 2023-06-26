@@ -125,8 +125,8 @@ classdef DbDriver < Component
                 try
                     Obj.JavaDriver = org.postgresql.Driver;
                     Obj.IsLoaded = true;
-                catch
-                    Obj.msgLog(LogLevel.Error, 'open: Failed to get org.postgresql.Driver');
+                catch Ex
+                    Obj.msgLogEx(LogLevel.Error, Ex, 'open: Failed to get org.postgresql.Driver');
                 end
                 
             % Other type, currently not supported
@@ -150,8 +150,8 @@ classdef DbDriver < Component
                     % Is this the correct function
                     % @Todo, do we need to call disconnect() or ???
                     clear Obj.JavaDriver;
-                catch
-                    Obj.msgLog(LogLevel.Error, 'unloadDriver: Exception');
+                catch Ex
+                    Obj.msgLogEx(LogLevel.Error, Ex, 'unloadDriver: Exception');
                 end
                 Obj.JavaDriver = [];
                 Obj.IsLoaded = false;

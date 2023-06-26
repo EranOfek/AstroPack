@@ -193,8 +193,8 @@ classdef DbConnection < Component
                 JavaProps = java.util.Properties;
                 JavaProps.setProperty('user', Obj.UserName);
                 JavaProps.setProperty('password', Obj.Password);
-            catch
-                Obj.msgLog(LogLevel.Error, 'open: setProperty failed');
+            catch Ex
+                Obj.msgLogEx(LogLevel.Error, Ex, 'open: setProperty failed');
             end
      
             % Connect to database
@@ -203,16 +203,16 @@ classdef DbConnection < Component
                 Obj.JavaConn = Obj.Driver.JavaDriver.connect(Obj.DriverUrl, JavaProps);
                 Obj.IsOpen = true;
                 Obj.msgLog(LogLevel.Info, 'open: connect OK: %s', Obj.DriverUrl);
-            catch
-                Obj.msgLog(LogLevel.Error, 'open: JavaDriver.connect failed');
+            catch Ex
+                Obj.msgLogEx(LogLevel.Error, Ex, 'open: JavaDriver.connect failed');
             end
 
             % Get connection metadata
             try
                 Obj.msgLog(LogLevel.Debug, 'open: calling getMetaData');
                 Obj.JavaMetadata = Obj.JavaConn.getMetaData();
-            catch
-                Obj.msgLog(LogLevel.Error, 'open: getMetaData failed');
+            catch Ex
+                Obj.msgLogEx(LogLevel.Error, Ex, 'open: getMetaData failed');
             end
             
             Result = Obj.IsOpen;
@@ -232,8 +232,8 @@ classdef DbConnection < Component
                 Obj.IsOpen = false;
                 try
                     Obj.JavaConn.close();
-                catch
-                    Obj.msgLog(LogLevel.Error, 'close: failed');
+                catch Ex
+                    Obj.msgLogEx(LogLevel.Error, Ex, 'close: failed');
                 end
             end
             
