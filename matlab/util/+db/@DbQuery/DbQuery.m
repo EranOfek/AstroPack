@@ -259,6 +259,9 @@ classdef DbQuery < Component
             %            'CsvFileName' - Select to specified output CSV file, instead of
             %                            result-set (using Postgres' "COPY TO" statement or CsvWriter 
             %                            if shared folder is not available)
+            %            'CsvDelimiter' - Csv columns delimiter character
+            %            'CsvNull'      - Value for null fields
+            %
             % Output  : - DbRecord object or other data type according to 'OutType' argument.
             % Author  : Chen Tishler (2021)
             % Example : DataSet = Obj.select('Column1', 'Table', 'Where', 'X=1', 'Order', 'Column1')
@@ -274,6 +277,8 @@ classdef DbQuery < Component
                 Args.UseCopy = false    % True to use COPY TO
                 Args.UseCsv = false     % True to write resultset to CSV file and then load it
                 Args.CsvFileName = ''   % Select to CSV file instead of result-set
+                Args.CsvDelimiter = ',' % Csv columns delimiter character
+                Args.CsvNull = 'NaN'    % Value for null fields
             end
 
             Result = false;
@@ -314,9 +319,10 @@ classdef DbQuery < Component
             if ~isempty(Args.CsvFileName)
                 % Shared folder is available, use it and then move the result to our target
                 if Obj.Conn.isSharedPathAvail()
-                    [ServerFileName, ClientFileName] = Obj.getSharedFileName(Args.CsvFileName);
-                    Obj.SqlText = sprintf('COPY (%s) TO ''%s'' CSV HEADER', Obj.SqlText, ServerFileName);
-                    %Obj.SqlText = ['COPY (', Obj.SqlText, ') TO ''', ServerFileName, ''' CSV HEADER'];
+                    [ServerFileName, ClientFileName] = Obj.getSharedFileName(Args.CsvFileName);                    
+                    Obj.SqlText = sprintf('COPY (%s) TO ''%s'' WITH (FORMAT CSV, HEADER, DELIMITER ''%'', NULL ''%'';', ...
+                        Obj.SqlText, ServerFileName, Args.CsvDelimiter, Args.CsvNull);
+                    %Obj.SqlText = sprintf('COPY (%s) TO ''%s'' CSV HEADER', Obj.SqlText, ServerFileName);
                     Res = Obj.exec();
                     if Res
                         if ~strcmpi(ClientFileName, Args.CsvFileName)
@@ -348,8 +354,9 @@ classdef DbQuery < Component
                 
                 % Prepare file names
                 [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
-                Obj.SqlText = sprintf('COPY (%s) TO ''%s'' CSV HEADER', Obj.SqlText, ServerFileName);
-                %Obj.SqlText = ['COPY (', Obj.SqlText, ') TO ''', ServerFileName, ''' CSV HEADER'];
+                Obj.SqlText = sprintf('COPY (%s) TO ''%s'' WITH (FORMAT CSV, HEADER, DELIMITER ''%'', NULL ''%'';', ...
+                        Obj.SqlText, ServerFileName, Args.CsvDelimiter, Args.CsvNull);
+                %Obj.SqlText = sprintf('COPY (%s) TO ''%s'' CSV HEADER', Obj.SqlText, ServerFileName);
                 Res = Obj.exec();
                 if Res
                     if Args.Load
@@ -420,6 +427,8 @@ classdef DbQuery < Component
             %            'InsertRecArgs'   - Arguments to InsertRecFunc
             %            'UseCopyThreshold'- When number of records is above this value, copyFrom() is used
             %            'CsvFileName'     - Specify CSV file as source of data
+            %            'CsvDelimiter'    - Csv column delimiter character
+            %            'CsvNull'         - Value for null fields
             %            'BinaryFileName'  - NOT IMPLEMENTED YET - When using COPY, name of Binary file @TODO
             %            'Returning'       - @TODO - RETURNING - Need to add support
             %
@@ -452,6 +461,8 @@ classdef DbQuery < Component
                 Args.UseCopyThreshold = []  % When number of records is above this value, copyFrom() is used
                 Args.ColumnsOnly = false;   % When true, ignore fields that has no matching columns in the table
                 Args.CsvFileName = ''       % When using COPY, name of CSV file
+                Args.CsvDelimiter = ','     % Csv columns delimiter
+                Args.CsvNull = 'NaN'        % Csv values for Null column
                 Args.BinaryFileName = ''    % NOT IMPLEMENTED YET! When using COPY, name of Binary file @TODO - NOT IMPLEMENTED YET!
                 Args.Returning = ''         % NOT IMPLEMENTED YET!
             end
@@ -508,7 +519,9 @@ classdef DbQuery < Component
                 end
 
                 % Prepare COPY FROM statement
-                Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' DELIMITER '','' CSV HEADER;', Args.TableName, Columns, ServerFileName);
+                Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' WITH (FORMAT CSV, HEADER, DELIMITER ''%'', NULL ''%'';', ...            
+                    Args.TableName, Columns, ServerFileName, Args.CsvDelimiter, Args.CsvNull);
+                %Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' DELIMITER '','' CSV HEADER;', Args.TableName, Columns, ServerFileName);
                 t1 = tic();
                 Result = Obj.exec();
                 t2 = toc(t1);
@@ -667,8 +680,8 @@ classdef DbQuery < Component
                 % Prepare the actual Java object that represent the statement
                 try
                     Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
-                catch
-                    Obj.msgLog(LogLevel.Error, 'insert: prepareStatement failed: %s', Obj.SqlText);
+                catch Ex
+                    Obj.msgLogEx(LogLevel.Error, Ex, 'insert: prepareStatement failed: %s', Obj.SqlText);
                 end
 
                 % Set statement values from input data
@@ -698,8 +711,8 @@ classdef DbQuery < Component
                     end
             
                     Obj.ExecOk = true;
-                catch
-                    Obj.msgLog(LogLevel.Error, 'insert: executeQuery failed: %s', Obj.SqlText);
+                catch Ex
+                    Obj.msgLogEx(LogLevel.Error, Ex, 'insert: executeQuery failed: %s', Obj.SqlText);
                     Obj.ExecOk = false;
                     break;
                 end
@@ -774,8 +787,8 @@ classdef DbQuery < Component
             Obj.msgLog(LogLevel.Debug, 'updateRecord: %s', Obj.SqlText);
             try
                 Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
-            catch
-                Obj.msgLog(LogLevel.Error, 'updateRecord: prepareStatement failed: %s', Obj.SqlText);
+            catch Ex
+                Obj.msgLogEx(LogLevel.Error, Ex, 'updateRecord: prepareStatement failed: %s', Obj.SqlText);
             end
 
             % Iterate struct fields
@@ -788,8 +801,8 @@ classdef DbQuery < Component
                 Obj.JavaResultSet = Obj.JavaStatement.executeUpdate();
                 Obj.ExecOk = true;
                 Result = true;
-            catch
-                Obj.msgLog(LogLevel.Error, 'update: executeQuery failed: %s', Obj.SqlText);
+            catch Ex
+                Obj.msgLogEx(LogLevel.Error, Ex, 'update: executeQuery failed: %s', Obj.SqlText);
             end
 
             Obj.Toc = toc();
@@ -846,8 +859,8 @@ classdef DbQuery < Component
             Obj.msgLog(LogLevel.Debug, 'deleteRecord: %s', Obj.SqlText);
             try
                 Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
-            catch
-                Obj.msgLog(LogLevel.Error, 'deleteRecord: prepareStatement failed: %s', Obj.SqlText);
+            catch Ex
+                Obj.msgLogEx(LogLevel.Error, Ex, 'deleteRecord: prepareStatement failed: %s', Obj.SqlText);
             end
 
             % Execute
@@ -856,8 +869,8 @@ classdef DbQuery < Component
                 Obj.JavaResultSet = Obj.JavaStatement.executeUpdate();
                 Obj.ExecOk = true;
                 Result = true;
-            catch
-                Obj.msgLog(LogLevel.Error, 'deleteRecord: executeQuery failed: %s', Obj.SqlText);
+            catch Ex
+                Obj.msgLogEx(LogLevel.Error, Ex, 'deleteRecord: executeQuery failed: %s', Obj.SqlText);
             end
 
             Obj.Toc = toc();
@@ -905,8 +918,8 @@ classdef DbQuery < Component
             Obj.msgLog(LogLevel.Debug, 'query: %s', Obj.SqlText);
             try
                 Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
-            catch
-                Obj.msgLog(LogLevel.Error, 'query: prepareStatement failed: %s', Obj.SqlText);
+            catch Ex
+                Obj.msgLogEx(LogLevel.Error, Ex, 'query: prepareStatement failed: %s', Obj.SqlText);
             end
 
             % executeQuery
@@ -924,9 +937,9 @@ classdef DbQuery < Component
                 end
                 
                 Result = true;
-            catch
+            catch Ex
                 Obj.IsOpen = false;
-                Obj.msgLog(LogLevel.Error, 'query: executeQuery failed: %s', Obj.SqlText);
+                Obj.msgLogEx(LogLevel.Error, Ex, 'query: executeQuery failed: %s', Obj.SqlText);
             end
 
             Obj.Toc = toc();
@@ -965,8 +978,8 @@ classdef DbQuery < Component
             Obj.msgLog(LogLevel.Debug, 'exec: %s', Obj.SqlText);
             try
                 Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
-            catch
-                Obj.msgLog(LogLevel.Error, 'exec: prepareStatement failed: %s', Obj.SqlText);
+            catch Ex
+                Obj.msgLogEx(LogLevel.Error, Ex, 'exec: prepareStatement failed: %s', Obj.SqlText);
             end
 
             % @Todo - Check if we need to do something with BigDecimal
@@ -978,8 +991,8 @@ classdef DbQuery < Component
                 Obj.JavaResultSet = Obj.JavaStatement.executeUpdate();
                 Obj.ExecOk = true;
                 Result = true;
-            catch
-                Obj.msgLog(LogLevel.Error, 'exec: executeQuery failed: %s', Obj.SqlText);
+            catch Ex
+                Obj.msgLogEx(LogLevel.Error, Ex, 'exec: executeQuery failed: %s', Obj.SqlText);
             end
             Obj.Toc = toc();
             Obj.msgStyle(LogLevel.Debug, 'blue', 'exec time: %.6f', Obj.Toc);
@@ -1159,7 +1172,7 @@ classdef DbQuery < Component
                 File.close();
                 Result = true;
             catch Ex
-                Obj.msgLogEx(Ex, 'writeResultSetToCsvFile failed: %s', CsvFileName);
+                Obj.msgLogEx(LogLevel.Error, Ex, 'writeResultSetToCsvFile failed: %s', CsvFileName);
             end                    
         end        
     end
@@ -1180,8 +1193,8 @@ classdef DbQuery < Component
             try
                 Obj.Eof = ~Obj.JavaResultSet.next();
                 Result = ~Obj.Eof;
-            catch
-                Obj.msgLog(LogLevel.Error, 'DbQuery.next failed');
+            catch Ex
+                Obj.msgLogEx(LogLevel.Error, Ex, 'DbQuery.next failed');
             end
         end
 
@@ -1197,8 +1210,8 @@ classdef DbQuery < Component
             try
                 Obj.Eof = ~Obj.JavaResultSet.previous();
                 Result = ~Obj.Eof;
-            catch
-                Obj.msgLog(LogLevel.Error, 'DbQuery.prev failed');
+            catch Ex
+                Obj.msgLogEx(LogLevel.Error, Ex, 'DbQuery.prev failed');
             end
         end
 
@@ -1238,8 +1251,8 @@ classdef DbQuery < Component
                         %Obj.msgLog(LogLevel.Debug, 'getColumn %s = %s', string(ColumnName).char, string(Result).char);
                     end
 
-                catch
-                    Obj.msgLog(LogLevel.Error, 'getColumn failed: %s', string(ColumnName).char);
+                catch Ex
+                    Obj.msgLogEx(LogLevel.Error, Ex, 'getColumn failed: %s', string(ColumnName).char);
                 end
             else
                 Obj.msgLog(LogLevel.Error, 'getColumn failed: Column not found: %s', string(ColumnName).char);
@@ -1267,8 +1280,8 @@ classdef DbQuery < Component
                         Result = Obj.JavaResultSet.getString(ColumnName);
                         Result = true;
                     end
-                catch
-                    Obj.msgLog(LogLevel.Error, 'Column not found: %s', ColumnName);
+                catch Ex
+                    Obj.msgLogEx(LogLevel.Error, Ex, 'Column not found: %s', ColumnName);
                 end
             end
         end
@@ -1663,8 +1676,8 @@ classdef DbQuery < Component
                 else
                     Obj.JavaMetadata = Obj.JavaStatement.getMetaData();
                 end
-            catch
-                Obj.msgLog(LogLevel.Error, 'DbQuery.open: getMetaData failed: %s', Obj.SqlText);
+            catch Ex
+                Obj.msgLogEx(LogLevel.Error, Ex, 'DbQuery.open: getMetaData failed: %s', Obj.SqlText);
             end
 
             try
@@ -1681,8 +1694,8 @@ classdef DbQuery < Component
                 Obj.ColType = regexprep(Obj.ColType, '.*\.','');
                 Result = true;
 
-            catch
-                Obj.msgLog(LogLevel.Error, 'DbQuery.open: getMetaData failed: %s', Obj.SqlText);
+            catch Ex
+                Obj.msgLogEx(LogLevel.Error, Ex, 'DbQuery.open: getMetaData failed: %s', Obj.SqlText);
             end
         end
 
@@ -2846,6 +2859,7 @@ classdef DbQuery < Component
                 end
                 
             catch Ex
+                Obj.MsgLogEx(LogLevel.Error, Ex, 'xlsx2sql');
             end
             cd(PWD);
         end
@@ -3005,7 +3019,7 @@ classdef DbQuery < Component
                 end
                 
             catch Ex
-                io.msgLogEx(LogLevel.Info, Ex, 'DbQuery.startGui');
+                io.msgLogEx(LogLevel.Error, Ex, 'DbQuery.startGui');
             end
         end
         
