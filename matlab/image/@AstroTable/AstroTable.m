@@ -1908,8 +1908,8 @@ classdef AstroTable < Component
             FileName            = 'astrocatalog.csv' % output file name
             Args.Append logical = false % append or overwrite
             Args.Delimiter      = ',' % '\t' is tab 
-            Args.Format         = '%10.6e' % output format and precision
-            Args.Parallel logical = false % parallel execution is efficient for large volumes
+%             Args.Format         = '%10.6e' % output format and precision
+%             Args.Parallel logical = false % parallel execution is efficient for large volumes
             end
             
             if ~Args.Append 
