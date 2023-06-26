@@ -74,7 +74,7 @@ function [Result]=imwarp(Obj, Trans, Args)
     %                   new copy of the input AstroImage (true), or just an handle
     %                   to the original input (false).
     %                   Default is true.
-    %            'CopYPSF' - A logical indicating if to copy the PSF from
+    %            'CopyPSF' - A logical indicating if to copy the PSF from
     %                   the original AstroImage to the transformed AstroImage.
     %                   Will create a new PSFData object.
     %                   Default is true.
@@ -252,6 +252,9 @@ function [Result]=imwarp(Obj, Trans, Args)
         if IsDisplacment
             TranArg = DispField(Iobj).DF;
             OutView = [];
+
+          
+
         else
             Ntran   = numel(ImWarpTransformation);
             Itran   = min(Ntran,Iobj);

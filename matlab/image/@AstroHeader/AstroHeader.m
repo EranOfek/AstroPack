@@ -1844,7 +1844,7 @@ classdef AstroHeader < Component
             
         end
         
-        function Result = header2csv(Obj, FileName, Args)
+        function Result = writeCSV(Obj, FileName, Args)
             % write an AstroHeader to a csv text file
             % Input  : - An AstroHeader object or a vector of AH objects
             %          - name of the file to write to
@@ -1861,10 +1861,7 @@ classdef AstroHeader < Component
             Args.Delimiter      = ';' % '\t' is tab
             end
             
-            if Args.Append 
-                FileID = fopen(FileName,'a+');
-            else
-                FileID = fopen(FileName,'w');   
+            if ~Args.Append
                 FirstSymb = {'#'};
                 FirstLine = [FirstSymb, Obj(1).Data{:,1}];
                 writecell(FirstLine,FileName,'Delimiter',Args.Delimiter);
@@ -1877,8 +1874,6 @@ classdef AstroHeader < Component
                 writecell(Line,FileName,'Delimiter',Args.Delimiter,'WriteMode','append');
                      
             end
-            
-            fclose(FileID);
             
             Result = 0;
             
