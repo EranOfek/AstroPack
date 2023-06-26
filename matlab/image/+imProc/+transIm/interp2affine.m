@@ -1,4 +1,9 @@
-function Result=interp2wcs(Obj, Ref, Args)
+function Result=interp2affine(Obj, Ref, Args)
+
+
+under construction
+
+
     % Intepolate an image with a WCS into a new grid defined by a ref WCS.
     % Input  : - An AstroImage object, with WCS updated.
     %            Use populateWCS to update WCS from the header.
