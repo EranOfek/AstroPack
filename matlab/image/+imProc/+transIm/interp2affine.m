@@ -1,17 +1,9 @@
-function Result=interp2affine(Obj, Ref, Args)
-
-
-under construction
-
-
-    % Intepolate an image with a WCS into a new grid defined by a ref WCS.
-    % Input  : - An AstroImage object, with WCS updated.
-    %            Use populateWCS to update WCS from the header.
-    %          - An AstroWCS object, or AstroImage containing AstroWCS.
-    %            This is either a single element object, or have the same
-    %            number of elements as in the first input argument.
-    %            This is the reference WCS on which the input image will be
-    %            interpolated.
+function Result=interp2affine(Obj, AffineTran, Args)
+    % Transform an image by an affine transformation, using interp2.
+    % Input  : - An AstroImage object.
+    %          - An affine2d, or affinetform2d object, or a two column
+    %            matrix. If a two column matrix, then the columns are the X
+    %            and Y shifts.
     %          * ...,key,val,...
     %            'InterpMethod' - Interpolation method for images.
     %                   See interp2 for options.
@@ -23,6 +15,9 @@ under construction
     %                   Default is {'Image','Mask'}.
     %            'ExtrapVal' - Extrapolation value. Default is NaN.
     %            'CopyPSF' - Copy PSF from input image. Default is true.
+    %            'WCS' - An optional AstroWCS or AstroImage to insert (WCS) into the registered image.
+    %                   If empty, then do not insert WCS.
+    %                   Default is [].
     %            'CopyWCS' - Copy WCS from input image. Default is true.
     %            'CopyHeader' - Copy Header from input image. Default is true.
     %                   If CopyWCS is true, then will update header by the
@@ -31,20 +26,20 @@ under construction
     %                   operations of PSF, WCS, Header will be create a new
     %                   copy of the handle object.
     %                   Default is true.
-    %            'Sampling' - AstroWCS/xy2refxy sampling parameter.
-    %                   Default is 20.
-    % Output : - An AstroImage registered to the reference WCS.
+    % Output : - A registered AstroImage, with the optional WCS copied from
+    %            the provided WCS.
     % Author : Eran Ofek (Jun 2023)
     % Example: AIreg1=imProc.transIm.interp2wcs(AI, AI(1))
 
     arguments
         Obj AstroImage
-        Ref
+        AffineTran
         Args.InterpMethod             = 'cubic';
         Args.InterpMethodMask         = 'nearest';
         Args.DataProp                 = {'Image','Mask'};
         Args.ExtrapVal                = NaN;
         Args.CopyPSF logical          = true;
+        Args.WCS                      = [];
         Args.CopyWCS logical          = true;
         Args.CopyHeader logical       = true;
         Args.CreateNewObj logical     = true;
@@ -52,43 +47,52 @@ under construction
         Args.Sampling                 = 20;
         
     end
+    
+    warning('NOT TESTED');
 
-    % if Args.CreateNewObj
-    %     Result = Obj.copy;
-    % else
-    %     Result = Obj;
-    % end
-
-
-    if isa(Ref, 'AstroWCS')
-        RefWCS = Ref;
-    elseif isa(Ref, 'AstroImage')
-        Nref = numel(Ref);
-        RefWCS = AstroWCS(size(Ref));
-        for Iref=1:1:Nref
-            RefWCS(Iref) = Ref(Iref).WCS;
-        end
-    else
-        error('2nd input must be an AstroWCS or AstroImage object');
+    if isempty(Args.WCS)
+        Args.CopyWCS = false;
     end
-    Nref  = numel(RefWCS);
+
+    
+    if isnumeric(AffineTran)
+        Nref = size(AffineTran, 1);
+    else
+        Nref  = numel(AffineTran);
+    end
+    Nwcs = numel(Args.WCS);
     Nprop = numel(Args.DataProp);
 
     Nobj=numel(Obj);
     Result = AstroImage(size(Obj));
     for Iobj=1:1:Nobj
         Iref = min(Iobj, Nref);
-
+        
         SizeIm = size(Obj(Iobj).Image);
         CCDSEC = [1 SizeIm(2) 1 SizeIm(1)];
-        %[RefX, RefY, X, Y] = Obj(Iobj).WCS.xy2refxy(CCDSEC, RefWCS(Iref), 'Sampling',Args.Sampling);
-        [RefX, RefY, X, Y] = RefWCS(Iref).xy2refxy(CCDSEC, Obj(Iobj).WCS, 'Sampling',Args.Sampling);
-
+        
         VecX = (1:1:SizeIm(2));
         VecY = (1:1:SizeIm(1));
-        FullRefX = interp2(X, Y, RefX, VecX(:).', VecY(:), 'cubic');
-        FullRefY = interp2(X, Y, RefY, VecX(:).', VecY(:), 'cubic');
-
+        [MatX, MatY] = meshgrid(VecX, VecY);
+        
+        switch class(AffineTran)
+            case 'affine2d'
+                [FullRefX, FullRefY] = transformPointsForward(AffineTran(Iref), MatX, MatY);
+                
+            case 'affinetform2d'
+                [FullRefX, FullRefY] = transformPointsForward(AffineTran(Iref), MatX, MatY);
+                
+            otherwise
+                % assume numeric input
+                switch size(AffineTran,2)
+                    case 2
+                        FullRefX = MatX + AffineTran(Iref,1);
+                        FullRefY = MatY + AffineTran(Iref,2);
+                    otherwise
+                        error('Numeric transformation - only two columns option is supported');
+                end
+        end
+       
         for Iprop=1:1:Nprop
             switch Args.DataProp{Iprop}
                 case 'Mask'
@@ -106,12 +110,22 @@ under construction
             end
         end
         if Args.CopyWCS
-            if Args.CreateNewObj
-                Result(Iobj).WCS = RefWCS(Iref).copy;
+            Iwcs = min(Iobj, Nwcs);
+            if isa(Args.WCS, 'AstroWCS')
+                if Args.CreateNewObj
+                    Result(Iobj).WCS = Args.WCS(Iwcs).copy;
+                else
+                    Result(Iobj).WCS = Args.WCS(Iwcs);
+                end
+            elseif isa(Args.WCS, 'AstroImage')
+                if Args.CreateNewObj
+                    Result(Iobj).WCS = Args.WCS(Iwcs).WCS.copy;
+                else
+                    Result(Iobj).WCS = Args.WCS(Iwcs).WCS;
+                end
             else
-                Result(Iobj).WCS = RefWCS(Iref);
+                error('WCS argument must be AstroWCS or AstroImage'); 
             end
-            %Result(Iobj).WCS = Obj(Iobj).WCS.copy;
         end
         if Args.CopyHeader
             if Args.CreateNewObj
