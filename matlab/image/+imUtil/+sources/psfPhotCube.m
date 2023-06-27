@@ -232,6 +232,11 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         DX       = DX + StepX;
         DY       = DY + StepY;
         
+        % if nargout>2
+        %     OutDebug(Ind).X = DX;
+        %     OutDebug(Ind).Y = DY;
+        %     OutDebug(Ind).F = AppFlux;
+        % end
         
         % stoping criteria
         ConvergeFlag = abs(StepX)<ConvThresh & abs(StepY)<ConvThresh;
