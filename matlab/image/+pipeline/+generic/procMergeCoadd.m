@@ -66,6 +66,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
 
         Args.AddGlobalMotion logical          = true;
         Args.UseShift logical                 = true;
+        Args.UseInterp2 logical               = true;
         Args.constructPSFArgs cell            = {};
         Args.psfFitPhotArgs cell              = {};
         
@@ -167,19 +168,33 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
             % Note that the RefWCS is given because we are using the
             % ShiftXY option:
 
+            
             if Args.UseShift
-                RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), ShiftXY(FlagGood,:),...
+                
+                if Args.UseInterp2
+                    RegisteredImages = imProc.transIm.interp2affine(AllSI(FlagGood,Ifields), ShiftXY(FlagGood,:),...
+                                                                    'WCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS);
+                else
+
+
+                    RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), ShiftXY(FlagGood,:),...
                                                      'RefWCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
                                                      'FillValues',0,...
                                                      'ReplaceNaN',true,...
                                                      'CreateNewObj',~Args.ReturnRegisteredAllSI);
+                end
+
             else
                 % Use WCS:
-                RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), AllSI(find(FlagGood,1,'first'),Ifields),...
+                if Args.UseInterp2
+                    RegisteredImages = imProc.transIm.interp2wcs(AllSI(FlagGood,Ifields), AllSI(find(FlagGood,1,'first'),Ifields));
+                else
+                    RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), AllSI(find(FlagGood,1,'first'),Ifields),...
                                                      'TransWCS',true,...
                                                      'FillValues',0,...
                                                      'ReplaceNaN',true,...
                                                      'CreateNewObj',~Args.ReturnRegisteredAllSI);
+                end
             end
 
             % use sigma clipping...
