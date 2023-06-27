@@ -49,7 +49,9 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         Args.CatName                          = 'GAIAEDR3';
         Args.photometricZPArgs cell           = {};                                                              
         Args.ReturnRegisteredAllSI logical    = true; % false;  % if true it means that AllSI will be modified and contain the registered images
-          
+        Args.interp2affineArgs cell           = {};
+        Args.interp2wcsArgs cell              = {};
+
         Args.CoaddLessFrac                    = 0.6; % if number of imagesx in pix is below this frac, than open the CoaddLessImages bit - empty - ignore
         Args.BitName_CoaddLess                = 'CoaddLessImages';
         
@@ -173,7 +175,8 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                 
                 if Args.UseInterp2
                     RegisteredImages = imProc.transIm.interp2affine(AllSI(FlagGood,Ifields), ShiftXY(FlagGood,:),...
-                                                                    'WCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS);
+                                                                    'WCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
+                                                                    Args.interp2affineArgs{:});
                 else
 
 
@@ -187,7 +190,8 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
             else
                 % Use WCS:
                 if Args.UseInterp2
-                    RegisteredImages = imProc.transIm.interp2wcs(AllSI(FlagGood,Ifields), AllSI(find(FlagGood,1,'first'),Ifields));
+                    RegisteredImages = imProc.transIm.interp2wcs(AllSI(FlagGood,Ifields), AllSI(find(FlagGood,1,'first'),Ifields),...
+                                                                 Args.interp2wcsArgs{:});
                 else
                     RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), AllSI(find(FlagGood,1,'first'),Ifields),...
                                                      'TransWCS',true,...
