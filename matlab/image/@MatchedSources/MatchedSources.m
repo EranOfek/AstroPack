@@ -2303,6 +2303,7 @@ classdef MatchedSources < Component
             %                   to the plot function.
             %                   Default is
             %                   {'k.','MarkerFaceColor','k','MarkerSize',3}.
+            %            'PlotColor' - Symbol color. Default is 'k'.
             %            'BinSize' - Bin size for plotting binned data
             %                   points. If empty, do not plot binned data.
             %                   Default is [].
@@ -2334,6 +2335,7 @@ classdef MatchedSources < Component
                 Args.FieldY                   = {};
                 Args.FactorRMS                = 1;
                 Args.PlotSymbol               = {'k.','MarkerFaceColor','k','MarkerSize',3};
+                Args.PlotColor                = 'k';
                 Args.BinSize                  = [];
                 Args.DivideErrBySqrtN(1,1) logical = true;
                 Args.BinMarker                = 'o';
@@ -2395,7 +2397,7 @@ classdef MatchedSources < Component
             AxisY = AxisY.*Args.FactorRMS;
             
             H = plot(AxisX, AxisY, Args.PlotSymbol{:});
-            
+            H.Color = Args.PlotColor;
             
             if ~isempty(Args.BinSize)
                 % add bins to plot
