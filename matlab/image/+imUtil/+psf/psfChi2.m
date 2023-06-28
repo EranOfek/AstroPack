@@ -14,6 +14,13 @@ function [Chi2, WeightedFlux, Dof, ShiftedPSF] = psfChi2(Cube, Std, PSF, Args)
     %                   Default is [].
     %            'DY' - Like 'DX', but for the Y shift.
     %                   Default is [].
+    %            'MinFlux' - A vector of minimal flux per source. If the
+    %                   measured flux of a source is below this value, then the
+    %                   measured flux will be replaced with the minimum flux.
+    %                   This ensures that the chi^2 will be panelized if
+    %                   the flux is below the minum flux.
+    %                   If empty, then do nothing.
+    %                   Default is [].
     %            'WeightedPSF' - sum(PSF.^2, [1 2])
     %                   If empty, then will recalculate.
     %                   Default is [].
@@ -41,6 +48,7 @@ function [Chi2, WeightedFlux, Dof, ShiftedPSF] = psfChi2(Cube, Std, PSF, Args)
         PSF
         Args.DX              = []
         Args.DY              = [];
+        Args.MinFlux         = [];
         Args.WeightedPSF     = [];
         Args.FitRadius2      = [];
         Args.VecXrel         = [];
@@ -75,6 +83,9 @@ function [Chi2, WeightedFlux, Dof, ShiftedPSF] = psfChi2(Cube, Std, PSF, Args)
     end
         
     WeightedFlux = sum(Cube.*ShiftedPSF, [1 2], Args.SumArgs{:})./Args.WeightedPSF;
+    if ~isempty(Args.MinFlux)
+        WeightedFlux = max(WeightedFlux, Args.MinFlux);
+    end
     
     Resid = Cube - WeightedFlux.*ShiftedPSF;
     
