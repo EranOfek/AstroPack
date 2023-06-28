@@ -541,7 +541,7 @@ classdef AstroDb < Component
         function [TupleID, Result] = insert(Obj, Data, Args)
             % insert image header or catalog data into an AstroDb database
             % Input : - Data: 
-            %               a) a cell arra of FITS file names or a FITS file name template
+            %               a) a cell array of FITS file names or a FITS file name template
             %               b) a vector of AstroImages 
             %               c) a vector of AstroHeaders
             %               d) a vector of AstroCatalogs
@@ -617,12 +617,15 @@ classdef AstroDb < Component
                             AC = Data(IData);                            
                             if numel(Args.FileNames) == NData % a separate list of file names is provided
                                 Filename = Args.FileNames{IData};
+                                if Args.Verbose
+                                   fprintf('%s\n', Filename );
+                                end
                             else
                                 Filename = '';
                             end
                         else
                             if Args.Verbose
-                               fprintf('%s\n', Data(IData) );
+                               fprintf('%s\n', char( Data(IData) ) );
                             end
                             AC = AstroCatalog( Data(IData) ); % get AC from a file
                             Filename =   char( Data(IData) ); 
