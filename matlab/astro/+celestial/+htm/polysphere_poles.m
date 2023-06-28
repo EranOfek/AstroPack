@@ -21,7 +21,7 @@ VertLat  = VertLat(:);
 [CD1,CD2,CD3]    = celestial.coo.coo2cosined(VertLong,VertLat);
 [CenLong,CenLat] = celestial.coo.cosined2coo(mean(CD1),mean(CD2),mean(CD3));
 % calcualate direction via P.A.
-[~,PA] = celestial.coo.sphere_dist_fast(CenLong,CenLat,VertLong,VertLat);
+[~,PA] = celestial.coo.sphere_dist(CenLong,CenLat,VertLong,VertLat);
 [~,SI] = sort(PA);
 VertLong = VertLong(SI);
 VertLat  = VertLat(SI);
