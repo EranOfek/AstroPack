@@ -39,12 +39,13 @@ function [Chi2, WeightedFlux, Dof, ShiftedPSF] = psfChi2(Cube, Std, PSF, Args)
         Cube
         Std
         PSF
-        Args.DX           = []
-        Args.DY           = [];
-        Args.WeightedPSF  = [];
-        Args.FitRadius2   = [];
-        Args.VecXrel      = [];
-        Args.VecYrel      = [];
+        Args.DX              = []
+        Args.DY              = [];
+        Args.WeightedPSF     = [];
+        Args.FitRadius2      = [];
+        Args.VecXrel         = [];
+        Args.VecYrel         = [];
+        Args.SumArgs cell    = {'omitnan'};
         %Args.FluxMethod   = 'wsumall';
     end
     
@@ -66,14 +67,14 @@ function [Chi2, WeightedFlux, Dof, ShiftedPSF] = psfChi2(Cube, Std, PSF, Args)
     
     if isempty(Args.DX)
         % assume both DX and DY are empty
-        DX = 0;
-        DY = 0;
+        Args.DX = 0;
+        Args.DY = 0;
         ShiftedPSF = PSF;
     else
-        ShiftedPSF = imUtil.trans.shift_fft(PSF, DX, DY);
+        ShiftedPSF = imUtil.trans.shift_fft(PSF, Args.DX, Args.DY);
     end
         
-    WeightedFlux = sum(Cube.*ShiftedPSF, [1 2], 'omitnan')./Args.WeightedPSF;
+    WeightedFlux = sum(Cube.*ShiftedPSF, [1 2], Args.SumArgs{:})./Args.WeightedPSF;
     
     Resid = Cube - WeightedFlux.*ShiftedPSF;
     
@@ -81,18 +82,24 @@ function [Chi2, WeightedFlux, Dof, ShiftedPSF] = psfChi2(Cube, Std, PSF, Args)
 
     if isempty(Args.FitRadius2)
         % use the entire stamp
-        ResidStd2 = (Resid./Std).^2;
+        %ResidStd2 = (Resid./Std).^2;
+        
+        Chi2  = sum( (Resid./Std).^2, [1 2], Args.SumArgs{:}); %, 'omitnan');
+        
         Dof      = [];
     else
-        MatX     = permute(VecXrel - DX(:),[3 2 1]);
-        MatY     = permute(VecYrel - DY(:),[2 3 1]);
+        MatX     = permute(VecXrel - Args.DX(:),[3 2 1]);
+        MatY     = permute(VecYrel - Args.DY(:),[2 3 1]);
         MatR2    = MatX.^2 + MatY.^2;
         Flag     = MatR2<Args.FitRadius2;
-        ResidStd2= (Flag.*Resid./Std).^2;
+        %ResidStd2= (Flag.*Resid./Std).^2;
+        
+        Chi2  = sum( (Flag.*Resid./Std).^2, [1 2], Args.SumArgs{:}); %, 'omitnan');
+        
         Dof      = squeeze(sum(Flag,[1 2]) - 3);
     end
     
-    Chi2  = sum( ResidStd2, [1 2], 'omitnan');
+    %Chi2  = sum( ResidStd2, [1 2], Args.SumArgs{:}); %, 'omitnan');
     %Chi2  = sum( (Resid./Std).^2, [1 2], 'omitnan');
     Chi2  = squeeze(Chi2);
     
