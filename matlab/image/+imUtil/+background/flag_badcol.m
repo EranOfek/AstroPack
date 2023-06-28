@@ -61,7 +61,7 @@ Flag = Stat>Args.Threshold;
 
 if Args.Dim==1
     N       = size(Image,1);
-    Flag    = repmat(Flag,N,1);
+    Flag    = repmat(Flag',N,1);
 elseif Args.Dim==2
     N       = size(Image,2);
     Flag    = repmat(Flag,1,N);

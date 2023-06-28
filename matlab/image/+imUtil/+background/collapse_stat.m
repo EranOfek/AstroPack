@@ -10,7 +10,7 @@ function Res=collapse_stat(Image,Args)
 %              'FiltLine', while the std of the line is in 'StdLine'.
 % Input  : - An array.
 %          * Pairs of ...,key,val,... arguments. Options are:
-%            'Dim' - Dimension along to collapse the image.
+%            'Dim' - Dimension along which to collapse the image.
 %                   Default is 1.
 %            'CollapseFun' - Collapse function:
 %                   'median' | 'mean' | 'sum' | 'std' | 'var' (ignore
