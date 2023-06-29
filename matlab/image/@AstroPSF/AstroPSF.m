@@ -52,6 +52,7 @@ classdef AstroPSF < Component
         DataPSF2          = [];
         
         DataPSF3          = [];
+        ScaleY            = 1;    % can be employed if pixel Scale X ~= Scale Y
         
         DimDef  cell      = {'WaveMono', 'WaveBand', 'WaveTemp', 'WaveSpType', 'WaveColor',...
                              'PosR', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'};
@@ -714,6 +715,39 @@ classdef AstroPSF < Component
             for Iobj=1:1:Nobj
                 Obj(Iobj).DataPSF = Obj(Iobj).DataPSF./ sum(Obj(Iobj).DataPSF,[1 2]);
             end
+        end
+        
+        function Obj=even2odd(Obj, Args)
+            % Rescale a PSF so that the stamp size becomes odd in both directions
+            % Input  : - An AstroPSF object
+            % Output : - An updated AstroPSF object with the stamp rescaled
+            %            and the scale factors changed appropriately
+            % Author : A. Krassilchtchikov (Jun 2023)
+            arguments
+                Obj
+                Args.Method = 'bilinear'; % interpolation method 
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                SizeX = size(Obj(Iobj).DataPSF,1);
+                SizeY = size(Obj(Iobj).DataPSF,2);
+                if mod( SizeX, 2 ) == 0 && mod( SizeY, 2 ) == 0
+                    Fx = (SizeX + 1) / SizeX; Fy = (SizeY + 1) / SizeY;
+                    Obj(Iobj).DataPSF = (1/(Fx*Fy)) .* imresize( Obj(Iobj).DataPSF, [Fx*SizeX Fy*SizeY], 'Method', Args.Method);
+                elseif mod( SizeX, 2 ) == 0 && mod( SizeY, 2 ) == 1
+                    Fx = (SizeX + 1) / SizeX; Fy = 1;
+                    Obj(Iobj).DataPSF = (1/(Fx*Fy)) .* imresize( Obj(Iobj).DataPSF, [Fx*SizeX Fy*SizeY], 'Method', Args.Method);
+                elseif mod( SizeX, 2 ) == 1 && mod( SizeY, 2 ) == 1
+                    Fx = 1;                   Fy = (SizeY + 1) / SizeY;
+                    Obj(Iobj).DataPSF = (1/(Fx*Fy)) .* imresize( Obj(Iobj).DataPSF, [Fx*SizeX Fy*SizeY], 'Method', Args.Method);                    
+                else
+                    Fx = 1;                   Fy = 1;
+                end
+                Obj(Iobj).Scale   = Obj(Iobj).Scale * Fx; 
+                Obj(Iobj).ScaleY  = Obj(Iobj).Scale * Fy; 
+            end
+            
         end
 
     end
