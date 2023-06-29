@@ -1,6 +1,6 @@
-function Result=findTransients(New, Ref, D, S, Scorr, Z2, F_S, SdN, SdR, Args)
+function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, F_S, SdN, SdR, Args)
     %
-    % Example: imProc.sources.findTransients(AIreg(2), AIreg(1), D, S, Scorr, Z2)
+    % Example: imProc.sources.findTransients(AIreg(2), AIreg(1), D, S, Scorr, Z2, S2)
    
 
     arguments
@@ -10,6 +10,7 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, F_S, SdN, SdR, Args)
         S                          = [];
         Scorr                      = [];
         Z2                         = [];
+        S2                         = [];
         F_S                        = [];
         SdN                        = [];
         SdR                        = [];

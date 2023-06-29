@@ -1,11 +1,11 @@
-function [D, S, Scorr, Z2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef, Args)
+function [D, S, Scorr, Z2, S2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef, Args)
     % 
     % Example: AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
     %          AIreg= imProc.background.background(AIreg,'SubSizeXY',[]);    
     %          AIreg=imProc.sources.findMeasureSources(AIreg);           
     %          m=imProc.match.match(AIreg(1),AIreg(2),'CooType','pix')
 
-    %          [D,S,Scorr,Z2, F_S, SdN, SdR] = imProc.sub.properSubtraction(AIreg(2), AIreg(1));
+    %          [D,S,Scorr,Z2, S2, F_S, SdN, SdR] = imProc.sub.properSubtraction(AIreg(2), AIreg(1));
 
     arguments
         ObjNew AstroImage
@@ -53,7 +53,7 @@ function [D, S, Scorr, Z2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef, Ar
         AI(6) = AstroImage.readFileNamesObj('LAST.01.02.01_2*010_sci_coadd_Image_1.fits');
 
 
-        AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
+        %AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
         AIreg=imProc.transIm.interp2wcs(AI, AI(1));
 
         AIreg= imProc.background.background(AIreg,'SubSizeXY',[]); %[256 256]);  
@@ -73,7 +73,7 @@ function [D, S, Scorr, Z2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef, Ar
         ds9(AIreg(1),1)
         ds9(AIreg(2),2)
 
-        [DD,S,Scorr,Z2, F_S,SdN, SdR] = imProc.sub.properSubtraction(AIreg(5), AIreg(1));
+        [DD,S,Scorr,Z2,S2, F_S,SdN, SdR] = imProc.sub.properSubtraction(AIreg(5), AIreg(1));
 
     end
 
@@ -126,6 +126,7 @@ function [D, S, Scorr, Z2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef, Ar
     % Allocate outputs:
     D     = ObjNew.copy;
     S     = ObjNew.copy;
+    S2    = ObjNew.copy;
     Scorr = ObjNew.copy;
     Z2    = ObjNew.copy;
     SdN   = ObjNew.copy;
@@ -222,13 +223,17 @@ function [D, S, Scorr, Z2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef, Ar
 
 
         [ImageZ2,Zhat,Norm] = imUtil.properSub.translient(N.*Fn, R.*Fr, Pn, Pr, SigmaN, SigmaR);
+        % move this to the translient code
+        ImageZ2(FlagNaN) = NaN;
 
         k = 1;  % chi^2 with k=1 dof
         ExpectedMedian = k.*(1 - 2./(9.*k)).^3;
 
         %ImageZ2 = ImageZ2 - median(ImageZ2,'all','omitnan') + ExpectedMedian;
         ImageZ2 = ImageZ2./tools.math.stat.rstd(ImageZ2,'all').*sqrt(2.*k);
-
+        
+        ImageS2 = ImageS.^2;
+        ImageS2 = ImageS2./tools.math.stat.rstd(ImageS2,'all').*sqrt(2.*k);
                 
 
 
@@ -241,6 +246,9 @@ function [D, S, Scorr, Z2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef, Ar
         S(Imax).Image = ImageS;
         S(Imax).PSF   = Pd;
         S(Imax).MaskData = D(Imax).MaskData;
+
+        S2(Imax).Image    = ImageS2;
+        S2(Imax).MaskData = D(Imax).MaskData;
 
         Scorr(Imax).Image = ImageScorr;
         Scorr(Imax).PSF   = Pd;

@@ -70,7 +70,7 @@ Nsub = size(CCDSEC,1);
 
 for Isub=1:1:Nsub
     if (CCDSEC(Isub,1)<1 || CCDSEC(Isub,2)>SizeXY(1) || CCDSEC(Isub,3)<1 || CCDSEC(Isub,4)>SizeXY(2))
-        error('CCDSEC is out of image boundries');
+        error('CCDSEC is out of image boundaries');
     end
     if ~all(CCDSEC==floor(CCDSEC))
         error('CCDSEC must contain integer values');
