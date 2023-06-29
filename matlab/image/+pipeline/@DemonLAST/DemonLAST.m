@@ -1234,7 +1234,7 @@ classdef DemonLAST < Component
                 Args.SaveMergedMat     = true;
                 Args.SaveAsteroids     = true;
 
-                Args.Insert2DB         = false;
+                Args.Insert2DB         = true;
                 Args.DB_InsertRaw      = false;
                 Args.DB_Table_Raw      = 'raw_images';
                 Args.DB_Table_Proc     = 'proc_images';
