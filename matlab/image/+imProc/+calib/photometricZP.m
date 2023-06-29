@@ -125,7 +125,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         
         Args.CatColNameMag            = {'MAG_PSF', 'MAG_APER_3'}; %'MAG_APER_3'; %'MAG_CONV_3';
         Args.CatColNameMagErr         = {'MAGERR_APER_3'}; %'MAGERR_CONV_3';
-        Args.CatColNameSN             = 'SN_3';
+        Args.CatColNameSN             = 'SN'; %'SN_3';
         Args.MagZP                    = 25;
         Args.PixScale                 = [];
         Args.MagSys                   = 'AB';  % 'AB' | 'Vega'
