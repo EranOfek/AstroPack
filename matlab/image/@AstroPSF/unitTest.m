@@ -112,6 +112,10 @@ function Result = unitTest()
     AP.FWHM = imUtil.psf.pseudoFWHM(AP.DataPSF2);
     AP.ContainmentR = imUtil.psf.containment(AP.DataPSF2(:,:,1,1),'Level',0.99);
     
+    % extended data structures (temporarily in DataPSF3, later will be moved to DataPSF)
+    
+    
+    
     %
     io.msgStyle(LogLevel.Test, '@passed', 'AstroPSF test passed');                          
     Result = true;
