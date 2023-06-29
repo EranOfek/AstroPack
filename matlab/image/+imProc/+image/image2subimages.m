@@ -81,6 +81,7 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
         Args.UpdatePSF logical             = true;
     end
 
+    
     % find the correct partition
     PropList = {'ImageData','BackData','VarData','MaskData'};
     Nprop    = numel(PropList);

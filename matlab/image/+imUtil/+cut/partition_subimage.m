@@ -67,11 +67,23 @@ end
 
 Nsub = size(CCDSEC,1);
 
+FlagOut = CCDSEC(:,1)<0;
+CCDSEC(FlagOut,1) = 1;
+
+FlagOut = CCDSEC(:,3)<0;
+CCDSEC(FlagOut,3) = 1;
+    
+FlagOut = CCDSEC(:,2)>SizeXY(1);
+CCDSEC(FlagOut,2) = SizeXY(1);
+
+FlagOut = CCDSEC(:,4)>SizeXY(2);
+CCDSEC(FlagOut,4) = SizeXY(2);
 
 for Isub=1:1:Nsub
-    if (CCDSEC(Isub,1)<1 || CCDSEC(Isub,2)>SizeXY(1) || CCDSEC(Isub,3)<1 || CCDSEC(Isub,4)>SizeXY(2))
-        error('CCDSEC is out of image boundaries');
-    end
+    % NO NEED becaues of the bu fix
+    %if (CCDSEC(Isub,1)<1 || CCDSEC(Isub,2)>SizeXY(1) || CCDSEC(Isub,3)<1 || CCDSEC(Isub,4)>SizeXY(2))
+    %    error('CCDSEC is out of image boundaries');
+    %end
     if ~all(CCDSEC==floor(CCDSEC))
         error('CCDSEC must contain integer values');
     end
