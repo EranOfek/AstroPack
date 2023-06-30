@@ -14,6 +14,12 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     %            'Back' - A vector of background to subtract from each
     %                   source stamp. If empty, don't subtract background.
     %                   Default is [].
+    %            'SubAnnulusBack' - Logical indicating if to subtract
+    %                   annulus background.
+    %                   Default is false.
+    %            'backgroundCubeArgs' - A cell array of arguments to pass
+    %                   to imUtil.background.backgroundCube
+    %                   Default is {}.
     %            'SumMethod' - One of the following summation of PSFs:
     %                    'sigclip' - Use imUtil.image.mean_sigclip.
     %                    'mean' - Mean of PSFs.
@@ -74,6 +80,8 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         
         Args.Norm                  = [];  % vector of normalization per cutout
         Args.Back                  = [];  % Back to subtract. If [] don't subtract.
+        Args.SubAnnulusBack logical= false;
+        Args.backgroundCubeArgs cell= {};
         Args.SumMethod             = 'sigclip';
         Args.mean_sigclipArgs cell = {};
         Args.PostNormBySum logical = true;
@@ -126,7 +134,12 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         Cube = Cube - reshape(Args.Back(:), 1, 1, Nim);
     end
     
-    
+    % add subtract annulus background
+    if Args.SubAnnulusBack
+        [Back] = backgroundCube(Cube, Args.backgroundCubeArgs{:});
+        Cube   = Cube - reshape(Back(:), 1, 1, Nim);
+    end
+        
     SizeCube = size(Cube);
     Ncube    = SizeCube(3);
     Xcen     = SizeCube(2).*0.5 + 0.5;

@@ -93,7 +93,7 @@ function AI=photometry(AI, Args)
             XY = [FindSrcSt.XPEAK, FindSrcSt.YPEAK];
             XY = XY(FlagGoodPsf,:);
             % need to add multiply by cosine bell...
-            [Mean, Var, Nim, FlagSelected] = imUtil.psf.constructPSF_cutouts(Obj(Iobj).Image, XY, Args)
+            [Mean, Var, Nim, FlagSelected] = imUtil.psf.constructPSF_cutouts(Obj(Iobj).Image, XY, 'SubAnnulusBack',..., Args)
         end
 
 
