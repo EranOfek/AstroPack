@@ -3,17 +3,21 @@ function AI=photometry(AI, Args)
     
     arguments
         AI AstroImage
-        Args.ReCalcBack logical      = false;
-        Args.backgroundArgs cell     = {};
+        Args.ReCalcBack logical        = false;
+        Args.backgroundArgs cell       = {};
         
-        Args.Threshold               = 5;
-        Args.ThresholdPSF            = 20;
-        Args.InitPsf                 = @imUtil.kernel2.gauss
-        Args.InitPsfArgs cell        = {[0.1;2]};
-        Args.Conn                    = 8;
-        Args.CleanSources            = true;
-        Args.cleanSourcesArgs cell   = {};
-        Args.backgroundCubeArgs cell = {};
+        Args.Threshold                 = 5;
+        Args.ThresholdPSF              = 20;
+        Args.InitPsf                   = @imUtil.kernel2.gauss
+        Args.InitPsfArgs cell          = {[0.1;2]};
+        Args.Conn                      = 8;
+        Args.CleanSources              = true;
+        Args.cleanSourcesArgs cell     = {};
+        Args.backgroundCubeArgs cell   = {};
+        
+        Args.SNdiff                    = 0;  % if empty skip
+        Args.moment2Args cell          = {};
+        Args.DeltaSigma                = 0.5;   % if empty skip
     end
    
     
@@ -42,8 +46,20 @@ function AI=photometry(AI, Args)
     
         % Select sources for PSF
         % select by SN diff
-        
+        Nsrc = numel(FindSrcSt.XPEAK);
+        FlagGoodPsf = true(Nsrc,1);
+        if ~isempty(Args.SNdiff) && size(FindSrcSt.SN,2)>1
+            Flag        = FindSrcSt.SN(:,2) > FindSrcSt.SN(:,1);
+            FlagGoodPsf = FlagGoodPsf && Flag;
+        end
         % select by moments
+        if ~isempty(Args.DeltaSigma)
+            [M1, M2]    = imUtil.image.moment2(Cube, FindSrcSt.XPEAK, FindSrcSt.YPEAK, Args.moment2Args{:});
+            Sigma       = sqrt(abs(M2.X2)+abs(M2.Y2));
+            MedSigma    = imUtil.background.mode(Sigma(FlagSN));
+            FlagSig     = Sigma>(MedSigma - Args.DeltaSigma) & Sigma<(MedSigma + Args.DeltaSigma);
+            FlagGoodPsf = FlagGoodPsf & FlagSig;
+        end
         % select by neighboors
         
         
