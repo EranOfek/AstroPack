@@ -12,9 +12,6 @@ function Result = findSources(Obj, Args)
     %                   cube.
     %                   Default is @imUtil.kernel2.gauss
     %                  
-    %            'Psf' - A function handle to generate PSF or a cube of
-    %                   PSFs.
-    %                   Default is @imUtil.kernel2.gauss.
     %            'PsfArgs' - A cell array of parameters to pass to the Psf
     %                   if a function_handle.
     %                   Default is {[0.1;1.5;3]} (i.e., will generate a cuve of
