@@ -65,17 +65,11 @@ function AI=photometry(AI, Args)
         % select by neighboors
         if ~isempty(Args.NighRadius)
             [MatchedInd] = VO.search.search_sortedY_multi([FindSrcSt.XPEAK, FindSrcSt.YPEAK], FindSrcSt.XPEAK, FindSrcSt.YPEAK, Args.NighRadius);
-            FlagGoodPsf    = FlagGoodPsf & [MatchedInd.Nmatch]==1
+            FlagGoodPsf    = FlagGoodPsf & [MatchedInd.Nmatch]==1;
         end
         % FlagGoodPsf contains the good sources
         NgoodPsf = sum(FlagGoodPsf);
-        if NgoodPsf<Args.MinNumGoodPsf
-            % No PSF
-            what to do?
-        else
-            
-        end
-        
+                
         
         % Cube of sources
         [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Obj(Iobj).Image, FindSrcSt.XPEAK, FindSrcSt.YPEAK, MaxRadius, Args)
@@ -91,9 +85,17 @@ function AI=photometry(AI, Args)
         % subtract background from cube
         Cube = Cube - Back;
         
-        
         % construct PSF
-        [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
+        if NgoodPsf<Args.MinNumGoodPsf
+            % No PSF
+            what to do?
+        else
+            XY = [FindSrcSt.XPEAK, FindSrcSt.YPEAK];
+            XY = XY(FlagGoodPsf,:);
+            % need to add multiply by cosine bell...
+            [Mean, Var, Nim, FlagSelected] = imUtil.psf.constructPSF_cutouts(Obj(Iobj).Image, XY, Args)
+        end
+
 
 
 
