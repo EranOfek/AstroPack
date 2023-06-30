@@ -59,6 +59,8 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
     %            'cleanSourcesArgs' - A cell array of additional args to
     %                   pass to imUtil.sources.cleanSources.
     %                   Default is {}.
+    %            'SortByY' - Sort sources by Y position.
+    %                   Default is true.
     %
     %            'ImageField' - Image field. Default is 'Im'.
     %            'BackField' - Background field. Default is 'Back'.
@@ -97,6 +99,7 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
         Args.Conn                          = 8;
         Args.CleanSources logical          = false;
         Args.cleanSourcesArgs cell         = {};
+        Args.SortByY logical               = true;
         Args.BackField char                = 'Back';
         Args.VarField char                 = 'Var';
     end
@@ -152,11 +155,16 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
 
     Nsrc = size(Pos,1);
 
+    if Args.SortByY
+        [Pos] = sortrows(Pos,2);
+    end
+    
     IndI = repmat(Pos(:,2),1,Ntemplate);
     IndJ = repmat(Pos(:,1),1,Ntemplate);
     IndT = (1:1:Ntemplate).*ones(Nsrc,1);
     %Ind  = sub2ind(Size,IndI,IndJ,IndT);
     Ind  = imUtil.image.sub2ind3d_fast(Size,IndI,IndJ,IndT);
+    
     
     Src.XPEAK     = Pos(:,1);
     Src.YPEAK     = Pos(:,2);
@@ -165,6 +173,7 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
     Src.SN        = SN(Ind);
     Src.FLUX_CONV = Flux(Ind);
 
+            
     if numel(Back)==1
         Src.BACK_IM = Back;
         Src.VAR_IM  = Var;

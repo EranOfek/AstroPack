@@ -18,6 +18,8 @@ function AI=photometry(AI, Args)
         Args.SNdiff                    = 0;  % if empty skip
         Args.moment2Args cell          = {};
         Args.DeltaSigma                = 0.5;   % if empty skip
+        Args.NighRadius                = 5;     % if empty skip
+        Args.MinNumGoodPsf             = 5;
     end
    
     
@@ -40,6 +42,7 @@ function AI=photometry(AI, Args)
                                                               'Conn',Args.Conn,...
                                                               'CleanSources',Args.CleanSources,...
                                                               'cleanSourcesArgs',Args.cleanSourcesArgs,...
+                                                              'SortByY',true,...
                                                               'OutType','struct',...
                                                               'BackField','Back',...
                                                               'VarField','Var');
@@ -57,10 +60,21 @@ function AI=photometry(AI, Args)
             [M1, M2]    = imUtil.image.moment2(Cube, FindSrcSt.XPEAK, FindSrcSt.YPEAK, Args.moment2Args{:});
             Sigma       = sqrt(abs(M2.X2)+abs(M2.Y2));
             MedSigma    = imUtil.background.mode(Sigma(FlagSN));
-            FlagSig     = Sigma>(MedSigma - Args.DeltaSigma) & Sigma<(MedSigma + Args.DeltaSigma);
-            FlagGoodPsf = FlagGoodPsf & FlagSig;
+            FlagGoodPsf = FlagGoodPsf & (Sigma>(MedSigma - Args.DeltaSigma) & Sigma<(MedSigma + Args.DeltaSigma));
         end
         % select by neighboors
+        if ~isempty(Args.NighRadius)
+            [MatchedInd] = VO.search.search_sortedY_multi([FindSrcSt.XPEAK, FindSrcSt.YPEAK], FindSrcSt.XPEAK, FindSrcSt.YPEAK, Args.NighRadius);
+            FlagGoodPsf    = FlagGoodPsf & [MatchedInd.Nmatch]==1
+        end
+        % FlagGoodPsf contains the good sources
+        NgoodPsf = sum(FlagGoodPsf);
+        if NgoodPsf<Args.MinNumGoodPsf
+            % No PSF
+            what to do?
+        else
+            
+        end
         
         
         % Cube of sources
