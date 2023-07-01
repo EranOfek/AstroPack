@@ -36,7 +36,17 @@ function AI=photometry(AI, Args)
     
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
-        % find bright sources for PSF
+        % check if PSF already exist
+        
+        
+        % find bright sources for PSF and construct PSF
+        [Result, MeanPSF, VarPSF, NimPSF] = imUtil.psf.constructPSF(Obj(Iobj).Image)
+        
+        
+        
+    
+        
+        
         [FindSrcSt] = imUtil.sources.findSources(Obj(Iobj).Image, 'Threshold',Args.ThresholdPSF,...
                                                               'Psf',Args.InitPsf,...
                                                               'PsfArgs',Args.InitPsfArgs,...

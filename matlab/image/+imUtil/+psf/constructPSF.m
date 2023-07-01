@@ -47,7 +47,7 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
     %                   Default is true.
     %            'RadiusPSF' - Radius of PSF to construct.
     %                   Stamp size will be radiusPSF*2 +1.
-    %                   Default is 9.
+    %                   Default is 8.
     %            'image2cutoutsArgs' - A cell array of arguments to pass to
     %                   imUtil.cut.image2cutouts
     %                   Default is {}.
@@ -123,7 +123,7 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         Args.Var                    = [];
         Args.SubAnnulusBack logical = true;
        
-        Args.RadiusPSF                 = 9;
+        Args.RadiusPSF                 = 8;
         Args.image2cutoutsArgs cell    = {};
         
         %Args.Threshold                 = 5;
