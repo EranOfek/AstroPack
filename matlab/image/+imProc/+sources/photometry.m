@@ -6,6 +6,8 @@ function AI=photometry(AI, Args)
         Args.ReCalcBack logical        = false;
         Args.backgroundArgs cell       = {};
         
+        Args.RadiusPSF                 = 9;
+        Args.image2cutoutsArgs cell    = {};
         Args.Threshold                 = 5;
         Args.ThresholdPSF              = 20;
         Args.InitPsf                   = @imUtil.kernel2.gauss
@@ -20,6 +22,9 @@ function AI=photometry(AI, Args)
         Args.DeltaSigma                = 0.5;   % if empty skip
         Args.NighRadius                = 5;     % if empty skip
         Args.MinNumGoodPsf             = 5;
+        
+        Args.SubBack logical           = false;
+        Args.SubAnnulusBack logical    = true;
     end
    
     
@@ -47,6 +52,9 @@ function AI=photometry(AI, Args)
                                                               'BackField','Back',...
                                                               'VarField','Var');
     
+        % Cube of sources
+        [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Obj(Iobj).Image, FindSrcSt.XPEAK, FindSrcSt.YPEAK, Args.RadiusPSF, Args.image2cutoutsArgs{:});
+
         % Select sources for PSF
         % select by SN diff
         Nsrc = numel(FindSrcSt.XPEAK);
@@ -71,30 +79,40 @@ function AI=photometry(AI, Args)
         NgoodPsf = sum(FlagGoodPsf);
                 
         
-        % Cube of sources
-        [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Obj(Iobj).Image, FindSrcSt.XPEAK, FindSrcSt.YPEAK, MaxRadius, Args)
-
-        % subtract background from cube
-        if Args.BackPsfUseAnnulus
-            % calculate background in annulus
-            [Back, Std] = imUtil.sources.backgroundCube(Cube, Args.backgroundCubeArgs{:});
-        else
-            % use background from Back image
-            Back = Obj(Iobj).getImageVal(FindSrcSt.XPEAK, FindSrcSt.YPEAK, 'DataProp',{'Back'});
-        end
-        % subtract background from cube
-        Cube = Cube - Back;
         
-        % construct PSF
+        % subtract background from cube is done as part of the PSF
+        % construction
+         % construct PSF
         if NgoodPsf<Args.MinNumGoodPsf
             % No PSF
-            what to do?
+            MeanPSF = [];
+            VarPSF  = [];
+            NimPSF  = 0;
         else
             XY = [FindSrcSt.XPEAK, FindSrcSt.YPEAK];
             XY = XY(FlagGoodPsf,:);
+            if Args.SubBack
+                Back = Obj(Iobj).Back;
+            else
+                Back = [];
+            end
             % need to add multiply by cosine bell...
-            [Mean, Var, Nim, FlagSelected] = imUtil.psf.constructPSF_cutouts(Obj(Iobj).Image, XY, 'SubAnnulusBack',..., Args)
+            [MeanPSF, VarPSF, NimPSF, FlagSelected] = imUtil.psf.constructPSF_cutouts(Obj(Iobj).Image, XY,...
+                                                        'Back',Back,...
+                                                        'SubAnnulusBack',Args.SubAnnulusBack, Args)
         end
+        
+%         if Args.BackPsfUseAnnulus
+%             % calculate background in annulus
+%             [Back, Std] = imUtil.sources.backgroundCube(Cube, Args.backgroundCubeArgs{:});
+%         else
+%             % use background from Back image
+%             Back = Obj(Iobj).getImageVal(FindSrcSt.XPEAK, FindSrcSt.YPEAK, 'DataProp',{'Back'});
+%         end
+%         % subtract background from cube
+%         Cube = Cube - Back;
+        
+       
 
 
 

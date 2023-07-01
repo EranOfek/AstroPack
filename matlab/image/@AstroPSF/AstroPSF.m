@@ -655,6 +655,7 @@ classdef AstroPSF < Component
             % Multiply the PSF by edge suppressing function (e.g., cosbell).
             %   Useful in order to vrify that the PSF is zero padded and
             %   approach zero smoothly.
+            %   See also: imUtil.psf.suppressEdges                
             % Input  : - An AstroPSF object.
             %          * ...,key,val,...
             %            'Fun' - A 2-D function that will multiply the PSF.
