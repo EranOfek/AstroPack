@@ -95,6 +95,9 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
     %            'constructPSF_cutoutsArgs' - A cell array of arguments to
     %                   pass to imUtil.psf.constructPSF_cutouts
     %                   Default is {}.
+    %            'SumMethod' - PSF sum method (see
+    %                   imUtil.psf.constructPSF_cutouts for options).
+    %                   Default is 'median'.
     %
     %            'SmoothWings' - Smooth wings using imUtil.psf.psf_zeroConvergeArgs
     %                   Default is true.
@@ -109,6 +112,7 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
     %          - PSF variance.
     %          - Number of actial PSF used.
     %
+    % Author : Eran Ofek (Jul 2023)
     % Example: AI=AstroImage('LAST.00.01.01_20220303.224914.224_clear__001_001_001_sci_raw_Image_1.fits');
     %          AI.crop([2000 3000 2000 3000]);
     %          AI=imProc.background.background(AI);   
@@ -129,7 +133,7 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         %Args.Threshold                 = 5;
         Args.ThresholdPSF              = 20;
         Args.RangeSN                   = [50 1000];
-        Args.InitPsf                   = @imUtil.kernel2.gauss
+        Args.InitPsf                   = @imUtil.kernel2.gauss;
         Args.InitPsfArgs cell          = {[0.1;2]};
         Args.Conn                      = 8;
         Args.CleanSources              = true;
@@ -143,6 +147,7 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         Args.MinNumGoodPsf             = 5;
         
         Args.constructPSF_cutoutsArgs cell = {};
+        Args.SumMethod                 = 'median';
         
         Args.SmoothWings logical       = true;
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
@@ -239,7 +244,9 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
                                                         'ReCenter',true,...
                                                         'Back',Back,...
                                                         'SmoothWings',Args.SmoothWings,...
-                                                        'SubAnnulusBack',Args.SubAnnulusBack, Args.constructPSF_cutoutsArgs{:});
+                                                        'SubAnnulusBack',Args.SubAnnulusBack,...
+                                                        'SumMethod',Args.SumMethod,...
+                                                        Args.constructPSF_cutoutsArgs{:});
     end
     
     % suppress edges

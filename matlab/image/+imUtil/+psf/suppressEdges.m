@@ -14,7 +14,7 @@ function PSF=suppressEdges(PSF, Args)
     %                   sum of the PSF to 1.
     %                   Default is true.
     % Output : - A PSF stamp.
-    % Author : Eran Ofek (Jun 2023)
+    % Author : Eran Ofek (Jul 2023)
     % Example: imUtil.psf.suppressEdges(rand(25,25))
 
     arguments
