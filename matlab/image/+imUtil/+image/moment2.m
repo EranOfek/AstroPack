@@ -148,11 +148,11 @@ Args.WeightFun  = cast(Args.WeightFun, 'like',Image);
 
 MomRadius2 = cast(Args.MomRadius.^2, 'single');
 
-if nargout>2
+%if nargout>2
     MaxRadius  = max(Args.MomRadius, Args.Annulus(2));   % need to be larger than all the rest
-else
-    MaxRadius  = Args.MomRadius;
-end
+%else
+%    MaxRadius  = Args.MomRadius;
+%end
 Naper      = numel(Args.AperRadius);
 
 
