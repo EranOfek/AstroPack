@@ -49,15 +49,17 @@ classdef AstroPSF < Component
         
         Nstars            = NaN;  % If Nstars=NaN, then PSF wasn't constructed yet
         
-        DataPSF2          = [];
+        ScaleY            = 1;    % will be employed if pixel Scale X ~= Scale Y
         
-        DataPSF3          = [];
-        ScaleY            = 1;    % can be employed if pixel Scale X ~= Scale Y
-        
-        DimDef  cell      = {'WaveMono', 'WaveBand', 'WaveTemp', 'WaveSpType', 'WaveColor',...
+        DataPSF2          = [];  % experimental
+        DimDef2  cell     = {'WaveMono', 'WaveBand', 'WaveTemp', 'WaveSpType', 'WaveColor',...
                              'PosR', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'};
-        DimAxis cell      = cell(1,10);       
+        DimAxis2 cell     = cell(1,10);       
         
+        DataPSF3          = []; % experimental
+        DimDef3  cell     = {'Wave', 'PosXR', 'PosY', 'PixPhaseX', 'PixPhaseY'};
+        DimAxis3 cell     = cell(1,5);       
+                
         FWHM              = [];  % for each of the points in the DimDef space ?
         ContainmentR      = [];  % for each of the points in the DimDef space ?
         

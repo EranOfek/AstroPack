@@ -38,7 +38,7 @@ function Result = unitTest()
 %     [FWHM_CumSum, FWHM_Flux] = fwhm(AP(1));
     [FWHM_CumSum, FWHM_Flux] = fwhm(AP);    
     
-    % extended data structures (temporarily in DataPSF2, later will be moved to DataPSF)
+    % extended data structures (temporarily in DataPSF2-3, later will be moved to DataPSF)
     
     AP = AstroPSF;
     P0 = imUtil.kernel2.gauss;
@@ -57,15 +57,17 @@ function Result = unitTest()
     Lam = [2000 4000 6000]; % 3 wavelengths for 3 PSFs 
     Rad = [0 2 4];          % 3 radial positions
     
-    AP.DimAxis{1} = Lam; 
-    AP.DimAxis{6} = Rad;           
+    % 
+    
+    AP.DimAxis2{1} = Lam; 
+    AP.DimAxis2{6} = Rad;           
     
     AP.DataPSF2 = zeros( AP.StampSize(1), AP.StampSize(2), ...
-                         max(size(AP.DimAxis{1},2),1), max(size(AP.DimAxis{2},2),1), ...
-                         max(size(AP.DimAxis{3},2),1), max(size(AP.DimAxis{4},2),1), ...
-                         max(size(AP.DimAxis{5},2),1), max(size(AP.DimAxis{6},2),1), ...
-                         max(size(AP.DimAxis{7},2),1), max(size(AP.DimAxis{8},2),1), ...
-                         max(size(AP.DimAxis{9},2),1), max(size(AP.DimAxis{10},2),1) );
+                         max(size(AP.DimAxis2{1},2),1), max(size(AP.DimAxis2{2},2),1), ...
+                         max(size(AP.DimAxis2{3},2),1), max(size(AP.DimAxis2{4},2),1), ...
+                         max(size(AP.DimAxis2{5},2),1), max(size(AP.DimAxis2{6},2),1), ...
+                         max(size(AP.DimAxis2{7},2),1), max(size(AP.DimAxis2{8},2),1), ...
+                         max(size(AP.DimAxis2{9},2),1), max(size(AP.DimAxis2{10},2),1) );
     
     % put 3 PSFs at 3 radial postions and interpolate: 
                      
