@@ -139,6 +139,9 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     %                   The following columns will be added:
     %                   'AST_NSRC','AST_ARMS','AST_ERRM'
     %                   Default is true.
+    %            'AddCoo2Cat' - A logical indicating if to add RA/Dec
+    %                   columns to the catalog.
+    %                   Default is false (MAY BE CHANGED IN THE FUTURE).
     %            'CatColNamesX' - A cell array dictionary of input catalog
     %                   X column name. Default is AstroCatalog.DefNamesX.
     %            'CatColNamesY' - A cell array dictionary of input catalog
@@ -221,7 +224,8 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         Args.OutCatColPos                       = Inf;
         Args.SortCat                            = 'Dec';  % if empty donit sort
 
-        Args.UpdateHeader logical         = true;
+        Args.UpdateHeader logical               = true;
+        Args.AddCoo2Cat logical                 = false;
 
         Args.CatColNamesX                       = AstroCatalog.DefNamesX;
         Args.CatColNamesY                       = AstroCatalog.DefNamesY;
@@ -550,5 +554,10 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         
         
     end
+
+    if Args.AddCoo2Cat
+        Obj = imProc.astrometry.addCoordinates2catalog(Obj);
+    end
+
                 
 end
