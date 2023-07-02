@@ -138,7 +138,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     %                   header the astrometric quality information.
     %                   The following columns will be added:
     %                   'AST_NSRC','AST_ARMS','AST_ERRM'
-    %                   Default is true.
+    %                  
     %            'AddCoo2Cat' - A logical indicating if to add RA/Dec
     %                   columns to the catalog.
     %                   Default is false (MAY BE CHANGED IN THE FUTURE).
@@ -506,45 +506,45 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                 Result(Iobj).WCS = WCS;  %AstroWCS.tran2wcs(Result(Iobj).Tran, KeyValWCS{:});
 
                 % add RA/Dec to the catalog
-                if nargout>1
+                %if nargout>1
 
-                    % update header with astrometric quality information
-                    if Args.UpdateHeader
-                        Keys = {'AST_NSRC','AST_ARMS','AST_ERRM'};
-                        Obj(Iobj).HeaderData.replaceVal(Keys,...
-                                                        {Result(Iobj).ResFit.Ngood,...
-                                                         Result(Iobj).ResFit.AssymRMS.*ARCSEC_DEG,...
-                                                         Result(Iobj).ResFit.ErrorOnMean.*ARCSEC_DEG},...
-                                                        'Comment',{'Number of astrometric sources',...
-                                                                   'Astrometric assymptotic RMS [arcsec]',...
-                                                                   'Astrometric error on the mean [arcsec]'});
-                    end
+                % update header with astrometric quality information
+                if Args.UpdateHeader
+                    Keys = {'AST_NSRC','AST_ARMS','AST_ERRM'};
+                    Obj(Iobj).HeaderData.replaceVal(Keys,...
+                                                    {Result(Iobj).ResFit.Ngood,...
+                                                     Result(Iobj).ResFit.AssymRMS.*ARCSEC_DEG,...
+                                                     Result(Iobj).ResFit.ErrorOnMean.*ARCSEC_DEG},...
+                                                    'Comment',{'Number of astrometric sources',...
+                                                               'Astrometric assymptotic RMS [arcsec]',...
+                                                               'Astrometric error on the mean [arcsec]'});
+                end
 
-                    % update RA/Dec in catalog
-                    [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Cat.getCol(IndCatX), Cat.getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
-                    %Cat = deleteCol(Cat, {Args.OutCatColRA, Args.OutCatColDec});
-                    %No need - done in insertCol
-                    Cat = insertCol(Cat, [ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
-                    if ~isempty(Args.SortCat)
-                        Cat = sortrows(Cat, Args.SortCat);
-                    end
+                % update RA/Dec in catalog
+                [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Cat.getCol(IndCatX), Cat.getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
+                %Cat = deleteCol(Cat, {Args.OutCatColRA, Args.OutCatColDec});
+                %No need - done in insertCol
+                Cat = insertCol(Cat, [ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
+                if ~isempty(Args.SortCat)
+                    Cat = sortrows(Cat, Args.SortCat);
+                end
 
-                    if isa(Obj, 'AstroImage')
-                        Obj(Iobj).CatData = Cat;
-                        % update WCS in AstroImage
-                        Obj(Iobj).WCS = Result(Iobj).WCS;
-                        % add WCS kesy to Header
-                        Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
-                        % add RA/Dec corners to header
-                        Obj(Iobj).HeaderData = addCornersCoo2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+                if isa(Obj, 'AstroImage')
+                    Obj(Iobj).CatData = Cat;
+                    % update WCS in AstroImage
+                    Obj(Iobj).WCS = Result(Iobj).WCS;
+                    % add WCS kesy to Header
+                    Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+                    % add RA/Dec corners to header
+                    Obj(Iobj).HeaderData = addCornersCoo2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
 
-                    elseif isa(Obj, 'AstroCatalog')
-                        Obj(Iobj)         = Cat;
-                    else
-                        error('Unsupported input class. First input must be AstroCatalog or AstroImage');
-                    end
+                elseif isa(Obj, 'AstroCatalog')
+                    Obj(Iobj)         = Cat;
+                else
+                    error('Unsupported input class. First input must be AstroCatalog or AstroImage');
                 end
             end
+            %end
         else % If GoodAstrometry
             if isa(Args.CatName,'AstroCatalog')
                 AstrometricCat(Iobj) = Args.CatName(Iobj);
