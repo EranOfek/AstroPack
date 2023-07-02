@@ -46,23 +46,24 @@ classdef AlertsDb < Component
             %
             arguments
                 % These arguments are used when both DbQuery and DbCon are NOT set:
-                Args.Host          = 'socsrv'           % localhost'     % 'socsrv'        % Host name or IP address
-                Args.Port          = 5432               % 63331           % 5432            % Port number
-                Args.DatabaseName  = 'lastdb'           % 'last_operational' at last0 node
+                Args.Host          = 'socsrv'           % Host name or IP address
+                Args.Port          = 5432               % Port number
+                Args.DatabaseName  = 'socdb'            % Database name
                 Args.UserName      = ''                 % User name
                 Args.Password      = ''                 % Password
-                Args.TableName     = 'alerts.events';
+                Args.TableName     = 'alerts.events';   % Alerts table name
             end
             
+            % Retreive user/password 
             PM = PasswordsManager;
             Args.UserName = PM.search(Args.DatabaseName).User;
             Args.Password = PM.search(Args.DatabaseName).Pass;
 
             %
-            Obj.setName(Args.DatabaseName);
+            Obj.setName('AlertsDb');
             
             % Create DbQuery object
-            Obj.msgLog(LogLevel.Info, 'Connecting to server %s:%d, database: %s, user: %s/%s', Args.Host, Args.Port, Args.DatabaseName, Args.UserName, Args.Password);
+            Obj.msgLog(LogLevel.Info, 'Connecting to server %s:%d, database: %s, user: %s/%s', Args.Host, Args.Port, Args.DatabaseName, Args.UserName, '***');  %Args.Password);
             Obj.Query = db.DbQuery('Host', Args.Host, 'Port', Args.Port, 'UserName', 'postgres', 'Password', Args.Password, 'DatabaseName', Args.DatabaseName);
             
             % Query database version, to verify that we have a connection
@@ -74,35 +75,43 @@ classdef AlertsDb < Component
         
     end
     
+    
     methods % user interface functions
         
-        function Result = selectAlerts(Obj, Data, Args)
-            % insert image header or catalog data into an AstroDb database
-            % Input : - Data: 
-
-            %         * ...,key,val,...
-            %         'Table'  : table name            
-            %         'Type'   : 'img' or 'cat'
-            %         'DataDir': if not empty, 'Data' should contain a filename template
-            %                    e.g., 'LAST*sci*raw_Image*.fits'
-            %         'Hash'   : insert a hash sum for each entry
-            %         'Force'  : insert a record from the file if the same
-            %                    record from the same file (same hash sum) has been inserted already
-            %         'Verbose': print names of the digested files
-            % Author : A. Krassilchtchikov (Jun 2023)
+        function Result = selectAlerts(Obj, Args)
+            % Select incoming alerts from database, using specified filters.
+            % Input : 
+            %         * Pairs of ...,key,val,...
+            %           The following keys are available:                                    
+            %         'Type'      : 
+            %         'FromTime'  :
+            %         'ToTime'    :
+            % Author : Chen Tishler (07/2023)
             
             arguments
                 Obj
-                Data                                % input images (file names or AstroImages) or AstroHeaders
-                Args.Table        = '';             % table name (by def. take from the Object property)
-                Args.Type         = 'img';          % data type: 'img' or 'cat'
+                Args.Type         = [];
                 Args.FromTime     = [];
                 Args.ToTime       = [];
+                Args.Limit        = -1;
             end
-                      
-
-            Result = true;
             
+            % Prepare query
+            Where = sprintf('alert_source = ''lvc'' ');
+            if ~isempty(Args.Type)
+                Where = [Where, sprintf(' AND alert_type = ''%s'' ', Args.Type)];
+            end
+            
+            if ~isempty(Args.FromTime) && ~isempty(Args.ToTime)
+                From = datestr(Args.FromTime, 'yyyy-mm-dd HH:MM:SS');
+                To = datestr(Args.ToTime, 'yyyy-mm-dd HH:MM:SS');
+                Where = [Where, sprintf(' AND alert_event_time >= ''%s'' and alert_event_time <= ''%s'' ', From, To)];
+            end
+            
+            % Execute the query
+            DataSet = Q.select('*', Obj.TableName, 'Where', Where, 'Limit', Limit, 'Order', 'pk');
+            
+            Result = DataSet;            
         end
 
     end
