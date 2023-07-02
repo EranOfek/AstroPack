@@ -1,6 +1,6 @@
 function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, F_S, SdN, SdR, Args)
     %
-    % Example: imProc.sources.findTransients(AIreg(2), AIreg(1), D, S, Scorr, Z2, S2)
+    % Example: imProc.sources.findTransients(AIreg(2), AIreg(1), DD, S, Scorr, Z2, S2)
    
 
     arguments
@@ -102,10 +102,13 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, F_S, SdN, SdR, Arg
             ValSdR   = squeeze(max(Cube,[],[1 2]));
             %ValSdR   = SdR(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
         end
-        if isempty(Z2)
+        if isempty(Z2) || isempty(S2)
             ValZ2 = nan(Nsrc,1);
+            ValS2 = nan(Nsrc,1);
+
         else
             ValZ2    = Z2(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
+            ValS2    = S2(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
         end
         
         %Chi2dof = ResultN.Chi2./ResultN.Dof;
@@ -128,8 +131,9 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, F_S, SdN, SdR, Arg
         Result(Iobj).LocalMax = LocalMax;
 
         TranTable = AstroCatalog;
-        TranTable.ColNames = {'XPEAK','YPEAK','Scorr','PSF_SNm','Chi2_D','NewMaskVal','RefMaskVal','ValSdN','ValSdR', 'N_SNm','N_Chi2dof','N_Flux', 'R_SNm','R_Chi2dof','R_Flux'};
-        TranTable.Catalog  = [LocalMax(:,1:3),  ResultD.SNm, Chi2dof, NewMaskVal, RefMaskVal, ValSdN, ValSdR, ResultN.SNm, ResultN.Chi2./ResultN.Dof, ResultN.Flux, ResultR.SNm, ResultR.Chi2./ResultR.Dof, ResultR.Flux ]
+        TranTable.ColNames = {'XPEAK',            'YPEAK',       'Scorr',       'PSF_SNm',   'Chi2_D', 'NewMaskVal','RefMaskVal','ValSdN','ValSdR', 'ValZ2', 'ValS2', 'N_SNm',    'N_Chi2dof',               'N_Flux',     'R_SNm',     'R_Chi2dof',               'R_Flux'};
+        TranTable.Catalog  = table(LocalMax(:,1), LocalMax(:,2), LocalMax(:,3), ResultD.SNm, Chi2dof,  NewMaskVal,  RefMaskVal,  ValSdN,  ValSdR,   ValZ2,   ValS2,   ResultN.SNm, ResultN.Chi2./ResultN.Dof, ResultN.Flux, ResultR.SNm, ResultR.Chi2./ResultR.Dof, ResultR.Flux );
+        TranTable.Catalog.Properties.VariableNames = TranTable.ColNames;
         Result(Iobj).TranTable = TranTable;
         
 
