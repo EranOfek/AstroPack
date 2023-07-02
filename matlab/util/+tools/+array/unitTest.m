@@ -2,7 +2,7 @@ function Result = unitTest
     % Package Unit-Test
 	io.msgStyle(LogLevel.Test, '@start', 'tools.array test started');
     
-    test_onesexcept();
+    test_onesExcept();
     
 %     test_bitset();
     %test_countVal();
@@ -14,7 +14,7 @@ function Result = unitTest
 	Result = true;
 end
 
-function Result = test_onesexcept()
+function Result = test_onesExcept()
     io.msgLog(LogLevel.Test, 'tools.array.onesexcept test started');
     
     % Checking basic functionality and comparing mex and matlab
@@ -22,7 +22,7 @@ function Result = test_onesexcept()
     UseMP = 0;
     mat = [3 6 9; 4 7 11];
     scalar = 5;
-    image = 1;
+    image = true;
     matlab_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);
     
     UseMex = 1;
@@ -31,9 +31,9 @@ function Result = test_onesexcept()
     assert(isequal(matlab_res, mex_res));
     
     
-    iters = 10;
+    iters = 50;
     
-    for arr_sizes=1:4
+    for arr_sizes=3:3
         
         arr_size = power(10,arr_sizes);
         
@@ -41,8 +41,10 @@ function Result = test_onesexcept()
 
             MatlabTimeTotal = 0;
             MexTimeTotal = 0;
+            MexMPTimeTotal = 0;            
             MatlabTime = 0;
             MexTime = 0;
+            MexMPTime = 0;
 
             for iter=1:iters
 
@@ -78,26 +80,34 @@ function Result = test_onesexcept()
                 end
 
                 UseMex = 0;
+                UseMP = 0;
                 t = tic;
                 matlab_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);        
                 MatlabTime = toc(t);
                 MatlabTimeTotal = MatlabTimeTotal + MatlabTime;
 
-
                 UseMex = 1;
+                UseMP = 0;
                 t = tic;
                 mex_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);
                 MexTime = toc(t);
                 MexTimeTotal = MexTimeTotal + MexTime;
 
+                UseMex = 1;
+                UseMP = 1;
+                t = tic;
+                mex_mp_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);
+                MexMPTime = toc(t);
+                MexMPTimeTotal = MexMPTimeTotal + MexMPTime;                
+                                        
                 assert(isequal(matlab_res, mex_res));
-
             end
 
             MatlabTime = MatlabTimeTotal / iters;
             MexTime = MexTimeTotal / iters;
+            MexMPTime = MexMPTimeTotal / iters;
 
-            fprintf('Array_size: %d, Var_type: %s, Matlab: %.6f, Mex: %.6f, Ratio: %0.2f\n', arr_size, var_name, MatlabTime, MexTime, MatlabTime/MexTime);
+            fprintf('Array_size: %d, Var_type: %s, Matlab: %.6f, Mex: %.6f, MexMP: %.6f, Ratio: %0.2f, MP_Ratio: %0.2f\n', arr_size, var_name, MatlabTime, MexTime, MexMPTime, MatlabTime/MexTime, MatlabTime/MexMPTime);
 
         end
     end

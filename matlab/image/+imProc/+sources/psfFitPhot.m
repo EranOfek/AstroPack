@@ -58,7 +58,8 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
     %            SN is the measurment S/N (negative oif flux is negative).
     %            MAGERR_PSF is always positive as it is defined as
     %            1.086/abs(SN).
-    %          - A structure array with the PSF fitting data.
+    %          - A structure array with the PSF fitting data ONLY for the
+    %            last image.
     % Author : Eran Ofek (Feb 2022)
     % Example: AI=AstroImage('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
     %          AI=imProc.background.background(AI);

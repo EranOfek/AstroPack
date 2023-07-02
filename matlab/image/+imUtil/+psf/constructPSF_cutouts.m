@@ -11,9 +11,24 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     %            'Norm' - Vector of normalizations per cutrouts.
     %                   These are the flux normalization one has to
     %                   multiply each cutout, before summation.
+    %                   If empty, then attempt to find the flux
+    %                   normalization (see 'FluxRadius').
+    %                   Default is [].
+    %            'FluxRadius' - If 'Norm' is empty, then this is the radius
+    %                   around the shifted (centered PSF) cube in which to
+    %                   measure the stars flux, and this flux will be used
+    %                   as the flux normalization.
+    %                   Default is 3.
     %            'Back' - A vector of background to subtract from each
     %                   source stamp. If empty, don't subtract background.
     %                   Default is [].
+    %            'SubAnnulusBack' - Logical indicating if to subtract
+    %                   annulus background. This operation will be done
+    %                   after the Back subtraction.
+    %                   Default is false.
+    %            'backgroundCubeArgs' - A cell array of arguments to pass
+    %                   to imUtil.background.backgroundCube
+    %                   Default is {}.
     %            'SumMethod' - One of the following summation of PSFs:
     %                    'sigclip' - Use imUtil.image.mean_sigclip.
     %                    'mean' - Mean of PSFs.
@@ -73,7 +88,10 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         XY                         = [];  % XY positions of sources in image
         
         Args.Norm                  = [];  % vector of normalization per cutout
+        Args.FluxRadius            = 3; % if norm is not given.
         Args.Back                  = [];  % Back to subtract. If [] don't subtract.
+        Args.SubAnnulusBack logical= false;  % subtract annulus background
+        Args.backgroundCubeArgs cell= {};
         Args.SumMethod             = 'sigclip';
         Args.mean_sigclipArgs cell = {};
         Args.PostNormBySum logical = true;
@@ -95,11 +113,11 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         Args.PadVal                = 0;
     end
             
-    if isempty(Args.Norm)
-        size(XY)
-        Args.Norm
-        error('Norm argument must be provided');
-    end
+%     if isempty(Args.Norm)
+%         size(XY)
+%         Args.Norm
+%         error('Norm argument must be provided');
+%     end
     
     MaxRadius = Args.MomRadius;
     
@@ -126,7 +144,12 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         Cube = Cube - reshape(Args.Back(:), 1, 1, Nim);
     end
     
-    
+    % add subtract annulus background
+    if Args.SubAnnulusBack
+        [Back] = imUtil.sources.backgroundCube(Cube, Args.backgroundCubeArgs{:});
+        Cube   = Cube - reshape(Back(:), 1, 1, Nim);
+    end
+        
     SizeCube = size(Cube);
     Ncube    = SizeCube(3);
     Xcen     = SizeCube(2).*0.5 + 0.5;
@@ -134,7 +157,9 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
 
     
     if Args.ReCenter
-        M1 = imUtil.image.moment2(Cube, X, Y, 'MomRadius',Args.MomRadius);
+        
+        %M1 = imUtil.image.moment2(Cube, X, Y, 'MomRadius',Args.MomRadius);
+        M1 = imUtil.image.moment2(Cube, Xcen, Ycen, 'MomRadius',Args.MomRadius);
         X  = M1.X;
         Y  = M1.Y;
         
@@ -157,6 +182,17 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     % cutouts normalization
     if numel(Args.Norm)==1
         Args.Norm = repmat(Args.Norm,1,Ncube);
+    end
+    
+    if isempty(Args.Norm)
+        % find the flux normalization
+        Xvec = (1:1:SizeCube(2)) - Xcen;
+        Yvec = (1:1:SizeCube(1)) - Ycen;
+        MatR2 = Xvec.^2 + Yvec(:).^2;
+        
+        Flag  = MatR2<Args.FluxRadius.^2;
+        Args.Norm = 1./squeeze(sum(Cube.*Flag, [1 2]));
+        
     end
     
     Args.Norm = reshape(Args.Norm, 1,1, Ncube);  % put Norm in 3rd dim

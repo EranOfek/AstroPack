@@ -33,6 +33,8 @@ function [Chi2, WeightedFlux, Dof, ShiftedPSF] = psfChi2(Cube, Std, PSF, Args)
     %                   Default is [].
     %            'VecYrel' - Like 'VecXrel', but for the Y positions.
     %                   Default is [].
+    %            'SumArgs' - A cell array of arguments to pass to the sum
+    %                   function. Default is {'omitnan'}.
     % Output : - Vector of \chi^2 per stamp.
     %          - Vector flux measured for each stamp.
     %          - Degrees of freedom (number of used pixel - 3).

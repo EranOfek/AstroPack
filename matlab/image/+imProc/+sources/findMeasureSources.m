@@ -27,7 +27,7 @@ function Result = findMeasureSources(Obj, Args)
     %                   Default is @imUtil.kernel2.gauss.
     %            'PsfFunPar' - A cell array of parameters to pass to the PsfFun
     %                   function.
-    %                   Default is {[0.1;1.5;3]} (i.e., will generate a cuve of
+    %                   Default is {[0.1; 1.0; 1.5; 2.6; 5]} (i.e., will generate a cuve of
     %                   templates with Gaussian PSF with sigmas of 0.1, 1.5 and
     %                   3 pixels).
     %            'RemoveEdgeDist' - Indicating if to remove sources which

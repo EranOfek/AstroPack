@@ -1,15 +1,109 @@
-function psfChi2_RangeIter(Cube, Std, PSF, DX, DY, HalfRangeX, HalfRangeY, Args)
+function [X1,Y1,MinChi2,Flux0,Dof,H]=psfChi2_RangeIter(Cube, Std, PSF, Args)
+    % Fit a PSF for multiple sources in several pertubed positions, and fit
+    %       a prabolic surface to find the local minima in the chi^2 surface.
+    %       This function should be used iteratively to identify the best-fit
+    %       PSF position.
+    %   Given a PSF and stamps of stars:
+    %   1. Shift the PSF according to DX,DY provided by the user.
+    %   2. Calculate the \chi^2 for the DX, DY positions as well as several
+    %   other positions (relative to DX,DY) given by GridPointX, GridPointY
+    %   and RadiusRange (RadiusRange is just a scaling parameter).
+    %   3. Fit a chi^2 surface and find its minimum.
+    %   4. If minimum is outside some radius, set it to be within this
+    %   radius.
+    %   5. Return the estimated best fit position that minimuized the
+    %   \chi^2.
+    %   The \chi^2 per position is calculated using:
+    %   imUtil.psf.psfChi2
     %
+    % Input  : - A cube of stamps around sources, in which the stamps index
+    %            is in the 3rd dimension.
+    %          - A cube, matrix or scalar, of std (error) in stamps.
+    %          - A matrix of PSF which size is like the stamps size in the
+    %            first two dimensions.
+    %          * ...,key,val,...
+    %            'DX' - A vector which length is like the number of stamps
+    %                   containing the X shift to apply to the PSF prior to the
+    %                   fit.
+    %                   If empty, then do not shift PSF.
+    %                   Default is 0.
+    %            'DY' - Like 'DX', but for the Y shift.
+    %                   Default is 0.
+    %            'MinFlux' - A vector of minimal flux per source. If the
+    %                   measured flux of a source is below this value, then the
+    %                   measured flux will be replaced with the minimum flux.
+    %                   This ensures that the chi^2 will be panelized if
+    %                   the flux is below the minum flux.
+    %                   If empty, then do nothing.
+    %                   Default is [].
+    %            'WeightedPSF' - sum(PSF.^2, [1 2])
+    %                   If empty, then will recalculate.
+    %                   Default is [].
+    %            'FitRadius2' - Radius.^2 around the PSF center of pixels
+    %                   to use in the fit.
+    %                   If empty, then use the entire stamp.
+    %                   Default is [].
+    %            'VecXrel' - A vector of relative X positions in the stamp.
+    %                   If empty, then use: (1:1:Nx) - Xcenter.
+    %                   Default is [].
+    %            'VecYrel' - Like 'VecXrel', but for the Y positions.
+    %                   Default is [].
+    %            'SumArgs' - A cell array of arguments to pass to the sum
+    %                   function. Default is {'omitnan'}.
+    %
+    %            'RadiusRange' - A factor that will multiply GridPointsX/Y.
+    %                   This is useful as you can keep 'GridPointsX/Y' to
+    %                   be constant and just reduce this parameter from
+    %                   iteration to iteration.
+    %                   Default is 1.
+    %            'MaxStep_RadiusRangeUnits' - If the minima of the
+    %                   parabolic \chi^2 surface is larger than this value
+    %                   (in units of GridPointsX/Y) then will set the
+    %                   best minima to be on the maximum radius.
+    %                   Default is 1.
+    %            'GridPointsX' - Grid of X points around the central point in
+    %                   which to calculate the \chi^2.
+    %                   Default is cosd((0:60:359))
+    %            'GridPointsY' - Like 'GridPointsX', but for the Y
+    %                   position.
+    %                   Default is sind((0:60:359))
+    %            'H' - The design matrix of the parabolic surface.
+    %                   If empty, then use:
+    %                   H = [ones(Npoint,1), Args.GridPointsX(:), Args.GridPointsY(:), Args.GridPointsX(:).^2, Args.GridPointsY(:).^2];
+    %                   Default is [].
+    % Output : - X position of the \chi^2 parabolic surface minimum.
+    %          - Y position of the \chi^2 parabolic surface minimum.
+    %          - \chi^2 value evaluate at the minimum parabolic \chi^2
+    %            surface.
+    %          - Vector of flux fitted for all sources at the centreal
+    %            (DX,DY) position.
+    %          - Vector of Dof for each source.
+    %          - The design matrix. Can be used as the input for the next
+    %            iteration.
+    % Author : Eran Ofek (Jun 2023)
+    % Example: Cube=randn(15,15,1000); Std=randn(15,15,1000);
+    %          PSF = imUtil.kernel2.gauss(2,[15 15]);
+    %          [X1,Y1, MinChi2,Flux0,Dof,H]=imUtil.psf.psfChi2_RangeIter(Cube, Std, PSF);
+    
     
     arguments
         Cube
         Std
         PSF
+        Args.DX              = 0;
+        Args.DY              = 0;
+        Args.MinFlux         = [];
         Args.WeightedPSF     = [];
         Args.FitRadius2      = [];
         Args.VecXrel         = [];
         Args.VecYrel         = [];
         Args.SumArgs cell    = {'omitnan'};
+        
+        Args.RadiusRange     = 1;
+        Args.MaxStep_RadiusRangeUnits = 1;
+        Args.GridPointsX     = cosd((0:60:359));
+        Args.GridPointsY     = sind((0:60:359));
+        Args.H               = [];
     end
     
     
@@ -30,81 +124,78 @@ function psfChi2_RangeIter(Cube, Std, PSF, DX, DY, HalfRangeX, HalfRangeY, Args)
     end
     
     
+    
     if numel(Args.DX)==1 && Args.DX==0
-        DX = [];
-        DY = [];
+        DX = 0;
+        DY = 0;
     else
         DX = Args.DX;
         DY = Args.DY;
     end
     
-    [Chi2_0, WeightedFlux_0, Dof] = imUtil.psf.psfChi2(Cube, Std, PSF,...
-                                                               'DX',DX,...
-                                                               'DY',DY,...
-                                                               'MinFlux',Args.MinFlux,...
-                                                               'WeightedPSF',Args.WeightedPSF,...
-                                                               'FitRadius2',Args.FitRadius2,...
-                                                               'VecXrel',Args.VecXrel,...
-                                                               'VecYrel',Args.VecYrel,...
-                                                               'SumArgs',Args.SumArgs);
+    Args.GridPointsX = [0, Args.GridPointsX(:).'];
+    Args.GridPointsY = [0, Args.GridPointsY(:).'];
+    
+    GridPointsX = Args.GridPointsX.*Args.RadiusRange;
+    GridPointsY = Args.GridPointsY.*Args.RadiusRange;
+    
+    Npoint = numel(Args.GridPointsX);
+    
+    % chi2 for central point
+    [Chi2, Flux0, Dof] = imUtil.psf.psfChi2(Cube, Std, PSF,...
+                                           'DX',DX,...
+                                           'DY',DY,...
+                                           'MinFlux',Args.MinFlux,...
+                                           'WeightedPSF',Args.WeightedPSF,...
+                                           'FitRadius2',Args.FitRadius2,...
+                                           'VecXrel',Args.VecXrel,...
+                                           'VecYrel',Args.VecYrel,...
+                                           'SumArgs',Args.SumArgs);
                                                                
-    [Chi2_xm, WeightedFlux_xm, Dof] = imUtil.psf.psfChi2(Cube, Std, PSF,...
-                                                               'DX',DX - Args.HalfRangeX,...
-                                                               'DY',DY,...
-                                                               'MinFlux',Args.MinFlux,...
-                                                               'WeightedPSF',Args.WeightedPSF,...
-                                                               'FitRadius2',Args.FitRadius2,...
-                                                               'VecXrel',Args.VecXrel,...
-                                                               'VecYrel',Args.VecYrel,...
-                                                               'SumArgs',Args.SumArgs);
-                                                                                                  
+    Nsrc = numel(Chi2);
+    MatChi2 = zeros(Npoint, Nsrc);
+    MatChi2(1,:) = Chi2(:).';
+    for Igrid=2:1:Npoint
+        % chi2 for grid points around the central point
+        [Chi2, ~] = imUtil.psf.psfChi2(Cube, Std, PSF,...
+                                           'DX',DX + GridPointsX(Igrid),...
+                                           'DY',DY + GridPointsY(Igrid),...
+                                           'MinFlux',Args.MinFlux,...
+                                           'WeightedPSF',Args.WeightedPSF,...
+                                           'FitRadius2',Args.FitRadius2,...
+                                           'VecXrel',Args.VecXrel,...
+                                           'VecYrel',Args.VecYrel,...
+                                           'SumArgs',Args.SumArgs);
+        MatChi2(Igrid,:) = Chi2(:).';
+    end                                                                     
   
-    [Chi2_xp, WeightedFlux_xp, Dof] = imUtil.psf.psfChi2(Cube, Std, PSF,...
-                                                               'DX',DX + Args.HalfRangeX,...
-                                                               'DY',DY,...
-                                                               'MinFlux',Args.MinFlux,...
-                                                               'WeightedPSF',Args.WeightedPSF,...
-                                                               'FitRadius2',Args.FitRadius2,...
-                                                               'VecXrel',Args.VecXrel,...
-                                                               'VecYrel',Args.VecYrel,...
-                                                               'SumArgs',Args.SumArgs);
-                                                                          
-    [Chi2_ym, WeightedFlux_ym, Dof] = imUtil.psf.psfChi2(Cube, Std, PSF,...
-                                                               'DX',DX,...
-                                                               'DY',DY - Args.HalfRangeY,...
-                                                               'MinFlux',Args.MinFlux,...
-                                                               'WeightedPSF',Args.WeightedPSF,...
-                                                               'FitRadius2',Args.FitRadius2,...
-                                                               'VecXrel',Args.VecXrel,...
-                                                               'VecYrel',Args.VecYrel,...
-                                                               'SumArgs',Args.SumArgs);
-                                                                                                  
-  
-    [Chi2_yp, WeightedFlux_yp, Dof] = imUtil.psf.psfChi2(Cube, Std, PSF,...
-                                                               'DX',DX,...
-                                                               'DY',DY + Args.HalfRangeY,...
-                                                               'MinFlux',Args.MinFlux,...
-                                                               'WeightedPSF',Args.WeightedPSF,...
-                                                               'FitRadius2',Args.FitRadius2,...
-                                                               'VecXrel',Args.VecXrel,...
-                                                               'VecYrel',Args.VecYrel,...
-                                                               'SumArgs',Args.SumArgs);
-                                   
-    % 
-    
-    
-    
-    
-                                                           
-    if isempty(Args.DX)
-        % assume both DX and DY are empty
-        Args.DX = 0;
-        Args.DY = 0;
-        ShiftedPSF = PSF;
+    % construct the design matrix for the fit
+    if isempty(Args.H)
+        % Note that X and Y in H are normlized to 1
+        H = [ones(Npoint,1), Args.GridPointsX(:), Args.GridPointsY(:), Args.GridPointsX(:).^2, Args.GridPointsY(:).^2];
     else
-        ShiftedPSF = imUtil.trans.shift_fft(PSF, Args.DX, Args.DY);
+        H = Args.H;
     end
     
+    % fit chi^2 surface for all sources
+    % Z = a + b*(X-X0)^2 + c*(Y-Y0)^2
+    % Z = [a +b*x0^2 + c*y0^2] + X*[-2b x0] + Y*[-2c y0] +X^2 b + Y^2 c
+    Par = H\MatChi2;
+    % Find the parameters 
+    %
+    P_c   = Par(5,:);
+    P_b   = Par(4,:);
+    Ymin  = Par(3,:)./(-2.*P_c);
+    Xmin  = Par(2,:)./(-2.*P_b);
+    MinChi2 = [Par(1,:) - P_b.*Xmin.^2 - P_c.*Ymin.^2].';
     
+    % X,Y for next iteration
+    Rmin = sqrt(Xmin.^2 + Ymin.^2);
+    Xmin = Xmin.*min(Rmin, Args.MaxStep_RadiusRangeUnits);
+    Ymin = Ymin.*min(Rmin, Args.MaxStep_RadiusRangeUnits);
     
+    X1    = DX(:) + Xmin(:).*Args.RadiusRange;
+    Y1    = DY(:) + Ymin(:).*Args.RadiusRange;
+    
+    Flux0 = squeeze(Flux0);
 end
