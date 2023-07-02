@@ -693,9 +693,15 @@ classdef AstroCatalog < AstroTable
                 switch lower(CooType{Iobj})
                     case 'sphere'
                         [X, Y] = getLonLat(Obj(Iobj),'rad');
+                        if isempty(X) || isempty(Y)
+                            error('Can not find RA/Dec coordinates in catalog');
+                        end
                         [BestCoo, BestRadius] = celestial.coo.boundingCircle(X, Y);   % [radians]
                     case 'pix'
                         [X, Y] = getXY(Obj(Iobj));
+                        if isempty(X) || isempty(Y)
+                            error('Can not find X/Y coordinates in catalog');
+                        end
                         [BestCoo, BestRadius] = tools.math.geometry.boundingCircle(X, Y);  % [radians]
                     otherwise
                         error('Unknown CooType=%s option',CooType{Iobj});
