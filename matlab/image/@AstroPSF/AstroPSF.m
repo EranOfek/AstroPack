@@ -51,10 +51,10 @@ classdef AstroPSF < Component
         
         ScaleY            = 1;    % will be employed if pixel Scale X ~= Scale Y
         
-        DataPSF2          = [];  % experimental
-        DimDef2  cell     = {'WaveMono', 'WaveBand', 'WaveTemp', 'WaveSpType', 'WaveColor',...
-                             'PosR', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'};
-        DimAxis2 cell     = cell(1,10);       
+%         DataPSF2          = [];  % experimental
+%         DimDef2  cell     = {'WaveMono', 'WaveBand', 'WaveTemp', 'WaveSpType', 'WaveColor',...
+%                              'PosR', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'};
+%         DimAxis2 cell     = cell(1,10);       
         
         DataPSF3          = []; % experimental
         DimDef3  cell     = {'Wave', 'PosXR', 'PosY', 'PixPhaseX', 'PixPhaseY'};
