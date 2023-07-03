@@ -32,6 +32,28 @@
 %   2. Info about sub pixel response?
 %   3. Info about how the PSF was generated
 
+
+% Ideas:
+% properties:
+%   DataPSF
+%   DataVar
+%   Scale = [1 1];
+%   DimName
+%   DimAxes 
+%   InterpMethod = {'nearest'};
+%
+% P = AstroPSF
+% [PSF, Var] = P.getPSF()  % return some defaut
+% [PSF, Var] = P.getPSF('Flux',Val, 'Wave',5000)
+% [PSF, Var] = P.weightPSF('Flux',Val, 'Wave',[5000 5500 6000],'Spec',[0.5 1 0.5])
+
+% [PSF, Var] = P.weightPSF([], 'InterpMethod','nearest'); % use vals from
+% properties
+
+% AstroPSF = P.repopPSF('Wave',[5000 5500 6000],'WaveWhight',[0.5 1 0.5])
+% ValPerPSF = fwhm(P)
+% [ValX, ValY] = P.fwhm(Method=[], 'Flux',Val, 'Wave',[5000])
+
 classdef AstroPSF < Component
     properties (Dependent) % Access image data directly
         Data

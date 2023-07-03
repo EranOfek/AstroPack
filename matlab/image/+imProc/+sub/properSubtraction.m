@@ -75,6 +75,8 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef
 
         [DD,S,Scorr,Z2,S2, F_S,SdN, SdR] = imProc.sub.properSubtraction(AIreg(5), AIreg(1));
 
+        
+        R=imProc.sources.findTransients(AIreg(2), AIreg(1), DD, S, Scorr, Z2, S2);
     end
 
 

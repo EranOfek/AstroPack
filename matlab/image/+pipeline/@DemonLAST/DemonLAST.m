@@ -392,6 +392,29 @@ classdef DemonLAST < Component
 
     end
 
+    methods (Static)  % fields related utilities
+        function List = fieldsListLAST(Args)
+            %
+            % Example: List = pipeline.DemonLAST.fieldsListLAST
+
+            arguments
+                Args.N_LonLat   = [85 28];
+            end
+
+            RAD = 180./pi;
+            
+            [TileList,TileArea] = celestial.coo.tile_the_sky(Args.N_LonLat(1), Args.N_LonLat(2));
+            Ebv      = astro.spec.sky_ebv(TileList(:,1),TileList(:,2));
+            TileList = TileList.*RAD;
+            
+            List = table(TileList(:,1), TileList(:,2), TileList(:,3), TileList(:,4), TileList(:,5), TileList(:,6), Ebv, TileArea,...
+                                'VariableNames',{'RA','Dec','MinRA','MaxRA','MinDec','MaxDec','Ebv','Area'},...
+                                'VariableUnits',{'deg','deg','deg','deg','deg','deg','mag','sr'});
+
+        end
+
+    end
+
     
     methods % utilities
 
@@ -1549,8 +1572,60 @@ classdef DemonLAST < Component
         % delete abort msg box
         %Hstop.delete;
 
+    end
+
+    methods % image subtraction
+        function RefIm = loadRefImage(Obj, Args)
+            %
+
+            arguments
+                Obj
+                Args.RA         = [];
+                Args.Dec        = [];
+                Args.FieldID    = [];  % string or number
+                Args.CamNum     = 1;  %
+                Args.SubImID    = [];  % if empty, load all
+            end
+
+            if ~isempty(Args.RA) && ~isempty(Args.Dec)
+
+            end
+
+
+        end
+
+        function Obj=imageSub(Obj, Files, RefFiles, Args)
+            %
+
+            arguments
+                Obj
+                Files
+                RefFiles
+                Args.Dir     = [];
+                Args.DirRef  = [];
+                
+            end
+
+            
+
+
+        end
+
+        function Obj=subtraction(Obj, Args)
+            % run image subtraction pipeline for LAST images
+
+            arguments
+                Obj
+                Args
+            end
+
+
+
+        end
 
     end
+
+
 
     %----------------------------------------------------------------------
     % Unit test

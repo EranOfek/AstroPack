@@ -1,7 +1,9 @@
 function K=sersic(Par,SizeXY,PosXY)
 % create a matrix or a cube of 2D normalized Sersic functions 
 % Package: +imUtil.kernel2
-% Input  : - 
+% Input  : - A matrix with three columns containing the Sersic parameters
+%            [EffectiveRadius, n, k].
+
 
 %           (Sigma) A one column or three column matrix.
 %            One row per Gaussian template (in the output cube).
