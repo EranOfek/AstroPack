@@ -101,6 +101,7 @@ classdef AstroDb < Component
                 Args.DatabaseName  = 'lastdb'        % 'last_operational' at last0 node
                 Args.UserName      = ''      % User name
                 Args.Password      = ''      % Password
+                Args.ReadConfig    = false;  % read config from a local config file or create an object with the given parameters
                 Args.ListTables logical = true; % whether to put out a list of public tables
             end
             
@@ -113,7 +114,14 @@ classdef AstroDb < Component
             
             % Create DbQuery object
             Obj.msgLog(LogLevel.Info, 'Connecting to server %s:%d, database: %s, user: %s/%s', Args.Host, Args.Port, Args.DatabaseName, Args.UserName, Args.Password);
-            Obj.Query = db.DbQuery('Host', Args.Host, 'Port', Args.Port, 'UserName', 'postgres', 'Password', Args.Password, 'DatabaseName', Args.DatabaseName);
+            
+            if Args.ReadConfig
+                Obj.Query = db.DbQuery('LastDB');
+            else
+                Obj.Query = db.DbQuery('Host', Args.Host, 'Port', Args.Port, 'UserName', 'postgres', 'Password', Args.Password, 'DatabaseName', Args.DatabaseName);
+                Obj.Query.Conn.ServerSharePath = '/var/samba/pgshare'; 
+                Obj.Query.Conn.MountSharePath  = '/media/socsrv_pgshare'; 
+            end
             
             % Query database version, to verify that we have a connection
             pgver = Obj.Query.getDbVersion();

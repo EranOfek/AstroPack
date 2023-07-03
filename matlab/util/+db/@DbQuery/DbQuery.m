@@ -320,7 +320,7 @@ classdef DbQuery < Component
                 % Shared folder is available, use it and then move the result to our target
                 if Obj.Conn.isSharedPathAvail()
                     [ServerFileName, ClientFileName] = Obj.getSharedFileName(Args.CsvFileName);                    
-                    Obj.SqlText = sprintf('COPY (%s) TO ''%s'' WITH (FORMAT CSV, HEADER, DELIMITER ''%'', NULL ''%'';', ...
+                    Obj.SqlText = sprintf('COPY (%s) TO ''%s'' WITH (FORMAT CSV, HEADER, DELIMITER ''%s'', NULL ''%s'');', ...
                         Obj.SqlText, ServerFileName, Args.CsvDelimiter, Args.CsvNull);
                     %Obj.SqlText = sprintf('COPY (%s) TO ''%s'' CSV HEADER', Obj.SqlText, ServerFileName);
                     Res = Obj.exec();
@@ -354,7 +354,7 @@ classdef DbQuery < Component
                 
                 % Prepare file names
                 [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
-                Obj.SqlText = sprintf('COPY (%s) TO ''%s'' WITH (FORMAT CSV, HEADER, DELIMITER ''%'', NULL ''%'';', ...
+                Obj.SqlText = sprintf('COPY (%s) TO ''%s'' WITH (FORMAT CSV, HEADER, DELIMITER ''%s'', NULL ''%s'');', ...
                         Obj.SqlText, ServerFileName, Args.CsvDelimiter, Args.CsvNull);
                 %Obj.SqlText = sprintf('COPY (%s) TO ''%s'' CSV HEADER', Obj.SqlText, ServerFileName);
                 Res = Obj.exec();
@@ -519,7 +519,7 @@ classdef DbQuery < Component
                 end
 
                 % Prepare COPY FROM statement
-                Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' WITH (FORMAT CSV, HEADER, DELIMITER ''%'', NULL ''%'';', ...            
+                Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' WITH (FORMAT CSV, HEADER, DELIMITER ''%s'', NULL ''%s'');', ...            
                     Args.TableName, Columns, ServerFileName, Args.CsvDelimiter, Args.CsvNull);
                 %Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' DELIMITER '','' CSV HEADER;', Args.TableName, Columns, ServerFileName);
                 t1 = tic();
