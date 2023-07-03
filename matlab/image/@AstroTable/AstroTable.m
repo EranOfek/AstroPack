@@ -1923,7 +1923,7 @@ classdef AstroTable < Component
 %                 fclose(FileID);
             end
             
-%             FileID = fopen(FileName,'a+'); 
+            FileID = fopen(FileName,'a+'); 
              
 %             formatSpecifier = strcat(Args.Format,Args.Delimiter); 
 %             numRepetitions = size(Obj(1).Catalog,2); 
@@ -1946,7 +1946,7 @@ classdef AstroTable < Component
 %                 end
 %             end
             
-%             fclose(FileID);
+            fclose(FileID);
             
             Result = 0;
 
