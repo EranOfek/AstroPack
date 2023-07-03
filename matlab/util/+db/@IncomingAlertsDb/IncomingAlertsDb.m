@@ -18,16 +18,15 @@
 classdef IncomingAlertsDb < Component
 
     properties (SetAccess = public)
-        Query       = []      % DbQuery object (filled when a DB object is created)
-       
+        Query         = []      % DbQuery object (filled when a DB object is created)
+        ParentFolder  = '';     %
     end
 
-    methods % construction of an AstroDb object 
+    
+    methods % constructor
         
-        function Obj = AlertsDb(Args)
-            % Create new DbQuery object
-            % To use SSH Tunnel, run SSH on local machine, and specify its port:
-            %       ssh -L 63331:localhost:5432 ocs@10.23.1.25
+        function Obj = IncomingAlertsDb(Args)
+            % Create new IncomingAlertsDb object
             %
             % Input : - 
             %           * Pairs of ...,key,val,...
@@ -36,13 +35,13 @@ classdef IncomingAlertsDb < Component
             %             'Database'  - Database name
             %             'UserName'  - User name
             %             'Password'  - Password
-            %             'Port'      - Port number
+            %             'Port'      - Port number            
             %
-            % Output   : - New instance of AlertsDb object
+            % Output   : - New instance of IncomingAlertsDb object
             % Author   : Chen Tishler (07/2023)
             % Examples :
             %   % Create query object width default connection parameters
-            %   Q = DbQuery()
+            %   ADB = IncomingAlertsDb()
             %
             arguments
                 % These arguments are used when both DbQuery and DbCon are NOT set:
@@ -114,58 +113,23 @@ classdef IncomingAlertsDb < Component
             Result = DataSet;            
         end
 
-    end
-
-    methods (Static) % setup SSH tunnel (TBD)
-        function Result = setupSSH(Args)
-            % Setup SSH Tunnel. DO NOT USE YET, we need to solve how to send
-            % password to the command line.
-            % Input :  - LastDb object
-            %          - Q - DbQuery object (should be Obj.Query)
-            %          - TN - Table name
-            %          * Pairs of ...,key,val,...
-            %            The following keys are available:
-            % Output  : True on success
-            % Author  : Chen Tishler (02/2023)
-            % Example : 
-            % 'ssh -L 63331:localhost:5432 ocs@10.23.1.25 &';
-            arguments
-                Args.Host = 'localhost'         %
-                Args.Port = 63331               % Image file name
-                Args.RemoteHost = '10.23.1.25';
-                Args.RemotePort = 5432;
-                Args.User = 'ocs';
-                Args.Password = 'physics';
-            end
-            
-            if tools.os.iswindows()                        
-                Cmd = sprintf('ssh -L %d:%s:%d %s@%s', Args.Port, Args.Host, Args.RemotePort, Args.User, Args.RemoteHost);
-                io.msgLog(LogLevel.Info, 'Execute and enter password: %s', Cmd);
-                Cmd = [];
-            else
-                if ~isempty(Args.Password)
-                    Cmd = sprintf('sshpass -p %s ssh -L %d:%s:%d %s@%s &', Args.Password, Args.Port, Args.Host, Args.RemotePort, Args.User, Args.RemoteHost);             
-                else
-                    Cmd = sprintf('ssh -L %d:%s:%d %s@%s &', Args.Port, Args.Host, Args.RemotePort, Args.User, Args.RemoteHost);
-                    io.msgLog(LogLevel.Info, 'Execute and enter password: %s', Cmd);
-                    Cmd = [];
-                end
-            end
-
+        
+        function Result = getAlertFilename(Obj, Alert)
+            % Select incoming alerts from database, using specified filters.
+            % Input : - Alert - struct with alert columns (selected from table by selectAlerts)
+            %         * Pairs of ...,key,val,...
+            %           The following keys are available:                                    
             %
-            if ~isempty(Cmd)
-                io.msgLog(LogLevel.Info, 'setupSSH: system( %s )', Cmd);
-                [Status, Output] = system(Cmd);
-                io.msgLog(LogLevel.Info, 'setupSSH: %d', Status);
-                io.msgLog(LogLevel.Info, 'setupSSH: %s', Output);
-                if Status ~= 0
-                    io.msgLog(LogLevel.Error, 'setupSSH: FAILED to execute, make sure that psql is found on your PATH: %s', Cmd);
-                end            
-            end
+            % Author : Chen Tishler (07/2023)
+            
+            arguments
+                Obj
+                Alert
+            end            
         end
-
     end
 
+    
     methods (Static) % unitTest and examples
         Result = unitTest()
 
