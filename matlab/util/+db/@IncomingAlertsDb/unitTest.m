@@ -5,7 +5,7 @@ function Result = unitTest()
     % On Linux, use DataGrip by JetBrains
     
     MsgLogger.getSingleton().setLogLevel(LogLevel.Debug, 'type', 'all');
-    io.msgStyle(LogLevel.Test, '@start', 'AlertsDb test started')
+    io.msgStyle(LogLevel.Test, '@start', 'IncomingAlertsDb test started')
     io.msgLog(LogLevel.Test, 'Postgres database "socdb" should exist');
 
     % Required on Windows, need to compile it with mex in this folder
@@ -17,20 +17,15 @@ function Result = unitTest()
         db.AstroDb.setupSSH();
     end
     
-    ADB = db.AlertsDb();
+    ADB = db.IncomingAlertsDb();
     
     Tables = ADB.Query.select('*','TableName','pg_tables','Where','schemaname = ''public''');
     Tables.Data.tablename % show public tables in the DB
     
-    % Create tables (optional)
-    CreateTables = false;
-    if CreateTables
-        ADB.createTables();
-    end
-      
+     
 %   LDB.Query.select('pk', 'TableName', lower(Args.DBtable), 'Where', 'filename like ''%LAST%''', 'OutType', 'Table');
     
     % Done
-    io.msgStyle(LogLevel.Test, '@passed', 'AlertsDb test passed')
+    io.msgStyle(LogLevel.Test, '@passed', 'IncomingAlertsDb test passed')
     Result = true;
 end

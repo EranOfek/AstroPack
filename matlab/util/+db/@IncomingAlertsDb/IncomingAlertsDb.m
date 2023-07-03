@@ -1,4 +1,4 @@
-% db.AlertsDb
+% db.IncomingAlertsDb
 %
 % Properties :
 %         Query       - DbQuery object (filled when a DB object is created)
@@ -15,7 +15,7 @@
 %
 %
 
-classdef AlertsDb < Component
+classdef IncomingAlertsDb < Component
 
     properties (SetAccess = public)
         Query       = []      % DbQuery object (filled when a DB object is created)
@@ -60,7 +60,7 @@ classdef AlertsDb < Component
             Args.Password = PM.search(Args.DatabaseName).Pass;
 
             %
-            Obj.setName('AlertsDb');
+            Obj.setName('IncomingAlertsDb');
             
             % Create DbQuery object
             Obj.msgLog(LogLevel.Info, 'Connecting to server %s:%d, database: %s, user: %s/%s', Args.Host, Args.Port, Args.DatabaseName, Args.UserName, '***');  %Args.Password);
