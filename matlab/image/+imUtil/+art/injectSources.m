@@ -44,7 +44,7 @@ function S = injectSources(Image,Cat,PSFin,Args)
         S = Image;
     end
 
-    [SizeImageX,SizeImageY] = size(S);
+    [SizeImageY,SizeImageX] = size(S);
 
     X = Cat(:,1);
     Y = Cat(:,2);
@@ -84,8 +84,8 @@ function S = injectSources(Image,Cat,PSFin,Args)
         Xind = matx+ Xround(i);
         Yind = maty+ Yround(i);
 
-        flag = ~(Xind <=0 | Yind<=0 | Xind>SizeImageX | Yind>SizeImageY);
-        ind = sub2ind([SizeImageX,SizeImageY],Xind(flag),Yind(flag));
+        flag = ~(Xind<=0 | Yind<=0 | Xind>SizeImageX | Yind>SizeImageY);
+        ind = sub2ind([SizeImageY,SizeImageX],Yind(flag),Xind(flag));
 
         % ind(isnan(ind))=[]; % ? for what pathological case ind may be NaN?
 
