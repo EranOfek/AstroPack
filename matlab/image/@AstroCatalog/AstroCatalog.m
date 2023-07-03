@@ -1237,9 +1237,9 @@ classdef AstroCatalog < AstroTable
         end
         
         function Result = writeLargeCSV(Obj, FileName)
-            % write a stack of AstroCatalog objects to a csv text file
+            % Write a stack of AstroCatalog objects to a csv text file
             % Input  : - An AstroCatalog object or a vector of AC objects
-            %          - name of the file to write to
+            %          - name of the CSV file to write to
             %        * ...,key,val,...
             %
             % Output : - a csv file
