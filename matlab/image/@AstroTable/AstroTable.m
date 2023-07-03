@@ -72,6 +72,10 @@ classdef AstroTable < Component
         SortByCol                                              = [];
         IsSorted(1,1) logical                                  = false;
     end
+
+    properties (Hidden)
+        Reference
+    end
     
     methods % Constructor
        

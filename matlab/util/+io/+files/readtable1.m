@@ -10,7 +10,7 @@ function Var = readtable1(TableFile,varargin)
     % Example: 
 
     % @Deploy - Use singleton file mapper to locate the file
-    io.msgLog(LogLevel.Debug, 'readtable1: %s', TableFile);
+    %io.msgLog(LogLevel.Debug, 'readtable1: %s', TableFile);
     if isdeployed    
         if ~isfile(TableFile)        
             FileName = fileMapFind(TableFile);
