@@ -394,7 +394,12 @@ classdef DemonLAST < Component
 
     methods (Static)  % fields related utilities
         function List = fieldsListLAST(Args)
-            %
+            % (Static) Return a table with list of LAST predefined field indices
+            % Input  : * ...,key,val,...
+            %            'N_LonLat' - Arguments for celestial.coo.tile_the_sky
+            %                   Default is [85 28]
+            % Output : - A table with the LAST predefined fields.
+            % Author : Eran Ofek (Jul 2023)
             % Example: List = pipeline.DemonLAST.fieldsListLAST
 
             arguments
@@ -407,9 +412,16 @@ classdef DemonLAST < Component
             Ebv      = astro.spec.sky_ebv(TileList(:,1),TileList(:,2));
             TileList = TileList.*RAD;
             
-            List = table(TileList(:,1), TileList(:,2), TileList(:,3), TileList(:,4), TileList(:,5), TileList(:,6), Ebv, TileArea,...
-                                'VariableNames',{'RA','Dec','MinRA','MaxRA','MinDec','MaxDec','Ebv','Area'},...
-                                'VariableUnits',{'deg','deg','deg','deg','deg','deg','mag','sr'});
+            List = table(TileList(:,1), TileList(:,2), TileList(:,3), TileList(:,4), TileList(:,5), TileList(:,6), Ebv, TileArea);
+            List.Properties.VariableNames = {'RA','Dec','MinRA','MaxRA','MinDec','MaxDec','Ebv','Area'};
+            List.Properties.VariableUnits = {'deg','deg','deg','deg','deg','deg','mag','sr'};
+
+        end
+
+        function [ID, Line] = searchFieldLAST(List, RA, Dec)
+            %
+
+            
 
         end
 
