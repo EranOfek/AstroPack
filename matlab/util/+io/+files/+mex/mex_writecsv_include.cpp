@@ -1,12 +1,12 @@
 //
-// mex_matrix_write_csv_include.cpp
+// mex_writecsv_include.cpp
 //
-// Author: Chen Tishler, May 2023
+// Author: Chen Tishler, July 2023
 //
 //
 // Flags for cmex.py:
 //
-//      $dtype: single, double
+//      $dtype: int8, int16, int32, int64, single, double
 //
 
 #include "mex.h"
@@ -68,14 +68,15 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     // write data
     for (mwSize k = 0; k < numMatrices; ++k) {
         mxArray *matrixCell = mxGetCell(prhs[0], k);
-        double* inMatrix = mxGetPr(matrixCell);
+        __Type* inMatrix = (__Type*)mxGetPr(matrixCell);
         mwSize nrows = mxGetM(matrixCell);
 
         for (mwSize i = 0; i < nrows; ++i) {
             for (mwSize j = 0; j < ncols; ++j) {
-                double value = inMatrix[j*nrows + i];
+                __Type value = inMatrix[j*nrows + i];
 
                 // If the value is an integer, output it without decimal point
+                // The optimizer will remove it of value is integer type.
                 if (value == static_cast<int>(value)) {
                     file << static_cast<int>(value);
                 } else {

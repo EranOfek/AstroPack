@@ -1719,13 +1719,14 @@ classdef AstroImage < Component
                     % get CCDSEC from image size
                     [Ny, Nx] = Obj(Iobj).sizeImage;
                     CCDSECxy = [1 Nx 1 Ny];
-                end
-                if ischar(CCDSEC)
-                    % get CCDSEC from header keyword
-                    %CCDSEC = eval(Obj(Iobj).HeaderData.getVal(CCDSEC));
-                    CCDSECxy = sscanf(Obj(Iobj).HeaderData.getVal('CCDSEC'),'[ %d %d %d %d]');
                 else
-                    CCDSECxy = CCDSEC;
+                    if ischar(CCDSEC)
+                        % get CCDSEC from header keyword
+                        %CCDSEC = eval(Obj(Iobj).HeaderData.getVal(CCDSEC));
+                        CCDSECxy = sscanf(Obj(Iobj).HeaderData.getVal('CCDSEC'),'[ %d %d %d %d]');
+                    else
+                        CCDSECxy = CCDSEC;
+                    end
                 end
                 
                 Result(Iobj) = Obj(Iobj).WCS.cooImage(CCDSECxy, 'OutUnits',Args.OutUnits);
