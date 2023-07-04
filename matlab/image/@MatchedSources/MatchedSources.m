@@ -2094,6 +2094,70 @@ classdef MatchedSources < Component
         end
     end
     
+
+    methods % detrending
+        function Result=sysrem(Obj, Args)
+            % Apply sysrem (Tamuz et al.) to magnitude matrices in MatchedSources object.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            'MagFields' - A cell array of magnitude fields on
+            %                   which to apply sysrem.
+            %                   Default is {'MAG_APER_3','MAG_PSF'}.
+            %            'MagErrFields' - A cell array of magnitude error fields on
+            %                   which to apply sysrem. The fields should
+            %                   corresponds to those in MagFields.
+            %                   Default is {'MAGERR_APER_3','MAGERR_APER_3'}
+            %            'addSrcDataArgs' - A cell array of additional
+            %                   arguments to pass to MatchedSources/addSrcData
+            %                   Default is {}.
+            %            'sysremArgs' - A cell array of additional arguments
+            %                   to pass to timeSeries.detrend.sysrem
+            %                   Default is {}.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the input object.
+            %                   Default is false.
+            % Output : - A MatchedSources object in which the SrcData is
+            %            repopulated, and the magnitude fields were replaced
+            %            with the sysrem detrended values.
+            % Author : Eran Ofek (Jul 2023)
+            % Example: MS.sysrem
+
+            arguments
+                Obj
+                Args.MagFields              = {'MAG_APER_3','MAG_PSF'};
+                Args.MagErrFields           = {'MAGERR_APER_3','MAGERR_APER_3'};
+                Args.addSrcDataArgs cell    = {};
+                Args.sysremArgs cell        = {};
+                Args.CreateNewObj logical   = false;
+            end
+
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
+            % add the SrcData property
+            Result.addSrcData(Args.addSrcDataArgs{:});
+
+            Nmag = numel(Args.MagFields);
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                % for each element of the MatchedSources object
+                for Imag=1:1:Nmag
+                    [SysRemChi2,SysRemRes] = timeSeries.detrend.sysrem(Obj(Iobj).Data.(Args.MagFields{Imag}),...
+                                                                       Obj(Iobj).Data.(Args.MagErrFields{Imag}),...
+                                                                       Args.sysremArgs{:});
+                    Result(Iobj).Data.(Args.MagFields{Imag}) = Result(Iobj).SrcData.(Args.MagFields{Imag}) + SysRemRes(end).Resid;
+                end
+
+            end
+
+        end
+
+    end
+
     methods % light curves analysis
         function [PSD, Freq] = psd(Obj, Args)
             % Estimate the mean power spectral density of all the sources.
@@ -2278,6 +2342,73 @@ classdef MatchedSources < Component
             
         end
         
+        function [FreqVec, PS] = period(Obj, Freq, Args)
+            % Periodogram for all sources in MatchedSources object.
+            % Input  : - A single element MatchedSources object.
+            %          - Frequncies in which to calculate periodogram.
+            %            One of the following.
+            %            1. Empty, matrix. In this case will estimate the
+            %               needed min:step:max frequncies.
+            %            2. One element vector containing the max freq.
+            %            3. Two element vector containing the [step, max]
+            %               frequencies.
+            %            4. A 3 element vector containing [min, step, max]
+            %               frequencies.
+            %            5. A vector of frequencies.
+            %          * ...,key,val,...
+            %            'MagField' - Field name containing the flux or
+            %                   magnitude on which to calculate the periodogram.
+            %                   Default is 'MAG_APER_3'.
+            % Output : - A vector of frequencies.
+            %          - A matrix of power spectra (freq. vs. star index).
+            %          
+            % Author : Eran Ofek (Jul 2023)
+            % Example: [F, PS] = MS.period;
+
+            arguments
+                Obj(1,1)
+                Freq      = [];
+                Args.MagField     = 'MAG_APER_3';
+            end
+
+            T        = Obj.JD(:);
+
+            MinFreq  = 0;
+            MaxFreq  = [];
+            StepFreq = [];
+            FreqVec  = [];
+            switch numel(Freq)
+                case 0
+                    % auto choose
+                case 1
+                    % assume input is max frequency
+                    MaxFreq = Freq(1);
+                case 2
+                    StepFreq = Freq(1);
+                    MaxFreq  = Freq(2);
+                case 3
+                    MinFreq  = Freq(1);
+                    StepFreq = Freq(2);
+                    MaxFreq  = Freq(3);
+                otherwise
+                    FreqVec = Freq;
+            end
+
+            if isempty(FreqVec)
+                if isempty(MaxFreq)
+                    MaxFreq  = 1./mean(diff(sort(T)));
+                end
+                if isempty(StepFreq)
+                    StepFreq = 1./(2.*range(T));
+                end
+
+                FreqVec = (MinFreq:StepFreq:MaxFreq).';
+            end
+
+            [FreqVec,PS] = timeSeries.period.periodmulti_norm(T, Obj.Data.(Args.MagField), FreqVec);
+
+        end
+
     end
     
     methods % find sources

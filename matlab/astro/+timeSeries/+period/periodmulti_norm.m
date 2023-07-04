@@ -33,21 +33,24 @@ end
 %Col.M = 2;
 %T       = Data(:,Col.T);
 N       = numel(T);
+% number of non-NaN points
+Nnn     = sum(~isnan(Data));
 Nf      = numel(FreqVec);
 Ns      = size(Data,2);   % number of columns (i.e., time series)
 
-M       = bsxfun(@minus,Data,mean(Data));
+M       = bsxfun(@minus,Data,mean(Data,1,'omitnan'));
 PS      = zeros(Nf,Ns);
 %PS(:,1) = FreqVec;
 for FreqInd=1:1:Nf
-   PS(FreqInd,:) = abs(sum(bsxfun(@times,M,exp(-2.*pi.*1i.*T.*FreqVec(FreqInd))),1,'omitnan')).^2./N;
+   PS(FreqInd,:) = abs(sum(bsxfun(@times,M,exp(-2.*pi.*1i.*T.*FreqVec(FreqInd))),1,'omitnan')).^2./Nnn;
+   %PS(FreqInd,:) = abs(sum( M.*exp(-2.*pi.*1i.*T.*FreqVec(FreqInd)),1,'omitnan')).^2./Nnn;
 end
 
 switch lower(Norm)
  case 'amp'
     % do nothing
  case 'var'
-	   PS = bsxfun(@rdivide,PS,var(M));
+	   PS = bsxfun(@rdivide,PS,var(M,[],1,'omitnan'));
  otherwise
     error('Unknwon normalization option');
 end
