@@ -85,12 +85,13 @@ function S = injectSources(Image,Cat,PSFin,Args)
         Yind = maty+ Yround(i);
 
         flag = ~(Xind<=0 | Yind<=0 | Xind>SizeImageX | Yind>SizeImageY);
-        ind = sub2ind([SizeImageY,SizeImageX],Yind(flag),Xind(flag));
+        %ind = sub2ind([SizeImageY,SizeImageX],Yind(flag),Xind(flag));
+        Ind = imUtil.image.sub2ind_fast([SizeImageY,SizeImageX],Yind(flag),Xind(flag));
 
         % ind(isnan(ind))=[]; % ? for what pathological case ind may be NaN?
 
         psf_t = squeeze(PSF_shifted(:,:,i));
-        S(ind) = S(ind) +  psf_t(flag(:)).*flux(i);
+        S(Ind) = S(Ind) +  psf_t(flag(:)).*flux(i);
 
     end
 
