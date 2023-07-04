@@ -914,6 +914,34 @@ classdef Targets < Component
             [~,Ind] = max(P);
             
         end
+        
+            
+        function [Obj, P, Ind]=cadence_cycle(Obj, JD)
+            % observed according to predefined priority (order in
+            % list if no priority given). Switch to next target
+            % when NperVisit reached.
+            % implemented by Nora in July 2023
+                    
+            SEC_DAY = 86400;
+            
+            TimeOnTarget = (Obj.NperVisit+1).*Obj.ExpTime/SEC_DAY; % days
+            [FlagAllVisible, ~] = isVisible(Obj, JD,'MinVisibilityTime',TimeOnTarget);
+            FlagObserve = (Obj.GlobalCounter<Obj.MaxNobs) & FlagAllVisible;
+            %NVisits = Obj.GlobalCounter./Obj.NperVisit;
+            %MinVisits = min(NVisits(FlagObserve));
+            [MaxLastJD,IndPrevious] = max(Obj.LastJD);
+            if MaxLastJD==0
+                IndPrevious=length(Obj.Index);
+                %fprintf('\nFirst obs.\n')
+            %else
+            %    fprintf('\nLast observed', IndPrevious)
+            end
+            newInd = linspace(length(Obj.Index)-1,0,length(Obj.Index)).';
+            
+            P = (mod(newInd+IndPrevious,length(Obj.Index))+1).*FlagObserve;
+            [~,Ind] = max(P);
+            
+        end
             
             
         function [Obj, P, Ind]=cadence_fields_cont(Obj, JD)
@@ -1098,6 +1126,7 @@ classdef Targets < Component
                     % observe according to predefined priority (order in
                     % list if no priority given). Move to next field when
                     % NperVisit reached.
+                    [Obj, P, Ind] = Obj.cadence_cycle(JD);
                     
                     
                 case 'survey'
