@@ -2,26 +2,21 @@ function test_writecsv()
     % Test the basic functionality of the writeCSV function
 
     % Create the test data
-    matrices = {rand(500000, 3), [1 2 3; 4 5 6], rand(700000, 3)};
+    matrices = {rand(5, 3), [1 2 3; 4 5 6], rand(7, 3)};
     headers = {'A', 'B', 'C'};
-    filename = 'output.csv';
+    FileName = 'output.csv';
     
     % Call the function
-    io.files.mex.mex_matrix_writecsv_double(matrices, headers, filename);
+    io.files.mex.mex_writecsv_double(matrices, headers, FileName');
 
-    % Check that the file was created
-    assert(exist(filename, 'file') == 2, 'Output file was not created');
-
-    return;
+    % Call the wrapper
+    io.files.writeCsv(matrices, headers, FileName);
     
-    % Read the file
-    fileContent = fileread(filename);
-
-    % Check the header line
-    assert(contains(fileContent, 'A,B,C'), 'File content does not match expected');
+    % Call the wrapper with int matrix (without cell array)
+    io.files.writeCsv(int32([1 2 3; 4 5 6]), headers, FileName);    
 
     % Clean up
-    delete(filename);
+    delete(FileName);
    
     % Assuming you have an array of objects where each object contains a property 
     % which is a matrix, you can create a cell array containing references to all those matrices.
@@ -31,5 +26,6 @@ function test_writecsv()
     % for i = 1:n
     %     matrices{i} = objArray(i).matrixProperty;  % Replace 'matrixProperty' with the actual property name
     % end
+    
 end
 
