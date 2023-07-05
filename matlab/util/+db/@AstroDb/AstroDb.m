@@ -116,7 +116,7 @@ classdef AstroDb < Component
             Obj.msgLog(LogLevel.Info, 'Connecting to server %s:%d, database: %s, user: %s/%s', Args.Host, Args.Port, Args.DatabaseName, Args.UserName, Args.Password);
             
             if Args.ReadConfig
-                Obj.Query = db.DbQuery('LastDB');
+                Obj.Query = db.DbQuery(Args.DatabaseName);
             else
                 Obj.Query = db.DbQuery('Host', Args.Host, 'Port', Args.Port, 'UserName', 'postgres', 'Password', Args.Password, 'DatabaseName', Args.DatabaseName);
                 Obj.Query.Conn.ServerSharePath = '/var/samba/pgshare'; 
