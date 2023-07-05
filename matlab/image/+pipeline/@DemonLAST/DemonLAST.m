@@ -1352,6 +1352,11 @@ classdef DemonLAST < Component
             % The main LAST pipeline demon.
             %   The demon waits for images in the new/ directory, analyze
             %   the images and distribute them.
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            See code.
+            % Output : - Updated object.
+            % Author : Eran Ofek (Jul 2023)
             % Example: cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/new
             %          D=pipeline.DemonLAST;
             %          D.setPath('/raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02')
@@ -1360,40 +1365,41 @@ classdef DemonLAST < Component
 
             arguments
                 Obj
-                Args.DataDir       = 1;
-                Args.CamNumber     = [];
-                Args.TempRawSci    = '*_sci_raw_*.fits';
-                Args.NewSubDir     = 'new';
-                Args.MinInGroup    = 5;
-                Args.MaxInGroup    = 20;
-                Args.SortDirection = 'descend';  % analyze last image first
-                Args.AbortFileName = '~/abortPipe';
-                Args.StopButton logical = true;
+                Args.DataDir       = 1;              % LAST data dir: 1|2
+                Args.CamNumber     = [];             % Camera number: 1|2|3|4
+                Args.TempRawSci    = '*_sci_raw_*.fits';   % file name template to search
+                Args.NewSubDir     = 'new';          % new sub dir
+                Args.MinInGroup    = 5;              % min. number of images in visit/group to analyze.
+                Args.MaxInGroup    = 20;             % max. number of images in visit/group to analyze.
+                Args.SortDirection = 'descend';      % 'ascend'|'descend' - analyze last image first
+                Args.AbortFileName = '~/abortPipe';  % if this file exit, then abort.
+                Args.StopButton logical = true;      % Display stop button
                 Args.multiRaw2procCoaddArgs = {};
 
-                Args.StartJD       = -Inf;    % refers onlt to Science observations: JD, or [D M Y]
-                Args.EndJD         = Inf;
-                Args.StopWhenDone logical = false;
-                Args.RegenCalib logical = false; % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
+                Args.StartJD       = -Inf;           % refers only to Science observations: JD, or [D M Y]
+                Args.EndJD         = Inf;            %
+                Args.StopWhenDone logical = false;   % If true, then will not look for new images (i.e., images that were created after the function started)
+                Args.RegenCalib logical = false;     % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
 
-                Args.DeleteSciDayTime logical = false;
-                Args.DeleteSunAlt  = 0;
+                Args.DeleteSciDayTime logical = false;   % Delete 'sci' images taken during day time.
+                Args.DeleteSunAlt  = 0;                  % SunAlt for previous argument
 
-                Args.FocusTreatment  = 'move';   % 'move'|'keep'|'delete' 
+                Args.FocusTreatment  = 'move';           % 'move'|'keep'|'delete' 
                 Args.TempRawFocus    = '*_focus_raw_*.fits';
 
                 Args.MinNumIMageVisit  = 5;
                 Args.PauseDay          = 60;
                 Args.PauseNight        = 10;
 
-                
+                % Save data products
                 Args.SaveEpochProduct  = {'Image','Mask','Cat'}; %{[],[],'Cat'};  %{'Image','Mask','Cat'};
                 Args.SaveVisitProduct  = {'Image','Mask','Cat','PSF'};
                 Args.SaveMergedCat     = true;
                 Args.SaveMergedMat     = true;
                 Args.SaveAsteroids     = true;
 
-                Args.Insert2DB         = true;
+                % DataBase
+                Args.Insert2DB         = true;              % Insert images data to LAST DB
                 Args.DB_InsertRaw      = false;
                 Args.DB_Table_Raw      = 'raw_images';
                 Args.DB_Table_Proc     = 'proc_images';
