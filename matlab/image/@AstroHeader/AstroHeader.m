@@ -1858,12 +1858,13 @@ classdef AstroHeader < Component
             Obj
             FileName            = 'astroheader.csv' % output file name
             Args.Append logical = false % append or overwrite
-            Args.Delimiter      = ';' % '\t' is tab
+            Args.Delimiter      = ',' % '\t' is tab
             end
             
             if ~Args.Append
-                FirstSymb = {'#'};
+                FirstSymb = {'FileName'};
                 FirstLine = [FirstSymb, Obj(1).Data{:,1}];
+                Ind = find(strcmp(FirstLine, 'DATE-OBS')); FirstLine{Ind} = 'DATE_OBS'; % correct one of the keywords
                 writecell(FirstLine,FileName,'Delimiter',Args.Delimiter);
             end
             
