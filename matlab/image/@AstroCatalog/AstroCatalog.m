@@ -1265,7 +1265,7 @@ classdef AstroCatalog < AstroTable
                 Matr{Iobj} = Obj(Iobj).Catalog;
             end
             
-            io.files.mex.mex_matrix_writecsv_double(Matr, Headers, FileName);
+            io.files.mex.mex_writecsv_double(Matr, Headers, FileName);
             
             Result = 0;
         end
