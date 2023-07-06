@@ -647,7 +647,7 @@ classdef AstroDb < Component
                     case 'img'  % images
                         
                         if isa( Data(IData), 'AstroHeader' )
-                            AH = Data(IData);
+                            AH = Data(IData).copy; % .copy is used in order not to influence the original AstroHeader
                             if numel(Args.FileNames) == NData % a separate list of file names is provided
                                 Filename = Args.FileNames{IData};
                             elseif ~isempty(AH.File)
