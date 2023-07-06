@@ -423,7 +423,12 @@ classdef DemonLAST < Component
             RAD = 180./pi;
             
             [TileList,TileArea] = celestial.coo.tile_the_sky(Args.N_LonLat(1), Args.N_LonLat(2));
-            Ebv      = astro.spec.sky_ebv(TileList(:,1),TileList(:,2));
+            try
+                Ebv      = astro.spec.sky_ebv(TileList(:,1),TileList(:,2));
+            catch
+                Ebv      = nan(size(TileList,1),1);
+            end
+            
             TileList = TileList.*RAD;
             
             List = table(TileList(:,1), TileList(:,2), TileList(:,3), TileList(:,4), TileList(:,5), TileList(:,6), Ebv, TileArea);
