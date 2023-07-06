@@ -1844,7 +1844,7 @@ classdef AstroHeader < Component
             
         end
         
-        function Result = writeCSV(Obj, FileName, Args)
+        function Result = writeCSV(Obj0, FileName, Args)
             % write an AstroHeader to a csv text file
             % Input  : - An AstroHeader object or a vector of AH objects
             %          - name of the file to write to
@@ -1855,20 +1855,58 @@ classdef AstroHeader < Component
             % Output : - a csv file
             % Author : A. Krassilchtchikov (Jun 2023)
             arguments
-            Obj
+            Obj0
             FileName            = 'astroheader.csv' % output file name
             Args.Append logical = false % append or overwrite
             Args.Delimiter      = ',' % '\t' is tab
+            Args.CleanHeaderValues logical = false % remove the fields not present in the DB table
             end
             
-            if ~Args.Append
-                FirstSymb = {'FileName'};
-                FirstLine = [FirstSymb, Obj(1).Data{:,1}];
-                Ind = find(strcmp(FirstLine, 'DATE-OBS')); FirstLine{Ind} = 'DATE_OBS'; % correct one of the keywords
+            Obj = Obj0.copy;
+            
+            if Args.CleanHeaderValues
+                load('~/db_ima_cols.mat'); % lists of LAST DB keyords
+            end
+
+            if ~Args.Append               
+                FirstLine = Obj(1).Data(:,1);
+                if Args.CleanHeaderValues
+                    Numeric = find(cellfun(@isnumeric, FirstLine));
+                    FirstLine(Numeric,:) = [];  %remove invalid keywords
+                    Ind = find(strcmp(FirstLine, 'DATE-OBS')); FirstLine{Ind} = 'DATE_OBS'; % correct one of the keywords
+                    Keys = ismember(lower(FirstLine), cols_coadd');
+                    FirstLine = FirstLine(Keys); % keep matching keywords only
+                end
+                FirstLine = [{'FileName'}, FirstLine'];
                 writecell(FirstLine,FileName,'Delimiter',Args.Delimiter);
             end
             
             for Iobj = 1:1:numel(Obj)
+                
+                if Args.CleanHeaderValues
+                % taking out the lines we do not need to inject to a DB   
+                    Kwords = Obj(Iobj).Data(:,1);
+                    Numeric = find(cellfun(@isnumeric, Kwords)); 
+                    Kwords(Numeric) = []; %remove invalid keywords
+                    Obj(Iobj).Data(Numeric,:) = [];
+                    Ind = find(strcmp(Kwords, 'DATE-OBS')); 
+                    Kwords{Ind} = 'DATE_OBS'; % correct one of the keywords
+                    Keys = ismember(lower(Kwords), cols_coadd');
+                    Obj(Iobj).Data = Obj(Iobj).Data(Keys,:); % keep only the matching keywords
+                    % avoid empty char array in subdir and sublevel
+                    Ind = find( strcmp(Obj(Iobj).Data(:,1), 'SUBDIR')   ); 
+                    if Ind > 0
+                        if isempty(Obj(Iobj).Data{Ind,2})
+                            Obj(Iobj).Data{Ind,2} = ' ';
+                        end
+                    end
+                    Ind = find( strcmp(Obj(Iobj).Data(:,1), 'SUBLEVEL') ); 
+                    if Ind > 0
+                        if isempty(Obj(Iobj).Data{Ind,2})
+                            Obj(Iobj).Data{Ind,2} = ' ';
+                        end
+                    end
+                end
                 
                 FirstSymb = {Obj(Iobj).File};
                 Line = [FirstSymb, Obj(Iobj).Data{:,2}];
