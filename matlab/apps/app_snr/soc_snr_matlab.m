@@ -32,7 +32,7 @@ function soc_snr_matlab()
     end           
 
     % Test that we can find file 'Gal_Sc.txt'
-    if true %isdeployed
+    if isdeployed
         FName = 'Gal_Sc.txt';
         fprintf('\n\n\nChecking: %s\n', FName);
         fprintf('Before loadMap:\n');

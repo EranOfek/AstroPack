@@ -44,7 +44,8 @@ function Result = processItem(item)
     out = struct;
     out.message = 'MATLAB: Exception in processItem';
     out.result = -1;   
-  
+    out.json_text = '';  
+    
     try
         out.message = sprintf('MATLAB: op: %s', item.op);
         

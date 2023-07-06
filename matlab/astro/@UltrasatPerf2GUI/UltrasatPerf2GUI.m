@@ -35,11 +35,12 @@ classdef UltrasatPerf2GUI < Component
             FName = Obj.MatFileName;
             
             % Temporary solution!!! @Todo @Chen (2023/05/17)
-            if true %isdeployed
+            if isdeployed
                 FName = fullfile('c:/soc/snr/snr_matlab/', Obj.MatFileName);
             end
             Obj.msgLog(LogLevel.Debug, 'UltrasatPerf2GUI:load: %s', FName);
-            Obj.UP = io.files.load1(FName, 'UP');
+            Obj.UP = load(FName);  %, 'UP');
+            %Obj.UP = io.files.load1(FName, 'UP');
             assert(~isempty(Obj.UP.UP));
             
             %Obj.UP = io.files.load1(Obj.MatFileName, 'UP');
