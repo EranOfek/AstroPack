@@ -92,14 +92,14 @@ classdef AstroSpec < Component
         function Obj = AstroSpec(Matrix, Columns, Units)
             % constructor for AstroSpec
             % Input  : - An AstroSpec, Matrix, table, or cell array of
-            %            matrix/tables.
+            %            matrix/tables. Default is 1.
             %          - A cell array of column names.
             %          - A cell array of unit names.
             % Output : - An AstroSpec object
             % Exanple: AS = AstroSpec(rand(100,2))
             
             arguments
-                Matrix
+                Matrix               = 1;
                 Columns cell         = {};
                 Units cell           = {};
             end
