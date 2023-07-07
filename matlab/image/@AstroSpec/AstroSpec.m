@@ -177,7 +177,7 @@ classdef AstroSpec < Component
             
             Flag = ismember(Obj.Data.Properties.VariableNames, Obj.DefColNameWave); % index of wave columns
             if ~any(Flag)
-                error('Wavelength column is not populated');
+                fprintf('Wavelength column is not populated because column names in table are not valid')
             end
             
             Result = Obj.Data.Properties.VariableUnits{Flag};
@@ -271,6 +271,7 @@ classdef AstroSpec < Component
             
             Flag = ismember(Obj.Data.Properties.VariableNames, Obj.DefColNameFlux); % index of flux columns
             if ~any(Flag)
+                'hi'
                 error('Flux column is not populated');
             end
             
