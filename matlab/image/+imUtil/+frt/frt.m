@@ -2,12 +2,10 @@ function [R, R_Partial] = frt(M_in, Args)
     % Fast Radon Transform (FRT) of a 2-D matrix
     %   Calculate the FRT including partial FRT for parial lines finding
     %   using the algorithm described in Nir et al. (2018).
+    %   Note that for a full FRT you need to run this function twice, the
+    %   second time using the Trsnspose option.
     % Input  : - A 2-D matrix (image).
     %          * ...,key,val,...
-    %            'Partial' - Logical indicating if to return also the partial FRT.
-    %                   In this case the partial layers of the transformation
-    %                   are saved in a cell array output (useful for getting variance).
-    %                   Default is false.
     %            'Finder' - 
     %            'UseMex' - Use coreFRT.cpp. Default is true.
     %            'NumThreds' - Number of thredas.
@@ -43,7 +41,6 @@ function [R, R_Partial] = frt(M_in, Args)
     %          [R,P] = imUtil.frt.frt(Im,'NumThreads',4);
     arguments
         M_in
-        Args.Partial logical     = false;
         Args.UseMex logical      = true;
         Args.Finder              = [];
         Args.Transpose logical   = false;
@@ -52,6 +49,13 @@ function [R, R_Partial] = frt(M_in, Args)
         Args.NumThreads          = 0;
     end
         
+    
+    if nargout>1
+        Partial = true;
+    else
+        Partial = false;
+    end
+    
     %%%%%%%%%%%%%%%%%%%%%%% CHECK INPUTS and DEFAULTS %%%%%%%%%%%%%%%%%%%%%
     
     if ndims(M_in)>2
@@ -130,7 +134,7 @@ function [R, R_Partial] = frt(M_in, Args)
             %finder.scan(M, transpose);
         end
 
-        if Args.Partial
+        if Partial
             R_Partial{m} = M;
         end
 
