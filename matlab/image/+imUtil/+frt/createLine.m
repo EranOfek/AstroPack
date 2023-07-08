@@ -6,7 +6,7 @@ function Image=createLine(Image, Args)
     %            'B' - Vector of lines intersection to add to the image.
     %            'Fun' - Line profile function:
     %                   'flat' - A top hat function with width given by
-    %                       2.*Sigma.
+    %                       2.*Sigma.git s
     %                   'gauss' - A Gaussian profile width sigma-width
     %                       given by Sigma.
     %                   Default is 'gauss'.
