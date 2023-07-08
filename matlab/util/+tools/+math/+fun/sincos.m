@@ -1,57 +1,50 @@
-function NewMat=insert_ind(Mat,Ind,Val2Insert,Dim)
-% Insert a column/s or row/s to a specific position in a matrix.
-% Package: Util.array
-% Description: Insert a column/s or row/s to a specific position in
-%              a matrix.
-% Input  : - Matrix.
-%          - Index in which, afterwards, to insert the new column/s row/s.
-%          - Column/s or row/s to insert.
-%          - Dimension: 1 - Insert rows; 2 - Insert columns, default is 1.
-% Output : - A new matrix with new column/s or row/s inserted.
-% Tested : Matlab 7.0
-%     By : Eran O. Ofek                    Dec 2005
-%    URL : http://weizmann.ac.il/home/eofek/matlab/
-% See also: delete_ind.m
-% Example: NewMat=insert_ind(zeros(3,2),2,[1 1; 2 2],1)
-% Reliable: 1
-%---------------------------------------------------------------------------
-if (nargin==3)
-   Dim = 1;
-elseif (nargin==4)
-   % do nothing
-else
-   error('Illegal number of input arguments');
-end
+function [sin_res, cos_res] = sincos(degs, UseMex, UseMP)
+    %
+    % Input  : - degs - input array
+    %          - UseMex - true to use MEX optimization
+    %          - UseMP - true to use threading
+    %
+    % Output : - sin and cosine arrays
+    %
+    % Author : Dan Elhanati (July 2023)
+    % Example:
+    %
+    %
+    %
+    %
+    %
 
+    %----------------------------------------------------------------------
+    arguments
+        degs              	% Input array
+        UseMex = true;     	% True: Use MEX implementation, False: Use MATLAB implementaion
+        UseMP = true;      	% True: Use threading with OpenMP multi-threading library
+    end
 
-if (Ind==0)
-   % begining of matrix
-   switch Dim
-    case 1
-       NewMat = [Val2Insert; Mat];
-    case 2
-       NewMat = [Val2Insert, Mat];
-    otherwise
-       error(sprintf('%d-dimension is unspported - use only 1/2-d',Dim));
-   end
-elseif (Ind>=size(Mat,Dim))
-   % end of matrix
-   switch Dim
-    case 1
-       NewMat = [Mat; Val2Insert];
-    case 2
-       NewMat = [Mat, Val2Insert];
-    otherwise
-       error(sprintf('%d-dimension is unspported - use only 1/2-d',Dim));
-   end
-else
-   % middle of matrix
-   switch Dim
-    case 1
-       NewMat = [Mat(1:Ind,:); Val2Insert; Mat(Ind+1:end,:)];
-    case 2
-       NewMat = [Mat(:,1:Ind), Val2Insert, Mat(:,Ind+1:end)];
-    otherwise
-       error(sprintf('%d-dimension is unspported - use only 1/2-d',Dim));
-   end
+    % MATLAB implementation
+    if ~UseMex
+        sin_res = sin(degs);
+        cos_res = cos(degs);
+        return;
+    end
+    
+    % MEX implementation
+    % Call function according to input data type
+    C = lower(class(degs));    
+    switch C
+        case {'uint8','int8'}
+            [sin_res,cos_res] = tools.math.fun.mex.mex_sincos_int8(degs, UseMP);               
+        case {'uint16','int16'}
+            [sin_res,cos_res] = tools.math.fun.mex.mex_sincos_int16(degs, UseMP);
+        case {'uint32','int32'}
+            [sin_res,cos_res] = tools.math.fun.mex.mex_sincos_int32(degs, UseMP);
+        case {'uint64','int64'}
+            [sin_res,cos_res] = tools.math.fun.mex.mex_sincos_int64(degs, UseMP);
+        case {'single'}
+            [sin_res,cos_res] = tools.math.fun.mex.mex_sincos_single(degs, UseMP);
+        case {'double'}
+            [sin_res,cos_res] = tools.math.fun.mex.mex_sincos_double(degs, UseMP);
+        otherwise
+            error('tools.math.fun.sincos - Unsupported data type');
+    end
 end

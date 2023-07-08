@@ -33,7 +33,7 @@ function Result = test_onesExcept()
     
     iters = 50;
     
-    for arr_sizes=3:3
+    for arr_sizes=1:3
         
         arr_size = power(10,arr_sizes);
         
