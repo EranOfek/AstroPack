@@ -1661,23 +1661,28 @@ classdef DemonLAST < Component
                                 % write PROC and COADD catalog data to a local csv file 
                                 % to be injected into the DB 
                                 % later on outside of this pipeline
-% 
-%                                 FN_CatProc = FN_Proc.copy;
-%                                 FN_CatProc = FN_CatProc.updateIfNotEmpty...
-%                                 ('Product','Cat', 'FileType',{'csv'});
-%                                 ProcCatFileName  = FN_CatProc.genFull{1};
-%                                 NCat = numel(AllSI); 
-%                                 ProcCat(1:NCat) = AllSI(1:NCat).CatData;
-%                                 
-%                                 FN_CatCoadd = FN_Coadd.copy;
-%                                 FN_CatCoadd = FN_CatCoadd.updateIfNotEmpty...
-%                                 ('Product','Cat', 'LevelPath','proc', 'FileType',{'csv'});
-%                                 CoaddCatFileName  = FN_CatCoadd.genFull{1};
-%                                 NCat = numel(Coadd);
-%                                 CoaddCat(1:NCat) = Coadd(1:NCat).CatData;
-%                                 
-%                                 ProcCat.writeLargeCSV(ProcCatFileName);
-%                                 CoaddCat.writeLargeCSV(CoaddCatFileName);
+
+                                FN_CatProc = FN_Proc.copy;
+                                FN_CatProc = FN_CatProc.updateIfNotEmpty('Product','Cat', 'FileType',{'csv'});
+                                ProcCatFileName  = FN_CatProc.genFull{1}; NCat = numel(AllSI); 
+                                ProcCat(1:NCat) = AllSI(1:NCat).CatData;
+                                
+                                FN_CatCoadd = FN_Coadd.copy;
+                                FN_CatCoadd = FN_CatCoadd.updateIfNotEmpty('Product','Cat', 'FileType',{'csv'});
+                                CoaddCatFileName  = FN_CatCoadd.genFull('LevelPath','proc');
+                                CoaddCatFileName  = CoaddCatFileName{1};  NCat = numel(Coadd);
+                                CoaddCat(1:NCat) = Coadd(1:NCat).CatData;
+                                
+                                ProcCat.writeLargeCSV(ProcCatFileName,...
+                                    'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'}],...
+                                    'AddColValues',[AllSI(1).Key.CAMNUM AllSI(1).Key.MOUNTNUM AllSI(1).Key.NODENUMB] );
+                                CoaddCat.writeLargeCSV(CoaddCatFileName,...
+                                    'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'}],...
+                                    'AddColValues',[AllSI(1).Key.CAMNUM AllSI(1).Key.MOUNTNUM AllSI(1).Key.NODENUMB]);
+                                
+                                FileID = fopen(strcat(FN_CatProc.genPath,'/.status'),'a+');
+                                fprintf(FileID,'%s ready-for-DB',datestr(now,'yyyy-mm-ddTHH:MM:SS'));
+                                fclose(FileID);
 
                             end
 
