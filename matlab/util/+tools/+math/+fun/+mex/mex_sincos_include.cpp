@@ -19,12 +19,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
     // Check the number of input and output arguments
     if (nrhs != 2)
-        mexErrMsgTxt("One input argument is required.");
+        mexErrMsgTxt("Two input arguments are required.");
     if (nlhs != 2)
         mexErrMsgTxt("Two output arguments are required.");
 
     // Get the input array
-    __Type *degs = (__Type*)mxGetData(prhs[0]);
+    __Type *rads = (__Type*)mxGetData(prhs[0]);
 
     // Get the number of elements in the input arrays
     int64 numel = mxGetNumberOfElements(prhs[0]);
@@ -47,12 +47,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     if (useOpenMP) {
         #pragma omp parallel for    
         for (mwSize i = 0; i < numel; ++i) {
-            sincos(degs[i], &cosArray[i], &sinArray[i]);
+            sincos(rads[i], &cosArray[i], &sinArray[i]);
         }
     }
     else {
         for (mwSize i = 0; i < numel; ++i) {
-            sincos(degs[i], &cosArray[i], &sinArray[i]);
+            sincos(rads[i], &cosArray[i], &sinArray[i]);
         }        
     }
     
@@ -61,32 +61,32 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 //     if (useOpenMP) {
 //         #pragma omp parallel for
 //         for (mwSize i = 0; i < simd_size; i += 8) {
-//             sincos(degs[i+0], &cosArray[i+0], &sinArray[i+0]);
-//             sincos(degs[i+1], &cosArray[i+1], &sinArray[i+1]);
-//             sincos(degs[i+2], &cosArray[i+2], &sinArray[i+2]);
-//             sincos(degs[i+3], &cosArray[i+3], &sinArray[i+3]);
-//             sincos(degs[i+4], &cosArray[i+4], &sinArray[i+4]);
-//             sincos(degs[i+5], &cosArray[i+5], &sinArray[i+5]);
-//             sincos(degs[i+6], &cosArray[i+6], &sinArray[i+6]);
-//             sincos(degs[i+7], &cosArray[i+7], &sinArray[i+7]);
+//             sincos(rads[i+0], &cosArray[i+0], &sinArray[i+0]);
+//             sincos(rads[i+1], &cosArray[i+1], &sinArray[i+1]);
+//             sincos(rads[i+2], &cosArray[i+2], &sinArray[i+2]);
+//             sincos(rads[i+3], &cosArray[i+3], &sinArray[i+3]);
+//             sincos(rads[i+4], &cosArray[i+4], &sinArray[i+4]);
+//             sincos(rads[i+5], &cosArray[i+5], &sinArray[i+5]);
+//             sincos(rads[i+6], &cosArray[i+6], &sinArray[i+6]);
+//             sincos(rads[i+7], &cosArray[i+7], &sinArray[i+7]);
 //         }
 //     }
 //     else {
 //         for (mwSize i = 0; i < simd_size; i += 8) {
-//             sincos(degs[i+0], &cosArray[i+0], &sinArray[i+0]);
-//             sincos(degs[i+1], &cosArray[i+1], &sinArray[i+1]);
-//             sincos(degs[i+2], &cosArray[i+2], &sinArray[i+2]);
-//             sincos(degs[i+3], &cosArray[i+3], &sinArray[i+3]);
-//             sincos(degs[i+4], &cosArray[i+4], &sinArray[i+4]);
-//             sincos(degs[i+5], &cosArray[i+5], &sinArray[i+5]);
-//             sincos(degs[i+6], &cosArray[i+6], &sinArray[i+6]);
-//             sincos(degs[i+7], &cosArray[i+7], &sinArray[i+7]);
+//             sincos(rads[i+0], &cosArray[i+0], &sinArray[i+0]);
+//             sincos(rads[i+1], &cosArray[i+1], &sinArray[i+1]);
+//             sincos(rads[i+2], &cosArray[i+2], &sinArray[i+2]);
+//             sincos(rads[i+3], &cosArray[i+3], &sinArray[i+3]);
+//             sincos(rads[i+4], &cosArray[i+4], &sinArray[i+4]);
+//             sincos(rads[i+5], &cosArray[i+5], &sinArray[i+5]);
+//             sincos(rads[i+6], &cosArray[i+6], &sinArray[i+6]);
+//             sincos(rads[i+7], &cosArray[i+7], &sinArray[i+7]);
 //         }    
 //     }    
 //     
 //     if (numel-simd_size > 0) {
 //         for (int64 i = simd_size; i < numel;  i++) {
-//             sincos(degs[i], &cosArray[i], &sinArray[i]);
+//             sincos(rads[i], &cosArray[i], &sinArray[i]);
 //         }
 //     }
     
