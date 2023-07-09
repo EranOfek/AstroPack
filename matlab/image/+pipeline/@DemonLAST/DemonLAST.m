@@ -1405,7 +1405,7 @@ classdef DemonLAST < Component
 
                 % DataBase
                 Args.Insert2DB         = true;              % Insert images data to LAST DB
-                Args.DB_InsertRaw      = false;
+%                 Args.DB_InsertRaw      = false;
                 Args.DB_Table_Raw      = 'raw_images';
                 Args.DB_Table_Proc     = 'proc_images';
                 Args.DB_Table_Coadd    = 'coadd_images';
@@ -1648,14 +1648,32 @@ classdef DemonLAST < Component
                                 Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
                                 Obj.writeLog(Msg, LogLevel.Info);
                                 
-                                % insert proc and coadd catalogs into the DB:
+                                % insert proc and coadd catalogs into the DB 
+
 %                                 CatFileName = FN_Cat.genFull('LevelPath','proc');
-                                ProcCatFileName  = '';
-                                CoaddCatFileName = '';
-%                                 [ID_ProcCat, OK]  = ADB.insert(AllSI.CatData, 'Table',Args.DB_Table_ProcCat,  'FileNames', ProcCatFileName, 'Type','cat');
+%                                 ProcCatFileName  = '';
+%                                 CoaddCatFileName = '';
+% %                                 [ID_ProcCat, OK]  = ADB.insert(AllSI.CatData, 'Table',Args.DB_Table_ProcCat,  'FileNames', ProcCatFileName, 'Type','cat');
 %                                 [ID_CoaddCat, OK] = ADB.insert(Coadd.CatData, 'Table',Args.DB_Table_CoaddCat, 'FileNames', CoaddCatFileName,'Type','cat');
-                                Msg{1} = sprintf('Insert catalog objects to LAST catalog tables - success: %d', OK);
-                                Obj.writeLog(Msg, LogLevel.Info);
+%                                 Msg{1} = sprintf('Insert catalog objects to LAST catalog tables - success: %d', OK);
+%                                 Obj.writeLog(Msg, LogLevel.Info);
+
+                                % write PROC and COADD catalog data to a local csv file 
+                                % to be injected into the DB 
+                                % later on outside of this pipeline
+% 
+%                                 FN_CatProc = FN_I.copy;
+%                                 FN_CatProc = FN_CatProc.updateIfNotEmpty...
+%                                 ('Product','Cat', 'Level', 'proc', 'FileType','csv');
+%                                 ProcCatFileName  = FN_CatProc.genFull;
+%                                 
+%                                 FN_CatCoadd = FN_I.copy;
+%                                 FN_CatCoadd = FN_CatCoadd.updateIfNotEmpty...
+%                                 ('Product','Cat', 'Level', 'coadd', 'FileType','csv');
+%                                 CoaddCatFileName  = FN_CatCoadd.genFull;
+%                                 
+%                                 AllSI.CatData.writeLargeCSV(ProcCatFileName);
+%                                 Coadd.CatData.writeLargeCSV(CoaddCatFileName);
 
                             end
 
