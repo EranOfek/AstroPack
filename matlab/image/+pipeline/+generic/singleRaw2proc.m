@@ -94,7 +94,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.BitNameBadPix                  = {'Saturated','NaN','Negative'};
         Args.BitNameInterpolated            = 'Interpolated';
                 
-        
+        Args.KeySoftVer                       = 'PIPEVER';
         
         Args.InterpolateOverProblems logical  = false; %true;
         Args.BitNamesToInterp                 = {'Saturated','HighRN','DarkHighVal','Hole','Spike','CR_DeltaHT'};
@@ -194,6 +194,9 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         AI = AI.copy;
     end
     
+    % add AstroPack version to headers
+    AI.setKeyVal(Arg.KeySoftVer, tools.git.getVersion)
+
     % set CalibImages
     if isempty(Args.CalibImages)
         Args.CalibImages = CalibImages;
