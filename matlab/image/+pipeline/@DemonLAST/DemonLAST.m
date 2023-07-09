@@ -1680,9 +1680,11 @@ classdef DemonLAST < Component
                                     'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'}],...
                                     'AddColValues',[AllSI(1).Key.CAMNUM AllSI(1).Key.MOUNTNUM AllSI(1).Key.NODENUMB]);
                                 
-                                FileID = fopen(strcat(FN_CatProc.genPath,'/.status'),'a+');
-                                fprintf(FileID,'%s ready-for-DB',datestr(now,'yyyy-mm-ddTHH:MM:SS'));
-                                fclose(FileID);
+                                writeStatus(Coadd, FN_CatProc.genPath, 'Msg', 'ready-for-DB');
+
+%                                 FileID = fopen(strcat(FN_CatProc.genPath,'/.status'),'a+');
+%                                 fprintf(FileID,'%s ready-for-DB',datestr(now,'yyyy-mm-ddTHH:MM:SS'));
+%                                 fclose(FileID);
 
                             end
 
