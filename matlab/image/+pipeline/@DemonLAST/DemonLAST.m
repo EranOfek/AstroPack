@@ -1671,7 +1671,7 @@ classdef DemonLAST < Component
 %                                 
 %                                 FN_CatCoadd = FN_Coadd.copy;
 %                                 FN_CatCoadd = FN_CatCoadd.updateIfNotEmpty...
-%                                 ('Product','Cat', 'Level', 'proc', 'FileType',{'csv'});
+%                                 ('Product','Cat', 'LevelPath','proc', 'FileType',{'csv'});
 %                                 CoaddCatFileName  = FN_CatCoadd.genFull{1};
 %                                 NCat = numel(Coadd);
 %                                 CoaddCat(1:NCat) = Coadd(1:NCat).CatData;
