@@ -1253,7 +1253,7 @@ classdef AstroCatalog < AstroTable
             %          AC = AstroCatalog(Data);
             %          AC.writeLargeCSV('/home/ocs/cat.csv');
             %          If we need some columns to be added:
-            %          AC.writeLargeCSV('/home/ocs/cat.csv','AddColNames',[{'CAMNUM'} {'MOUNTNUM'}],'AddColValues',[1 8]);
+            %          AC.writeLargeCSV('/home/ocs/cat.csv','AddColNames',[{'CAMNUM'} {'MOUNTNUM'} {'NODE'}],'AddColValues',[1 8 1]);
             arguments
             Obj
             FileName            = 'astrocatalog.csv' % output file name

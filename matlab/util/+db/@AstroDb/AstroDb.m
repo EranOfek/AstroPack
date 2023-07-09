@@ -762,7 +762,7 @@ classdef AstroDb < Component
             
           end
          
-    end
+    end 
     
     methods % creation/removal of image and catalog tables (generic)
         
