@@ -1236,12 +1236,13 @@ classdef AstroCatalog < AstroTable
             end
         end
         
-        function Result = writeLargeCSV(Obj, FileName)
+        function Result = writeLargeCSV(Obj, FileName, Args)
             % Write a stack of AstroCatalog objects to a csv text file
             % Input  : - An AstroCatalog object or a vector of AC objects
             %          - name of the CSV file to write to
             %        * ...,key,val,...
-            %
+            %       AddColNames  - names of additional columns (headers)
+            %       AddColValues - values of additional columns (1 value for all the rows)
             % Output : - a csv file
             % Author : A. Krassilchtchikov (Jun 2023)
             % Example: Files  = dir ( fullfile('./', '**', '*Cat*') );
@@ -1251,18 +1252,34 @@ classdef AstroCatalog < AstroTable
             %          end
             %          AC = AstroCatalog(Data);
             %          AC.writeLargeCSV('/home/ocs/cat.csv');
+            %          If we need some columns to be added:
+            %          AC.writeLargeCSV('/home/ocs/cat.csv','AddColNames',[{'CAMNUM'} {'MOUNTNUM'}],'AddColValues',[1 8]);
             arguments
             Obj
             FileName            = 'astrocatalog.csv' % output file name
+            Args.AddColNames    = [];
+            Args.AddColValues   = [];
             end
             
             Headers = Obj(1).ColNames; 
+            
+            if ~isempty(Args.AddColNames)
+                for i=1:numel(Args.AddColNames)
+                    Headers = [ Headers Args.AddColNames(i) ];
+                end
+            end
             
             Nobj = length(Obj);
             Matr = cell(1, Nobj);
             
             for Iobj = 1:Nobj
                 Matr{Iobj} = Obj(Iobj).Catalog;
+                if ~isempty(Args.AddColValues)
+                    Nrows = size(Matr{Iobj},1);
+                    for i = 1:numel(Args.AddColValues)
+                        Matr{Iobj} = [ Matr{Iobj} Args.AddColValues(i) * ones(Nrows,1) ];
+                    end
+                end
             end
             
             io.files.mex.mex_writecsv_double(Matr, Headers, FileName);

@@ -1865,7 +1865,7 @@ classdef AstroHeader < Component
             Obj = Obj0.copy;
             
             if Args.CleanHeaderValues
-                load('~/db_ima_cols.mat'); % lists of LAST DB keyords
+                load('~/db_ima_cols.mat'); % lists of LAST DB keyords %TBD: put into a common folder or Config
             end
 
             if ~Args.Append               

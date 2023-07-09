@@ -356,6 +356,8 @@ classdef AstroDb < Component
             Q.addColumn(TN, 'filename', 'varchar(256)', '', 'index', true);
             Q.addColumn(TN, 'xxhash',   'varchar(80)', '', 'index', true);
 %             Q.addColumn(TN, 'cattype',   'varchar(80)', '', 'index', true);
+            Q.addColumn(TN, 'mount',    'smallint', 'default 0', 'index', true);
+            Q.addColumn(TN, 'camnum',   'smallint', 'default 0', 'index', true);
 
             % Columns WITHOUT index
             Q.addColumn(TN, 'xpeak',        'smallint', 'default 0');
