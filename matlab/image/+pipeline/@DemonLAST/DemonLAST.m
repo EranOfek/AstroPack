@@ -1662,18 +1662,22 @@ classdef DemonLAST < Component
                                 % to be injected into the DB 
                                 % later on outside of this pipeline
 % 
-%                                 FN_CatProc = FN_I.copy;
+%                                 FN_CatProc = FN_Proc.copy;
 %                                 FN_CatProc = FN_CatProc.updateIfNotEmpty...
-%                                 ('Product','Cat', 'Level', 'proc', 'FileType','csv');
-%                                 ProcCatFileName  = FN_CatProc.genFull;
+%                                 ('Product','Cat', 'FileType',{'csv'});
+%                                 ProcCatFileName  = FN_CatProc.genFull{1};
+%                                 NCat = numel(AllSI); 
+%                                 ProcCat(1:NCat) = AllSI(1:NCat).CatData;
 %                                 
-%                                 FN_CatCoadd = FN_I.copy;
+%                                 FN_CatCoadd = FN_Coadd.copy;
 %                                 FN_CatCoadd = FN_CatCoadd.updateIfNotEmpty...
-%                                 ('Product','Cat', 'Level', 'coadd', 'FileType','csv');
-%                                 CoaddCatFileName  = FN_CatCoadd.genFull;
+%                                 ('Product','Cat', 'Level', 'proc', 'FileType',{'csv'});
+%                                 CoaddCatFileName  = FN_CatCoadd.genFull{1};
+%                                 NCat = numel(Coadd);
+%                                 CoaddCat(1:NCat) = Coadd(1:NCat).CatData;
 %                                 
-%                                 AllSI.CatData.writeLargeCSV(ProcCatFileName);
-%                                 Coadd.CatData.writeLargeCSV(CoaddCatFileName);
+%                                 ProcCat.writeLargeCSV(ProcCatFileName);
+%                                 CoaddCat.writeLargeCSV(CoaddCatFileName);
 
                             end
 
