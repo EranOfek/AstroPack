@@ -1,23 +1,20 @@
 function [sin_res, cos_res] = sincos(rads, UseMex, UseMP)
-% calculate sine and cosine for an array of radians
-% Description: Function calculates the sine and consine of an array of
-%              radians. Function supports both a matlab and mex
-%              implementation.
-% Input  : - rads:   vector of radians for calculation
-%          - UseMex: Flag to choose mex (True) of matlab (False)
-%                    implementation. Default is True.
-%          - UseMP:  Flag for use of threading (True). Relevent only for
-%                    the Mex implementation. Default is True.
-% Output : - sin_res: vector of calculated sine
-%          - cos_res: vector of calculated cosine
+% Simultaneously calculate the sine and cosine for an array
+% Input  : - Vector (only) of angles [radians].
+%          - (UseMex) A logical indicating if to use mex version.
+%            Default is true.
+%          - (UseMP) A logical indicating if to use open MP.
+%            Default is true.
+% Output : - Vector of sine of angle.
+%          - Vector of cosine of angle.
 % Author : Dan Elhanati (July 2023)
 % Example: randomAngles = rand(1, 10) * 2 * pi;
 %          [matlab_sin, matlab_cos] = tools.math.fun.sincos(randomAngles, UseMex, UseMP);
 %----------------------------------------------------------------------
     arguments
         rads              	% Input array of radians
-        UseMex = true;     	% True: Use MEX implementation, False: Use MATLAB implementaion
-        UseMP = true;      	% True: Use threading with OpenMP multi-threading library
+        UseMex logical = true;     	% True: Use MEX implementation, False: Use MATLAB implementaion
+        UseMP logical  = true;      	% True: Use threading with OpenMP multi-threading library
     end
 
     % MATLAB implementation
