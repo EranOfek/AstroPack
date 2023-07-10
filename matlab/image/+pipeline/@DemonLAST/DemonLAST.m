@@ -782,7 +782,7 @@ classdef DemonLAST < Component
             end
 
             FileName = fullfile(Path,Args.FileName);
-            FID = fopen(FileName,'w+');
+            FID = fopen(FileName,'a+');
             fprintf(FID,'%s %s\n',datestr(now,'yyyy-mm-ddTHH:MM:SS'),Args.Msg);
             fclose(FID);
 
@@ -1680,7 +1680,7 @@ classdef DemonLAST < Component
                                     'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'}],...
                                     'AddColValues',[AllSI(1).Key.CAMNUM AllSI(1).Key.MOUNTNUM AllSI(1).Key.NODENUMB]);
                                 
-                                writeStatus(Coadd, FN_CatProc.genPath, 'Msg', 'ready-for-DB');
+                                Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB'); 
 
 %                                 FileID = fopen(strcat(FN_CatProc.genPath,'/.status'),'a+');
 %                                 fprintf(FileID,'%s ready-for-DB',datestr(now,'yyyy-mm-ddTHH:MM:SS'));
