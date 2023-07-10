@@ -11,7 +11,7 @@ function Result = unitTest()
 %     D.main('RegenCalib',true);
     
     D.main('Insert2DB',true,'DB_Table_Raw','test_raw_images','DB_Table_Proc','test_proc_images',...
-            'DB_Table_Coadd','test_coadd_images')
+            'DB_Table_Coadd','test_coadd_images', 'DB_ImageBulk', 'true')
 
     Result = 0;
     

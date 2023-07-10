@@ -1632,29 +1632,62 @@ classdef DemonLAST < Component
                                     ADB = db.AstroDb(Args.AstroDBArgs{:});
                                 end
                                 
-                                % insert raw images into the DB:
-                                RawFileName = RawImageListFinal; % regexprep(RawImageList,'.*/','');
-                                [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawFileName);
-                                Msg{1} = sprintf('Insert images to LAST raw images table - success: %d', OK);
-                                Obj.writeLog(Msg, LogLevel.Info);
-                                                        
-                                % insert proc images into the DB:
-%                                 FN_Proc.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
-                                ProcFileName = FN_Proc.genFull;
-                                [ID_ProcImage, OK] = ADB.insert(AllSI, 'Table',Args.DB_Table_Proc, 'Hash', 0, 'FileNames',ProcFileName);
-                                Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
-                                Obj.writeLog(Msg, LogLevel.Info);
-                                % there are ~N*24 ProcImages, and only N RawImages
-                                ID_RawImage = repmat(ID_RawImage,1, 24);
-                                ID_RawImage = ID_RawImage(:);
-                                OK = ADB.updateByTupleID(ID_ProcImage, 'raw_image_id', ID_RawImage, 'Table',Args.DB_Table_Proc);
+                                if ~Args.DB_ImageBulk
+                                
+                                    % insert raw images into the DB:
+                                    RawFileName = RawImageListFinal; % regexprep(RawImageList,'.*/','');
+                                    [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawFileName);
+                                    Msg{1} = sprintf('Insert images to LAST raw images table - success: %d', OK);
+                                    Obj.writeLog(Msg, LogLevel.Info);
 
-                                % insert coadd images into the DB:
-%                                 FN_Coadd.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
-                                CoaddFileName = FN_Coadd.genFull('LevelPath','proc');
-                                [ID_ProcImage, OK] = ADB.insert(Coadd, 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName);
-                                Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
-                                Obj.writeLog(Msg, LogLevel.Info);
+                                    % insert proc images into the DB:
+    %                                 FN_Proc.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
+                                    ProcFileName = FN_Proc.genFull;
+                                    [ID_ProcImage, OK] = ADB.insert(AllSI, 'Table',Args.DB_Table_Proc, 'Hash', 0, 'FileNames',ProcFileName);
+                                    Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
+                                    Obj.writeLog(Msg, LogLevel.Info);
+                                    % there are ~N*24 ProcImages, and only N RawImages
+                                    ID_RawImage = repmat(ID_RawImage,1, 24);
+                                    ID_RawImage = ID_RawImage(:);
+                                    OK = ADB.updateByTupleID(ID_ProcImage, 'raw_image_id', ID_RawImage, 'Table',Args.DB_Table_Proc);
+
+                                    % insert coadd images into the DB:
+    %                                 FN_Coadd.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
+                                    CoaddFileName = FN_Coadd.genFull('LevelPath','proc');
+                                    [ID_ProcImage, OK] = ADB.insert(Coadd, 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName);
+                                    Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
+                                    Obj.writeLog(Msg, LogLevel.Info);
+                                    
+                                else
+                                    % prepare CSV files for further injection into the DB
+                                    
+                                    FN_I_DB = FN_I.copy;
+                                    FN_I_DB = FN_I_DB.updateIfNotEmpty('FileType',{'csv'});
+                                    RawFileName = FN_I_DB.genFull{1};
+                                    RawHeader.writeCSV(RawFileName,'CleanHeaderValues',1);
+                                    Obj.writeStatus(FN_I_DB.genPath, 'Msg', 'ready-for-DB');
+
+                                    FN_Proc_DB = FN_Proc.copy;
+                                    FN_Proc_DB = FN_Proc_DB.updateIfNotEmpty('FileType',{'csv'});
+                                    ProcFileName = FN_Proc_DB.genFull{1};
+                                    NData = numel(AllSI);
+                                    AH(1:NData) = AstroHeader;
+                                    AH(1:NData) = AllSI(1:NData).HeaderData;
+                                    AH.writeCSV(ProcFileName,'CleanHeaderValues',1);
+                                    Obj.writeStatus(FN_Proc_DB.genPath, 'Msg', 'ready-for-DB');
+
+                                    FN_Coadd_DB = FN_Coadd.copy;
+                                    FN_Coadd_DB = FN_Coadd_DB.updateIfNotEmpty('FileType',{'csv'});
+                                    CoaddFileName = FN_Coadd_DB.genFull('LevelPath','proc');
+                                    CoaddFileName = CoaddFileName{1};
+                                    NData = numel(Coadd);
+                                    AH(1:NData) = AstroHeader;
+                                    AH(1:NData) = Coadd(1:NData).HeaderData;
+                                    AH.writeCSV(CoaddFileName,'CleanHeaderValues',1);
+                                    
+                                    OK = 1;
+                                
+                                end
                                 
                                 % insert PROC and COADD catalogs into the DB 
 
