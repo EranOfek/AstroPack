@@ -195,7 +195,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
     end
     
     % add AstroPack version to headers
-    AI.setKeyVal(Args.KeySoftVer, tools.git.getVersion)
+    AI.setKeyVal(Args.KeySoftVer, tools.git.getVersion);
 
     % set CalibImages
     if isempty(Args.CalibImages)
