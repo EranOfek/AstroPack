@@ -1852,6 +1852,7 @@ classdef AstroHeader < Component
             %        'Append'   - append to an existing CSV file (no need to
             %        make a new file and write a line with column names
             %        'Delimiter' - field delimiter
+            %        'CleanHeaderValues' - remove the fields not present in the DB table
             % Output : - a csv file
             % Author : A. Krassilchtchikov (Jun 2023)
             arguments

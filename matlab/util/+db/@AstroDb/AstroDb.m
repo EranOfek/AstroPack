@@ -101,8 +101,7 @@ classdef AstroDb < Component
                 Args.DatabaseName  = 'lastdb'        % 'last_operational' at last0 node
                 Args.UserName      = ''      % User name
                 Args.Password      = ''      % Password
-                Args.ReadConfig    = false;  % read config from a local config file or create an object with the given parameters
-                Args.ListTables logical = true; % whether to put out a list of public tables
+                Args.ReadConfig    = false;  % read config from a local config file or create an object with the given parameters                
             end
             
             PM = PasswordsManager;
@@ -128,13 +127,13 @@ classdef AstroDb < Component
             Obj.msgLog(LogLevel.Info, 'Connected, Postgres version: %s', pgver);
             assert(contains(pgver, 'PostgreSQL'));   
             
-            % List tables, if the user asks for it
-            if Args.ListTables
-                TableList = Obj.Query.select('*','TableName','pg_tables','Where','schemaname = ''public''');
-                cprintf('hyper','%s\n','The DB contains the following public tables:')
-                Obj.Tables = extractfield(TableList.Data,'tablename');
-                Obj.Tables
-            end
+            % List the existing tables            
+            TableList = Obj.Query.select('*','TableName','pg_tables','Where','schemaname = ''public''');
+            Obj.Tables = extractfield(TableList.Data,'tablename');
+            Obj.msgLog(LogLevel.Info, 'The DB contains the following public tables:');
+            FMT = repmat('%s ', 1, numel(Obj.Tables)); FMT = [FMT '\n'];
+            Obj.msgLog(LogLevel.Info, FMT, Obj.Tables{1:numel(Obj.Tables)});                
+            
         end
         
     end
@@ -692,8 +691,8 @@ classdef AstroDb < Component
                 
             end
 
-            fprintf('%s%d%s\n','Processed ', NData,' entries');
-            cprintf('blue','%s%s%s%s%s\n','Table ',Table,' successfully populated with ',Args.Type',' metadata');           
+            Obj.msgLog(LogLevel.Info, 'Processed: %d entries', NData);
+            Obj.msgLog(LogLevel.Info, 'Table %s successfully populated with %s metadata', Table, Args.Type');
 
             Result = true;
             
