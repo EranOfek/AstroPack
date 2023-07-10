@@ -1511,7 +1511,7 @@ classdef DemonLAST < Component
                 end
                 
                 % check if stop loop
-                if StopGUI()
+                if Args.StopButton && StopGUI()
                     Cont = false;
                 end
                 if isfile(Args.AbortFileName)
