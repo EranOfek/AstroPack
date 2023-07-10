@@ -1626,10 +1626,12 @@ classdef DemonLAST < Component
                             
                             % 
                             if Args.Insert2DB
+                                
                                 if isempty(ADB)
                                     % connect to DB
                                     ADB = db.AstroDb(Args.AstroDBArgs{:});
                                 end
+                                
                                 % insert raw images into the DB:
                                 RawFileName = RawImageListFinal; % regexprep(RawImageList,'.*/','');
                                 [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawFileName);
@@ -1654,7 +1656,7 @@ classdef DemonLAST < Component
                                 Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
                                 Obj.writeLog(Msg, LogLevel.Info);
                                 
-                                % insert proc and coadd catalogs into the DB 
+                                % insert PROC and COADD catalogs into the DB 
 
                                 FN_CatProc = FN_Proc.copy;
                                 FN_CatProc = FN_CatProc.updateIfNotEmpty('Product','Cat', 'FileType',{'csv'});
@@ -1667,7 +1669,7 @@ classdef DemonLAST < Component
                                 CoaddCatFileName  = CoaddCatFileName{1};  NCat = numel(Coadd);
                                 CoaddCat(1:NCat) = Coadd(1:NCat).CatData;
                                 
-                                if (Args.DB_CatalogBulk) 
+                                if Args.DB_CatalogBulk 
                                     
                                      % write PROC and COADD catalog data to local csv files 
                                      % to be injected into the DB later on outside of this pipeline

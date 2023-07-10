@@ -1243,6 +1243,7 @@ classdef AstroCatalog < AstroTable
             %        * ...,key,val,...
             %       AddColNames  - names of additional columns (headers)
             %       AddColValues - values of additional columns (1 value for all the rows)
+            %       Precision - number of digits to keep
             % Output : - a csv file
             % Author : A. Krassilchtchikov (Jun 2023)
             % Example: Files  = dir ( fullfile('./', '**', '*Cat*') );
@@ -1259,6 +1260,8 @@ classdef AstroCatalog < AstroTable
             FileName            = 'astrocatalog.csv' % output file name
             Args.AddColNames    = [];
             Args.AddColValues   = [];
+            Args.Precision      = 15; % number of digits to keep: 
+                                      % a single integer value or an array with a value for each of the columns
             end
             
             Headers = Obj(1).ColNames; 
@@ -1282,7 +1285,13 @@ classdef AstroCatalog < AstroTable
                 end
             end
             
-            io.files.mex.mex_writecsv_double(Matr, Headers, FileName);
+            if numel(Args.Precision) == 1
+                Precision = Args.Precision * ones(numel(Headers),1);
+            else
+                Precision = Args.Precision;
+            end
+            
+            io.files.writeCsv(Matr, Headers, FileName,'PrecDigits', Precision);
             
             Result = 0;
         end
