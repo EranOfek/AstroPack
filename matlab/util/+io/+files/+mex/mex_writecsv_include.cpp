@@ -12,6 +12,7 @@
 #include "mex.h"
 #include <fstream>
 #include <string>
+#include <string.h>
 
 typedef long long int64;
 
