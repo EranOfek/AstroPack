@@ -8,7 +8,7 @@ function [R, R_Partial] = frt(M_in, Args)
     %          * ...,key,val,...
     %            'Finder' - 
     %            'UseMex' - Use coreFRT.cpp. Default is true.
-    %            'NumThreds' - Number of thredas.
+    %            'NumThreads' - Number of threads.
     %                   May speed up the code.
     %                   Default is 0.
     %            'Transpose' - Logical indicating if to work on the
@@ -63,7 +63,7 @@ function [R, R_Partial] = frt(M_in, Args)
     end
     
     %%%%%%%%%%%%%%%%%%%%%%% PREPARING THE MATRIX %%%%%%%%%%%%%%%%%%%%%%%%%%
-    M = M_in;
+    M = double(M_in); % Issue https://github.com/EranOfek/AstroPack/issues/191
 
     if Args.Transpose
         M = M.';
