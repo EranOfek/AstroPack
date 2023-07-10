@@ -141,7 +141,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     %                  
     %            'AddCoo2Cat' - A logical indicating if to add RA/Dec
     %                   columns to the catalog.
-    %                   Default is false (MAY BE CHANGED IN THE FUTURE).
+    %                   Default is true (MAY BE CHANGED IN THE FUTURE).
     %            'CatColNamesX' - A cell array dictionary of input catalog
     %                   X column name. Default is AstroCatalog.DefNamesX.
     %            'CatColNamesY' - A cell array dictionary of input catalog
@@ -225,7 +225,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         Args.SortCat                            = 'Dec';  % if empty donit sort
 
         Args.UpdateHeader logical               = true;
-        Args.AddCoo2Cat logical                 = false;
+        Args.AddCoo2Cat logical                 = true;
 
         Args.CatColNamesX                       = AstroCatalog.DefNamesX;
         Args.CatColNamesY                       = AstroCatalog.DefNamesY;
@@ -521,10 +521,12 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                 end
 
                 % update RA/Dec in catalog
-                [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Cat.getCol(IndCatX), Cat.getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
-                %Cat = deleteCol(Cat, {Args.OutCatColRA, Args.OutCatColDec});
-                %No need - done in insertCol
-                Cat = insertCol(Cat, [ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
+                if Args.AddCoo2Cat
+                    [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Cat.getCol(IndCatX), Cat.getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
+                    %Cat = deleteCol(Cat, {Args.OutCatColRA, Args.OutCatColDec});
+                    %No need - done in insertCol
+                    Cat = insertCol(Cat, [ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
+                end
                 if ~isempty(Args.SortCat)
                     Cat = sortrows(Cat, Args.SortCat);
                 end
@@ -555,9 +557,9 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         
     end
 
-    if Args.AddCoo2Cat
-        Obj = imProc.astrometry.addCoordinates2catalog(Obj);
-    end
+    %if Args.AddCoo2Cat
+    %    Obj = imProc.astrometry.addCoordinates2catalog(Obj);
+    %end
 
                 
 end
