@@ -12,6 +12,7 @@
 #include "mex.h"
 #include <fstream>
 #include <string>
+#include <iomanip>
 
 typedef long long int64;
 
@@ -80,7 +81,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
                 if (value == static_cast<int>(value)) {
                     file << static_cast<int>(value);
                 } else {
-                    file << value;
+					file << std::setprecision(std::numeric_limits<double>::digits10 + 1) << value;
                 }
 
                 if (j < ncols - 1) {
