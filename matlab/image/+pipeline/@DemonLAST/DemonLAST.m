@@ -1411,6 +1411,8 @@ classdef DemonLAST < Component
                 Args.DB_Table_Coadd    = 'coadd_images';
                 Args.DB_Table_ProcCat  = 'test_proc_src_catalog';
                 Args.DB_Table_CoaddCat = 'test_coadd_src_catalog';
+                Args.DB_ImageBulk   logical = false; % whether to use bulk or direct injection method
+                Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};
             end
             
@@ -1650,18 +1652,6 @@ classdef DemonLAST < Component
                                 
                                 % insert proc and coadd catalogs into the DB 
 
-%                                 CatFileName = FN_Cat.genFull('LevelPath','proc');
-%                                 ProcCatFileName  = '';
-%                                 CoaddCatFileName = '';
-% %                                 [ID_ProcCat, OK]  = ADB.insert(AllSI.CatData, 'Table',Args.DB_Table_ProcCat,  'FileNames', ProcCatFileName, 'Type','cat');
-%                                 [ID_CoaddCat, OK] = ADB.insert(Coadd.CatData, 'Table',Args.DB_Table_CoaddCat, 'FileNames', CoaddCatFileName,'Type','cat');
-%                                 Msg{1} = sprintf('Insert catalog objects to LAST catalog tables - success: %d', OK);
-%                                 Obj.writeLog(Msg, LogLevel.Info);
-
-                                % write PROC and COADD catalog data to a local csv file 
-                                % to be injected into the DB 
-                                % later on outside of this pipeline
-
                                 FN_CatProc = FN_Proc.copy;
                                 FN_CatProc = FN_CatProc.updateIfNotEmpty('Product','Cat', 'FileType',{'csv'});
                                 ProcCatFileName  = FN_CatProc.genFull{1}; NCat = numel(AllSI); 
@@ -1673,18 +1663,33 @@ classdef DemonLAST < Component
                                 CoaddCatFileName  = CoaddCatFileName{1};  NCat = numel(Coadd);
                                 CoaddCat(1:NCat) = Coadd(1:NCat).CatData;
                                 
-                                ProcCat.writeLargeCSV(ProcCatFileName,...
-                                    'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'}],...
-                                    'AddColValues',[AllSI(1).Key.CAMNUM AllSI(1).Key.MOUNTNUM AllSI(1).Key.NODENUMB] );
-                                CoaddCat.writeLargeCSV(CoaddCatFileName,...
-                                    'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'}],...
-                                    'AddColValues',[AllSI(1).Key.CAMNUM AllSI(1).Key.MOUNTNUM AllSI(1).Key.NODENUMB]);
-                                
-                                Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB'); 
+                                if (Args.DB_CatalogBulk) 
+                                    
+                                     % write PROC and COADD catalog data to local csv files 
+                                     % to be injected into the DB later on outside of this pipeline
 
-%                                 FileID = fopen(strcat(FN_CatProc.genPath,'/.status'),'a+');
-%                                 fprintf(FileID,'%s ready-for-DB',datestr(now,'yyyy-mm-ddTHH:MM:SS'));
-%                                 fclose(FileID);
+                                    ProcCat.writeLargeCSV(ProcCatFileName,...
+                                        'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'}],...
+                                        'AddColValues',[AllSI(1).Key.CAMNUM AllSI(1).Key.MOUNTNUM ...
+                                                        AllSI(1).Key.NODENUMB] );
+                                    CoaddCat.writeLargeCSV(CoaddCatFileName,...
+                                        'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'}],...
+                                        'AddColValues',[AllSI(1).Key.CAMNUM AllSI(1).Key.MOUNTNUM ...
+                                                        AllSI(1).Key.NODENUMB]);
+
+                                    Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB'); 
+                                
+                                else
+                                    
+                                    % insert PROC and COADD catalog data into the appropriate DB tables
+                                    
+                                    ADB.insert(ProcCat,  'Table',Args.DB_Table_ProcCat,  'FileNames', ' ', 'Type','cat');
+                                    ADB.insert(CoaddCat, 'Table',Args.DB_Table_CoaddCat, 'FileNames', ' ', 'Type','cat');
+                                    
+                                end
+                                
+                                Msg{1} = sprintf('Insert catalog objects to LAST catalog tables - success: %d', OK);
+                                Obj.writeLog(Msg, LogLevel.Info);
 
                             end
 
