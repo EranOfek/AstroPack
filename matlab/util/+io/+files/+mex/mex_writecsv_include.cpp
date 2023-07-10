@@ -20,40 +20,40 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     mxClassID class_id;
 
     // check number of arguments
-    if (nrhs != 3) {
-        mexErrMsgIdAndTxt("MyToolbox:arrayProduct:nrhs",
-                          "Three inputs required.");
+    if (nrhs < 3) {
+        mexErrMsgIdAndTxt("MyToolbox:arrayProduct:nrhs", "Minimum three inputs required.");
     }
     if (nlhs != 0) {
-        mexErrMsgIdAndTxt("MyToolbox:arrayProduct:nlhs",
-                          "No output required.");
+        mexErrMsgIdAndTxt("MyToolbox:arrayProduct:nlhs", "No output required.");
     }
 
     // first input: cell array of matrices
     if (!mxIsCell(prhs[0])) {
-        mexErrMsgIdAndTxt("MyToolbox:inputNotCell",
-                          "Input 1 must be a cell array.");
+        mexErrMsgIdAndTxt("MyToolbox:inputNotCell", "Input 1 must be a cell array.");
     }
     mwSize numMatrices = mxGetNumberOfElements(prhs[0]);
 
     // second input: cell array of headers
     if (!mxIsCell(prhs[1])) {
-        mexErrMsgIdAndTxt("MyToolbox:inputNotCell",
-                          "Input 2 must be a cell array.");
+        mexErrMsgIdAndTxt("MyToolbox:inputNotCell", "Input 2 must be a cell array.");
     }
 
     // third input: file name
     if (!mxIsChar(prhs[2])) {
-        mexErrMsgIdAndTxt("MyToolbox:inputNotString",
-                          "Input 3 must be a string.");
+        mexErrMsgIdAndTxt("MyToolbox:inputNotString", "Input 3 must be a string.");
     }
     mwSize buflen = mxGetN(prhs[2])*sizeof(mxChar)+1;
     char* filename = mxArrayToString(prhs[2]);
 
+    int* prec_digits = NULL;
+    if (nrhs >= 4) {
+        prec_digits = (int*)mxGetData(prhs[3]);
+    }
+    
     // write to CSV
     std::ofstream file;
     file.open(filename);
-	char buffer[64];
+	char buffer[64], format[64], prec[64];
 	
     // write headers
     mwSize ncols = mxGetNumberOfElements(prhs[1]);
@@ -81,8 +81,17 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
                 if (value == static_cast<int>(value)) {
                     file << static_cast<int>(value);
                 } else {
-					sprintf(buffer, "%.15g", value);
-					file << buffer;
+                    if (prec_digits && (prec_digits[j] > 0)) {
+                        sprintf(prec, "%d", prec_digits[j]);
+                        strcpy(format, "%.");
+                        strcat(format, prec);
+                        strcat(format, "g");
+                        sprintf(buffer, format, value);
+                        file << buffer;
+                    }
+                    else {
+                        file << value;
+                    }
                 }
 
                 if (j < ncols - 1) {

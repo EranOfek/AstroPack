@@ -1,4 +1,4 @@
-function Result = writeCsv(Matrices, ColNames, FileName)
+function Result = writeCsv(Matrices, ColNames, FileName, Args)
     % The writeCSV function is a MATLAB MEX function that takes in an array 
     % of 2D matrices, an array of column headers, and a filename as input arguments. 
     % The function writes the content of the input matrices into a CSV file, with the 
@@ -13,6 +13,12 @@ function Result = writeCsv(Matrices, ColNames, FileName)
     % Input  : - Matrices - cell array of Matrices, must be of the same type (i.e. all double or all float)
     %          - ColNames - cell array of column names
     %          - FileName - Output CSV file name
+    %           * Pairs of ...,key,val,...
+    %             The following keys are available: 
+    %           'PrecDigits' - for single and double numbers, array with
+    %           number of precision digits for each column. Must have entry
+    %           for each column, i.e. numel(ColNames) == numel(Args.PrecDigits)
+    %
     % Output : - True on sucsess
     %
     % Author : Chen Tishler (Jul 2023)
@@ -23,13 +29,18 @@ function Result = writeCsv(Matrices, ColNames, FileName)
     %
     %----------------------------------------------------------------------
     arguments
-        Matrices           	% cell array of 2D matrixes to write
-        ColNames		   	% cell array of column names
-        FileName            % Output CSV file name
+        Matrices           	 % cell array of 2D matrixes to write
+        ColNames		   	 % cell array of column names
+        FileName             % Output CSV file name
+        Args.PrecDigits = [] % Optional - array
     end
 
     if ~iscell(Matrices)
         Matrices = {Matrices};
+    end
+    
+    if ~isempty(Args.PrecDigits)
+        assert(numel(ColNames) == numel(Args.PrecDigits));
     end
     
     C = class(Matrices{1});
@@ -43,9 +54,9 @@ function Result = writeCsv(Matrices, ColNames, FileName)
         case {'uint64','int64'}
              io.files.mex.mex_writecsv_int64(Matrices, ColNames, FileName);
         case {'single'}
-             io.files.mex.mex_writecsv_single(Matrices, ColNames, FileName);
+             io.files.mex.mex_writecsv_single(Matrices, ColNames, FileName, int32(Args.PrecDigits));
         case {'double'}
-             io.files.mex.mex_writecsv_double(Matrices, ColNames, FileName);
+             io.files.mex.mex_writecsv_double(Matrices, ColNames, FileName, int32(Args.PrecDigits));
         otherwise
             error('io.files.mex.mex_writecsv.writeCsv - Unsupported data type');
     end
