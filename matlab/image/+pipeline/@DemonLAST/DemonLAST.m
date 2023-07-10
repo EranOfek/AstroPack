@@ -1413,8 +1413,8 @@ classdef DemonLAST < Component
                 Args.DB_Table_CoaddCat = 'test_coadd_src_catalog';
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};
             end
-            
-            ADB = [];
+
+            ADB = [];  % AstroDB
 
             % get path
             %[NewPath,CameraNumber,Side,HostName,ProjName,MountNumberStr]=getPath(Obj, Args.NewSubDir, 'DataDir',Args.DataDir, 'CamNumber',Args.CamNumber);
@@ -1441,6 +1441,10 @@ classdef DemonLAST < Component
             %     end
             % end
 
+            if all(get(0, 'ScreenSize')==1)
+                % No display mode - set StopButton to false
+                Args.StopButton = false;
+            end
 
             if Args.StopButton
                 GUI_Text = sprintf('Abort : Pipeline');
