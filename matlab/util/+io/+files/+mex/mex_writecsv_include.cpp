@@ -12,7 +12,6 @@
 #include "mex.h"
 #include <fstream>
 #include <string>
-#include <iomanip>
 
 typedef long long int64;
 
@@ -54,7 +53,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     // write to CSV
     std::ofstream file;
     file.open(filename);
-
+	char buffer[64];
+	
     // write headers
     mwSize ncols = mxGetNumberOfElements(prhs[1]);
     for (mwSize j = 0; j < ncols; ++j) {
@@ -81,7 +81,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
                 if (value == static_cast<int>(value)) {
                     file << static_cast<int>(value);
                 } else {
-					file << std::setprecision(std::numeric_limits<double>::digits10 + 1) << value;
+					sprintf(buffer, "%.15g", value);
+					file << buffer;
                 }
 
                 if (j < ncols - 1) {
