@@ -4,9 +4,9 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
     %   For input AstroImage the FileName in the ImageData property is
     %   updated with the given file name.
     % Input  : - An AstroImage/AstroCatalog/MatchedSources/struct object.
-    %            A MatchedSources will be wriite as hdf5 file.
-    %            A struct will be save as a mat file.
-    %          - A FileNames object. The numbre of files should
+    %            A MatchedSources will be written as .hdf5 file.
+    %            A struct will be saved as a .mat file.
+    %          - A FileNames object. The number of files should
     %            corresponds to the number of elements in the
     %            AstroImage object.
     %          * ...,key,val,...
