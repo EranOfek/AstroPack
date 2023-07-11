@@ -29,6 +29,9 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
     %                   corresponding to each product and
     %                   indicating if to write an header for this
     %                   product. Default is [true, false, true, false]
+    %            'OverWrite' - logical, true if existing files are to
+    %                   be overwritten.
+    %                   Default is false.
     %            'DateFromHeader' - A logical indicating if to get
     %                   the Time from the header. Default is true.
     %            'Counter' - Like 'Type', but for 'Counter'.
@@ -81,6 +84,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
         Args.LevelPath              = [];
         Args.Product cell           = {'Image','Mask','Cat','PSF'};
         Args.WriteHeader            = [true, false, true, false];
+        Args.OverWrite              = false;
 
         Args.DateFromHeader logical = true;
         Args.Counter                = [];
@@ -192,7 +196,8 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                                              'FileType',FN.FileType{1},...
                                              'IsSimpleFITS',Args.IsSimpleFITS,...
                                              'WriteHeader',WriteHeader(Iprod),...
-                                             'MkDir',~DirCreated);
+                                             'MkDir',~DirCreated,...
+                                             'OverWrite',Args.OverWrite);
                                 DirCreated = true;
                                 % Update FileName in Obj
                                 Obj(Iobj).ImageData.FileName = OutFileNames{Iobj};
