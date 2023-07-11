@@ -1,4 +1,4 @@
-function [X1,Y1,MinChi2,Flux0,Dof,H]=psfChi2_RangeIter(Cube, Std, PSF, Args)
+function [X1,Y1,MinChi2,Flux0,Dof,H, Result]=psfChi2_RangeIter(Cube, Std, PSF, Args)
     % Fit a PSF for multiple sources in several pertubed positions, and fit
     %       a prabolic surface to find the local minima in the chi^2 surface.
     %       This function should be used iteratively to identify the best-fit
@@ -80,10 +80,19 @@ function [X1,Y1,MinChi2,Flux0,Dof,H]=psfChi2_RangeIter(Cube, Std, PSF, Args)
     %          - Vector of Dof for each source.
     %          - The design matrix. Can be used as the input for the next
     %            iteration.
+    %          - A structure containing the following fields:
+    %            .MatChi2 - Matrix of chi^2. The rows corresponds to sources, and
+    %                   columns to different positions relative to the initial
+    %                   position.
+    %            .GridPointsX - Vector of X points around central position
+    %                   in which the chi^2 values were calculated for.
+    %            .GridPointsY - Like GridPointsX, but for the Y
+    %                   coordinates.
     % Author : Eran Ofek (Jun 2023)
-    % Example: Cube=randn(15,15,1000); Std=randn(15,15,1000);
+    % Example: Cube=imUtil.kernel2.gauss(2.*ones(10,1),[15 15]); Std=randn(15,15,10);
+    %          Cube = Cube.*100 + Std;
     %          PSF = imUtil.kernel2.gauss(2,[15 15]);
-    %          [X1,Y1, MinChi2,Flux0,Dof,H]=imUtil.psf.psfChi2_RangeIter(Cube, Std, PSF);
+    %          [X1,Y1, MinChi2,Flux0,Dof,H, Res]=imUtil.psf.psfChi2_RangeIter(Cube, 1, PSF);
     
     
     arguments
@@ -198,4 +207,8 @@ function [X1,Y1,MinChi2,Flux0,Dof,H]=psfChi2_RangeIter(Cube, Std, PSF, Args)
     Y1    = DY(:) + Ymin(:).*Args.RadiusRange;
     
     Flux0 = squeeze(Flux0);
+    
+    Result.MatChi2     = MatChi2.';
+    Result.GridPointsX = GridPointsX;
+    Result.GridPointsY = GridPointsY;
 end
