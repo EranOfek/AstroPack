@@ -1,8 +1,6 @@
 function [Result, CubePsfSub] = psfPhotCubeDivide(Cube, Args)
 
 
-under construction
-
     % The core function for PSF-fitting photometry.
     %   The input of this function is a cube of stamps of sources, and a
     %   PSF to fit.
@@ -192,55 +190,47 @@ under construction
     end
 
     VecD = [0, Args.SmallStep, 2.*Args.SmallStep];
-    H    = VecD.'.^[0, 1, 2];
+    %H    = VecD.'.^[0, 1, 2];
+    H     = [];
     Ind   = 0;
     NotConverged = true;
     StdBack = Std;
     while Ind<Args.MaxIter && NotConverged
         Ind = Ind + 1;
-        if UseSourceNoise && Ind>2
-            [~, Flux, ShiftedPSF]  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
-            Std = sqrt(Flux.*ShiftedPSF+StdBack.^2);
-        end
-        % AppFlux is approximate flux
-        [StepX,StepY,AppFlux]  = gradDescentPSF(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2,H,Args.SmallStep,Args.MaxStep);
-        %{
-        % calc \chi2 and gradient
-        %Chi2     = internalCalcChi2(Cube, Std, Args.PSF, DX,                   DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
-        %Chi2_Dx  = internalCalcChi2(Cube, Std, Args.PSF, DX+Args.SmallStep,    DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
-        %Chi2_Dx2 = internalCalcChi2(Cube, Std, Args.PSF, DX+Args.SmallStep.*2, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
-                
-        %ParX     = polyfit(VecD, [Chi2, Chi2_Dx, Chi2_Dx2], 2);
-        %ParX     = H\[Chi2.'; Chi2_Dx.'; Chi2_Dx2.'];
         
-        %Chi2     = internalCalcChi2(Cube, Std, Args.PSF, DX, DY,                  WeightedPSF);
-        %Chi2_Dy  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY+Args.SmallStep,   WeightedPSF, VecXrel, VecYrel, FitRadius2);
-        %Chi2_Dy2 = internalCalcChi2(Cube, Std, Args.PSF, DX, DY+Args.SmallStep.*2,WeightedPSF, VecXrel, VecYrel, FitRadius2);
+%          if UseSourceNoise && Ind>2
+%             [Chi2, Flux0, Dof,ShiftedPSF] = imUtil.psf.psfChi2(Cube, Std, PSF,...
+%                                            'DX',DX,...
+%                                            'DY',DY,...
+%                                            'MinFlux',Args.MinFlux,...
+%                                            'WeightedPSF',Args.WeightedPSF,...
+%                                            'FitRadius2',Args.FitRadius2,...
+%                                            'VecXrel',VecXrel,...
+%                                            'VecYrel',VecYrel,...
+%                                            'SumArgs',Args.SumArgs);
+%                                        
+%             Std = sqrt(Flux0.*ShiftedPSF+StdBack.^2);
+%          end
+         
+         
+        % DX, DY suppose to be 0 in the first iteration:
         
-        %ParY     = polyfit(VecD, [Chi2, Chi2_Dy, Chi2_Dy2], 2);
-        %ParY     = H\[Chi2.'; Chi2_Dy.'; Chi2_Dy2.'];
+        RadiusRange = Args.IterationFactor.^Ind;
+        [X1,Y1, MinChi2,Flux0,Dof,H, Res]=imUtil.psf.psfChi2_RangeIter(Cube, Std, PSF, 'RadiusRange',RadiusRange,...
+                                                                                       'MaxStep_RadiusRangeUnits',Args.MaxStep_RadiusRangeUnits,...
+                                                                                       'DX',DX,...
+                                                                                       'DY',DY,...
+                                                                                       'VecXrel',VecXrel,...
+                                                                                       'VecYrel',VecYrel,...
+                                                                                       'H',H);
         
-        %StepX    = -ParX(2,:)./(2.*ParX(3,:));
-        %StepY    = -ParY(2,:)./(2.*ParY(3,:));
+        % is this correct? not sure
+        DX = X1;
+        DY = Y1;
         
-        %NotMinimaX = ParX(3,:)<0;
-        %NotMinimaY = ParY(3,:)<0;
+        StepX = X1 - DX;
+        StepY = Y1 - DY;
         
-        % reverse sign for maxima...
-        %StepX(NotMinimaX) = -StepX(NotMinimaX);
-        %StepY(NotMinimaY) = -StepY(NotMinimaY);
-        
-        %StepX    = sign(StepX).*min(abs(StepX), Args.MaxStep);
-        %StepY    = sign(StepY).*min(abs(StepY), Args.MaxStep);
-        %}
-        DX       = DX + StepX;
-        DY       = DY + StepY;
-        
-        % if nargout>2
-        %     OutDebug(Ind).X = DX;
-        %     OutDebug(Ind).Y = DY;
-        %     OutDebug(Ind).F = AppFlux;
-        % end
         
         % stoping criteria
         ConvergeFlag = abs(StepX)<ConvThresh & abs(StepY)<ConvThresh;
