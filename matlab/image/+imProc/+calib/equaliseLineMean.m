@@ -30,9 +30,6 @@ function Defects= equaliseLineMean(AstroImg,Args)
 %   Defects=imProc.calib.equaliseLineMean(AI,'Plot',true);
 %
 % Author: Enrico Segre, June 2023
-%
-% TODO: make the function work on an array of AstroImages (or an AstroImage
-%  with an array of image data? How is it?)
     arguments
         AstroImg AstroImage = [];
         Args.Level =0.4;
