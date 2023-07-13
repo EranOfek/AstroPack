@@ -1995,8 +1995,8 @@ classdef MatchedSources < Component
                 end
                 
                 % SrcData property
-                Fields       = fieldnames(Result(Iobj).SrcData);
-                Result(Iobj) = addSrcData(Result(Iobj), Fields, [], 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
+                %Fields       = fieldnames(Result(Iobj).SrcData);
+                Result(Iobj) = addSrcData(Result(Iobj), [], [], 'MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
                 
             end
             
