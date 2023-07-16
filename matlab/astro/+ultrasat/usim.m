@@ -23,6 +23,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'Inj'            - source injection method (technical)
     %       'OutType'        - type of output image: FITS, AstroImage object, RAW object
     %       'Dir'            - the output directory
+    %       'PostModelingFindSources' - whether to do post modeling source search
     % Output : - an AstroImage object with filled Catalog property 
     %            (also a FITS image file output + ds9 region files, RAW file output)           
     %          - an array of per-object AstroPSFs
@@ -81,6 +82,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.OutType         = 'all';        % output type: 'AstroImage', 'FITS', 'all' (default)
         
         Args.OutDir          = '.';          % the output directory
+        
+        Args.PostModelingFindSources logical = false; % do post modeling source search
          
     end
     
@@ -671,40 +674,32 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                          ' , see the generated images')
 
     %%%%%%%%%%%%%%%%%%%% post modeling checks
-%     
-%     MeasuredCat = imProc.sources.findMeasureSources(usimImage,'ForcedList',[CatX CatY],...
-%                          'OnlyForced',1,'CreateNewObj',1,'ReCalcBack',0,'ZP',UP.ZP(1,1)).CatData;
     
-    MeasuredCat = imProc.sources.findMeasureSources(usimImage,'RemoveBadSources',1,'CreateNewObj',1,...
-                                                    'ReCalcBack',0,'ZP',UP.ZP(1,1)).CatData;
-                     
-    Coords = MeasuredCat.Catalog(:,1:2);
-    SNRs = MeasuredCat.Catalog(:,8:12);
-    Mag_Aper = MeasuredCat.Catalog(:,23:25);
-%     Mag_Aper_err = MeasuredCat.Catalog(:,26:28);
-    Summary = [Coords SNRs(:,4:5) Mag_Aper(:,2:3)]; 
+    if Args.PostModelingFindSources
+        
+    %     
+    %     MeasuredCat = imProc.sources.findMeasureSources(usimImage,'ForcedList',[CatX CatY],...
+    %                          'OnlyForced',1,'CreateNewObj',1,'ReCalcBack',0,'ZP',UP.ZP(1,1)).CatData;
+
+        MeasuredCat = imProc.sources.findMeasureSources(usimImage,'RemoveBadSources',1,'CreateNewObj',1,...
+                                                        'ReCalcBack',0,'ZP',UP.ZP(1,1)).CatData;
+
+        Coords = MeasuredCat.Catalog(:,1:2);
+        SNRs = MeasuredCat.Catalog(:,8:12);
+        Mag_Aper = MeasuredCat.Catalog(:,23:25);
+    %     Mag_Aper_err = MeasuredCat.Catalog(:,26:28);
+        Summary = [Coords SNRs(:,4:5) Mag_Aper(:,2:3)]; 
+
+        idx5 = Summary(:,3) > 5; % take only sources over 5 sigma
+        Summ5 = Summary(idx5,:); 
+
+    %     idx3 = Summary(:,3) > 3; % take only sources over 3 sigma
+    %     Summ3 = Summary(idx3,:); 
+
+        OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'detected.reg');
+        DS9_new.regionWrite([Summ5(:,1) Summ5(:,2)],'FileName',OutRegName,'Color','red','Marker','o','Size',1,'Width',4);     
     
-    idx5 = Summary(:,3) > 5; % take only sources over 5 sigma
-    Summ5 = Summary(idx5,:); 
-    
-%     idx3 = Summary(:,3) > 3; % take only sources over 3 sigma
-%     Summ3 = Summary(idx3,:); 
-    
-    OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'detected.reg');
-    DS9_new.regionWrite([Summ5(:,1) Summ5(:,2)],'FileName',OutRegName,'Color','red','Marker','o','Size',1,'Width',4);     
+    end
   
 end
 
-
-% % Remove it when load1() works fine
-% function test_load1()
-%   UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');
-%   
-%   clear UP;
-%   io.files.load1(UP_db, 'UP');
-%   disp(UP.wavelength);
-%   
-%   clear UP;
-%   UP = io.files.load1(UP_db, 'UP');
-%   disp(UP.wavelength);  
-% end
