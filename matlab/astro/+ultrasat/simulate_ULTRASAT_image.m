@@ -11,7 +11,7 @@ function simImage = simulate_ULTRASAT_image (Args)
     
     arguments
         
-        Args.Cat        =  'GALEX_CESAM'; % 'HSC': Subaru HSC HDF data from a 10'x10' region (7215 obj.)
+        Args.Cat        =  'distribution'; % 'HSC': Subaru HSC HDF data from a 10'x10' region (7215 obj.)
                                           % https://hsc-release.mtk.nao.ac.jp/datasearch/
                                           % 'GALEX': Source distribution measured 
                                           %          by GALEX (Bianchi et al. 2007, ApJS, 173, 659)
@@ -285,6 +285,8 @@ function simImage = simulate_ULTRASAT_image (Args)
                 Isrc = 0;
 
                 for iMag = 1:1:MagBins
+                    
+                    rng('shuffle');   % reseed the random number generator
 
                     for jSrc = 1:1:Src30min(iMag)
 
@@ -296,8 +298,8 @@ function simImage = simulate_ULTRASAT_image (Args)
 %                          Cat(Isrc,1) = floor( 30 + 333 * rand ); % about 0.42 deg from the corner
 %                          Cat(Isrc,2) = floor( 30 + 333 * rand ); % hence using ULTRASAT R2 filter
 %                          
-                         Cat(Isrc,1) = floor( 3783 + 333 * rand ); % about 8.44 deg from the corner
-                         Cat(Isrc,2) = floor( 3783 + 333 * rand ); % hence using ULTRASAT R21 filter
+                         Cat(Isrc,1) = 3783 + 333 * rand; % about 8.44 deg from the corner
+                         Cat(Isrc,2) = 3783 + 333 * rand; % hence using ULTRASAT R21 filter
 
 
                         % divide the population into 3 colours 
