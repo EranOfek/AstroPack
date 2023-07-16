@@ -332,7 +332,6 @@ classdef AstroDb < Component
             Result = true;
         end
 
-
        function Result = addCommonCatalogColumns(Obj, Q, TN)
             % Add/update common catalog columns to table
             % Input :  - LastDb object
@@ -408,12 +407,12 @@ classdef AstroDb < Component
             Q.addColumn(TN, 'x',            'single', 'default 0');
             Q.addColumn(TN, 'y',            'single', 'default 0');
             Q.addColumn(TN, 'flux_psf',     'double', 'default 0');
-            Q.addColumn(TN, 'mag_psf',      'double', 'default 0');
+            Q.addColumn(TN, 'mag_psf',      'double', 'default 0', 'index',true);
             Q.addColumn(TN, 'magerr_psf',   'double', 'default 0');
             Q.addColumn(TN, 'psf_chi2dof',  'single', 'default 0');
-            Q.addColumn(TN, 'sn',           'double', 'default 0');
-            Q.addColumn(TN, 'ra',           'double', 'default 0');
-            Q.addColumn(TN, 'dec',          'double', 'default 0');
+            Q.addColumn(TN, 'sn',           'double', 'default 0', 'index', true);
+            Q.addColumn(TN, 'ra',           'double', 'default 0', 'index', true);
+            Q.addColumn(TN, 'dec',          'double', 'default 0', 'index', true);
             Q.addColumn(TN, 'mergedcatmask','integer', 'default 0');
 %             Q.addColumn(TN, 'nobs',         'smallint', 'default 0'); 
 %                                              smallint is incompatible with NaN values!
