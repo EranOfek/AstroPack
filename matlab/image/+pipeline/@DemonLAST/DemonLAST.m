@@ -1397,7 +1397,7 @@ classdef DemonLAST < Component
                 Args.PauseNight        = 10;
 
                 % Save data products
-                Args.SaveEpochProduct  = {'Image','Mask','Cat'}; %{[],[],'Cat'};  %{'Image','Mask','Cat'};
+                Args.SaveEpochProduct  = {[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat'};
                 Args.SaveVisitProduct  = {'Image','Mask','Cat','PSF'};
                 Args.SaveMergedCat     = true;
                 Args.SaveMergedMat     = true;
@@ -1565,7 +1565,7 @@ classdef DemonLAST < Component
                             %{'EpochImage', 'EpochMask', 'EpochCat', 'EpochPSF', 'VisitImage','VisitMask', 'VisitCat', 'VisitPSF', 'MergedCat', 'MergedMat', 'MergedAsteroids'};
 
                             % the following call also update the AllSI.ImageData.FileName
-                            [FN_Proc,~,Status] = imProc.io.writeProduct(AllSI, FN_I, 'Product',Args.SaveEpochProduct, 'WriteHeader',[true false true],...
+                            [FN_Proc,~,Status] = imProc.io.writeProduct(AllSI, FN_I, 'Product',Args.SaveEpochProduct, 'WriteHeader',[true false true false],...
                                                    'Level','proc',...
                                                    'LevelPath','proc',...
                                                    'FindSubDir',true);
