@@ -353,10 +353,10 @@ function simImage = simulate_ULTRASAT_image (Args)
                 
             end
 
-            
+            Filt = [{'ULTRASAT'},Filt];
             
             simImage = ultrasat.usim('InCat',Cat,'InMag',MagUS,'InSpec',Spec,'Exposure',[Args.ExpNum 300],...
-                                     'InMagFilt',{'ULTRASAT','R21'},'OutDir',Args.OutDir);
+                                     'InMagFilt',Filt,'OutDir',Args.OutDir);
             
         otherwise
             
