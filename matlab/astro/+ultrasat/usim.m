@@ -23,7 +23,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'Inj'            - source injection method (technical)
     %       'OutType'        - type of output image: FITS, AstroImage object, RAW object
     %       'Dir'            - the output directory
-    %       'PostModelingFindSources' - whether to do post modeling source search
+    %       'PostModelingFindSources' - do post modeling source search
     % Output : - an AstroImage object with filled Catalog property 
     %            (also a FITS image file output + ds9 region files, RAW file output)           
     %          - an array of per-object AstroPSFs
