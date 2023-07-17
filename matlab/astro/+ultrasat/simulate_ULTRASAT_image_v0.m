@@ -1,4 +1,4 @@
-function simImage = simulate_ULTRASAT_image (Args)
+function simImage = simulate_ULTRASAT_image_v0 (Args)
     % Simulate with ultrasat.usim a distribution of sources from certain catalogues       
     % Package: ultrasat
     % Description: Simulate with ultrasat.usim a distribution of sources from certain catalogues  
