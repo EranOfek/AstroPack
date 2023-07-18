@@ -468,7 +468,7 @@ classdef AstroSpec < Component
                     WaveUnits = Wavedata(Ias).WaveUnits;
                     WaveAng   = convert.length(WaveUnits, 'Ang', Wave);
                 else
-                    WaveAng   = WaveData;
+                    WaveAng   = reshape(WaveData,[],1);
                     WaveUnits = 'Ang';
                 end
                 [~,~,Flux] = astro.spec.black_body(Temp(It), WaveAng);

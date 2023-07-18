@@ -85,7 +85,7 @@ function Obj = addMagCols(Obj, Args)
             % save luptitude
             MagData = convert.luptitude(FluxData, 10.^(0.4.*Args.ZP), Args.LupSoft);
         else
-            MagData = ZP - 2.5.*log10(FluxData);
+            MagData = Args.ZP - 2.5.*log10(FluxData);
         end
         % mag errors
         MagErrData = 1.086.* FluxErrData./FluxData;

@@ -95,9 +95,10 @@ function Result = unitTest
     % bounding circle
     io.msgLog(LogLevel.Test, 'testing AstroCatalog boundingCircle');
     AC=AstroCatalog({'asu.fit'},'HDU',2);
-    [Result] = imProc.match.coneSearch(AC, [1 1], 'Radius',3600.*10);
+    AC.Catalog(12242:end,:) = []; % until readtable1 is fixed
+    [Result] = imProc.match.coneSearch(AC, [10 1], 'Radius',3600.*10);
     [CircleX, CircleY, CircleRadius] = boundingCircle(Result);
-    if abs(CircleX-1)>0.1 ||  abs(CircleY-1)>0.1 || abs(CircleRadius-10)>0.5
+    if abs(CircleX-10)>0.1 ||  abs(CircleY-1)>0.1 || abs(CircleRadius-10)>0.5
         error('Problem with catalogBoundingCircle');
     end
 

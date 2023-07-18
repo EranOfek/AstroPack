@@ -1,7 +1,14 @@
 function Result = unitTest
-    % unitTest for AstroSpec
+    % unitTest for AstroTransmission
 
     % constructor
+    AT = AstroTransmission(1);
+    AT = AstroTransmission(1);
+
+
+
+
+
     AS = AstroSpec({rand(100,4)});
 
     % setters/getters
