@@ -505,7 +505,10 @@ classdef FileNames < Component
                     Str{I} = DateArray(I,:);
                 end
                 if sum(FlagN)>0
-                    Str{FlagN} = NaN;
+                    IndN = find(FlagN);
+                    for In=1:1:numel(IndN)
+                        Str{IndN(In)} = NaN;
+                    end
                 end
                 Obj.Time = Str;
             end
