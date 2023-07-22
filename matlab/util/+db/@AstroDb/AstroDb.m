@@ -760,7 +760,51 @@ classdef AstroDb < Component
             
             Result = true;
             
-          end
+        end
+
+        function Result = coneSearch(Obj, Table, RA0, Dec0, Dist, Args)
+            % a cone search query in a specified catalog or image table
+            % Input : - Obj   : the LastDB object
+            %         - Table : the table name
+            %         - RA0   : search RA center (degrees, J2000)
+            %         - Dec0  : search Dec center (degrees, J2000)
+            %         - Dist  : search radius
+            %         * Pairs of ...,key,val,...
+            %         'DistUnit' : unit of distance (def. arcsec)
+            % Output: - a Db.Query object
+            % Author : A. Krassilchtchikov (Jun 2023)
+
+            arguments
+                Obj
+                Table 
+                RA0
+                Dec0
+                Dist
+                Args.DistUnit = 'arcsec'; 
+            end
+
+            RAD = 180/pi;
+
+            switch Args.DistUnit
+
+                case 'arcsec'
+                    Dist = Dist / 3600;
+                case 'arcmin'
+                    Dist = Dist / 60;
+                case 'deg'
+                    % do nothing
+                otherwise
+                    error('Incorrect distance unit');
+            end  
+            
+            % β = arccos[sin(δ1)*sin(δ2)+ cos(δ1)*cos(δ2)*cos(α1 - α2)] < Dist 
+            Cond = sprintf('%s%d%s%d%s%s%d%s%d%s%s%d%s%d%s%d', ...
+                'acos( sin(dec/',RAD,') * (',sin(Dec0/RAD),')', ...
+                   '+ cos(dec/',RAD,') * (',cos(Dec0/RAD),')', ...
+                   '* cos(ra/',RAD,'-',RA0/RAD,') ) <', Dist/RAD);
+
+            Result = Obj.Query.select('ra,dec','TableName',Table,'Where',Cond);
+        end
          
     end 
     
@@ -809,7 +853,7 @@ classdef AstroDb < Component
             if Args.AddCommonColumns
                 Result = Obj.addCommonCatalogColumns(Obj.Query, TableName);
             end
-         end
+        end
 
     end
 
