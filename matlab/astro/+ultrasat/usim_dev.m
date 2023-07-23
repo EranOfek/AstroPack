@@ -6,7 +6,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
     %       * ...,key,val,... 
     %       'InCat'     - a catalog of simulated sources or the number of sources to generate randomly
     %       'InMag'     - a vector of source magnitudes or 1 magnitude for all the sources
-    %       'InMagFilt' - the filter[s] for which the source magnitudes are defined
+    %       'InFiltFam' - the filter family for which the source magnitudes are defined
+    %       'InFilt'    - the filter[s] for which the source magnitudes are defined
     %       'InSpec'    - individual spectra or one spectral model for all the objects
     %       'Exposure'  - image exposure
     %       'Tile'      - name of the ULTRASAT tile ('A','B','C','D')
@@ -43,8 +44,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         Args.InMag           =  20;          % apparent magnitude of the input sources: 
                                              % one magnitude for all the objects 
                                              % or a vector of magnitudes 
+
+        Args.FiltFam        = {'ULTRASAT'};  % one filter family for all the source magnitudes or an array
                                              
-        Args.InMagFilt       = {'ULTRASAT','R1'}; % one filter for all the source magnitudes or an array of filters
+        Args.Filt           = {'R1'};        % one filter for all the source magnitudes or an array of filters
         
         Args.InSpec          = {'BB', 5800}; % parameters of the source spectra: 
                                              % either an array of AstSpec or AstroSpec objects
@@ -492,19 +495,31 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         %%%%%%%%%%%%%%%%%%%%%  rescale the spectra to the input magnitudes 
 
                                 fprintf('%s%s%s%s%s','Rescaling spectra to fit the input ',...
-                                         Args.InMagFilt{1},'/',Args.InMagFilt{2},' magnitudes...');
+                                         Args.FiltFam{1},'/',Args.Filt{1},' magnitudes...');
 
         for Isrc = 1:1:NumSrcCh
 
               Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
               
               AS = AstroSpec([Wave' SpecIn(Isrc,:)']);
+
               if numel(Args.InMag) > 1 
                   InMag(Isrc_gl) = Args.InMag(Isrc_gl); 
               else
                   InMag(Isrc_gl) = Args.InMag(1); 
               end
-              SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), Args.InMagFilt{1}, Args.InMagFilt{2}); 
+              if numel(Args.Filt) > 1
+                  Filter = Args.Filt{Isrc_gl};
+              else
+                  Filter = Args.Filt{1};
+              end
+              if numel(Args.FiltFam) > 1
+                  FiltFam = Args.FiltFam{Isrc_gl};
+              else
+                  FiltFam = Args.FiltFam{1};
+              end
+              
+              SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), FiltFam, Filter); 
               SpecIn(Isrc,:) = SpecScaled.Flux; 
 
     %           fprintf('%s%d%s%4.1f\n','Eff. magnitude of source ', Isrc,' = ',...
