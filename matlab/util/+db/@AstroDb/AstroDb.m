@@ -565,6 +565,8 @@ classdef AstroDb < Component
             %         'Force'  : insert a record from the file if the same
             %                    record from the same file (same hash sum) has been inserted already
             %         'Verbose': print names of the digested files
+            % Example: A = db.AstroDb;
+            %          pk = A.insert(AI,'Table','raw_images');
             % Author : A. Krassilchtchikov (Jun 2023)
             
             arguments
@@ -768,12 +770,15 @@ classdef AstroDb < Component
             %         - Table : the table name
             %         - RA0   : search RA center (degrees, J2000)
             %         - Dec0  : search Dec center (degrees, J2000)
-            %         - Dist  : search radius
+            %         - Dist  : search radius (def. arcsec)
             %         * Pairs of ...,key,val,...
+            %         'Columns'  : columns to put out
             %         'DistUnit' : unit of distance (def. arcsec)
-            % Output: - a Db.Query object
+            %         'AND'      : additional search condition
+            % Output: - a Db.Query object (results in .Data property)
+            % Example: A = db.Astrodb();
+            %          Res = A.coneSearch('coadd_images',34.5,-4.3,600);
             % Author : A. Krassilchtchikov (Jun 2023)
-
             arguments
                 Obj
                 Table 
@@ -781,6 +786,8 @@ classdef AstroDb < Component
                 Dec0
                 Dist
                 Args.DistUnit = 'arcsec'; 
+                Args.Columns  = 'ra,dec';
+                Args.AND      = ''
             end
 
             RAD = 180/pi;
@@ -802,8 +809,11 @@ classdef AstroDb < Component
                 'acos( sin(dec/',RAD,') * (',sin(Dec0/RAD),')', ...
                    '+ cos(dec/',RAD,') * (',cos(Dec0/RAD),')', ...
                    '* cos(ra/',RAD,'-',RA0/RAD,') ) <', Dist/RAD);
+            if ~isempty(Args.AND)
+                Cond = strcat('(',Cond,') AND (',Args.AND,')');
+            end
 
-            Result = Obj.Query.select('ra,dec','TableName',Table,'Where',Cond);
+            Result = Obj.Query.select(Args.Columns,'TableName',Table,'Where',Cond);
         end
          
     end 
