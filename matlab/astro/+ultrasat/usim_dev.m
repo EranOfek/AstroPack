@@ -8,7 +8,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
     %       'InMag'     - a vector of source magnitudes or 1 magnitude for all the sources
     %       'InFiltFam' - the filter family for which the source magnitudes are defined
     %       'InFilt'    - the filter[s] for which the source magnitudes are defined
-    %       'InSpec'    - individual spectra or one spectral model for all the objects
+    %       'SpecType'  - model of the input spectra ('BB','PL') or 'tab'
+    %       'Spec'      - parameters of the input spectra (temperature, spectral index) or a table of spectral intensities
     %       'Exposure'  - image exposure
     %       'Tile'      - name of the ULTRASAT tile ('A','B','C','D')
     %       'ImRes'     - image resolution in 1/pix units (allowed values: 1, 2, 5, 10, 47.5)
@@ -45,18 +46,19 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
                                              % one magnitude for all the objects 
                                              % or a vector of magnitudes 
 
-        Args.FiltFam        = {'ULTRASAT'};  % one filter family for all the source magnitudes or an array
+        Args.FiltFam         = {'ULTRASAT'}; % one filter family for all the source magnitudes or an array
                                              
-        Args.Filt           = {'R1'};        % one filter for all the source magnitudes or an array of filters
+        Args.Filt            = {'R1'};       % one filter for all the source magnitudes or an array of filters
         
-        Args.InSpec          = {'BB', 5800}; % parameters of the source spectra: 
+        Args.SpecType        = {'BB'};       % parameters of the source spectra: 
                                              % either an array of AstSpec or AstroSpec objects
                                              % or an array of model spectra parameters: 
-                                             % '{'BB', 3500}', Temperature (K) -- blackbody
-                                             % '{'PL', 2.}', Alpha -- power-law F ~ lambda^alpha
-                                             % '{'Tab',table}, NumSrc spectra, each spectrum in a column
-                                             % NB: the input spectral intensity should be
+                                             % {'BB'} 3500 [Temperature (K)] -- blackbody
+                                             % {'PL'} 2.   [Alpha -- power-law F ~ lambda^alpha]
+                                             % {'Tab'} table: NumSrc spectra, each spectral flux in a column
+                                             % NB: the input spectral flux should be
                                              % in [erg cm(-2) s(-1) A(-1)] as seen near Earth!
+        Args.Spec            = 5800;
                                              
         Args.Exposure        = [3 300];      % number and duration of exosures [s]; 1 x 300 s is the standard ULTRASAT exposure
         
@@ -68,8 +70,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         Args.RotAng          = 0;            % tile rotation angle relative to the axis of the raw PSF database (deg)
                                              % may be a vector with individual angle for each of the sources
                                              
-        Args.AddWCS logical  = false;        % whether to add a WCS to the output image
-        
+        Args.AddWCS logical  = false;        % whether to add a WCS to the output image       
         Args.RAcenter        = 214.99;       % will be used only if Args.AddWCS = 1; the default value is GALEX GROTH_00
         Args.DECcenter       = 52.78;        % will be used only if Args.AddWCS = 1; the default value is GALEX GROTH_00
                                              
@@ -349,38 +350,38 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
     %                         end
     %                     end
     %                     
-    %                     Args.InSpec = Pick(1:NumSrc);
+    %                     Args.Spec = Pick(1:NumSrc);
     %         
     %                 end
                     %%% END TEST 
 
-        switch isa(Args.InSpec,'AstroSpec') || isa(Args.InSpec,'AstSpec')
+        switch isa(Args.Spec,'AstroSpec') || isa(Args.Spec,'AstSpec')
 
             case 0  % make a synthetic spectrum for a given model
 
-                switch lower( Args.InSpec{1} ) 
+                switch lower( Args.SpecType{1} ) 
 
                     case 'bb'                   
 
-                    if numel( Args.InSpec{2} ) ~= NumSrc && numel( Args.InSpec{2} ) ~= 1
+                    if numel( Args.Spec ) ~= NumSrc && numel( Args.Spec ) ~= 1
 
-                        error('The size of input temperature array is incorrect, exiting..');
+                        error('The size of the source temperature array is incorrect, exiting..');
 
                     end
 
-                    if numel( Args.InSpec{2} ) == 1
-                        fprintf('%s%5.0f%s','generating BB spectra for T = ',Args.InSpec{2},' K .. ');
+                    if numel( Args.Spec ) == 1
+                        fprintf('%s%5.0f%s','generating BB spectra for T = ',Args.Spec,' K .. ');
                     else
                         fprintf('%s','generating BB spectra for individual source temperatures .. ');
                     end
 
                     for Isrc = 1:1:NumSrcCh
                         
-                          if numel( Args.InSpec{2} ) == 1
-                              Temp = Args.InSpec{2};
+                          if numel( Args.Spec ) == 1
+                              Temp = Args.Spec;
                           else
                               Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
-                              Temp = Args.InSpec{2}(Isrc_gl);
+                              Temp = Args.Spec(Isrc_gl);
                           end
 
                           SpecIn(Isrc,:) = AstroSpec.blackBody(Wave',Temp).Flux; % erg s(-1) cm(-2) A(-1)
@@ -389,9 +390,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
 
                     case 'pl'
 
-                    if numel( Args.InSpec{2} ) ~= NumSrc && numel( Args.InSpec{2} ) ~= 1
+                    if numel( Args.Spec ) ~= NumSrc && numel( Args.Spec ) ~= 1
 
-                        error('The size of input spectral index array is incorrect, exiting..');
+                        error('The size of the source spectral index array is incorrect, exiting..');
 
                     end
 
@@ -400,11 +401,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
 
                     for Isrc = 1:1:NumSrcCh
                         
-                          if numel( Args.InSpec{2} ) == 1
-                              Alpha = Args.InSpec{2};
+                          if numel( Args.Spec ) == 1
+                              Alpha = Args.Spec;
                           else
                               Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
-                              Alpha = Args.InSpec{2}(Isrc_gl);
+                              Alpha = Args.Spec(Isrc_gl);
                           end
 
                         SpecIn(Isrc,:) = Wave .^ Alpha;                          % erg s(-1) cm(-2) A(-1)                                                       
@@ -415,23 +416,23 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
 
                     fprintf('%s','Reading source spectra from a table..');
 
-                    if size( Args.InSpec{2}, 2) == NumSrc && size( Args.InSpec{2}, 1) == Nwave
-                        % NumSrc spectra at the standard grid 200:1:11000
+                    if size( Args.Spec, 2) == NumSrc && size( Args.Spec, 1) == Nwave
+                        % NumSrc spectra at the standard grid 2000:1:11000
                         for Isrc = 1:1:NumSrcCh
 
                             Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
                             
-                            SpecIn(Isrc,:) = Args.InSpec{2}(:,Isrc_gl); % read the spectra from table columns
+                            SpecIn(Isrc,:) = Args.Spec(:,Isrc_gl); % read the spectra from table columns
 
                         end
-                    elseif size( Args.InSpec{2}, 2) == NumSrc + 1
+                    elseif size( Args.Spec, 2) == NumSrc + 1
                         % NumSrc spectra at a nonstandard grid, the wavelength
                         % grid is in the column number NumSrc + 1 
                         for Isrc = 1:1:NumSrcCh 
                             
                             Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
 
-                            SpecIn(Isrc,:) = interp1(Args.InSpec{2}(:,NumSrc+1), Args.InSpec{2}(:,Isrc_gl), Wave, 'linear', 0);
+                            SpecIn(Isrc,:) = interp1(Args.Spec(:,NumSrc+1), Args.Spec(:,Isrc_gl), Wave, 'linear', 0);
 
                         end
                     else
@@ -454,17 +455,17 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
                     
                     Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
 
-                    if isa(Args.InSpec,'AstSpec') 
-                        SpecIn(Isrc,:) = interp1( Args.InSpec(Isrc_gl).Wave, Args.InSpec(Isrc_gl).Int, Wave, 'linear', 0);
-                    elseif isa(Args.InSpec,'AstroSpec')
-                        SpecIn(Isrc,:) = interp1( Args.InSpec(Isrc_gl).Wave, Args.InSpec(Isrc_gl).Flux, Wave, 'linear', 0);
+                    if isa(Args.Spec,'AstSpec') 
+                        SpecIn(Isrc,:) = interp1( Args.Spec(Isrc_gl).Wave, Args.Spec(Isrc_gl).Int, Wave, 'linear', 0);
+                    elseif isa(Args.Spec,'AstroSpec')
+                        SpecIn(Isrc,:) = interp1( Args.Spec(Isrc_gl).Wave, Args.Spec(Isrc_gl).Flux, Wave, 'linear', 0);
                     end
 
 
                 end
 
                 % try to make a 1-liner instead of a cycle? 
-                % SpecIn = interp1( 1:NSrc, Args.InSpec.Wave, Args.InSpec.Int, 1:NSrc, Wave, 'linear', 0);
+                % SpecIn = interp1( 1:NSrc, Args.Spec.Wave, Args.Spec.Int, 1:NSrc, Wave, 'linear', 0);
 
         end
 
@@ -536,7 +537,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         %%%%%%%%%%%%%%%%%%%%%  convolve the spectrum with the ULTRASAT throughut and
         %%%%%%%%%%%%%%%%%%%%%  fill the CatFlux column with the spectrum-intergated countrate fluxes
 
-        for Isrc = 1:1:NumSrcCh
+        for Isrc = 1:1:NumSrcCh 
             
             Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
 
