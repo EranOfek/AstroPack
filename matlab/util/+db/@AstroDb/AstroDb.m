@@ -776,9 +776,9 @@ classdef AstroDb < Component
             %         'DistUnit' : unit of distance (def. arcsec)
             %         'AND'      : additional search condition
             % Output: - a Db.Query object (results in .Data property)
-            % Example: A = db.Astrodb();
+            % Example: A = db.AstroDb();
             %          Res = A.coneSearch('coadd_images',34.5,-4.3,600);
-            %          Res = A.coneSearch('src_catalog',220,51,5,'DistUnit','arcmin','AND','ra>0','Columns','*');
+            %          Res = A.coneSearch('src_catalog',220,51,5,'DistUnit','arcmin','AND','sn>10','Columns','*');
             % Author : A. Krassilchtchikov (Jun 2023)
             arguments
                 Obj
