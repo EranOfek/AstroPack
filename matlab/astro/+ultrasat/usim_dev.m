@@ -71,7 +71,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         Args.DECcenter       = 52.78;        % will be used only if Args.AddWCS = 1; the default value is GALEX GROTH_00
                                              
         Args.ArraySizeLimit  = 8;            % [Gb] the limit determines the method employed in inUtil.psf.specWeight
-        Args.MaxNumSrc       = 1000;         % the maximal size of a source chunk to be worked over at a time
+        Args.MaxNumSrc       = 10000;        % the maximal size of a source chunk to be worked over at a time
         
         Args.NoiseDark logical = true;       % Dark count noise
         Args.NoiseSky  logical = true;       % Sky background 

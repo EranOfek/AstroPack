@@ -778,6 +778,7 @@ classdef AstroDb < Component
             % Output: - a Db.Query object (results in .Data property)
             % Example: A = db.Astrodb();
             %          Res = A.coneSearch('coadd_images',34.5,-4.3,600);
+            %          Res = A.coneSearch('src_catalog',220,51,5,'DistUnit','arcmin','AND','ra>0','Columns','*');
             % Author : A. Krassilchtchikov (Jun 2023)
             arguments
                 Obj
