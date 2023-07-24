@@ -1672,9 +1672,7 @@ classdef DemonLAST < Component
                                     FN_Proc_DB = FN_Proc.copy;
                                     FN_Proc_DB = FN_Proc_DB.updateIfNotEmpty('FileType',{'csv'});
                                     ProcFileName = FN_Proc_DB.genFull{1};
-                                    NData = numel(AllSI);
-                                    AH(1:NData) = AstroHeader;
-                                    AH(1:NData) = AllSI(1:NData).HeaderData;
+                                    AH = [AllSI.HeaderData];
                                     AH.writeCSV(ProcFileName,'CleanHeaderValues',1);
                                     Obj.writeStatus(FN_Proc_DB.genPath, 'Msg', 'ready-for-DB');
 
@@ -1682,9 +1680,7 @@ classdef DemonLAST < Component
                                     FN_Coadd_DB = FN_Coadd_DB.updateIfNotEmpty('FileType',{'csv'});
                                     CoaddFileName = FN_Coadd_DB.genFull('LevelPath','proc');
                                     CoaddFileName = CoaddFileName{1};
-                                    NData = numel(Coadd);
-                                    AH(1:NData) = AstroHeader;
-                                    AH(1:NData) = Coadd(1:NData).HeaderData;
+                                    AH = [Coadd.HeaderData];
                                     AH.writeCSV(CoaddFileName,'CleanHeaderValues',1);
                                     
                                     OK = 1;
@@ -1695,14 +1691,14 @@ classdef DemonLAST < Component
 
                                 FN_CatProc = FN_Proc.copy;
                                 FN_CatProc = FN_CatProc.updateIfNotEmpty('Product','Cat', 'FileType',{'csv'});
-                                ProcCatFileName  = FN_CatProc.genFull{1}; NCat = numel(AllSI); 
-                                ProcCat(1:NCat) = AllSI(1:NCat).CatData;
+                                ProcCatFileName  = FN_CatProc.genFull{1}; 
+                                ProcCat = [AllSI.CatData];
                                 
                                 FN_CatCoadd = FN_Coadd.copy;
                                 FN_CatCoadd = FN_CatCoadd.updateIfNotEmpty('Product','Cat', 'FileType',{'csv'});
                                 CoaddCatFileName  = FN_CatCoadd.genFull('LevelPath','proc');
-                                CoaddCatFileName  = CoaddCatFileName{1};  NCat = numel(Coadd);
-                                CoaddCat(1:NCat) = Coadd(1:NCat).CatData;
+                                CoaddCatFileName  = CoaddCatFileName{1};  
+                                CoaddCat = [Coadd.CatData];
                                 
                                 if Args.DB_CatalogBulk 
                                     
