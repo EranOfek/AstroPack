@@ -565,6 +565,8 @@ classdef AstroDb < Component
             %         'Force'  : insert a record from the file if the same
             %                    record from the same file (same hash sum) has been inserted already
             %         'Verbose': print names of the digested files
+            % Example: A = db.AstroDb;
+            %          pk = A.insert(AI,'Table','raw_images');
             % Author : A. Krassilchtchikov (Jun 2023)
             
             arguments
@@ -760,7 +762,60 @@ classdef AstroDb < Component
             
             Result = true;
             
-          end
+        end
+
+        function Result = coneSearch(Obj, Table, RA0, Dec0, Dist, Args)
+            % a cone search query in a specified catalog or image table
+            % Input : - Obj   : the LastDB object
+            %         - Table : the table name
+            %         - RA0   : search RA center (degrees, J2000)
+            %         - Dec0  : search Dec center (degrees, J2000)
+            %         - Dist  : search radius (def. arcsec)
+            %         * Pairs of ...,key,val,...
+            %         'Columns'  : columns to put out
+            %         'DistUnit' : unit of distance (def. arcsec)
+            %         'AND'      : additional search condition
+            % Output: - a Db.Query object (results in .Data property)
+            % Example: A = db.AstroDb();
+            %          Res = A.coneSearch('coadd_images',34.5,-4.3,600);
+            %          Res = A.coneSearch('src_catalog',220,51,5,'DistUnit','arcmin','AND','sn>10','Columns','*');
+            % Author : A. Krassilchtchikov (Jun 2023)
+            arguments
+                Obj
+                Table 
+                RA0
+                Dec0
+                Dist
+                Args.DistUnit = 'arcsec'; 
+                Args.Columns  = 'ra,dec';
+                Args.AND      = ''
+            end
+
+            RAD = 180/pi;
+
+            switch Args.DistUnit
+
+                case 'arcsec'
+                    Dist = Dist / 3600;
+                case 'arcmin'
+                    Dist = Dist / 60;
+                case 'deg'
+                    % do nothing
+                otherwise
+                    error('Incorrect distance unit');
+            end  
+            
+            % β = arccos[sin(δ1)*sin(δ2)+ cos(δ1)*cos(δ2)*cos(α1 - α2)] < Dist 
+            Cond = sprintf('%s%d%s%d%s%s%d%s%d%s%s%d%s%d%s%d', ...
+                'acos( sin(dec/',RAD,') * (',sin(Dec0/RAD),')', ...
+                   '+ cos(dec/',RAD,') * (',cos(Dec0/RAD),')', ...
+                   '* cos(ra/',RAD,'-',RA0/RAD,') ) <', Dist/RAD);
+            if ~isempty(Args.AND)
+                Cond = strcat('(',Cond,') AND (',Args.AND,')');
+            end
+
+            Result = Obj.Query.select(Args.Columns,'TableName',Table,'Where',Cond);
+        end
          
     end 
     
@@ -809,7 +864,7 @@ classdef AstroDb < Component
             if Args.AddCommonColumns
                 Result = Obj.addCommonCatalogColumns(Obj.Query, TableName);
             end
-         end
+        end
 
     end
 

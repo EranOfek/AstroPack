@@ -65,7 +65,9 @@ function Result = maskHoles(Obj, Args)
             SN = Args.SN;
         end
         % note calling -SN
-        [~,Pos] = imUtil.image.local_maxima(-SN, 1, Args.Threshold, Args.Conn);
+        %[~,Pos] = imUtil.image.local_maxima(-SN, 1, Args.Threshold, Args.Conn);
+        [Pos] = imUtil.sources.findLocalMax(-SN, 'Variance',1, 'Threshold',Args.Threshold, 'Conn',Args.Conn);
+         
         % Pos contains [X,Y,SN,IndexTemplate]
         
         % mask positions (only peak pixel is masked)

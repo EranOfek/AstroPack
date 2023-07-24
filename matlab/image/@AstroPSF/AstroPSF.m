@@ -394,7 +394,9 @@ classdef AstroPSF < Component
             %            .Med    - median
             %            .CumSum - cumulative sum.
             %          - Column vector of RadHalfCumSum, radius of cumsum=level
+            %            NaN if PSF is empty.
             %          - Column vector of RadHalfPeak, radius of flux=level.
+            %            NaN if PSF is empty.
             % Example: AP = AstroPSF;
             %          AP.DataPSF = imUtil.kernel2.gauss;
             %          [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(AP);
@@ -420,14 +422,20 @@ classdef AstroPSF < Component
             Nobj = numel(Obj);
             RadHalfPeak   = nan(Nobj,1);
             RadHalfCumSum = nan(Nobj,1);
+            Result = struct('Radius',cell(Nobj,1), 'Sum',cell(Nobj,1), 'Npix',cell(Nobj,1), 'Mean',cell(Nobj,1), 'Med',cell(Nobj,1));
             for Iobj=1:1:Nobj
                 Ixy = min(Iobj,Nxy);
-                Result(Iobj)        = imUtil.psf.curve_of_growth(Obj(Iobj).Data, Args.CenterPSFxy(Ixy,:), Args.Step);
-                N = numel(Result(Iobj).Radius);
-                % EpsVec is needed in order to insure monotonicity
-                EpsVec = (1:1:N)'.*Args.EpsStep;
-                RadHalfCumSum(Iobj) = interp1(Result(Iobj).CumSum + EpsVec, Result(Iobj).Radius, Args.Level, Args.InterpMethod);
-                RadHalfPeak(Iobj)   = interp1(Result(Iobj).Med./max(Result(Iobj).Med)-EpsVec, Result(Iobj).Radius, Args.Level, Args.InterpMethod);
+                if isempty(Obj(Iobj).Data)
+                    RadHalfCumSum(Iobj) = NaN;
+                    RadHalfPeak(Iobj)   = NaN;
+                else
+                    Result(Iobj)        = imUtil.psf.curve_of_growth(Obj(Iobj).Data, Args.CenterPSFxy(Ixy,:), Args.Step);
+                    N = numel(Result(Iobj).Radius);
+                    % EpsVec is needed in order to insure monotonicity
+                    EpsVec = (1:1:N)'.*Args.EpsStep;
+                    RadHalfCumSum(Iobj) = interp1(Result(Iobj).CumSum + EpsVec, Result(Iobj).Radius, Args.Level, Args.InterpMethod);
+                    RadHalfPeak(Iobj)   = interp1(Result(Iobj).Med./max(Result(Iobj).Med)-EpsVec, Result(Iobj).Radius, Args.Level, Args.InterpMethod);
+                end
             end
             
         end
