@@ -72,10 +72,10 @@ classdef SnrGuiIni < Component
             Obj.wrSection('R');
             Obj.wrHint('Radial distance from center of field of view [Deg]');
             Obj.wrDescription('');
-            Obj.wrDefault(sprintf('%f', Rdeg(1)));
+            Obj.wrDefault(sprintf('%.2f', round(Rdeg(1), 2)));
             Obj.wrCount(numel(Rdeg));
             for I=1:numel(Rdeg)
-                Obj.wrItem(I, sprintf('%f', Rdeg(I)));
+                Obj.wrItem(I, sprintf('%.2f', round(Rdeg(I), 2)));
             end
 
             % [ExpTime] - Exposure time
