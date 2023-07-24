@@ -13,18 +13,13 @@ function simImage = simulate_ULTRASAT_image (Args)
         Args.Y0         = 1e-6;           % [deg] the lower left corner of the modelled square region
         Args.ExpNum     = 3;              % number of standard 300 s exposures
         Args.Same       = 0;              % read in a source distribution or generate a random new one
-        Args.Distfile   = 'fitted_distr_cat.mat'; % if Same=1, read the input distr. from this file
-        Args.OutDir     =  '.'  ;         % output directory
+        Args.Distfile   = 'fitted_distr_cat.mat'; % if Same=1, read the input distribution from this file
+        Args.OutDir     =  '.';           % output directory
     end
     
     %%%%% ULTRASAT parameters
     
-%     ImageSizeX = 4738;
-%     ImageSizeY = 4738;
-    PixSize    = 5.44; % pixel size (arcsec)
-    
-%     STile = PixSize^2 * ImageSizeX * ImageSizeY / (3600^2); % tile size in [deg]
-    
+    PixSize    = 5.44;       % pixel size (arcsec)
     Wave       = 2000:11000; % the wavelength band in A
                      
     if ~Args.Same % model a new distribution
