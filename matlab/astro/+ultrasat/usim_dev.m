@@ -19,6 +19,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
     %       'DECcenter' - the DEC, deg of the central pixel (if requested)
     %       'ArraySizeLimit' - the maximal array size, machine-dependent, determines the method in specWeight
     %       'MaxNumSrc'      - the maximal size of a source chunk to be worked over at a time
+    %       'MaxPSFNum'      - the maximal number of recorded PSFs
     %       'NoiseDark'      - dark current noise (1/0)
     %       'NoiseSky'       - sky background (1/0)
     %       'NoisePoisson'   - Poisson noise (1/0)
@@ -76,6 +77,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
                                              
         Args.ArraySizeLimit  = 8;            % [Gb] the limit determines the method employed in inUtil.psf.specWeight
         Args.MaxNumSrc       = 10000;        % the maximal size of a source chunk to be worked over at a time
+        
+        Args.MaxPSFNum       = 10000;        % if the number of input sources is above this value, 
+                                             % do not record individual PSF and attach them to the output AstroImage 
         
         Args.NoiseDark logical = true;       % Dark count noise
         Args.NoiseSky  logical = true;       % Sky background 
@@ -209,7 +213,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
                                 fprintf('Reading PSF database.. '); 
 
     PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF',Args.ImRes,'.mat');
-    ReadDB = struct2cell ( io.files.load1(PSF_db) ); % PSF data at chosen resolution
+    ReadDB = struct2cell ( io.files.load1(PSF_db) ); % PSF data at the chosen spatial resolution
     PSFdata = ReadDB{2}; 
 
 %     if ( size(PSFdata,3) ~= Nwave ) || ( size(PSFdata,4) ~= Nrad )
@@ -525,7 +529,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
 
     %           fprintf('%s%d%s%4.1f\n','Eff. magnitude of source ', Isrc,' = ',...
     %               astro.spec.synthetic_phot([SpecScaled.Wave, SpecScaled.Flux],'ULTRASAT','R1','AB');
-    %               astro.spec.synthetic_phot([Wave', SpecIn(1,:)'],'ULTRASAT','R1','AB');
+    %               astro.spec.synthetic_phot([Wave', Spec(1,:)'],'ULTRASAT','R1','AB');
 
         end  
 
@@ -593,7 +597,12 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         %%%%%%%%%%%%%%%%%%%% and populate the PSF of the sources 
         
         ImageSrc = ImageSrc + Image_ch;           % add the image containing the newly added sources to the summed image
-        PSF( :, :, ChL(ICh):ChR(ICh) ) = PSF_ch;  % fill in the resulting PSF array TBD: won't be too large for 10(6) objects?
+        
+        if NumSrc < Args.MaxPSFNum
+            
+            PSF( :, :, ChL(ICh):ChR(ICh) ) = PSF_ch;  % fill in the resulting PSF array if the nmuber of sources is not too large
+        
+        end
                             
                                 fprintf('Partial source image added to the stacked source image \n');
                                 
@@ -648,24 +657,34 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         Cat = [CatX CatY CatFlux InMag RA DEC];
         Args.InCat = AstroCatalog({Cat},'ColNames',{'X','Y','Counts','MAG','RAJ2000','DEJ2000'},'HDU',1);
     end
-    
-    % save the final source PSFs into an AstroPSF array 
-    
-    AP(1:NumSrc) = AstroPSF;
-    
-    for Isrc = 1:1:NumSrc
         
-        AP(Isrc).DataPSF = PSF(:,:,Isrc);
-    
-    end
-    
     % make sky background and variance images
 
 %     Emptybox = zeros(ImageSizeX,ImageSizeY);
         
     % make an AstroImage (note, the image is to be transposed!)
     usimImage = AstroImage( {ImageSrcNoise'} ,'Back',{NoiseLevel}, 'Var',{ImageBkg},'Cat',{Args.InCat.Catalog}); 
-    usimImage.PSF = AP; 
+
+    % save the final source PSFs into an AstroPSF array and attach it to
+    % the resulting AstroImage object, if the source number is not too large
+    
+    if NumSrc < Args.MaxPSFNum
+
+        AP(1:NumSrc) = AstroPSF;
+
+        for Isrc = 1:1:NumSrc
+
+            AP(Isrc).DataPSF = PSF(:,:,Isrc);
+
+        end
+
+        usimImage.PSF = AP; 
+    
+    else
+        
+        fprintf('NOTE: the number of input sources is too large to record each of their PSFs..\n'); 
+        
+    end
     
     % add a simple WCS centered at a given point in the sky
     
