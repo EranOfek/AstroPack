@@ -50,7 +50,7 @@ function simImage = simulate_ULTRASAT_image (Args)
         MagUS  = zeros(NumSrc,1);
         FiltUS = repmat({ },1,NumSrc);
 %         
-%         S(1,:) = AstroSpec.blackBody(Wave',3500).Flux;
+%         S(1,:) = AstroSpec.blackBody(Wave',3500).Flux; % appears to slow!
 %         S(2,:) = AstroSpec.blackBody(Wave',5800).Flux;
 %         S(3,:) = AstroSpec.blackBody(Wave',20000).Flux;
 %         
@@ -77,9 +77,6 @@ function simImage = simulate_ULTRASAT_image (Args)
                 
                 Isrc = Isrc + 1;
                 
-%                 Cat(Isrc,1) = X0 + Range * rand; 
-%                 Cat(Isrc,2) = Y0 + Range * rand; 
-                
                 RadSrc = sqrt( Cat(Isrc,1)^2 + Cat(Isrc,2)^2 ) * (PixSize/3600); %deg
                 [~, IndR] = min( abs(RadSrc - Rad) ); % search for the nearest node
                 RXX = sprintf('R%d',IndR); FiltUS{Isrc} = RXX; % fill in the appropriate filter
@@ -96,8 +93,9 @@ function simImage = simulate_ULTRASAT_image (Args)
         end
         
         % save the catalog for the case you wish to repeat the same setup
+        % (for large simulations this can be way too voluminous)
         
-        save('fitted_distr_cat.mat', 'Cat','MagUS', 'FiltUS', 'Spec', '-v7.3');
+%         save('fitted_distr_cat.mat', 'Cat','MagUS', 'FiltUS', 'Spec', '-v7.3');
         
     else
         % read in the catalog, magnitudes, and spectra to be modelled       
