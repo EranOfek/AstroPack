@@ -622,6 +622,8 @@ classdef AstroDb < Component
             
             for IData = 1:1:NData
                 
+                try
+                
                 switch lower(Args.Type)
                     
                     case 'cat'  % catalogs
@@ -689,6 +691,15 @@ classdef AstroDb < Component
                     otherwise
                         
                         error('Illegal data type');
+                    
+                end
+                
+                catch ME
+                    
+                    ErrorMsg = sprintf('db.AstroDB insert error: %s / funname: %s @ line: %d array element: %d', ...
+                                       ME.message, ME.stack(1).name, ME.stack(1).line, IData);                   
+                    Obj.writeLog(ErrorMsg, LogLevel.Error);
+                    Obj.writeLog(ME, LogLevel.Error);
                     
                 end
                 
