@@ -696,10 +696,9 @@ classdef AstroDb < Component
                 
                 catch ME
                     
-                    ErrorMsg = sprintf('db.AstroDB insert error: %s / funname: %s @ line: %d array element: %d', ...
-                                       ME.message, ME.stack(1).name, ME.stack(1).line, IData);                   
-                    Obj.writeLog(ErrorMsg, LogLevel.Error);
-                    Obj.writeLog(ME, LogLevel.Error);
+                    ErrorMsg = sprintf('db.AstroDB.insert error at loop iteration %d: %s / funname: %s @ line: %d ', ...
+                                       IData, ME.message, ME.stack(1).name, ME.stack(1).line);                   
+                    Obj.msgLog(LogLevel.Error, ErrorMsg);
                     
                 end
                 
