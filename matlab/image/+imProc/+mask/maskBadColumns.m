@@ -20,6 +20,7 @@ function mask=maskBadColumns(AstroImg,Args)
 %                      [default, size(AstroImg.Image,1)/20]
 %        HighFraction: fraction of the segment pixels over or below VarLevel,
 %                       for a segment to be considered bad [default 0.5]
+%        ColumnDim:    1 (default) to mark columns, 2 to scan rows (TODO!)
 % Outputs:
 %     AstroImg.Mask is updated for each image of the input array
 %     - the last of the masks is also returned as optional output, for
@@ -32,11 +33,23 @@ function mask=maskBadColumns(AstroImg,Args)
         Args.VarLevel = 2;
         Args.MinLineLength= [];
         Args.HighFraction = 0.5; % TODO how to pass to function
+        Args.ColumnDim = 1;
     end
 
+    if Args.ColumnDim == 1
+        rowdim=2;
+    else
+        rowdim=1;
+        Args.ColumnDim=2;
+    end
+    
+    bd=BitDictionary;
+    bdl=2^bd.name2bit('ColumnLow');
+    bdh=2^bd.name2bit('ColumnHigh');
+    
     for k=1:numel(AstroImg)
         if isempty(Args.MinLineLength)
-            nl = ceil(size(AstroImg(k).Image,1)/20);
+            nl = ceil(size(AstroImg(k).Image,Args.ColumnDim)/20);
         else
             nl=Args.MinLineLength;
         end
@@ -59,6 +72,7 @@ function mask=maskBadColumns(AstroImg,Args)
         % Find out what output type to make.
         rows = 0:(nl-1);
         maskhigh = false(ma,na);
+        masklow=maskhigh;
         % Apply fun to each neighborhood of a
         for i=1:ma
             x = aa(i+rows,:);
@@ -71,8 +85,8 @@ function mask=maskBadColumns(AstroImg,Args)
         %  MinLineLength*HighFraction in both directions, because edges of the
         %  bad columns fell off the voting
         extend=ones(floor(nl*Args.HighFraction),1);
-        mask=uint32(2^21*imdilate(masklow,extend) + ...
-                    2^22*imdilate(maskhigh,extend) );
+        mask=uint32(bdl*imdilate(masklow,extend) + ...
+                    bdh*imdilate(maskhigh,extend) );
 
         % turn on these bits in the (existing) AI.Mask
         AstroImg(k).Mask=bitor(mask,AstroImg(k).Mask);
