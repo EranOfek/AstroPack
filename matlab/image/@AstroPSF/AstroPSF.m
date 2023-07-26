@@ -422,7 +422,7 @@ classdef AstroPSF < Component
             Nobj = numel(Obj);
             RadHalfPeak   = nan(Nobj,1);
             RadHalfCumSum = nan(Nobj,1);
-            Result = struct('Radius',cell(Nobj,1), 'Sum',cell(Nobj,1), 'Npix',cell(Nobj,1), 'Mean',cell(Nobj,1), 'Med',cell(Nobj,1));
+            Result = struct('Radius',cell(Nobj,1), 'Sum',cell(Nobj,1), 'Npix',cell(Nobj,1), 'Mean',cell(Nobj,1), 'Med',cell(Nobj,1), 'CumSum',cell(Nobj,1));
             for Iobj=1:1:Nobj
                 Ixy = min(Iobj,Nxy);
                 if isempty(Obj(Iobj).Data)
