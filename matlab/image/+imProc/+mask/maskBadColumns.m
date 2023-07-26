@@ -71,8 +71,8 @@ function mask=maskBadColumns(AstroImg,Args)
         %  MinLineLength*HighFraction in both directions, because edges of the
         %  bad columns fell off the voting
         extend=ones(floor(nl*Args.HighFraction),1);
-        mask=uint32(2^20*imdilate(masklow,extend) + ...
-                    2^21*imdilate(maskhigh,extend) );
+        mask=uint32(2^21*imdilate(masklow,extend) + ...
+                    2^22*imdilate(maskhigh,extend) );
 
         % turn on these bits in the (existing) AI.Mask
         AstroImg(k).Mask=bitor(mask,AstroImg(k).Mask);
