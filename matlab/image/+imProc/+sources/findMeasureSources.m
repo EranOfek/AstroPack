@@ -7,6 +7,11 @@ function Result = findMeasureSources(Obj, Args)
     %                   This will work only if the following columns are requested
     %                   'SN_1','SN_2','FLUX_CONV_2','FLUX_CONV_3','STD_ANNULUS'.
     %                   Default is false.
+    %            'BadBitNames' - A cell array of bit names. If any of these
+    %                   bits are included within a source found by this
+    %                   function, then the source will be removed from the
+    %                   list. For example {'ColumnLow','ColumnHigh'},...
+    %                   Default is {}.
     %            'FlagCR' - A logical indicating if to flag cosmic rays
     %                   (CR)  using the CR_DeltaHT flag. Default is true.
     %            'ReFind' - A logical indicating if to find stars if the
@@ -110,8 +115,9 @@ function Result = findMeasureSources(Obj, Args)
     %          Result = imProc.sources.findMeasureSources(AI);
    
     arguments
-        Obj
+        Obj AstroImage
         Args.RemoveBadSources logical      = false;
+        Args.BadBitNames cell              = {};
         Args.FlagCR logical                = true;
         Args.ReFind(1,1) logical           = true;
         Args.Threshold                     = 5;
@@ -246,7 +252,15 @@ function Result = findMeasureSources(Obj, Args)
                    
                     Flags                = Args.FlagsType(Flags);
                     Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Flags, Args.FlasgPos, Args.ColNameFlags, {''});
+                    
+                    % remove sources with bad flags
+                    if ~isempty(Args.BadBitNames)
+                        FlagBad = Result(Iobj).MaskData.Dict.findBit(Flags, Args.BadBitNames, 'Method','any');
+                    
+                        Result(Iobj).CatData.Catalog = Result(Iobj).CatData.Catalog(~FlagBad);
+                    end
                 end
+           
             end   
             
            
