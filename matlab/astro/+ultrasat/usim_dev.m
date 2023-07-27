@@ -742,6 +742,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
 %         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName);   
         usimImage.write1(OutFITSName); % write the image and header to a FITS file
         
+        % make an ADU image with mask in the second extension:
+        OutFITSName = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'_ADU.fits'); 
+        FITS.write(ImageSrcNoiseADU, OutFITSName, 'DataType',class(ImageSrcNoiseADU),...
+                   'Append',false,'OverWrite',true,'WriteTime',true);
+        FITS.write(int8(ImageSrcNoiseGainMask), OutFITSName, 'DataType',class(ImageSrcNoiseADU),...
+                   'Append',true,'OverWrite',false,'WriteTime',true);
+               
         % make a text file with the input catalog:
         fileID = fopen('SimImage_InCat.txt','w'); 
         fprintf(fileID,'%7.1f %7.1f %5.2f %d\n',Cat(:,(1:4))');
