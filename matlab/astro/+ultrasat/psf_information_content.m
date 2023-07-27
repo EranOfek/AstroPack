@@ -1,5 +1,8 @@
 function Result = psf_information_content(ImRes, Args)
     % characterize information content loss when using various ULTRASAT PSFs
+    %  
+    % Author : A. Krassilchtchikov, Jun 2023
+    % Example: ultrasat.psf_information_content(5, 5);
     
     % ULTRASAT PSF database parameters
     arguments

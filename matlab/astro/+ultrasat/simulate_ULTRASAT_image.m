@@ -4,7 +4,7 @@ function simImage = simulate_ULTRASAT_image (Args)
     %           
     % Output : - Image: a 2D array containing the resulting source image                 
     %            
-    % By : A. Krassilchtchikov et al. Mar 2023
+    % Author : A. Krassilchtchikov et al. Mar 2023
     % Example: Image = simulate_ULTRASAT_image('ExpNum', 30, 'OutDir', '/home/sasha/', 'Same', true)
     
     arguments    
@@ -99,7 +99,7 @@ function simImage = simulate_ULTRASAT_image (Args)
         
     end
     
-    simImage = ultrasat.usim_dev('InCat',Cat,'MaxNumSrc',10000,'InMag',MagUS,'Filt',FiltUS, ...
+    simImage = ultrasat.usim_dev('Cat',Cat,'MaxNumSrc',10000,'Mag',MagUS,'Filt',FiltUS, ...
                'Spec',Spec,'Exposure',[Args.ExpNum 300],'FiltFam',{'ULTRASAT'},'OutDir',Args.OutDir);
     
 end
