@@ -1,23 +1,22 @@
 function Result = onesExcept(Mat, Scalar, Image, UseMex, UseMP)
-    %
-    % Input  : - Mat - input matrix
-    %          - Scalar - scalar value to compare
-    %          - Image - Datatype input
-    %          - UseMex - true to use MEX optimization
-    %          - UseMP - true to use threading
-    %
-    % Output : - The result of the operation.
-    %
-    % Author : Chen Tishler, Dan Elhanati (Apr 2023)
-    % Example: 
-    % UseMex = 0;
-    % UseMP = 0;
-    % mat = [3 6 9; 4 7 11];
-    % scalar = 5;
-    % image = 1;
-    % matlab_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);
-
-    %----------------------------------------------------------------------
+% Create a logical array by checking if the values of an input matrix are
+% bigger than an inpute scalar
+% Input  : - 2D/3D matrix of values [mat].
+%          - [Scalar].
+%          - [Image].
+%          - (UseMex) A logical indicating if to use mex version.
+%            Default is true.
+%          - (UseMP) A logical indicating if to use open MP.
+%            Default is true.
+% Output : - 2D/3D logical matrix.
+% Author : Chen Tishler, Dan Elhanati (Apr 2023)
+% Example: UseMex = 0;
+%          UseMP = 0;
+%          mat = [3 6 9; 4 7 11];
+%          scalar = 5;
+%          image = 1;
+%          matlab_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);
+%----------------------------------------------------------------------
     arguments
         Mat              	% Input array
         Scalar

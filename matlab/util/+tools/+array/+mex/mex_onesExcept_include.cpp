@@ -35,141 +35,176 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 		useOpenMP = false;    
     
     // Get matrix dimensions
-    int64 rows = mxGetM(prhs[0]);
-    int64 cols = mxGetN(prhs[0]);
+    mwSize ndims = mxGetNumberOfDimensions(prhs[0]);
+    const mwSize *dims = mxGetDimensions(prhs[0]);
+    mwSize rows, cols, stacks;
 
-    // Create output matrix W
-    plhs[0] = mxCreateLogicalMatrix(rows, cols);
-    mxLogical *W = mxGetLogicals(plhs[0]);
-  
+    if (ndims == 2) {
+        rows = dims[0];
+        cols = dims[1];
+        stacks = 1; // Treat the 2D matrix as a single stack
+    } else if (ndims == 3) {
+        rows = dims[0];
+        cols = dims[1];
+        stacks = dims[2];
+    } else {
+        rows = dims[0];
+        cols = 1;
+        stacks = 1; // Treat the 2D matrix as a single stack
+    }
+
+    // Create output matrix W    
+    mwSize outDims[3] = {rows, cols, stacks};
+    plhs[0] = mxCreateLogicalArray(3, outDims);
+    mxLogical *W = mxGetLogicals(plhs[0]);  
     // Set the elements of W to 0 if the corresponding element of Mat is greater than Scalar
     // Use OpenMP for parallelization
     
     // Loop unrolling version (seems to be slower than stright forward loop):
-//     int64 remainder = numel % 8;
-//     int64 simd_size = numel - remainder;    
+    if (useOpenMP) {
+        #pragma omp parallel for    
+        for (int64 k = 0; k < stacks; k++) {
+            int64 offset = k * rows * cols;
+            int64 simd_size = rows * cols - (rows * cols) % 8;
+            for (int64 i = 0; i < simd_size; i += 8) {
+                if (Mat[offset + i + 0] > Scalar) {
+                    W[offset + i + 0] = false;
+                } else {
+                    W[offset + i + 0] = true;
+                }
+                if (Mat[offset + i + 1] > Scalar) {
+                    W[offset + i + 1] = false;
+                } else {
+                    W[offset + i + 1] = true;
+                }
+                if (Mat[offset + i + 2] > Scalar) {
+                    W[offset + i + 2] = false;
+                } else {
+                    W[offset + i + 2] = true;
+                }
+                if (Mat[offset + i + 3] > Scalar) {
+                    W[offset + i + 3] = false;
+                } else {
+                    W[offset + i + 3] = true;
+                }
+                if (Mat[offset + i + 4] > Scalar) {
+                    W[offset + i + 4] = false;
+                } else {
+                    W[offset + i + 4] = true;
+                }
+                if (Mat[offset + i + 5] > Scalar) {
+                    W[offset + i + 5] = false;
+                } else {
+                    W[offset + i + 5] = true;
+                }
+                if (Mat[offset + i + 6] > Scalar) {
+                    W[offset + i + 6] = false;
+                } else {
+                    W[offset + i + 6] = true;
+                }
+                if (Mat[offset + i + 7] > Scalar) {
+                    W[offset + i + 7] = false;
+                } else {
+                    W[offset + i + 7] = true;
+                }
+            }
+
+            // Process the remaining elements (if any) without loop unrolling
+            for (int64 i = simd_size; i < rows * cols; i++) {
+                if (Mat[offset + i] > Scalar) {
+                    W[offset + i] = false;
+                } else {
+                    W[offset + i] = true;
+                }
+            }
+        }
+    } else {            
+        for (int64 k = 0; k < stacks; k++) {
+            int64 offset = k * rows * cols;
+            int64 simd_size = rows * cols - (rows * cols) % 8;
+            for (int64 i = 0; i < simd_size; i += 8) {
+                if (Mat[offset + i + 0] > Scalar) {
+                    W[offset + i + 0] = false;
+                } else {
+                    W[offset + i + 0] = true;
+                }
+                if (Mat[offset + i + 1] > Scalar) {
+                    W[offset + i + 1] = false;
+                } else {
+                    W[offset + i + 1] = true;
+                }
+                if (Mat[offset + i + 2] > Scalar) {
+                    W[offset + i + 2] = false;
+                } else {
+                    W[offset + i + 2] = true;
+                }
+                if (Mat[offset + i + 3] > Scalar) {
+                    W[offset + i + 3] = false;
+                } else {
+                    W[offset + i + 3] = true;
+                }
+                if (Mat[offset + i + 4] > Scalar) {
+                    W[offset + i + 4] = false;
+                } else {
+                    W[offset + i + 4] = true;
+                }
+                if (Mat[offset + i + 5] > Scalar) {
+                    W[offset + i + 5] = false;
+                } else {
+                    W[offset + i + 5] = true;
+                }
+                if (Mat[offset + i + 6] > Scalar) {
+                    W[offset + i + 6] = false;
+                } else {
+                    W[offset + i + 6] = true;
+                }
+                if (Mat[offset + i + 7] > Scalar) {
+                    W[offset + i + 7] = false;
+                } else {
+                    W[offset + i + 7] = true;
+                }
+            }
+
+            // Process the remaining elements (if any) without loop unrolling
+            for (int64 i = simd_size; i < rows * cols; i++) {
+                if (Mat[offset + i] > Scalar) {
+                    W[offset + i] = false;
+                } else {
+                    W[offset + i] = true;
+                }
+            }
+        }
+    }
+    
+    
+// No Loop unrolling:
 //     if (useOpenMP) {
-//         #pragma omp parallel for        
-//         for (int64 i = 0; i < simd_size; i += 8) {
-//             if (Mat[i+0] > Scalar) {
-//                 W[i+0] = false;
-//             } else {
-//                 W[i+0] = true;
-//             }
-//             if (Mat[i+1] > Scalar) {
-//                 W[i+1] = false;
-//             } else {
-//                 W[i+1] = true;
-//             }
-//             if (Mat[i+2] > Scalar) {
-//                 W[i+2] = false;
-//             } else {
-//                 W[i+2] = true;
-//             }
-//             if (Mat[i+3] > Scalar) {
-//                 W[i+3] = false;
-//             } else {
-//                 W[i+3] = true;
-//             }
-//             if (Mat[i+4] > Scalar) {
-//                 W[i+4] = false;
-//             } else {
-//                 W[i+4] = true;
-//             }
-//             if (Mat[i+5] > Scalar) {
-//                 W[i+5] = false;
-//             } else {
-//                 W[i+5] = true;
-//             }
-//             if (Mat[i+6] > Scalar) {
-//                 W[i+6] = false;
-//             } else {
-//                 W[i+6] = true;
-//             }
-//             if (Mat[i+7] > Scalar) {
-//                 W[i+7] = false;
-//             } else {
-//                 W[i+7] = true;
+//         #pragma omp parallel for    
+//         for (int64 k = 0; k < stacks; k++) {
+//             int64 offset = k * rows * cols;
+//             for (int64 i = 0; i < rows * cols; i++) {
+//                 if (Mat[offset + i] > Scalar) {
+//                     W[offset + i] = false;
+//                 }
+//                 else {
+//                     W[offset + i] = true;
+//                 }
 //             }
 //         }
 //     }
 //     else {
-//         for (int64 i = 0; i < simd_size; i += 8) {
-//             if (Mat[i+0] > Scalar) {
-//                 W[i+0] = false;
-//             } else {
-//                 W[i+0] = true;
-//             }
-//             if (Mat[i+1] > Scalar) {
-//                 W[i+1] = false;
-//             } else {
-//                 W[i+1] = true;
-//             }
-//             if (Mat[i+2] > Scalar) {
-//                 W[i+2] = false;
-//             } else {
-//                 W[i+2] = true;
-//             }
-//             if (Mat[i+3] > Scalar) {
-//                 W[i+3] = false;
-//             } else {
-//                 W[i+3] = true;
-//             }
-//             if (Mat[i+4] > Scalar) {
-//                 W[i+4] = false;
-//             } else {
-//                 W[i+4] = true;
-//             }
-//             if (Mat[i+5] > Scalar) {
-//                 W[i+5] = false;
-//             } else {
-//                 W[i+5] = true;
-//             }
-//             if (Mat[i+6] > Scalar) {
-//                 W[i+6] = false;
-//             } else {
-//                 W[i+6] = true;
-//             }
-//             if (Mat[i+7] > Scalar) {
-//                 W[i+7] = false;
-//             } else {
-//                 W[i+7] = true;
+//         for (int64 k = 0; k < stacks; k++) {
+//             int64 offset = k * rows * cols;
+//             for (int64 i = 0; i < rows * cols; i++) {
+//                 if (Mat[offset + i] > Scalar) {
+//                     W[offset + i] = false;
+//                 }
+//                 else {
+//                     W[offset + i] = true;
+//                 }
 //             }
 //         }
-//     }
-//     
-//     if (numel-simd_size > 0) {
-//         for (int64 i = simd_size; i < numel;  i++) {
-//             if (Mat[i] > Scalar) {
-//                 W[i] = false;
-//             }
-//             else {
-//                 W[i] = true;
-//             }
-//         }
-//     }
-    
-// No Loop unrolling:
-    if (useOpenMP) {
-        #pragma omp parallel for    
-        for (int64 i = 0; i < numel;  i++) {
-            if (Mat[i] > Scalar) {
-                W[i] = false;
-            }
-            else {
-                W[i] = true;
-            }
-        } 
-    }
-    else {
-        for (int64 i = 0; i < numel;  i++) {
-            if (Mat[i] > Scalar) {
-                W[i] = false;
-            }
-            else {
-                W[i] = true;
-            }
-        }        
-    }
-    
+//     }    
+
+
 }

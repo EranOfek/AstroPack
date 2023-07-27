@@ -20,7 +20,9 @@ function Result = test_onesExcept()
     % Checking basic functionality and comparing mex and matlab
     UseMex = 0;
     UseMP = 0;
-    mat = [3 6 9; 4 7 11];
+%     mat = [3 6 9];
+%     mat = [3 6 9; 4 7 11];
+    mat = rand(5,4,4)*10;
     scalar = 5;
     image = true;
     matlab_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);
