@@ -20,13 +20,11 @@ function mask=maskBadColumns(AstroImg,Args)
 %                      [default, size(AstroImg.Image,1)/20]
 %        HighFraction: fraction of the segment pixels over or below VarLevel,
 %                       for a segment to be considered bad [default 0.5]
-%        ColumnDim:    1 (default) to mark columns, 2 to scan rows (TODO!)
+%        ColumnDim:    1 (default) to mark columns, 2 to scan rows
 % Outputs:
 %     AstroImg.Mask is updated for each image of the input array
 %     - the last of the masks is also returned as optional output, for
 %       debugging
-%
-% TODO: a flag for doing the same, but on rows
 
     arguments
         AstroImg AstroImage = [];
@@ -37,10 +35,9 @@ function mask=maskBadColumns(AstroImg,Args)
     end
 
     if Args.ColumnDim == 1
-        rowdim=2;
+        coldim=1;
     else
-        rowdim=1;
-        Args.ColumnDim=2;
+        coldim=2;
     end
     
     bd=BitDictionary;
@@ -49,7 +46,7 @@ function mask=maskBadColumns(AstroImg,Args)
     
     for k=1:numel(AstroImg)
         if isempty(Args.MinLineLength)
-            nl = ceil(size(AstroImg(k).Image,Args.ColumnDim)/20);
+            nl = ceil(size(AstroImg(k).Image,coldim)/20);
         else
             nl=Args.MinLineLength;
         end
@@ -63,28 +60,50 @@ function mask=maskBadColumns(AstroImg,Args)
         % the syntax for passing function parameters (here, HighFraction)
 
         % This code, trimmed from nlfilter.m, is more effective
-        [ma,na] = size(HighPix);
-        aa = false(ma+nl-1,na);
+        [mx,my] = size(HighPix);
+        if coldim==1
+            aa = false(mx+nl-1,my);
+        else
+            aa = false(mx,my+nl-1);
+        end
         bb=aa;
-        aa(floor((nl-1)/2)+(1:ma),:) = HighPix;
-        bb(floor((nl-1)/2)+(1:ma),:) = LowPix;
+        if coldim==1
+            aa(floor((nl-1)/2)+(1:mx),:) = HighPix;
+            bb(floor((nl-1)/2)+(1:mx),:) = LowPix;
+        else
+            aa(:,floor((nl-1)/2)+(1:my)) = HighPix;
+            bb(:,floor((nl-1)/2)+(1:my)) = LowPix;
+        end
 
         % Find out what output type to make.
         rows = 0:(nl-1);
-        maskhigh = false(ma,na);
-        masklow=maskhigh;
+        maskhigh = false(mx,my);
+        masklow = maskhigh;
         % Apply fun to each neighborhood of a
-        for i=1:ma
-            x = aa(i+rows,:);
-            y = bb(i+rows,:);
-            maskhigh(i,:) = mean(x,1) > Args.HighFraction;
-            masklow(i,:) = mean(y,1) > Args.HighFraction;
+        if coldim==1
+            for i=1:mx
+                x = aa(i+rows,:);
+                y = bb(i+rows,:);
+                maskhigh(i,:) = mean(x,1) > Args.HighFraction;
+                masklow(i,:) = mean(y,1) > Args.HighFraction;
+            end
+        else
+            for i=1:my
+                x = aa(:,i+rows);
+                y = bb(:,i+rows);
+                maskhigh(:,i) = mean(x,2) > Args.HighFraction;
+                masklow(:,i) = mean(y,2) > Args.HighFraction;
+            end
         end
 
         % then we should still imdilate the mask in the column direction, of
         %  MinLineLength*HighFraction in both directions, because edges of the
         %  bad columns fell off the voting
-        extend=ones(floor(nl*Args.HighFraction),1);
+        if coldim==1
+            extend=ones(floor(nl*Args.HighFraction),1);
+        else
+            extend=ones(1,floor(nl*Args.HighFraction));
+        end
         mask=uint32(bdl*imdilate(masklow,extend) + ...
                     bdh*imdilate(maskhigh,extend) );
 
