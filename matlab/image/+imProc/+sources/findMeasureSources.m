@@ -257,7 +257,7 @@ function Result = findMeasureSources(Obj, Args)
                     if ~isempty(Args.BadBitNames)
                         FlagBad = Result(Iobj).MaskData.Dict.findBit(Flags, Args.BadBitNames, 'Method','any');
                     
-                        Result(Iobj).CatData.Catalog = Result(Iobj).CatData.Catalog(~FlagBad);
+                        Result(Iobj).CatData.Catalog = Result(Iobj).CatData.Catalog(~FlagBad,:);
                     end
                 end
            
