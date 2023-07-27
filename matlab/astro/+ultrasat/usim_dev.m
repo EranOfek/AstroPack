@@ -33,17 +33,17 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
     %          - an array of per-object AstroPSFs
     %          - an ADU image (simple array)
     % Tested : Matlab R2020b
-    % Author : A. Krassilchtchikov et al. (Mar 2023)
-    % Example: Sim = ultrasat.usim('InCat',10) 
-    % simulate with 10 sources at random positions with the default spectrum and magnitude0  
+    % Author : A. Krassilchtchikov (Mar 2023)
+    % Example: Sim = ultrasat.usim('Cat',10) 
+    % (simulate with 10 sources at random positions with the default spectrum and magnitude)  
   
     arguments  
         
-        Args.InCat           =  10;          % if a number N, generate N random fake sources
+        Args.Cat             =  10;          % if a number N, generate N random fake sources
                                              % if a 2D table, use X, Y from this table
                                              % if an AstroCat object, use source coordinates from this object
                                              
-        Args.InMag           =  20;          % apparent magnitude of the input sources: 
+        Args.Mag             =  20;          % apparent magnitude of the input sources: 
                                              % one magnitude for all the objects 
                                              % or a vector of magnitudes 
 
@@ -81,8 +81,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         Args.MaxPSFNum       = 10000;        % if the number of input sources is above this value, 
                                              % do not record individual PSF and attach them to the output AstroImage 
         
-        Args.NoiseDark logical = true;       % Dark count noise
-        Args.NoiseSky  logical = true;       % Sky background 
+        Args.NoiseDark    logical = true;    % Dark count noise
+        Args.NoiseSky     logical = true;    % Sky background 
         Args.NoisePoisson logical = true;    % Poisson noise
         Args.NoiseReadout logical = true;    % Read-out noise
                                              % (see details in imUtil.art.noise)
@@ -93,7 +93,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         
         Args.OutDir          = '.';          % the output directory
         
-        Args.PostModelingFindSources logical = false; % do post modeling source search
+        Args.PostModelingFindSources logical = false; % attempt for a post modeling source search 
          
     end
     
@@ -226,22 +226,22 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         
     %%%%%%%%%%%%%%%%%%%% read source coordinates from an input catalog or make a fake catalog
     
-    if isa(Args.InCat,'AstroCatalog') % read sources from an AstroCatalog object 
+    if isa(Args.Cat,'AstroCatalog') % read sources from an AstroCatalog object 
  
         % read in an appropriate ULTRASAT header and make a WCS
         % SimHeader = AstroHeader('/home/sasha/matlab/data/ULTRASAT/UC-3200-TN003-01_FITS_formatted_image_example.fits',0); 
         % SimWCS = AstroWCS.header2wcs(SimHeader);
         
-        NumSrc = size(Args.InCat.Catalog,1); 
+        NumSrc = size(Args.Cat.Catalog,1); 
 
-        RA            = Args.InCat.Catalog(:,find(strcmp(Args.InCat.ColNames, 'RAJ2000'))); 
-        DEC           = Args.InCat.Catalog(:,find(strcmp(Args.InCat.ColNames, 'DEJ2000'))); 
+        RA            = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'RAJ2000'))); 
+        DEC           = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'DEJ2000'))); 
         
-        if isempty(find(strcmp(Args.InCat.ColNames, 'X'), 1)) % no pixel coordinates in the catalog
+        if isempty(find(strcmp(Args.Cat.ColNames, 'X'), 1)) % no pixel coordinates in the catalog
             [CatX, CatY]  = SimWCS.sky2xy(RA,DEC);         % needs an astro WCS object!
         else                                               % read pixel coordinates
-            CatX      = Args.InCat.Catalog(:,find(strcmp(Args.InCat.ColNames, 'X'))); 
-            CatY      = Args.InCat.Catalog(:,find(strcmp(Args.InCat.ColNames, 'Y'))); 
+            CatX      = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'X'))); 
+            CatY      = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'Y'))); 
         end
                 
         CatFlux       = zeros(NumSrc,1);   % will be determined below from spectra * transmission 
@@ -249,12 +249,12 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         
                             fprintf('%d%s\n',NumSrc,' sources read from the input AstroCatalog object');
         
-    elseif size(Args.InCat,2) > 1 && size(Args.InCat,3) == 1 % read source pixel coordinates from a table
+    elseif size(Args.Cat,2) > 1 && size(Args.Cat,3) == 1 % read source pixel coordinates from a table
         
-        NumSrc = size(Args.InCat,1);
+        NumSrc = size(Args.Cat,1);
         
-        CatX   = Args.InCat(:,1);
-        CatY   = Args.InCat(:,2);
+        CatX   = Args.Cat(:,1);
+        CatY   = Args.Cat(:,2);
         
         RA      = zeros(NumSrc,1);  % will be determined below if a WCS is set
         DEC     = zeros(NumSrc,1);  % -//-
@@ -263,9 +263,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         
                             fprintf('%d%s\n',NumSrc,' sources read from the input table');
         
-    elseif size(Args.InCat,2) == 1 % make a fake catalog with Args.InCat sources randomly distributed over the FOV
+    elseif size(Args.Cat,2) == 1 % make a fake catalog with Args.Cat sources randomly distributed over the FOV
         
-        NumSrc = Args.InCat;  % the number of fake sources
+        NumSrc = Args.Cat;  % the number of fake sources
 
         CatX    = max(0.51, ImageSizeX * rand(NumSrc,1) ); 
         CatY    = max(0.51, ImageSizeY * rand(NumSrc,1) ); 
@@ -478,7 +478,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
 
                                 tic
 
-
                         % TEST input: a flat spectrum the 240-280 band, null otherwise
     %                     if false
     %                         
@@ -508,10 +507,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
               
               AS = AstroSpec([Wave' SpecIn(Isrc,:)']);
 
-              if numel(Args.InMag) > 1 
-                  InMag(Isrc_gl) = Args.InMag(Isrc_gl); 
+              if numel(Args.Mag) > 1 
+                  InMag(Isrc_gl) = Args.Mag(Isrc_gl); 
               else
-                  InMag(Isrc_gl) = Args.InMag(1); 
+                  InMag(Isrc_gl) = Args.Mag(1); 
               end
               if numel(Args.Filt) > 1
                   Filter = Args.Filt{Isrc_gl};
@@ -560,10 +559,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         %%%%%%%%%%%%%%%%%%%%%  S_i(λ)*Th(λ,r_i) with their PSF_i(λ,r_i) over the frequency range 
         %%%%%%%%%%%%%%%%%%%%%  and obtain spectrum-weighted PSF_i for each source
 
-    %     Nx = size(PSFdata,1); 
-    %     Ny = size(PSFdata,2);
-    %     WPSF = zeros( Nx, Ny, NumSrc );
-
                                 fprintf('Weighting source PSFs with their spectra.. ');
 
         WPSF = imUtil.psf.specWeight(SpecAbs, RadSrc, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, ...
@@ -577,9 +572,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
 
                                 fprintf('Rotating the PSFs and injecting them into an empty image.. ');
                                 
-        CatX_ch = CatX(ChL(ICh):ChR(ICh));
+        CatX_ch = CatX(ChL(ICh):ChR(ICh));   % cut the appropriate parts of the Cat catalog
         CatY_ch = CatY(ChL(ICh):ChR(ICh));
         CatFlux_ch = CatFlux(ChL(ICh):ChR(ICh));
+        
         if numel(RotAngle) > 1 
             RotAngle_ch = RotAngle(ChL(ICh):ChR(ICh));
         else
@@ -587,8 +583,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         end
         
         [Image_ch, PSF_ch] = imUtil.art.injectArtSrc (CatX_ch, CatY_ch, CatFlux_ch, ImageSizeX, ImageSizeY,...
-                                 WPSF, 'PSFScaling',Args.ImRes,'RotatePSF',RotAngle_ch,...
-                                 'Jitter',1,'Method',Args.Inj,'MeasurePSF',0); 
+                                 WPSF, 'PSFScaling', Args.ImRes, 'RotatePSF', RotAngle_ch,...
+                                 'Jitter', 1, 'Method', Args.Inj, 'MeasurePSF', 0); 
 
                                 fprintf(' done\n');
                                 elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
@@ -596,7 +592,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         %%%%%%%%%%%%%%%%%%%% add the chunk image to the summed source image
         %%%%%%%%%%%%%%%%%%%% and populate the PSF of the sources 
         
-        ImageSrc = ImageSrc + Image_ch;           % add the image containing the newly added sources to the summed image
+        ImageSrc = ImageSrc + Image_ch;  % add the image containing the newly added sources to the current summed image
         
         if NumSrc < Args.MaxPSFNum
             
@@ -647,15 +643,15 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
     ImageSrcNoiseADU = ImageSrcNoise .* ( ImageSrcNoiseGainMask .* E2ADUhigh + ...
                                           (ones(ImageSizeX,ImageSizeY)-ImageSrcNoiseGainMask) .* E2ADUlow );
 
-    %%%%%%%%%%%%%%%%%%%%%%  output: a) an AstroImage object with filled image, header, and PSF attachments 
-    %%%%%%%%%%%%%%%%%%%%%%  b) a FITS image c) a native (RAW) format image 
+    %%%%%%%%%%%%%%%%%%%%%%  output: a) an AstroImage object with filled image, header, and PSF properties  
+    %%%%%%%%%%%%%%%%%%%%%%          b) a FITS image c) a native (RAW) format image 
     
                             fprintf('Compiling output structures and writing files..\n'); drawnow('update'); tic
        
     % if we generated a fake catalog above, make a catalog table here 
-    if ~isa(Args.InCat,'AstroCatalog')
+    if ~isa(Args.Cat,'AstroCatalog')
         Cat = [CatX CatY CatFlux InMag RA DEC];
-        Args.InCat = AstroCatalog({Cat},'ColNames',{'X','Y','Counts','MAG','RAJ2000','DEJ2000'},'HDU',1);
+        Args.Cat = AstroCatalog({Cat},'ColNames',{'X','Y','Counts','MAG','RAJ2000','DEJ2000'},'HDU',1);
     end
         
     % make sky background and variance images
@@ -663,7 +659,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
 %     Emptybox = zeros(ImageSizeX,ImageSizeY);
         
     % make an AstroImage (note, the image is to be transposed!)
-    usimImage = AstroImage( {ImageSrcNoise'} ,'Back',{NoiseLevel}, 'Var',{ImageBkg},'Cat',{Args.InCat.Catalog}); 
+    usimImage = AstroImage( {ImageSrcNoise'} ,'Back',{NoiseLevel}, 'Var',{ImageBkg},'Cat',{Args.Cat.Catalog}); 
 
     % save the final source PSFs into an AstroPSF array and attach it to
     % the resulting AstroImage object, if the source number is not too large
@@ -746,6 +742,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
 %         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName);   
         usimImage.write1(OutFITSName); % write the image and header to a FITS file
         
+        % make an ADU image with mask in the second extension:
+        OutFITSName = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'_ADU.fits'); 
+        FITS.write(ImageSrcNoiseADU, OutFITSName, 'DataType',class(ImageSrcNoiseADU),...
+                   'Append',false,'OverWrite',true,'WriteTime',true);
+        FITS.write(int8(ImageSrcNoiseGainMask), OutFITSName, 'DataType',class(ImageSrcNoiseADU),...
+                   'Append',true,'OverWrite',false,'WriteTime',true); 
+               
         % make a text file with the input catalog:
         fileID = fopen('SimImage_InCat.txt','w'); 
         fprintf(fileID,'%7.1f %7.1f %5.2f %d\n',Cat(:,(1:4))');

@@ -2,8 +2,8 @@ function mask=maskBadColumns(AstroImg,Args)
 % Mask pixels which belong to bad columns, by applying a sliding block
 %  filter over column segments
 % Bad column segments are defined as those which have more than HighFraction
-%  of their pixels values either larger or smaller than VarLevel*Var from 
-%  the local background value.
+%  of their pixels values either larger or smaller than VarLevel*sqrt(Var) 
+%  from the local background value.
 % Consistently with our mask bits dictionary, bad pixels are flagged with
 %  either bit 21 (Bad column low values) or 22 (Bad column high values) on.
 % Blooming sources also cause part of the column containing them to be
