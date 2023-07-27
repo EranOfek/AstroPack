@@ -317,6 +317,7 @@ classdef MsgLogger < handle
             % Output:  -
             % Example: Obj.msgLogEx(LogLevel.Debug, Ex, 'Function failed, elapsed time: %f', toc)
             MsgReport = getReport(Ex, 'extended', 'hyperlinks', 'off');
+            MsgReport = strrep(MsgReport, newline, [newline, '[ERR] ']);
             if ~isempty(varargin)
                 Msg = sprintf('Exception: %s - %s - %s - %s', Ex.identifier, Ex.message, MsgReport, sprintf(varargin{:}));
             else

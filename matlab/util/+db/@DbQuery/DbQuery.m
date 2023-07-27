@@ -733,7 +733,7 @@ classdef DbQuery < Component
         end
         %------------------------------------------------------------------
 
-        function Result = update(Obj, SetColumns, Args)
+        function Result = update(Obj, Rec, Args)
             % Update table record(s)
             % Input   : - DbQuery object
             %           - SetColumns   - The part of UPDATE statement that includes
@@ -750,9 +750,13 @@ classdef DbQuery < Component
             
             arguments
                 Obj
-                SetColumns              % SQL statement, i.e. 'FInt=1', etc.
-                Args.TableName = ''     % Table name
-                Args.Where = ''         % Where condition
+                Rec                         %
+                Args.TableName = ''         % Table name
+                Args.Where = ''             % Where condition
+                Args.SetText = ''           % SQL statement, i.e. 'FInt=1', etc.
+                Args.ColNames = []          % Comma-separated field names (i.e. 'recid,fint')
+                Args.ColumnsOnly = false;   % When true, ignore fields that has no matching columns in the table
+                Args.Returning = ''         % NOT IMPLEMENTED YET!                
             end
 
             % Use all fields that exist in the table
@@ -774,14 +778,59 @@ classdef DbQuery < Component
             Obj.openConn();
             Obj.clear();
 
+            %--------------------------------------------- Rec
             % Prepare SQL statement
-            if ~isempty(Args.Where)
-                Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', string(SetColumns).char, ' WHERE ', string(Args.Where).char];
-            else
-                Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', string(SetColumns).char];
+            if ~isempty(Rec)
+                
+                % Convert from input type
+                if ~isa(Rec, 'db.DbRecord')
+                    if isnumeric(Rec) || iscell(Rec)
+                        Rec = db.DbRecord(Rec, 'ColNames', Args.ColNames);
+                    else
+                        Rec = db.DbRecord(Rec);
+                    end
+                end
+                
+            % Iterate struct fields
+            %Obj.setStatementValues(ColumnNames, Rec);
+            %Obj.setStatementValues(WhereColumnNames, WhereRec, 'ColumnIndex', numel(ColumnNames)+1);
+
+                
+                T1 = tic();              
+                if ~isempty(Args.Where)
+                    Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', string(Args.SetText).char, ' WHERE ', string(Args.Where).char];
+                else
+                    Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', string(Args.SetText).char];
+                end
+                
+                Obj.msgLog(LogLevel.Debug, 'update: SqlText: %s', Obj.SqlText);
+                          
+                % Execute
+                % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
+                try
+                    Obj.JavaResultSet = Obj.JavaStatement.executeUpdate();
+                    Obj.ExecOk = true;
+                    Result = true;
+                catch Ex
+                    Obj.msgLogEx(LogLevel.Error, Ex, 'update: executeQuery failed: %s', Obj.SqlText);
+                end
+
+            %--------------------------------------------- SetText
+            else if ~isempty(Args.SetText)
+                if ~isempty(Args.Where)
+                    Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', string(Args.SetText).char, ' WHERE ', string(Args.Where).char];
+                else
+                    Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', string(Args.SetText).char];
+                end
+                try
+                    Obj.JavaResultSet = Obj.JavaStatement.executeUpdate();
+                    Obj.ExecOk = true;
+                    Result = true;
+                catch Ex
+                    Obj.msgLogEx(LogLevel.Error, Ex, 'update: executeQuery failed: %s', Obj.SqlText);
+                end                
+                end
             end
-            
-            Obj.msgLog(LogLevel.Debug, 'update: SqlText: %s', Obj.SqlText);
 
             % Prepare query
             Obj.msgLog(LogLevel.Debug, 'updateRecord: %s', Obj.SqlText);
@@ -790,26 +839,58 @@ classdef DbQuery < Component
             catch Ex
                 Obj.msgLogEx(LogLevel.Error, Ex, 'updateRecord: prepareStatement failed: %s', Obj.SqlText);
             end
-
-            % Iterate struct fields
-            %Obj.setStatementValues(ColumnNames, Rec);
-            %Obj.setStatementValues(WhereColumnNames, WhereRec, 'ColumnIndex', numel(ColumnNames)+1);
-
-            % Execute
-            % See: https://www.enterprisedb.com/edb-docs/d/jdbc-connector/user-guides/jdbc-guide/42.2.8.1/executing_sql_commands_with_executeUpdate().html
-            try
-                Obj.JavaResultSet = Obj.JavaStatement.executeUpdate();
-                Obj.ExecOk = true;
-                Result = true;
-            catch Ex
-                Obj.msgLogEx(LogLevel.Error, Ex, 'update: executeQuery failed: %s', Obj.SqlText);
-            end
-
             Obj.Toc = toc();
             Obj.msgLog(LogLevel.Perf, 'update time: %.6f', Obj.Toc);
         end
 
 
+        %------------------------------------------------------------------
+
+        function Result = upsert(Obj, SetColumns, KeyColumn, KeyValue, Args)
+            % def upsert(self, table_name: str='', key_column=None, key_value=None, data=None
+            % Update or insert table record(s)
+            % Input   : - DbQuery object
+            %           - SetColumns   - The part of UPDATE statement that includes
+            %                          field values, as FieldName=Value,...
+            %                          Note that string values must be enclosed by single '
+            %                          for example: 'MyField=''MyValue'''
+            %           * Pairs of ...,key,val,...
+            %             The following keys are available:            
+            %             'TableName'  - Table name to update
+            %             'K
+            %             'Where'      - Where condition expression, i.e. (FlagField=1')
+            % Output  : - true on success
+            % Author  : Chen Tishler, 07/2023
+            % Example : Obj.upsert('MyField=1', 'TableName', 'MyTable', 'Where', 'TheFlag = 1')
+            
+            arguments
+                Obj
+                InsertData              %
+                UpdateColumns           % SQL statement, i.e. 'FInt=1', etc.
+                KeyColumn               %
+                KeyValue                %
+                
+                Args.TableName = ''     % Table name
+                Args.Where = ''         % Where condition
+                Args.ColumnsOnly = false;   % When true, ignore fields that has no matching columns in the table                
+                Args.Returning = '';    
+            end
+
+            % Use speified TableName or Obj.TableName
+            if isempty(Args.TableName)
+                Args.TableName = Obj.TableName;
+            end
+            assert(~isempty(Args.TableName));
+            
+            DataSet = Obj.select(KeyValue, 'TableName', Args.TableName, 'Where', Args.Where);
+            if numel(DataSet.Data) == 0
+                Obj.insert(Data, 'TableName', Args.TableName);
+            else
+                Obj.update(SetColumns, 'TableName', Args.TableName, 'Where', Where);
+            end
+        end
+        
+        
         function Result = deleteRecord(Obj, Args)
             % Delete record by fields specified in Rec
             % Note that we cannot use 'delete' as function name because it
@@ -3115,6 +3196,55 @@ classdef DbQuery < Component
             [Schema, TN] = db.DbQuery.getSchemaTable(TableName);
             Result = TN;
         end        
+    end
+
+    %----------------------------------------------------------------------    
+    methods (Static) % setup SSH tunnel (TBD)
+        function Result = setupSSH(Args)
+            % Setup SSH Tunnel. DO NOT USE YET, we need to solve how to send
+            % password to the command line.
+            % Input :  - LastDb object
+            %          * Pairs of ...,key,val,...
+            %            The following keys are available:
+            % Output  : True on success
+            % Author  : Chen Tishler (02/2023)
+            % Example : 
+            % 'ssh -L 63331:localhost:5432 ocs@10.23.1.25 &';
+            arguments
+                Args.Host = 'localhost'         %
+                Args.Port = 63331               
+                Args.RemoteHost = '10.23.1.25';
+                Args.RemotePort = 5432;
+                Args.User = '';
+                Args.Password = '';
+            end
+            
+            if tools.os.iswindows()                        
+                Cmd = sprintf('ssh -L %d:%s:%d %s@%s', Args.Port, Args.Host, Args.RemotePort, Args.User, Args.RemoteHost);
+                io.msgLog(LogLevel.Info, 'Execute and enter password: %s', Cmd);
+                Cmd = [];
+            else
+                if ~isempty(Args.Password)
+                    Cmd = sprintf('sshpass -p %s ssh -L %d:%s:%d %s@%s &', Args.Password, Args.Port, Args.Host, Args.RemotePort, Args.User, Args.RemoteHost);             
+                else
+                    Cmd = sprintf('ssh -L %d:%s:%d %s@%s &', Args.Port, Args.Host, Args.RemotePort, Args.User, Args.RemoteHost);
+                    io.msgLog(LogLevel.Info, 'Execute and enter password: %s', Cmd);
+                    Cmd = [];
+                end
+            end
+
+            % Prepare command line
+            if ~isempty(Cmd)
+                io.msgLog(LogLevel.Info, 'setupSSH: system( %s )', Cmd);
+                [Status, Output] = system(Cmd);
+                io.msgLog(LogLevel.Info, 'setupSSH: %d', Status);
+                io.msgLog(LogLevel.Info, 'setupSSH: %s', Output);
+                if Status ~= 0
+                    io.msgLog(LogLevel.Error, 'setupSSH: FAILED to execute, make sure that psql is found on your PATH: %s', Cmd);
+                end            
+            end
+        end
+
     end
     
     %----------------------------------------------------------------------

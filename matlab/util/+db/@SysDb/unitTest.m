@@ -19,9 +19,7 @@ function Result = unitTest()
     % Create AstroDb object with default connection parameters
     TestSSH = true;
     if TestSSH
-        db.DbQuery.setupSSH('Host', 'localhost', 'Port', 63331, ...
-            'RemoteHost', '10.23.1.25', 'RemotePort', 5432, ...
-                'User', 'ocs', 'Password', 'physics');
+        db.AstroDb.setupSSH();
     end
     
     LDB = db.AstroDb();

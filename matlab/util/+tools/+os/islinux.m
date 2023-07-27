@@ -1,6 +1,4 @@
 function Result = islinux
-
-Result = isunix;
-
+    % Return true if current operating system is Linux
+    Result = isunix;
 end
-
