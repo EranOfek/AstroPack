@@ -747,7 +747,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         FITS.write(ImageSrcNoiseADU, OutFITSName, 'DataType',class(ImageSrcNoiseADU),...
                    'Append',false,'OverWrite',true,'WriteTime',true);
         FITS.write(int8(ImageSrcNoiseGainMask), OutFITSName, 'DataType',class(ImageSrcNoiseADU),...
-                   'Append',true,'OverWrite',false,'WriteTime',true);
+                   'Append',true,'OverWrite',false,'WriteTime',true); 
                
         % make a text file with the input catalog:
         fileID = fopen('SimImage_InCat.txt','w'); 
