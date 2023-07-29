@@ -28,6 +28,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
     %       'OutType'        - type of output image: FITS, AstroImage object, RAW object
     %       'Dir'            - the output directory
     %       'SaveMatFile'    - whether to make an output .mat file with all the modelled structures
+    %       'SaveRegionsBySourceMag' - whether to write additional region files according to the input source magnitudes
     %       'PostModelingFindSources' - do post modeling source search
     % Output : - an AstroImage object with filled Catalog property 
     %            (also a FITS image file output + ds9 region files, RAW file output)           
@@ -95,6 +96,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         Args.OutDir          = '.';          % the output directory
 
         Args.SaveMatFile  logical = false;   % whether to make an output .mat file with all the modelled structures
+        Args.SaveRegionsBySourceMag logical = false; % whether to write additional region files according to the input source magnitudes
         
         Args.PostModelingFindSources logical = false; % attempt for a post modeling source search 
          
@@ -760,26 +762,28 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         % an accompanying region file: 
         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'.reg');
         DS9_new.regionWrite([CatX CatY],'FileName',OutRegName,'Color','blue','Marker','b','Size',1,'Width',4,...
-                            'Precision','%.2f','PrintAdditionalProp',1); 
+                            'Precision','%.2f','PrintIndividualProp',0); 
         
         % more region files for various parts of the source distribution:
-        idx = Cat(:,4) > 24.5 & Cat(:,4) < 25.5;      % faintest sources
-        CatFaint = Cat(idx,:);  
-        OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'faint.reg');
-        DS9_new.regionWrite([CatFaint(:,1) CatFaint(:,2)],'FileName',OutRegName,'Color','blue','Marker','o','Size',1,'Width',4,...
-                             'Precision','%.2f','PrintAdditionalProp',1);     
-      
-        idx = Cat(:,4) > 23.5 & Cat(:,4) < 24.5;      % medium brightness sources 
-        CatMed = Cat(idx,:);  
-        OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'medium.reg');
-        DS9_new.regionWrite([CatMed(:,1) CatMed(:,2)],'FileName',OutRegName,'Color','green','Marker','o','Size',1,'Width',4,...
-                             'Precision','%.2f','PrintAdditionalProp',1);
-        
-        idx = Cat(:,4) > 22.5 & Cat(:,4) < 23.5;      % bright sources 
-        CatBright = Cat(idx,:);  
-        OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'bright.reg');
-        DS9_new.regionWrite([CatBright(:,1) CatBright(:,2)],'FileName',OutRegName,'Color','cyan','Marker','b','Size',1,'Width',4,...
-                            'Precision','%.2f','PrintAdditionalProp',1);     
+        if Args.SaveRegionsBySourceMag
+            idx = Cat(:,4) > 24.5 & Cat(:,4) < 25.5;      % faintest sources
+            CatFaint = Cat(idx,:);  
+            OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'faint.reg');
+            DS9_new.regionWrite([CatFaint(:,1) CatFaint(:,2)],'FileName',OutRegName,'Color','blue','Marker','o','Size',1,'Width',4,...
+                                 'Precision','%.2f','PrintIndividualProp',0);     
+          
+            idx = Cat(:,4) > 23.5 & Cat(:,4) < 24.5;      % medium brightness sources 
+            CatMed = Cat(idx,:);  
+            OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'medium.reg');
+            DS9_new.regionWrite([CatMed(:,1) CatMed(:,2)],'FileName',OutRegName,'Color','green','Marker','o','Size',1,'Width',4,...
+                                 'Precision','%.2f','PrintIndividualProp',0);
+            
+            idx = Cat(:,4) > 22.5 & Cat(:,4) < 23.5;      % bright sources 
+            CatBright = Cat(idx,:);  
+            OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'bright.reg');
+            DS9_new.regionWrite([CatBright(:,1) CatBright(:,2)],'FileName',OutRegName,'Color','cyan','Marker','b','Size',1,'Width',4,...
+                                'Precision','%.2f','PrintIndividualProp',0);     
+        end
         
     end
 
