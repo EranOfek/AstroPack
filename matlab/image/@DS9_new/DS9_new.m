@@ -1732,7 +1732,7 @@ classdef DS9_new < handle
             %                         Default is
             %                         {'Dec','DEC','Mean_Dec','Median_Dec','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DEJ2000','Declination'};
             %             'Precision' - precision format of the coordinate output, e.g. '%15.8f' or '%8.2f'
-            %             'PrintAdditionalProp' -- whether to print additional properties after each object line
+            %             'PrintIndividualProp' -- whether to print individual object color and text after each line
             % Output : - Region file name.
             % See also: DS9.plot
             % Example: FileName=DS9.regionWrite(Cat);
@@ -1757,7 +1757,7 @@ classdef DS9_new < handle
                 Args.ColNameRA       = AstroCatalog.DefNamesRA;
                 Args.ColNameDec      = AstroCatalog.DefNamesDec;
                 Args.Precision       = '%15.8f';
-                Args.PrintAdditionalProp logical = true; % whether to print additional properties after each line
+                Args.PrintIndividualProp logical = true; % whether to print individual object color and text after each line
             end
             
             % check if region file exist
@@ -1853,7 +1853,9 @@ classdef DS9_new < handle
                 Args.FontStyle = {Args.FontStyle};
             end
             Nfontstyle = numel(Args.FontStyle);
-            
+
+            FmtString = sprintf('global color=%%s dashlist=8 3 width=%%d font="%%s %%d %%s" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1\n');
+
             % Open file
             if (Args.Append)
                 % append header to an existing region file
@@ -1862,7 +1864,8 @@ classdef DS9_new < handle
                 FID = fopen(Args.FileName,'w');
                 fprintf(FID,'# Region file format: DS9 version 4.1\n');
                 fprintf(FID,'# Written by Eran Ofek via ds9.write_region.m\n');
-                fprintf(FID,'global color=green dashlist=8 3 width=1 font="helvetica 10 normal" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1\n');
+%                 fprintf(FID,'global color=green dashlist=8 3 width=1 font="helvetica 10 normal" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1\n');
+                fprintf(FID,FmtString, Args.Color{1}, Args.Width(1), Args.Font{1}, Args.FontSize(1), Args.FontStyle{1});
                 fprintf(FID,'%s\n',Args.Coo);
             end
 
@@ -1924,7 +1927,7 @@ classdef DS9_new < handle
                 end
                 
                 % additional properties
-                if Args.PrintAdditionalProp
+                if Args.PrintIndividualProp
                     fprintf(FID,'# color=%s width=%d font="%s %d %s" text={%s}\n',...
                                 Args.Color{min(Ireg,Ncolor)},...
                                 Args.Width(min(Ireg,Nwidth)),...
