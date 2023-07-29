@@ -27,6 +27,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
     %       'Inj'            - source injection method (technical)
     %       'OutType'        - type of output image: FITS, AstroImage object, RAW object
     %       'Dir'            - the output directory
+    %       'SaveMatFile'    - whether to make an output .mat file with all the modelled structures
     %       'PostModelingFindSources' - do post modeling source search
     % Output : - an AstroImage object with filled Catalog property 
     %            (also a FITS image file output + ds9 region files, RAW file output)           
@@ -92,6 +93,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         Args.OutType         = 'all';        % output type: 'AstroImage', 'FITS', 'all' (default)
         
         Args.OutDir          = '.';          % the output directory
+
+        Args.SaveMatFile  logical = false;   % whether to make an output .mat file with all the modelled structures
         
         Args.PostModelingFindSources logical = false; % attempt for a post modeling source search 
          
@@ -728,25 +731,25 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
 %     ImRot2 = imProc.transIm.imwarp1(usimImage,tform);
 %     size(ImRot2.Image)
 
-       
     % save the object in a .mat file for a future usage:
-    OutObjName = sprintf('%s%s%s','SimImage_tile',Args.Tile,'.mat');   
-    save(OutObjName,'usimImage','-v7.3');
+    if Args.SaveMatFile 
+        OutObjName = sprintf('%s%s%s','SimImage_tile',Args.Tile,'.mat');   
+        save(OutObjName,'usimImage','-v7.3');
+    end
            
     % write the image to a FITS file    
     if strcmp( Args.OutType,'FITS') || strcmp( Args.OutType,'all')
-        
-        % NB: when writing to a fits image, we need to transpose the image
-        OutFITSName = sprintf('%s%s%s%s%s','!',Args.OutDir,'/SimImage_tile',Args.Tile,'.fits'); 
-%         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName,'Header',{'EXPTIME', Exposure,''});  %  DOES NOT WORK
-%         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName);   
-        usimImage.write1(OutFITSName); % write the image and header to a FITS file
-        
+                
+        OutFITSName = sprintf('%s%s%s%s%s','!',Args.OutDir,'/SimImage_tile',Args.Tile,'.fits');
+%         usimImage.write1(OutFITSName); % write the image and header to a FITS file
+        FITS.write(usimImage.Image, OutFITSName, 'Header',usimImage.HeaderData.Data,...
+                   'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);
+
         % make an ADU image with mask in the second extension:
         OutFITSName = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'_ADU.fits'); 
-        FITS.write(ImageSrcNoiseADU, OutFITSName, 'DataType',class(ImageSrcNoiseADU),...
+        FITS.write(ImageSrcNoiseADU, OutFITSName, 'DataType','single',...
                    'Append',false,'OverWrite',true,'WriteTime',true);
-        FITS.write(int8(ImageSrcNoiseGainMask), OutFITSName, 'DataType',class(ImageSrcNoiseADU),...
+        FITS.write(int8(ImageSrcNoiseGainMask), OutFITSName, 'DataType','int8',...
                    'Append',true,'OverWrite',false,'WriteTime',true); 
                
         % make a text file with the input catalog:
@@ -756,30 +759,34 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         
         % an accompanying region file: 
         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'.reg');
-        DS9_new.regionWrite([CatX CatY],'FileName',OutRegName,'Color','blue','Marker','b','Size',1,'Width',4); 
+        DS9_new.regionWrite([CatX CatY],'FileName',OutRegName,'Color','blue','Marker','b','Size',1,'Width',4,...
+                            'Precision','%.2f','PrintAdditionalProp',1); 
         
         % more region files for various parts of the source distribution:
         idx = Cat(:,4) > 24.5 & Cat(:,4) < 25.5;      % faintest sources
         CatFaint = Cat(idx,:);  
         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'faint.reg');
-        DS9_new.regionWrite([CatFaint(:,1) CatFaint(:,2)],'FileName',OutRegName,'Color','blue','Marker','o','Size',1,'Width',4);     
+        DS9_new.regionWrite([CatFaint(:,1) CatFaint(:,2)],'FileName',OutRegName,'Color','blue','Marker','o','Size',1,'Width',4,...
+                             'Precision','%.2f','PrintAdditionalProp',1);     
       
         idx = Cat(:,4) > 23.5 & Cat(:,4) < 24.5;      % medium brightness sources 
         CatMed = Cat(idx,:);  
         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'medium.reg');
-        DS9_new.regionWrite([CatMed(:,1) CatMed(:,2)],'FileName',OutRegName,'Color','green','Marker','o','Size',1,'Width',4);
+        DS9_new.regionWrite([CatMed(:,1) CatMed(:,2)],'FileName',OutRegName,'Color','green','Marker','o','Size',1,'Width',4,...
+                             'Precision','%.2f','PrintAdditionalProp',1);
         
         idx = Cat(:,4) > 22.5 & Cat(:,4) < 23.5;      % bright sources 
         CatBright = Cat(idx,:);  
         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'bright.reg');
-        DS9_new.regionWrite([CatBright(:,1) CatBright(:,2)],'FileName',OutRegName,'Color','cyan','Marker','b','Size',1,'Width',4);     
+        DS9_new.regionWrite([CatBright(:,1) CatBright(:,2)],'FileName',OutRegName,'Color','cyan','Marker','b','Size',1,'Width',4,...
+                            'Precision','%.2f','PrintAdditionalProp',1);     
         
     end
 
     %%%%%%%%%%%%%%%%%%%%    
     
-                    elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
-                    tstop = datetime("now");
+                    elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
+                    tstop = datetime("now"); 
                     cprintf('hyper','%s%s%s\n','Simulation completed in ',tstop-tstart,...
                                          ' , see the generated images')
 
@@ -812,4 +819,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
     end
   
 end
+
+%         NB: when writing to a fits image with this procedure, we need to
+%         transpose the image (but with other standard routines we do not need it)
+%         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName);   
 
