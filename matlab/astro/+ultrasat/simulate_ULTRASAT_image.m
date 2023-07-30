@@ -1,5 +1,8 @@
 function simImage = simulate_ULTRASAT_image (Args)
     % Simulate with ultrasat.usim a realistic distribution of sky sources 
+    % NB: the size of the actuall modelled region should not be smaller
+    % than 0.5 x 0.5 deg, otherwise we will take only the brightest part of
+    % the distribution!
     % Input: -
     %           
     % Output : - Image: a 2D array containing the resulting source image                 
@@ -53,8 +56,8 @@ function simImage = simulate_ULTRASAT_image (Args)
         S(2) = AstroSpec.blackBody(Wave',5800);
         S(3) = AstroSpec.blackBody(Wave',20000);
         
-        % read the relation of NUV magnitudes and ULTRASAT magnitude for a
-        % give set of source spectra (usually, just the 3 BB temperatures)  
+        % read the relation of NUV magnitudes and ULTRASAT magnitudes 
+        % for a given set of source spectra (usually, just the 3 BB temperatures)  
         io.files.load1('/home/sasha/magu.mat'); % variables: MagU (3D), Temp, MagNUV, Rad  
              
         X0 = ceil(Args.X0 * 3600 / PixSize); % left corner of the modelled square region
