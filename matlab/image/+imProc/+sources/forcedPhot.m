@@ -60,7 +60,7 @@ function [Result] = forcedPhot(Obj, Args)
     %                   Default is 'deg'.
     %            'MinEdgeDist' - Number of pixels of source from image edge
     %                   in order to declare the object in/out image.
-    %                   Default is 10.
+    %                   Default is 20.
     %            'AddRefStarsDist' - Angular distance in arcsec, around the
     %                   mean position of the sources in the 'Coo' argument.
     %                   If larger then 0 (and not NaN), then will search
@@ -163,7 +163,7 @@ function [Result] = forcedPhot(Obj, Args)
         Args.Moving logical          = false;
         Args.ColNames                = {'RA','Dec','X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS'};  % 'Chi2','Dof'
         Args.CooOutUnits             = 'deg';
-        Args.MinEdgeDist             = 10;      % pix
+        Args.MinEdgeDist             = 20;      % pix
         Args.AddRefStarsDist         = 500;     % arcsec; 0/NaN for no addition
         Args.AddCatName              = 'GAIADR3';
         Args.PopulateWCS logical     = true;
