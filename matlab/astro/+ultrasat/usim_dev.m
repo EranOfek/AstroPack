@@ -645,8 +645,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
     %%%%%%%%%%%%%%%%%%%%%%  make an ADU and mask ADU images
     
     ImageSrcNoiseGainMask = ImageSrcNoise > GainThresh * Args.Exposure(1);  % if the signal is above the threshold, use high gain
-    ImageSrcNoiseADU = ImageSrcNoise .* ( ImageSrcNoiseGainMask .* E2ADUhigh + ...
+    ImageSrcNoiseGain = ImageSrcNoise .* ( ImageSrcNoiseGainMask .* E2ADUhigh + ...
                                           (ones(ImageSizeX,ImageSizeY)-ImageSrcNoiseGainMask) .* E2ADUlow );
+    ImageSrcNoiseADU = ultrasat.e2ADU(ImageSrcNoiseGain, ImageSrcNoiseGainMask);
 
     %%%%%%%%%%%%%%%%%%%%%%  output: a) an AstroImage object with filled image, header, and PSF properties  
     %%%%%%%%%%%%%%%%%%%%%%          b) a FITS image c) a native (RAW) format image 
@@ -745,14 +746,17 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         OutFITSName = sprintf('%s%s%s%s%s','!',Args.OutDir,'/SimImage_tile',Args.Tile,'.fits');
 %         usimImage.write1(OutFITSName); % write the image and header to a FITS file
         FITS.write(usimImage.Image, OutFITSName, 'Header',usimImage.HeaderData.Data,...
-                   'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);
+                    'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);
 
-        % make an ADU image with mask in the second extension:
+        
         OutFITSName = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'_ADU.fits'); 
-        FITS.write(ImageSrcNoiseADU, OutFITSName, 'DataType','single',...
-                   'Append',false,'OverWrite',true,'WriteTime',true);
-        FITS.write(int8(ImageSrcNoiseGainMask), OutFITSName, 'DataType','int8',...
-                   'Append',true,'OverWrite',false,'WriteTime',true); 
+        FITS.write(ImageSrcNoiseADU, OutFITSName, 'DataType','int16',...
+                    'Append',false,'OverWrite',true,'WriteTime',true);
+        % make an ADU image with mask in the second extension:        
+%         FITS.write(ImageSrcNoiseADU, OutFITSName, 'DataType','single',...
+%                    'Append',false,'OverWrite',true,'WriteTime',true);
+%         FITS.write(int8(ImageSrcNoiseGainMask), OutFITSName, 'DataType','int8',...
+%                    'Append',true,'OverWrite',false,'WriteTime',true); 
                
         % make a text file with the input catalog:
         fileID = fopen('SimImage_InCat.txt','w'); 
@@ -823,8 +827,4 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
     end
   
 end
-
-%         NB: when writing to a fits image with this procedure, we need to
-%         transpose the image (but with other standard routines we do not need it)
-%         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName);   
 
