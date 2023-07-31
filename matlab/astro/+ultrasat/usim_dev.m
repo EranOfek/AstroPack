@@ -187,15 +187,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         
     end
     
-    % pixel saturation and per pixel background (estimated by YS),
+    % pixel saturation and per pixel background (from YS),
     %  e-/ADU conversion coefficients
     
-    FullWell0    = 1.6e5;                               % [e-] the pixel saturation limit for 1 exposure
-    FullWell     = FullWell0 * Args.Exposure(1);        % the limit for a serie of exposures 
-    
-    GainThresh = 16000;
-    E2ADUlow   = 1.185;  % below GainThresh e-/pix 
-    E2ADUhigh  = 0.074;  % above GainThresh e-/pix
+    FullWell    = 1.6e5;  % [e-] the pixel saturation limit for 1 exposure
+    GainThresh  = 1.6e4;  % [e-/pix] the gain threshold
+    E2ADUhigh   = 1.185;  % below GainThresh e-/pix 
+    E2ADUlow    = 0.074;  % above GainThresh e-/pix
     
     % [e-/pix] background estimates for a 300 s exposure made by YS
     
@@ -372,109 +370,93 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
 
                     case 'bb'                   
 
-                    if numel( Args.Spec ) ~= NumSrc && numel( Args.Spec ) ~= 1
+                        if numel( Args.Spec ) ~= NumSrc && numel( Args.Spec ) ~= 1
+                            error('The size of the source temperature array is incorrect, exiting..');
+                        elseif numel( Args.Spec ) == 1
+                            fprintf('%s%5.0f%s','generating BB spectra for T = ',Args.Spec,' K .. ');
+                            Temp = Args.Spec .* ones(NumSrcCh,1);
+                        else
+                            fprintf('%s','generating BB spectra for individual source temperatures .. ');
+                            Temp = Args.Spec( ChL(ICh):ChL(ICh)+NumSrcCh-1 );
+                        end
 
-                        error('The size of the source temperature array is incorrect, exiting..');
-
-                    end
-
-                    if numel( Args.Spec ) == 1
-                        fprintf('%s%5.0f%s','generating BB spectra for T = ',Args.Spec,' K .. ');
-                    else
-                        fprintf('%s','generating BB spectra for individual source temperatures .. ');
-                    end
-
-                    for Isrc = 1:1:NumSrcCh
-                        
-                          if numel( Args.Spec ) == 1
-                              Temp = Args.Spec;
-                          else
-                              Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
-                              Temp = Args.Spec(Isrc_gl);
-                          end
-
-                          SpecIn(Isrc,:) = AstroSpec.blackBody(Wave',Temp).Flux; % erg s(-1) cm(-2) A(-1)
-
-                    end
+                        SpecIn = cell2mat({ AstroSpec.blackBody(Wave',Temp).Flux })'; % erg s(-1) cm(-2) A(-1)
 
                     case 'pl'
 
-                    if numel( Args.Spec ) ~= NumSrc && numel( Args.Spec ) ~= 1
-
-                        error('The size of the source spectral index array is incorrect, exiting..');
-
-                    end
-
-    %                 fprintf('%s%4.2f%s','generating PL spectra: Alpha(Source1) = ',Alpha(1),' ..');
-                    fprintf('%s','generating PL spectra .. ');
-
-                    for Isrc = 1:1:NumSrcCh
+                        if numel( Args.Spec ) ~= NumSrc && numel( Args.Spec ) ~= 1
+                            error('The size of the source spectral index array is incorrect, exiting..');
+                        elseif numel( Args.Spec ) == 1
+                            fprintf('%s%5.0f','generating PL spectra for Alpha = ',Args.Spec);
+                            Alpha = Args.Spec .* ones(NumSrcCh,1);
+                        else
+                            fprintf('%s','generating PL spectra for individual spectral indexes .. ');
+                            Alpha = Args.Spec( ChL(ICh):ChL(ICh)+NumSrcCh-1 );
+                        end
                         
-                          if numel( Args.Spec ) == 1
-                              Alpha = Args.Spec;
-                          else
-                              Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
-                              Alpha = Args.Spec(Isrc_gl);
-                          end
-
-                        SpecIn(Isrc,:) = Wave .^ Alpha;                          % erg s(-1) cm(-2) A(-1)                                                       
-
-                    end
+                        SpecIn = Wave .^ Alpha;                                     % erg s(-1) cm(-2) A(-1)   
 
                     case 'tab'
 
-                    fprintf('%s','Reading source spectra from a table..');
+                        fprintf('%s','Reading source spectra from a table..');
 
-                    if size( Args.Spec, 2) == NumSrc && size( Args.Spec, 1) == Nwave
-                        % NumSrc spectra at the standard grid 2000:1:11000
-                        for Isrc = 1:1:NumSrcCh
+                        if size( Args.Spec, 2) == NumSrc && size( Args.Spec, 1) == Nwave
+                            % NumSrc spectra at the standard grid 2000:1:11000
+                            for Isrc = 1:1:NumSrcCh
 
-                            Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
-                            
-                            SpecIn(Isrc,:) = Args.Spec(:,Isrc_gl); % read the spectra from table columns
+                                Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
 
+                                SpecIn(Isrc,:) = Args.Spec(:,Isrc_gl); % read the spectra from table columns
+
+                            end
+                        elseif size( Args.Spec, 2) == NumSrc + 1
+                            % NumSrc spectra at a nonstandard grid, the wavelength
+                            % grid is in the column number NumSrc + 1 
+                            for Isrc = 1:1:NumSrcCh 
+
+                                Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
+
+                                SpecIn(Isrc,:) = interp1(Args.Spec(:,NumSrc+1), Args.Spec(:,Isrc_gl), Wave, 'linear', 0);
+
+                            end
+                        else
+                            error('Number of columns or rows in the spectral input table is incorrect, exiting..');
                         end
-                    elseif size( Args.Spec, 2) == NumSrc + 1
-                        % NumSrc spectra at a nonstandard grid, the wavelength
-                        % grid is in the column number NumSrc + 1 
-                        for Isrc = 1:1:NumSrcCh 
-                            
-                            Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
-
-                            SpecIn(Isrc,:) = interp1(Args.Spec(:,NumSrc+1), Args.Spec(:,Isrc_gl), Wave, 'linear', 0);
-
-                        end
-                    else
-                        error('Number of columns or rows in the spectral input table is incorrect, exiting..');
-                    end
 
                     otherwise
 
-                    error('Spectral parameters not properly defined in uSim, exiting..');
-
+                        error('Spectral parameters not properly defined in uSim, exiting..');
                 end
 
 
-            case 1  % read the table from an AstroSpec/AstSpec object and regrid it to Wave set of wavelengths 
-
-                for Isrc = 1:1:NumSrcCh
-
-                    % the simplest way to regrid is to interpolate and set to 0 outside the range
-                    % deb: is not it safer to use griddedinterpolant? 
-                    
-                    Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
-
-                    if isa(Args.Spec,'AstSpec') 
-                        SpecIn(Isrc,:) = interp1( Args.Spec(Isrc_gl).Wave, Args.Spec(Isrc_gl).Int, Wave, 'linear', 0);
-                    elseif isa(Args.Spec,'AstroSpec')
-                        SpecIn(Isrc,:) = interp1( Args.Spec(Isrc_gl).Wave, Args.Spec(Isrc_gl).Flux, Wave, 'linear', 0);
-                    end
-
-
+            case 1  % read the table from an AstroSpec/AstSpec object and regrid it to Wave set of wavelengths
+                
+                if isa(Args.Spec,'AstSpec')
+                    Flx = cell2mat({Args.Spec(ChL(ICh):ChL(ICh)+NumSrcCh-1).Int});
+                elseif isa(Args.Spec,'AstroSpec')
+                    Flx = cell2mat({Args.Spec(ChL(ICh):ChL(ICh)+NumSrcCh-1).Flux});
                 end
+                Wav = cell2mat({Args.Spec(ChL(ICh):ChL(ICh)+NumSrcCh-1).Wave});
 
-                % try to make a 1-liner instead of a cycle? 
-                % SpecIn = interp1( 1:NSrc, Args.Spec.Wave, Args.Spec.Int, 1:NSrc, Wave, 'linear', 0);
+                for Isrc = 1:1:NumSrcCh  % can not make it a 1-liner? 
+                    SpecIn(Isrc,:) = interp1( Wav(:,Isrc), Flx(:,Isrc), Wave, 'linear', 0 );
+                end
+                
+%                 for Isrc = 1:1:NumSrcCh
+% 
+%                     % the simplest way to regrid is to interpolate and set to 0 outside the range
+%                     % deb: is not it safer to use griddedinterpolant? 
+%                     
+%                     Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
+% 
+%                     if isa(Args.Spec,'AstSpec') 
+%                         SpecIn(Isrc,:) = interp1( Args.Spec(Isrc_gl).Wave, Args.Spec(Isrc_gl).Int, Wave, 'linear', 0);
+%                     elseif isa(Args.Spec,'AstroSpec')
+%                         SpecIn(Isrc,:) = interp1( Args.Spec(Isrc_gl).Wave, Args.Spec(Isrc_gl).Flux, Wave, 'linear', 0);
+%                     end
+% 
+% 
+%                 end
 
         end
 
@@ -510,8 +492,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
 
               Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
               
-              AS = AstroSpec([Wave' SpecIn(Isrc,:)']);
-
+              AS = AstroSpec([Wave' SpecIn(Isrc,:)']); % can not take this out of the loop, as AstroSpec can not 
+                                                       % produce multiple objects at a time
               if numel(Args.Mag) > 1 
                   InMag(Isrc_gl) = Args.Mag(Isrc_gl); 
               else
@@ -638,16 +620,21 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
                     
     %%%%%%%%%%%%%%%%%%%%%%  cut the saturated pixels (to be refined later) 
     
-    ImageSrcNoise = min(ImageSrcNoise, FullWell);
+    ImageSrcNoise = min(ImageSrcNoise, FullWell * Args.Exposure(1) );
     
                             fprintf('Saturated pixels cutted\n');
     
-    %%%%%%%%%%%%%%%%%%%%%%  make an ADU and mask ADU images
+    %%%%%%%%%%%%%%%%%%%%%%  make an ADU and mask ADU images (for a single
+    %%%%%%%%%%%%%%%%%%%%%%  exposure observation only)
     
-    ImageSrcNoiseGainMask = ImageSrcNoise > GainThresh * Args.Exposure(1);  % if the signal is above the threshold, use high gain
-    ImageSrcNoiseGain = ImageSrcNoise .* ( ImageSrcNoiseGainMask .* E2ADUhigh + ...
-                                          (ones(ImageSizeX,ImageSizeY)-ImageSrcNoiseGainMask) .* E2ADUlow );
-    ImageSrcNoiseADU = ultrasat.e2ADU(ImageSrcNoiseGain, ImageSrcNoiseGainMask);
+    if Args.Exposure(1) == 1
+        ImageSrcNoiseGainMask = ImageSrcNoise > GainThresh;  % if the signal is above the threshold, use low gain
+        ImageSrcNoiseGain = ImageSrcNoise .* ( ImageSrcNoiseGainMask .* E2ADUlow + ...
+                                              (ones(ImageSizeX,ImageSizeY)-ImageSrcNoiseGainMask) .* E2ADUhigh );
+        ImageSrcNoiseADU = ultrasat.e2ADU(ImageSrcNoiseGain, ImageSrcNoiseGainMask); % the ADU is a 14-bit integer 
+    else
+        fprintf('NOTE: the ADU image is not produced if multiple exposures are modelled..\n'); 
+    end
 
     %%%%%%%%%%%%%%%%%%%%%%  output: a) an AstroImage object with filled image, header, and PSF properties  
     %%%%%%%%%%%%%%%%%%%%%%          b) a FITS image c) a native (RAW) format image 
@@ -748,15 +735,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         FITS.write(usimImage.Image, OutFITSName, 'Header',usimImage.HeaderData.Data,...
                     'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);
 
-        
-        OutFITSName = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'_ADU.fits'); 
-        FITS.write(ImageSrcNoiseADU, OutFITSName, 'DataType','int16',...
-                    'Append',false,'OverWrite',true,'WriteTime',true);
-        % make an ADU image with mask in the second extension:        
-%         FITS.write(ImageSrcNoiseADU, OutFITSName, 'DataType','single',...
-%                    'Append',false,'OverWrite',true,'WriteTime',true);
-%         FITS.write(int8(ImageSrcNoiseGainMask), OutFITSName, 'DataType','int8',...
-%                    'Append',true,'OverWrite',false,'WriteTime',true); 
+        if Args.Exposure(1) == 1 % the ADU image is put out only when we model 1 exposure
+            OutFITSName = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'_ADU.fits'); 
+            FITS.write(ImageSrcNoiseADU, OutFITSName, 'DataType','int16',...
+                        'Append',false,'OverWrite',true,'WriteTime',true);
+        end
                
         % make a text file with the input catalog:
         fileID = fopen('SimImage_InCat.txt','w'); 
