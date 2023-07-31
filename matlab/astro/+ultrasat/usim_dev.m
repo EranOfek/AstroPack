@@ -313,22 +313,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         cprintf('hyper','%s%d%s%d\n','Chunk ',ICh, ' out of ',NCh);
 
         NumSrcCh = ChR(ICh) - ChL(ICh) + 1;  % number of sources in the current chunk (Args.MaxNumSrc or less)
+        Range    = ChL(ICh):ChR(ICh); 
 
         %%%%%%%%%%%%%%%%%%%%% obtain radial distances of the sources from the INNER CORNER of the tile 
         %%%%%%%%%%%%%%%%%%%%% and regrid the throughput array at given source positions 
 
-        RadSrc = zeros(NumSrcCh,1); 
-        TotT   = zeros(NumSrcCh,Nwave);
-
-        for Isrc = 1:1:NumSrcCh
-
-            Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
-            
-            RadSrc(Isrc) = sqrt( ( CatX(Isrc_gl) - X0 )^2 + ( CatY(Isrc_gl) - Y0 )^2 ) *  PixSizeDeg;   % the source radii [deg]
-
-            TotT(Isrc,:) = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc(Isrc), 'linear', Tiny);  % regrid the throughput 
-
-        end
+        RadSrc = sqrt( ( CatX(Range) - X0 ).^2 + ( CatY(Range) - Y0 ).^2 ) .*  PixSizeDeg;   % the source radii [deg]\        
+        TotT   = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc', 'linear', Tiny)';     % regrid the throughput 
 
         %%%%%%%%%%%%%%%%%%%%% read or generate source spectra
         %%%%%%%%%%%%%%%%%%%%%
@@ -377,7 +368,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
                             Temp = Args.Spec .* ones(NumSrcCh,1);
                         else
                             fprintf('%s','generating BB spectra for individual source temperatures .. ');
-                            Temp = Args.Spec( ChL(ICh):ChL(ICh)+NumSrcCh-1 );
+                            Temp = Args.Spec( Range );
                         end
 
                         SpecIn = cell2mat({ AstroSpec.blackBody(Wave',Temp).Flux })'; % erg s(-1) cm(-2) A(-1)
@@ -391,7 +382,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
                             Alpha = Args.Spec .* ones(NumSrcCh,1);
                         else
                             fprintf('%s','generating PL spectra for individual spectral indexes .. ');
-                            Alpha = Args.Spec( ChL(ICh):ChL(ICh)+NumSrcCh-1 );
+                            Alpha = Args.Spec( Range );
                         end
                         
                         SpecIn = Wave .^ Alpha;                                     % erg s(-1) cm(-2) A(-1)   
@@ -432,11 +423,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
             case 1  % read the table from an AstroSpec/AstSpec object and regrid it to Wave set of wavelengths
                 
                 if isa(Args.Spec,'AstSpec')
-                    Flx = cell2mat({Args.Spec(ChL(ICh):ChL(ICh)+NumSrcCh-1).Int});
+                    Flx = cell2mat({Args.Spec( Range ).Int});
                 elseif isa(Args.Spec,'AstroSpec')
-                    Flx = cell2mat({Args.Spec(ChL(ICh):ChL(ICh)+NumSrcCh-1).Flux});
+                    Flx = cell2mat({Args.Spec( Range ).Flux});
                 end
-                Wav = cell2mat({Args.Spec(ChL(ICh):ChL(ICh)+NumSrcCh-1).Wave});
+                Wav = cell2mat({Args.Spec( Range ).Wave});
 
                 for Isrc = 1:1:NumSrcCh  % can not make it a 1-liner? 
                     SpecIn(Isrc,:) = interp1( Wav(:,Isrc), Flx(:,Isrc), Wave, 'linear', 0 );
@@ -510,7 +501,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
                   FiltFam = Args.FiltFam{1};
               end
               
-              SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), FiltFam, Filter); 
+              SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), FiltFam, Filter); % does not work with arrays of filters?
               SpecIn(Isrc,:) = SpecScaled.Flux; 
 
     %           fprintf('%s%d%s%4.1f\n','Eff. magnitude of source ', Isrc,' = ',...
@@ -633,7 +624,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
                                               (ones(ImageSizeX,ImageSizeY)-ImageSrcNoiseGainMask) .* E2ADUhigh );
         ImageSrcNoiseADU = ultrasat.e2ADU(ImageSrcNoiseGain, ImageSrcNoiseGainMask); % the ADU is a 14-bit integer 
     else
-        fprintf('NOTE: the ADU image is not produced if multiple exposures are modelled..\n'); 
+        fprintf('NOTE: the ADU image is not produced once multiple exposures are modelled..\n'); 
     end
 
     %%%%%%%%%%%%%%%%%%%%%%  output: a) an AstroImage object with filled image, header, and PSF properties  

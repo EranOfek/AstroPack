@@ -2,7 +2,7 @@ function simImage = simulate_ULTRASAT_image (Args)
     % Simulate with ultrasat.usim a realistic distribution of sky sources 
     % NB: the size of the actuall modelled region should not be smaller
     % than 0.5 x 0.5 deg, otherwise we will take only the brightest part of
-    % the distribution!
+    % the source distribution
     % Input: -
     %           
     % Output : - Image: a 2D array containing the resulting source image                 
@@ -14,6 +14,8 @@ function simImage = simulate_ULTRASAT_image (Args)
         Args.Size       = 0.5;            % [deg] size of the modelled FOV 
         Args.X0         = 1e-6;           % [deg] the lower left corner of the modelled square region
         Args.Y0         = 1e-6;           % [deg] the lower left corner of the modelled square region
+        Args.Shift      = [];             % catalog shift (in pix)
+        Args.Rot        = [];             % catalog rotation (in deg)
         Args.ExpNum     = 3;              % number of standard 300 s exposures
         Args.Same       = 0;              % read in a source distribution or generate a random new one
         Args.Distfile   = 'fitted_distr_cat.mat'; % if Same=1, read the input distribution from this file
@@ -63,10 +65,34 @@ function simImage = simulate_ULTRASAT_image (Args)
         X0 = ceil(Args.X0 * 3600 / PixSize); % left corner of the modelled square region
         Y0 = ceil(Args.Y0 * 3600 / PixSize); % left corner of the modelled square region        
         Range = Args.Size * 3600 / PixSize;  % X and Y size of the modelled square region
-        rng('shuffle');                      % reseed the random number generator
-        Cat(:,1) = X0 + Range * rand(NumSrc,1);
-        rng('shuffle');                      % reseed the random number generator
-        Cat(:,2) = Y0 + Range * rand(NumSrc,1); 
+        
+        if isempty(Args.Shift) && isempty(Args.Rot) % shift and rotation not given, create and save a new catalog
+        
+            rng('shuffle');                      % reseed the random number generator
+            Cat(:,1) = X0 + Range * rand(NumSrc,1);
+            rng('shuffle');                      % reseed the random number generator
+            Cat(:,2) = Y0 + Range * rand(NumSrc,1); 
+
+            save('cat0.mat','Cat');
+
+        else  % read, shift and/or rotate the existing catalog
+            
+            io.files.load1('cat0.mat');
+            
+            if ~isempty(Args.Shift)
+                Cat(:,1) = Cat(:,1) + Shift(1); % X shift
+                Cat(:,2) = Cat(:,2) + Shift(2); % Y shift
+                fprintf('Source catalog shifted by %d x %d pixels\n',Shift(1),Shift(2));
+            end
+            
+            if ~isempty(Args.Rot)     
+                Alpha = Args.Rot * (pi/180.);
+                Cat(:,1) = Cat(:,1) * cos(Alpha) - Cat(:,2) * sin(Alpha);
+                Cat(:,2) = Cat(:,1) * sin(Alpha) + Cat(:,2) * cos(Alpha);
+                fprintf('Source catalog rotated by %d degrees\n',Alpha);
+            end
+
+        end
         
         Isrc = 0; 
         for iMag = 1:1:MagBins 
