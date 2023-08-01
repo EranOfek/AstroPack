@@ -131,5 +131,3 @@ function tracks=findTracks(AI,Args)
         AI.CatData.Catalog(horzcat(tracks{:}),:)=[];
         AI.Table=[]; % like that, to update. It is designed so.
     end
-
-    plot(x(horzcat(tracks{:})),y(horzcat(tracks{:})),'+')
