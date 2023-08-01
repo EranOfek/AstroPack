@@ -7,9 +7,12 @@ function tracks=findTracks(AI,Args)
 %   a scalar AstroImage with a populated source catalog
 %    - Key-value arguments
 %      'MaxDist' maximal distance of one sources from others, to be
-%                considered part of a track [default 20]
+%                considered part of a track [default 20, pixels]
+%      'MinDist' sources closer than this are clustered together
+%                disregarding the collinearity of their joining segments
+%                [default 3 pixels]
 %      'MinTrackLength' minimal number of closeby sources for a track to be
-%                       classified as such [default 3]
+%                       classified as such [default 3 sources]
 %      'SlopeTol' angular tolerance in track orientation [default 5 degrees]
 %      'RemoveFromCatalog' if true, remove the tracks detected from the
 %                          catalog in AstroImage [default true]
@@ -25,6 +28,7 @@ function tracks=findTracks(AI,Args)
     arguments
         AI AstroImage
         Args.MaxDist = 20;
+        Args.MinDist =  3;
         Args.SlopeTol = 5;
         Args.MinTrackLength = 3;
         Args.RemoveFromCatalog = true; 
@@ -99,7 +103,8 @@ function tracks=findTracks(AI,Args)
             q2= (abs((x(j2)-x(j1))*(x(j)-x(j2)))+...
                 abs((y(j2)-y(j1))*(y(j)-y(j2)))) / ...
                 (dist(j2,j1)*dist(j,j2)) < cosMinSlope;
-            if q1 || q2
+            if (q1 || q2) && ...
+               (dist(j,j1)>Args.MinDist && dist(j,j2)>Args.MinDist)
                 clusterlabel(j)=0;
             end
         end
