@@ -30,7 +30,7 @@ function mask=maskBadColumns(AstroImg,Args)
         AstroImg AstroImage = [];
         Args.VarLevel = 2;
         Args.MinLineLength= [];
-        Args.HighFraction = 0.5; % TODO how to pass to function
+        Args.HighFraction = 0.5;
         Args.ColumnDim = 1;
     end
 
