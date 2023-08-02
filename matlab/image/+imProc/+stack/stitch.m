@@ -76,8 +76,8 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
             for Img = 1:1:ImNum
                 Imfiles{Img} = fullfile(ImageFiles(Img).folder, ImageFiles(Img).name);
             end
-            AI = AstroImage.readFileNamesObj( Imfiles );
-            
+%             AI = AstroImage.readFileNamesObj( Imfiles ); % produces an error, probably, due to some changes in AstroImage.readFileNamesObj
+            AI = AstroImage( Imfiles );
         end
 
     end
