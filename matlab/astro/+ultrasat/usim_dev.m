@@ -6,6 +6,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
     %       * ...,key,val,... 
     %       'Cat'       - a catalog of simulated sources or the number of sources to generate randomly
     %       'SkyCat'    - the flag determines whether the input coordinates are RA, Dec
+    %       'PlaneRotation - [deg] rotation of the plane w.r.t. the north celestial pole
     %       'Mag'       - a vector of source magnitudes or 1 magnitude for all the sources
     %       'FiltFam'   - the filter family for which the source magnitudes are defined
     %       'Filt'      - the filter[s] for which the source magnitudes are defined
@@ -45,6 +46,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
                                              % if a 2D table, use X, Y from this table
                                              % if an AstroCat object, use source coordinates from this object
         Args.SkyCat logical  = false;        % the flag determines whether the input coordinates are RA, Dec
+        Args.PlaneRotation   = 0;            % [deg] rotation of the plane w.r.t. the north celestial pole
                                              
         Args.Mag             =  20;          % apparent magnitude of the input sources: 
                                              % one magnitude for all the objects 
@@ -246,6 +248,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         SimWCS.AlphaP    = Args.RAcenter;
         SimWCS.DeltaP    = Args.DECcenter;
         SimWCS.PhiP      = 180; 
+        
+        % rotate the image:
+        
+        Alpha_rad = Args.PlaneRotation/RAD;
+        RotMatrix = [cos(Alpha_rad), -sin(Alpha_rad);
+                     sin(Alpha_rad),  cos(Alpha_rad)];
+        SimWCS.CD = RotMatrix * SimWCS.CD;
         
         % or read in an appropriate ULTRASAT header and make a real WCS based on it:
 %         SimHeader = AstroHeader('ULTRASAT_position.fits',0); 
