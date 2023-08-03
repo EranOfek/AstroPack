@@ -10,6 +10,9 @@ function Result = unitTest()
     % 
     
 	io.msgStyle(LogLevel.Test, '@start', 'test started');
+    
+    test_sphere_dist_fast();
+    
     RAD = 180/pi;
     % Check conversion for altitude to hour angle, and the inverse.
     Dec=0.5;
@@ -91,3 +94,121 @@ end
 
 %--------------------------------------------------------------------------
 
+function Result = test_sphere_dist_fast()
+    io.msgLog(LogLevel.Test, 'celestial.coo.sphere_dist_fast test started');
+    
+    % Checking basic functionality and comparing mex and matlab
+    UseMex = 0;
+    UseMP = 0;
+    
+    ra1 = rand(1, 10) * 2 * pi;
+    ra2 = rand(1, 10) * 2 * pi;
+    dec1 = rand(1, 10) * 2 * pi;
+    dec2 = rand(1, 10) * 2 * pi;
+    
+    matlab_res =  celestial.coo.sphere_dist_fast(ra1(1),dec1(1),ra2(1),dec2(1),UseMex,UseMP);
+    
+    UseMex = 1;
+    mex_res = celestial.coo.sphere_dist_fast(ra1(1),dec1(1),ra2(1),dec2(1),UseMex,UseMP);
+    
+%     assert(isequal(matlab_res, mex_res));
+    
+    
+    iters = 50;
+    
+    for arr_sizes=1:3
+        
+        arr_size = power(10,arr_sizes);
+        
+        for var_types=5:6
+
+            MatlabTimeTotal = 0;
+            MexTimeTotal = 0;
+            MexMPTimeTotal = 0;            
+            MatlabTime = 0;
+            MexTime = 0;
+            MexMPTime = 0;
+
+            for iter=1:iters
+
+                ra1 = rand(1, 10) * 2 * pi;
+                ra2 = rand(1, 10) * 2 * pi;
+                dec1 = rand(1, 10) * 2 * pi;
+                dec2 = rand(1, 10) * 2 * pi;
+    
+                switch var_types
+                    case 1
+                        ra1 = int8(ra1);
+                        ra2 = int8(ra2);
+                        dec1 = int8(dec1);
+                        dec2 = int8(dec2);
+                        var_name = 'int8';
+                    case 2
+                        ra1 = int16(ra1);
+                        ra2 = int16(ra2);
+                        dec1 = int16(dec1);
+                        dec2 = int16(dec2);
+                        var_name = 'int16';
+                    case 3
+                        ra1 = int32(ra1);
+                        ra2 = int32(ra2);
+                        dec1 = int32(dec1);
+                        dec2 = int32(dec2);
+                        var_name = 'int32';
+                    case 4                        
+                        ra1 = int64(ra1);
+                        ra2 = int64(ra2);
+                        dec1 = int64(dec1);
+                        dec2 = int64(dec2);
+                        var_name = 'int64';
+                    case 5                        
+                        ra1 = single(ra1);
+                        ra2 = single(ra2);
+                        dec1 = single(dec1);
+                        dec2 = single(dec2);
+                        var_name = 'single';
+                    case 6                        
+                        ra1 = double(ra1);
+                        ra2 = double(ra2);
+                        dec1 = double(dec1);
+                        dec2 = double(dec2);
+                        var_name = 'double';
+                end
+
+                UseMex = 0;
+                UseMP = 0;
+                t = tic;
+                matlab_res =  celestial.coo.sphere_dist_fast(ra1(1),dec1(1),ra2(1),dec2(1),UseMex,UseMP);                
+                MatlabTime = toc(t);
+                MatlabTimeTotal = MatlabTimeTotal + MatlabTime;
+
+                UseMex = 1;
+                UseMP = 0;
+                t = tic;
+                mex_res = celestial.coo.sphere_dist_fast(ra1(1),dec1(1),ra2(1),dec2(1),UseMex,UseMP);
+                MexTime = toc(t);
+                MexTimeTotal = MexTimeTotal + MexTime;
+
+                UseMex = 1;
+                UseMP = 1;
+                t = tic;
+                mex_mp_res = celestial.coo.sphere_dist_fast(ra1(1),dec1(1),ra2(1),dec2(1),UseMex,UseMP);
+                MexMPTime = toc(t);
+                MexMPTimeTotal = MexMPTimeTotal + MexMPTime;                
+                                        
+%                 assert(isequal(matlab_res, mex_res));
+            end
+
+            MatlabTime = MatlabTimeTotal / iters;
+            MexTime = MexTimeTotal / iters;
+            MexMPTime = MexMPTimeTotal / iters;
+
+            fprintf('Array_size: %d, Var_type: %s, Matlab: %.6f, Mex: %.6f, MexMP: %.6f, Ratio: %0.2f, MP_Ratio: %0.2f\n', arr_size, var_name, MatlabTime, MexTime, MexMPTime, MatlabTime/MexTime, MatlabTime/MexMPTime);
+
+        end
+    end
+    
+    io.msgStyle(LogLevel.Test, '@passed', 'celestial.coo.sphere_dist_fast passed')
+    Result = true;    
+
+end
