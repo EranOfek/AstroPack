@@ -66,12 +66,20 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
         if Args.LASTnaming
             
             FN = FileNames.generateFromFileName( InputImages );
+            if numel(FN) < 1
+                fprintf('No images found. Please, check the path and the template\n');
+                return
+            end
             AI = AstroImage.readFileNamesObj( FN ) ;  
             
         else 
             
             ImageFiles  = dir ( InputImages ) ;
             ImNum = numel(ImageFiles);
+            if ImNum < 1
+                fprintf('No images found. Please, check the path and the template\n');
+                return
+            end
             Imfiles = repmat({''}, ImNum, 1);
             for Img = 1:1:ImNum
                 Imfiles{Img} = fullfile(ImageFiles(Img).folder, ImageFiles(Img).name);
