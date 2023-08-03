@@ -184,7 +184,8 @@ function Result = findMeasureSources(Obj, Args)
     % calculate background
     imProc.background.background(Result, 'CreateNewObj',false, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
     
-    Nobj = numel(Obj);
+    VecJD = Obj.julday; 
+    Nobj  = numel(Obj);
     %Iobj
     for Iobj=1:1:Nobj
         %Iobj
@@ -261,14 +262,12 @@ function Result = findMeasureSources(Obj, Args)
                     end
                 end
            
-            end   
-            
-           
-            
+            end
             
         end
-                                                    
-                                                        
+            
+        % add JD to AstroCatalog
+        Result(Iobj).CatData.JD = VecJD(Iobj);
                                                         
     end
     
