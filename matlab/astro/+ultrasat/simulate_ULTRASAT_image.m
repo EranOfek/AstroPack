@@ -7,8 +7,8 @@ function simImage = simulate_ULTRASAT_image (Args)
     %           
     % Output : - Image: a 2D array containing the resulting source image                 
     %            
-    % Author : A. Krassilchtchikov et al. Mar 2023
-    % Example: Image = simulate_ULTRASAT_image('ExpNum', 30, 'OutDir', '/home/sasha/', 'Same', true)
+    % Author : A. Krassilchtchikov Aug 2023
+    % Example: Image = simulate_ULTRASAT_image('ExpNum', 30, 'OutDir', '/home/sasha/','Size',7.15)
     
     arguments    
         Args.Size           = 0.5;        % [deg] size of the modelled FOV 
@@ -19,6 +19,8 @@ function simImage = simulate_ULTRASAT_image (Args)
                                           % if SkyCat = true this should be Dec0!
         Args.RA_inner   = 209.536;        % RA of the the inner corner of the tile (needed to define Rad)
         Args.Dec_inner  = 49.075;         % Dec of the the inner corner of the tile (-\\-)
+                                          % NB! These should correspond to RAcenter and DECcenter of Usim!                                        
+        Args.PlaneRotation = 0;           % [deg] rotation of the detector plane 
         Args.Shift      = [];             % catalog shift (in pix) 
         Args.Rot        = [];             % catalog rotation (in deg) 
         Args.ExpNum     = 3;              % number of the standard 300 s exposures to stack 
@@ -71,8 +73,8 @@ function simImage = simulate_ULTRASAT_image (Args)
         
             rng('shuffle');                      
             if Args.SkyCat % use sky coordinates                
-                Cat(:,1) = Args.X0  + Args.Size * rand(NumSrc,1); % RA 210.
-                Cat(:,2) = Args.Y0  + Args.Size * rand(NumSrc,1); % Dec 50.
+                Cat(:,1) = Args.X0  + Args.Size * rand(NumSrc,1); % 
+                Cat(:,2) = Args.Y0  + Args.Size * rand(NumSrc,1); % 
             else           % use pixel coordinates
                 X0 = ceil(Args.X0 * 3600 / PixSize); % left corner of the modelled square region
                 Y0 = ceil(Args.Y0 * 3600 / PixSize); % left corner of the modelled square region        
@@ -81,11 +83,10 @@ function simImage = simulate_ULTRASAT_image (Args)
                 Cat(:,2) = Y0 + Range * rand(NumSrc,1); 
             end
             
-            % 1-time code ! %%% 
-            CatIn = readtable('SimImage_InCat.txt');
-            Cat(:,1) = CatIn.Var1;
-            Cat(:,2) = CatIn.Var2;
-            % end 1-time code %%%
+            % temporary code %%% 
+%             CatIn = readtable('SimImage_InCat.txt');
+%             Cat(:,1) = CatIn.Var1; Cat(:,2) = CatIn.Var2;
+            % end temporary code %%%
             
             save('cat0.mat','Cat');
 
@@ -99,7 +100,7 @@ function simImage = simulate_ULTRASAT_image (Args)
                 fprintf('Source catalog shifted by %d x %d pixels\n',Args.Shift(1),Args.Shift(2));
             end
             
-            if ~isempty(Args.Rot)     % NB: this would not be right with sky coordinates!
+            if ~isempty(Args.Rot)                    % NB: this would not be right with sky coordinates!
                 Alpha = Args.Rot * (pi/180.);
                 Cat(:,1) = Cat(:,1) * cos(Alpha) - Cat(:,2) * sin(Alpha);
                 Cat(:,2) = Cat(:,1) * sin(Alpha) + Cat(:,2) * cos(Alpha);
@@ -137,7 +138,7 @@ function simImage = simulate_ULTRASAT_image (Args)
         end
         
         % save the catalog for the case you wish to repeat the same setup
-        % (for large simulations this can be way too voluminous)
+        % (NB! for large simulations this can be way too voluminous!)
         
 %         save('fitted_distr_cat.mat', 'Cat','MagUS', 'FiltUS', 'Spec', '-v7.3');
         
@@ -151,6 +152,7 @@ function simImage = simulate_ULTRASAT_image (Args)
     simImage = ultrasat.usim_dev('Cat',Cat,'MaxNumSrc',10000,'Mag',MagUS,... 
                         'Filt',FiltUS,'Spec',Spec,'Exposure',[Args.ExpNum 300],... 
                         'FiltFam',{'ULTRASAT'},'OutDir',Args.OutDir,... 
-                        'SkyCat',Args.SkyCat,'RAcenter',215,'DECcenter',53); % 208 47 or 215 53
+                        'SkyCat',Args.SkyCat,'PlaneRotation',Args.PlaneRotation);                    
+%                   do not need 'RAcenter',215,'DECcenter',53 (already default values in usim_dev)
     
 end
