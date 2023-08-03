@@ -134,7 +134,7 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
                     Result(Isub).HeaderData = Obj.HeaderData.copy;
                     
                     if ~isempty(Args.KeyCropID)
-                        Result(Isub).HeaderData.replaceVal('Args.KeyCropID', Isub);
+                        Result(Isub).HeaderData.replaceVal(Args.KeyCropID, Isub);
                     end
                 end
             end
