@@ -1207,7 +1207,7 @@ classdef FileNames < Component
                         if Args.AI_CropID_FromHeader 
                             CropID(Ido) = DataObj(Ido).HeaderData.getVal(Args.KeyCropID);
                         else
-                            CroPID = [];
+                            CropID = [];
                         end
                         if Args.AI_Counter_FromHeader
                             Counter(Ido) = DataObj(Ido).HeaderData.getVal(Args.KeyCounter);
