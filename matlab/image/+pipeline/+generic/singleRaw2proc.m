@@ -411,11 +411,12 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         end
 
         % update Header
-        % CROPID, LEVEL
+        % CROPID, LEVEL - CROPID now added by image2subimages...
         if Args.UpdateHeader
             Nim = numel(SI);
             for Iim=1:1:Nim
-                SI(Iim).HeaderData.replaceVal({'CROPID','LEVEL'}, {Iim, 'proc'});
+                %SI(Iim).HeaderData.replaceVal({'CROPID','LEVEL'}, {Iim, 'proc'});
+                SI(Iim).HeaderData.replaceVal({'LEVEL'}, {'proc'});
             end
 
         end
