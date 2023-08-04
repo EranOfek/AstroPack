@@ -63,7 +63,7 @@ function Result = applyProperMotion(Obj, EpochIn, EpochOut, Args)
        
         if isempty(EpochIn)
             % try to read EpochIn from catalog
-            [ColInd_Epoch] = colnameDict2ind(Obj(Iobj), Arg.ColEpochIn);
+            [ColInd_Epoch] = colnameDict2ind(Obj(Iobj), Args.ColEpochIn);
             [EpochIn, EpochInUnits] = getCol(Obj(Iobj), ColInd_Epoch);
         else
             EpochInUnits = {Args.EpochInUnits};
