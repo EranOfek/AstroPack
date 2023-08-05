@@ -1704,27 +1704,17 @@ classdef DemonLAST < Component
                                     
                                      % write PROC and COADD catalog data to local csv files 
                                      % to be injected into the DB later on outside this pipeline
-                                                    
-                                    CamNUM   = AllSI(1).HeaderData.getVal('CAMNUM');
-                                    MountNUM = AllSI(1).HeaderData.getVal('MOUNTNUM');
-                                    NodeNUM  = AllSI(1).HeaderData.getVal('NODENUMB');
-                                    NodeJD   = AllSI(1).HeaderData.getVal('JD');
-                                    ExpTIME  = AllSI(1).HeaderData.getVal('EXPTIME');
-                                     
+
+                                    StKey = AllSI(1).getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
                                     ProcCat.writeLargeCSV(ProcCatFileName,...
                                         'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
-                                        'AddColValues',[CamNUM MountNUM NodeNUM NodeJD ExpTIME] );
+                                        'AddColValues',[StKey.CamNUM StKey.MountNUM StKey.NodeNUM StKey.NodeJD StKey.ExpTIME] );
                                     
-                                    CamNUM   = Coadd(1).HeaderData.getVal('CAMNUM');
-                                    MountNUM = Coadd(1).HeaderData.getVal('MOUNTNUM');
-                                    NodeNUM  = Coadd(1).HeaderData.getVal('NODENUMB');
-                                    NodeJD   = Coadd(1).HeaderData.getVal('JD');
-                                    ExpTIME  = Coadd(1).HeaderData.getVal('EXPTIME');
-                                    
+                                    StKey = Coadd(1).getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
                                     CoaddCat.writeLargeCSV(CoaddCatFileName,...
                                         'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
-                                        'AddColValues',[CamNUM MountNUM NodeNUM NodeJD ExpTIME] );
-
+                                        'AddColValues',[StKey.CamNUM StKey.MountNUM StKey.NodeNUM StKey.NodeJD StKey.ExpTIME] );
+                                    
                                     Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB'); 
                                 
                                 else
