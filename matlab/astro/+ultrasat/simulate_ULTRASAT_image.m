@@ -4,7 +4,20 @@ function simImage = simulate_ULTRASAT_image (Args)
     % than 0.5 x 0.5 deg, otherwise we will take only the brightest part of
     % the source distribution
     % Input: -
-    %           
+    %        * ...,key,val,... 
+    %        'Size'     - [deg] size of the modelled FOV, 7.15 is the full FOV 
+    %        'SkyCat'   - whether to use sky coordinates instead of the pixel coordinates
+    %        'X0'       - [deg] the lower left corner of the modelled
+    %                     square region or RA0 if SkyCat = true
+    %        'Y0'       - [deg] the lower left corner of the modelled
+    %                     square region or Dec0 if SkyCat = true
+    %        'RA_inner' - RA of the the inner corner of the tile (needed to define Rad and RXX) 
+    %        'Dec_inner'- Dec of the the inner corner of the tile (needed to define Rad and RXX) 
+    %        'PlaneRotation' - [deg] rotation of the detector plane
+    %        'Shift'    - catalog shift (in pix)
+    %        'Rot'      - catalog rotation (in deg) 
+    %        'ExpNum'   - number of the standard 300 s exposures to stack 
+    %        'OutDir'   - the output diretory 
     % Output : - Image: a 2D array containing the resulting source image                 
     %            
     % Author : A. Krassilchtchikov Aug 2023
@@ -24,8 +37,8 @@ function simImage = simulate_ULTRASAT_image (Args)
         Args.Shift      = [];             % catalog shift (in pix) 
         Args.Rot        = [];             % catalog rotation (in deg) 
         Args.ExpNum     = 3;              % number of the standard 300 s exposures to stack 
-        Args.Same       = 0;              % read in a source distribution or generate a random new one
-        Args.Distfile   = 'fitted_distr_cat.mat'; % if Same=1, read the input distribution from this file
+%        Args.Same       = 0;              % read in a source distribution or generate a random new one
+%        Args.Distfile   = 'fitted_distr_cat.mat'; % if Same=1, read the input distribution from this file
         Args.OutDir     =  '.';           % output directory
     end
     
@@ -34,7 +47,7 @@ function simImage = simulate_ULTRASAT_image (Args)
     PixSize    = 5.44;       % pixel size (arcsec)
     Wave       = 2000:11000; % the wavelength band in A
                      
-    if ~Args.Same % model a new distribution
+%    if ~Args.Same % model a new distribution
         
         MagL = 13; MagH = 26; Delta_m = 0.2; % the distribution grid in NUV Mag (from GALEX)       
         MagBins = (MagH - MagL) / Delta_m;
@@ -142,12 +155,12 @@ function simImage = simulate_ULTRASAT_image (Args)
         
 %         save('fitted_distr_cat.mat', 'Cat','MagUS', 'FiltUS', 'Spec', '-v7.3');
         
-    else
-        % read in the catalog, magnitudes, and spectra to be modelled       
-        DataFile = sprintf('%s%s', tools.os.getAstroPackPath, Args.Distfile); 
-        io.files.load1(DataFile);  % load Cat, MagUS, FiltUS, Spec,
-        
-    end
+%     else
+%         % read in the catalog, magnitudes, and spectra to be modelled       
+%         DataFile = sprintf('%s%s', tools.os.getAstroPackPath, Args.Distfile); 
+%         io.files.load1(DataFile);  % load Cat, MagUS, FiltUS, Spec,
+%         
+%     end
     
     simImage = ultrasat.usim_dev('Cat',Cat,'MaxNumSrc',10000,'Mag',MagUS,... 
                         'Filt',FiltUS,'Spec',Spec,'Exposure',[Args.ExpNum 300],... 
