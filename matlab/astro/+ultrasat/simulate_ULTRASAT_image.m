@@ -67,7 +67,7 @@ function simImage = simulate_ULTRASAT_image (Args)
         
         % read the relation of NUV magnitudes and ULTRASAT magnitudes 
         % for a given set of source spectra (usually, just the 3 BB temperatures)  
-        io.files.load1('/home/sasha/magu.mat'); % variables: MagU (3D), Temp, MagNUV, Rad  
+        io.files.load1('~/magu.mat'); % variables: MagU (3D), Temp, MagNUV, Rad  
              
         if isempty(Args.Shift) && isempty(Args.Rot) % shift and rotation not given, create and save a new catalog
         

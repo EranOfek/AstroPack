@@ -37,8 +37,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
     %          - an ADU image (simple array)
     % Tested : Matlab R2020b
     % Author : A. Krassilchtchikov (Mar 2023)
-    % Example: Sim = ultrasat.usim('Cat',10) 
-    % (simulate with 10 sources at random positions with the default spectrum and magnitude)  
+    % Example: Sim = ultrasat.usim('Cat',1000) 
+    % (simulate 1000 sources at random positions with the default spectrum and magnitude)  
+    %          
   
     arguments  
         
@@ -46,7 +47,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
                                              % if a 2D table, use X, Y from this table
                                              % if an AstroCat object, use source coordinates from this object
         Args.SkyCat logical  = false;        % the flag determines whether the input coordinates are RA, Dec
-        Args.PlaneRotation   = 0;            % [deg] rotation of the plane w.r.t. the north celestial pole
+        Args.PlaneRotation   =   0;          % [deg] rotation of the plane w.r.t. the north celestial pole
                                              
         Args.Mag             =  20;          % apparent magnitude of the input sources: 
                                              % one magnitude for all the objects 
@@ -68,7 +69,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
                                              
         Args.Exposure        = [3 300];      % number and duration of exosures [s]; 1 x 300 s is the standard ULTRASAT exposure
         
-        Args.Tile            = 'B';          % the tile name: 'B' is the upper right tile  
+        Args.Tile            = 'B';          % the tile name: 'A' and 'B' are the upper tiles, 'D' and 'C' are the lower tiles
         
         Args.ImRes           = 5;            % image resolution: 5 is 1/5 of the ULTRASAT pixel
                                              % possible values: 1, 2, 5, 10, 47.5
