@@ -6,18 +6,18 @@ function [bwmask,lines]=maskTracks(AstroImg,Args)
 %  - AstroImg: an AstroImage, or an array of AstroImages, with .Back and 
 %              .Var already populated
 %  - Key,Val arguments:
-%        VarLevel:     threshold level for suspected bad line [default 2]
+%        VarLevel:     threshold level for suspected bad line [default 2.5]
 %        MinLineLength: minimal length of a suspicious bad column -
 %                      typically several times larger than the width of the
 %                      PSF, and of the width of possible extended objects
-%                      [default, size(AstroImg.Image,1)/20 pixels]
+%                      [default, max(size(AstroImg.Image))/20 pixels]
 %        HighFraction: fraction of the segment pixels over or below VarLevel,
 %                       for a segment to be considered bad [default 0.8]
 %        ThetaResolution: [default 0.25 degrees]
 %        RhoResolution: [default 0.5] (should be commensurate to the width of
 %                       the PSF)
 %        FillGap:      Join collinear segments separated no more than this
-%                      distance[default size(AstroImg.Image,1)/20 pixels]
+%                      distance[default max(size(AstroImg.Image))/20 pixels]
 %        MaxLines:  maximal number of Hough lines to consider [default 5]
 %
 % Outputs:
@@ -28,7 +28,7 @@ function [bwmask,lines]=maskTracks(AstroImg,Args)
 % This function may give as false positive: bad lines/columns, blooming
 %  stars. Since there may be many the like in bad images, whereas 
 %  statistically we seldom see more than a few satellite tracks per image,
-%  best results are obtained if tose known bad features are first impainted
+%  best results are obtained if these known bad features are first impainted
 %  with the background values, or if a high 'MaxStreaks' is used in order
 %  to find also the relevant tracks besides the many bad lines.
 %
