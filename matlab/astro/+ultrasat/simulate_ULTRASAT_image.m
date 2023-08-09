@@ -66,7 +66,7 @@ function simImage = simulate_ULTRASAT_image (Args)
     
     Cat    = zeros(NumSrc,2);
     MagUS  = zeros(NumSrc,1);
-    FiltUS = repmat({ },1,NumSrc);
+%     FiltUS = repmat({ },1,NumSrc);
     %
     %         S(1,:) = AstroSpec.blackBody(Wave',3500).Flux; % appears to slow!
     %         S(2,:) = AstroSpec.blackBody(Wave',5800).Flux;
@@ -78,7 +78,7 @@ function simImage = simulate_ULTRASAT_image (Args)
     
     % read the relation of NUV magnitudes and ULTRASAT magnitudes
     % for a given set of source spectra (usually, just the 3 BB temperatures)
-    io.files.load1('~/magu.mat'); % variables: MagU (3D), Temp, MagNUV, Rad
+    io.files.load1('~/Galex_USmag.mat'); % variables: MagU (3D), Temp, MagNUV, Rad
     
     if isempty(Args.Shift) && isempty(Args.Rot) % shift and rotation not given, create and save a new catalog
         
@@ -111,7 +111,7 @@ function simImage = simulate_ULTRASAT_image (Args)
             fprintf('Source catalog shifted by %d x %d pixels\n',Args.Shift(1),Args.Shift(2));
         end
         
-        if ~isempty(Args.Rot)                    % NB: this would not be right with sky coordinates!
+        if ~isempty(Args.Rot)  % NB: use with pixel coordinates only, this would not be right with sky coordinates!
             Alpha = Args.Rot * (pi/180.);
             Cat(:,1) = Cat(:,1) * cos(Alpha) - Cat(:,2) * sin(Alpha);
             Cat(:,2) = Cat(:,1) * sin(Alpha) + Cat(:,2) * cos(Alpha);
@@ -135,7 +135,7 @@ function simImage = simulate_ULTRASAT_image (Args)
             end
             
             [~, IndR] = min( abs(RadSrc - Rad) ); % search for the nearest node
-            RXX = sprintf('R%d',IndR); FiltUS{Isrc} = RXX; % fill in the appropriate filter
+%             RXX = sprintf('R%d',IndR); FiltUS{Isrc} = RXX; % fill in the appropriate filter
             
             % divide the population into 3 colours:
             IndT = rem(Isrc,3) + 1; Spec(Isrc,:) = S(IndT);
@@ -151,8 +151,8 @@ function simImage = simulate_ULTRASAT_image (Args)
     %%%% simulation
     
     simImage = ultrasat.usim_dev('Cat',Cat,'MaxNumSrc',10000,'Mag',MagUS,... 
-                        'Filt',FiltUS,'Spec',Spec,'Exposure',[Args.ExpNum 300],... 
-                        'FiltFam',{'ULTRASAT'},'OutDir',Args.OutDir,... 
+                        'Filt','','Spec',Spec,'Exposure',[Args.ExpNum 300],... 
+                        'FiltFam','ULTRASAT','OutDir',Args.OutDir,... 
                         'SkyCat',Args.SkyCat,'PlaneRotation',Args.PlaneRotation);                    
 %                   do not need 'RAcenter',215,'DECcenter',53 (already default values in usim_dev)
     

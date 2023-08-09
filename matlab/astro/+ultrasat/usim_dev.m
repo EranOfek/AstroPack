@@ -55,7 +55,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
 
         Args.FiltFam         = {'ULTRASAT'}; % one filter family for all the source magnitudes or an array
                                              
-        Args.Filt            = {'R1'};       % one filter for all the source magnitudes or an array of filters
+        Args.Filt            = {''};         % one filter for all the source magnitudes or an array of filters
         
         Args.SpecType        = {'BB'};       % parameters of the source spectra: 
                                              % either an array of AstSpec or AstroSpec objects
@@ -344,8 +344,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
         %%%%%%%%%%%%%%%%%%%%% obtain radial distances of the sources from the INNER CORNER of the tile 
         %%%%%%%%%%%%%%%%%%%%% and regrid the throughput array at given source positions 
 
-        RadSrc = sqrt( ( CatX(Range) - X0 ).^2 + ( CatY(Range) - Y0 ).^2 ) .*  PixSizeDeg;   % the source radii [deg]\        
+        RadSrc = sqrt( ( CatX(Range) - X0 ).^2 + ( CatY(Range) - Y0 ).^2 ) .*  PixSizeDeg;   % the source radii [deg]        
         TotT   = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc', 'linear', Tiny)';     % regrid the throughput 
+        
+        [~, IndR] = min( abs(RadSrc - Rad), [], 2);
 
         %%%%%%%%%%%%%%%%%%%%% read or generate source spectra
         %%%%%%%%%%%%%%%%%%%%%
@@ -527,7 +529,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
                   FiltFam = Args.FiltFam{1};
               end
               
-              SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), FiltFam, Filter); % does not work with arrays of filters?
+              if strcmp(FiltFam,'ULTRASAT')
+                SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), UP.U_AstFilt(IndR(Isrc)),'R1'); % NB: here 'R1' does not mean anything
+              else
+                SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), FiltFam, Filter); % scaleSynphot does not work with arrays of filters?
+              end
               SpecIn(Isrc,:) = SpecScaled.Flux; 
 
     %           fprintf('%s%d%s%4.1f\n','Eff. magnitude of source ', Isrc,' = ',...
