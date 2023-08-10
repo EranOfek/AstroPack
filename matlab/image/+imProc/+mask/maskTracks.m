@@ -1,47 +1,45 @@
 function [bwmask,lines]=maskTracks(AstroImg,Args)
-% Detect satellite/airplane tracks as lines in the image with the Matlab
-%  stock Hough transform, and update the image mask
-%
-% Inputs:
-%  - AstroImg: an AstroImage, or an array of AstroImages, with .Back and 
-%              .Var already populated
-%  - Key,Val arguments:
-%        VarLevel:     threshold level for suspected bad line [default 2.5]
-%        MinLineLength: minimal length of a suspicious bad column -
-%                      typically several times larger than the width of the
-%                      PSF, and of the width of possible extended objects
-%                      [default, max(size(AstroImg.Image))/20 pixels]
-%        HighFraction: fraction of the segment pixels over or below VarLevel,
-%                       for a segment to be considered bad [default 0.8]
-%        ThetaResolution: [default 0.25 degrees]
-%        RhoResolution: [default 0.5] (should be commensurate to the width of
-%                       the PSF)
-%        FillGap:      Join collinear segments separated no more than this
-%                      distance[default max(size(AstroImg.Image))/20 pixels]
-%        MaxLines:  maximal number of Hough lines to consider [default 5]
-%
-% Outputs:
-%     AstroImg.Mask is updated for each image of the input array
-%     - the last of the masks is also returned as optional output, for
-%       debugging
-%
-% This function may give as false positive: bad lines/columns, blooming
-%  stars. Since there may be many the like in bad images, whereas 
-%  statistically we seldom see more than a few satellite tracks per image,
-%  best results are obtained if these known bad features are first impainted
-%  with the background values, or if a high 'MaxStreaks' is used in order
-%  to find also the relevant tracks besides the many bad lines.
-%
-% Author: Enrico Segre, August 2023
+    % Detect satellite/airplane tracks as lines in the image with the Matlab
+    %   stock Hough transform, and update the image mask.
+    %   This function may give as false positive: bad lines/columns, blooming
+    %   stars. Since there may be many the like in bad images, whereas 
+    %   statistically we seldom see more than a few satellite tracks per image,
+    %   best results are obtained if these known bad features are first impainted
+    %   with the background values, or if a high 'MaxStreaks' is used in order
+    %   to find also the relevant tracks besides the many bad lines.
+    % Input  : - (AstroImg) an AstroImage, or an array of AstroImages, with .Back and 
+    %              .Var already populated
+    %          * ...,Key,Val,...
+    %            'VarLevel' - threshold level for suspected bad line [default 2.5]
+    %            'MinLineLength' - minimal length of a suspicious bad column -
+    %                      typically several times larger than the width of the
+    %                      PSF, and of the width of possible extended objects
+    %                      [default, max(size(AstroImg.Image))/20 pixels]
+    %            'HighFraction' - fraction of the segment pixels over or below VarLevel,
+    %                       for a segment to be considered bad [default 0.8]
+    %            'ThetaResolution' - default 0.25 degrees.
+    %            'RhoResolution' - Default 0.5. (should be commensurate to the width of
+    %                       the PSF)
+    %            'FillGap' - Join collinear segments separated no more than this
+    %                      distance[default max(size(AstroImg.Image))/20 pixels]
+    %            'MaxLines' - maximal number of Hough lines to consider [default 5]
+    %
+    % Output: - An AstroImage in which the MaskData property is updated for each image of the input array
+    %         - The last of the masks is also returned as optional output, for
+    %           debugging
+    % Author : Enrico Segre (Aug 2023)
+
+
     arguments
-        AstroImg AstroImage = [];
-        Args.VarLevel = 2.5;
-        Args.MinLineLength = [];
-        Args.HighFraction = 0.8;
-        Args.ThetaResolution = 0.25;
-        Args.RhoResolution = 0.5;
-        Args.FillGap = [];
-        Args.MaxLines = 5;
+        AstroImg AstroImage
+        Args.VarLevel              = 2.5;
+        Args.MinLineLength         = [];
+        Args.HighFraction          = 0.8;
+        Args.ThetaResolution       = 0.25;
+        Args.RhoResolution         = 0.5;
+        Args.FillGap               = [];
+        Args.MaxLines              = 5;
+        Args.BitName_Streak        = 'Streak';
     end
 
     function bwmask=pixelline(orig_image,point1,point2)
@@ -128,6 +126,6 @@ function [bwmask,lines]=maskTracks(AstroImg,Args)
         % imagesc(bwmask); axis xy
 
         % set this into the AstroImage mask
-        AstroImg(k).maskSet(bwmask,'Streak');
+        AstroImg(k).maskSet(bwmask, Args.BitName_Streak);
     end
 end

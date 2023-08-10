@@ -58,6 +58,8 @@ function Cat = downloadPrepSpecGAIA(Args)
     
     %% save Cat into an CatsHTM
     if any(Args.Step==3)
+        RAD = 180./pi;
+        Cat = Cat(:,1:2)./RAD;
         AC = AstroCatalog({Cat}, 'ColNames',{'RA','Dec','source_id','solution_id','Ifile','Ispec'});
         Nsrc = VO.prep.build_htm_catalog(AC, 'CatName','GAIADR3spec','HTM_Level',8);
     end
