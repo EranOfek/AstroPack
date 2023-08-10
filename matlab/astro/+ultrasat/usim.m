@@ -4,18 +4,24 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     % Description: Make a simulated ULTRASAT image from a source catalog
     % Input: -    
     %       * ...,key,val,... 
-    %       'InCat'     - a catalog of simulated sources or the number of sources to generate randomly
-    %       'InMag'     - a vector of source magnitudes or 1 magnitude for all the sources
-    %       'InMagFilt' - the filter[s] for which the source magnitudes are defined
-    %       'InSpec'    - individual spectra or one spectral model for all the objects
+    %       'Cat'       - a catalog of simulated sources or the number of sources to generate randomly
+    %       'SkyCat'    - the flag determines whether the input coordinates are RA, Dec
+    %       'PlaneRotation - [deg] rotation of the plane w.r.t. the north celestial pole
+    %       'Mag'       - a vector of source magnitudes or 1 magnitude for all the sources
+    %       'FiltFam'   - the filter family for which the source magnitudes are defined
+    %       'Filt'      - the filter[s] for which the source magnitudes are defined
+    %       'SpecType'  - model of the input spectra ('BB','PL') or 'tab'
+    %       'Spec'      - parameters of the input spectra (temperature, spectral index) or a table of spectral intensities
     %       'Exposure'  - image exposure
     %       'Tile'      - name of the ULTRASAT tile ('A','B','C','D')
     %       'ImRes'     - image resolution in 1/pix units (allowed values: 1, 2, 5, 10, 47.5)
     %       'RotAng'    - tile rotation angle[s] relative to the axis of the raw PSF database
-    %       'AddWCS'    - whether to add a WCS/Header data so that the image is centered in the sky at RAcenter, DECcenter (J2000)
-    %       'RAcenter'  - the RA, deg of the central pixel (if requested)
-    %       'DECcenter' - the DEC, deg of the central pixel (if requested)
+    %       'RA0'       - the RA,  deg of the [0,0] pixel 
+    %       'Dec0'      - the Dec, deg of the [0,0] pixel 
+    %       'WCSFile'   - if not empty, the image WCS is read from this file
     %       'ArraySizeLimit' - the maximal array size, machine-dependent, determines the method in specWeight
+    %       'MaxNumSrc'      - the maximal size of a source chunk to be worked over at a time
+    %       'MaxPSFNum'      - the maximal number of recorded PSFs
     %       'NoiseDark'      - dark current noise (1/0)
     %       'NoiseSky'       - sky background (1/0)
     %       'NoisePoisson'   - Poisson noise (1/0)
@@ -23,74 +29,88 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'Inj'            - source injection method (technical)
     %       'OutType'        - type of output image: FITS, AstroImage object, RAW object
     %       'Dir'            - the output directory
+    %       'OutName'        - root name of the output files
+    %       'SaveMatFile'    - whether to make an output .mat file with all the modelled structures
+    %       'SaveRegionsBySourceMag' - whether to write additional region files according to the input source magnitudes
     %       'PostModelingFindSources' - do post modeling source search
     % Output : - an AstroImage object with filled Catalog property 
     %            (also a FITS image file output + ds9 region files, RAW file output)           
     %          - an array of per-object AstroPSFs
     %          - an ADU image (simple array)
     % Tested : Matlab R2020b
-    % Author : A. Krassilchtchikov et al. (Mar 2023)
-    % Example: Sim = ultrasat.usim('InCat',10) 
-    % simulate with 10 sources at random positions with the default spectrum and magnitude0  
+    % Author : A. Krassilchtchikov (Mar 2023)
+    % Example: Sim = ultrasat.usim('Cat',1000) 
+    % (simulate 1000 sources at random positions with the default spectrum and magnitude)  
+    %          
   
     arguments  
         
-        Args.InCat           =  10;          % if a number N, generate N random fake sources
+        Args.Cat             =  10;          % if a number (N), generate N random fake sources
                                              % if a 2D table, use X, Y from this table
-                                             % if an AstroCat object, use source coordinates from this object
+                                             % if an AstroCatalog object, use source coordinates from this object
+        Args.SkyCat logical  = false;        % the flag determines whether the input coordinates are RA, Dec or in X, Y
+        Args.PlaneRotation   =   0;          % [deg] rotation of the detector plane w.r.t. the north celestial pole
                                              
-        Args.InMag           =  20;          % apparent magnitude of the input sources: 
-                                             % one magnitude for all the objects 
-                                             % or a vector of magnitudes 
+        Args.Mag             =  20;          % apparent magnitude of the input sources: 
+                                             % one magnitude for all the objects or a vector of magnitudes 
+
+        Args.FiltFam         = {'ULTRASAT'}; % one filter family for all the source magnitudes or an array of families
                                              
-        Args.InMagFilt       = {'ULTRASAT','R1'}; % one filter for all the source magnitudes or an array of filters
+        Args.Filt            = {''};         % one filter for all the source magnitudes or an array of filters
         
-        Args.InSpec          = {'BB', 5800}; % parameters of the source spectra: 
+        Args.SpecType        = {'BB'};       % parameters of the source spectra: 
                                              % either an array of AstSpec or AstroSpec objects
                                              % or an array of model spectra parameters: 
-                                             % '{'BB', 3500}', Temperature (K) -- blackbody
-                                             % '{'PL', 2.}', Alpha -- power-law F ~ lambda^alpha
-                                             % '{'Tab',table}, NumSrc spectra, each spectrum in a column
-                                             % NB: the input spectral intensity should be
-                                             % in [erg cm(-2) s(-1) A(-1)] as seen near Earth!
+                                             % {'BB'} 3500 [Temperature (K)] -- blackbody
+                                             % {'PL'} 2.   [Alpha -- power-law F ~ lambda^alpha]
+                                             % {'Tab'} table: NumSrc spectra, each spectral flux in a column
+                                             % NB: the input spectral flux should be
+                                             % in [erg cm(-2) s(-1) A(-1)] as seen near Earth (absorbed)!
+        Args.Spec            = 5800;
                                              
         Args.Exposure        = [3 300];      % number and duration of exosures [s]; 1 x 300 s is the standard ULTRASAT exposure
         
-        Args.Tile            = 'B';          % the tile name: 'B' is the upper right tile  
+        Args.Tile            = 'B';          % the tile name: 'A' and 'B' are the upper tiles, 'D' and 'C' are the lower tiles
         
-        Args.ImRes           = 5;            % image resolution: 5 is 1/5 of the ULTRASAT pixel
+        Args.ImRes           = 5;            % the internal image resolution: 5 is 1/5 of the ULTRASAT pixel
                                              % possible values: 1, 2, 5, 10, 47.5
 
-        Args.RotAng          = 0;            % tile rotation angle relative to the axis of the raw PSF database (deg)
+        Args.RotAng          = 0;            % the PSF rotation angle relative to the axis of the raw PSF database (deg)
                                              % may be a vector with individual angle for each of the sources
-                                             
-        Args.AddWCS logical  = false;        % whether to add a WCS to the output image
-        
-        Args.RAcenter        = 214.99;       % will be used only if Args.AddWCS = 1; the default value is GALEX GROTH_00
-        Args.DECcenter       = 52.78;        % will be used only if Args.AddWCS = 1; the default value is GALEX GROTH_00
+                                            
+        Args.RA0             = 214.99;       % the default position of the [0 0] pixel (~ telescope FOV center)
+        Args.Dec0            = 52.78;        % is a certain point in the GALEX GROTH_00 field
+        Args.WCSFile         = {''};         % if not empty, the image WCS is read from this file
                                              
         Args.ArraySizeLimit  = 8;            % [Gb] the limit determines the method employed in inUtil.psf.specWeight
+        Args.MaxNumSrc       = 10000;        % the maximal size of a source chunk to be worked over at a time
         
-        Args.NoiseDark logical = true;       % Dark count noise
-        Args.NoiseSky  logical = true;       % Sky background 
-        Args.NoisePoisson logical = true;    % Poisson noise
-        Args.NoiseReadout logical = true;    % Read-out noise
-                                             % (see details in imUtil.art.noise)
+        Args.MaxPSFNum       = 10000;        % if the number of input sources is above this value, 
+                                             % do not record individual PSF and do not attach them to the output AstroImage 
+        % currently not employed:
+%         Args.NoiseDark    logical = true;    % Dark count noise  
+%         Args.NoiseSky     logical = true;    % Sky background 
+%         Args.NoisePoisson logical = true;    % Poisson noise
+%         Args.NoiseReadout logical = true;    % Read-out noise
+%                                              % (see details in imUtil.art.noise)
                                              
         Args.Inj             = 'direct';     % source injection method can be either 'FFTshift' or 'direct'
         
         Args.OutType         = 'all';        % output type: 'AstroImage', 'FITS', 'all' (default)
         
         Args.OutDir          = '.';          % the output directory
+        Args.OutName         = 'SimImage';   % root name of output files
+
+        Args.SaveMatFile  logical = false;            % whether to make an output .mat file with all the modelled structures
+        Args.SaveRegionsBySourceMag logical = false;  % whether to write additional region files according to the input source magnitudes
         
-        Args.PostModelingFindSources logical = false; % do post modeling source search
+        Args.PostModelingFindSources logical = false; % attempt for a post-modeling source search (in general, should be out of the modeling routing)
          
     end
     
-                        % start of simulation
-                        
+                        % simulation start 
                         Exposure = Args.Exposure(1) * Args.Exposure(2); 
-    
+                            
                         cprintf('hyper','ULTRASAT simulation started\n');
                         fprintf('%s%d%s%s\n','The total requested exposure is ',Exposure,...
                                 ' seconds for tile ',Args.Tile);
@@ -136,14 +156,12 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     FocalLength = 360;    % [mm] 
     PixelSizeMm = 9.5e-3; % [mm] pixel size 
     PixSizeDeg  = ( PixelSizeMm / FocalLength ) * RAD;  % [deg] pixel size  
-%     PixSize     = PixSizeDeg * 3600; % [arcsec] 
     
     DAper       = 33.;                   % [cm]    aperture diameter
     SAper       = pi * DAper ^ 2 / 4;    % [cm(2)] aperture area
     
     % coordinates of the inner core of the tile and the rotation angle of the PSF: 
-    % NB: the additional rotation by -90 deg for tile "B" is required to have the coma in the right position!
-    
+    % NB: the additional rotation by -90 deg for tile "B" is required to have the PSF coma in the right position!
     switch Args.Tile
         
         case 'A'
@@ -172,15 +190,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
     end
     
-    % pixel saturation and per pixel background (estimated by YS),
+    % pixel saturation and per pixel background (from YS),
     %  e-/ADU conversion coefficients
     
-    FullWell0    = 1.6e5;                               % [e-] the pixel saturation limit for 1 exposure
-    FullWell     = FullWell0 * Args.Exposure(1);        % the limit for a serie of exposures 
-    
-    GainThresh = 16000;
-    E2ADUlow   = 1.185;  % below GainThresh e-/pix 
-    E2ADUhigh  = 0.074;  % above GainThresh e-/pix
+    FullWell    = 1.6e5;  % [e-] the pixel saturation limit for 1 exposure
+    GainThresh  = 1.6e4;  % [e-/pix] the gain threshold
+    E2ADUhigh   = 1.185;  % below GainThresh e-/pix 
+    E2ADUlow    = 0.074;  % above GainThresh e-/pix
     
     % [e-/pix] background estimates for a 300 s exposure made by YS
     
@@ -194,61 +210,96 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     
     UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');   
     io.files.load1(UP_db,'UP');
+    
+    %%%%%%%%%%%%%%%%%%%%%  read the chosen PSF database from a .mat file
 
-    % is it possible to read just some of the UP structures: UP.TotT, UP.wavelength and, possibly, UP.Specs?
-    % we can save them as separate .mat objects and read those  
+                                fprintf('Reading PSF database.. '); 
+
+    PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF',Args.ImRes,'.mat');
+    ReadDB = struct2cell ( io.files.load1(PSF_db) ); % PSF data at the chosen spatial resolution
+    PSFdata = ReadDB{2}; 
+
+%     if ( size(PSFdata,3) ~= Nwave ) || ( size(PSFdata,4) ~= Nrad )
+     if size(PSFdata,4) ~= Nrad 
+         error('PSF array size mismatch, exiting..');
+     end
+
+                                fprintf('done\n'); 
+                                elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
         
     %%%%%%%%%%%%%%%%%%%% read source coordinates from an input catalog or make a fake catalog
     
-    if isa(Args.InCat,'AstroCatalog') % read sources from an AstroCatalog object 
+    if isempty(Args.WCSFile{1}) % make a local WCS
+        
+        SimWCS = AstroWCS();
+        SimWCS.ProjType  = 'TAN';
+        SimWCS.ProjClass = 'ZENITHAL';
+        SimWCS.CooName   = {'RA'  'DEC'};
+        SimWCS.CTYPE     = {'RA---TAN','DEC---TAN'};
+        SimWCS.CUNIT     = {'deg', 'deg'};
+        SimWCS.CD(1,1)   = PixSizeDeg;
+        SimWCS.CD(2,2)   = PixSizeDeg;  
+        SimWCS.CRVAL(1)  = Args.RA0;
+        SimWCS.CRVAL(2)  = Args.Dec0;
+        SimWCS.CRPIX(1)  = 0; 
+        SimWCS.CRPIX(2)  = 0; 
+        SimWCS.populate_projMeta;
+        
+        % rotate the image:
+        Alpha_rad = Args.PlaneRotation/RAD;
+        RotMatrix = [cos(Alpha_rad), -sin(Alpha_rad);
+                     sin(Alpha_rad),  cos(Alpha_rad)];
+        SimWCS.CD = RotMatrix * SimWCS.CD;
+        
+    else % or read in an appropriate ULTRASAT header and extract WCS
+        SimHeader = AstroHeader(Args.WCSFile{1},1); 
+        SimWCS    = AstroWCS.header2wcs(SimHeader);   
+        SimWCS.populate_projMeta;
+    end
+        
+    if isa(Args.Cat,'AstroCatalog') % read sources from an AstroCatalog object 
  
-        % read in an appropriate ULTRASAT header and make a WCS
-        % SimHeader = AstroHeader('/home/sasha/matlab/data/ULTRASAT/UC-3200-TN003-01_FITS_formatted_image_example.fits',0); 
-        % SimWCS = AstroWCS.header2wcs(SimHeader);
+        NumSrc        = size(Args.Cat.Catalog,1); 
+        RA            = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'RA'))); 
+        DEC           = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'Dec'))); 
         
-        NumSrc = size(Args.InCat.Catalog,1); 
-
-        RA            = Args.InCat.Catalog(:,find(strcmp(Args.InCat.ColNames, 'RAJ2000'))); 
-        DEC           = Args.InCat.Catalog(:,find(strcmp(Args.InCat.ColNames, 'DEJ2000'))); 
-        
-        if isempty(find(strcmp(Args.InCat.ColNames, 'X'), 1)) % no pixel coordinates in the catalog
-            [CatX, CatY]  = SimWCS.sky2xy(RA,DEC);         % needs an astro WCS object!
-        else                                               % read pixel coordinates
-            CatX      = Args.InCat.Catalog(:,find(strcmp(Args.InCat.ColNames, 'X'))); 
-            CatY      = Args.InCat.Catalog(:,find(strcmp(Args.InCat.ColNames, 'Y'))); 
-        end
-                
-        CatFlux       = zeros(NumSrc,1);   % will be determined below from spectra * transmission 
-        InMag         = zeros(NumSrc,1);    
-        
+        if isempty(find(strcmp(Args.Cat.ColNames, 'X'), 1)) % no pixel coordinates in the catalog
+            [CatX, CatY]  = SimWCS.sky2xy(RA,DEC);          % get them from the SimWCS
+        else                                                % read pixel coordinates
+            CatX      = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'X'))); 
+            CatY      = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'Y'))); 
+        end               
                             fprintf('%d%s\n',NumSrc,' sources read from the input AstroCatalog object');
         
-    elseif size(Args.InCat,2) > 1 && size(Args.InCat,3) == 1 % read source pixel coordinates from a table
+    elseif size(Args.Cat,2) > 1 && size(Args.Cat,3) == 1 % read source coordinates from a text table
         
-        NumSrc = size(Args.InCat,1);
+        NumSrc = size(Args.Cat,1);
         
-        CatX   = Args.InCat(:,1);
-        CatY   = Args.InCat(:,2);
-        
-        RA      = zeros(NumSrc,1);  % will be determined below if a WCS is set
-        DEC     = zeros(NumSrc,1);  % -//-
-        CatFlux = zeros(NumSrc,1);  % will be determined below from spectra * transmission 
-        InMag   = zeros(NumSrc,1);    
-        
+        if Args.SkyCat   % the input coordinates are sky coordinates
+            RA  = Args.Cat(:,1);
+            DEC = Args.Cat(:,2);
+            [CatX, CatY] = SimWCS.sky2xy(RA,DEC); 
+        else             % the input coordinates are pixel coordinates
+            CatX   = Args.Cat(:,1);
+            CatY   = Args.Cat(:,2);
+            [RA, DEC] = SimWCS.xy2sky(CatX,CatY);
+%             RA     = zeros(NumSrc,1); % can be calculated later if needed
+%             DEC    = zeros(NumSrc,1); % -//-
+        end
                             fprintf('%d%s\n',NumSrc,' sources read from the input table');
         
-    elseif size(Args.InCat,2) == 1 % make a fake catalog with Args.InCat sources randomly distributed over the FOV
+    elseif size(Args.Cat,2) == 1 % make a fake catalog with Args.Cat sources randomly distributed over the FOV
         
-        NumSrc = Args.InCat;  % the number of fake sources
+        NumSrc = Args.Cat;  % the number of fake sources
 
         CatX    = max(0.51, ImageSizeX * rand(NumSrc,1) ); 
         CatY    = max(0.51, ImageSizeY * rand(NumSrc,1) ); 
         
-        RA      = zeros(NumSrc,1);  % will be determined below if a WCS is set
-        DEC     = zeros(NumSrc,1);  % -//-
-        CatFlux = zeros(NumSrc,1);  % will be determined below from spectra * transmission 
-        InMag   = zeros(NumSrc,1);    
+        [RA, DEC] = SimWCS.xy2sky(CatX,CatY);
         
+%         RA      = zeros(NumSrc,1);  % can be calculated later if needed
+%         DEC     = zeros(NumSrc,1);  % -//-
+%  
                             fprintf('%d%s\n',NumSrc,' random sources generated');
                             
     else
@@ -256,273 +307,325 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                             error('Incorrect catalog input, exiting..'); 
                                     
     end
-
-    %%%%%%%%%%%%%%%%%%%%% obtain radial distances of the sources from the INNER CORNER of the tile 
-    %%%%%%%%%%%%%%%%%%%%% and regrid the throughput array at given source positions 
-         
-    RadSrc = zeros(NumSrc,1); 
-    TotT   = zeros(NumSrc,Nwave);
-
-    for Isrc = 1:1:NumSrc
+    
+    CatFlux       = zeros(NumSrc,1);   % will be determined below from spectra * transmission 
+    InMag         = zeros(NumSrc,1);   % will be rescaled below from the input Mag + Spectra
+    
+    %%%%%%%%%%%%%%%%%%%%% split the list of objects into chunks and work
+    %%%%%%%%%%%%%%%%%%%%% chunk-by-chunk 
+    
+    NCh  = ceil ( NumSrc / Args.MaxNumSrc );
+    ChL  = zeros(NCh,1); 
+    ChR  = zeros(NCh,1);
+    
+    for ICh = 1:NCh-1
         
-        RadSrc(Isrc) = sqrt( ( CatX(Isrc) - X0 )^2 + ( CatY(Isrc) - Y0 )^2 ) *  PixSizeDeg; % the source radii [deg]
+        ChL(ICh) = (ICh - 1) * Args.MaxNumSrc + 1;
+        ChR(ICh) = ICh * Args.MaxNumSrc;
         
-        TotT(Isrc,:) = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc(Isrc), 'linear', Tiny);          % regrid the throughput 
-
     end
     
-    %%%%%%%%%%%%%%%%%%%%% read or generate source spectra
+    ChL(NCh) = (NCh-1) * Args.MaxNumSrc + 1;
+    ChR(NCh) = NumSrc; 
+    
+    ImageSrc = zeros(ImageSizeX, ImageSizeY); % make an empty source image
+    
+    %%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%
     
-                            fprintf('Reading source spectra.. ');
-    
-    SpecIn  = zeros(NumSrc, Nwave);  % the incoming spectra 
-    SpecAbs = zeros(NumSrc, Nwave);  % the incoming spectra convolved with the throughput
+    for ICh = 1:NCh   % main loop over source chunks: radial distances, spectra, convolution, injection 
 
-    % read the input spectra or generate synthetic spectra 
-    
-                %%% TEST: use the Stellar Spectra from UP.Specs
-%                 if false  
-%             
-%                     fprintf('TEST RUN: using stellar spectra from UP.Specs ..');
-%         
-%                     for Isrc = 1:1:NumSrc
-%                         % stellar spectra from Pickles. NB: these are normalized to 1 at 5556 Ang !
-%                         %Pick(Isrc) = UP.Specs( rem(Isrc,43)+1 ); 
-%                         %Pick(Isrc) = UP.Specs(17); % a G0.0V star 
-%                         %Pick(Isrc) = UP.Specs(27); % an M0.0V star 
-%                         if rem(Isrc,2) == 0 % for Cat2 catalog
-%                             Pick(Isrc) = UP.Specs(17); % UP.Specs(17); 
-%                         else
-%                             Pick(Isrc) = UP.Specs(27); % UP.Specs(27); 
-%                         end
-%                     end
+        cprintf('hyper','%s%d%s%d\n','Chunk ',ICh, ' out of ',NCh);
+
+        NumSrcCh = ChR(ICh) - ChL(ICh) + 1;  % number of sources in the current chunk (Args.MaxNumSrc or less)
+        Range    = ChL(ICh):ChR(ICh); 
+
+        %%%%%%%%%%%%%%%%%%%%% obtain radial distances of the sources from the INNER CORNER of the tile 
+        %%%%%%%%%%%%%%%%%%%%% and regrid the throughput array at given source positions 
+
+        RadSrc = sqrt( ( CatX(Range) - X0 ).^2 + ( CatY(Range) - Y0 ).^2 ) .*  PixSizeDeg;   % the source radii [deg]        
+        TotT   = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc', 'linear', Tiny)';     % regrid the throughput 
+        [~, IndR] = min( abs(RadSrc - Rad), [], 2);                                          % IndR is the RXX filter 
+                                                                                             % zone number for each of the sources
+        %%%%%%%%%%%%%%%%%%%%% read or generate source spectra
+        %%%%%%%%%%%%%%%%%%%%%
+
+                                fprintf('Reading source spectra.. ');
+
+        SpecIn  = zeros(NumSrcCh, Nwave);  % the incoming spectra 
+        SpecAbs = zeros(NumSrcCh, Nwave);  % the incoming spectra convolved with the throughput
+
+        % read the input spectra or generate synthetic spectra 
+
+                    %%% TEST: use the Stellar Spectra from UP.Specs
+    %                 if false  
+    %             
+    %                     fprintf('TEST RUN: using stellar spectra from UP.Specs ..');
+    %         
+    %                     for Isrc = 1:1:NumSrc
+    %                         % stellar spectra from Pickles. NB: these are normalized to 1 at 5556 Ang !
+    %                         %Pick(Isrc) = UP.Specs( rem(Isrc,43)+1 ); 
+    %                         %Pick(Isrc) = UP.Specs(17); % a G0.0V star 
+    %                         %Pick(Isrc) = UP.Specs(27); % an M0.0V star 
+    %                         if rem(Isrc,2) == 0 % for Cat2 catalog
+    %                             Pick(Isrc) = UP.Specs(17); % UP.Specs(17); 
+    %                         else
+    %                             Pick(Isrc) = UP.Specs(27); % UP.Specs(27); 
+    %                         end
+    %                     end
+    %                     
+    %                     Args.Spec = Pick(1:NumSrc);
+    %         
+    %                 end
+                    %%% END TEST 
+
+        switch isa(Args.Spec,'AstroSpec') || isa(Args.Spec,'AstSpec')
+
+            case 0  % make a synthetic spectrum for a given model
+
+                switch lower( Args.SpecType{1} ) 
+
+                    case 'bb'                   
+
+                        if numel( Args.Spec ) ~= NumSrc && numel( Args.Spec ) ~= 1
+                            error('The size of the source temperature array is incorrect, exiting..');
+                        elseif numel( Args.Spec ) == 1
+                            fprintf('%s%5.0f%s','generating BB spectra for T = ',Args.Spec,' K .. ');
+                            Temp = Args.Spec .* ones(NumSrcCh,1);
+                        else
+                            fprintf('%s','generating BB spectra for individual source temperatures .. ');
+                            Temp = Args.Spec( Range );
+                        end
+
+                        SpecIn = cell2mat({ AstroSpec.blackBody(Wave',Temp).Flux })'; % erg s(-1) cm(-2) A(-1)
+
+                    case 'pl'
+
+                        if numel( Args.Spec ) ~= NumSrc && numel( Args.Spec ) ~= 1
+                            error('The size of the source spectral index array is incorrect, exiting..');
+                        elseif numel( Args.Spec ) == 1
+                            fprintf('%s%5.0f','generating PL spectra for Alpha = ',Args.Spec);
+                            Alpha = Args.Spec .* ones(NumSrcCh,1);
+                        else
+                            fprintf('%s','generating PL spectra for individual spectral indexes .. ');
+                            Alpha = Args.Spec( Range );
+                        end
+                        
+                        SpecIn = Wave .^ Alpha;                                     % erg s(-1) cm(-2) A(-1)   
+
+                    case 'tab'
+
+                        fprintf('%s','Reading source spectra from a table..');
+
+                        if size( Args.Spec, 2) == NumSrc && size( Args.Spec, 1) == Nwave
+                            % NumSrc spectra at the standard grid 2000:1:11000
+                            for Isrc = 1:1:NumSrcCh
+
+                                Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
+
+                                SpecIn(Isrc,:) = Args.Spec(:,Isrc_gl); % read the spectra from table columns
+
+                            end
+                        elseif size( Args.Spec, 2) == NumSrc + 1
+                            % NumSrc spectra at a nonstandard grid, the wavelength
+                            % grid is in the column number NumSrc + 1 
+                            for Isrc = 1:1:NumSrcCh 
+
+                                Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
+
+                                SpecIn(Isrc,:) = interp1(Args.Spec(:,NumSrc+1), Args.Spec(:,Isrc_gl), Wave, 'linear', 0);
+
+                            end
+                        else
+                            error('Number of columns or rows in the spectral input table is incorrect, exiting..');
+                        end
+
+                    otherwise
+
+                        error('Spectral parameters not properly defined in uSim, exiting..');
+                end
+
+
+            case 1  % read the table from an AstroSpec/AstSpec object and regrid it to Wave set of wavelengths
+                
+                if isa(Args.Spec,'AstSpec')
+                    Flx = cell2mat({Args.Spec( Range ).Int});
+                elseif isa(Args.Spec,'AstroSpec')
+                    Flx = cell2mat({Args.Spec( Range ).Flux});
+                end
+                Wav = cell2mat({Args.Spec( Range ).Wave});
+
+                for Isrc = 1:1:NumSrcCh  % can not make it a 1-liner? 
+                    SpecIn(Isrc,:) = interp1( Wav(:,Isrc), Flx(:,Isrc), Wave, 'linear', 0 );
+                end
+                
+%                 for Isrc = 1:1:NumSrcCh
+% 
+%                     % the simplest way to regrid is to interpolate and set to 0 outside the range
+%                     % deb: is not it safer to use griddedinterpolant? 
 %                     
-%                     Args.InSpec = Pick(1:NumSrc);
-%         
-%                 end
-                %%% END TEST 
-    
-    switch isa(Args.InSpec,'AstroSpec') || isa(Args.InSpec,'AstSpec')
-        
-        case 0  % make a synthetic spectrum for a given model
-            
-            switch lower( Args.InSpec{1} ) 
-                
-                case 'bb'                   
-                    
-                if numel( Args.InSpec{2} ) ~= NumSrc && numel( Args.InSpec{2} ) ~= 1
-                    
-                    error('The size of input temperature array is incorrect, exiting..');
-                    
-                end
-                               
-                Temp(1:NumSrc) = Args.InSpec{2};
- 
-                if numel( Args.InSpec{2} ) == 1
-                    fprintf('%s%5.0f%s','generating BB spectra for T = ',Temp(1),' K .. ');
-                else
-                    fprintf('%s','generating BB spectra for individual source temperatures .. ');
-                end
-                
-                for Isrc = 1:1:NumSrc
-                    
-                      SpecIn(Isrc,:) = AstroSpec.blackBody(Wave',Temp(Isrc)).Flux; % erg s(-1) cm(-2) A(-1)
-                    
-                end
-            
-                case 'pl'
-                    
-                if numel( Args.InSpec{2} ) ~= NumSrc && numel( Args.InSpec{2} ) ~= 1
-                    
-                    error('The size of input spectral indexe array is incorrect, exiting..');
-                    
-                end
-                
-                Alpha(1:NumSrc) = Args.InSpec{2};
-
-%                 fprintf('%s%4.2f%s','generating PL spectra: Alpha(Source1) = ',Alpha(1),' ..');
-                fprintf('%s','generating PL spectra .. ');
-                
-                for Isrc = 1:1:NumSrc
-                                 
-                    SpecIn(Isrc,:) = Wave .^ Alpha(Isrc);                          % erg s(-1) cm(-2) A(-1)                                                       
-                    
-                end
-                                
-                case 'tab'
-
-                fprintf('%s','Reading source spectra from a table..');
-
-                if size( Args.InSpec{2}, 2) == NumSrc && size( Args.InSpec{2}, 1) == Nwave
-                    % NumSrc spectra at the standard grid 200:1:11000
-                    for Isrc = 1:1:NumSrc
-
-                        SpecIn(Isrc,:) = Args.InSpec{2}(:,Isrc); % read the spectra from table columns
-
-                    end
-                elseif size( Args.InSpec{2}, 2) == NumSrc + 1
-                    % NumSrc spectra at a nonstandard grid, the wavelength
-                    % grid is in the column number NumSrc + 1 
-                    for Isrc = 1:1:NumSrc 
-
-                        SpecIn(Isrc,:) = interp1(Args.InSpec{2}(:,NumSrc+1), Args.InSpec{2}(:,Isrc), Wave, 'linear', 0);
-
-                    end
-                else
-                    error('Number of columns or rows in the spectral input table is incorrect, exiting..');
-                end
-                
-                otherwise
-                
-                error('Spectral parameters not properly defined in uSim, exiting..');
-                
-            end
-            
-            
-        case 1  % read the table from an AstroSpec/AstSpec object and regrid it to Wave set of wavelengths 
-            
-            for Isrc = 1:1:NumSrc
-                                                
-                % the simplest way to regrid is to interpolate and set to 0 outside the range
-                % deb: is not it safer to use griddedinterpolant? 
-                
-                if isa(Args.InSpec,'AstSpec') 
-                    SpecIn(Isrc,:) = interp1( Args.InSpec(Isrc).Wave, Args.InSpec(Isrc).Int, Wave, 'linear', 0);
-                elseif isa(Args.InSpec,'AstroSpec')
-                    SpecIn(Isrc,:) = interp1( Args.InSpec(Isrc).Wave, Args.InSpec(Isrc).Flux, Wave, 'linear', 0);
-                end
-                
-                                    
-            end
-            
-            % try to make a 1-liner instead of a cycle? 
-            % SpecIn = interp1( 1:NSrc, Args.InSpec.Wave, Args.InSpec.Int, 1:NSrc, Wave, 'linear', 0);
-            
-    end
-
-                            fprintf('done\n'); 
-                            elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
-    
-                            tic
-    
-    
-                    % TEST input: a flat spectrum the 240-280 band, null otherwise
-%                     if false
-%                         
-%                         fprintf('TEST input: flat spectrum in the 240-280 band\n');
-%                         
-%                         for Iwave = 1:1:Nwave
-%                             for Isrc = 1:1:NumSrc
-%                                 if (Wave(Iwave) < 2400) || (Wave(Iwave) > 2800) 
-%                                     SpecIn(Isrc,Iwave) = 0.;
-%                                 else
-%                                     SpecIn(Isrc,Iwave) = 1.;
-%                                 end
-%                             end
-%                         end
-%                             
+%                     Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
+% 
+%                     if isa(Args.Spec,'AstSpec') 
+%                         SpecIn(Isrc,:) = interp1( Args.Spec(Isrc_gl).Wave, Args.Spec(Isrc_gl).Int, Wave, 'linear', 0);
+%                     elseif isa(Args.Spec,'AstroSpec')
+%                         SpecIn(Isrc,:) = interp1( Args.Spec(Isrc_gl).Wave, Args.Spec(Isrc_gl).Flux, Wave, 'linear', 0);
 %                     end
-                    % END TEST
-    
-    %%%%%%%%%%%%%%%%%%%%%  rescale the spectra to the input magnitudes 
-    
-                            fprintf('%s%s%s%s%s','Rescaling spectra to fit the input ',...
-                                     Args.InMagFilt{1},'/',Args.InMagFilt{2},' magnitudes...');
-    
-    for Isrc = 1:1:NumSrc
-        
-          AS = AstroSpec([Wave' SpecIn(Isrc,:)']);
-          if numel(Args.InMag) > 1 
-              InMag(Isrc) = Args.InMag(Isrc); 
-          else
-              InMag(Isrc) = Args.InMag(1); 
-          end
-          SpecScaled  = scaleSynphot(AS, InMag(Isrc), Args.InMagFilt{1}, Args.InMagFilt{2}); 
-          SpecIn(Isrc,:) = SpecScaled.Flux; 
-          
-%           fprintf('%s%d%s%4.1f\n','Eff. magnitude of source ', Isrc,' = ',...
-%               astro.spec.synthetic_phot([SpecScaled.Wave, SpecScaled.Flux],'ULTRASAT','R1','AB');
-%               astro.spec.synthetic_phot([Wave', SpecIn(1,:)'],'ULTRASAT','R1','AB');
-        
-    end  
-    
-                            fprintf('done\n'); 
-                            elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
-    
-                            tic
-                    
-    %%%%%%%%%%%%%%%%%%%%%  convolve the spectrum with the ULTRASAT throughut and
-    %%%%%%%%%%%%%%%%%%%%%  fill the CatFlux column with the spectrum-intergated countrate fluxes
-    
-    for Isrc = 1:1:NumSrc
-        
-        SpecAbs(Isrc,:) = SpecIn(Isrc,:) .* TotT(Isrc,:) .* DeltaLambda ... 
-                          .* SAper ./ ( H * C ./ ( 1e-8 * Wave(:) ) )' ;
-        % [ counts /s /bin ] = [ erg s(-1) cm(-2) A(-1) ] * [ counts / ph ] * [ A / bin ] * [ cm(2) ]/ [ erg / ph ]
-        
-        % the wavelength integrated source fluxes [ counts / s ]
-        CatFlux(Isrc) = sum ( SpecAbs(Isrc,:), 'all' );   
+% 
+% 
+%                 end
 
-    end
-        
-                            fprintf('Source spectra convolved with the throughput\n'); 
-                
-    %%%%%%%%%%%%%%%%%%%%%  read the chosen PSF database from a .mat file
-    
-                            fprintf('Reading PSF database.. '); 
-    
-    PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF',Args.ImRes,'.mat');
-    ReadDB = struct2cell ( io.files.load1(PSF_db) ); % PSF data at chosen resolution
-    PSFdata = ReadDB{2}; 
-    
-%     if ( size(PSFdata,3) ~= Nwave ) || ( size(PSFdata,4) ~= Nrad )
-    if size(PSFdata,4) ~= Nrad 
-        error('PSF array size mismatch, exiting..');
-    end
-    
-                            fprintf('done\n'); 
-                            elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
-    
-    %%%%%%%%%%%%%%%%%%%%%  integrate the throughput-convolved source spectra 
-    %%%%%%%%%%%%%%%%%%%%%  S_i(λ)*Th(λ,r_i) with their PSF_i(λ,r_i) over the frequency range 
-    %%%%%%%%%%%%%%%%%%%%%  and obtain spectrum-weighted PSF_i for each source
-    
-%     Nx = size(PSFdata,1); 
-%     Ny = size(PSFdata,2);
-%     WPSF = zeros( Nx, Ny, NumSrc );
-    
-                            fprintf('Weighting source PSFs with their spectra.. ');
-                    
-    WPSF = imUtil.psf.specWeight(SpecAbs, RadSrc, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, ...
-                                 'Lambda',WavePSF,'SpecLam',Wave); 
-        
-                            fprintf('done\n'); 
-                            elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
+        end
 
-    %%%%%%%%%%%%%%%%%%%%% rotate the weighted source PSFs, blur them due to the S/C jitter 
-    %%%%%%%%%%%%%%%%%%%%% and inject them into an empty tile image
-    
-                            fprintf('Rotating the PSFs and injecting them into an empty image.. ');
-    
-    [ImageSrc, PSF] = imUtil.art.injectArtSrc (CatX, CatY, CatFlux, ImageSizeX, ImageSizeY,...
-                             WPSF, 'PSFScaling',Args.ImRes,'RotatePSF',RotAngle,...
-                             'Jitter',1,'Method',Args.Inj,'MeasurePSF',0); 
-                       
-                            fprintf(' done\n');
-                            elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
+                                fprintf('done\n'); 
+                                elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
+
+                                tic
+
+                        % TEST input: a flat spectrum the 240-280 band, null otherwise
+    %                     if false
+    %                         
+    %                         fprintf('TEST input: flat spectrum in the 240-280 band\n');
+    %                         
+    %                         for Iwave = 1:1:Nwave
+    %                             for Isrc = 1:1:NumSrc
+    %                                 if (Wave(Iwave) < 2400) || (Wave(Iwave) > 2800) 
+    %                                     SpecIn(Isrc,Iwave) = 0.;
+    %                                 else
+    %                                     SpecIn(Isrc,Iwave) = 1.;
+    %                                 end
+    %                             end
+    %                         end
+    %                             
+    %                     end
+                        % END TEST
+
+        %%%%%%%%%%%%%%%%%%%%%  rescale the spectra to the input magnitudes 
+
+                                fprintf('%s%s%s%s%s','Rescaling spectra to fit the input ',...
+                                         Args.FiltFam{1},'/',Args.Filt{1},' magnitudes...');
+
+        for Isrc = 1:1:NumSrcCh
+
+              Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
+              
+              AS = AstroSpec([Wave' SpecIn(Isrc,:)']); % can not take this out of the loop, as AstroSpec can not 
+                                                       % produce multiple objects at a time
+              if numel(Args.Mag) > 1 
+                  InMag(Isrc_gl) = Args.Mag(Isrc_gl); 
+              else
+                  InMag(Isrc_gl) = Args.Mag(1); 
+              end
+              if numel(Args.Filt) > 1
+                  Filter = Args.Filt{Isrc_gl};
+              else
+                  Filter = Args.Filt{1};
+              end
+              if numel(Args.FiltFam) > 1
+                  FiltFam = Args.FiltFam{Isrc_gl};
+              else
+                  FiltFam = Args.FiltFam{1};
+              end
+              
+              if strcmp(FiltFam,'ULTRASAT')
+                SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), UP.U_AstFilt(IndR(Isrc)),'R1'); % NB: here 'R1' does not mean anything
+              else
+                SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), FiltFam, Filter); % scaleSynphot does not work with arrays of filters?
+              end
+              SpecIn(Isrc,:) = SpecScaled.Flux; 
+
+    %           fprintf('%s%d%s%4.1f\n','Eff. magnitude of source ', Isrc,' = ',...
+    %               astro.spec.synthetic_phot([SpecScaled.Wave, SpecScaled.Flux],'ULTRASAT','R1','AB');
+    %               astro.spec.synthetic_phot([Wave', Spec(1,:)'],'ULTRASAT','R1','AB');
+
+        end  
+
+                                fprintf('done\n'); 
+                                elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
+
+                                tic
+
+        %%%%%%%%%%%%%%%%%%%%%  convolve the spectrum with the ULTRASAT throughut and
+        %%%%%%%%%%%%%%%%%%%%%  fill the CatFlux column with the spectrum-intergated countrate fluxes
+
+        % [ counts /s /bin ] = [ erg s(-1) cm(-2) A(-1) ] * [ counts / ph ] * [ A / bin ] * [ cm(2) ]/ [ erg / ph ]:
+        SpecAbs = SpecIn .* TotT .* DeltaLambda .* SAper ./ ( H*C ./(1e-8 .* Wave) );
+        % the wavelength integrated source fluxes [ counts / s ]:
+        CatFlux(Range) = sum(SpecAbs,2);
+        
+%         for Isrc = 1:1:NumSrcCh # check with a massive calc before deleting this block
+%             
+%             Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
+% % 
+% %             SpecAbs(Isrc,:) = SpecIn(Isrc,:) .* TotT(Isrc,:) .* DeltaLambda ... 
+% %                               .* SAper ./ ( H * C ./ ( 1e-8 * Wave(:) ) )' ;
+%             % [ counts /s /bin ] = [ erg s(-1) cm(-2) A(-1) ] * [ counts / ph ] * [ A / bin ] * [ cm(2) ]/ [ erg / ph ]
+% 
+%             % the wavelength integrated source fluxes [ counts / s ]
+%             CatFlux(Isrc_gl) = sum ( SpecAbs(Isrc,:), 'all' );   
+% 
+%         end
+        
+                                fprintf('Source spectra convolved with the throughput\n'); 
+
+        %%%%%%%%%%%%%%%%%%%%%  integrate the throughput-convolved source spectra 
+        %%%%%%%%%%%%%%%%%%%%%  S_i(λ)*Th(λ,r_i) with their PSF_i(λ,r_i) over the frequency range 
+        %%%%%%%%%%%%%%%%%%%%%  and obtain spectrum-weighted PSF_i for each source
+
+                                fprintf('Weighting source PSFs with their spectra.. ');
+
+        WPSF = imUtil.psf.specWeight(SpecAbs, RadSrc, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, ...
+                                     'Lambda',WavePSF,'SpecLam',Wave); 
+
+                                fprintf('done\n'); 
+                                elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
+
+        %%%%%%%%%%%%%%%%%%%%% rotate the weighted source PSFs, blur them due to the S/C jitter 
+        %%%%%%%%%%%%%%%%%%%%% and inject them into an empty tile image
+
+                                fprintf('Rotating the PSFs and injecting them into an empty image.. ');
+                                
+        CatX_ch    = CatX(Range);   % cut the appropriate parts of the Cat catalog
+        CatY_ch    = CatY(Range);
+        CatFlux_ch = CatFlux(Range);
+        
+        if numel(RotAngle) > 1 
+            RotAngle_ch = RotAngle(Range);
+        else
+            RotAngle_ch = RotAngle;
+        end
+        
+        [Image_ch, PSF_ch] = imUtil.art.injectArtSrc (CatX_ch, CatY_ch, CatFlux_ch, ImageSizeX, ImageSizeY,...
+                                 WPSF, 'PSFScaling', Args.ImRes, 'RotatePSF', RotAngle_ch,...
+                                 'Jitter', 1, 'Method', Args.Inj, 'MeasurePSF', 0); 
+
+                                fprintf(' done\n');
+                                elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
+                                
+        %%%%%%%%%%%%%%%%%%%% add the chunk image to the summed source image
+        %%%%%%%%%%%%%%%%%%%% and populate the PSF of the sources 
+        
+        ImageSrc = ImageSrc + Image_ch;  % add the image containing the newly added sources to the current summed image
+        
+        if NumSrc < Args.MaxPSFNum
+            
+            PSF( :, :, Range ) = PSF_ch;  % fill in the resulting PSF array if the nmuber of sources is not too large
+        
+        end
+                            
+                                fprintf('Partial source image added to the stacked source image \n');
+                                
+    end % end the loop over source chunks
     
     %%%%%%%%%%%%%%%%%%%%% add and apply various types of noise to the tile image 
     %%%%%%%%%%%%%%%%%%%%% NB: while ImageSrc is in [counts/s], 
     %%%%%%%%%%%%%%%%%%%%%           ImageSrcNoise is already in [counts] !! 
     
-                            fprintf('Adding noise .. ');
-                    
+                            cprintf('hyper','Adding noise .. ');
                     
 %     ImageSrcNoise = imUtil.art.noise(ImageSrc,'Exposure',Args.Exposure,...
 %                                     'Dark',Args.NoiseDark,'Sky',Args.NoiseSky,...
-%                                     'Poisson',Args.NoisePoisson,'ReadOut',Args.NoiseReadout);
-%                                 
+%                                     'Poisson',Args.NoisePoisson,'ReadOut',Args.NoiseReadout);                              
         
     NoiseLevel    = Back.Tot * ones(ImageSizeX,ImageSizeY);   % already in [counts], see above
     SrcAndNoise   = ImageSrc .* Exposure + NoiseLevel; 
@@ -541,73 +644,72 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                     
     %%%%%%%%%%%%%%%%%%%%%%  cut the saturated pixels (to be refined later) 
     
-    ImageSrcNoise = min(ImageSrcNoise, FullWell);
+    ImageSrcNoise = min(ImageSrcNoise, FullWell * Args.Exposure(1) );
     
                             fprintf('Saturated pixels cutted\n');
     
-    %%%%%%%%%%%%%%%%%%%%%%  make an ADU and mask ADU images
+    %%%%%%%%%%%%%%%%%%%%%%  make an ADU and mask ADU images (for a single
+    %%%%%%%%%%%%%%%%%%%%%%  exposure observation only)
     
-    ImageSrcNoiseGainMask = ImageSrcNoise > GainThresh * Args.Exposure(1);  % if the signal is above the threshold, use high gain
-    ImageSrcNoiseADU = ImageSrcNoise .* ( ImageSrcNoiseGainMask .* E2ADUhigh + ...
-                                          (ones(ImageSizeX,ImageSizeY)-ImageSrcNoiseGainMask) .* E2ADUlow );
+    if Args.Exposure(1) == 1
+        ImageSrcNoiseGainMask = ImageSrcNoise > GainThresh;  % if the signal is above the threshold, use low gain
+        ImageSrcNoiseGain = ImageSrcNoise .* ( ImageSrcNoiseGainMask .* E2ADUlow + ...
+                                              (ones(ImageSizeX,ImageSizeY)-ImageSrcNoiseGainMask) .* E2ADUhigh );
+        ImageSrcNoiseADU = ultrasat.e2ADU(ImageSrcNoiseGain, ImageSrcNoiseGainMask); % the ADU is a 14-bit integer 
+    else
+        fprintf('NOTE: the ADU image is not produced once multiple exposures are modelled..\n'); 
+    end
 
-    %%%%%%%%%%%%%%%%%%%%%%  output: a) an AstroImage object with filled image, header, and PSF attachments 
-    %%%%%%%%%%%%%%%%%%%%%%  b) a FITS image c) a native (RAW) format image 
+    %%%%%%%%%%%%%%%%%%%%%%  output: a) an AstroImage object with filled image, header, and PSF properties  
+    %%%%%%%%%%%%%%%%%%%%%%          b) a FITS image c) a native (RAW) format image 
     
                             fprintf('Compiling output structures and writing files..\n'); drawnow('update'); tic
-       
+    
+    % compile a catalog table
+    Cat = [CatX CatY CatFlux InMag RA DEC];
+    
     % if we generated a fake catalog above, make a catalog table here 
-    if ~isa(Args.InCat,'AstroCatalog')
-        Cat = [CatX CatY CatFlux InMag RA DEC];
-        Args.InCat = AstroCatalog({Cat},'ColNames',{'X','Y','Counts','MAG','RAJ2000','DEJ2000'},'HDU',1);
+    if ~isa(Args.Cat,'AstroCatalog')    
+        Args.Cat = AstroCatalog({Cat},'ColNames',{'X','Y','Counts','MAG','RA','Dec'},'HDU',1);
     end
-    
-    % save the final source PSFs into an AstroPSF array 
-    
-    AP(1:NumSrc) = AstroPSF;
-    
-    for Isrc = 1:1:NumSrc
         
-        AP(Isrc).DataPSF = PSF(:,:,Isrc);
-    
-    end
-    
     % make sky background and variance images
 
 %     Emptybox = zeros(ImageSizeX,ImageSizeY);
         
     % make an AstroImage (note, the image is to be transposed!)
-    usimImage = AstroImage( {ImageSrcNoise'} ,'Back',{NoiseLevel}, 'Var',{ImageBkg},'Cat',{Args.InCat.Catalog});   
-    
-    % add a simple WCS centered at a given point in the sky
-    
-    if Args.AddWCS
-    
-        usimImage.WCS = AstroWCS();
-        usimImage.WCS.ProjType  = 'TAN';
-        usimImage.WCS.ProjClass = 'ZENITHAL';
-        usimImage.WCS.CooName   = {'RA'  'DEC'};
-        usimImage.WCS.CTYPE     = {'RA---TAN','DEC---TAN'};
-        usimImage.WCS.CUNIT     = {'deg', 'deg'};
-        usimImage.WCS.CD(1,1)   = PixSizeDeg;
-        usimImage.WCS.CD(2,2)   = PixSizeDeg;  
-        usimImage.WCS.CRVAL(1)  = Args.RAcenter;
-        usimImage.WCS.CRVAL(2)  = Args.DECcenter;
-        usimImage.WCS.CRPIX(1)  = ImageSizeX/2;
-        usimImage.WCS.CRPIX(2)  = ImageSizeY/2;
-        usimImage.WCS.AlphaP    = Args.RAcenter;
-        usimImage.WCS.DeltaP    = Args.DECcenter;
-        usimImage.WCS.PhiP      = 180; 
-        
-        AH = usimImage.WCS.wcs2header;       % make a header from the WCS
-        usimImage.HeaderData.Data = AH.Data; % add the header data to the AstroImage
+    usimImage = AstroImage( {ImageSrcNoise'} ,'Back',{NoiseLevel}, 'Var',{ImageBkg},'Cat',{Args.Cat.Catalog}); 
 
+    % save the final source PSFs into an AstroPSF array and attach it to
+    % the resulting AstroImage object, if the source number is not too large
+    
+    if NumSrc < Args.MaxPSFNum
+
+        AP(1:NumSrc) = AstroPSF;
+
+        for Isrc = 1:1:NumSrc
+
+            AP(Isrc).DataPSF = PSF(:,:,Isrc);
+
+        end
+
+        usimImage.PSF = AP; 
+    
+    else
+        
+        fprintf('NOTE: the number of input sources is too large to record each of their PSFs..\n'); 
+        
     end
     
-%     % add some keywords and values to the image header % TBD
-
-     usimImage.setKeyVal('EXPTIME',Exposure);
-     usimImage.setKeyVal('DATEOBS','2026-01-01T00:00:00');
+    % add the WCS data to the AstroImage object:
+    usimImage.WCS = SimWCS; 
+    
+    AH = usimImage.WCS.wcs2header;       % make a header from the WCS
+    usimImage.HeaderData.Data = AH.Data; % add the header data to the AstroImage
+    
+    % add some more keywords and values to the image header:
+    usimImage.setKeyVal('EXPTIME',Exposure);
+    usimImage.setKeyVal('DATEOBS','2026-07-01T00:00:00');
 %     funHeader(usimImage, @insertKey, {'DATEOBS','2026-01-01T00:00:00','';'EXPTIME', Exposure,''});  
 
 %         AH = usimImage.Header;               % save the header back from the AstroImage
@@ -625,51 +727,65 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 %     ImRot2 = imProc.transIm.imwarp1(usimImage,tform);
 %     size(ImRot2.Image)
 
-       
-    % save the object in a .mat file for a future usage:
-    OutObjName = sprintf('%s%s%s','SimImage_tile',Args.Tile,'.mat');   
-    save(OutObjName,'usimImage','-v7.3');
+    % save the AstroImage object in a .mat file for a future usage (if requested):
+    if Args.SaveMatFile 
+        OutObjName = sprintf('%s%s%s%s',Args.OutName,'_tile',Args.Tile,'.mat');   
+        save(OutObjName,'usimImage','-v7.3');
+    end
            
     % write the image to a FITS file    
     if strcmp( Args.OutType,'FITS') || strcmp( Args.OutType,'all')
-        
-        % NB: when writing to a fits image, we need to transpose the image
-        OutFITSName = sprintf('%s%s%s%s%s','!',Args.OutDir,'/SimImage_tile',Args.Tile,'.fits'); 
-%         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName,'Header',{'EXPTIME', Exposure,''});  %  DOES NOT WORK
-%         imUtil.util.fits.fitswrite(ImageSrcNoise',OutFITSName);   
-        usimImage.write1(OutFITSName); % write the image and header to a FITS file
-        
+                
+        OutFITSName = sprintf('%s%s%s%s%s%s%s','!',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'.fits');
+%         usimImage.write1(OutFITSName); % write the image and header to a FITS file
+        FITS.write(usimImage.Image, OutFITSName, 'Header',usimImage.HeaderData.Data,...
+                    'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);
+
+        if Args.Exposure(1) == 1 % the ADU image is put out only when we model 1 exposure
+            OutFITSName = sprintf('%s%s%s%s%s%s%s','!',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'_ADU.fits'); 
+            FITS.write(ImageSrcNoiseADU, OutFITSName, 'DataType','int16',...
+                        'Append',false,'OverWrite',true,'WriteTime',true);
+        end
+               
         % make a text file with the input catalog:
-        fileID = fopen('SimImage_InCat.txt','w'); 
-        fprintf(fileID,'%7.1f %7.1f %5.2f %d\n',Cat(:,(1:4))');
+        OutTxtName = sprintf('%s%s%s%s%s%s',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'_InCat.txt'); 
+        fileID = fopen(OutTxtName,'w'); 
+%         fprintf(fileID,'%7.1f %7.1f %5.2f %.2d\n',Cat(:,(1:4))');
+        fprintf(fileID,'%7.1f %7.1f %5.2f %.2d %.4d %.4d\n',Cat');
         fclose(fileID);
         
         % an accompanying region file: 
-        OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'.reg');
-        DS9_new.regionWrite([CatX CatY],'FileName',OutRegName,'Color','blue','Marker','b','Size',1,'Width',4); 
+        OutRegName  = sprintf('%s%s%s%s%s%s',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'.reg');
+        DS9_new.regionWrite([CatX CatY],'FileName',OutRegName,'Color','blue','Marker','b','Size',1,'Width',4,...
+                            'Precision','%.2f','PrintIndividualProp',0); 
         
         % more region files for various parts of the source distribution:
-        idx = Cat(:,4) > 24.5 & Cat(:,4) < 25.5;      % faintest sources
-        CatFaint = Cat(idx,:);  
-        OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'faint.reg');
-        DS9_new.regionWrite([CatFaint(:,1) CatFaint(:,2)],'FileName',OutRegName,'Color','blue','Marker','o','Size',1,'Width',4);     
-      
-        idx = Cat(:,4) > 23.5 & Cat(:,4) < 24.5;      % medium brightness sources 
-        CatMed = Cat(idx,:);  
-        OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'medium.reg');
-        DS9_new.regionWrite([CatMed(:,1) CatMed(:,2)],'FileName',OutRegName,'Color','green','Marker','o','Size',1,'Width',4);
-        
-        idx = Cat(:,4) > 22.5 & Cat(:,4) < 23.5;      % bright sources 
-        CatBright = Cat(idx,:);  
-        OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'bright.reg');
-        DS9_new.regionWrite([CatBright(:,1) CatBright(:,2)],'FileName',OutRegName,'Color','cyan','Marker','b','Size',1,'Width',4);     
+        if Args.SaveRegionsBySourceMag
+            idx = Cat(:,4) > 24.5 & Cat(:,4) < 25.5;      % faintest sources
+            CatFaint = Cat(idx,:);  
+            OutRegName  = sprintf('%s%s%s%s%s%s',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'faint.reg');
+            DS9_new.regionWrite([CatFaint(:,1) CatFaint(:,2)],'FileName',OutRegName,'Color','blue','Marker','o','Size',1,'Width',4,...
+                                 'Precision','%.2f','PrintIndividualProp',0);     
+          
+            idx = Cat(:,4) > 23.5 & Cat(:,4) < 24.5;      % medium brightness sources 
+            CatMed = Cat(idx,:);  
+            OutRegName  = sprintf('%s%s%s%s%s%s',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'medium.reg');
+            DS9_new.regionWrite([CatMed(:,1) CatMed(:,2)],'FileName',OutRegName,'Color','green','Marker','o','Size',1,'Width',4,...
+                                 'Precision','%.2f','PrintIndividualProp',0);
+            
+            idx = Cat(:,4) > 22.5 & Cat(:,4) < 23.5;      % bright sources 
+            CatBright = Cat(idx,:);  
+            OutRegName  = sprintf('%s%s%s%s%s%s',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'bright.reg');
+            DS9_new.regionWrite([CatBright(:,1) CatBright(:,2)],'FileName',OutRegName,'Color','cyan','Marker','b','Size',1,'Width',4,...
+                                'Precision','%.2f','PrintIndividualProp',0);     
+        end
         
     end
 
     %%%%%%%%%%%%%%%%%%%%    
     
-                    elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
-                    tstop = datetime("now");
+                    elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
+                    tstop = datetime("now"); 
                     cprintf('hyper','%s%s%s\n','Simulation completed in ',tstop-tstart,...
                                          ' , see the generated images')
 
