@@ -108,6 +108,21 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
          
     end
     
+    % input format correction
+    if ~iscell(Args.FiltFam)
+                Args.FiltFam = {Args.FiltFam};
+    end
+    if ~iscell(Args.Filt)
+                Args.Filt = {Args.Filt};
+    end
+    if ~iscell(Args.SpecType)
+                Args.SpecType = {Args.SpecType};
+    end
+    if ~iscell(Args.WCSFile)
+                Args.WCSFile = {Args.WCSFile};
+    end
+    
+    
                         % simulation start 
                         Exposure = Args.Exposure(1) * Args.Exposure(2); 
                             
