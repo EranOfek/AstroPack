@@ -210,9 +210,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
     
     UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');   
     io.files.load1(UP_db,'UP');
-
-    % is it possible to read just some of the UP structures: UP.TotT, UP.wavelength and, possibly, UP.Specs?
-    % we can save them as separate .mat objects and read those  
     
     %%%%%%%%%%%%%%%%%%%%%  read the chosen PSF database from a .mat file
 
@@ -346,9 +343,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim_dev ( Args )
 
         RadSrc = sqrt( ( CatX(Range) - X0 ).^2 + ( CatY(Range) - Y0 ).^2 ) .*  PixSizeDeg;   % the source radii [deg]        
         TotT   = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc', 'linear', Tiny)';     % regrid the throughput 
-        
-        [~, IndR] = min( abs(RadSrc - Rad), [], 2);
-
+        [~, IndR] = min( abs(RadSrc - Rad), [], 2);                                          % IndR is the RXX filter 
+                                                                                             % zone number for each of the sources
         %%%%%%%%%%%%%%%%%%%%% read or generate source spectra
         %%%%%%%%%%%%%%%%%%%%%
 
