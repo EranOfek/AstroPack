@@ -38,6 +38,7 @@ function convertGALEXdistribution
         
     end
     
-    save('~/Galex_USmag.mat','MagU', 'Temp', 'MagNUV', 'Rad');
+    MagDB = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/GALEX_ULTRASAT_magn.mat');
+    save(MagDB,'MagU', 'Temp', 'MagNUV', 'Rad');
 
 end
