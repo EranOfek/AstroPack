@@ -1708,12 +1708,12 @@ classdef DemonLAST < Component
                                     StKey = AllSI(1).getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
                                     ProcCat.writeLargeCSV(ProcCatFileName,...
                                         'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
-                                        'AddColValues',[StKey.CamNUM StKey.MountNUM StKey.NodeNUM StKey.NodeJD StKey.ExpTIME] );
+                                        'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUM, StKey.JD, StKey.EXPTIME] );
                                     
                                     StKey = Coadd(1).getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
                                     CoaddCat.writeLargeCSV(CoaddCatFileName,...
                                         'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
-                                        'AddColValues',[StKey.CamNUM StKey.MountNUM StKey.NodeNUM StKey.NodeJD StKey.ExpTIME] );
+                                        'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUM, StKey.JD, StKey.EXPTIME] );
                                     
                                     Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB'); 
                                 
