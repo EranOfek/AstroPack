@@ -182,6 +182,6 @@ function simImage = simulate_ULTRASAT_image (Args)
     
     simImage = ultrasat.usim('Cat', Cat, 'Mag', MagUS, 'Spec', Spec,'Exposure',[Args.ExpNum 300],...
                     'OutDir', Args.OutDir,'SkyCat', Args.SkyCat, 'PlaneRotation', Args.PlaneRotation,...
-                    'RA0',Args.RA0,'Dec0',Args.Dec0,'OutName',Args.OutName);                    
+                    'RA0', Args.RA0,'Dec0', Args.Dec0,'OutName', Args.OutName);                    
     
 end
