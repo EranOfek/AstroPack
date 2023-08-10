@@ -696,11 +696,17 @@ classdef AstroCatalog < AstroTable
                         if isempty(X) || isempty(Y)
                             error('Can not find RA/Dec coordinates in catalog');
                         end
+                        if all(isnan(X))
+                            error('All coordinates are NaN - cant find boundingCircle');
+                        end
                         [BestCoo, BestRadius] = celestial.coo.boundingCircle(X, Y);   % [radians]
                     case 'pix'
                         [X, Y] = getXY(Obj(Iobj));
                         if isempty(X) || isempty(Y)
                             error('Can not find X/Y coordinates in catalog');
+                        end
+                        if all(isnan(X))
+                            error('All coordinates are NaN - cant find boundingCircle');
                         end
                         [BestCoo, BestRadius] = tools.math.geometry.boundingCircle(X, Y);  % [radians]
                     otherwise
