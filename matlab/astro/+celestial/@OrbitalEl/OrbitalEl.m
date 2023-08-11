@@ -180,8 +180,12 @@ classdef OrbitalEl < Base
             Nprop = numel(Prop);
             for Iprop=1:1:Nprop
                 Ndata = size(Result.(Prop{Iprop}), 1);
-                if Ndata==Ne
-                    Result.(Prop{Iprop}) = Result.(Prop{Iprop})(Flag,:);
+                if numel(Flag)==Ndata
+                    if iscell(Result.(Prop{Iprop}))
+                        Result.(Prop{Iprop}) = Result.(Prop{Iprop})(Flag);
+                    else
+                        Result.(Prop{Iprop}) = Result.(Prop{Iprop})(Flag,:);
+                    end
                 end
             end
             
@@ -456,6 +460,56 @@ classdef OrbitalEl < Base
             
         end
 
+    end
+    
+    methods  % probability distributions
+        function Prob = probabilityDist(Obj, Args)
+            % Return probability distribution of Nu,R,E,V,M
+            %   For each source in the OrbitalEl object calculate Nsim
+            %   realizations and return all the evaluated parameters.
+            % Input  : - A celestial.OrbitalEl object.
+            %          * ...,key,val,...
+            %            'Nsim' - Number of realizations per source.
+            %                   Default is 100.
+            %            'TimeRange' - Time range from t0 in which to
+            %                   randomally calculate the realizations.
+            %                   Default is 1e4 [days].
+            %            'T0' - JD of t0. Default is 2451545.
+            %            'keplerSolveArgs' - A cell array of arguments to
+            %                   pass to keplerSolve. Default is {}.
+            % Output : - A structure with all the simulated parameters.
+            % Author : Eran Ofek (Aug 2023)
+            % Example: O=celestial.OrbitalEl.loadSolarSystem;
+            %          F=O(1).A>35; O(1)
+            %          K=O(1).selectFlag(F);
+            %          P=K.probabilityDist;
+           
+            arguments
+                Obj
+                Args.Nsim                      = 100;
+                Args.TimeRange                 = 1e4;  % [days]
+                Args.T0                        = 2451545;
+                Args.keplerSolveArgs cell      = {};
+            end
+            
+            Time = Args.T0 + Args.TimeRange.*rand(Args.Nsim,1); 
+            All = struct('V',cell(Args.Nsim,1), 'Nu',cell(Args.Nsim,1), 'R',cell(Args.Nsim,1), 'M',cell(Args.Nsim,1));
+            for Isim=1:1:Args.Nsim
+                [All(Isim).Nu, All(Isim).R, All(Isim).E, All(Isim).V, All(Isim).M] = keplerSolve(Obj, Time(Isim), Args.keplerSolveArgs{:});
+            end
+            
+            Prob.Nu = [All.Nu];
+            Prob.Nu = Prob.Nu(:);
+            Prob.R  = [All.R];
+            Prob.R  = Prob.R(:);
+            Prob.E  = [All.E];
+            Prob.E  = Prob.E(:);
+            Prob.V  = [All.V];
+            Prob.V  = Prob.V(:);
+            Prob.M  = [All.M];
+            Prob.M  = Prob.M(:);
+            
+        end
     end
     
     methods % Solving Kepler equation and related functions
