@@ -1,11 +1,29 @@
 function image = createSegments(sizes,point1,point2,Args)
-% from
-% https://math.stackexchange.com/questions/330269/the-distance-from-a-point-to-a-line-segment
+% Creates an image with N impainted streaks
 %
 % Input:
+%    sizes (1,2) dimension of the resulting image matrix
+%    point1 (N,2)  x and y of the start point of each of the N segments
+%    point2 (N,2)  x and y of the end point of each of the N segments
+%                  (extremes outside the grid are supported)
+%    key-value argument pairs:
+%      - 'shape'  'gaussian' (default) or 'flat'
+%      - 'width'   width of the flat streak, sigma for gaussian streak
+%                  (default 1)
 % Output:
+%    a matrix of doubles of dimension sizes
+%
+%    Note on normalization: 'flat' streaks result in a value 1 at all
+%      impainted pixels. 'gaussian' profiles are unnormalized.
+%      Multiplication by an amplitude factor is left to the user (one would
+%      then argue about the pixel value representing the pointwise value
+%      rather than the flux integral over the pixel area)
+%
+% algorithm taken from
+% https://math.stackexchange.com/questions/330269/the-distance-from-a-point-to-a-line-segment
+%
 % Example:
-%   image=drawSegment([250,400],[322,233;98,0],[54,11;145,211],'width',5)
+%   image=imUtil.art.createSegments([250,400],[322,233;98,0],[54,11;145,211],'width',5);
 %   imagesc(image); axis xy
     arguments
         sizes(1,2);
