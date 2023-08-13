@@ -83,7 +83,7 @@ function [Result, CubePsfSub] = psfPhotCubeDivide(Cube, Args)
     % Author : Eran Ofek (Dec 2021)
     % Example: P=imUtil.kernel2.gauss;
     %          Ps=imUtil.trans.shift_fft(P,0.4,0.7);
-    %          [R,S]=imUtil.sources.psfPhotCube(Ps, 'PSF',P)
+    %          [R,S]=imUtil.sources.psfPhotCubeDivide(Ps, 'PSF',P)
     %          P=imUtil.kernel2.gauss(1.5.*ones(4,1));
     %          Ps=imUtil.trans.shift_fft(P,[0.4;0.7;-1.1;3.6],[0.7;-0.2;-0.9;-2.6]);
     %          Ps = Ps.*permute([100 110 200 300],[1 3 2]) + randn(15,15);
@@ -104,7 +104,9 @@ function [Result, CubePsfSub] = psfPhotCubeDivide(Cube, Args)
         Args.MaxStep    = 0.15;
         Args.ConvThresh = 1e-4;
         Args.MaxIter    = 8;
-
+        Args.IterationFactor = 0.3;
+        Args.MaxStep_RadiusRangeUnits = 1;
+        
         Args.SN         = [];
         
         Args.UseSourceNoise = 'last'; %'off';
@@ -216,7 +218,7 @@ function [Result, CubePsfSub] = psfPhotCubeDivide(Cube, Args)
         % DX, DY suppose to be 0 in the first iteration:
         
         RadiusRange = Args.IterationFactor.^Ind;
-        [X1,Y1, MinChi2,Flux0,Dof,H, Res]=imUtil.psf.psfChi2_RangeIter(Cube, Std, PSF, 'RadiusRange',RadiusRange,...
+        [X1,Y1, MinChi2,Flux0,Dof,H, Res]=imUtil.psf.psfChi2_RangeIter(Cube, Std, Args.PSF, 'RadiusRange',RadiusRange,...
                                                                                        'MaxStep_RadiusRangeUnits',Args.MaxStep_RadiusRangeUnits,...
                                                                                        'DX',DX,...
                                                                                        'DY',DY,...
@@ -225,13 +227,17 @@ function [Result, CubePsfSub] = psfPhotCubeDivide(Cube, Args)
                                                                                        'H',H);
         
         % is this correct? not sure
-        DX = X1;
-        DY = Y1;
+        %DX = X1;
+        %DY = Y1;
+        [DX, DY]
+        
+        %StepX = X1 - DX;
+        %StepY = Y1 - DY;
         
         StepX = X1 - DX;
         StepY = Y1 - DY;
-        
-        
+        DX    = X1;
+        DY    = Y1;
         % stoping criteria
         ConvergeFlag = abs(StepX)<ConvThresh & abs(StepY)<ConvThresh;
         if all(ConvergeFlag)
@@ -240,13 +246,25 @@ function [Result, CubePsfSub] = psfPhotCubeDivide(Cube, Args)
         
     end
     % final fit and return flux
-    if AdditionalIter
-        [~, Flux, ShiftedPSF]  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
-        Std = sqrt(Flux.*ShiftedPSF+StdBack.^2);
-        [StepX,StepY]  = gradDescentPSF(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2,H,Args.SmallStep,Args.MaxStep);
-        DX       = DX + StepX;
-        DY       = DY + StepY;
-    end
+%     if AdditionalIter
+%         [Chi2, Flux, Dof] = imUtil.psf.psfChi2(Cube, Std, Args.PSF,...
+%                                            'DX',DX,...
+%                                            'DY',DY,...
+%                                            'MinFlux',[],...
+%                                            'WeightedPSF',WeightedPSF,...
+%                                            'FitRadius2',Args.FitRadius.^2,...
+%                                            'VecXrel',[],...
+%                                            'VecYrel',[],...
+%                                            'SumArgs',{'omitnan'});
+%                                        
+%                                                                
+%         %[~, Flux, ShiftedPSF]  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
+%         %Std = sqrt(Flux.*ShiftedPSF+StdBack.^2);
+%         
+%         %[StepX,StepY]  = gradDescentPSF(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2,H,Args.SmallStep,Args.MaxStep);
+%         %DX       = DX + StepX;
+%         %DY       = DY + StepY;
+%     end
     [Result.Chi2, Flux, ShiftedPSF, Dof]  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
     if isempty(Dof)
         Result.Dof  = Nx.*Ny - 3;
@@ -258,8 +276,8 @@ function [Result, CubePsfSub] = psfPhotCubeDivide(Cube, Args)
     % SNm can be negaive if source is negative
     Result.SNm  = sign(Result.Flux).*abs(Result.Flux)./sqrt(abs(Result.Flux) + (squeeze(StdBack)).^2);  % S/N for measurments
     Result.Mag  = convert.luptitude(Result.Flux, 10.^(0.4.*Args.ZP));
-    Result.DX = DX(:);
-    Result.DY = DY(:);
+    Result.DX = DX(:) + Args.Xinit;
+    Result.DY = DY(:) + Args.Yinit;
     Result.Xinit = Args.Xinit;
     Result.Yinit = Args.Yinit;
     Result.Xcenter = Xcenter;
