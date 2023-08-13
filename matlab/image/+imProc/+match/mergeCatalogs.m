@@ -91,6 +91,12 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %            field/column in the input Astrocatalog). Each AstroCatalog
     %            contains the merged catalog with all the sources and their
     %            properties.
+    %            IMPORTANT: The default 'RA' and 'Dec' columns are derived
+    %            by fitting a proper motion line to all the RA/Dec
+    %            measurments of each source. If there are less then two
+    %            epochs, then these will be NaNs.
+    %            Note that in this case 'Mean_RA' and 'Mean_Dec' can be
+    %            used instead.
     %          - MatchedS is the MatchedSources object array
     %            with element for each field.
     %            The MatchedSources object contains the matrices of the data
