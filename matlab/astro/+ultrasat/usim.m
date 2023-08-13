@@ -324,7 +324,25 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     end
     
     CatFlux       = zeros(NumSrc,1);   % will be determined below from spectra * transmission 
-    InMag         = zeros(NumSrc,1);   % will be rescaled below from the input Mag + Spectra
+    
+    %%%%%%%%%%%%%%%%%%%% reading source magnitudes and filters
+    
+%     InMag         = zeros(NumSrc,1);  
+    if numel(Args.Mag) > 1
+        InMag = Args.Mag;
+    else
+        InMag = Args.Mag(1)*ones(NumSrc,1);
+    end
+    if numel(Args.FiltFam) > 1
+        FiltFam = {Args.FiltFam};
+    else
+        FiltFam = repmat(Args.FiltFam,1,NumSrc);
+    end
+    if numel(Args.Filt) > 1
+        Filter = {Args.Filt};
+    else
+        Filter = repmat(Args.Filt,1,NumSrc);
+    end
     
     %%%%%%%%%%%%%%%%%%%%% split the list of objects into chunks and work
     %%%%%%%%%%%%%%%%%%%%% chunk-by-chunk 
@@ -368,7 +386,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                 fprintf('Reading source spectra.. ');
 
         SpecIn  = zeros(NumSrcCh, Nwave);  % the incoming spectra 
-        SpecAbs = zeros(NumSrcCh, Nwave);  % the incoming spectra convolved with the throughput
 
         % read the input spectra or generate synthetic spectra 
 
@@ -518,7 +535,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         %%%%%%%%%%%%%%%%%%%%%  rescale the spectra to the input magnitudes 
 
                                 fprintf('%s%s%s%s%s','Rescaling spectra to fit the input ',...
-                                         Args.FiltFam{1},'/',Args.Filt{1},' magnitudes...');
+                                         FiltFam{1},'/',Filter{1},' magnitudes...');
 
         for Isrc = 1:1:NumSrcCh
 
@@ -526,32 +543,12 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
               
               AS = AstroSpec([Wave' SpecIn(Isrc,:)']); % can not take this out of the loop, as AstroSpec can not 
                                                        % produce multiple objects at a time
-              if numel(Args.Mag) > 1 
-                  InMag(Isrc_gl) = Args.Mag(Isrc_gl); 
-              else
-                  InMag(Isrc_gl) = Args.Mag(1); 
-              end
-              if numel(Args.Filt) > 1
-                  Filter = Args.Filt{Isrc_gl};
-              else
-                  Filter = Args.Filt{1};
-              end
-              if numel(Args.FiltFam) > 1
-                  FiltFam = Args.FiltFam{Isrc_gl};
-              else
-                  FiltFam = Args.FiltFam{1};
-              end
-              
               if strcmp(FiltFam,'ULTRASAT')
                 SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), UP.U_AstFilt(IndR(Isrc)),'R1'); % NB: here 'R1' does not mean anything
               else
-                SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), FiltFam, Filter); % scaleSynphot does not work with arrays of filters?
+                SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), FiltFam{Isrc_gl}, Filter{Isrc_gl}); % scaleSynphot does not work with arrays of filters?
               end
               SpecIn(Isrc,:) = SpecScaled.Flux; 
-
-    %           fprintf('%s%d%s%4.1f\n','Eff. magnitude of source ', Isrc,' = ',...
-    %               astro.spec.synthetic_phot([SpecScaled.Wave, SpecScaled.Flux],'ULTRASAT','R1','AB');
-    %               astro.spec.synthetic_phot([Wave', Spec(1,:)'],'ULTRASAT','R1','AB');
 
         end  
 
@@ -560,26 +557,22 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
                                 tic
 
+        %%%%%%%%%%%%%%%%%%%%%  account for extinction if the input magnitudes are dereddened (TBD)
+        
+%         Ebv = 0.2; % this block can be placed at the beginning, do not need to repeat many times
+%         ExtMag = astro.spec.extinction(Ebv,(Wave./1e4)');
+%         Ext    = 10.^(-0.4.*ExtMag);
+%         plot(Wave,Ext);
+%         
+%         SpecIn = SpecIn .* Ext; % check it!
+        
         %%%%%%%%%%%%%%%%%%%%%  convolve the spectrum with the ULTRASAT throughut and
         %%%%%%%%%%%%%%%%%%%%%  fill the CatFlux column with the spectrum-intergated countrate fluxes
 
         % [ counts /s /bin ] = [ erg s(-1) cm(-2) A(-1) ] * [ counts / ph ] * [ A / bin ] * [ cm(2) ]/ [ erg / ph ]:
-        SpecAbs = SpecIn .* TotT .* DeltaLambda .* SAper ./ ( H*C ./(1e-8 .* Wave) );
+        SpecCts = SpecIn .* TotT .* DeltaLambda .* SAper ./ ( H*C ./(1e-8 .* Wave) );
         % the wavelength integrated source fluxes [ counts / s ]:
-        CatFlux(Range) = sum(SpecAbs,2);
-        
-%         for Isrc = 1:1:NumSrcCh # check with a massive calc before deleting this block
-%             
-%             Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
-% % 
-% %             SpecAbs(Isrc,:) = SpecIn(Isrc,:) .* TotT(Isrc,:) .* DeltaLambda ... 
-% %                               .* SAper ./ ( H * C ./ ( 1e-8 * Wave(:) ) )' ;
-%             % [ counts /s /bin ] = [ erg s(-1) cm(-2) A(-1) ] * [ counts / ph ] * [ A / bin ] * [ cm(2) ]/ [ erg / ph ]
-% 
-%             % the wavelength integrated source fluxes [ counts / s ]
-%             CatFlux(Isrc_gl) = sum ( SpecAbs(Isrc,:), 'all' );   
-% 
-%         end
+        CatFlux(Range) = sum(SpecCts,2);
         
                                 fprintf('Source spectra convolved with the throughput\n'); 
 
@@ -589,7 +582,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
                                 fprintf('Weighting source PSFs with their spectra.. ');
 
-        WPSF = imUtil.psf.specWeight(SpecAbs, RadSrc, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, ...
+        WPSF = imUtil.psf.specWeight(SpecCts, RadSrc, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, ...
                                      'Lambda',WavePSF,'SpecLam',Wave); 
 
                                 fprintf('done\n'); 
@@ -725,22 +718,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     % add some more keywords and values to the image header:
     usimImage.setKeyVal('EXPTIME',Exposure);
     usimImage.setKeyVal('DATEOBS','2026-07-01T00:00:00');
-%     funHeader(usimImage, @insertKey, {'DATEOBS','2026-01-01T00:00:00','';'EXPTIME', Exposure,''});  
 
 %         AH = usimImage.Header;               % save the header back from the AstroImage
-
-    % TBD: make a rotated image (also need to rotate the source catalog!)
-    % either use imrotate or imwarp, but first need to rotate the WCS and
-    % then warp in respect to rotated WCS? 
-    
-    % makes a larger image due to the rotation
-%     ImRot = imrotate(ImageSrcNoise, 45., 'bilinear', 'loose'); 
-%     size(ImRot)     
-   
-     % cuts the sides of the image so that to keep the dimensions of the intial AI
-%     theta = 45; tform = affine2d([cosd(theta) -sind(theta) 0; sind(theta) cosd(theta) 0; 0 0 1]);
-%     ImRot2 = imProc.transIm.imwarp1(usimImage,tform);
-%     size(ImRot2.Image)
 
     % save the AstroImage object in a .mat file for a future usage (if requested):
     if Args.SaveMatFile 
@@ -752,7 +731,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     if strcmp( Args.OutType,'FITS') || strcmp( Args.OutType,'all')
                 
         OutFITSName = sprintf('%s%s%s%s%s%s%s','!',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'.fits');
-%         usimImage.write1(OutFITSName); % write the image and header to a FITS file
         FITS.write(usimImage.Image, OutFITSName, 'Header',usimImage.HeaderData.Data,...
                     'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);
 
@@ -774,7 +752,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         DS9_new.regionWrite([CatX CatY],'FileName',OutRegName,'Color','blue','Marker','b','Size',1,'Width',4,...
                             'Precision','%.2f','PrintIndividualProp',0); 
         
-        % more region files for various parts of the source distribution:
+        % optional region files for various parts of the source distribution (these can be also extracted later from *InCat.txt):
         if Args.SaveRegionsBySourceMag
             idx = Cat(:,4) > 24.5 & Cat(:,4) < 25.5;      % faintest sources
             CatFaint = Cat(idx,:);  
@@ -804,7 +782,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                     cprintf('hyper','%s%s%s\n','Simulation completed in ',tstop-tstart,...
                                          ' , see the generated images')
 
-    %%%%%%%%%%%%%%%%%%%% post modeling checks
+    %%%%%%%%%%%%%%%%%%%% post modeling checks (optional; in fact, should be done with another method)
     
     if Args.PostModelingFindSources
         
