@@ -1645,6 +1645,7 @@ classdef DemonLAST < Component
                                     HasImage = ~AllSI.isemptyImage; % use only AI's with Image properties filled
                                     ProcFileName = FN_Proc.genFull;
                                     HasFile = cellfun(@(name) exist(name, 'file') == 2, ProcFileName);
+                                    HasFile = reshape(HasFile,size(AllSI,1),size(AllSI,2));
                                     [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage.*HasFile), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage));
                                     Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
                                     Obj.writeLog(Msg, LogLevel.Info);
@@ -1658,6 +1659,7 @@ classdef DemonLAST < Component
                                     HasImage = ~Coadd.isemptyImage; % use only AI's with Image properties filled
                                     CoaddFileName = FN_Coadd.genFull('LevelPath','proc');
                                     HasFile = cellfun(@(name) exist(name, 'file') == 2, CoaddFileName);
+                                    HasFile = reshape(HasFile,size(Coadd,1),size(Coadd,2));
                                     [ID_ProcImage, OK] = ADB.insert(Coadd(HasImage.*HasFile), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImage));
                                     Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
                                     Obj.writeLog(Msg, LogLevel.Info);
