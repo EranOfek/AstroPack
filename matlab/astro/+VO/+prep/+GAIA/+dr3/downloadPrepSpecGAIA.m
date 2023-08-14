@@ -76,7 +76,8 @@ function Cat = downloadPrepSpecGAIA(Args)
     Files = dir('GAIADR3_Spec*hdf5');
     Nfile = numel(Files);
     for Ifile=1:1:Nfile
-        TmpCat = h5read(Files(Ifile).name,'/Data');
+        SpecData = h5read(Files(Ifile).name,'/Data');
+        
     end
 
 
