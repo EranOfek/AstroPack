@@ -2982,8 +2982,8 @@ classdef AstroImage < Component
                                                       Args.cropXYargs{:});
                     end
                     if Args.UpdateWCS
-                        % FFU
-                        warning('UpdateWCS in AstroImage/crop is not implemented');
+                        %warning('UpdateWCS in AstroImage/crop is not implemented');
+                        Result(Iobj).WCS.CRVAL = Result(Iobj).WCS.CRVAL - CCDSEC(Isec,[1 3]);
                     end
                     if Args.UpdateHeader
                         SizeIm = size(Result(Iobj).Image);
