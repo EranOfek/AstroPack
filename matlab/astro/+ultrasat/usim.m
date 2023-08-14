@@ -8,6 +8,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'SkyCat'    - the flag determines whether the input coordinates are RA, Dec
     %       'PlaneRotation - [deg] rotation of the plane w.r.t. the north celestial pole
     %       'Mag'       - a vector of source magnitudes or 1 magnitude for all the sources
+    %       'Ebv'       - E(B-V) of the observed field 
     %       'FiltFam'   - the filter family for which the source magnitudes are defined
     %       'Filt'      - the filter[s] for which the source magnitudes are defined
     %       'SpecType'  - model of the input spectra ('BB','PL') or 'tab'
@@ -38,22 +39,22 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %          - an array of per-object AstroPSFs
     %          - an ADU image (simple array)
     % Tested : Matlab R2020b
-    % Author : A. Krassilchtchikov (Mar 2023)
+    % Author : A. Krassilchtchikov (Mar-Aug 2023)
     % Example: Sim = ultrasat.usim('Cat',1000) 
     % (simulate 1000 sources at random positions with the default spectrum and magnitude)  
     %          
   
-    arguments  
-        
+    arguments          
         Args.Cat             =  10;          % if a number (N), generate N random fake sources
                                              % if a 2D table, use X, Y from this table
                                              % if an AstroCatalog object, use source coordinates from this object
         Args.SkyCat logical  = false;        % the flag determines whether the input coordinates are RA, Dec or in X, Y
         Args.PlaneRotation   =   0;          % [deg] rotation of the detector plane w.r.t. the north celestial pole
                                              
-        Args.Mag             =  20;          % apparent magnitude of the input sources: 
-                                             % one magnitude for all the objects or a vector of magnitudes 
-
+        Args.Mag             =  20;          % apparent magnitudes of the input sources: 
+                                             % one magnitude for all the objects or a vector of magnitudes                                              
+        Args.Ebv             =   0;          % E(B-V) of the observed field (currently 1 value for all the objects)
+                                             % if E(B-V) > 0 the input magnitudes are treated as dereddened
         Args.FiltFam         = {'ULTRASAT'}; % one filter family for all the source magnitudes or an array of families
                                              
         Args.Filt            = {''};         % one filter for all the source magnitudes or an array of filters
@@ -104,24 +105,22 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.SaveMatFile  logical = false;            % whether to make an output .mat file with all the modelled structures
         Args.SaveRegionsBySourceMag logical = false;  % whether to write additional region files according to the input source magnitudes
         
-        Args.PostModelingFindSources logical = false; % attempt for a post-modeling source search (in general, should be out of the modeling routing)
-         
+        Args.PostModelingFindSources logical = false; % attempt for a post-modeling source search (in general, should be out of the modeling routing)         
     end
     
     % input format correction
     if ~iscell(Args.FiltFam)
-                Args.FiltFam = {Args.FiltFam};
+                Args.FiltFam  = {Args.FiltFam};
     end
     if ~iscell(Args.Filt)
-                Args.Filt = {Args.Filt};
+                Args.Filt     = {Args.Filt};
     end
     if ~iscell(Args.SpecType)
                 Args.SpecType = {Args.SpecType};
     end
     if ~iscell(Args.WCSFile)
-                Args.WCSFile = {Args.WCSFile};
-    end
-    
+                Args.WCSFile  = {Args.WCSFile};
+    end 
     
                         % simulation start 
                         Exposure = Args.Exposure(1) * Args.Exposure(2); 
@@ -172,49 +171,48 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     PixelSizeMm = 9.5e-3; % [mm] pixel size 
     PixSizeDeg  = ( PixelSizeMm / FocalLength ) * RAD;  % [deg] pixel size  
     
+    GapMm       = 2.4;  % gap width in mm
+    Ngap        = ceil( GapMm / PixelSizeMm); % number of pixels in the gap
+    
     DAper       = 33.;                   % [cm]    aperture diameter
     SAper       = pi * DAper ^ 2 / 4;    % [cm(2)] aperture area
     
     % coordinates of the inner core of the tile and the rotation angle of the PSF: 
     % NB: the additional rotation by -90 deg for tile "B" is required to have the PSF coma in the right position!
+    % the CRPIX values are chosen so that the CRVAL coordinates are at the aimpoint of the telescope
     switch Args.Tile
-        
         case 'A'
-            
             X0 = ImageSizeX + 0.5; Y0 = 0.5;
             RotAngle = Args.RotAng - 90 + 90;  
-            
+            CRPIX1   = ImageSizeX+Ngap/2;
+            CRPIX2   = -Ngap/2;
         case 'B'
-            
             X0 = 0.5;              Y0 = 0.5;
             RotAngle = Args.RotAng - 90 + 0;  
-            
+            CRPIX1   = -Ngap/2;
+            CRPIX2   = -Ngap/2;
         case 'C'
-            
             X0 = 0.5;              Y0 = ImageSizeY + 0.5;
             RotAngle = Args.RotAng - 90 - 90;  
-            
+            CRPIX1   = -Ngap/2;
+            CRPIX2   = ImageSizeY+Ngap/2;
         case 'D'
-            
             X0 = ImageSizeX + 0.5; Y0 = ImageSizeY + 0.5;
             RotAngle = Args.RotAng - 90 + 180;  
-            
-        otherwise
-            
+            CRPIX1   = ImageSizeX+Ngap/2;
+            CRPIX2   = ImageSizeY+Ngap/2;
+        otherwise            
             error('Invalid tile name, exiting..');   
-        
     end
     
     % pixel saturation and per pixel background (from YS),
     %  e-/ADU conversion coefficients
-    
     FullWell    = 1.6e5;  % [e-] the pixel saturation limit for 1 exposure
     GainThresh  = 1.6e4;  % [e-/pix] the gain threshold
     E2ADUhigh   = 1.185;  % below GainThresh e-/pix 
     E2ADUlow    = 0.074;  % above GainThresh e-/pix
     
     % [e-/pix] background estimates for a 300 s exposure made by YS
-    
     Back.Zody    = 27; Back.Cher  = 15; Back.Stray = 12; Back.Dark = 12;
     Back.Readout =  6; Back.Cross =  2; Back.Gain  =  1;
     
@@ -256,8 +254,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         SimWCS.CD(2,2)   = PixSizeDeg;  
         SimWCS.CRVAL(1)  = Args.RA0;
         SimWCS.CRVAL(2)  = Args.Dec0;
-        SimWCS.CRPIX(1)  = 0; 
-        SimWCS.CRPIX(2)  = 0; 
+        SimWCS.CRPIX(1)  = CRPIX1; 
+        SimWCS.CRPIX(2)  = CRPIX2; 
         SimWCS.populate_projMeta;
         
         % rotate the image:
@@ -325,9 +323,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     
     CatFlux       = zeros(NumSrc,1);   % will be determined below from spectra * transmission 
     
-    %%%%%%%%%%%%%%%%%%%% reading source magnitudes and filters
+    %%%%%%%%%%%%%%%%%%%% reading source magnitudes and filters, 
+    %%%%%%%%%%%%%%%%%%%% calculating the extinction curve
     
-%     InMag         = zeros(NumSrc,1);  
     if numel(Args.Mag) > 1
         InMag = Args.Mag;
     else
@@ -343,6 +341,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     else
         Filter = repmat(Args.Filt,1,NumSrc);
     end
+    
+    ExtMag     = astro.spec.extinction(Args.Ebv,(Wave./1e4)');
+    Extinction = 10.^(-0.4.*ExtMag);
+%     plot(Wave,Extinction);
     
     %%%%%%%%%%%%%%%%%%%%% split the list of objects into chunks and work
     %%%%%%%%%%%%%%%%%%%%% chunk-by-chunk 
@@ -548,7 +550,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
               else
                 SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), FiltFam{Isrc_gl}, Filter{Isrc_gl}); % scaleSynphot does not work with arrays of filters?
               end
-              SpecIn(Isrc,:) = SpecScaled.Flux; 
+              SpecIn(Isrc,:) = SpecScaled.Flux .* Extinction; % the scaled flux is multiplied by the extinction factor 
 
         end  
 
@@ -556,15 +558,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                 elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
 
                                 tic
-
-        %%%%%%%%%%%%%%%%%%%%%  account for extinction if the input magnitudes are dereddened (TBD)
-        
-%         Ebv = 0.2; % this block can be placed at the beginning, do not need to repeat many times
-%         ExtMag = astro.spec.extinction(Ebv,(Wave./1e4)');
-%         Ext    = 10.^(-0.4.*ExtMag);
-%         plot(Wave,Ext);
-%         
-%         SpecIn = SpecIn .* Ext; % check it!
         
         %%%%%%%%%%%%%%%%%%%%%  convolve the spectrum with the ULTRASAT throughut and
         %%%%%%%%%%%%%%%%%%%%%  fill the CatFlux column with the spectrum-intergated countrate fluxes
