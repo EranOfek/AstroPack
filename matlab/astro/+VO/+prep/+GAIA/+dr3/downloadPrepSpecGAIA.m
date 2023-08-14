@@ -15,7 +15,7 @@ function Cat = downloadPrepSpecGAIA(Args)
         Args.URL = 'http://cdn.gea.esac.esa.int/Gaia/gdr3/Spectroscopy/xp_sampled_mean_spectrum/';
         Args.Wave = (336:2:1020).';
         Args.Step = [1 2 3];
-        Args.SaveTemp logical   = true;
+        Args.SaveTemp logical   = false;
     end
     
     %%
@@ -70,6 +70,7 @@ function Cat = downloadPrepSpecGAIA(Args)
                 %HDF5.save(Spec, FileName, '/Data');        
             end
         end
+        Cat = Cat(1:K,:);
     end
     
     %% prep full Cat from HDF5 files
