@@ -61,12 +61,12 @@ classdef AstroPSF1 < Component
     end
     
     properties (SetAccess = public)
-        DataPSF           = [];   % The fun parameters, or a cube, the first 2 dims are the PSF image stamp
-        DataVar           = [];   % variance 
-        Scale             = [1 1]; % Pixel sizes (may be different) 
-        FunPSF            = [];   % e.g., Map = Fun(Data, X,Y, Color, Flux)
-        DimName cell      = {'Wave', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'}; % a standard set of dimensions
-        DimAxes cell      = cell(1,5); % axes according to DimName
+        DataPSF           = [];    % The fun parameters, or a cube, the first 2 dims are the PSF image stamp
+        DataVar           = [];    % variance 
+        Scale             = [1 1]; % Pixel X and Y sizes (may be different) 
+        FunPSF            = [];    % e.g., Map = Fun(Data, X,Y, Color, Flux)
+        DimName cell      = {'Wave', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'}; % the standard set of dimensions
+        DimAxes cell      = cell(1,5);   % axes according to DimName
         InterpMethod      = {'nearest'}; % can be n-dimensional with different methods applied at different dimensions
         
 %         ArgVals cell      = {};
@@ -105,9 +105,7 @@ classdef AstroPSF1 < Component
             % Output : - An AstroPSF object in which the PSF and variance
             %            are populated.
             % Author : Eran Ofek (May 2022)
-            % Example: P=AstroPSF('ztf_20200207460174_000576_zg_c03_o_q3_diffimgpsf.fits')
-            
-            
+            % Example: P=AstroPSF('ztf_20200207460174_000576_zg_c03_o_q3_diffimgpsf.fits')           
             arguments
                 FileName                  = [];
                 Args.HDU                  = 1;
@@ -363,6 +361,7 @@ classdef AstroPSF1 < Component
     
     methods % PSF properties
         
+        
         function [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(Obj, Args)
             % Calculate curve of growth of a PSF includinf radii
             % Input  : - An AstroPSF object
@@ -388,11 +387,12 @@ classdef AstroPSF1 < Component
             %            .Med    - median
             %            .CumSum - cumulative sum.
             %          - Column vector of RadHalfCumSum, radius of cumsum=level
+            %            NaN if PSF is empty.
             %          - Column vector of RadHalfPeak, radius of flux=level.
+            %            NaN if PSF is empty.
             % Example: AP = AstroPSF;
             %          AP.DataPSF = imUtil.kernel2.gauss;
-            %          [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(AP);
-            
+            %          [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(AP);            
             arguments
                 Obj
                 Args.ReCenter(1,1) logical  = true;
@@ -414,18 +414,23 @@ classdef AstroPSF1 < Component
             Nobj = numel(Obj);
             RadHalfPeak   = nan(Nobj,1);
             RadHalfCumSum = nan(Nobj,1);
+            Result = struct('Radius',cell(Nobj,1), 'Sum',cell(Nobj,1), 'Npix',cell(Nobj,1), 'Mean',cell(Nobj,1), 'Med',cell(Nobj,1), 'CumSum',cell(Nobj,1));
             for Iobj=1:1:Nobj
                 Ixy = min(Iobj,Nxy);
-                Result(Iobj)        = imUtil.psf.curve_of_growth(Obj(Iobj).Data, Args.CenterPSFxy(Ixy,:), Args.Step);
-                N = numel(Result(Iobj).Radius);
-                % EpsVec is needed in order to insure monotonicity
-                EpsVec = (1:1:N)'.*Args.EpsStep;
-                RadHalfCumSum(Iobj) = interp1(Result(Iobj).CumSum + EpsVec, Result(Iobj).Radius, Args.Level, Args.InterpMethod);
-                RadHalfPeak(Iobj)   = interp1(Result(Iobj).Med./max(Result(Iobj).Med)-EpsVec, Result(Iobj).Radius, Args.Level, Args.InterpMethod);
+                if isempty(Obj(Iobj).Data)
+                    RadHalfCumSum(Iobj) = NaN;
+                    RadHalfPeak(Iobj)   = NaN;
+                else
+                    Result(Iobj)        = imUtil.psf.curve_of_growth(Obj(Iobj).Data, Args.CenterPSFxy(Ixy,:), Args.Step);
+                    N = numel(Result(Iobj).Radius);
+                    % EpsVec is needed in order to insure monotonicity
+                    EpsVec = (1:1:N)'.*Args.EpsStep;
+                    RadHalfCumSum(Iobj) = interp1(Result(Iobj).CumSum + EpsVec, Result(Iobj).Radius, Args.Level, Args.InterpMethod);
+                    RadHalfPeak(Iobj)   = interp1(Result(Iobj).Med./max(Result(Iobj).Med)-EpsVec, Result(Iobj).Radius, Args.Level, Args.InterpMethod);
+                end
             end
             
         end
-        
         
         function [varargout] = moment2(Obj, Args)
             % Calculate the moments and aperture photometry of PSFs
