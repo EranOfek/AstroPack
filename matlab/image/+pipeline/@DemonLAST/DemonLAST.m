@@ -1644,7 +1644,8 @@ classdef DemonLAST < Component
     %                                 FN_Proc.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
                                     HasImage = ~AllSI.isemptyImage; % use only AI's with Image properties filled
                                     ProcFileName = FN_Proc.genFull;
-                                    [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage));
+                                    HasFile = cellfun(@(name) exist(name, 'file') == 2, ProcFileName);
+                                    [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage.*HasFile), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage));
                                     Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
                                     Obj.writeLog(Msg, LogLevel.Info);
                                     % there are ~N*24 ProcImages, and only N RawImages
@@ -1656,7 +1657,8 @@ classdef DemonLAST < Component
     %                                 FN_Coadd.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
                                     HasImage = ~Coadd.isemptyImage; % use only AI's with Image properties filled
                                     CoaddFileName = FN_Coadd.genFull('LevelPath','proc');
-                                    [ID_ProcImage, OK] = ADB.insert(Coadd(HasImage), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImage));
+                                    HasFile = cellfun(@(name) exist(name, 'file') == 2, CoaddFileName);
+                                    [ID_ProcImage, OK] = ADB.insert(Coadd(HasImage.*HasFile), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImage));
                                     Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
                                     Obj.writeLog(Msg, LogLevel.Info);
                                     
