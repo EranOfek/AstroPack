@@ -71,6 +71,7 @@ function Cat = downloadPrepSpecGAIA(Args)
             end
         end
         Cat = Cat(1:K,:);
+        Cat = single(Cat);
     end
     
     %% prep full Cat from HDF5 files
@@ -87,7 +88,10 @@ function Cat = downloadPrepSpecGAIA(Args)
     if any(Args.Step==3)
         RAD = 180./pi;
         Cat(:,1:2) = Cat(:,1:2)./RAD;
-        AC = AstroCatalog({Cat}, 'ColNames',{'RA','Dec','source_id','solution_id','Ifile','Ispec'});
+        ColNames = [{'RA','Dec','source_id','solution_id','Ifile','Ispec'}, tools.cell.cellstr_prefix(Args.Wave,'F').',  tools.cell.cellstr_prefix(Args.Wave,'E').'];
+
+        AC = AstroCatalog({Cat}, 'ColNames',ColNames);
+        AC.sortrows(AC,'Dec');
         Nsrc = VO.prep.build_htm_catalog(AC, 'CatName','GAIADR3spec','HTM_Level',8);
     end
     
