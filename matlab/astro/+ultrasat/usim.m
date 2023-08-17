@@ -216,8 +216,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     Back.Zody    = 27; Back.Cher  = 15; Back.Stray = 12; Back.Dark = 12;
     Back.Readout =  6; Back.Cross =  2; Back.Gain  =  1;
     
+%     Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark + ...
+%                  Back.Cross + Back.Gain ) * sqrt(Exposure/300.) + Back.Readout * Args.Exposure(1); % NOT CORRECT
+             
     Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark + ...
-                 Back.Cross + Back.Gain ) * sqrt(Exposure/300.) + Back.Readout * Args.Exposure(1);
+                 Back.Cross + Back.Gain + Back.Readout ) * Args.Exposure(1); 
     
     %%%%%%%%%%%%%%%%%%%% load the matlab object with the ULTRASAT properties:
     

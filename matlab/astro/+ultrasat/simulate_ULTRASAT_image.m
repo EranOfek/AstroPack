@@ -24,8 +24,7 @@ function simImage = simulate_ULTRASAT_image (Args)
     % Author : A. Krassilchtchikov Aug 2023
     % Example: Image = simulate_ULTRASAT_image('ExpNum', 30, 'OutDir', '/home/sasha/', 'Size', 7.15)
     %          Im2 = ultrasat.simulate_ULTRASAT_image('SkyCat',1,'RA0',215,'Dec0',52,'X0',216,'Y0',53,'OutName','Pos1')
-    %          Im3 = ultrasat.simulate_ULTRASAT_image('SkyCat',1,'RA0',219,'Dec0',51,'X0',216,'Y0',53,'OutName','Pos3','PlaneRotation', 45,'Shift',[0 0])
-    
+    %          Im3 = ultrasat.simulate_ULTRASAT_image('SkyCat',1,'RA0',219,'Dec0',51,'X0',216,'Y0',53,'OutName','Pos3','PlaneRotation', 45,'Shift',[0 0])  
     arguments    
         Args.Size           = 0.5;        % [deg] size of the modelled FOV 
         Args.SkyCat logical = false;      % whether to use sky coordinates instead of the pixel coordinates
@@ -168,6 +167,7 @@ function simImage = simulate_ULTRASAT_image (Args)
             
             % divide the population into 3 colours:
             IndT = rem(Isrc,3) + 1; Spec(Isrc,:) = S(IndT);
+%             Spec(Isrc,:) = S(1); % ONE TIME CODE for 1 temperature simulation 
             
             % search for the nearest magnitude (from the GALEX_ULTRASAT_magn.mat grid)
             [~, IndM] = min( abs( Mag(iMag) - MagNUV ) ); 
@@ -178,8 +178,7 @@ function simImage = simulate_ULTRASAT_image (Args)
         
     end
     
-    %%%% run the simulation
-    
+    %%%% run the simulation  
     simImage = ultrasat.usim('Cat', Cat, 'Mag', MagUS, 'Spec', Spec,'Exposure',[Args.ExpNum 300],...
                     'OutDir', Args.OutDir,'SkyCat', Args.SkyCat, 'PlaneRotation', Args.PlaneRotation,...
                     'RA0', Args.RA0,'Dec0', Args.Dec0,'OutName', Args.OutName);                    
