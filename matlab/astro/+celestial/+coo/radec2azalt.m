@@ -32,7 +32,7 @@ function [Az, Alt, AM, PA]=radec2azalt(JD, RA, Dec, Args)
     InFactor  = convert.angular(Args.InUnits, 'rad');
     OutFactor = convert.angular('rad', Args.OutUnits);
 
-    LST = 2.*pi.*celestial.time.lst(JD, Args.GeoCoo(1)./RAD);  % [rad]
+    LST = 2.*pi.*celestial.time.lst(JD, Args.GeoCoo(1)./RAD, 'a');  % [rad]
     HA = LST - InFactor.*RA;   % [rad]
     Lat = Args.GeoCoo(2)./RAD;
     [Az,Alt] = celestial.coo.hadec2azalt(HA, Dec.*InFactor, Lat);

@@ -1,5 +1,6 @@
 function Result = onesExcept(Mat, Scalar, Image, UseMex, UseMP)
 % Create a logical array by checking if the values of an input matrix are
+%   This function is slow - use regular tools instead.
 % bigger than an inpute scalar
 % Input  : - 2D/3D matrix of values [mat].
 %          - [Scalar].

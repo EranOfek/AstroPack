@@ -1641,10 +1641,12 @@ classdef AstroImage < Component
                     % update the Obj with the new CatData:
                     if Args.UpdateCat
                         XY = getXY(Obj(Iobj).CatData);
-                        [ObjSrcRA, ObjSrcDec] = xy2sky(Obj(Iobj).WCS, XY(:,1), XY(:,2),...
-                                                                      'OutUnits',Args.OutCatCooUnits);
-                        Obj(Iobj).CatData = insertCol(Obj(Iobj).CatData, [ObjSrcRA, ObjSrcDec],...
-                                                      Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
+                        if ~isempty(XY)
+                            [ObjSrcRA, ObjSrcDec] = xy2sky(Obj(Iobj).WCS, XY(:,1), XY(:,2),...
+                                                                          'OutUnits',Args.OutCatCooUnits);
+                            Obj(Iobj).CatData = insertCol(Obj(Iobj).CatData, [ObjSrcRA, ObjSrcDec],...
+                                                          Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
+                        end
                     end
 
                     if Args.UpdateHead
@@ -2982,9 +2984,12 @@ classdef AstroImage < Component
                                                       Args.cropXYargs{:});
                     end
                     if Args.UpdateWCS
-                        % FFU
-                        warning('UpdateWCS in AstroImage/crop is not implemented');
+                        %warning('UpdateWCS in AstroImage/crop is not implemented');
+                        Result(Iobj).WCS.CRPIX = Result(Iobj).WCS.CRPIX - CCDSEC(Isec,[1 3]) + [1 1];
+                        Result(Iobj).propagateWCS('UpdateCat',false);
                     end
+                    
+
                     if Args.UpdateHeader
                         SizeIm = size(Result(Iobj).Image);
                         KeyVals{1} = SizeIm(2);  % NAXIS1

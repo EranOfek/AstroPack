@@ -137,6 +137,14 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
                         Result(Isub).HeaderData.replaceVal(Args.KeyCropID, Isub);
                     end
                 end
+                
+                 % update the WCS
+                if Args.UpdateWCS && Result(Isub).WCS.Success
+                    %warning('Update WCS is not implenmented');
+                    Result(Isub).WCS.CRPIX = Result(Isub).WCS.CRPIX - EdgesCCDSEC(Isub,[1 3]) + [1 1];
+                    Result(Isub).propagateWCS('UpdateCat',false);
+                end
+                
             end
         end
     end
@@ -175,11 +183,6 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
         % update the PSF
         if Args.UpdatePSF
             warning('Update PSF is not implenmented');
-        end
-
-        % update the WCS
-        if Args.UpdateWCS
-            warning('Update WCS is not implenmented');
         end
 
         % update the Catalog
