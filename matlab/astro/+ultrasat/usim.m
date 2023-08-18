@@ -17,8 +17,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'Tile'      - name of the ULTRASAT tile ('A','B','C','D')
     %       'ImRes'     - image resolution in 1/pix units (allowed values: 1, 2, 5, 10, 47.5)
     %       'RotAng'    - tile rotation angle[s] relative to the axis of the raw PSF database
-    %       'RA0'       - the RA,  deg of the [0,0] pixel 
-    %       'Dec0'      - the Dec, deg of the [0,0] pixel 
+    %       'RA0'       - the RA,  deg of the camera aimpoint 
+    %       'Dec0'      - the Dec, deg of the camera aimpoint 
     %       'WCSFile'   - if not empty, the image WCS is read from this file
     %       'ArraySizeLimit' - the maximal array size, machine-dependent, determines the method in specWeight
     %       'MaxNumSrc'      - the maximal size of a source chunk to be worked over at a time
@@ -393,12 +393,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         SpecIn  = zeros(NumSrcCh, Nwave);  % the incoming spectra 
 
         % read the input spectra or generate synthetic spectra 
-
-                    %%% TEST: use the Stellar Spectra from UP.Specs
-    %                 if false  
-    %             
+    
+    %                 if false  %%% TEST: use the Stellar Spectra from UP.Specs
     %                     fprintf('TEST RUN: using stellar spectra from UP.Specs ..');
-    %         
     %                     for Isrc = 1:1:NumSrc
     %                         % stellar spectra from Pickles. NB: these are normalized to 1 at 5556 Ang !
     %                         %Pick(Isrc) = UP.Specs( rem(Isrc,43)+1 ); 
@@ -410,12 +407,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %                             Pick(Isrc) = UP.Specs(27); % UP.Specs(27); 
     %                         end
     %                     end
-    %                     
     %                     Args.Spec = Pick(1:NumSrc);
-    %         
-    %                 end
-                    %%% END TEST 
-
+    %                 end  %%% END TEST 
+                 
         switch isa(Args.Spec,'AstroSpec') || isa(Args.Spec,'AstSpec')
 
             case 0  % make a synthetic spectrum for a given model
@@ -482,7 +476,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                         error('Spectral parameters not properly defined in uSim, exiting..');
                 end
 
-
             case 1  % read the table from an AstroSpec/AstSpec object and regrid it to Wave set of wavelengths
                 
                 if isa(Args.Spec,'AstSpec')
@@ -497,33 +490,23 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                 end
                 
 %                 for Isrc = 1:1:NumSrcCh
-% 
-%                     % the simplest way to regrid is to interpolate and set to 0 outside the range
-%                     % deb: is not it safer to use griddedinterpolant? 
-%                     
 %                     Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
 % 
 %                     if isa(Args.Spec,'AstSpec') 
 %                         SpecIn(Isrc,:) = interp1( Args.Spec(Isrc_gl).Wave, Args.Spec(Isrc_gl).Int, Wave, 'linear', 0);
 %                     elseif isa(Args.Spec,'AstroSpec')
 %                         SpecIn(Isrc,:) = interp1( Args.Spec(Isrc_gl).Wave, Args.Spec(Isrc_gl).Flux, Wave, 'linear', 0);
-%                     end
-% 
-% 
+%                     end 
 %                 end
 
         end
-
                                 fprintf('done\n'); 
                                 elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
 
                                 tic
-
-                        % TEST input: a flat spectrum the 240-280 band, null otherwise
-    %                     if false
-    %                         
-    %                         fprintf('TEST input: flat spectrum in the 240-280 band\n');
-    %                         
+                    
+    %                     if false % TEST input: a flat spectrum the 240-280 band, null otherwise0
+    %                         fprintf('TEST input: flat spectrum in the 240-280 band\n');                        
     %                         for Iwave = 1:1:Nwave
     %                             for Isrc = 1:1:NumSrc
     %                                 if (Wave(Iwave) < 2400) || (Wave(Iwave) > 2800) 
@@ -533,40 +516,58 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %                                 end
     %                             end
     %                         end
-    %                             
-    %                     end
-                        % END TEST
-
+    %                     end % END TEST
         %%%%%%%%%%%%%%%%%%%%%  rescale the spectra to the input magnitudes 
 
                                 fprintf('%s%s%s%s%s','Rescaling spectra to fit the input ',...
                                          FiltFam{1},'/',Filter{1},' magnitudes...');
 
-        for Isrc = 1:1:NumSrcCh
+%         for Isrc = 1:1:NumSrcCh
+% 
+%               Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
+%               
+%               AS = AstroSpec([Wave' SpecIn(Isrc,:)']); % can not take this out of the loop, as AstroSpec can not 
+%                                                          % produce multiple objects at a time ? 
+%               if strcmp(FiltFam,'ULTRASAT')
+%                 SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), UP.U_AstFilt(IndR(Isrc)),'R1'); % NB: here 'R1' does not mean anything
+%               else
+%                 SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), FiltFam{Isrc_gl}, Filter{Isrc_gl}); % scaleSynphot does not work with arrays of filters?
+%               end
+%               SpecIn(Isrc,:) = SpecScaled.Flux .* Extinction; % the scaled flux is multiplied by the extinction factor 
+% 
+%         end  
+        
+%         if strcmp(FiltFam,'ULTRASAT') % DOES NOT WORK:
+%         astro.spec.synthetic_phot does not know how to deal with _multiple filters_
+%             MagSc = astro.spec.synthetic_phot([Wave' SpecIn'],UP.U_AstFilt(IndR(Range)),'R1','AB');
+%         else
+%             MagSc = astro.spec.synthetic_phot([Wave' SpecIn'],FiltFam(Range),Filter(Range),'AB');
+%         end
 
-              Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number 
-              
-              AS = AstroSpec([Wave' SpecIn(Isrc,:)']); % can not take this out of the loop, as AstroSpec can not 
-                                                       % produce multiple objects at a time
-              if strcmp(FiltFam,'ULTRASAT')
-                SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), UP.U_AstFilt(IndR(Isrc)),'R1'); % NB: here 'R1' does not mean anything
-              else
-                SpecScaled  = scaleSynphot(AS, InMag(Isrc_gl), FiltFam{Isrc_gl}, Filter{Isrc_gl}); % scaleSynphot does not work with arrays of filters?
-              end
-              SpecIn(Isrc,:) = SpecScaled.Flux .* Extinction; % the scaled flux is multiplied by the extinction factor 
-
-        end  
+        MagSc = zeros(1,NumSrcCh);
+        if strcmp(FiltFam,'ULTRASAT')
+            for Isrc = 1:1:NumSrcCh              
+                MagSc(Isrc) = astro.spec.synthetic_phot([Wave' SpecIn(Isrc,:)'],UP.U_AstFilt(IndR(Isrc)),'R1','AB');
+            end
+        else
+            for Isrc = 1:1:NumSrcCh
+                Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number
+                MagSc(Isrc) = astro.spec.synthetic_phot([Wave' SpecIn(Isrc,:)'],FiltFam{Isrc_gl},Filter{Isrc_gl},'AB');
+            end
+        end
+        Factor   = 10.^(-0.4.*(MagSc' - InMag(Range))); % rescaling factor
+        SpecIn   = SpecIn ./ Factor;                     
+        SpecObs  = SpecIn .* Extinction';               % observed (extincted) spectrum
 
                                 fprintf('done\n'); 
                                 elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
 
                                 tic
-        
         %%%%%%%%%%%%%%%%%%%%%  convolve the spectrum with the ULTRASAT throughut and
         %%%%%%%%%%%%%%%%%%%%%  fill the CatFlux column with the spectrum-intergated countrate fluxes
 
         % [ counts /s /bin ] = [ erg s(-1) cm(-2) A(-1) ] * [ counts / ph ] * [ A / bin ] * [ cm(2) ]/ [ erg / ph ]:
-        SpecCts = SpecIn .* TotT .* DeltaLambda .* SAper ./ ( H*C ./(1e-8 .* Wave) );
+        SpecCts = SpecObs .* TotT .* DeltaLambda .* SAper ./ ( H*C ./(1e-8 .* Wave) );
         % the wavelength integrated source fluxes [ counts / s ]:
         CatFlux(Range) = sum(SpecCts,2);
         
@@ -583,7 +584,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
                                 fprintf('done\n'); 
                                 elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
-
         %%%%%%%%%%%%%%%%%%%%% rotate the weighted source PSFs, blur them due to the S/C jitter 
         %%%%%%%%%%%%%%%%%%%%% and inject them into an empty tile image
 
@@ -604,28 +604,23 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                  'Jitter', 1, 'Method', Args.Inj, 'MeasurePSF', 0); 
 
                                 fprintf(' done\n');
-                                elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic
-                                
+                                elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic                      
         %%%%%%%%%%%%%%%%%%%% add the chunk image to the summed source image
         %%%%%%%%%%%%%%%%%%%% and populate the PSF of the sources 
         
         ImageSrc = ImageSrc + Image_ch;  % add the image containing the newly added sources to the current summed image
         
         if NumSrc < Args.MaxPSFNum
-            
-            PSF( :, :, Range ) = PSF_ch;  % fill in the resulting PSF array if the nmuber of sources is not too large
-        
+            PSF(:,:,Range) = PSF_ch;  % fill in the resulting PSF array if the number of sources is not too large
         end
-                            
                                 fprintf('Partial source image added to the stacked source image \n');
                                 
     end % end the loop over source chunks
     
     %%%%%%%%%%%%%%%%%%%%% add and apply various types of noise to the tile image 
-    %%%%%%%%%%%%%%%%%%%%% NB: while ImageSrc is in [counts/s], 
-    %%%%%%%%%%%%%%%%%%%%%           ImageSrcNoise is already in [counts] !! 
+    %%%%%%%%%%%%%%%%%%%%% NB: while ImageSrc is in [counts/s], ImageSrcNoise is already in [counts] !!
     
-                            cprintf('hyper','Adding noise .. ');
+                                cprintf('hyper','Adding noise .. ');
                     
 %     ImageSrcNoise = imUtil.art.noise(ImageSrc,'Exposure',Args.Exposure,...
 %                                     'Dark',Args.NoiseDark,'Sky',Args.NoiseSky,...
@@ -639,19 +634,16 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 %     
 %     As the noise level is already quite high for typical exposures,
 %     we can use a faster normal distribution instead of the true Poisson distribution
-%
     ImageSrcNoise =  normrnd( SrcAndNoise, sqrt(SrcAndNoise), ImageSizeX, ImageSizeY);              
     ImageBkg      =  normrnd( NoiseLevel,  sqrt(NoiseLevel),  ImageSizeX, ImageSizeY);
                                  
                             fprintf(' done\n');                   
                             elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
-                    
     %%%%%%%%%%%%%%%%%%%%%%  cut the saturated pixels (to be refined later) 
     
     ImageSrcNoise = min(ImageSrcNoise, FullWell * Args.Exposure(1) );
     
                             fprintf('Saturated pixels cutted\n');
-    
     %%%%%%%%%%%%%%%%%%%%%%  make an ADU and mask ADU images (for a single
     %%%%%%%%%%%%%%%%%%%%%%  exposure observation only)
     
@@ -677,32 +669,19 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.Cat = AstroCatalog({Cat},'ColNames',{'X','Y','Counts','MAG','RA','Dec'},'HDU',1);
     end
         
-    % make sky background and variance images
-
-%     Emptybox = zeros(ImageSizeX,ImageSizeY);
-        
-    % make an AstroImage (note, the image is to be transposed!)
-    usimImage = AstroImage( {ImageSrcNoise'} ,'Back',{NoiseLevel}, 'Var',{ImageBkg},'Cat',{Args.Cat.Catalog}); 
+    % make an AstroImage (note, the images are to be transposed!)
+    usimImage = AstroImage( {ImageSrcNoise'} ,'Back', {NoiseLevel'}, 'Var', {ImageBkg'},'Cat', {Args.Cat.Catalog}); 
 
     % save the final source PSFs into an AstroPSF array and attach it to
     % the resulting AstroImage object, if the source number is not too large
-    
     if NumSrc < Args.MaxPSFNum
-
         AP(1:NumSrc) = AstroPSF;
-
         for Isrc = 1:1:NumSrc
-
             AP(Isrc).DataPSF = PSF(:,:,Isrc);
-
         end
-
         usimImage.PSF = AP; 
-    
     else
-        
         fprintf('NOTE: the number of input sources is too large to record each of their PSFs..\n'); 
-        
     end
     
     % add the WCS data to the AstroImage object:
@@ -714,7 +693,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     % add some more keywords and values to the image header:
     usimImage.setKeyVal('EXPTIME',Exposure);
     usimImage.setKeyVal('DATEOBS','2026-07-01T00:00:00');
-
 %         AH = usimImage.Header;               % save the header back from the AstroImage
 
     % save the AstroImage object in a .mat file for a future usage (if requested):
@@ -770,18 +748,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         end
         
     end
-
     %%%%%%%%%%%%%%%%%%%%    
-    
                     elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
                     tstop = datetime("now"); 
                     cprintf('hyper','%s%s%s\n','Simulation completed in ',tstop-tstart,...
                                          ' , see the generated images')
-
     %%%%%%%%%%%%%%%%%%%% post modeling checks (optional; in fact, should be done with another method)
-    
     if Args.PostModelingFindSources
-        
     %     
     %     MeasuredCat = imProc.sources.findMeasureSources(usimImage,'ForcedList',[CatX CatY],...
     %                          'OnlyForced',1,'CreateNewObj',1,'ReCalcBack',0,'ZP',UP.ZP(1,1)).CatData;
@@ -797,14 +770,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
         idx5 = Summary(:,3) > 5; % take only sources over 5 sigma
         Summ5 = Summary(idx5,:); 
-
     %     idx3 = Summary(:,3) > 3; % take only sources over 3 sigma
     %     Summ3 = Summary(idx3,:); 
-
         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'detected.reg');
         DS9_new.regionWrite([Summ5(:,1) Summ5(:,2)],'FileName',OutRegName,'Color','red','Marker','o','Size',1,'Width',4);     
-    
     end
-  
 end
 
