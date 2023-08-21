@@ -641,9 +641,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                             elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
     %%%%%%%%%%%%%%%%%%%%%%  cut the saturated pixels (to be refined later) 
     
-    ImageSrcNoise = min(ImageSrcNoise, FullWell * Args.Exposure(1) );
+    Thresh        = FullWell * Args.Exposure(1);
+    AboveThresh   = sum(ImageSrcNoise(:) > Thresh);
+    ImageSrcNoise = min(ImageSrcNoise, Thresh);
     
-                            fprintf('Saturated pixels cutted\n');
+                            fprintf('%d saturated pixels cutted\n',AboveThresh);
     %%%%%%%%%%%%%%%%%%%%%%  make an ADU and mask ADU images (for a single
     %%%%%%%%%%%%%%%%%%%%%%  exposure observation only)
     
