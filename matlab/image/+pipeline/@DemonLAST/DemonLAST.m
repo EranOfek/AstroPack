@@ -1316,7 +1316,7 @@ classdef DemonLAST < Component
 
             PWD = pwd;
             if ~isempty(Args.CalibPath)
-                cd(Args.CalibDir)
+                cd(Args.CalibPath)
             else
                 cd(Obj.CalibPath);
             end
