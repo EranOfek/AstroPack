@@ -101,7 +101,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         
         // check boundaries
         if (x - HalfSize_int < 0 || x + HalfSize_int >= ncols || y - HalfSize_int< 0 || y + HalfSize_int>= nrows) {
-            mexWarnMsgIdAndTxt("MATLAB:util:img:mex_bitwise_cutouts::OutOfBounds", "Stamp at position (%d, %d) is out of bounds.", x, y);
+            mexWarnMsgIdAndTxt("MATLAB:util:img:mex_bitwise_cutouts:OutOfBounds", "Stamp at position (%d, %d) is out of bounds.", x, y);
             output[i] = 0;
             continue;
         }
