@@ -1,18 +1,18 @@
 function simImage = simulate_ULTRASAT_image (Args)
-    % Simulate with ultrasat.usim a realistic distribution of sky sources 
+    % Simulate an ULTRASAT image of a realistic distribution of sky sources 
     % NB: the size of the actuall modelled region should not be smaller
     % than 0.5 x 0.5 deg, otherwise we will sample only the brightest part of
-    % the source distribution!
+    % the input source distribution!
     % Input: -
     %        * ...,key,val,... 
     %        'Size'     - [deg] size of the modelled FOV, 7.15 is the full FOV 
     %        'SkyCat'   - whether to use sky coordinates instead of the pixel coordinates
-    %        'X0'       - [deg] the lower left corner of the modelled
-    %                     square region or RA0 if SkyCat = true
-    %        'Y0'       - [deg] the lower left corner of the modelled
-    %                     square region or Dec0 if SkyCat = true
-    %        'RA_inner' - RA of the the inner corner of the tile (needed to define Rad and RXX) 
-    %        'Dec_inner'- Dec of the the inner corner of the tile (needed to define Rad and RXX) 
+    %        'X0'       - [deg] the pixel coordinate or the RA (if SkyCat = y)
+    %                     of the lower left corner of the modelled region 
+    %        'Y0'       - [deg] the pixel coordinate or the Dec (if SkyCat = y)
+    %                     of the lower left corner of the modelled region 
+    %        'RA0'      - RA of the camera's aimpoint 
+    %        'Dec0'     - Dec of the camera's aimpoint 
     %        'PlaneRotation' - [deg] rotation of the detector plane
     %        'Shift'    - catalog shift (in pix)
     %        'Rot'      - catalog rotation (in deg) 
@@ -32,24 +32,50 @@ function simImage = simulate_ULTRASAT_image (Args)
                                           % if SkyCat = true this should be RA in sky degrees!
         Args.Y0             = 1e-6;       % [deg] the lower left corner of the modelled square region 
                                           % if SkyCat = true this should be Dec in sky degrees!
-        Args.RA0            = 214.99;     % RA of the the inner corner of the tile 
-        Args.Dec0           = 52.78;      % Dec of the the inner corner of the tile
+        Args.RA0            = 214.99;     % RA of the camera's aimpoint 
+        Args.Dec0           = 52.78;      % Dec of the camera's aimpoint 
         Args.PlaneRotation  = 0;          % [deg] rotation of the detector plane 
         Args.Shift          = [];         % catalog shift (in pix) 
         Args.Rot            = [];         % catalog rotation (in deg) 
         Args.ExpNum         = 1;          % number of the standard 300 s exposures to stack 
+        Args.Tile           = 'B';        % the detector tile to be simulated
         Args.OutDir         =  '.';       % the output directory
         Args.OutName        = 'SimImage'; % the output filename template
     end
     
     %%%%% ULTRASAT parameters
+
+    ImageSizeX  = 4738; % tile size (pix)
+    ImageSizeY  = 4738; % tile size (pix)
     
-    PixSize    = 5.44;         % pixel size (arcsec)
-    PixSizeDeg = PixSize/3600; % pixel size (deg)
+    RAD = 180/pi;
+    
+    FocalLength = 360;    % [mm] 
+    PixelSizeMm = 9.5e-3; % [mm] pixel size 
+    PixSizeDeg  = ( PixelSizeMm / FocalLength ) * RAD;  % [deg] pixel size
+    
+    GapMm       = 2.4;    % gap width in mm
+    Ngap        = ceil( GapMm / PixelSizeMm); % number of pixels in the gap
+
     Wave       = 2000:11000;   % the wavelength band in A
+
+    if strcmp(Args.Tile,'A')
+        CRPIX1 = ImageSizeX+Ngap/2;
+        CRPIX2 = -Ngap/2;
+    elseif strcmp(Args.Tile,'B')
+        CRPIX1 = -Ngap/2;
+        CRPIX2 = -Ngap/2;
+    elseif strcmp(Args.Tile,'C')
+        CRPIX1 = -Ngap/2;
+        CRPIX2 = ImageSizeY+Ngap/2;
+    elseif strcmp(Args.Tile,'D')
+        CRPIX1 = ImageSizeX+Ngap/2;
+        CRPIX2 = ImageSizeY+Ngap/2;
+    else
+        error('Tile name is not correct');
+    end
     
-    if Args.SkyCat
-    % make a local WCS:
+    if Args.SkyCat % make a local WCS: 
         SimWCS = AstroWCS();
         SimWCS.ProjType  = 'TAN';
         SimWCS.ProjClass = 'ZENITHAL';
@@ -57,12 +83,17 @@ function simImage = simulate_ULTRASAT_image (Args)
         SimWCS.CTYPE     = {'RA---TAN','DEC---TAN'};
         SimWCS.CUNIT     = {'deg', 'deg'};
         SimWCS.CD(1,1)   = PixSizeDeg;
-        SimWCS.CD(2,2)   = PixSizeDeg;  
+        SimWCS.CD(2,2)   = PixSizeDeg;
         SimWCS.CRVAL(1)  = Args.RA0;
         SimWCS.CRVAL(2)  = Args.Dec0;
-        SimWCS.CRPIX(1)  = 0; 
-        SimWCS.CRPIX(2)  = 0; 
+        SimWCS.CRPIX(1)  = CRPIX1;
+        SimWCS.CRPIX(2)  = CRPIX2;
         SimWCS.populate_projMeta;
+    
+        Alpha_rad = Args.PlaneRotation/RAD;
+        RotMatrix = [cos(Alpha_rad), -sin(Alpha_rad);
+                     sin(Alpha_rad),  cos(Alpha_rad)];
+        SimWCS.CD = RotMatrix * SimWCS.CD;
     end 
     
     %%%%% source distribution parameters
@@ -105,6 +136,8 @@ function simImage = simulate_ULTRASAT_image (Args)
     % in order to make a new GALEX_ULTRASAT_magn.mat object!
     MagDB = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/GALEX_ULTRASAT_magn.mat');
     io.files.load1(MagDB); % variables: MagU (3D), Temp, MagNUV, Rad 
+
+    %%%%% create a source catalog 
     
     if isempty(Args.Shift) && isempty(Args.Rot) % shift and rotation not given, create and save a new catalog
         
@@ -112,11 +145,11 @@ function simImage = simulate_ULTRASAT_image (Args)
         if Args.SkyCat % NB: this will not correspond to a Size x Size region on the sky!
             Cat(:,1) = Args.X0  + Args.Size * rand(NumSrc,1); % X0 is here RA in sky degrees
             Cat(:,2) = Args.Y0  + Args.Size * rand(NumSrc,1); % Y0 is here Dec in sky degrees
-            [CatPix(:,1) CatPix(:,2)] = SimWCS.sky2xy(Cat(:,1),Cat(:,2)); % calculate pixel coordinates
+            [CatPix(:,1), CatPix(:,2)] = SimWCS.sky2xy(Cat(:,1),Cat(:,2)); % calculate pixel coordinates
         else           % use pixel coordinates
-            X0 = ceil(Args.X0 * 3600 / PixSize); % left corner of the modelled square region
-            Y0 = ceil(Args.Y0 * 3600 / PixSize); % left corner of the modelled square region
-            Range = Args.Size * 3600 / PixSize;  % X and Y size of the modelled square region
+            X0 = ceil(Args.X0 / PixSizeDeg); % left corner of the modelled square region
+            Y0 = ceil(Args.Y0 / PixSizeDeg); % left corner of the modelled square region
+            Range = Args.Size / PixSizeDeg;  % X and Y size of the modelled square region
             Cat(:,1) = X0 + Range * rand(NumSrc,1);
             Cat(:,2) = Y0 + Range * rand(NumSrc,1);
         end
@@ -140,7 +173,8 @@ function simImage = simulate_ULTRASAT_image (Args)
         
         if ~isempty(Args.Rot) 
             if Args.SkyCat
-                error('Source catalog rotation in sky coordinates is not available, better rotate the telescope, exiting..');
+                error(['Source catalog rotation in sky coordinates is not available, ...' ...
+                    'better rotate the telescope with PlaneRotation, exiting..']);
             end
             Alpha = Args.Rot * (pi/180.);
             Cat(:,1) = Cat(:,1) * cos(Alpha) - Cat(:,2) * sin(Alpha);
@@ -149,20 +183,19 @@ function simImage = simulate_ULTRASAT_image (Args)
         end
         
     end
-    
+
+    %%%%% determine the ULTRASAT magnitudes and distribute the spectra 
     Isrc = 0;
-    for iMag = 1:1:MagBins
-        
+    for iMag = 1:1:MagBins     
         for jSrc = 1:1:SrcDist(iMag)
             
             Isrc = Isrc + 1;
             
             if Args.SkyCat % sky coordinates in Cat, use CatPix
-                RadSrc = sqrt( CatPix(Isrc,1)^2 + CatPix(Isrc,2)^2 ) * (PixSize/3600); % deg
+                RadSrc = sqrt( CatPix(Isrc,1)^2 + CatPix(Isrc,2)^2 ) * PixSizeDeg; % deg
             else           % pixel coordinates in Cat
-                RadSrc = sqrt( Cat(Isrc,1)^2 + Cat(Isrc,2)^2 ) * (PixSize/3600); % deg
+                RadSrc = sqrt( Cat(Isrc,1)^2 + Cat(Isrc,2)^2 ) * PixSizeDeg; % deg
             end
-            
             [~, IndR] = min( abs(RadSrc - Rad) ); % search for the nearest node
             
             % divide the population into 3 colours:
@@ -175,12 +208,11 @@ function simImage = simulate_ULTRASAT_image (Args)
             MagUS(Isrc) = MagU( IndT, IndM, IndR );
             
         end
-        
     end
     
-    %%%% run the simulation  
-    simImage = ultrasat.usim('Cat', Cat, 'Mag', MagUS, 'Spec', Spec,'Exposure',[Args.ExpNum 300],...
-                    'OutDir', Args.OutDir,'SkyCat', Args.SkyCat, 'PlaneRotation', Args.PlaneRotation,...
-                    'RA0', Args.RA0,'Dec0', Args.Dec0,'OutName', Args.OutName);                    
+    %%%% run the simulation 
+    simImage = ultrasat.usim('Cat', Cat, 'Mag', MagUS, 'Spec', Spec, 'Exposure', [Args.ExpNum 300],...
+        'OutDir', Args.OutDir,'SkyCat', Args.SkyCat, 'PlaneRotation', Args.PlaneRotation,...
+        'RA0', Args.RA0, 'Dec0', Args.Dec0, 'OutName', Args.OutName, 'Tile', Args.Tile);
     
 end
