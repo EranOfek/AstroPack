@@ -92,32 +92,37 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
     // Loop through coordinates and cut stamps
     for (int i = 0; i < numel; i++) {
+
         int x = int(x_coords[i]);
         int y = int(y_coords[i]);
 
         // adjusting for matlab indices starting to 1 and not 0
         x--;
         y--;
-        
-        // check boundaries
-        if (x - HalfSize_int < 0 || x + HalfSize_int >= ncols || y - HalfSize_int< 0 || y + HalfSize_int>= nrows) {
-            mexWarnMsgIdAndTxt("MATLAB:util:img:mex_bitwise_cutouts:OutOfBounds", "Stamp at position (%d, %d) is out of bounds.", x, y);
-            output[i] = 0;
-            continue;
-        }
+
+        // make sure x and y positions are not negative (might happen if 0 position is passed from matlab)
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+
+        // Calculate bounds for the stamp
+        int x_start = x - HalfSize_int;
+        int x_end = x + HalfSize_int;
+        int y_start = y - HalfSize_int;
+        int y_end = y + HalfSize_int;
+    
+        // Ensure the calculated bounds are within the image dimensions
+        if (x_start < 0) x_start = 0;
+        if (x_end >= ncols) x_end = ncols - 1;
+        if (y_start < 0) y_start = 0;
+        if (y_end >= nrows) y_end = nrows - 1;
 
         // stamp bitwise initialization
         __Type stamp_value;
-        if (bitwise_or) {
-            stamp_value = 0;
-        }
-        else {
-            stamp_value = mat[x * nrows + y];
-        }        
+        stamp_value = bitwise_or ? 0 : mat[x * nrows + y]; 
 
         // loop through stamp pixels and calculate bitwise
-        for (int yy = y - HalfSize_int; yy <= y + HalfSize_int; yy++) {
-            for (int xx = x - HalfSize_int; xx <= x + HalfSize_int; xx++) {
+        for (int yy = y_start; yy <= y_end; yy++) {
+            for (int xx = x_start; xx <= x_end; xx++) {
                  stamp_value = bitwise_or ? (stamp_value | mat[xx * nrows + yy]) : (stamp_value & mat[xx * nrows + yy]);
             }
         }
