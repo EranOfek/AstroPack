@@ -668,7 +668,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     
     % if we generated a fake catalog above, make a catalog table here 
     if ~isa(Args.Cat,'AstroCatalog')    
-        Args.Cat = AstroCatalog({Cat},'ColNames',{'X','Y','Counts','MAG','RA','Dec'},'HDU',1);
+        Args.Cat = AstroCatalog({Cat},'ColNames',{'X','Y','Counts/s','MAG','RA','Dec'},'HDU',1);
     end
         
     % make an AstroImage (note, the images are to be transposed!)
