@@ -55,6 +55,6 @@ function image = createSegments(sizes,point1,point2,Args)
             case 'gaussian'
                 image = image + exp(-d2/Args.width^2);
             otherwise
-                image = image + (d2<Args.width.^2);
+                image = image + (d2<(Args.width/2)^2);
         end
     end

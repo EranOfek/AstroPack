@@ -28,6 +28,15 @@ function [bwmask,lines]=maskTracks(AstroImg,Args)
     %         - The last of the masks is also returned as optional output, for
     %           debugging
     % Author : Enrico Segre (Aug 2023)
+    %
+    % Example:
+    %
+    %   AI=AstroImage();
+    %   AI.Image=20*imUtil.art.createSegments([650,700],...
+    %                    [322,233;98,0],[54,11;145,211],'width',0.5) + ...
+    %               rand(650,700);
+    %   imProc.background.background(AI);
+    %   imProc.mask.maskTracks(AI);
 
 
     arguments
