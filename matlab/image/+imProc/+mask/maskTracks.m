@@ -23,6 +23,8 @@ function [bwmask,lines]=maskTracks(AstroImg,Args)
     %            'FillGap' - Join collinear segments separated no more than this
     %                      distance[default max(size(AstroImg.Image))/20 pixels]
     %            'MaxLines' - maximal number of Hough lines to consider [default 5]
+    %            'MaskedTrackWidth' - width in pmask.
+    %                              mask. If not provided, computed by imUtil.psf.pseudoFWHM
     %
     % Output: - An AstroImage in which the MaskData property is updated for each image of the input array
     %         - The last of the masks is also returned as optional output, for
@@ -49,46 +51,7 @@ function [bwmask,lines]=maskTracks(AstroImg,Args)
         Args.FillGap               = [];
         Args.MaxLines              = 5;
         Args.BitName_Streak        = 'Streak';
-    end
-
-    function bwmask=pixelline(orig_image,point1,point2)
-        % ancillary to draw a pixellated line from point1 on point2,
-        % and to add it to the input binary matrix
-        [sx,sy]=size(orig_image);
-        %  first clip the coordinates to size(orig_image)+1 to avoid unbounded
-        %   vectors for wrong points
-        x1=max(min(point1(1),sx+1),0);
-        x2=max(min(point2(1),sx+1),0);
-        y1=max(min(point1(2),sy+1),0);
-        y2=max(min(point2(2),sy+1),0);
-        % choose increment direction
-        if abs(x2-x1)>abs(y2-y1)
-            if x1<x2
-                x=x1:x2;
-            else
-                x=x2:x1;
-            end
-            y=y1+round((x-x1)*(y2-y1)/(x2-x1));
-        else
-            if y1<y2
-                y=y1:y2;
-            else
-                y=y2:y1;
-            end
-            x=x1+round((y-y1)*(x2-x1)/(y2-y1));
-        end
-
-        % clip the pixel indices to what falls really on the image
-        q= x>=1 & x<=sx & y>=1 & y<=sy;
-        x=x(q);
-        y=y(q);
-
-        % set the line pixels
-        np=numel(x);
-        bwmask=orig_image;
-        for i=1:np
-            bwmask(y(i),x(i))=true;
-        end
+        Args.MaskedTrackWidth      = [];
     end
 
     % for each AstroImage, find the streaks with the Hough transform
@@ -119,22 +82,24 @@ function [bwmask,lines]=maskTracks(AstroImg,Args)
         %  specifically only segments corresponding to high pixels along
         %  the found direction, we use houghlines
         lines = houghlines(HighPix,T,R,P,'FillGap',FillGap,'MinLength',MinLength);
-        %L1=vertcat(lines.point1);
-        %L2=vertcat(lines.point2);
+        L1=vertcat(lines.point1);
+        L2=vertcat(lines.point2);
         % plot([L1(:,1),L2(:,1)]',[L1(:,2),L2(:,2)]')
 
         % mask: draw all the pixellated lines and then dilate them
         % approximately as much as the PSF is wide
-        bwmask=false(size(HighPix));
-        for j=1:numel(lines)
-            bwmask=pixelline(bwmask,lines(j).point1,lines(j).point2);
+        if isempty(Args.MaskedTrackWidth)
+            [wx,wy]=imUtil.psf.pseudoFWHM(AstroImg(k).PSF);
+            w=max(wx,wy);
+        else
+            w=Args.MaskedTrackWidth;
         end
-        [wx,wy]=imUtil.psf.pseudoFWHM(AstroImg(k).PSF);
-        SE=strel("rectangle",[wx,wy]);
-        bwmask=imdilate(bwmask,SE);
+        bwmask=imUtil.art.createSegments(size(HighPix),L1,L2,...
+                                        'shape','flat','width',w);
+
         % imagesc(bwmask); axis xy
 
         % set this into the AstroImage mask
-        AstroImg(k).maskSet(bwmask, Args.BitName_Streak);
+        AstroImg(k).maskSet(bwmask>0, Args.BitName_Streak);
     end
 end

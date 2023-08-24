@@ -32,6 +32,14 @@ function Result = unitTest()
     [Result, XY, Ind] = findBit(AI.MaskData, {'Interpolated'});
 %     assert(~isnan(AI.Image(2,2)) && ~XY
 
+    AI=AstroImage();
+    AI.Image=20*imUtil.art.createSegments([650,700],...
+        [322,233;98,0],[54,11;145,211],'width',0.5) + ...
+        rand(650,700);
+    imProc.background.background(AI);
+    imProc.mask.maskTracks(AI);
+
+
     io.msgStyle(LogLevel.Test, '@passed', 'imProc.mask test passed');
     Result = true; 
 end
