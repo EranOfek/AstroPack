@@ -33,9 +33,9 @@ function Result=bitwise_cutouts(MaskImage, X, Y, HalfSize, IsOr)
     
     switch class(MaskImage)
         case 'uint32'
-            Result = imUtil.cut.mex.mex_bitwise_cutouts_int32(MaskImage, X, Y, HalfSize, IsOr);
+            Result = imUtil.cut.mex.mex_bitwise_cutouts_int32(MaskImage, X, Y, HalfSize, IsOr).';
         case 'uint16'
-            Result = imUtil.cut.mex.mex_bitwise_cutouts_int16(MaskImage, X, Y, HalfSize, IsOr);
+            Result = imUtil.cut.mex.mex_bitwise_cutouts_int16(MaskImage, X, Y, HalfSize, IsOr).';
         otherwise
             error('Input MaskImage must be of class uint16 or uint32');
     end
