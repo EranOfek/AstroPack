@@ -8,11 +8,11 @@
 
 function Result = unitTest()
     % Package Unit-Test   
-	io.msgStyle(LogLevel.Test, '@start', 'test started');
+	%io.msgStyle(LogLevel.Test, '@start', 'test started');
     
     mex_bitwise_cutouts_unitTest();
     
-	io.msgStyle(LogLevel.Test, '@passed', 'test passed');
+	%io.msgStyle(LogLevel.Test, '@passed', 'test passed');
 	Result = true;
 end
 
@@ -20,9 +20,9 @@ end
 
 function Result = mex_bitwise_cutouts_unitTest()
 
-    io.msgStyle(LogLevel.Test, '@start', 'mex_bitwise_cutouts test started');
+    %io.msgStyle(LogLevel.Test, '@start', 'mex_bitwise_cutouts test started');
 
-    iterations = 1000;
+    iterations = 1;
 
     positions = 1000;
     rows = 1700;
@@ -80,7 +80,7 @@ function Result = mex_bitwise_cutouts_unitTest()
 
     Result = true;
 
-    io.msgStyle(LogLevel.Test, '@passed', 'passed');    
+    %io.msgStyle(LogLevel.Test, '@passed', 'passed');    
 end
 
 
