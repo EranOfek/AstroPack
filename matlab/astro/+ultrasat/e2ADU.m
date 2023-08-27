@@ -20,8 +20,8 @@ function Result = e2ADU(Count, LowGain)
    
     % test output:
    
-%     dec2bin( 2^0 .* Prec)
-%     dec2bin(2^10 .* Exp)
+%     dec2bin( 2^0  .* Prec )
+%     dec2bin( 2^10 .* Exp )
 %     dec2bin(Result)
     
 end
