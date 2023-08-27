@@ -55,8 +55,13 @@ function Result = specWeight(SpecSrc, RadSrc, PSFdata, Args)
     % regrid the input spectra if the spectral grids in PSFdata and in SpecSrc are not the same 
     if numel(Args.SpecLam) > 1 && numel(Args.Lambda) > 1   % regrid the spectra
         SrcNum = 1:NumSrc;
-        Spec = interpn(SrcNum, Args.SpecLam', SpecSrc, SrcNum, Args.Lambda');
-        NumWave = size(Spec,2);
+        if NumSrc > 1
+            Spec = interpn(SrcNum, Args.SpecLam', SpecSrc, SrcNum, Args.Lambda');
+            NumWave = size(Spec,2);
+        else % if there is only 1 source
+            Spec = interp1(Args.SpecLam', SpecSrc, Args.Lambda');
+            NumWave = size(Spec,1);
+        end
     elseif NumWave == NLam                               % the spectral grids in PSFdata and in SpecSrc are of the same size
         Spec = SpecSrc;
     else
