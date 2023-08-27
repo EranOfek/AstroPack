@@ -324,7 +324,15 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                     
     end
     
-    CatFlux       = zeros(NumSrc,1);   % will be determined below from spectra * transmission 
+    % check which of the sources fall out of the FOV
+    
+    InFOV = (CatX > 0.1) .* (CatY > 0.1) .* (CatX < ImageSizeX) .* (CatY < ImageSizeY);
+    
+                            if ( sum(InFOV) < NumSrc ) 
+                                cprintf('red','%d%s\n',NumSrc-sum(InFOV),' objects out of the FOV');
+                            end
+    
+    CatFlux  = zeros(NumSrc,1);   % will be determined below from spectra * transmission 
     
     %%%%%%%%%%%%%%%%%%%% reading source magnitudes and filters, 
     %%%%%%%%%%%%%%%%%%%% calculating the extinction curve
@@ -344,6 +352,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     else
         Filter = repmat(Args.Filt,1,NumSrc);
     end
+    
+    %%% TBD: if sum(InFOV) < NumSrc cut the input data so that 
+    %%% it contain only the sources falling into the FOV
+    % InMag = InMag(logical(InFOV))
+    % FiltFam = FiltFam(logical(InFOV))
+    % Filter  = Filter(logical(InFOV))
+    % Spec    = ...
     
     ExtMag     = astro.spec.extinction(Args.Ebv,(Wave./1e4)');
     Extinction = 10.^(-0.4.*ExtMag);
