@@ -169,7 +169,7 @@ classdef AstroImage < Component
             %          * ...,key,val,...
             %            'HDU' - HDU number. Default is 1.
             %            'Scale' - Image scale. Default is [].
-            %            'ReadHeder' - A logical indicating if to read
+            %            'ReadHeader' - A logical indicating if to read
             %                   header. Default is true.
             %            'CCDSEC' - CCDSEC for image to read [Xmin Xmax
             %                   Ymin Ymax]. If empty, read the entire image.

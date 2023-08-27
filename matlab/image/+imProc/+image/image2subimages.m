@@ -138,9 +138,9 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
                     end
                 end
                 
-                 % update the WCS
-                if Args.UpdateWCS && Result(Isub).WCS.Success
-                    %warning('Update WCS is not implenmented');
+                 % update the WCS (for all subimages but only at the first
+                 %   iteration of Iprop!)
+                if Iprop==1 && Args.UpdateWCS && Result(Isub).WCS.Success
                     Result(Isub).WCS.CRPIX = Result(Isub).WCS.CRPIX - EdgesCCDSEC(Isub,[1 3]) + [1 1];
                     Result(Isub).propagateWCS('UpdateCat',false);
                 end
