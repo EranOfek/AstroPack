@@ -182,9 +182,9 @@ function CalStars = calibrationStars(Args)
     
     % low cadence: 
     subplot(2,2,3)
-    plot(lcad.l,12.*ones(1,NLo),'DisplayName','sat. 300s'); hold on
-    plot(lcad.l,10.*ones(1,NLo),'DisplayName','sat. 30s'); 
-    plot(lcad.l,7.*ones(1,NLo),'DisplayName' ,'sat. 3s');
+    plot(lcad.l,12.*ones(1,NLo),'DisplayName', 'sat. 300s'); hold on
+    plot(lcad.l,10.*ones(1,NLo),'DisplayName',  'sat. 30s'); 
+    plot(lcad.l, 7.*ones(1,NLo),'DisplayName',   'sat. 3s');
     if ~Skip 
         plot(lcad.l,MagU1l,'*','DisplayName','objects')
         title 'low cadence stars'; 
