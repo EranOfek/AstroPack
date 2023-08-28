@@ -5,7 +5,7 @@ function Result = unitTest()
     io.msgStyle(LogLevel.Test, '@start', 'AstroPSF test started');                                      
 
     % getPSF
-    AP = AstroPSF;
+    AP = AstroPSF1;
     P = imUtil.kernel2.gauss;
     AP.DataPSF = P;
     if ~all(AP.getPSF==P)
