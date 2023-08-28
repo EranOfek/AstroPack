@@ -47,10 +47,9 @@
 % [PSF, Var] = P.getPSF('Flux',Val, 'Wave',5000)
 % [PSF, Var] = P.weightPSF('Flux',Val, 'Wave',[5000 5500 6000],'Spec',[0.5 1 0.5])
 
-% [PSF, Var] = P.weightPSF([], 'InterpMethod','nearest'); % use vals from
-% properties
+% [PSF, Var] = P.weightPSF([], 'InterpMethod','nearest'); % use vals from properties
 
-% AstroPSF = P.repopPSF('Wave',[5000 5500 6000],'WaveWhight',[0.5 1 0.5])
+% AstroPSF = P.repopPSF('Wave',[5000 5500 6000],'WaveWeight',[0.5 1 0.5])
 % ValPerPSF = fwhm(P)
 % [ValX, ValY] = P.fwhm(Method=[], 'Flux',Val, 'Wave',[5000])
 
@@ -69,8 +68,8 @@ classdef AstroPSF1 < Component
         DimAxes cell      = cell(1,5);   % axes according to DimName
         InterpMethod      = {'nearest'}; % can be n-dimensional with different methods applied at different dimensions
         
-%         ArgVals cell      = {};
-%         ArgNames cell     = {'X','Y','Color','Flux'};
+        ArgVals cell      = {};
+        ArgNames cell     = {'X','Y','Color','Flux'};
         
         StampSize         = [];
         
@@ -291,7 +290,7 @@ classdef AstroPSF1 < Component
     end
     
     methods % generating PSF
-        function Result = getPSF(Obj, DataPSF, FunPSF, StampSize, ArgVals, ArgNames)
+        function Result = getPSF(Obj, DataPSF, FunPSF, StampSize, ArgVals, ArgNames, Args)
             % get PSF from AstroPSF object
             % Input : - A single AstroPSF object.
             %         - DataPSF is empty, will take Obj.DataPSF.
@@ -313,6 +312,7 @@ classdef AstroPSF1 < Component
                 StampSize = [];
                 ArgVals   = [];
                 ArgNames  = [];
+                Args.DimVal = [];
             end
             
             if isempty(DataPSF)
@@ -340,10 +340,17 @@ classdef AstroPSF1 < Component
             else
                 Obj.ArgNames = ArgNames;
             end
-        
+            
             if isempty(FunPSF)
                 % PSF is an image stamp
-                Result = Obj.DataPSF;
+                if isempty(Args.DimVal) % the default PSF is in the first cell
+                    Result = Obj.DataPSF(1:Obj.StampSize(1),1:Obj.StampSize(2),1,1,1,1,1);
+                else 
+                    Result = interpn(Obj.DimAxes{1},Obj.DimAxes{2},Obj.DimAxes{3},Obj.DimAxes{4},Obj.DimAxes{5},...
+                                     Obj.DataPSF,...
+                                     Args.DimVal(1),Args.DimVal(2),Args.DimVal(3),Args.DimVal(4),Args.DimVal(5),...
+                                     Obj.InterpMethod);
+                end 
             else
                 Result = Obj.FunPSF(Obj.DataPSF, Obj.ArgVals{:});
             end
