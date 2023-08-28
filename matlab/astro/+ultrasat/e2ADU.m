@@ -6,7 +6,7 @@ function Result = e2ADU(Count, LowGain)
     % Input: - the number of electrons
     %        - the low gain flag
     % Output: - an integer number, which can be losslessly converted to a 14-bit binary
-    % Author: A.M. Krassilchthcikov Jul 2023
+    % Author: A.M. Krassilchthcikov (Jul 2023)
     arguments
         Count
         LowGain
