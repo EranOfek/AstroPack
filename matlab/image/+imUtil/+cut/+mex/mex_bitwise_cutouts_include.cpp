@@ -54,8 +54,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     }
 
     // Get array dimensions
-    mwSize nrows = mxGetM(prhs[0]);
-    mwSize ncols = mxGetN(prhs[0]);
+    int nrows = mxGetM(prhs[0]);
+    int ncols = mxGetN(prhs[0]);
     long numel = mxGetNumberOfElements(prhs[1]);
 
     // Check image matrix side and dims
@@ -109,23 +109,30 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         int x_end = x + HalfSize_int;
         int y_start = y - HalfSize_int;
         int y_end = y + HalfSize_int;
-    
-        // Ensure the calculated bounds are within the image dimensions
-        if (x_start < 0) x_start = 0;
-        if (x_end >= ncols) x_end = ncols - 1;
-        if (y_start < 0) y_start = 0;
-        if (y_end >= nrows) y_end = nrows - 1;
 
-        // stamp bitwise initialization
+        // assign 0 if stamp is completly out of bounds
         __Type stamp_value;
-        stamp_value = bitwise_or ? 0 : mat[x * nrows + y]; 
-
-        // loop through stamp pixels and calculate bitwise
-        for (int yy = y_start; yy <= y_end; yy++) {
-            for (int xx = x_start; xx <= x_end; xx++) {
-                 stamp_value = bitwise_or ? (stamp_value | mat[xx * nrows + yy]) : (stamp_value & mat[xx * nrows + yy]);
+        if (x_start > ncols - 1 || y_start > nrows - 1 || x_end < 0 || y_end < 0) {
+            stamp_value = 0;
+        }
+        else {    
+            // Ensure the calculated bounds are within the image dimensions (if not, calculate only relevent pixels)
+            if (x_start < 0) x_start = 0;
+            if (x_end >= ncols) x_end = ncols - 1;
+            if (y_start < 0) y_start = 0;
+            if (y_end >= nrows) y_end = nrows - 1;
+    
+            // stamp bitwise initialization
+            stamp_value = bitwise_or ? 0 : mat[x * nrows + y]; 
+    
+            // loop through stamp pixels and calculate bitwise
+            for (int yy = y_start; yy <= y_end; yy++) {
+                for (int xx = x_start; xx <= x_end; xx++) {
+                     stamp_value = bitwise_or ? (stamp_value | mat[xx * nrows + yy]) : (stamp_value & mat[xx * nrows + yy]);
+                }
             }
         }
+
         output[i] = stamp_value;
     } 
 }

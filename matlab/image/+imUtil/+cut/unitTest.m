@@ -30,7 +30,9 @@ function Result = mex_bitwise_cutouts_unitTest()
     stamp_size = 5;
     
     bitwise_or = [true,false];
-    old_cutouts_total_time = 0;
+    bitwise_or_old = ["or","and"];
+    old_cutouts_total_time_16 = 0;
+    old_cutouts_total_time_32 = 0;
     bitwise_cutouts_total_time_16 = 0;
     bitwise_cutouts_total_time_32 = 0;
 
@@ -41,8 +43,8 @@ function Result = mex_bitwise_cutouts_unitTest()
             randomMatrix_32 = uint32(randi(2^32 - 1, rows, cols));
     
             % generate random positions
-            x_pos = rand(1,positions)*cols;
-            y_pos = rand(1,positions)*rows;
+            x_pos = round(rand(1, positions) * (cols - 1)) + 1;
+            y_pos = round(rand(1, positions) * (rows - 1)) + 1;
             pos = [x_pos; y_pos]';
     
             % perform 16 bit cutout and bitwise using mex function
@@ -50,31 +52,40 @@ function Result = mex_bitwise_cutouts_unitTest()
             bitwise_res_16 = imUtil.cut.mex.mex_bitwise_cutouts_int16(randomMatrix_16,x_pos,y_pos,stamp_size,bitwise_or(mode));
             bitwise_cutouts_total_time_16 = bitwise_cutouts_total_time_16 + toc(t);
     
-            % perform 32 bit cutout and bitwise using mex function
-            t=tic();
+            % perform 16 bit cutout and bitwise using old function
+            t = tic();
             bitwise_res_32 = imUtil.cut.mex.mex_bitwise_cutouts_int32(randomMatrix_32,x_pos,y_pos,stamp_size,bitwise_or(mode));
             bitwise_cutouts_total_time_32 = bitwise_cutouts_total_time_32 + toc(t);
     
+            % perform 32 bit cutout and bitwise using old function
+            t = tic();
+            IC = MaskImage({randomMatrix_16});
+            old_res_16 = IC.bitwise_cutouts(pos,bitwise_or_old(mode),'HalfSize',stamp_size);
+            old_cutouts_total_time_16 = old_cutouts_total_time_16 + toc(t);
+
             % compare to older version of cutout operation (currently only
             % accepts uint16 and performs the cutout without bitwise
-            t=tic();
-            [Cube, im_sub] = imUtil.cut.mex.mex_cutout(randomMatrix_16, pos, stamp_size, 0, 0, 0, 0);
-            % if bitwise_or
-                % old_res = tools.array.bitor_array(Cube,3,true);
-            % else
-                % old_res = tools.array.bitand_array(Cube,3,true);
-            old_cutouts_total_time = old_cutouts_total_time + toc(t);
+            t = tic();
+            IC = MaskImage({randomMatrix_32});
+            old_res_32 = IC.bitwise_cutouts(pos,bitwise_or_old(mode),'HalfSize',stamp_size);
+            old_cutouts_total_time_32 = old_cutouts_total_time_32 + toc(t);
+
+            assert(isequal(old_res_16, bitwise_res_16'), '16bit cutout calculations are not identical.');
+            assert(isequal(old_res_32, bitwise_res_32'), '32bit cutout calculations are not identical.');
             
         end
 
-        bitwise_cutouts_avg_time_32 = bitwise_cutouts_total_time_32 / iterations;
         bitwise_cutouts_avg_time_16 = bitwise_cutouts_total_time_16 / iterations;
-        old_cutouts_avg_time = old_cutouts_total_time / iterations;
-        ratio = bitwise_cutouts_avg_time_16 / old_cutouts_avg_time;
-        ratio_per = ratio*100;
+        bitwise_cutouts_avg_time_32 = bitwise_cutouts_total_time_32 / iterations;        
+        old_cutouts_avg_time_16 = old_cutouts_total_time_16 / iterations;
+        old_cutouts_avg_time_32 = old_cutouts_total_time_32 / iterations;
+        ratio_16 = bitwise_cutouts_avg_time_16 / old_cutouts_avg_time_16;
+        ratio_per_16 = ratio_16*100;
+        ratio_32 = bitwise_cutouts_avg_time_32 / old_cutouts_avg_time_32;
+        ratio_per_32 = ratio_32*100;        
     
-        fprintf('Bitwise cutouts (bitwise_or: %s) uint16 avg time: %d, old cutouts avg time: %d, ratio: %.2f%% \n',num2str(bitwise_or(mode)),bitwise_cutouts_avg_time_16,old_cutouts_avg_time,ratio_per);
-        fprintf('Bitwise cutouts (bitwise_or: %s) uint32 avg time: %d \n',num2str(bitwise_or(mode)),bitwise_cutouts_avg_time_32);
+        fprintf('Bitwise cutouts (bitwise_or: %s) uint16 avg time: %d, old cutouts avg time: %d, ratio: %.2f%% \n',num2str(bitwise_or(mode)),bitwise_cutouts_avg_time_16,old_cutouts_avg_time_16,ratio_per_16);
+        fprintf('Bitwise cutouts (bitwise_or: %s) uint32 avg time: %d, old cutouts avg time: %d, ratio: %.2f%% \n',num2str(bitwise_or(mode)),bitwise_cutouts_avg_time_32,old_cutouts_avg_time_32,ratio_per_32);
 
     end
 
