@@ -90,9 +90,11 @@ function Cat = downloadPrepSpecGAIA(Args)
         Cat(:,1:2) = Cat(:,1:2)./RAD;
         ColNames = [{'RA','Dec','source_id','solution_id','Ifile','Ispec'}, tools.cell.cellstr_prefix(Args.Wave,'F').',  tools.cell.cellstr_prefix(Args.Wave,'E').'];
 
-        AC = AstroCatalog({Cat}, 'ColNames',ColNames);
-        AC.sortrows(AC,'Dec');
-        Nsrc = VO.prep.build_htm_catalog(AC, 'CatName','GAIADR3spec','HTM_Level',8);
+        Nsrc = VO.prep.build_htm_catalog(Cat, 'CatName','GAIADR3spec','HTM_Level',8,'ColCell',ColNames);
+
+        %AC = AstroCatalog({Cat}, 'ColNames',ColNames);
+        %AC.sortrows(AC,'Dec');
+        %Nsrc = VO.prep.build_htm_catalog(AC, 'CatName','GAIADR3spec','HTM_Level',8);
     end
     
     %% upload all spectra into a single matrix
