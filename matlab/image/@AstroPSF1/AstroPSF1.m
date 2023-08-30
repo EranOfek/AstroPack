@@ -66,7 +66,7 @@ classdef AstroPSF1 < Component
         FunPSF            = [];    % e.g., Map = Fun(Data, X,Y, Color, Flux)
         DimName cell      = {'Wave', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'}; % the standard set of dimensions
         DimAxes cell      = cell(1,5);   % axes according to DimName
-        InterpMethod      = {'nearest'}; % can be n-dimensional with different methods applied at different dimensions
+        InterpMethod      = {'linear'}; % can be n-dimensional with different methods applied at different dimensions
         
         ArgVals cell      = {};
         ArgNames cell     = {'X','Y','Color','Flux'};
@@ -312,7 +312,9 @@ classdef AstroPSF1 < Component
                 StampSize = [];
                 ArgVals   = [];
                 ArgNames  = [];
+                
                 Args.DimVal = [];
+%                 [PSF, Var] = P.getPSF('Flux',Val, 'Wave',5000)
             end
             
             if isempty(DataPSF)
@@ -343,14 +345,19 @@ classdef AstroPSF1 < Component
             
             if isempty(FunPSF)
                 % PSF is an image stamp
-                if isempty(Args.DimVal) % the default PSF is in the first cell
-                    Result = Obj.DataPSF(1:Obj.StampSize(1),1:Obj.StampSize(2),1,1,1,1,1);
-                else 
-                    Result = interpn(Obj.DimAxes{1},Obj.DimAxes{2},Obj.DimAxes{3},Obj.DimAxes{4},Obj.DimAxes{5},...
-                                     Obj.DataPSF,...
-                                     Args.DimVal(1),Args.DimVal(2),Args.DimVal(3),Args.DimVal(4),Args.DimVal(5),...
-                                     Obj.InterpMethod);
-                end 
+                X = 1:Obj.StampSize(1); Y = 1:Obj.StampSize(2);
+                Ndim = ndims(Obj.DataPSF)-2; % the number of additional data dimensions in the object
+                if isempty(Args.DimVal)      % the default PSF is in the first cell
+                    Result = Obj.DataPSF(X,Y,ones(1,Ndim));
+                else                         % interpolate over the dimensions
+                    Nval = size(Args.DimVal,2);
+                    if Nval == Ndim
+                        Result = interpn(X,Y, Obj.DimAxes{1:Ndim}, Obj.DataPSF, ...
+                            X,Y, Args.DimVal{1:Nval}, Obj.InterpMethod{1});
+                    else
+                        error('The number of input values does not match the number of data dimensions!');
+                    end
+                end
             else
                 Result = Obj.FunPSF(Obj.DataPSF, Obj.ArgVals{:});
             end
@@ -775,8 +782,8 @@ classdef AstroPSF1 < Component
                 else
                     Fx = 1;                   Fy = 1;
                 end
-                Obj(Iobj).Scale   = Obj(Iobj).Scale * Fx; 
-                Obj(Iobj).ScaleY  = Obj(Iobj).Scale * Fy; 
+                Obj(Iobj).Scale(1)  = Obj(Iobj).Scale(1) * Fx; 
+                Obj(Iobj).Scale(2)  = Obj(Iobj).Scale(2) * Fy; 
             end
             
         end
