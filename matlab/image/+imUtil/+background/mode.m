@@ -93,7 +93,7 @@ function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower)
                 end
                 Variance = 0;
             else
-                error('Edges is empty and Max not equal Min');
+                error('Can not calculate mode - likely because all pixels have identical value');
             end
         else
 

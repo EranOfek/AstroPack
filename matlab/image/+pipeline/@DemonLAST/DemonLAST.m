@@ -1749,13 +1749,13 @@ classdef DemonLAST < Component
                             Obj.writeLog(ME, LogLevel.Error);
                             
                             % write log file
-    
+                            ErrorMsg = sprintf('pipeline.DemonLAST: %d images moved to failed directory',numel(RawImageList));
+                            Obj.writeLog(ErrorMsg, LogLevel.Error);
+
                             % move images to failed/ dir
                             io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull('FullPath',FailedPath));
     
-                            ErrorMsg = sprintf('pipeline.DemonLAST: %d images moved to failed directory',numel(RawImageList));
-                            %warning(ErrorMsg);
-                            Obj.writeLog(ErrorMsg, LogLevel.Error);
+                            
                         end
     
     
