@@ -590,7 +590,15 @@ classdef AstroDb < Component
             end
             
             if ~ismember(Table, Obj.Tables)
-                error('The requested table does not exist in the database')
+                ErrorMsg = sprintf('The requested table %s does not exist in the database',Table);     
+                Obj.msgLog(LogLevel.Error, ErrorMsg);
+                return
+            end
+            
+            if isempty(Data)
+                ErrorMsg = sprintf('db.AstroDb.insert: the input structure is empty, skipping..');     
+                Obj.msgLog(LogLevel.Error, ErrorMsg);
+                return
             end
             
             % check basic input consistency:
