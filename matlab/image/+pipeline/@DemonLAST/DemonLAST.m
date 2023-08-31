@@ -1643,7 +1643,7 @@ classdef DemonLAST < Component
                                     % insert proc images into the DB:
     %                                 FN_Proc.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
                                     HasImage = ~AllSI.isemptyImage; % use only AI's with Image properties filled
-%                                     ProcFileName = FN_Proc.genFull;
+                                    ProcFileName = FN_Proc.genFull;
 %                                     HasFile = cellfun(@(name) exist(name, 'file') == 2, ProcFileName);
 %                                     HasFile = reshape(HasFile,size(AllSI,1),size(AllSI,2));
 %                                     [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage.*HasFile), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage.*HasFile));
