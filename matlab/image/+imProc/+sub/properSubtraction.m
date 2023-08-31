@@ -54,7 +54,7 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef
 
 
         %AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
-        AIreg=imProc.transIm.interp2wcs(AI, AI(1));
+        AIreg=imProc.transIm.interp2wcs(AI, AI(1), 'InterpMethod','cubic');
 
         AIreg= imProc.background.background(AIreg,'SubSizeXY',[]); %[256 256]);  
         AIreg=imProc.sources.findMeasureSources(AIreg);           
@@ -75,8 +75,8 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef
 
         [DD,S,Scorr,Z2,S2, F_S,SdN, SdR] = imProc.sub.properSubtraction(AIreg(5), AIreg(1));
 
-        
-        R=imProc.sources.findTransients(AIreg(2), AIreg(1), DD, S, Scorr, Z2, S2);
+
+        R=imProc.sources.findTransients(AIreg(5), AIreg(1), DD, S, Scorr, Z2, S2);
     end
 
 
