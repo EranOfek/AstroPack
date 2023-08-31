@@ -65,8 +65,8 @@ classdef AstroPSF1 < Component
         Scale             = [1 1]; % Pixel X and Y sizes (may be different) 
         FunPSF            = [];    % e.g., Map = Fun(Data, X,Y, Color, Flux)
         DimName cell      = {'Wave', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'}; % the standard set of dimensions
-        DimAxes cell      = cell(1,5);   % axes according to DimName
-        InterpMethod      = {'linear'}; % can be n-dimensional with different methods applied at different dimensions
+        DimAxes cell      = repmat({0}, 1, 5); % axes according to DimName
+        InterpMethod      = {'nearest'}; % can be n-dimensional with different methods applied at different dimensions
         
         ArgVals cell      = {};
         ArgNames cell     = {'X','Y','Color','Flux'};
@@ -191,10 +191,6 @@ classdef AstroPSF1 < Component
         end
     end
     
-    methods (Static)  % static methods
- 
-    end
-    
     methods % utilities (e.g., isempty)
         function Result = isemptyPSF(Obj)
             % Check if PSFData is empty.
@@ -313,8 +309,40 @@ classdef AstroPSF1 < Component
                 ArgVals   = [];
                 ArgNames  = [];
                 
-                Args.DimVal = [];
-%                 [PSF, Var] = P.getPSF('Flux',Val, 'Wave',5000)
+                Args.Wave   = [];
+                Args.PosX   = [];
+                Args.PosY   = [];
+                Args.PixPhaseX = [];
+                Args.PixPhaseY = [];
+            end
+            
+            % choose between the input value of PSF parameters and
+            % the standard value taken from the first point in the grid 
+            % in each of the dimensions
+            if ~isempty(Args.Wave)
+                DimVal{1} = Args.Wave;
+            else
+                DimVal{1} = Obj.DimAxes{1}(1);
+            end
+            if ~isempty(Args.PosX)
+                DimVal{2} = Args.PosX;
+            else
+                DimVal{2} = Obj.DimAxes{2}(1);
+            end
+            if ~isempty(Args.PosY)
+                DimVal{3} = Args.PosY;
+            else
+                DimVal{3} = Obj.DimAxes{3}(1);
+            end
+            if ~isempty(Args.PixPhaseX)
+                DimVal{4} = Args.PixPhaseX;
+            else
+                DimVal{4} = Obj.DimAxes{4}(1);
+            end
+            if ~isempty(Args.PixPhaseY)
+                DimVal{5} = Args.PixPhaseY;
+            else
+                DimVal{5} = Obj.DimAxes{5}(1);
             end
             
             if isempty(DataPSF)
@@ -344,19 +372,16 @@ classdef AstroPSF1 < Component
             end
             
             if isempty(FunPSF)
-                % PSF is an image stamp
-                X = 1:Obj.StampSize(1); Y = 1:Obj.StampSize(2);
+                % PSF is a multidimentional image stamp
+                X = 1:size(Obj.DataPSF,1); Y = 1:size(Obj.DataPSF,1);
                 Ndim = ndims(Obj.DataPSF)-2; % the number of additional data dimensions in the object
-                if isempty(Args.DimVal)      % the default PSF is in the first cell
-                    Result = Obj.DataPSF(X,Y,ones(1,Ndim));
-                else                         % interpolate over the dimensions
-                    Nval = size(Args.DimVal,2);
-                    if Nval == Ndim
-                        Result = interpn(X,Y, Obj.DimAxes{1:Ndim}, Obj.DataPSF, ...
-                            X,Y, Args.DimVal{1:Nval}, Obj.InterpMethod{1});
-                    else
-                        error('The number of input values does not match the number of data dimensions!');
-                    end
+                if Ndim == 0 % no additional dimensions
+                    Result = Obj.DataPSF;
+                else
+%                     Obj.DimAxes{1:Ndim} %deb
+%                     Val{1:Ndim}         %deb
+                    Result = interpn(X,Y, Obj.DimAxes{1:Ndim}, Obj.DataPSF, ...
+                        X,Y, DimVal{1:Ndim}, Obj.InterpMethod{1});
                 end
             else
                 Result = Obj.FunPSF(Obj.DataPSF, Obj.ArgVals{:});
