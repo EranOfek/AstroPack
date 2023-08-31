@@ -279,6 +279,8 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             %                   Default is false.
             %            'DataProp' - Data property from which to extract
             %                   the cutouts. Default is 'Image'.
+            %            'UseMex' - A logical indicating if to use the mex
+            %                   version. Default is true.
             % Output : - A column vector of function output (bitwise or/and
             %            on all numbers in cutout) per each cutout.
             % Author : Eran Ofek (Jul 2021)
@@ -294,6 +296,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                 Args.IsCircle               = false;
                 Args.DataProp               = 'Image';
                 
+                Args.UseMex logical         = true;
             end
             
             switch lower(Operator)
@@ -305,11 +308,16 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                     error('Unnown Operator option');
             end
                 
-            Result = funCutouts(Obj, XY, Fun, 'HalfSize',Args.HalfSize,...
+            if Args.UseMex
+                % use the mex version (considerably faster)
+                Result = imUtil.cut.bitwise_cutouts(Obj.Data, XY(:,1), XY(:,2), Args.HalfSize, strcmp(Operator,'or'));
+            else
+                Result = funCutouts(Obj, XY, Fun, 'HalfSize',Args.HalfSize,...
                                                       'PadVal',0,...
                                                       'CutALgo',Args.CutAlgo,...
                                                       'IsCircle',Args.IsCircle,...
                                                       'DataProp',Args.DataProp);
+            end
          
             
         end
