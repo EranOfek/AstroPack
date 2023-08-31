@@ -61,7 +61,7 @@ Chi2  = sum((Resid./E).^2,1);
 Res.Chi2 = Chi2;
 
 RefModel   = 1;
-Chi2Factor = sqrt(Res.Chi2(RefModel)./(Npt-Npar(RefModel)));
+Chi2Factor = (Res.Chi2(RefModel)./(Npt-Npar(RefModel)));
 
 Res.NewChi2   = Chi2./Chi2Factor;
 Res.DeltaChi2 = chi2inv(InPar.RejectProb,Npar);
