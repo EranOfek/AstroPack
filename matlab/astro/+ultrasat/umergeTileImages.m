@@ -4,10 +4,10 @@ function MergedImage = umergeTileImages (Args)
     % Description: Make a 4-tile ULTRASAT image from 4 separate tile images
     % Input:   -
     %          * ...,key,val,...
-    %          'A'      : name of the .mat object with a pre-simulated image of tile A
-    %          'B'      : name of the .mat object with a pre-simulated image of tile B
-    %          'C'      : name of the .mat object with a pre-simulated image of tile C
-    %          'D'      : name of the .mat object with a pre-simulated image of tile D
+    %          'A'      : name of the fits file with a pre-simulated image of tile A
+    %          'B'      : name of the fits file with a pre-simulated image of tile B
+    %          'C'      : name of the fits file with a pre-simulated image of tile C
+    %          'D'      : name of the fits file with a pre-simulated image of tile D
     %          'OutDir' : output directory 
     %          
     % Output : - Image: a 2D fits image containing the resulting source image 
@@ -19,10 +19,10 @@ function MergedImage = umergeTileImages (Args)
     
     arguments
         
-    Args.A = 'SimImage_tileA.mat';
-    Args.B = 'SimImage_tileB.mat';
-    Args.C = 'SimImage_tileC.mat';
-    Args.D = 'SimImage_tileD.mat';
+    Args.A = 'SimImage_tileA.fits';
+    Args.B = 'SimImage_tileB.fits';
+    Args.C = 'SimImage_tileC.fits';
+    Args.D = 'SimImage_tileD.fits';
     
     Args.OutDir = '.'
     
@@ -42,21 +42,29 @@ function MergedImage = umergeTileImages (Args)
     Ngap        = ceil( 1e3 * GapMm / PixelSize); 
     
 %     Nx          = 2 * TileSizeX + Ngap;
-%     Ny          = 2 * TileSizeY + Ngap;
-    
+%     Ny          = 2 * TileSizeY + Ngap;    
 %     MergedImage = zeros(Nx, Ny);
     
     % read in the data
     
-    R = io.files.load1(Args.A);
-%     imA = R.usimImage.Image;
-    imA = R.Image;
-    R = io.files.load1(Args.B);
-    imB = R.Image;
-    R = io.files.load1(Args.C);
-    imC = R.Image;
-    R = io.files.load1(Args.D);
-    imD = R.Image;
+%     R = io.files.load1(Args.A);
+%     imA = R.Image;
+%     R = io.files.load1(Args.B);
+%     imB = R.Image;
+%     R = io.files.load1(Args.C);
+%     imC = R.Image;
+%     R = io.files.load1(Args.D);
+%     imD = R.Image;
+
+    AI = AstroImage(Args.A); imA = AI.Image;
+    AI = AstroImage(Args.B); imB = AI.Image;
+    AI = AstroImage(Args.C); imC = AI.Image;
+    AI = AstroImage(Args.D); imD = AI.Image;
+    
+    % rotate the pixel images
+    
+    imC = imrotate(imC, 180, 'bilinear', 'loose'); 
+    imA = imrotate(imA, 180, 'bilinear', 'loose'); 
     
     % pad the quarter arrays with zeros
     
