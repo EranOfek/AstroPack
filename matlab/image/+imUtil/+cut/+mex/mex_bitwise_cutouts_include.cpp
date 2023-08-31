@@ -100,10 +100,6 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         x--;
         y--;
 
-        // make sure x and y positions are not negative (might happen if 0 position is passed from matlab)
-        if (x < 0) x = 0;
-        if (y < 0) y = 0;
-
         // Calculate bounds for the stamp
         int x_start = x - HalfSize_int;
         int x_end = x + HalfSize_int;
