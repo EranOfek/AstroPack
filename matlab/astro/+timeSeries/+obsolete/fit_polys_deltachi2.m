@@ -61,8 +61,17 @@ Chi2  = sum((Resid./E).^2,1);
 Res.Chi2 = Chi2;
 
 RefModel   = 1;
-Chi2Factor = (Res.Chi2(RefModel)./(Npt-Npar(RefModel)));
+Chi2Factor = Res.Chi2(RefModel)./(Npt-Npar(RefModel));
 
 Res.NewChi2   = Chi2./Chi2Factor;
 Res.DeltaChi2 = chi2inv(InPar.RejectProb,Npar);
+Res.PreferredModel = NaN;
+for i=1:1:(InPar.MaxOrder-1)
+   if Res.NewChi2(i)-Res.NewChi2(i+1) < Res.DeltaChi2(i+1)
+       Res.PreferredModel = i;
+       break;
+   else
+       continue; 
+   end
+end
 
