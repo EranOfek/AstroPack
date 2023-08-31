@@ -13,20 +13,20 @@ function Result = unitTest()
     end
 
     % curve of growth
-    AP = AstroPSF;
+    AP = AstroPSF1;
     AP.DataPSF = imUtil.kernel2.gauss;
 
     % @FIX - @Eran
     [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(AP);
 
     % images2cube
-    AP = AstroPSF;
+    AP = AstroPSF1;
     AP.DataPSF = imUtil.kernel2.gauss;
     AP(2).DataPSF = imUtil.kernel2.gauss;
     [Cube, CubeVar] = images2cube(AP)
 
     % moments
-    AP = AstroPSF;
+    AP = AstroPSF1;
     AP.DataPSF = imUtil.kernel2.gauss;
     AP(2).DataPSF = imUtil.kernel2.gauss;
     [M1,M2,Aper] = moment2(AP,'moment2Args',{'Momradius',4,'Annulus',[3, 4]});
@@ -40,7 +40,7 @@ function Result = unitTest()
     
     % extended data structures (temporarily in DataPSF2-3, later will be moved to DataPSF)
     
-    AP = AstroPSF;
+    AP = AstroPSF1;
     P0 = imUtil.kernel2.gauss;
     AP.StampSize = size(P0);
     
@@ -57,108 +57,143 @@ function Result = unitTest()
     Lam = [2000 4000 6000]; % 3 wavelengths for 3 PSFs 
     Rad = [0 2 4];          % 3 radial positions
     
+    AP.DimAxes{1} = Lam;
+    AP.DimAxes{2} = Rad;
+    
+    AP.DataPSF = zeros( AP.StampSize(1), AP.StampSize(2), ...
+        max(size(AP.DimAxes{1},2),1), max(size(AP.DimAxes{2},2),1), ...
+        max(size(AP.DimAxes{3},2),1), max(size(AP.DimAxes{4},2),1), ...
+        max(size(AP.DimAxes{5},2),1) );
+    
+    % put 3 PSFs at 3 radial postions (and interpolate):
+    
+    AP.DataPSF(:,:,1,1) = P0;
+    AP.DataPSF(:,:,1,2) = P1;
+    AP.DataPSF(:,:,1,3) = P2;
+    
+    % put 3 PSFs at 3 frequencies (and make a spectrum-weighted PSF):
+    
+    AP.DataPSF(:,:,1) = P0;
+    AP.DataPSF(:,:,2) = P1;
+    AP.DataPSF(:,:,3) = P2;
+    
+    P10 = AP.getPSF;
+    P11 = AP.getPSF('Wave',2200);
+    P12 = AP.getPSF('PosX',2.5);
+    P13 = AP.getPSF('Wave',2200,'PosX',2.5);
+    P14 = AP.getPSF('Wave',5000);
+    
+% [PSF, Var] = P.weightPSF('Flux',Val, 'Wave',[5000 5500 6000],'Spec',[0.5 1 0.5])
+% [PSF, Var] = P.weightPSF([], 'InterpMethod','nearest'); % use vals from properties
+
+% AstroPSF = P.repopPSF('Wave',[5000 5500 6000],'WaveWeight',[0.5 1 0.5])
+% ValPerPSF = fwhm(P)
+% [ValX, ValY] = P.fwhm(Method=[], 'Flux',Val, 'Wave',[5000])
+    
+    pause
+
     % 
     
-%     AP.DimAxis2{1} = Lam; 
-%     AP.DimAxis2{6} = Rad;           
+% %     AP.DimAxis2{1} = Lam; 
+% %     AP.DimAxis2{6} = Rad;           
+% %     
+% %     AP.DataPSF2 = zeros( AP.StampSize(1), AP.StampSize(2), ...
+% %                          max(size(AP.DimAxis2{1},2),1), max(size(AP.DimAxis2{2},2),1), ...
+% %                          max(size(AP.DimAxis2{3},2),1), max(size(AP.DimAxis2{4},2),1), ...
+% %                          max(size(AP.DimAxis2{5},2),1), max(size(AP.DimAxis2{6},2),1), ...
+% %                          max(size(AP.DimAxis2{7},2),1), max(size(AP.DimAxis2{8},2),1), ...
+% %                          max(size(AP.DimAxis2{9},2),1), max(size(AP.DimAxis2{10},2),1) );
+% %     
+% %     % put 3 PSFs at 3 radial postions and interpolate: 
+% %                      
+% %     AP.DataPSF2(:,:,1,1) = P0;
+% %     AP.DataPSF2(:,:,1,2) = P1;
+% %     AP.DataPSF2(:,:,1,3) = P2;
+% %     
+% %     Radius = 3.0; lab1 = sprintf('%s%d','spatial interpolation at r=', Radius);
+% %     
+% %     SubArray = squeeze( AP.DataPSF2 );
+% %     PSF = interpn(X,Y,Lam,Rad,SubArray,X,Y,Lam,Radius);
+% %     
+% %     figure(1)
+% %     subplot(2,2,1); imagesc(AP.DataPSF2(:,:,1,1)); title '1';
+% %     subplot(2,2,2); imagesc(AP.DataPSF2(:,:,1,2)); title '2';
+% %     subplot(2,2,3); imagesc(AP.DataPSF2(:,:,1,3)); title '3';
+% %     subplot(2,2,4); imagesc(PSF(:,:,1)); title(lab1);     
+% %     
+% %     % put 3 PSFs at 3 frequencies and make a spectrum-weighted PSF:
+% %     
+% %     AP.DataPSF2(:,:,1,1) = P0;
+% %     AP.DataPSF2(:,:,2,1) = P1;
+% %     AP.DataPSF2(:,:,3,1) = P2;
+% %     
+% %     PSFdata = AP.DataPSF2(:,:,:,:);
+% %     RadSrc  = Rad(1);
+% %     Temp = 3000; lab2 = sprintf('%s%d','spec. weighting, T=' , Temp);
+% %     SpecSrc(1,:) = AstroSpec.blackBody(Lam',Temp).Flux;
+% %     
+% %     PSF2 = imUtil.psf.specWeight( SpecSrc, RadSrc, PSFdata, 'Rad', Rad );
+% % 
+% %     figure(2)
+% %     subplot(2,2,1); imagesc(AP.DataPSF2(:,:,1,1)); title '1';
+% %     subplot(2,2,2); imagesc(AP.DataPSF2(:,:,1,2)); title '2';
+% %     subplot(2,2,3); imagesc(AP.DataPSF2(:,:,1,3)); title '3';
+% %     subplot(2,2,4); imagesc(PSF2(:,:,1)); title(lab2);
+% %     
+% %     % calculate pseudo FWHM and containtemnt radius
+% %     
+% %     % the function acts only on the first 2 dimentions of the cube, 
+% %     % i.e. takes AP.DataPSF2(:,:,1,1,1,1,1,1) or AP.DataPSF2(:,:,1,1)
+% %     % for AP.DataPSF2(:,:,1,2) or AP.DataPSF2(:,:,1,3) the result will be different! 
+% %     
+% %     AP.FWHM = imUtil.psf.pseudoFWHM(AP.DataPSF2);
+% %     AP.ContainmentR = imUtil.psf.containment(AP.DataPSF2(:,:,1,1),'Level',0.99);
+% %     
+%     % extended data structures (temporarily in DataPSF3, later will be moved to DataPSF)
 %     
-%     AP.DataPSF2 = zeros( AP.StampSize(1), AP.StampSize(2), ...
-%                          max(size(AP.DimAxis2{1},2),1), max(size(AP.DimAxis2{2},2),1), ...
-%                          max(size(AP.DimAxis2{3},2),1), max(size(AP.DimAxis2{4},2),1), ...
-%                          max(size(AP.DimAxis2{5},2),1), max(size(AP.DimAxis2{6},2),1), ...
-%                          max(size(AP.DimAxis2{7},2),1), max(size(AP.DimAxis2{8},2),1), ...
-%                          max(size(AP.DimAxis2{9},2),1), max(size(AP.DimAxis2{10},2),1) );
+%     AP.DimAxis3{1} = Lam; 
+%     AP.DimAxis3{2} = Rad;           
+%     
+%     AP.DataPSF3 = zeros( AP.StampSize(1), AP.StampSize(2), ...
+%                          max(size(AP.DimAxis3{1},2),1), max(size(AP.DimAxis3{2},2),1), ...
+%                          max(size(AP.DimAxis3{3},2),1), max(size(AP.DimAxis3{4},2),1), ...
+%                          max(size(AP.DimAxis3{5},2),1) );
 %     
 %     % put 3 PSFs at 3 radial postions and interpolate: 
 %                      
-%     AP.DataPSF2(:,:,1,1) = P0;
-%     AP.DataPSF2(:,:,1,2) = P1;
-%     AP.DataPSF2(:,:,1,3) = P2;
+%     AP.DataPSF3(:,:,1,1) = P0;
+%     AP.DataPSF3(:,:,1,2) = P1;
+%     AP.DataPSF3(:,:,1,3) = P2;
 %     
 %     Radius = 3.0; lab1 = sprintf('%s%d','spatial interpolation at r=', Radius);
 %     
-%     SubArray = squeeze( AP.DataPSF2 );
+%     SubArray = squeeze( AP.DataPSF3 );
 %     PSF = interpn(X,Y,Lam,Rad,SubArray,X,Y,Lam,Radius);
 %     
-%     figure(1)
-%     subplot(2,2,1); imagesc(AP.DataPSF2(:,:,1,1)); title '1';
-%     subplot(2,2,2); imagesc(AP.DataPSF2(:,:,1,2)); title '2';
-%     subplot(2,2,3); imagesc(AP.DataPSF2(:,:,1,3)); title '3';
+%     figure(3)
+%     subplot(2,2,1); imagesc(AP.DataPSF3(:,:,1,1)); title '1';
+%     subplot(2,2,2); imagesc(AP.DataPSF3(:,:,1,2)); title '2';
+%     subplot(2,2,3); imagesc(AP.DataPSF3(:,:,1,3)); title '3';
 %     subplot(2,2,4); imagesc(PSF(:,:,1)); title(lab1);     
 %     
 %     % put 3 PSFs at 3 frequencies and make a spectrum-weighted PSF:
 %     
-%     AP.DataPSF2(:,:,1,1) = P0;
-%     AP.DataPSF2(:,:,2,1) = P1;
-%     AP.DataPSF2(:,:,3,1) = P2;
+%     AP.DataPSF3(:,:,1,1) = P0;
+%     AP.DataPSF3(:,:,2,1) = P1;
+%     AP.DataPSF3(:,:,3,1) = P2;
 %     
-%     PSFdata = AP.DataPSF2(:,:,:,:);
+%     PSFdata = AP.DataPSF3(:,:,:,:);
 %     RadSrc  = Rad(1);
 %     Temp = 3000; lab2 = sprintf('%s%d','spec. weighting, T=' , Temp);
 %     SpecSrc(1,:) = AstroSpec.blackBody(Lam',Temp).Flux;
 %     
 %     PSF2 = imUtil.psf.specWeight( SpecSrc, RadSrc, PSFdata, 'Rad', Rad );
 % 
-%     figure(2)
-%     subplot(2,2,1); imagesc(AP.DataPSF2(:,:,1,1)); title '1';
-%     subplot(2,2,2); imagesc(AP.DataPSF2(:,:,1,2)); title '2';
-%     subplot(2,2,3); imagesc(AP.DataPSF2(:,:,1,3)); title '3';
+%     figure(4)
+%     subplot(2,2,1); imagesc(AP.DataPSF3(:,:,1,1)); title '1';
+%     subplot(2,2,2); imagesc(AP.DataPSF3(:,:,1,2)); title '2';
+%     subplot(2,2,3); imagesc(AP.DataPSF3(:,:,1,3)); title '3';
 %     subplot(2,2,4); imagesc(PSF2(:,:,1)); title(lab2);
-%     
-%     % calculate pseudo FWHM and containtemnt radius
-%     
-%     % the function acts only on the first 2 dimentions of the cube, 
-%     % i.e. takes AP.DataPSF2(:,:,1,1,1,1,1,1) or AP.DataPSF2(:,:,1,1)
-%     % for AP.DataPSF2(:,:,1,2) or AP.DataPSF2(:,:,1,3) the result will be different! 
-%     
-%     AP.FWHM = imUtil.psf.pseudoFWHM(AP.DataPSF2);
-%     AP.ContainmentR = imUtil.psf.containment(AP.DataPSF2(:,:,1,1),'Level',0.99);
-%     
-    % extended data structures (temporarily in DataPSF3, later will be moved to DataPSF)
-    
-    AP.DimAxis3{1} = Lam; 
-    AP.DimAxis3{2} = Rad;           
-    
-    AP.DataPSF3 = zeros( AP.StampSize(1), AP.StampSize(2), ...
-                         max(size(AP.DimAxis3{1},2),1), max(size(AP.DimAxis3{2},2),1), ...
-                         max(size(AP.DimAxis3{3},2),1), max(size(AP.DimAxis3{4},2),1), ...
-                         max(size(AP.DimAxis3{5},2),1) );
-    
-    % put 3 PSFs at 3 radial postions and interpolate: 
-                     
-    AP.DataPSF3(:,:,1,1) = P0;
-    AP.DataPSF3(:,:,1,2) = P1;
-    AP.DataPSF3(:,:,1,3) = P2;
-    
-    Radius = 3.0; lab1 = sprintf('%s%d','spatial interpolation at r=', Radius);
-    
-    SubArray = squeeze( AP.DataPSF3 );
-    PSF = interpn(X,Y,Lam,Rad,SubArray,X,Y,Lam,Radius);
-    
-    figure(3)
-    subplot(2,2,1); imagesc(AP.DataPSF3(:,:,1,1)); title '1';
-    subplot(2,2,2); imagesc(AP.DataPSF3(:,:,1,2)); title '2';
-    subplot(2,2,3); imagesc(AP.DataPSF3(:,:,1,3)); title '3';
-    subplot(2,2,4); imagesc(PSF(:,:,1)); title(lab1);     
-    
-    % put 3 PSFs at 3 frequencies and make a spectrum-weighted PSF:
-    
-    AP.DataPSF3(:,:,1,1) = P0;
-    AP.DataPSF3(:,:,2,1) = P1;
-    AP.DataPSF3(:,:,3,1) = P2;
-    
-    PSFdata = AP.DataPSF3(:,:,:,:);
-    RadSrc  = Rad(1);
-    Temp = 3000; lab2 = sprintf('%s%d','spec. weighting, T=' , Temp);
-    SpecSrc(1,:) = AstroSpec.blackBody(Lam',Temp).Flux;
-    
-    PSF2 = imUtil.psf.specWeight( SpecSrc, RadSrc, PSFdata, 'Rad', Rad );
-
-    figure(4)
-    subplot(2,2,1); imagesc(AP.DataPSF3(:,:,1,1)); title '1';
-    subplot(2,2,2); imagesc(AP.DataPSF3(:,:,1,2)); title '2';
-    subplot(2,2,3); imagesc(AP.DataPSF3(:,:,1,3)); title '3';
-    subplot(2,2,4); imagesc(PSF2(:,:,1)); title(lab2);
     
     % calculate pseudo FWHM and containtemnt radius
     
