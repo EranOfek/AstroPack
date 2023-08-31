@@ -35,7 +35,7 @@ function Result=interp2wcs(Obj, Ref, Args)
     arguments
         Obj AstroImage
         Ref
-        Args.InterpMethod             = 'cubic';
+        Args.InterpMethod             = 'cubic';  % 'makima'
         Args.InterpMethodMask         = 'nearest';
         Args.DataProp                 = {'Image','Mask'};
         Args.ExtrapVal                = NaN;
