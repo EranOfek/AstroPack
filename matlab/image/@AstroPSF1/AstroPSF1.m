@@ -82,7 +82,7 @@ classdef AstroPSF1 < Component
     
     methods % Constructor
        
-        function Obj = AstroPSF(FileName, Args)
+        function Obj = AstroPSF1(FileName, Args)
             % AstroPSF constructor - read PSF images to AstroPSF object
             % Input  : - File names.
             %            Either an AstroImage, ImageComponent, SIM, imCl
@@ -314,6 +314,8 @@ classdef AstroPSF1 < Component
                 Args.PosY   = [];
                 Args.PixPhaseX = [];
                 Args.PixPhaseY = [];
+                
+                Args.InterpMethod =[];
             end
             
             % choose between the input value of PSF parameters and
@@ -344,6 +346,11 @@ classdef AstroPSF1 < Component
             else
                 DimVal{5} = Obj.DimAxes{5}(1);
             end
+            if ~isempty(Args.InterpMethod)
+                IntMeth = Args.InterpMethod;
+            else
+                IntMeth = Obj.InterpMethod{1};
+            end
             
             if isempty(DataPSF)
                 DataPSF = Obj.DataPSF;
@@ -371,8 +378,7 @@ classdef AstroPSF1 < Component
                 Obj.ArgNames = ArgNames;
             end
             
-            if isempty(FunPSF)
-                % PSF is a multidimentional image stamp
+            if isempty(FunPSF) % treat PSF is a multidimentional image stamp
                 X = 1:size(Obj.DataPSF,1); Y = 1:size(Obj.DataPSF,1);
                 Ndim = ndims(Obj.DataPSF)-2; % the number of additional data dimensions in the object
                 if Ndim == 0 % no additional dimensions
@@ -381,9 +387,9 @@ classdef AstroPSF1 < Component
 %                     Obj.DimAxes{1:Ndim} %deb
 %                     Val{1:Ndim}         %deb
                     Result = interpn(X,Y, Obj.DimAxes{1:Ndim}, Obj.DataPSF, ...
-                        X,Y, DimVal{1:Ndim}, Obj.InterpMethod{1});
+                        X,Y, DimVal{1:Ndim}, IntMeth);
                 end
-            else
+            else % pass the PSF cube to the FunPSF function 
                 Result = Obj.FunPSF(Obj.DataPSF, Obj.ArgVals{:});
             end
             if ~isempty(StampSize)
@@ -392,6 +398,48 @@ classdef AstroPSF1 < Component
                     error('Pad PSF option is not yet available');
                 end
             end
+            
+        end
+        
+        function Result = weightPSF(Obj, Args)
+            % produce a spectrum-weighted PSF
+            % Input  : - An AstroPSF object
+            %       * ...,key,val,... 
+            %       'PosX' - X position or a radial position of the source
+            %       'PosY' - Y position of the source
+            %       'Wave' - the wavelength of the input spectral bins (if empty, the grid of the object's PSFdata is assumed)
+            %       'Spec' - the spectral weights of per-wavelength PSF stamps
+            %
+            % Output : - A PSF stamp
+            % Author : A. Krassilchtchikov
+            % Example:
+            arguments
+                Obj
+                Args.PosX = 1;  % by default, operate at the first node of the spatial grid
+                Args.PosY = [];
+                Args.Wave = []; % if empty, the grid of the object's PSFdata is assumed
+                Args.Spec = []; % if empty, assume a flat photon spectrum
+            end
+            
+            PSFdata = Obj.DataPSF;
+            PSFlam  = Obj.DimAxes{1};
+            PSFrad  = Obj.DimAxes{2};
+            
+            RadSrc  = Args.PosX;
+            
+            if isempty(Args.Wave) % at an empty input, assume the same spectral bins as of the PSFData
+                SpecLam = PSFlam;
+            else
+                SpecLam = Args.Wave;
+            end
+            if isempty(Args.Spec)
+                SpecCts = ones(1,numel(SpecLam)); % at an empty input, assume a flat photon spectrum
+            else
+                SpecCts = Args.Spec;
+            end
+            
+            Result = imUtil.psf.specWeight(SpecCts, RadSrc, PSFdata, 'Rad', PSFrad, ...
+                'Lambda',PSFlam,'SpecLam',SpecLam);
             
         end
             

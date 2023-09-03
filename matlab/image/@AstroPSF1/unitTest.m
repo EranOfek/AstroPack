@@ -38,10 +38,10 @@ function Result = unitTest()
 %     [FWHM_CumSum, FWHM_Flux] = fwhm(AP(1));
     [FWHM_CumSum, FWHM_Flux] = fwhm(AP);    
     
-    % extended data structures (temporarily in DataPSF2-3, later will be moved to DataPSF)
+    % extended data structures 
     
     AP = AstroPSF1;
-    P0 = imUtil.kernel2.gauss;
+    P0 = imUtil.kernel2.gauss([2 2 0],[7 7]);
     AP.StampSize = size(P0);
     
     X = 1:AP.StampSize(1); Y = 1:AP.StampSize(2);
@@ -65,30 +65,52 @@ function Result = unitTest()
         max(size(AP.DimAxes{3},2),1), max(size(AP.DimAxes{4},2),1), ...
         max(size(AP.DimAxes{5},2),1) );
     
-    % put 3 PSFs at 3 radial postions (and interpolate):
+    % put 3 PSFs at 3 radial postions:
     
     AP.DataPSF(:,:,1,1) = P0;
     AP.DataPSF(:,:,1,2) = P1;
     AP.DataPSF(:,:,1,3) = P2;
     
-    % put 3 PSFs at 3 frequencies (and make a spectrum-weighted PSF):
+    % put 3 PSFs at 3 frequencies:
     
-    AP.DataPSF(:,:,1) = P0;
-    AP.DataPSF(:,:,2) = P1;
-    AP.DataPSF(:,:,3) = P2;
+    AP.DataPSF(:,:,1,1) = P0;
+    AP.DataPSF(:,:,2,1) = P1;
+    AP.DataPSF(:,:,3,1) = P2;
     
-    P10 = AP.getPSF;
-    P11 = AP.getPSF('Wave',2200);
-    P12 = AP.getPSF('PosX',2.5);
-    P13 = AP.getPSF('Wave',2200,'PosX',2.5);
-    P14 = AP.getPSF('Wave',5000);
+    Ps1 = AP.getPSF;
+    Ps2 = AP.getPSF('Wave',2200);
+    Ps3 = AP.getPSF('PosX',2.5);
+    Ps4 = AP.getPSF('Wave',2200,'PosX',2.5);
+    Ps5 = AP.getPSF('Wave',2200,'PosX',2.5,'InterpMethod','linear');
+    Ps6 = AP.getPSF('Wave',5000);
+    Ps7 = AP.getPSF('Wave',5000,'InterpMethod','linear');
     
 % [PSF, Var] = P.weightPSF('Flux',Val, 'Wave',[5000 5500 6000],'Spec',[0.5 1 0.5])
-% [PSF, Var] = P.weightPSF([], 'InterpMethod','nearest'); % use vals from properties
-
 % AstroPSF = P.repopPSF('Wave',[5000 5500 6000],'WaveWeight',[0.5 1 0.5])
 % ValPerPSF = fwhm(P)
 % [ValX, ValY] = P.fwhm(Method=[], 'Flux',Val, 'Wave',[5000])
+
+    % load the ULTRASAT PSFs as AP.DataPSF
+    PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF5.mat');
+    ReadDB = struct2cell ( io.files.load1(PSF_db) ); % PSF data at the chosen spatial resolution
+    PSFdata = ReadDB{2}; 
+    
+    AP.DataPSF = PSFdata;
+    AP.DimAxes{1} = 2000:100:11000;
+    AP.DimAxes{2} = linspace(0,10,25);
+    AP.StampSize = size(AP.DataPSF,[1 2]);
+    
+    Pg1 = AP.getPSF;
+    Pg2 = AP.getPSF('Wave',2210);
+    Pg3 = AP.getPSF('Wave',3550,'PosX',5.5);
+    Pg3 = AP.getPSF('Wave',3550,'PosX',5.5,'InterpMethod','linear');
+    
+    Pw1 = AP.weightPSF;
+    Pw2 = AP.weightPSF('PosX',2);
+    Pw3 = AP.weightPSF('PosX',6,'Wave',[2000 3000 4000 5000],'Spec',[0.5 1 1 0.3]);
+    
+    Sp = AstroSpec.blackBody(2000:11000,3500);
+    Pw4 = AP.weightPSF('PosX',6,'Wave',Sp.Wave,'Spec',Sp.Flux');
     
     pause
 
