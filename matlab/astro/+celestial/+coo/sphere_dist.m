@@ -93,7 +93,7 @@ if (nargout>1),
    %    save sd.mat RA_1, RA_2, Dec_1, Dec_2
    %end
 
-   PA    = atan2(SinPA,CosPA);
+   PA    = atan2(SinPA,-CosPA);
    PA(PA<0) = 2.*pi + PA(PA<0);
 
    %I     = find(PA<0);

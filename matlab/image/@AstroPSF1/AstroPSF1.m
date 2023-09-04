@@ -309,6 +309,8 @@ classdef AstroPSF1 < Component
                 ArgVals   = [];
                 ArgNames  = [];
                 
+                Args.PsfArgs = {};
+
                 Args.Wave   = [];
                 Args.PosX   = [];
                 Args.PosY   = [];
