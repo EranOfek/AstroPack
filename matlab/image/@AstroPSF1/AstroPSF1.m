@@ -392,43 +392,22 @@ classdef AstroPSF1 < Component
             % Input  : - An AstroPSF object
             %       * ...,key,val,... 
             %       'Wave' - the wavelength of the input spectral bins (if empty, the grid of the object's PSFdata is assumed)
-            %       'Spec' - the spectral weights of per-wavelength PSF stamps
+            %       'Spec' - the spectral weights of per-wavelength PSF stamps (if empty, a flat photon spectrum is assumed)
+            %       'Pos'  - additional arguments to pass to getPSF, e.g., position: {'PosX',2,'PosY',3}
             %
             % Output : - a weighted PSF stamp
             % Author : A. Krassilchtchikov
-            % Example: 
+            % Example: Pw1 = P.weightPSF('Pos',{'PosX',6},'Wave',[2000 3000 4000 5000],'Spec',[0.5 1 1 0.3]);
+            %          Sp  = AstroSpec.blackBody(2000:11000,3500);
+            %          Pw2 = P.weightPSF('Pos',{'PosX',6},'Wave',Sp.Wave,'Spec',Sp.Flux');
             arguments
                 Obj
                 Args.Wave  = []; % if empty, the grid of the object's PSFdata is assumed
-                Args.Spec  = []; 
+                Args.Spec  = []; % if empty, a flat photon spectrum is assumed
                 Args.Pos   = {}; % additional arguments to pass to getPSF, e.g., position: {'PosX',2,'PosY',3} 
             end
             
             Tiny = 1e-30;
-            
-            %%%%%%%%%%%%%%%%%
-            
-%             PSFdata = Obj.DataPSF;
-%             PSFlam  = Obj.DimAxes{1};
-%             PSFrad  = Obj.DimAxes{2};
-%             
-%             RadSrc  = Args.PosX;
-%             
-%             if isempty(Args.Wave) % at an empty input, assume the same spectral bins as of the PSFData
-%                 SpecLam = PSFlam;
-%             else
-%                 SpecLam = Args.Wave;
-%             end
-%             if isempty(Args.Spec)
-%                 SpecCts = ones(1,numel(SpecLam)); % at an empty input, assume a flat photon spectrum
-%             else
-%                 SpecCts = Args.Spec;
-%             end
-%             
-%             Result = imUtil.psf.specWeight(SpecCts, RadSrc, PSFdata, 'Rad', PSFrad, ...
-%                 'Lambda',PSFlam,'SpecLam',SpecLam);
-%             
-            %%%% another method:
             
             Ind = find( strcmpi( 'Wave', Obj.DimName ), 1);      % find the wavelength axis in the object's dimensions
             if isempty(Ind)
@@ -449,7 +428,7 @@ classdef AstroPSF1 < Component
             PSFcube = Obj.getPSF('PsfArgs',[{'Wave',Wave} Args.Pos]); % get an X x Y x Wave 3D Cube ( PSF x Wave)
             SpShape = reshape(Spec,[1 1 numel(Spec)]);
             SumL    = sum( PSFcube .* SpShape, 3 );           % multiply and sum over the wavelength dimension
-            Result  = SumL ./ sum( SumL, [1,2] );          % normalization
+            Result  = SumL ./ sum( SumL, [1,2] );             % normalization
         end
             
     end
