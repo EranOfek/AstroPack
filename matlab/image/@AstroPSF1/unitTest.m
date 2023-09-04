@@ -78,12 +78,12 @@ function Result = unitTest()
     AP.DataPSF(:,:,3,1) = P2;
     
     Ps1 = AP.getPSF;
-    Ps2 = AP.getPSF('Wave',2200);
-    Ps3 = AP.getPSF('PosX',2.5);
-    Ps4 = AP.getPSF('Wave',2200,'PosX',2.5);
-    Ps5 = AP.getPSF('Wave',2200,'PosX',2.5,'InterpMethod','linear');
-    Ps6 = AP.getPSF('Wave',5000);
-    Ps7 = AP.getPSF('Wave',5000,'InterpMethod','linear');
+    Ps2 = AP.getPSF('PsfArgs',{'Wave',2200});
+    Ps3 = AP.getPSF('PsfArgs',{'PosX',2.5});
+    Ps4 = AP.getPSF('PsfArgs',{'Wave',2200,'PosX',2.5});
+    Ps5 = AP.getPSF('PsfArgs',{'Wave',2200,'PosX',2.5},'InterpMethod','linear');
+    Ps6 = AP.getPSF('PsfArgs',{'Wave',5000});
+    Ps7 = AP.getPSF('PsfArgs',{'Wave',5000},'InterpMethod','linear');
     
 % [PSF, Var] = P.weightPSF('Flux',Val, 'Wave',[5000 5500 6000],'Spec',[0.5 1 0.5])
 % AstroPSF = P.repopPSF('Wave',[5000 5500 6000],'WaveWeight',[0.5 1 0.5])
@@ -101,16 +101,18 @@ function Result = unitTest()
     AP.StampSize = size(AP.DataPSF,[1 2]);
     
     Pg1 = AP.getPSF;
-    Pg2 = AP.getPSF('Wave',2210);
-    Pg3 = AP.getPSF('Wave',3550,'PosX',5.5);
-    Pg3 = AP.getPSF('Wave',3550,'PosX',5.5,'InterpMethod','linear');
+    Pg2 = AP.getPSF('PsfArgs',{'Wave',2210});
+    Pg3 = AP.getPSF('PsfArgs',{'Wave',3550,'PosX',5.5});
+    Pg3 = AP.getPSF('PsfArgs',{'Wave',3550,'PosX',5.5},'InterpMethod','linear');
+    
+    Pg4 = AP.getPSF('PsfArgs',{'Wave',[2210 3400 6800]}); % get a cube of PSFs at different wavelengths
     
     Pw1 = AP.weightPSF;
-    Pw2 = AP.weightPSF('PosX',2);
-    Pw3 = AP.weightPSF('PosX',6,'Wave',[2000 3000 4000 5000],'Spec',[0.5 1 1 0.3]);
+    Pw2 = AP.weightPSF('Pos',{'PosX',2});
+    Pw3 = AP.weightPSF('Pos',{'PosX',6},'Wave',[2000 3000 4000 5000],'Spec',[0.5 1 1 0.3]);
     
     Sp = AstroSpec.blackBody(2000:11000,3500);
-    Pw4 = AP.weightPSF('PosX',6,'Wave',Sp.Wave,'Spec',Sp.Flux');
+    Pw4 = AP.weightPSF('Pos',{'PosX',6},'Wave',Sp.Wave,'Spec',Sp.Flux');
     
     pause
 

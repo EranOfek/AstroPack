@@ -66,7 +66,7 @@ classdef AstroPSF1 < Component
         FunPSF            = [];    % e.g., Map = Fun(Data, X,Y, Color, Flux)
         DimName cell      = {'Wave', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'}; % the standard set of dimensions
         DimAxes cell      = repmat({0}, 1, 5); % axes according to DimName
-        InterpMethod      = {'nearest'}; % can be n-dimensional with different methods applied at different dimensions
+        InterpMethod      = {'nearest'}; % can be n-dimensional with different methods are applied at different dimensions
         
         ArgVals cell      = {};
         ArgNames cell     = {'X','Y','Color','Flux'};
@@ -75,8 +75,8 @@ classdef AstroPSF1 < Component
         
         Nstars            = NaN;  % If Nstars=NaN, then PSF wasn't constructed yet
                 
-        FWHM              = [];  % for each of the points in the DimAxes space ?
-        ContainmentR      = [];  % for each of the points in the DimAxes space ?
+        FWHM                       = [];  % calculate for each of the points in the DimAxes space ?
+        FluxContainmentRadius      = [];  % calculate for each of the points in the DimAxes space ?
         
     end
     
@@ -309,49 +309,8 @@ classdef AstroPSF1 < Component
                 ArgVals   = [];
                 ArgNames  = [];
                 
-                Args.PsfArgs = {};
-
-                Args.Wave   = [];
-                Args.PosX   = [];
-                Args.PosY   = [];
-                Args.PixPhaseX = [];
-                Args.PixPhaseY = [];
-                
+                Args.PsfArgs = {};                
                 Args.InterpMethod =[];
-            end
-            
-            % choose between the input value of PSF parameters and
-            % the standard value taken from the first point in the grid 
-            % in each of the dimensions
-            if ~isempty(Args.Wave)
-                DimVal{1} = Args.Wave;
-            else
-                DimVal{1} = Obj.DimAxes{1}(1);
-            end
-            if ~isempty(Args.PosX)
-                DimVal{2} = Args.PosX;
-            else
-                DimVal{2} = Obj.DimAxes{2}(1);
-            end
-            if ~isempty(Args.PosY)
-                DimVal{3} = Args.PosY;
-            else
-                DimVal{3} = Obj.DimAxes{3}(1);
-            end
-            if ~isempty(Args.PixPhaseX)
-                DimVal{4} = Args.PixPhaseX;
-            else
-                DimVal{4} = Obj.DimAxes{4}(1);
-            end
-            if ~isempty(Args.PixPhaseY)
-                DimVal{5} = Args.PixPhaseY;
-            else
-                DimVal{5} = Obj.DimAxes{5}(1);
-            end
-            if ~isempty(Args.InterpMethod)
-                IntMeth = Args.InterpMethod;
-            else
-                IntMeth = Obj.InterpMethod{1};
             end
             
             if isempty(DataPSF)
@@ -380,21 +339,46 @@ classdef AstroPSF1 < Component
                 Obj.ArgNames = ArgNames;
             end
             
+            if ~isempty(Args.InterpMethod)
+                if ~iscell(Args.InterpMethod)
+                    IntMeth = {Args.InterpMethod};
+                else
+                    IntMeth = Args.InterpMethod;
+                end
+            else
+                IntMeth = Obj.InterpMethod;
+            end            
+            
             if isempty(FunPSF) % treat PSF is a multidimentional image stamp
-                X = 1:size(Obj.DataPSF,1); Y = 1:size(Obj.DataPSF,1);
                 Ndim = ndims(Obj.DataPSF)-2; % the number of additional data dimensions in the object
-                if Ndim == 0 % no additional dimensions
+                if Ndim == 0 % no additional dimensions, just copy the 2D matrix 
                     Result = Obj.DataPSF;
                 else
-%                     Obj.DimAxes{1:Ndim} %deb
-%                     Val{1:Ndim}         %deb
-                    Result = interpn(X,Y, Obj.DimAxes{1:Ndim}, Obj.DataPSF, ...
-                        X,Y, DimVal{1:Ndim}, IntMeth);
+                    % for each of the existing extra dimensions find
+                    % if there is an input value for it in Args.PsfArgs
+                    % if not, use the first value of the object's appropriate DimAxes vector
+                    for Idim = 1:Ndim
+                        DName = Obj.DimName{Idim};
+                        Ind = find( strcmpi( DName, Args.PsfArgs ), 1);
+                        if isempty(Ind) 
+                            DimVal{Idim} = Obj.DimAxes{Idim}(1);
+                        else
+                            DimVal{Idim} = Args.PsfArgs{Ind+1};
+                        end
+                    end
+                    % interpolate 
+                    X = 1:size(Obj.DataPSF,1); Y = 1:size(Obj.DataPSF,2);
+                    if numel(IntMeth) == 1 % one method for all the dimensions
+                        Result = interpn(X,Y, Obj.DimAxes{1:Ndim}, Obj.DataPSF, ...
+                            X,Y, DimVal{1:Ndim}, IntMeth{1});
+                    else
+                        error('multiple interpolation methods have not been implemented as of yet');
+                    end
                 end
             else % pass the PSF cube to the FunPSF function 
                 Result = Obj.FunPSF(Obj.DataPSF, Obj.ArgVals{:});
             end
-            if ~isempty(StampSize)
+            if ~isempty(StampSize) && Ndim == 0 % check this only if there are no additional dimensions
                 if ~all(size(Result)==StampSize)
                     % pad PSF
                     error('Pad PSF option is not yet available');
@@ -407,42 +391,65 @@ classdef AstroPSF1 < Component
             % produce a spectrum-weighted PSF
             % Input  : - An AstroPSF object
             %       * ...,key,val,... 
-            %       'PosX' - X position or a radial position of the source
-            %       'PosY' - Y position of the source
             %       'Wave' - the wavelength of the input spectral bins (if empty, the grid of the object's PSFdata is assumed)
             %       'Spec' - the spectral weights of per-wavelength PSF stamps
             %
-            % Output : - A PSF stamp
+            % Output : - a weighted PSF stamp
             % Author : A. Krassilchtchikov
-            % Example:
+            % Example: 
             arguments
                 Obj
-                Args.PosX = 1;  % by default, operate at the first node of the spatial grid
-                Args.PosY = [];
-                Args.Wave = []; % if empty, the grid of the object's PSFdata is assumed
-                Args.Spec = []; % if empty, assume a flat photon spectrum
+                Args.Wave  = []; % if empty, the grid of the object's PSFdata is assumed
+                Args.Spec  = []; 
+                Args.Pos   = {}; % additional arguments to pass to getPSF, e.g., position: {'PosX',2,'PosY',3} 
             end
             
-            PSFdata = Obj.DataPSF;
-            PSFlam  = Obj.DimAxes{1};
-            PSFrad  = Obj.DimAxes{2};
+            Tiny = 1e-30;
             
-            RadSrc  = Args.PosX;
+            %%%%%%%%%%%%%%%%%
             
-            if isempty(Args.Wave) % at an empty input, assume the same spectral bins as of the PSFData
-                SpecLam = PSFlam;
+%             PSFdata = Obj.DataPSF;
+%             PSFlam  = Obj.DimAxes{1};
+%             PSFrad  = Obj.DimAxes{2};
+%             
+%             RadSrc  = Args.PosX;
+%             
+%             if isempty(Args.Wave) % at an empty input, assume the same spectral bins as of the PSFData
+%                 SpecLam = PSFlam;
+%             else
+%                 SpecLam = Args.Wave;
+%             end
+%             if isempty(Args.Spec)
+%                 SpecCts = ones(1,numel(SpecLam)); % at an empty input, assume a flat photon spectrum
+%             else
+%                 SpecCts = Args.Spec;
+%             end
+%             
+%             Result = imUtil.psf.specWeight(SpecCts, RadSrc, PSFdata, 'Rad', PSFrad, ...
+%                 'Lambda',PSFlam,'SpecLam',SpecLam);
+%             
+            %%%% another method:
+            
+            Ind = find( strcmpi( 'Wave', Obj.DimName ), 1);      % find the wavelength axis in the object's dimensions
+            if isempty(Ind)
+                error('No wavelength axis found in the object');
             else
-                SpecLam = Args.Wave;
-            end
-            if isempty(Args.Spec)
-                SpecCts = ones(1,numel(SpecLam)); % at an empty input, assume a flat photon spectrum
-            else
-                SpecCts = Args.Spec;
+                Wave = Obj.DimAxes{Ind};
+                if ~isempty(Args.Wave) % regrid the spectrum according to the object's wavelength axis
+                    Spec = interp1(Args.Wave, Args.Spec, Wave,'linear',Tiny);                     
+                else                   % assume that the spectrum is defined according to the object's wavelength axis                                        
+                    if isempty(Args.Spec)
+                        Spec = ones(1,numel(Wave)); % at an empty input, assume a flat photon spectrum
+                    else
+                        Spec = Args.Spec;
+                    end
+                end
             end
             
-            Result = imUtil.psf.specWeight(SpecCts, RadSrc, PSFdata, 'Rad', PSFrad, ...
-                'Lambda',PSFlam,'SpecLam',SpecLam);
-            
+            PSFcube = Obj.getPSF('PsfArgs',[{'Wave',Wave} Args.Pos]); % get an X x Y x Wave 3D Cube ( PSF x Wave)
+            SpShape = reshape(Spec,[1 1 numel(Spec)]);
+            SumL    = sum( PSFcube .* SpShape, 3 );           % multiply and sum over the wavelength dimension
+            Result  = SumL ./ sum( SumL, [1,2] );          % normalization
         end
             
     end
