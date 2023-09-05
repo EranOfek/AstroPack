@@ -86,7 +86,7 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
         end
         % make sure diirectory exist
         if ~ischar(DestPath) && Args.MkDir
-            if ~isfolder(DestPath)
+            if ~isfolder(DestPath{Ifile})
                 mkdir(DestPath{Ifile});
             end
         end
