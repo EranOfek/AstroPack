@@ -1629,6 +1629,32 @@ classdef FileNames < Component
             end
         end
         
+        function Result=validTimes(Obj)
+            % Return a vector of logical indicating if Time argument is valid
+            % Input  : - A single elemnent FileNames object.
+            % Output : - A vector of logical which length equal to the
+            %            number of file names. False if Time is NaN, [],
+            %            or 'NaN'.
+            % Author : Eran Ofek (Sep 2023)
+
+            arguments
+                Obj(1,1)
+            end
+
+            if iscell(Obj.Time)
+                Nt = numel(Obj.Time);
+                Result = true(Nt,1);
+                for It=1:1:Nt
+                    if isempty(Obj.Time{It}) || any(isnan(Obj.Time{It})) || strcmpi(Obj.Time{It},'nan')
+                        Result(It) = false;
+                    end
+                end
+            else
+                Result = ~isnan(Obj.Time);
+            end
+
+        end
+
         function Result=nfiles(Obj)
             % Return number of files in a FileNames object
             % Input  : - A FileNames object
