@@ -250,9 +250,14 @@ classdef FileNames < Component
             %   Given file names which name structure obeys the
             %   LAST-ULTRASAT file name convention.
             % Input  : - A list of file names.
-            %            Either a char array from which a list of file
-            %            names can be constructed using io.files.filelist
-            %            or a cell array of file names.
+            %            Either a char array or a cell array.
+            %            If the input is a char array, then the function
+            %            will use the io.files.filelist to search for all
+            %            existing files that have this name (wild cards are
+            %            allowed). In this case the file must exist.
+            %            If a cell array, then the file name in each element of
+            %            the cell will be used as is. IN this case, the
+            %            file doesn't need to exist.
             %          * ...,key,val,...
             %            'FullPath' - Directory to populate FullPath, if true,
             %                   then use current directory. If false or
@@ -263,8 +268,13 @@ classdef FileNames < Component
             %                   object contains no files.
             %                   Default is true.
             % Output : - A FileNames object containing the file names.
+            %          If you will use this with the char array option when
+            %          the file doesn't exist, then the returned structure
+            %          will contain no Time entries (i.e., FN.nfiles will
+            %          be zero).
             % Author : Eran Ofek (Dec 2022)
             % Example: FN=FileNames.generateFromFileName('LAST*.fits');
+            
             
             arguments
                 List
