@@ -184,13 +184,12 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
 
                         % generate file names
                         %FN_Iobj = FN.reorderEntries(Iobj, 'CreateNewObj',true);
-                        OutFileNames = FN.genFull('Product',Args.Product{Iprod}, 'LevelPath',Args.LevelPath);
+                        OutFileNames  = FN.genFull('Product',Args.Product{Iprod}, 'LevelPath',Args.LevelPath);
+                        FlagGoodTimes = FN.validTimes;
                         for Iobj=1:1:Nobj
                             % create dir only on first file
                             
-                            
-                            if ~isempty(Obj(Iobj).Image) || Args.WriteEmpty
-                                
+                            if (FlagGoodTimes(Iobj) && ~isempty(Obj(Iobj).Image)) || Args.WriteEmpty
                                 
                                 Obj(Iobj).write1(OutFileNames{Iobj}, Args.Product{Iprod},...
                                              'FileType',FN.FileType{1},...

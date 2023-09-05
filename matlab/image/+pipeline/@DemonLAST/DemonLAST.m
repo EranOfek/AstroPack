@@ -1481,7 +1481,8 @@ classdef DemonLAST < Component
                 FN_Foc   = FileNames.generateFromFileName(Args.TempRawFocus);
                 FN_Foc.BasePath = Obj.BasePath;
                 FN_Foc.FullPath = [];
-                FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',[], 'DestPath', FN_Foc.genPath, 'Level','raw', 'Type','focus');
+                % The empty argument in genPath is required for moving each image to the correct (date) directory. 
+                FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',[], 'DestPath', FN_Foc.genPath([]), 'Level','raw', 'Type','focus');
                 
                 % look for new images
                 FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci, 'FullPath',false);
