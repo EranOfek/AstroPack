@@ -82,7 +82,7 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
         if DestPathInFile
             Destination{Ifile} = DestFiles{Ifile};
         else
-            Destination{Ifile} = sprintf('%s%s%s', DestPath, filesep, DestFiles{Ifile});
+            Destination{Ifile} = sprintf('%s%s%s', DestPath{Ifile}, filesep, DestFiles{Ifile});
         end
         % make sure diirectory exist
         if ~ischar(DestPath) && Args.MkDir
