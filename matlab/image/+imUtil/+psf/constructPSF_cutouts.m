@@ -8,6 +8,9 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     %            the cube. If empty, then set position to (stamp size -1)/2
     %            Default is [].
     %          * ...,key,val,...
+    %            'M1' - Optional structure containing the result of the
+    %                   moment2 function. If empty, then will recalculate
+    %                   the 1st moment. Default is [].
     %            'Norm' - Vector of normalizations per cutrouts.
     %                   These are the flux normalization one has to
     %                   multiply each cutout, before summation.
@@ -66,6 +69,8 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     %                   Default is false.
     %            'MomRadius' - radius for 2nd moment calculations.
     %                   Default is 8.
+    %            'Annulus' - [Inner, Outer] annulus raddi for background.
+    %                   Default is [10 12].
     %            'ShiftMethod' - Options are:
     %                   'lanczos' - Lanczos interpolation.
     %                   'fft' - Sinc interpolation.
@@ -87,6 +92,7 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         Image                             % 2D image or cube of cutouts
         XY                         = [];  % XY positions of sources in image
         
+        Args.M1                    = []; % override the first moment calculation
         Args.Norm                  = [];  % vector of normalization per cutout
         Args.FluxRadius            = 3; % if norm is not given.
         Args.Back                  = [];  % Back to subtract. If [] don't subtract.
@@ -106,7 +112,8 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         Args.Circle logical        = false;
         Args.ReCenter logical      = true;    % call moment2
         Args.MomRadius             = 8;
-                
+        Args.Annulus               = [10 12];        
+        
         Args.ShiftMethod           = 'fft';   % 'lanczos' | 'fft'
         Args.A                     = 2;
         Args.IsCircFilt logical    = true;
@@ -159,7 +166,11 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     if Args.ReCenter
         
         %M1 = imUtil.image.moment2(Cube, X, Y, 'MomRadius',Args.MomRadius);
-        M1 = imUtil.image.moment2(Cube, Xcen, Ycen, 'MomRadius',Args.MomRadius);
+        if isempty(Args.M1)
+            M1 = imUtil.image.moment2(Cube, Xcen, Ycen, 'MomRadius',Args.MomRadius, 'Annulus',Args.Annulus);
+        else
+            M1 = Args.M1;
+        end
         X  = M1.X;
         Y  = M1.Y;
         

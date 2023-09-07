@@ -25,6 +25,8 @@ function [Obj,Result]=populatePSF(Obj, Args)
         Args.RePopulatePSF logical     = false;
         Args.ColSN                     = {'SN_1','SN_2'};
         
+        Args.backgroundArgs cell       = {};
+        
         Args.SubAnnulusBack logical    = true;
         Args.RadiusPSF                 = 8;
         Args.image2cutoutsArgs cell    = {};
@@ -71,6 +73,11 @@ function [Obj,Result]=populatePSF(Obj, Args)
                 Y  = Y(:,2);
                 SN = Obj(Iobj).CatData.getCol(Args.ColSN);
             end
+            if isempty(Obj(Iobj).Back) || isempty(Obj(Iobj).Var)
+                % estimate background
+                Result(Iobj) = imProc.background.background(Obj(Iobj), Args.backgroundArgs{:});
+            end
+            
             [Result(Iobj), MeanPSF, VarPSF, NimPSF] = imUtil.psf.constructPSF(Obj(Iobj).Image,...
                                                                         'X',X, 'Y',Y,...
                                                                         'SN',SN,...

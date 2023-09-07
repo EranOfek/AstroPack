@@ -4,7 +4,7 @@ function TotLum=total_light(R1,LimbFun,Nstep,Pars)
 % Description: Calculate the primary total light given its radius and
 %              limb darkening function or constant luminosity per unit area.
 % Input  : - Primary star radius [consistent length unit].
-%          - Name of limb-darkening function: L(r,P1,P2,...),
+%          - Handle of limb-darkening function: L(r,P1,P2,...),
 %            where r is distance from
 %            the star center in units of its radius, and L is the luminosity
 %            per unit area in this radius, r.
@@ -20,7 +20,7 @@ function TotLum=total_light(R1,LimbFun,Nstep,Pars)
 % Tested : Matlab 5.3
 %     By : Eran O. Ofek                    Aug 2001
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: TotLum=AstroUtil.binary.total_light(1,'AstroUtil.binary.limb_darkening',100,{'Wade',[1 1 1]});
+% Example: TotLum=AstroUtil.binary.total_light(1,@astro.binary.limb_darkening,100,{'Wade',[1 1 1]});
 % Reliable: 2
 %---------------------------------------------------------------------------
 Def.Nstep = 100;
@@ -37,7 +37,7 @@ else
    error('Illegal number of input arguments');
 end
 
-if (~ischar(LimbFun))
+if (isnumeric(LimbFun))
    % constant luminosity per unit area
    TotLum = LimbFun.*pi.*R1.^2;
 else
@@ -50,7 +50,7 @@ else
    R = (0:DelR:R1).';
    
    %L = eval([LimbFun,'(R./R1,Pars)']);
-   L = feval(LimbFun,R./R1,Pars{:});
+   L = LimbFun(R./R1,Pars{:});
 
    TotLum = trapz(R,2.*pi.*R.*L);
 end

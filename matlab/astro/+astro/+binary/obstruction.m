@@ -9,7 +9,7 @@ function Obs=obstruction(D,R1,R2,Nstep,LimbFun,Pars)
 %          - Radius of background star [length unit].
 %          - Radius of forground star [length unit].
 %          - Number of steps in integration.
-%          - limb-darkening function, returning the luminosity per unit area
+%          - limb-darkening function handle, returning the luminosity per unit area
 %            as function of radius.
 %          - Cell array of additional optional parameters for the
 %            LimbFun function. Default is {'Milne',1}.
@@ -18,29 +18,19 @@ function Obs=obstruction(D,R1,R2,Nstep,LimbFun,Pars)
 % Tested : Matlab 5.3
 %     By : Eran O. Ofek                    Aug 2001
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: Obs=AstroUtil.binary.obstruction(D,R1,R2,100,'limb_darkening',{'Kling',[1 0.5]});
+% Example: Obs=AstroUtil.binary.obstruction(D,R1,R2,100,@astro.binary.limb_darkening,{'Kling',[1 0.5]});
 % Reliable: 2
 %---------------------------------------------------------------------------
-import AstroUtil.EB.*
 
-Def.Nstep   = 100;
-Def.LimbFun = 'limb_darkening';
-Def.Pars    = {'Milne',1};
-
-if (nargin==3)
-   Nstep   = Def.Nstep;
-   LimbFun = Def.LimbFun;
-   Pars    = Def.Pars;
-elseif (nargin==4)
-   LimbFun = Def.LimbFun;
-   Pars    = Def.Pars;
-elseif (nargin==5)
-   Pars    = Def.Pars;
-elseif (nargin==6)
-   % do nothing
-else
-   error('Illigal number of input arguments');
+arguments
+    D
+    R1
+    R2
+    Nstep = 100;
+    LimbFun = @astro.binary.limb_darkening;
+    Pars    = {'Milne',1};
 end
+
 
 N = length(D);
 
@@ -70,10 +60,11 @@ for I=1:1:N
    if (length(R)>1)
       %R      = [LimB:DelR:LimA].';
       if ((R2>R1) && D(I)<(R2-R1))
-         Obs(I) = total_light(R1,LimbFun,Nstep,Pars);
+         Obs(I) = astro.binary.total_light(R1,LimbFun,Nstep,Pars);
       else
          %L      = eval([LimbFun,'(R./R1,Pars)']);
-         L      = feval(LimbFun,R./R1,Pars{:});
+         %L      = feval(LimbFun,R./R1,Pars{:});
+         L      = LimbFun(R./R1,Pars{:});
          I0     = find(D(I)==0 | R==0);
          In0    = find(D(I)~=0 & R~=0);
          Alpha  = zeros(size(R));

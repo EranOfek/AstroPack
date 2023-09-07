@@ -128,6 +128,8 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         Args.SubAnnulusBack logical = true;
        
         Args.RadiusPSF                 = 8;
+        Args.Annulus                   = [10 12];
+        
         Args.image2cutoutsArgs cell    = {};
         
         %Args.Threshold                 = 5;
@@ -180,7 +182,8 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
             Args.Y  = FindSrcSt.YPEAK;
         end
         Args.SN = FindSrcSt.SN;
-        [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, Args.X, Args.Y, Args.RadiusPSF, Args.image2cutoutsArgs{:});
+        CutoutRadius = max(Args.RadiusPSF, max(Args.Annulus).*(~isempty(Args.DeltaSigma)));
+        [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, Args.X, Args.Y, CutoutRadius, Args.image2cutoutsArgs{:});
     else
         % assume Cube was provided
         Cube = Image;
@@ -196,7 +199,7 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
     end
     % select by moments
     if ~isempty(Args.DeltaSigma)
-        [M1, M2]    = imUtil.image.moment2(Cube, Args.X, Args.Y, Args.moment2Args{:});
+        [M1, M2]    = imUtil.image.moment2(Cube, Args.X, Args.Y, 'Annulus',Args.Annulus, Args.moment2Args{:});
         Sigma       = sqrt(abs(M2.X2)+abs(M2.Y2));
         MedSigma    = imUtil.background.mode(Sigma);
         FlagGoodPsf = FlagGoodPsf & (Sigma>(MedSigma - Args.DeltaSigma) & Sigma<(MedSigma + Args.DeltaSigma));
@@ -240,7 +243,9 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         end
         XY = [Args.X, Args.Y];
         XY = XY(IndGoodPsf,:);
+        
         [MeanPSF, VarPSF, NimPSF, FlagSelected] = imUtil.psf.constructPSF_cutouts(Cube(:,:,IndGoodPsf), XY,...
+                                                        'Annulus',Args.Annulus,...
                                                         'ReCenter',true,...
                                                         'Back',Back,...
                                                         'SmoothWings',Args.SmoothWings,...
