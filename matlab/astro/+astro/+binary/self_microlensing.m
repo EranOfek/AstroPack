@@ -36,7 +36,10 @@ function TotMu=self_microlensing(D, Args)
         Args.DistUnits = 'pc';
         
         Args.SrcRad    = 6400;
+        Args.LensRad   = 10;
+        %Args.LensB     = 1e12;
         Args.SrcRadUnits = 'km';
+        
         
         Args.Mass      = 1.4;
         Args.MassUnits = 'SunM';
@@ -47,9 +50,11 @@ function TotMu=self_microlensing(D, Args)
         Args.LimbFunPars   = {'constant'};
     end
     
-    SrcRad = convert.length(Args.SrcRadUnits, Args.DistUnits, Args.SrcRad);  % in DistUnits
-    Ds     = Args.Dl+Args.Dls;
-    AngSrcRad   = SrcRad./Ds;   % [rad]
+    SrcRad  = convert.length(Args.SrcRadUnits, Args.DistUnits, Args.SrcRad);   % in DistUnits
+    LensRad = convert.length(Args.SrcRadUnits, Args.DistUnits, Args.LensRad);  % in DistUnits
+    Ds      = Args.Dl+Args.Dls;
+    AngSrcRad    = SrcRad./Ds;   % [rad]
+    AngLensRad   = LensRad./Ds;   % [rad]
     
     Vec = AngSrcRad.*(-1:1./Args.Nstep:1);   % [rad]
     [MatX, MatY] = meshgrid(Vec, Vec);
@@ -70,11 +75,20 @@ function TotMu=self_microlensing(D, Args)
     Res = astro.microlensing.ps_lens('Mass',Args.Mass, 'MassUnits',Args.MassUnits,...
                                      'Dl',Args.Dl, 'Ds',Ds, 'DistUnits',Args.DistUnits,...
                                      'Beta',MatRd, 'BetaUnits','rad');
+                                 
+    
     
     FlagInf = isinf(Res.MuTot);
     Res.MuTot(FlagInf) = max(Res.MuTot(~FlagInf),[],'all');
     
-    TotMu = sum(MatL .* Res.MuTot,'all');
         
+    TotMu = sum(MatL .* Res.MuTot, 'all');
+    
+    % Magnetic field is not relevant because the light was already emitted
+    %B = Args.LensB .* (MatRd./AngLensRad).^-3;  % [Gauss]
+    %FlagInf = isinf(B);
+    %B(FlagInf)         = Args.LensB;
+    %TotB = sum(MatL.*B, 'all')
+    
     
 end
