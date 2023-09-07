@@ -356,9 +356,8 @@ classdef AstroPSF1 < Component
                 if Ndim == 0 % no additional dimensions, just copy the 2D matrix 
                     Result = Obj.DataPSF;
                 else
-                    % for each of the existing extra dimensions find
-                    % if there is an input value for it in Args.PsfArgs
-                    % if not, use the first value of the object's appropriate DimAxes vector
+                    % for each of the existing extra dimensions find if there is an input value for it in Args.PsfArgs
+                    % if not, use the first value (??) of the object's appropriate DimAxes vector  
                     for Idim = 1:Ndim
                         DName = Obj.DimName{Idim};
                         Ind = find( strcmpi( DName, Args.PsfArgs ), 1);

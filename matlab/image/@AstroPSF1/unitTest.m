@@ -107,12 +107,16 @@ function Result = unitTest()
     
     Pg4 = AP.getPSF('PsfArgs',{'Wave',[2210 3400 6800]}); % get a cube of PSFs at different wavelengths
     
+    Pg5 = AP.getPSF('Scale',1/5,'PsfArgs',{'Wave',2500,'PosX',7}); % rescale the output stamp 
+    
     Pw1 = AP.weightPSF;
     Pw2 = AP.weightPSF('Pos',{'PosX',2});
     Pw3 = AP.weightPSF('Pos',{'PosX',6},'Wave',[2000 3000 4000 5000],'Spec',[0.5 1 1 0.3]);
     
     Sp = AstroSpec.blackBody(2000:11000,3500);
     Pw4 = AP.weightPSF('Pos',{'PosX',6},'Wave',Sp.Wave,'Spec',Sp.Flux');
+    
+    % check multiple interpolation methods
     
     pause
 
