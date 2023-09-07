@@ -60,20 +60,21 @@ classdef AstroPSF1 < Component
     end
     
     properties (SetAccess = public)
-        DataPSF           = [];    % The fun parameters, or a cube, the first 2 dims are the PSF image stamp
+        DataPSF           = [];    % parameters of a PSF-generating function or a data cube, where the first 2 dimensions are the PSF image stamp (X, Y)
         DataVar           = [];    % variance 
-        Scale             = [1 1]; % Pixel X and Y sizes (may be different) 
-        FunPSF            = [];    % e.g., Map = Fun(Data, X,Y, Color, Flux)
-        DimName cell      = {'Wave', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'}; % the standard set of dimensions
+        Scale             = [1 1]; % pixel sizes in X and Y (may be different) 
+        FunPSF            = [];    % PSF-generating function, e.g., Map = Fun(Data, X,Y, Color, Flux)
+        DimName cell      = {'Wave', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'}; % the standard set of dimensions, but may be changed 
+                            % NB: if the names here are changed, the dimension names a user provides to getPSF need to be changed accordingly 
         DimAxes cell      = repmat({0}, 1, 5); % axes according to DimName
-        InterpMethod      = {'nearest'}; % can be n-dimensional with different methods are applied at different dimensions
+        InterpMethod      = {'nearest'}; % can be n-dimensional with different methods applied at different dimensions
         
-        ArgVals cell      = {};
-        ArgNames cell     = {'X','Y','Color','Flux'};
+        ArgVals cell      = {};     % will be obsoleted in a while
+        ArgNames cell     = {'X','Y','Color','Flux'}; % will be obsoleted in a while
         
-        StampSize         = [];
+        StampSize         = [];     % a 2D vector of PSF stamp size
         
-        Nstars            = NaN;  % If Nstars=NaN, then PSF wasn't constructed yet
+        Nstars            = NaN;    % if Nstars=NaN, then PSF wasn't constructed yet
                 
         FWHM                       = [];  % calculate for each of the points in the DimAxes space ?
         FluxContainmentRadius      = [];  % calculate for each of the points in the DimAxes space ?
@@ -310,7 +311,8 @@ classdef AstroPSF1 < Component
                 ArgNames  = [];
                 
                 Args.PsfArgs = {};                
-                Args.InterpMethod =[];
+                Args.InterpMethod = [];
+                Args.Scale = [];
             end
             
             if isempty(DataPSF)
@@ -372,7 +374,13 @@ classdef AstroPSF1 < Component
                         Result = interpn(X,Y, Obj.DimAxes{1:Ndim}, Obj.DataPSF, ...
                             X,Y, DimVal{1:Ndim}, IntMeth{1});
                     else
-                        error('multiple interpolation methods have not been implemented as of yet');
+%                         error('multiple interpolation methods have not been implemented as of yet');
+                        Int{1} = Obj.DataPSF;
+                        for Idim = 1:Ndim
+                            Int{Idim+1} = interpn(X,Y, Obj.DimAxes{1:Ndim}, Res, ...
+                            X,Y, Obj.DimAxes{1:Idim-1},DimVal{Idim},Obj.DimAxes{Idim+1,Ndim},IntMeth{Idim});
+                        end
+                        Result = Int{Ndim};
                     end
                 end
             else % pass the PSF cube to the FunPSF function 
@@ -383,6 +391,10 @@ classdef AstroPSF1 < Component
                     % pad PSF
                     error('Pad PSF option is not yet available');
                 end
+            end            
+            % rescale the output PSF stamp if requested
+            if ~isempty(Args.Scale)
+                Result = imresize(Result, Args.Scale, 'bilinear');
             end
             
         end
@@ -402,6 +414,7 @@ classdef AstroPSF1 < Component
             %          Pw2 = P.weightPSF('Pos',{'PosX',6},'Wave',Sp.Wave,'Spec',Sp.Flux');
             arguments
                 Obj
+                Args.Axis  = 'Wave'; % usually, we will weight the PSF with the spectrum, but other axes are also possible 
                 Args.Wave  = []; % if empty, the grid of the object's PSFdata is assumed
                 Args.Spec  = []; % if empty, a flat photon spectrum is assumed
                 Args.Pos   = {}; % additional arguments to pass to getPSF, e.g., position: {'PosX',2,'PosY',3} 
@@ -409,7 +422,7 @@ classdef AstroPSF1 < Component
             
             Tiny = 1e-30;
             
-            Ind = find( strcmpi( 'Wave', Obj.DimName ), 1);      % find the wavelength axis in the object's dimensions
+            Ind = find( strcmpi( Args.Axis, Obj.DimName ), 1);      % find the required axis in the object's dimensions
             if isempty(Ind)
                 error('No wavelength axis found in the object');
             else
@@ -425,7 +438,7 @@ classdef AstroPSF1 < Component
                 end
             end
             
-            PSFcube = Obj.getPSF('PsfArgs',[{'Wave',Wave} Args.Pos]); % get an X x Y x Wave 3D Cube ( PSF x Wave)
+            PSFcube = Obj.getPSF('PsfArgs',[{Args.Axis, Wave} Args.Pos]); % get an X x Y x Wave 3D Cube ( PSF x Wave)
             SpShape = reshape(Spec,[1 1 numel(Spec)]);
             SumL    = sum( PSFcube .* SpShape, 3 );           % multiply and sum over the wavelength dimension
             Result  = SumL ./ sum( SumL, [1,2] );             % normalization
