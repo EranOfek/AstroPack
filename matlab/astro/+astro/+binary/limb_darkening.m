@@ -1,4 +1,4 @@
-function Lum=limb_darkening(R,Model,Pars)
+function Lum=limb_darkening(R, ModelType, Pars)
 % Limb darkening function
 % Package: AstroUtil.binary
 % Description: Calculate the star luminosity per unit area as a function
@@ -26,7 +26,7 @@ function Lum=limb_darkening(R,Model,Pars)
 %------------------------------------------------------------------------------
 Mu   = sqrt(1-R.^2);  % cos(Gamma)    
 
-ModelType = 'Milne';
+
 % select from different models:
 switch lower(ModelType)
     case 'try'

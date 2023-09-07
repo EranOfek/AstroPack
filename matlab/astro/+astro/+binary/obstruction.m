@@ -1,4 +1,5 @@
-function Obs=obstruction(D,R1,R2,Nstep,LimbFun,Pars)
+function Obs=obstruction(D,R1,R2,Args)
+%Nstep,LimbFun,Pars)
 % Stellar obstruction due to the eclipse
 % Package: AstroUtil.binary
 % Description: Calculate stellar obstruction due to the eclipse given the
@@ -26,15 +27,15 @@ arguments
     D
     R1
     R2
-    Nstep = 100;
-    LimbFun = @astro.binary.limb_darkening;
-    Pars    = {'Milne',1};
+    Args.Nstep = 100;
+    Args.LimbFun = @astro.binary.limb_darkening;
+    Args.Pars    = {'Milne',1};
 end
 
 
 N = length(D);
 
-DelR = R1./Nstep;
+DelR = R1./Args.Nstep;
 Obs = zeros(size(D));
 for I=1:1:N
    % for each distance in distances-vector
@@ -60,11 +61,11 @@ for I=1:1:N
    if (length(R)>1)
       %R      = [LimB:DelR:LimA].';
       if ((R2>R1) && D(I)<(R2-R1))
-         Obs(I) = astro.binary.total_light(R1,LimbFun,Nstep,Pars);
+         Obs(I) = astro.binary.total_light(R1, 'LimbFun',Args.LimbFun, 'Nstep',Args.Nstep, 'Pars',Args.Pars);
       else
          %L      = eval([LimbFun,'(R./R1,Pars)']);
          %L      = feval(LimbFun,R./R1,Pars{:});
-         L      = LimbFun(R./R1,Pars{:});
+         L      = Args.LimbFun(R./R1, Args.Pars{:});
          I0     = find(D(I)==0 | R==0);
          In0    = find(D(I)~=0 & R~=0);
          Alpha  = zeros(size(R));
