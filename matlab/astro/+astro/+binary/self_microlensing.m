@@ -27,7 +27,9 @@ function TotMu=self_microlensing(D, Args)
     %          K=celestial.Kepler.kepler3law(1.4.*2e33, 'p',PerVec);
     %          Dls = K.a./constant.pc;
     %          for Id=1:1:numel(PerVec);TotMu(Id)=astro.binary.self_microlensing(0, 'Dls',Dls(Id)); end
-    
+    %
+    %          Beta = (-3:0.1:3);
+    %          for Id=1:1:numel(Beta);TotMu(Id)=astro.binary.self_microlensing(Beta(Id), 'Dls',Dls(end)); end
     
     arguments
         D             % in SrcRad units
