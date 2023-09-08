@@ -1,4 +1,4 @@
-function TotMu=self_microlensing(D, Args)
+function [TotMu,Res]=self_microlensing(D, Args)
     % Estimate the self microlensing for binary stars
     % Input  : - The impact parameter at which to calculate the total
     %            magnification, in units of the SrcRad.
@@ -76,7 +76,7 @@ function TotMu=self_microlensing(D, Args)
     
     Res = astro.microlensing.ps_lens('Mass',Args.Mass, 'MassUnits',Args.MassUnits,...
                                      'Dl',Args.Dl, 'Ds',Ds, 'DistUnits',Args.DistUnits,...
-                                     'Beta',MatRd, 'BetaUnits','rad');
+                                     'Beta',MatRd, 'BetaUnits','rad','OutUnits','rad');
                                  
     
     
