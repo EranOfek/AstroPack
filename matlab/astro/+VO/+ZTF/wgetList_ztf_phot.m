@@ -24,7 +24,7 @@ function AllT=wgetList_ztf_phot(Cat, Args)
         Args.Radius                   = 1;
         Args.Band                     = [1 2];
         Args.ColRA                    = 1;
-        Args.ColDec                   = 1;
+        Args.ColDec                   = 2;
         Args.CooUnits                 = 'rad';
         Args.wget_ztf_photArgs cell   = {};
     end
