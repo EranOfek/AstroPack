@@ -130,7 +130,7 @@ function [Result] = forcedPhot(Obj, Args)
     %                   Default is false.
     %            'HalfSizePSF' - Half size of the constructed PSF (unless
     %                   PSF is provided). Default is 12 [pix].
-    %            'FitRadihttps://github.com/EranOfek/AstroPack/wiki/MatchedSourcesus' - Radius around source center to fit.
+    %            'FitRadius' - Radius around source center to fit.
     %                   This can be used in order to exclude regions
     %                   outside the stellar core.
     %                   Default is 3.
