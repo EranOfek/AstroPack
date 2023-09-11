@@ -117,6 +117,7 @@ function Result = unitTest()
     Pw4 = AP.weightPSF('Pos',{'PosX',6},'Wave',Sp.Wave,'Spec',Sp.Flux');
     
     % check multiple interpolation methods
+    Pg6 = AP.getPSF('PsfArgs',{'Wave',3550,'PosX',5.5},'InterpMethod',{'linear','nearest'});
     
     pause
 

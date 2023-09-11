@@ -376,8 +376,8 @@ classdef AstroPSF1 < Component
 %                         error('multiple interpolation methods have not been implemented as of yet');
                         Int{1} = Obj.DataPSF;
                         for Idim = 1:Ndim
-                            Int{Idim+1} = interpn(X,Y, Obj.DimAxes{1:Ndim}, Res, ...
-                            X,Y, Obj.DimAxes{1:Idim-1},DimVal{Idim},Obj.DimAxes{Idim+1,Ndim},IntMeth{Idim});
+                            Int{Idim+1} = interpn(X,Y, Obj.DimAxes{1:Ndim}, Int{Idim}, ...
+                            X,Y, Obj.DimAxes{1:Idim-1},DimVal{Idim},Obj.DimAxes{Idim+1:Ndim},IntMeth{Idim});
                         end
                         Result = Int{Ndim};
                     end
