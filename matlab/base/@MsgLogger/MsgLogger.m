@@ -289,7 +289,7 @@ classdef MsgLogger < handle
 
             % Log to display
             if LogToDisplay
-                cprintf(Style, '[%s] ', LevStr);
+                cprintf(Style, '[%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
                 cprintf(Style, varargin{:});
                 fprintf('\n');
             end
