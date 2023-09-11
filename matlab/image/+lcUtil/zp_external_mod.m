@@ -1,4 +1,4 @@
-function [Result,LC] = zp_external(Obj, Args)
+function [Result,LC] = zp_external_mod(Obj, Args)
     %
    
     arguments
@@ -73,8 +73,8 @@ function [Result,LC] = zp_external(Obj, Args)
         Color = Result(Iobj).SrcData.phot_bp_mean_mag - Result(Iobj).SrcData.phot_g_mean_mag;
 
         
-        Distance = sqrt(((Obj(Iobj).Data.X-Obj(Iobj).Data.X(:,Args.LCNSource)).^2 + (Obj(Iobj).Data.Y-Obj(Iobj).Data.Y(:,Args.LCNSource)).^2))
-        FlagGoodRef = FlagGoodRef & Color>0.2 & Color<0.8 & Distance<100;
+        Distance = sqrt(((Obj(Iobj).Data.X-Obj(Iobj).Data.X(:,Args.LCNSource)).^2 + (Obj(Iobj).Data.Y-Obj(Iobj).Data.Y(:,Args.LCNSource)).^2));
+        FlagGoodRef = FlagGoodRef & Color>0.2 & Color<0.8 & Distance<100 & RefMag<20;
         sum(FlagGoodRef)
         Nref = sum(FlagGoodRef,2);
         
@@ -93,27 +93,29 @@ function [Result,LC] = zp_external(Obj, Args)
         
         
         DeltaMag = InstMag - RefMagMat;
-        ZP       = median(DeltaMag,2,'omitnan');
-        StdZP    = tools.math.stat.rstd(DeltaMag,2);
+        ZP       = median(DeltaMag,2,'omitnan')
+        StdZP    = tools.math.stat.rstd(DeltaMag,2)
         ErrZP    = StdZP./sqrt(Nref);
         FluxZP   = 10.^(0.4.*(ZP));
         
-        RealZP = Args.ZP - ZP
+        RealZP = Args.ZP - ZP;
         
        
-        %for Iupdate=1:1:Nupdate
-        %    Result(Iobj).Data.(Args.UpdateMagFields{Iupdate}) = Obj(Iobj).Data.(Args.UpdateMagFields{Iupdate}).*FluxZP;
-        %end
+        for Iupdate=1:1:Nupdate
+            Result(Iobj).Data.(Args.UpdateMagFields{Iupdate}) = Obj(Iobj).Data.(Args.UpdateMagFields{Iupdate}).*FluxZP;
+        end
 
         Err = sqrt(Result(Iobj).Data.MAGERR_PSF(:,Args.LCNSource).^2 + ErrZP.^2);
         LC = [LC; [Result(Iobj).JD(:),...
                    Result(Iobj).Data.FLUX_PSF(:,Args.LCNSource),...
-                   Result(Iobj).Data.MAGERR_PSF(:,Args.LCNSource)-ZP,...
+                   Result(Iobj).Data.MAGERR_PSF(:,Args.LCNSource),...
                    Result(Iobj).Data.Chi2dof(:,Args.LCNSource),...
                    Result(Iobj).Data.FLAGS(:,Args.LCNSource),...
                    Result(Iobj).Data.FLAG_POS(:,Args.LCNSource),...
                    Result(Iobj).Data.MAG_PSF(:,Args.LCNSource),...
                    ErrZP]];
+        Result(Iobj).Data.MAG_PSF(:,Args.LCNSource)
+        Obj(Iobj).Data.MAG_PSF(:,Args.LCNSource)
         end
     end
 
