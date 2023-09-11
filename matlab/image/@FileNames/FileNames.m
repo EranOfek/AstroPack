@@ -975,6 +975,13 @@ classdef FileNames < Component
             %                   SubDir='1', if directory does not exist
             %                   (if false will return []).
             %                   Default is true.
+            %            'UseTime' - A logical indicating if the SubDir
+            %                   string is a time stamp (true), or number (false).
+            %                   If true, then the SubDir will be of the
+            %                   format HHMMSSv#, where number indicate if
+            %                   there is more than one dir with this time
+            %                   stampe. First dir alwas have v0.
+            %                   Default is false.
             % Output : - A char array containing the suggested SubDir name
             %            that does not exist in path. 
             %          - Only if the second argument is requested, then the
@@ -985,29 +992,43 @@ classdef FileNames < Component
             arguments
                 Obj
                 Args.OneIfEmpty logical   = true;
+                Args.UseTime logical      = false;
             end
 
             Path = Obj.genPath(1, 'AddSubDir',false); % Path without SubDir
             Dir  = dir(Path);
             
-            if isempty(Dir) && Args.OneIfEmpty
-                Result = '1';
+            if Args.UseTime
+                % SubDir is a time stamp
+                %File = Obj.genFile;
+                Obj.jd2str;
+                SpTime  = split(Obj.Time{1},'.');
+                Result  = SpTime{2};
+                Flag    = contains({Dir.name}, Result);
+                Version = sum(Flag);
+                Result  = sprintf('%sv%d',Result, Version);
             else
-                % select non-hidden directories
-                Flag = [Dir.isdir] & ~startsWith({Dir.name}, '.');
-                
-                NumDir = str2double({Dir(Flag).name});
-                if isempty(NumDir) && Args.OneIfEmpty
+                % SUbDir is a number
+                if isempty(Dir) && Args.OneIfEmpty
                     Result = '1';
                 else
-                    Result = sprintf('%d',max(NumDir) + 1);
+                    % select non-hidden directories
+                    Flag = [Dir.isdir] & ~startsWith({Dir.name}, '.');
+                    
+                    NumDir = str2double({Dir(Flag).name});
+                    if isempty(NumDir) && Args.OneIfEmpty
+                        Result = '1';
+                    else
+                        Result = sprintf('%d',max(NumDir) + 1);
+                    end
                 end
             end
-            
+
             if nargout>1
                 % update SubDir
                 Obj.SubDir = Result;
             end
+        
                         
         end
         
