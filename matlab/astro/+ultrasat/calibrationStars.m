@@ -4,7 +4,7 @@ function CalStars = calibrationStars(Args)
 
     arguments
         Args.DataDir = '~/ULTRASAT/Calib/';
-        Args.Cat     = 'Starlib23';           % 'STISngsl10';
+        Args.Cat     = 'STISngsl10';           % 'STISngsl10' or 'Starlib23';
     end
 
     RAD = 180./pi;
