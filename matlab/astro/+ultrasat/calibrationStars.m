@@ -85,7 +85,14 @@ function CalStars = calibrationStars(Args)
     figure(2); 
     subplot(2,1,1); plot(AnnualVisHi,'*'); xlabel 'high candence obj'; ylabel '0.1 day-long frames/yr'; title 'Annual visibility'
     subplot(2,1,2); plot(AnnualVisLo,'*'); xlabel 'low cadence obj'  ; ylabel '0.1 day-long frames/yr'
-               
+    
+    % plot the lg(T) -- lg(g) diagram (for 'Starlib23' only)
+    if strcmp(Args.Cat,'Starlib23')
+        figure(10)
+        plot(log10(lcad.Teff_K_),lcad.logG,'*'); hold on
+        plot(log10(hcad.Teff_K_),hcad.logG,'o','Color','green')
+        xlabel lg(T_{eff}); ylabel lg(g)
+    end
 
     % individual spectral data of the high-cadence objects:
     NHi = size(hcad,1); 

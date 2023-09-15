@@ -118,6 +118,10 @@ function Result = unitTest()
     
     % check multiple interpolation methods
     Pg6 = AP.getPSF('PsfArgs',{'Wave',3550,'PosX',5.5},'InterpMethod',{'linear','nearest'});
+    Pg7 = AP.getPSF('PsfArgs',{'Wave',3550,'PosX',5.5},'InterpMethod','linear');
+    Pg8 = AP.getPSF('PsfArgs',{'Wave',3550,'PosX',5.5},'InterpMethod','nearest');
+    sum((Pg6-Pg7)^2,'all')
+    sum((Pg6-Pg8)^2,'all')
     
     pause
 
