@@ -12,7 +12,7 @@
 
 classdef DemonLAST < Component
     % 
-
+            
     properties       
         %
         CI CalibImages   = CalibImages;    % CalibImages
@@ -406,6 +406,8 @@ classdef DemonLAST < Component
 
     end
 
+    
+    
     methods (Static)  % fields related utilities
         function List = fieldsListLAST(Args)
             % (Static) Return a table with list of LAST predefined field indices
@@ -1320,6 +1322,10 @@ classdef DemonLAST < Component
             else
                 cd(Obj.CalibPath);
             end
+            
+            fprintf('\n\nAvailable storage space:\n')
+            unix('df -h | grep data');
+            fprintf('\n\nPlease only run the pipeline if disk less than 80percent full.\n\n')
 
             % read latest bias image
             if ismember('bias',lower(Args.ReadProduct))
