@@ -1,5 +1,5 @@
-function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, Args)
-    % Move a list of files with options.
+function Destination = copyFiles(SourceFiles, DestFiles, SourcePath, DestPath, Args)
+    % Copy a list of files with options.
     %   Can be use to move files, move a list of of files with common path,
     %   create destination directories, and move file using regular
     %   expressions.
@@ -29,10 +29,10 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
     % Output : - A cell array of destination file names including full
     %            path.
     % Author : Eran Ofek (Apr 2022)
-    % Example: % move list of files from local dir to some dir.
-    %          Destination = io.files.moveFiles({'a',v'}, [], '', '~/')
-    %          % Move files selected by some pattern
-    %          Destination = io.files.moveFiles('A*.\.txt', [], '', '~/','RegExp',true)
+    % Example: % Copy list of files from local dir to some dir.
+    %          Destination = io.files.copyFiles({'a',v'}, [], '', '~/')
+    %          % Copy files selected by some pattern
+    %          Destination = io.files.copyFiles('A*.\.txt', [], '', '~/','RegExp',true)
     
     arguments
         SourceFiles
@@ -100,9 +100,9 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
         end
         % move file
         if isempty(Args.Mode)
-            movefile(Source, Destination{Ifile});
+            copyfile(Source, Destination{Ifile});
         else
-            movefile(Source, Destination{Ifile}, Args.Mode);
+            copyfile(Source, Destination{Ifile}, Args.Mode);
         end
     end
     
