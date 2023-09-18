@@ -69,9 +69,11 @@ Res.PreferredModel = NaN;
 for i=1:1:(InPar.MaxOrder-1)
    if Res.NewChi2(i)-Res.NewChi2(i+1) < Res.DeltaChi2(i+1)
        Res.PreferredModel = i;
-       break;
-   else
-       continue; 
+       break; 
    end
 end
+Res.PreferredModel = InPar.MaxOrder;
+
+
+
 
