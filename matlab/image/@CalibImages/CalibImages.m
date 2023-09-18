@@ -1244,6 +1244,9 @@ classdef CalibImages < Component
             %           'trimOverscanArgs' - A cell array of additional
             %                   arguments to pass to imProc.dark.trimOverscan
             %                   Default is {}.
+            %           'TrimOverscan' - A logical indicating if to trim
+            %                   overscan.
+            %                   Default is true.
             %           'NonLinCorr' - A correction table [Flux, CorrectionFactor]
             %                   or a structure with .Flux and .Corr fields.
             %                   The correction factor is either multiplicative or by
@@ -1306,6 +1309,7 @@ classdef CalibImages < Component
                 Args.MethodOverScan                 = 'globalmedian';
                 Args.overscanArgs cell              = {};
                 Args.trimOverscanArgs cell          = {};
+                Args.TrimOverscan logical           = true;
                 Args.NonLinCorr                     = [];   % nonlinear correction table [flux, factor]
                 Args.NonLinCorrArgs cell            = {};   % args for imProc.calib.nonlinearCorrection
                 Args.deflatArgs cell                = {};
@@ -1399,10 +1403,12 @@ classdef CalibImages < Component
             end
 
             % trim overscan region
-            Result = imProc.dark.trimOverscan(Result, 'OverScan',Args.OverScan,...
+            if Args.TrimOverscan
+                Result = imProc.dark.trimOverscan(Result, 'OverScan',Args.OverScan,...
                                                       'FinalCrop',Args.FinalCrop,...
                                                       Args.trimOverscanArgs{:},...
                                                       'CreateNewObj',false);
+            end
           
 
 

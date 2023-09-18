@@ -67,7 +67,7 @@ function Result = trimOverscan(Obj, Args)
         if isempty(Args.FinalCrop)
             if ischar(Args.OverScan)
                 % read from header
-                OverScan = getVal(ImObj(Iim).HeaderData, Args.OverScan,'ReadCCDSEC',true);
+                OverScan = getVal(Result(Iobj).HeaderData, Args.OverScan,'ReadCCDSEC',true);
             else
                 % assume OverScan is in CCDSEC format: [Xmin Xmax Ymin Ymax]
                 OverScan = Args.OverScan;
