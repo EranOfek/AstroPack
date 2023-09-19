@@ -992,7 +992,7 @@ classdef FileNames < Component
             arguments
                 Obj
                 Args.OneIfEmpty logical   = true;
-                Args.UseTime logical      = false;
+                Args.UseTime logical      = true;
             end
 
             Path = Obj.genPath(1, 'AddSubDir',false); % Path without SubDir
