@@ -332,6 +332,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                 cprintf('red','%d%s\n',NumSrc-sum(InFOV),' objects out of the FOV');
                             end
     
+    %%% TBD: if sum(InFOV) < NumSrc cut the input data so that 
+    %%% it contain only the sources falling into the FOV
+    % InMag = InMag(logical(InFOV))
+    % FiltFam = FiltFam(logical(InFOV))
+    % Filter  = Filter(logical(InFOV))
+    % Spec    = ...
+                            
     CatFlux  = zeros(NumSrc,1);   % will be determined below from spectra * transmission 
     
     %%%%%%%%%%%%%%%%%%%% reading source magnitudes and filters, 
@@ -353,13 +360,14 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Filter = repmat(Args.Filt,1,NumSrc);
     end
     
-    %%% TBD: if sum(InFOV) < NumSrc cut the input data so that 
-    %%% it contain only the sources falling into the FOV
-    % InMag = InMag(logical(InFOV))
-    % FiltFam = FiltFam(logical(InFOV))
-    % Filter  = Filter(logical(InFOV))
-    % Spec    = ...
+    % check if some the of the magnitudes are non-numerical and make them efficiently zero:
+    Ind = isnan(InMag);
+    InMag(Ind) = 100;
+                        if sum(Ind) > 0
+                            cprintf('red','%d%s\n',sum(Ind),' input magnitudes are non-numerical');
+                        end
     
+    % account for the extinction: 
     ExtMag     = astro.spec.extinction(Args.Ebv,(Wave./1e4)');
     Extinction = 10.^(-0.4.*ExtMag);
 %     plot(Wave,Extinction);
