@@ -139,10 +139,14 @@ function Result = test_onesCondition()
     
     iters = 10;
     
-    for arr_sizes=1:3
+    for arr_sizes=1:2
         
-        arr_size = power(10,arr_sizes);
-        
+        if arr_sizes == 1
+            arr_size = "1700x1700";
+        elseif arr_sizes == 2
+            arr_size = "25x25x1000";
+        end
+
         for var_types=1:2
 
             MatlabTimeTotal = 0;
@@ -158,10 +162,18 @@ function Result = test_onesCondition()
 
                 switch var_types
                     case 1
-                        MatR2 = rand(arr_size,arr_size,'single');
+                        if arr_sizes == 1
+                            MatR2 = rand(1700,1700,'single');
+                        elseif arr_sizes == 2
+                            MatR2 = rand(25,25,1000,'single');
+                        end
                         Type = 'single';
                     case 2
-                        MatR2 = rand(arr_size,arr_size,'double');
+                        if arr_sizes == 1
+                            MatR2 = rand(1700,1700,'double');
+                        elseif arr_sizes == 2
+                            MatR2 = rand(25,25,1000,'double');
+                        end
                         Type = 'double';                    
                 end
 
@@ -193,7 +205,7 @@ function Result = test_onesCondition()
             MexTime = MexTimeTotal / iters;
             MexMPTime = MexMPTimeTotal / iters;
 
-            fprintf('Array_size: %d, Var_type: %s, Matlab: %.6f, Mex: %.6f, MexMP: %.6f, Ratio: %0.2f, MP_Ratio: %0.2f\n', arr_size, Type, MatlabTime, MexTime, MexMPTime, MatlabTime/MexTime, MatlabTime/MexMPTime);
+            fprintf('Array_size: %s, Var_type: %s, Matlab: %.6f, Mex: %.6f, MexMP: %.6f, Ratio: %0.2f, MP_Ratio: %0.2f\n', arr_size, Type, MatlabTime, MexTime, MexMPTime, (MexTime/MatlabTime)*100, (MexMPTime/MatlabTime)*100);
 
         end
     end
