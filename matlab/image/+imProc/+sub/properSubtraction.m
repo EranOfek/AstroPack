@@ -134,6 +134,8 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
     SdN   = ObjNew.copy;
     SdR   = ObjNew.copy;
 
+    Fd    = zeros(Nmax,1);
+    F_S   = zeros(Nmax,1);
     for Imax=1:1:Nmax
         Ir = min(N_R, Imax);
         In = min(N_N, Imax);
