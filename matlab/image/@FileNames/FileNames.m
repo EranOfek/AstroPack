@@ -359,7 +359,7 @@ classdef FileNames < Component
                 Result = false;
                 if ErrorIfWrong
                     II=find(Flag,1);
-                    error('Illegal value found in Type property (element %d)',II);
+                    error('Illegal value found in Type property (element %d): %s',II, Obj.Type);
                 end
             end
             
