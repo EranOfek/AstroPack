@@ -28,9 +28,11 @@ end
 
 if (nargin>1)
     % Err is given in second argument
-    % do nothing
     if (nargin==2)
-        Dim = 1;
+        % automatic Dim for row or column vectors
+        if any(size(Vec)==1)
+            Dim = find(size(Vec)>1);
+        end
     end
 else
     % Vec is a two coumn vector
@@ -51,10 +53,10 @@ if (IgnoreNaN)
     end
 end
 
-%E = sqrt(1./sum(1./VecValue(I).^2));
-E = sqrt(1./sum(1./Err.^2,Dim));
-M = sum(Vec./(Err.^2),Dim)./sum(1./(Err.^2),Dim);
-W = 1./Err.^2;  % weight
-S = sqrt((sum(W.*Vec.^2,Dim).*sum(W,Dim) - ...
-          sum(W.*Vec,Dim).^2)./(sum(W,Dim).^2 - sum(W.^2,Dim)));
+W = 1./double(Err.^2);  % weight (double to prevent Inf if small singles)
+WS= sum(W,Dim);
+E = sqrt(1./WS);
+M = sum(Vec.*W,Dim)./WS;
+S = sqrt((sum(W.*Vec.^2,Dim).*WS - sum(Vec.*W,Dim).^2)./ ...
+              (WS.^2 - sum(W.^2,Dim)));
 
