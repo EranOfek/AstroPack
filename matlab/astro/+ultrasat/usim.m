@@ -336,6 +336,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                         if sum(Ind) > 0
                             cprintf('red','%d%s\n',sum(Ind),' input magnitudes are non-numerical');
                         end
+                        if sum(InEbv) > 0
+                            cprintf('blue','%s\n','Non-zero extinction requested: please, make sure, that the input magnitudes are dereddened!');
+                        end 
     %%% check which of the sources fall out of the tile FOV and cut the input lists
     InFOV = (CatX > 0.1) .* (CatY > 0.1) .* (CatX < ImageSizeX) .* (CatY < ImageSizeY);
     if ( sum(InFOV) < NumSrc )
@@ -362,14 +365,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     end
                          
     CatFlux  = zeros(NumSrc,1);   % will be determined below from spectra * transmission 
-    
-    % calculate the extinction curves: 
-                        if sum(InEbv) > 0
-                            cprintf('blue','%s\n','Non-zero extinction requested: please, make sure, that the input magnitudes are dereddened!');
-                        end
-    ExtMag     = astro.spec.extinction(InEbv',(Wave./1e4)');
-    Extinction = 10.^(-0.4.*ExtMag);
-%     plot(Wave,Extinction);
     
     %%%%%%%%%%%%%%%%%%%%% split the list of objects into chunks and work
     %%%%%%%%%%%%%%%%%%%%% chunk-by-chunk 
@@ -539,7 +534,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %                             end
     %                         end
     %                     end % END TEST
-        %%%%%%%%%%%%%%%%%%%%%  rescale the spectra to the input magnitudes 
+        %%%%%%%%%%%%%%%%%%%%%  rescale the spectra to the input magnitudes and account for the extinction: 
 
                                 fprintf('%s%s%s%s%s','Rescaling spectra to fit the input ',...
                                          FiltFam{1},'/',Filter{1},' magnitudes...');
@@ -578,7 +573,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             end
         end
         Factor   = 10.^(-0.4.*(MagSc' - InMag(Range))); % rescaling factor
-        SpecIn   = SpecIn ./ Factor;                     
+        SpecIn   = SpecIn ./ Factor;   
+        % account for the extinction:
+        ExtMag   = astro.spec.extinction(InEbv(Range)',(Wave./1e4)');
+        Extinction = 10.^(-0.4.*ExtMag);
         SpecObs  = SpecIn .* Extinction';               % observed (extincted) spectrum
 
                                 fprintf('done\n'); 
