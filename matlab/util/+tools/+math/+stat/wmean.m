@@ -6,6 +6,8 @@ function [M,E,S]=wmean(Vec,Err,Dim,IgnoreNaN)
 %            while the errors are in the second argument.
 %          - Optional matrix of errors. If given, then the first input
 %            argument is treated as values.
+%            (Note - Err most be nonzero, otherwise 0/0 and Inf/Inf=NaN
+%             result)
 %          - If the first two input arguments are provided then this is the
 %            dimension along to calculate the weighted mean.
 %            Default is 1.
@@ -55,8 +57,8 @@ end
 
 W = 1./double(Err.^2);  % weight (double to prevent Inf if small singles)
 WS= sum(W,Dim);
-E = sqrt(1./WS);
 M = sum(Vec.*W,Dim)./WS;
+E = sqrt(1./WS);
 S = sqrt((sum(W.*Vec.^2,Dim).*WS - sum(Vec.*W,Dim).^2)./ ...
               (WS.^2 - sum(W.^2,Dim)));
 
