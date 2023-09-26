@@ -4,9 +4,9 @@ function [M,E,S]=wmean(Vec,Err,Dim,IgnoreNaN)
 % Description: Calculated the weighted mean of a sample.
 % Input  : - Either a two column matrix [Val, Err] or a matrix of values,
 %            while the errors are in the second argument.
-%          - Optional mtarix of errors. If given, then the first input
+%          - Optional matrix of errors. If given, then the first input
 %            argument is treated as values.
-%          - If the first two input arguments are provided than this is the
+%          - If the first two input arguments are provided then this is the
 %            dimension along to calculate the weighted mean.
 %            Default is 1.
 %          - Ignore nans. Default is true.
@@ -16,7 +16,7 @@ function [M,E,S]=wmean(Vec,Err,Dim,IgnoreNaN)
 % Tested : Matlab 7.0
 %     By : Eran O. Ofek                    Jun 1998
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [M,E]=Util.stat.wmean([1;2;3;4],[1;1;1;50]);
+% Example: [M,E]=tools.math.stat.wmean([1;2;3;4],[1;1;1;50]);
 % Reliable: 2
 %--------------------------------------------------------------------------
 ColVal  = 1;
@@ -41,14 +41,21 @@ end
 
 % Ignore NaNs
 if (IgnoreNaN)
-    Flag = ~isnan(Vec) & ~isnan(Err);
-    Vec  = Vec(Flag);
-    Err  = Err(Flag);
+    if Dim==1
+        Flag = any(~isnan(Vec),2) & any(~isnan(Err),2);
+        Vec  = Vec(Flag,:);
+        Err  = Err(Flag,:);
+    else
+        Flag = any(~isnan(Vec),1) & any(~isnan(Err),1);
+        Vec  = Vec(:,Flag);
+        Err  = Err(:,Flag);
+    end
 end
 
 %E = sqrt(1./sum(1./VecValue(I).^2));
 E = sqrt(1./sum(1./Err.^2,Dim));
 M = sum(Vec./(Err.^2),Dim)./sum(1./(Err.^2),Dim);
 W = 1./Err.^2;  % weight
-S = sqrt((sum(W.*Vec.^2).*sum(W) - sum(W.*Vec).^2)./(sum(W).^2 - sum(W.^2)));
+S = sqrt((sum(W.*Vec.^2,Dim).*sum(W,Dim) - ...
+          sum(W.*Vec,Dim).^2)./(sum(W,Dim).^2 - sum(W.^2,Dim)));
 
