@@ -2247,6 +2247,7 @@ classdef MatchedSources < Component
             
         end
         
+        
         function [Result] = rmsMag(Obj, Args)
             % Calculate rms of some parameter as a function of magnitude.
             %       The mean magnitude over epochs, of all sources is
@@ -2341,6 +2342,7 @@ classdef MatchedSources < Component
             end
             
         end
+        
         
         function [FreqVec, PS] = period(Obj, Freq, Args)
             % Periodogram for all sources in MatchedSources object.
@@ -2704,6 +2706,32 @@ classdef MatchedSources < Component
         % plot LC by source index
         
         % plot LC by source position
+
+        % search moving source
+        function movingSearch(Obj, Pos, Args)
+            %
+
+            arguments
+                Obj(1,1)
+                Pos
+                Args.Interp logical      = true;
+                Args.ColJD               = 'JD';
+                Args.ColRA               = 'RA';
+                Args.ColDec              = 'Dec';
+
+            end
+
+            if isempty(Obj.JD)
+                error('movingSearch function requires populated JD property')
+            end
+
+            if ~isa(Pos, 'AstroTable') && ~isa(Pos, 'AstroCatalog')
+                % assume Pos contains [JD, RA, Dec]
+            else
+                % interpolate AstroTable
+            end
+
+        end
     end
     
     methods (Static) % unitTest
