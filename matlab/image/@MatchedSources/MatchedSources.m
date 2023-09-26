@@ -2708,17 +2708,63 @@ classdef MatchedSources < Component
         % plot LC by source position
 
         % search moving source
-        function movingSearch(Obj, Pos, Args)
-            %
+        function Result = epochCooSearch(Obj, Pos, Args)
+            % Search for epoch-dependent coordinates in MatchedSources object.
+            %   Given a table with coordinates, interpolate this table into
+            %   the MatchedSources epochs, and in each epoch search for the
+            %   nearest object.
+            % Input  : - A single element MatchedSources object.
+            %          - Either an Astrocatalog object with JD,RA,Dec
+            %            columns or a matrix of [JD, RA, Dec].
+            %          * ...,key,val,...
+            %            'MaxDist' - Max dist for source selection.
+            %                   will select the nearest source within this
+            %                   distance. If doesn't exist, then return NaN
+            %                   entry. Default is 10.
+            %            'MaxDistUnits' - MaxDist units. Default is 'arcsec'.
+            %            'Interp' - A logical indicating if to interpolate
+            %                   the 2nd input argument (Pos) onto the times
+            %                   of the MatchedSources epochs.
+            %                   Default is true.
+            %            'InterpCooArgs' - A cell array of additional
+            %                   arguments to pass to AstroCatalog/interpCoo.
+            %                   Default is {}.
+            %            'ColJD' - JD column name in the Pos table.
+            %                   Default is 'JD'.
+            %            'ColRA' - RA column name in the Pos table and also
+            %                   the MatchedSources object. Default is 'RA'.
+            %            'ColDec' - Like ColRA, but for Dec.
+            %                   Default is 'Dec'.
+            %            'PosUnits' - If Pos is in a matrix format than
+            %                   this is the units in the Pos table.
+            %                   Default is 'rad'.
+            %            'DataUnits' - Units of RA/Dec in the
+            %                   MatchedSources object. Will be used only if
+            %                   not provided in the MatchedSources Units
+            %                   property.
+            %                   Default is 'rad'.
+            % Output : - A structure with the following fields:
+            %            .Ind - Index of source in each epoch.
+            %                   NaN if not found.
+            %            .Dist - Dist [rad] of moving coordinates to
+            %                   nearest soiurce. NaN if not found.
+            %            .Ncand - Number of candidates matched within
+            %                   search radius.
+            % Author : Eran Ofek (Sep 2023)
+            % Example: 
 
             arguments
                 Obj(1,1)
                 Pos
+                Args.MaxDist             = 10;
+                Args.MaxDistUnits        = 'arcsec';
                 Args.Interp logical      = true;
+                Args.InterpCooArgs cell  = {};
                 Args.ColJD               = 'JD';
                 Args.ColRA               = 'RA';
                 Args.ColDec              = 'Dec';
-
+                Args.PosUnits            = 'rad'; % only for matrix input
+                Args.DataUnits           = 'rad'; % only if 'Units' fireld doesn't exist
             end
 
             if isempty(Obj.JD)
@@ -2727,10 +2773,45 @@ classdef MatchedSources < Component
 
             if ~isa(Pos, 'AstroTable') && ~isa(Pos, 'AstroCatalog')
                 % assume Pos contains [JD, RA, Dec]
+                Pos = AstroCatalog({Pos}, 'ColNames',{'JD','RA','Dec'}, 'ColUnits',Args.ColUnits);
+            end
+            
+            MaxDistRad = convert.angular(Args.MaxDistUnits, 'rad', Args.MaxDist); % [radian]
+            
+            if Args.Interp
+                InterpPos = Pos.interpCoo(Obj.JD, Args.InterpCooArgs{:});
             else
-                % interpolate AstroTable
+                InterpPos = Pos;
             end
 
+            [RA, Dec] = getLonLat(Obj, 'rad');
+            
+            try
+                if isempty(Obj.Units.(Args.ColRA))
+                    Units = Args.DataUnits;
+                else
+                    Units = Obj.Units.(Args.ColRA);
+                end
+            catch
+                Units = Args.DataUnits;
+            end
+            ConvFactor = convert.angular(Units, 'rad');
+            
+            % search object in each epoch:
+            % Ind = VO.search.search_sortedlat_multi(Cat,0.5,0.5,0.01)
+            Result.Ind   = nan(Obj.Nepoch,1);
+            Result.Dist  = nan(Obj.Nepoch,1);
+            Result.Ncand = zeros(Obj.Nepoch,1);
+            for Iep=1:1:Obj.Nepoch
+                Dist = celestial.coo.sphere_dist_fast(RA(Iep), Dec(Iep), Obj.Data.(Args.ColRA).*ConvFactor, Obj.Data.(Args.ColDec).*ConvFactor);
+                [MinDist, MinDistInd] = min(Dist);
+                if MinDist<MaxDistRad
+                    Result.Ind(Iep)    = MinDistInd;
+                    Result.Dist(Iep)   = MinDist;
+                    Result.Ncand(Iep)  = sum(Dist<MaxDistRad);
+                end
+            end
+            
         end
     end
     
