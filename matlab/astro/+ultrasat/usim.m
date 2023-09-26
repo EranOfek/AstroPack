@@ -8,7 +8,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'SkyCat'    - the flag determines whether the input coordinates are RA, Dec
     %       'PlaneRotation - [deg] rotation of the plane w.r.t. the north celestial pole
     %       'Mag'       - a vector of source magnitudes or 1 magnitude for all the sources
-    %       'Ebv'       - E(B-V) of the observed field 
+    %       'Ebv'       - a vector of E(B-V) for each of the sources or 1 value for the whole observed field 
     %       'FiltFam'   - the filter family for which the source magnitudes are defined
     %       'Filt'      - the filter[s] for which the source magnitudes are defined
     %       'SpecType'  - model of the input spectra ('BB','PL') or 'tab'
@@ -53,8 +53,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                              
         Args.Mag             =  20;          % apparent magnitudes of the input sources: 
                                              % one magnitude for all the objects or a vector of magnitudes                                              
-        Args.Ebv             =   0;          % E(B-V) of the observed field (currently 1 value for all the objects)
-                                             % if E(B-V) > 0 the input magnitudes are treated as dereddened
+        Args.Ebv             =   0;          % E(B-V) of the input sources: of the observed field 
+                                             % one value for the whole field or a vector of individual values
+                                             % if E(B-V) > 0 the input magnitudes are treated as dereddened !!
         Args.FiltFam         = {'ULTRASAT'}; % one filter family for all the source magnitudes or an array of families
                                              
         Args.Filt            = {''};         % one filter for all the source magnitudes or an array of filters
@@ -274,11 +275,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     end
         
     if isa(Args.Cat,'AstroCatalog') % read sources from an AstroCatalog object 
- 
         NumSrc        = size(Args.Cat.Catalog,1); 
-        RA            = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'RA'))); 
+        RA            = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'RA' ))); 
         DEC           = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'Dec'))); 
-        
         if isempty(find(strcmp(Args.Cat.ColNames, 'X'), 1)) % no pixel coordinates in the catalog
             [CatX, CatY]  = SimWCS.sky2xy(RA,DEC);          % get them from the SimWCS
         else                                                % read pixel coordinates
@@ -286,11 +285,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             CatY      = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'Y'))); 
         end               
                             fprintf('%d%s\n',NumSrc,' sources read from the input AstroCatalog object');
-        
     elseif size(Args.Cat,2) > 1 && size(Args.Cat,3) == 1 % read source coordinates from a text table
-        
         NumSrc = size(Args.Cat,1);
-        
         if Args.SkyCat   % the input coordinates are sky coordinates
             RA  = Args.Cat(:,1);
             DEC = Args.Cat(:,2);
@@ -299,55 +295,29 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             CatX   = Args.Cat(:,1);
             CatY   = Args.Cat(:,2);
             [RA, DEC] = SimWCS.xy2sky(CatX,CatY);
-%             RA     = zeros(NumSrc,1); % can be calculated later if needed
-%             DEC    = zeros(NumSrc,1); % -//-
         end
                             fprintf('%d%s\n',NumSrc,' sources read from the input table');
-        
     elseif size(Args.Cat,2) == 1 % make a fake catalog with Args.Cat sources randomly distributed over the FOV
-        
         NumSrc = Args.Cat;  % the number of fake sources
-
         CatX    = max(0.51, ImageSizeX * rand(NumSrc,1) ); 
         CatY    = max(0.51, ImageSizeY * rand(NumSrc,1) ); 
-        
         [RA, DEC] = SimWCS.xy2sky(CatX,CatY);
-        
-%         RA      = zeros(NumSrc,1);  % can be calculated later if needed
-%         DEC     = zeros(NumSrc,1);  % -//-
-%  
-                            fprintf('%d%s\n',NumSrc,' random sources generated');
-                            
+                            fprintf('%d%s\n',NumSrc,' random sources generated');      
     else
-        
-                            error('Incorrect catalog input, exiting..'); 
-                                    
+                            error('Incorrect catalog input, exiting..');                             
     end
     
-    % check which of the sources fall out of the FOV
-    
-    InFOV = (CatX > 0.1) .* (CatY > 0.1) .* (CatX < ImageSizeX) .* (CatY < ImageSizeY);
-    
-                            if ( sum(InFOV) < NumSrc ) 
-                                cprintf('red','%d%s\n',NumSrc-sum(InFOV),' objects out of the FOV');
-                            end
-    
-    %%% TBD: if sum(InFOV) < NumSrc cut the input data so that 
-    %%% it contain only the sources falling into the FOV
-    % InMag = InMag(logical(InFOV))
-    % FiltFam = FiltFam(logical(InFOV))
-    % Filter  = Filter(logical(InFOV))
-    % Spec    = ...
-                            
-    CatFlux  = zeros(NumSrc,1);   % will be determined below from spectra * transmission 
-    
-    %%%%%%%%%%%%%%%%%%%% reading source magnitudes and filters, 
-    %%%%%%%%%%%%%%%%%%%% calculating the extinction curve
+    %%% make arrays of magnitudes and filters:
     
     if numel(Args.Mag) > 1
         InMag = Args.Mag;
     else
         InMag = Args.Mag(1)*ones(NumSrc,1);
+    end
+    if numel(Args.Ebv) > 1
+        InEbv = Args.Ebv;
+    else
+        InEbv = Args.Ebv(1)*ones(NumSrc,1);
     end
     if numel(Args.FiltFam) > 1
         FiltFam = {Args.FiltFam};
@@ -360,15 +330,44 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Filter = repmat(Args.Filt,1,NumSrc);
     end
     
-    % check if some the of the magnitudes are non-numerical and make them efficiently zero:
-    Ind = isnan(InMag);
+    %%% check if some the of the magnitudes are non-numerical and make them efficiently zero:
+    Ind = isnan(InMag); 
     InMag(Ind) = 100;
                         if sum(Ind) > 0
                             cprintf('red','%d%s\n',sum(Ind),' input magnitudes are non-numerical');
                         end
+    %%% check which of the sources fall out of the tile FOV and cut the input lists
+    InFOV = (CatX > 0.1) .* (CatY > 0.1) .* (CatX < ImageSizeX) .* (CatY < ImageSizeY);
+    if ( sum(InFOV) < NumSrc )
+        cprintf('red','%d%s\n',NumSrc-sum(InFOV),' objects out of the FOV');
+        Ind = logical(InFOV);
+        NumSrc  = sum(InFOV);
+        InMag   = InMag(Ind);
+        FiltFam = FiltFam(Ind);
+        Filter  = Filter(Ind);
+        CatX    = CatX(Ind);
+        CatY    = CatY(Ind);
+        RA      = RA(Ind);
+        DEC     = DEC(Ind);
+        InEbv   = InEbv(Ind);
+        if ( numel(Args.Spec) ~= 1)
+            Args.Spec = Args.Spec(Ind);
+        end
+        if ( numel(Args.SpecType) ~= 1)
+            Args.SpecType = Args.SpecType(Ind);
+        end
+        if ( numel(Args.RotAng) ~= 1)
+            Args.RotAng = Args.RotAng(Ind);
+        end
+    end
+                         
+    CatFlux  = zeros(NumSrc,1);   % will be determined below from spectra * transmission 
     
-    % account for the extinction: 
-    ExtMag     = astro.spec.extinction(Args.Ebv,(Wave./1e4)');
+    % calculate the extinction curves: 
+                        if sum(InEbv) > 0
+                            cprintf('blue','%s\n','Non-zero extinction requested: please, make sure, that the input magnitudes are dereddened!');
+                        end
+    ExtMag     = astro.spec.extinction(InEbv',(Wave./1e4)');
     Extinction = 10.^(-0.4.*ExtMag);
 %     plot(Wave,Extinction);
     
