@@ -40,9 +40,9 @@ function [Result] = forcedPhot(Obj, Args)
     %                   'Xstart', 'Ystart' - X/Y pixel coordinates of the
     %                           initial source position.
     %                   'FLAG_POS' - A flag indicating if the source is:
-    %                           0 - within image and at least 'MinEdgeDist' pixels
+    %                           1 - within image and at least 'MinEdgeDist' pixels
     %                               from edge.
-    %                           1 - outside the image.
+    %                           0 - outside the image.
     %                   'FLAGS' - Bit mask flags propagated from the image
     %                           mask.
     %                   'Chi2','Dof','Chi2dof' - chi^2, dof, and chi^2/dof
