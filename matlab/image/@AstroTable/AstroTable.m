@@ -1555,21 +1555,7 @@ classdef AstroTable < Component
             
         end
 
-        function Result = interpCoo(Obj, NewTime, Args)
-            % Interpolate coordinates using cosindirection
-            %   All the other columns will be interpolate regularly
-            
-            arguments
-                Obj(1,1)
-                NewTime
-                Args.InterpCoo   = 'pchip';
-                Args.InterpOther = 'linear';
-            end
-            
-            
-            
-            
-        end
+        
     end
     
     methods % applay functions and overloads
