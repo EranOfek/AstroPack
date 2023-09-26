@@ -41,12 +41,11 @@ end
 
 % Ignore NaNs
 if (IgnoreNaN)
-    if Dim==1
-        Flag = any(~isnan(Vec),2) & any(~isnan(Err),2);
+    Flag = ~(any(isnan(Vec),Dim) & any(isnan(Err),Dim));
+    if Dim==2
         Vec  = Vec(Flag,:);
         Err  = Err(Flag,:);
     else
-        Flag = any(~isnan(Vec),1) & any(~isnan(Err),1);
         Vec  = Vec(:,Flag);
         Err  = Err(:,Flag);
     end
