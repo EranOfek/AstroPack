@@ -2751,7 +2751,8 @@ classdef MatchedSources < Component
             %            .Ncand - Number of candidates matched within
             %                   search radius.
             % Author : Eran Ofek (Sep 2023)
-            % Example: 
+            % Example: [Cat]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',celestial.time.julday([14 6 2018]),'StopJD',  celestial.time.julday([20 6 2018]));
+            %          R = MS.epochCooSearch(Cat);
 
             arguments
                 Obj(1,1)
