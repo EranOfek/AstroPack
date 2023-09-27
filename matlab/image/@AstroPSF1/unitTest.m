@@ -116,12 +116,45 @@ function Result = unitTest()
     Sp = AstroSpec.blackBody(2000:11000,3500);
     Pw4 = AP.weightPSF('Pos',{'PosX',6},'Wave',Sp.Wave,'Spec',Sp.Flux');
     
-    % check multiple interpolation methods
+    % multiple interpolation methods
     Pg6 = AP.getPSF('PsfArgs',{'Wave',3550,'PosX',5.5},'InterpMethod',{'linear','nearest'});
     Pg7 = AP.getPSF('PsfArgs',{'Wave',3550,'PosX',5.5},'InterpMethod','linear');
     Pg8 = AP.getPSF('PsfArgs',{'Wave',3550,'PosX',5.5},'InterpMethod','nearest');
     sum((Pg6-Pg7)^2,'all')
     sum((Pg6-Pg8)^2,'all')
+    
+    % PSF fitting:
+    fit = AP.fitFunPSF('CreateNewObj',true,'PsfArgs',{'Wave',3550,'PosX',5.5,'InterpMethod','linear'});
+    
+    % full field to stamp:
+    stamp = AP.full2stamp('CreateNewObj',true,'PsfArgs',{'Wave',3550,'PosX',5.5,'InterpMethod','linear'});
+    
+    % curve of growth:
+    cgw1 = AP.curve_of_growth;
+    cgw2 = AP.curve_of_growth('PsfArgs',{'Wave',3200});
+    cgw3 = AP.curve_of_growth('PsfArgs',{'Wave',3550,'PosX',5.5,'InterpMethod','linear'});
+    
+    % surface plotting
+    AP.surface;
+    AP.surface('PsfArgs',{'Wave',3550,'PosX',5.5,'InterpMethod','linear'});
+    
+    % suppress edges
+    AP.suppressEdges;
+    
+    % normalize the stamps
+    AP.normPSF;
+    
+    % images to cube:
+    Cube  = AP.images2cube;
+    Cube2 = AP.images2cube('PsfArgs',{'Wave',5300});
+    
+    % fwhm:
+    FWHM  = AP.fwhm;
+    FWHM2 = AP.fwhm('PsfArgs',{'PosX',4.4});
+    
+    % moment2:
+    M2  = AP.moment2;
+    M21 = AP.moment2('PsfArgs',{'Wave',5300});
     
     pause
 
@@ -234,8 +267,8 @@ function Result = unitTest()
     % i.e. takes AP.DataPSF2(:,:,1,1,1,1,1,1) or AP.DataPSF2(:,:,1,1)
     % for AP.DataPSF2(:,:,1,2) or AP.DataPSF2(:,:,1,3) the result will be different! 
     
-    AP.FWHM = imUtil.psf.pseudoFWHM(AP.DataPSF3);
-    AP.ContainmentR = imUtil.psf.containment(AP.DataPSF3(:,:,1,1),'Level',0.99);
+    AP.FWHM = imUtil.psf.pseudoFWHM(AP.DataPSF);
+    AP.FluxContainmentRadius = imUtil.psf.containment(AP.DataPSF(:,:,1,1),'Level',0.99);
     
     %
     io.msgStyle(LogLevel.Test, '@passed', 'AstroPSF test passed');                          
