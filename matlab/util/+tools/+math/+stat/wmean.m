@@ -11,12 +11,15 @@ function [M,E,S]=wmean(Vec,Err,Dim,IgnoreNaN)
 %          - If the first two input arguments are provided then this is the
 %            dimension along to calculate the weighted mean.
 %            Default is 1.
-%          - Ignore nans. Default is true.
+%          - Ignore rows or columns in which at least one element is a NaN,
+%            and don't produce output for them. Default is true. (this is
+%            different than using nansum, nanmean)
 % Output : - Weighted mean.
 %          - Weighted error on weighted mean.
 %          - Weighted standard deviation.
 % Tested : Matlab 7.0
 %     By : Eran O. Ofek                    Jun 1998
+%          Enrico Segre                    Sep 2023
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: [M,E]=tools.math.stat.wmean([1;2;3;4],[1;1;1;50]);
 % Reliable: 2
@@ -43,7 +46,7 @@ else
     Dim = 1;
 end
 
-% Ignore NaNs
+% Remove rows or columns which include at least one NaN in Vec or in Err
 if (IgnoreNaN)
     Flag = ~(any(isnan(Vec),Dim) & any(isnan(Err),Dim));
     if Dim==2
@@ -56,9 +59,14 @@ if (IgnoreNaN)
 end
 
 W = 1./double(Err.^2);  % weight (double to prevent Inf if small singles)
-WS= sum(W,Dim);
-M = sum(Vec.*W,Dim)./WS;
+% TODO: -could use nansum, if the aim is to ignore single NaN entries
+%        without obliterating rows;
+%       -if some Err are 0, could use alternative code which computes sums
+%        using only the Vec elements for which Err=0. Maybe, equivalently,
+%        setting W=1 where Err=0 and W=0 where Err>0. By row or by column
+WS = sum(W,Dim);
+WM = sum(Vec.*W,Dim);
+M = WM./WS;
 E = sqrt(1./WS);
-S = sqrt((sum(W.*Vec.^2,Dim).*WS - sum(Vec.*W,Dim).^2)./ ...
-              (WS.^2 - sum(W.^2,Dim)));
+S = sqrt( (sum(W.*Vec.^2,Dim).*WS - WM.^2) ./ (WS.^2 - sum(W.^2,Dim)) );
 
