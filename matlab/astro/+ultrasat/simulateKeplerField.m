@@ -1,5 +1,5 @@
 function simImage = simulateKeplerField(Args)
-
+    % simulate an ULTRASAT image from of the Kepler field from the input star catalog
     arguments
         Args.Tile    = 'B';    % the tile name
         Args.RA0     = 291;    % the aimpoint
@@ -8,7 +8,7 @@ function simImage = simulateKeplerField(Args)
         Args.PlaneRotation = 0;
         Args.OutDir  = '.';
         Args.OutName = 'SimKepler'
-        Args.Ebv     = 0; % the actual E(B-V) in the Kepler field is about 0.4 ?
+        Args.Ebv     = 0; % the actual E(B-V) in the Kepler field is about 0.44 ?
         Args.Catalog = 'Kepler_ULTRASAT_all.tbl';
         Args.Dir     = '/home/sasha/KeplerField';
         Args.SNR     = false; % calculate source SNRs with telescope.sn.snr 
