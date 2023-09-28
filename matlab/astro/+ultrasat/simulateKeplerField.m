@@ -1,26 +1,38 @@
 function simImage = simulateKeplerField(Args)
     % simulate an ULTRASAT image from of the Kepler field from the input star catalog
+    % 
     arguments
         Args.Tile    = 'B';    % the tile name
         Args.RA0     = 291;    % the aimpoint
         Args.Dec0    =  44.5;  % the aimpoint
-        Args.ExpNum  =   1;  % the number of exposures
+        Args.ExpNum  =   1;    % the number of exposures
         Args.PlaneRotation = 0;
         Args.OutDir  = '.';
         Args.OutName = 'SimKepler'
-        Args.Ebv     = 0; % the actual E(B-V) in the Kepler field is about 0.44 ?
+        Args.Ebv     =   0; % the actual E(B-V) in the Kepler field is about 0.44 ?
         Args.Catalog = 'Kepler_ULTRASAT_all.tbl';
         Args.Dir     = '/home/sasha/KeplerField';
         Args.SNR     = false; % calculate source SNRs with telescope.sn.snr 
     end
     
     Wave    = 2000:11000;   % the wavelength band in A
+    
     % make a grid of BB spectra
     Temp = 2500:250:12000;
     S = repmat(AstroSpec,1,numel(Temp));
     for i = 1:numel(Temp)
         S(i) = AstroSpec.blackBody(Wave',Temp(i));
     end
+    
+    % TODO:
+    % 1. make a grid of Pickles spectra in Teff, log(g) and distribute
+    % the objects on this grid 
+    % Result = AstroSpec.specStarsPickles('G5','V'); 
+    % 2. based on the grid, make a library of spectrum-integrated ULTRASAT PSFs: 
+    % 25 radial points x ~ 108-131 uk Pickles spectra (or less?) [+ a number of
+    % BBs?] ~ 3000 PSFs at 1/5 pixel resolution (stamp 108x108 pix ~ 10^4 * 4
+    % byte (single precision) ~ 44 kb x 3000 PSFs ~ 120 Mb ?)
+    % and implement the possibility to use the library into the simulator
     
     cd(Args.Dir);
     SrcTab  = readtable(Args.Catalog,'FileType','text');
