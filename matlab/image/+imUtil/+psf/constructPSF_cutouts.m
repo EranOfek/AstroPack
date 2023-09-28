@@ -62,7 +62,7 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     %                   arguments to pass to imUtil.psf.psf_zeroConvergeArgs.
     %                   Default is {}.
     %
-    %            'mexCutout' - use imUtil.cut.mexCutout.m (true) or
+    %            'mexCutout' - use imUtil.cut.mex.mex_cutout.m (true) or
     %                   imUtil.cut.find_within_radius_mat (false).
     %                   Default is true.
     %            'Circle' - If true, then will set all points outside the radius to NaN.

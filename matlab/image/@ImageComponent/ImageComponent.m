@@ -1707,7 +1707,7 @@ classdef ImageComponent < Component
             Iobj = 1;
             switch lower(Args.CutAlgo)
                 case 'mex'
-                    [CutoutCube] = imUtil.cut.mexCutout(Obj(Iobj).(Args.DataProp), RoundXY, CutoutSize, Args.PadVal, 0, 0, 1);
+                    [CutoutCube] = imUtil.cut.mex_cutout(Obj(Iobj).(Args.DataProp), RoundXY, CutoutSize, Args.PadVal, 0, 0, 1);
                     CutoutCube   = squeeze(CutoutCube);
                 case 'wmat'
                     [CutoutCube] = imUtil.cut.find_within_radius_mat(Obj(Iobj).(Args.DataProp), RoundXY(:,1), RoundXY(:,2), Args.HalfSize, Args.IsCircle);

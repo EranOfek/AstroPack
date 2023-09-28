@@ -67,7 +67,7 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %            'WindowOnlyOnLastIter' -Default is false.
 %            'FinalIterWithCorrectWin' - Apply an additional final
 %                       iteration with the correct window.
-%            'mexCutout' - use imUtil.cut.mexCutout.m (true) or
+%            'mexCutout' - use imUtil.cut.mex.mex_cutout.m (true) or
 %                       imUtil.cut.find_within_radius_mat (false).
 %                       Default is true.
 %            'CalcBoxPhot' - Return BoXPhot in photometry.
