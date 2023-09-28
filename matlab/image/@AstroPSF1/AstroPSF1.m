@@ -61,11 +61,11 @@ classdef AstroPSF1 < Component
     properties (SetAccess = public)
         DataPSF           = [];    % parameters of a PSF-generating function or a data cube, where the first 2 dimensions are the PSF image stamp (X, Y)
         DataVar           = [];    % variance 
-        Scale             = [1 1]; % pixel sizes in X and Y (may be different) 
+        Scale             = [1 1]; % CHANGE NAME TO Oversampling    pixel sizes in X and Y (may be different) 
         FunPSF            = [];    % PSF-generating function, e.g., Map = Fun(Data, X,Y, Color, Flux)
         DimName cell      = {'Wave', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'}; % the standard set of dimensions, but may be changed 
                             % NB: if the names here are changed, the dimension names a user provides to getPSF need to be changed accordingly 
-        DimAxes cell      = repmat({0}, 1, 5); % axes according to DimName
+        DimAxes cell      = repmat({0}, 1, 5); % CHANGE to DimVals and add x/y values with oversampling...      axes according to DimName
         InterpMethod      = {'nearest'}; % can be n-dimensional with different methods applied at different dimensions
         
 %         ArgVals cell      = {};     % will be obsoleted in a while
@@ -209,12 +209,14 @@ classdef AstroPSF1 < Component
             
             arguments
                 Obj(1,1)
-                Args.FunPSF = [];
-                Args.StampSize = [];
-                Args.PsfArgs = {};  
-                Args.FunArgs = {};  
-                Args.InterpMethod = [];
-                Args.Scale = [];
+                Args.FunPSF         = [];
+                Args.StampSize      = [];
+                Args.PsfArgs        = {};     % Example: {'Color',2, 'PosX',[2 3]'}
+                Args.FunArgs        = {};  
+                Args.InterpMethod   = [];
+                Args.Scale          = [];  % CHANGE to Oversampling - if empty use Oversampling property
+                Args.ReNorm logical = true;
+                Args.ReNormMethod   = 'int';  % 'int' | 'rms'
             end
             
             if isempty(Args.FunPSF)

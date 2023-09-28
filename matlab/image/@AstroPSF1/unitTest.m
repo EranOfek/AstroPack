@@ -2,7 +2,7 @@ function Result = unitTest()
     % unitTest for AstroPSF
     % Example: Result = AstroPSF.unitTest
 
-    io.msgStyle(LogLevel.Test, '@start', 'AstroPSF test started');                                      
+    %io.msgStyle(LogLevel.Test, '@start', 'AstroPSF test started');                                      
 
     % getPSF
     AP = AstroPSF1;
@@ -164,6 +164,6 @@ function Result = unitTest()
     AP
     
     %
-    io.msgStyle(LogLevel.Test, '@passed', 'AstroPSF test passed');                          
+    %io.msgStyle(LogLevel.Test, '@passed', 'AstroPSF test passed');                          
     Result = true;
 end
