@@ -1,5 +1,14 @@
 function [DX,DY]=digiGraph(Image)
-    %
+    % Interactive digitization of graphs
+    %   The program allows you to upload an image and to click on 4
+    %   positions and type their X and Y graph positions.
+    %   Next you can select arbitrary number of points, and the function
+    %   will return the X and Y graph position of these points.
+    % Input  : - A char array containing image name (to be read using
+    %            imread), or a matrix of image.
+    % Output : - X positions of selected points.
+    %          - Y positions of selected points.
+    % Author : Eran Ofek (Sep 2023)
     % Example: plot.digiGraph('col.png');
 
     if ischar(Image)
@@ -40,7 +49,7 @@ function [DX,DY]=digiGraph(Image)
     Np = numel(MDX);
 
     DX = ParX(1) + ParX(2).*MDX(:) + ParX(3).*MDY(:);
-    DX = ParY(1) + ParY(2).*MDX(:) + ParY(3).*MDY(:);
+    DY = ParY(1) + ParY(2).*MDX(:) + ParY(3).*MDY(:);
 
 
 
