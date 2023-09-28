@@ -38,7 +38,9 @@ function Result = unitTest()
 %     [FWHM_CumSum, FWHM_Flux] = fwhm(AP(1));
     [FWHM_CumSum, FWHM_Flux] = fwhm(AP);    
     
-    % extended data structures 
+    % Newly developed properties:
+    
+    cprintf('blue','%s\n', 'Test some new multi-D properties:');    
     
     AP = AstroPSF1;
     P0 = imUtil.kernel2.gauss([2 2 0],[7 7]);
@@ -116,7 +118,7 @@ function Result = unitTest()
     Sp = AstroSpec.blackBody(2000:11000,3500);
     Pw4 = AP.weightPSF('Pos',{'PosX',6},'Wave',Sp.Wave,'Spec',Sp.Flux');
     
-    % multiple interpolation methods
+    % multiple interpolation methods:
     Pg6 = AP.getPSF('PsfArgs',{'Wave',3550,'PosX',5.5},'InterpMethod',{'linear','nearest'});
     Pg7 = AP.getPSF('PsfArgs',{'Wave',3550,'PosX',5.5},'InterpMethod','linear');
     Pg8 = AP.getPSF('PsfArgs',{'Wave',3550,'PosX',5.5},'InterpMethod','nearest');
@@ -149,15 +151,17 @@ function Result = unitTest()
     Cube2 = AP.images2cube('PsfArgs',{'Wave',5300});
     
     % fwhm:
-    FWHM  = AP.fwhm;
-    FWHM2 = AP.fwhm('PsfArgs',{'PosX',4.4});
+    FWHM  = AP.fwhm
+    FWHM2 = AP.fwhm('PsfArgs',{'PosX',4.4})
     
     % moment2:
-    M2  = AP.moment2;
+    M2  = AP.moment2
     M21 = AP.moment2('PsfArgs',{'Wave',5300});
     
-    AP.FWHM = imUtil.psf.pseudoFWHM(AP.DataPSF);
-    AP.FluxContainmentRadius = imUtil.psf.containment(AP.DataPSF(:,:,1,1),'Level',0.99);
+    % populate some properties:
+    AP.FWHM = imUtil.psf.pseudoFWHM(AP.getPSF);
+    AP.FluxContainmentRadius = imUtil.psf.containment(AP.getPSF,'Level',0.99);
+    AP
     
     %
     io.msgStyle(LogLevel.Test, '@passed', 'AstroPSF test passed');                          
