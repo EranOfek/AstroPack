@@ -32,7 +32,6 @@
 %   2. Info about sub pixel response?
 %   3. Info about how the PSF was generated
 
-
 % Ideas:
 % properties:
 %   DataPSF
