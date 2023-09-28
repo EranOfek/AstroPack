@@ -1405,7 +1405,7 @@ classdef DemonLAST < Component
                 Args.PauseNight        = 10;
 
                 % Save data products
-                Args.SaveEpochProduct  = {[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat'};
+                Args.SaveEpochProduct  = {[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat','PSF'};,
                 Args.SaveVisitProduct  = {'Image','Mask','Cat','PSF'};
                 Args.SaveMergedCat     = true;
                 Args.SaveMergedMat     = true;
