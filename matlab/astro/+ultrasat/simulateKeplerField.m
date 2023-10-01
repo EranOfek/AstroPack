@@ -10,7 +10,7 @@ function simImage = simulateKeplerField(Args)
         Args.OutDir  = '.';
         Args.OutName = 'SimKepler'
         Args.Ebv     =   0; % the actual E(B-V) in the Kepler field is about 0.44 ?
-        Args.Catalog = 'Kepler_ULTRASAT_all.tbl';
+        Args.Catalog = 'Kepler_ULTRASAT_all_v2.tbl';
         Args.Dir     = '/home/sasha/KeplerField';
         Args.SNR     = false; % calculate source SNRs with telescope.sn.snr 
     end
@@ -62,6 +62,8 @@ function simImage = simulateKeplerField(Args)
     
     Cat  = [Tab.x_ra Tab.dec];
     Mag0 =  Tab.Vmag;
+%     Ebv  = Args.Ebv;
+    Ebv  = Tab.E_B_V_;
     
     % account for extinction (the simulator deals with dereddened values!)
     Filt = AstFilter.get('Johnson','V');
@@ -117,7 +119,7 @@ function simImage = simulateKeplerField(Args)
     
     %%%% run the simulation 
     simImage = ultrasat.usim('Cat', Cat, 'Mag', Mag, 'FiltFam','Johnson', 'Filt','V',...
-        'Spec', Spec, 'Exposure', [Args.ExpNum 300], 'Ebv',Args.Ebv,...
+        'Spec', Spec, 'Exposure', [Args.ExpNum 300], 'Ebv', Ebv,...
         'OutDir', Args.OutDir,'SkyCat', 1, 'PlaneRotation', Args.PlaneRotation,...
         'RA0', Args.RA0, 'Dec0', Args.Dec0, 'OutName', Args.OutName, 'Tile', Args.Tile);
 
