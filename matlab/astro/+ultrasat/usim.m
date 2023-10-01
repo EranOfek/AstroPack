@@ -11,7 +11,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'Ebv'       - a vector of E(B-V) for each of the sources or 1 value for the whole observed field 
     %       'FiltFam'   - the filter family for which the source magnitudes are defined
     %       'Filt'      - the filter[s] for which the source magnitudes are defined
-    %       'SpecType'  - model of the input spectra ('BB','PL') or 'tab'
+    %       'SpecType'  - model of the input spectra ('BB','PL','Pickles') or 'tab'
     %       'Spec'      - parameters of the input spectra (temperature, spectral index) or a table of spectral intensities
     %       'Exposure'  - image exposure
     %       'Tile'      - name of the ULTRASAT tile ('A','B','C','D')
@@ -65,6 +65,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                              % or an array of model spectra parameters: 
                                              % {'BB'} 3500 [Temperature (K)] -- blackbody
                                              % {'PL'} 2.   [Alpha -- power-law F ~ lambda^alpha]
+                                             % {'Pickles'} [6e3 4.6] -- table of Teff, K and log(g)  
                                              % {'Tab'} table: NumSrc spectra, each spectral flux in a column
                                              % NB: the input spectral flux should be
                                              % in [erg cm(-2) s(-1) A(-1)] as seen near Earth (absorbed)!
@@ -341,7 +342,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                         end 
     %%% check which of the sources fall out of the tile FOV and cut the input lists
     InFOV = (CatX > 0.1) .* (CatY > 0.1) .* (CatX < ImageSizeX) .* (CatY < ImageSizeY);
-    if ( sum(InFOV) < NumSrc )
+    if sum(InFOV) < 1 
+        error('No objects in the FOV, exiting...');
+    end
+    if sum(InFOV) < NumSrc 
         cprintf('red','%d%s\n',NumSrc-sum(InFOV),' objects out of the FOV');
         Ind = logical(InFOV);
         NumSrc  = sum(InFOV);
@@ -354,7 +358,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         DEC     = DEC(Ind);
         InEbv   = InEbv(Ind);
         if ( numel(Args.Spec) ~= 1)
-            Args.Spec = Args.Spec(Ind);
+            Args.Spec = Args.Spec(Ind,:);
         end
         if ( numel(Args.SpecType) ~= 1)
             Args.SpecType = Args.SpecType(Ind);
@@ -410,22 +414,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         SpecIn  = zeros(NumSrcCh, Nwave);  % the incoming spectra 
 
         % read the input spectra or generate synthetic spectra 
-    
-    %                 if false  %%% TEST: use the Stellar Spectra from UP.Specs
-    %                     fprintf('TEST RUN: using stellar spectra from UP.Specs ..');
-    %                     for Isrc = 1:1:NumSrc
-    %                         % stellar spectra from Pickles. NB: these are normalized to 1 at 5556 Ang !
-    %                         %Pick(Isrc) = UP.Specs( rem(Isrc,43)+1 ); 
-    %                         %Pick(Isrc) = UP.Specs(17); % a G0.0V star 
-    %                         %Pick(Isrc) = UP.Specs(27); % an M0.0V star 
-    %                         if rem(Isrc,2) == 0 % for Cat2 catalog
-    %                             Pick(Isrc) = UP.Specs(17); % UP.Specs(17); 
-    %                         else
-    %                             Pick(Isrc) = UP.Specs(27); % UP.Specs(27); 
-    %                         end
-    %                     end
-    %                     Args.Spec = Pick(1:NumSrc);
-    %                 end  %%% END TEST 
                  
         switch isa(Args.Spec,'AstroSpec') || isa(Args.Spec,'AstSpec')
 
@@ -461,6 +449,17 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                         
                         SpecIn = Wave .^ Alpha;                                     % erg s(-1) cm(-2) A(-1)   
 
+                    case 'pickles' 
+                        
+                        PicklesDir = '~/matlab/data/spec/PicklesStellarSpec/';
+                        fprintf('%s','generating Pickles spectra for individual values of Teff and log(g) .. ');
+                        for Isrc = 1:1:NumSrcCh
+                            R = astro.stars.star_picklesclass(Args.Spec(Isrc,1), Args.Spec(Isrc,2)); % Teff and log(g)
+                            PicklesFile = strcat(PicklesDir,'uk',lower(R.class),lower(R.lumclass),'.mat');
+                            SPick = io.files.load2(PicklesFile);
+                            SpecIn(Isrc,:) = interp1( SPick(:,1), SPick(:,2), Wave, 'linear', 0 );
+                        end
+                        
                     case 'tab'
 
                         fprintf('%s','Reading source spectra from a table..');
