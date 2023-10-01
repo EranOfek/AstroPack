@@ -10,7 +10,7 @@ function simImage = simulateKeplerField(Args)
         Args.OutDir  = '.';
         Args.OutName = 'SimKepler'
         Args.Ebv     =   0; % the actual E(B-V) in the Kepler field is about 0.44 ?
-        Args.Catalog = 'Kepler_ULTRASAT_all_v2.tbl';
+        Args.Catalog = 'Kepler_ULTRASAT_all.tbl';
         Args.Dir     = '/home/sasha/KeplerField';
         Args.SNR     = false; % calculate source SNRs with telescope.sn.snr 
     end
