@@ -13,11 +13,21 @@ function [TotMu,Res]=self_microlensing(D, Args)
     %            'TotL' - Unlensed source luminosity. Default is 1.
     %            'Nstep' - Integration steps. Recomended to use step that
     %                   will bring you to the lens size.
-    %                   Default is 100.
+    %                   If empty, then will choose Nstep to be:
+    %                   ceil(AngSrcRad./AngLensRad)
+    %                   In the magnification calculation, the infinte
+    %                   magnification point will be removed such that the
+    %                   magnification takes into account the obstruction by
+    %                   the lens.
+    %                   Default is [].
+    %            'Oversampling' - An oversampling factor for the automatic
+    %                   selection of Nstep. Default is 3.
     %            'LimbFun' - Limb darkning function.
     %                   Default is @astro.binary.limb_darkening
     %            'LimbFunPars' - Default is {'constant'}
     % Output : - Total magnification.
+    %          - A structure with additional information.
+    % Reference: See also Agol 2003
     % Author : Eran Ofek (Sep 2023)
     % Example: K=celestial.Kepler.kepler3law(1.4.*2e33, 'p',3600);
     %          Dls = K.a./constant.pc;
@@ -46,7 +56,8 @@ function [TotMu,Res]=self_microlensing(D, Args)
         Args.Mass      = 1.4;
         Args.MassUnits = 'SunM';
         Args.TotL      = 1;
-        Args.Nstep     = 100;
+        Args.Nstep     = [];
+        Args.Oversampling = 3;
         
         Args.LimbFun       = @astro.binary.limb_darkening;
         Args.LimbFunPars   = {'constant'};
@@ -57,6 +68,15 @@ function [TotMu,Res]=self_microlensing(D, Args)
     Ds      = Args.Dl+Args.Dls;
     AngSrcRad    = SrcRad./Ds;   % [rad]
     AngLensRad   = LensRad./Ds;   % [rad]
+    
+    if isempty(Args.Nstep)
+        % auto selection of Nstep
+        % such that the step size is like the lens size, so when we remove
+        % the infinte magnification point this is equivalent to the
+        % obstruction by the lens...
+        Args.Nstep = Args.Oversampling.*ceil(AngSrcRad./AngLensRad);
+    end
+    
     
     Vec = AngSrcRad.*(-1:1./Args.Nstep:1);   % [rad]
     [MatX, MatY] = meshgrid(Vec, Vec);
@@ -80,8 +100,20 @@ function [TotMu,Res]=self_microlensing(D, Args)
                                  
     
     
+    Res.AngSrcRad  = AngSrcRad;
+    Res.AngLensRad = AngLensRad;
+    % The Agol (2003) magnification in the limit of RE<<R*:
+    Res.AgolMagnification = (pi.*Res.AngSrcRad.^2+2.*pi.*Res.ER.^2)./(pi.*Res.AngSrcRad.^2);
+    
+    
+    % remove all magnifications which are within the lens-radius.
+    % I.e., the lens is obscuring the source:
+    U = Res.AngLensRad./Res.ER;
+    % magnification at the ER:
+    MagAtER = (U.^2+2)./(U.*sqrt(U.^2+4));
     FlagInf = isinf(Res.MuTot);
-    Res.MuTot(FlagInf) = max(Res.MuTot(~FlagInf),[],'all');
+    FlagInf = Res.MuTot>MagAtER;
+    Res.MuTot(FlagInf) = 0;  %max(Res.MuTot(~FlagInf),[],'all');
     
         
     TotMu = sum(MatL .* Res.MuTot, 'all');
