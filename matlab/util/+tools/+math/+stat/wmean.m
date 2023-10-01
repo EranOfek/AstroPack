@@ -1,7 +1,5 @@
 function [M,E,S]=wmean(Vec,Err,Dim,IgnoreNaN)
-%--------------------------------------------------------------------------
-% wmean function                                                 AstroStat
-% Description: Calculated the weighted mean of a sample.
+% Calculate the weighted mean of a sample.
 % Input  : - Either a two column matrix [Val, Err] or a matrix of values,
 %            while the errors are in the second argument.
 %          - Optional matrix of errors. If given, then the first input
@@ -21,33 +19,38 @@ function [M,E,S]=wmean(Vec,Err,Dim,IgnoreNaN)
 %     By : Eran O. Ofek                    Jun 1998
 %          Enrico Segre                    Sep 2023
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [M,E]=tools.math.stat.wmean([1;2;3;4],[1;1;1;50]);
+% Example: [M,E,S]=tools.math.stat.wmean([1;2;3;4],[1;1;1;50]);
 % Reliable: 2
 %--------------------------------------------------------------------------
+
+arguments
+    Vec
+    Err                 = [];
+    Dim                 = 1;
+    IgnoreNaN logical   = true;
+end
+
 ColVal  = 1;
 ColErr  = 2;
 
-if (nargin<4)
-    IgnoreNaN = true;
-end
 
-if (nargin>1)
-    % Err is given in second argument
-    if (nargin==2)
-        % automatic Dim for row or column vectors
-        if any(size(Vec)==1)
-            Dim = find(size(Vec)>1);
-        end
-    end
-else
+if isempty(Err)
     % Vec is a two coumn vector
     Err = Vec(:,ColErr);
     Vec = Vec(:,ColVal);
     Dim = 1;
+else
+    % Err is given in second argument
+    % if (nargin==2)
+    %     % automatic Dim for row or column vectors
+    %     if any(size(Vec)==1)
+    %         Dim = find(size(Vec)>1);
+    %     end
+    % end
 end
 
 % Remove rows or columns which include at least one NaN in Vec or in Err
-if (IgnoreNaN)
+if IgnoreNaN
     Flag = ~(any(isnan(Vec),Dim) & any(isnan(Err),Dim));
     if Dim==2
         Vec  = Vec(Flag,:);

@@ -15,6 +15,7 @@ function [Int, IntErr]=trapzErr(X,Y,ErrY,Dim)
     % Author : Eran Ofek (Sep 2023)
     % Example: x=(1:1:3).'; y=[1 2 3; 1 3 4; 1 4 5]; Err=ones(3,3).*0.1;
     %          [Int,IntErr]=tools.math.integral.trapzErr(x,y,Err)
+    
     arguments
         X
         Y
