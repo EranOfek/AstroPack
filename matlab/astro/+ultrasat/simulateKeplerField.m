@@ -33,6 +33,9 @@ function simImage = simulateKeplerField(Args)
     % BBs?] ~ 3000 PSFs at 1/5 pixel resolution (stamp 108x108 pix ~ 10^4 * 4
     % byte (single precision) ~ 44 kb x 3000 PSFs ~ 120 Mb ?)
     % and implement the possibility to use the library into the simulator
+    % 3. according to the wish of Yossi add an SNR column to the table so
+    % that SNR = 0.8 * count / noise, where noise = avg(noise/pix)*
+    % effective number of pix in a source PSF 
     
     cd(Args.Dir);
     SrcTab  = readtable(Args.Catalog,'FileType','text');
