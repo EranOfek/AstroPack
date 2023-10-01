@@ -5,6 +5,9 @@ function [Dist,Ang,PA]=sphere_dist_fast(RA_1,Dec_1,RA_2,Dec_2)
 %                for a more general function. This function is ~10 time
 %              faster than sphere_dist.m, but it works only with radians
 %                and calculate only the distance.
+%   Known issue: In cases that the input is mixture of single and doubles
+%   the ouput may be truncated. See issue 252.
+%   It is recomended to use inputs which are double.
 % Input  : - Matrix of logitudes for the first point [radian].
 %          - Matrix of latitudes for the first point [radian].
 %          - Matrix of logitudes for the second point [radian].
