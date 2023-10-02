@@ -84,7 +84,8 @@ function R = tlogg2picklesClass(Teff,logg)
         elseif Teff(i) > 3.10e3
             R(i).class = 'm6';
         else
-            error('star_picklesclass: no data for such a low T_eff');
+            R(i).class = 'm6'; % a temporary solution
+%             error('star_picklesclass: no data for such a low T_eff');
         end
     elseif logg(i) > 3 % giants
         R(i).lumclass = 'iii';
@@ -153,7 +154,8 @@ function R = tlogg2picklesClass(Teff,logg)
 %         elseif Teff(i) > 2.60e3
 %             R(i).class = 'm10';
         else
-            error('star_picklesclass: no data for such a low T_eff');
+            R(i).class = 'm7'; % a temporary solution
+%             error('star_picklesclass: no data for such a low T_eff');
         end
     else
          error('star_picklesclass: supergiants currently not implemented');
