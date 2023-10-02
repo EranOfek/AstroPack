@@ -357,8 +357,12 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         RA      = RA(Ind);
         DEC     = DEC(Ind);
         InEbv   = InEbv(Ind);
-        if ( numel(Args.Spec) ~= 1)
-            Args.Spec = Args.Spec(Ind,:);
+        if ( numel(Args.Spec) ~= 1 )
+            if isa(Args.Spec,'AstroSpec') || isa(Args.Spec,'AstSpec')
+                Args.Spec = Args.Spec(Ind);
+            else
+                Args.Spec = Args.Spec(Ind,:);
+            end
         end
         if ( numel(Args.SpecType) ~= 1)
             Args.SpecType = Args.SpecType(Ind);

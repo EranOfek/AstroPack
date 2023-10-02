@@ -3,6 +3,7 @@ function R = star_picklesclass(Teff,logg)
     % Input: - Teff(i) eff. temp. in K
     %        - logg(i) log(g) 
     % Output: - a structure containing spectral class (R.class) and luminosity class (R.lumclass)
+    % Author: A.M. Krassilchtchikov (Sep 2023)
     % Example: R = astro.stars.star_picklesclass(6e3,4.6);
     %          Spec = AstroSpec.specStarsPickles(R.class,R.lumclass);
     %
@@ -155,7 +156,7 @@ function R = star_picklesclass(Teff,logg)
             error('star_picklesclass: no data for such a low T_eff');
         end
     else
-         error('star_picklesclass: upergiants currently not implemented');
+         error('star_picklesclass: supergiants currently not implemented');
     end
     end
     

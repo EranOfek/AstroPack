@@ -9,10 +9,10 @@ function simImage = simulateKeplerField(Args)
         Args.PlaneRotation = 0;
         Args.OutDir  = '.';
         Args.OutName = 'SimKepler'
-        Args.Ebv     =   0; % the actual E(B-V) in the Kepler field is about 0.44 ?
+        Args.Ebv     =   0; % the updated table contains per-source Ebv, so we need this only for tests
         Args.Catalog = 'Kepler_ULTRASAT_all.tbl';
         Args.Dir     = '/home/sasha/KeplerField';
-        Args.SNR     = false; % calculate source SNRs with telescope.sn.snr 
+        Args.SNR     = false; % calculate source SNRs with telescope.sn.snr (the existing one is too slow)
         Args.SpecType = 'Pickles'; % 'BB' or 'Pickels'
     end
     
@@ -49,23 +49,23 @@ function simImage = simulateKeplerField(Args)
     
     Tab = SrcTab(SrcTab.x_ra > ra1 & SrcTab.x_ra < ra2 & SrcTab.dec > dec1 & SrcTab.dec < dec2,:);
 
-    %%% test: look at brightest objects only:
-    %     sortedTable = sortrows(Tab, 'Vmag');
-    %     Tab = sortedTable(1:2000,:);
-    
-%     Tab = Tab(1:10000,:); % TEST ONLY!!!
+    %%% TEST ONLY!!
+%     sortedTable = sortrows(Tab, 'Vmag');
+%     Tab = sortedTable(1:10000,:);
+    %%% END TEST 
     
     Cat  = [Tab.x_ra Tab.dec];
     Mag0 =  Tab.Vmag;
-%     Ebv  = Args.Ebv; % one value for the whole field
     Ebv  = Tab.E_B_V_; % individual values 
+%     Ebv  = Args.Ebv; % one value for the whole field %% TEST ONLY
     IndNaN = isnan(Ebv);
     Ebv(IndNaN) = 0.1; % change the non-existing Ebv for the mean value of the field (0.1)
     
-    % account for extinction (the simulator deals with dereddened values!)
+    % deredden the V magnidues (the simulator deals with dereddened values!)
     Filt = AstFilter.get('Johnson','V');
     deltaMag = astro.spec.extinction(Ebv,Filt.pivot_wl/1e4);
-    Mag = Mag0 - deltaMag;
+    Mag = Mag0 - deltaMag;    
+    % figure(1);hold off; histogram(Mag); hold on; histogram(Mag0)
     
     % build the BB spectra or use Teff and log(g) to employ Pickels' stellar spectra
     switch Args.SpecType         
