@@ -29,6 +29,8 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
         
         Args.NormS logical    = true;
         Args.NormD logical    = false;
+
+        Args.CalcTranslient logical    = true;
         
     end
 
@@ -225,16 +227,19 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
                                                                               'IsFFT',true);
                                                                                
 
+        if Args.CalcTranslient
+            [ImageZ2,Zhat,Norm] = imUtil.properSub.translient(N.*Fn, R.*Fr, Pn, Pr, SigmaN, SigmaR);
+            % move this to the translient code
+            ImageZ2(FlagNaN) = NaN;
+    
+            k = 1;  % chi^2 with k=1 dof
+            ExpectedMedian = k.*(1 - 2./(9.*k)).^3;
+    
+            %ImageZ2 = ImageZ2 - median(ImageZ2,'all','omitnan') + ExpectedMedian;
+            ImageZ2 = ImageZ2./tools.math.stat.rstd(ImageZ2,'all').*sqrt(2.*k);
+            Z2(Imax).Image = ImageZ2;
+        end
 
-        [ImageZ2,Zhat,Norm] = imUtil.properSub.translient(N.*Fn, R.*Fr, Pn, Pr, SigmaN, SigmaR);
-        % move this to the translient code
-        ImageZ2(FlagNaN) = NaN;
-
-        k = 1;  % chi^2 with k=1 dof
-        ExpectedMedian = k.*(1 - 2./(9.*k)).^3;
-
-        %ImageZ2 = ImageZ2 - median(ImageZ2,'all','omitnan') + ExpectedMedian;
-        ImageZ2 = ImageZ2./tools.math.stat.rstd(ImageZ2,'all').*sqrt(2.*k);
         
         ImageS2 = ImageS.^2;
         ImageS2 = ImageS2./tools.math.stat.rstd(ImageS2,'all').*sqrt(2.*k);
@@ -258,7 +263,7 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
         Scorr(Imax).PSF   = Pd;
         Scorr(Imax).MaskData = D(Imax).MaskData;
 
-        Z2(Imax).Image = ImageZ2;
+        
 
         SdN(Imax).Image = SdeltaN;
         SdR(Imax).Image = SdeltaR;
