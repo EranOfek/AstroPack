@@ -8,7 +8,7 @@ function Result = unitTest()
     AP = AstroPSF1;
     P = imUtil.kernel2.gauss;
     AP.DataPSF = P;
-    if ~all(AP.getPSF==P)
+    if ~all(AP.getPSF('ReNorm',0)==P)
         error('Problem with set/get PSF');
     end
 
@@ -46,7 +46,7 @@ function Result = unitTest()
     P0 = imUtil.kernel2.gauss([2 2 0],[7 7]);
     AP.StampSize = size(P0);
     
-    X = 1:AP.StampSize(1); Y = 1:AP.StampSize(2);
+%     X = 1:AP.StampSize(1); Y = 1:AP.StampSize(2);
     
     T1 = [0.2  0.3 0;  -0.1 0.9 0; 0 0 1]';  % the last column shall read: 0 0 1
     T2 = [-0.5 0.4 0;   1 0.5   0; 0 0 1]';
@@ -59,13 +59,13 @@ function Result = unitTest()
     Lam = [2000 4000 6000]; % 3 wavelengths for 3 PSFs 
     Rad = [0 2 4];          % 3 radial positions
     
-    AP.DimAxes{1} = Lam;
-    AP.DimAxes{2} = Rad;
+    AP.DimVals{1} = Lam;
+    AP.DimVals{2} = Rad;
     
     AP.DataPSF = zeros( AP.StampSize(1), AP.StampSize(2), ...
-        max(size(AP.DimAxes{1},2),1), max(size(AP.DimAxes{2},2),1), ...
-        max(size(AP.DimAxes{3},2),1), max(size(AP.DimAxes{4},2),1), ...
-        max(size(AP.DimAxes{5},2),1) );
+        max(size(AP.DimVals{1},2),1), max(size(AP.DimVals{2},2),1), ...
+        max(size(AP.DimVals{3},2),1), max(size(AP.DimVals{4},2),1), ...
+        max(size(AP.DimVals{5},2),1) );
     
     % put 3 PSFs at 3 radial postions:
     
@@ -98,9 +98,9 @@ function Result = unitTest()
     PSFdata = ReadDB{2}; 
     
     AP.DataPSF = PSFdata;
-    AP.DimAxes{1} = 2000:100:11000;
-    AP.DimAxes{2} = linspace(0,10,25);
-    AP.StampSize = size(AP.DataPSF,[1 2]);
+    AP.DimVals{1} = 2000:100:11000;
+    AP.DimVals{2} = linspace(0,10,25);
+%     AP.StampSize = size(AP.DataPSF,[1 2]);
     
     Pg1 = AP.getPSF;
     Pg2 = AP.getPSF('PsfArgs',{'Wave',2210});
@@ -109,7 +109,7 @@ function Result = unitTest()
     
     Pg4 = AP.getPSF('PsfArgs',{'Wave',[2210 3400 6800]}); % get a cube of PSFs at different wavelengths
     
-    Pg5 = AP.getPSF('Scale',1/5,'PsfArgs',{'Wave',2500,'PosX',7}); % rescale the output stamp 
+    Pg5 = AP.getPSF('Oversampling',5,'PsfArgs',{'Wave',2500,'PosX',7}); % rescale the output stamp 
     
     Pw1 = AP.weightPSF;
     Pw2 = AP.weightPSF('Pos',{'PosX',2});

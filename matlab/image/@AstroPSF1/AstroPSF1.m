@@ -36,9 +36,9 @@
 % properties:
 %   DataPSF
 %   DataVar
-%   Scale = [1 1];
+%   Oversampling = [1 1];
 %   DimName
-%   DimAxes 
+%   DimVals 
 %   InterpMethod = {'nearest'};
 %
 % P = AstroPSF
@@ -61,23 +61,16 @@ classdef AstroPSF1 < Component
     properties (SetAccess = public)
         DataPSF           = [];    % parameters of a PSF-generating function or a data cube, where the first 2 dimensions are the PSF image stamp (X, Y)
         DataVar           = [];    % variance 
-        Scale             = [1 1]; % CHANGE NAME TO Oversampling    pixel sizes in X and Y (may be different) 
+        Oversampling      = [1 1]; % pixel oversampling in X and Y (may be different) 
         FunPSF            = [];    % PSF-generating function, e.g., Map = Fun(Data, X,Y, Color, Flux)
         DimName cell      = {'Wave', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'}; % the standard set of dimensions, but may be changed 
                             % NB: if the names here are changed, the dimension names a user provides to getPSF need to be changed accordingly 
-        DimAxes cell      = repmat({0}, 1, 5); % CHANGE to DimVals and add x/y values with oversampling...      axes according to DimName
-        InterpMethod      = {'nearest'}; % can be n-dimensional with different methods applied at different dimensions
-        
-%         ArgVals cell      = {};     % will be obsoleted in a while
-%         ArgNames cell     = {'X','Y','Color','Flux'}; % will be obsoleted in a while
-        
-        StampSize         = [];     % a 2D vector of PSF stamp size
-        
-        Nstars            = NaN;    % if Nstars=NaN, then PSF wasn't constructed yet % do we need it?
-                
-        FWHM                       = [];  % calculate for each of the points in the DimAxes space ?
-        FluxContainmentRadius      = [];  % calculate for each of the points in the DimAxes space ?
-        
+        DimVals cell      = repmat({0}, 1, 5); % ADD x/y values with oversampling...  axes according to DimName
+        InterpMethod      = {'nearest'}; % can be n-dimensional with different methods applied at different dimensions        
+        StampSize         = [];     % PSF stamp size in X and Y (do we need it as a property?)
+        FWHM              = [];     % can be defined for some "average" stamp
+        FluxContainmentRadius = []; % can be defined for some "average" stamp  
+        Nstars            = NaN;    % if Nstars=NaN, then PSF wasn't constructed yet 
     end
     
     methods % Constructor
@@ -192,96 +185,113 @@ classdef AstroPSF1 < Component
     end
     
     methods % generating PSF stamp 
-%         function Result = getPSF(Obj, DataPSF, FunPSF, StampSize, ArgVals, ArgNames, Args)
-        function Result = getPSF(Obj, Args)
+        function [Result, Res] = getPSF(Obj, Args)
             % get PSF from an AstroPSF object
             % Input : - a single AstroPSF object.
-            %         * ...,key,val,... 
+            %         * ...,key,val,...
             %         'FunPSF' - a PSF-generating function handle
             %         'StampSize' - an option to pad the PSF stamp
             %         'PsfArgs'   - position of the stamp in the multi-D space of PSF.DataPSF
             %         'FunArgs'   - optinal arguments to pass to FunPSF
             %         'InterpMethod' - interpolation method (may be a vector, different methods for each dimension)
-            %         'Scale' - resample the output stamp if required 
+            %         'Oversampling' - resample the output stamp if required
             % Output : - a PSF stamp (X, Y)
             % Author : Eran Ofek
             % Example:
             
             arguments
-                Obj(1,1)
+                %                 Obj(1,1)
+                Obj
                 Args.FunPSF         = [];
-                Args.StampSize      = [];
-                Args.PsfArgs        = {};     % Example: {'Color',2, 'PosX',[2 3]'}
-                Args.FunArgs        = {};  
+                Args.StampSize      = [];  % if Args.StampSize > size(Result), pad the stamp with 0s
+                Args.PsfArgs        = {};  % Example: {'Wave', 2800, 'PosX', [2 3]'}
+                Args.FunArgs        = {};
                 Args.InterpMethod   = [];
-                Args.Scale          = [];  % CHANGE to Oversampling - if empty use Oversampling property
+                Args.Oversampling   = [];
                 Args.ReNorm logical = true;
                 Args.ReNormMethod   = 'int';  % 'int' | 'rms'
             end
             
-            if isempty(Args.FunPSF)
-                Args.FunPSF  = Obj.FunPSF;
-             else
-                Obj.FunPSF = Args.FunPSF;
-            end
-            if isempty(Args.StampSize)
-                Args.StampSize = Obj.StampSize;
-            else
-                Obj.StampSize = Args.StampSize;
-            end                       
-            if ~isempty(Args.InterpMethod)
-                if ~iscell(Args.InterpMethod)
-                    IntMeth = {Args.InterpMethod};
+            for IObj = 1:numel(Obj)
+                
+                if isempty(Args.FunPSF)
+                    Args.FunPSF  = Obj(IObj).FunPSF;
                 else
-                    IntMeth = Args.InterpMethod;
+                    Obj(IObj).FunPSF = Args.FunPSF;
                 end
-            else
-                IntMeth = Obj.InterpMethod;
-            end            
-            
-            if isempty(Args.FunPSF) % treat PSF is a multidimentional image stamp
-                Ndim = ndims(Obj.DataPSF)-2; % the number of additional data dimensions in the object
-                if Ndim == 0 % no additional dimensions, just copy the 2D matrix 
-                    Result = Obj.DataPSF;
-                else
-                    % for each of the existing extra dimensions find if there is an input value for it in Args.PsfArgs
-                    % if not, use the _mean value_ of the object's appropriate DimAxes vector  
-                    for Idim = 1:Ndim
-                        DName = Obj.DimName{Idim};
-                        Ind = find( strcmpi( DName, Args.PsfArgs ), 1);
-                        if isempty(Ind) 
-                            DimVal{Idim} = ( Obj.DimAxes{Idim}(1) + Obj.DimAxes{Idim}( numel(Obj.DimAxes{Idim}) ) ) / 2.;
-                        else
-                            DimVal{Idim} = Args.PsfArgs{Ind+1};
-                        end
-                    end
-                    % interpolate 
-                    X = 1:size(Obj.DataPSF,1); Y = 1:size(Obj.DataPSF,2);
-                    if numel(IntMeth) == 1 % one method for all the dimensions
-                        Result = interpn(X,Y, Obj.DimAxes{1:Ndim}, Obj.DataPSF, ...
-                            X,Y, DimVal{1:Ndim}, IntMeth{1});
+%                 if isempty(Args.StampSize) % what for?
+%                     Args.StampSize = Obj(IObj).StampSize;
+%                 else
+%                     Obj(IObj).StampSize = Args.StampSize;
+%                 end
+                if ~isempty(Args.InterpMethod)
+                    if ~iscell(Args.InterpMethod)
+                        IntMeth = {Args.InterpMethod};
                     else
-%                         error('multiple interpolation methods have not been implemented as of yet');
-                        Int{1} = Obj.DataPSF;
+                        IntMeth = Args.InterpMethod;
+                    end
+                else
+                    IntMeth = Obj(IObj).InterpMethod;
+                end
+                
+                if isempty(Args.FunPSF) % treat PSF is a multidimentional image stamp
+                    Ndim = ndims(Obj(IObj).DataPSF)-2; % the number of additional data dimensions in the object
+                    if Ndim == 0 % no additional dimensions, just copy the 2D matrix
+                        Result = Obj(IObj).DataPSF;
+                    else
+                        % for each of the existing extra dimensions find if there is an input value for it in Args.PsfArgs
+                        % if not, use the _mean value_ of the object's appropriate DimVals vector
                         for Idim = 1:Ndim
-                            Int1 = squeeze(Int{Idim});
-                            Int{Idim+1} = interpn(X,Y, Obj.DimAxes{Idim:Ndim}, Int1, ...
-                            X,Y, DimVal{Idim}, Obj.DimAxes{Idim+1:Ndim}, IntMeth{Idim});
+                            DName = Obj(IObj).DimName{Idim};
+                            Ind = find( strcmpi( DName, Args.PsfArgs ), 1);
+                            if isempty(Ind)
+                                DimVal{Idim} = ( Obj(IObj).DimVals{Idim}(1) + Obj(IObj).DimVals{Idim}( numel(Obj(IObj).DimVals{Idim}) ) ) / 2.;
+                            else
+                                DimVal{Idim} = Args.PsfArgs{Ind+1};
+                            end
                         end
-                        Result = Int{Ndim+1};
+                        % interpolate
+                        X = 1:size(Obj(IObj).DataPSF,1); Y = 1:size(Obj(IObj).DataPSF,2);
+                        if numel(IntMeth) == 1 % one method for all the dimensions
+                            Result = interpn(X,Y, Obj(IObj).DimVals{1:Ndim}, Obj(IObj).DataPSF, ...
+                                X,Y, DimVal{1:Ndim}, IntMeth{1});
+                        else
+                            %                         error('multiple interpolation methods have not been implemented as of yet');
+                            Int{1} = Obj(IObj).DataPSF;
+                            for Idim = 1:Ndim
+                                Int1 = squeeze(Int{Idim});
+                                Int{Idim+1} = interpn(X,Y, Obj(IObj).DimVals{Idim:Ndim}, Int1, ...
+                                    X,Y, DimVal{Idim}, Obj(IObj).DimVals{Idim+1:Ndim}, IntMeth{Idim});
+                            end
+                            Result = Int{Ndim+1};
+                        end
+                    end
+                else % pass the PSF cube to the FunPSF function
+                    Result = Args.FunPSF(Obj(IObj).DataPSF, Args.FunArgs{:});
+                end
+                if ~isempty(Args.StampSize) && Ndim == 0  % check this only if there are no additional dimensions
+                    if ~all(size(Result)==Args.StampSize) % pad PSF
+                        error('Pad PSF option is not yet available');
+                        
                     end
                 end
-            else % pass the PSF cube to the FunPSF function 
-                Result = Args.FunPSF(Obj.DataPSF, Args.FunArgs{:});
-            end
-            if ~isempty(Args.StampSize) && Ndim == 0  % check this only if there are no additional dimensions
-                if ~all(size(Result)==Args.StampSize) % pad PSF
-                    error('Pad PSF option is not yet available');
+                % rescale the output PSF stamp if requested
+                if ~isempty(Args.Oversampling)
+                    NewSize = round( (Args.Oversampling./Obj(IObj).Oversampling) .* size(Result) );
+                    Result  = imresize(Result, NewSize, 'bilinear');
                 end
-            end            
-            % rescale the output PSF stamp if requested
-            if ~isempty(Args.Scale)
-                Result = imresize(Result, Args.Scale, 'bilinear');
+                % normalize the stamp
+                if Args.ReNorm
+                    switch Args.ReNormMethod
+                        case 'int'
+                            Result = Result./sum(Result,[1 2]);
+                        case 'rms'
+                            Result = Result./rms(Result,[1 2]);
+                        otherwise
+                            error('Requested renormalization method is not known');
+                    end
+                end
+            Res{IObj} = Result;    
             end
         end
         
@@ -312,7 +322,7 @@ classdef AstroPSF1 < Component
             if isempty(Ind)
                 error('No wavelength axis found in the object');
             else
-                Wave = Obj.DimAxes{Ind};
+                Wave = Obj.DimVals{Ind};
                 if ~isempty(Args.Wave) % regrid the spectrum according to the object's wavelength axis
                     Spec = interp1(Args.Wave, Args.Spec, Wave,'linear',Tiny);                     
                 else                   % assume that the spectrum is defined according to the object's wavelength axis                                        
@@ -419,7 +429,7 @@ classdef AstroPSF1 < Component
                                             'LB',Args.LB,...
                                             'UB',Args.UB);
                 % as the resulting stamp is 2D, additional dimensions do not exist any more:
-                Result(Iobj).DimAxes = cellfun(@(x) [0], Result(Iobj).DimAxes, 'UniformOutput', false);
+                Result(Iobj).DimVals = cellfun(@(x) [0], Result(Iobj).DimVals, 'UniformOutput', false);
             end
         end
         
@@ -752,7 +762,7 @@ classdef AstroPSF1 < Component
                                                                          'zeroConvArgs',Args.zeroConvArgs,...
                                                                          'Norm',Args.Norm);
             % as the resulting stamp is 2D, additional dimensions do not exist any more:
-            Result(Iobj).DimAxes = cellfun(@(x) [0], Result(Iobj).DimAxes, 'UniformOutput', false);
+            Result(Iobj).DimVals = cellfun(@(x) [0], Result(Iobj).DimVals, 'UniformOutput', false);
             end
         end
         
@@ -850,8 +860,8 @@ classdef AstroPSF1 < Component
                 else
                     Fx = 1;                   Fy = 1;
                 end
-                Obj(Iobj).Scale(1)  = Obj(Iobj).Scale(1) * Fx; 
-                Obj(Iobj).Scale(2)  = Obj(Iobj).Scale(2) * Fy; 
+                Obj(Iobj).Oversampling(1)  = Obj(Iobj).Oversampling(1) * Fx; 
+                Obj(Iobj).Oversampling(2)  = Obj(Iobj).Oversampling(2) * Fy; 
             end
             
         end
