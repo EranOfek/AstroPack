@@ -52,16 +52,19 @@ function [TotMu,Res]=self_microlensing(D, Args)
         Args.LensRad   = 10;
         %Args.LensB     = 1e12;
         Args.SrcRadUnits = 'km';
-        
-        
+                
         Args.Mass      = 1.4;
         Args.MassUnits = 'SunM';
         Args.TotL      = 1;
-        Args.Nstep     = [];
-        Args.Oversampling = 3;
-        
+                
+        Args.IntStep       = 1e-4;   % in units of ER
         Args.LimbFun       = @astro.binary.limb_darkening;
         Args.LimbFunPars   = {'constant'};
+        
+        Args.Algo          = '1d';
+        Args.Nstep         = [];
+        Args.Oversampling  = 3;
+
     end
     
     SrcRad  = convert.length(Args.SrcRadUnits, Args.DistUnits, Args.SrcRad);   % in DistUnits
@@ -70,60 +73,81 @@ function [TotMu,Res]=self_microlensing(D, Args)
     AngSrcRad    = SrcRad./Ds;   % [rad]
     AngLensRad   = LensRad./Ds;   % [rad]
     
-    if isempty(Args.Nstep)
-        % auto selection of Nstep
-        % such that the step size is like the lens size, so when we remove
-        % the infinte magnification point this is equivalent to the
-        % obstruction by the lens...
-        Args.Nstep = Args.Oversampling.*ceil(AngSrcRad./AngLensRad);
+    switch Args.Algo
+        case '1d'
+            % Convert to ER units
+            Res = astro.microlensing.ps_lens('Mass',Args.Mass, 'MassUnits',Args.MassUnits,...
+                                             'Dl',Args.Dl, 'Ds',Ds, 'DistUnits',Args.DistUnits,...
+                                             'Beta',0, 'BetaUnits','rad','OutUnits','rad');
+            Rstar = AngSrcRad./Res.ER;
+            Rlens = AngLensRad./Res.ER;
+            
+            Beta = D.*Rstar;
+            
+            CosFun = @(R,u,b) real(acos((-R.^2 +u.^2+b.^2)./(2.*u.*b)));
+            
+            U = (Rlens:Args.IntStep:(Beta+Rstar+Rlens));
+            
+            CF = CosFun(Rstar, U, Beta);
+            CF(isnan(CF)) = 0;
+            Mag = (U.^2 + 2)./(U.*sqrt(U.^2 + 4));
+            TotMu = trapz(U, 2.*pi.*U.*Mag.*CF./pi)./(pi.*Rstar.^2);  % noramlize to area of src
+            
+        case '2d'
+            if isempty(Args.Nstep)
+                % auto selection of Nstep
+                % such that the step size is like the lens size, so when we remove
+                % the infinte magnification point this is equivalent to the
+                % obstruction by the lens...
+                Args.Nstep = Args.Oversampling.*ceil(AngSrcRad./AngLensRad);
+            end
+
+
+            Vec = AngSrcRad.*(-1:1./Args.Nstep:1);   % [rad]
+            [MatX, MatY] = meshgrid(Vec, Vec);
+
+            MatR = sqrt(MatX.^2 + MatY.^2);
+            MatL = ones(size(MatR));
+            LR   = Args.LimbFun(MatR, Args.LimbFunPars{:});
+
+
+            FlagR = MatR>AngSrcRad;
+            MatL(FlagR) = 0;
+            MatL        = MatL.*LR;
+            MatL        = MatL.*Args.TotL./sum(MatL, 'all');
+
+            MatRd       = sqrt((AngSrcRad.*D-MatX).^2 + MatY.^2);
+
+
+            Res = astro.microlensing.ps_lens('Mass',Args.Mass, 'MassUnits',Args.MassUnits,...
+                                             'Dl',Args.Dl, 'Ds',Ds, 'DistUnits',Args.DistUnits,...
+                                             'Beta',MatRd, 'BetaUnits','rad','OutUnits','rad');
+
+
+
+            Res.AngSrcRad  = AngSrcRad;
+            Res.AngLensRad = AngLensRad;
+            % The Agol (2003) magnification in the limit of RE<<R*:
+            Res.AgolMagnification = (pi.*Res.AngSrcRad.^2+2.*pi.*Res.ER.^2)./(pi.*Res.AngSrcRad.^2);
+
+
+            % remove all magnifications which are within the lens-radius.
+            % I.e., the lens is obscuring the source:
+            U = Res.AngLensRad./Res.ER;
+            % magnification at the ER:
+            MagAtER = (U.^2+2)./(U.*sqrt(U.^2+4));
+            FlagInf = isinf(Res.MuTot);
+            FlagInf = Res.MuTot>MagAtER;
+            Res.MuTot(FlagInf) = 0;  %max(Res.MuTot(~FlagInf),[],'all');
+
+
+            TotMu = sum(MatL .* Res.MuTot, 'all');
+
+            % Magnetic field is not relevant because the light was already emitted
+            %B = Args.LensB .* (MatRd./AngLensRad).^-3;  % [Gauss]
+            %FlagInf = isinf(B);
+            %B(FlagInf)         = Args.LensB;
+            %TotB = sum(MatL.*B, 'all')
     end
-    
-    
-    Vec = AngSrcRad.*(-1:1./Args.Nstep:1);   % [rad]
-    [MatX, MatY] = meshgrid(Vec, Vec);
-    
-    MatR = sqrt(MatX.^2 + MatY.^2);
-    MatL = ones(size(MatR));
-    LR   = Args.LimbFun(MatR, Args.LimbFunPars{:});
-    
-    
-    FlagR = MatR>AngSrcRad;
-    MatL(FlagR) = 0;
-    MatL        = MatL.*LR;
-    MatL        = MatL.*Args.TotL./sum(MatL, 'all');
-    
-    MatRd       = sqrt((AngSrcRad.*D-MatX).^2 + MatY.^2);
-    
-    
-    Res = astro.microlensing.ps_lens('Mass',Args.Mass, 'MassUnits',Args.MassUnits,...
-                                     'Dl',Args.Dl, 'Ds',Ds, 'DistUnits',Args.DistUnits,...
-                                     'Beta',MatRd, 'BetaUnits','rad','OutUnits','rad');
-                                 
-    
-    
-    Res.AngSrcRad  = AngSrcRad;
-    Res.AngLensRad = AngLensRad;
-    % The Agol (2003) magnification in the limit of RE<<R*:
-    Res.AgolMagnification = (pi.*Res.AngSrcRad.^2+2.*pi.*Res.ER.^2)./(pi.*Res.AngSrcRad.^2);
-    
-    
-    % remove all magnifications which are within the lens-radius.
-    % I.e., the lens is obscuring the source:
-    U = Res.AngLensRad./Res.ER;
-    % magnification at the ER:
-    MagAtER = (U.^2+2)./(U.*sqrt(U.^2+4));
-    FlagInf = isinf(Res.MuTot);
-    FlagInf = Res.MuTot>MagAtER;
-    Res.MuTot(FlagInf) = 0;  %max(Res.MuTot(~FlagInf),[],'all');
-    
-        
-    TotMu = sum(MatL .* Res.MuTot, 'all');
-    
-    % Magnetic field is not relevant because the light was already emitted
-    %B = Args.LensB .* (MatRd./AngLensRad).^-3;  % [Gauss]
-    %FlagInf = isinf(B);
-    %B(FlagInf)         = Args.LensB;
-    %TotB = sum(MatL.*B, 'all')
-    
     
 end
