@@ -7,7 +7,8 @@ function [TotMu,Res]=self_microlensing(D, Args)
     %            'Dls' - Dist from lens to source. Default is 0.01./206000
     %            'DistUnits' - Dist. units. Default is 'pc'.
     %            'SrcRad' - Source radius. Default is 6400.
-    %            'SrcRadUnits' - Source radius units. Default is 'km'.
+    %            'LensRad' - Lens radius. Default is 10.
+    %            'SrcRadUnits' - Source/Lens radius units. Default is 'km'.
     %            'Mass' - Lens mass. Default is 1.4
     %            'MassUnits' - Lens mass units. Default is 'SunM'.
     %            'TotL' - Unlensed source luminosity. Default is 1.
@@ -31,7 +32,7 @@ function [TotMu,Res]=self_microlensing(D, Args)
     % Author : Eran Ofek (Sep 2023)
     % Example: K=celestial.Kepler.kepler3law(1.4.*2e33, 'p',3600);
     %          Dls = K.a./constant.pc;
-    %          astro.binary.self_microlensing(1, 'Dls',Dls);
+    %          [TM,Res]=astro.binary.self_microlensing(1, 'Dls',Dls);
     %
     %          PerVec = logspace(log10(600), log10(86400), 100);
     %          K=celestial.Kepler.kepler3law(1.4.*2e33, 'p',PerVec);
