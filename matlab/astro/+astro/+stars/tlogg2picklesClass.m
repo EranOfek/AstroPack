@@ -1,10 +1,10 @@
-function R = star_picklesclass(Teff,logg)
+function R = tlogg2picklesClass(Teff,logg)
     % spectral class and luminosity class to be used with AstroSpec.specStarsPickles
     % Input: - Teff(i) eff. temp. in K
     %        - logg(i) log(g) 
     % Output: - a structure containing spectral class (R.class) and luminosity class (R.lumclass)
     % Author: A.M. Krassilchtchikov (Sep 2023)
-    % Example: R = astro.stars.star_picklesclass(6e3,4.6);
+    % Example: R = astro.stars.tlogg2picklesClass(6e3,4.6);
     %          Spec = AstroSpec.specStarsPickles(R.class,R.lumclass);
     %
     % https://sites.uni.edu/morgans/astro/course/Notes/section2/spectraltemps.html
