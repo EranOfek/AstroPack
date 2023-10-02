@@ -64,7 +64,7 @@ function simImage = simulateKeplerField(Args)
     
     % account for extinction (the simulator deals with dereddened values!)
     Filt = AstFilter.get('Johnson','V');
-    deltaMag = astro.spec.extinction(Args.Ebv,Filt.pivot_wl/1e4);
+    deltaMag = astro.spec.extinction(Ebv,Filt.pivot_wl/1e4);
     Mag = Mag0 - deltaMag;
     
     % build the BB spectra or use Teff and log(g) to employ Pickels' stellar spectra
