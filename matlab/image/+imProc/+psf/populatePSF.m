@@ -69,8 +69,8 @@ function [Obj,Result]=populatePSF(Obj, Args)
             else
                 % catalog is available
                 XY = Obj(Iobj).CatData.getXY;
-                X  = X(:,1);
-                Y  = Y(:,2);
+                X  = XY(:,1);
+                Y  = XY(:,2);
                 SN = Obj(Iobj).CatData.getCol(Args.ColSN);
             end
             if isempty(Obj(Iobj).Back) || isempty(Obj(Iobj).Var)

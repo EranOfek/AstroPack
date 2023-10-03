@@ -161,7 +161,7 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         if isempty(Args.Back) || isempty(Args.Var)
             error('For 2-D image input Back and Var must be provided');
         end
-        if isempty(Args.X) || isempty(Args.Y)
+        if isempty(Args.X) || isempty(Args.Y) || isempty(Args.SN)
             [FindSrcSt] = imUtil.sources.findSources(Image, 'Threshold',Args.ThresholdPSF,...
                                                               'PsfFun',Args.InitPsf,...
                                                               'PsfFunPar',Args.InitPsfArgs,...
@@ -180,8 +180,8 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
             % Cube of sources
             Args.X  = FindSrcSt.XPEAK;
             Args.Y  = FindSrcSt.YPEAK;
+            Args.SN = FindSrcSt.SN;
         end
-        Args.SN = FindSrcSt.SN;
         CutoutRadius = max(Args.RadiusPSF, max(Args.Annulus).*(~isempty(Args.DeltaSigma)));
         [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, Args.X, Args.Y, CutoutRadius, Args.image2cutoutsArgs{:});
     else
