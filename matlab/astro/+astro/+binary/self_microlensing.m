@@ -1,7 +1,7 @@
 function [TotMu,Res]=self_microlensing(D, Args)
     % Estimate the self microlensing for binary stars
-    % Input  : - The impact parameter at which to calculate the total
-    %            magnification, in units of the SrcRad.
+    % Input  : - A vector of the impact parameters at which to calculate
+    %            the total magnification, in units of the SrcRad.
     %          * ...,key,val,...
     %            'Dl' - Dist. to lens. Default is 1000.
     %            'Dls' - Dist from lens to source. Default is 0.01./206000
@@ -11,8 +11,14 @@ function [TotMu,Res]=self_microlensing(D, Args)
     %            'SrcRadUnits' - Source/Lens radius units. Default is 'km'.
     %            'Mass' - Lens mass. Default is 1.4
     %            'MassUnits' - Lens mass units. Default is 'SunM'.
+    %            'Algo'   - Algorithm. Default is '1d' (1d integral).
+    %            'IntStep' - Integration step in Einstein Radius units.
+    %                   Default is 1e-5 (usually good to accuracy of 1e-4
+    %                   in magnification).
+    %
     %            'TotL' - Unlensed source luminosity. Default is 1.
-    %            'Nstep' - Integration steps. Recomended to use step that
+    %            'Nstep' - Integration steps for the '2d' algorithm.
+    %                   Recomended to use step that
     %                   will bring you to the lens size.
     %                   If empty, then will choose Nstep to be:
     %                   ceil(AngSrcRad./AngLensRad)
@@ -57,7 +63,7 @@ function [TotMu,Res]=self_microlensing(D, Args)
         Args.MassUnits = 'SunM';
         Args.TotL      = 1;
                 
-        Args.IntStep       = 1e-4;   % in units of ER
+        Args.IntStep       = 1e-5;   % in units of ER
         Args.LimbFun       = @astro.binary.limb_darkening;
         Args.LimbFunPars   = {'constant'};
         
@@ -82,16 +88,16 @@ function [TotMu,Res]=self_microlensing(D, Args)
             Rstar = AngSrcRad./Res.ER;
             Rlens = AngLensRad./Res.ER;
             
-            Beta = D.*Rstar;
+            Beta = D(:).'.*Rstar;
             
             CosFun = @(R,u,b) real(acos((-R.^2 +u.^2+b.^2)./(2.*u.*b)));
             
-            U = (Rlens:Args.IntStep:(Beta+Rstar+Rlens));
+            U = (Rlens:Args.IntStep:(Beta+Rstar+Rlens)).';
             
             CF = CosFun(Rstar, U, Beta);
             CF(isnan(CF)) = 0;
             Mag = (U.^2 + 2)./(U.*sqrt(U.^2 + 4));
-            TotMu = trapz(U, 2.*pi.*U.*Mag.*CF./pi)./(pi.*Rstar.^2);  % noramlize to area of src
+            TotMu = trapz(U, 2.*pi.*U.*Mag.*CF./pi, 1)./(pi.*Rstar.^2);  % noramlize to area of src
             
         case '2d'
             if isempty(Args.Nstep)
