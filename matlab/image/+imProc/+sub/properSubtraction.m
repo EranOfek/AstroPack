@@ -30,7 +30,7 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
         Args.NormS logical    = true;
         Args.NormD logical    = false;
 
-        Args.CalcTranslient logical    = true;
+        Args.CalcTranslient logical    = true;  % if false will skip Z2 and S2
         
     end
 
@@ -238,12 +238,10 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
             %ImageZ2 = ImageZ2 - median(ImageZ2,'all','omitnan') + ExpectedMedian;
             ImageZ2 = ImageZ2./tools.math.stat.rstd(ImageZ2,'all').*sqrt(2.*k);
             Z2(Imax).Image = ImageZ2;
-        end
-
         
-        ImageS2 = ImageS.^2;
-        ImageS2 = ImageS2./tools.math.stat.rstd(ImageS2,'all').*sqrt(2.*k);
-                
+            ImageS2 = ImageS.^2;
+            ImageS2 = ImageS2./tools.math.stat.rstd(ImageS2,'all').*sqrt(2.*k);
+        end  
 
 
         D(Imax).Image = ImageD;
