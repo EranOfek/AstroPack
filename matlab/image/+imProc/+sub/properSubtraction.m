@@ -241,6 +241,10 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
         
             ImageS2 = ImageS.^2;
             ImageS2 = ImageS2./tools.math.stat.rstd(ImageS2,'all').*sqrt(2.*k);
+
+            S2(Imax).Image    = ImageS2;
+            S2(Imax).MaskData = D(Imax).MaskData;
+
         end  
 
 
@@ -254,9 +258,7 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
         S(Imax).PSF   = Pd;
         S(Imax).MaskData = D(Imax).MaskData;
 
-        S2(Imax).Image    = ImageS2;
-        S2(Imax).MaskData = D(Imax).MaskData;
-
+        
         Scorr(Imax).Image = ImageScorr;
         Scorr(Imax).PSF   = Pd;
         Scorr(Imax).MaskData = D(Imax).MaskData;
