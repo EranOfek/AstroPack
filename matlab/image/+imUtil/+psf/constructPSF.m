@@ -184,6 +184,8 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         end
         CutoutRadius = max(Args.RadiusPSF, max(Args.Annulus).*(~isempty(Args.DeltaSigma)));
         [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, Args.X, Args.Y, CutoutRadius, Args.image2cutoutsArgs{:});
+        Xstamp = zeros(size(Args.X)) + (CutoutRadius + 1);
+        Ystamp = zeros(size(Args.Y)) + (CutoutRadius + 1);
     else
         % assume Cube was provided
         Cube = Image;
@@ -199,7 +201,8 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
     end
     % select by moments
     if ~isempty(Args.DeltaSigma)
-        [M1, M2]    = imUtil.image.moment2(Cube, Args.X, Args.Y, 'Annulus',Args.Annulus, Args.moment2Args{:});
+        %[M1, M2]    = imUtil.image.moment2(Cube, Args.X, Args.Y, 'Annulus',Args.Annulus, Args.moment2Args{:});
+        [M1, M2]    = imUtil.image.moment2(Cube, Xstamp, Ystamp, 'Annulus',Args.Annulus, Args.moment2Args{:});
         Sigma       = sqrt(abs(M2.X2)+abs(M2.Y2));
         MedSigma    = imUtil.background.mode(Sigma);
         FlagGoodPsf = FlagGoodPsf & (Sigma>(MedSigma - Args.DeltaSigma) & Sigma<(MedSigma + Args.DeltaSigma));
@@ -241,7 +244,8 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         else
             Back = Args.Back;
         end
-        XY = [Args.X, Args.Y];
+        %XY = [Args.X, Args.Y];
+        XY = [Xstamp, Ystamp]; %[Args.X, Args.Y];
         XY = XY(IndGoodPsf,:);
         
         [MeanPSF, VarPSF, NimPSF, FlagSelected] = imUtil.psf.constructPSF_cutouts(Cube(:,:,IndGoodPsf), XY,...

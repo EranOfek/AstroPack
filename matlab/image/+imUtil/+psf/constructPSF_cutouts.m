@@ -21,7 +21,8 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     %                   around the shifted (centered PSF) cube in which to
     %                   measure the stars flux, and this flux will be used
     %                   as the flux normalization.
-    %                   Default is 3.
+    %                   Default is 4.
+    %                   See additional info: https://github.com/EranOfek/AstroPack/issues/259
     %            'Back' - A vector of background to subtract from each
     %                   source stamp. If empty, don't subtract background.
     %                   Default is [].
@@ -94,7 +95,7 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         
         Args.M1                    = []; % override the first moment calculation
         Args.Norm                  = [];  % vector of normalization per cutout
-        Args.FluxRadius            = 3; % if norm is not given.
+        Args.FluxRadius            = 4; % if norm is not given.
         Args.Back                  = [];  % Back to subtract. If [] don't subtract.
         Args.SubAnnulusBack logical= false;  % subtract annulus background
         Args.backgroundCubeArgs cell= {};
@@ -143,7 +144,14 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         Y = XY(:,2);
     end
     
-    [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, X, Y, MaxRadius, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
+    if ndims(Image)==2
+        [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, X, Y, MaxRadius, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
+    else
+        Cube = Image;
+        RoudnX = round(X);
+        RoundY = round(Y);
+    end
+
     Dim = 3;
     Nim = size(Cube,3);
     
