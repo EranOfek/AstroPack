@@ -2,6 +2,8 @@ function [Obj,Result]=populatePSF(Obj, Args)
     % Populate PSF in an AstroImage
     %   Construct a PSF using: imUtil.psf.constructPSF
     %   and populate the AstroPSF object in an AstroImage object.
+    %   If needed, will measure the background, variance and search for
+    %   stars.
     % Input  : - An AstroImage object.
     %          * ...,key,val,...
     %            'RePopulatePSF' - A logical indicating if to repopulate
@@ -12,7 +14,7 @@ function [Obj,Result]=populatePSF(Obj, Args)
     %                   Default is {'SN_1', 'SN_2'}.
     %
     %            AFTER DEBUGING COPY HELP FROM imUtil.psf.constructPSF
-    %            
+    %            'backgroundArgs' - A cell array 
     % Output : - An AstroImage object with the populated PSF.
     %          - A structure array of data regrading the selection of PSF
     %            stars in the images. One element per element in the input
