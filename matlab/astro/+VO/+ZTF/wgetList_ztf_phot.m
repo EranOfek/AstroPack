@@ -11,6 +11,8 @@ function AllT=wgetList_ztf_phot(Cat, Args)
     %            'wget_ztf_photArgs' - A cell array of additional arguments
     %                   to pass to VO.ZTF.wget_ztf_phot.
     %                   Default is {}.
+    %            'UseFlags' - Select catflags==0 before calculating
+    %                   statistics. Default is true.
     % Output : - A structure array which size is: 
     %            [Num src, Num bands] wit a field LC containing
     %            the ZTF photometry table.
@@ -27,6 +29,7 @@ function AllT=wgetList_ztf_phot(Cat, Args)
         Args.ColDec                   = 2;
         Args.CooUnits                 = 'rad';
         Args.wget_ztf_photArgs cell   = {};
+        Args.UseFlags logical         = true;
     end
    
     CatCoo = Cat(:,[Args.ColRA, Args.ColDec]);
@@ -44,9 +47,22 @@ function AllT=wgetList_ztf_phot(Cat, Args)
             
             % add statistics
             if ~isempty(Table)
-                AllT(Icat,Iband).RStd   = tools.math.stat.rstd(Table.mag);
-                AllT(Icat,Iband).MedMag = median(Table.mag,1,'omitnan');
+                if Args.UseFlags
+                    Fg = AllT(Icat,Iband).LC.catflags==0;
+                    CatG = AllT(Icat,Iband).LC(Fg,:);
+                else
+                    catG = AllT(Icat,Iband);
+                end
+                
+                AllT(Icat,Iband).RStd   = tools.math.stat.rstd(CatG.mag);
+                AllT(Icat,Iband).MedMag = median(CatG.mag,1,'omitnan');
+                Z = (CatG.mag - AllT(Icat,Iband).MedMag)./sqrt(CatG.magerr.^2 + CatG.magzprms.^2);
+                
+                AllT(Icat,Iband).NeclispeZ4 = sum(Z>4);
+                AllT(Icat,Iband).NflareZ4   = sum(Z<-4);
+                
                 % deviations in units of rstd
+                
                 Resid = Table.mag - AllT(Icat,Iband).MedMag;
                 ZDev  = Resid./AllT(Icat,Iband).RStd;
                 
