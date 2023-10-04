@@ -58,8 +58,10 @@ function AllT=wgetList_ztf_phot(Cat, Args)
                 AllT(Icat,Iband).MedMag = median(CatG.mag,1,'omitnan');
                 Z = (CatG.mag - AllT(Icat,Iband).MedMag)./sqrt(CatG.magerr.^2 + CatG.magzprms.^2);
                 
-                AllT(Icat,Iband).NeclispeZ4 = sum(Z>4);
-                AllT(Icat,Iband).NflareZ4   = sum(Z<-4);
+                AllT(Icat,Iband).NeclispeZ5 = sum(Z>5);
+                AllT(Icat,Iband).NflareZ5   = sum(Z<-5);
+                AllT(Icat,Iband).NeclispeZ8 = sum(Z>8);
+                AllT(Icat,Iband).NflareZ8   = sum(Z<-8);
                 
                 % deviations in units of rstd
                 
@@ -71,6 +73,13 @@ function AllT=wgetList_ztf_phot(Cat, Args)
                 AllT(Icat,Iband).MaxZDevNeg = max(ZDev);
                 AllT(Icat,Iband).MinZDevNeg = min(ZDev);
                 AllT(Icat,Iband).Npt        = sum(~isnan(Table.mag));
+            else
+                AllT(Icat,Iband).Npt        = 0;
+                ALlT(Icat,Iband).NeclispeZ5 = NaN;
+                ALlT(Icat,Iband).NeclispeZ8 = NaN;
+                ALlT(Icat,Iband).NflareZ5 = NaN;
+                ALlT(Icat,Iband).NflareZ8 = NaN;
+                
             end
         end
     end
