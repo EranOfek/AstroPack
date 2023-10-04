@@ -87,7 +87,13 @@ function [TotMu,Res]=self_microlensing(D, Args)
                                              'Beta',0, 'BetaUnits','rad','OutUnits','rad');
             Rstar = AngSrcRad./Res.ER;
             Rlens = AngLensRad./Res.ER;
-            
+
+            if Res.ER<AngLensRad
+                error('The calculation is in the ER<LensRad regime - not correct');
+                % add treatment for both images seperatly...
+
+            end
+
             Beta = D(:).'.*Rstar;
             
             CosFun = @(R,u,b) real(acos((-R.^2 +u.^2+b.^2)./(2.*u.*b)));
@@ -99,6 +105,12 @@ function [TotMu,Res]=self_microlensing(D, Args)
             Mag = (U.^2 + 2)./(U.*sqrt(U.^2 + 4));
             TotMu = trapz(U, 2.*pi.*U.*Mag.*CF./pi, 1)./(pi.*Rstar.^2);  % noramlize to area of src
             
+            Res.AngSrcRad  = AngSrcRad;
+            Res.AngLensRad = AngLensRad;
+            % The Agol (2003) magnification in the limit of RE<<R*:
+            Res.AgolMagnification = (pi.*Res.AngSrcRad.^2+2.*pi.*Res.ER.^2)./(pi.*Res.AngSrcRad.^2);
+
+
         case '2d'
             if isempty(Args.Nstep)
                 % auto selection of Nstep
