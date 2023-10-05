@@ -2,6 +2,8 @@ function [Obj,Result]=populatePSF(Obj, Args)
     % Populate PSF in an AstroImage
     %   Construct a PSF using: imUtil.psf.constructPSF
     %   and populate the AstroPSF object in an AstroImage object.
+    %   If needed, will measure the background, variance and search for
+    %   stars.
     % Input  : - An AstroImage object.
     %          * ...,key,val,...
     %            'RePopulatePSF' - A logical indicating if to repopulate
@@ -12,7 +14,7 @@ function [Obj,Result]=populatePSF(Obj, Args)
     %                   Default is {'SN_1', 'SN_2'}.
     %
     %            AFTER DEBUGING COPY HELP FROM imUtil.psf.constructPSF
-    %            
+    %            'backgroundArgs' - A cell array 
     % Output : - An AstroImage object with the populated PSF.
     %          - A structure array of data regrading the selection of PSF
     %            stars in the images. One element per element in the input
@@ -24,6 +26,8 @@ function [Obj,Result]=populatePSF(Obj, Args)
         Obj AstroImage
         Args.RePopulatePSF logical     = false;
         Args.ColSN                     = {'SN_1','SN_2'};
+        
+        Args.backgroundArgs cell       = {};
         
         Args.SubAnnulusBack logical    = true;
         Args.RadiusPSF                 = 8;
@@ -67,10 +71,15 @@ function [Obj,Result]=populatePSF(Obj, Args)
             else
                 % catalog is available
                 XY = Obj(Iobj).CatData.getXY;
-                X  = X(:,1);
-                Y  = Y(:,2);
+                X  = XY(:,1);
+                Y  = XY(:,2);
                 SN = Obj(Iobj).CatData.getCol(Args.ColSN);
             end
+            if isempty(Obj(Iobj).Back) || isempty(Obj(Iobj).Var)
+                % estimate background
+                Result(Iobj) = imProc.background.background(Obj(Iobj), Args.backgroundArgs{:});
+            end
+            
             [Result(Iobj), MeanPSF, VarPSF, NimPSF] = imUtil.psf.constructPSF(Obj(Iobj).Image,...
                                                                         'X',X, 'Y',Y,...
                                                                         'SN',SN,...

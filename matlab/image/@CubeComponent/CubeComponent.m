@@ -121,7 +121,7 @@ classdef CubeComponent < Component
             %          - Vector of Y coordinates.
             %          - Radius of cutouts. Default is 12.
             %          * ...,key,val,...
-            %            'mexCutout' - use imUtil.cut.mexCutout.m (true) or
+            %            'mexCutout' - use imUtil.cut.mex.mex_cutout.m (true) or
             %                   imUtil.cut.find_within_radius_mat (false).
             %                   Default is true.
             %            'Circle' - If true, then will set all points outside the radius to NaN.

@@ -3,6 +3,8 @@ function Result = unitTest
 	io.msgStyle(LogLevel.Test, '@start', 'tools.array test started');
     
     test_onesExcept();
+
+    test_onesCondition();
     
 %     test_bitset();
     %test_countVal();
@@ -20,7 +22,9 @@ function Result = test_onesExcept()
     % Checking basic functionality and comparing mex and matlab
     UseMex = 0;
     UseMP = 0;
-    mat = [3 6 9; 4 7 11];
+%     mat = [3 6 9];
+%     mat = [3 6 9; 4 7 11];
+    mat = rand(5,4,4)*10;
     scalar = 5;
     image = true;
     matlab_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);
@@ -108,6 +112,100 @@ function Result = test_onesExcept()
             MexMPTime = MexMPTimeTotal / iters;
 
             fprintf('Array_size: %d, Var_type: %s, Matlab: %.6f, Mex: %.6f, MexMP: %.6f, Ratio: %0.2f, MP_Ratio: %0.2f\n', arr_size, var_name, MatlabTime, MexTime, MexMPTime, MatlabTime/MexTime, MatlabTime/MexMPTime);
+
+        end
+    end
+    
+    io.msgStyle(LogLevel.Test, '@passed', 'tools.array.onesExcept passed')
+    Result = true;    
+
+end
+
+
+function Result = test_onesCondition()
+    io.msgLog(LogLevel.Test, 'tools.array.onesCondition test started');
+    
+    % Checking basic functionality and comparing mex and matlab
+    UseMex = 0;
+    UseMP = 0;
+    MatR2 = rand(10,10,'double');
+    MomRadius2 = 0.5;   
+    matlab_res = tools.array.onesCondition(MatR2,MomRadius2,'double',UseMex,false);    
+    UseMex = 1;
+    mex_res = tools.array.onesCondition(MatR2,MomRadius2,'double',UseMex,false);
+    
+    assert(isequal(matlab_res, mex_res));
+    
+    
+    iters = 10;
+    
+    for arr_sizes=1:2
+        
+        if arr_sizes == 1
+            arr_size = "1700x1700";
+        elseif arr_sizes == 2
+            arr_size = "25x25x1000";
+        end
+
+        for var_types=1:2
+
+            MatlabTimeTotal = 0;
+            MexTimeTotal = 0;
+            MexMPTimeTotal = 0;            
+            MatlabTime = 0;
+            MexTime = 0;
+            MexMPTime = 0;
+
+            for iter=1:iters
+                
+                MomRadius2 = 0.5;
+
+                switch var_types
+                    case 1
+                        if arr_sizes == 1
+                            MatR2 = rand(1700,1700,'single');
+                        elseif arr_sizes == 2
+                            MatR2 = rand(25,25,1000,'single');
+                        end
+                        Type = 'single';
+                    case 2
+                        if arr_sizes == 1
+                            MatR2 = rand(1700,1700,'double');
+                        elseif arr_sizes == 2
+                            MatR2 = rand(25,25,1000,'double');
+                        end
+                        Type = 'double';                    
+                end
+
+                UseMex = 0;
+                UseMP = 0;
+                t = tic;
+                matlab_res = tools.array.onesCondition(MatR2,MomRadius2,Type,UseMex,UseMP);        
+                MatlabTime = toc(t);
+                MatlabTimeTotal = MatlabTimeTotal + MatlabTime;
+
+                UseMex = 1;
+                UseMP = 0;
+                t = tic;
+                mex_res = tools.array.onesCondition(MatR2,MomRadius2,Type,UseMex,UseMP);        
+                MexTime = toc(t);
+                MexTimeTotal = MexTimeTotal + MexTime;
+
+                UseMex = 1;
+                UseMP = 1;
+                t = tic;
+                mex_res = tools.array.onesCondition(MatR2,MomRadius2,Type,UseMex,UseMP);        
+                MexMPTime = toc(t);
+                MexMPTimeTotal = MexMPTimeTotal + MexMPTime;                
+                                        
+                assert(isequal(matlab_res, mex_res));
+            end
+
+            MatlabTime = MatlabTimeTotal / iters;
+            MexTime = MexTimeTotal / iters;
+            MexMPTime = MexMPTimeTotal / iters;
+
+            fprintf('Array_size: %s, Var_type: %s, Matlab: %.6f, Mex: %.6f, MexMP: %.6f, Ratio: %0.2f, MP_Ratio: %0.2f\n', arr_size, Type, MatlabTime, MexTime, MexMPTime, (MexTime/MatlabTime)*100, (MexMPTime/MatlabTime)*100);
 
         end
     end

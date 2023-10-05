@@ -289,7 +289,7 @@ classdef MsgLogger < handle
 
             % Log to display
             if LogToDisplay
-                cprintf(Style, '[%s] ', LevStr);
+                cprintf(Style, '[%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
                 cprintf(Style, varargin{:});
                 fprintf('\n');
             end
@@ -317,6 +317,7 @@ classdef MsgLogger < handle
             % Output:  -
             % Example: Obj.msgLogEx(LogLevel.Debug, Ex, 'Function failed, elapsed time: %f', toc)
             MsgReport = getReport(Ex, 'extended', 'hyperlinks', 'off');
+            MsgReport = strrep(MsgReport, newline, [newline, '[ERR] ']);
             if ~isempty(varargin)
                 Msg = sprintf('Exception: %s - %s - %s - %s', Ex.identifier, Ex.message, MsgReport, sprintf(varargin{:}));
             else

@@ -128,6 +128,8 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         Args.SubAnnulusBack logical = true;
        
         Args.RadiusPSF                 = 8;
+        Args.Annulus                   = [10 12];
+        
         Args.image2cutoutsArgs cell    = {};
         
         %Args.Threshold                 = 5;
@@ -159,7 +161,7 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         if isempty(Args.Back) || isempty(Args.Var)
             error('For 2-D image input Back and Var must be provided');
         end
-        if isempty(Args.X) || isempty(Args.Y)
+        if isempty(Args.X) || isempty(Args.Y) || isempty(Args.SN)
             [FindSrcSt] = imUtil.sources.findSources(Image, 'Threshold',Args.ThresholdPSF,...
                                                               'PsfFun',Args.InitPsf,...
                                                               'PsfFunPar',Args.InitPsfArgs,...
@@ -178,9 +180,12 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
             % Cube of sources
             Args.X  = FindSrcSt.XPEAK;
             Args.Y  = FindSrcSt.YPEAK;
+            Args.SN = FindSrcSt.SN;
         end
-        Args.SN = FindSrcSt.SN;
-        [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, Args.X, Args.Y, Args.RadiusPSF, Args.image2cutoutsArgs{:});
+        CutoutRadius = max(Args.RadiusPSF, max(Args.Annulus).*(~isempty(Args.DeltaSigma)));
+        [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, Args.X, Args.Y, CutoutRadius, Args.image2cutoutsArgs{:});
+        Xstamp = zeros(size(Args.X)) + (CutoutRadius + 1);
+        Ystamp = zeros(size(Args.Y)) + (CutoutRadius + 1);
     else
         % assume Cube was provided
         Cube = Image;
@@ -196,7 +201,8 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
     end
     % select by moments
     if ~isempty(Args.DeltaSigma)
-        [M1, M2]    = imUtil.image.moment2(Cube, Args.X, Args.Y, Args.moment2Args{:});
+        %[M1, M2]    = imUtil.image.moment2(Cube, Args.X, Args.Y, 'Annulus',Args.Annulus, Args.moment2Args{:});
+        [M1, M2]    = imUtil.image.moment2(Cube, Xstamp, Ystamp, 'Annulus',Args.Annulus, Args.moment2Args{:});
         Sigma       = sqrt(abs(M2.X2)+abs(M2.Y2));
         MedSigma    = imUtil.background.mode(Sigma);
         FlagGoodPsf = FlagGoodPsf & (Sigma>(MedSigma - Args.DeltaSigma) & Sigma<(MedSigma + Args.DeltaSigma));
@@ -238,9 +244,12 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         else
             Back = Args.Back;
         end
-        XY = [Args.X, Args.Y];
+        %XY = [Args.X, Args.Y];
+        XY = [Xstamp, Ystamp]; %[Args.X, Args.Y];
         XY = XY(IndGoodPsf,:);
+        
         [MeanPSF, VarPSF, NimPSF, FlagSelected] = imUtil.psf.constructPSF_cutouts(Cube(:,:,IndGoodPsf), XY,...
+                                                        'Annulus',Args.Annulus,...
                                                         'ReCenter',true,...
                                                         'Back',Back,...
                                                         'SmoothWings',Args.SmoothWings,...

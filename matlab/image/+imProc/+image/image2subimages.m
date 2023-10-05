@@ -45,6 +45,10 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
     %            'AddY' - Like 'AddX', but for the Y-axis. Default is {}.
     %            'UpdateWCS' - Update WCS. Default is true.
     %            'UpdatePSF' - Update PSF. Default is true.
+    %            'KeyCropID' - Haeder keyword name in which to store the
+    %                   running index of the sub image.
+    %                   If empty, then do not add a keyword.
+    %                   Default is 'CROPID'.
     % Output : - An AstroImage of sub images.
     %          - A structure with CCDSEC info, including:
     %            EdgesCCDSEC
@@ -64,6 +68,7 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
         Args.OverlapXY        = 10;   % Optionally [overlapX overlapY]
 
         Args.CopyHeader(1,1) logical       = true;
+        Args.KeyCropID                     = 'CROPID';
         Args.UpdateMask(1,1) logical       = true;
         Args.EdgeDist                      = 10;
         Args.NearEdge_BitName char         = 'NearEdge';
@@ -127,7 +132,19 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
                 if Iprop==1 && Args.CopyHeader 
                     % a new copy of the header
                     Result(Isub).HeaderData = Obj.HeaderData.copy;
+                    
+                    if ~isempty(Args.KeyCropID)
+                        Result(Isub).HeaderData.replaceVal(Args.KeyCropID, Isub);
+                    end
                 end
+                
+                 % update the WCS (for all subimages but only at the first
+                 %   iteration of Iprop!)
+                if Iprop==1 && Args.UpdateWCS && Result(Isub).WCS.Success
+                    Result(Isub).WCS.CRPIX = Result(Isub).WCS.CRPIX - EdgesCCDSEC(Isub,[1 3]) + [1 1];
+                    Result(Isub).propagateWCS('UpdateCat',false);
+                end
+                
             end
         end
     end
@@ -166,11 +183,6 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
         % update the PSF
         if Args.UpdatePSF
             warning('Update PSF is not implenmented');
-        end
-
-        % update the WCS
-        if Args.UpdateWCS
-            warning('Update WCS is not implenmented');
         end
 
         % update the Catalog

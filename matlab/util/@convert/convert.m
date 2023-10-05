@@ -1346,7 +1346,7 @@ classdef convert
             %              and visa versa.
             % Input  : - Input to convert;
             %          - Input type - options are:
-            %            'J'    - Julian year.
+            %            'J','JYear'    - Julian year.
             %            'B'    - Besselian year.
             %            '1'    - Jan 1 of the year. (only input)
             %            'JD'   - Julian days.
@@ -1365,7 +1365,7 @@ classdef convert
             %--------------------------------------------------------------------------
 
             switch lower(InType)
-                case 'j'
+                case {'j','jyear'}
                     % convert Julian years to JD
                     JD = (Input - 2000).*365.25 + 2451545.0;
                 case 'b'

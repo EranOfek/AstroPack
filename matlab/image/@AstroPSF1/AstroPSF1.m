@@ -32,14 +32,13 @@
 %   2. Info about sub pixel response?
 %   3. Info about how the PSF was generated
 
-
 % Ideas:
 % properties:
 %   DataPSF
 %   DataVar
-%   Scale = [1 1];
+%   Oversampling = [1 1];
 %   DimName
-%   DimAxes 
+%   DimVals 
 %   InterpMethod = {'nearest'};
 %
 % P = AstroPSF
@@ -47,10 +46,9 @@
 % [PSF, Var] = P.getPSF('Flux',Val, 'Wave',5000)
 % [PSF, Var] = P.weightPSF('Flux',Val, 'Wave',[5000 5500 6000],'Spec',[0.5 1 0.5])
 
-% [PSF, Var] = P.weightPSF([], 'InterpMethod','nearest'); % use vals from
-% properties
+% [PSF, Var] = P.weightPSF([], 'InterpMethod','nearest'); % use vals from properties
 
-% AstroPSF = P.repopPSF('Wave',[5000 5500 6000],'WaveWhight',[0.5 1 0.5])
+% AstroPSF = P.repopPSF('Wave',[5000 5500 6000],'WaveWeight',[0.5 1 0.5])
 % ValPerPSF = fwhm(P)
 % [ValX, ValY] = P.fwhm(Method=[], 'Flux',Val, 'Wave',[5000])
 
@@ -61,29 +59,23 @@ classdef AstroPSF1 < Component
     end
     
     properties (SetAccess = public)
-        DataPSF           = [];   % The fun parameters, or a cube, the first 2 dims are the PSF image stamp
-        DataVar           = [];   % variance 
-        Scale             = [1 1]; % Pixel sizes (may be different) 
-        FunPSF            = [];   % e.g., Map = Fun(Data, X,Y, Color, Flux)
-        DimName cell      = {'Wave', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'}; % a standard set of dimensions
-        DimAxes cell      = cell(1,5); % axes according to DimName
-        InterpMethod      = {'nearest'}; % can be n-dimensional with different methods applied at different dimensions
-        
-%         ArgVals cell      = {};
-%         ArgNames cell     = {'X','Y','Color','Flux'};
-        
-        StampSize         = [];
-        
-        Nstars            = NaN;  % If Nstars=NaN, then PSF wasn't constructed yet
-                
-        FWHM              = [];  % for each of the points in the DimAxes space ?
-        ContainmentR      = [];  % for each of the points in the DimAxes space ?
-        
+        DataPSF           = [];    % parameters of a PSF-generating function or a data cube, where the first 2 dimensions are the PSF image stamp (X, Y)
+        DataVar           = [];    % variance 
+        Oversampling      = [1 1]; % pixel oversampling in X and Y (may be different) 
+        FunPSF            = [];    % PSF-generating function, e.g., Map = Fun(Data, X,Y, Color, Flux)
+        DimName cell      = {'Wave', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'}; % the standard set of dimensions, but may be changed 
+                            % NB: if the names here are changed, the dimension names a user provides to getPSF need to be changed accordingly 
+        DimVals cell      = repmat({0}, 1, 5); % ADD x/y values with oversampling...  axes according to DimName
+        InterpMethod      = {'nearest'}; % can be n-dimensional with different methods applied at different dimensions        
+        StampSize         = [];     % PSF stamp size in X and Y (do we need it as a property?)
+        FWHM              = [];     % can be defined for some "average" stamp
+        FluxContainmentRadius = []; % can be defined for some "average" stamp  
+        Nstars            = NaN;    % if Nstars=NaN, then PSF wasn't constructed yet 
     end
     
     methods % Constructor
        
-        function Obj = AstroPSF(FileName, Args)
+        function Obj = AstroPSF1(FileName, Args)
             % AstroPSF constructor - read PSF images to AstroPSF object
             % Input  : - File names.
             %            Either an AstroImage, ImageComponent, SIM, imCl
@@ -105,9 +97,7 @@ classdef AstroPSF1 < Component
             % Output : - An AstroPSF object in which the PSF and variance
             %            are populated.
             % Author : Eran Ofek (May 2022)
-            % Example: P=AstroPSF('ztf_20200207460174_000576_zg_c03_o_q3_diffimgpsf.fits')
-            
-            
+            % Example: P=AstroPSF('ztf_20200207460174_000576_zg_c03_o_q3_diffimgpsf.fits')           
             arguments
                 FileName                  = [];
                 Args.HDU                  = 1;
@@ -194,8 +184,162 @@ classdef AstroPSF1 < Component
         end
     end
     
-    methods (Static)  % static methods
- 
+    methods % generating PSF stamp 
+        function [Result, Res] = getPSF(Obj, Args)
+            % get PSF from an AstroPSF object
+            % Input : - a single AstroPSF object.
+            %         * ...,key,val,...
+            %         'FunPSF' - a PSF-generating function handle
+            %         'StampSize' - an option to pad the PSF stamp
+            %         'PsfArgs'   - position of the stamp in the multi-D space of PSF.DataPSF
+            %         'FunArgs'   - optinal arguments to pass to FunPSF
+            %         'InterpMethod' - interpolation method (may be a vector, different methods for each dimension)
+            %         'Oversampling' - resample the output stamp if required
+            % Output : - a PSF stamp (X, Y)
+            % Author : Eran Ofek
+            % Example:
+            
+            arguments
+                %                 Obj(1,1)
+                Obj
+                Args.FunPSF         = [];
+                Args.StampSize      = [];  % if Args.StampSize > size(Result), pad the stamp with 0s
+                Args.PsfArgs        = {};  % Example: {'Wave', 2800, 'PosX', [2 3]'}
+                Args.FunArgs        = {};
+                Args.InterpMethod   = [];
+                Args.Oversampling   = [];
+                Args.ReNorm logical = true;
+                Args.ReNormMethod   = 'int';  % 'int' | 'rms'
+            end
+            
+            for IObj = 1:numel(Obj)
+                
+                if isempty(Args.FunPSF)
+                    Args.FunPSF  = Obj(IObj).FunPSF;
+                else
+                    Obj(IObj).FunPSF = Args.FunPSF;
+                end
+%                 if isempty(Args.StampSize) % what for?
+%                     Args.StampSize = Obj(IObj).StampSize;
+%                 else
+%                     Obj(IObj).StampSize = Args.StampSize;
+%                 end
+                if ~isempty(Args.InterpMethod)
+                    if ~iscell(Args.InterpMethod)
+                        IntMeth = {Args.InterpMethod};
+                    else
+                        IntMeth = Args.InterpMethod;
+                    end
+                else
+                    IntMeth = Obj(IObj).InterpMethod;
+                end
+                
+                if isempty(Args.FunPSF) % treat PSF is a multidimentional image stamp
+                    Ndim = ndims(Obj(IObj).DataPSF)-2; % the number of additional data dimensions in the object
+                    if Ndim == 0 % no additional dimensions, just copy the 2D matrix
+                        Result = Obj(IObj).DataPSF;
+                    else
+                        % for each of the existing extra dimensions find if there is an input value for it in Args.PsfArgs
+                        % if not, use the _mean value_ of the object's appropriate DimVals vector
+                        for Idim = 1:Ndim
+                            DName = Obj(IObj).DimName{Idim};
+                            Ind = find( strcmpi( DName, Args.PsfArgs ), 1);
+                            if isempty(Ind)
+                                DimVal{Idim} = ( Obj(IObj).DimVals{Idim}(1) + Obj(IObj).DimVals{Idim}( numel(Obj(IObj).DimVals{Idim}) ) ) / 2.;
+                            else
+                                DimVal{Idim} = Args.PsfArgs{Ind+1};
+                            end
+                        end
+                        % interpolate
+                        X = 1:size(Obj(IObj).DataPSF,1); Y = 1:size(Obj(IObj).DataPSF,2);
+                        if numel(IntMeth) == 1 % one method for all the dimensions
+                            Result = interpn(X,Y, Obj(IObj).DimVals{1:Ndim}, Obj(IObj).DataPSF, ...
+                                X,Y, DimVal{1:Ndim}, IntMeth{1});
+                        else
+                            %                         error('multiple interpolation methods have not been implemented as of yet');
+                            Int{1} = Obj(IObj).DataPSF;
+                            for Idim = 1:Ndim
+                                Int1 = squeeze(Int{Idim});
+                                Int{Idim+1} = interpn(X,Y, Obj(IObj).DimVals{Idim:Ndim}, Int1, ...
+                                    X,Y, DimVal{Idim}, Obj(IObj).DimVals{Idim+1:Ndim}, IntMeth{Idim});
+                            end
+                            Result = Int{Ndim+1};
+                        end
+                    end
+                else % pass the PSF cube to the FunPSF function
+                    Result = Args.FunPSF(Obj(IObj).DataPSF, Args.FunArgs{:});
+                end
+                if ~isempty(Args.StampSize) && Ndim == 0  % check this only if there are no additional dimensions
+                    if ~all(size(Result)==Args.StampSize) % pad PSF
+                        error('Pad PSF option is not yet available');
+                        
+                    end
+                end
+                % rescale the output PSF stamp if requested
+                if ~isempty(Args.Oversampling)
+                    NewSize = round( (Args.Oversampling./Obj(IObj).Oversampling) .* size(Result) );
+                    Result  = imresize(Result, NewSize, 'bilinear');
+                end
+                % normalize the stamp
+                if Args.ReNorm
+                    switch Args.ReNormMethod
+                        case 'int'
+                            Result = Result./sum(Result,[1 2]);
+                        case 'rms'
+                            Result = Result./rms(Result,[1 2]);
+                        otherwise
+                            error('Requested renormalization method is not known');
+                    end
+                end
+            Res{IObj} = Result;    
+            end
+        end
+        
+        function Result = weightPSF(Obj, Args)
+            % produce a spectrum-weighted PSF
+            % Input  : - An AstroPSF object
+            %       * ...,key,val,... 
+            %       'Wave' - the wavelength of the input spectral bins (if empty, the grid of the object's PSFdata is assumed)
+            %       'Spec' - the spectral weights of per-wavelength PSF stamps (if empty, a flat photon spectrum is assumed)
+            %       'Pos'  - additional arguments to pass to getPSF, e.g., position: {'PosX',2,'PosY',3}
+            %
+            % Output : - a weighted PSF stamp
+            % Author : A. Krassilchtchikov
+            % Example: Pw1 = P.weightPSF('Pos',{'PosX',6},'Wave',[2000 3000 4000 5000],'Spec',[0.5 1 1 0.3]);
+            %          Sp  = AstroSpec.blackBody(2000:11000,3500);
+            %          Pw2 = P.weightPSF('Pos',{'PosX',6},'Wave',Sp.Wave,'Spec',Sp.Flux');
+            arguments
+                Obj
+                Args.Axis  = 'Wave'; % usually, we will weight the PSF with the spectrum, but other axes are also possible 
+                Args.Wave  = []; % if empty, the grid of the object's PSFdata is assumed
+                Args.Spec  = []; % if empty, a flat photon spectrum is assumed
+                Args.Pos   = {}; % additional arguments to pass to getPSF, e.g., position: {'PosX',2,'PosY',3} 
+            end
+            
+            Tiny = 1e-30;
+            
+            Ind = find( strcmpi( Args.Axis, Obj.DimName ), 1);      % find the required axis in the object's dimensions
+            if isempty(Ind)
+                error('No wavelength axis found in the object');
+            else
+                Wave = Obj.DimVals{Ind};
+                if ~isempty(Args.Wave) % regrid the spectrum according to the object's wavelength axis
+                    Spec = interp1(Args.Wave, Args.Spec, Wave,'linear',Tiny);                     
+                else                   % assume that the spectrum is defined according to the object's wavelength axis                                        
+                    if isempty(Args.Spec)
+                        Spec = ones(1,numel(Wave)); % at an empty input, assume a flat photon spectrum
+                    else
+                        Spec = Args.Spec;
+                    end
+                end
+            end
+            
+            PSFcube = Obj.getPSF('PsfArgs',[{Args.Axis, Wave} Args.Pos]); % get an X x Y x Wave 3D Cube ( PSF x Wave)
+            SpShape = reshape(Spec,[1 1 numel(Spec)]);
+            SumL    = sum( PSFcube .* SpShape, 3 );           % multiply and sum over the wavelength dimension
+            Result  = SumL ./ sum( SumL, [1,2] );             % normalization
+        end
+            
     end
     
     methods % utilities (e.g., isempty)
@@ -209,7 +353,7 @@ classdef AstroPSF1 < Component
             Nobj = numel(Obj);
             Result = false(size(Obj));
             for Iobj=1:1:Nobj
-                Result(Iobj) = isempty(Obj(Iobj).Data);
+                Result(Iobj) = isempty(Obj(Iobj).DataPSF);
             end
         end
     end
@@ -223,9 +367,7 @@ classdef AstroPSF1 < Component
             %   function parameters.
             % Input  : - A PSF stamp.
             %          * ...,key,val,...
-            %            'getPSFArgs' - A cell array of arguments to pass
-            %                   to the AStroPSF/getPSF method.
-            %                   Default is {}.
+            %            'PsfArgs' - position in a multi-D PSF space to be passed to getPSF
             %            'Funs' - A cell array of functions to fit.
             %                   Each function in the cell is of the form:
             %                   PSF = Fun(Pars, SizeXY, PosXY), where PosXY=[]
@@ -261,7 +403,7 @@ classdef AstroPSF1 < Component
     
             arguments
                 Obj
-                Args.getPSFArgs = {};
+                Args.PsfArgs   = {};
                 Args.Funs      = {@imUtil.kernel2.gauss};
                 Args.Par0      = {[2 2 0]};
                 Args.Norm0     = [1];
@@ -279,92 +421,25 @@ classdef AstroPSF1 < Component
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                P = Obj(Iobj).getPSF(Args.getPSFArgs{:});
-                
-                [FitRes(Iobj), Result(Iobj).PSFData] = imUtil.psf.fitFunPSF(P, 'Funs',Args.Funs,...
+                P = Obj(Iobj).getPSF('PsfArgs',Args.PsfArgs);
+                [FitRes(Iobj), Result(Iobj).DataPSF] = imUtil.psf.fitFunPSF(P, 'Funs',Args.Funs,...
                                             'Par0',Args.Par0,...
                                             'Norm0',Args.Norm0,...
                                             'PosXY',Args.PosXY,...
                                             'LB',Args.LB,...
                                             'UB',Args.UB);
+                % as the resulting stamp is 2D, additional dimensions do not exist any more:
+                Result(Iobj).DimVals = cellfun(@(x) [0], Result(Iobj).DimVals, 'UniformOutput', false);
             end
         end
         
     end
-    
-    methods % generating PSF
-        function Result = getPSF(Obj, DataPSF, FunPSF, StampSize, ArgVals, ArgNames)
-            % get PSF from AstroPSF object
-            % Input : - A single AstroPSF object.
-            %         - DataPSF is empty, will take Obj.DataPSF.
-            %           If not empty, will also populate Obj.DataPSF.
-            %           Default is empty.
-            %         - FunPSF function handle (like DataPSF). Default is [].
-            %         - StampSize [I,J]. If empty, use default.
-            %           Default is [].
-            %         - ArgVals (like DataPSF). Default is [].
-            %         - ArgNames (like DataPSF). Default is [].
-            % Output : - A PSF stamp.
-            % Author : Eran Ofek
-            % Example:
-            
-            arguments
-                Obj(1,1)
-                DataPSF   = [];
-                FunPSF    = [];
-                StampSize = [];
-                ArgVals   = [];
-                ArgNames  = [];
-            end
-            
-            if isempty(DataPSF)
-                DataPSF = Obj.DataPSF;
-            else
-                Obj.DataPSF = DataPSF;
-            end
-            if isempty(FunPSF)
-                FunPSF  = Obj.FunPSF;
-             else
-                Obj.FunPSF = FunPSF;
-            end
-            if isempty(StampSize)
-                StampSize = Obj.StampSize;
-            else
-                Obj.StampSize = StampSize;
-            end
-            if isempty(ArgVals)
-                ArgVals  = Obj.ArgVals;
-            else
-                Obj.ArgVals = ArgVals;
-            end
-            if isempty(ArgNames)
-                ArgNames  = Obj.ArgNames;
-            else
-                Obj.ArgNames = ArgNames;
-            end
-        
-            if isempty(FunPSF)
-                % PSF is an image stamp
-                Result = Obj.DataPSF;
-            else
-                Result = Obj.FunPSF(Obj.DataPSF, Obj.ArgVals{:});
-            end
-            if ~isempty(StampSize)
-                if ~all(size(Result)==StampSize)
-                    % pad PSF
-                    error('Pad PSF option is not yet available');
-                end
-            end
-            
-        end
-            
-    end
-    
     
     methods % PSF properties
         
+        
         function [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(Obj, Args)
-            % Calculate curve of growth of a PSF includinf radii
+            % Calculate curve of growth of a PSF including radii
             % Input  : - An AstroPSF object
             %          * ...,key,val,...
             %            'ReCenter' - A logical indicating if to find the
@@ -379,6 +454,7 @@ classdef AstroPSF1 < Component
             %            'InterpMethod' - Interpolation method.
             %                   Default is 'linear';
             %            'EpsStep' - Default is 1e-8.
+            %            'PsfArgs' - position in a multi-D PSF space to be passed to getPSF
             % Output : - A structure with the radiao profile, including the following
             %            fields:
             %            .Radius - radius
@@ -388,11 +464,12 @@ classdef AstroPSF1 < Component
             %            .Med    - median
             %            .CumSum - cumulative sum.
             %          - Column vector of RadHalfCumSum, radius of cumsum=level
+            %            NaN if PSF is empty.
             %          - Column vector of RadHalfPeak, radius of flux=level.
+            %            NaN if PSF is empty.
             % Example: AP = AstroPSF;
             %          AP.DataPSF = imUtil.kernel2.gauss;
-            %          [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(AP);
-            
+            %          [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(AP);            
             arguments
                 Obj
                 Args.ReCenter(1,1) logical  = true;
@@ -401,6 +478,7 @@ classdef AstroPSF1 < Component
                 Args.Level                  = 0.5;
                 Args.InterpMethod           = 'linear';
                 Args.EpsStep                = 1e-8;
+                Args.PsfArgs                = {};
             end
             
             % @FIX - @Eran
@@ -414,18 +492,24 @@ classdef AstroPSF1 < Component
             Nobj = numel(Obj);
             RadHalfPeak   = nan(Nobj,1);
             RadHalfCumSum = nan(Nobj,1);
+            Result = struct('Radius',cell(Nobj,1), 'Sum',cell(Nobj,1), 'Npix',cell(Nobj,1), 'Mean',cell(Nobj,1), 'Med',cell(Nobj,1), 'CumSum',cell(Nobj,1));
             for Iobj=1:1:Nobj
                 Ixy = min(Iobj,Nxy);
-                Result(Iobj)        = imUtil.psf.curve_of_growth(Obj(Iobj).Data, Args.CenterPSFxy(Ixy,:), Args.Step);
-                N = numel(Result(Iobj).Radius);
-                % EpsVec is needed in order to insure monotonicity
-                EpsVec = (1:1:N)'.*Args.EpsStep;
-                RadHalfCumSum(Iobj) = interp1(Result(Iobj).CumSum + EpsVec, Result(Iobj).Radius, Args.Level, Args.InterpMethod);
-                RadHalfPeak(Iobj)   = interp1(Result(Iobj).Med./max(Result(Iobj).Med)-EpsVec, Result(Iobj).Radius, Args.Level, Args.InterpMethod);
+                P = Obj(Iobj).getPSF('PsfArgs',Args.PsfArgs); % get the stamp 
+                if isempty(P)
+                    RadHalfCumSum(Iobj) = NaN;
+                    RadHalfPeak(Iobj)   = NaN;
+                else
+                    Result(Iobj)        = imUtil.psf.curve_of_growth(P, Args.CenterPSFxy(Ixy,:), Args.Step);
+                    N = numel(Result(Iobj).Radius);
+                    % EpsVec is needed in order to insure monotonicity
+                    EpsVec = (1:1:N)'.*Args.EpsStep;
+                    RadHalfCumSum(Iobj) = interp1(Result(Iobj).CumSum + EpsVec, Result(Iobj).Radius, Args.Level, Args.InterpMethod);
+                    RadHalfPeak(Iobj)   = interp1(Result(Iobj).Med./max(Result(Iobj).Med)-EpsVec, Result(Iobj).Radius, Args.Level, Args.InterpMethod);
+                end
             end
             
         end
-        
         
         function [varargout] = moment2(Obj, Args)
             % Calculate the moments and aperture photometry of PSFs
@@ -435,6 +519,7 @@ classdef AstroPSF1 < Component
             %          * Pairs of ...,key,val,... The following keywords are available:
             %            'moment2Args' - A cell array of arguments to pass
             %                   to imUtiul.image.moment2. Default is {}.
+            %            'PsfArgs' - position in a multi-D PSF space to be passed to getPSF
             % Output  : - First moment information.
             %             A structure with the following fields.
             %             .RoundX - Vector of roundex X position
@@ -471,10 +556,11 @@ classdef AstroPSF1 < Component
             arguments
                 Obj
                 Args.moment2Args cell          = {};
+                Args.PsfArgs     cell          = {};
                 
             end
             
-            Cube     = images2cube(Obj);
+            Cube     = images2cube(Obj,'PsfArgs',Args.PsfArgs);
             SizeCube = size(Cube);
             X = (SizeCube(2)-1).*0.5;
             Y = (SizeCube(1)-1).*0.5;
@@ -483,14 +569,13 @@ classdef AstroPSF1 < Component
             
         end
         
-        
         function [FWHM_CumSum, FWHM_Flux] = fwhm(Obj, Args)
             % Calculate the FWHM of a PSF using the curve of growth
             %   (for alternative method use moment2).
             % Input  : - An AstroPSF object.
-            %          * ...,key,vall,...
-            %            'curvePars' - A cell array of key,val arguments to
-            %                   pass to curve_of_growth. Default is {}.
+            %          * ...,key,val,...
+            %            'PsfArgs' - a cell array of key,val arguments to pass to curve_of_growth. Default is {}. 
+            %            'curveArgs' - a cell array of additional arguments to be passed to curve_of_growth
             % Output : - The FWHM calculated from the half cumsum [pix]
             %          - The FWHM calculated from the half peak flux [pix]
             %            radius.
@@ -500,10 +585,11 @@ classdef AstroPSF1 < Component
            
             arguments
                 Obj
-                Args.curvePars cell     = {};
+                Args.PsfArgs cell     = {};    
+                Args.curveArgs cell   = {};
             end
             
-            [~, FWHM_CumSum, FWHM_Flux] = curve_of_growth(Obj, Args.curvePars{:});
+            [~, FWHM_CumSum, FWHM_Flux] = curve_of_growth(Obj,'PsfArgs',Args.PsfArgs,Args.curveArgs{:});
             FWHM_CumSum = 2.*FWHM_CumSum;
             FWHM_Flux   = 2.*FWHM_Flux;
             
@@ -516,17 +602,23 @@ classdef AstroPSF1 < Component
     
     methods % functionality
     
-        function [CubeData, CubeVar] = images2cube(Obj)
+        function [CubeData, CubeVar] = images2cube(Obj, Args)
             % Transform an array of AstroPSF into a cube of PSFs
             % Input  : - An AstroPSF object.
             %            The Data size in all the elements must be the
             %            same.
+            %            * ...,key,val,...
+            %            'PsfArgs' - position in a multi-D PSF space to be passed to getPSF
             % Output : - A cube of PSF, where the PSF index is in the 3rd
             %            dimension.
             %          - A cube of PSF variances, where the PSF index is in the 3rd
             %            dimension.
             % Author : Eran Ofek
             % Example: [CubeData, CubeVar] = images2cube(Obj)
+            arguments
+                Obj
+                Args.PsfArgs = {};
+            end
            
             Nobj = numel(Obj);
             [Ny, Nx] = size(Obj(1).Data);
@@ -535,8 +627,9 @@ classdef AstroPSF1 < Component
                 CubeVar = zeros(Ny, Nx, Nobj);
             end
             for Iobj=1:1:Nobj
-                CubeData(:,:,Iobj) = Obj(Iobj).Data;
-                if nargout>1
+                P = Obj(Iobj).getPSF('PsfArgs',Args.PsfArgs); % get the stamp 
+                CubeData(:,:,Iobj) = P;
+                if nargout>1 % this is not yet done for multi-D PSF 
                     if ~isempty(Obj(Iobj).Var)
                         CubeVar(:,:,Iobj) = Obj(Iobj).Var;
                     end
@@ -614,6 +707,7 @@ classdef AstroPSF1 < Component
             % Input  : - An AstroPSF object containing a full-size image matrix or cube of PSFs. If a cube, then
             %            the image index must be in the 3rd dimension.
             %          * ...,key,val,...
+            %            'PsfArgs' - position in a multi-D PSF space to be passed to getPSF
             %            'StampHalfSize' - Output stamp half size in [X,Y].
             %                   Default is [7 7] (i.e., stamp will be 15 by 15).
             %            'IsCorner' - A logical indicating if the PSF is in the
@@ -642,6 +736,7 @@ classdef AstroPSF1 < Component
 
             arguments
                 Obj
+                Args.PsfArgs              = {};
                 Args.StampHalfSize        = [7 7];   % [X, Y]
                 Args.IsCorner logical     = true;
                 Args.Recenter logical     = false;
@@ -659,19 +754,21 @@ classdef AstroPSF1 < Component
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                Result(Iobj).Data = imUtil.psf.full2stamp(Obj(Iobj).Data, 'StampHalfSize',Args.StampHalfSize,...
+                P = Obj.getPSF();
+                Result(Iobj).DataPSF = imUtil.psf.full2stamp(P, 'StampHalfSize',Args.StampHalfSize,...
                                                                          'IsCorner',Args.IsCorner,...
                                                                          'Recenter',Args.Recenter,...
                                                                          'zeroConv',Args.zeroConv,...
                                                                          'zeroConvArgs',Args.zeroConvArgs,...
                                                                          'Norm',Args.Norm);
+            % as the resulting stamp is 2D, additional dimensions do not exist any more:
+            Result(Iobj).DimVals = cellfun(@(x) [0], Result(Iobj).DimVals, 'UniformOutput', false);
             end
-            
         end
         
-        function Result=suppressEdges(Obj, Args)
+        function Result = suppressEdges(Obj, Args)
             % Multiply the PSF by edge suppressing function (e.g., cosbell).
-            %   Useful in order to vrify that the PSF is zero padded and
+            %   Useful in order to verify that the PSF is zero padded and
             %   approach zero smoothly.
             %   See also: imUtil.psf.suppressEdges                
             % Input  : - An AstroPSF object.
@@ -724,7 +821,7 @@ classdef AstroPSF1 < Component
             
         end
 
-        function Obj=normPSF(Obj)
+        function Obj = normPSF(Obj)
             % Normalize PSFs such there sum will be 1.
             % Input  : - An AstroPSF object.
             % Output : - An uppdated AstroPSF object (no new copy).
@@ -736,7 +833,7 @@ classdef AstroPSF1 < Component
             end
         end
         
-        function Obj=even2odd(Obj, Args)
+        function Obj = even2odd(Obj, Args)
             % Rescale a PSF so that the stamp size becomes odd in both directions
             % Input  : - An AstroPSF object
             % Output : - An updated AstroPSF object with the stamp rescaled
@@ -763,8 +860,8 @@ classdef AstroPSF1 < Component
                 else
                     Fx = 1;                   Fy = 1;
                 end
-                Obj(Iobj).Scale   = Obj(Iobj).Scale * Fx; 
-                Obj(Iobj).ScaleY  = Obj(Iobj).Scale * Fy; 
+                Obj(Iobj).Oversampling(1)  = Obj(Iobj).Oversampling(1) * Fx; 
+                Obj(Iobj).Oversampling(2)  = Obj(Iobj).Oversampling(2) * Fy; 
             end
             
         end
@@ -772,14 +869,20 @@ classdef AstroPSF1 < Component
     end
     
     methods % plotting
-        function surface(Obj)
+        function surface(Obj, Args)
             % plot PSF using surface
             % Input  : - A single element AstroPSF object
             % Author : Eran Ofek (Jan 2022)
+            % Input: - AstroPSF Object 
+            %        * ...,key,val,...
+            %        'PsfArgs' - position in a multi-D PSF space to be passed to getPSF
             % Example: AI.PSFData.surface
-            
-            Data = Obj.getPSF;
-            surface(Data);
+            arguments
+                Obj
+                Args.PsfArgs = {};
+            end
+            Stamp = Obj.getPSF('PsfArgs',Args.PsfArgs);
+            surface(Stamp);
             colorbar;
         end
         

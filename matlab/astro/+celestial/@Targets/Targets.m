@@ -668,7 +668,7 @@ classdef Targets < Component
             % get HA and LST for target
             % Input  : - Target object.
             %          - JD. Default is current UTC time.
-            % Output : - HA [deg]
+            % Output : - HA [deg] in the ranfe -180 to 180 deg.
             %          - LST [deg]
             % Author : Eran Ofek (Jan 2022)
             % Example: T.generateTargetList('last');
@@ -683,6 +683,11 @@ classdef Targets < Component
                    
             LST     = celestial.time.lst(JD, Obj.GeoPos(1)./RAD, 'a').*360;  % [deg]
             HA      = LST - Obj.RA;
+            
+            % convert to -180 to 180 deg range:
+            HA = mod(HA, 360);
+            FlagL = HA>180;
+            HA(FlagL) = HA(FlagL) - 360;
             
         end
                 

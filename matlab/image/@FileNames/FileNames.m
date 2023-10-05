@@ -250,9 +250,14 @@ classdef FileNames < Component
             %   Given file names which name structure obeys the
             %   LAST-ULTRASAT file name convention.
             % Input  : - A list of file names.
-            %            Either a char array from which a list of file
-            %            names can be constructed using io.files.filelist
-            %            or a cell array of file names.
+            %            Either a char array or a cell array.
+            %            If the input is a char array, then the function
+            %            will use the io.files.filelist to search for all
+            %            existing files that have this name (wild cards are
+            %            allowed). In this case the file must exist.
+            %            If a cell array, then the file name in each element of
+            %            the cell will be used as is. IN this case, the
+            %            file doesn't need to exist.
             %          * ...,key,val,...
             %            'FullPath' - Directory to populate FullPath, if true,
             %                   then use current directory. If false or
@@ -263,8 +268,13 @@ classdef FileNames < Component
             %                   object contains no files.
             %                   Default is true.
             % Output : - A FileNames object containing the file names.
+            %          If you will use this with the char array option when
+            %          the file doesn't exist, then the returned structure
+            %          will contain no Time entries (i.e., FN.nfiles will
+            %          be zero).
             % Author : Eran Ofek (Dec 2022)
             % Example: FN=FileNames.generateFromFileName('LAST*.fits');
+            
             
             arguments
                 List
@@ -349,7 +359,7 @@ classdef FileNames < Component
                 Result = false;
                 if ErrorIfWrong
                     II=find(Flag,1);
-                    error('Illegal value found in Type property (element %d)',II);
+                    error('Illegal value found in Type property (element %d): %s',II, Obj.Type);
                 end
             end
             
@@ -965,6 +975,13 @@ classdef FileNames < Component
             %                   SubDir='1', if directory does not exist
             %                   (if false will return []).
             %                   Default is true.
+            %            'UseTime' - A logical indicating if the SubDir
+            %                   string is a time stamp (true), or number (false).
+            %                   If true, then the SubDir will be of the
+            %                   format HHMMSSv#, where number indicate if
+            %                   there is more than one dir with this time
+            %                   stampe. First dir alwas have v0.
+            %                   Default is false.
             % Output : - A char array containing the suggested SubDir name
             %            that does not exist in path. 
             %          - Only if the second argument is requested, then the
@@ -975,29 +992,43 @@ classdef FileNames < Component
             arguments
                 Obj
                 Args.OneIfEmpty logical   = true;
+                Args.UseTime logical      = true;
             end
 
             Path = Obj.genPath(1, 'AddSubDir',false); % Path without SubDir
             Dir  = dir(Path);
             
-            if isempty(Dir) && Args.OneIfEmpty
-                Result = '1';
+            if Args.UseTime
+                % SubDir is a time stamp
+                %File = Obj.genFile;
+                Obj.jd2str;
+                SpTime  = split(Obj.Time{1},'.');
+                Result  = SpTime{2};
+                Flag    = contains({Dir.name}, Result);
+                Version = sum(Flag);
+                Result  = sprintf('%sv%d',Result, Version);
             else
-                % select non-hidden directories
-                Flag = [Dir.isdir] & ~startsWith({Dir.name}, '.');
-                
-                NumDir = str2double({Dir(Flag).name});
-                if isempty(NumDir) && Args.OneIfEmpty
+                % SUbDir is a number
+                if isempty(Dir) && Args.OneIfEmpty
                     Result = '1';
                 else
-                    Result = sprintf('%d',max(NumDir) + 1);
+                    % select non-hidden directories
+                    Flag = [Dir.isdir] & ~startsWith({Dir.name}, '.');
+                    
+                    NumDir = str2double({Dir(Flag).name});
+                    if isempty(NumDir) && Args.OneIfEmpty
+                        Result = '1';
+                    else
+                        Result = sprintf('%d',max(NumDir) + 1);
+                    end
                 end
             end
-            
+
             if nargout>1
                 % update SubDir
                 Obj.SubDir = Result;
             end
+        
                         
         end
         
@@ -1207,7 +1238,7 @@ classdef FileNames < Component
                         if Args.AI_CropID_FromHeader 
                             CropID(Ido) = DataObj(Ido).HeaderData.getVal(Args.KeyCropID);
                         else
-                            CroPID = [];
+                            CropID = [];
                         end
                         if Args.AI_Counter_FromHeader
                             Counter(Ido) = DataObj(Ido).HeaderData.getVal(Args.KeyCounter);
@@ -1619,6 +1650,32 @@ classdef FileNames < Component
             end
         end
         
+        function Result=validTimes(Obj)
+            % Return a vector of logical indicating if Time argument is valid
+            % Input  : - A single elemnent FileNames object.
+            % Output : - A vector of logical which length equal to the
+            %            number of file names. False if Time is NaN, [],
+            %            or 'NaN'.
+            % Author : Eran Ofek (Sep 2023)
+
+            arguments
+                Obj(1,1)
+            end
+
+            if iscell(Obj.Time)
+                Nt = numel(Obj.Time);
+                Result = true(Nt,1);
+                for It=1:1:Nt
+                    if isempty(Obj.Time{It}) || any(isnan(Obj.Time{It})) || strcmpi(Obj.Time{It},'nan')
+                        Result(It) = false;
+                    end
+                end
+            else
+                Result = ~isnan(Obj.Time);
+            end
+
+        end
+
         function Result=nfiles(Obj)
             % Return number of files in a FileNames object
             % Input  : - A FileNames object

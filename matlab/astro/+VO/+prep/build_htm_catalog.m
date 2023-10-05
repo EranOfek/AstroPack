@@ -101,7 +101,7 @@ else
     Nsrc = InPar.Nsrc;
 end
 
-for Ihtm=1:1:Nhtm
+ for Ihtm=1:1:Nhtm
     %Ihtm
     % check if HTM mean Dec is in dec range
     IndHTM = ListIndexHTM(Ihtm);

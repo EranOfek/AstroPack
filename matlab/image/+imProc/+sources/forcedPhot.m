@@ -40,9 +40,9 @@ function [Result] = forcedPhot(Obj, Args)
     %                   'Xstart', 'Ystart' - X/Y pixel coordinates of the
     %                           initial source position.
     %                   'FLAG_POS' - A flag indicating if the source is:
-    %                           0 - within image and at least 'MinEdgeDist' pixels
+    %                           1 - within image and at least 'MinEdgeDist' pixels
     %                               from edge.
-    %                           1 - outside the image.
+    %                           0 - outside the image.
     %                   'FLAGS' - Bit mask flags propagated from the image
     %                           mask.
     %                   'Chi2','Dof','Chi2dof' - chi^2, dof, and chi^2/dof
@@ -60,7 +60,7 @@ function [Result] = forcedPhot(Obj, Args)
     %                   Default is 'deg'.
     %            'MinEdgeDist' - Number of pixels of source from image edge
     %                   in order to declare the object in/out image.
-    %                   Default is 10.
+    %                   Default is 20.
     %            'AddRefStarsDist' - Angular distance in arcsec, around the
     %                   mean position of the sources in the 'Coo' argument.
     %                   If larger then 0 (and not NaN), then will search
@@ -130,7 +130,7 @@ function [Result] = forcedPhot(Obj, Args)
     %                   Default is false.
     %            'HalfSizePSF' - Half size of the constructed PSF (unless
     %                   PSF is provided). Default is 12 [pix].
-    %            'FitRadihttps://github.com/EranOfek/AstroPack/wiki/MatchedSourcesus' - Radius around source center to fit.
+    %            'FitRadius' - Radius around source center to fit.
     %                   This can be used in order to exclude regions
     %                   outside the stellar core.
     %                   Default is 3.
@@ -163,7 +163,7 @@ function [Result] = forcedPhot(Obj, Args)
         Args.Moving logical          = false;
         Args.ColNames                = {'RA','Dec','X','Y','Xstart','Ystart','Chi2dof','FLUX_PSF','MAG_PSF','MAGERR_PSF','BACK_ANNULUS', 'STD_ANNULUS','FLUX_APER','FLAG_POS','FLAGS'};  % 'Chi2','Dof'
         Args.CooOutUnits             = 'deg';
-        Args.MinEdgeDist             = 10;      % pix
+        Args.MinEdgeDist             = 20;      % pix
         Args.AddRefStarsDist         = 500;     % arcsec; 0/NaN for no addition
         Args.AddCatName              = 'GAIADR3';
         Args.PopulateWCS logical     = true;
@@ -308,9 +308,11 @@ function [Result] = forcedPhot(Obj, Args)
                 end
             end
             % add CatAdd [deg] - convert RA/Dec to X/Y
-            [Xcat,Ycat] = Obj(Iobj).WCS.sky2xy(CatAdd(:,1), CatAdd(:,2), 'InUnits','deg');
-            X = [X; Xcat];
-            Y = [Y; Ycat];
+            if AddColsFromRef
+                [Xcat,Ycat] = Obj(Iobj).WCS.sky2xy(CatAdd(:,1), CatAdd(:,2), 'InUnits','deg');
+                X = [X; Xcat];
+                Y = [Y; Ycat];
+            end
 
             % check if sources are in footprint
             [Ny, Nx] = Obj(Iobj).sizeImage;

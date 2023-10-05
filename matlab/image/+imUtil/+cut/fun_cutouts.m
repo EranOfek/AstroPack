@@ -16,7 +16,7 @@ function [varargout] = fun_cutouts(Image, X, Y, Fun, Args)
 %            'Radius' - Radius of cutouts (if input is a matrix).
 %            'Circle' - A flag indicating if to extract the stamps with
 %                       circular shape. Default is false.
-%            'mexCutout' - use imUtil.cut.mexCutout.m (true) or
+%            'mexCutout' - use imUtil.cut.mex.mex_cutout.m (true) or
 %                       imUtil.cut.find_within_radius_mat (false).
 %                       Default is true.
 % Output : * Arbitrary numbre of vectors. Each vector for each output of

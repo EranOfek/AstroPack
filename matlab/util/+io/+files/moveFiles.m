@@ -23,6 +23,9 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
     %                   directory. Default is true.
     %            'RegExp' - A logical indicating if to attempt use regular
     %                   expressions on the source name. Default is false.
+    %            'Mode' - If 'f', copies SOURCE to DESTINATION, even when
+    %                   DESTINATION is read-only.
+    %                   Default is [].
     % Output : - A cell array of destination file names including full
     %            path.
     % Author : Eran Ofek (Apr 2022)
@@ -38,6 +41,7 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
         DestPath            = '';
         Args.MkDir logical  = true;
         Args.RegExp logical = false;
+        Args.Mode           = [];
     end
     
     if Args.RegExp
@@ -82,16 +86,24 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
         if DestPathInFile
             Destination{Ifile} = DestFiles{Ifile};
         else
-            Destination{Ifile} = sprintf('%s%s%s', DestPath, filesep, DestFiles{Ifile});
+            if iscell(DestPath)
+                Destination{Ifile} = sprintf('%s%s%s', DestPath{Ifile}, filesep, DestFiles{Ifile});
+            else
+                Destination{Ifile} = sprintf('%s%s%s', DestPath, filesep, DestFiles{Ifile});
+            end
         end
         % make sure diirectory exist
         if ~ischar(DestPath) && Args.MkDir
-            if ~isfolder(DestPath)
+            if ~isfolder(DestPath{Ifile})
                 mkdir(DestPath{Ifile});
             end
         end
         % move file
-        movefile(Source, Destination{Ifile});
+        if isempty(Args.Mode)
+            movefile(Source, Destination{Ifile});
+        else
+            movefile(Source, Destination{Ifile}, Args.Mode);
+        end
     end
     
 end

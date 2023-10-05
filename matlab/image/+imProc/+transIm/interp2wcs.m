@@ -35,7 +35,7 @@ function Result=interp2wcs(Obj, Ref, Args)
     arguments
         Obj AstroImage
         Ref
-        Args.InterpMethod             = 'cubic';
+        Args.InterpMethod             = 'cubic';  % 'makima'
         Args.InterpMethodMask         = 'nearest';
         Args.DataProp                 = {'Image','Mask'};
         Args.ExtrapVal                = NaN;
@@ -81,8 +81,13 @@ function Result=interp2wcs(Obj, Ref, Args)
 
         VecX = (1:1:SizeIm(2));
         VecY = (1:1:SizeIm(1));
-        FullRefX = interp2(X, Y, RefX, VecX(:).', VecY(:), 'cubic');
-        FullRefY = interp2(X, Y, RefY, VecX(:).', VecY(:), 'cubic');
+
+        SizeRefIm = size(Ref(Iref).Image);
+        VecRefX = (1:1:SizeRefIm(2));
+        VecRefY = (1:1:SizeRefIm(1));
+
+        FullRefX = interp2(X, Y, RefX, VecRefX(:).', VecRefY(:), 'cubic');
+        FullRefY = interp2(X, Y, RefY, VecRefX(:).', VecRefY(:), 'cubic');
 
         for Iprop=1:1:Nprop
             if ~isempty(Obj(Iobj).(Args.DataProp{Iprop}))

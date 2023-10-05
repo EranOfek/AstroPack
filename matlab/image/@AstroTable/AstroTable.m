@@ -1555,6 +1555,7 @@ classdef AstroTable < Component
             
         end
 
+        
     end
     
     methods % applay functions and overloads

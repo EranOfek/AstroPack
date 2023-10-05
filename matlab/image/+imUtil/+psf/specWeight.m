@@ -21,27 +21,17 @@ function Result = specWeight(SpecSrc, RadSrc, PSFdata, Args)
     %           PSF = imUtil.psf.specWeight( SpecSrc, RadSrc, PSFdata, ...
     %           'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, 'Lambda', WavePSF, 'SpecLam', Wave);
 
-    arguments
-        
-        SpecSrc 
-        
-        RadSrc 
-        
-        PSFdata 
-        
-        Args.Rad  
-        
+    arguments       
+        SpecSrc        
+        RadSrc     
+        PSFdata     
+        Args.Rad      
         Args.Lambda  = 0;   % if Args.Lambda and Args.SpecLam are not put in
-                            % that implies that the spectral grid in the
+        Args.SpecLam = 0;   % that implies that the spectral grid in the
                             % PSFdata array and in the input source spectra
-                            % SpecSrc is the same ! 
-        Args.SpecLam = 0;
-        
-        Args.SizeLimit = 8; % [Gb] the maximal array size determines the calculation method
-        
+                            % SpecSrc is the same !         
+        Args.SizeLimit = 8; % [Gb] the maximal array size determines the calculation method   
     end
-    
-    %
     
     Tiny = 1e-30;
     
@@ -54,93 +44,59 @@ function Result = specWeight(SpecSrc, RadSrc, PSFdata, Args)
     Lam     = 1:NLam;
     
     NumSrc  = size(RadSrc,1);
-    
     NumWave = size(SpecSrc,2);
         
-    % check that the number of sources and the number of spectra are the same:
-    
-    if size(SpecSrc,1) ~= NumSrc
-        
+    % check that the number of sources and the number of input spectra are the same:
+    if size(SpecSrc,1) ~= NumSrc       
         cprintf('err','Number of source radii and number of spectra in specWeight do not match, exiting...\n');
-        return
-        
+        return      
     end
     
     % regrid the input spectra if the spectral grids in PSFdata and in SpecSrc are not the same 
-    
     if numel(Args.SpecLam) > 1 && numel(Args.Lambda) > 1   % regrid the spectra
-        
         SrcNum = 1:NumSrc;
-        
-        Spec = interpn(SrcNum, Args.SpecLam', SpecSrc, SrcNum, Args.Lambda');
-        
-        NumWave = size(Spec,2);
-        
+        if NumSrc > 1
+            Spec = interpn(SrcNum, Args.SpecLam', SpecSrc, SrcNum, Args.Lambda','linear',Tiny);
+            NumWave = size(Spec,2);
+        else % if there is only 1 source
+            Spec = interp1(Args.SpecLam', SpecSrc, Args.Lambda','linear',Tiny);
+            NumWave = size(Spec,1);
+        end
     elseif NumWave == NLam                               % the spectral grids in PSFdata and in SpecSrc are of the same size
-         
         Spec = SpecSrc;
-        
     else
-        
         cprintf ('err', 'Spectral grid mismatch in specWeight, need to input the grids, exiting...\n');
         return
-        
     end 
     
     Result = zeros(Nx,Ny,NumSrc);
-    
     ArraySizeGb = 8 * Nx * Ny * NLam * NumSrc / (1024^3);
     
     if ArraySizeGb < Args.SizeLimit  % if the number of sources is not too high, we can use a faster algorithm
-        
         % rescale the data array to the actual source positions:
-        
         PSFdataS = interpn(X,Y,Lam, Args.Rad, PSFdata, X,Y,Lam, RadSrc, 'linear', Tiny);
-        
         % put the spectrum into the right dimension
         % NOTE that the Spec array should be transposed before reshaping! 
-
         Spec2 = reshape(Spec',[1 1 NumWave NumSrc]);
-
         % multiply the PSF array sampled by the source positions by the source spectra
-
         Wcube = PSFdataS .* Spec2;
-
         % sum over the wavelengths and delete the degenerate dimension 
-
         SumL  = squeeze( sum( Wcube,3 ) ); 
-
         % normalize 
         Result = SumL ./ sum( SumL, [1,2] );
-
     else                             % if the number of sources is high, we can not operate on the full array
-    
         for Isrc = 1:1:NumSrc
-        
             % rescale the data array to the actual source positions
-
             PSFdataS = interpn(X,Y,Lam, Args.Rad, PSFdata, X,Y,Lam, RadSrc(Isrc), 'linear', Tiny);
-
             % put the spectrum into the right dimension
             % NOTE that the Spec array should be transposed before reshaping! 
-
             Spec2 = reshape(Spec(Isrc,:)',[1 1 NumWave]);
-
             % multiply the PSF array sampled by the source positions by the source spectra
-
             Wcube = PSFdataS .* Spec2;
-
             % sum over the wavelengths and delete the degenerate dimension 
-
             SumL  = squeeze( sum(Wcube,3) ); 
-
             % normalize 
             Result(:,:,Isrc) = SumL ./ sum( SumL, [1,2] );
-
-        end
-    
-            
-    end
-    
-    
+        end     
+    end  
 end

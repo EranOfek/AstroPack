@@ -12,7 +12,7 @@
 
 classdef DemonLAST < Component
     % 
-
+            
     properties       
         %
         CI CalibImages   = CalibImages;    % CalibImages
@@ -406,6 +406,8 @@ classdef DemonLAST < Component
 
     end
 
+    
+    
     methods (Static)  % fields related utilities
         function List = fieldsListLAST(Args)
             % (Static) Return a table with list of LAST predefined field indices
@@ -1316,10 +1318,14 @@ classdef DemonLAST < Component
 
             PWD = pwd;
             if ~isempty(Args.CalibPath)
-                cd(Args.CalibDir)
+                cd(Args.CalibPath)
             else
                 cd(Obj.CalibPath);
             end
+            
+            fprintf('\n\nAvailable storage space:\n')
+            unix('df -h | grep data');
+            fprintf('\n\nPlease only run the pipeline if disk less than 80percent full.\n\n')
 
             % read latest bias image
             if ismember('bias',lower(Args.ReadProduct))
@@ -1331,6 +1337,7 @@ classdef DemonLAST < Component
                 end
                     
                 Obj.CI.Bias = AstroImage.readFileNamesObj(FN_Bias, 'AddProduct',Args.AddImages);
+                fprintf('\nUsing dark: %s\n', char(FN_Bias.genFile))
             end
 
             % read latest flat image
@@ -1342,6 +1349,7 @@ classdef DemonLAST < Component
                     [~,~,FN_Flat] = FN_Flat.selectNearest2JD(Args.FlatNearJD);
                 end
                 Obj.CI.Flat = AstroImage.readFileNamesObj(FN_Flat, 'AddProduct',Args.AddImages);
+                fprintf('Using flat: %s\n\n', char(FN_Flat.genFile))
             end
 
             % Read linearity file
@@ -1397,7 +1405,7 @@ classdef DemonLAST < Component
                 Args.PauseNight        = 10;
 
                 % Save data products
-                Args.SaveEpochProduct  = {[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat'};
+                Args.SaveEpochProduct  = {[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat','PSF'};,
                 Args.SaveVisitProduct  = {'Image','Mask','Cat','PSF'};
                 Args.SaveMergedCat     = true;
                 Args.SaveMergedMat     = true;
@@ -1481,7 +1489,8 @@ classdef DemonLAST < Component
                 FN_Foc   = FileNames.generateFromFileName(Args.TempRawFocus);
                 FN_Foc.BasePath = Obj.BasePath;
                 FN_Foc.FullPath = [];
-                FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',[], 'DestPath', FN_Foc.genPath, 'Level','raw', 'Type','focus');
+                % The empty argument in genPath is required for moving each image to the correct (date) directory. 
+                FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',[], 'DestPath', FN_Foc.genPath([]), 'Level','raw', 'Type','focus');
                 
                 % look for new images
                 FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci, 'FullPath',false);
@@ -1644,8 +1653,13 @@ classdef DemonLAST < Component
     %                                 FN_Proc.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
                                     HasImage = ~AllSI.isemptyImage; % use only AI's with Image properties filled
                                     ProcFileName = FN_Proc.genFull;
-                                    [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage));
+%                                     HasFile = cellfun(@(name) exist(name, 'file') == 2, ProcFileName);
+%                                     HasFile = reshape(HasFile,size(AllSI,1),size(AllSI,2));
+%                                     [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage.*HasFile), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage.*HasFile));
+                                    [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage),'Hash',0);  % w/o hash
+                                                                        
                                     Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
+                                    
                                     Obj.writeLog(Msg, LogLevel.Info);
                                     % there are ~N*24 ProcImages, and only N RawImages
                                     ID_RawImage = repmat(ID_RawImage,1, 24);
@@ -1656,7 +1670,10 @@ classdef DemonLAST < Component
     %                                 FN_Coadd.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
                                     HasImage = ~Coadd.isemptyImage; % use only AI's with Image properties filled
                                     CoaddFileName = FN_Coadd.genFull('LevelPath','proc');
-                                    [ID_ProcImage, OK] = ADB.insert(Coadd(HasImage), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImage));
+%                                     HasFile = cellfun(@(name) exist(name, 'file') == 2, CoaddFileName);
+%                                     HasFile = reshape(HasFile,size(Coadd,1),size(Coadd,2));
+%                                     [ID_CoaddImage, OK] = ADB.insert(Coadd(HasImage.*HasFile), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImage.*HasFile));
+                                    [ID_CoaddImage, OK] = ADB.insert(Coadd(HasImage), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImage),'Hash',0); % w/o hash
                                     Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
                                     Obj.writeLog(Msg, LogLevel.Info);
                                     
@@ -1672,9 +1689,7 @@ classdef DemonLAST < Component
                                     FN_Proc_DB = FN_Proc.copy;
                                     FN_Proc_DB = FN_Proc_DB.updateIfNotEmpty('FileType',{'csv'});
                                     ProcFileName = FN_Proc_DB.genFull{1};
-                                    NData = numel(AllSI);
-                                    AH(1:NData) = AstroHeader;
-                                    AH(1:NData) = AllSI(1:NData).HeaderData;
+                                    AH = [AllSI.HeaderData];
                                     AH.writeCSV(ProcFileName,'CleanHeaderValues',1);
                                     Obj.writeStatus(FN_Proc_DB.genPath, 'Msg', 'ready-for-DB');
 
@@ -1682,9 +1697,7 @@ classdef DemonLAST < Component
                                     FN_Coadd_DB = FN_Coadd_DB.updateIfNotEmpty('FileType',{'csv'});
                                     CoaddFileName = FN_Coadd_DB.genFull('LevelPath','proc');
                                     CoaddFileName = CoaddFileName{1};
-                                    NData = numel(Coadd);
-                                    AH(1:NData) = AstroHeader;
-                                    AH(1:NData) = Coadd(1:NData).HeaderData;
+                                    AH = [Coadd.HeaderData];
                                     AH.writeCSV(CoaddFileName,'CleanHeaderValues',1);
                                     
                                     OK = 1;
@@ -1695,30 +1708,30 @@ classdef DemonLAST < Component
 
                                 FN_CatProc = FN_Proc.copy;
                                 FN_CatProc = FN_CatProc.updateIfNotEmpty('Product','Cat', 'FileType',{'csv'});
-                                ProcCatFileName  = FN_CatProc.genFull{1}; NCat = numel(AllSI); 
-                                ProcCat(1:NCat) = AllSI(1:NCat).CatData;
+                                ProcCatFileName  = FN_CatProc.genFull{1}; 
+                                ProcCat = [AllSI.CatData];
                                 
                                 FN_CatCoadd = FN_Coadd.copy;
                                 FN_CatCoadd = FN_CatCoadd.updateIfNotEmpty('Product','Cat', 'FileType',{'csv'});
                                 CoaddCatFileName  = FN_CatCoadd.genFull('LevelPath','proc');
-                                CoaddCatFileName  = CoaddCatFileName{1};  NCat = numel(Coadd);
-                                CoaddCat(1:NCat) = Coadd(1:NCat).CatData;
+                                CoaddCatFileName  = CoaddCatFileName{1};  
+                                CoaddCat = [Coadd.CatData];
                                 
                                 if Args.DB_CatalogBulk 
                                     
                                      % write PROC and COADD catalog data to local csv files 
-                                     % to be injected into the DB later on outside of this pipeline
-                                                    
+                                     % to be injected into the DB later on outside this pipeline
+
+                                    StKey = AllSI(1).getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
                                     ProcCat.writeLargeCSV(ProcCatFileName,...
                                         'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
-                                        'AddColValues',[AllSI(1).Key.CAMNUM AllSI(1).Key.MOUNTNUM ...
-                                                        AllSI(1).Key.NODENUMB AllSI(1).Key.JD AllSI(1).Key.EXPTIME] );
+                                        'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUMB, StKey.JD, StKey.EXPTIME] );
+                                    
+                                    StKey = Coadd(1).getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
                                     CoaddCat.writeLargeCSV(CoaddCatFileName,...
                                         'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
-                                        'AddColValues',[Coadd(1).Key.CAMNUM Coadd(1).Key.MOUNTNUM ...
-                                                        Coadd(1).Key.NODENUMB Coadd(1).Key.JD Coadd(1).Key.EXPTIME]);
-
-
+                                        'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUMB, StKey.JD, StKey.EXPTIME] );
+                                    
                                     Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB'); 
                                 
                                 else
@@ -1749,13 +1762,13 @@ classdef DemonLAST < Component
                             Obj.writeLog(ME, LogLevel.Error);
                             
                             % write log file
-    
+                            ErrorMsg = sprintf('pipeline.DemonLAST: %d images moved to failed directory',numel(RawImageList));
+                            Obj.writeLog(ErrorMsg, LogLevel.Error);
+
                             % move images to failed/ dir
                             io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull('FullPath',FailedPath));
     
-                            ErrorMsg = sprintf('pipeline.DemonLAST: %d images moved to failed directory',numel(RawImageList));
-                            %warning(ErrorMsg);
-                            Obj.writeLog(ErrorMsg, LogLevel.Error);
+                            
                         end
     
     

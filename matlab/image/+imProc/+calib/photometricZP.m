@@ -22,9 +22,9 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %                   Default is 1000.
     %            'CatColNameMag' - Mag. column name in Catalog.
     %                   This magnitude will be calibrated.
-    %                   Default is 'MAG_CONV_3'.
+    %                   Default is {'MAG_PSF','MAG_APER_3'}.
     %            'CatColNameMagErr' - Mag. error column name in Catalog.
-    %                   Default is 'MAGERR_CONV_3'.
+    %                   Default is 'MAGERR_APER_3'.
     %            'CatColNameSN' - S/N column name in Catalog.
     %                   Default is 'SN_3'.
     %            'LimMagSN' - S/N for lim. mag. calculation.

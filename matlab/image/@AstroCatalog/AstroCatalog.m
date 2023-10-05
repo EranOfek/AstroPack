@@ -696,11 +696,17 @@ classdef AstroCatalog < AstroTable
                         if isempty(X) || isempty(Y)
                             error('Can not find RA/Dec coordinates in catalog');
                         end
+                        if all(isnan(X))
+                            error('All coordinates are NaN - cant find boundingCircle');
+                        end
                         [BestCoo, BestRadius] = celestial.coo.boundingCircle(X, Y);   % [radians]
                     case 'pix'
                         [X, Y] = getXY(Obj(Iobj));
                         if isempty(X) || isempty(Y)
                             error('Can not find X/Y coordinates in catalog');
+                        end
+                        if all(isnan(X))
+                            error('All coordinates are NaN - cant find boundingCircle');
                         end
                         [BestCoo, BestRadius] = tools.math.geometry.boundingCircle(X, Y);  % [radians]
                     otherwise
@@ -1234,6 +1240,70 @@ classdef AstroCatalog < AstroTable
                     JD(Iobj) = Obj(Iobj).JD;
                 end
             end
+        end
+        
+        function Result = interpCoo(Obj, NewTime, Args)
+            % Interpolate coordinates using cosindirection
+            %   All the other columns will be interpolate regularly
+            % Input  : - A single element AstroCatalog object
+            %          - A vector of new times (JD) on which the data in the
+            %            input catalog will be interplate to.
+            %          * ...,key,val,...
+            %            'InterpCoo' - Interpolation method for
+            %                   coordinates. Default is 'pchip'.
+            %            'InterpOther' - Interpolation method for all the
+            %                   other columns. Default is 'linear'.
+            %            'ColJD' - Default is 'JD'.
+            %            'ColLon' - Default is Obj(1).DefNamesRA
+            %            'ColLat' - Default is Obj(1).DefNamesDec
+            % Output : - An AstroCatalog object with the interpolated data.
+            % Author : Eran Ofek (Sep 2023)
+            % Example: [Cat]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',celestial.time.julday([14 6 2018]),'StopJD',  celestial.time.julday([20 6 2018]));
+            %          Res = Cat.interpCoo(celestial.time.julday([15 6 2018])+(0:0.01:1).');
+                  
+            arguments
+                Obj(1,1)
+                NewTime
+                Args.InterpCoo   = 'pchip';
+                Args.InterpOther = 'linear';
+            
+                Args.ColJD       = 'JD';
+                Args.ColLon      = Obj(1).DefNamesRA;
+                Args.ColLat      = Obj(1).DefNamesDec;
+            end
+            
+            ColJD  = colnameDict2ind(Obj, Args.ColJD);
+            ColRA  = colnameDict2ind(Obj, Args.ColLon);
+            ColDec = colnameDict2ind(Obj, Args.ColLat);
+            
+            JD          = Obj.getCol(ColJD);
+            RA          = Obj.getCol(ColRA);
+            [Dec,Units] = Obj.getCol(ColDec);
+            
+            [Nrow,Ncol]       = Obj.sizeCatalog;
+            NonCooCol         = true(1,Ncol);
+            NonCooCol(ColJD)  = false;
+            NonCooCol(ColRA)  = false;
+            NonCooCol(ColDec) = false;
+            
+            Result = AstroCatalog({zeros(numel(NewTime), Ncol)}, 'ColNames',Obj.ColNames, 'ColUnits',Obj.ColUnits);
+            
+            % convert to radians
+            ConvFactor = convert.angular(Units, 'rad');
+            RA         = RA.*ConvFactor;
+            Dec        = Dec.*ConvFactor;
+            [NewRA, NewDec] = celestial.coo.interp_coo(JD, RA, Dec, NewTime, Args.InterpCoo);
+            % back to units
+            NewRA      = NewRA./ConvFactor;
+            NewDec     = NewDec./ConvFactor;
+            
+            Result.replaceCol(NewTime, ColJD);
+            Result.replaceCol(NewRA,   ColRA);
+            Result.replaceCol(NewDec,  ColDec);
+            
+            % interpolate all the other columns
+            Result.Catalog(:,NonCooCol) = interp1(JD, Obj.Catalog(:,NonCooCol), NewTime, Args.InterpOther);
+            
         end
         
         function Result = writeLargeCSV(Obj, FileName, Args)

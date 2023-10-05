@@ -63,8 +63,8 @@ function [R, R_Partial] = frt(M_in, Args)
     end
     
     %%%%%%%%%%%%%%%%%%%%%%% PREPARING THE MATRIX %%%%%%%%%%%%%%%%%%%%%%%%%%
-    M = double(M_in); % Issue https://github.com/EranOfek/AstroPack/issues/191
-
+    M = M_in;
+    
     if Args.Transpose
         M = M.';
     end
@@ -101,7 +101,11 @@ function [R, R_Partial] = frt(M_in, Args)
                 
         % entry point to mex file...
         if Args.UseMex
-            imUtil.frt.coreFRT(M, M_prev, dy, Args.NumThreads);
+            if class(M) == "double"
+                imUtil.frt.mex.coreFRT_double(M, M_prev, dy, Args.NumThreads);
+            elseif class(M) == "single"
+                imUtil.frt.mex.coreFRT_single(M, M_prev, dy, Args.NumThreads);
+            end
         else
 
             Ndy = length(dy); % size of dy axis

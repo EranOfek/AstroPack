@@ -15,6 +15,7 @@ function Cat = downloadPrepSpecGAIA(Args)
         Args.URL = 'http://cdn.gea.esac.esa.int/Gaia/gdr3/Spectroscopy/xp_sampled_mean_spectrum/';
         Args.Wave = (336:2:1020).';
         Args.Step = [1 2 3];
+        Args.SaveTemp logical   = false;
     end
     
     %%
@@ -28,12 +29,16 @@ function Cat = downloadPrepSpecGAIA(Args)
         system('gzip -d *.csv.gz');
     end
     
-    %
+    %%
     if any(Args.Step==2)
         Nwave = numel(Args.Wave);
         Files = dir('XpSampledMean*.csv');
         Nfile = numel(Files);
-        Cat   = nan(1e6, 6);
+        if Args.SaveTemp
+            Cat   = nan(3.5e7, 6);
+        else
+            Cat   = nan(3.5e7, 6+2.*Nwave);
+        end
         K     = 0;
         for Ifile=1:1:Nfile
             [Ifile, Nfile]
@@ -41,26 +46,60 @@ function Cat = downloadPrepSpecGAIA(Args)
             T = readtable(Files(Ifile).name, 'CommentStyle','#');
 
             Nspec = size(T,1);
-            Spec  = nan(Nspec, 2.*Nwave);
+            if Args.SaveTemp
+                Spec  = nan(Nspec, 2.*Nwave);
+            end
             for Ispec=1:1:Nspec
                 K       = K + 1;
                 Flux    = eval(T.flux{Ispec});
                 FluxErr = eval(T.flux_error{Ispec});
-                Spec(Ispec,:) = [Flux, FluxErr];
-                Cat(K,:)      = [T.ra(Ispec), T.dec(Ispec), T.source_id(Ispec), T.solution_id(Ispec), Ifile, Ispec];
+                if Args.SaveTemp
+                    Spec(Ispec,:) = [Flux, FluxErr];
+                end
+                if Args.SaveTemp
+                    Cat(K,:)      = [T.ra(Ispec), T.dec(Ispec), T.source_id(Ispec), T.solution_id(Ispec), Ifile, Ispec];
+                else
+                    Cat(K,:)      = [T.ra(Ispec), T.dec(Ispec), T.source_id(Ispec), T.solution_id(Ispec), Ifile, Ispec, Flux, FluxErr];
+                end
+
             end
             % save hdf5 file of spectra
             'a'
-            FileName = sprintf('GAIADR3_Spec_%06d.hdf5',Ifile);
-            HDF5.save(Spec, FileName, '/Data');        
+            if Args.SaveTemp
+                %FileName = sprintf('GAIADR3_Spec_%06d.hdf5',Ifile);
+                %HDF5.save(Spec, FileName, '/Data');        
+            end
         end
+        Cat = Cat(1:K,:);
+        Cat = single(Cat);
     end
     
+    %% prep full Cat from HDF5 files
+    Files = dir('GAIADR3_Spec*hdf5');
+    Nfile = numel(Files);
+    for Ifile=1:1:Nfile
+        SpecData = h5read(Files(Ifile).name,'/Data');
+        
+    end
+
+
+
     %% save Cat into an CatsHTM
     if any(Args.Step==3)
-        AC = AstroCatalog({Cat}, 'ColNames',{'RA','Dec','source_id','solution_id','Ifile','Ispec'});
-        Nsrc = VO.prep.build_htm_catalog(AC, 'CatName','GAIADR3spec','HTM_Level',8);
+        RAD = 180./pi;
+        Cat(:,1:2) = Cat(:,1:2)./RAD;
+        ColNames = [{'RA','Dec','source_id','solution_id','Ifile','Ispec'}, tools.cell.cellstr_prefix(Args.Wave,'F').',  tools.cell.cellstr_prefix(Args.Wave,'E').'];
+
+        Nsrc = VO.prep.build_htm_catalog(Cat, 'CatName','GAIADR3spec','HTM_Level',8,'ColCell',ColNames);
+
+        %AC = AstroCatalog({Cat}, 'ColNames',ColNames);
+        %AC.sortrows(AC,'Dec');
+        %Nsrc = VO.prep.build_htm_catalog(AC, 'CatName','GAIADR3spec','HTM_Level',8);
     end
     
+    %% upload all spectra into a single matrix
+    Ncat = size(Cat,1);
     
+
+
 end

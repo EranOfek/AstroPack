@@ -17,6 +17,10 @@ function convertGALEXdistribution
     MagNUV  = zeros(Nmag,1);
     MagU    = zeros(Ntemp, Nmag, Nrad);
     
+    % load the US filters for the UP object:
+    UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');   
+    io.files.load1(UP_db,'UP');
+    
     for iTemp = 1:Ntemp
         
         Spec = AstroSpec.blackBody(Wave', Temp(iTemp) ); % make a BB spectrum
@@ -24,17 +28,17 @@ function convertGALEXdistribution
         for iMag = 1:Nmag  % for each NUV magnitude and radial distance calculate the appropriate ULTRASAT magnitude 
             
             MagNUV(iMag) = MagL + (iMag-1) * Delta_m; 
+            Sp           = scaleSynphot(Spec, MagNUV(iMag), 'GALEX', 'NUV');
             
-            for iRad = 1:Nrad               
-                RXX        = sprintf('R%d',iRad);
-                Sp         = scaleSynphot(Spec, MagNUV(iMag), 'GALEX', 'NUV');
-                MagU(iTemp, iMag, iRad) = astro.spec.synthetic_phot([Wave', Sp.Flux],'ULTRASAT',RXX,'AB');                
+            for iRad = 1:Nrad                               
+                MagU(iTemp, iMag, iRad) = astro.spec.synthetic_phot([Wave', Sp.Flux],UP.U_AstFilt(iRad),'','AB'); 
             end
             
         end
         
     end
     
-    save('~/magu.mat','MagU', 'Temp', 'MagNUV', 'Rad');
+    MagDB = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/GALEX_ULTRASAT_magn.mat');
+    save(MagDB,'MagU', 'Temp', 'MagNUV', 'Rad');
 
 end

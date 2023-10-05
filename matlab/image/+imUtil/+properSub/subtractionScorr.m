@@ -53,6 +53,8 @@ function [Scorr, S, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, SdeltaR] =
     %            'NormD' - - A logical indicating if to subtract median and
     %                   divide by RStD, from D.
     %                   Default is false.
+    %            'NormDbyFd' - A logical indicating if to divide D by Fd.
+    %                   Default is true.
     %            'NormDeltaAsS' - A logical indicating on how to normalize
     %                   SdeltaN and SdeltaR. If true, then will use the
     %                   median and std of S, and if false, will use their
@@ -91,6 +93,7 @@ function [Scorr, S, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, SdeltaR] =
         Args.SetToNaN         = [];
         Args.NormS logical    = true;
         Args.NormD logical    = false;
+        Args.NormDbyFd logical = true;
         Args.NormDeltaAsS logical = false;
     end
 
@@ -159,6 +162,10 @@ function [Scorr, S, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, SdeltaR] =
         D = D - median(D, [1 2], 'omitnan');
         D = D./tools.math.stat.rstd(D, [1 2]);
     end
+    if Args.NormDbyFd
+        D = D./Fd;
+    end
+    
     % normalize S and Scorr
     if Args.NormS
         Scorr = Scorr - median(Scorr, [1 2], 'omitnan');

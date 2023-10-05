@@ -1,4 +1,4 @@
-function [D, S, Scorr, Z2, S2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef, Args)
+function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, ObjRef, Args)
     % 
     % Example: AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
     %          AIreg= imProc.background.background(AIreg,'SubSizeXY',[]);    
@@ -29,6 +29,11 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef
         
         Args.NormS logical    = true;
         Args.NormD logical    = false;
+
+        Args.NormDbyFd logical = true;
+        Args.HalfSizePSF       = [];   % if empty do not touch
+        Args.full2stampArgs cell = {};
+        Args.CalcTranslient logical    = true;  % if false will skip Z2 and S2
         
     end
 
@@ -54,7 +59,7 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef
 
 
         %AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
-        AIreg=imProc.transIm.interp2wcs(AI, AI(1));
+        AIreg=imProc.transIm.interp2wcs(AI, AI(1), 'InterpMethod','cubic');
 
         AIreg= imProc.background.background(AIreg,'SubSizeXY',[]); %[256 256]);  
         AIreg=imProc.sources.findMeasureSources(AIreg);           
@@ -75,8 +80,8 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef
 
         [DD,S,Scorr,Z2,S2, F_S,SdN, SdR] = imProc.sub.properSubtraction(AIreg(5), AIreg(1));
 
-        
-        R=imProc.sources.findTransients(AIreg(2), AIreg(1), DD, S, Scorr, Z2, S2);
+
+        R=imProc.sources.findTransients(AIreg(5), AIreg(1), DD, S, Scorr, Z2, S2);
     end
 
 
@@ -134,6 +139,8 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef
     SdN   = ObjNew.copy;
     SdR   = ObjNew.copy;
 
+    Fd    = zeros(Nmax,1);
+    F_S   = zeros(Nmax,1);
     for Imax=1:1:Nmax
         Ir = min(N_R, Imax);
         In = min(N_N, Imax);
@@ -207,7 +214,7 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef
         FlagN      = isnan(Rwb);
         Rwb(FlagN) = median(BackR,'all','omitnan');
         
-        [ImageScorr, ImageS, ImageD, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, SdeltaR] = imUtil.properSub.subtractionScorr(N_hat, R_hat,...
+        [ImageScorr, ImageS, ImageD, Pd, Fd(Imax), F_S(Imax), D_den, D_num, D_denSqrt, SdeltaN, SdeltaR] = imUtil.properSub.subtractionScorr(N_hat, R_hat,...
                                                                               Pn_hat, Pr_hat,...
                                                                               SigmaN, SigmaR,...
                                                                               Fn, Fr,...
@@ -220,24 +227,33 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef
                                                                               'SetToNaN',FlagNaN,...
                                                                               'NormS',Args.NormS,...
                                                                               'NormD',Args.NormD,...
+                                                                              'NormDbyFd',Args.NormDbyFd,...
                                                                               'IsFFT',true);
                                                                                
 
-
-        [ImageZ2,Zhat,Norm] = imUtil.properSub.translient(N.*Fn, R.*Fr, Pn, Pr, SigmaN, SigmaR);
-        % move this to the translient code
-        ImageZ2(FlagNaN) = NaN;
-
-        k = 1;  % chi^2 with k=1 dof
-        ExpectedMedian = k.*(1 - 2./(9.*k)).^3;
-
-        %ImageZ2 = ImageZ2 - median(ImageZ2,'all','omitnan') + ExpectedMedian;
-        ImageZ2 = ImageZ2./tools.math.stat.rstd(ImageZ2,'all').*sqrt(2.*k);
+        if Args.CalcTranslient
+            [ImageZ2,Zhat,Norm] = imUtil.properSub.translient(N.*Fn, R.*Fr, Pn, Pr, SigmaN, SigmaR);
+            % move this to the translient code
+            ImageZ2(FlagNaN) = NaN;
+    
+            k = 1;  % chi^2 with k=1 dof
+            ExpectedMedian = k.*(1 - 2./(9.*k)).^3;
+    
+            %ImageZ2 = ImageZ2 - median(ImageZ2,'all','omitnan') + ExpectedMedian;
+            ImageZ2 = ImageZ2./tools.math.stat.rstd(ImageZ2,'all').*sqrt(2.*k);
+            Z2(Imax).Image = ImageZ2;
         
-        ImageS2 = ImageS.^2;
-        ImageS2 = ImageS2./tools.math.stat.rstd(ImageS2,'all').*sqrt(2.*k);
-                
+            ImageS2 = ImageS.^2;
+            ImageS2 = ImageS2./tools.math.stat.rstd(ImageS2,'all').*sqrt(2.*k);
 
+            S2(Imax).Image    = ImageS2;
+            S2(Imax).MaskData = D(Imax).MaskData;
+
+        end  
+
+        if ~isempty(Args.HalfSizePSF)
+            Pd = imUtil.psf.full2stamp(Pd, 'StampHalfSize',Args.HalfSizePSF, Args.full2stampArgs{:});
+        end
 
         D(Imax).Image = ImageD;
         D(Imax).PSF   = Pd;
@@ -249,14 +265,12 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR] = properSubtraction(ObjNew, ObjRef
         S(Imax).PSF   = Pd;
         S(Imax).MaskData = D(Imax).MaskData;
 
-        S2(Imax).Image    = ImageS2;
-        S2(Imax).MaskData = D(Imax).MaskData;
-
+        
         Scorr(Imax).Image = ImageScorr;
         Scorr(Imax).PSF   = Pd;
         Scorr(Imax).MaskData = D(Imax).MaskData;
 
-        Z2(Imax).Image = ImageZ2;
+        
 
         SdN(Imax).Image = SdeltaN;
         SdR(Imax).Image = SdeltaR;

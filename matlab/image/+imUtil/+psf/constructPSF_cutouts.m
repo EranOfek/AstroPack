@@ -8,6 +8,9 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     %            the cube. If empty, then set position to (stamp size -1)/2
     %            Default is [].
     %          * ...,key,val,...
+    %            'M1' - Optional structure containing the result of the
+    %                   moment2 function. If empty, then will recalculate
+    %                   the 1st moment. Default is [].
     %            'Norm' - Vector of normalizations per cutrouts.
     %                   These are the flux normalization one has to
     %                   multiply each cutout, before summation.
@@ -18,7 +21,8 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     %                   around the shifted (centered PSF) cube in which to
     %                   measure the stars flux, and this flux will be used
     %                   as the flux normalization.
-    %                   Default is 3.
+    %                   Default is 4.
+    %                   See additional info: https://github.com/EranOfek/AstroPack/issues/259
     %            'Back' - A vector of background to subtract from each
     %                   source stamp. If empty, don't subtract background.
     %                   Default is [].
@@ -59,13 +63,15 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     %                   arguments to pass to imUtil.psf.psf_zeroConvergeArgs.
     %                   Default is {}.
     %
-    %            'mexCutout' - use imUtil.cut.mexCutout.m (true) or
+    %            'mexCutout' - use imUtil.cut.mex.mex_cutout.m (true) or
     %                   imUtil.cut.find_within_radius_mat (false).
     %                   Default is true.
     %            'Circle' - If true, then will set all points outside the radius to NaN.
     %                   Default is false.
     %            'MomRadius' - radius for 2nd moment calculations.
     %                   Default is 8.
+    %            'Annulus' - [Inner, Outer] annulus raddi for background.
+    %                   Default is [10 12].
     %            'ShiftMethod' - Options are:
     %                   'lanczos' - Lanczos interpolation.
     %                   'fft' - Sinc interpolation.
@@ -87,8 +93,9 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         Image                             % 2D image or cube of cutouts
         XY                         = [];  % XY positions of sources in image
         
+        Args.M1                    = []; % override the first moment calculation
         Args.Norm                  = [];  % vector of normalization per cutout
-        Args.FluxRadius            = 3; % if norm is not given.
+        Args.FluxRadius            = 4; % if norm is not given.
         Args.Back                  = [];  % Back to subtract. If [] don't subtract.
         Args.SubAnnulusBack logical= false;  % subtract annulus background
         Args.backgroundCubeArgs cell= {};
@@ -106,7 +113,8 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         Args.Circle logical        = false;
         Args.ReCenter logical      = true;    % call moment2
         Args.MomRadius             = 8;
-                
+        Args.Annulus               = [10 12];        
+        
         Args.ShiftMethod           = 'fft';   % 'lanczos' | 'fft'
         Args.A                     = 2;
         Args.IsCircFilt logical    = true;
@@ -136,7 +144,14 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         Y = XY(:,2);
     end
     
-    [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, X, Y, MaxRadius, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
+    if ndims(Image)==2
+        [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, X, Y, MaxRadius, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
+    else
+        Cube = Image;
+        RoudnX = round(X);
+        RoundY = round(Y);
+    end
+
     Dim = 3;
     Nim = size(Cube,3);
     
@@ -159,7 +174,11 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     if Args.ReCenter
         
         %M1 = imUtil.image.moment2(Cube, X, Y, 'MomRadius',Args.MomRadius);
-        M1 = imUtil.image.moment2(Cube, Xcen, Ycen, 'MomRadius',Args.MomRadius);
+        if isempty(Args.M1)
+            M1 = imUtil.image.moment2(Cube, Xcen, Ycen, 'MomRadius',Args.MomRadius, 'Annulus',Args.Annulus);
+        else
+            M1 = Args.M1;
+        end
         X  = M1.X;
         Y  = M1.Y;
         

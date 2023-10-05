@@ -49,7 +49,7 @@ function Result = interpOverMaskedPix(Obj, Args)
 
         if numel(Ind)>1e5
             % too many band pixels
-            error('Too many bad pixels');e
+            error('Too many bad pixels: %d',numel(Ind));
         end
      
         % interpolate over staurated pixels
