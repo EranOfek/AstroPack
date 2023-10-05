@@ -30,6 +30,9 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
         Args.NormS logical    = true;
         Args.NormD logical    = false;
 
+        Args.NormDbyFd logical = true;
+        Args.HalfSizePSF       = [];   % if empty do not touch
+        Args.full2stampArgs cell = {};
         Args.CalcTranslient logical    = true;  % if false will skip Z2 and S2
         
     end
@@ -224,6 +227,7 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
                                                                               'SetToNaN',FlagNaN,...
                                                                               'NormS',Args.NormS,...
                                                                               'NormD',Args.NormD,...
+                                                                              'NormDbyFd',Args.NormDbyFd,...
                                                                               'IsFFT',true);
                                                                                
 
@@ -247,6 +251,9 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
 
         end  
 
+        if ~isempty(Args.HalfSizePSF)
+            Pd = imUtil.psf.full2stamp(Pd, 'StampHalfSize',Args.HalfSizePSF, Args.full2stampArgs{:});
+        end
 
         D(Imax).Image = ImageD;
         D(Imax).PSF   = Pd;
