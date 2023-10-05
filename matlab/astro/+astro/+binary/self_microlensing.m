@@ -55,7 +55,7 @@ function [TotMu,Res]=self_microlensing(D, Args)
         Args.DistUnits = 'pc';
         
         Args.SrcRad    = 6400;
-        Args.LensRad   = 10;
+        Args.LensRad   = 15;
         %Args.LensB     = 1e12;
         Args.SrcRadUnits = 'km';
                 
@@ -71,6 +71,7 @@ function [TotMu,Res]=self_microlensing(D, Args)
         Args.Nstep         = [];
         Args.Oversampling  = 3;
 
+        Args.UseIndivMag logical  = true;
     end
     
     SrcRad  = convert.length(Args.SrcRadUnits, Args.DistUnits, Args.SrcRad);   % in DistUnits
@@ -95,15 +96,34 @@ function [TotMu,Res]=self_microlensing(D, Args)
             end
 
             Beta = D(:).'.*Rstar;
+            Nbeta = numel(Beta);
             
             CosFun = @(R,u,b) real(acos((-R.^2 +u.^2+b.^2)./(2.*u.*b)));
-            
-            U = (Rlens:Args.IntStep:(Beta+Rstar+Rlens)).';
-            
-            CF = CosFun(Rstar, U, Beta);
-            CF(isnan(CF)) = 0;
-            Mag = (U.^2 + 2)./(U.*sqrt(U.^2 + 4));
-            TotMu = trapz(U, 2.*pi.*U.*Mag.*CF./pi, 1)./(pi.*Rstar.^2);  % noramlize to area of src
+            TotMu  = zeros(1,Nbeta);
+            for Ib=1:1:Nbeta
+                U = (Rlens:Args.IntStep:(Beta(Ib)+Rstar+Rlens)).';
+
+                CF = CosFun(Rstar, U, Beta(Ib));
+                CF(isnan(CF)) = 0;
+
+
+                if Args.UseIndivMag
+                    U0     = sqrt(U.^2 + 4.*Res.ER.^2);
+                    Theta1 = 0.5.*(U + U0);
+                    Theta2 = 0.5.*(U - U0);
+                    MagBase = (U.^2 + 2)./(2.*U.*sqrt(U.^2 + 4));
+                    Mag1   = MagBase + 0.5;
+                    Mag2   = MagBase - 0.5;
+                    % Flags for images that are occulted by the lens
+                    FlagT1 = double(Theta1>Rlens);
+                    FlagT2 = double(Theta2>Rlens);
+                    Mag    = Mag1.*FlagT1 + Mag2.*FlagT2;
+                else
+                    Mag = (U.^2 + 2)./(U.*sqrt(U.^2 + 4));
+                end
+
+                TotMu(Ib) = trapz(U, 2.*pi.*U.*Mag.*CF./pi, 1)./(pi.*Rstar.^2);  % noramlize to area of src
+            end
             
             Res.AngSrcRad  = AngSrcRad;
             Res.AngLensRad = AngLensRad;
