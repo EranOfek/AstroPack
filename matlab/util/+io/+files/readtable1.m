@@ -13,9 +13,9 @@ function Var = readtable1(TableFile,varargin)
     %io.msgLog(LogLevel.Debug, 'readtable1: %s', TableFile);
     if isdeployed    
         if ~isfile(TableFile)        
-            FileName = fileMapFind(TableFile);
+            TableFile = fileMapFind(TableFile);
         end
     end
 
-    Var = readtable(FileName, varargin{:});
+    Var = readtable(TableFile, varargin{:});
 end
