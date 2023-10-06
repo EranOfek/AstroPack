@@ -89,11 +89,11 @@ function [TotMu,Res]=self_microlensing(D, Args)
             Rstar = AngSrcRad./Res.ER;
             Rlens = AngLensRad./Res.ER;
 
-            if Res.ER<AngLensRad
-                error('The calculation is in the ER<LensRad regime - not correct');
-                % add treatment for both images seperatly...
-
-            end
+%             if Res.ER<AngLensRad
+%                 error('The calculation is in the ER<LensRad regime - not correct');
+%                 % add treatment for both images seperatly...
+% 
+%             end
 
             Beta = D(:).'.*Rstar;
             Nbeta = numel(Beta);
