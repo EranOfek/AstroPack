@@ -29,9 +29,9 @@ function Result=lsqRelPhot(InstMag, Args)
     %                   Default is [].
     %            'Sparse' - Use sparse matrices. Default is true.
     %            
-    %            'ZP_PrefixName' - In the column names cell, this is the
+    %            'ZP_PrefixName' - In the column names cell of the design matrix, this is the
     %                   prefix of the images zero point.
-    %            'MeanMag_PrefixName' - In the column names cell, this is the
+    %            'MeanMag_PrefixName' - In the column names cell of the design matrix, this is the
     %                   prefix of the stars mean magnitudes.
     %            'StarProp' - A cell array of vectors. Each vector
     %                   must be of the length equal to the number of stars.
@@ -47,6 +47,9 @@ function Result=lsqRelPhot(InstMag, Args)
     %                   Default is {}.
     %            'ImagePropNames' - Like StarPropNames, but for the images.
     %                   Default is 'IP'.
+    %            'ThresholdSigma' - Threshold in sigmas (std) for flagging good
+    %                   data (used by imUtil.calib.resid_vs_mag).
+    %                   Default is 3.
     %            'resid_vs_magArgs' - A cell array of arguments to pass to 
     %                   imUtil.calib.resid_vs_mag
     %                   Default is {}.
@@ -67,7 +70,9 @@ function Result=lsqRelPhot(InstMag, Args)
     %                   solution over all stars.
     %            .AssymStd - Assymptoic rms in the mag vs. std plot,
     %                   estimated from the minimum of the plot.
+    %                   (Return NaN if Niter=1).
     %            .MagAssymStd - Magnitude of the assymptotic rms.
+    %                   (Return NaN if Niter=1).
     %            .ColNames - Column names of the solution.
     % Author : Eran Ofek (Jun 2023)
     % Example: imUtil.calib.lsqRelPhot; % simulation mode
@@ -90,7 +95,7 @@ function Result=lsqRelPhot(InstMag, Args)
         Args.ImageProp             = {};  % one vector of properties per image - e.g., airmass
         Args.ImagePropNames        = 'IP';
         
-        
+        Args.ThresholdSigma        = 3;
         Args.resid_vs_magArgs cell = {};
     end
     
@@ -105,6 +110,9 @@ function Result=lsqRelPhot(InstMag, Args)
 
         InstMag = ZP + Mag.';
         InstMag = InstMag + MagErr.*randn(size(InstMag));
+        %InstMag(100) +InstMag + 0.5;
+        % add outliers
+        
         
         Args.MagErr = MagErr;
     end
@@ -160,7 +168,7 @@ function Result=lsqRelPhot(InstMag, Args)
         
         if Iiter<Args.Niter
             % skip this step in the last iteration
-            [FlagResid,Res] = imUtil.calib.resid_vs_mag(ParMag(:), StdStar(:), Args.resid_vs_magArgs{:});
+            [FlagResid,Res] = imUtil.calib.resid_vs_mag(ParMag(:), StdStar(:), Args.ThresholdSigma, Args.resid_vs_magArgs{:});
             FlagResid = repmat(FlagResid(:),[1, Nimage]).';
             
             % calc VarY
@@ -192,7 +200,12 @@ function Result=lsqRelPhot(InstMag, Args)
     Result.StdStar   = StdStar;
     Result.StdImage  = std(ResidSquare, [], 2, 'omitnan');
     
-    [Result.AssymStd, Imin] = min(Res.InterpStdResid);
-    Result.MagAssymStd      = Res.Mag(Imin);
+    if Args.Niter>1
+        [Result.AssymStd, Imin] = min(Res.InterpStdResid);
+        Result.MagAssymStd      = Res.Mag(Imin);
+    else
+        Result.AssymStd    = NaN;
+        Result.MagAssymStd = NaN;
+    end
     Resilt.ColNames         = CN;
 end
