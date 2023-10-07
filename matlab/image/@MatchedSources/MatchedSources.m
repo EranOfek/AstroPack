@@ -2006,7 +2006,9 @@ classdef MatchedSources < Component
     methods % combine/merge
         
         function [Result] = searchFlags(MS, Args)
-            % Identify specific flags in MatchedSources matrix.
+            % Search specific flags in MatchedSources matrix.
+            %   Return a matrix of logical indicating if the specific flags
+            %   are present in each entry.
             % Input  : - A single element MatchedSources object.
             %          * ...,key,val,...
             %            'BitDic' - A BitDictionary object to use.
@@ -2049,7 +2051,48 @@ classdef MatchedSources < Component
             end
         end
    
-    
+        function Result = countFlags(MS, Args)
+            % Count specific flags per source or per epoch.
+            % Input  : - A single element MatchedSources object.
+            %          * ...,key,val,...
+            %            'Dim' - Dimension over which to count the flags.
+            %                   Default is 1 (return count per source).
+            %            'BitDic' - A BitDictionary object to use.
+            %                   Default is BitDictionary.
+            %            'PropFlags' - The name of the flags matrix in the Data
+            %                   property. Default is 'FLAGS'.
+            %            'FlagsList' - A cell array containing a list of
+            %                   bit names to identify.
+            %                   Default is {'NearEdge','Saturated','NaN','Negative'}
+            %            'Opertor' - If multiple bit names are requested
+            %                   then this is the operator to apply between
+            %                   the bit names. Options are @or | @and.
+            %                   Default is @or.
+            %            'NotFlag' - Apply @not operator before counting
+            %                   the flags. Default is false.
+            % Output : - A vector containing the numbre of entries (along
+            %            the requested dimension) with the specific
+            %            requested flags.
+            % Author : Eran Ofek (Oct 2023)
+            % Example: Res = countFlags(MS);
+
+            arguments
+               MS(1,1) MatchedSources
+               Args.Dim             = 1;
+               Args.BitDic          = BitDictionary;
+               Args.PropFlags       = 'FLAGS';
+               Args.FlagsList       = {'NearEdge','Saturated','NaN','Negative'};
+               Args.Opertor         = @or; % @or | @and
+               Args.NotFlag logical = false;
+            end
+            
+            FlagMatrix = searchFlags(MS, 'BitDic',Args.BitDic, 'PropFlags',Args.PropFlags, 'FlagsList',Args.FlagsList, 'Opertor',Args.Operator);
+            if Args.NotFlag
+                FlagMatrix = ~FlagMatrix;
+            end
+            Result = sum(FlagMatrix, Args.Dim);            
+             
+        end
 
         
         
@@ -2145,6 +2188,7 @@ classdef MatchedSources < Component
     
 
     methods % detrending
+        
         function Result=sysrem(Obj, Args)
             % Apply sysrem (Tamuz et al.) to magnitude matrices in MatchedSources object.
             % Input  : - A MatchedSources object.
