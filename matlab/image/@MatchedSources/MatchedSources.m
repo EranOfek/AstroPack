@@ -2004,6 +2004,55 @@ classdef MatchedSources < Component
     end
     
     methods % combine/merge
+        
+        function [Result] = searchFlags(MS, Args)
+            % Identify specific flags in MatchedSources matrix.
+            % Input  : - A single element MatchedSources object.
+            %          * ...,key,val,...
+            %            'BitDic' - A BitDictionary object to use.
+            %                   Default is BitDictionary.
+            %            'PropFlags' - The name of the flags matrix in the Data
+            %                   property. Default is 'FLAGS'.
+            %            'FlagsList' - A cell array containing a list of
+            %                   bit names to identify.
+            %                   Default is {'NearEdge','Saturated','NaN','Negative'}
+            %            'Opertor' - If multiple bit names are requested
+            %                   then this is the operator to apply between
+            %                   the bit names. Options are @or | @and.
+            %                   Default is @or.
+            % Output : - An array of logicals of size Nepoch X Nsrc.
+            %            Each element in the array indicate if the
+            %            requested bit names where found in this entry.
+            % Author : Yhuda Stern (Sep 2023)
+            % Example: FlagId = searchFlags(MS);
+
+            arguments
+               MS(1,1) MatchedSources
+               Args.BitDic       = BitDictionary;
+               Args.PropFlags    = 'FLAGS';
+               Args.FlagsList    = {'NearEdge','Saturated','NaN','Negative'};
+               Args.Opertor      = @or; % @or | @and
+            end
+
+            BitClass = Args.BitDic.Class;
+            Flags = BitClass(MS.Data.(Args.PropFlags));
+
+            Result = zeros(size(Flags));
+            Nflag  = numel(Args.FlagsList);
+            for Iflag = 1:1:Nflag
+                FieldIndex = find(strcmp(Args.BitDic.Dic.BitName, Args.FlagsList{Iflag}));
+                if ~isempty(FieldIndex)
+                    Result = Args.Operator(Result, bitget(Flags,FieldIndex));
+                else
+                    error('Field "%s" not found in dictionary', Args.Flags{Iflag});
+                end
+            end
+        end
+   
+    
+
+        
+        
 %         function matchReturnIndices
 %             
 %         end
