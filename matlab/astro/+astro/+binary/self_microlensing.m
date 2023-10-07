@@ -1,5 +1,5 @@
 function [TotMu,Res]=self_microlensing(D, Args)
-    % Estimate the self microlensing for binary stars
+    % Calculate the self microlensing for binary stars
     % Input  : - A vector of the impact parameters at which to calculate
     %            the total magnification, in units of the SrcRad.
     %          * ...,key,val,...
