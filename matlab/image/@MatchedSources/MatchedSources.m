@@ -2266,7 +2266,7 @@ classdef MatchedSources < Component
             %                   (Return NaN if Niter=1).
             %            .ColNames - Column names of the solution.
             % Author : Eran Ofek (Jun 2023)
-            % Example: 
+            % Example: R=lsqRelPhot(MS);
             
             arguments
                 Obj 
