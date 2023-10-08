@@ -1,8 +1,11 @@
-function [TotMu,Res]=self_microlensing(D, Args)
+function [TotMu,Res]=self_microlensing(ImpactPar, Args)
     % Calculate the self microlensing for binary stars
     % Input  : - A vector of the impact parameters at which to calculate
     %            the total magnification, in units of the SrcRad.
     %          * ...,key,val,...
+    %            'ImpactParUnits' - Units of the ImpactPar argument:
+    %                   'SrcRad' - Src radius (default).
+    %                   'SrcRadUnits' - The sams as SrcRadUnits.
     %            'Dl' - Dist. to lens. Default is 1000.
     %            'Dls' - Dist from lens to source. Default is 0.01./206000
     %            'DistUnits' - Dist. units. Default is 'pc'.
@@ -49,7 +52,8 @@ function [TotMu,Res]=self_microlensing(D, Args)
     %          for Id=1:1:numel(Beta);TotMu(Id)=astro.binary.self_microlensing(Beta(Id), 'Dls',Dls(end)); end
     
     arguments
-        D             % in SrcRad units
+        ImpactPar             % in SrcRad units
+        Args.ImpactParUnits  = 'SrcRad';  % 'SrcRad','SrcRadUnits'
         Args.Dl        = 1000;
         Args.Dls       = 0.01./206000;
         Args.DistUnits = 'pc';
@@ -74,6 +78,15 @@ function [TotMu,Res]=self_microlensing(D, Args)
         Args.UseIndivMag logical  = true;
     end
     
+    switch Args.ImpactParUnits
+        case 'SrcRad'
+            % do nothing
+        case 'SrcRadUnits'
+            ImpactPar = ImpactPar./Args.SrcRad;
+        otherwise
+            error('Unknown ImpactParUnits option');
+    end
+    
     SrcRad  = convert.length(Args.SrcRadUnits, Args.DistUnits, Args.SrcRad);   % in DistUnits
     LensRad = convert.length(Args.SrcRadUnits, Args.DistUnits, Args.LensRad);  % in DistUnits
     Ds      = Args.Dl+Args.Dls;
@@ -95,7 +108,7 @@ function [TotMu,Res]=self_microlensing(D, Args)
 % 
 %             end
 
-            Beta = D(:).'.*Rstar;
+            Beta = ImpactPar(:).'.*Rstar;
             Nbeta = numel(Beta);
             
             CosFun = @(R,u,b) real(acos((-R.^2 +u.^2+b.^2)./(2.*u.*b)));
