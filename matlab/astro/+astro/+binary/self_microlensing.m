@@ -96,9 +96,19 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
     switch Args.Algo
         case '1d'
             % Convert to ER units
-            Res = astro.microlensing.ps_lens('Mass',Args.Mass, 'MassUnits',Args.MassUnits,...
+            if nargout>1
+                Res = astro.microlensing.ps_lens('Mass',Args.Mass, 'MassUnits',Args.MassUnits,...
                                              'Dl',Args.Dl, 'Ds',Ds, 'DistUnits',Args.DistUnits,...
                                              'Beta',0, 'BetaUnits','rad','OutUnits','rad');
+            else
+                Mass_gr  = convert.mass(Args.MassUnits,'gr',Args.Mass);
+                DistConv = convert.length(Args.DistUnits,'cm');
+                Dls_cm   = Args.Dls.*DistConv;
+                Dl_cm    = Args.Dl.*DistConv;
+                Ds_cm    = Dls_cm + Dl_cm;
+                
+                Res.ER = sqrt(4.*constant.G.*Mass_gr.*Dls_cm./(constant.c.^2 .*Dl_cm.*Ds_cm));
+            end
             Rstar = AngSrcRad./Res.ER;
             Rlens = AngLensRad./Res.ER;
 
