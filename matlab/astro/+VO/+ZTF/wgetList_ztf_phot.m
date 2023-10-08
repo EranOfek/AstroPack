@@ -38,6 +38,7 @@ function AllT=wgetList_ztf_phot(Cat, Args)
     Ncat = size(CatCoo,1);
     Nband = numel(Args.Band);
     for Icat=1:1:Ncat
+        [Icat, Ncat]
         for Iband=1:1:Nband
             [Table,Str] = VO.ZTF.wget_ztf_phot(CatCoo(Icat,1),CatCoo(Icat,2), Args.Band(Iband),...
                                                'Radius',Args.Radius,...
