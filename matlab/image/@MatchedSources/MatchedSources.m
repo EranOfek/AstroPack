@@ -2316,8 +2316,8 @@ classdef MatchedSources < Component
                                                       'ImagePropNames',Args.ImagePropNames,...
                                                       'ThresholdSigma',Args.ThresholdSigma,...
                                                       'resid_vs_magArgs',Args.resid_vs_magArgs);
-            % TBD / apply ZP?
-            
+                % TBD / apply ZP?
+            end
         end
         
         function Result=sysrem(Obj, Args)
