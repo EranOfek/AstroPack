@@ -30,7 +30,7 @@ function weightedPSF(Args)
     PiCl = astro.stars.tlogg2picklesClass(10.^logT,logg); 
     
     WPSF = zeros(size(PSFdata,1),size(PSFdata,2),NTemp,Ng,Nrad);
-    Rad90 = zeros(NTemp,Ng,Nrad);
+    Rad50 = zeros(NTemp,Ng,Nrad);
     
     for ITemp = 1:NTemp
         for Ig = 1:Ng
@@ -41,13 +41,13 @@ function weightedPSF(Args)
                 Wcube = PSFdata(:,:,:,Irad) .* Sp3;
                 SumL  = squeeze( sum(Wcube,3) );
                 WPSF(:,:,ITemp,Ig,Irad) = SumL ./ sum( SumL, [1,2] );
-                Rad90(ITemp,Ig,Irad) = imUtil.psf.containment(WPSF(:,:,ITemp,Ig,Irad),'Level',0.9)./Args.ImRes;
+                Rad50(ITemp,Ig,Irad) = imUtil.psf.containment(WPSF(:,:,ITemp,Ig,Irad),'Level',0.5)./Args.ImRes;
             end
         end
     end
     
     % weight the PSF stamps with the spectra
-    save('~/weightedPSF.mat','WPSF','logT','logg','Rad');
-    save('~/PSFContain90Rad.mat','Rad90','logT','logg','Rad');
+    save('~/weightedPSF50.mat','WPSF','logT','logg','Rad');
+    save('~/PSFContain50Rad.mat','Rad50','logT','logg','Rad');
     
 end
