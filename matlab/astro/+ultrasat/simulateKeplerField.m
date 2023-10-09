@@ -125,6 +125,18 @@ function simImage = simulateKeplerField(Args)
         
 %         fprintf('%s%10.2f\n','SNR: ',SNR.SNR);
         toc
+        
+        io.files.load1('RadSrc'); % 'RadSrc','InFOV'
+        io.files.load1('../PSFContain90rad.mat'); % 'Rad90','logT','logg','Rad'
+        NSrc = 10; % TEST ONLY
+        NoisePerPix = 75;
+        for Isrc = 1:1:NSrc
+            logTeff = log10(Tab(Isrc).Teff);
+            logG    = Tab(Isrc).logg;
+            PSFRad = interpn(logT, logg, Rad, Rad90, logTeff, logG, RadSrc(i));
+            SNR(Isrc) = 0.8 * CPS(ISrc) / (3.14 * PSFRad^2 * NoisePerPix );    
+        end
+        
     end
     
     %%%% run the simulation 
