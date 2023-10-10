@@ -153,8 +153,12 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
             % The Agol (2003) magnification in the limit of RE<<R*:
             Res.AgolMagnification = (pi.*Res.AngSrcRad.^2+2.*pi.*Res.ER.^2)./(pi.*Res.AngSrcRad.^2);
 
-
         case '2d'
+            % develop
+
+        case '2d_old'
+            % not good enough
+            
             if isempty(Args.Nstep)
                 % auto selection of Nstep
                 % such that the step size is like the lens size, so when we remove
