@@ -112,12 +112,6 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
             Rstar = AngSrcRad./Res.ER;
             Rlens = AngLensRad./Res.ER;
 
-%             if Res.ER<AngLensRad
-%                 error('The calculation is in the ER<LensRad regime - not correct');
-%                 % add treatment for both images seperatly...
-% 
-%             end
-
             Beta = ImpactPar(:).'.*Rstar;
             Nbeta = numel(Beta);
             
@@ -155,6 +149,38 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
 
         case '2d'
             % develop
+            
+            if nargout>1
+                Res = astro.microlensing.ps_lens('Mass',Args.Mass, 'MassUnits',Args.MassUnits,...
+                                             'Dl',Args.Dl, 'Ds',Ds, 'DistUnits',Args.DistUnits,...
+                                             'Beta',0, 'BetaUnits','rad','OutUnits','rad');
+            else
+                Mass_gr  = convert.mass(Args.MassUnits,'gr',Args.Mass);
+                DistConv = convert.length(Args.DistUnits,'cm');
+                Dls_cm   = Args.Dls.*DistConv;
+                Dl_cm    = Args.Dl.*DistConv;
+                Ds_cm    = Dls_cm + Dl_cm;
+                
+                Res.ER = sqrt(4.*constant.G.*Mass_gr.*Dls_cm./(constant.c.^2 .*Dl_cm.*Ds_cm));
+            end
+            Rstar = AngSrcRad./Res.ER;
+            Rlens = AngLensRad./Res.ER;
+
+            Beta = ImpactPar(:).'.*Rstar;
+            Nbeta = numel(Beta);
+            
+            CosFun = @(R,u,b) real(acos((-R.^2 +u.^2+b.^2)./(2.*u.*b)));
+            TotMu  = zeros(1,Nbeta);
+            
+            
+            
+            for Ib=1:1:Nbeta
+                
+                
+            end
+    
+            
+            
 
         case '2d_old'
             % not good enough
