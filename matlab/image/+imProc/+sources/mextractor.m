@@ -61,11 +61,12 @@ function Result=mextractor(Obj, Args)
                                                                       'Psf',Result(Iobj).PSFData.getPSF,...
                                                                       'BackIm',Result(Iobj).Back,...
                                                                       'VarIm',Result(Iobj).Var,...
-                                                                      'CleanSources',flase);
+                                                                      'CleanSources',flase,...
+                                                                      'AddValAtPos',true);
             % Clean sources
-                                                                  
-   
-        
+            % Use VAL to calculate SN for delta function
+            
+  
             % PSF fit sources
 
             % Add sources to list
