@@ -57,7 +57,7 @@ function Result=mextractor(Obj, Args)
             end
 
             % find sources
-            ResSrc(Iobj,Iiter) = imUtul.sources.findSources(SubImage, 'Threshold',Args.Threshold(Iiter),...
+            ResSrc(Iobj,Iiter) = imUtil.sources.findSources(SubImage, 'Threshold',Args.Threshold(Iiter),...
                                                                       'Psf',Result(Iobj).PSFData.getPSF,...
                                                                       'BackIm',Result(Iobj).Back,...
                                                                       'VarIm',Result(Iobj).Var,...
@@ -65,7 +65,7 @@ function Result=mextractor(Obj, Args)
                                                                       'AddValAtPos',true);
             % Clean sources
             % Use VAL to calculate SN for delta function
-            
+            SN_delta = (ResSrc(Iobj,Iiter).VAL - ResSrc(Iobj,Iiter).BACK_IM)./sqrt(ResSrc(Iobj,Iiter).VAR_IM);
   
             % PSF fit sources
 
