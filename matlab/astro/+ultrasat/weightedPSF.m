@@ -3,9 +3,10 @@ function weightedPSF(Args)
     % Input: -
     %        * ...,key,val,... 
     %       'ImRes' - image oversampling in 1/pix units (allowed values: 1, 2, 5, 10, 47.5)
-    % Output: a matlab object with the weighted PSFs
+    %       'ContainmentLevel' - calculate the radius where a certain percent of the total PSF flux is contained
+    % Output: matlab objects with spectrum-weighted PSFs and their flux containment radii
     % Author: A.M. Krassilchtchikov (Oct 2023)
-    % Exmaple: 
+    % Example: ultrasat.weightedPSF('ContainmentLevel',0.9);
     arguments
         Args.ImRes = 5; 
         Args.ContainmentLevel = 0.5;
@@ -31,8 +32,9 @@ function weightedPSF(Args)
     PiCl = astro.stars.tlogg2picklesClass(10.^logT,logg); 
     
     WPSF = zeros(size(PSFdata,1),size(PSFdata,2),NTemp,Ng,Nrad);
-    Rad50 = zeros(NTemp,Ng,Nrad);
+    ContRad  = zeros(NTemp,Ng,Nrad);
     
+    % weight the PSF stamps with the spectra
     for ITemp = 1:NTemp
         for Ig = 1:Ng
             Sp  = AstroSpec.specStarsPickles(PiCl(ITemp,Ig).class,PiCl(ITemp,Ig).lumclass);
@@ -42,13 +44,13 @@ function weightedPSF(Args)
                 Wcube = PSFdata(:,:,:,Irad) .* Sp3;
                 SumL  = squeeze( sum(Wcube,3) );
                 WPSF(:,:,ITemp,Ig,Irad) = SumL ./ sum( SumL, [1,2] );
-                Rad50(ITemp,Ig,Irad) = imUtil.psf.containment(WPSF(:,:,ITemp,Ig,Irad),'Level',Args.ContainmentLevel)./Args.ImRes;
+                ContRad(ITemp,Ig,Irad) = imUtil.psf.containment(WPSF(:,:,ITemp,Ig,Irad),'Level',Args.ContainmentLevel)./Args.ImRes;
             end
         end
-    end
+    end 
     
-    % weight the PSF stamps with the spectra
-    save('~/weightedPSF50.mat','WPSF','logT','logg','Rad');
-    save('~/PSFContain50Rad.mat','Rad50','logT','logg','Rad');
+    save('spec_weightedPSF_Pickles.mat','WPSF','logT','logg','Rad');
+    FName = sprintf('%s%0.2f%s','spec_weightedPSF_PicklesContain',Args.ContainmentLevel,'Rad.mat');
+    save(FName,'ContRad','logT','logg','Rad');
     
 end

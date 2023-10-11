@@ -776,7 +776,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         OutTxtName = sprintf('%s%s%s%s%s%s',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'_InCat.txt'); 
         fileID = fopen(OutTxtName,'w'); 
 %         fprintf(fileID,'%7.1f %7.1f %5.2f %.2d\n',Cat(:,(1:4))');
-        fprintf(fileID,'%7.1f %7.1f %5.2f %.2d %.4d %.4d\n',Cat');
+        fprintf(fileID,'%7.1f %7.1f %5.2f %.2f %.2f %.2d %.4d %.4d\n',Cat');
         fclose(fileID);
         
         % an accompanying region file: 

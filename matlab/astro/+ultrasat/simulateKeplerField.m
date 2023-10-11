@@ -90,24 +90,24 @@ function simImage = simulateKeplerField(Args)
             error('Unknown spectral type');
     end
     %%% calculate crude source SNRs from the previous runs and augment the source table:
-    if (Args.SNR)        
-        InCat = readtable('SimKepler_tileB_InCat.txt','FileType','text');
-        CPS = InCat.Var3 * 300 * Args.ExpNum; 
-        io.files.load1('SimKepler_tileB_RadSrc.mat'); % 'RadSrc','InFOV'
-        Tab = addvars(Tab, InFOV, 'NewVariableNames', {'InFOV'});
-        TabFOV = Tab(InFOV > 0,:); % cut the sources which are out of the tile's FOV 
-        io.files.load1('PSFContain50Rad.mat'); % 'Rad50','logT','logg','Rad'
-        NSrc = size(TabFOV); % TEST ONLY
-        NoisePerPix = 75;
-        for Isrc = 1:1:NSrc
-            logTeff = log10(TabFOV(Isrc,:).Teff);
-            logG    = TabFOV(Isrc,:).logg;
-            PSFRad = interpn(logT, logg, Rad, Rad50, logTeff, logG, RadSrc(Isrc));
-            SNR(Isrc) = 0.8 * CPS(Isrc) / sqrt(pi * PSFRad^2 * NoisePerPix);                
-        end
-        TabFOV = addvars(TabFOV, SNR', 'NewVariableNames', {'SNR'});
-        writetable(TabFOV, 'TileB50.tbl', 'Delimiter', '\t','FileType','text'); 
-    end
+%     if (Args.SNR)        
+%         InCat = readtable('SimKepler_tileB_InCat.txt','FileType','text');
+%         CPS = InCat.Var3 * 300 * Args.ExpNum; 
+%         io.files.load1('SimKepler_tileB_RadSrc.mat'); % 'RadSrc','InFOV'
+%         Tab = addvars(Tab, InFOV, 'NewVariableNames', {'InFOV'});
+%         TabFOV = Tab(InFOV > 0,:); % cut the sources which are out of the tile's FOV 
+%         io.files.load1('PSFContain50Rad.mat'); % 'Rad50','logT','logg','Rad'
+%         NSrc = size(TabFOV); % TEST ONLY
+%         NoisePerPix = 75;
+%         for Isrc = 1:1:NSrc
+%             logTeff = log10(TabFOV(Isrc,:).Teff);
+%             logG    = TabFOV(Isrc,:).logg;
+%             PSFRad = interpn(logT, logg, Rad, Rad50, logTeff, logG, RadSrc(Isrc));
+%             SNR(Isrc) = 0.8 * CPS(Isrc) / sqrt(pi * PSFRad^2 * NoisePerPix);                
+%         end
+%         TabFOV = addvars(TabFOV, SNR', 'NewVariableNames', {'SNR'});
+%         writetable(TabFOV, 'TileB50.tbl', 'Delimiter', '\t','FileType','text'); 
+%     end
     
     %%%% run the simulation 
     simImage = ultrasat.usim('Cat', Cat, 'Mag', Mag, 'FiltFam','Johnson', 'Filt','V',...
