@@ -89,56 +89,21 @@ function simImage = simulateKeplerField(Args)
         otherwise            
             error('Unknown spectral type');
     end
-    %%%%%%%%%%%%%%%%%%%% calculate ULTRASAT magnitudes and SNR for the catalog objects from the table:
+    %%% calculate crude source SNRs from the previous runs and augment the source table:
     if (Args.SNR)        
-%         tic       % very slow! takes  ~ 90 sec for 1000 objects => ~ 100 hrs for 4 x 10(6) obj !
-%         UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');
-%         io.files.load1(UP_db,'UP');
-%         
-%         % parameters for telescope.sn.snr:
-%         Exp = 300; % sec
-%         NIm = 3;   % number of exposures
-%         T   = Tab.Teff;
-%         SN  = 5;  % S/N for detection
-%         PSFeff = 0.8;
-%         Wave = 2000:11000;
-%         
-%         % the extinction curve:
-%         ExtMag     = astro.spec.extinction(Args.Ebv,(Wave./1e4)');
-%         Extinction = 10.^(-0.4.*ExtMag);
-%         
-%         % set the radial position (in reality it depends on the particular aim point and rotation of the s/c):
-%         Irad = 1; 
-%         
-%         NSrc = 10; % TEST ONLY!
-%         
-%         % rescale the spectra, account for the absorption:
-%         MagU = zeros(NSrc,1);
-%         for Isrc = 1:1:NSrc
-%             MagSc = astro.spec.synthetic_phot([Spec(Isrc).Wave Spec(Isrc).Flux],'Johnson','V','AB');
-%             Factor = 10.^(-0.4.*(MagSc - Tab.Vmag(Isrc)));
-%             SpecObs = Spec(Isrc).Flux .* Extinction ./ Factor;
-%             MagU(Isrc) = astro.spec.synthetic_phot([Wave' SpecObs],UP.U_AstFilt(Irad),'R1','AB');
-%             SNR(Isrc) = telescope.sn.snr('ExpTime',Exp,'Nim',NIm,'TargetSpec',T(Isrc),'PSFeff',PSFeff,'Mag',MagU(Isrc),'CalibFilterFamily',UP.U_AstFilt(Irad),...
-%                 'CalibFilter','','Wave',Wave','SN',SN,'FWHM',UP.EffPSF(Irad));
-%         end
-%         
-% %         fprintf('%s%10.2f\n','SNR: ',SNR.SNR);
-%         toc
-        
         InCat = readtable('SimKepler_tileB_InCat.txt','FileType','text');
         CPS = InCat.Var3 * 300 * Args.ExpNum; 
-        io.files.load1('RadSrc'); % 'RadSrc','InFOV'
+        io.files.load1('SimKepler_tileB_RadSrc.mat'); % 'RadSrc','InFOV'
         Tab = addvars(Tab, InFOV, 'NewVariableNames', {'InFOV'});
-        TabFOV = Tab(InFOV > 0,:); 
-        io.files.load1('/home/kra/PSFContain50Rad.mat'); % 'Rad90','logT','logg','Rad'
+        TabFOV = Tab(InFOV > 0,:); % cut the sources which are out of the tile's FOV 
+        io.files.load1('PSFContain50Rad.mat'); % 'Rad50','logT','logg','Rad'
         NSrc = size(TabFOV); % TEST ONLY
         NoisePerPix = 75;
         for Isrc = 1:1:NSrc
             logTeff = log10(TabFOV(Isrc,:).Teff);
             logG    = TabFOV(Isrc,:).logg;
             PSFRad = interpn(logT, logg, Rad, Rad50, logTeff, logG, RadSrc(Isrc));
-            SNR(Isrc) = 0.8 * CPS(Isrc) / (3.14 * PSFRad^2 * NoisePerPix );    
+            SNR(Isrc) = 0.8 * CPS(Isrc) / sqrt(pi * PSFRad^2 * NoisePerPix);                
         end
         TabFOV = addvars(TabFOV, SNR', 'NewVariableNames', {'SNR'});
         writetable(TabFOV, 'TileB50.tbl', 'Delimiter', '\t','FileType','text'); 
