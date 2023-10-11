@@ -8,6 +8,7 @@ function weightedPSF(Args)
     % Exmaple: 
     arguments
         Args.ImRes = 5; 
+        Args.ContainmentLevel = 0.5;
     end
     
     % lab PSF grid points in radius and wavelength
@@ -41,7 +42,7 @@ function weightedPSF(Args)
                 Wcube = PSFdata(:,:,:,Irad) .* Sp3;
                 SumL  = squeeze( sum(Wcube,3) );
                 WPSF(:,:,ITemp,Ig,Irad) = SumL ./ sum( SumL, [1,2] );
-                Rad50(ITemp,Ig,Irad) = imUtil.psf.containment(WPSF(:,:,ITemp,Ig,Irad),'Level',0.5)./Args.ImRes;
+                Rad50(ITemp,Ig,Irad) = imUtil.psf.containment(WPSF(:,:,ITemp,Ig,Irad),'Level',Args.ContainmentLevel)./Args.ImRes;
             end
         end
     end
