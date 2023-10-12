@@ -1,5 +1,6 @@
 function Result=mextractor(Obj, Args)
     % 
+    % Example: imProc.sources.mextractor(AI)
 
     arguments
         Obj AstroImage
@@ -14,6 +15,7 @@ function Result=mextractor(Obj, Args)
         % PSF fit
         Args.Threshold                 = [50 16.5 5]; % This also specifies the # of iterations
         Args.ReMeasBack logical        = true;
+        Args.ThresholdDiffSN           = 0;
         
         Args.PrelimPsf               = @imUtil.kernel2.gauss;
         Args.PrelimPsfArgs cell      = {[0.1 2]};
@@ -65,9 +67,14 @@ function Result=mextractor(Obj, Args)
                                                                       'AddValAtPos',true);
             % Clean sources
             % Use VAL to calculate SN for delta function
+            % SN_delta : S/N for delta function 
             SN_delta = (ResSrc(Iobj,Iiter).VAL - ResSrc(Iobj,Iiter).BACK_IM)./sqrt(ResSrc(Iobj,Iiter).VAR_IM);
-  
+            SN_diff  = ResSrc(Iobj,Iiter).SN - SN_delta;
+            FlagGood = SN_diff>Args.ThresholdDiffSN;
+            % good stars are in ResSrc(Iobj,Iiter).XPEAK(FlagGood),YPEAK
+            
             % PSF fit sources
+            'a'
 
             % Add sources to list
 
