@@ -139,10 +139,11 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
         %[~,Pos]                       = imUtil.image.local_maxima(SN,1,Args.Threshold,Args.Conn);
         % much faster:
         [Pos] = imUtil.sources.findLocalMax(SN, 'Variance',1, 'Threshold',Args.Threshold,'Conn',Args.Conn, 'Algo','findlocalmex'); %findlocal');
+        % Pos contains: [X,Y,SN,ImageIndex,LinaerIndexIn2D]
         
         % Measure value at Pos
         if Args.AddValAtPos
-            PosInd = imUtil.image.sub2ind_fast(size(Image), Pos(:,3), Pos(:,2));
+            PosInd = imUtil.image.sub2ind_fast(size(Image), Pos(:,2), Pos(:,1));
             ValPos = Image(PosInd);
         else
             ValPos = [];

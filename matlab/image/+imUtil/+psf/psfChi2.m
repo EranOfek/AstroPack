@@ -67,12 +67,12 @@ function [Chi2, WeightedFlux, Dof, ShiftedPSF] = psfChi2(Cube, Std, PSF, Args)
         % assume bith VecXrel and VecYrel are empty:
     
         [Ny, Nx, Nim] = size(Cube);
-        Xcenter = Nx.*0.5 + 0.5;
-        Ycenter = Ny.*0.5 + 0.5;
+        Xcenter = (Nx+1).*0.5;
+        Ycenter = (Ny+1).*0.5;
         Dof     = Nx.*Ny - 3;
     
-        VecXrel = (1:1:Nx) - Xcenter;
-        VecYrel = (1:1:Ny) - Ycenter;
+        Args.VecXrel = (1:1:Nx) - Xcenter;
+        Args.VecYrel = (1:1:Ny) - Ycenter;
     end
     
     if isempty(Args.DX)
@@ -101,8 +101,8 @@ function [Chi2, WeightedFlux, Dof, ShiftedPSF] = psfChi2(Cube, Std, PSF, Args)
         
         Dof      = [];
     else
-        MatX     = permute(VecXrel - Args.DX(:),[3 2 1]);
-        MatY     = permute(VecYrel - Args.DY(:),[2 3 1]);
+        MatX     = permute(Args.VecXrel - Args.DX(:),[3 2 1]);
+        MatY     = permute(Args.VecYrel - Args.DY(:),[2 3 1]);
         MatR2    = MatX.^2 + MatY.^2;
         Flag     = MatR2<Args.FitRadius2;
         %ResidStd2= (Flag.*Resid./Std).^2;

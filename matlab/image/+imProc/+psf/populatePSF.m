@@ -57,7 +57,8 @@ function [Obj,Result]=populatePSF(Obj, Args)
         Args.SuppressWidth             = 3;
     end
     
-    Nobj = numel(Obj);
+    %Result = [];
+    Nobj   = numel(Obj);
     for Iobj=1:1:Nobj
         % for each AstroImage elenment
         
@@ -77,7 +78,7 @@ function [Obj,Result]=populatePSF(Obj, Args)
             end
             if isempty(Obj(Iobj).Back) || isempty(Obj(Iobj).Var)
                 % estimate background
-                Result(Iobj) = imProc.background.background(Obj(Iobj), Args.backgroundArgs{:});
+                Obj(Iobj) = imProc.background.background(Obj(Iobj), Args.backgroundArgs{:});
             end
             
             [Result(Iobj), MeanPSF, VarPSF, NimPSF] = imUtil.psf.constructPSF(Obj(Iobj).Image,...

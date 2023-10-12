@@ -1,6 +1,6 @@
 function psfPhot(Cube, Args)
     %
-    % Example: 
+    % Example: imUtil.psf.psfPhot
    
     arguments
         Cube
@@ -12,6 +12,7 @@ function psfPhot(Cube, Args)
         Args.FitRadius                = 3;
         Args.Xinit                    = [];
         Args.Yinit                    = [];
+        Args.PsfPeakVal               = [];
         
         Args.PSF                      = [];   % PSF stamp - if given override fun
         Args.PSFFun                   = @imUtil.kernel2.gauss;   % alternative PSF function
@@ -23,11 +24,49 @@ function psfPhot(Cube, Args)
         Args.GridPointsX     = cosd((0:60:359));
         Args.GridPointsY     = sind((0:60:359));
         
+        Args.MaxIter = 20;
+        Args.UseSourceNoise logical = true;
+        
+        Args.SN = [];  % is this needed?
+        Args.ConvThresh = 1e-4;
+        
+        
     end
     
-    if Args.SubBack
+    if isempty(Args.PSF)
+        Args.PSF = Args.PSFFun(Args.PSFFunArgs{:});
+    end
+    RadiusPSF = (size(Args.PSF,1)-1).*0.5;
+    
+    % treat the case of a single input image - convert to Cube
+    if ismatrix(Cube) && ~isempty(Args.Xinit) && ~isempty(Args.Yinit)
+        % Input is a matrix
+        % select stamps around Xinit, Yint
+        [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Cube, Args.Xinit, Args.Yinit, RadiusPSF);
+    end
+    
+    if isempty(Args.PsfPeakVal)
+        error('not ready');
+    end
+    
+    % Calculate the coordinates of PSF centers
+    [Ny, Nx, Nim] = size(Cube);
+    Xcenter = (Nx+1).*0.5;
+    Ycenter = (Ny+1).*0.5;
+    Dof     = Nx.*Ny - 3;
+    
+    VecXrel = (1:1:Nx) - Xcenter;
+    VecYrel = (1:1:Ny) - Ycenter;
+    
+    if isempty(Args.Xinit)
+        Args.Xinit = Xcenter;
+    end
+    if isempty(Args.Yinit)
+        Args.Yinit = Ycenter;
+    end
+    
+    if Args.SubBack || Args.UseSourceNoise
         if isempty(Args.Back) || isempty(Args.Std)
-            % calculate background and std
             [Back, Std] = imUtil.sources.backgroundCube(Cube, Args.backgroundCubeArgs{:}, 'Squeeze',false);
         else
             if ndims(Args.Back)<3
@@ -41,32 +80,18 @@ function psfPhot(Cube, Args)
                 Std = Args.Std;
             end
         end
-
-        % subtract background
-        Cube = Cube - Back;
+            
+        if Args.SubBack    
+            % subtract background
+            Cube = Cube - Back;
+        end
     end
     
     FitRadius2 = Args.FitRadius.^2;
     
-    % Calculate the coordinates of PSF centers
-    [Ny, Nx, Nim] = size(Cube);
-    Xcenter = (Nx-1).*0.5;
-    Ycenter = (Ny-1).*0.5;
-    Dof     = Nx.*Ny - 3;
     
-    VecXrel = (1:1:Nx) - Xcenter;
-    VecYrel = (1:1:Ny) - Ycenter;
     
-    if isempty(Args.Xinit)
-        Args.Xinit = Xcenter;
-    end
-    if isempty(Args.Yinit)
-        Args.Yinit = Ycenter;
-    end
     
-    if isempty(Args.PSF)
-        Args.PSF = Args.PSFFun(Args.PSFFunArgs{:});
-    end
     
     %% got here
     
@@ -74,7 +99,7 @@ function psfPhot(Cube, Args)
     if isempty(Args.SN)
         ConvThresh = Args.ConvThresh;
     else
-        ConvThresh = 0.1./Args.SN;
+        ConvThresh = 0.5./Args.SN;
     end
 
     WeightedPSF = sum(Args.PSF.^2, [1 2]); % for flux estimation
@@ -87,18 +112,18 @@ function psfPhot(Cube, Args)
     DX = X - Xcenter + StepX;
     DY = Y - Ycenter + StepY;
         
-    AdditionalIter=false;
-    UseSourceNoise=false;
-    switch lower(Args.UseSourceNoise)
-
-        case 'all'
-            UseSourceNoise=true;
-        case 'off'
-            UseSourceNoise=false;
-        case 'last'
-            AdditionalIter = true;
-            UseSourceNoise=false;
-    end
+%    AdditionalIter=false;
+%    UseSourceNoise=false;
+%     switch lower(Args.UseSourceNoise)
+% 
+%         case 'all'
+%             UseSourceNoise=true;
+%         case 'off'
+%             UseSourceNoise=false;
+%         case 'last'
+%             AdditionalIter = true;
+%             UseSourceNoise=false;
+%     end
 
     %VecD  = [0, Args.SmallStep, 2.*Args.SmallStep];
     H     = []; %VecD.'.^[0, 1, 2];
@@ -106,44 +131,45 @@ function psfPhot(Cube, Args)
     NotConverged = true;
     StdBack = Std;
     Flux0   = 0;
+    
+    X1 = 0;
+    Y1 = 0;
+    RadiusRange = Args.RadiusRange;
     while Ind<Args.MaxIter && NotConverged
         Ind = Ind + 1;
         
-        if UseSourceNoise
+        if Args.UseSourceNoise
             % Add source noise to Std
             % source noise can be treated as scalar or a matrix
             
-            Std = sqrt(pi.*FitRadius2.*Args.Std.^2 + Flux0);
+            StdIter = sqrt(pi.*FitRadius2.*Std.^2 + permute(Args.PsfPeakVal(:),[3 2 1]));
+        else
+            StdIter = Std;
         end
             
-        [X1,Y1,MinChi2,Flux0,Dof,H, Result] = imUtil.psf.psfChi2_RangeIter(Cube, Std, Args.PSF,...
-                                                                           'DX',DX,...
-                                                                           'DY',DY',...
+        X1prev = X1;
+        Y1prev = Y1;
+        
+        [X1,Y1,MinChi2,Flux0,Dof,H, Result] = imUtil.psf.psfChi2_RangeIter(Cube, StdIter, Args.PSF,...
+                                                                           'DX',X1,...
+                                                                           'DY',Y1',...
                                                                            'MinFlux',[],...
                                                                            'WeightedPSF',WeightedPSF,...
                                                                            'FitRadius2',FitRadius2,...
                                                                            'VecXrel',VecXrel,...
                                                                            'VecYrel',VecYrel,...
-                                                                           'RadiusRange',Args.RadiusRange,...
+                                                                           'RadiusRange',RadiusRange,...
                                                                            'MaxStep_RadiusRangeUnits',Args.MaxStep_RadiusRangeUnits,...
                                                                            'GridPointsX',Args.GridPointsX,...
                                                                            'GridPointsY',Args.GridPointsY,...
                                                                            'H',H);
     
         
-        
-        
-        
-        if UseSourceNoise && Ind>2
-            [~, Flux, ShiftedPSF]  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
-            Std = sqrt(Flux.*ShiftedPSF+StdBack.^2);
-        end
-        % AppFlux is approximate flux
-        [StepX,StepY,AppFlux]  = gradDescentPSF(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2,H,Args.SmallStep,Args.MaxStep);
-       
-        % stoping criteria
-        ConvergeFlag = abs(StepX)<ConvThresh & abs(StepY)<ConvThresh;
-        if all(ConvergeFlag)
+        %
+        RadiusRange = RadiusRange./2;
+        [sqrt(((X1 - X1prev).^2 + (Y1 - Y1prev).^2)), ((X1 - X1prev).^2 + (Y1 - Y1prev).^2)<ConvThresh.^2, MinChi2./Dof]
+        Ind
+        if all( ((X1 - X1prev).^2 + (Y1 - Y1prev).^2)<ConvThresh.^2)
             NotConverged = false;
         end
         
