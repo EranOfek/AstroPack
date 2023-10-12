@@ -1,5 +1,6 @@
 function psfPhot(Cube, Args)
     %
+    % Example: 
    
     arguments
         Cube
@@ -15,6 +16,13 @@ function psfPhot(Cube, Args)
         Args.PSF                      = [];   % PSF stamp - if given override fun
         Args.PSFFun                   = @imUtil.kernel2.gauss;   % alternative PSF function
         Args.PSFFunArgs cell          = {2};
+        
+        % imUtil.psf.psfChi2_RangeIter
+        Args.RadiusRange     = 1;
+        Args.MaxStep_RadiusRangeUnits = 1;
+        Args.GridPointsX     = cosd((0:60:359));
+        Args.GridPointsY     = sind((0:60:359));
+        
     end
     
     if Args.SubBack
@@ -92,22 +100,38 @@ function psfPhot(Cube, Args)
             UseSourceNoise=false;
     end
 
-    VecD = [0, Args.SmallStep, 2.*Args.SmallStep];
-    H    = VecD.'.^[0, 1, 2];
+    %VecD  = [0, Args.SmallStep, 2.*Args.SmallStep];
+    H     = []; %VecD.'.^[0, 1, 2];
     Ind   = 0;
     NotConverged = true;
     StdBack = Std;
+    Flux0   = 0;
     while Ind<Args.MaxIter && NotConverged
         Ind = Ind + 1;
         
-        if UseSourceNoise && Ind>1
+        if UseSourceNoise
             % Add source noise to Std
             % source noise can be treated as scalar or a matrix
             
-            Std = Args.Std 
+            Std = sqrt(pi.*FitRadius2.*Args.Std.^2 + Flux0);
         end
             
-        [X1,Y1,MinChi2,Flux0,Dof,H, Result] = imUtil.psf.psfChi2_RangeIter(Cube, Std, PSF, Args)
+        [X1,Y1,MinChi2,Flux0,Dof,H, Result] = imUtil.psf.psfChi2_RangeIter(Cube, Std, Args.PSF,...
+                                                                           'DX',DX,...
+                                                                           'DY',DY',...
+                                                                           'MinFlux',[],...
+                                                                           'WeightedPSF',WeightedPSF,...
+                                                                           'FitRadius2',FitRadius2,...
+                                                                           'VecXrel',VecXrel,...
+                                                                           'VecYrel',VecYrel,...
+                                                                           'RadiusRange',Args.RadiusRange,...
+                                                                           'MaxStep_RadiusRangeUnits',Args.MaxStep_RadiusRangeUnits,...
+                                                                           'GridPointsX',Args.GridPointsX,...
+                                                                           'GridPointsY',Args.GridPointsY,...
+                                                                           'H',H);
+    
+        
+        
         
         
         if UseSourceNoise && Ind>2

@@ -1,5 +1,6 @@
 function Result=mextractor(Obj, Args)
     % 
+    % Example: imProc.sources.mextractor(AI)
 
     arguments
         Obj AstroImage
@@ -73,6 +74,7 @@ function Result=mextractor(Obj, Args)
             % good stars are in ResSrc(Iobj,Iiter).XPEAK(FlagGood),YPEAK
             
             % PSF fit sources
+            'a'
 
             % Add sources to list
 
