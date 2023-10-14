@@ -1,17 +1,23 @@
-function weightedPSF(Args)
+function [WPSF, ContRad] = weightedPSF(Args)
     % make a bank of spectrum-weighted ULTRASAT PSFs for a set of spectra and a range of radial distances
     % Input: -
     %        * ...,key,val,... 
     %       'ImRes' - image oversampling in 1/pix units (allowed values: 1, 2, 5, 10, 47.5)
-    %       'Type'  - spectrum type ('Pickles','BB','galaxy')
+    %       'Type'  - spectrum type ('Pickles','BB','stellarclass','galaxy')
     %       'ContainmentLevel' - calculate the radius where a certain percent of the total PSF flux is contained
+    %       'Class' - stellar class as a cell array of 2 cells 
+    %       'RDist' - radial distance from the tile's inner corner [deg]
     % Output: matlab objects with spectrum-weighted PSFs and their flux containment radii
     % Author: A.M. Krassilchtchikov (Oct 2023)
     % Example: ultrasat.weightedPSF('ContainmentLevel',0.9);
+    %          ultrasat.weightedPSF('Type','BB','ContainmentLevel',0.8);
+    %          P = ultrasat.weightedPSF('Type','stellarclass','Class',{'o9','v'}, 'RDist', 5.5);
     arguments
         Args.ImRes = 5; 
         Args.Type  = 'Pickles';
         Args.ContainmentLevel = 0.5;
+        Args.Class = {'g0', 'v'};
+        Args.RDist = 0;
     end
     
     % lab PSF grid points in radius and wavelength
@@ -81,6 +87,17 @@ function weightedPSF(Args)
             save(FName,'ContRad','logT','Rad');
             
         case 'galaxy'
+            error('Galactic spectra are not available as of yet');
+            
+        case 'stellarclass'
+            Sp = AstroSpec.specStarsPickles(Args.Class{1},Args.Class{2});
+            Sp2 = interp1(Sp.Wave, Sp.Flux, WavePSF);
+            Sp3 = reshape(Sp2,[1 1 Nwave]);            
+            [~, Irad] = min( abs(Args.RDist - Rad), [], 2); 
+            Wcube = PSFdata(:,:,:,Irad) .* Sp3;
+            SumL  = squeeze( sum(Wcube,3) );
+            WPSF = SumL ./ sum( SumL, [1,2] );
+            ContRad = imUtil.psf.containment(WPSF,'Level',Args.ContainmentLevel)./Args.ImRes;
             
     end
     
