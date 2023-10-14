@@ -734,6 +734,9 @@ classdef AstroSpec < Component
                 % load all files
 
                 Nf = numel(Files);
+                if Nf == 0
+                    error('Requested stellar class not found in the library');
+                end
                 for If=1:1:Nf
                     Mat        = io.files.load2(Files{If});
                     switch lower(OutType)
