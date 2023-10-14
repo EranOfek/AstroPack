@@ -28,7 +28,13 @@ function PSF = getULTRASAT_PSF(Args)
             X = 1:size(WPSF,1); Y = 1:size(WPSF,2);            
             PSF = interpn(X,Y, logT, logg, Rad, WPSF, X, Y, log10(Args.Teff), Args.logg, Args.Rad);
         case 'bb'
-            
+            Collection = sprintf('%s%s%.0f%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/spec_weightedPSF_BB_ovrsmpl',Args.Oversampling,'.mat');
+            io.files.load1(Collection);
+            if Args.Teff < 10^logT(1) || Args.Teff > 10^logT(numel(logT)) 
+                cprintf('red','Warning! The input parameters are outside the modelled range!\n');
+            end
+            X = 1:size(WPSF,1); Y = 1:size(WPSF,2);            
+            PSF = interpn(X,Y, logT, Rad, WPSF, X, Y, log10(Args.Teff), Args.Rad);
         case 'galaxy'
             
     end

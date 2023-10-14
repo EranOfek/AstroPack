@@ -58,6 +58,27 @@ function weightedPSF(Args)
             save(FName,'ContRad','logT','logg','Rad');
             
         case 'bb'
+            % make a grid in T
+            NTemp = 30;
+            logT = linspace(3.3,5,NTemp);
+            
+            WPSF = zeros(size(PSFdata,1),size(PSFdata,2),NTemp,Nrad);
+            ContRad  = zeros(NTemp,Nrad);
+            S = AstroSpec.blackBody(WavePSF,10.^logT);
+            for ITemp = 1:NTemp
+                Sp3 = reshape(S(ITemp).Flux,[1 1 Nwave]);
+                for Irad = 1:Nrad
+                    Wcube = PSFdata(:,:,:,Irad) .* Sp3;
+                    SumL  = squeeze( sum(Wcube,3) );
+                    WPSF(:,:,ITemp,Irad) = SumL ./ sum( SumL, [1,2] );
+                    ContRad(ITemp,Irad) = imUtil.psf.containment(WPSF(:,:,ITemp,Irad),'Level',Args.ContainmentLevel)./Args.ImRes;
+                end
+            end
+            % save the weighted PSF cubes
+            FName = sprintf('%s%.0f%s','spec_weightedPSF_BB_ovrsmpl',Args.ImRes,'.mat');
+            save(FName,'WPSF','logT','Rad');
+            FName = sprintf('%s%0.2f%s%.0f%s','spec_weightedPSF_BB_Contain',Args.ContainmentLevel,'Rad_ovrsmpl',Args.ImRes,'.mat');
+            save(FName,'ContRad','logT','Rad');
             
         case 'galaxy'
             
