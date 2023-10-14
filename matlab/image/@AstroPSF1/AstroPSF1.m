@@ -25,21 +25,11 @@
 % set.Var - setter for Dependent property Var
 % #/functions (autogen)
 %
-
 % TODO:
 %   1. resampling and scaling of PSF
 %       In some cases we may want to generate the PSF in oversampling
 %   2. Info about sub pixel response?
 %   3. Info about how the PSF was generated
-
-% Ideas:
-% properties:
-%   DataPSF
-%   DataVar
-%   Oversampling = [1 1];
-%   DimName
-%   DimVals 
-%   InterpMethod = {'nearest'};
 %
 % P = AstroPSF
 % [PSF, Var] = P.getPSF()  % return some defaut
@@ -74,7 +64,6 @@ classdef AstroPSF1 < Component
     end
     
     methods % Constructor
-       
         function Obj = AstroPSF1(FileName, Args)
             % AstroPSF constructor - read PSF images to AstroPSF object
             % Input  : - File names.
@@ -157,7 +146,6 @@ classdef AstroPSF1 < Component
             end % end for Ifield
             
         end
-
     end
     
     methods % Setters/Getters
@@ -195,10 +183,11 @@ classdef AstroPSF1 < Component
             %         'FunArgs'   - optinal arguments to pass to FunPSF
             %         'InterpMethod' - interpolation method (may be a vector, different methods for each dimension)
             %         'Oversampling' - resample the output stamp if required
-            % Output : - a PSF stamp (X, Y)
-            % Author : Eran Ofek
-            % Example:
-            
+            %         'ReNorm'    - whether to renormalize the PSF stamp
+            %         'ReNormMethod' - 'int' or 'rms' 
+            % Output : - a 2D PSF stamp (X, Y)
+            % Author : Eran Ofek, A.M. Krassilchtchikov 
+            % Example: 
             arguments
                 %                 Obj(1,1)
                 Obj
@@ -255,8 +244,7 @@ classdef AstroPSF1 < Component
                         if numel(IntMeth) == 1 % one method for all the dimensions
                             Result = interpn(X,Y, Obj(IObj).DimVals{1:Ndim}, Obj(IObj).DataPSF, ...
                                 X,Y, DimVal{1:Ndim}, IntMeth{1});
-                        else
-                            %                         error('multiple interpolation methods have not been implemented as of yet');
+                        else                            
                             Int{1} = Obj(IObj).DataPSF;
                             for Idim = 1:Ndim
                                 Int1 = squeeze(Int{Idim});
@@ -294,7 +282,7 @@ classdef AstroPSF1 < Component
             Res{IObj} = Result;    
             end
         end
-        
+
         function Result = weightPSF(Obj, Args)
             % produce a spectrum-weighted PSF
             % Input  : - An AstroPSF object
@@ -339,7 +327,7 @@ classdef AstroPSF1 < Component
             SumL    = sum( PSFcube .* SpShape, 3 );           % multiply and sum over the wavelength dimension
             Result  = SumL ./ sum( SumL, [1,2] );             % normalization
         end
-            
+
     end
     
     methods % utilities (e.g., isempty)
@@ -349,7 +337,6 @@ classdef AstroPSF1 < Component
             % Output : - An array of logical indicating if each element in
             %            the AstroPSF is empty.
             % Author : Eran Ofek (Jan 2022)
-            
             Nobj = numel(Obj);
             Result = false(size(Obj));
             for Iobj=1:1:Nobj
@@ -400,7 +387,6 @@ classdef AstroPSF1 < Component
             %            .Output - Additional output of lsqcurvefit
             %            .J - Jacobian.
             % Author : Eran Ofek (Jun 2023)
-    
             arguments
                 Obj
                 Args.PsfArgs   = {};
@@ -436,7 +422,6 @@ classdef AstroPSF1 < Component
     end
     
     methods % PSF properties
-        
         
         function [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(Obj, Args)
             % Calculate curve of growth of a PSF including radii
@@ -479,8 +464,7 @@ classdef AstroPSF1 < Component
                 Args.InterpMethod           = 'linear';
                 Args.EpsStep                = 1e-8;
                 Args.PsfArgs                = {};
-            end
-            
+            end 
             % @FIX - @Eran
             if Args.ReCenter
                 % use 1st moment to find PSF center
@@ -582,7 +566,6 @@ classdef AstroPSF1 < Component
             % Author : Eran Ofek (May 2021)
             % Example: [FWHM_CumSum, FWHM_Flux] = fwhm(AP);
             
-           
             arguments
                 Obj
                 Args.PsfArgs cell     = {};    
@@ -601,7 +584,7 @@ classdef AstroPSF1 < Component
     end
     
     methods % functionality
-    
+
         function [CubeData, CubeVar] = images2cube(Obj, Args)
             % Transform an array of AstroPSF into a cube of PSFs
             % Input  : - An AstroPSF object.
@@ -637,7 +620,7 @@ classdef AstroPSF1 < Component
             end
             
         end
-        
+ 
     end
     
     methods % pad, shift, smooth edges
@@ -892,7 +875,6 @@ classdef AstroPSF1 < Component
         Result = unitTest()
             % unitTest for AstroPSF
     end
-    
 
 end
 
