@@ -39,7 +39,7 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
     %          - A structure with additional information.
     % Reference: See also Agol 2003
     % Author : Eran Ofek (Sep 2023)
-    % Example: K=celestial.Kepler.kepler3law(1.4.*2e33, 'p',3600);
+    % Example: K=celestial.Kepler.kepler3law(1.4.*2e33, 'p',86400); %3600);
     %          Dls = K.a./constant.pc;
     %          [TM,Res]=astro.binary.self_microlensing(1, 'Dls',Dls);
     %
