@@ -27,6 +27,15 @@ Items:
         Description          : 'Earth Atmosphere and Extinction'
 
 
+    Starlib23:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'Starlib23'
+        SubDir               : 'spec/Starlib23'
+        URL                  : ['http://astro.wsu.edu/hststarlib/']
+        Size                 : 255
+        SearchFile           : ''
+        Description          : 'HST Low Resolution Stellar Library'
+
     CALSPEC:
         # The following are cell arrays of entry per dataset
         DataName             : 'CALSPEC'
