@@ -1,6 +1,6 @@
 function PS=periodPoisson(TT, FreqVec, Args)
     % Power spectrum (periodogram) for time-tagged events with Poisson statistics.
-    %   
+    %   timeSeries.period.periodFoldedEvents is better and faster
     % Input  : - Either a vector of time tagged events, or a two column
     %            matrix with [MidTime, CountsInBin]
     %          - A vector of frequencies to test.
@@ -15,13 +15,8 @@ function PS=periodPoisson(TT, FreqVec, Args)
     %                   Default is [].
     % Output : - Power spectrunm [Freq, Power]
     % Author : Eran Ofek (Oct 2023)
-    % Example: TT=[[1:1:100000]', poissrnd(0.1,100000,1)];
-    %          FreqVec = (0:0.00005:0.01);
-    %          PS = timeSeries.period.periodPoisson(TT,FreqVec);
-    %
-    %          LambdaT = 0.1.*(1 + 0.2.*sin(2.*pi.*0.002.*TT(:,1)));
-    %          TT=[[1:1:100000]', poissrnd(LambdaT)];
-    %          PS = timeSeries.period.periodPoisson(TT,FreqVec);
+    % Example: 
+    %          PS = timeSeries.period.periodPoisson; % simulation mode
     %
     
     arguments
@@ -40,7 +35,7 @@ function PS=periodPoisson(TT, FreqVec, Args)
         FreqVec = (0:0.00005:0.1);
         %PS = timeSeries.period.periodPoisson(TT,FreqVec);
     %
-        Time     = (1:1:1e4)';
+        Time     = (1:1:1e5)';
         Lambda0  = 0.1;
         A        = 0.5;
         FreqPeak = 0.01;
@@ -48,7 +43,7 @@ function PS=periodPoisson(TT, FreqVec, Args)
         Cnt      = poissrnd(LambdaT);
         FlagT    = Cnt>0;
         TT       = Time(FlagT);
-        numel(TT)    
+        %numel(TT)    
         
     end
     
