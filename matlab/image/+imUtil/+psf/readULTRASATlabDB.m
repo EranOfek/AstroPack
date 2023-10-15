@@ -24,8 +24,8 @@ function readULTRASATlabDB
     % set the data path
     
     % Datacat     = '~/matlab/data/ULTRASAT/PSF/Raw/'; 
-
-    Datacat     = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/Raw/');    
+    I = Installer;
+    Datacat     = sprintf('%s%s',I.getDataDir('ULTRASAT_PSF'),'/Raw/');   
     
     % initialize data structures and read the data
 

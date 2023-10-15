@@ -19,17 +19,17 @@ function [WPSF, ContRad] = weightedPSF(Args)
         Args.Class = {'g0', 'v'};
         Args.RDist = 0;
     end
-    
+    I = Installer; 
     % lab PSF grid points in radius and wavelength
     Nrad    = 25; Rad = linspace(0,10,Nrad);
     Nwave   = 91; WavePSF = linspace(2000,11000,Nwave);                
     
     % load the matlab object with the ULTRASAT properties: 
-    UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');   
+    UP_db = sprintf('%s%s',I.getDataDir('ULTRASAT_UP'),'/P90_UP_test_60_ZP_Var_Cern_21.mat');   
     io.files.load1(UP_db,'UP');
     
     % read the chosen PSF database from a .mat file
-    PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF',Args.ImRes,'.mat');
+    PSF_db = sprintf('%s%s%g%s',I.getDataDir('ULTRASAT_PSF'),'/ULTRASATlabPSF',Args.ImRes,'.mat');
     ReadDB = struct2cell ( io.files.load1(PSF_db) ); % PSF data at the chosen spatial resolution
     PSFdata = ReadDB{2}; 
     
