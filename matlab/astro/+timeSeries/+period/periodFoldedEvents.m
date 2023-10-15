@@ -44,6 +44,9 @@ function PS=periodFoldedEvents(T, FreqVec, Args)
     
     PS      = [FreqVec(:), zeros(Nfreq,4)];
     for Ifreq=1:1:Nfreq
+        if Ifreq./1000==floor(Ifreq./1000)
+            [Ifreq, Nfreq]
+        end
         TF      = T.*FreqVec(Ifreq);
         % Vector of phases for trial frequency
         PhaseTF = (TF - floor(TF));
