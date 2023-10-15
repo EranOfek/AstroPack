@@ -1,6 +1,20 @@
 function Data=getSrcPhotons(RA, Dec, Args)
     % Get Chandra photons of a single source over all ObsIDs.
-    % Input  : - J2000.0
+    % Input  : - J2000.0 RA [deg or sexagesimal string]
+    %          - J2000.0 Dec [deg or sexagesimal string]
+    %          * ...,key,val,...
+    %            'ObsSearchRadius' - Search radius for ObsID
+    %                   Default is 1200.
+    %            'SearchRadius' - Search radius for source photons.
+    %                   Default is 5.
+    %            'SearchRadiusUnits' - Search radii units.
+    %                   Default is 'arcsec'.
+    %            'EnergyRange' - Energy range [eV] to select.
+    %                   Default is [200 8000].
+    %            See code for additional arguments
+    % Output : - A structure array with the photons in each ObsID.
+    %            Element per ObsID.
+    % Author : Eran Ofek (Oct 2023)
     % Example: Data = VO.Chandra.getSrcPhotons;
    
     arguments
@@ -9,9 +23,10 @@ function Data=getSrcPhotons(RA, Dec, Args)
         Args.ObsSearchRadius      = 1200;
         Args.SearchRadius         = 5;
         Args.SearchRadiusUnits    = 'arcsec';
+        Args.EnergyRange          = [200 8000];  % [eV]
+        
         Args.BaseChandraObs       = '/raid/eran/projects/transients/x/chandra/ObsID';
         Args.FileTemplate         = 'acis*_evt2.fits';
-        Args.EnergyRange          = [200 8000];  % [eV]
         Args.ColRA                = 'RA';
         Args.ColDec               = 'Dec';
         Args.ColTime              = 'time';
