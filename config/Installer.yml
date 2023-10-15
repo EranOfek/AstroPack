@@ -164,6 +164,15 @@ Items:
         SearchFile           : ''
         Description          : 'Solar system VSOPE87 ephmerides'
 
+    ULTRASAT_UP:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'ULTRASAT_UP'
+        SubDir               : 'ULTRASAT'
+        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/ULTRASAT/UP.tar']
+        Size                 : 76
+        SearchFile           : ''
+        Description          : 'ULTRASAT UP data'
+
     ULTRASAT_PSF:
         # The following are cell arrays of entry per dataset
         DataName             : 'ULTRASAT_PSF'
