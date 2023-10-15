@@ -25,8 +25,8 @@ function PS=periodPoisson(TT, FreqVec, Args)
     %
     
     arguments
-        TT
-        FreqVec
+        TT          = [];
+        FreqVec     = [];
         Args.MinT   = [];
         Args.MaxT   = [];
         Args.BinT   = 1;
@@ -34,43 +34,67 @@ function PS=periodPoisson(TT, FreqVec, Args)
         Args.MeanLambda = [];
     end
     
+    if isempty(TT)
+        % simulation mode
+        
+        FreqVec = (0:0.00005:0.1);
+        %PS = timeSeries.period.periodPoisson(TT,FreqVec);
+    %
+        Time    = (1:1:1e4)';
+        Lambda0 = 0.1;
+        A       = 0.5;
+        FreqPeak = 0.01;
+        LambdaT = Lambda0.*(1 + A.*sin(2.*pi.*FreqPeak.*Time));
+        Cnt     = poissrnd(LambdaT);
+        FlagT   = Cnt>0;
+        TT       = Time(FlagT);
+        numel(TT)    
+        
+    end
+    
     FreqVec = FreqVec(:).';
     
+    T = TT(:);
     
-    if size(TT,2)==1
-        % T is a vector of time taggs
-        
-        if isempty(Args.MinT) || isempty(Args.MaxT)
-            Args.MinT = min(T);
-            Args.MaxT = max(T);
-        end
-        
-        Edges  = [Args.MinT:Args.BinT:Args.MaxT];
-        MidBin = (Edges(1:end-1) + Edges(2:end)).*0.5; 
-        Ncnt   = histcounts(T, Edges);
-        TT     = [MidBin(:), Ncnt(:)];
+%     if size(TT,2)==1
+%         % T is a vector of time taggs
+%         
+%         if isempty(Args.MinT) || isempty(Args.MaxT)
+%             Args.MinT = min(T);
+%             Args.MaxT = max(T);
+%         end
+%         
+%         Edges  = [Args.MinT:Args.BinT:Args.MaxT];
+%         MidBin = (Edges(1:end-1) + Edges(2:end)).*0.5; 
+%         Ncnt   = histcounts(T, Edges);
+%         TT     = [MidBin(:), Ncnt(:)];
+%     
+%     else
+%         % T is [T, Count] two column matrix
+%         Args.BinT = TT(2,1) - TT(1,1);
+%     end
+%     RangeT = TT(end,1) - TT(1,1)  + Args.BinT;
+%     Ntot   = size(TT,1);
+%     T      = TT(:,1);   % mid time of each bin
+%     K      = TT(:,2);   % Observed counts per bin
     
-    else
-        % T is [T, Count] two column matrix
-        Args.BinT = TT(2,1) - TT(1,1);
-    end
-    RangeT = TT(end,1) - TT(1,1)  + Args.BinT;
-    Ntot   = size(TT,1);
-    T      = TT(:,1);   % mid time of each bin
-    K      = TT(:,2);   % Observed counts per bin
+%     if isempty(Args.MeanLambda)
+%         Lambda0 = Ntot./RangeT;
+%     else
+%         Lambda0 = Args.MeanLambda;
+%     end
     
-    if isempty(Args.MeanLambda)
-        Lambda0 = Ntot./RangeT;
-    else
-        Lambda0 = Args.MeanLambda;
-    end
-    
-    A = 0.1;
+    A = 1;
+    Lambda0 = 1;
     G     = Lambda0.*A.*exp(-2.*pi.*1i.*FreqVec.*T);
     % Formally replace 0 with G, but because G does not depand on data (K)
     % then doesn't matter, except 0 frequency.
+    K = 1;
     Power = abs(sum(0 - K.*log(G), 1)).^2;  
     PS    = [FreqVec(:), Power(:)];
         
+    
+    
+    
 end
 
