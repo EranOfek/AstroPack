@@ -12,7 +12,7 @@ function PS=periodFoldedEvents(T, FreqVec, Args)
         T            = [];
         FreqVec      = [];
         Args.BinSize = 0.1;
-        
+        Args.Verbose logical = false;
     end
     
     if isempty(T)
@@ -44,8 +44,10 @@ function PS=periodFoldedEvents(T, FreqVec, Args)
     
     PS      = [FreqVec(:), zeros(Nfreq,4)];
     for Ifreq=1:1:Nfreq
-        if Ifreq./1000==floor(Ifreq./1000)
-            [Ifreq, Nfreq]
+        if Args.Verbose
+            if Ifreq./1000==floor(Ifreq./1000)
+                [Ifreq, Nfreq]
+            end
         end
         TF      = T.*FreqVec(Ifreq);
         % Vector of phases for trial frequency
