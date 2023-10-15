@@ -67,14 +67,10 @@ function PS=periodPoisson(TT, FreqVec, Args)
     
     A = 0.1;
     G     = Lambda0.*A.*exp(-2.*pi.*1i.*FreqVec.*T);
-    Power = abs(sum(G - K.*log(G), 1)).^2;
+    % Formally replace 0 with G, but because G does not depand on data (K)
+    % then doesn't matter, except 0 frequency.
+    Power = abs(sum(0 - K.*log(G), 1)).^2;  
     PS    = [FreqVec(:), Power(:)];
-    
-    
-    
-    
-    
-    
-    
+        
 end
 
