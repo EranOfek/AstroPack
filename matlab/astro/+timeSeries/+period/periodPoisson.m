@@ -40,13 +40,13 @@ function PS=periodPoisson(TT, FreqVec, Args)
         FreqVec = (0:0.00005:0.1);
         %PS = timeSeries.period.periodPoisson(TT,FreqVec);
     %
-        Time    = (1:1:1e4)';
-        Lambda0 = 0.1;
-        A       = 0.5;
+        Time     = (1:1:1e4)';
+        Lambda0  = 0.1;
+        A        = 0.5;
         FreqPeak = 0.01;
-        LambdaT = Lambda0.*(1 + A.*sin(2.*pi.*FreqPeak.*Time));
-        Cnt     = poissrnd(LambdaT);
-        FlagT   = Cnt>0;
+        LambdaT  = Lambda0.*(1 + A.*sin(2.*pi.*FreqPeak.*Time));
+        Cnt      = poissrnd(LambdaT);
+        FlagT    = Cnt>0;
         TT       = Time(FlagT);
         numel(TT)    
         
