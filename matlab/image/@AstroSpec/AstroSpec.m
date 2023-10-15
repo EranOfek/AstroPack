@@ -753,6 +753,68 @@ classdef AstroSpec < Component
 
         end
         
+        function Result = specHSTStarlib23(Name, OutType)
+            % Get Starlib spectra from ../spec/Starlib23/ data directory
+            % Reference: http://astro.wsu.edu/hststarlib/, https://arxiv.org/abs/2301.05335
+            % Input  : - If empty, will return all available file names
+            %            If a single object name, then load it
+            % Output : - An AstroSpec object
+            % Author : A.M. Krassilchtchikov (Oct 2023)
+            % Example: A=AstroSpec.specHSTStarlib23('HD216640');
+            %          AstroSpec.specHSTStarlib23; % get a list of all the
+            %          available spectra from this collection
+            arguments
+                Name    = [];
+                OutType   = 'AstroSpec';
+            end
+            Skip = {'names of auxiliary files in the same dir should be put here'};
+            DataName = 'Starlib23';
+            Suffix   = '.fits';
+            I = Installer;
+            
+            if isempty(Name)
+                % return all available file names
+                Files = I.getFilesInDataDir(DataName);
+                Result = {Files.name};
+            else
+                if ischar(Name)
+                    Name = {Name};
+                end
+                Nd = numel(Name);
+                
+                Dir = I.getDataDir(DataName);
+                Iast = 0;
+                for Id=1:1:Nd
+                    if strcmp(Name{Id}, 'ReadMe')
+                        % ignore
+                    else
+                        if ~contains(Name{Id},Skip)
+                            Iast = Iast + 1;
+                            FullName = sprintf('%s%s%s', Dir, filesep, Name{Id});
+                            if strcmp(FullName(end-4:end),Suffix)
+                                % file name already contains suffix
+                            else
+                                % add suffix
+                                FullName = sprintf('%s%s',FullName,Suffix);
+                            end
+%                             FullName
+                            TT  = fitsread(FullName,'binarytable');
+                            switch lower(OutType)
+                                case 'table'
+                                    Result = table(TT{1},TT{6},TT{7},'VariableNames', {'Wave, A', 'Flux, cgs/A', 'Flux error, cgs/A'});
+%                                 case 'mat'
+%                                     Result = [TT{1}, TT{6}];
+                                case 'astrospec'
+                                    Result(Iast) = AstroSpec({[TT{1}, TT{6}, TT{7}]},{'Wave','Flux','FluxErr'},{'A','cgs/A','cgs/A'});
+                                otherwise
+                                    error('Unknown OutType option');
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
         function [Result, Files] = specCALSPEC(Name, OutType)
             % Get STSCI CALSPEC template spectrum from ../spec/CALSPEC/ data directory.
             % Input  : - If empty, will return all available file names.
@@ -770,7 +832,7 @@ classdef AstroSpec < Component
             % Author : Eran Ofek (Oct 2021)
             % Example: AstroSpec.specCALSPEC
             %          A=AstroSpec.specCALSPEC('QSO_NIR');
-            %          A=AstroSpec.specGALSPEC('all');
+            %          A=AstroSpec.specCALSPEC('all');
             % Reliable: 2
             
             arguments
