@@ -40,12 +40,16 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
     if 1==0
         % Debug code:
 
-        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/1
-        AI(1) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.215545.030_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
-        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/2
-        AI(2) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.214904.914_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
+        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/171342v1
+        AI(1) = AstroImage.readFileNamesObj('LAST.01.02.01_2*010_sci_coadd_Image_1.fits');
+
+        %AI(1) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.215545.030_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
+
+        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/172022v1
+        AI(2) = AstroImage.readFileNamesObj('LAST.01.02.01_2*010_sci_coadd_Image_1.fits');
+        %AI(2) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.214904.914_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
         
-        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/7/
+        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/181501v1
         AI(3) = AstroImage.readFileNamesObj('LAST.01.02.01_2*010_sci_coadd_Image_1.fits');
 
         cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/9/
@@ -66,22 +70,22 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
         % add RA,Dec
         AIreg = imProc.astrometry.addCoordinates2catalog(AIreg);
 
-        m=imProc.match.match(AIreg(1),AIreg(5),'CooType','pix');
+        %m=imProc.match.match(AIreg(1),AIreg(5),'CooType','pix');
 
 
         % The astrometric solutions are good
-        R=imProc.astrometry.astrometryQualityData(AI);
+        %R=imProc.astrometry.astrometryQualityData(AI);
 
         % bad on image 4:
-        R=imProc.astrometry.astrometryQualityData(AIreg);
+        %R=imProc.astrometry.astrometryQualityData(AIreg);
 
         ds9(AIreg(1),1)
         ds9(AIreg(2),2)
 
-        [DD,S,Scorr,Z2,S2, F_S,SdN, SdR] = imProc.sub.properSubtraction(AIreg(5), AIreg(1));
+        [DD,S,Scorr,Z2,S2, F_S,SdN, SdR] = imProc.sub.properSubtraction(AIreg(3), AIreg(1) ,'HalfSize',[8 8]);
 
 
-        R=imProc.sources.findTransients(AIreg(5), AIreg(1), DD, S, Scorr, Z2, S2);
+        R=imProc.sources.findTransients(AIreg(3), AIreg(1), DD, S, Scorr, Z2, S2);
     end
 
 
