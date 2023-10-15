@@ -45,7 +45,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     % Example: Sim = ultrasat.usim('Cat',1000) 
     % (simulate 1000 sources at random positions with the default spectrum and magnitude)  
     %          
-  
     arguments          
         Args.Cat             =  10;          % if a number (N), generate N random fake sources
                                              % if a 2D table, use X, Y from this table
@@ -231,15 +230,17 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                  Back.Cross + Back.Gain + Back.Readout ) * Args.Exposure(1); 
     
     %%%%%%%%%%%%%%%%%%%% load the matlab object with the ULTRASAT properties:
-    
-    UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');   
+    I = Installer;
+%     UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');  
+    UP_db = sprintf('%s%s',I.getDataDir('ULTRASAT_UP'),'/P90_UP_test_60_ZP_Var_Cern_21.mat');  
     io.files.load1(UP_db,'UP');
     
     %%%%%%%%%%%%%%%%%%%%%  read the chosen PSF database from a .mat file
 
                                 fprintf('Reading PSF database.. '); 
 
-    PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF',Args.ImRes,'.mat');
+%     PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF',Args.ImRes,'.mat');
+    PSF_db = sprintf('%s%s%g%s',I.getDataDir('ULTRASAT_PSF'),'/ULTRASATlabPSF',Args.ImRes,'.mat');
     ReadDB = struct2cell ( io.files.load1(PSF_db) ); % PSF data at the chosen spatial resolution
     PSFdata = ReadDB{2}; 
 
