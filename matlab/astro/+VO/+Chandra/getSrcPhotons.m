@@ -1,6 +1,7 @@
 function Data=getSrcPhotons(RA, Dec, Args)
     % Get Chandra photons of a single source over all ObsIDs.
     % Input  : - J2000.0
+    % Example: Data = VO.Chandra.getSrcPhotons;
    
     arguments
         RA      = '23:23:27.8';
@@ -46,6 +47,7 @@ function Data=getSrcPhotons(RA, Dec, Args)
     %Data = struct('File',cell(Nobs,1), 'ObsID',cell(Nobs,1), 'RA',cell(Nobs,1), 'Dec',cell(Nobs,1));
     K = 0;
     for Iobs=1:1:Nobs
+        [Iobs, Nobs]
         Folder = sprintf('%s/%s/%s/%d/primary',Args.BaseChandraObs,...
                                               CatChandra.(CatProp).AO{IndObs(Iobs)},...
                                               CatChandra.(CatProp).Cat{IndObs(Iobs)},...
