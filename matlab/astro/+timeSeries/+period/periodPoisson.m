@@ -1,6 +1,20 @@
 function PS=periodPoisson(TT, FreqVec, Args)
-    % Power spectrum (periodogram) for time tagged events with Poisson statistics.
+    % Power spectrum (periodogram) for time-tagged events with Poisson statistics.
     %   
+    % Input  : - Either a vector of time tagged events, or a two column
+    %            matrix with [MidTime, CountsInBin]
+    %          - A vector of frequencies to test.
+    %          * ...,key,val,...
+    %            'MinT' - Minimum Time. If [], take min of time vector.
+    %                   Default is [].
+    %            'MaxT' - Maximum Time. If [], take max of time vector.
+    %                   Default is [].
+    %            'BinT' - Tim bin. Defualt is 1.
+    %            'MeanLambda' - Expectation number of counts per bin.
+    %                   If [], then take the mean.
+    %                   Default is [].
+    % Output : - Power spectrunm [Freq, Power]
+    % Author : Eran Ofek (Oct 2023)
     % Example: TT=[[1:1:100000]', poissrnd(0.1,100000,1)];
     %          FreqVec = (0:0.00005:0.01);
     %          PS = timeSeries.period.periodPoisson(TT,FreqVec);
