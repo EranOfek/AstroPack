@@ -438,7 +438,7 @@ classdef PhotonsList < Component
             if Args.CreateNewObj
                 Result = Obj.copy;
             else
-               Result = Obj;
+                Result = Obj;
             end
             
             
