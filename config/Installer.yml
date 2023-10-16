@@ -168,8 +168,9 @@ Items:
         # The following are cell arrays of entry per dataset
         DataName             : 'ULTRASAT_UP'
         SubDir               : 'ULTRASAT'
-        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/ULTRASAT/UP.tar']
-        Size                 : 76
+        #        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/ULTRASAT/UP.tar']
+        URL                  : ['https://www.dropbox.com/scl/fi/wi4yvtr5i4ke9tlet8lv1/P90_UP_test_60_ZP_Var_Cern_21.mat']
+        Size                 : 16
         SearchFile           : ''
         Description          : 'ULTRASAT UP data'
 
@@ -177,8 +178,9 @@ Items:
         # The following are cell arrays of entry per dataset
         DataName             : 'ULTRASAT_PSF'
         SubDir               : 'ULTRASAT/PSF'
-        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/ULTRASAT/PSF.tar']
-        Size                 : 76
+        #        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/ULTRASAT/PSF.tar']
+        URL                  : ['https://www.dropbox.com/scl/fi/ri0jg5xv0akb8ewp5w3az/PSF.tar'] 
+        Size                 : 1300
         SearchFile           : ''
         Description          : 'ULTRASAT PSF data'
 
