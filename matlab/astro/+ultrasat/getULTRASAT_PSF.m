@@ -25,7 +25,11 @@ function PSF = getULTRASAT_PSF(Args)
     switch lower(Args.Type)
         case 'pickles'
             Collection = sprintf('%s%s%.0f%s',I.getDataDir('ULTRASAT_PSF'),'/spec_weightedPSF_Pickles_ovrsmpl',Args.Oversampling,'.mat');
-            io.files.load1(Collection);
+            if isfile(Collection)
+                io.files.load1(Collection);
+            else
+                error('The requested oversampling data is not yet available, exiting..');
+            end
             if Args.Teff < 10^logT(1) || Args.Teff > 10^logT(numel(logT)) || Args.logg < logg(1) || Args.logg > logg(numel(logg)) 
                 cprintf('red','Warning! The input parameters are outside the modelled range!\n');
             end
@@ -34,7 +38,11 @@ function PSF = getULTRASAT_PSF(Args)
             
         case 'bb'
             Collection = sprintf('%s%s%.0f%s',I.getDataDir('ULTRASAT_PSF'),'/spec_weightedPSF_BB_ovrsmpl',Args.Oversampling,'.mat');
-            io.files.load1(Collection);
+            if isfile(Collection)
+                io.files.load1(Collection);
+            else
+                error('The requested oversampling data is not yet available, exiting..');
+            end
             if Args.Teff < 10^logT(1) || Args.Teff > 10^logT(numel(logT)) 
                 cprintf('red','Warning! The input parameters are outside the modelled range!\n');
             end
@@ -45,7 +53,7 @@ function PSF = getULTRASAT_PSF(Args)
             error('Galactic spectra are not available as of yet');
             
         case 'stellarclass'
-            PSF = ultrasat.weightedPSF('Type','stellarclass','Class',Args.Class,'RDist',Args.Rad);
+            PSF = ultrasat.weightedPSF('Type','stellarclass','Class',Args.Class,'RDist',Args.Rad,'ImRes',Args.Oversampling);
             
     end
 end

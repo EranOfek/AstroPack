@@ -99,6 +99,33 @@ function [WPSF, ContRad] = weightedPSF(Args)
             WPSF = SumL ./ sum( SumL, [1,2] );
             ContRad = imUtil.psf.containment(WPSF,'Level',Args.ContainmentLevel)./Args.ImRes;
             
+        case 'all'
+            % put all types of spectra into 1 array according to a special
+            % indexing function which translates spectral types into index
+            
+            Spec = AstroSpec.specStarsPickles('G2','V');
+            for Temp = [2e3 ,4e3 ,6e3 ,8e3 ,1e4 ,2e4 ,3e4 ,4e4, 5e4, 6e4, 7e4]
+                Spec(end+1) = AstroSpec.blackBody(WavePSF,Temp);
+            end
+            
+            NSp  = numel(Spec);
+            WPSF = zeros(size(PSFdata,1),size(PSFdata,2),NSp,Nrad);
+            ContRad  = zeros(NSp,Nrad);
+            for ISp = 1:NSp
+                Sp2 = interp1(Spec(ISp).Wave, Spec(ISp).Flux, WavePSF);
+                Sp3 = reshape(Sp2,[1 1 Nwave]);
+                for Irad = 1:Nrad
+                    Wcube = PSFdata(:,:,:,Irad) .* Sp3;
+                    SumL  = squeeze( sum(Wcube,3) );
+                    WPSF(:,:,ISp,Irad) = SumL ./ sum( SumL, [1,2] );
+                    ContRad(ISp,Irad) = imUtil.psf.containment(WPSF(:,:,ISp,Irad),'Level',Args.ContainmentLevel)./Args.ImRes;
+                end
+            end
+            % save the weighted PSF cube
+            FName = sprintf('%s%.0f%s','spec_weightedPSF_all_ovrsmpl',Args.ImRes,'.mat');
+            save(FName,'WPSF','Rad');
+            FName = sprintf('%s%0.2f%s%.0f%s','spec_weightedPSF_all_Contain',Args.ContainmentLevel,'Rad_ovrsmpl',Args.ImRes,'.mat');
+            save(FName,'ContRad','Rad');
     end
     
 end
