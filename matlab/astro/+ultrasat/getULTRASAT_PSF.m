@@ -24,7 +24,6 @@ function PSF = getULTRASAT_PSF(Args)
     I = Installer;
     switch lower(Args.Type)
         case 'pickles'
-%             Collection = sprintf('%s%s%.0f%s',tools.os.getULTRASATDataPath,'PSF/spec_weightedPSF_Pickles_ovrsmpl',Args.Oversampling,'.mat');
             Collection = sprintf('%s%s%.0f%s',I.getDataDir('ULTRASAT_PSF'),'/spec_weightedPSF_Pickles_ovrsmpl',Args.Oversampling,'.mat');
             io.files.load1(Collection);
             if Args.Teff < 10^logT(1) || Args.Teff > 10^logT(numel(logT)) || Args.logg < logg(1) || Args.logg > logg(numel(logg)) 
@@ -34,7 +33,6 @@ function PSF = getULTRASAT_PSF(Args)
             PSF = interpn(X,Y, logT, logg, Rad, WPSF, X, Y, log10(Args.Teff), Args.logg, Args.Rad);
             
         case 'bb'
-%             Collection = sprintf('%s%s%.0f%s',tools.os.getULTRASATDataPath,'PSF/spec_weightedPSF_BB_ovrsmpl',Args.Oversampling,'.mat');
             Collection = sprintf('%s%s%.0f%s',I.getDataDir('ULTRASAT_PSF'),'/spec_weightedPSF_BB_ovrsmpl',Args.Oversampling,'.mat');
             io.files.load1(Collection);
             if Args.Teff < 10^logT(1) || Args.Teff > 10^logT(numel(logT)) 

@@ -31,7 +31,7 @@ Items:
         # The following are cell arrays of entry per dataset
         DataName             : 'Starlib23'
         SubDir               : 'spec/Starlib23'
-        URL                  : ['http://astro.wsu.edu/hststarlib/']
+        URL                  : ['http://astro.wsu.edu/hststarlib/specs_513_fits.zip'] 
         Size                 : 255
         SearchFile           : ''
         Description          : 'HST Low Resolution Stellar Library'
