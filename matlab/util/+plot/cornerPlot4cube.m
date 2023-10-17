@@ -101,6 +101,29 @@ function Chi2cuts=cornerPlot4cube(Chi2, Args)
                     I2 = Ndim-Idim2 + 1;
                     [I1 I2]
                     HA(Idim1,Idim2) = axes(HF, 'Position',[Xstart(I2) Ystart(I1) DX(I2) DY(I1)]);
+                    
+
+                    if isempty(Args.AxesVecs)
+                        contour(Chi2cuts{Idim1,Idim2}, ContourLevels)
+                    else
+                        contour(Args.AxesVecs{Idim1}, Args.AxesVecs{Idim2}, Chi2cuts{Idim1,Idim2}, ContourLevels)
+                    end
+                    if ~isempty(Args.AxesNames)
+
+                        if I1==1
+                            H = xlabel(Args.AxesNames{Idim2});
+                            H.FontSize = Args.FontSize;
+                            H.Interpreter = Args.Interpreter;
+                        end
+                        if I2==1
+                            H = ylabel(Args.AxesNames{Idim1});
+                            H.FontSize = Args.FontSize;
+                            H.Interpreter = Args.Interpreter;
+                        end
+                
+                    end
+
+                    % XTick/YTick
                     switch lower(Args.XTickLabel)
                         case 'all'
                             % do nothing
@@ -127,21 +150,6 @@ function Chi2cuts=cornerPlot4cube(Chi2, Args)
                             error('Unknown YTickLabel option');
                     end
 
-                    if isempty(Args.AxesVecs)
-                        contour(Chi2cuts{Idim1,Idim2}, ContourLevels)
-                    else
-                        contour(Args.AxesVecs{Idim1}, Args.AxesVecs{Idim2}, Chi2cuts{Idim1,Idim2}, ContourLevels)
-                    end
-                    if ~isempty(Args.AxesNames)
-                        H = xlabel(Args.AxesNames{Idim2});
-                        H.FontSize = Args.FontSize;
-                        H.Interpreter = Args.Interpreter;
-                
-                        H = ylabel(Args.AxesNames{Idim1});
-                        H.FontSize = Args.FontSize;
-                        H.Interpreter = Args.Interpreter;
-                
-                    end
                 end
             end
         end
