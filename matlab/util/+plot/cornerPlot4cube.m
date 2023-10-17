@@ -24,20 +24,21 @@ function Chi2cuts=cornerPlot4cube(Chi2, Args)
 
     arguments
         Chi2
-        Args.AxesVecs cell  = [];
-        Args.AxesCenter     = [];
-        Args.AxesNames cell = {};
-        Args.Plot logical   = true;
-        Args.Levels         = [1 2 3];
-        Args.DOF            = [];
+        Args.AxesVecs cell   = [];
+        Args.AxesCenter      = [];
+        Args.AxesNames cell  = {};
+        Args.Plot logical    = true;
+        Args.Levels          = [1 2 3];
+        Args.DOF             = [];
 
-        Args.FontSize       = 18;
-        Args.Interpreter    = 'latex';
-        Args.XLim           = [0.1 0.95];
-        Args.YLim           = [0.1 0.95];
-        Args.Gaps           = [0.03];
-        Args.XTickLabel     = 'margin';  % 'all'|'margin'|'none'
-        Args.YTickLabel     = 'margin';  % 'all'|'margin'|'none'
+        Args.AddHist logical = true;
+        Args.FontSize        = 18;
+        Args.Interpreter     = 'latex';
+        Args.XLim            = [0.1 0.95];
+        Args.YLim            = [0.1 0.95];
+        Args.Gaps            = [0.03];
+        Args.XTickLabel      = 'margin';  % 'all'|'margin'|'none'
+        Args.YTickLabel      = 'margin';  % 'all'|'margin'|'none'
     end
 
     Ndim     = ndims(Chi2);
@@ -75,13 +76,18 @@ function Chi2cuts=cornerPlot4cube(Chi2, Args)
             Args.Gaps = [Args.Gaps, Args.Gaps];
         end
 
+        if Args.AddHist
+            NdimM = Ndim;
+        else
+            NdimM = Ndim - 1;
+        end
         RangeXLim = range(Args.XLim)+Args.Gaps(1);
         RangeYLim = range(Args.YLim)+Args.Gaps(2);
         IdimVec   = (1:1:Ndim);
-        Xstart    = Args.XLim(1) + (IdimVec-1).*RangeXLim./Ndim;
-        Xend      = Args.XLim(1) + IdimVec    .*RangeXLim./Ndim - Args.Gaps(1);
-        Ystart    = Args.YLim(1) + (IdimVec-1).*RangeYLim./Ndim;
-        Yend      = Args.YLim(1) + IdimVec    .*RangeYLim./Ndim - Args.Gaps(2);
+        Xstart    = Args.XLim(1) + (IdimVec-1).*RangeXLim./NdimM;
+        Xend      = Args.XLim(1) + IdimVec    .*RangeXLim./NdimM - Args.Gaps(1);
+        Ystart    = Args.YLim(1) + (IdimVec-1).*RangeYLim./NdimM;
+        Yend      = Args.YLim(1) + IdimVec    .*RangeYLim./NdimM - Args.Gaps(2);
         DX        = Xend - Xstart;
         DY        = Yend - Ystart;
 
@@ -92,10 +98,18 @@ function Chi2cuts=cornerPlot4cube(Chi2, Args)
         HF = figure;
         for Idim1=1:1:Ndim
             for Idim2=1:1:Ndim
+                % if Args.AddHist && Idim1==Idim2
+                %     I1 = Idim1; % Ndim-Idim1 + 1;
+                %     I2 = Ndim-Idim2 + 1;
+                %     [I1 I2]
+                %     HA(Idim1,Idim2) = axes(HF, 'Position',[Xstart(I2) Ystart(I1) DX(I2) DY(I1)]);
+                % 
+                %     N=histcounts(sum(Chi2cuts{Idim1,Idim2},1));
+                %     bar(N)
+                % end
+
                 if Idim2>Idim1
                     
-
-
                     %figure;
                     I1 = Idim1; % Ndim-Idim1 + 1;
                     I2 = Ndim-Idim2 + 1;
