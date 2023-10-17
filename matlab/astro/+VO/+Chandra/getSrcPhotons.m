@@ -22,6 +22,7 @@ function Data=getSrcPhotons(RA, Dec, Args)
         Dec     = '+58:48:42';
         Args.ObsSearchRadius      = 1200;
         Args.SearchRadius         = 5;
+        Args.Annulus              = [15 30];
         Args.SearchRadiusUnits    = 'arcsec';
         Args.EnergyRange          = [200 8000];  % [eV]
         
@@ -50,6 +51,7 @@ function Data=getSrcPhotons(RA, Dec, Args)
     
     ObsSearchRadius = convert.angular(Args.SearchRadiusUnits, 'rad', Args.ObsSearchRadius);
     SearchRadius    = convert.angular(Args.SearchRadiusUnits, 'rad', Args.SearchRadius);
+    Annulus         = convert.angular(Args.SearchRadiusUnits, 'rad', Args.Annulus);
     
     CatChandra = cats.X.ChandraObs;
     
@@ -83,21 +85,24 @@ function Data=getSrcPhotons(RA, Dec, Args)
             D = celestial.coo.sphere_dist_fast(RA, Dec, PhotonsRADec(:,1), PhotonsRADec(:,2));
             Iph = find(D<SearchRadius);
             
+            Ibck = find(D<Annulus(2) & D>Annulus(1));
+            
             K = K + 1;
-            Data(K).File   = Dir.name;
-            Data(K).ObsID  = CatChandra.(CatProp).ObsID(IndObs(Iobs));
-            Data(K).Nph    = numel(Iph);
-            Data(K).Dist   = D(Iph);
-            Data(K).RA     = P.Events.getCol(Args.ColRA);
-            Data(K).Dec    = P.Events.getCol(Args.ColDec);
-            Data(K).Time   = P.Events.getCol(Args.ColTime);
-            Data(K).Energy = P.Events.getCol(Args.ColEnergy);
-            Data(K).CCDID  = P.Events.getCol(Args.ColCCDID);
-            Data(K).ChipX  = P.Events.getCol(Args.ColChipX);
-            Data(K).ChipY  = P.Events.getCol(Args.ColChipY);
-            Data(K).X      = P.Events.getCol(Args.ColX);
-            Data(K).Y      = P.Events.getCol(Args.ColY);
-            Data(K).PHA    = P.Events.getCol(Args.ColPHA);
+            Data(K).File      = Dir.name;
+            Data(K).ObsID     = CatChandra.(CatProp).ObsID(IndObs(Iobs));
+            Data(K).Nph       = numel(Iph);
+            Data(K).Dist      = D(Iph);
+            Data(K).RA        = P.Events.getCol(Args.ColRA, false, false, 'SelectRows',Iph);
+            Data(K).Dec       = P.Events.getCol(Args.ColDec, false, false, 'SelectRows',Iph);
+            Data(K).Time      = P.Events.getCol(Args.ColTime, false, false, 'SelectRows',Iph);
+            Data(K).Energy    = P.Events.getCol(Args.ColEnergy, false, false, 'SelectRows',Iph);
+            Data(K).CCDID     = P.Events.getCol(Args.ColCCDID, false, false, 'SelectRows',Iph);
+            Data(K).ChipX     = P.Events.getCol(Args.ColChipX, false, false, 'SelectRows',Iph);
+            Data(K).ChipY     = P.Events.getCol(Args.ColChipY, false, false, 'SelectRows',Iph);
+            Data(K).X         = P.Events.getCol(Args.ColX, false, false, 'SelectRows',Iph);
+            Data(K).Y         = P.Events.getCol(Args.ColY, false, false, 'SelectRows',Iph);
+            Data(K).PHA       = P.Events.getCol(Args.ColPHA, false, false, 'SelectRows',Iph);
+            Data(K).BckEnergy = P.Events.getCol(Args.ColEnergy, false, false, 'SelectRows',Ibck);
             
             Data(K).BadTimes = P.BadTimes;
             %PhList = [PhList; P.Events.Catalog(Iph,[1 15])];
