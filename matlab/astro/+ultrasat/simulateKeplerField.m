@@ -3,45 +3,35 @@ function simImage = simulateKeplerField(Args)
     % 
     arguments
         Args.Tile    = 'B';    % the tile name
-        Args.RA0     = 291;    % the aimpoint
-        Args.Dec0    =  44.5;  % the aimpoint
+        Args.RA0     = 291;    % the aimpoint (Kepler field -- 291, NEP -- 270, SEP -- 90)
+        Args.Dec0    =  44.5;  % the aimpoint (Kepler field -- 44.5, NEP -- +66.560708, SEP -- -66.560708)
         Args.ExpNum  =   1;    % the number of exposures
         Args.PlaneRotation = 0;
         Args.OutDir  = '.';
         Args.OutName = 'SimKepler'
         Args.Ebv     =   0; % the updated table contains per-source Ebv, so we need this only for tests
-        Args.Catalog = 'Kepler_ULTRASAT_all.tbl';
+        Args.Catalog = 'Kepler_ULTRASAT_all.tbl'; % Kepler field: 'Kepler_ULTRASAT_all.tbl'
         Args.Dir     = '/home/sasha/KeplerField';
         Args.SNR     = false; % calculate source SNRs with telescope.sn.snr (the existing one is too slow)
         Args.SpecType = 'Pickles'; % 'BB' or 'Pickels'
     end
-    
-    % TODO:
-    %     % 2. based on the grid, make a library of spectrum-integrated ULTRASAT PSFs: 
-    % 25 radial points x ~ 108-131 uk Pickles spectra (or less?) [+ a number of
-    % BBs?] ~ 3000 PSFs at 1/5 pixel resolution (stamp 108x108 pix ~ 10^4 * 4
-    % byte (single precision) ~ 44 kb x 3000 PSFs ~ 120 Mb ?)
-    % and implement the possibility to use the library into the simulator
-    % 3. according to the request of Yossi add an SNR column to the table so
-    % that SNR = 0.8 * count / noise, where noise = avg(noise/pix)*
-    % effective number of source pixels in a source PSF (pi*containment*2)
     
     cd(Args.Dir);
     SrcTab  = readtable(Args.Catalog,'FileType','text');
     
     switch Args.Tile 
         case 'A'
-            ra1 = 279; ra2 = 291;
-            dec1 = 44; dec2 = 52;
+%             ra1 = 279; ra2 = 291; dec1 = 44; dec2 = 52; % Kepler field
+            ra1 = 71; ra2 = 90; dec1 = -68; dec2 = -58; % SEP
         case 'B'
-            ra1 = 291; ra2 = 303;
-            dec1 = 44; dec2 = 52;
+%             ra1 = 291; ra2 = 303; dec1 = 44; dec2 = 52; % Kepler field
+            ra1 = 90; ra2 = 109; dec1 = -68; dec2 = -58; % SEP
         case 'C'
-            ra1 = 291; ra2 = 303;
-            dec1 = 36.5; dec2 = 44.5;
+%             ra1 = 291; ra2 = 303; dec1 = 36.5; dec2 = 44.5; % Kepler field
+            ra1 = 89; ra2 = 106; dec1 = -74; dec2 = -65; % SEP
         case 'D' 
-            ra1 = 280; ra2 = 291;
-            dec1 = 36.5; dec2 = 44.5;
+%             ra1 = 280; ra2 = 291; dec1 = 36.5; dec2 = 44.5; % Kepler field
+            ra1 = 64; ra2 = 91; dec1 = -74; dec2 = -65; % SEP
         otherwise
             error ('Tile name not correct');
     end
