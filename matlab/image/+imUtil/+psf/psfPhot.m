@@ -45,9 +45,6 @@ function psfPhot(Cube, Args)
         [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Cube, Args.Xinit, Args.Yinit, RadiusPSF);
     end
     
-    if isempty(Args.PsfPeakVal)
-        error('not ready');
-    end
     
     % Calculate the coordinates of PSF centers
     [Ny, Nx, Nim] = size(Cube);
@@ -64,6 +61,11 @@ function psfPhot(Cube, Args)
     if isempty(Args.Yinit)
         Args.Yinit = Ycenter;
     end
+    
+    if isempty(Args.PsfPeakVal)
+        Args.PsfPeakVal = squeeze(Cube(Args.Xinit, Args.Yinit, :));
+    end
+    
     
     if Args.SubBack || Args.UseSourceNoise
         if isempty(Args.Back) || isempty(Args.Std)
@@ -175,5 +177,5 @@ function psfPhot(Cube, Args)
         
     end
     % final fit and return flux
-    
+    'a'
 end
