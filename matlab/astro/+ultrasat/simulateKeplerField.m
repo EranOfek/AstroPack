@@ -22,16 +22,20 @@ function simImage = simulateKeplerField(Args)
     switch Args.Tile 
         case 'A'
 %             ra1 = 279; ra2 = 291; dec1 = 44; dec2 = 52; % Kepler field
-            ra1 = 71; ra2 = 90; dec1 = -68; dec2 = -58; % SEP
+%             ra1 = 71; ra2 = 90; dec1 = -68; dec2 = -58; % SEP
+            ra1 = 244; ra2 = 271; dec1 = 65; dec2 = 74; % NEP
         case 'B'
 %             ra1 = 291; ra2 = 303; dec1 = 44; dec2 = 52; % Kepler field
-            ra1 = 90; ra2 = 109; dec1 = -68; dec2 = -58; % SEP
+%             ra1 = 90; ra2 = 109; dec1 = -68; dec2 = -58; % SEP
+            ra1 = 269; ra2 = 295; dec1 = 65; dec2 = 74; % NEP
         case 'C'
 %             ra1 = 291; ra2 = 303; dec1 = 36.5; dec2 = 44.5; % Kepler field
-            ra1 = 89; ra2 = 106; dec1 = -74; dec2 = -65; % SEP
+%             ra1 = 89; ra2 = 106; dec1 = -74; dec2 = -65; % SEP
+            ra1 = 270; ra2 = 289; dec1 = 58; dec2 = 67; % NEP
         case 'D' 
 %             ra1 = 280; ra2 = 291; dec1 = 36.5; dec2 = 44.5; % Kepler field
-            ra1 = 64; ra2 = 91; dec1 = -74; dec2 = -65; % SEP
+%             ra1 = 64; ra2 = 91; dec1 = -74; dec2 = -65; % SEP
+            ra1 = 251; ra2 = 270; dec1 = 58; dec2 = 67; % NEP
         otherwise
             error ('Tile name not correct');
     end
