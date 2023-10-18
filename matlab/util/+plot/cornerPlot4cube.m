@@ -36,6 +36,9 @@ function [HA,Chi2cuts]=cornerPlot4cube(Chi2, Args)
         Args.DOF             = [];
 
         Args.AddHist logical = true;
+        Args.Fun             = @(X) exp(X);
+        Args.InvFun          = @(X) log(X);
+        
         Args.FontSize        = 18;
         Args.Interpreter     = 'latex';
         Args.XLim            = [0.1 0.95];
@@ -49,6 +52,9 @@ function [HA,Chi2cuts]=cornerPlot4cube(Chi2, Args)
     %SizeChi2 = size(Chi2);
 
     Chi2cuts = tools.array.arrayAllCuts(Chi2, 'AxesCenter',Args.AxesCenter);
+    if Args.AddHist
+        MarginVecs = tools.array.arrayMarginalization(Chi2, 'Fun',Args.Fun, 'InvFun',Args.InvFun)
+    end
     
     % Plot section
     if Args.Plot
@@ -82,19 +88,22 @@ function [HA,Chi2cuts]=cornerPlot4cube(Chi2, Args)
         HF = figure;
         for Idim1=1:1:Ndim
             for Idim2=1:1:Ndim
-%                 if Args.AddHist && Idim1==Idim2
-%                     I1 = Idim1; % Ndim-Idim1 + 1;
-%                     I2 = Ndim-Idim2 + 1;
-%                     [I1 I2]
-%                     [Idim1 Idim2]
-%                     HA(Idim1,Idim2) = axes(HF, 'Position',[Xstart(I2) Ystart(I1) DX(I2) DY(I1)]);
-%                 
-%                     PP = exp(Chi2cuts{Idim1,Idim2});
-%                     PP = PP./sum(PP, 'all');
-%                     
-%                     N=histcounts(sum(PP,1));
-%                     stairs(N)
-%                 end
+                if Args.AddHist && Idim1==Idim2
+                    I1 = Idim1; % Ndim-Idim1 + 1;
+                    I2 = Ndim-Idim2 + 1;
+                    [I1 I2]
+                    [Idim1 Idim2]
+                    HA(Idim1,Idim2) = axes(HF, 'Position',[Xstart(I2) Ystart(I1) DX(I2) DY(I1)]);
+                
+                    if isempty(Args.AxesVecs)
+                        stairs(MarginVecs{Idim1})
+                    else
+                        stairs(Args.AxesVecs{Idim1}, MarginVecs{Idim1})
+                    end
+                    HA(Idim1,Idim2).XTickLabel = [];
+                    HA(Idim1,Idim2).YTickLabel = [];
+                    
+                end
 
                 if Idim2>Idim1
                     
@@ -102,6 +111,8 @@ function [HA,Chi2cuts]=cornerPlot4cube(Chi2, Args)
                     I1 = Idim1; % Ndim-Idim1 + 1;
                     I2 = Ndim-Idim2 + 1;
                     %[I1 I2]
+                    
+                    
                     HA(Idim1,Idim2) = axes(HF, 'Position',[Xstart(I2) Ystart(I1) DX(I2) DY(I1)]);
                     
 

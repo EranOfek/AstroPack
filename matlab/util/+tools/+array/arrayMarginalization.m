@@ -1,5 +1,5 @@
 function Margin=arrayMarginalization(Cube, Args)
-    % For each dimension in an array, marginalize over all other dimensiosns.
+    % For each dimension in an array, marginalize over all other dimensions.
     %   Also apply function prior and following the marginalization.
     % Input  : - A N-D array.
     %          * ...,key,val,...
