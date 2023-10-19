@@ -53,7 +53,7 @@ function [HA,Chi2cuts]=cornerPlot4cube(Chi2, Args)
 
     Chi2cuts = tools.array.arrayAllCuts(Chi2, 'AxesCenter',Args.AxesCenter);
     if Args.AddHist
-        MarginVecs = tools.array.arrayMarginalization(Chi2, 'Fun',Args.Fun, 'InvFun',Args.InvFun)
+        MarginVecs = tools.array.arrayMarginalization(Chi2, 'Fun',Args.Fun, 'InvFun',Args.InvFun);
     end
     
     % Plot section
@@ -119,7 +119,7 @@ function [HA,Chi2cuts]=cornerPlot4cube(Chi2, Args)
                     if isempty(Args.AxesVecs)
                         contour(Chi2cuts{Idim1,Idim2}, ContourLevels)
                     else
-                        contour(Args.AxesVecs{Idim1}, Args.AxesVecs{Idim2}, Chi2cuts{Idim1,Idim2}, ContourLevels)
+                        contour(Args.AxesVecs{Idim2}, Args.AxesVecs{Idim1}, Chi2cuts{Idim1,Idim2}, ContourLevels)
                     end
                     if ~isempty(Args.AxesNames)
 
