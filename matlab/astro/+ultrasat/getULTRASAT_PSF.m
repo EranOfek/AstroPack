@@ -13,9 +13,11 @@ function PSF = getULTRASAT_PSF(Args)
     % Example: P = ultrasat.getULTRASAT_PSF('Type','Pickles','Teff', 4300, 'logg', 4.2, 'Rad', 2.1);
     %          P = ultrasat.getULTRASAT_PSF('Type','BB','Teff', 4300, 'Rad', 1.2);
     %          P = ultrasat.getULTRASAT_PSF('Type','stellarclass','Class',{'o9','v'}, 'Rad', 4.6);
+    %          P = ultrasat.getULTRASAT_PSF('Teff',4e3,'Rad',3.1);
+    %          P = ultrasat.getULTRASAT_PSF('Class',{'g0', 'v'},'Rad',4.9);
     arguments
         Args.Oversampling = 5;
-        Args.Type         = 'Pickles';
+        Args.Type         = 'all';
         Args.Teff         = []; % 5500;      
         Args.logg         = []; % 4.6;
         Args.Class        = {}; % {'g0', 'v'};
@@ -30,6 +32,9 @@ function PSF = getULTRASAT_PSF(Args)
             else
                 error('The requested oversampling data is not yet available, exiting..');
             end
+            if isempty(Args.Teff) || isempty(Args.logg)
+                error('Both Teff and log(g) must be specified, exiting..');
+            end
             if Args.Teff < 10^logT(1) || Args.Teff > 10^logT(numel(logT)) || Args.logg < logg(1) || Args.logg > logg(numel(logg)) 
                 cprintf('red','Warning! The input parameters are outside the modelled range!\n');
             end
@@ -42,6 +47,9 @@ function PSF = getULTRASAT_PSF(Args)
                 io.files.load1(Collection);
             else
                 error('The requested oversampling data is not yet available, exiting..');
+            end
+            if isempty(Args.Teff)
+                error('Teff not specified, exiting..');
             end
             if Args.Teff < 10^logT(1) || Args.Teff > 10^logT(numel(logT)) 
                 cprintf('red','Warning! The input parameters are outside the modelled range!\n');
@@ -65,7 +73,8 @@ function PSF = getULTRASAT_PSF(Args)
                 error('Input either a stellar class or a temperature');
             end
             if ~isempty(Ind)
-                PSF = WPSF(:,:,Ind);                
+                X = 1:size(WPSF,1); Y = 1:size(WPSF,2); NumSpec = 1:size(WPSF,3);
+                PSF = interpn(X, Y, NumSpec, Rad, WPSF, X, Y, Ind, Args.Rad);               
             else    
                 error('The requested PSF is not present in the collection');
             end

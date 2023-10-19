@@ -103,7 +103,7 @@ function [WPSF, ContRad] = weightedPSF(Args)
         case 'all'
             % put all types of spectra into 1 array according to a special
             % indexing function which translates spectral types into index            
-            Spec = ultrasat.weightedPSFindex('AllSpec','true');
+            Spec = ultrasat.weightedPSFindex('BuildSpec',true);
             
             NSp  = numel(Spec);
             WPSF = zeros(size(PSFdata,1),size(PSFdata,2),NSp,Nrad);
