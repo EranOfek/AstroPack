@@ -16,9 +16,9 @@ function PSF = getULTRASAT_PSF(Args)
     arguments
         Args.Oversampling = 5;
         Args.Type         = 'Pickles';
-        Args.Teff         = 5500;
-        Args.logg         = 4.6;
-        Args.Class        = {'g0', 'v'};
+        Args.Teff         = []; % 5500;      
+        Args.logg         = []; % 4.6;
+        Args.Class        = {}; % {'g0', 'v'};
         Args.Rad          = 0;
     end
     I = Installer;
@@ -48,6 +48,27 @@ function PSF = getULTRASAT_PSF(Args)
             end
             X = 1:size(WPSF,1); Y = 1:size(WPSF,2);            
             PSF = interpn(X,Y, logT, Rad, WPSF, X, Y, log10(Args.Teff), Args.Rad);
+            
+        case 'all'
+            Collection = sprintf('%s%s%.0f%s',I.getDataDir('ULTRASAT_PSF'),'/spec_weightedPSF_all_ovrsmpl',Args.Oversampling,'.mat');
+            if isfile(Collection)
+                io.files.load1(Collection);
+            else
+                error('The requested oversampling data is not yet available, exiting..');
+            end
+            
+            if ~isempty(Args.Teff)
+                Ind = ultrasat.weightedPSFindex('SpecName',Args.Teff);
+            elseif ~isempty(Args.Class)
+                Ind = ultrasat.weightedPSFindex('SpecName',Args.Class);
+            else
+                error('Input either a stellar class or a temperature');
+            end
+            if ~isempty(Ind)
+                PSF = WPSF(:,:,Ind);                
+            else    
+                error('The requested PSF is not present in the collection');
+            end
             
         case 'galaxy'
             error('Galactic spectra are not available as of yet');

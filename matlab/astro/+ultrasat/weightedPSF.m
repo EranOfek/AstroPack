@@ -11,6 +11,7 @@ function [WPSF, ContRad] = weightedPSF(Args)
     % Author: A.M. Krassilchtchikov (Oct 2023)
     % Example: ultrasat.weightedPSF('ContainmentLevel',0.9);
     %          ultrasat.weightedPSF('Type','BB','ContainmentLevel',0.8);
+    %          ultrasat.weightedPSF('Type','all');
     %          P = ultrasat.weightedPSF('Type','stellarclass','Class',{'o9','v'}, 'RDist', 5.5);
     arguments
         Args.ImRes = 5; 
@@ -101,12 +102,8 @@ function [WPSF, ContRad] = weightedPSF(Args)
             
         case 'all'
             % put all types of spectra into 1 array according to a special
-            % indexing function which translates spectral types into index
-            
-            Spec = AstroSpec.specStarsPickles('G2','V');
-            for Temp = [2e3 ,4e3 ,6e3 ,8e3 ,1e4 ,2e4 ,3e4 ,4e4, 5e4, 6e4, 7e4]
-                Spec(end+1) = AstroSpec.blackBody(WavePSF,Temp);
-            end
+            % indexing function which translates spectral types into index            
+            Spec = ultrasat.weightedPSFindex('AllSpec','true');
             
             NSp  = numel(Spec);
             WPSF = zeros(size(PSFdata,1),size(PSFdata,2),NSp,Nrad);
