@@ -54,7 +54,8 @@ function PS=periodFoldedEvents(T, FreqVec, Args)
         PhaseTF = (TF - floor(TF));
        
         % bin
-        N = histcounts(PhaseTF, Edges);
+        %N = histcounts(PhaseTF, Edges);
+        N = matlab.internal.math.histcounts(PhaseTF, Edges);
         %PS(Ifreq,2) = std(N)./sqrt(mean(N));
         
         Par = H\N(:);
