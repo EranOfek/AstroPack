@@ -813,17 +813,7 @@ classdef OrbitalEl < Base
             
         end
             
-%         function Result = compareEphem2JPL(Obj, Args)
-%             %
-%            
-%             arguments
-%                 Obj
-%                 Args
-%             end
-%             
-%             
-%             
-%         end
+        
         
         function Result = ephem(Obj, Time, Args)
             % Calculate ephemerides for OrbitalEl object.
@@ -1519,6 +1509,36 @@ classdef OrbitalEl < Base
             
             
         end
+        
+        function Result = compareEphem2JPL(Args)
+            % Compare ephemeris with JPL ephemeris
+           
+            arguments
+                Args.ObjectInd  = 9804;
+                Args.JD        = 2456000;
+                Args.GeodPos   = [];  % [deg deg m]
+                Args.Integration logical    = false;
+            end
+            
+            RAD = 180./pi;
+            
+            %JD = celestial.time.julday([19 9 2021])+(0:1./24:1)';
+            %          Coo=[-116.865./RAD 33.3563./RAD 2000]
+            OrbEl1 = celestial.OrbitalEl.loadSolarSystem([],Args.ObjectInd);
+            if ~isempty(Args.GeodPos)
+                GeosPosKM = [Args.GeodPos(1:2), Args.GeodPos(3)./1000];
+            else
+                GeodPosKM = [];
+            end
+            CatE   = ephem(OrbEl1, Args.JD, 'GeoPos',Args.GeodPos, 'OutUnitsDeg',false, 'Integration',Args.Integration);
+            
+            CatJPL = celestial.SolarSys.jpl_horizons('ObjectInd',num2str(Args.ObjectInd),'StartJD',Args.JD,'StopJD',Args.JD+1,...
+                                                     'StepSizeUnits','d','CENTER','500', 'GeodCoo',GeodPosKM);
+            % RA nd Dec diff between JPL and ephem:
+            Result = [CatE.Catalog.RA - CatJPL.Catalog(1,2), CatE.Catalog.Dec - CatJPL.Catalog(1,3)].*RAD.*3600;
+            
+        end
+        
     end
 
 
