@@ -813,6 +813,18 @@ classdef OrbitalEl < Base
             
         end
             
+%         function Result = compareEphem2JPL(Obj, Args)
+%             %
+%            
+%             arguments
+%                 Obj
+%                 Args
+%             end
+%             
+%             
+%             
+%         end
+        
         function Result = ephem(Obj, Time, Args)
             % Calculate ephemerides for OrbitalEl object.
             %   For each orbital-element or time, return the Geocentric or
@@ -901,7 +913,7 @@ classdef OrbitalEl < Base
             %          CatE = ephem(OrbEl1, JD, 'GeoPos',Coo, 'OutUnitsDeg',false)
             %          [CatJPL]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','675')
             %          % RA nd Dec diff between JPL and ephem:
-            %          [CatE.Catalog(:,2) - CatJPL.Catalog(:,2), CatE.Catalog(:,3) - CatJPL.Catalog(:,3)].*RAD.*3600
+            %          [CatE.Catalog.RA - CatJPL.Catalog(:,2), CatE.Catalog.Dec - CatJPL.Catalog(:,3)].*RAD.*3600
             %     hyperbolic orbit
             %          OrbEl = celestial.OrbitalEl.loadSolarSystem('unnum','A/2017 U1');
             %          JD = celestial.time.julday([1 1 2018 0]);
