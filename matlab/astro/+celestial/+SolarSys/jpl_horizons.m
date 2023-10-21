@@ -10,6 +10,8 @@ function [Cat]=jpl_horizons(varargin)
 %                   Default is '499;'.
 %            'StartJD' - Start JD, or [D M Y Frac].
 %                   Default is 2451545.5
+%                   IMPORTANT: JD must be a whole day (i.e., ending with
+%                   0.5).
 %            'StopJD' - Stop JD, or [D M Y Frac].
 %                   Default is 2451545.5
 %            'GeodCoo' - If empty use Geocentric observer.

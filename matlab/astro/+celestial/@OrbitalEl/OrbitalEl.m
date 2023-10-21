@@ -1515,7 +1515,7 @@ classdef OrbitalEl < Base
            
             arguments
                 Args.ObjectInd  = 9804;
-                Args.JD        = 2456000;
+                Args.JD        = 2460110.5 + 0.5;
                 Args.GeodPos   = [];  % [deg deg m]
                 Args.Integration logical    = false;
             end
@@ -1526,7 +1526,7 @@ classdef OrbitalEl < Base
             %          Coo=[-116.865./RAD 33.3563./RAD 2000]
             OrbEl1 = celestial.OrbitalEl.loadSolarSystem([],Args.ObjectInd);
             if ~isempty(Args.GeodPos)
-                GeosPosKM = [Args.GeodPos(1:2), Args.GeodPos(3)./1000];
+                GeodPosKM = [Args.GeodPos(1:2), Args.GeodPos(3)./1000];
             else
                 GeodPosKM = [];
             end
