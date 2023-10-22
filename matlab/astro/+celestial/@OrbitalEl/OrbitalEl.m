@@ -1512,12 +1512,19 @@ classdef OrbitalEl < Base
         
         function Result = compareEphem2JPL(Args)
             % Compare ephemeris with JPL ephemeris
-           
+            %   A function for testing the performences of ephem
+            % Example: VecJD = ((2460110.5 - 1000):10:(2460110.5 +100))';
+            %          R1=celestial.OrbitalEl.compareEphem2JPL('StartJD',VecJD(1),'EndJD',VecJD(end));
+            %          R2=celestial.OrbitalEl.compareEphem2JPL('StartJD',VecJD(1),'EndJD',VecJD(end),'Integration',true);
+            %          plot(VecJD,R1(:,1)); hold on; plot(VecJD,R2(:,1))
+            
             arguments
-                Args.ObjectInd  = 9804;
-                Args.JD        = 2460110.5 + 0.5;
-                Args.GeodPos   = [];  % [deg deg m]
-                Args.Integration logical    = false;
+                Args.ObjectInd           = 9804;
+                Args.StartJD             = 2460110.5 - 1000;
+                Args.StepSize            = 10;
+                Args.EndJD               = 2460110.5 + 100;
+                Args.GeodPos             = [];  % [deg deg m]
+                Args.Integration logical = false;
             end
             
             RAD = 180./pi;
@@ -1530,12 +1537,13 @@ classdef OrbitalEl < Base
             else
                 GeodPosKM = [];
             end
-            CatE   = ephem(OrbEl1, Args.JD, 'GeoPos',Args.GeodPos, 'OutUnitsDeg',false, 'Integration',Args.Integration);
+            VecJD  = (Args.StartJD:Args.StepSize:Args.EndJD)';
+            CatE   = ephem(OrbEl1, VecJD, 'GeoPos',Args.GeodPos, 'OutUnitsDeg',false, 'Integration',Args.Integration);
             
-            CatJPL = celestial.SolarSys.jpl_horizons('ObjectInd',num2str(Args.ObjectInd),'StartJD',Args.JD,'StopJD',Args.JD+1,...
-                                                     'StepSizeUnits','d','CENTER','500', 'GeodCoo',GeodPosKM);
+            CatJPL = celestial.SolarSys.jpl_horizons('ObjectInd',num2str(Args.ObjectInd),'StartJD',Args.StartJD,'StopJD',Args.EndJD,...
+                                                     'StepSize',Args.StepSize, 'StepSizeUnits','d','CENTER','500', 'GeodCoo',GeodPosKM);
             % RA nd Dec diff between JPL and ephem:
-            Result = [CatE.Catalog.RA - CatJPL.Catalog(1,2), CatE.Catalog.Dec - CatJPL.Catalog(1,3)].*RAD.*3600;
+            Result = [CatE.Catalog.RA - CatJPL.Catalog(:,2), CatE.Catalog.Dec - CatJPL.Catalog(:,3)].*RAD.*3600;
             
         end
         
