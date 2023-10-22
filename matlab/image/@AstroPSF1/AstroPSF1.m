@@ -5,8 +5,6 @@
 %       DataPSF - A PSF data. Stamp, or function parameters
 %       DataVar - A PSF variance data. Stamp, or function parameters
 %       FunPSF - A PSF function handle
-%       ArgVals - Arguments values.
-%       ArgNames - The argument names.
 %       StampSize - PSF stamp size.
 % Functionality :
 %

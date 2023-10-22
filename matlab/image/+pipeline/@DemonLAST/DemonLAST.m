@@ -1636,6 +1636,8 @@ classdef DemonLAST < Component
                             % 
                             if Args.Insert2DB
                                 
+                                try
+                                    
                                 if isempty(ADB)
                                     % connect to DB
                                     ADB = db.AstroDb(Args.AstroDBArgs{:});
@@ -1745,6 +1747,12 @@ classdef DemonLAST < Component
                                 
                                 Msg{1} = sprintf('Insert catalog objects to LAST catalog tables - success: %d', OK);
                                 Obj.writeLog(Msg, LogLevel.Info);
+                                
+                                catch DBMsg
+                                    DBErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', DBMsg.message, DBMsg.stack(1).name, DBMsg.stack(1).line);
+                                    Obj.writeLog(DBErrorMsg, LogLevel.Error);
+                                    Obj.writeLog(DBMsg, LogLevel.Error);
+                                end
 
                             end
 
