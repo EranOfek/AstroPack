@@ -1,10 +1,10 @@
 function Result = weightedPSFindex(Args)
-    % build an array of spectra for ULTRASAT PSF weighting or find the index of a particular spectrum in this array
+    % 1. build an array of spectra for ULTRASAT PSF weighting or 2. find the index of a particular spectrum in this array
     % Input: - 
     %        * ...,key,val,...
     %        'SpecName' - a cell with spectrum name: or a stellar class:
     %                    {'a3','i'} or a temperature of a BB spectrum: 5700
-    %        'AllSpec' - whether to produce a set of spectra to be used by ultrasat.weightedPSF
+    %        'BuildSpec' - whether to produce a set of spectra to be used by ultrasat.weightedPSF
     % Output: - an array of AstroSpec or an index of a particular spectrum in the list
     % Author: A.M. Krassilchtchikov (Oct 2023)
     % Example: Ind = ultrasat.weightedPSFindex('SpecName',2e3);
@@ -139,7 +139,7 @@ function Result = weightedPSFindex(Args)
     % Some other type of spectra:
    
     % 1. Build all the spectra from the list OR
-    % 2. For a given set of spectral parameters find its number in the list
+    % 2. For a given set of spectral parameters find its number (index) in the list
     if Args.BuildSpec          
         Spec = repmat(AstroSpec,1,numel(Ind));        
         for i = 1:NPick

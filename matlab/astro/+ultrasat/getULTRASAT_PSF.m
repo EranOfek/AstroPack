@@ -1,5 +1,5 @@
 function PSF = getULTRASAT_PSF(Args)
-    % get a weighted ULTRASAT PSF stamp
+    % get a spectrum-weighted ULTRASAT PSF stamp from pre-built libraries 
     % Input: -
     %       * ...,key,val,... 
     %       'Oversampling' - image oversampling in 1/pix units (allowed values: 1, 2, 5, 10, 47.5)

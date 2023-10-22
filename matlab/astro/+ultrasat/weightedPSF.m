@@ -1,13 +1,13 @@
 function [WPSF, ContRad] = weightedPSF(Args)
-    % make a bank of spectrum-weighted ULTRASAT PSFs for a set of spectra and a range of radial distances
+    % make a .mat library of spectrum-weighted ULTRASAT PSFs for a set of spectra and a range of radial distances
     % Input: -
     %        * ...,key,val,... 
     %       'ImRes' - image oversampling in 1/pix units (allowed values: 1, 2, 5, 10, 47.5)
-    %       'Type'  - spectrum type ('Pickles','BB','stellarclass','galaxy')
+    %       'Type'  - spectrum type ('Pickles','BB','stellarclass','galaxy','all')
     %       'ContainmentLevel' - calculate the radius where a certain percent of the total PSF flux is contained
-    %       'Class' - stellar class as a cell array of 2 cells 
-    %       'RDist' - radial distance from the tile's inner corner [deg]
-    % Output: matlab objects with spectrum-weighted PSFs and their flux containment radii
+    %       'Class' - stellar class as a cell array of 2 cells, e.g. {'m2','v'} 
+    %       'RDist' - radial distance from the detector tile's inner corner [deg]
+    % Output: 2 matlab objects: 1. spectrum-weighted PSFs and 2. their flux containment radii
     % Author: A.M. Krassilchtchikov (Oct 2023)
     % Example: ultrasat.weightedPSF('ContainmentLevel',0.9);
     %          ultrasat.weightedPSF('Type','BB','ContainmentLevel',0.8);
