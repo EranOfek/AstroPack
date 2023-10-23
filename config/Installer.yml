@@ -4,7 +4,6 @@
 #       1. DataName should match its parent item name
 #
 
-
 # Common and default settings
 Default:
     # To override the installation location for each item,
@@ -13,7 +12,6 @@ Default:
 
     # Windows
     InstallationLocationWindows : 'C:/AstroPack/matlab/data'
-
 
 Items:
 
@@ -25,7 +23,6 @@ Items:
         Size                 : 0.09
         SearchFile           : ''
         Description          : 'Earth Atmosphere and Extinction'
-
 
     Starlib23:
         # The following are cell arrays of entry per dataset
@@ -45,7 +42,6 @@ Items:
         SearchFile           : ''
         Description          : 'STSCI CALSPEC standard spectra library (FITS format)'
 
-
     cats:
         # The following are cell arrays of entry per dataset
         DataName             : 'cats'
@@ -54,7 +50,6 @@ Items:
         Size                 : 54000
         SearchFile           : 'cats.tar'
         Description          : '+cats medium-size catalogs'
-
 
     EarthGravity:
         # The following are cell arrays of entry per dataset
@@ -65,7 +60,6 @@ Items:
         SearchFile           : ''
         Description          : 'Earth Gravity Models'
 
-
     GAIA_SpecTemplate:
         # The following are cell arrays of entry per dataset
         DataName             : 'GAIA_SpecTemplate'
@@ -74,7 +68,6 @@ Items:
         Size                 : 1805
         SearchFile           : '.*\.mat'
         Description          : 'GAIA stars synthetic spectral templates'
-
 
     MinorPlanets:
         # The following are cell arrays of entry per dataset
@@ -85,7 +78,6 @@ Items:
         SearchFile           : ''
         Description          : 'JPL Orbital Elements of Minor Planets'
 
-
     MoonELP:
         # The following are cell arrays of entry per dataset
         DataName             : 'MoonELP'
@@ -95,26 +87,25 @@ Items:
         SearchFile           : ''
         Description          : 'Moon Ephemerides ELP'
 
-
     PicklesStellarSpec:
         # The following are cell arrays of entry per dataset
         DataName             : 'PicklesStellarSpec'
         SubDir               : 'spec/PicklesStellarSpec'
-        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/PicklesStellarSpec.tar']
+        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/PicklesStellarSpec.tar']
+        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/ultrasat/PicklesStellarSpec.tar']
         Size                 : 8
         SearchFile           : ''
         Description          : 'Pickles Stellar Spectra Templates'
-
 
     SpecGalQSO:
         # The following are cell arrays of entry per dataset
         DataName             : 'SpecGalQSO'
         SubDir               : 'spec/SpecGalQSO'
-        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/SpecGalQSO.tar']
+        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/SpecGalQSO.tar']
+        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/ultrasat/SpecGalQSO.tar']
         Size                 : 2.7
         SearchFile           : ''
         Description          : 'Galaxy + Quasar template spectra'
-
 
     SunSpec:
         # The following are cell arrays of entry per dataset
@@ -124,7 +115,6 @@ Items:
         Size                 : 0.02
         SearchFile           : ''
         Description          : 'Solar Spectrum'
-
 
     TestImagesLAST:
         # The following are cell arrays of entry per dataset
@@ -144,7 +134,6 @@ Items:
         SearchFile           : ''
         Description          : 'FITS test images for AstroPack unitTest'
 
-
     Time:
         # The following are cell arrays of entry per dataset
         DataName             : 'Time'
@@ -153,7 +142,6 @@ Items:
         Size                 : 1805
         SearchFile           : ''
         Description          : 'Time and Earth Rotation Orientation Parameters'
-
 
     VSOPE87:
         # The following are cell arrays of entry per dataset
