@@ -7,6 +7,8 @@ function [Int, IntErr]=trapzErr(X,Y,ErrY,Dim)
     %            if Dim=1 and as a row vector if Dim=2
     %          - Vector or matrix of Y values.
     %          - Vector or matrix of errors on Y values.
+    %            If empty, call regular trapz.
+    %            Default is [].
     %          - Dimension on which to perform the integration.
     %            Default is 1.
     % Output : - Trapz integration values along the requested dimension.
@@ -19,7 +21,7 @@ function [Int, IntErr]=trapzErr(X,Y,ErrY,Dim)
     arguments
         X
         Y
-        ErrY
+        ErrY  = [];
         Dim   = 1;
     end
     
@@ -35,18 +37,21 @@ function [Int, IntErr]=trapzErr(X,Y,ErrY,Dim)
     
     Int    = trapz(X, Y, Dim);
     
-    DX     = diff(X, 1, Dim);
-    if Dim==1
-        Ymean    = 0.5.*(Y(2:end,:) + Y(1:end-1,:));
-        YmeanErr = 0.5.*(ErrY(2:end,:) + ErrY(1:end-1,:));
-    elseif Dim==2
-        Ymean    = 0.5.*(Y(:,2:end) + Y(:,1:end-1));
-        YmeanErr = 0.5.*(ErrY(:,2:end) + ErrY(:,1:end-1));
+    if isempty(ErrY)
+        IntErr = [];
     else
-        error('Dim must be 1 or 2');
+        DX     = diff(X, 1, Dim);
+        if Dim==1
+            Ymean    = 0.5.*(Y(2:end,:) + Y(1:end-1,:));
+            YmeanErr = 0.5.*(ErrY(2:end,:) + ErrY(1:end-1,:));
+        elseif Dim==2
+            Ymean    = 0.5.*(Y(:,2:end) + Y(:,1:end-1));
+            YmeanErr = 0.5.*(ErrY(:,2:end) + ErrY(:,1:end-1));
+        else
+            error('Dim must be 1 or 2');
+        end
+
+        IntErrVec = YmeanErr.*DX;
+        IntErr    = sqrt(sum(IntErrVec.^2, Dim));
     end
-            
-    IntErrVec = YmeanErr.*DX;
-    IntErr    = sqrt(sum(IntErrVec.^2, Dim));
-    
 end
