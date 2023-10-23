@@ -12,7 +12,6 @@ function simImage = simulateKeplerField(Args)
         Args.Ebv     =   0; % the updated table contains per-source Ebv, so we need this only for tests
         Args.Catalog = 'Kepler_ULTRASAT_all.tbl'; % Kepler field: 'Kepler_ULTRASAT_all.tbl'
         Args.Dir     = '/home/sasha/KeplerField';
-        Args.SNR     = false; % calculate source SNRs with telescope.sn.snr (the existing one is too slow)
         Args.SpecType = 'Pickles'; % 'BB' or 'Pickels'
     end
     
@@ -21,21 +20,21 @@ function simImage = simulateKeplerField(Args)
     
     switch Args.Tile 
         case 'A'
-%             ra1 = 279; ra2 = 291; dec1 = 44; dec2 = 52; % Kepler field
+            ra1 = 279; ra2 = 291; dec1 = 44; dec2 = 52; % Kepler field
 %             ra1 = 71; ra2 = 90; dec1 = -68; dec2 = -58; % SEP
-            ra1 = 244; ra2 = 271; dec1 = 65; dec2 = 74; % NEP
+%             ra1 = 244; ra2 = 271; dec1 = 65; dec2 = 74; % NEP
         case 'B'
-%             ra1 = 291; ra2 = 303; dec1 = 44; dec2 = 52; % Kepler field
+            ra1 = 291; ra2 = 303; dec1 = 44; dec2 = 52; % Kepler field
 %             ra1 = 90; ra2 = 109; dec1 = -68; dec2 = -58; % SEP
-            ra1 = 269; ra2 = 295; dec1 = 65; dec2 = 74; % NEP
+%             ra1 = 269; ra2 = 295; dec1 = 65; dec2 = 74; % NEP
         case 'C'
-%             ra1 = 291; ra2 = 303; dec1 = 36.5; dec2 = 44.5; % Kepler field
+            ra1 = 291; ra2 = 303; dec1 = 36.5; dec2 = 44.5; % Kepler field
 %             ra1 = 89; ra2 = 106; dec1 = -74; dec2 = -65; % SEP
-            ra1 = 270; ra2 = 289; dec1 = 58; dec2 = 67; % NEP
+%             ra1 = 270; ra2 = 289; dec1 = 58; dec2 = 67; % NEP
         case 'D' 
-%             ra1 = 280; ra2 = 291; dec1 = 36.5; dec2 = 44.5; % Kepler field
+            ra1 = 280; ra2 = 291; dec1 = 36.5; dec2 = 44.5; % Kepler field
 %             ra1 = 64; ra2 = 91; dec1 = -74; dec2 = -65; % SEP
-            ra1 = 251; ra2 = 270; dec1 = 58; dec2 = 67; % NEP
+%             ra1 = 251; ra2 = 270; dec1 = 58; dec2 = 67; % NEP
         otherwise
             error ('Tile name not correct');
     end
@@ -52,7 +51,7 @@ function simImage = simulateKeplerField(Args)
     Ebv  = Tab.E_B_V_; % individual values 
 %     Ebv  = Args.Ebv; % one value for the whole field %% TEST ONLY
     IndNaN = isnan(Ebv);
-    Ebv(IndNaN) = 0.1; % change the non-existing Ebv for the mean value of the field (0.1)
+    Ebv(IndNaN) = median(Ebv,'omitnan'); % change the non-existing Ebv for the median value of the field
     
     % deredden the V magnidues (the simulator deals with dereddened values!)
     Filt = AstFilter.get('Johnson','V');
@@ -83,27 +82,8 @@ function simImage = simulateKeplerField(Args)
         otherwise            
             error('Unknown spectral type');
     end
-    %%% calculate crude source SNRs from the previous runs and augment the source table:
-%     if (Args.SNR)        
-%         InCat = readtable('SimKepler_tileB_InCat.txt','FileType','text');
-%         CPS = InCat.Var3 * 300 * Args.ExpNum; 
-%         io.files.load1('SimKepler_tileB_RadSrc.mat'); % 'RadSrc','InFOV'
-%         Tab = addvars(Tab, InFOV, 'NewVariableNames', {'InFOV'});
-%         TabFOV = Tab(InFOV > 0,:); % cut the sources which are out of the tile's FOV 
-%         io.files.load1('PSFContain50Rad.mat'); % 'Rad50','logT','logg','Rad'
-%         NSrc = size(TabFOV); % TEST ONLY
-%         NoisePerPix = 75;
-%         for Isrc = 1:1:NSrc
-%             logTeff = log10(TabFOV(Isrc,:).Teff);
-%             logG    = TabFOV(Isrc,:).logg;
-%             PSFRad = interpn(logT, logg, Rad, Rad50, logTeff, logG, RadSrc(Isrc));
-%             SNR(Isrc) = 0.8 * CPS(Isrc) / sqrt(pi * PSFRad^2 * NoisePerPix);                
-%         end
-%         TabFOV = addvars(TabFOV, SNR', 'NewVariableNames', {'SNR'});
-%         writetable(TabFOV, 'TileB50.tbl', 'Delimiter', '\t','FileType','text'); 
-%     end
     
-    %%%% run the simulation 
+    % run the simulation 
     simImage = ultrasat.usim('Cat', Cat, 'Mag', Mag, 'FiltFam','Johnson', 'Filt','V',...
         'SpecType',Args.SpecType,'Spec', Spec, 'Exposure', [Args.ExpNum 300], 'Ebv', Ebv,...
         'OutDir', Args.OutDir,'SkyCat', 1, 'PlaneRotation', Args.PlaneRotation,...
