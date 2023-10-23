@@ -173,7 +173,7 @@ classdef AstroPSF1 < Component
     methods % generating PSF stamp 
         function [Result, Res] = getPSF(Obj, Args)
             % get PSF from an AstroPSF object
-            % Input : - a single AstroPSF object.
+            % Input : - A single-element AstroPSF object.
             %         * ...,key,val,...
             %         'FunPSF' - a PSF-generating function handle
             %         'StampSize' - an option to pad the PSF stamp
