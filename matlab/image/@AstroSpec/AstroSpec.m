@@ -753,6 +753,35 @@ classdef AstroSpec < Component
 
         end
         
+        function Result = specPhoenix(Args)
+            % Get a Phoenix model stellar spectrum from a prepared grid
+            % Reference: 
+            % Input: -
+            %       * ...,key,val,... 
+            % Output: - An AstroSpec object
+            % Author : A.M. Krassilchtchikov (Oct 2023)
+            % Example: Sp1=AstroSpec.specPhoenix('T',5770,'logg',4.44,'Res','high');
+            %          Sp2=AstroSpec.specPhoenix('T',2240,'logg',3.5);
+            arguments
+                Args.Res = 'low';
+                Args.T   = 5770;
+                Args.logg = 4.44;
+            end
+            % load the data cube
+            DataName = 'PhoenixStellarSpec';
+            I = Installer;
+            DataDir = I.getDataDir(DataName);
+            if strcmpi(Args.Res,'low') 
+                File = strcat(DataDir,'/phoenix_mtl0_rescale10.mat');
+            else
+                File = strcat(DataDir,'/phoenix_mtl0_rescale2.mat');
+            end
+            io.files.load1(File); % 'Wave','PhoenSpec','T','logg'
+            Flux = interpn(Wave, T, logg, PhoenSpec, Wave, Args.T, Args.logg);
+            Result = AstroSpec({[Wave, Flux]},{'Wave','Flux'},{'A','cgs/A'});
+            
+        end
+        
         function Result = specHSTStarlib23(Name, OutType)
             % Get Starlib spectra from ../spec/Starlib23/ data directory
             % Reference: http://astro.wsu.edu/hststarlib/, https://arxiv.org/abs/2301.05335
