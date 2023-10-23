@@ -7,7 +7,7 @@ function [MeanF,ErrMeanF]=meanPhotonWeightedFlux(Lambda, F, Response, Args)
     %            The integration is done over the dimension specified by
     %            the 'Dim' argument.
     %          - An array of specific flux (f_lambda, or f_nu)
-    %          - An array of responses.
+    %          - An array of responses (transmissions).
     %          * ...,key,val,...
     %            'Dim' - Dimension in the array over which to integrate.
     %                   Default is 1.

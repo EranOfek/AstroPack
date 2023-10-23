@@ -4,7 +4,7 @@ function S=sourceInstSensetivity(Lambda, Response, Args)
     % Input  : - An array of wavelengths or frequencies.
     %            The integration is done over the dimension specified by
     %            the 'Dim' argument.
-    %          - An array of responses.
+    %          - An array of responses (transmissions).
     %          * ...,key,val,...
     %            'Dim' - Dimension in the array over which to integrate.
     %                   Default is 1.
@@ -37,10 +37,10 @@ function S=sourceInstSensetivity(Lambda, Response, Args)
         case 'wave'
             LambdaResponse = Lambda.*Response;
             
-            S = constant.h.*constant.c./(A.*trapz(LambdaResponse, Args.Dim));
+            S = constant.h.*constant.c./(A.*trapz(Lambda, LambdaResponse, Args.Dim));
         case 'freq'
             LambdaResponse = Response./Lambda;
-            S = constant.h./(A.*trapz(LambdaResponse, Args.Dim));
+            S = constant.h./(A.*trapz(Lambda, LambdaResponse, Args.Dim));
         otherwise
             error('Unknown SpecificUnit option');
     end
