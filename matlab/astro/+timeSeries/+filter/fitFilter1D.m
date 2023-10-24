@@ -30,6 +30,7 @@ function Result=fitFilter1D(T,F,Err,Args)
     %            'InterpMethod' - Default is 'linear'.
     % Output  : - A structure with the following fields:
     %             .Stat - A matrix of \chi^2 or score statistics values.
+    %                   Statistic values are currently not normalized.
     %                   Different columns
     %                   corresponds to different filters, while raw
     %                   corresponds to different delays.
@@ -59,11 +60,11 @@ function Result=fitFilter1D(T,F,Err,Args)
         RangeT = 1000;
         T = rand(Npt,1).*RangeT;
         T = sort(T);
-        F = normpdf(T-50);
+        F = normpdf(T-50, 0, 2);
         F = F + Err.*randn(Npt,1);
         
-        Args.FilterTime = (-3:0.1:3).';
-        Args.FilterVal  = normpdf(Args.FilterTime,0,[1:0.1:2]);
+        Args.FilterTime = (-3:0.2:3).';
+        Args.FilterVal  = normpdf(Args.FilterTime,0,[1:0.1:3]);
         Args.Delay      = (0:0.5:RangeT);
     end
         
@@ -100,19 +101,27 @@ function Result=fitFilter1D(T,F,Err,Args)
     
     Ndelay        = numel(Args.Delay);
     Result.Stat   = zeros(Ndelay, Nfilt);
+    Result.NotNaN = zeros(Ndelay, Nfilt);
     %Result.Dof    = zeros(1, Nfilt);
     
     switch lower(Args.Method)
         case 'filt'
             % filtering
-            NormS  = (sum(Args.FilterVal.^2, 1));
-            ErrN = Err./NormS;
+            %NormS  = (sum(Args.FilterVal.^2, 1));
+            ErrN = Err;   %./NormS;
+            %NormS = zeros(Ndelay, Nfilt);
             for Idelay=1:1:Ndelay
-                InterpFilter          = interp1(Args.FilterTime(:)+Args.Delay(Idelay), Args.FilterVal, T, Args.InterpMethod, NaN);
                 
-                Result.Stat(Idelay,:) = mean(InterpFilter.*F./(Err.^2), 1, 'omitnan');
+                InterpFilter            = interp1(Args.FilterTime(:)+Args.Delay(Idelay), Args.FilterVal, T, Args.InterpMethod, NaN);
+                InterpFilter            = InterpFilter./sum(InterpFilter, 1, 'omitnan');
+                Result.Stat(Idelay,:)   = sum(InterpFilter.*F./(Err.^2), 1, 'omitnan');
+                Result.NotNaN(Idelay,:) = sum(~isnan(InterpFilter), 1);
+                %NormS(Idelay,:)         = sqrt(sum(InterpFilter.^2, 1, 'omitnan'));
             end
-            Result.Stat = Result.Stat.*NormS;
+            Result.Stat   = Result.Stat; %./NormS;
+            
+            %tools.math.stat.rstd(Result.Stat(1:10:end,:),1); % *NormS;
+            
             
         case 'chi2'
             % chi^2 fitting
