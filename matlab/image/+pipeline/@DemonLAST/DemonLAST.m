@@ -32,6 +32,7 @@ classdef DemonLAST < Component
         LogPath      = 'log';    % if start with '/' then abs path
 
         RefPath      = [];
+        
 
         ObsCoo       = [35 30 415];  % [deg deg m]
     end
@@ -50,7 +51,7 @@ classdef DemonLAST < Component
         DefCalibPath    = 'calib';  % if start with '/' then abs path
         DefFailedPath   = 'failed'; % if start with '/' then abs path
         DefLogPath      = 'log';    % if start with '/' then abs path
-
+        DefRefPath   = 'data/references';   %/last01e/data/refreences'
 
         FieldList       = pipeline.DemonLAST.fieldsListLAST;
     end
@@ -185,9 +186,11 @@ classdef DemonLAST < Component
             % getter for RefPath
 
             if isempty(Obj.RefPath)
-                [~,~,~,HostName] = Obj.getPath;
-                Obj.RefPath = fullfile(filesep, HostName, 'data', 'reference');
+                Obj.RefPath = Obj.populateRefPath;
             end
+%                 [~,~,~,HostName] = Obj.getPath;
+%                 Obj.RefPath = fullfile(filesep, HostName, 'data', 'reference');
+%             end
             Result = Obj.RefPath;
 
         end
@@ -556,6 +559,33 @@ classdef DemonLAST < Component
 
         end
 
+        function [CamNum,Mount,Node] = getCamNumFromProjName(ProjName,Convert2Num)
+            % get camera number from project name
+            % Input  : - Project name - e.g., 'LAST.01.02.03'
+            %          - Convert to number. Default is true.
+            % Output : - Camera number (e.g., '03')
+            %          - Mount
+            %          - Node
+            % Author : Eran Ofek (Oct 2023)
+            % Example: [C,M,N]=pipeline.DemonLAST.getCamNumFromProjName('LAST.01.02.03');
+            
+            arguments
+                ProjName
+                Convert2Num logical  = true;
+            end
+            
+            Node   = ProjName(6:7);
+            Mount  = ProjName(9:10);
+            CamNum = ProjName(12:13);
+            
+            if Convert2Num
+                Node   = str2double(Node);
+                Mount  = str2double(Mount);
+                CamNum = str2double(CamNum);
+            end
+            
+        end
+        
     end
 
     
@@ -880,6 +910,132 @@ classdef DemonLAST < Component
 
         end
 
+        function Path=populateRefPath(Obj, Args)
+            % Get path for reference imags location on the LAST computers
+            % Input  : - A pipeline.DemonLAST object
+            %          * ...,key,val,...
+            %            'HostName' - HostName. If empty, get it from OS.
+            %                   Default is [].
+            %            'DefRefPath' - Reference path above the host name.
+            %                   If given overide the RefPath property.
+            %                   Default is [].
+            % Output : - Base path for reference images dir.
+            % Author : Eran Ofek (Oct 2023)
+            % Example: Path=D.populateRefPath
+            
+            arguments
+                Obj
+                Args.HostName     = [];
+                Args.DefRefPath   = [];
+            end
+            
+            if isempty(Args.HostName)
+                HostName = tools.os.get_computer;
+            else
+                HostName = Args.HostName;
+            end
+            
+            if isempty(Args.RefPath)
+                DefRefPath = Obj.RefPath;
+            else
+                DefRefPath = Args.DefRefpath;
+            end
+            
+            Path = fullfile(filsep, HostName, DefRefPath);
+        end
+    end
+    
+    methods % ref image utilities
+        function [Path, File, AI] = getRefImage(Args)
+            % Get reference images corresponding to some field
+            % Input  : * ...,key,val,...
+            %            'FN' - Either [], a file name char array,
+            %                   a cell array of char arrays, or a FileNames
+            %                   object.
+            %                   If empty, then the image details are provided
+            %                   in the other argumnets.
+            %                   If given, then the other argumnets are
+            %                   overrided.
+            %                   Default is [].
+            %            'Camera' - Camera index. Default is 1.
+            %            'Filter' - Filter name. Default is 'clear'.
+            %            'CropID' - CropID. If empty, then will attemt to
+            %                   read all possible crop IDs.
+            %                   default is [].
+            %            'Version' - Ref. version. If Inf, then will
+            %                   attempt to read the latest available
+            %                   version.
+            %                   Default is Inf.
+            %            'AddProduct' - Add the following products to the
+            %                   AstroImage, in addition to the 'Image' product.
+            %                   Default is {'Mask','Cat','PSF'}
+            %            'RefPath' - RefPath (to override the object
+            %                   Refpath). If empty, then will use the
+            %                   object RefPath.
+            %                   Default is [].
+            % Output : - Path for the reference images.
+            %          - File names of the refernce images.
+            %          - An AstroImage object with all the ref images.
+            % Author : Eran Ofek (Oct 2023)
+            % Example: 
+            
+            arguments
+                
+                Args.FN           = []; % FileNames object
+                Args.Camera       = 1;
+                Args.Filter       = 'clear';
+                Args.FieldID      = []; % ID or RA+Dec str
+                Args.CropID       = [];
+                Args.Version      = Inf;
+                
+                Args.AddProduct   = {'Mask','Cat','PSF'};  
+                Args.RefPath      = [];
+            end
+            
+            % FN is provided - override other argumnets
+            if ~isempty(Args.FN)
+                if ~isa(Args.FN, 'FileNames')
+                    Args.FN = FileNames.generateFromFileName(Args.FN);
+                end
+                
+                Args.Filter   = FN.Filter;
+                Args.FieldID  = FN.FieldID;
+                Args.CropID   = FN.CropID;
+                Args.Version  = FN.Version;
+                
+                Args.Camera   = pipeline.DemonLAST.getCamNumFromProjName(FN.ProjName);  % return a number
+                
+            end
+            
+            if isempty(Args.RefPath)
+                Args.RefPath = Obj.RefPath;
+            end
+            
+            if ~isnumeric(Args.FieldID)
+                % FieldID is likely in RA+Dec str - convert to FieldID
+                % index
+                [FieldID, ~, ~] = pipeline.DemonLAST.searchFieldLAST(Obj.FieldList, Args.FieldID);
+            else
+                FieldID = Args.FieldID;
+            end
+                               
+            Path = fullfile(Args.RefPath, FieldID, sprintf('%d',Args.Camera));
+            if nargout>1
+                % construct FileName using a FileNames object
+                % treat Version=Inf as the last available version
+                % RefFN = 
+                % File  = 
+                
+                if nargout>2
+                    % read all files into an AstroImage object
+                    %AI = AstroImage.readFileNamesObj(RefFN,
+                    %Args.AddProduct);
+                    
+                end
+            end
+            
+        end
+        
     end
 
     methods % pipelines
