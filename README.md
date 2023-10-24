@@ -20,7 +20,7 @@ Please cite:
   3. <a href="https://ui.adsabs.harvard.edu/abs/2019PASP..131e4504O/abstract">Ofek (2019)</a>;
   4. Ofek et al., in prep.
 
-## Getting started and documntation
+## Getting started and documentation
 
 See <a href="https://github.com/EranOfek/AstroPack/wiki/Getting-Started">getting started wiki page</a>, or 
 from matlab: edit manuals.GettingStarted, and the inspect the content of the manuals package.
@@ -85,3 +85,7 @@ Tools for statistical analysis.
 ### General utilities
 
 Tools for I/O, WWW access, array and other classes manipulation, and more.
+
+## Changelog
+
+[Here](https://github.com/EranOfek/AstroPack/wiki/New-functions-and-changes-log)
