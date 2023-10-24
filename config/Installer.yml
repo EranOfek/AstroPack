@@ -126,6 +126,15 @@ Items:
         SearchFile           : ''
         Description          : 'Solar Spectrum'
 
+    LASTpipelineUnitTest:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'LASTpipelineUnitTest'
+        SubDir               : 'pipeline/LAST'
+        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/ultrasat/LASTpipelineUnitTest.tar']
+        Size                 : 7500
+        SearchFile           : ''
+        Description          : 'A minimal test and calibration data suite for the LAST pipeline'
+
     TestImagesLAST:
         # The following are cell arrays of entry per dataset
         DataName             : 'TestImagesLAST'
