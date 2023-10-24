@@ -37,6 +37,7 @@ classdef FileNames < Component
         
         BasePath            = '/euler1/archive/LAST';
         BasePathIncludeProjName logical = true;
+        BasePathRef         = '/euler1/archive/LAST';
         SubDir              = '';
         TimeZone            = 2;
         
