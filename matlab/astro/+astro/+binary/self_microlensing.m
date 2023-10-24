@@ -20,7 +20,7 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
     %                   in magnification).
     %
     %            'TotL' - Unlensed source luminosity. Default is 1.
-    %            'Nstep' - Integration steps for the '2d' algorithm.
+    %            'Nstep' - Integration rsteps for the '2d' algorithm.
     %                   Recomended to use step that
     %                   will bring you to the lens size.
     %                   If empty, then will choose Nstep to be:
