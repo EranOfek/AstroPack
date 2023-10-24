@@ -44,7 +44,7 @@ function Result=regress(Time, Mag, Err, Args)
     if isempty(Err)
         Err = 1;
     else
-        Err = sqrt(Err + Args.SysErr.^2);
+        Err = sqrt(Err.^2 + Args.SysErr.^2);
     end
     
     Nobs = numel(Time);
