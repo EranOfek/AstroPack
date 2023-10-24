@@ -379,7 +379,7 @@ classdef convert
                 case {'micrometer','um'}
                     Val = Val.*1e-4;
                 case {'nanometer','nm'}
-                    Val = Val.*1e-6;
+                    Val = Val.*1e-7;
                 case {'a','ang'}
                     Val = Val.*1e-8;
                 case 'km'
@@ -421,7 +421,7 @@ classdef convert
                 case {'micrometer','um'}
                     Val = Val.*1e4;
                 case {'nanometer','nm'}
-                    Val = Val.*1e6;
+                    Val = Val.*1e7;
                 case {'a','ang'}
                     Val = Val.*1e8;
                 case 'km'
