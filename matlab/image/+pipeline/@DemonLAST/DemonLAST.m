@@ -422,7 +422,7 @@ classdef DemonLAST < Component
             % Example: List = pipeline.DemonLAST.fieldsListLAST
 
             arguments
-                Args.N_LonLat   = [85 28];
+                Args.N_LonLat   = [88 30] %[85 28];
             end
 
             RAD = 180./pi;
@@ -1038,6 +1038,10 @@ classdef DemonLAST < Component
         
     end
 
+    
+    
+    
+    
     methods % pipelines
         function [Obj, FN, FN_Master]=prepMasterDark(Obj, Args)
             % prepare master dark images
