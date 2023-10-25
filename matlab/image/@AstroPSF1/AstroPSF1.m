@@ -184,7 +184,7 @@ classdef AstroPSF1 < Component
             %         'ReNorm'    - whether to renormalize the PSF stamp
             %         'ReNormMethod' - 'int' or 'rms' 
             % Output : - a 2D PSF stamp (X, Y)
-            % Author : Eran Ofek, A.M. Krassilchtchikov 
+            % Author : Eran Ofek, A.M. Krassilchtchikov (Oct 2023)
             % Example: 
             arguments
                 %                 Obj(1,1)
@@ -228,6 +228,7 @@ classdef AstroPSF1 < Component
                     else
                         % for each of the existing extra dimensions find if there is an input value for it in Args.PsfArgs
                         % if not, use the _mean value_ of the object's appropriate DimVals vector
+                        DimVal = cell(Ndim,1);
                         for Idim = 1:Ndim
                             DName = Obj(IObj).DimName{Idim};
                             Ind = find( strcmpi( DName, Args.PsfArgs ), 1);
@@ -268,34 +269,27 @@ classdef AstroPSF1 < Component
                 end
                 % normalize the stamp
                 if Args.ReNorm
-                    switch Args.ReNormMethod
-                        case 'int'
-                            Result = Result./sum(Result,[1 2]);
-                        case 'rms'
-                            Result = Result./rms(Result,[1 2]);
-                        otherwise
-                            error('Requested renormalization method is not known');
-                    end
+                    Result = imUtil.psf.normPSF(Result,'ReNormMethod',Args.ReNormMethod);
                 end
             Res{IObj} = Result;    
             end
         end
 
-        function Result = weightPSF(Obj, Args)
-            % produce a spectrum-weighted PSF
-            % Input  : - An AstroPSF object
+        function Result = specWeightedPSF(Obj, Args)
+            % produce a spectrum-weighted PSF of a single-element AstroPSF object
+            % Input  : - a single-element AstroPSF object
             %       * ...,key,val,... 
             %       'Wave' - the wavelength of the input spectral bins (if empty, the grid of the object's PSFdata is assumed)
             %       'Spec' - the spectral weights of per-wavelength PSF stamps (if empty, a flat photon spectrum is assumed)
             %       'Pos'  - additional arguments to pass to getPSF, e.g., position: {'PosX',2,'PosY',3}
             %
             % Output : - a weighted PSF stamp
-            % Author : A. Krassilchtchikov
-            % Example: Pw1 = P.weightPSF('Pos',{'PosX',6},'Wave',[2000 3000 4000 5000],'Spec',[0.5 1 1 0.3]);
+            % Author : A. Krassilchtchikov (Oct 2023)
+            % Example: Pw1 = P.specWeightedPSF('Pos',{'PosX',6},'Wave',[2000 3000 4000 5000],'Spec',[0.5 1 1 0.3]);
             %          Sp  = AstroSpec.blackBody(2000:11000,3500);
-            %          Pw2 = P.weightPSF('Pos',{'PosX',6},'Wave',Sp.Wave,'Spec',Sp.Flux');
+            %          Pw2 = P.specWeightedPSF('Pos',{'PosX',6},'Wave',Sp.Wave,'Spec',Sp.Flux');
             arguments
-                Obj
+                Obj(1,1)
                 Args.Axis  = 'Wave'; % usually, we will weight the PSF with the spectrum, but other axes are also possible 
                 Args.Wave  = []; % if empty, the grid of the object's PSFdata is assumed
                 Args.Spec  = []; % if empty, a flat photon spectrum is assumed
@@ -450,6 +444,7 @@ classdef AstroPSF1 < Component
             %            NaN if PSF is empty.
             %          - Column vector of RadHalfPeak, radius of flux=level.
             %            NaN if PSF is empty.
+            % Author: Eran Ofek 
             % Example: AP = AstroPSF;
             %          AP.DataPSF = imUtil.kernel2.gauss;
             %          [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(AP);            
@@ -530,6 +525,7 @@ classdef AstroPSF1 < Component
             %             .AnnulusStd - Annulus StD.
             %             .WeightedAper - Weighted photometry. Weighted by the user
             %                           specified weight function.
+            % Author: Eran Ofek
             % Example: AP = AstroPSF;
             %          AP.DataPSF = imUtil.kernel2.gauss;
             %          AP(2).DataPSF = imUtil.kernel2.gauss;
@@ -643,8 +639,9 @@ classdef AstroPSF1 < Component
             %                   Default is 'AstroPSF'.
             %            'CreateNewObj' - A logical indicating if to create
             %                   a new copy of the input object.
-            %                   Default is true.
+            %                   Default is true.            
             % Output : - An updated AstroPSF object.
+            % Author: Eran Ofek
             % Example: R=AI.PSFData.padShift([100,100]);
             %          % full example:
             %          P=AstroPSF(imUtil.kernel2.gauss);
@@ -802,15 +799,20 @@ classdef AstroPSF1 < Component
             
         end
 
-        function Obj = normPSF(Obj)
+        function Obj = normPSF(Obj,Args)
             % Normalize PSFs such there sum will be 1.
-            % Input  : - An AstroPSF object.
+            % Input  : - An AstroPSF object
+            %        * ...,key,val,... 
+            %        'ReNormMethod' - 'int' -- normalize to the sum of pixel values; 'rms' -- normalize to rms
             % Output : - An uppdated AstroPSF object (no new copy).
             % Author : Eran Ofek (Jun 2023)
-
+            arguments
+                Obj
+                Args.ReNormMethod = 'int' % 'int' or 'rms' 
+            end
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                Obj(Iobj).DataPSF = Obj(Iobj).DataPSF./ sum(Obj(Iobj).DataPSF,[1 2]);
+                Obj(Iobj).DataPSF = imUtil.psf.normPSF(Obj(Iobj).DataPSF,'ReNormMethod',Args.ReNormMethod); 
             end
         end
         
@@ -819,7 +821,7 @@ classdef AstroPSF1 < Component
             % Input  : - An AstroPSF object
             % Output : - An updated AstroPSF object with the stamp rescaled
             %            and the scale factors changed appropriately
-            % Author : A. Krassilchtchikov (Jun 2023)
+            % Author : A.M. Krassilchtchikov (Jun 2023)
             arguments
                 Obj
                 Args.Method = 'bilinear'; % interpolation method 
@@ -857,6 +859,7 @@ classdef AstroPSF1 < Component
             % Input: - AstroPSF Object 
             %        * ...,key,val,...
             %        'PsfArgs' - position in a multi-D PSF space to be passed to getPSF
+            % Author: Eran Ofek
             % Example: AI.PSFData.surface
             arguments
                 Obj
