@@ -69,7 +69,7 @@ function Result = radialProfile(Image, CenterPos, Args)
     Nrad  = numel(RadiusEdges) - 1;
     
     
-    Result = struct('R',cell(Nim,1), 'MeanR',cell(Nim,1), 'MeanV',cell(Nim,1), 'MedV',cell(Nim,1), 'StdV',cell(Nim,1), 'N',cell(Nim,1));
+    Result = struct('R',cell(Nim,1), 'MeanR',cell(Nim,1), 'MeanV',cell(Nim,1), 'MedV',cell(Nim,1), 'StdV',cell(Nim,1), 'N',cell(Nim,1), 'Sum',cell(Nim,1));
     for Iim=1:1:Nim
         Image1 = Image(:,:,Iim);
         
@@ -80,7 +80,8 @@ function Result = radialProfile(Image, CenterPos, Args)
         Result(Iim).MedV  = zeros(Nrad,1);
         Result(Iim).StdV  = zeros(Nrad,1);
         for Irad=1:1:Nrad
-            FlagR = MatR2>=Radius2Edges(Irad) & MatR2<Radius2Edges(Irad+1);
+            FlagR  = MatR2>=Radius2Edges(Irad) & MatR2<Radius2Edges(Irad+1);
+            Flag2R = MatR2<Radius2Edges(Irad+1);
             FlagR = FlagR(:);
             
             AllVal = Image1(FlagR);
@@ -89,6 +90,7 @@ function Result = radialProfile(Image, CenterPos, Args)
             Result(Iim).MeanV(Irad) = mean(AllVal);
             Result(Iim).MedV(Irad)  = median(AllVal);
             Result(Iim).StdV(Irad)  = std(AllVal);
+            Result(Iim).Sum(Irad)   = sum(Image1(Flag2R),'all');
         end
     end
             
