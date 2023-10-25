@@ -922,8 +922,7 @@ classdef DemonLAST < Component
             %            'HostName' - HostName. If empty, get it from OS.
             %                   Default is [].
             %            'DefRefPath' - Reference path above the host name.
-            %                   If given overide the RefPath property.
-            %                   Default is [].
+            %                   Default is 'data/references'.
             % Output : - Base path for reference images dir.
             % Author : Eran Ofek (Oct 2023)
             % Example: Path=D.populateRefPath
@@ -931,7 +930,7 @@ classdef DemonLAST < Component
             arguments
                 Obj
                 Args.HostName     = [];
-                Args.DefRefPath   = [];
+                Args.DefRefPath   = 'data/references';
             end
             
             if isempty(Args.HostName)
@@ -940,13 +939,8 @@ classdef DemonLAST < Component
                 HostName = Args.HostName;
             end
             
-            if isempty(Args.RefPath)
-                DefRefPath = Obj.RefPath;
-            else
-                DefRefPath = Args.DefRefpath;
-            end
             
-            Path = fullfile(filsep, HostName, DefRefPath);
+            Path = fullfile(filesep, HostName, Args.DefRefPath);
         end
     end
     
