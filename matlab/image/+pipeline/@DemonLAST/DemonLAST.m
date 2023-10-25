@@ -534,7 +534,12 @@ classdef DemonLAST < Component
             if isempty(List)
                 List = pipeline.DemonLAST.fieldsListLAST;
             end
-            
+
+            if ~isempty(Dec) && isnumeric(Dec)
+                % assume RA and Dec are in deg, convert to radian
+                RA  = RA./RAD;
+                Dec = Dec./RAD;
+            end            
             if isempty(Dec)
                 % assume RA is string of the format '045-01'
                 [RA, Dec]=pipeline.DemonLAST.str2radec(RA, 'rad');
@@ -544,7 +549,7 @@ classdef DemonLAST < Component
                 RA  = celestial.coo.convertdms(RA, 'SH', 'r');
                 Dec = celestial.coo.convertdms(Dec, 'SD', 'R');
             end
-            
+
             % RA/Dec are in radians
             CatRA  = List.RA./RAD;
             CatDec = List.Dec./RAD;
