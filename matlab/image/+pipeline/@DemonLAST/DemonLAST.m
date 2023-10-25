@@ -922,8 +922,7 @@ classdef DemonLAST < Component
             %            'HostName' - HostName. If empty, get it from OS.
             %                   Default is [].
             %            'DefRefPath' - Reference path above the host name.
-            %                   If given overide the RefPath property.
-            %                   Default is [].
+            %                   Default is 'data/references'.
             % Output : - Base path for reference images dir.
             % Author : Eran Ofek (Oct 2023)
             % Example: Path=D.populateRefPath
@@ -931,7 +930,7 @@ classdef DemonLAST < Component
             arguments
                 Obj
                 Args.HostName     = [];
-                Args.DefRefPath   = [];
+                Args.DefRefPath   = 'data/references';
             end
             
             if isempty(Args.HostName)
@@ -940,13 +939,8 @@ classdef DemonLAST < Component
                 HostName = Args.HostName;
             end
             
-            if isempty(Args.RefPath)
-                DefRefPath = Obj.RefPath;
-            else
-                DefRefPath = Args.DefRefpath;
-            end
             
-            Path = fullfile(filsep, HostName, DefRefPath);
+            Path = fullfile(filesep, HostName, Args.DefRefPath);
         end
     end
     
@@ -960,7 +954,7 @@ classdef DemonLAST < Component
             %                   If empty, then the image details are provided
             %                   in the other argumnets.
             %                   If given, then the other argumnets are
-            %                   overrided.
+            %                   overwritten.
             %                   Default is [].
             %            'Camera' - Camera index. Default is 1.
             %            'Filter' - Filter name. Default is 'clear'.
@@ -974,7 +968,7 @@ classdef DemonLAST < Component
             %            'AddProduct' - Add the following products to the
             %                   AstroImage, in addition to the 'Image' product.
             %                   Default is {'Mask','Cat','PSF'}
-            %            'RefPath' - RefPath (to override the object
+            %            'RefPath' - RefPath (to overwrite the object
             %                   Refpath). If empty, then will use the
             %                   object RefPath.
             %                   Default is [].
@@ -997,7 +991,8 @@ classdef DemonLAST < Component
                 Args.RefPath      = [];
             end
             
-            % FN is provided - override other argumnets
+            
+            % FN is provided - overwrite other argumnets
             if ~isempty(Args.FN)
                 if ~isa(Args.FN, 'FileNames')
                     Args.FN = FileNames.generateFromFileName(Args.FN);
@@ -1523,7 +1518,6 @@ classdef DemonLAST < Component
             cd(PWD);
 
         end
-
         
         
         function Obj=main(Obj, Args)
