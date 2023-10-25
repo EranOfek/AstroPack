@@ -1,22 +1,29 @@
-function Result = unitTest()
+function Result = unitTest(Args)
     % unit test for DemonLast
+    % Author: A.M. Krassilchtchikov (Oct 2023)
+    arguments
+        Args.RestoreNew = true; % copy the raw data back to new 
+    end
     
-    startup('AstroPack_CatsHTMPath','~/matlab/data/pipeline/LAST/catsHTM')
+    I = Installer;
+    BaseDir = I.getDataDir('LASTpipelineUnitTest');
+    % this trick is needed because we need a full path, otherwise fitsiolib('create_file',filename) does not work!
+    cd(BaseDir); BaseDir = fullfile(pwd); 
+    
+    CatsHTMdir = strcat(BaseDir,'/catsHTM/');
+    startup('AstroPack_CatsHTMPath',CatsHTMdir)
+    
     D = pipeline.DemonLAST;
-    D.setPath('~/matlab/data/pipeline/LAST/')
-%     D.RefPath = '/home/sasha/LAST/pipeline/reference/';
-    D.main('StopButton',0)
+    D.setPath(BaseDir);
+%     D.RefPath = strcat(BaseDir,'/reference/');   % not needed?  
+    D.main('StopButton',false,'StopWhenDone',true,'Insert2DB',false);
     
-%     D.BasePath  = '/last10e/data2/archive/LAST.01.10.02/';
-% %     D.CamNumber = 2;
-% %     D.StartJD   = [20 4 2023];
-% %     D.EndJD     = [27 4 2023];
-% 
-% %     D.main('RegenCalib',true);
-%     
-%     D.main('Insert2DB',true,'DB_Table_Raw','test_raw_images','DB_Table_Proc','test_proc_images',...
-%             'DB_Table_Coadd','test_coadd_images', 'DB_ImageBulk', false)
-
+    if Args.RestoreNew % copy the raw data back to new
+        % NB: this is hard-coded, because the particular observation
+        % used for the unitTest and distributed with Installer is of 2023/06/16 
+        !cp 2023/06/16/raw/LAST* new/  
+    end
+    
     Result = 0;
     
 end
