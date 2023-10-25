@@ -954,7 +954,7 @@ classdef DemonLAST < Component
             %                   If empty, then the image details are provided
             %                   in the other argumnets.
             %                   If given, then the other argumnets are
-            %                   overrided.
+            %                   overwritten.
             %                   Default is [].
             %            'Camera' - Camera index. Default is 1.
             %            'Filter' - Filter name. Default is 'clear'.
@@ -968,7 +968,7 @@ classdef DemonLAST < Component
             %            'AddProduct' - Add the following products to the
             %                   AstroImage, in addition to the 'Image' product.
             %                   Default is {'Mask','Cat','PSF'}
-            %            'RefPath' - RefPath (to override the object
+            %            'RefPath' - RefPath (to overwrite the object
             %                   Refpath). If empty, then will use the
             %                   object RefPath.
             %                   Default is [].
@@ -991,7 +991,8 @@ classdef DemonLAST < Component
                 Args.RefPath      = [];
             end
             
-            % FN is provided - override other argumnets
+            
+            % FN is provided - overwrite other argumnets
             if ~isempty(Args.FN)
                 if ~isa(Args.FN, 'FileNames')
                     Args.FN = FileNames.generateFromFileName(Args.FN);
@@ -1517,7 +1518,6 @@ classdef DemonLAST < Component
             cd(PWD);
 
         end
-
         
         
         function Obj=main(Obj, Args)
