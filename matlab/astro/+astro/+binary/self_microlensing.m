@@ -82,6 +82,8 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
         Args.UseIndivMag logical  = true;
     end
     
+    error('BUG - 1d and 2d not consistent')
+    
     switch Args.ImpactParUnits
         case 'SrcRad'
             % do nothing
