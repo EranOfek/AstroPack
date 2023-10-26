@@ -942,10 +942,11 @@ classdef DemonLAST < Component
             
             Path = fullfile(filesep, HostName, Args.DefRefPath);
         end
+        
     end
     
     methods % ref image utilities
-        function [Path, File, AI] = getRefImage(Args)
+        function [Path, File, AI] = getRefImage(Obj, Args)
             % Get reference images corresponding to some field
             % Input  : * ...,key,val,...
             %            'FN' - Either [], a file name char array,
@@ -980,6 +981,7 @@ classdef DemonLAST < Component
             
             arguments
                 
+                Obj
                 Args.FN           = []; % FileNames object
                 Args.Camera       = 1;
                 Args.Filter       = 'clear';
@@ -998,12 +1000,13 @@ classdef DemonLAST < Component
                     Args.FN = FileNames.generateFromFileName(Args.FN);
                 end
                 
-                Args.Filter   = FN.Filter;
-                Args.FieldID  = FN.FieldID;
-                Args.CropID   = FN.CropID;
-                Args.Version  = FN.Version;
+
+                Args.Filter   = Args.FN.Filter;
+                Args.FieldID  = Args.FN.FieldID;
+                Args.CropID   = Args.FN.CropID;
+                Args.Version  = Args.FN.Version;
                 
-                Args.Camera   = pipeline.DemonLAST.getCamNumFromProjName(FN.ProjName);  % return a number
+                Args.Camera   = pipeline.DemonLAST.getCamNumFromProjName(Args.FN.ProjName{1});  % return a number
                 
             end
             
@@ -1019,7 +1022,7 @@ classdef DemonLAST < Component
                 FieldID = Args.FieldID;
             end
                                
-            Path = fullfile(Args.RefPath, FieldID, sprintf('%d',Args.Camera));
+            Path = fullfile(Args.RefPath, string(FieldID), sprintf('%d',Args.Camera));
             if nargout>1
                 % construct FileName using a FileNames object
                 % treat Version=Inf as the last available version
