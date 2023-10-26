@@ -1023,15 +1023,24 @@ classdef DemonLAST < Component
             end
                                
             Path = fullfile(Args.RefPath, string(FieldID), sprintf('%d',Args.Camera));
+            
+            nargout
             if nargout>1
                 % construct FileName using a FileNames object
                 % treat Version=Inf as the last available version
-                % RefFN = 
-                % File  = 
+                RefFN = copy(Args.FN);
+                RefFN.ProjName = {'LAST.01*'};
+                RefFN.Time = {'*'};
+                RefFN.FieldID = {string(FieldID)};
+                RefFN.Counter = 1;
+                RefFN.Level = 'coadd';
+                
+                File  = RefFN.genFile;
                 
                 if nargout>2
                     % read all files into an AstroImage object
-                    %AI = AstroImage.readFileNamesObj(RefFN,
+                    %AbsFile = fullfile(Path, File)
+                    %AI = AstroImage(AbsFile);
                     %Args.AddProduct);
                     
                 end
