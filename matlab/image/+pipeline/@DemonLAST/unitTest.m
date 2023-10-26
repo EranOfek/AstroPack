@@ -7,9 +7,6 @@ function Result = unitTest(Args)
     
     I = Installer;
     BaseDir = I.getDataDir('LASTpipelineUnitTest');
-    % this trick is needed because we need a full path, otherwise fitsiolib('create_file',filename) does not work!
-%     cd(BaseDir); BaseDir = fullfile(pwd);     
-    BaseDir=strtrim(ls('-d',BaseDir));
     
     CatsHTMdir = strcat(BaseDir,'/catsHTM/');
     startup('AstroPack_CatsHTMPath',CatsHTMdir)
@@ -22,7 +19,9 @@ function Result = unitTest(Args)
     if Args.RestoreNew % copy the raw data back to new
         % NB: this is hard-coded, because the particular observation
         % used for the unitTest and distributed with Installer is of 2023/06/16 
+        CurrentDir = pwd; cd(BaseDir);
         !cp 2023/06/16/raw/LAST* new/  
+        cd(CurrentDir);
     end
     
     Result = 0;
