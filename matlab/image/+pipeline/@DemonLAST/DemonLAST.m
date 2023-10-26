@@ -1034,13 +1034,16 @@ classdef DemonLAST < Component
                 RefFN.FieldID = {string(FieldID)};
                 RefFN.Counter = 1;
                 RefFN.Level = 'coadd';
+                RefFN.FullPath = Path;
+                
                 
                 File  = RefFN.genFile;
                 
                 if nargout>2
                     % read all files into an AstroImage object
-                    %AbsFile = fullfile(Path, File)
-                    %AI = AstroImage(AbsFile);
+                    AbsFile = fullfile(Path, File);
+                    AI = AstroImage(char(AbsFile));
+                    %AI = AstroImage.readFileNamesObj(RefFN);
                     %Args.AddProduct);
                     
                 end
