@@ -233,12 +233,10 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
             CosFun = @(R,u,b) real(acos((-R.^2 +u.^2+b.^2)./(2.*u.*b)));
             TotMu  = zeros(1,Nbeta);
                         
-            
-            for Ib=1:1:Nbeta
+            [X,Y] = tools.rand.randInCirc(Rstar, Args.Nsim, 1);
+            Npt =    Args.Nsim;  % number of points
                 
-                [X,Y] = tools.rand.randInCirc(Rstar, Args.Nsim, 1);
-                Npt =    Args.Nsim;  % number of points
-                % convert to U
+            for Ib=1:1:Nbeta                
                 U2 = (X - Beta(Ib)).^2 + (Y - Beta(Ib)).^2;
                 U  = sqrt(U2);
                 
