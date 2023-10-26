@@ -35,7 +35,7 @@ function Result = unitTest()
 
     % fwhm
     imUtil.psf.pseudoFWHM(AP(1).Data)
-    imUtil.psf.containment(AP(1).Data,'Level',0.9)
+    imUtil.psf.quantileRadius(AP(1).Data,'Level',0.9)
     
 %     [FWHM_CumSum, FWHM_Flux] = fwhm(AP(1));
     [FWHM_CumSum, FWHM_Flux] = fwhm(AP);    
@@ -164,7 +164,7 @@ function Result = unitTest()
     
     % populate some properties:
     AP.FWHM = imUtil.psf.pseudoFWHM(AP.getPSF);
-    AP.FluxContainmentRadius = imUtil.psf.containment(AP.getPSF,'Level',0.99);
+    AP.FluxContainmentRadius = imUtil.psf.quantileRadius(AP.getPSF,'Level',0.99);
     AP
     
     %
