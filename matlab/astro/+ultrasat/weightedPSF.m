@@ -54,7 +54,7 @@ function [WPSF, ContRad] = weightedPSF(Args)
                         Wcube = PSFdata(:,:,:,Irad) .* Sp3;
                         SumL  = squeeze( sum(Wcube,3) );
                         WPSF(:,:,ITemp,Ig,Irad) = SumL ./ sum( SumL, [1,2] );
-                        ContRad(ITemp,Ig,Irad) = imUtil.psf.containment(WPSF(:,:,ITemp,Ig,Irad),'Level',Args.ContainmentLevel)./Args.ImRes;
+                        ContRad(ITemp,Ig,Irad) = imUtil.psf.quantileRadius(WPSF(:,:,ITemp,Ig,Irad),'Level',Args.ContainmentLevel)./Args.ImRes;
                     end
                 end
             end
@@ -78,7 +78,7 @@ function [WPSF, ContRad] = weightedPSF(Args)
                     Wcube = PSFdata(:,:,:,Irad) .* Sp3;
                     SumL  = squeeze( sum(Wcube,3) );
                     WPSF(:,:,ITemp,Irad) = SumL ./ sum( SumL, [1,2] );
-                    ContRad(ITemp,Irad) = imUtil.psf.containment(WPSF(:,:,ITemp,Irad),'Level',Args.ContainmentLevel)./Args.ImRes;
+                    ContRad(ITemp,Irad) = imUtil.psf.quantileRadius(WPSF(:,:,ITemp,Irad),'Level',Args.ContainmentLevel)./Args.ImRes;
                 end
             end
             % save the weighted PSF cubes
@@ -98,7 +98,7 @@ function [WPSF, ContRad] = weightedPSF(Args)
             Wcube = PSFdata(:,:,:,Irad) .* Sp3;
             SumL  = squeeze( sum(Wcube,3) );
             WPSF = SumL ./ sum( SumL, [1,2] );
-            ContRad = imUtil.psf.containment(WPSF,'Level',Args.ContainmentLevel)./Args.ImRes;
+            ContRad = imUtil.psf.quantileRadius(WPSF,'Level',Args.ContainmentLevel)./Args.ImRes;
             
         case 'all'
             % put all types of spectra into 1 array according to a special
@@ -115,7 +115,7 @@ function [WPSF, ContRad] = weightedPSF(Args)
                     Wcube = PSFdata(:,:,:,Irad) .* Sp3;
                     SumL  = squeeze( sum(Wcube,3) );
                     WPSF(:,:,ISp,Irad) = SumL ./ sum( SumL, [1,2] );
-                    ContRad(ISp,Irad) = imUtil.psf.containment(WPSF(:,:,ISp,Irad),'Level',Args.ContainmentLevel)./Args.ImRes;
+                    ContRad(ISp,Irad) = imUtil.psf.quantileRadius(WPSF(:,:,ISp,Irad),'Level',Args.ContainmentLevel)./Args.ImRes;
                 end
             end
             % save the weighted PSF cube
