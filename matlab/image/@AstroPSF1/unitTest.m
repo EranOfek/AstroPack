@@ -98,7 +98,8 @@ function Result = unitTest()
     I = Installer;
 %     PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF5.mat');
     PSF_db = sprintf('%s%s%g%s',I.getDataDir('ULTRASAT_PSF'),'/ULTRASATlabPSF5.mat');
-    ReadDB = struct2cell ( io.files.load1(PSF_db) ); % PSF data at the chosen spatial resolution
+%     ReadDB = struct2cell ( io.files.load1(PSF_db) ); % PSF data at the chosen spatial resolution
+    ReadDB = struct2cell ( io.files.load_check(PSF_db) ); % PSF data at the chosen spatial resolution
     PSFdata = ReadDB{2}; 
     
     AP.DataPSF = PSFdata;

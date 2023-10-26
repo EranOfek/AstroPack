@@ -8,7 +8,7 @@ function Rad = quantileRadius (PSFin, Args)
     % Output : - Rad: containment radius in pixels
     % Tested : Matlab R2020b
     % Author : A. Krassilchtchikov et al. (Feb 2023)
-    % Example: Rad = imUtil.psf.containment (PSF, 'Level', 0.8)
+    % Example: Rad = imUtil.psf.quantileRadius (PSF, 'Level', 0.8)
     arguments        
         PSFin                    % the input PSF stamp        
         Args.Level     =    0.5; % 50% containment        
