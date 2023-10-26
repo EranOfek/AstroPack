@@ -1724,7 +1724,7 @@ classdef DemonLAST < Component
 
                         try
                          
-                            tic;
+                            Tstart = clock; % tic;
 
                             %AI = AstroImage(FilesList, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
                             % Insert AI to DB
@@ -1930,11 +1930,11 @@ classdef DemonLAST < Component
 
                             end
 
-                            RunTime = toc;
+                            RunTime = etime(clock, Tstart); % toc;
                         catch ME
                              
                             
-                            RunTime = toc;
+                            RunTime = etime(clock, Tstart); % toc;
     
                             % extract errors
                             ErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, ME.stack(1).line);
