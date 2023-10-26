@@ -1024,7 +1024,6 @@ classdef DemonLAST < Component
                                
             Path = fullfile(Args.RefPath, string(FieldID), sprintf('%d',Args.Camera));
             
-            nargout
             if nargout>1
                 % construct FileName using a FileNames object
                 % treat Version=Inf as the last available version
