@@ -173,7 +173,7 @@ classdef AstroPSF1 < Component
     methods % generating PSF stamp 
         function [Result, Res] = getPSF(Obj, Args)
             % get PSF from an AstroPSF object
-            % Input : - A single-element AstroPSF object.
+            % Input : - An AstroPSF object (or a matrix of objects) 
             %         * ...,key,val,...
             %         'FunPSF' - a PSF-generating function handle
             %         'StampSize' - an option to pad the PSF stamp
@@ -183,9 +183,10 @@ classdef AstroPSF1 < Component
             %         'Oversampling' - resample the output stamp if required
             %         'ReNorm'    - whether to renormalize the PSF stamp
             %         'ReNormMethod' - 'int' or 'rms' 
-            % Output : - a 2D PSF stamp (X, Y)
+            % Output : - a 2D PSF stamp (X, Y) or a stack of stamps if a vector of objects or parameters is put in 
             % Author : Eran Ofek, A.M. Krassilchtchikov (Oct 2023)
-            % Example: 
+            % Example: AP = AstroPSF; AP.DataPSF = imUtil.kernel2.gauss; P1 = AP.getPSF;
+            %          for more complex examples see AstroPSF.unitTest
             arguments
                 %                 Obj(1,1)
                 Obj
@@ -243,8 +244,9 @@ classdef AstroPSF1 < Component
                         if numel(IntMeth) == 1 % one method for all the dimensions
                             Result = interpn(X,Y, Obj(IObj).DimVals{1:Ndim}, Obj(IObj).DataPSF, ...
                                 X,Y, DimVal{1:Ndim}, IntMeth{1});
-                        else                            
-                            Int{1} = Obj(IObj).DataPSF;
+                        else  % individual method for each dimension                           
+                            Int = cell(Ndim+1,1);
+                            Int{1} = Obj(IObj).DataPSF;                             
                             for Idim = 1:Ndim
                                 Int1 = squeeze(Int{Idim});
                                 Int{Idim+1} = interpn(X,Y, Obj(IObj).DimVals{Idim:Ndim}, Int1, ...
@@ -262,12 +264,12 @@ classdef AstroPSF1 < Component
                         
                     end
                 end
-                % rescale the output PSF stamp if requested
+                % resample the output PSF stamp if requested
                 if ~isempty(Args.Oversampling)
-                    NewSize = round( (Args.Oversampling./Obj(IObj).Oversampling) .* size(Result) );
-                    Result  = imresize(Result, NewSize, 'bilinear');
+                    % will renorm at the next step, so do not need to renorm once more here
+                    Result = imUtil.psf.oversampling(Result, Obj(IObj).Oversampling, Args.Oversampling, 'ReNorm', false);
                 end
-                % normalize the stamp
+                % normalize the stamp if requested
                 if Args.ReNorm
                     Result = imUtil.psf.normPSF(Result,'ReNormMethod',Args.ReNormMethod);
                 end
