@@ -8,7 +8,8 @@ function Result = unitTest(Args)
     I = Installer;
     BaseDir = I.getDataDir('LASTpipelineUnitTest');
     % this trick is needed because we need a full path, otherwise fitsiolib('create_file',filename) does not work!
-    cd(BaseDir); BaseDir = fullfile(pwd); 
+%     cd(BaseDir); BaseDir = fullfile(pwd);     
+    BaseDir=strtrim(ls('-d',BaseDir));
     
     CatsHTMdir = strcat(BaseDir,'/catsHTM/');
     startup('AstroPack_CatsHTMPath',CatsHTMdir)
