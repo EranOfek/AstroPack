@@ -119,7 +119,7 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
             Beta = ImpactPar(:).'.*Rstar; % ER units
             Nbeta = numel(Beta);
             
-            CosFun = @(R,u,b) real(acos((-R.^2 +u.^2+b.^2)./(2.*u.*b)));
+            CosFun = @(R,u,b) real(acos((u.^2+b.^2 - R.^2)./(2.*u.*b)));
             
             U = (Rlens:Args.IntStep:(max(Beta)+Rstar+Rlens)).';   % ER units
             if Args.UseIndivMag
@@ -233,7 +233,10 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
             CosFun = @(R,u,b) real(acos((-R.^2 +u.^2+b.^2)./(2.*u.*b)));
             TotMu  = zeros(1,Nbeta);
                         
-            [X,Y] = tools.rand.randInCirc(Rstar, Args.Nsim, 1);
+            [X,Y, R] = tools.rand.randInCirc(Rstar, Args.Nsim, 1);
+            % apply limb darkening (using R)
+            % ...
+            
             Npt =    Args.Nsim;  % number of points
                 
             for Ib=1:1:Nbeta                
