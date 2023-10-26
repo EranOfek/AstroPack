@@ -177,7 +177,9 @@ classdef AstroPSF1 < Component
             %         * ...,key,val,...
             %         'FunPSF' - a PSF-generating function handle
             %         'StampSize' - an option to pad the PSF stamp
-            %         'PsfArgs'   - position of the stamp in the multi-D space of PSF.DataPSF
+            %         'PsfArgs'   - desired position of the stamp in the multi-D space of PSF.DataPSF:
+            %                       a cell array of values (or value vectors) corresponding 
+            %                       to each of the dimensions of PSF.DataPSF 
             %         'FunArgs'   - optinal arguments to pass to FunPSF
             %         'InterpMethod' - interpolation method (may be a vector, different methods for each dimension)
             %         'Oversampling' - resample the output stamp if required
