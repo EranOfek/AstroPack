@@ -1040,7 +1040,7 @@ classdef DemonLAST < Component
                 
                 
                 % check whether reference image exists
-                AbsFile = fullfile(Path, RefFN.genFile)
+                AbsFile = fullfile(Path, RefFN.genFile);
                 RefName = dir(AbsFile);
                 
                 if isempty(RefName)
@@ -1055,9 +1055,11 @@ classdef DemonLAST < Component
                 if nargout>2
                     % read all files into an AstroImage object
                     FullRefName = char(fullfile(Path, File));
-                    AI = AstroImage({FullRefName});
-                    %AI = AstroImage.readFileNamesObj(RefFN);
-                    %Args.AddProduct);
+                    RefFN = FileNames.generateFromFileName(FullRefName);
+                    RefFN.FullPath = Path;
+
+                    AI = AstroImage.readFileNamesObj(RefFN,'AddProduct',Args.AddProduct);
+                    
                     
                 end
             end
