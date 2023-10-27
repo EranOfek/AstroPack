@@ -77,12 +77,13 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
         Args.Nstep         = [];
         Args.Oversampling  = 3;
 
-        Args.Nsim          = 1e6;
+        % 2d integration parameters
+        Args.Nsim          = 1e8;  % total number of simulations
+        Args.NsimBlock     = 1e6;  % number of simotanous ismulations
         
         Args.UseIndivMag logical  = true;
     end
     
-    error('BUG - 1d and 2d not consistent')
     
     switch Args.ImpactParUnits
         case 'SrcRad'
@@ -132,8 +133,8 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
                 Mag1   = MagBase + 0.5;
                 Mag2   = MagBase - 0.5;
                 % Flags for images that are occulted by the lens
-                FlagT1 = double(Theta1>Rlens);
-                FlagT2 = double(Theta2>Rlens);
+                FlagT1 = double(abs(Theta1)>Rlens);
+                FlagT2 = double(abs(Theta2)>Rlens);
                 Mag    = Mag1.*FlagT1 + Mag2.*FlagT2;
             else
                 Mag = (U.^2 + 2)./(U.*sqrt(U.^2 + 4));
@@ -195,8 +196,8 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
                     Mag1   = MagBase + 0.5;
                     Mag2   = MagBase - 0.5;
                     % Flags for images that are occulted by the lens
-                    FlagT1 = double(Theta1>Rlens);
-                    FlagT2 = double(Theta2>Rlens);
+                    FlagT1 = double(abs(Theta1)>Rlens);
+                    FlagT2 = double(abs(Theta2)>Rlens);
                     Mag    = Mag1.*FlagT1 + Mag2.*FlagT2;
                 else
                     Mag = (U.^2 + 2)./(U.*sqrt(U.^2 + 4));
@@ -235,32 +236,41 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
             CosFun = @(R,u,b) real(acos((-R.^2 +u.^2+b.^2)./(2.*u.*b)));
             TotMu  = zeros(1,Nbeta);
                         
-            [X,Y, R] = tools.rand.randInCirc(Rstar, Args.Nsim, 1);
-            % apply limb darkening (using R)
-            % ...
             
-            Npt =    Args.Nsim;  % number of points
+                            
+            Nblock = ceil(Args.Nsim./Args.NsimBlock);
+            
+            for Ib=1:1:Nbeta        
+                Mag = zeros(Nblock,1);
                 
-            for Ib=1:1:Nbeta                
-                U2 = (X - Beta(Ib)).^2 + (Y - Beta(Ib)).^2;
-                U  = sqrt(U2);
-                
-                U0     = sqrt(U2 + 4);
-                Theta1 = 0.5.*(U + U0);
-                Theta2 = 0.5.*(U - U0);
-                MagBase = (U2 + 2)./(2.*U.*sqrt(U2 + 4));
-                Mag1   = MagBase + 0.5;
-                Mag2   = MagBase - 0.5;
-                % Flags for images that are occulted by the lens
-                FlagT1 = double(Theta1>Rlens);
-                FlagT2 = double(Theta2>Rlens);
-                Mag    = Mag1.*FlagT1 + Mag2.*FlagT2;
+                [X,Y, R] = tools.rand.randInCirc(Rstar, Args.NsimBlock, 1);
+                % apply limb darkening (using R)
+                % ...
+                for Iblock=1:1:Nblock
+                    U2 = (X - Beta(Ib)).^2 + (Y).^2;
+                    U  = sqrt(U2);
+
+                    U0     = sqrt(U2 + 4);
+                    Theta1 = 0.5.*(U + U0);
+                    Theta2 = 0.5.*(U - U0);
+                    MagBase = (U2 + 2)./(2.*U.*sqrt(U2 + 4));
+                    Mag1   = MagBase + 0.5;
+                    Mag2   = MagBase - 0.5;
+                    % Flags for images that are occulted by the lens
+                    FlagT1 = double(abs(Theta1)>Rlens);
+                    FlagT2 = double(abs(Theta2)>Rlens);
+                    % note that FlagT may be shorter than NsimBlock
+                    % (because of occultations) and hence the need to
+                    % divide by NsimBlock
+                    Mag(Iblock)    = sum(Mag1.*FlagT1 + Mag2.*FlagT2)./Args.NsimBlock;
+                end
                 TotMu(Ib) = mean(Mag);     
             end
     
             
+        case '2dgpu'
             
-
+      
         case '2d_old'
             % not good enough
             
