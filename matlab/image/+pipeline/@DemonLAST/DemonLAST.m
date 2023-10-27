@@ -1035,13 +1035,23 @@ classdef DemonLAST < Component
                 RefFN.Level = 'coadd';
                 RefFN.FullPath = Path;
                 
+                % check whether reference image exists
+                AbsFile = fullfile(Path, RefFN.genFile);
+                RefName = dir(AbsFile);
                 
-                File  = RefFN.genFile;
+                if isempty(RefName)
+                    error('No reference image found.')
+                elseif length(RefName)>1
+                    error('Found several reference images.')
+                else
+                    % do nothing
+                    File = RefName.name;
+                end
                 
                 if nargout>2
                     % read all files into an AstroImage object
-                    AbsFile = fullfile(Path, File);
-                    AI = AstroImage(char(AbsFile));
+                    FullRefName = fullfile(Path, File);
+                    AI = AstroImage({FullRefName});
                     %AI = AstroImage.readFileNamesObj(RefFN);
                     %Args.AddProduct);
                     
