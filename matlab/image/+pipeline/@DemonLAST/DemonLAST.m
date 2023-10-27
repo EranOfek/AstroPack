@@ -1027,16 +1027,20 @@ classdef DemonLAST < Component
             if nargout>1
                 % construct FileName using a FileNames object
                 % treat Version=Inf as the last available version
-                RefFN = copy(Args.FN);
+                %RefFN = copy(Args.FN);
+                RefFN = FileNames;
                 RefFN.ProjName = {'LAST.01*'};
                 RefFN.Time = {'*'};
                 RefFN.FieldID = {string(FieldID)};
                 RefFN.Counter = 1;
                 RefFN.Level = 'coadd';
                 RefFN.FullPath = Path;
+                RefFN.CCDID = 1;
+                RefFN.CropID = Args.CropID;
+                
                 
                 % check whether reference image exists
-                AbsFile = fullfile(Path, RefFN.genFile);
+                AbsFile = fullfile(Path, RefFN.genFile)
                 RefName = dir(AbsFile);
                 
                 if isempty(RefName)
@@ -1050,7 +1054,7 @@ classdef DemonLAST < Component
                 
                 if nargout>2
                     % read all files into an AstroImage object
-                    FullRefName = fullfile(Path, File);
+                    FullRefName = char(fullfile(Path, File));
                     AI = AstroImage({FullRefName});
                     %AI = AstroImage.readFileNamesObj(RefFN);
                     %Args.AddProduct);
