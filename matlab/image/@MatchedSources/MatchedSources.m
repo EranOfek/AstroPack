@@ -2976,6 +2976,12 @@ classdef MatchedSources < Component
             %                   search radius.
             % Author : Eran Ofek (Sep 2023)
             % Example: [Cat]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',celestial.time.julday([14 6 2018]),'StopJD',  celestial.time.julday([20 6 2018]));
+            %          MS = MatchedSources;
+            %          MS.Data.RA = rand(100,1000);
+            %          MS.Data.Dec = rand(100,1000);
+            %          MS.Data.RA(1,1)  = Cat.Catalog(1,2);
+            %          MS.Data.Dec(1,1) = Cat.Catalog(1,3);
+            %          MS.JD = Cat.Catalog(1,1)+(0:1:99).';
             %          R = MS.epochCooSearch(Cat);
 
             arguments
@@ -3009,7 +3015,7 @@ classdef MatchedSources < Component
                 InterpPos = Pos;
             end
 
-            [RA, Dec] = getLonLat(Obj, 'rad');
+            [RA, Dec] = getLonLat(InterpPos, 'rad');
             
             try
                 if isempty(Obj.Units.(Args.ColRA))
@@ -3028,7 +3034,7 @@ classdef MatchedSources < Component
             Result.Dist  = nan(Obj.Nepoch,1);
             Result.Ncand = zeros(Obj.Nepoch,1);
             for Iep=1:1:Obj.Nepoch
-                Dist = celestial.coo.sphere_dist_fast(RA(Iep), Dec(Iep), Obj.Data.(Args.ColRA).*ConvFactor, Obj.Data.(Args.ColDec).*ConvFactor);
+                Dist = celestial.coo.sphere_dist_fast(RA(Iep), Dec(Iep), Obj.Data.(Args.ColRA)(Iep,:).*ConvFactor, Obj.Data.(Args.ColDec)(Iep,:).*ConvFactor);
                 [MinDist, MinDistInd] = min(Dist);
                 if MinDist<MaxDistRad
                     Result.Ind(Iep)    = MinDistInd;
