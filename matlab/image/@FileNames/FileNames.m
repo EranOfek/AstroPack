@@ -278,6 +278,11 @@ classdef FileNames < Component
             %            'DoNotExist' - What to do in case a file doesn't
             %                   exist: 'error'|'warnning'
             %                   Default is 'error'.
+            %            'FullPathFtomFileName' - If the user provided file
+            %                   name contains a path and this argument is
+            %                   true, then the FullPath property will be
+            %                   populated with the user-provided path.
+            %                   Default is false.
             % Output : - A FileNames object containing the file names.
             %          If you will use this with the char array option when
             %          the file doesn't exist, then the returned structure
@@ -289,21 +294,20 @@ classdef FileNames < Component
             
             arguments
                 List
-                Args.FullPath                 = true;
-                Args.WarningIfEmpty logical   = true;
-                Args.CheckExist logical       = false;
-                Args.DoNotExist               = 'error';
+                Args.FullPath                     = true;
+                Args.WarningIfEmpty logical       = true;
+                Args.CheckExist logical           = false;
+                Args.DoNotExist                   = 'error';
+                Args.FullPathFtomFileName logical = false;
             end
-            
-            
-            
+                        
             if ischar(List)
                 List = io.files.filelist(List, 'AddPath',false);
             elseif iscell(List)
                 List = List;
                 if Args.CheckExist
                     if ~all(isfile(List))
-                       switch lower(Args.DoNotExist
+                       switch lower(Args.DoNotExist)
                            case 'error'
                                Ierr = find(~isfile(List), 1);
                                error('File name: %s does not exist',List{Ierr});
@@ -311,6 +315,7 @@ classdef FileNames < Component
                                Ierr = find(~isfile(List), 1);
                                warnning('File name: %s does not exist',List{Ierr});
                            otherwise
+                               error('Unknown option for DoNotExist argument');
                        end
                     end
                 end
@@ -335,9 +340,12 @@ classdef FileNames < Component
                 SplitName = regexp(List{Ilist},'_','split');
                 % make sure the first splitted term doesn't contain the
                 % path
-                [SplitNameCell] = split(SplitName{1}, filesep);
-                
-                Obj.ProjName{Ilist} = SplitNameCell{end};
+                %[SplitNameCell] = split(SplitName{1}, filesep);
+                [UserPath, SplitName{1}] = fileparts(SplitName{1});
+                if Args.FullPathFtomFileName && ~isempty(UserPath)
+                    Obj.FullPath = UserPath;
+                end
+                Obj.ProjName{Ilist} = SplitName{1}; %Cell{end};
                 Obj.Time{Ilist}     = SplitName{2};
                 Obj.Filter{Ilist}   = SplitName{3};
                 Obj.FieldID{Ilist}  = SplitName{4};
