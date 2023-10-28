@@ -257,7 +257,7 @@ classdef FileNames < Component
             %            existing files that have this name (wild cards are
             %            allowed). In this case the file must exist.
             %            If a cell array, then the file name in each element of
-            %            the cell will be used as is. IN this case, the
+            %            the cell will be used as is. In this case, the
             %            file doesn't need to exist.
             %          * ...,key,val,...
             %            'FullPath' - Directory to populate FullPath, if true,
@@ -268,6 +268,16 @@ classdef FileNames < Component
             %                   print a warning in case the outpout FileNames
             %                   object contains no files.
             %                   Default is true.
+            %            'CheckExist' - A logical indicating if to check
+            %                   that all the files exist. Only operational when the
+            %                   input is a cell. If some files does not
+            %                   exist then the function will act according
+            %                   to the options in the 'DoNotExist'
+            %                   argument.
+            %                   Default is false.
+            %            'DoNotExist' - What to do in case a file doesn't
+            %                   exist: 'error'|'warnning'
+            %                   Default is 'error'.
             % Output : - A FileNames object containing the file names.
             %          If you will use this with the char array option when
             %          the file doesn't exist, then the returned structure
@@ -281,6 +291,8 @@ classdef FileNames < Component
                 List
                 Args.FullPath                 = true;
                 Args.WarningIfEmpty logical   = true;
+                Args.CheckExist logical       = false;
+                Args.DoNotExist               = 'error';
             end
             
             
@@ -289,6 +301,19 @@ classdef FileNames < Component
                 List = io.files.filelist(List, 'AddPath',false);
             elseif iscell(List)
                 List = List;
+                if Args.CheckExist
+                    if ~all(isfile(List))
+                       switch lower(Args.DoNotExist
+                           case 'error'
+                               Ierr = find(~isfile(List), 1);
+                               error('File name: %s does not exist',List{Ierr});
+                           case 'warnning'
+                               Ierr = find(~isfile(List), 1);
+                               warnning('File name: %s does not exist',List{Ierr});
+                           otherwise
+                       end
+                    end
+                end
             else
                 error('List must be either a char array or cell array');
             end
