@@ -81,6 +81,9 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
         Args.Nsim          = 1e8;  % total number of simulations
         Args.NsimBlock     = 1e6;  % number of simotanous ismulations
         
+        % limb darkening
+        Args.LimbDarkCoef = zeros(1,4); %astro.stars.getClaret2020_LimbDarkeningWD(10000,[7]);
+        
         Args.UseIndivMag logical  = true;
     end
     
@@ -198,7 +201,9 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
                     [X,Y, R] = tools.rand.randInCirc(Rstar, Args.NsimBlock, 1);
                     % apply limb darkening (using R)
                     % ...
-                
+                    
+                    [Imu] = astro.stars.limbDarkening(Args.LimbDarkCoef, R./Rstar, 'MuUnits','r', 'Fun','4par');
+                    
                     
                     
                     U2 = (X - Beta(Ib)).^2 + (Y).^2;
@@ -216,7 +221,7 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
                     % note that FlagT may be shorter than NsimBlock
                     % (because of occultations) and hence the need to
                     % divide by NsimBlock
-                    Mag(Iblock)    = sum(Mag1.*FlagT1 + Mag2.*FlagT2)./Args.NsimBlock;
+                    Mag(Iblock)    = sum(Imu.*(Mag1.*FlagT1 + Mag2.*FlagT2))./sum(Imu); %./Args.NsimBlock;
                 end
                 TotMu(Ib) = mean(Mag);     
             end
