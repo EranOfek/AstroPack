@@ -180,6 +180,7 @@ classdef AstroPSF1 < Component
             %         'PsfArgs'   - desired position of the stamp in the multi-D space of PSF.DataPSF:
             %                       a cell array of values (or value vectors) corresponding 
             %                       to each of the dimensions of PSF.DataPSF 
+            %                       NB: the dimension names are in the DimName cell array
             %         'FunArgs'   - optinal arguments to pass to FunPSF
             %         'InterpMethod' - interpolation method (may be a vector, different methods for each dimension)
             %         'Oversampling' - resample the output stamp if required
@@ -259,13 +260,7 @@ classdef AstroPSF1 < Component
                     end
                 else % pass the PSF cube to the FunPSF function
                     Result = Args.FunPSF(Obj(IObj).DataPSF, Args.FunArgs{:});
-                end
-                if ~isempty(Args.StampSize) && Ndim == 0  % check this only if there are no additional dimensions
-                    if ~all(size(Result)==Args.StampSize) % pad PSF
-                        error('Pad PSF option is not yet available');
-                        
-                    end
-                end
+                end                
                 % resample the output PSF stamp if requested
                 if ~isempty(Args.Oversampling)
                     % will renorm at the next step, so do not need to renorm once more here
@@ -274,6 +269,13 @@ classdef AstroPSF1 < Component
                 % normalize the stamp if requested
                 if Args.ReNorm
                     Result = imUtil.psf.normPSF(Result,'ReNormMethod',Args.ReNormMethod);
+                end
+                % pad and shift the stamp if requested 
+                if ~isempty(Args.StampSize) && Ndim == 0  % check this only if there are no additional dimensions
+                    if ~all(size(Result)==Args.StampSize) % pad PSF                        
+%                         error('Pad PSF option is not yet available');
+                        Result = imUtil.psf.padShift(Result, Args.StampSize, 'fftshift', Args.fftshift);
+                    end
                 end
             Res{IObj} = Result;    
             end
@@ -872,6 +874,22 @@ classdef AstroPSF1 < Component
             Stamp = Obj.getPSF('PsfArgs',Args.PsfArgs);
             surface(Stamp);
             colorbar;
+        end
+        
+        function plotRadialProfile(Obj, Args)
+            % plot radial profiles of the input AstroPSF objects
+            arguments
+                Obj
+                Args.Radius = [];
+                Args.Step   = 1;
+                Args.ReCenter = false;
+            end
+            figure(1); hold on
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Prof = Obj(Iobj).radialProfile(Args);
+                plot(Prof);
+            end
         end
         
     end
