@@ -3,6 +3,7 @@ function [Coef, F] = getClaret2020_LimbDarkeningWD(Teff,Logg, Args)
     %   The data is stored in the cats.stars.limbDarkening.LimbDarkeningWD_4par
     %   file and this file should be installed.
     %   Use the Installer class to install the +ctas dir.
+    %   To use this coef, use: astro.stars.limbDarkening
     % Input  : - Vector of Eff. Temperature [K].
     %          - Vector of logg (7-8)
     %          * ...,key,val,...
