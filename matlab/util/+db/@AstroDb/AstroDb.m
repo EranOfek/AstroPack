@@ -21,7 +21,6 @@
 % updateByTupleID - update DB table column values for the specified tuple numbers
 %          (the data manipulation function to be called by the user)
 % 
-%
 % TODO:
 % make a dependent LASTDb class with more particular table and connection parameters
 %
@@ -862,7 +861,6 @@ classdef AstroDb < Component
             end
         end
 
-
         function Result = createCatalogTable(Obj, TableName, Args)
             % Create or update definitions of of catalog tables
             % Input :  - LastDb object
@@ -888,6 +886,7 @@ classdef AstroDb < Component
     end
 
     methods (Static) % setup SSH tunnel (TBD)
+        
         function Result = setupSSH(Args)
             % Setup SSH Tunnel. DO NOT USE YET, we need to solve how to send
             % password to the command line.
@@ -938,10 +937,9 @@ classdef AstroDb < Component
     end
 
     methods (Static) % unitTest and examples
+        
         Result = unitTest()
-            % AstroDb Unit-Test
-%         Result = testDBlast0()
-%             % Examples
+
     end
 
 end
