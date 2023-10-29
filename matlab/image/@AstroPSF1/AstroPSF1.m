@@ -176,7 +176,8 @@ classdef AstroPSF1 < Component
             % Input : - An AstroPSF object (or a matrix of objects) 
             %         * ...,key,val,...
             %         'FunPSF' - a PSF-generating function handle
-            %         'StampSize' - an option to pad the PSF stamp
+            %         'StampSize' - an option to pad the PSF stamp, 
+            %         'fftpshift' - if padding whether to perform fft shift: ('none','fftshift','ifftshift')
             %         'PsfArgs'   - desired position of the stamp in the multi-D space of PSF.DataPSF:
             %                       a cell array of values (or value vectors) corresponding 
             %                       to each of the dimensions of PSF.DataPSF 
@@ -194,8 +195,9 @@ classdef AstroPSF1 < Component
                 %                 Obj(1,1)
                 Obj
                 Args.FunPSF         = [];
-                Args.StampSize      = [];  % if Args.StampSize > size(Result), pad the stamp with 0s
-                Args.PsfArgs        = {};  % Example: {'Wave', 2800, 'PosX', [2 3]'}
+                Args.StampSize      = [];     % if Args.StampSize > size(Result), pad the stamp with 0s
+                Args.fftshift       = 'none'; % perform fftshift when padding ('none','fftshift','ifftshift')
+                Args.PsfArgs        = {};    % Example: {'Wave', 2800, 'PosX', [2 3]'}
                 Args.FunArgs        = {};
                 Args.InterpMethod   = [];
                 Args.Oversampling   = [];
@@ -261,17 +263,17 @@ classdef AstroPSF1 < Component
                 else % pass the PSF cube to the FunPSF function
                     Result = Args.FunPSF(Obj(IObj).DataPSF, Args.FunArgs{:});
                 end                
-                % resample the output PSF stamp if requested
+                % resample the output PSF stamp 
                 if ~isempty(Args.Oversampling)
                     % will renorm at the next step, so do not need to renorm once more here
                     Result = imUtil.psf.oversampling(Result, Obj(IObj).Oversampling, Args.Oversampling, 'ReNorm', false);
                 end
-                % normalize the stamp if requested
+                % normalize the stamp 
                 if Args.ReNorm
                     Result = imUtil.psf.normPSF(Result,'ReNormMethod',Args.ReNormMethod);
                 end
-                % pad and shift the stamp if requested 
-                if ~isempty(Args.StampSize) && Ndim == 0  % check this only if there are no additional dimensions
+                % pad and shift the stamp (if there are no additional dimensions)
+                if ~isempty(Args.StampSize) && Ndim == 0  % 
                     if ~all(size(Result)==Args.StampSize) % pad PSF                        
 %                         error('Pad PSF option is not yet available');
                         Result = imUtil.psf.padShift(Result, Args.StampSize, 'fftshift', Args.fftshift);
@@ -576,6 +578,30 @@ classdef AstroPSF1 < Component
             FWHM_CumSum = 2.*FWHM_CumSum;
             FWHM_Flux   = 2.*FWHM_Flux;
             
+        end
+        
+        function [Radius, Val] = radialProfile(Obj,Args)
+            % extract radial profiles from a stack of AstroPSF objects
+            % Input: - an AstroPSF object
+            %        * ...,key,val,...
+            %        'Radius' - A radius up to which to calculate the radial
+            %                   profile, or a vector of radius edges.
+            %                   If empty, set it to the smallest image dim.
+            %        'Step'   - Spep size for radial edges. Default is 1
+            %        'Center' - a [Y, X] position around to calculate the radial profile.
+            %                   If empty, use image center. Default is [].
+            % Output: - the radial profile: a vector of radii R and a vector of Sum
+            % Author: A.M. Krassilchtchikov (Oct 2023)
+            % Example:
+            arguments
+                Obj(1,1)
+                Args.Radius   = [];
+                Args.Step     = 1;
+                Args.Center   = [];
+            end
+            Stamp = Obj.getPSF(); % add arguments! 
+            Prof = imUtil.psf.radialProfile(Stamp,Args.Center,'Radius',Args.Radius,'Step',Args.Step);
+            Radius = Prof.R; Val = Prof.Sum; 
         end
         
 %         function fitGaussians
@@ -890,6 +916,7 @@ classdef AstroPSF1 < Component
                 Prof = Obj(Iobj).radialProfile(Args);
                 plot(Prof);
             end
+            hold off
         end
         
     end

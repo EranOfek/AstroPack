@@ -13,6 +13,9 @@ function Result = unitTest()
     if ~all(AP.getPSF('ReNorm',0)==P)
         error('Problem with set/get PSF');
     end
+    
+    P = AP.getPSF('StampSize',[21 21]);
+    P = AP.getPSF('StampSize',[21 21],'fftshift','fftshift');
 
     % curve of growth
     AP = AstroPSF1;
