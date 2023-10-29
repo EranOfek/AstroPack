@@ -1,4 +1,4 @@
-function [Lines,AllFiles]=countLinesCode
+function [Lines,AllFiles]=countLinesCode()
     % Count lines of .m files code under some directory
     % Input  : null
     % Output : - A structure of lines of codes under current directory.
