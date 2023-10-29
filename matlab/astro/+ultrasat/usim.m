@@ -659,9 +659,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             ContainmentLevel = 0.5;
             %         PixSizeSec  = PixSizeDeg*3600;
             for Isrc = 1:1:NumSrcCh
-%             for Isrc = 1:1:300 % use with telescope.sn.snr, because it is very slow !
+%             for Isrc = 1:1:300 % use a small limit with telescope.sn.snr, because it is very slow !
                 Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number
-                PSFRad  = imUtil.psf.containment(PSF_ch(:,:,Isrc),'Level',ContainmentLevel)./Args.ImRes;
+                PSFRad  = imUtil.psf.quantileRadius(PSF_ch(:,:,Isrc),'Level',ContainmentLevel)./Args.ImRes;
                 CrudeSNR(Isrc_gl) = PSFeff * CatFlux(Isrc_gl) * Exposure / sqrt(pi * PSFRad^2 * Back.Tot );
 %                 SNR1    = telescope.sn.snr('ExpTime',Args.Exposure(2),'Nim',Args.Exposure(1),...
 %                     'TargetSpec',[Wave' SpecObs(Isrc,:)'],'PSFeff',PSFeff,'Mag',MagU(Isrc_gl),...

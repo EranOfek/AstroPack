@@ -1,6 +1,7 @@
 
 function Result = unitTest()
     % unitTest for AstroPSF
+    % Author: Eran Ofek, A.M. Krassilchtchikov (Oct 2023)
     % Example: Result = AstroPSF.unitTest
 
     %io.msgStyle(LogLevel.Test, '@start', 'AstroPSF test started');                                      
@@ -34,7 +35,7 @@ function Result = unitTest()
 
     % fwhm
     imUtil.psf.pseudoFWHM(AP(1).Data)
-    imUtil.psf.containment(AP(1).Data,'Level',0.9)
+    imUtil.psf.quantileRadius(AP(1).Data,'Level',0.9)
     
 %     [FWHM_CumSum, FWHM_Flux] = fwhm(AP(1));
     [FWHM_CumSum, FWHM_Flux] = fwhm(AP);    
@@ -97,7 +98,8 @@ function Result = unitTest()
     I = Installer;
 %     PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF5.mat');
     PSF_db = sprintf('%s%s%g%s',I.getDataDir('ULTRASAT_PSF'),'/ULTRASATlabPSF5.mat');
-    ReadDB = struct2cell ( io.files.load1(PSF_db) ); % PSF data at the chosen spatial resolution
+%     ReadDB = struct2cell ( io.files.load1(PSF_db) ); % PSF data at the chosen spatial resolution
+    ReadDB = struct2cell ( io.files.load_check(PSF_db) ); % PSF data at the chosen spatial resolution
     PSFdata = ReadDB{2}; 
     
     AP.DataPSF = PSFdata;
@@ -114,12 +116,12 @@ function Result = unitTest()
     
     Pg5 = AP.getPSF('Oversampling',5,'PsfArgs',{'Wave',2500,'PosX',7}); % rescale the output stamp 
     
-    Pw1 = AP.weightPSF;
-    Pw2 = AP.weightPSF('Pos',{'PosX',2});
-    Pw3 = AP.weightPSF('Pos',{'PosX',6},'Wave',[2000 3000 4000 5000],'Spec',[0.5 1 1 0.3]);
+    Pw1 = AP.specWeightedPSF;
+    Pw2 = AP.specWeightedPSF('Pos',{'PosX',2});
+    Pw3 = AP.specWeightedPSF('Pos',{'PosX',6},'Wave',[2000 3000 4000 5000],'Spec',[0.5 1 1 0.3]);
     
     Sp = AstroSpec.blackBody(2000:11000,3500);
-    Pw4 = AP.weightPSF('Pos',{'PosX',6},'Wave',Sp.Wave,'Spec',Sp.Flux');
+    Pw4 = AP.specWeightedPSF('Pos',{'PosX',6},'Wave',Sp.Wave,'Spec',Sp.Flux');
     
     % multiple interpolation methods:
     Pg6 = AP.getPSF('PsfArgs',{'Wave',3550,'PosX',5.5},'InterpMethod',{'linear','nearest'});
@@ -163,7 +165,7 @@ function Result = unitTest()
     
     % populate some properties:
     AP.FWHM = imUtil.psf.pseudoFWHM(AP.getPSF);
-    AP.FluxContainmentRadius = imUtil.psf.containment(AP.getPSF,'Level',0.99);
+    AP.FluxContainmentRadius = imUtil.psf.quantileRadius(AP.getPSF,'Level',0.99);
     AP
     
     %

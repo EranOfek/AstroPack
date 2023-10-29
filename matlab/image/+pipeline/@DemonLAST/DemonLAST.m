@@ -534,7 +534,12 @@ classdef DemonLAST < Component
             if isempty(List)
                 List = pipeline.DemonLAST.fieldsListLAST;
             end
-            
+
+            if ~isempty(Dec) && isnumeric(Dec)
+                % assume RA and Dec are in deg, convert to radian
+                RA  = RA./RAD;
+                Dec = Dec./RAD;
+            end            
             if isempty(Dec)
                 % assume RA is string of the format '045-01'
                 [RA, Dec]=pipeline.DemonLAST.str2radec(RA, 'rad');
@@ -544,7 +549,7 @@ classdef DemonLAST < Component
                 RA  = celestial.coo.convertdms(RA, 'SH', 'r');
                 Dec = celestial.coo.convertdms(Dec, 'SD', 'R');
             end
-            
+
             % RA/Dec are in radians
             CatRA  = List.RA./RAD;
             CatDec = List.Dec./RAD;
@@ -917,8 +922,7 @@ classdef DemonLAST < Component
             %            'HostName' - HostName. If empty, get it from OS.
             %                   Default is [].
             %            'DefRefPath' - Reference path above the host name.
-            %                   If given overide the RefPath property.
-            %                   Default is [].
+            %                   Default is 'data/references'.
             % Output : - Base path for reference images dir.
             % Author : Eran Ofek (Oct 2023)
             % Example: Path=D.populateRefPath
@@ -926,7 +930,7 @@ classdef DemonLAST < Component
             arguments
                 Obj
                 Args.HostName     = [];
-                Args.DefRefPath   = [];
+                Args.DefRefPath   = 'data/references';
             end
             
             if isempty(Args.HostName)
@@ -935,18 +939,14 @@ classdef DemonLAST < Component
                 HostName = Args.HostName;
             end
             
-            if isempty(Args.RefPath)
-                DefRefPath = Obj.RefPath;
-            else
-                DefRefPath = Args.DefRefpath;
-            end
             
-            Path = fullfile(filsep, HostName, DefRefPath);
+            Path = fullfile(filesep, HostName, Args.DefRefPath);
         end
+        
     end
     
     methods % ref image utilities
-        function [Path, File, AI] = getRefImage(Args)
+        function [Path, File, AI] = getRefImage(Obj, Args)
             % Get reference images corresponding to some field
             % Input  : * ...,key,val,...
             %            'FN' - Either [], a file name char array,
@@ -955,7 +955,7 @@ classdef DemonLAST < Component
             %                   If empty, then the image details are provided
             %                   in the other argumnets.
             %                   If given, then the other argumnets are
-            %                   overrided.
+            %                   overwritten.
             %                   Default is [].
             %            'Camera' - Camera index. Default is 1.
             %            'Filter' - Filter name. Default is 'clear'.
@@ -969,7 +969,7 @@ classdef DemonLAST < Component
             %            'AddProduct' - Add the following products to the
             %                   AstroImage, in addition to the 'Image' product.
             %                   Default is {'Mask','Cat','PSF'}
-            %            'RefPath' - RefPath (to override the object
+            %            'RefPath' - RefPath (to overwrite the object
             %                   Refpath). If empty, then will use the
             %                   object RefPath.
             %                   Default is [].
@@ -981,6 +981,7 @@ classdef DemonLAST < Component
             
             arguments
                 
+                Obj
                 Args.FN           = []; % FileNames object
                 Args.Camera       = 1;
                 Args.Filter       = 'clear';
@@ -992,18 +993,20 @@ classdef DemonLAST < Component
                 Args.RefPath      = [];
             end
             
-            % FN is provided - override other argumnets
+            
+            % FN is provided - overwrite other argumnets
             if ~isempty(Args.FN)
                 if ~isa(Args.FN, 'FileNames')
                     Args.FN = FileNames.generateFromFileName(Args.FN);
                 end
                 
-                Args.Filter   = FN.Filter;
-                Args.FieldID  = FN.FieldID;
-                Args.CropID   = FN.CropID;
-                Args.Version  = FN.Version;
+
+                Args.Filter   = Args.FN.Filter;
+                Args.FieldID  = Args.FN.FieldID;
+                Args.CropID   = Args.FN.CropID;
+                Args.Version  = Args.FN.Version;
                 
-                Args.Camera   = pipeline.DemonLAST.getCamNumFromProjName(FN.ProjName);  % return a number
+                Args.Camera   = pipeline.DemonLAST.getCamNumFromProjName(Args.FN.ProjName{1});  % return a number
                 
             end
             
@@ -1019,17 +1022,44 @@ classdef DemonLAST < Component
                 FieldID = Args.FieldID;
             end
                                
-            Path = fullfile(Args.RefPath, FieldID, sprintf('%d',Args.Camera));
+            Path = fullfile(Args.RefPath, string(FieldID), sprintf('%d',Args.Camera));
+            
             if nargout>1
                 % construct FileName using a FileNames object
                 % treat Version=Inf as the last available version
-                % RefFN = 
-                % File  = 
+                %RefFN = copy(Args.FN);
+                RefFN = FileNames;
+                RefFN.ProjName = {'LAST.01*'};
+                RefFN.Time = {'*'};
+                RefFN.FieldID = {string(FieldID)};
+                RefFN.Counter = 1;
+                RefFN.Level = 'coadd';
+                RefFN.FullPath = Path;
+                RefFN.CCDID = 1;
+                RefFN.CropID = Args.CropID;
+                
+                
+                % check whether reference image exists
+                AbsFile = fullfile(Path, RefFN.genFile);
+                RefName = dir(AbsFile);
+                
+                if isempty(RefName)
+                    error('No reference image found.')
+                elseif length(RefName)>1
+                    error('Found several reference images.')
+                else
+                    % do nothing
+                    File = RefName.name;
+                end
                 
                 if nargout>2
                     % read all files into an AstroImage object
-                    %AI = AstroImage.readFileNamesObj(RefFN,
-                    %Args.AddProduct);
+                    FullRefName = char(fullfile(Path, File));
+                    RefFN = FileNames.generateFromFileName(FullRefName);
+                    RefFN.FullPath = Path;
+
+                    AI = AstroImage.readFileNamesObj(RefFN,'AddProduct',Args.AddProduct);
+                    
                     
                 end
             end
@@ -1518,7 +1548,6 @@ classdef DemonLAST < Component
             cd(PWD);
 
         end
-
         
         
         function Obj=main(Obj, Args)
@@ -1710,7 +1739,7 @@ classdef DemonLAST < Component
 
                         try
                          
-                            tic;
+                            Tstart = clock; % tic;
 
                             %AI = AstroImage(FilesList, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
                             % Insert AI to DB
@@ -1916,11 +1945,11 @@ classdef DemonLAST < Component
 
                             end
 
-                            RunTime = toc;
+                            RunTime = etime(clock, Tstart); % toc;
                         catch ME
                              
                             
-                            RunTime = toc;
+                            RunTime = etime(clock, Tstart); % toc;
     
                             % extract errors
                             ErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, ME.stack(1).line);

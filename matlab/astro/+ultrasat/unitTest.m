@@ -31,7 +31,7 @@ function Result = unitTest()
     Rad = linspace(0,10,25);
     for iR = 1:25
         for iL = 1:91
-            ContRad(iL,iR) = imUtil.psf.containment(PSFdata(:,:,iL,iR),'Level',0.9)./5;
+            ContRad(iL,iR) = imUtil.psf.quantileRadius(PSFdata(:,:,iL,iR),'Level',0.9)./5;
         end
     end
     imagesc('XData',Rad,'YData',Lam,'CData',ContRad)

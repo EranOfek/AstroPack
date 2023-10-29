@@ -33,7 +33,7 @@ function Result = unitTest()
 
     % fwhm
     imUtil.psf.pseudoFWHM(AP(1).Data)
-    imUtil.psf.containment(AP(1).Data,'Level',0.9)
+    imUtil.psf.quantileRadius(AP(1).Data,'Level',0.9)
     
 %     [FWHM_CumSum, FWHM_Flux] = fwhm(AP(1));
     [FWHM_CumSum, FWHM_Flux] = fwhm(AP);    
@@ -112,7 +112,7 @@ function Result = unitTest()
 %     % for AP.DataPSF2(:,:,1,2) or AP.DataPSF2(:,:,1,3) the result will be different! 
 %     
 %     AP.FWHM = imUtil.psf.pseudoFWHM(AP.DataPSF2);
-%     AP.ContainmentR = imUtil.psf.containment(AP.DataPSF2(:,:,1,1),'Level',0.99);
+%     AP.ContainmentR = imUtil.psf.quantileRadius(AP.DataPSF2(:,:,1,1),'Level',0.99);
 %     
     % extended data structures (temporarily in DataPSF3, later will be moved to DataPSF)
     
@@ -167,7 +167,7 @@ function Result = unitTest()
     % for AP.DataPSF2(:,:,1,2) or AP.DataPSF2(:,:,1,3) the result will be different! 
     
     AP.FWHM = imUtil.psf.pseudoFWHM(AP.DataPSF3);
-    AP.ContainmentR = imUtil.psf.containment(AP.DataPSF3(:,:,1,1),'Level',0.99);
+    AP.ContainmentR = imUtil.psf.quantileRadius(AP.DataPSF3(:,:,1,1),'Level',0.99);
     
     %
     io.msgStyle(LogLevel.Test, '@passed', 'AstroPSF test passed');                          

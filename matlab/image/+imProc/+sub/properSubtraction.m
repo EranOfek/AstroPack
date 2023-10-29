@@ -35,6 +35,9 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
         Args.full2stampArgs cell = {};
         Args.CalcTranslient logical    = true;  % if false will skip Z2 and S2
         
+        Args.SuppressEdgesPSF logical   = true;  % operational only if HalfSizePSF not empty
+        Args.SuppressEdgesAnnulus       = [5 7]; % arguments for cosbell supression
+        
     end
 
     if 1==0
@@ -257,6 +260,9 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
 
         if ~isempty(Args.HalfSizePSF)
             Pd = imUtil.psf.full2stamp(Pd, 'StampHalfSize',Args.HalfSizePSF, Args.full2stampArgs{:});
+            if Args.SuppressEdgesPSF
+                Pd = imUtil.psf.suppressEdges(Pd, 'FunPar',Args.SuppressEdgesAnnulus);
+            end
         end
 
         D(Imax).Image = ImageD;

@@ -55,6 +55,9 @@ function Result = writeTable1(Table, FileName, Args)
         Args.HeaderHDUnum   = [];
         Args.Header         = {};
     end
+    
+    % sanify the file name so that it contain the absolute path
+    FileName = tools.os.relPath2absPath(FileName); 
 
     % Try to convert Table to AstroTable
     if ~isa(Table, 'AstroTable') && ~isa(Table, 'AstroCatalog')
