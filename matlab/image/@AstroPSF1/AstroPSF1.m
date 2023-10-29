@@ -62,6 +62,7 @@ classdef AstroPSF1 < Component
     end
     
     methods % Constructor
+        
         function Obj = AstroPSF1(FileName, Args)
             % AstroPSF constructor - read PSF images to AstroPSF object
             % Input  : - File names.
@@ -144,6 +145,7 @@ classdef AstroPSF1 < Component
             end % end for Ifield
             
         end
+        
     end
     
     methods % Setters/Getters
@@ -171,6 +173,7 @@ classdef AstroPSF1 < Component
     end
     
     methods % generating PSF stamp 
+        
         function [Result, Res] = getPSF(Obj, Args)
             % get PSF from an AstroPSF object
             % Input : - An AstroPSF object (or a matrix of objects) 
@@ -331,6 +334,7 @@ classdef AstroPSF1 < Component
     end
     
     methods % utilities (e.g., isempty)
+        
         function Result = isemptyPSF(Obj)
             % Check if PSFData is empty.
             % Input  : - An AstroPSF object.
@@ -346,6 +350,7 @@ classdef AstroPSF1 < Component
     end
     
     methods % fitting
+        
         function [Result,FitRes] = fitFunPSF(Obj, Args)
             % Fit a composite function to a PSF stamp and replace it.
             %   The fitted function is any combination of imUtil.kernel2 like
@@ -581,19 +586,20 @@ classdef AstroPSF1 < Component
         end
         
         function [Radius, Val] = radialProfile(Obj,Args)
-            % extract radial profiles from a stack of AstroPSF objects
+            % extract radial profiles from an AstroPSF object 
             % Input: - an AstroPSF object
             %        * ...,key,val,...
             %        'PsfArgs' - position in a multi-D PSF space to be passed to getPSF
             %        'Radius' - A radius up to which to calculate the radial
             %                   profile, or a vector of radius edges.
             %                   If empty, set it to the smallest image dim.
-            %        'Step'   - Spep size for radial edges. Default is 1
+            %        'Step'   - Step size for radial edges. Default is 1
             %        'ReCenter' - a [Y, X] position around to calculate the radial profile.
             %                   If empty, use image center. Default is [].
             % Output: - the radial profile: a vector of radii R and a vector of Sum
             % Author: A.M. Krassilchtchikov (Oct 2023)
-            % Example:
+            % Example: AP = AstroPSF1; AP.DataPSF = imUtil.kernel2.gauss;
+            %          [R, V] = AP.radialProfile; 
             arguments
                 Obj(1,1)
                 Args.PsfArgs  = {};
@@ -611,8 +617,8 @@ classdef AstroPSF1 < Component
 %         end
     end
     
-    methods % functionality
-
+    methods % functionality 
+        
         function [CubeData, CubeVar] = images2cube(Obj, Args)
             % Transform an array of AstroPSF into a cube of PSFs
             % Input  : - An AstroPSF object.
@@ -648,10 +654,11 @@ classdef AstroPSF1 < Component
             end
             
         end
- 
+        
     end
     
     methods % pad, shift, smooth edges
+        
         function Result = padShift(Obj, NewSizeIJ, Args)
             % Pad a PSF with zeros and shift its center
             %   This function uses: imUtil.psf.padShift
@@ -882,10 +889,11 @@ classdef AstroPSF1 < Component
             end
             
         end
-
+        
     end
     
     methods % plotting
+        
         function surface(Obj, Args)
             % plot PSF using surface
             % Input  : - A single element AstroPSF object
@@ -911,7 +919,7 @@ classdef AstroPSF1 < Component
             %        'Radius' - A radius up to which to calculate the radial
             %                   profile, or a vector of radius edges.
             %                   If empty, set it to the smallest image dim.
-            %        'Step'   - Spep size for radial edges. Default is 1
+            %        'Step'   - Step size for radial edges. Default is 1
             %        'ReCenter' - a [Y, X] position around to calculate the radial profile.
             %                   If empty, use image center. Default is [].
             %        'FigNum'  - number of the plot (def. to Figure 10)
@@ -939,12 +947,12 @@ classdef AstroPSF1 < Component
         end
         
     end
-
+    
     methods (Static) % UnitTest
         Result = unitTest()
             % unitTest for AstroPSF
     end
-
+    
 end
 
            
