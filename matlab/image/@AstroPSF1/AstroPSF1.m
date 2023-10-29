@@ -584,6 +584,7 @@ classdef AstroPSF1 < Component
             % extract radial profiles from a stack of AstroPSF objects
             % Input: - an AstroPSF object
             %        * ...,key,val,...
+            %        'PsfArgs' - position in a multi-D PSF space to be passed to getPSF
             %        'Radius' - A radius up to which to calculate the radial
             %                   profile, or a vector of radius edges.
             %                   If empty, set it to the smallest image dim.
@@ -595,11 +596,12 @@ classdef AstroPSF1 < Component
             % Example:
             arguments
                 Obj(1,1)
+                Args.PsfArgs  = {};
                 Args.Radius   = [];
                 Args.Step     = 1;
                 Args.Center   = [];
-            end
-            Stamp = Obj.getPSF(); % add arguments! 
+            end           
+            Stamp = Obj.getPSF('PsfArgs',Args.PsfArgs); % get the stamp
             Prof = imUtil.psf.radialProfile(Stamp,Args.Center,'Radius',Args.Radius,'Step',Args.Step);
             Radius = Prof.R; Val = Prof.Sum; 
         end
