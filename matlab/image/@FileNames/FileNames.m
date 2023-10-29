@@ -341,7 +341,8 @@ classdef FileNames < Component
                 % make sure the first splitted term doesn't contain the
                 % path
                 %[SplitNameCell] = split(SplitName{1}, filesep);
-                [UserPath, SplitName{1}] = fileparts(SplitName{1});
+                [UserPath, Tmp1,Tmp2] = fileparts(SplitName{1});
+                SplitName{1} = sprintf('%s%s',Tmp1,Tmp2);
                 if Args.FullPathFtomFileName && ~isempty(UserPath)
                     Obj.FullPath = UserPath;
                 end
