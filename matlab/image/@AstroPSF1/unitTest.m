@@ -21,6 +21,7 @@ function Result = unitTest()
     % curve of growth
     AP = AstroPSF1;
     AP.DataPSF = imUtil.kernel2.gauss;
+    [R, V] = AP.radialProfile
 
     % @FIX - @Eran
     [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(AP);
