@@ -960,6 +960,7 @@ classdef OrbitalEl < Base
                 while LightTimeNotConverged
                     Iter = Iter + 1;
                     if Args.Integration
+                        % Orbital integration
                         U_B = zeros(3,Ntarget);
                         % loop for each group with same initial epoch
                         for Iepoch = 1:numel(StartEpochs)
@@ -989,11 +990,12 @@ classdef OrbitalEl < Base
                                 else
                                     IndLightTime =1;
                                 end
-                                [U_B(:,IndTargets),~] = celestial.SolarSys.orbitIntegration([StartEpochs(Iepoch),Time(It)-LightTime(IndLightTime)]...
-                                    ,X0(:,IndTargets),V0(:,IndTargets),'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
+                                [U_B(:,IndTargets),~] = celestial.SolarSys.orbitIntegration([StartEpochs(Iepoch),Time(It)-LightTime(IndLightTime)],...
+                                                                    X0(:,IndTargets),V0(:,IndTargets),'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
                             end
                         end
                     else
+                        % Solution via Kepler equation
                         [Nu, R, E, Vel, M]          = keplerSolve(Obj, Time(It)-LightTime,'Tol',Args.Tol);
                         % target ecliptic Heliocentric rect. position
                         [U_B] = trueAnom2rectPos(Obj, Nu, R, 'rad');
