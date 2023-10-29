@@ -172,7 +172,11 @@ function Result = unitTest()
     AP.FluxContainmentRadius = imUtil.psf.quantileRadius(AP.getPSF,'Level',0.99);
     AP
     
-    %
+    % plot radial profile:  
+    AP2(1) = AstroPSF1; AP2(1).DataPSF = Pg2; 
+    AP2(2) = AstroPSF1; AP2(2).DataPSF = Pg3;
+    AP2.plotRadialProfile;
+    
     %io.msgStyle(LogLevel.Test, '@passed', 'AstroPSF test passed');                          
     Result = true;
 end

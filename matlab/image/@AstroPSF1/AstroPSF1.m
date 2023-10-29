@@ -589,7 +589,7 @@ classdef AstroPSF1 < Component
             %                   profile, or a vector of radius edges.
             %                   If empty, set it to the smallest image dim.
             %        'Step'   - Spep size for radial edges. Default is 1
-            %        'Center' - a [Y, X] position around to calculate the radial profile.
+            %        'ReCenter' - a [Y, X] position around to calculate the radial profile.
             %                   If empty, use image center. Default is [].
             % Output: - the radial profile: a vector of radii R and a vector of Sum
             % Author: A.M. Krassilchtchikov (Oct 2023)
@@ -599,10 +599,10 @@ classdef AstroPSF1 < Component
                 Args.PsfArgs  = {};
                 Args.Radius   = [];
                 Args.Step     = 1;
-                Args.Center   = [];
+                Args.ReCenter = [];
             end           
-            Stamp = Obj.getPSF('PsfArgs',Args.PsfArgs); % get the stamp
-            Prof = imUtil.psf.radialProfile(Stamp,Args.Center,'Radius',Args.Radius,'Step',Args.Step);
+            Stamp  = Obj.getPSF('PsfArgs',Args.PsfArgs); % get the stamp
+            Prof   = imUtil.psf.radialProfile(Stamp,Args.ReCenter,'Radius',Args.Radius,'Step',Args.Step);
             Radius = Prof.R; Val = Prof.Sum; 
         end
         
@@ -896,7 +896,7 @@ classdef AstroPSF1 < Component
             % Author: Eran Ofek
             % Example: AI.PSFData.surface
             arguments
-                Obj
+                Obj(1,1)
                 Args.PsfArgs = {};
             end
             Stamp = Obj.getPSF('PsfArgs',Args.PsfArgs);
@@ -906,17 +906,34 @@ classdef AstroPSF1 < Component
         
         function plotRadialProfile(Obj, Args)
             % plot radial profiles of the input AstroPSF objects
+            % Input : - A stack of AstroPSF objects or a single object
+            %       * ...,key,val,...
+            %        'Radius' - A radius up to which to calculate the radial
+            %                   profile, or a vector of radius edges.
+            %                   If empty, set it to the smallest image dim.
+            %        'Step'   - Spep size for radial edges. Default is 1
+            %        'ReCenter' - a [Y, X] position around to calculate the radial profile.
+            %                   If empty, use image center. Default is [].
+            %        'FigNum'  - number of the plot (def. to Figure 10)
+            %        'PsfArgs' - position in a multi-D PSF space to be passed to getPSF
+            % Output: - a figure with radial profiles of all the input objects
+            % Author: A.M. Krassilchtchikov (Oct 2023)
+            % Example: AP2(1) = AstroPSF1; AP2(1).DataPSF = rand(15);
+            %          AP2(2) = AstroPSF1; AP2(2).DataPSF = imUtil.kernel2.gauss;
+            %          AP2.plotRadialProfile;
             arguments
                 Obj
-                Args.Radius = [];
-                Args.Step   = 1;
-                Args.ReCenter = false;
+                Args.Radius   = [];
+                Args.Step     = 1;
+                Args.ReCenter = [];
+                Args.FigNum   = 10;
+                Args.PsfArgs  = {};
             end
-            figure(1); hold on
+            figure(Args.FigNum); clf; hold on
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                Prof = Obj(Iobj).radialProfile(Args);
-                plot(Prof);
+                [Rad, Val] = Obj(Iobj).radialProfile('Radius',Args.Radius,'Step',Args.Step,'ReCenter',Args.ReCenter,'PsfArgs',Args.PsfArgs);
+                plot(Rad, Val);
             end
             hold off
         end
