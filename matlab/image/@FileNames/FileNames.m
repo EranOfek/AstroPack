@@ -940,7 +940,10 @@ classdef FileNames < Component
             %                   BasePath property. If empty, use object default.
             %                   Default is [].
             %            'FullPath' - A full path to insert into the object
-            %                   FullPath property. If empty, use object default.
+            %                   FullPath property.
+            %                   If FullPath is not empty then it will
+            %                   replace the automatic path construction.
+            %                   If empty, use object default.
             %                   Default is [].
             %            'Product' - See genFile.
             %            'Level' - Level to add to file and path.
