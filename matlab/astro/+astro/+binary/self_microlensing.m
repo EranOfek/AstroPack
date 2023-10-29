@@ -82,7 +82,7 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
         Args.NsimBlock     = 1e6;  % number of simotanous ismulations
         
         % limb darkening
-        Args.LimbDarkCoef = zeros(1,4); %astro.stars.getClaret2020_LimbDarkeningWD(10000,[7]);
+        Args.LimbDarkCoef = astro.stars.getClaret2020_LimbDarkeningWD(10000,[7]);
         
         Args.UseIndivMag logical  = true;
     end
