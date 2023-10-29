@@ -18,6 +18,7 @@ function Result = radialProfile(Image, CenterPos, Args)
     %            .MeanV - Mean image val of points in bin.
     %            .MedV - Median image val of points in bin.
     %            .StdV - Std image val of points in bin.
+    %            .Sum - Sum of flux up to radius.
     % Author : Eran Ofek (Jun 2022)
     % Example: R = imUtil.psf.radialProfile(rand(100,100));
     %          R = imUtil.psf.radialProfile(rand(100,100,3));
