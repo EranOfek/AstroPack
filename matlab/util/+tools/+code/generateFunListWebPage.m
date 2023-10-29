@@ -22,7 +22,18 @@ function generateFunListWebPage(Args)
         end
         
     TableCell = [{List.Link}.', {List.FunFullName}.', {List.ClassName}.', {List.Year}.', {List.Month}.', {List.DescriptionLine}.'];
-        
+    
+    FID = fopen('AllFun.txt','w');
+    % make a text-style description for the Git Wiki page:
+    for Icell=1:Ncell
+        Nshort = regexprep(List(Icell).FullPath,'.*AstroPack/','');
+        Lnk = sprintf('%s','https://github.com/EranOfek/AstroPack/tree/dev1/',Nshort);
+        Str = strcat('* **',List(Icell).FunFullName,'** :',List(Icell).Year,'/',List(Icell).Month,' [',...
+            List(Icell).DescriptionLine,' ](',Lnk,')');
+        fprintf(FID,'%s\n',Str);
+    end
+    fclose(FID);
+    
     www.html_table(Args.WebFileName,'TableCell',TableCell,'TableStatment','class="sortable"','TableHead',Header);
 
     % add sortable javascript (do not forget to put the sorttable.js file)
