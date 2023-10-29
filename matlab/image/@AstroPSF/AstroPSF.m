@@ -841,7 +841,7 @@ classdef AstroPSF < Component
         end
 
         function Obj = normPSF(Obj,Args)
-            % Normalize PSFs such there sum will be 1.
+            % Normalize a PSF so that its sum is 1
             % Input  : - An AstroPSF object
             %        * ...,key,val,... 
             %        'ReNormMethod' - 'int' -- normalize to the sum of pixel values; 'rms' -- normalize to rms
