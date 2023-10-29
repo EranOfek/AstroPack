@@ -14,6 +14,7 @@ function Result = unitTest()
         error('Problem with set/get PSF');
     end
     
+    % stamp padding 
     P = AP.getPSF('StampSize',[21 21]);
     P = AP.getPSF('StampSize',[21 21],'fftshift','fftshift');
 
