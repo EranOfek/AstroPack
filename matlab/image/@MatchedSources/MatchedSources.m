@@ -164,6 +164,7 @@ classdef MatchedSources < Component
                             Data = h5read(FileName, DS);
                             Struct.(Info.Datasets(Idata).Name) = Data;
                         end
+                        Struct.JD = h5read(FileName, '/JD');
                     else
                         if ischar(Args.Fields)
                             Args.Fields = {Args.Fields};
@@ -325,11 +326,13 @@ classdef MatchedSources < Component
                     Ndata = numel(Obj.Fields);
                     for Idata=1:1:Ndata
                         h5create(FileName, sprintf('/%s',Obj.Fields{Idata}), size(Obj.Data.(Obj.Fields{Idata})));
+                        h5create(FileName, sprintf('/%s','JD', size(Obj.JD)));
                         if Args.RealIfComplex
                             h5write(FileName, sprintf('/%s',Obj.Fields{Idata}), real(Obj.Data.(Obj.Fields{Idata})));
                         else
                             h5write(FileName, sprintf('/%s',Obj.Fields{Idata}), Obj.Data.(Obj.Fields{Idata}));
                         end
+                        h5write(FileName, sprintf('/%s','JD', Obj.JD));
                     end
                     % save also the JD
                     h5create(FileName, '/JD', size(Obj.JD));
