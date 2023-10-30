@@ -13,6 +13,7 @@ function [Data, Ephem]=getJPL_CloseApproachNEO(Args)
     %            in the close approach list.
     %            The object name is stored in the AstroCatalog Name
     %            property.
+    %            'UserData' contains min mag over period.
     % Author : Eran Ofek (Oct 2023)
     % Example: [Data,Ephem]=celestial.SolarSys.getJPL_CloseApproachNEO
 
@@ -41,6 +42,7 @@ function [Data, Ephem]=getJPL_CloseApproachNEO(Args)
             Name = Data.data{I}{1}
             Ephem(I) =celestial.SolarSys.jpl_horizons('ObjectInd',Name,'StartJD',Args.MinJD,'StopJD',Args.MaxJD, 'GeodCoo',Args.GeodCoo, 'StepSizeUnits',Args.StepSizeUnits);
             Ephem(I).Name = Name;
+            Ephem(I).UserData = min(Ephem(I).Catalog(:,4));
         end
 
     end
