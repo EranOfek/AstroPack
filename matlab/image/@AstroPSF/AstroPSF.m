@@ -175,20 +175,27 @@ classdef AstroPSF < Component
     methods % generating PSF stamp 
         
         function [Result, Res] = getPSF(Obj, Args)
-            % get PSF from an AstroPSF object
+            % get a PSF stamp (or a matrix of stamps) from an AstroPSF object
+            % The position(s) of the desired stamp(s) in the multi-D space of Obj.DataPSF
+            % is determined or by the input coordinates from Args.PsfArgs
+            % or the mean values of the object's DimVals are taken for each
+            % of the dimensions. The Obj.DataPSF cube is interpolated to
+            % the requested positions according to the Args.InterpMethod method(s)
+            %
             % Input : - An AstroPSF object (or a matrix of objects) 
             %         * ...,key,val,...
             %         'FunPSF' - a PSF-generating function handle
-            %         'StampSize' - an option to pad the PSF stamp, 
-            %         'fftpshift' - if padding whether to perform fft shift: ('none','fftshift','ifftshift')
+            %         'StampSize' - an option to pad the PSF stamp 
+            %         'fftpshift' - if padding is requested, whether to perform fft shift: 
+            %                       'none' (default),'fftshift','ifftshift'
             %         'PsfArgs'   - desired position of the stamp in the multi-D space of PSF.DataPSF:
             %                       a cell array of values (or value vectors) corresponding 
             %                       to each of the dimensions of PSF.DataPSF 
-            %                       NB: the dimension names are in the DimName cell array
+            %                       NB: the dynamic dimension names are stored in the DimName cell array
             %         'FunArgs'   - optinal arguments to pass to FunPSF
-            %         'InterpMethod' - interpolation method (may be a vector, different methods for each dimension)
-            %         'Oversampling' - resample the output stamp if required
-            %         'ReNorm'    - whether to renormalize the PSF stamp
+            %         'InterpMethod' - interpolation method (may be a cell array with different methods for each dimension)
+            %         'Oversampling' - resample the output stamp to this value (if not empty) 
+            %         'ReNorm'       - whether to renormalize the output PSF stamp
             %         'ReNormMethod' - 'int' or 'rms' 
             % Output : - a 2D PSF stamp (X, Y) or a stack of stamps if a vector of objects or parameters is put in 
             % Author : Eran Ofek, A.M. Krassilchtchikov (Oct 2023)
@@ -230,7 +237,7 @@ classdef AstroPSF < Component
                     IntMeth = Obj(IObj).InterpMethod;
                 end
                 
-                if isempty(Args.FunPSF) % treat PSF is a multidimentional image stamp
+                if isempty(Args.FunPSF) % treat PSF as a multidimentional image stamp
                     Ndim = ndims(Obj(IObj).DataPSF)-2; % the number of additional data dimensions in the object
                     if Ndim == 0 % no additional dimensions, just copy the 2D matrix
                         Result = Obj(IObj).DataPSF;
@@ -307,7 +314,7 @@ classdef AstroPSF < Component
                 Args.Pos   = {}; % additional arguments to pass to getPSF, e.g., position: {'PosX',2,'PosY',3} 
             end
             
-            Tiny = 1e-30;
+            Tiny = 1e-30; 
             
             Ind = find( strcmpi( Args.Axis, Obj.DimName ), 1);      % find the required axis in the object's dimensions
             if isempty(Ind)

@@ -18,7 +18,7 @@ function Result = unitTest()
     P = AP.getPSF('StampSize',[21 21]);
     P = AP.getPSF('StampSize',[21 21],'fftshift','fftshift');
 
-    % curve of growth
+    % curve of growth and radial profile
     AP = AstroPSF;
     AP.DataPSF = imUtil.kernel2.gauss;
     [R, V] = AP.radialProfile
