@@ -1,5 +1,5 @@
 function [Data, Ephem]=getJPL_CloseApproachNEO(Args)
-    % Get list of NEO close approach to Earth along with their JPL ephmeris
+    % Get list of NEO close approaches to Earth along with their JPL ephemeris
     % Input  : * ...,key,val,...
     %            'MinJD' - Min JD for which to search close approaches.
     %                   Default is today - 3 days.
