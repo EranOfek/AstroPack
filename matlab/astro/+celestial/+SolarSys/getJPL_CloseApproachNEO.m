@@ -36,16 +36,19 @@ function [Data, Ephem]=getJPL_CloseApproachNEO(Args)
 
     Data   = webread(StrURL);
 
-    if nargout>1
-        N = numel(Data.data);
-        for I=1:1:N
-            Name = Data.data{I}{1}
-            Ephem(I) =celestial.SolarSys.jpl_horizons('ObjectInd',Name,'StartJD',Args.MinJD,'StopJD',Args.MaxJD, 'GeodCoo',Args.GeodCoo, 'StepSizeUnits',Args.StepSizeUnits);
-            Ephem(I).Name = Name;
-            Ephem(I).UserData = min(Ephem(I).Catalog(:,4));
+    if Data.count>0
+        if nargout>1
+            N = numel(Data.data);
+            for I=1:1:N
+                Name = Data.data{I}{1}
+                Ephem(I) =celestial.SolarSys.jpl_horizons('ObjectInd',Name,'StartJD',Args.MinJD,'StopJD',Args.MaxJD, 'GeodCoo',Args.GeodCoo, 'StepSizeUnits',Args.StepSizeUnits);
+                Ephem(I).Name = Name;
+                Ephem(I).UserData = min(Ephem(I).Catalog(:,4));
+            end
+
         end
-
+    else
+        Ephem = [];
     end
-
 
 end
