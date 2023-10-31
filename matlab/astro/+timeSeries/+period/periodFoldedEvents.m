@@ -3,8 +3,13 @@ function [PS,PSextra]=periodFoldedEvents(T, FreqVec, Args)
     % Input  : - A vector of time tagged events
     %          - A vector of trial frequncies to test.
     %          * ...,key,val,...
+    %            'ExtraVal' - Additional vector of values (e.g., Energy) to
+    %                   which to calculate a seperate power spectrum.
+    %                   Default is [].
     %            'BinSize' - Bin size in phase folding. Default is 0.1.
     % Output : - A column matrix of [Freq, Amplitude, Mean, A, B]
+    %          - A column matrix of [Freq, Amplitude, Mean, A, B] for the
+    %            additional values supplied in 'ExtraVal'.
     % Author : Eran Ofek (Oct 2023)
     % Example: PS=timeSeries.period.periodFoldedEvents % simulation mode
     
