@@ -53,7 +53,7 @@ function Data=getSrcPhotons(RA, Dec, Args)
     SearchRadius    = convert.angular(Args.SearchRadiusUnits, 'rad', Args.SearchRadius);
     Annulus         = convert.angular(Args.SearchRadiusUnits, 'rad', Args.Annulus);
     
-    CatChandra = cats.X.ChandraObs;
+    CatChandra = cats.X.ChandraObs;pi.
     
 
     DistF  = celestial.coo.sphere_dist_fast(RA, Dec,CatChandra.(CatProp).RA, CatChandra.(CatProp).Dec);
