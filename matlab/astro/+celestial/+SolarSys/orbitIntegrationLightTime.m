@@ -49,6 +49,10 @@ function orbitIntegrationLightTime
                 
                 %% got here
                 
+                
+                
+                
+                
             for Iepoch = 1:numel(StartEpochs)
                 IndTargets = find(IndEpochs == Iepoch);
                 NtargetsEpoch = numel(IndTargets);
@@ -61,18 +65,17 @@ function orbitIntegrationLightTime
                     % first integrate all targets to minimal
                     % time (maximal light time)
                     [MaxLightTime,ImaxLightTime] = max(LightTime(IndTargets));
-                    %[X_B,V_B] = celestial.SolarSys.orbitIntegration([StartEpochs(Iepoch),Time(It)-MaxLightTime]...
-                    %        ,X_B,V_B, 'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
-                    [X_B,V_B] = celestial.SolarSys.orbitIntegration([StartEpochs(Iepoch),Time(It)]...
+                    [X_B,V_B] = celestial.SolarSys.orbitIntegration([StartEpochs(Iepoch),Time(It)-MaxLightTime]...
                             ,X_B,V_B, 'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
+                    %[X_B,V_B] = celestial.SolarSys.orbitIntegration([StartEpochs(Iepoch),Time(It)]...
+                    %        ,X_B,V_B, 'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
 
-                    % then integrate one by one according to
-                    % light time
-        %                                 for Itarget = 1:numel(IndTargets)
-        %                                      [X_B(:,Itarget),~] = celestial.SolarSys.orbitIntegration([Time(It)-MaxLightTime,Time(It)-LightTime(IndTargets(Itarget))]...
-        %                                         ,X_B(:,Itarget),V_B(:,Itarget), 'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
-        %                                      
-        %                                 end    
+                    % then integrate one by one according to light time
+                    for Itarget = 1:numel(IndTargets)
+                         [X_B(:,Itarget),~] = celestial.SolarSys.orbitIntegration([Time(It)-MaxLightTime,Time(It)-LightTime(IndTargets(Itarget))]...
+                            ,X_B(:,Itarget),V_B(:,Itarget), 'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
+
+                    end    
                     U_B(:,IndTargets) = X_B;
                 else % if light times are equal integrate all at once
                     if numel(LightTime)>1
@@ -80,10 +83,10 @@ function orbitIntegrationLightTime
                     else
                         IndLightTime =1;
                     end
-                    %[U_B(:,IndTargets),~] = celestial.SolarSys.orbitIntegration([StartEpochs(Iepoch),Time(It)-LightTime(IndLightTime)],...
-                    %                                    X0(:,IndTargets),V0(:,IndTargets),'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
-                    [U_B(:,IndTargets),~] = celestial.SolarSys.orbitIntegration([StartEpochs(Iepoch), Time(It)],...
+                    [U_B(:,IndTargets),~] = celestial.SolarSys.orbitIntegration([StartEpochs(Iepoch),Time(It)-LightTime(IndLightTime)],...
                                                         X0(:,IndTargets),V0(:,IndTargets),'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
+                    %[U_B(:,IndTargets),~] = celestial.SolarSys.orbitIntegration([StartEpochs(Iepoch), Time(It)],...
+                    %                                    X0(:,IndTargets),V0(:,IndTargets),'RelTol',Args.TolInt,'AbsTol',Args.TolInt);
 
                 end
             end
