@@ -1,5 +1,8 @@
 function [X,V] = orbitIntegration(JD, X0, V0, Args)
-    % Calculate the position and velocity evolution for a list of asteroids 
+    % Calculate the position and velocity evolution for a list of bodies
+    %   in the Solar System includeing perturbations from all planets.
+    %   This include only the integration between two points in time (i.e.,
+    %   no observer and light time correction).
     % Input  : - Vector of initial and final JD.
     %          - Target asteroids position vector in au.
     %            This is a 3 X Nobj matrix, where 3 is the number of
