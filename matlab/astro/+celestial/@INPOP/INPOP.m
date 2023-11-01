@@ -732,13 +732,16 @@ classdef INPOP < Base
             %                   Default is [1 3 2] (i.e., [3 coo, Body, Time]
             % Output : - An array of objects position (see Permute argument
             %            for dimensions).
+            %            Reference coordinate system is equatorial J2000 if
+            %            IsEclipticOut=false, and ecliptic if
+            %            IsEclipticOut=true.
             %          - An array of objects velocity (see Permute argument
             %            for dimensions).
             % Author : Eran Ofek (Oct 2023)
             % Example: I=celestial.INPOP;
             %          I.populateTables('all');
             %          I.populateTables('all','FileData','vel');
-            %          I.getAll(2451545+(0:1));
+            %          [Pos,Vel]=I.getAll(2451545+(0:1));
 
             arguments
                 Obj
