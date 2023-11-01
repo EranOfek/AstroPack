@@ -15,15 +15,15 @@ Default:
 
 Items:
 
-    Atmosphere:
+    cats:
         # The following are cell arrays of entry per dataset
-        DataName             : 'Atmosphere'
-        SubDir               : 'spec/Atmosphere'
-        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/Atmosphere/Atmosphere.tar']
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/spec/Atmosphere/Atmosphere.tar']
-        Size                 : 0.09
-        SearchFile           : ''
-        Description          : 'Earth Atmosphere and Extinction'
+        DataName             : 'cats'
+        SubDir               : '+cats'
+        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/+cats/cats.tar']
+        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/+cats/cats.tar']
+        Size                 : 54000
+        SearchFile           : 'cats.tar'
+        Description          : '+cats medium-size catalogs'
 
     Starlib23:
         # The following are cell arrays of entry per dataset
@@ -43,26 +43,6 @@ Items:
         SearchFile           : ''
         Description          : 'STSCI CALSPEC standard spectra library (FITS format)'
 
-    cats:
-        # The following are cell arrays of entry per dataset
-        DataName             : 'cats'
-        SubDir               : '+cats'
-        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/+cats/cats.tar']
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/+cats/cats.tar']
-        Size                 : 54000
-        SearchFile           : 'cats.tar'
-        Description          : '+cats medium-size catalogs'
-
-    EarthGravity:
-        # The following are cell arrays of entry per dataset
-        DataName             : 'EarthGravity'
-        SubDir               : 'SolarSystem/EarthGravity'
-        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/EarthGravity.tar']
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/SolarSystem/EarthGravity.tar']
-        Size                 : 32
-        SearchFile           : ''
-        Description          : 'Earth Gravity Models'
-
     GAIA_SpecTemplate:
         # The following are cell arrays of entry per dataset
         DataName             : 'GAIA_SpecTemplate'
@@ -72,25 +52,6 @@ Items:
         Size                 : 1805
         SearchFile           : '.*\.mat'
         Description          : 'GAIA stars synthetic spectral templates'
-
-    MinorPlanets:
-        # The following are cell arrays of entry per dataset
-        DataName             : 'MinorPlanets'
-        SubDir               : 'SolarSystem/MinorPlanets'
-        URL                  : ['https://ssd.jpl.nasa.gov/dat/ELEMENTS.NUMBR.gz', 'https://ssd.jpl.nasa.gov/dat/ELEMENTS.UNNUM.gz', 'https://ssd.jpl.nasa.gov/dat/ELEMENTS.COMET']
-        Size                 : 120
-        SearchFile           : ''
-        Description          : 'JPL Orbital Elements of Minor Planets'
-
-    MoonELP:
-        # The following are cell arrays of entry per dataset
-        DataName             : 'MoonELP'
-        SubDir               : 'SolarSystem/ELP'
-        #        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/ELP.tar']
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/SolarSystem/ELP.tar']
-        Size                 : 0.5
-        SearchFile           : ''
-        Description          : 'Moon Ephemerides ELP'
 
     PhoenixStellarSpec:
         # The following are cell arrays of entry per dataset
@@ -132,6 +93,16 @@ Items:
         SearchFile           : ''
         Description          : 'Solar Spectrum'
 
+    Atmosphere:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'Atmosphere'
+        SubDir               : 'spec/Atmosphere'
+        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/Atmosphere/Atmosphere.tar']
+        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/spec/Atmosphere/Atmosphere.tar']
+        Size                 : 0.09
+        SearchFile           : ''
+        Description          : 'Earth Atmosphere and Extinction'
+
     LASTpipelineUnitTest:
         # The following are cell arrays of entry per dataset
         DataName             : 'LASTpipelineUnitTest'
@@ -141,14 +112,14 @@ Items:
         SearchFile           : ''
         Description          : 'A minimal test and calibration data suite for the LAST pipeline'
 
-    TestImagesLAST:
+        #    TestImagesLAST:
         # The following are cell arrays of entry per dataset
-        DataName             : 'TestImagesLAST'
-        SubDir               : 'TestImages/LAST'
-        URL                  : ['http://euler1.weizmann.ac.il/archive/AstroPack/data/TestImages/LAST/index.html']
-        Size                 : 151831
-        SearchFile           : ''
-        Description          : 'FITS test images taken with LAST prototype'
+        #        DataName             : 'TestImagesLAST'
+        #SubDir               : 'TestImages/LAST'
+        #URL                  : ['http://euler1.weizmann.ac.il/archive/AstroPack/data/TestImages/LAST/index.html']
+        #Size                 : 151831
+        #SearchFile           : ''
+        #Description          : 'FITS test images taken with LAST prototype'
 
     TestImagesAstroPack:
         # The following are cell arrays of entry per dataset
@@ -168,6 +139,35 @@ Items:
         SearchFile           : ''
         Description          : 'Time and Earth Rotation Orientation Parameters'
 
+    MinorPlanets:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'MinorPlanets'
+        SubDir               : 'SolarSystem/MinorPlanets'
+        URL                  : ['https://ssd.jpl.nasa.gov/dat/ELEMENTS.NUMBR.gz', 'https://ssd.jpl.nasa.gov/dat/ELEMENTS.UNNUM.gz', 'https://ssd.jpl.nasa.gov/dat/ELEMENTS.COMET']
+        Size                 : 120
+        SearchFile           : ''
+        Description          : 'JPL Orbital Elements of Minor Planets'
+
+    EarthGravity:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'EarthGravity'
+        SubDir               : 'SolarSystem/EarthGravity'
+        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/EarthGravity.tar']
+        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/SolarSystem/EarthGravity.tar']
+        Size                 : 32
+        SearchFile           : ''
+        Description          : 'Earth Gravity Models'
+
+    MoonELP:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'MoonELP'
+        SubDir               : 'SolarSystem/ELP'
+        #        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/ELP.tar']
+        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/SolarSystem/ELP.tar']
+        Size                 : 0.5
+        SearchFile           : ''
+        Description          : 'Moon Ephemerides ELP'
+
     VSOPE87:
         # The following are cell arrays of entry per dataset
         DataName             : 'VSOPE87'
@@ -178,9 +178,19 @@ Items:
         SearchFile           : ''
         Description          : 'Solar system VSOPE87 ephmerides'
 
-    ULTRASAT_UP:
+    INPOP:
         # The following are cell arrays of entry per dataset
-        DataName             : 'ULTRASAT_UP'
+        DataName             : 'INPOP'
+        SubDir               : 'SolarSystem/INPOP'
+        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/INPOP.tar']
+        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/SolarSystem/INPOP.tar']
+        Size                 : 1990
+        SearchFile           : ''
+        Description          : 'Solar system INPOP ephmerides'
+
+    ULTRASAT_Properties:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'ULTRASAT_Properties'
         SubDir               : 'ULTRASAT'
         #        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/ULTRASAT/UP.tar']
         #        URL                  : ['https://www.dropbox.com/scl/fi/wi4yvtr5i4ke9tlet8lv1/P90_UP_test_60_ZP_Var_Cern_21.mat']
@@ -200,22 +210,11 @@ Items:
         SearchFile           : ''
         Description          : 'modelled ULTRASAT PSF data'
 
-    ULTRASAT_RawData:
+        #    ULTRASAT_RawData:
         # The following are cell arrays of entry per dataset
-        DataName             : 'ULTRASAT_RawData'
-        SubDir               : 'ULTRASAT/RawData'
-        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/ULTRASAT/Rawdata.tar']
-        Size                 : 76
-        SearchFile           : ''
-        Description          : 'ULTRASAT Raw Data of Optical Design'
-
-    INPOP:
-        # The following are cell arrays of entry per dataset
-        DataName             : 'INPOP'
-        SubDir               : 'SolarSystem/INPOP'
-        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/INPOP.tar']
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/SolarSystem/INPOP.tar']
-        Size                 : 1990
-        SearchFile           : ''
-        Description          : 'Solar system INPOP ephmerides'
-
+        #        DataName             : 'ULTRASAT_RawData'
+        #        SubDir               : 'ULTRASAT/RawData'
+        #        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/ULTRASAT/Rawdata.tar']
+        #        Size                 : 76
+        #        SearchFile           : ''
+        #        Description          : 'ULTRASAT Raw Data of Optical Design'
