@@ -28,20 +28,27 @@ function orbitIntegrationLightTime
         
     
         % divide requested T to those >Epoch and those <Epoch
+        Tbackward = T(T<=Epoch);
+        Tforward  = T(T>Epoch);
         
+        Tbackward = sort(Tbackward, 'descend');
+        Tforward  = sort(Tforward, 'ascend');
         
-    % Orbital integration
-    
-    % loop for each group with same initial epoch
-    for It=1:1:Nt
-        LightTimeNotConverged = true;
-        LightTime             = 0;
-        Iter                  = 0;              
-        while LightTimeNotConverged
-            Iter = Iter + 1;
+        NtBackward = numel(Tbackward);
+        NtForward  = numel(Tforward);
+        
+        for It=1:1:NtBackward
+            LightTimeNotConverged = true;
+            LightTime             = 0;
+            Iter                  = 0;              
+            while LightTimeNotConverged
+                Iter = Iter + 1;
 
             
-            U_B = zeros(3,Ntarget);                
+                %U_B = zeros(3,Ntarget);            
+                
+                %% got here
+                
             for Iepoch = 1:numel(StartEpochs)
                 IndTargets = find(IndEpochs == Iepoch);
                 NtargetsEpoch = numel(IndTargets);
