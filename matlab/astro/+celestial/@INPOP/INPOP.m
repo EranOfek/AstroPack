@@ -785,7 +785,7 @@ classdef INPOP < Base
         end
         
         function [Force,DFDT]=forceAll(Obj, JD, TargetXYZ, Args)
-            % Calculate the Sun+Planets+Moon on a Solar System object.
+            % Calculate the Sun+Planets+Moon forcre on a Solar System object.
             % Input  : - A populated INPOP object (both Pos and Vel should
             %            be populated).
             %          - A vector of JD.
@@ -807,6 +807,7 @@ classdef INPOP < Base
             %                   Default is {}.
             % Output : - The force that acts on the list of targets at the
             %            give times.
+            %          - The force derivative (per day).
             % Author : Eran Ofek (Nov 2023)
             % Example: I=celestial.INPOP;
             %          I.populateTables('all');
