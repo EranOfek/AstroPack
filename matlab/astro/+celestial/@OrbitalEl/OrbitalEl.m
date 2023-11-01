@@ -1515,7 +1515,7 @@ classdef OrbitalEl < Base
         function Result = compareEphem2JPL(Args)
             % Compare ephemeris with JPL ephemeris
             %   A function for testing the performences of ephem
-            % Example: VecJD = ((2460110.5 - 1000):10:(2460110.5 +100))';
+            % Example: VecJD = ((2460110.5 - 2000):10:(2460110.5 +500))';
             %          R1=celestial.OrbitalEl.compareEphem2JPL('StartJD',VecJD(1),'EndJD',VecJD(end));
             %          R2=celestial.OrbitalEl.compareEphem2JPL('StartJD',VecJD(1),'EndJD',VecJD(end),'Integration',true);
             %          plot(VecJD,R1(:,1)); hold on; plot(VecJD,R2(:,1))
