@@ -28,6 +28,10 @@ classdef FileProcessor < Component
         %
         ProcessFileFunc = []        % function (FileProcessor, FileName)
 
+        WatchdogFileName = []       % Watchdog filename
+        WatchdogInterval = 10       % Watchdog interval (seconds)
+        StartTime = []              %
+        MaxRunTime = []             % Maximum runtime
     end
     
     %-------------------------------------------------------- 
@@ -86,6 +90,8 @@ classdef FileProcessor < Component
                 Obj.ProcessFilesMaxAge = Conf.ProcessFilesMaxAge;
                 Obj.OutputFilesMaxAge = Conf.OutputFilesMaxAge;
             end
+
+            Obj.StartTime = datetime('now', 'TimeZone', 'UTC');
         end
               
                
@@ -185,6 +191,20 @@ classdef FileProcessor < Component
                     break;
                 end                
                 pause(Args.DelaySec);
+
+                % Update watchdog
+                if ~isempty(Obj.WatchdogFileName)
+                    tools.os.updateWatchdogFile(Obj.WatchdogFileName, Obj.WatchdogInterval);
+                end
+
+                if Obj.MaxRunTime > 0
+                    CurrentTime = datetime('now', 'TimeZone', 'UTC');
+                    ElapsedTime = CurrentTime - Obj.StartTime;
+                    if ElapsedTime > Obj.MaxRunTime 
+                        Obj.msgLog(LogLevel.Info, 'terminating input loop after MaxRunTime hours: %f', hours(ElapsedTime))
+                        break
+                    end                    
+                end
             end
                 
             Obj.msgLog(LogLevel.Debug, 'inputLoop done: %s', Obj.InputPath);                            

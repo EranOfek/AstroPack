@@ -1,4 +1,4 @@
-pause
+rem pause
 
 set ASTROPACK_PATH=C:\Ultrasat\AstroPack.git
 set ASTROPACK_DATA_PATH=C:\AstroPack\Data
@@ -11,5 +11,11 @@ mkdir %ASTROPACK_DATA_PATH%
 mkdir %ASTROPACK_CONFIG_PATH%
 mkdir %ULTRASAT_PACK%
 
+rem Start Watchdog process to monitor the MATLAB process
+start python soc_snr_py_watchdog.py
+
+rem Run the process in loop, if killed by watchdog or max-run-time, it will restarted
+:run
 soc_snr_matlab.exe
+goto run
 

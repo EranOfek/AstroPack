@@ -63,7 +63,7 @@ function Result = processItem(item)
                 throw(ME);
             end
         elseif strcmp(item.op, 'snr')            
-            out = processSnrJson(item.json_text);
+            % Moved to apps/app_snr/soc_snt_matlab.m
         else
             strcpy(out.message, 'MATLAB: unknown op');
         end
@@ -115,102 +115,3 @@ function fileProcessorCallback(FileName)
     catch
     end
 end
-
-%------------------------------------------------------------------------
-
-function Result = processSnrJson(json_text)
-    % Process SNR
-    % See ultrasat.git/python/prj/src/webapps/webapp_snr/rest_snr_server1.py
-    %    
-    % Input   : - snr - struct 
-    % 
-    %                      
-    % Output  : struct ResponseMessage with fields: message, result
-    % Author  : Chen Tishler (2022)
-    % Example : 
-    
-    % Decode text
-    snr_input = jsondecode(json_text);
-            
-    out = struct;
-    out.message = sprintf('MATLAB: processSnr started');
-    out.result = -1;
-    out.json_text = '';
-    
-    % Do the actual SNR processing here
-    [snr_out, message] = doProcessSnr(snr_input);
-    
-    % Done
-    out.message = message;
-    snr_out.message = '';
-    out.result = 0;    
-    out.json_text = jsonencode(snr_out);
-    out.json_text = strrep(out.json_text, '"', '\"');
-    Result = out;
-end
-
-%------------------------------------------------------------------------
-
-function [Result, Message] = doProcessSnr(Params)
-    % Process SNR
-    % See ultrasat.git/python/prj/src/webapps/webapp_snr/rest_snr_server1.py
-    
-    % Input   : - Params - struct with these fields:
-	%
-    %   ExpTime
-    %   NumImages
-    %   R
-    %   Source
-    %   PicklesModels
-    %   SnrMagnitude
-    %   CalibFilterFamily
-    %   CalibFilter
-    %   MagnitudeSystem
-    %   LimitingMagnitude
-    %    
-    %                      
-    % Output  : - Result - struct with fields: 
-    %   ResultSnr
-    %   ResultLimitingMagnitude
-    %           - Message - char with text message
-    %
-    % Author  : Arie B. (2023)
-    % Example : 
-
-    io.msgLog(LogLevel.Debug, 'doProcessSnr: started - Params:');
-    disp(Params);
- 
-    % Calculate
-    try
-        if strcmp(Params.Source, 'PicklesModels')
-            Params.Source = Params.PicklesModels;
-            Params = rmfield(Params, 'PicklesModels');
-        end
-        
-        if strcmp(Params.Source, 'BlackBody')
-            Params.Source = strcat('Planck spectrum T=', Params.BlackBodyTemperature, '.000000');
-            Params = rmfield(Params, 'BlackBodyTemperature');
-        end
-        
-        io.msgLog(LogLevel.Debug, 'doProcessSnr: creating UltrasatPerf2GUI');
-        UsatPerf2GUI = UltrasatPerf2GUI();
-        
-        io.msgLog(LogLevel.Debug, 'doProcessSnr: calling namedargs2cell');
-        ArgsCell = namedargs2cell(Params);
-        
-        io.msgLog(LogLevel.Debug, 'doProcessSnr: calling calcSNR');
-        Result = UsatPerf2GUI.calcSNR(ArgsCell{:});
-        
-        io.msgLog(LogLevel.Debug, 'doProcessSnr: calling calcSNR done');
-    catch ex
-        Result.message = sprintf("doProcessSnr: error: UG threw exception identifier='%s' with message='%s'", ex.identifier, ex.message);
-    end
-
-    %
-    disp(Result);
-    Message = Result.message;
-    Result = rmfield(Result, 'message');
-    
-    io.msgLog(LogLevel.Debug, 'doProcessSnr: done');    
-end
-
