@@ -8,8 +8,6 @@
 %          D.prepMasterDark
 %
 
-
-
 classdef DemonLAST < Component
     % 
             
@@ -197,6 +195,7 @@ classdef DemonLAST < Component
     end
       
     methods (Static) % path and files
+        
         function Result = constructProjectName(Project,Node,Mount,Camera)
             % Construct project name of the form LAST.01.02.03
             % Input  : - Project name.
@@ -406,12 +405,11 @@ classdef DemonLAST < Component
             Path = fullfile(PathProc,SubDir);
 
         end
-
+        
     end
 
-    
-    
     methods (Static)  % fields related utilities
+        
         function List = fieldsListLAST(Args)
             % (Static) Return a table with list of LAST predefined field indices
             % Input  : * ...,key,val,...
@@ -589,8 +587,7 @@ classdef DemonLAST < Component
                 CamNum = str2double(CamNum);
             end
             
-        end
-        
+        end        
     end
 
     
@@ -946,6 +943,7 @@ classdef DemonLAST < Component
     end
     
     methods % ref image utilities
+        
         function [Path, File, AI] = getRefImage(Obj, Args)
             % Get reference images corresponding to some field
             % Input  : * ...,key,val,...
@@ -1064,15 +1062,12 @@ classdef DemonLAST < Component
                 end
             end
             
-        end
+        end     
         
     end
 
-    
-    
-    
-    
     methods % pipelines
+        
         function [Obj, FN, FN_Master]=prepMasterDark(Obj, Args)
             % prepare master dark images
             %   Given a (D=) pipeline.DemonLAST object select files in either
@@ -1548,8 +1543,7 @@ classdef DemonLAST < Component
             cd(PWD);
 
         end
-        
-        
+             
         function Obj=main(Obj, Args)
             % The main LAST pipeline demon.
             %   The demon waits for images in the new/ directory, analyze
@@ -1606,8 +1600,8 @@ classdef DemonLAST < Component
                 Args.DB_Table_Raw      = 'raw_images';
                 Args.DB_Table_Proc     = 'proc_images';
                 Args.DB_Table_Coadd    = 'coadd_images';
-                Args.DB_Table_ProcCat  = 'test_proc_src_catalog';
-                Args.DB_Table_CoaddCat = 'test_coadd_src_catalog';
+                Args.DB_Table_ProcCat  = 'proc_src_catalog';
+                Args.DB_Table_CoaddCat = 'coadd_src_catalog';
                 Args.DB_ImageBulk   logical = false; % whether to use bulk or direct injection method
                 Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};
@@ -1830,6 +1824,7 @@ classdef DemonLAST < Component
                                     ADB = db.AstroDb(Args.AstroDBArgs{:});
                                 end
                                 
+                                % RAW, PROC, and COADD images
                                 if ~Args.DB_ImageBulk                                
                                     % insert raw images into the DB:
                                     RawFileName = RawImageListFinal; % regexprep(RawImageList,'.*/','');
@@ -1889,34 +1884,18 @@ classdef DemonLAST < Component
                                     OK = 1;                                
                                 end
                                 
-                                % insert PROC and COADD catalogs into the DB 
-
-                                FN_CatProc = FN_Proc.copy;
-                                FN_CatProc = FN_CatProc.updateIfNotEmpty('Product','Cat', 'FileType',{'csv'});
-                                ProcCatFileName  = FN_CatProc.genFull{1}; 
-                                ProcCat = [AllSI.CatData];
-                                
-                                FN_CatCoadd = FN_Coadd.copy;
-                                FN_CatCoadd = FN_CatCoadd.updateIfNotEmpty('Product','Cat', 'FileType',{'csv'});
-                                CoaddCatFileName  = FN_CatCoadd.genFull('LevelPath','proc');
-                                CoaddCatFileName  = CoaddCatFileName{1};  
-                                CoaddCat = [Coadd.CatData];
-                                
-                                if Args.DB_CatalogBulk
-                                    % write PROC and COADD catalog data to local csv files
-                                    % to be injected into the DB later on outside this pipeline
-                                    StKey = AllSI(1).getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
-                                    ProcCat.writeLargeCSV(ProcCatFileName,...
-                                        'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
-                                        'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUMB, StKey.JD, StKey.EXPTIME] );
-                                    StKey = Coadd(1).getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
-                                    CoaddCat.writeLargeCSV(CoaddCatFileName,...
-                                        'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
-                                        'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUMB, StKey.JD, StKey.EXPTIME] );
-                                    Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB');
-                                else % insert PROC and COADD catalog data into the appropriate DB tables
-                                    ADB.insert(ProcCat,  'Table',Args.DB_Table_ProcCat,  'FileNames', ' ', 'Type','cat');
-                                    ADB.insert(CoaddCat, 'Table',Args.DB_Table_CoaddCat, 'FileNames', ' ', 'Type','cat');
+                                % PROC and COADD catalogs 
+                                ProcCat = [AllSI.CatData]; CoaddCat = [Coadd.CatData];                                
+                                if Args.DB_CatalogBulk % write PROC and COADD catalog data to local csv files                                    
+                                                       % to be injected into the DB later on outside this pipeline                                                       
+                                    ADB.insert(ProcCat, 'Table',Args.DB_Table_ProcCat, 'FileNames', ' ', 'Type','bulkcat',...
+                                               'BulkFN',FN_Proc,'BulkCatType','proc','BulkAI',AllSI(1));
+                                    ADB.insert(CoaddCat,'Table',Args.DB_Table_ProcCat, 'FileNames', ' ', 'Type','bulkcat',...
+                                               'BulkFN',FN_Coadd,'BulkCatType','coadd','BulkAI',Coadd(1));
+                                    Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB');                                    
+                                else                   % insert PROC and COADD catalog data into the appropriate DB tables
+                                    ADB.insert(ProcCat, 'Table',Args.DB_Table_ProcCat, 'FileNames', ' ', 'Type','cat');
+                                    ADB.insert(CoaddCat,'Table',Args.DB_Table_CoaddCat,'FileNames', ' ', 'Type','cat');
                                 end
                                 
                                 Msg{1} = sprintf('Insert catalog objects to LAST catalog tables - success: %d', OK);
@@ -1930,8 +1909,7 @@ classdef DemonLAST < Component
                             end
 
                             RunTime = etime(clock, Tstart); % toc;
-                        catch ME
-                             
+                        catch ME                             
                             
                             RunTime = etime(clock, Tstart); % toc;
     
@@ -1988,10 +1966,10 @@ classdef DemonLAST < Component
         end
         % delete abort msg box
         %Hstop.delete;
-
     end
 
     methods % image subtraction
+        
         function [Path, FieldName, Telescope, CropID] = getRefPath(Obj, FN)
             % Get path for reference images
             % Input  : - A pipeline.DemonLAST object
@@ -2105,10 +2083,8 @@ classdef DemonLAST < Component
 
 
         end
-
+        
     end
-
-
 
     %----------------------------------------------------------------------
     % Unit test

@@ -572,13 +572,18 @@ classdef AstroDb < Component
                 Obj
                 Data                                % input images (file names or AstroImages) or AstroHeaders
                 Args.Table        = '';             % table name (by def. take from the Object property)
-                Args.Type         = 'img';          % data type: 'img' or 'cat'
+                Args.Type         = 'img';          % data type: 'img', 'cat' or 'bulkcat'
                 Args.DataDir      = '';             % if not empty, 'Data' contains a filename template, 
                                                     % e.g., 'LAST*sci*raw_Image*.fits'
                 Args.Hash logical = true;           % employ hash sums to check if the record is new
                 Args.Force logical= true;           % if the record is inserted despite the existing copy (checked by the hashsum)
                 Args.FileNames    = {};             % an optional cell array of file names (for the case the first argument is not a file list)
                 Args.Verbose logical = false;       % print filenames, whose headers are inserted 
+                
+                                                    % bulk injection of LAST catalogs:
+                Args.BulkFN          = [];          % FileNames
+                Args.BulkCatType     = [];          % catalog type: 'proc' or 'coadd'                
+                Args.BulkAI          = [];          % one of the catalog-containing AI's (for keyword extraction) 
             end
             
             % choose, which table to manipulate and check if it exists in the database
@@ -627,96 +632,109 @@ classdef AstroDb < Component
                 Args.Hash = false;
             end
             
-            for IData = 1:1:NData
-                
-                try
-                
-                    switch lower(Args.Type)
-
-                        case 'cat'  % catalogs
-
-                            if isa( Data(IData), 'AstroCatalog' )
-                                AC = Data(IData);                            
-                                if numel(Args.FileNames) == NData % a separate list of file names is provided
-                                    Filename = Args.FileNames{IData};
-                                    if Args.Verbose
-                                       fprintf('%s\n', Filename );
-                                    end
-                                else
-                                    Filename = '';
-                                end
-                            else
-                                if Args.Verbose
-                                   fprintf('%s\n', char( Data(IData) ) );
-                                end
-                                AC = AstroCatalog( Data(IData) ); % get AC from a file
-                                Filename =   char( Data(IData) ); 
-                            end
-
-                            % in fact, there will be many tuples for each of
-                            % the catalogs, so one does not make much sense
-                            % (TBD)
-                            TupleID(IData) = Obj.addCatalog(Table, AC, 'FileName', Filename);
-
-                        case 'img'  % images
-
-                            if isa( Data(IData), 'AstroHeader' )
-                                AH = Data(IData).copy; % .copy is used in order not to influence the original AstroHeader
-                                if numel(Args.FileNames) == NData % a separate list of file names is provided
-                                    Filename = Args.FileNames{IData};
-                                elseif ~isempty(AH.File)
-                                    Filename = AH.File;
-                                else
-                                    Filename = '';
-                                end
-                            elseif isa( Data(IData), 'AstroImage' )
-                                AH = AstroHeader;
-                                AH.Data = Data(IData).Header;
-                                if numel(Args.FileNames) == NData % a separate list of file names is provided
-                                    Filename = Args.FileNames{IData};
-                                elseif ~isempty(AH.File)
-                                    Filename = AH.File;
-                                else
-                                    Filename = '';
-                                end
-                            else
-                                if Args.Verbose
-                                   fprintf('%s\n', char( Data(IData) ) );
-                                end
-                                AH = AstroHeader( Data(IData), 1 );                            
-                                Filename = char( Data(IData) );
-                            end
-
-                            if Args.Hash && ~isempty(Filename)
-                                Sum_h64 = tools.checksum.xxhash('FileName', Filename ); 
-                            else
-                                Sum_h64 = '';
-                            end
-
-                            TupleID(IData) = Obj.addImage(Table, Filename, AH, 'xxhash', Sum_h64, 'Force', Args.Force);
-
-                        otherwise
-
-                            error('Illegal data type');
-
+            switch lower(Args.Type)                
+                case 'bulkcat' % bulk writing to a CSV file for further injection % NB! this part is very LAST-specific!
+                    
+                    FN = Args.BulkFN.copy;
+                    FN = FN.updateIfNotEmpty('Product','Cat', 'FileType',{'csv'});
+                    if strcmpi(Args.BulkCatType,'proc')
+                        CatFileName = FN.genFull{1};
+                    elseif strcmpi(Args.BulkCatType,'coadd')
+                        CatFileName  = FN.genFull('LevelPath','proc');
+                        CatFileName  = CatFileName{1};
+                    else
+                        error('Incorrect catalog type in AstroDb.insert');
                     end
-
-                catch ME
+                    CatFileName = tools.os.relPath2absPath(CatFileName);
+                    StKey = Args.BulkAI.getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
+                    Data.writeLargeCSV(CatFileName,...
+                        'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
+                        'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUMB, StKey.JD, StKey.EXPTIME] );
                     
-                    ErrorMsg = sprintf('db.AstroDB.insert error at loop iteration %d: %s / funname: %s @ line: %d ', ...
-                                       IData, ME.message, ME.stack(1).name, ME.stack(1).line);                   
-                    Obj.msgLog(LogLevel.Error, ErrorMsg);
-                    io.msgLogEx(LogLevel.Error, ME, 'db.AstroDB exception at loop iteration %d', IData);
+                otherwise  % record-by-record injection into the DB
                     
-                end
-                
+                    for IData = 1:1:NData                        
+                        try                            
+                            switch lower(Args.Type)
+                                
+                                case 'cat'  % catalogs
+                                    
+                                    if isa( Data(IData), 'AstroCatalog' )
+                                        AC = Data(IData);
+                                        if numel(Args.FileNames) == NData % a separate list of file names is provided
+                                            Filename = Args.FileNames{IData};
+                                            if Args.Verbose
+                                                fprintf('%s\n', Filename );
+                                            end
+                                        else
+                                            Filename = '';
+                                        end
+                                    else
+                                        if Args.Verbose
+                                            fprintf('%s\n', char( Data(IData) ) );
+                                        end
+                                        AC = AstroCatalog( Data(IData) ); % get AC from a file
+                                        Filename =   char( Data(IData) );
+                                    end
+                                    
+                                    % in fact, there will be many tuples for each of
+                                    % the catalogs, so one does not make much sense
+                                    % (TBD)
+                                    TupleID(IData) = Obj.addCatalog(Table, AC, 'FileName', Filename);
+                                    
+                                case 'img'  % images
+                                    
+                                    if isa( Data(IData), 'AstroHeader' )
+                                        AH = Data(IData).copy; % .copy is used in order not to influence the original AstroHeader
+                                        if numel(Args.FileNames) == NData % a separate list of file names is provided
+                                            Filename = Args.FileNames{IData};
+                                        elseif ~isempty(AH.File)
+                                            Filename = AH.File;
+                                        else
+                                            Filename = '';
+                                        end
+                                    elseif isa( Data(IData), 'AstroImage' )
+                                        AH = AstroHeader;
+                                        AH.Data = Data(IData).Header;
+                                        if numel(Args.FileNames) == NData % a separate list of file names is provided
+                                            Filename = Args.FileNames{IData};
+                                        elseif ~isempty(AH.File)
+                                            Filename = AH.File;
+                                        else
+                                            Filename = '';
+                                        end
+                                    else
+                                        if Args.Verbose
+                                            fprintf('%s\n', char( Data(IData) ) );
+                                        end
+                                        AH = AstroHeader( Data(IData), 1 );
+                                        Filename = char( Data(IData) );
+                                    end
+                                    
+                                    if Args.Hash && ~isempty(Filename)
+                                        Filename = tools.os.relPath2absPath(Filename);
+                                        Sum_h64  = tools.checksum.xxhash('FileName', Filename );
+                                    else
+                                        Sum_h64 = '';
+                                    end
+                                    
+                                    TupleID(IData) = Obj.addImage(Table, Filename, AH, 'xxhash', Sum_h64, 'Force', Args.Force);                                    
+                                otherwise                                    
+                                    error('Illegal data type');                                    
+                            end
+                            
+                        catch ME                            
+                            ErrorMsg = sprintf('db.AstroDB.insert error at loop iteration %d: %s / funname: %s @ line: %d ', ...
+                                IData, ME.message, ME.stack(1).name, ME.stack(1).line);
+                            Obj.msgLog(LogLevel.Error, ErrorMsg);
+                            io.msgLogEx(LogLevel.Error, ME, 'db.AstroDB exception at loop iteration %d', IData);                            
+                        end                        
+                    end                    
+                    Obj.msgLog(LogLevel.Info, 'Processed: %d entries', NData);            
             end
 
-            Obj.msgLog(LogLevel.Info, 'Processed: %d entries', NData);
             Obj.msgLog(LogLevel.Info, 'Table %s successfully populated with %s metadata', Table, Args.Type');
-
-            Result = true;
-            
+            Result = 0;            
         end
         
         function Result = updateByTupleID(Obj, TupleID, Colname, Colval, Args)
