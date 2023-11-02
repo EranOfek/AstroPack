@@ -176,7 +176,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         Args.TimeSpan                     = [];  % same units as PM time
         Args.PM_Radius                    = 3;   % same units as the PM
         Args.PM_RadiusUnits               = 'arcsec';
-        Args.Nobs_TdistProb               = [5 0.995; 3 0.9999]; %     ((PM_TdistProb > 0.995 & Nobs>5) | (PM_TdistProb>0.9999 & Nobs>3));   
+        Args.Nobs_TdistProb               = [10 0.98; 5 0.995; 3 0.9999]; %     ((PM_TdistProb > 0.995 & Nobs>5) | (PM_TdistProb>0.9999 & Nobs>3));   
         Args.MinStdSN                     = 0.4;   
         Args.H1_NoutlierLimit             = 2;  
         
@@ -228,7 +228,8 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
 
 
             TotPM        = sqrt(sum(PM.^2, 2));  % total PM [deg/day]
-            ExpectedNobs = Nepochs .* TotPM.*Args.TimeSpan./(2.*Args.PM_Radius);
+            %ExpectedNobs = Nepochs .* TotPM.*Args.TimeSpan./(2.*Args.PM_Radius);
+            %ExpectedNobs = 2.*Args.PM_Radius.*Nimages./TotPM.*Args.TimeSpan;
 
             % remove sources with some selected flags
             if isemptyBitDict(Args.BitDict)
@@ -242,6 +243,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
             end
 
             % Flag sources with large number of outliers in H1 (PM hypothesis)
+            % This select good stars with small number of outliers
             Flags(Icat).Flag_Outlier      = Noutlier <= Args.H1_NoutlierLimit;
 
             % FLAGS for good asteroid candidates
@@ -251,7 +253,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
             Flags(Icat).LowStdSN = InfoSN(:,2)>Args.MinStdSN;
             % Args.MinStdSN                     = 0.4;   % NEW
 
-            Flags(Icat).Nobs   = Nobs<(ExpectedNobs);
+            Flags(Icat).Nobs   = true(size(Nobs)); %Nobs<(ExpectedNobs);
             Flags(Icat).All    = Flags(Icat).Flags & ...
                                  Flags(Icat).Flags_HighSN & ...
                                  Flags(Icat).Tdist & ...
