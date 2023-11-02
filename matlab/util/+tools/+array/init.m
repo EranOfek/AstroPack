@@ -16,6 +16,11 @@ function Result = init(Size, Val, Type, UseMex, UseMP)
     %           Val = 5;
     %           Type = "int64";
     %           res = tools.array.init(Size, Val, Type, UseMex, UseMP);
+    %
+    %           tic; for I=1:1:1000, A=zeros(1700,1700); end;toc
+    %           tic; for I=1:1:1000, A=tools.array.init([1700,1700],0,'double'); end;toc
+    %           tic; for I=1:1:1000, A=ones(1700,1700).*5; end;toc
+    %           tic; for I=1:1:1000, A=tools.array.init([1700,1700],5,'double'); end;toc
 
     arguments
         Size                	            % Input array
