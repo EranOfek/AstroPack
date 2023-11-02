@@ -866,7 +866,7 @@ classdef OrbitalEl < Base
             %                   'AstroCatalog' - An AstroCatalog object.
             %                   Default is 'AstroCatalog'
             %            'MaxIterLT' - Maximum numbre of iterations for
-            %                   light-time corrections. Default is 5.
+            %                   light-time corrections. Default is 2.
             %                   0 will force to no ligh-time correction
             %                   (e.g., for quick calculation).
             %            'IncludeMag' - A logical indicating if to include
@@ -925,7 +925,7 @@ classdef OrbitalEl < Base
                 Args.GeoPos                      = [];  % [] - topocentric  ; [rad, rad, m]
                 Args.RefEllipsoid                = 'WGS84';
                 Args.OutType                     = 'AstroCatalog';  % 'mat' | 'AstroCatalog'
-                Args.MaxIterLT                   = 5;  % use 0 for quick and dirty
+                Args.MaxIterLT                   = 2;  % use 0 for quick and dirty
                 Args.IncludeMag(1,1) logical     = true;  % use false to speed up
                 Args.AddDesignation(1,1) logical = true;  % works only for AstroCatalog output
                 %Args.Integration(1,1) logical    = false; %false; 
