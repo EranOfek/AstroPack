@@ -332,7 +332,7 @@ classdef MatchedSources < Component
                         else
                             h5write(FileName, sprintf('/%s',Obj.Fields{Idata}), Obj.Data.(Obj.Fields{Idata}));
                         end
-                        h5write(FileName, sprintf('/%s','JD', Obj.JD));
+                        h5write(FileName, sprintf('/%s','JD'), Obj.JD);
                     end
                     % save also the JD
                     h5create(FileName, '/JD', size(Obj.JD));
