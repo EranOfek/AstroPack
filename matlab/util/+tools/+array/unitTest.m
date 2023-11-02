@@ -5,6 +5,8 @@ function Result = unitTest
     test_onesExcept();
 
     test_onesCondition();
+
+    test_init();
     
 %     test_bitset();
     %test_countVal();
@@ -210,6 +212,145 @@ function Result = test_onesCondition()
         end
     end
     
+    io.msgStyle(LogLevel.Test, '@passed', 'tools.array.onesCondition passed')
+    Result = true;    
+
+end
+
+function Result = test_init()
+    io.msgLog(LogLevel.Test, 'tools.array.init test started');
+    
+    % Checking basic functionality and comparing mex and matlab
+    UseMex = 0;
+    UseMP = 0;
+    Size = [3];
+    Val = 5;
+    Type = "int64";
+
+    matlab_res = tools.array.init(Size, Val, Type, UseMex, UseMP);
+    
+    UseMex = 1;
+    mex_res = tools.array.init(Size, Val, Type, UseMex, UseMP);
+    
+    assert(isequal(matlab_res, mex_res));
+    
+    
+    iters = 1;
+        
+            for var_types=1:7
+    
+                MatlabTimeTotal_1d = 0;
+                MexTimeTotal_1d = 0;
+                MexMPTimeTotal_1d = 0;            
+                MatlabTime_1d = 0;
+                MexTime_1d = 0;
+                MexMPTime_1d = 0;
+
+                MatlabTimeTotal_2d = 0;
+                MexTimeTotal_2d = 0;
+                MexMPTimeTotal_2d = 0;            
+                MatlabTime_2d = 0;
+                MexTime_2d = 0;
+                MexMPTime_2d = 0;
+
+                MatlabTimeTotal_3d = 0;
+                MexTimeTotal_3d = 0;
+                MexMPTimeTotal_3d = 0;            
+                MatlabTime_3d = 0;
+                MexTime_3d = 0;
+                MexMPTime_3d = 0;
+
+                for iter=1:iters
+    
+                    Size_1d = [2000];
+                    Size_2d = [2000 2000];
+                    Size_3d = [200 200 200];
+                    Val = 5;
+                                                
+                    switch var_types
+                        case 1
+                            var_name = 'int8';
+                        case 2
+                            var_name = 'int16';
+                        case 3
+                            var_name = 'int32';
+                        case 4
+                            var_name = 'int64';
+                        case 5
+                            var_name = 'single';
+                        case 6
+                            var_name = 'double';
+                        case 7
+                            var_name = 'logical';
+                    end
+    
+                    UseMex = 0;
+                    UseMP = 0;
+                    t = tic;
+                    matlab_res_1d = tools.array.init(Size_1d, Val, Type, UseMex, UseMP);
+                    MatlabTime_1d = toc(t);
+                    MatlabTimeTotal_1d = MatlabTimeTotal_1d + MatlabTime_1d;
+                    t = tic;
+                    matlab_res_2d = tools.array.init(Size_2d, Val, Type, UseMex, UseMP);
+                    MatlabTime_2d = toc(t);
+                    MatlabTimeTotal_2d = MatlabTimeTotal_2d + MatlabTime_2d;
+                    t = tic;
+                    matlab_res_3d = tools.array.init(Size_3d, Val, Type, UseMex, UseMP);
+                    MatlabTime_3d = toc(t);
+                    MatlabTimeTotal_3d = MatlabTimeTotal_3d + MatlabTime_3d;
+    
+                    UseMex = 1;
+                    UseMP = 0;
+                    t = tic;
+                    mex_res_1d = tools.array.init(Size_1d, Val, Type, UseMex, UseMP);
+                    MexTime_1d = toc(t);
+                    MexTimeTotal_1d = MexTimeTotal_1d + MexTime_1d;
+                    t = tic;
+                    mex_res_2d = tools.array.init(Size_2d, Val, Type, UseMex, UseMP);
+                    MexTime_2d = toc(t);
+                    MexTimeTotal_2d = MexTimeTotal_2d + MexTime_2d;
+                    t = tic;
+                    mex_res_3d = tools.array.init(Size_3d, Val, Type, UseMex, UseMP);
+                    MexTime_3d = toc(t);
+                    MexTimeTotal_3d = MexTimeTotal_3d + MexTime_3d;    
+                    
+                    UseMex = 1;
+                    UseMP = 1;
+                    t = tic;
+                    mexMP_res_1d = tools.array.init(Size_1d, Val, Type, UseMex, UseMP);
+                    MexMPTime_1d = toc(t);
+                    MexMPTimeTotal_1d = MexMPTimeTotal_1d + MexMPTime_1d;
+                    t = tic;
+                    mexMP_res_2d = tools.array.init(Size_2d, Val, Type, UseMex, UseMP);
+                    MexMPTime_2d = toc(t);
+                    MexMPTimeTotal_2d = MexMPTimeTotal_2d + MexMPTime_2d;
+                    t = tic;
+                    mexMP_res_3d = tools.array.init(Size_3d, Val, Type, UseMex, UseMP);
+                    MexMPTime_3d = toc(t);
+                    MexMPTimeTotal_3d = MexMPTimeTotal_3d + MexMPTime_3d;
+                                            
+                    assert(isequal(matlab_res_1d, mex_res_1d));
+                    assert(isequal(matlab_res_2d, mex_res_2d));
+                    assert(isequal(matlab_res_3d, mex_res_3d));
+                end
+    
+                MatlabTime_1d = MatlabTimeTotal_1d / iters;
+                MexTime_1d = MexTimeTotal_1d / iters;
+                MexMPTime_1d = MexMPTimeTotal_1d / iters;
+                MatlabTime_2d = MatlabTimeTotal_2d / iters;
+                MexTime_2d = MexTimeTotal_2d / iters;
+                MexMPTime_2d = MexMPTimeTotal_2d / iters;
+                MatlabTime_3d = MatlabTimeTotal_3d / iters;
+                MexTime_3d = MexTimeTotal_3d / iters;
+                MexMPTime_3d = MexMPTimeTotal_3d / iters;
+
+                fprintf('Var_type: %s, Matlab 1D: %.6f, Mex 1D: %.6f, MexMP 1D: %.6f, Ratio 1D: %0.2f%%, MP_Ratio 1D: %0.2f%%\n', var_name, MatlabTime_1d, MexTime_1d, MexMPTime_1d, (MexTime_1d/MatlabTime_1d)*100, (MexMPTime_1d/MatlabTime_1d)*100);
+                fprintf('Var_type: %s, Matlab 2D: %.6f, Mex 2D: %.6f, MexMP 2D: %.6f, Ratio 2D: %0.2f%%, MP_Ratio 2D: %0.2f%%\n', var_name, MatlabTime_2d, MexTime_2d, MexMPTime_2d, (MexTime_2d/MatlabTime_2d)*100, (MexMPTime_2d/MatlabTime_2d)*100);
+                fprintf('Var_type: %s, Matlab 3D: %.6f, Mex 3D: %.6f, MexMP 3D: %.6f, Ratio 3D: %0.2f%%, MP_Ratio 3D: %0.2f%%\n', var_name, MatlabTime_3d, MexTime_3d, MexMPTime_3d, (MexTime_3d/MatlabTime_3d)*100, (MexMPTime_3d/MatlabTime_3d)*100);
+
+    
+            end
+
     io.msgStyle(LogLevel.Test, '@passed', 'tools.array.onesExcept passed')
     Result = true;    
 
