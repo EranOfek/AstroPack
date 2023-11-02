@@ -43,9 +43,11 @@ function orbitIntegrationLightTime
             Iter                  = 0;              
             while LightTimeNotConverged
                 Iter = Iter + 1;
-
             
                 %U_B = zeros(3,Ntarget);            
+                
+                
+                
                 
                 %% got here
                 
