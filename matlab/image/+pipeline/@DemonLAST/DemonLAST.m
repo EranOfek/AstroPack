@@ -1812,11 +1812,7 @@ classdef DemonLAST < Component
                             writeStatus(Obj, FN_Proc.genPath);
                             writeStatus(Obj, fileparts(RawImageListFinal{1}));
 
-
-                            % Insert images to DB tables
-                            % Insert raw images
-                            
-                            % 
+                            % Insert products to the DB
                             if Args.Insert2DB                                
                                 try
                                     
