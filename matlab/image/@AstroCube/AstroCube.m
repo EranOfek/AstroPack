@@ -1,4 +1,4 @@
-% AstroCube - A container class for Cubes of images
+% AstroCube - A container class for Cubes of images and stamps
 % Properties :
 %
 % Functionality :
@@ -9,7 +9,7 @@
 
 classdef AstroCube < Component
     properties (Dependent) % Access image data directly
-        Var
+        
     end
     
     properties (SetAccess = public)
@@ -18,9 +18,11 @@ classdef AstroCube < Component
         VarData
         MaskData
         CCDSEC
+        X
+        Y
+        HalfSize
         HeaderData AstroHeader
         WCS AstroWCS
-        
         
         Nstars            = NaN;  % If Nstars=NaN, then PSF wasn't constructed yet.
     end
@@ -29,6 +31,8 @@ classdef AstroCube < Component
        
 
     end
+    
+    
     
    
     methods (Static) % UnitTest

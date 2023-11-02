@@ -932,14 +932,14 @@ classdef constant
             end
             if (System)
                 % cgs
-                Const = 1.98892e33;
+                Const = 1.98847e33;
                 Units = 'g';
             else
                 % SI
-                Const = 1.98892e30;
+                Const = 1.98847e30;
                 Units = 'kg';
             end
-            Error = 1.3e-4;
+            Error = 7e-5;
             Form  = '';
               
         end % constant.SunM function

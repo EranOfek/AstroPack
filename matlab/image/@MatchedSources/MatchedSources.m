@@ -164,6 +164,7 @@ classdef MatchedSources < Component
                             Data = h5read(FileName, DS);
                             Struct.(Info.Datasets(Idata).Name) = Data;
                         end
+                        Struct.JD = h5read(FileName, '/JD');
                     else
                         if ischar(Args.Fields)
                             Args.Fields = {Args.Fields};
@@ -325,11 +326,13 @@ classdef MatchedSources < Component
                     Ndata = numel(Obj.Fields);
                     for Idata=1:1:Ndata
                         h5create(FileName, sprintf('/%s',Obj.Fields{Idata}), size(Obj.Data.(Obj.Fields{Idata})));
+                        h5create(FileName, sprintf('/%s','JD', size(Obj.JD)));
                         if Args.RealIfComplex
                             h5write(FileName, sprintf('/%s',Obj.Fields{Idata}), real(Obj.Data.(Obj.Fields{Idata})));
                         else
                             h5write(FileName, sprintf('/%s',Obj.Fields{Idata}), Obj.Data.(Obj.Fields{Idata}));
                         end
+                        h5write(FileName, sprintf('/%s','JD', Obj.JD));
                     end
                     % save also the JD
                     h5create(FileName, '/JD', size(Obj.JD));
@@ -2004,6 +2007,98 @@ classdef MatchedSources < Component
     end
     
     methods % combine/merge
+        
+        function [Result] = searchFlags(MS, Args)
+            % Search specific flags in MatchedSources matrix.
+            %   Return a matrix of logical indicating if the specific flags
+            %   are present in each entry.
+            % Input  : - A single element MatchedSources object.
+            %          * ...,key,val,...
+            %            'BitDic' - A BitDictionary object to use.
+            %                   Default is BitDictionary.
+            %            'PropFlags' - The name of the flags matrix in the Data
+            %                   property. Default is 'FLAGS'.
+            %            'FlagsList' - A cell array containing a list of
+            %                   bit names to identify.
+            %                   Default is {'NearEdge','Saturated','NaN','Negative'}
+            %            'Opertor' - If multiple bit names are requested
+            %                   then this is the operator to apply between
+            %                   the bit names. Options are @or | @and.
+            %                   Default is @or.
+            % Output : - An array of logicals of size Nepoch X Nsrc.
+            %            Each element in the array indicate if the
+            %            requested bit names where found in this entry.
+            % Author : Yhuda Stern (Sep 2023)
+            % Example: FlagId = searchFlags(MS);
+
+            arguments
+               MS(1,1) MatchedSources
+               Args.BitDic       = BitDictionary;
+               Args.PropFlags    = 'FLAGS';
+               Args.FlagsList    = {'NearEdge','Saturated','NaN','Negative'};
+               Args.Opertor      = @or; % @or | @and
+            end
+
+            BitClass = Args.BitDic.Class;
+            Flags = BitClass(MS.Data.(Args.PropFlags));
+
+            Result = zeros(size(Flags));
+            Nflag  = numel(Args.FlagsList);
+            for Iflag = 1:1:Nflag
+                FieldIndex = find(strcmp(Args.BitDic.Dic.BitName, Args.FlagsList{Iflag}));
+                if ~isempty(FieldIndex)
+                    Result = Args.Operator(Result, bitget(Flags,FieldIndex));
+                else
+                    error('Field "%s" not found in dictionary', Args.Flags{Iflag});
+                end
+            end
+        end
+   
+        function Result = countFlags(MS, Args)
+            % Count specific flags per source or per epoch.
+            % Input  : - A single element MatchedSources object.
+            %          * ...,key,val,...
+            %            'Dim' - Dimension over which to count the flags.
+            %                   Default is 1 (return count per source).
+            %            'BitDic' - A BitDictionary object to use.
+            %                   Default is BitDictionary.
+            %            'PropFlags' - The name of the flags matrix in the Data
+            %                   property. Default is 'FLAGS'.
+            %            'FlagsList' - A cell array containing a list of
+            %                   bit names to identify.
+            %                   Default is {'NearEdge','Saturated','NaN','Negative'}
+            %            'Opertor' - If multiple bit names are requested
+            %                   then this is the operator to apply between
+            %                   the bit names. Options are @or | @and.
+            %                   Default is @or.
+            %            'NotFlag' - Apply @not operator before counting
+            %                   the flags. Default is false.
+            % Output : - A vector containing the numbre of entries (along
+            %            the requested dimension) with the specific
+            %            requested flags.
+            % Author : Eran Ofek (Oct 2023)
+            % Example: Res = countFlags(MS);
+
+            arguments
+               MS(1,1) MatchedSources
+               Args.Dim             = 1;
+               Args.BitDic          = BitDictionary;
+               Args.PropFlags       = 'FLAGS';
+               Args.FlagsList       = {'NearEdge','Saturated','NaN','Negative'};
+               Args.Opertor         = @or; % @or | @and
+               Args.NotFlag logical = false;
+            end
+            
+            FlagMatrix = searchFlags(MS, 'BitDic',Args.BitDic, 'PropFlags',Args.PropFlags, 'FlagsList',Args.FlagsList, 'Opertor',Args.Operator);
+            if Args.NotFlag
+                FlagMatrix = ~FlagMatrix;
+            end
+            Result = sum(FlagMatrix, Args.Dim);            
+             
+        end
+
+        
+        
 %         function matchReturnIndices
 %             
 %         end
@@ -2096,6 +2191,138 @@ classdef MatchedSources < Component
     
 
     methods % detrending
+        function [Result]=lsqRelPhot(Obj, Args)
+            % Perform relative photometry calibration using the linear least square method.
+            %   This function solves the following linear problem:
+            %   m_ij = z_i + M_j + alpha*C + ... (see Ofek et al. 2011).
+            %   By default will perfporm two iterations, where in the second
+            %   iteration, the errors will be taken from the magnitude vs. std
+            %   diagram, and stars with bad measurments will be removed.
+            % Input  : - A matrix of instrumental magnitude, in which the epochs
+            %            are in the rows, and stars are in the columns.
+            %            If empty, then run a simulation.
+            %          * ...,key,val,...
+            %            'MagErr' - A scalar, or a matrix of errors in the
+            %                   instrumental magnitudes.
+            %            'Method' - LSQ solver method: 'lscov'.
+            %                   Default is 'lscov'.
+            %            'Algo' - ALgorithm for the lscov function: 'chol'|'orth'.
+            %                   Default is 'chol'.
+            %            'Niter' - Number of iterations for error estimation and
+            %                   bad source removal. Default is 2.
+            %            'MaxStarStd' - In the second iteration, remove stars with
+            %                   std larger than this value. Default is 0.1.
+            %            'UseMagStdErr' - If true, then in the second iteration
+            %                   will replace the MagErr with the errors (per star)
+            %                   estimated from the mag vs. std plot.
+            %                   Default is true.
+            %            'CalibMag' - A vector of calibrated magnitude for all the
+            %                   stars. You can use NaN for unknown/not used
+            %                   magnitudes. If empty, then do not calibrate.
+            %                   Default is [].
+            %            'Sparse' - Use sparse matrices. Default is true.
+            %            
+            %            'ZP_PrefixName' - In the column names cell of the design matrix, this is the
+            %                   prefix of the images zero point.
+            %            'MeanMag_PrefixName' - In the column names cell of the design matrix, this is the
+            %                   prefix of the stars mean magnitudes.
+            %            'StarProp' - A cell array of vectors. Each vector
+            %                   must be of the length equal to the number of stars.
+            %                   Each vector in the cell array will generate a new
+            %                   column in the design matrix with a property per
+            %                   star (e.g., color of each star).
+            %                   Default is {}.
+            %            'StarPropNames' - A cell array of names for the StarProp
+            %                   column names. If this is a string than will be the
+            %                   string prefix, with added index. Default is 'SP'.
+            %            'ImageProp' - Like StarProp but for the images.
+            %                   E.g., airmass.
+            %                   Default is {}.
+            %            'ImagePropNames' - Like StarPropNames, but for the images.
+            %                   Default is 'IP'.
+            %            'ThresholdSigma' - Threshold in sigmas (std) for flagging good
+            %                   data (used by imUtil.calib.resid_vs_mag).
+            %                   Default is 3.
+            %            'resid_vs_magArgs' - A cell array of arguments to pass to 
+            %                   imUtil.calib.resid_vs_mag
+            %                   Default is {}.
+            % Output : - A structure array (element per MatchedSources element)
+            %            with the following fields:
+            %            .Par   - All fitted parameters.
+            %            .ParErr - Error in all fitted parameters.
+            %            .ParZP - Fitted ZP parameters
+            %            .ParMag - Fitted mean mag parameters.
+            %            .Resid - All residuals.
+            %            .Flag - Logical flags indicating which stars where used in
+            %                   the solution.
+            %            .NusedMeas - Number of used measurments.
+            %            .StdResid - Std of used residuals.
+            %            .RStdResid - Robust std of used residuals..
+            %            .Stdstar - Std of each star measurments used in the
+            %                   solution over all epochs.
+            %            .StdImage - Std of each image measurments used in the
+            %                   solution over all stars.
+            %            .AssymStd - Assymptoic rms in the mag vs. std plot,
+            %                   estimated from the minimum of the plot.
+            %                   (Return NaN if Niter=1).
+            %            .MagAssymStd - Magnitude of the assymptotic rms.
+            %                   (Return NaN if Niter=1).
+            %            .ColNames - Column names of the solution.
+            % Author : Eran Ofek (Jun 2023)
+            % Example: R=lsqRelPhot(MS);
+            
+            arguments
+                Obj 
+                Args.MagProp               = 'MAG_PSF';
+                Args.MagErrProp            = 'MAGERR_PSF';
+                
+                Args.MagErr                = 0.02;
+                Args.Method                = 'lscov';
+                Args.Algo                  = 'chol';  % 'chol' | 'orth'
+                Args.Niter                 = 2;
+                Args.MaxStarStd            = 0.1;
+                Args.UseMagStdErr logical  = true;
+                Args.CalibMag              = [];
+
+                Args.Sparse logical        = true;
+                Args.ZP_PrefixName         = 'Z';
+                Args.MeanMag_PrefixName    = 'M';
+                Args.StarProp              = {};  % one vector of properties per star - e.g., color
+                Args.StarPropNames         = 'SP';
+                Args.ImageProp             = {};  % one vector of properties per image - e.g., airmass
+                Args.ImagePropNames        = 'IP';
+
+                Args.ThresholdSigma        = 3;
+                Args.resid_vs_magArgs cell = {};
+            end
+
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                InstMag    = Obj(Iobj).Data.(Args.MagProp);
+                InstMagErr = Obj(Iobj).Data.(Args.MagErrProp);
+                
+                Result(Iobj)  = imUtil.calib.lsqRelPhot(InstMag,...
+                                                      'MagErr',InstMagErr,...
+                                                      'Method',Args.Method,...
+                                                      'Algo',Args.Algo,...
+                                                      'Niter',Args.Niter,...
+                                                      'MaxStarStd',Args.MaxStarStd,...
+                                                      'UseMagStdErr',Args.UseMagStdErr,...
+                                                      'CalibMag',Args.CalibMag,...
+                                                      'Sparse',Args.Sparse,...
+                                                      'ZP_PrefixName',Args.ZP_PrefixName,...
+                                                      'MeanMag_PrefixName',Args.MeanMag_PrefixName,...
+                                                      'StarProp',Args.StarProp,...
+                                                      'StarPropNames',Args.StarPropNames,...
+                                                      'ImageProp',Args.ImageProp,...
+                                                      'ImagePropNames',Args.ImagePropNames,...
+                                                      'ThresholdSigma',Args.ThresholdSigma,...
+                                                      'resid_vs_magArgs',Args.resid_vs_magArgs);
+                % TBD / apply ZP?
+            end
+        end
+        
         function Result=sysrem(Obj, Args)
             % Apply sysrem (Tamuz et al.) to magnitude matrices in MatchedSources object.
             % Input  : - A MatchedSources object.
@@ -2752,6 +2979,12 @@ classdef MatchedSources < Component
             %                   search radius.
             % Author : Eran Ofek (Sep 2023)
             % Example: [Cat]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',celestial.time.julday([14 6 2018]),'StopJD',  celestial.time.julday([20 6 2018]));
+            %          MS = MatchedSources;
+            %          MS.Data.RA = rand(100,1000);
+            %          MS.Data.Dec = rand(100,1000);
+            %          MS.Data.RA(1,1)  = Cat.Catalog(1,2);
+            %          MS.Data.Dec(1,1) = Cat.Catalog(1,3);
+            %          MS.JD = Cat.Catalog(1,1)+(0:1:99).';
             %          R = MS.epochCooSearch(Cat);
 
             arguments
@@ -2785,7 +3018,7 @@ classdef MatchedSources < Component
                 InterpPos = Pos;
             end
 
-            [RA, Dec] = getLonLat(Obj, 'rad');
+            [RA, Dec] = getLonLat(InterpPos, 'rad');
             
             try
                 if isempty(Obj.Units.(Args.ColRA))
@@ -2804,7 +3037,7 @@ classdef MatchedSources < Component
             Result.Dist  = nan(Obj.Nepoch,1);
             Result.Ncand = zeros(Obj.Nepoch,1);
             for Iep=1:1:Obj.Nepoch
-                Dist = celestial.coo.sphere_dist_fast(RA(Iep), Dec(Iep), Obj.Data.(Args.ColRA).*ConvFactor, Obj.Data.(Args.ColDec).*ConvFactor);
+                Dist = celestial.coo.sphere_dist_fast(RA(Iep), Dec(Iep), Obj.Data.(Args.ColRA)(Iep,:).*ConvFactor, Obj.Data.(Args.ColDec)(Iep,:).*ConvFactor);
                 [MinDist, MinDistInd] = min(Dist);
                 if MinDist<MaxDistRad
                     Result.Ind(Iep)    = MinDistInd;

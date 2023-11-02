@@ -42,7 +42,7 @@ classdef Component < Base
     % Parent class for all components
 
     % Properties
-    properties (SetAccess = public)
+    properties (Hidden, SetAccess = public)
         Name        = []                % Name string
         DataType AstroDataType 
         

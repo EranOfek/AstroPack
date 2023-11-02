@@ -63,30 +63,42 @@ function MS=forcedPhotAll(Args)
         % get all files
         FN = FileNames(Args.FileTemp);
         AI = AstroImage.readFileNamesObj(FN,'Path',sprintf('.%s',filesep));
-        JD = AI.julday;
         
-        if ~isempty(Args.EphemTable)
-            % moving source
-            Moving = true;
+        % select images with all products
+        [IsE_Image, IsE_Mask, IsE_PSF] = AI.isemptyImage({'Image','Mask','PSF'});
+        NotEmpty = ~IsE_Image & ~IsE_Mask & ~IsE_PSF;
+        AI       = AI(NotEmpty);
+        
+        if ~isempty(AI)
+            JD = AI.julday;
+
+            if ~isempty(Args.EphemTable)
+                % moving source
+                Moving = true;
+
+                InterpTable = interp1(Args.EphemTable, 'JD',{'RA','Dec'}, JD(:));
+                Coo         = InterpTable.Catalog(:,[2 3]);
+                if isempty(InterpTable.ColUnits)
+                   CooUnits = Args.CooUnits;
+                else
+                   CooUnits    = InterpTable.ColUnits{2};
+                end            
+            end
+
+            MeanCoo = mean(Coo,1);
+
+            ResIn  = AI.isSkyCooInImage(MeanCoo(1), MeanCoo(2),'UNIQSEC',CooUnits);
+            FlagIn = [ResIn.InImage];
+
+            if Args.Verbose
+                fprintf('Found %d images in which the source is within image boundries', sum(FlagIn));
+            end
             
-            InterpTable = interp1(Args.EphemTable, 'JD',{'RA','Dec'}, JD(:));
-            Coo         = InterpTable.Catalog(:,[2 3]);
-            if isempty(InterpTable.ColUnits)
-               CooUnits = Args.CooUnits;
-            else
-               CooUnits    = InterpTable.ColUnits{2};
-            end            
-        end
-            
-        MeanCoo = mean(Coo,1);
-        
-        ResIn  = AI.isSkyCooInImage(MeanCoo(1), MeanCoo(2),'UNIQSEC',CooUnits);
-        FlagIn = [ResIn.InImage];
-        
-        AI     = AI(FlagIn);
-        JD     = JD(FlagIn);
-        if Moving
-            Coo = Coo(FlagIn,:);
+            AI     = AI(FlagIn);
+            JD     = JD(FlagIn);
+            if Moving
+                Coo = Coo(FlagIn,:);
+            end
         end
         
         if ~isempty(AI)

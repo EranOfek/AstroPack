@@ -11,6 +11,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'Ebv'       - a vector of E(B-V) for each of the sources or 1 value for the whole observed field 
     %       'FiltFam'   - the filter family for which the source magnitudes are defined
     %       'Filt'      - the filter[s] for which the source magnitudes are defined
+    %       'CalculateULTRASATMag' - if the input magnitudes are not of the ULTRASAT filters, calculate the ULTRASAT magnitudes at output 
+    %       'CalculateCrudeSNR' - estimate SNR for the input sources    
     %       'SpecType'  - model of the input spectra ('BB','PL','Pickles') or 'tab'
     %       'Spec'      - parameters of the input spectra (temperature, spectral index) or a table of spectral intensities
     %       'Exposure'  - image exposure
@@ -39,11 +41,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %          - an array of per-object AstroPSFs
     %          - an ADU image (simple array)
     % Tested : Matlab R2020b
-    % Author : A. Krassilchtchikov (Mar-Aug 2023)
+    % Author : A. Krassilchtchikov (Mar-Oct 2023)
     % Example: Sim = ultrasat.usim('Cat',1000) 
     % (simulate 1000 sources at random positions with the default spectrum and magnitude)  
     %          
-  
     arguments          
         Args.Cat             =  10;          % if a number (N), generate N random fake sources
                                              % if a 2D table, use X, Y from this table
@@ -59,6 +60,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.FiltFam         = {'ULTRASAT'}; % one filter family for all the source magnitudes or an array of families
                                              
         Args.Filt            = {''};         % one filter for all the source magnitudes or an array of filters
+        
+        Args.CalculateULTRASATMag logical = true; % if the input magnitudes are not of the ULTRASAT filters, 
+                                             % calculate the ULTRASAT magnitudes at output  
+        Args.CalculateCrudeSNR logical = true; % estimate SNR for the input sources                                         
         
         Args.SpecType        = {'BB'};       % parameters of the source spectra: 
                                              % either an array of AstSpec or AstroSpec objects
@@ -225,15 +230,17 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                  Back.Cross + Back.Gain + Back.Readout ) * Args.Exposure(1); 
     
     %%%%%%%%%%%%%%%%%%%% load the matlab object with the ULTRASAT properties:
-    
-    UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');   
+    I = Installer;
+%     UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');  
+    UP_db = sprintf('%s%s',I.getDataDir('ULTRASAT_UP'),'/P90_UP_test_60_ZP_Var_Cern_21.mat');  
     io.files.load1(UP_db,'UP');
     
     %%%%%%%%%%%%%%%%%%%%%  read the chosen PSF database from a .mat file
 
                                 fprintf('Reading PSF database.. '); 
 
-    PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF',Args.ImRes,'.mat');
+%     PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF',Args.ImRes,'.mat');
+    PSF_db = sprintf('%s%s%g%s',I.getDataDir('ULTRASAT_PSF'),'/ULTRASATlabPSF',Args.ImRes,'.mat');
     ReadDB = struct2cell ( io.files.load1(PSF_db) ); % PSF data at the chosen spatial resolution
     PSFdata = ReadDB{2}; 
 
@@ -373,6 +380,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     end
                          
     CatFlux  = zeros(NumSrc,1);   % will be determined below from spectra * transmission 
+    MagU     = zeros(NumSrc,1);   % will be calculated below if requested 
+    CrudeSNR = zeros(NumSrc,1);   % will be calculated below if requested 
     
     %%%%%%%%%%%%%%%%%%%%% split the list of objects into chunks and work
     %%%%%%%%%%%%%%%%%%%%% chunk-by-chunk 
@@ -576,11 +585,18 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             end
         end
         Factor   = 10.^(-0.4.*(MagSc' - InMag(Range))); % rescaling factor
-        SpecIn   = SpecIn ./ Factor;   
+        SpecIn   = SpecIn ./ Factor;  
         % account for the extinction:
         ExtMag   = astro.spec.extinction(InEbv(Range)',(Wave./1e4)');
         Extinction = 10.^(-0.4.*ExtMag);
         SpecObs  = SpecIn .* Extinction';               % observed (extincted) spectrum
+        % if requested produce the ULTRASAT magnitude for the source
+        if Args.CalculateULTRASATMag % && ~strcmp(FiltFam{1},'ULTRASAT')
+            for Isrc = 1:1:NumSrcCh
+                Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number
+                MagU(Isrc_gl) = astro.spec.synthetic_phot([Wave' SpecObs(Isrc,:)'],UP.U_AstFilt(IndR(Isrc)),'R1','AB');               
+            end
+        end
 
                                 fprintf('done\n'); 
                                 elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update');
@@ -638,7 +654,24 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         end
                                 fprintf('Partial source image added to the stacked source image \n');
                                 
-    end % end the loop over source chunks
+        if Args.CalculateCrudeSNR                        
+            PSFeff           = 0.8;
+            ContainmentLevel = 0.5;
+            %         PixSizeSec  = PixSizeDeg*3600;
+            for Isrc = 1:1:NumSrcCh
+%             for Isrc = 1:1:300 % use a small limit with telescope.sn.snr, because it is very slow !
+                Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number
+                PSFRad  = imUtil.psf.quantileRadius(PSF_ch(:,:,Isrc),'Level',ContainmentLevel)./Args.ImRes;
+                CrudeSNR(Isrc_gl) = PSFeff * CatFlux(Isrc_gl) * Exposure / sqrt(pi * PSFRad^2 * Back.Tot );
+%                 SNR1    = telescope.sn.snr('ExpTime',Args.Exposure(2),'Nim',Args.Exposure(1),...
+%                     'TargetSpec',[Wave' SpecObs(Isrc,:)'],'PSFeff',PSFeff,'Mag',MagU(Isrc_gl),...
+%                     'CalibFilterFamily',UP.U_AstFilt(IndR(Isrc)),'CalibFilter','','Wave', Wave',...
+%                     'SN',5,'FWHM',2.*PSFRad * PixSizeSec,'BackCompFunPar',{'CerenkovSupp',21});
+%                 SNR(Isrc_gl) = SNR1.SNR;
+            end
+        end
+        
+    end % end the loop over source chunks 
     
     %%%%%%%%%%%%%%%%%%%%% add and apply various types of noise to the tile image 
     %%%%%%%%%%%%%%%%%%%%% NB: while ImageSrc is in [counts/s], ImageSrcNoise is already in [counts] !!
@@ -687,15 +720,16 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                             fprintf('Compiling output structures and writing files..\n'); drawnow('update'); tic
     
     % compile a catalog table
-    Cat = [CatX CatY CatFlux InMag RA DEC];
+    Cat = [CatX CatY CatFlux InMag MagU CrudeSNR RA DEC];
     
     % if we generated a fake catalog above, make a catalog table here 
-    if ~isa(Args.Cat,'AstroCatalog')    
-        Args.Cat = AstroCatalog({Cat},'ColNames',{'X','Y','Counts/s','MAG','RA','Dec'},'HDU',1);
-    end
+%     if ~isa(Args.Cat,'AstroCatalog')    
+%         Args.Cat = AstroCatalog({Cat},'ColNames',{'X','Y','Counts/s','InMAG','MagU', 'SNR', 'RA','Dec'},'HDU',1);
+%     end
+    OutCat = AstroCatalog({Cat},'ColNames',{'X', 'Y', 'Counts/s', 'InMAG', 'MagU', 'SNR', 'RA','Dec'}, 'HDU', 1);
         
     % make an AstroImage (note, the images are to be transposed!)
-    usimImage = AstroImage( {ImageSrcNoise'} ,'Back', {NoiseLevel'}, 'Var', {ImageBkg'},'Cat', {Args.Cat.Catalog}); 
+    usimImage = AstroImage( {ImageSrcNoise'} ,'Back', {NoiseLevel'}, 'Var', {ImageBkg'}, 'Cat', {OutCat.Catalog}); 
 
     % save the final source PSFs into an AstroPSF array and attach it to
     % the resulting AstroImage object, if the source number is not too large
@@ -743,7 +777,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         OutTxtName = sprintf('%s%s%s%s%s%s',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'_InCat.txt'); 
         fileID = fopen(OutTxtName,'w'); 
 %         fprintf(fileID,'%7.1f %7.1f %5.2f %.2d\n',Cat(:,(1:4))');
-        fprintf(fileID,'%7.1f %7.1f %5.2f %.2d %.4d %.4d\n',Cat');
+        fprintf(fileID,'%7.1f %7.1f %5.2f %.2f %.2f %.2d %.4d %.4d\n',Cat');
         fclose(fileID);
         
         % an accompanying region file: 

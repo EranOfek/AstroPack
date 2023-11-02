@@ -32,6 +32,7 @@ classdef DemonLAST < Component
         LogPath      = 'log';    % if start with '/' then abs path
 
         RefPath      = [];
+        
 
         ObsCoo       = [35 30 415];  % [deg deg m]
     end
@@ -50,7 +51,7 @@ classdef DemonLAST < Component
         DefCalibPath    = 'calib';  % if start with '/' then abs path
         DefFailedPath   = 'failed'; % if start with '/' then abs path
         DefLogPath      = 'log';    % if start with '/' then abs path
-
+        DefRefPath   = 'data/references';   %/last01e/data/refreences'
 
         FieldList       = pipeline.DemonLAST.fieldsListLAST;
     end
@@ -185,9 +186,11 @@ classdef DemonLAST < Component
             % getter for RefPath
 
             if isempty(Obj.RefPath)
-                [~,~,~,HostName] = Obj.getPath;
-                Obj.RefPath = fullfile(filesep, HostName, 'data', 'reference');
+                Obj.RefPath = Obj.populateRefPath;
             end
+%                 [~,~,~,HostName] = Obj.getPath;
+%                 Obj.RefPath = fullfile(filesep, HostName, 'data', 'reference');
+%             end
             Result = Obj.RefPath;
 
         end
@@ -419,7 +422,7 @@ classdef DemonLAST < Component
             % Example: List = pipeline.DemonLAST.fieldsListLAST
 
             arguments
-                Args.N_LonLat   = [85 28];
+                Args.N_LonLat   = [88 30] %[85 28];
             end
 
             RAD = 180./pi;
@@ -531,7 +534,12 @@ classdef DemonLAST < Component
             if isempty(List)
                 List = pipeline.DemonLAST.fieldsListLAST;
             end
-            
+
+            if ~isempty(Dec) && isnumeric(Dec)
+                % assume RA and Dec are in deg, convert to radian
+                RA  = RA./RAD;
+                Dec = Dec./RAD;
+            end            
             if isempty(Dec)
                 % assume RA is string of the format '045-01'
                 [RA, Dec]=pipeline.DemonLAST.str2radec(RA, 'rad');
@@ -541,7 +549,7 @@ classdef DemonLAST < Component
                 RA  = celestial.coo.convertdms(RA, 'SH', 'r');
                 Dec = celestial.coo.convertdms(Dec, 'SD', 'R');
             end
-            
+
             % RA/Dec are in radians
             CatRA  = List.RA./RAD;
             CatDec = List.Dec./RAD;
@@ -556,6 +564,33 @@ classdef DemonLAST < Component
 
         end
 
+        function [CamNum,Mount,Node] = getCamNumFromProjName(ProjName,Convert2Num)
+            % get camera number from project name
+            % Input  : - Project name - e.g., 'LAST.01.02.03'
+            %          - Convert to number. Default is true.
+            % Output : - Camera number (e.g., '03')
+            %          - Mount
+            %          - Node
+            % Author : Eran Ofek (Oct 2023)
+            % Example: [C,M,N]=pipeline.DemonLAST.getCamNumFromProjName('LAST.01.02.03');
+            
+            arguments
+                ProjName
+                Convert2Num logical  = true;
+            end
+            
+            Node   = ProjName(6:7);
+            Mount  = ProjName(9:10);
+            CamNum = ProjName(12:13);
+            
+            if Convert2Num
+                Node   = str2double(Node);
+                Mount  = str2double(Mount);
+                CamNum = str2double(CamNum);
+            end
+            
+        end
+        
     end
 
     
@@ -880,8 +915,163 @@ classdef DemonLAST < Component
 
         end
 
+        function Path=populateRefPath(Obj, Args)
+            % Get path for reference imags location on the LAST computers
+            % Input  : - A pipeline.DemonLAST object
+            %          * ...,key,val,...
+            %            'HostName' - HostName. If empty, get it from OS.
+            %                   Default is [].
+            %            'DefRefPath' - Reference path above the host name.
+            %                   Default is 'data/references'.
+            % Output : - Base path for reference images dir.
+            % Author : Eran Ofek (Oct 2023)
+            % Example: Path=D.populateRefPath
+            
+            arguments
+                Obj
+                Args.HostName     = [];
+                Args.DefRefPath   = 'data/references';
+            end
+            
+            if isempty(Args.HostName)
+                HostName = tools.os.get_computer;
+            else
+                HostName = Args.HostName;
+            end
+            
+            
+            Path = fullfile(filesep, HostName, Args.DefRefPath);
+        end
+        
+    end
+    
+    methods % ref image utilities
+        function [Path, File, AI] = getRefImage(Obj, Args)
+            % Get reference images corresponding to some field
+            % Input  : * ...,key,val,...
+            %            'FN' - Either [], a file name char array,
+            %                   a cell array of char arrays, or a FileNames
+            %                   object.
+            %                   If empty, then the image details are provided
+            %                   in the other argumnets.
+            %                   If given, then the other argumnets are
+            %                   overwritten.
+            %                   Default is [].
+            %            'Camera' - Camera index. Default is 1.
+            %            'Filter' - Filter name. Default is 'clear'.
+            %            'CropID' - CropID. If empty, then will attemt to
+            %                   read all possible crop IDs.
+            %                   default is [].
+            %            'Version' - Ref. version. If Inf, then will
+            %                   attempt to read the latest available
+            %                   version.
+            %                   Default is Inf.
+            %            'AddProduct' - Add the following products to the
+            %                   AstroImage, in addition to the 'Image' product.
+            %                   Default is {'Mask','Cat','PSF'}
+            %            'RefPath' - RefPath (to overwrite the object
+            %                   Refpath). If empty, then will use the
+            %                   object RefPath.
+            %                   Default is [].
+            % Output : - Path for the reference images.
+            %          - File names of the refernce images.
+            %          - An AstroImage object with all the ref images.
+            % Author : Eran Ofek (Oct 2023)
+            % Example: 
+            
+            arguments
+                
+                Obj
+                Args.FN           = []; % FileNames object
+                Args.Camera       = 1;
+                Args.Filter       = 'clear';
+                Args.FieldID      = []; % ID or RA+Dec str
+                Args.CropID       = [];
+                Args.Version      = Inf;
+                
+                Args.AddProduct   = {'Mask','Cat','PSF'};  
+                Args.RefPath      = [];
+            end
+            
+            
+            % FN is provided - overwrite other argumnets
+            if ~isempty(Args.FN)
+                if ~isa(Args.FN, 'FileNames')
+                    Args.FN = FileNames.generateFromFileName(Args.FN);
+                end
+                
+
+                Args.Filter   = Args.FN.Filter;
+                Args.FieldID  = Args.FN.FieldID;
+                Args.CropID   = Args.FN.CropID;
+                Args.Version  = Args.FN.Version;
+                
+                Args.Camera   = pipeline.DemonLAST.getCamNumFromProjName(Args.FN.ProjName{1});  % return a number
+                
+            end
+            
+            if isempty(Args.RefPath)
+                Args.RefPath = Obj.RefPath;
+            end
+            
+            if ~isnumeric(Args.FieldID)
+                % FieldID is likely in RA+Dec str - convert to FieldID
+                % index
+                [FieldID, ~, ~] = pipeline.DemonLAST.searchFieldLAST(Obj.FieldList, Args.FieldID);
+            else
+                FieldID = Args.FieldID;
+            end
+                               
+            Path = fullfile(Args.RefPath, string(FieldID), sprintf('%d',Args.Camera));
+            
+            if nargout>1
+                % construct FileName using a FileNames object
+                % treat Version=Inf as the last available version
+                %RefFN = copy(Args.FN);
+                RefFN = FileNames;
+                RefFN.ProjName = {'LAST.01*'};
+                RefFN.Time = {'*'};
+                RefFN.FieldID = {string(FieldID)};
+                RefFN.Counter = 1;
+                RefFN.Level = 'coadd';
+                RefFN.FullPath = Path;
+                RefFN.CCDID = 1;
+                RefFN.CropID = Args.CropID;
+                
+                
+                % check whether reference image exists
+                AbsFile = fullfile(Path, RefFN.genFile);
+                RefName = dir(AbsFile);
+                
+                if isempty(RefName)
+                    error('No reference image found.')
+                elseif length(RefName)>1
+                    error('Found several reference images.')
+                else
+                    % do nothing
+                    File = RefName.name;
+                end
+                
+                if nargout>2
+                    % read all files into an AstroImage object
+                    FullRefName = char(fullfile(Path, File));
+                    RefFN = FileNames.generateFromFileName(FullRefName);
+                    RefFN.FullPath = Path;
+
+                    AI = AstroImage.readFileNamesObj(RefFN,'AddProduct',Args.AddProduct);
+                    
+                    
+                end
+            end
+            
+        end
+        
     end
 
+    
+    
+    
+    
     methods % pipelines
         function [Obj, FN, FN_Master]=prepMasterDark(Obj, Args)
             % prepare master dark images
@@ -1358,7 +1548,6 @@ classdef DemonLAST < Component
             cd(PWD);
 
         end
-
         
         
         function Obj=main(Obj, Args)
@@ -1550,7 +1739,7 @@ classdef DemonLAST < Component
 
                         try
                          
-                            tic;
+                            Tstart = clock; % tic;
 
                             %AI = AstroImage(FilesList, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
                             % Insert AI to DB
@@ -1636,6 +1825,8 @@ classdef DemonLAST < Component
                             % 
                             if Args.Insert2DB
                                 
+                                try
+                                    
                                 if isempty(ADB)
                                     % connect to DB
                                     ADB = db.AstroDb(Args.AstroDBArgs{:});
@@ -1745,14 +1936,20 @@ classdef DemonLAST < Component
                                 
                                 Msg{1} = sprintf('Insert catalog objects to LAST catalog tables - success: %d', OK);
                                 Obj.writeLog(Msg, LogLevel.Info);
+                                
+                                catch DBMsg
+                                    DBErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', DBMsg.message, DBMsg.stack(1).name, DBMsg.stack(1).line);
+                                    Obj.writeLog(DBErrorMsg, LogLevel.Error);
+                                    Obj.writeLog(DBMsg, LogLevel.Error);
+                                end
 
                             end
 
-                            RunTime = toc;
+                            RunTime = etime(clock, Tstart); % toc;
                         catch ME
                              
                             
-                            RunTime = toc;
+                            RunTime = etime(clock, Tstart); % toc;
     
                             % extract errors
                             ErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, ME.stack(1).line);

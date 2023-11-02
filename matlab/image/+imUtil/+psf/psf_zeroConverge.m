@@ -1,5 +1,6 @@
 function PSF = psf_zeroConverge(PSF, Args)
     % Set the tail of the PSF to converge to zero.
+    %   See also: imUtil.psf.suppressEdges
     % Input  : - A PSF stamp.
     %          * ...,key,val,...
     %            'Method' - One of the following methods:

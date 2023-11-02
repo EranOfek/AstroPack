@@ -128,8 +128,8 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
             case 'sphere'
                 DistFun = @celestial.coo.sphere_dist_fast; %Thresh; 
                 
-                Coo1    = getLonLat(Cat1, 'rad');
-                Coo2    = getLonLat(Cat2, 'rad');
+                Coo1    = double(getLonLat(Cat1, 'rad'));
+                Coo2    = double(getLonLat(Cat2, 'rad'));
 
                 RadiusRad = convert.angular(Args.RadiusUnits, 'rad', Args.Radius);
                 %DistFunArgs{1} = RadiusRad;
@@ -138,8 +138,8 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
             case 'pix'
                 DistFun = @tools.math.geometry.plane_dist;
                 %DistFunArgs = {};
-                Coo1    = getXY(Cat1);
-                Coo2    = getXY(Cat2);
+                Coo1    = double(getXY(Cat1));
+                Coo2    = double(getXY(Cat2));
 
                 RadiusRad = Args.Radius;
                 DistFunArgs = {};

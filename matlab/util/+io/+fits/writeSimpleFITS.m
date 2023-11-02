@@ -31,6 +31,9 @@ function writeSimpleFITS(Image, FileName, Args)
         Args.CompressType    char     = 'NOCOMPRESS';
     end
 
+    % sanify the file name so that it contain the absolute path
+    FileName = tools.os.relPath2absPath(FileName); 
+    
     if isempty(Args.DataType)
         Args.DataType = class(Image);
     end

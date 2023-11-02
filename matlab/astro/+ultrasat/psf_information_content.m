@@ -11,7 +11,7 @@ function Result = psf_information_content(ImRes, Args)
         Args.Case  = 1;  % variant
         
     end
-
+    I = Installer;
     cd /home/sasha/ULTRASAT/PSF/InformLoss/
     
     Nrad    = 25; 
@@ -27,7 +27,8 @@ function Result = psf_information_content(ImRes, Args)
 
                             fprintf('Reading PSF database.. '); 
     
-    PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF',ImRes,'.mat');
+%     PSF_db = sprintf('%s%s%g%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/PSF/ULTRASATlabPSF',ImRes,'.mat');
+    PSF_db = sprintf('%s%s%g%s',I.getDataDir('ULTRASAT_PSF'),'/ULTRASATlabPSF',ImRes,'.mat');
     ReadDB = struct2cell ( io.files.load1(PSF_db) ); % PSF data at chosen resolution
     PSFdata = ReadDB{2}; 
     

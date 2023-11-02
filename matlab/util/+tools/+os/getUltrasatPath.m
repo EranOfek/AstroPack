@@ -1,6 +1,6 @@
 function Result = getUltrasatPath()
 
-	UltrasatDir = 'Ultrasat';
+	UltrasatDir = 'ULTRASAT';
 
     if (ismac || isunix)
         % Linux / Mac

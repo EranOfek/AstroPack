@@ -36,6 +36,8 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
     %                   radius will not be used. Default is 3.
     %            'HalfSize' - Default half size for the sources stamps.
     %                   Default is 8.
+    %                   If PSF is provided, then this will be set to the
+    %                   half PSF size.
     %            'backgroundCubeArgs' - A cell array of additional arguments to
     %                   pass to the 'backgroundCubeArgs' arguments in the
     %                   imUtil.sources.psfPhotCube function.
@@ -116,6 +118,9 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
         else
             PSF = Args.PSF;
         end
+        
+        % make sure that the PSF size is consistent with HalfSize
+        Args.HalfSize = (size(PSF,1)-1).*0.5;
         
         if ~isempty(PSF)
 

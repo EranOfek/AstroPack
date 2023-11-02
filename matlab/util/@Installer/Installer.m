@@ -206,6 +206,15 @@ classdef Installer < Component
                     io.msgLog(LogLevel.Info, 'untar: %s in %s', F(I).name, pwd);
                     untar(F(I).name);
                 end
+                F = dir('*.zip');
+                for I=1:1:numel(F)
+                    io.msgLog(LogLevel.Info, 'unzip: %s in %s', F(I).name, pwd);
+                    unzip(F(I).name);
+                    if strcmp(DataStruct.DataName,'Starlib23')
+                        !mv */* .; 
+                        !rmdir specs_513_fits;
+                    end
+                end
                 
                 % Delete original archives                
                 try
@@ -215,6 +224,10 @@ classdef Installer < Component
                 try
                     io.msgLog(LogLevel.Info, 'deleting %s/*.tar', pwd);
                     delete('*.tar');
+                end
+                try
+                    io.msgLog(LogLevel.Info, 'deleting %s/*.zip', pwd);
+                    delete('*.zip');
                 end
             end
             cd(PWD);

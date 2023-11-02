@@ -124,12 +124,12 @@ function [X1,Y1,MinChi2,Flux0,Dof,H, Result]=psfChi2_RangeIter(Cube, Std, PSF, A
         % assume bith VecXrel and VecYrel are empty:
     
         [Ny, Nx, Nim] = size(Cube);
-        Xcenter = Nx.*0.5 + 0.5;
-        Ycenter = Ny.*0.5 + 0.5;
+        Xcenter = (Nx+1).*0.5;
+        Ycenter = (Ny+1).*0.5;
         Dof     = Nx.*Ny - 3;
     
-        VecXrel = (1:1:Nx) - Xcenter;
-        VecYrel = (1:1:Ny) - Ycenter;
+        Args.VecXrel = (1:1:Nx) - Xcenter;
+        Args.VecYrel = (1:1:Ny) - Ycenter;
     end
     
     

@@ -319,7 +319,7 @@ classdef Targets < Component
             arguments
                 Obj
                 List            = 'last';
-                Args.N_LonLat   = [85 28];  %[56 42];
+                Args.N_LonLat   = [88 30] %[85 28];  %[56 42];
                 Args.Priority   = 1;
                 Args.ExpTime    = 20;
                 Args.NperVisit  = 20;

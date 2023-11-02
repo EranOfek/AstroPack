@@ -65,10 +65,14 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
     %            'ImageField' - Image field. Default is 'Im'.
     %            'BackField' - Background field. Default is 'Back'.
     %            'VarField' - Variance field. Default is 'Var'.
+    %            'AddValAtPos' - Add Value of image at source position.
+    %                   Default is true.
     % Output : - Either a table, AstroCatalog, or struct with the following
     %            fields:
     %            .XPEAK - Source X position (whole pixel)
     %            .YPEAK - Source Y position (whole pixel)
+    %            .VAL   - Value of image at position X,Y.
+    %                   Provided if AddValAtPos is true.
     %            .TEMP_ID - Themplate bankd index for source maximal S/N.
     %            .SN - S/N.
     %            .FLUX_CONV - A Ntemplate column matrix with
@@ -102,6 +106,7 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
         Args.SortByY logical               = true;
         Args.BackField char                = 'Back';
         Args.VarField char                 = 'Var';
+        Args.AddValAtPos logical           = true;
     end
     
     if isstruct(Image)
@@ -134,6 +139,15 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
         %[~,Pos]                       = imUtil.image.local_maxima(SN,1,Args.Threshold,Args.Conn);
         % much faster:
         [Pos] = imUtil.sources.findLocalMax(SN, 'Variance',1, 'Threshold',Args.Threshold,'Conn',Args.Conn, 'Algo','findlocalmex'); %findlocal');
+        % Pos contains: [X,Y,SN,ImageIndex,LinaerIndexIn2D]
+        
+        % Measure value at Pos
+        if Args.AddValAtPos
+            PosInd = imUtil.image.sub2ind_fast(size(Image), Pos(:,2), Pos(:,1));
+            ValPos = Image(PosInd);
+        else
+            ValPos = [];
+        end
         
         % Pos contains:  [X,Y,SN,index]
     end
@@ -172,6 +186,7 @@ function [Result,Template,FiltImage,FiltImageVar] = findSources(Image, Args)
     Src.TEMP_ID   = Pos(:,4);
     Src.SN        = SN(Ind);
     Src.FLUX_CONV = Flux(Ind);
+    Src.VAL       = ValPos;
 
             
     if numel(Back)==1

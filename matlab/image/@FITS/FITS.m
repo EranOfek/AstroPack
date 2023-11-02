@@ -1005,6 +1005,9 @@ classdef FITS < handle
                 end
             end
             
+            % sanify the file name so that it contain the absolute path
+            FileName = tools.os.relPath2absPath(FileName); 
+            
             % Prepare header
             Header = FITS.prepareHeader(Args.Header, HeaderField, 'WriteTime', Args.WriteTime);
 

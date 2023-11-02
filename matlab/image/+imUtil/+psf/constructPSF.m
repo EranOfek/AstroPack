@@ -216,7 +216,7 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
             error('For cube input X and Y must be provided');
         end
         [MatchedInd] = VO.search.search_sortedY_multi([Args.X, Args.Y], Args.X, Args.Y, Args.NighRadius);
-        FlagGoodPsf    = FlagGoodPsf & [[MatchedInd.Nmatch]==1].';
+        FlagGoodPsf    = FlagGoodPsf & ([MatchedInd.Nmatch]==1).';
     end
     % select by S/N range
     if ~isempty(Args.SN)

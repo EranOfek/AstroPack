@@ -1,8 +1,11 @@
-function [TotMu,Res]=self_microlensing(D, Args)
-    % Estimate the self microlensing for binary stars
+function [TotMu,Res]=self_microlensing(ImpactPar, Args)
+    % Calculate the self microlensing for binary stars
     % Input  : - A vector of the impact parameters at which to calculate
     %            the total magnification, in units of the SrcRad.
     %          * ...,key,val,...
+    %            'ImpactParUnits' - Units of the ImpactPar argument:
+    %                   'SrcRad' - Src radius (default).
+    %                   'SrcRadUnits' - The sams as SrcRadUnits.
     %            'Dl' - Dist. to lens. Default is 1000.
     %            'Dls' - Dist from lens to source. Default is 0.01./206000
     %            'DistUnits' - Dist. units. Default is 'pc'.
@@ -11,13 +14,13 @@ function [TotMu,Res]=self_microlensing(D, Args)
     %            'SrcRadUnits' - Source/Lens radius units. Default is 'km'.
     %            'Mass' - Lens mass. Default is 1.4
     %            'MassUnits' - Lens mass units. Default is 'SunM'.
-    %            'Algo'   - Algorithm. Default is '1d' (1d integral).
+    %            'Algo'   - Algorithm. Default is '1dfast' (1d integral).
     %            'IntStep' - Integration step in Einstein Radius units.
     %                   Default is 1e-5 (usually good to accuracy of 1e-4
     %                   in magnification).
     %
     %            'TotL' - Unlensed source luminosity. Default is 1.
-    %            'Nstep' - Integration steps for the '2d' algorithm.
+    %            'Nstep' - Integration rsteps for the '2d' algorithm.
     %                   Recomended to use step that
     %                   will bring you to the lens size.
     %                   If empty, then will choose Nstep to be:
@@ -36,7 +39,7 @@ function [TotMu,Res]=self_microlensing(D, Args)
     %          - A structure with additional information.
     % Reference: See also Agol 2003
     % Author : Eran Ofek (Sep 2023)
-    % Example: K=celestial.Kepler.kepler3law(1.4.*2e33, 'p',3600);
+    % Example: K=celestial.Kepler.kepler3law(1.4.*2e33, 'p',86400); %3600);
     %          Dls = K.a./constant.pc;
     %          [TM,Res]=astro.binary.self_microlensing(1, 'Dls',Dls);
     %
@@ -47,9 +50,12 @@ function [TotMu,Res]=self_microlensing(D, Args)
     %
     %          Beta = (-3:0.1:3);
     %          for Id=1:1:numel(Beta);TotMu(Id)=astro.binary.self_microlensing(Beta(Id), 'Dls',Dls(end)); end
+    %
+    %          [TM,Res]=astro.binary.self_microlensing(1, 'Dls',Dls, 'Algo','2d');
     
     arguments
-        D             % in SrcRad units
+        ImpactPar             % in SrcRad units
+        Args.ImpactParUnits  = 'SrcRad';  % 'SrcRad','SrcRadUnits'
         Args.Dl        = 1000;
         Args.Dls       = 0.01./206000;
         Args.DistUnits = 'pc';
@@ -67,11 +73,28 @@ function [TotMu,Res]=self_microlensing(D, Args)
         Args.LimbFun       = @astro.binary.limb_darkening;
         Args.LimbFunPars   = {'constant'};
         
-        Args.Algo          = '1d';
+        Args.Algo          = '1dfast';
         Args.Nstep         = [];
         Args.Oversampling  = 3;
 
+        % 2d integration parameters
+        Args.Nsim          = 1e8;  % total number of simulations
+        Args.NsimBlock     = 1e6;  % number of simotanous ismulations
+        
+        % limb darkening
+        Args.LimbDarkCoef = zeros(1,4); %astro.stars.getClaret2020_LimbDarkeningWD(10000,[7]);
+        
         Args.UseIndivMag logical  = true;
+    end
+    
+    
+    switch Args.ImpactParUnits
+        case 'SrcRad'
+            % do nothing
+        case 'SrcRadUnits'
+            ImpactPar = ImpactPar./Args.SrcRad;
+        otherwise
+            error('Unknown ImpactParUnits option');
     end
     
     SrcRad  = convert.length(Args.SrcRadUnits, Args.DistUnits, Args.SrcRad);   % in DistUnits
@@ -81,21 +104,151 @@ function [TotMu,Res]=self_microlensing(D, Args)
     AngLensRad   = LensRad./Ds;   % [rad]
     
     switch Args.Algo
-        case '1d'
+        case '1dfast'
             % Convert to ER units
-            Res = astro.microlensing.ps_lens('Mass',Args.Mass, 'MassUnits',Args.MassUnits,...
+            if nargout>1
+                Res = astro.microlensing.ps_lens('Mass',Args.Mass, 'MassUnits',Args.MassUnits,...
                                              'Dl',Args.Dl, 'Ds',Ds, 'DistUnits',Args.DistUnits,...
                                              'Beta',0, 'BetaUnits','rad','OutUnits','rad');
+            else
+                Mass_gr  = convert.mass(Args.MassUnits,'gr',Args.Mass);
+                DistConv = convert.length(Args.DistUnits,'cm');
+                Dls_cm   = Args.Dls.*DistConv;
+                Dl_cm    = Args.Dl.*DistConv;
+                Ds_cm    = Dls_cm + Dl_cm;
+                
+                Res.ER = sqrt(4.*constant.G.*Mass_gr.*Dls_cm./(constant.c.^2 .*Dl_cm.*Ds_cm));
+            end
+            Rstar = AngSrcRad./Res.ER;  % ER units
+            Rlens = AngLensRad./Res.ER; % ER units
+
+            Beta = ImpactPar(:).'.*Rstar; % ER units
+            Nbeta = numel(Beta);
+            
+            CosFun = @(R,u,b) real(acos((u.^2+b.^2 - R.^2)./(2.*u.*b)));
+            
+            %U = (Rlens:Args.IntStep:(max(Beta)+Rstar+Rlens)).';   % ER units
+            % Integration start with U=0 (which corresponds to theta>0)
+            % te selection of Theta>LensRad is done later
+            U = linspace(Args.IntStep, max(Beta)+Rstar+Rlens, ceil(1./Args.IntStep)).';
+            U2 = U.^2;
+            if Args.UseIndivMag
+                U0     = sqrt(U2 + 4); %.*Res.ER.^2);
+                Theta1 = 0.5.*(U + U0);
+                Theta2 = 0.5.*(U - U0);
+                MagBase = (U2 + 2)./(2.*U.*U0);
+                Mag1   = MagBase + 0.5;
+                Mag2   = MagBase - 0.5;
+                % Flags for images that are occulted by the lens
+                FlagT1 = double(abs(Theta1)>Rlens);
+                FlagT2 = double(abs(Theta2)>Rlens);
+                Mag    = Mag1.*FlagT1 + Mag2.*FlagT2;
+            else
+                Mag = (U2 + 2)./(U.*sqrt(U2 + 4));
+            end
+            UMag = 2.*U.*Mag;
+            
+            TotMu  = zeros(1,Nbeta);
+            for Ib=1:1:Nbeta
+
+                %CF = CosFun(Rstar, U, Beta(Ib));
+                CF = real(acos((-Rstar.^2 +U.^2+Beta(Ib).^2)./(2.*U.*Beta(Ib))));
+                CF(isnan(CF)) = 0;
+
+                TotMu(Ib) = trapz(U, UMag.*CF, 1);  % noramlize to area of src
+            end
+            TotMu = TotMu./(pi.*Rstar.^2);
+            
+            Res.AngSrcRad  = AngSrcRad;
+            Res.AngLensRad = AngLensRad;
+            % The Agol (2003) magnification in the limit of RE<<R*:
+            Res.AgolMagnification = (pi.*Res.AngSrcRad.^2+2.*pi.*Res.ER.^2)./(pi.*Res.AngSrcRad.^2);
+
+            
+        case '2d'
+            % develop
+            
+            if nargout>1
+                Res = astro.microlensing.ps_lens('Mass',Args.Mass, 'MassUnits',Args.MassUnits,...
+                                             'Dl',Args.Dl, 'Ds',Ds, 'DistUnits',Args.DistUnits,...
+                                             'Beta',0, 'BetaUnits','rad','OutUnits','rad');
+            else
+                Mass_gr  = convert.mass(Args.MassUnits,'gr',Args.Mass);
+                DistConv = convert.length(Args.DistUnits,'cm');
+                Dls_cm   = Args.Dls.*DistConv;
+                Dl_cm    = Args.Dl.*DistConv;
+                Ds_cm    = Dls_cm + Dl_cm;
+                
+                Res.ER = sqrt(4.*constant.G.*Mass_gr.*Dls_cm./(constant.c.^2 .*Dl_cm.*Ds_cm));
+            end
             Rstar = AngSrcRad./Res.ER;
             Rlens = AngLensRad./Res.ER;
 
-            if Res.ER<AngLensRad
-                error('The calculation is in the ER<LensRad regime - not correct');
-                % add treatment for both images seperatly...
+            Beta = ImpactPar(:).'.*Rstar;
+            Nbeta = numel(Beta);
+            
+            CosFun = @(R,u,b) real(acos((-R.^2 +u.^2+b.^2)./(2.*u.*b)));
+            TotMu  = zeros(1,Nbeta);
+                        
+            
+                            
+            Nblock = ceil(Args.Nsim./Args.NsimBlock);
+            
+            for Ib=1:1:Nbeta        
+                Mag = zeros(Nblock,1);
+                
+                for Iblock=1:1:Nblock
+                    [X,Y, R] = tools.rand.randInCirc(Rstar, Args.NsimBlock, 1);
+                    % apply limb darkening (using R)
+                    % ...
+                    
+                    [Imu] = astro.stars.limbDarkening(Args.LimbDarkCoef, R./Rstar, 'MuUnits','r', 'Fun','4par');
+                    
+                    
+                    
+                    U2 = (X - Beta(Ib)).^2 + (Y).^2;
+                    U  = sqrt(U2);
 
+                    U0     = sqrt(U2 + 4);
+                    Theta1 = 0.5.*(U + U0);
+                    Theta2 = 0.5.*(U - U0);
+                    MagBase = (U2 + 2)./(2.*U.*U0);
+                    Mag1   = MagBase + 0.5;
+                    Mag2   = MagBase - 0.5;
+                    % Flags for images that are occulted by the lens
+                    FlagT1 = double(abs(Theta1)>Rlens);
+                    FlagT2 = double(abs(Theta2)>Rlens);
+                    % note that FlagT may be shorter than NsimBlock
+                    % (because of occultations) and hence the need to
+                    % divide by NsimBlock
+                    Mag(Iblock)    = sum(Imu.*(Mag1.*FlagT1 + Mag2.*FlagT2))./sum(Imu); %./Args.NsimBlock;
+                end
+                TotMu(Ib) = mean(Mag);     
             end
+    
+            
+        case '2dgpu'
+            
+      
+        case '1dold'
+            % Convert to ER units
+            if nargout>1
+                Res = astro.microlensing.ps_lens('Mass',Args.Mass, 'MassUnits',Args.MassUnits,...
+                                             'Dl',Args.Dl, 'Ds',Ds, 'DistUnits',Args.DistUnits,...
+                                             'Beta',0, 'BetaUnits','rad','OutUnits','rad');
+            else
+                Mass_gr  = convert.mass(Args.MassUnits,'gr',Args.Mass);
+                DistConv = convert.length(Args.DistUnits,'cm');
+                Dls_cm   = Args.Dls.*DistConv;
+                Dl_cm    = Args.Dl.*DistConv;
+                Ds_cm    = Dls_cm + Dl_cm;
+                
+                Res.ER = sqrt(4.*constant.G.*Mass_gr.*Dls_cm./(constant.c.^2 .*Dl_cm.*Ds_cm));
+            end
+            Rstar = AngSrcRad./Res.ER;
+            Rlens = AngLensRad./Res.ER;
 
-            Beta = D(:).'.*Rstar;
+            Beta = ImpactPar(:).'.*Rstar;
             Nbeta = numel(Beta);
             
             CosFun = @(R,u,b) real(acos((-R.^2 +u.^2+b.^2)./(2.*u.*b)));
@@ -108,15 +261,15 @@ function [TotMu,Res]=self_microlensing(D, Args)
 
 
                 if Args.UseIndivMag
-                    U0     = sqrt(U.^2 + 4.*Res.ER.^2);
+                    U0     = sqrt(U.^2 + 4); %.*Res.ER.^2);
                     Theta1 = 0.5.*(U + U0);
                     Theta2 = 0.5.*(U - U0);
                     MagBase = (U.^2 + 2)./(2.*U.*sqrt(U.^2 + 4));
                     Mag1   = MagBase + 0.5;
                     Mag2   = MagBase - 0.5;
                     % Flags for images that are occulted by the lens
-                    FlagT1 = double(Theta1>Rlens);
-                    FlagT2 = double(Theta2>Rlens);
+                    FlagT1 = double(abs(Theta1)>Rlens);
+                    FlagT2 = double(abs(Theta2)>Rlens);
                     Mag    = Mag1.*FlagT1 + Mag2.*FlagT2;
                 else
                     Mag = (U.^2 + 2)./(U.*sqrt(U.^2 + 4));
@@ -129,9 +282,10 @@ function [TotMu,Res]=self_microlensing(D, Args)
             Res.AngLensRad = AngLensRad;
             % The Agol (2003) magnification in the limit of RE<<R*:
             Res.AgolMagnification = (pi.*Res.AngSrcRad.^2+2.*pi.*Res.ER.^2)./(pi.*Res.AngSrcRad.^2);
-
-
-        case '2d'
+            
+        case '2d_old'
+            % not good enough
+            
             if isempty(Args.Nstep)
                 % auto selection of Nstep
                 % such that the step size is like the lens size, so when we remove

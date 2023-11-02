@@ -96,7 +96,7 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
 
         for Isrc = 1:1:NumSrc
 
-            ContWidth(Isrc) = imUtil.psf.containment('PSF',JPSF(:,:,Isrc),'Level',0.5);
+            ContWidth(Isrc) = imUtil.psf.quantileRadius('PSF',JPSF(:,:,Isrc),'Level',0.5);
 
             [ widthX, widthY ] = ... 
                         imUtil.psf.pseudoFWHM('PSF',JPSF(:,:,Isrc),'Level',0.5);

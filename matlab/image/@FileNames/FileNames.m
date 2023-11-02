@@ -37,6 +37,7 @@ classdef FileNames < Component
         
         BasePath            = '/euler1/archive/LAST';
         BasePathIncludeProjName logical = true;
+        BasePathRef         = '/euler1/archive/LAST';
         SubDir              = '';
         TimeZone            = 2;
         
@@ -256,7 +257,7 @@ classdef FileNames < Component
             %            existing files that have this name (wild cards are
             %            allowed). In this case the file must exist.
             %            If a cell array, then the file name in each element of
-            %            the cell will be used as is. IN this case, the
+            %            the cell will be used as is. In this case, the
             %            file doesn't need to exist.
             %          * ...,key,val,...
             %            'FullPath' - Directory to populate FullPath, if true,
@@ -267,6 +268,21 @@ classdef FileNames < Component
             %                   print a warning in case the outpout FileNames
             %                   object contains no files.
             %                   Default is true.
+            %            'CheckExist' - A logical indicating if to check
+            %                   that all the files exist. Only operational when the
+            %                   input is a cell. If some files does not
+            %                   exist then the function will act according
+            %                   to the options in the 'DoNotExist'
+            %                   argument.
+            %                   Default is false.
+            %            'DoNotExist' - What to do in case a file doesn't
+            %                   exist: 'error'|'warnning'
+            %                   Default is 'error'.
+            %            'FullPathFtomFileName' - If the user provided file
+            %                   name contains a path and this argument is
+            %                   true, then the FullPath property will be
+            %                   populated with the user-provided path.
+            %                   Default is false.
             % Output : - A FileNames object containing the file names.
             %          If you will use this with the char array option when
             %          the file doesn't exist, then the returned structure
@@ -278,16 +294,31 @@ classdef FileNames < Component
             
             arguments
                 List
-                Args.FullPath                 = true;
-                Args.WarningIfEmpty logical   = true;
+                Args.FullPath                     = true;
+                Args.WarningIfEmpty logical       = true;
+                Args.CheckExist logical           = false;
+                Args.DoNotExist                   = 'error';
+                Args.FullPathFtomFileName logical = false;
             end
-            
-            
-            
+                        
             if ischar(List)
                 List = io.files.filelist(List, 'AddPath',false);
             elseif iscell(List)
                 List = List;
+                if Args.CheckExist
+                    if ~all(isfile(List))
+                       switch lower(Args.DoNotExist)
+                           case 'error'
+                               Ierr = find(~isfile(List), 1);
+                               error('File name: %s does not exist',List{Ierr});
+                           case 'warnning'
+                               Ierr = find(~isfile(List), 1);
+                               warnning('File name: %s does not exist',List{Ierr});
+                           otherwise
+                               error('Unknown option for DoNotExist argument');
+                       end
+                    end
+                end
             else
                 error('List must be either a char array or cell array');
             end
@@ -309,9 +340,13 @@ classdef FileNames < Component
                 SplitName = regexp(List{Ilist},'_','split');
                 % make sure the first splitted term doesn't contain the
                 % path
-                [SplitNameCell] = split(SplitName{1}, filesep);
-                
-                Obj.ProjName{Ilist} = SplitNameCell{end};
+                %[SplitNameCell] = split(SplitName{1}, filesep);
+                [UserPath, Tmp1,Tmp2] = fileparts(SplitName{1});
+                SplitName{1} = sprintf('%s%s',Tmp1,Tmp2);
+                if Args.FullPathFtomFileName && ~isempty(UserPath)
+                    Obj.FullPath = UserPath;
+                end
+                Obj.ProjName{Ilist} = SplitName{1}; %Cell{end};
                 Obj.Time{Ilist}     = SplitName{2};
                 Obj.Filter{Ilist}   = SplitName{3};
                 Obj.FieldID{Ilist}  = SplitName{4};
@@ -905,7 +940,10 @@ classdef FileNames < Component
             %                   BasePath property. If empty, use object default.
             %                   Default is [].
             %            'FullPath' - A full path to insert into the object
-            %                   FullPath property. If empty, use object default.
+            %                   FullPath property.
+            %                   If FullPath is not empty then it will
+            %                   replace the automatic path construction.
+            %                   If empty, use object default.
             %                   Default is [].
             %            'Product' - See genFile.
             %            'Level' - Level to add to file and path.
