@@ -732,13 +732,17 @@ classdef INPOP < Base
             %                   Default is [1 3 2] (i.e., [3 coo, Body, Time]
             % Output : - An array of objects position (see Permute argument
             %            for dimensions).
+            %            Reference coordinate system is equatorial J2000 if
+            %            IsEclipticOut=false, and ecliptic if
+            %            IsEclipticOut=true.
             %          - An array of objects velocity (see Permute argument
             %            for dimensions).
+            %            Uints are given by OutUnits per day.
             % Author : Eran Ofek (Oct 2023)
             % Example: I=celestial.INPOP;
             %          I.populateTables('all');
             %          I.populateTables('all','FileData','vel');
-            %          I.getAll(2451545+(0:1));
+            %          [Pos,Vel]=I.getAll(2451545+(0:1));
 
             arguments
                 Obj
@@ -776,6 +780,92 @@ classdef INPOP < Base
             if ~isempty(Args.Permute)
                 Pos = permute(Pos, Args.Permute);
                 Vel = permute(Vel, Args.Permute);
+            end
+            
+        end
+        
+        function [Force,DFDT]=forceAll(Obj, JD, TargetXYZ, Args)
+            % Calculate the Sun+Planets+Moon force on a Solar System object.
+            % Input  : - A populated INPOP object (both Pos and Vel should
+            %            be populated).
+            %          - A vector of JD.
+            %          - A 3XN matrix with the targets (target per colum)
+            %            XYZ coordinate.
+            %          * ...,key,val,...
+            %            'TimeScale' - The JD time scale. Default is 'TDB'.
+            %            'OutUnits'  - 'km','cm','au',... for velocity this
+            %                   is always, the same per day.
+            %                   Default is 'au'.
+            %                   Note that the value of he AU is taken from
+            %                   the Constant.AU property.
+            %            'IsEclipticOut' - A logical indicating if output
+            %                   is in ecliptic coordinates (if false then output
+            %                   is in equatorial J2000). Default is false.
+            %            'Exclude' - A cell array of INPOP objects to
+            %                   exclude. For excluded objects the output
+            %                   will be set to NaN.
+            %                   Default is {}.
+            % Output : - The force that acts on the list of targets at the
+            %            give times.
+            %          - The force derivative (per day).
+            % Author : Eran Ofek (Nov 2023)
+            % Example: I=celestial.INPOP;
+            %          I.populateTables('all');
+            %          I.populateTables('all','FileData','vel');
+            %          [Force]=I.forceAll(2451545,[2 2 2]');
+           
+            arguments
+                Obj
+                JD
+                TargetXYZ
+                Args.TimeScale             = 'TDB';
+                Args.OutUnits              = 'au';  % or AU/day
+                Args.IsEclipticOut logical = false;
+                Args.Exclude               = {};
+                
+            end
+            Permute  = [1 3 2];
+            SEC_DAY  = 86400;
+            Msun   = 1.98847e33;  % [gram]
+            G        = (constant.G./(constant.au).^3 .*SEC_DAY.^2 .* Msun);  % [G: au^3 SunM^-1 day^-2]
+            
+            Bodies = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
+            %                Mercury      Venus       Earth       Moon           Mars         Jupiter      Sat         Ura         Nep         Plu        
+            Mass   = [Msun,  0.330103e27, 4.86731e27, 5.97217e27, 7.34767309e25, 0.641691e27, 1898.125e27, 568.317e27, 86.8099e27, 102.4092e27 0.01303e27];  % [gr]
+            Mass   = Mass./Msun;   % [Msun]
+            GM     = G .* Mass;
+            
+            % get position for all planets
+            
+            if nargout>1
+                [Pos, Vel] = getAll(Obj, JD, 'TimeScale',Args.TimeScale,...
+                                         'OutUnits',Args.OutUnits,...
+                                         'IsEclipticOut',Args.IsEclipticOut,...
+                                         'Exclude',Args.Exclude,...
+                                         'Permute',Permute);
+            else
+                [Pos]      = getAll(Obj, JD, 'TimeScale',Args.TimeScale,...
+                                         'OutUnits',Args.OutUnits,...
+                                         'IsEclipticOut',Args.IsEclipticOut,...
+                                         'Exclude',Args.Exclude,...
+                                         'Permute',Permute);
+            end
+            % Calculate the force on Target at position TargetXYZ
+            
+            Njd   = size(TargetXYZ,2); % to support 1 date for multiple targets
+    
+            % transform planets coordinates to target reference frame
+            PosRelToTarget = Pos - reshape(TargetXYZ, [3, 1, Njd]);
+
+            % Distances
+            DistToTarget = sqrt(sum(PosRelToTarget.^2,1));
+
+            % calc force and sum over planets
+            Force = squeeze(sum(GM .* PosRelToTarget./(DistToTarget.^3), 2, 'omitnan'));
+            
+            if nargout>1
+                % calc force time derivative
+                error('Not yet available - need also TargetV');
             end
             
         end
