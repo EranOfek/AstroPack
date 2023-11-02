@@ -1,6 +1,5 @@
 function Result = iswindows
-
-Result = ~isunix && ~ismac;
-
+    % Return true if current operating system is Windows    
+    Result = ispc;
 end
 

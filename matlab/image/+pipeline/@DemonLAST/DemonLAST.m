@@ -1823,17 +1823,14 @@ classdef DemonLAST < Component
                             % Insert raw images
                             
                             % 
-                            if Args.Insert2DB
-                                
+                            if Args.Insert2DB                                
                                 try
                                     
-                                if isempty(ADB)
-                                    % connect to DB
+                                if isempty(ADB) % connect to DB                                    
                                     ADB = db.AstroDb(Args.AstroDBArgs{:});
                                 end
                                 
-                                if ~Args.DB_ImageBulk
-                                
+                                if ~Args.DB_ImageBulk                                
                                     % insert raw images into the DB:
                                     RawFileName = RawImageListFinal; % regexprep(RawImageList,'.*/','');
                                     [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawFileName);
@@ -1868,9 +1865,7 @@ classdef DemonLAST < Component
                                     Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
                                     Obj.writeLog(Msg, LogLevel.Info);
                                     
-                                else
-                                    % prepare CSV files for further injection into the DB
-                                    
+                                else % prepare CSV files for further injection into the DB                                                                        
                                     FN_I_DB = FN_I.copy;
                                     FN_I_DB = FN_I_DB.updateIfNotEmpty('FileType',{'csv'});
                                     RawFileName = FN_I_DB.genFull{1};
@@ -1891,8 +1886,7 @@ classdef DemonLAST < Component
                                     AH = [Coadd.HeaderData];
                                     AH.writeCSV(CoaddFileName,'CleanHeaderValues',1);
                                     
-                                    OK = 1;
-                                
+                                    OK = 1;                                
                                 end
                                 
                                 % insert PROC and COADD catalogs into the DB 
@@ -1908,30 +1902,21 @@ classdef DemonLAST < Component
                                 CoaddCatFileName  = CoaddCatFileName{1};  
                                 CoaddCat = [Coadd.CatData];
                                 
-                                if Args.DB_CatalogBulk 
-                                    
-                                     % write PROC and COADD catalog data to local csv files 
-                                     % to be injected into the DB later on outside this pipeline
-
+                                if Args.DB_CatalogBulk
+                                    % write PROC and COADD catalog data to local csv files
+                                    % to be injected into the DB later on outside this pipeline
                                     StKey = AllSI(1).getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
                                     ProcCat.writeLargeCSV(ProcCatFileName,...
                                         'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
                                         'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUMB, StKey.JD, StKey.EXPTIME] );
-                                    
                                     StKey = Coadd(1).getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
                                     CoaddCat.writeLargeCSV(CoaddCatFileName,...
                                         'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
                                         'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUMB, StKey.JD, StKey.EXPTIME] );
-                                    
-                                    Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB'); 
-                                
-                                else
-                                    
-                                    % insert PROC and COADD catalog data into the appropriate DB tables
-                                    
+                                    Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB');
+                                else % insert PROC and COADD catalog data into the appropriate DB tables
                                     ADB.insert(ProcCat,  'Table',Args.DB_Table_ProcCat,  'FileNames', ' ', 'Type','cat');
                                     ADB.insert(CoaddCat, 'Table',Args.DB_Table_CoaddCat, 'FileNames', ' ', 'Type','cat');
-                                    
                                 end
                                 
                                 Msg{1} = sprintf('Insert catalog objects to LAST catalog tables - success: %d', OK);
@@ -1942,7 +1927,6 @@ classdef DemonLAST < Component
                                     Obj.writeLog(DBErrorMsg, LogLevel.Error);
                                     Obj.writeLog(DBMsg, LogLevel.Error);
                                 end
-
                             end
 
                             RunTime = etime(clock, Tstart); % toc;
