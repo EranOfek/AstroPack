@@ -890,27 +890,11 @@ classdef OrbitalEl < Base
             % Author : Eran Ofek (Sep 2021)
             % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem([],9804);
             %          JD = celestial.time.julday([9 9 2021])
-            %          Cat = ephem(OrbEl, JD +(1:1:100)')
+            %          Cat = ephemKepler(OrbEl, JD +(1:1:100)')
             %
             %          OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
             %          Cat = ephem(OrbEl, JD);
-            %          tic;CatE = ephemKepler(OrbEl, JD, 'GeoPos',[],'MaxIterLT',0,'IncludeMag',false);toc
-            %
-            %     compare to JPL
-            %          JD = celestial.time.julday([19 9 2021])+(0:1./24:1)';
-            %          Coo=[-116.865./RAD 33.3563./RAD 2000]
-            %          OrbEl1 = celestial.OrbitalEl.loadSolarSystem([],9804);
-            %          CatE = ephem(OrbEl1, JD, 'GeoPos',Coo, 'OutUnitsDeg',false)
-            %          [CatJPL]=celestial.SolarSys.jpl_horizons('ObjectInd','9804','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','675')
-            %          % RA nd Dec diff between JPL and ephem:
-            %          [CatE.Catalog.RA - CatJPL.Catalog(:,2), CatE.Catalog.Dec - CatJPL.Catalog(:,3)].*RAD.*3600
-            %     hyperbolic orbit
-            %          OrbEl = celestial.OrbitalEl.loadSolarSystem('unnum','A/2017 U1');
-            %          JD = celestial.time.julday([1 1 2018 0]);
-            %          Cat = ephem(OrbEl, JD+(0:1./24:1), 'OutUnitsDeg',false);
-            %          [CatJPL]=celestial.SolarSys.jpl_horizons('ObjectInd','A/2017 U1','StartJD',JD,'StopJD',JD+1,'StepSizeUnits','h','CENTER','399')
-            %          [Cat.Catalog(:,2) - CatJPL.Catalog(:,2), Cat.Catalog(:,3) - CatJPL.Catalog(:,3)].*RAD.*3600
-
+            %          tic;CatE = ephemKepler(OrbEl, JD, 'GeoPos',[],'MaxIterLT',0,'IncludeMag',false);toc           
             
             arguments
                 Obj(1,1)
@@ -998,33 +982,18 @@ classdef OrbitalEl < Base
                 end
                 R     = sqrt(sum(U_B.^2, 1));
 
-                % ignore light deflection
-                if Args.Aberration
-                    U2 = celestial.SolarSys.aberrationSolarSystem(U, E_dotH, Delta);
-                else
-                    U2 = U;
-                end
-
-                % Rotate from Ecliptic to Equatorial reference frame
-                RotMat = celestial.coo.rotm_coo('E');
-                Equatorial_U2 = RotMat * U2;
-                
-                RA  = atan2(Equatorial_U2(2,:), Equatorial_U2(1,:));
-                Dec = atan(Equatorial_U2(3,:)./sqrt( Equatorial_U2(1,:).^2 + Equatorial_U2(2,:).^2  ));
-                
-                RA = mod(RA, 2.*pi);
-                
-                if Args.OutUnitsDeg
-                    RA  = RA.*RAD;
-                    Dec = Dec.*RAD;
-                end
+                % J2000 RA/Dec Coordinates from celiptic cartesian
+                [RA, Dec] = celestial.SolarSys.cart2eqAng(U, 'Delta',Delta,...
+                                                             'InputSys','ec',...
+                                                             'Aberration',Args.Aberration,...
+                                                             'E_dotH',E_dotH,...
+                                                             'OutUnitsDeg',Args.OutUnitsDeg);
+                                                                                
                 
                 % calculate angles
-                Rsun = sqrt(sum(E_H.^2, 1));  % Sun-Earth distance
-                % Target-Observer-Sun
-                Ang_SOT = acosd((Rsun.^2 + Delta.^2 - R.^2)./(2.*Rsun.*Delta));  % [deg]
-                % Observer-Target-Sun
-                Ang_STO = acosd((R.^2 + Delta.^2 - Rsun.^2)./(2.*R.*Delta));   % [deg]
+                R_Obs = sqrt(sum(E_H.^2, 1));  % Sun-Earth distance
+                [Ang_SOT, Ang_STO] = celestial.SolarSys.anglesFromDistances(R_Obs, R, Delta, 'deg');
+                
                 
                 if Args.IncludeMag
                     Mag = magnitude(Obj, R(:), Delta(:), Ang_STO(:), 'PhaseUnits','deg');
@@ -1070,6 +1039,22 @@ classdef OrbitalEl < Base
             % topocentric 05 39 59.53 +11 02 51.9
             
         end
+        
+        function Result = ephemIntegration(Obj, Time, Args)
+            %
+            % Example:
+            
+            arguments
+                Obj
+                Time
+                Args
+            end
+            
+            
+            
+            
+        end
+        
         
         function Result = ephem(Obj, Time, Args)
             % Calculate ephemerides for OrbitalEl object.
