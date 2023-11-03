@@ -5,6 +5,13 @@ function [E_H, E_dotH, IN]=earthObserverPos(Time, Args)
     %            'CooSys' - Coordinate system:
     %                   'h' - Heliocentric.
     %                   'b' - Barycentric (default).
+    %            'RefFrame' - Reference frame.
+    %                   'ec' - J2000.0 ecliptic (default).
+    %                   'eq' - J2000.0 equatorial.
+    %            'SunLightTime' - Sun light time correction [day].
+    %                   The Sun position (for heliocentric CooSys) is
+    %                   evaluate at Time-SunLightTime.
+    %                   Default is 0.
     %            'GeoPos' - Geodetic position. If [], then assume geocentric position
     %                   and return zeros. Otherwise should be [Long, Lat, Height]
     %                   in [rad, rad, m]. Default is [].
@@ -30,6 +37,8 @@ function [E_H, E_dotH, IN]=earthObserverPos(Time, Args)
     arguments
         Time
         Args.CooSys          = 'b';  % 'H'|'B'
+        Args.RefFrame        = 'ec';   % 'ec'|'eq'
+        Args.SunLightTime    = 0;
         Args.GeoPos          = [];
         Args.EarthEphem      = 'inpop'
         Args.INPOP           = [];
@@ -39,16 +48,27 @@ function [E_H, E_dotH, IN]=earthObserverPos(Time, Args)
         
     end
    
+    switch lower(Args.RefFrame)
+        case 'ec'
+            Frame_VSOP = 'd';
+            Frame_Ec   = true;
+        case 'eq'
+            Frame_VSOP = 'E';
+            Frame_Ec   = false;
+        otherwise
+            error('Unknown RefFrame option');
+    end
+    
     IN = [];
     switch lower(Args.EarthEphem)
-        case 'vsop87'
+        case 'vsop87'            
             switch lower(Args.CooSys)
                 case 'h'
                     % Heliocentric
-                    [E_H,E_dotH] = celestial.SolarSys.calc_vsop87(Time, 'Earth', 'a', 'd');
+                    [E_H,E_dotH] = celestial.SolarSys.calc_vsop87(Time, 'Earth', 'a', Frame_VSOP);
                 case 'b'
                     % Barycentric
-                    [E_H,E_dotH] = celestial.SolarSys.calc_vsop87(Time, 'Earth', 'e', 'd');
+                    [E_H,E_dotH] = celestial.SolarSys.calc_vsop87(Time, 'Earth', 'e', Frame_VSOP);
             end
         case 'inpop'
             if isempty(Args.INPOP)
@@ -61,14 +81,14 @@ function [E_H, E_dotH, IN]=earthObserverPos(Time, Args)
             switch lower(Args.CooSys)
                 case 'h'
                     % Heliocentric
-                    E_H    = IN.getPos('Ear',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits) - ...
-                             IN.getPos('Sun',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
-                    E_dotH = IN.getVel('Ear',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits) - ...
+                    E_H    = IN.getPos('Ear',Time, 'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits) - ...
+                             IN.getPos('Sun',Time, 'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
+                    E_dotH = IN.getVel('Ear',Time, 'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits) - ...
                              IN.getVel('Sun',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
                 case 'b'
                     % Barycentric
-                    E_H    = IN.getPos('Ear',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
-                    E_dotH = IN.getVel('Ear',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
+                    E_H    = IN.getPos('Ear',Time, 'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
+                    E_dotH = IN.getVel('Ear',Time, 'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
             end
             % convert to eclipic coordinates
 
@@ -79,7 +99,7 @@ function [E_H, E_dotH, IN]=earthObserverPos(Time, Args)
     if ~isempty(Args.GeoPos)
         [Gau, Gdot] = celestial.coo.topocentricVector(Time(It), Args.GeoPos, 'OutUnits','au',...
                                                              'RefEllipsoid',Args.RefEllipsoid,...
-                                                             'Convert2ecliptic',true,...
+                                                             'Convert2ecliptic',Frame_Ec,...
                                                              'Equinox','J2000');
 
         E_H    = E_H + Gau;
