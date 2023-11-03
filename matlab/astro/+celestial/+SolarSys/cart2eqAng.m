@@ -41,7 +41,7 @@ function [RA, Dec, Delta] = cart2eqAng(U, Args)
     
     % ignore light deflection
     if Args.Aberration
-        U2 = celestial.SolarSys.aberrationSolarSystem(U, E_dotH, Delta);
+        U2 = celestial.SolarSys.aberrationSolarSystem(U, Args.E_dotH, Delta);
     else
         U2 = U;
     end

@@ -1,6 +1,6 @@
-function orbitIntegrationLightTime1(Time, OrbEl, Args)
+function [U, Delta, R, E_H, E_dotH, INPOP]=orbitIntegrationLightTime1(Time, OrbEl, Args)
     %
-    % Example: celestial.SolarSys.orbitIntegrationLightTime1(2451545,OrbEl)
+    % Example: [U_B, V_B, Delta, R, E_H, E_dotH, INPOP]=celestial.SolarSys.orbitIntegrationLightTime1(2451545,OrbEl)
     
     arguments
         Time
@@ -38,7 +38,7 @@ function orbitIntegrationLightTime1(Time, OrbEl, Args)
         error('OrbEl option currently must be of type celestial.OrbitalEl');
     end
    
-    X_B = X0;
+    U_B = X0;
     V_B = V0;
     
     
@@ -70,14 +70,13 @@ function orbitIntegrationLightTime1(Time, OrbEl, Args)
         end
         
         
+        
         % Integrate position to Time(It)
-        [X_B, V_B] = celestial.SolarSys.orbitIntegration([StartEpoch, Time(It)],...
-                                                             X_B,...
+        [U_B, V_B] = celestial.SolarSys.orbitIntegration([StartEpoch, Time(It)],...
+                                                             U_B,...
                                                              V_B,...
                                                              'RelTol',Args.TolInt,...
                                                              'AbsTol',Args.TolInt);
-        %
-        U_B = X_B;
         % Topocentric coordinates
         U = U_B - E_H;  % U_B(t-tau)
         % Q = U_B - S_B; % U_B(t-tau) - S_B(t-tau)
@@ -87,23 +86,22 @@ function orbitIntegrationLightTime1(Time, OrbEl, Args)
             
         % Light Time correction - single iteration only
         LightTime = Delta./Caud;
-        
-        [X_B, V_B] = celestial.SolarSys.orbitIntegration([Time(It), Time(It)-LightTime],...
-                                                         X_B,...
-                                                         V_B,...
-                                                         'RelTol',Args.TolInt,...
-                                                         'AbsTol',Args.TolInt);
+
+        [U_B, V_B] = celestial.SolarSys.orbitIntegration([Time(It), Time(It)-LightTime],...
+                                                     U_B,...
+                                                     V_B,...
+                                                     'RelTol',Args.TolInt,...
+                                                     'AbsTol',Args.TolInt);
+
         %
-        
+        U = U_B - E_H;  % U_B(t-tau)
+        Delta = sqrt(sum(U.^2, 1));
         
         % Barycentric distance
         R     = sqrt(sum(U_B.^2, 1));
         
-        
-        
-        
     end
-                
+    INPOP = Args.INPOP;       
                                                              
                                                              
 end

@@ -2,6 +2,9 @@ function [E_H, E_dotH, IN]=earthObserverPos(Time, Args)
     % Earth/topocentric ecliptic position relative to the Solar System barycenter
     % Input  : - Vector of JD.
     %          * ...,key,val,...
+    %            'CooSys' - Coordinate system:
+    %                   'h' - Heliocentric.
+    %                   'b' - Barycentric (default).
     %            'GeoPos' - Geodetic position. If [], then assume geocentric position
     %                   and return zeros. Otherwise should be [Long, Lat, Height]
     %                   in [rad, rad, m]. Default is [].
@@ -26,6 +29,7 @@ function [E_H, E_dotH, IN]=earthObserverPos(Time, Args)
     
     arguments
         Time
+        Args.CooSys          = 'b';  % 'H'|'B'
         Args.GeoPos          = [];
         Args.EarthEphem      = 'inpop'
         Args.INPOP           = [];
@@ -38,7 +42,14 @@ function [E_H, E_dotH, IN]=earthObserverPos(Time, Args)
     IN = [];
     switch lower(Args.EarthEphem)
         case 'vsop87'
-            [E_H,E_dotH] = celestial.SolarSys.calc_vsop87(Time, 'Earth', 'a', 'd');
+            switch lower(Args.CooSys)
+                case 'h'
+                    % Heliocentric
+                    [E_H,E_dotH] = celestial.SolarSys.calc_vsop87(Time, 'Earth', 'a', 'd');
+                case 'b'
+                    % Barycentric
+                    [E_H,E_dotH] = celestial.SolarSys.calc_vsop87(Time, 'Earth', 'e', 'd');
+            end
         case 'inpop'
             if isempty(Args.INPOP)
                 IN = celestial.INPOP;  % need to make it singelton
@@ -47,11 +58,18 @@ function [E_H, E_dotH, IN]=earthObserverPos(Time, Args)
             else
                 IN = Args.INPOP;
             end
-            E_H    = IN.getPos('Ear',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits) - ...
-                     IN.getPos('Sun',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
-            E_dotH = IN.getVel('Ear',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits) - ...
-                     IN.getVel('Sun',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
-
+            switch lower(Args.CooSys)
+                case 'h'
+                    % Heliocentric
+                    E_H    = IN.getPos('Ear',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits) - ...
+                             IN.getPos('Sun',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
+                    E_dotH = IN.getVel('Ear',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits) - ...
+                             IN.getVel('Sun',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
+                case 'b'
+                    % Barycentric
+                    E_H    = IN.getPos('Ear',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
+                    E_dotH = IN.getVel('Ear',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
+            end
             % convert to eclipic coordinates
 
         otherwise
