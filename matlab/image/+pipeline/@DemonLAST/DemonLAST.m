@@ -997,6 +997,7 @@ classdef DemonLAST < Component
                 Args.RefPath      = [];
             end
             
+            Args.FieldID
             
             % FN is provided - overwrite other argumnets
             if ~isempty(Args.FN)
@@ -1018,15 +1019,17 @@ classdef DemonLAST < Component
                 Args.RefPath = Obj.RefPath;
             end
             
-            if ~isnumeric(str2double(Args.FieldID{1}))
+            
+            if ~isnumeric(str2double(Args.FieldID))
                 % FieldID is likely in RA+Dec str - convert to FieldID
                 % index
-                [FieldID, ~, ~] = pipeline.DemonLAST.searchFieldLAST(Obj.FieldList, Args.FieldID);
-            else
-                FieldID = str2double(Args.FieldID);
+                [Args.FieldID, ~, ~] = pipeline.DemonLAST.searchFieldLAST(Obj.FieldList, Args.FieldID);
+                
+            elseif ~isnumeric(Args.FieldID)
+                Args.FieldID = str2double(Args.FieldID);
             end
                                
-            Path = fullfile(Args.RefPath, string(FieldID), sprintf('%d',Args.Camera));
+            Path = fullfile(Args.RefPath, string(Args.FieldID), sprintf('%d',Args.Camera));
             
             if nargout>1
                 % construct FileName using a FileNames object
@@ -1035,13 +1038,15 @@ classdef DemonLAST < Component
                 RefFN = FileNames;
                 RefFN.ProjName = {'LAST.01*'};
                 RefFN.Time = {'*'};
-                RefFN.FieldID = {string(FieldID)};
+                RefFN.FieldID = {string(Args.FieldID)};
                 RefFN.Counter = 1;
                 RefFN.Level = 'coadd';
                 RefFN.FullPath = Path;
                 RefFN.CCDID = 1;
                 RefFN.CropID = Args.CropID;
                 
+                RefFN
+                RefFN.genFile
                 
                 % check whether reference image exists
                 AbsFile = fullfile(Path, RefFN.genFile);
