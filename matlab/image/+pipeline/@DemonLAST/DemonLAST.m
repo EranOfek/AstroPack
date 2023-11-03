@@ -974,8 +974,14 @@ classdef DemonLAST < Component
             % Output : - Path for the reference images.
             %          - File names of the refernce images.
             %          - An AstroImage object with all the ref images.
-            % Author : Eran Ofek (Oct 2023)
-            % Example: 
+            % Author : Eran Ofek & Nora (Oct 2023)
+            % Example:
+            %
+            % FN=FileNames.generateFromFileName({'LAST.01.01.01_20220826.182338.681_clear_297+41_20_001_021_sci_proc_Image_001.fits'});
+            % D=pipeline.DemonLAST;
+            % [Path,File,AI]=D.getRefImage('FN',FN)
+            % or
+            % [Path,File,AI]=D.getRefImage('Camera',1,'CropID',10,'FieldID',1220)
             
             arguments
                 
@@ -1012,12 +1018,12 @@ classdef DemonLAST < Component
                 Args.RefPath = Obj.RefPath;
             end
             
-            if ~isnumeric(Args.FieldID)
+            if ~isnumeric(str2double(Args.FieldID{1}))
                 % FieldID is likely in RA+Dec str - convert to FieldID
                 % index
                 [FieldID, ~, ~] = pipeline.DemonLAST.searchFieldLAST(Obj.FieldList, Args.FieldID);
             else
-                FieldID = Args.FieldID;
+                FieldID = str2double(Args.FieldID);
             end
                                
             Path = fullfile(Args.RefPath, string(FieldID), sprintf('%d',Args.Camera));
@@ -1042,9 +1048,12 @@ classdef DemonLAST < Component
                 RefName = dir(AbsFile);
                 
                 if isempty(RefName)
-                    error('No reference image found.')
+                    File = [];
+                    AI = [];
+                    fprintf('No reference image found.')
                 elseif length(RefName)>1
-                    error('Found several reference images.')
+                    fprintf('Found several reference images. Using the first one.')
+                    File.Refname.name{1};
                 else
                     % do nothing
                     File = RefName.name;
