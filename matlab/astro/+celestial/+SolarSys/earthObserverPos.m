@@ -81,10 +81,10 @@ function [E_H, E_dotH, IN]=earthObserverPos(Time, Args)
             switch lower(Args.CooSys)
                 case 'h'
                     % Heliocentric
-                    E_H    = IN.getPos('Ear',Time, 'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits) - ...
-                             IN.getPos('Sun',Time, 'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
-                    E_dotH = IN.getVel('Ear',Time, 'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits) - ...
-                             IN.getVel('Sun',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
+                    E_H    = IN.getPos('Ear',Time,                   'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits) - ...
+                             IN.getPos('Sun',Time-Args.SunLightTime, 'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
+                    E_dotH = IN.getVel('Ear',Time,                   'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits) - ...
+                             IN.getVel('Sun',Time-Args.SunLightTime, 'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
                 case 'b'
                     % Barycentric
                     E_H    = IN.getPos('Ear',Time, 'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
