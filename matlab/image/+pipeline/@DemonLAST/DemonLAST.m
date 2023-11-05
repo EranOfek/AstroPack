@@ -997,7 +997,6 @@ classdef DemonLAST < Component
                 Args.RefPath      = [];
             end
             
-            Args.FieldID
             
             % FN is provided - overwrite other argumnets
             if ~isempty(Args.FN)
@@ -1045,8 +1044,6 @@ classdef DemonLAST < Component
                 RefFN.CCDID = 1;
                 RefFN.CropID = Args.CropID;
                 
-                RefFN
-                RefFN.genFile
                 
                 % check whether reference image exists
                 AbsFile = fullfile(Path, RefFN.genFile);
@@ -1056,9 +1053,10 @@ classdef DemonLAST < Component
                     File = [];
                     AI = [];
                     fprintf('No reference image found.')
+                    return;
                 elseif length(RefName)>1
                     fprintf('Found several reference images. Using the first one.')
-                    File.Refname.name{1};
+                    File = RefName.name;
                 else
                     % do nothing
                     File = RefName.name;
