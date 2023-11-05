@@ -124,7 +124,7 @@ classdef DS9analysis < handle
             % Input  : - Self.
             %          - An AstroImage object, or a cell array of images,
             %            or a file name.
-            %            THe images will be loaded to frame 1..N according
+            %            The images will be loaded to frame 1..N according
             %            to their order.
             %          * ...,key,val,...
             %            'Frames' - A vector of frames into to load the
@@ -140,6 +140,8 @@ classdef DS9analysis < handle
             %                   accessed by names. Default is {}.
             %            'Disp' - A logical indicating if to display the
             %                   images. Default is true.
+            %            'Zoom' - zoom parameter for display.
+            %                   If empty, do nothing. Default is [].
             % Output : - An updated object.
             % Author : Eran Ofek (Jun 2023)
             % Example: D9.load([AIreg(2), AIreg(1), Scorr],'Names',{'N','R','Scorr'})
@@ -152,6 +154,7 @@ classdef DS9analysis < handle
                 Args.LikeLAST logical    = true;
                 Args.Names               = {};
                 Args.Disp logical        = true;
+                Args.Zoom                = [];
             end
 
             if isa(Image, 'AstroImage')
@@ -187,6 +190,9 @@ classdef DS9analysis < handle
             if Args.Disp
                 for Iim=1:1:Nim
                     ds9.disp(Obj.Images(Iim), Frames(Iim));
+                    if ~isempty(Args.Zoom)
+                        ds9.zoom(Args.Zoom);
+                    end
                 end
             end
 
@@ -278,6 +284,53 @@ classdef DS9analysis < handle
         % 
         % goto: next | prev | first | last | ind
         
+    end
+
+    methods % asteroids/moving sources
+        function blinkAstCrop(Obj, AstData, Args)
+            % Display AstCrop
+
+            arguments
+                Obj
+                AstData = [];
+                Args.Id          = 1;
+                Args.StampsStep  = [];
+                Args.AstFileTemp = '*merged_Asteroids*.mat';
+                Args.Zoom        = 8;
+            end
+
+            if isempty(AstData)
+                % attempt to load Asteroids MAT file
+                Files = dir(Args.AstFileTemp);
+                if numel(Files)>0
+                    AstData = io.files.load2(Files(1).name);
+                else
+                    error('No asteroid file found');
+                end
+            end
+
+            if ischar(AstData)
+                AstData = io.files.load2(Files(1).name);
+            end
+
+            Nast = numel(AstData.AstCrop);
+            if Args.Id>Nast
+                error('Requested Id=%d is > Number of asteroids in file is %d',Args.Id, Nast);
+            end
+
+            Nstamp = numel(AstData.AstCrop(Args.Id).Stamps);
+            if isempty(Args.StampsStep)
+                % show only first and last images
+                StampInd = [1 Nstamp];
+            else
+                StampInd = (1:Args.StampStep:Nstamp);
+            end
+            Obj.load(AstData.AstCrop(Args.Id).Stamps(StampInd), 'Zoom',Args.Zoom);
+            ds9.match_xy;
+
+
+        end
+
     end
     
     methods  % basic utilities

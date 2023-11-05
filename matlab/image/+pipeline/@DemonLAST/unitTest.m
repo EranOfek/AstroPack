@@ -17,7 +17,7 @@ function Result = unitTest(Args)
     D.setPath(BaseDir);
 %     D.RefPath = strcat(BaseDir,'/reference/');   % not needed?  
 
-    D.main('StopButton',false,'StopWhenDone',true,...
+    D.main('StopButton',false,'StopWhenDone',true,'HostName','last08w',...
            'Insert2DB',Args.Insert2DB,'AstroDBArgs',Args.AstroDBArgs);
     
     if Args.RestoreNew % copy the raw data back to new

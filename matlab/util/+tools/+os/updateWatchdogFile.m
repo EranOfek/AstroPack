@@ -50,6 +50,13 @@ function updateWatchdogFile(WatchdogFilename, WatchdogWriteInterval)
     persistent ProcessName;
     persistent CmdLine;
 
+   % Global variable for the default path
+    global WATCHDOG_PATH;
+    if isempty(WATCHDOG_PATH)
+        WATCHDOG_PATH = getDefaultPath();
+    end
+
+
     % Initialize the LastWriteTimes map during the first call
     if isempty(LastWriteTimes)
         LastWriteTimes = containers.Map('KeyType', 'char', 'ValueType', 'any');
@@ -58,8 +65,14 @@ function updateWatchdogFile(WatchdogFilename, WatchdogWriteInterval)
         CmdLine = tools.os.getCmdLine();
     end
 
+   % Check if the filename contains a directory path or not
+    if isempty(fileparts(WatchdogFilename))
+        % If not, use the global WATCHDOG_PATH
+        WatchdogFilename = fullfile(WATCHDOG_PATH, WatchdogFilename);
+    end
+
     CurrentTime = datetime('now', 'TimeZone', 'UTC');
-    
+        
     % Check if this specific file has a stored last write time
     if isKey(LastWriteTimes, WatchdogFilename)
         LastTime = LastWriteTimes(WatchdogFilename);
@@ -84,3 +97,41 @@ function updateWatchdogFile(WatchdogFilename, WatchdogWriteInterval)
         LastWriteTimes(WatchdogFilename) = CurrentTime;
     end
 end
+
+
+
+function defaultPath = getDefaultPath()
+% Determines the default path for the watchdog file based on environment variables and the operating system.
+%
+% The function first checks for the presence of the 'SOC_PATH' environment variable. If it's found, 
+% the default path is set to a 'watchdog' subdirectory within the 'temp' directory of 'SOC_PATH'.
+%
+% If 'SOC_PATH' is not found, the function checks the operating system:
+% - For Windows, it defaults to 'c:\temp\watchdog\'
+% - For UNIX-like systems, it defaults to '/tmp/watchdog/'
+%
+% After determining the default path, the function checks if the directory exists. If not, 
+% it creates the directory and any missing intermediate directories.
+%
+% Returns:
+%   defaultPath: The default path for the watchdog file.
+%
+% Example:
+%   path = getDefaultPath();  % Returns either the path from 'SOC_PATH', 'c:\temp\watchdog\', or '/tmp/watchdog/'
+
+    if ispc
+        defaultPath = 'c:\temp\watchdog\';
+    else
+        defaultPath = '/tmp/watchdog/';
+    end
+
+    socPath = getenv('SOC_PATH');
+    if ~isempty(socPath)
+        defaultPath = fullfile(socPath, 'temp', 'watchdog');
+    end
+
+    if ~exist(defaultPath, 'dir')
+        mkdir(defaultPath);
+    end
+end
+

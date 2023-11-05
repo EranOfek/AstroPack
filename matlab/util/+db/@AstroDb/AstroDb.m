@@ -520,7 +520,6 @@ classdef AstroDb < Component
             Result = Pk;
         end
         
-        
         function Result = addCatalog(Obj, TableName, AC, Args)
             % Insert source catalog records to src_catalog table
             % Input :  - LastDb object
@@ -567,7 +566,6 @@ classdef AstroDb < Component
             % Example: A = db.AstroDb;
             %          pk = A.insert(AI,'Table','raw_images');
             % Author : A. Krassilchtchikov (Jun 2023)
-            
             arguments
                 Obj
                 Data                                % input images (file names or AstroImages) or AstroHeaders
@@ -579,38 +577,33 @@ classdef AstroDb < Component
                 Args.Force logical= true;           % if the record is inserted despite the existing copy (checked by the hashsum)
                 Args.FileNames    = {};             % an optional cell array of file names (for the case the first argument is not a file list)
                 Args.Verbose logical = false;       % print filenames, whose headers are inserted 
-                
                                                     % bulk injection of LAST catalogs:
                 Args.BulkFN          = [];          % FileNames
                 Args.BulkCatType     = [];          % catalog type: 'proc' or 'coadd'                
                 Args.BulkAI          = [];          % one of the catalog-containing AI's (for keyword extraction) 
             end
-            
             % choose, which table to manipulate and check if it exists in the database
             if ~isempty(Args.Table)
                 Table = Args.Table;
             else
                 Table = Obj.Tname;
             end
-            
+            % 
             if ~ismember(Table, Obj.Tables)
                 ErrorMsg = sprintf('The requested table %s does not exist in the database',Table);     
                 Obj.msgLog(LogLevel.Error, ErrorMsg);
                 return
-            end
-            
+            end 
             if isempty(Data)
                 ErrorMsg = sprintf('db.AstroDb.insert: the input structure is empty, skipping..');     
                 Obj.msgLog(LogLevel.Error, ErrorMsg);
                 return
             end
-            
             % check basic input consistency:
             if ( isa(Data(1), 'AstroImage') ||  isa(Data(1), 'AstroHeader') ) && strcmp(Args.Type,'cat') ...
                || ( isa(Data(1), 'AstroCatalog') && strcmp(Args.Type,'img') )
                 error ('Actual data type does not match the Type parameter');
             end
-            
             % check if the input is a DataDir + filename template 
             % and if so, make a cell array of data files:
             if ~isempty(Args.DataDir)   
@@ -621,11 +614,9 @@ classdef AstroDb < Component
                     Data{IData} = fullfile(Files(IData).folder, Files(IData).name);
                 end
             end
-         
             % determine the number of input files, images or catalogs:
             NData = numel(Data);  
             TupleID  = zeros(NData,1);
-
             % check whether it is possible to get files for the hash sum
             if numel(Args.FileNames) ~= NData && ...
                     ( isa(Data(1), 'AstroImage') ||  isa(Data(1), 'AstroHeader') || isa(Data(1), 'AstroCatalog') )

@@ -1173,6 +1173,7 @@ classdef OrbitalEl < Base
                     E_H    = Args.ObserverEphem(It,1:3)';
                     E_dotH = Args.ObserverEphem(It,4:6)';
                 else
+                    % Eb(t)
                     [E_B, E_dotB, Args.INPOP]=celestial.SolarSys.earthObserverPos(Time(It),...
                                                                                 'CooSys','b',...
                                                                                 'RefFrame','ec',...
@@ -1184,6 +1185,7 @@ classdef OrbitalEl < Base
                                                                                 'OutUnits','au',...
                                                                                 'RefEllipsoid',Args.RefEllipsoid);                        
                 end
+                % Sb(t)
                 S_B = Args.INPOP.getVel('Sun',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits','au');
                 E_H = E_B - S_B;   % Earth Heliocentric
                 E_dotH = E_dotB;  % not correct
@@ -1202,9 +1204,10 @@ classdef OrbitalEl < Base
                     %S_B = Args.INPOP.getPos('Sun',Time(It)-LightTime);
                     %U_B = U_B + S_B;
                     
-                    S_Btau = Args.INPOP.getVel('Sun',Time-LightTime, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits','au');
-                    U_B = U_H + S_B;
-                    U   = U_B - E_B;
+                    % Sb(t-tau)
+                    %S_Btau = Args.INPOP.getVel('Sun',Time-LightTime, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits','au');
+                    %U_B = U_H + S_Btau;
+                    %U   = U_B - E_B;
                     %Q = U_B - S_Btau;
                     U   = U_H - E_H;
                     
@@ -1219,7 +1222,7 @@ classdef OrbitalEl < Base
                     % celestial.Kepler.LightTimeCorrection
 
                 end
-                R     = sqrt(sum(U_B.^2, 1));
+                R     = sqrt(sum(U_H.^2, 1));
 
                 % J2000 RA/Dec Coordinates from celiptic cartesian
                 [RA, Dec] = celestial.SolarSys.cart2eqAng(U, 'Delta',Delta,...
