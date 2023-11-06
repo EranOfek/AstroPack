@@ -137,7 +137,7 @@ classdef FileProcessor < Component
                         % This calls the derived function processFileImpl()
                         try
                             Obj.processFile(FileName);
-                        catch
+                        catch Ex
                             Obj.msgLog(LogLevel.Error, 'exception in processFile: %s', ProcessedFileName);
                         end
                                            
@@ -163,14 +163,14 @@ classdef FileProcessor < Component
                                     end
                                 end
                             end
-                        catch
+                        catch Ex
                             Obj.msgLog(LogLevel.Error, 'exception trying to move file: %s', ProcessedFileName);
                             try
                                 if isfile(FileName)
                                     Obj.msgLog(LogLevel.Debug, 'Deleting procesed input file: %s', FileName);                            
                                     delete(FileName);                                
                                 end
-                            catch
+                            catch Ex
                                 Obj.msgLog(LogLevel.Error, 'Failed to delete file: %s', FileName);                            
                             end
                         end
@@ -228,7 +228,7 @@ classdef FileProcessor < Component
                 else
                     Obj.processFileImpl(FileName)
                 end
-            catch
+            catch Ex
             end
         end
         

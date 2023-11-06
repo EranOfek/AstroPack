@@ -85,16 +85,26 @@ function updateWatchdogFile(WatchdogFilename, WatchdogWriteInterval)
 
     % Check if WatchdogWriteInterval has elapsed since the last write
     if ElapsedTime >= WatchdogWriteInterval
-        % Write the current time to the file
-        fid = fopen(WatchdogFilename, 'w');
-        fprintf(fid, '%s\n', datestr(CurrentTime, 'yyyy-mm-dd HH:MM:SS'));
-        fprintf(fid, '%d\n', Pid);
-        fprintf(fid, '%s\n', ProcessName);
-        fprintf(fid, '%s\n', CmdLine);
-        fclose(fid);
-        
-        % Update the last write time for this specific file
-        LastWriteTimes(WatchdogFilename) = CurrentTime;
+        try
+            % Write the current time to the file
+            TmpFilename = [WatchdogFilename, '.tmp'];        
+            fid = fopen(TmpFilename, 'w');
+            fprintf(fid, '%s\n', datestr(CurrentTime, 'yyyy-mm-dd HH:MM:SS'));
+            fprintf(fid, '%d\n', Pid);
+            fprintf(fid, '%s\n', ProcessName);
+            fprintf(fid, '%s\n', CmdLine);
+            fclose(fid);
+    
+            if exist(WatchdogFilename, 'file') == 2
+                delete(TmpFilename);
+            end
+            movefile(TmpFilename, WatchdogFilename);
+    
+            % Update the last write time for this specific file
+            LastWriteTimes(WatchdogFilename) = CurrentTime;
+        catch Ex
+            fprintf('updateWatchdogFile: %s - %s\n', WatchdogFilename, Ex.message);
+        end
     end
 end
 
