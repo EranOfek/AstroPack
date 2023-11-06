@@ -22,7 +22,7 @@ function [AllResult,PM] = pointingModel(Files, Args)
         Args.Ndec                         = 10; %15
         Args.MinAlt                       = 25; % [deg]
         Args.ObsCoo                       = [35 30];  % [deg]
-        Args.ConfigFile                   = '~/pointingModel.yml';
+        Args.ConfigFile                   = '/home/ocs/pointingModel.txt';
     end
     
     RAD = 180./pi;
@@ -122,13 +122,13 @@ function [AllResult,PM] = pointingModel(Files, Args)
         
     end
     
-    writetable(AllResult(1).Result,'~/Desktop/nora/data/pm_rawdata.csv','Delimiter',',') 
+    %writetable(AllResult(1).Result,'~/Desktop/nora/data/pm_rawdata.csv','Delimiter',',') 
     
     if Args.PrepPointingModel
-        [TileList,TileArea] = celestial.coo.tile_the_sky(Args.Nha, Args.Ndec);
+        [TileList,~] = celestial.coo.tile_the_sky(Args.Nha, Args.Ndec);
         HADec = TileList(:,1:2);
 
-        [Az, Alt] = celestial.coo.hadec2azalt(HADec(:,1), HADec(:,2), Args.ObsCoo(2)./RAD)
+        [Az, Alt] = celestial.coo.hadec2azalt(HADec(:,1), HADec(:,2), Args.ObsCoo(2)./RAD);
 
         % convert everything to degrees
         Az = Az*RAD;
@@ -176,6 +176,39 @@ function [AllResult,PM] = pointingModel(Files, Args)
             fprintf(FID,'     ]\n');
             fclose(FID);
         end
+        
+        
+        % plot pointing model
+        factor = 15; % increase shifts for visibility
+
+
+        f = figure('Position',[100,100,600,600]);
+        hold on
+
+        Npoints = length(Result.HA);
+        for i=1:1:Npoints
+    
+            plot([Result.HA(i),Result.HA(i)+Result.DiffHA(i)*factor], [Result.Dec(i), Result.Dec(i)+Result.DiffDec(i)*factor], '-b','linewidth',3)
+
+        end
+
+        plot(Result.HA, Result.Dec, 'xb','MarkerSize',8)
+
+
+        Npoints_inter = length(PM(:,1));
+        for i=1:1:Npoints_inter
+    
+            plot([PM(i,1), PM(i,1)+PM(i,3)*factor], [PM(i,2), PM(i,2)+PM(i,4)*factor], '-r')
+    
+        end
+
+
+        xlabel('HA (deg)')
+        ylabel('Dec (deg)')
+        title('Pointing Model (shifts increased by x15)')
+
+
+        exportgraphics(f,'~/log/pointing_model.png','Resolution',300)
     end
     
 end
