@@ -514,6 +514,8 @@ classdef INPOP < Base
             % Output : - A 3 by number of epochs matrix of [X; Y; Z]
             %            positions or velocities.
             %            Units are given by OutUnits, or OutUnits per day.
+            %            If 'IsEclipticOut' is false, then the output
+            %            reference frame is equatorial ICRS J2000.
             % Author : Eran Ofek (Apr 2022)
             % Example: I = celestial.INPOP;
             %          I.populateTables;

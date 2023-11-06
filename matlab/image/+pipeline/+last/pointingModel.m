@@ -22,7 +22,7 @@ function [AllResult,PM] = pointingModel(Files, Args)
         Args.Ndec                         = 10; %15
         Args.MinAlt                       = 25; % [deg]
         Args.ObsCoo                       = [35 30];  % [deg]
-        Args.ConfigFile                   = '';
+        Args.ConfigFile                   = '/home/ocs/pointingModel.txt';
     end
     
     RAD = 180./pi;
@@ -60,9 +60,12 @@ function [AllResult,PM] = pointingModel(Files, Args)
             List = List(end-Args.Nfiles+1:end);
         end
 
-        Nlist = numel(List);
+        fprintf('Number of images:')
+        Nlist = numel(List)
+        %List
         for Ilist=1:1:Nlist
             Ilist
+            List{Ilist}
             AI = AstroImage(List{Ilist});
             Keys = AI.getStructKey({'RA','DEC','HA','M_JRA','M_JDEC','M_JHA','JD','LST'});
             try
@@ -78,6 +81,14 @@ function [AllResult,PM] = pointingModel(Files, Args)
                 S.Rotation = NaN;
                 S.Ngood = 0;
                 S.AssymRMS = NaN;
+                
+                Keys.RA = NaN;
+                Keys.DEC = NaN;
+                Keys.HA = NaN;
+                Keys.M_JRA = NaN;
+                Keys.M_JDEC = NaN;
+                Keys.M_JHA = NaN;
+                
             end
             if Ilist==1
                 Head   = {'RA','Dec','HA','M_JRA','M_JDEC','M_JHA','JD','LST','CenterRA','CenterDec','Scale','Rotation','Ngood','AssymRMS'};
@@ -91,24 +102,30 @@ function [AllResult,PM] = pointingModel(Files, Args)
 
         Result = array2table(Table);
         Result.Properties.VariableNames = Head;
-
+        
+        mask = isnan(Result.RA);
+        Result = Result(~mask,:);
+        
         cd(PWD);
 
-        TableDiff = array2table([-(Result.RA-Result.CenterRA).*cosd(Result.CenterDec), -(Result.Dec-Result.CenterDec)]);
+        TableDiff = array2table([(Result.CenterRA-Result.RA).*cosd(Result.CenterDec), (Result.CenterDec-Result.Dec)]);
         TableDiff.Properties.VariableNames = {'DiffHA','DiffDec'};
 
         Result = [Result, TableDiff];
 
         AllResult(Idirs).Result = Result;
         
+        
         % generate scattered interpolanets
-        AllResult(Idirs).Fha  = scatteredInterpolant(Result.HA, Result.Dec, (Result.CenterRA-Result.RA).*cosd(Result.CenterDec),'linear','nearest');
-        AllResult(Idirs).Fdec = scatteredInterpolant(Result.HA, Result.Dec, (Result.CenterDec-Result.Dec),'linear','nearest');
+        AllResult(Idirs).Fha  = scatteredInterpolant(Result.HA, Result.Dec, Result.DiffHA,'linear','nearest');
+        AllResult(Idirs).Fdec = scatteredInterpolant(Result.HA, Result.Dec, Result.DiffDec,'linear','nearest');
         
     end
     
+    %writetable(AllResult(1).Result,'~/Desktop/nora/data/pm_rawdata.csv','Delimiter',',') 
+    
     if Args.PrepPointingModel
-        [TileList,TileArea] = celestial.coo.tile_the_sky(Args.Nha, Args.Ndec);
+        [TileList,~] = celestial.coo.tile_the_sky(Args.Nha, Args.Ndec);
         HADec = TileList(:,1:2);
 
         [Az, Alt] = celestial.coo.hadec2azalt(HADec(:,1), HADec(:,2), Args.ObsCoo(2)./RAD);
@@ -117,7 +134,7 @@ function [AllResult,PM] = pointingModel(Files, Args)
         Az = Az*RAD;
         Alt = Alt*RAD;
         HADec = HADec*RAD;
-        % convert to -pi to pi
+        % convert to -180 to 180
         F180 = HADec(:,1)>180;
         HADec(F180,1) = HADec(F180,1) - 360;
         
@@ -131,7 +148,7 @@ function [AllResult,PM] = pointingModel(Files, Args)
         for Idirs=1:1:Ndirs
                         
             ResidHA(:,Idirs)  = AllResult(Idirs).Fha(HADec(:,1),HADec(:,2));
-            ResidDec(:,Idirs) = AllResult(Idirs).Fha(HADec(:,1),HADec(:,2));
+            ResidDec(:,Idirs) = AllResult(Idirs).Fdec(HADec(:,1),HADec(:,2));
         end
         
         MeanResidHA  = mean(ResidHA,2,'omitnan');
@@ -159,6 +176,39 @@ function [AllResult,PM] = pointingModel(Files, Args)
             fprintf(FID,'     ]\n');
             fclose(FID);
         end
+        
+        
+        % plot pointing model
+        factor = 15; % increase shifts for visibility
+
+
+        f = figure('Position',[100,100,600,600]);
+        hold on
+
+        Npoints = length(Result.HA);
+        for i=1:1:Npoints
+    
+            plot([Result.HA(i),Result.HA(i)+Result.DiffHA(i)*factor], [Result.Dec(i), Result.Dec(i)+Result.DiffDec(i)*factor], '-b','linewidth',3)
+
+        end
+
+        plot(Result.HA, Result.Dec, 'xb','MarkerSize',8)
+
+
+        Npoints_inter = length(PM(:,1));
+        for i=1:1:Npoints_inter
+    
+            plot([PM(i,1), PM(i,1)+PM(i,3)*factor], [PM(i,2), PM(i,2)+PM(i,4)*factor], '-r')
+    
+        end
+
+
+        xlabel('HA (deg)')
+        ylabel('Dec (deg)')
+        title('Pointing Model (shifts increased by x15)')
+
+
+        exportgraphics(f,'~/log/pointing_model.png','Resolution',300)
     end
     
 end
