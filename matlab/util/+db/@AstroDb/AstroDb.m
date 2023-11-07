@@ -556,7 +556,7 @@ classdef AstroDb < Component
             %               d) a vector of AstroCatalogs
             %         * ...,key,val,...
             %         'Table'  : table name            
-            %         'Type'   : 'img' or 'cat'
+            %         'Type'   : 'img', 'cat', 'bulkima', 'bulkcat'
             %         'DataDir': if not empty, 'Data' should contain a filename template
             %                    e.g., 'LAST*sci*raw_Image*.fits'
             %         'Hash'   : insert a hash sum for each entry
@@ -570,7 +570,7 @@ classdef AstroDb < Component
                 Obj
                 Data                                % input images (file names or AstroImages) or AstroHeaders
                 Args.Table        = '';             % table name (by def. take from the Object property)
-                Args.Type         = 'img';          % data type: 'img', 'cat' or 'bulkcat'
+                Args.Type         = 'img';          % data type: 'img', 'cat', 'bulkima' or 'bulkcat'
                 Args.DataDir      = '';             % if not empty, 'Data' contains a filename template, 
                                                     % e.g., 'LAST*sci*raw_Image*.fits'
                 Args.Hash logical = true;           % employ hash sums to check if the record is new
@@ -624,8 +624,8 @@ classdef AstroDb < Component
             end
             
             switch lower(Args.Type)                
-                case 'bulkcat' % bulk writing to a CSV file for further injection % NB! this part is very LAST-specific!
-                    
+                case 'bulkcat' % bulk writing of PROC and COADD catalogs to a CSV file for further injection 
+                % NB! this case is very LAST-specific!                    
                     FN = Args.BulkFN.copy;
                     FN = FN.updateIfNotEmpty('Product','Cat', 'FileType',{'csv'});
                     if strcmpi(Args.BulkCatType,'proc')
@@ -641,6 +641,25 @@ classdef AstroDb < Component
                     Data.writeLargeCSV(CatFileName,...
                         'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
                         'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUMB, StKey.JD, StKey.EXPTIME] );
+                    
+                case 'bulkima' % bulk writing of RAW, PROC, and COADD image headers to a CSV file for further injection
+                % NB! this case is very LAST-specific!
+                    FN = Args.BulkFN.copy;
+                    FN = FN.updateIfNotEmpty('FileType',{'csv'});
+                    if strcmpi(Args.BulkCatType,'raw')
+                        HeaderFN = FN.genFull{1};
+                        Data.writeCSV(HeaderFN,'CleanHeaderValues',1);                        
+                    elseif strcmpi(Args.BulkCatType,'proc')
+                        HeaderFN = FN.genFull{1};
+                        AH = [Data.HeaderData];
+                        AH.writeCSV(HeaderFN,'CleanHeaderValues',1);
+                    elseif strcmpi(Args.BulkCatType,'coadd')
+                        HeaderFN = FN.genFull('LevelPath','proc'); HeaderFN = HeaderFN{1};
+                        AH = [Data.HeaderData];
+                        AH.writeCSV(HeaderFN,'CleanHeaderValues',1);
+                    else
+                        error('Incorrect image type in AstroDb.insert');
+                    end                    
                     
                 otherwise  % record-by-record injection into the DB
                     
@@ -721,10 +740,10 @@ classdef AstroDb < Component
                             io.msgLogEx(LogLevel.Error, ME, 'db.AstroDB exception at loop iteration %d', IData);                            
                         end                        
                     end                    
-                    Obj.msgLog(LogLevel.Info, 'Processed: %d entries', NData);            
+                    Obj.msgLog(LogLevel.Info, 'Processed: %d entries', NData);  
+                    Obj.msgLog(LogLevel.Info, 'Table %s successfully populated with %s metadata', Table, Args.Type');
             end
-
-            Obj.msgLog(LogLevel.Info, 'Table %s successfully populated with %s metadata', Table, Args.Type');
+            
             Result = 0;            
         end
         

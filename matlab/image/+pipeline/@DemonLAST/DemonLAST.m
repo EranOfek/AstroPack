@@ -1827,84 +1827,60 @@ classdef DemonLAST < Component
 
                             % Insert pipeline products to the DB
                             if Args.Insert2DB                                
-                                try
-                                    
+                                try                                    
+                                    Msg{1} = sprintf('pipline.DemonLAST started injecting data for group %d into the DB',Igroup);
+                                    Obj.writeLog(Msg, LogLevel.Info);
                                 if isempty(ADB) % connect to DB                                    
                                     ADB = db.AstroDb(Args.AstroDBArgs{:});
                                 end                                
                                 % RAW, PROC, and COADD images
                                 if ~Args.DB_ImageBulk                                
-                                    % insert raw images into the DB:
-%                                     RawFileName = RawImageListFinal; % regexprep(RawImageList,'.*/','');
                                     [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawImageListFinal);
-                                    Msg{1} = sprintf('Insert images to LAST raw images table - success: %d', OK);
+                                    Msg{1} = sprintf('Inserted images into LAST raw images table - success: %d', OK);
                                     Obj.writeLog(Msg, LogLevel.Info);
-
-                                    % insert proc images into the DB:
-    %                                 FN_Proc.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
+                                    %
                                     HasImage = ~AllSI.isemptyImage; % use only AI's with Image properties filled
                                     ProcFileName = FN_Proc.genFull;
-%                                     HasFile = cellfun(@(name) exist(name, 'file') == 2, ProcFileName);
-%                                     HasFile = reshape(HasFile,size(AllSI,1),size(AllSI,2));
-%                                     [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage.*HasFile), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage.*HasFile));
-                                    [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage),'Hash',0);  % w/o hash                                                                        
-                                    Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);                                    
-                                    Obj.writeLog(Msg, LogLevel.Info);
-                                    % there are ~N*24 ProcImages, and only N RawImages
-                                    ID_RawImage = repmat(ID_RawImage,1,24); ID_RawImage = ID_RawImage(:);
-                                    OK = ADB.updateByTupleID(ID_ProcImage, 'raw_image_id', ID_RawImage, 'Table',Args.DB_Table_Proc);
-
-                                    % insert coadd images into the DB:
-    %                                 FN_Coadd.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
-                                    HasImage = ~Coadd.isemptyImage; % use only AI's with Image properties filled
-                                    CoaddFileName = FN_Coadd.genFull('LevelPath','proc');
-%                                     HasFile = cellfun(@(name) exist(name, 'file') == 2, CoaddFileName);
-%                                     HasFile = reshape(HasFile,size(Coadd,1),size(Coadd,2));
-%                                     [ID_CoaddImage, OK] = ADB.insert(Coadd(HasImage.*HasFile), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImage.*HasFile));
-                                    [ID_CoaddImage, OK] = ADB.insert(Coadd(HasImage), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImage),'Hash',0); % w/o hash
+%                                     HasFile = cellfun(@(name) exist(name, 'file') == 2, ProcFileName); HasFile = reshape(HasFile,size(AllSI,1),size(AllSI,2));
+%                                     [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage.*HasFile), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage.*HasFile)); % w/hash;
+                                    [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage),'Hash',0);  % w/o hash                                                                                                                                                
+                                    ID_RawImage = repmat(ID_RawImage,1,24); ID_RawImage = ID_RawImage(:); % there are ~N*24 ProcImages, and only N RawImages
+                                    OKupd = ADB.updateByTupleID(ID_ProcImage, 'raw_image_id', ID_RawImage, 'Table',Args.DB_Table_Proc);
                                     Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
                                     Obj.writeLog(Msg, LogLevel.Info);
+                                    %
+                                    HasImage = ~Coadd.isemptyImage; % use only AI's with Image properties filled
+                                    CoaddFileName = FN_Coadd.genFull('LevelPath','proc');
+                                    [ID_CoaddImage, OK] = ADB.insert(Coadd(HasImage), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImage),'Hash',0); % w/o hash
+                                    Msg{1} = sprintf('Insert images to LAST coadd images table - success: %d', OK);
+                                    Obj.writeLog(Msg, LogLevel.Info);                                    
+                                else % prepare CSV files for further injection into the DB                                                                          
+                                    ADB.insert(RawHeader,'Type','bulkima', 'BulkFN',FN_I,    'BulkCatType','raw');
+                                    ADB.insert(AllSI,    'Type','bulkima', 'BulkFN',FN_Proc, 'BulkCatType','proc');       
+                                    ADB.insert(Coadd,    'Type','bulkima', 'BulkFN',FN_Coadd,'BulkCatType','coadd');                                                                               
                                     
-                                else % prepare CSV files for further injection into the DB                                                                        
-                                    FN_I_DB = FN_I.copy;
-                                    FN_I_DB = FN_I_DB.updateIfNotEmpty('FileType',{'csv'});
-                                    RawFileName = FN_I_DB.genFull{1};
-                                    RawHeader.writeCSV(RawFileName,'CleanHeaderValues',1);
-                                    Obj.writeStatus(FN_I_DB.genPath, 'Msg', 'ready-for-DB');
-
-                                    FN_Proc_DB = FN_Proc.copy;
-                                    FN_Proc_DB = FN_Proc_DB.updateIfNotEmpty('FileType',{'csv'});
-                                    ProcFileName = FN_Proc_DB.genFull{1};
-                                    AH = [AllSI.HeaderData];
-                                    AH.writeCSV(ProcFileName,'CleanHeaderValues',1);
-                                    Obj.writeStatus(FN_Proc_DB.genPath, 'Msg', 'ready-for-DB');
-
-                                    FN_Coadd_DB = FN_Coadd.copy;
-                                    FN_Coadd_DB = FN_Coadd_DB.updateIfNotEmpty('FileType',{'csv'});
-                                    CoaddFileName = FN_Coadd_DB.genFull('LevelPath','proc');
-                                    CoaddFileName = CoaddFileName{1};
-                                    AH = [Coadd.HeaderData];
-                                    AH.writeCSV(CoaddFileName,'CleanHeaderValues',1);
-                                    
-                                    OK = 1;                                
-                                end
-                                
+                                    FN_I_DB = FN_I.copy; OK = 1; 
+                                    Obj.writeStatus(FN_I_DB.genPath, 'Msg', 'ready-for-DB'); 
+                                    Msg{1} = sprintf('CSV files with image header data written to disk');
+                                    Obj.writeLog(Msg, LogLevel.Info);
+                                end                                
                                 % PROC and COADD catalogs 
                                 ProcCat = [AllSI.CatData]; CoaddCat = [Coadd.CatData];                                
                                 if Args.DB_CatalogBulk % write PROC and COADD catalog data to local csv files                                    
                                                        % to be injected into the DB later on outside this pipeline                                                       
-                                    ADB.insert(ProcCat, 'Table',Args.DB_Table_ProcCat, 'FileNames', ' ', 'Type','bulkcat',...
-                                               'BulkFN',FN_Proc,'BulkCatType','proc','BulkAI',AllSI(1));
-                                    ADB.insert(CoaddCat,'Table',Args.DB_Table_ProcCat, 'FileNames', ' ', 'Type','bulkcat',...
-                                               'BulkFN',FN_Coadd,'BulkCatType','coadd','BulkAI',Coadd(1));
-                                    Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB');                                    
+                                    ADB.insert(ProcCat, 'Type','bulkcat', 'BulkFN',FN_Proc, 'BulkCatType','proc','BulkAI',AllSI(1));
+                                    ADB.insert(CoaddCat,'Type','bulkcat', 'BulkFN',FN_Coadd,'BulkCatType','coadd','BulkAI',Coadd(1));
+                                    FN_CatProc = FN_Proc.copy;
+                                    Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB'); 
+                                    Msg{1} = sprintf('CSV files with catalog data written to disk');
+                                    Obj.writeLog(Msg, LogLevel.Info);
                                 else                   % insert PROC and COADD catalog data into the appropriate DB tables
-                                    ADB.insert(ProcCat, 'Table',Args.DB_Table_ProcCat, 'FileNames', ' ', 'Type','cat');
-                                    ADB.insert(CoaddCat,'Table',Args.DB_Table_CoaddCat,'FileNames', ' ', 'Type','cat');
+                                    ADB.insert(ProcCat, 'Table',Args.DB_Table_ProcCat, 'Type','cat');
+                                    ADB.insert(CoaddCat,'Table',Args.DB_Table_CoaddCat,'Type','cat');
+                                    Msg{1} = sprintf('Catalog data injected into the DB tables');
+                                    Obj.writeLog(Msg, LogLevel.Info);
                                 end                                
-                                Msg{1} = sprintf('Insert catalog objects to LAST catalog tables - success: %d', OK);
-                                Obj.writeLog(Msg, LogLevel.Info);
-                                
+                                %                                 
                                 catch DBMsg
                                     DBErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', DBMsg.message, DBMsg.stack(1).name, DBMsg.stack(1).line);
                                     Obj.writeLog(DBErrorMsg, LogLevel.Error);
@@ -1930,18 +1906,13 @@ classdef DemonLAST < Component
 
                             % move images to failed/ dir
                             io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull('FullPath',FailedPath));
-    
                             
                         end
-    
-    
+        
                         % write summary and run time to log
                         Msg{1} = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd analyzed %d images starting at %s',numel(RawImageList), FN_Sci_Groups(Igroup).Time{1});
                         Msg{2} = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd run time [s]: %6.1f', RunTime);
-                        Obj.writeLog(Msg, LogLevel.Info);                        
-    
-                        
-                        
+                        Obj.writeLog(Msg, LogLevel.Info);                                                                            
                         
                         % check if stop loop
                         if Args.StopButton && StopGUI()
