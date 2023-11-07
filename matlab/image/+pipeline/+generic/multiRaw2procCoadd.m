@@ -419,6 +419,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             
         end
        
+        io.msgLog(LogLevel.Info, 'multiRaw2procCoadd: image %d of %d processed: %s', ...
+                  Iim, Nim,AI(Iim).getStructKey('FILENAME').FILENAME);
+        
         if Iim==1
             % alocate AstroImage for all sub images
             Nsub  = numel(SI);
@@ -482,6 +485,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     % coadd the sub images of each field
     % generate a mask and a catalog for each coadd image
     % generate a PSF for each field.
+    
+    io.msgLog(LogLevel.Info, 'multiRaw2procCoadd: started coadding the sub images');
     
     [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd] = pipeline.generic.procMergeCoadd(AllSI,...
                                                                                              'mergeCatalogsArgs',Args.mergeCatalogsArgs,...

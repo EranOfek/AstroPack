@@ -1740,9 +1740,8 @@ classdef DemonLAST < Component
     
                         FN_Sci_Groups(Igroup).BasePath = BasePath;
                         
-                        % call visit pipeline
-                        
-                        Msg{1} = sprintf('pipline.DemonLAST executing pipeline for group %d - First image: %s',Igroup, RawImageList{end});
+                        % call visit pipeline                        
+                        Msg{1} = sprintf('pipline.DemonLAST executing pipeline for group %d - First image: %s',Igroup, RawImageList{1});
                         Obj.writeLog(Msg, LogLevel.Info);
 
                         try
@@ -1760,7 +1759,7 @@ classdef DemonLAST < Component
                                                                        'BasePath', BasePath,...
                                                                        'SaveAll',false);
     
-                            Msg{1} = sprintf('pipline.DemonLAST finish executing pipeline - start saving data',Igroup, RawImageList{end});
+                            Msg{1} = sprintf('pipline.DemonLAST finish executing pipeline for group %d - start saving data',Igroup);
                             Obj.writeLog(Msg, LogLevel.Info);
                             
                             %CoaddTransienst = imProc.cat.searchExternalCatOrphans(Coadd);

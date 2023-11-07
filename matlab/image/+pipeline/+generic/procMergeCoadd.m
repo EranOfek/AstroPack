@@ -141,6 +141,9 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                          'PhotCat',cell(Nfields,1)); % ini ResultCoadd struct
     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
     for Ifields=1:1:Nfields
+        
+        io.msgLog(LogLevel.Info, 'procMergeCoadd: coadding field %d',Ifields);
+        
         if FlagGoodAstrometry(Ifields)
             ResultCoadd(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.(Args.ColX),1,1), 2, 'omitnan');
             ResultCoadd(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.(Args.ColY),1,1), 2, 'omitnan');
