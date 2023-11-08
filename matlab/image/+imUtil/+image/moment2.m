@@ -220,6 +220,7 @@ else
 end
 % construct a window with maximal radiu
 W_Max = ones(size(MatR2),'like',Image);
+%W_Max = repmat(cast(1, 'like',Image), size(MatR2));  % no speed improvment
 W_Max(MatR2>MomRadius2) = 0;
 
 
@@ -308,7 +309,8 @@ else
         end
 
         % construct a window with maximal radius
-        W_Max = ones(size(MatR2), 'like',Image);
+        %W_Max = ones(size(MatR2), 'like',Image); 
+        W_Max = repmat(cast(1, 'like',Image), size(MatR2));  % much faster
         W_Max(MatR2>MomRadius2) = 0;
 
 

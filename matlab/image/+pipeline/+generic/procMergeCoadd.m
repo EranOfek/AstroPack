@@ -155,7 +155,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
 
             % Remove Images with high background
             if ~isempty(Args.HighBackNsigma)
-                MedBack = imProc.stat.median(AllSI(:,Ifields));
+                MedBack = imProc.stat.medianSparse(AllSI(:,Ifields));
                 FlagGoodBack = MedBack < (median(MedBack) + Args.HighBackNsigma.*tools.math.stat.rstd(MedBack));
 
                 FlagGood = FlagGoodWCS & FlagGoodBack;
