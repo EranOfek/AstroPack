@@ -111,6 +111,7 @@ function [Obj,Result]=populatePSF(Obj, Args)
             % insert PSF data
             Obj(Iobj).PSFData.Data = MeanPSF;
             Obj(Iobj).PSFData.Var  = VarPSF;
+            Obj(Iobj).PSFData.Nstars = NimPSF;
             
         end
         
