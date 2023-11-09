@@ -276,7 +276,7 @@ classdef AstroPSF < Component
                 % resample the output PSF stamp 
                 if ~isempty(Args.Oversampling)
                     % will renorm at the next step, so do not need to renorm once more here
-                    Result = imUtil.psf.oversampling(Result, Obj(IObj).Oversampling, Args.Oversampling, 'ReNorm', false);
+                    Result = imUtil.psf.oversampling(Result, Obj(IObj).Scale, Args.Oversampling, 'ReNorm', false);
                 end
                 % normalize the stamp 
                 if Args.ReNorm
@@ -891,8 +891,8 @@ classdef AstroPSF < Component
                 else
                     Fx = 1;                   Fy = 1;
                 end
-                Obj(Iobj).Oversampling(1)  = Obj(Iobj).Oversampling(1) * Fx; 
-                Obj(Iobj).Oversampling(2)  = Obj(Iobj).Oversampling(2) * Fy; 
+                Obj(Iobj).Scale(1)  = Obj(Iobj).Scale(1) * Fx; 
+                Obj(Iobj).Scale(2)  = Obj(Iobj).Scale(2) * Fy; 
             end
             
         end
