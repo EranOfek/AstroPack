@@ -66,10 +66,12 @@ function [PS]=periodFoldedEventsBeaming(T, FreqVec, Args)
 
     EdgesPhase  = (0:Args.BinSize:1);
     BinPhase    = ((EdgesPhase(1:end-1) + EdgesPhase(2:end)).*0.5).';
+    
 
     EdgesEnergy = Args.EdgesEnergy(:).';
     BinEnergy   = (EdgesEnergy(1:end-1) +EdgesEnergy(2:end)).*0.5;
-
+    
+    BinPhaseMat = repmat(BinPhase,1, numel(BinEnergy));
 
     % calculate the Alpha weight
     NphInBin         = histcounts(Args.Energy, EdgesEnergy);
@@ -109,7 +111,7 @@ function [PS]=periodFoldedEventsBeaming(T, FreqVec, Args)
         %NphB = histcounts2(PhaseTF, Args.BckEnergy, EdgesPhase, EdgesEnergy);
         Weight = Nph./NphBckInBin;
 
-        H = [ones(Nbins,1), (3-AlphaVec(:)), (3-AlphaVec(:))];
+        H = [ones(Nbins,1), (3-AlphaVec(:)).*sin(2.*pi.*BinPhaseMat(:)), (3-AlphaVec(:)).*cos(2.*pi.*BinPhaseMat(:))];
         [Par, ParErr] = lscov(H, E(:), Weight(:));
         Resid         = E(:) - H*Par;
 

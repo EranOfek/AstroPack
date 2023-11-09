@@ -1,4 +1,4 @@
-function [Res,FigH,Data]=getInteractive(Ha, Type)
+function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type)
     % Get clicked positions (mouse, key, rect) interactively.
     % Input  : - Handle for current axes in which the data points are ploted.
     %            If empty matrix, then use gca. Default is [].
@@ -21,6 +21,8 @@ function [Res,FigH,Data]=getInteractive(Ha, Type)
     %            .Hf - Figure handle.
     %            .Ha - Axes handle
     %          - A structure containing the plot data (.X, .Y, .Z).
+    %          - A structre containing the information for the nearest data
+    %            point.
     % Author : Eran Ofek (Nov 2023)
     % Example: Res = plot.getInteractive(Ha, 'mouse');
 
@@ -91,10 +93,21 @@ function [Res,FigH,Data]=getInteractive(Ha, Type)
     
         if nargout>2
             AxObjs = Hf.Children;
-            DataObjs = AxObjs.Children
+            DataObjs = AxObjs.Children;
             Data.X   = DataObjs.XData;
             Data.Y   = DataObjs.YData;
             Data.Z   = DataObjs.ZData;
+
+            if nargout>3
+                % look for nearest point
+                Dist = sqrt((Res.Pos(1) - Data.X).^2 + (Res.Pos(2) - Data.Y).^2);
+                [MinDist, MinInd] = min(Dist);
+                Nearest.MinDist = MinDist;
+                Nearest.X = Data.X(MinInd);
+                Nearest.Y = Data.Y(MinInd);
+                %Nearest.Z = Data.Z(MinInd);
+
+            end
         end
 
         % switch lower(WaitFor)
