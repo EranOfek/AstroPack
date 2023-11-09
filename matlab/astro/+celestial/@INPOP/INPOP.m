@@ -400,6 +400,7 @@ classdef INPOP < Base
             %          I.populateTables;  % load 'pos' '100' years tables for Sun and Earth
             %          I.populateTables('Mars','TimeSpan',[2451545 2451545+365]); % load data in some specific range for Mars
             %          I.populateTables('all');
+            %          I.populateTables('all','FileData','vel');
             
             arguments
                 Obj
@@ -487,6 +488,8 @@ classdef INPOP < Base
             %   multiple times.
             %   The function can be used also to evaluate the TT time
             %   table (see getTT for details).
+            %   Instructions on how to read the INPOP original files:
+            %   https://www.imcce.fr/content/medias/recherche/equipes/asd/inpop/inpop_file_format_2_0.pdf
             % Input  : - A single-element celestial.INPOP object.
             %          - A planet/object name:
             %            'Sun', 'Mer', 'Ven', 'Ear', 'EMB', 'Moo', 'Mar',
@@ -585,7 +588,8 @@ classdef INPOP < Base
             IndVec       = (1:Nrow./Args.Ncoo).';
             % The index of the JD is measured in the Tmid vector and not in
             % the XYZ coef. table...
-            IndJD        = interp1(Tmid, IndVec, JD, 'nearest','extrap');
+            %IndJD        = interp1(Tmid, IndVec, JD, 'nearest','extrap');
+            IndJD        = ceil((JD - Tstart(1))./Tstep);
             ChebyOrder   = Ncol - Obj.ColTend;
             
             Pos = zeros(Args.Ncoo, Njd);
@@ -596,7 +600,7 @@ classdef INPOP < Base
             
                 % maybe need to divide by half time span
                 ChebyEval    = Obj.ChebyFun{ChebyOrder}((JD - Tmid(IndJD))./Thstep);
-            
+                
                 Pos(Icoo,:)  = sum([ChebyCoef.*ChebyEval(:,1:(Ncol-ColDataStart+1))].',1);
             end
             
