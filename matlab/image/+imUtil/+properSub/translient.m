@@ -67,9 +67,6 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
         Args.NormalizeZ2(1,1) logical = false;
     end
 
-    if size(N,1) ~= size(N,2) || size(R,1) ~= size(R,2)
-        error('Translient input images should be square')
-    end
 
     N = N.*Args.Fn;
     SigmaN = SigmaN/Args.Fn;

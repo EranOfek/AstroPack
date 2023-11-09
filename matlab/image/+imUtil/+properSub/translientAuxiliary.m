@@ -53,17 +53,19 @@ function [Z2Prefactors,Norm] = translientAuxiliary(Pn, Pr, SigmaN, SigmaR, Args)
         Prhat = fftshift(Prhat);
     end
 
-    M     = size(Pnhat,1); % assume square images for now
+    [Nrows,Ncols]     = size(Pnhat);
 
 % because the linearization of the translation phase (Delta*K), 
 % it is not 2*Pi periodic, use negative frequancies.
-    FreqArr = fftshift(-ceil(M/2):(floor(M/2)-1));
-    [Kx,Ky] = meshgrid(FreqArr);
+    FreqArrRows = fftshift(-ceil(Nrows/2):(floor(Nrows/2)-1));
+    FreqArrCols = fftshift(-ceil(Ncols/2):(floor(Ncols/2)-1));
 
-    Kxy = reshape([Kx,Ky],M,M,2);
+    [Kx,Ky] = meshgrid(FreqArrCols,FreqArrRows);
+
+    Kxy = reshape([Kx/Ncols,Ky/Nrows],Nrows,Ncols,2);
 
     Zden = abs(Prhat).^2 .* SigmaN.^2 + abs(Pnhat).^2 .*SigmaR.^2 + Args.Eps;
-    Znom = 4*pi/M * conj(Pnhat).*conj(Prhat);
+    Znom = 4*pi * conj(Pnhat).*conj(Prhat);
     Z2Prefactors = Znom./Zden.*Kxy;
 
     Term1 = ifft2(Z2Prefactors.*SigmaR.*Pnhat);
