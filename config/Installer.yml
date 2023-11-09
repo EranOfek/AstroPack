@@ -20,7 +20,7 @@ Items:
         DataName             : 'cats'
         SubDir               : '+cats'
         #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/+cats/cats.tar']
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/+cats/cats.tar']
+        URL                  : ['http://data.astropack.org/+cats/cats.tar']
         Size                 : 54000
         SearchFile           : 'cats.tar'
         Description          : '+cats medium-size catalogs'
@@ -48,7 +48,7 @@ Items:
         DataName             : 'GAIA_SpecTemplate'
         SubDir               : 'spec/GAIA_SpecTemplate'
         #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/GAIA_SpecTemplate/index.html']
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/spec/GAIA_SpecTemplate.tar']
+        URL                  : ['http://data.astropack.org/spec/GAIA_SpecTemplate.tar']
         Size                 : 1805
         SearchFile           : '.*\.mat'
         Description          : 'GAIA stars synthetic spectral templates'
@@ -57,7 +57,7 @@ Items:
         # The following are cell arrays of entry per dataset
         DataName             : 'PhoenixStellarSpec'
         SubDir               : 'spec/Phoenix'
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/spec/PhoenixStellarSpec.tar']
+        URL                  : ['http://data.astropack.org/spec/PhoenixStellarSpec.tar']
         Size                 : 260
         SearchFile           : ''
         Description          : 'Phoenix Model Stellar Spectra'
@@ -67,8 +67,7 @@ Items:
         DataName             : 'PicklesStellarSpec'
         SubDir               : 'spec/PicklesStellarSpec'
         #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/PicklesStellarSpec.tar']
-        #        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/spec/PicklesStellarSpec.tar']
-        URL                  : ['https://data.astropack.org/spec/PicklesStellarSpec.tar']
+        URL                  : ['http://data.astropack.org/spec/PicklesStellarSpec.tar']
         Size                 : 8
         SearchFile           : ''
         Description          : 'Pickles Stellar Spectra Templates'
@@ -78,7 +77,7 @@ Items:
         DataName             : 'SpecGalQSO'
         SubDir               : 'spec/SpecGalQSO'
         #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/SpecGalQSO.tar']
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/spec/SpecGalQSO.tar']
+        URL                  : ['http://data.astropack.org/spec/SpecGalQSO.tar']
         Size                 : 2.7
         SearchFile           : ''
         Description          : 'Galaxy + Quasar template spectra'
@@ -88,7 +87,7 @@ Items:
         DataName             : 'SunSpec'
         SubDir               : 'spec/Sun'
         #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/Sun/SunSpec.tar']
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/spec/SunSpec.tar']
+        URL                  : ['http://data.astropack.org/spec/SunSpec.tar']
         Size                 : 0.02
         SearchFile           : ''
         Description          : 'Solar Spectrum'
@@ -98,7 +97,7 @@ Items:
         DataName             : 'Atmosphere'
         SubDir               : 'spec/Atmosphere'
         #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/Atmosphere/Atmosphere.tar']
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/spec/Atmosphere/Atmosphere.tar']
+        URL                  : ['http://data.astropack.org/spec/Atmosphere/Atmosphere.tar']
         Size                 : 0.09
         SearchFile           : ''
         Description          : 'Earth Atmosphere and Extinction'
@@ -107,7 +106,7 @@ Items:
         # The following are cell arrays of entry per dataset
         DataName             : 'LASTpipelineUnitTest'
         SubDir               : 'pipeline/LAST'
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/pipeline/LASTpipelineUnitTest.tar']
+        URL                  : ['http://data.astropack.org/pipeline/LASTpipelineUnitTest.tar']
         Size                 : 7500
         SearchFile           : ''
         Description          : 'A minimal test and calibration data suite for the LAST pipeline'
@@ -153,7 +152,7 @@ Items:
         DataName             : 'EarthGravity'
         SubDir               : 'SolarSystem/EarthGravity'
         #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/EarthGravity.tar']
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/SolarSystem/EarthGravity.tar']
+        URL                  : ['http://data.astropack.org/SolarSystem/EarthGravity.tar']
         Size                 : 32
         SearchFile           : ''
         Description          : 'Earth Gravity Models'
@@ -163,7 +162,7 @@ Items:
         DataName             : 'MoonELP'
         SubDir               : 'SolarSystem/ELP'
         #        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/ELP.tar']
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/SolarSystem/ELP.tar']
+        URL                  : ['http://data.astropack.org/SolarSystem/ELP.tar']
         Size                 : 0.5
         SearchFile           : ''
         Description          : 'Moon Ephemerides ELP'
@@ -173,7 +172,7 @@ Items:
         DataName             : 'VSOPE87'
         SubDir               : 'SolarSystem/VSOPE87'
         #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/VSOPE87.tar']
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/SolarSystem/VSOPE87.tar']
+        URL                  : ['http://data.astropack.org/SolarSystem/VSOPE87.tar']
         Size                 : 41
         SearchFile           : ''
         Description          : 'Solar system VSOPE87 ephmerides'
@@ -183,7 +182,7 @@ Items:
         DataName             : 'INPOP'
         SubDir               : 'SolarSystem/INPOP'
         #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/INPOP.tar']
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/SolarSystem/INPOP.tar']
+        URL                  : ['http://data.astropack.org/SolarSystem/INPOP.tar']
         Size                 : 1990
         SearchFile           : ''
         Description          : 'Solar system INPOP ephmerides'
@@ -193,8 +192,7 @@ Items:
         DataName             : 'ULTRASAT_Properties'
         SubDir               : 'ULTRASAT'
         #        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/ULTRASAT/UP.tar']
-        #        URL                  : ['https://www.dropbox.com/scl/fi/wi4yvtr5i4ke9tlet8lv1/P90_UP_test_60_ZP_Var_Cern_21.mat']
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/ultrasat/P90_UP_test_60_ZP_Var_Cern_21.mat']
+        URL                  : ['http://data.astropack.org/ultrasat/P90_UP_test_60_ZP_Var_Cern_21.mat']
         Size                 : 16
         SearchFile           : ''
         Description          : 'modelled ULTRASAT properties'
@@ -204,8 +202,7 @@ Items:
         DataName             : 'ULTRASAT_PSF'
         SubDir               : 'ULTRASAT/PSF'
         #        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/ULTRASAT/PSF.tar']
-        #        URL                  : ['https://www.dropbox.com/scl/fi/ri0jg5xv0akb8ewp5w3az/PSF.tar'] 
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/ultrasat/PSF.tar']
+        URL                  : ['http://data.astropack.org/ultrasat/PSF.tar']
         Size                 : 1300
         SearchFile           : ''
         Description          : 'modelled ULTRASAT PSF data'
