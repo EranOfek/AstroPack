@@ -17,6 +17,7 @@
 %       JD=[2414106.00,2451545]';
 %       Pos = IP.getPos('Ear',JD);   % Get Eath Barycentric position, Equatorial J2000
 %
+% BUGS: (100 km offset in X coo) https://github.com/EranOfek/AstroPack/issues/281 
 %
 % NOTES [Answers from IMCCE]
 %
