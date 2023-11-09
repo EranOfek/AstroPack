@@ -68,6 +68,9 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
         %AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
         AIreg=imProc.transIm.interp2wcs(AI, AI(1), 'InterpMethod','cubic');
 
+        % shift by 0.1 pix (for testing translient)
+        AIshift = imProc.transIm.imwarp(AIreg, [0.1 0.1])
+
         AIreg= imProc.background.background(AIreg,'SubSizeXY',[]); %[256 256]);  
         AIreg=imProc.sources.findMeasureSources(AIreg);           
         % add RA,Dec
@@ -87,6 +90,7 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
 
 
         [DD,S,Scorr,Z2,S2, F_S,SdN, SdR] = imProc.sub.properSubtraction(AIreg(3), AIreg(1) ,'HalfSize',[8 8]);
+        [DDs,Ss,Scorrs,Z2s,S2s, F_Ss,SdNs, SdRs] = imProc.sub.properSubtraction(AIshift(3), AIreg(1) ,'HalfSize',[8 8]);
 
         R=imProc.sources.findTransients(AIreg(3), AIreg(1), DD, S, Scorr, Z2, S2);
     end
