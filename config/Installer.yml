@@ -57,7 +57,6 @@ Items:
         # The following are cell arrays of entry per dataset
         DataName             : 'PhoenixStellarSpec'
         SubDir               : 'spec/Phoenix'
-        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/PicklesStellarSpec.tar']
         URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/spec/PhoenixStellarSpec.tar']
         Size                 : 260
         SearchFile           : ''
@@ -68,7 +67,8 @@ Items:
         DataName             : 'PicklesStellarSpec'
         SubDir               : 'spec/PicklesStellarSpec'
         #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/PicklesStellarSpec.tar']
-        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/spec/PicklesStellarSpec.tar']
+        #        URL                  : ['https://s3-ultrasat-public-data-01-eu-west-1.s3.eu-west-1.amazonaws.com/astropack/spec/PicklesStellarSpec.tar']
+        URL                  : ['https://data.astropack.org/spec/PicklesStellarSpec.tar']
         Size                 : 8
         SearchFile           : ''
         Description          : 'Pickles Stellar Spectra Templates'
