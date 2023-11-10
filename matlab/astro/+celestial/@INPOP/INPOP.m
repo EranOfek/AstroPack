@@ -876,6 +876,31 @@ classdef INPOP < Base
             end
             
         end
+        e
+        function Result = compare2JPL(Obj, Args)
+            % Compare INPOP to JPL horizons ephemeris
+            % Author : Eran Ofek (Nov 2023)
+            % Example: R=I.compare2JPL
+           
+            arguments
+                Obj
+                Args.BodyINPOP   = 'Mar';
+                Args.BodyJPL     = '499';
+                Args.JD = celestial.time.julday + (0:10:100)';
+            end
+           
+            
+            Njd = numel(Args.JD);
+            Diff = zeros(Njd,3);
+            for Ijd=1:1:Njd
+                XYZ = Obj.getPos(Args.BodyINPOP, Args.JD(Ijd), 'IsEclipticOut',true, 'TimeScale','TT','OutUnits','km');
+                [T] = celestial.SolarSys.getJPL_ephem(Args.BodyJPL,'EPHEM_TYPE','VECTORS','TimeScale','TT','CENTER','500@0','StartTime',Args.JD(Ijd), 'StopTime',Args.JD(Ijd)+0.5, 'OUT_UNITS','KM-S');
+                Diff(Ijd,:) = [XYZ - [T.X; T.Y; T.Z]].';
+            end
+            Result.JD   = Args.JD;
+            Result.Diff = Diff;
+            
+        end
         
     end
     

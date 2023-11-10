@@ -1,4 +1,4 @@
-function [OutputTable, Output, StrURL] = getJPL_epochElements(Object, Args)
+function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
     % A general purpose access to JPL horizons ephemeris
     %   This is a basic function that can retrieve ephemeris, vectors, and
     %   ocultaing elements for Solar System bodies.
@@ -14,6 +14,8 @@ function [OutputTable, Output, StrURL] = getJPL_epochElements(Object, Args)
     %                   Default is [].
     %            'StopTime' - Like StartTime, but for the end time.
     %                   If empty, then use now + 1 day.
+    %                   If smaller than StartTime, then will set this to
+    %                   StartTime + 1 day.
     %                   Default is [].
     %            'TimeScale' - Options are:
     %                   'TDB' - Barycentric Dynamical Time.
@@ -26,7 +28,7 @@ function [OutputTable, Output, StrURL] = getJPL_epochElements(Object, Args)
     %                           'TimeScale' must be 'TT' or 'UT'.
     %                   'ELEMENTS' - Heliocentric orbital elements.
     %                           'TimeScale' must be 'TDB'.
-    %                   'VECTORS' - Equatorial Cartesian position.
+    %                   'VECTORS' - Ecliptic Cartesian position.
     %                   Default is 'OBSERVER'.
     %            'CENTER' - Body center (observer or coordinate origin).
     %                   For 'EPHEM_TYPE'='ELEMENTS', the 'CENTER' is
@@ -49,9 +51,9 @@ function [OutputTable, Output, StrURL] = getJPL_epochElements(Object, Args)
     %          - Query URL.
     % Author : Eran Ofek (Nov 2023)
     % References: Horizons API description: https://ssd-api.jpl.nasa.gov/doc/horizons.html
-    % Example: [T,~,U] = celestial.SolarSys.getJPL_epochElements('299;','EPHEM_TYPE','VECTORS','TimeScale','TT');  
-    %          [T,~,U] = celestial.SolarSys.getJPL_epochElements('299;','EPHEM_TYPE','ELEMENTS','TimeScale','TDB');
-    %          [T,~,U] = celestial.SolarSys.getJPL_epochElements('299;','EPHEM_TYPE','OBSERVER','TimeScale','TT'); 
+    % Example: [T,~,U] = celestial.SolarSys.getJPL_ephem('299;','EPHEM_TYPE','VECTORS','TimeScale','TT');  
+    %          [T,~,U] = celestial.SolarSys.getJPL_ephem('299;','EPHEM_TYPE','ELEMENTS','TimeScale','TDB');
+    %          [T,~,U] = celestial.SolarSys.getJPL_ephem('299;','EPHEM_TYPE','OBSERVER','TimeScale','TT'); 
 
     
     arguments
@@ -145,7 +147,7 @@ function [OutputTable, Output, StrURL] = getJPL_epochElements(Object, Args)
     end
     
     if JD1>JD2
-        error('Stop JD is smaller than start JD');
+        JD2 = JD1 + 1;
     end
     
     Args.START_TIME = sprintf('JD %19.9f %s',JD1, Args.TimeScale);
@@ -165,8 +167,10 @@ function [OutputTable, Output, StrURL] = getJPL_epochElements(Object, Args)
     Ndq = numel(Args.DoubleQoutesFields);
     for Idq=1:1:Ndq
         Field = Args.DoubleQoutesFields{Idq};
-        if ~isempty(Args.(Field))
-            Args.(Field) = sprintf('''%s''',Args.(Field));
+        if isfield(Args, Field)
+            if ~isempty(Args.(Field))
+                Args.(Field) = sprintf('''%s''',Args.(Field));
+            end
         end
     end
         

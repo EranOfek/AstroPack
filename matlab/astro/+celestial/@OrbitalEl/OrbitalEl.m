@@ -934,6 +934,7 @@ classdef OrbitalEl < Base
             end
             Cat           = nan(Ncat, numel(ColNames));
             
+            
             for It=1:1:Nt
                 % rectangular heliocentric ecliptic coordinates of Earth with equinox of J2000
                 if ~isempty(Args.ObserverEphem)
@@ -950,7 +951,7 @@ classdef OrbitalEl < Base
                                                                                 'OutUnits','au',...
                                                                                 'RefEllipsoid',Args.RefEllipsoid);                        
                 end
-                S_B = Args.INPOP.getVel('Sun',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits','au');
+                S_B = Args.INPOP.getVel('Sun',Time(It), 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits','au');
                 E_H = E_B - S_B;   % Earth Heliocentric
                 E_dotH = E_dotB;  % not correct
                 
@@ -961,18 +962,18 @@ classdef OrbitalEl < Base
                     % Output is in heliocentric system
                     [Nu, R, E, Vel, M]          = keplerSolve(Obj, Time(It)-LightTime,'Tol',Args.Tol);
                     % target ecliptic Heliocentric rect. position
-                    [U_H] = trueAnom2rectPos(Obj, Nu, R, 'rad');
+                    [U_H] = trueAnom2rectPos(Obj, Nu, R, 'rad');   % ecliptic, Heliocentric, rectangular, J2000
                     U_H   = U_H.';  % a 3 X N matrix
                     
                     % convert to Barycentric - no improvment
                     %S_B = Args.INPOP.getPos('Sun',Time(It)-LightTime);
                     %U_B = U_B + S_B;
                     
-                    S_Btau = Args.INPOP.getVel('Sun',Time-LightTime, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits','au');
+                    S_Btau = Args.INPOP.getVel('Sun',Time(It)-LightTime, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits','au');
                     U_B = U_H + S_B;
                     U   = U_B - E_B;
                     %Q = U_B - S_Btau;
-                    U   = U_H - E_H;
+                    %U   = U_H - E_H;
                     
                     
                     %U = U_B - E_H;  % U_B(t-tau)
@@ -1038,10 +1039,6 @@ classdef OrbitalEl < Base
                     error('Unknown OutType option');
             end
                 
-            %celestial.coo.convertdms(RA,'r','SH')
-            %celestial.coo.convertdms(Dec,'R','SD')
-            % geocentric  05 39 59.38 +11 02 53.3
-            % topocentric 05 39 59.53 +11 02 51.9
             
         end
         
@@ -2369,6 +2366,7 @@ classdef OrbitalEl < Base
         function Result = compareEphem2JPL(Args)
             % Compare ephemeris with JPL ephemeris
             %   A function for testing the performences of ephem
+            % Output : [JD, JD-Epoch, DeltaRA("), DeltaDec(")]
             % Example: VecJD = ((2460110.5 - 2000):10:(2460110.5 +500))';
             %          R1=celestial.OrbitalEl.compareEphem2JPL('StartJD',VecJD(1),'EndJD',VecJD(end));
             %          R2=celestial.OrbitalEl.compareEphem2JPL('StartJD',VecJD(1),'EndJD',VecJD(end),'Integration',true);
@@ -2394,12 +2392,13 @@ classdef OrbitalEl < Base
                 GeodPosKM = [];
             end
             VecJD  = (Args.StartJD:Args.StepSize:Args.EndJD)';
-            CatE   = ephem(OrbEl1, VecJD, 'GeoPos',Args.GeodPos, 'OutUnitsDeg',false, 'Integration',Args.Integration);
+            %CatE   = ephem(OrbEl1, VecJD, 'GeoPos',Args.GeodPos, 'OutUnitsDeg',false, 'Integration',Args.Integration);
+            CatE   = ephemKepler(OrbEl1, VecJD, 'GeoPos',Args.GeodPos, 'OutUnitsDeg',false);
             
             CatJPL = celestial.SolarSys.jpl_horizons('ObjectInd',num2str(Args.ObjectInd),'StartJD',Args.StartJD,'StopJD',Args.EndJD,...
                                                      'StepSize',Args.StepSize, 'StepSizeUnits','d','CENTER','500', 'GeodCoo',GeodPosKM);
             % RA nd Dec diff between JPL and ephem:
-            Result = [CatE.Catalog.RA - CatJPL.Catalog(:,2), CatE.Catalog.Dec - CatJPL.Catalog(:,3)].*RAD.*3600;
+            Result = [CatE.Catalog.JD, CatE.Catalog.JD - OrbEl1.Epoch, [CatE.Catalog.RA - CatJPL.Catalog(:,2), CatE.Catalog.Dec - CatJPL.Catalog(:,3)].*RAD.*3600];
             
         end
         
