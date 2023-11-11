@@ -900,7 +900,6 @@ classdef OrbitalEl < Base
             %          %Single time, multiple objects:
             %          OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
             %          Cat = ephemKeplerMultiObj(OrbEl, JD);
-            %          tic;CatE = ephemKepler(OrbEl, JD, 'GeoPos',[],'MaxIterLT',0,'IncludeMag',false);toc           
             
             arguments
                 Obj(1,1)
