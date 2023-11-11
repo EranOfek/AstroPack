@@ -1735,12 +1735,8 @@ classdef OrbitalEl < Base
             
         end
         
-        
-            
-            
-            
-        end
-        
+                    
+                    
         function [Result, Names] = searchMinorPlanetsNearPosition(Obj, JD, RA, Dec, SearchRadius, Args)
             % Search all minor planets/comets near position on a specific date.
             %   Given an OrbitalEl object with multiple elements, in which
@@ -1887,9 +1883,7 @@ classdef OrbitalEl < Base
                     Names(Iobj).Designation = ObjNew(Iobj).Designation(Flag);
                 end
             end
-            
-            
-            
+                        
                         
         end
     end
