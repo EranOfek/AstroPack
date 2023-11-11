@@ -2142,7 +2142,7 @@ classdef OrbitalEl < Base
             end
             VecJD  = (Args.StartJD:Args.StepSize:Args.EndJD)';
             %CatE   = ephem(OrbEl1, VecJD, 'GeoPos',Args.GeodPos, 'OutUnitsDeg',false, 'Integration',Args.Integration);
-            CatE   = ephemKeplerMultiTime(OrbEl1, VecJD+70./86400, 'GeoPos',Args.GeodPos, 'OutUnitsDeg',false);
+            CatE   = ephemKeplerMultiTime(OrbEl1, VecJD+69./86400, 'GeoPos',Args.GeodPos, 'OutUnitsDeg',false);
             
             CatJPL = celestial.SolarSys.jpl_horizons('ObjectInd',num2str(Args.ObjectInd),'StartJD',Args.StartJD,'StopJD',Args.EndJD,...
                                                      'StepSize',Args.StepSize, 'StepSizeUnits','d','CENTER','500', 'GeodCoo',GeodPosKM);
