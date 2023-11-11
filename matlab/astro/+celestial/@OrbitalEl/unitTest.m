@@ -94,7 +94,7 @@ function Result = unitTest()
     Cat2  = ephem(OrbEl, JD,'Integration',true,'EarthEphem','inpop');
     assert(all(abs(1-Cat.Catalog{:,{'RA','Dec','R'}}./Cat2.Catalog{:,{'RA','Dec','R'}})<1e-3));
 
-    % Testing against specific examples
+    %% Testing against specific examples
     % Comet Encke (Example 33.b from Meeus 2009; p 232)
     E=celestial.OrbitalEl;
     E.Designation = 'Encke';
@@ -165,6 +165,11 @@ function Result = unitTest()
     if abs(RA - 158.558965)>1e-5 || abs(Dec-19.158496)>1e-5
         error('RA/Dec are wrong');
     end
+    
+    %% testing ephem against JPL
+    
+    
+    
     
     
     %io.msgLog(LogLevel.Test, 'OrbitalEl test passed');

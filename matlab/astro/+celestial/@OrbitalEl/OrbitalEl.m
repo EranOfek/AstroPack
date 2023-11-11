@@ -1031,13 +1031,11 @@ classdef OrbitalEl < Base
             
         end
         
-        
-        
         function Result = ephemKeplerMultiTime(Obj, Time, Args)
             % Calculate ephemerides for OrbitalEl object by solving the Kepler equation.
-            %   This function is optimized for multi objects.
-            %   See ephemKeplerMultiTime for a function optimied for
-            %   multiple times.
+            %   This function is optimized for multi times.
+            %   See ephemKeplerMultiObj for a function optimied for
+            %   multiple objects.
             %
             %   For each orbital-element or time, return the Geocentric or
             %   topocentric ephemerides of the target.
@@ -1144,8 +1142,6 @@ classdef OrbitalEl < Base
                 Args.MaxIterLT                   = 2;  % use 0 for quick and dirty
                 Args.IncludeMag(1,1) logical     = true;  % use false to speed up
                 Args.AddDesignation(1,1) logical = true;  % works only for AstroCatalog output
-                %Args.Integration(1,1) logical    = false; %false; 
-                %Args.TolInt                      = 1e-10; 
                 Args.ObserverEphem               = []; % Heliocentric coordinate of observer - [x,y,z,vx,vy,vz]
             end
             RAD  = 180./pi;
@@ -1253,11 +1249,167 @@ classdef OrbitalEl < Base
             
         end
         
-        
-        
+        function Result = ephem(Obj, Time, Args)
+            % Calculate ephemerides for OrbitalEl object.
+            %   This function calls ephemKeplerMultiObj or
+            %   ephemKeplerMultiTime, or ephemIntegrate.
+            %
+            %   For each orbital-element or time, return the Geocentric or
+            %   topocentric ephemerides of the target.
+            %   This is like the ephem function, but not including the
+            %   orbital integation option.
+            %
+            %   For definitions and formulae, see Explanatory Supplement to the Astronomical
+            %   Alamanac (Seidelmann 2006), chapter 3.313, p. 148.
+            % Input  : - A single element OrbitalEl object.
+            %            This object may include multiple orbital elements
+            %            in vectors of parameters.
+            %          - A vector of JD in the TDT time scale.
+            %            If the input OrbitalEl object contains multiple
+            %            orbital elements, then the length of the vector of
+            %            times may be 1 or equal to the number of orbital
+            %            elements. In this case, different times corresponds
+            %            to different orbital elements.
+            %            Alternatively, if the input OrbitalEl object
+            %            contains a single orbital element, then it will be
+            %            calculated at the different times.
+            %          * ...,key,val,...
+            %            'Tol' - Tolerance [rad] for solving the Kepler
+            %                   equation. Default is 1e-8.
+            %            'TolLT' - Tolerance [day] for the light-time
+            %                   correction iterations. Default is 1e-6.
+            %            'OutUnitsDeg' - A logical indicating if to list
+            %                   the RA and Dec in degrees. If false list in
+            %                   radians. Default is true.
+            %            'Aberration' - A logical indicating if to include
+            %                   aberration of light. Default is false.
+            %                   Note that for the default (false) the
+            %                   output is in an "astrometric" reference
+            %                   frame (i.e., relative to the stars).
+            %            'EarthEphem' - Earth ephemeris to use:
+            %                   'vsop87' - VSOP87 (default).
+            %                   'inpop' - INPOP.
+            %            'INPOP' - A populated celestial.INPOP object.
+            %                   If empty, will generate one.
+            %            'TimeScale' - Time scale of JD. Relevant only if
+            %                   EarthEphem='INPOP'.
+            %                   Default is 'TDB'.
+            %            'GeoPos' - Geodetic position of the observer (on
+            %                   Earth). [Lon (rad), Lat (rad), Height (m)].
+            %                   If empty, then calculate geocentric
+            %                   positions. Default is [].
+            %            'RefEllipsoid' - Reference ellipsoid for the
+            %                   geodetic positions. Default is 'WGS84'.
+            %            'OutType' - Output type:
+            %                   'mat' - a matrix
+            %                   'AstroCatalog' - An AstroCatalog object.
+            %                   Default is 'AstroCatalog'
+            %            'MaxIterLT' - Maximum numbre of iterations for
+            %                   light-time corrections. Default is 2.
+            %                   0 will force to no ligh-time correction
+            %                   (e.g., for quick calculation).
+            %            'IncludeMag' - A logical indicating if to include
+            %                   magnitude in output catalog.
+            %                   Default is true.
+            %            'AddDesignation' - A logical indicating if to add
+            %                   the asteroid designation (in the last
+            %                   column) to the output.
+            %                   If true, then the output will be in a
+            %                   format of table instead of a matrix.
+            %                   Default is true.
+            %            'ObserverEphem' - A matrix contain observer position [au] and velocities [au/d] in
+            %                   Heliocentric equatorial coordinates for each epoch. The columns are [x,y,z,vx,vy,vz]. 
+            %                   If empty, the function will use EarthEphem and GeoPos.
+            %                   In case of size [Nepoch,3], the function assume zero velocity.
+            %                   Defauls is [].
+            % Output : - Output ephemerides with the following columns:
+            %            {'JD', 'RA', 'Dec', 'R', 'Delta','SOT','STO', 'Mag'}
+            %            and units:
+            %            {'day','deg','deg', 'au','au','deg','deg','mag'}.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem([],9804);
+            %          JD = celestial.time.julday([9 9 2021])
+            %          Cat = ephemKeplerMultiObj(OrbEl, JD +(1:10:100)');
+            %
+            %          %Single time, multiple objects:
+            %          OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
+            %          Cat = ephemKeplerMultiObj(OrbEl, JD);
+            %          tic;CatE = ephemKepler(OrbEl, JD, 'GeoPos',[],'MaxIterLT',0,'IncludeMag',false);toc           
+            
+            arguments
+                Obj
+                Time
+                Args.Tol                         = 1e-8;   % [rad]
+                Args.TolLT                       = 1e-6;   % [day]
+                Args.OutUnitsDeg(1,1) logical    = true;
+                Args.Aberration(1,1) logical     = false; %false;
+                Args.EarthEphem                  = 'inpop'; %'vsop87';  % 'vsop87' | 'inpop'
+                Args.INPOP                       = [];
+                Args.TimeScale                   = 'TDB';
+                Args.GeoPos                      = [];  % [] - topocentric  ; [rad, rad, m]
+                Args.RefEllipsoid                = 'WGS84';
+                Args.OutType                     = 'AstroCatalog';  % 'mat' | 'AstroCatalog'
+                Args.MaxIterLT                   = 2;  % use 0 for quick and dirty
+                Args.IncludeMag(1,1) logical     = true;  % use false to speed up
+                Args.AddDesignation(1,1) logical = true;  % works only for AstroCatalog output
+                Args.ObserverEphem               = []; % Heliocentric coordinate of observer - [x,y,z,vx,vy,vz]
+                Args.Integrate(1,1) logical      = false; %false; 
+                Args.TolInt                      = 1e-10; 
+                
+            end
+            
+            Ntarget = Obj.numEl;
+            Ntime   = numel(Time);
+            
+            if Ntarget>1 && Ntime>1
+                error('Number of targets or number of times must be 1');
+            end
+            
+            if Args.Integrate
+                % orbital integration
+                error('Integrate not ready');
+            else
+                % use kepler equation
+                if Ntarget==1
+                    Result = ephemKeplerMultiTime(Obj, Time, 'Tol',Args.Tol,...
+                                                             'TolLT',Args.TolLT,...
+                                                             'OutUnitsDeg',Args.OutUnitsDeg,...
+                                                             'Aberration',Args.Aberration,...
+                                                             'EarthEphem',Args.EarthEphem,...
+                                                             'INPOP',Args.INPOP,...
+                                                             'TimeScale',Args.TimeScale,...
+                                                             'GeoPos',Args.GeoPos,...
+                                                             'RefEllipsoid',Args.RefEllipsoid,...
+                                                             'OutType',Args.OutType,...
+                                                             'MaxIterLT',Args.MaxIterLT,...
+                                                             'IncludeMag',Args.IncludeMag,...
+                                                             'AddDesignation',Args.AddDesignation,...
+                                                             'ObserverEphem',Args.ObserverEphem);
+                
+                else
+                    % Ntime==1
+                    Result = ephemKeplerMultiObj(Obj, Time, 'Tol',Args.Tol,...
+                                                             'TolLT',Args.TolLT,...
+                                                             'OutUnitsDeg',Args.OutUnitsDeg,...
+                                                             'Aberration',Args.Aberration,...
+                                                             'EarthEphem',Args.EarthEphem,...
+                                                             'INPOP',Args.INPOP,...
+                                                             'TimeScale',Args.TimeScale,...
+                                                             'GeoPos',Args.GeoPos,...
+                                                             'RefEllipsoid',Args.RefEllipsoid,...
+                                                             'OutType',Args.OutType,...
+                                                             'MaxIterLT',Args.MaxIterLT,...
+                                                             'IncludeMag',Args.IncludeMag,...
+                                                             'AddDesignation',Args.AddDesignation,...
+                                                             'ObserverEphem',Args.ObserverEphem);
+                end
+            end
+                    
+                            
+        end
       
         
-        function Result = ephem(Obj, Time, Args)
+        function Result = ephemIntegrate(Obj, Time, Args)
             % Calculate ephemerides for OrbitalEl object.
             %   For each orbital-element or time, return the Geocentric or
             %   topocentric ephemerides of the target.
@@ -1582,8 +1734,11 @@ classdef OrbitalEl < Base
             % topocentric 05 39 59.53 +11 02 51.9
             
         end
-
-        function Result = ephemIntegrate(Obj, Time, Args)
+        
+        
+            
+            
+            
         end
         
         function [Result, Names] = searchMinorPlanetsNearPosition(Obj, JD, RA, Dec, SearchRadius, Args)
