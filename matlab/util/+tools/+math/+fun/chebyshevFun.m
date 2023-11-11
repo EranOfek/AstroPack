@@ -27,9 +27,10 @@ function Fun = chebyshevFun(Type, Orders)
     
     syms x
     
+    % use Horner polynomials representation (much faster)
     if any(Orders==0)
         Orders = Orders(Orders~=0);
-        SymFun = simplify(ChebyFun(Orders, x));
+        SymFun = horner(simplify(ChebyFun(Orders, x)));
         StrFun = vectorize(SymFun);
         StrFun = strrep(StrFun,'[','[ones(size(x)), ');
         StrFun = ['@(x)', StrFun];
@@ -37,7 +38,7 @@ function Fun = chebyshevFun(Type, Orders)
         %Fun = matlabFunction(SymFun);
     else
         Orders = Orders(Orders~=0);
-        SymFun = simplify(ChebyFun(Orders, x));
+        SymFun = horner(simplify(ChebyFun(Orders, x)));
         StrFun = vectorize(SymFun);
         StrFun = ['@(x)', StrFun];
         Fun    = str2func(StrFun);

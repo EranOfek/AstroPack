@@ -26,6 +26,10 @@ function [E_H, E_dotH, IN]=earthObserverPos(Time, Args)
     %                   Default is 'au'.
     %                   Note that the value of he AU is taken from
     %                   the Constant.AU property.
+    %            'ObserverEphem' - An optional observer [X, Y, Z, VX, VY, VZ].
+    %                   The RefFrame and CooSys is like the one assumed by
+    %                   the input arguments.
+    %                   Default is [].
     % Output : - Barycentric position of geocentric or topocentric
     %            observer [au] (column per JD).
     %          - Barycentric velocity of observer [au/day].
@@ -45,7 +49,7 @@ function [E_H, E_dotH, IN]=earthObserverPos(Time, Args)
         Args.TimeScale       = 'TDB';
         Args.OutUnits        = 'au';  % or AU/day
         Args.RefEllipsoid    = 'WGS84';
-        
+        Args.ObserverEphem   = [];
     end
    
     switch lower(Args.RefFrame)
@@ -57,6 +61,10 @@ function [E_H, E_dotH, IN]=earthObserverPos(Time, Args)
             Frame_Ec   = false;
         otherwise
             error('Unknown RefFrame option');
+    end
+    
+    if ~isempty(Args.ObserverEphem)
+        Args.EarthEphem = 'user';
     end
     
     IN = [];
@@ -83,6 +91,7 @@ function [E_H, E_dotH, IN]=earthObserverPos(Time, Args)
                     % Heliocentric
                     E_H    = IN.getPos('Ear',Time,                   'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits) - ...
                              IN.getPos('Sun',Time-Args.SunLightTime, 'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
+                    %E_H(1) = E_H(1) - 100./149.59787e6;
                     E_dotH = IN.getVel('Ear',Time,                   'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits) - ...
                              IN.getVel('Sun',Time-Args.SunLightTime, 'IsEclipticOut',Frame_Ec, 'TimeScale',Args.TimeScale, 'OutUnits',Args.OutUnits);
                 case 'b'
@@ -92,12 +101,15 @@ function [E_H, E_dotH, IN]=earthObserverPos(Time, Args)
             end
             % convert to eclipic coordinates
 
+        case 'user'
+            E_H    = Args.ObserverEphem(:,1:3).';
+            E_dotH = Args.ObserverEphem(:,4:6).';
         otherwise
             error('Unknown EarthEphem option');
     end
     
     if ~isempty(Args.GeoPos)
-        [Gau, Gdot] = celestial.coo.topocentricVector(Time(It), Args.GeoPos, 'OutUnits','au',...
+        [Gau, Gdot] = celestial.coo.topocentricVector(Time, Args.GeoPos, 'OutUnits',Args.OutUnits,...
                                                              'RefEllipsoid',Args.RefEllipsoid,...
                                                              'Convert2ecliptic',Frame_Ec,...
                                                              'Equinox','J2000');

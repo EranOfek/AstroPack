@@ -142,7 +142,7 @@ classdef INPOP < Base
         end
         
         function download(Args)
-            % Download INPOP planetary ephemerides files
+            % Download INPOP planetary ephemerides files from INPOP website
             % Input  : * ...,key,val,...
             %            'Location' - Location in which to download the
             %                   files. Default is '~/matlab/data/SolarSystem/INPOP/'.

@@ -3,7 +3,9 @@ function [Ang_SOT, Ang_STO, Ang_TSO] = anglesFromDistances(R_Obs, R_Target, Delt
     % Input  : - (R_Obs) An array of Sun-Observer distances.
     %          - (R_Target) An array of Sun-Target distances.
     %          - (Delta) An array of Observer-Target distances
-    %          - Output units: 'rad'|'deg'. Default is 'rad'.
+    %          - Output units: 'rad'|'deg'.
+    %            If logical, then true for 'deg', false for 'rad'.
+    %            Default is true.
     % Output : - Sun-Observer-Target angles.
     %          - Sun-Target-Observer angles.
     %          - target-Sun-Observer angles.
@@ -15,8 +17,16 @@ function [Ang_SOT, Ang_STO, Ang_TSO] = anglesFromDistances(R_Obs, R_Target, Delt
         R_Obs       % Sun-Observer
         R_Target    % Sun-Target
         Delta       % Target-Observer
-        OutUnits    = [];
+        OutUnits    = true;  % or true
     end    
+    
+    if islogical(OutUnits)
+        if OutUnits
+            OutUnits = 'deg';
+        else
+            OutUnits = 'rad';
+        end
+    end
     
     % calculate angles
     Ang_SOT = acos((R_Obs.^2 + Delta.^2 - R_Target.^2)./(2.*R_Obs.*Delta));  % [deg]

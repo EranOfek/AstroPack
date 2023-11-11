@@ -635,6 +635,7 @@ classdef OrbitalEl < Base
                 Nu
                 R
                 AngUnits   = 'rad';
+                
             end
             RAD = 180./pi;
             
@@ -813,8 +814,12 @@ classdef OrbitalEl < Base
             
         end
         
-        function Result = ephemKepler(Obj, Time, Args)
+        function Result = ephemKeplerMultiObj(Obj, Time, Args)
             % Calculate ephemerides for OrbitalEl object by solving the Kepler equation.
+            %   This function is optimized for multi objects.
+            %   See ephemKeplerMultiTime for a function optimied for
+            %   multiple times.
+            %
             %   For each orbital-element or time, return the Geocentric or
             %   topocentric ephemerides of the target.
             %   This is like the ephem function, but not including the
@@ -879,7 +884,7 @@ classdef OrbitalEl < Base
             %                   format of table instead of a matrix.
             %                   Default is true.
             %            'ObserverEphem' - A matrix contain observer position [au] and velocities [au/d] in
-            %                   Heliocentric coordinates for each epoch. The columns are [x,y,z,vx,vy,vz]. 
+            %                   Heliocentric equatorial coordinates for each epoch. The columns are [x,y,z,vx,vy,vz]. 
             %                   If empty, the function will use EarthEphem and GeoPos.
             %                   In case of size [Nepoch,3], the function assume zero velocity.
             %                   Defauls is [].
@@ -890,671 +895,21 @@ classdef OrbitalEl < Base
             % Author : Eran Ofek (Sep 2021)
             % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem([],9804);
             %          JD = celestial.time.julday([9 9 2021])
-            %          Cat = ephemKepler(OrbEl, JD +(1:1:100)')
+            %          Cat = ephemKeplerMultiObj(OrbEl, JD +(1:10:100)');
             %
+            %          %Single time, multiple objects:
             %          OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
-            %          Cat = ephem(OrbEl, JD);
+            %          Cat = ephemKeplerMultiObj(OrbEl, JD);
             %          tic;CatE = ephemKepler(OrbEl, JD, 'GeoPos',[],'MaxIterLT',0,'IncludeMag',false);toc           
             
             arguments
                 Obj(1,1)
-                Time
-                Args.Tol                         = 1e-8;   % [rad]
-                %Args.TolLT                       = 1e-6;   % [day]
-                Args.OutUnitsDeg(1,1) logical    = true;
-                Args.Aberration(1,1) logical     = false; %false;
-                Args.EarthEphem                  = 'inpop'; %'vsop87';  % 'vsop87' | 'inpop'
-                Args.INPOP                       = [];
-                Args.TimeScale                   = 'TDB';
-                Args.GeoPos                      = [];  % [] - topocentric  ; [rad, rad, m]
-                Args.RefEllipsoid                = 'WGS84';
-                Args.OutType                     = 'AstroCatalog';  % 'mat' | 'AstroCatalog'
-                Args.MaxIterLT                   = 1;  % use 0 for quick and dirty
-                Args.IncludeMag(1,1) logical     = true;  % use false to speed up
-                Args.AddDesignation(1,1) logical = true;  % works only for AstroCatalog output
-                %Args.Integration(1,1) logical    = false; %false; 
-                %Args.TolInt                      = 1e-10; 
-                Args.ObserverEphem               = []; % Heliocentric coordinate of observer - [x,y,z,vx,vy,vz]
-            end
-            RAD  = 180./pi;
-            Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
-            
-            Nt      = numel(Time);
-            Ntarget = numEl(Obj);
-            if ~(Nt==1 || Ntarget==1)
-                error('Number of epochs or number of targets must be 1');
-            end
-            Ncat = max(Nt, Ntarget);
-            
-            ColNames      = {'JD', 'RA', 'Dec', 'R', 'Delta','SOT','STO', 'Mag'};
-            if Args.OutUnitsDeg
-                ColUnits      = {'day','deg','deg', 'au','au','deg','deg','mag'};
-            else
-                ColUnits      = {'day','rad','rad', 'au','au','deg','deg','mag'};
-            end
-            Cat           = nan(Ncat, numel(ColNames));
-            
-            
-            for It=1:1:Nt
-                % rectangular heliocentric ecliptic coordinates of Earth with equinox of J2000
-                if ~isempty(Args.ObserverEphem)
-                    E_H    = Args.ObserverEphem(It,1:3)';
-                    E_dotH = Args.ObserverEphem(It,4:6)';
-                else
-                    [E_B, E_dotB, Args.INPOP]=celestial.SolarSys.earthObserverPos(Time(It),...
-                                                                                'CooSys','b',...
-                                                                                'SunLightTime',0,...
-                                                                                'GeoPos',Args.GeoPos,...
-                                                                                'EarthEphem',Args.EarthEphem,...
-                                                                                'INPOP',Args.INPOP,...
-                                                                                'TimeScale',Args.TimeScale,...
-                                                                                'OutUnits','au',...
-                                                                                'RefEllipsoid',Args.RefEllipsoid);                        
-                end
-                S_B = Args.INPOP.getVel('Sun',Time(It), 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits','au');
-                E_H = E_B - S_B;   % Earth Heliocentric
-                E_dotH = E_dotB;  % not correct
-                
-                LightTime = 0;
-                for Iter=0:1:Args.MaxIterLT
-                    
-                    % Solution via Kepler equation
-                    % Output is in heliocentric system
-                    [Nu, R, E, Vel, M]          = keplerSolve(Obj, Time(It)-LightTime,'Tol',Args.Tol);
-                    % target ecliptic Heliocentric rect. position
-                    [U_H] = trueAnom2rectPos(Obj, Nu, R, 'rad');   % ecliptic, Heliocentric, rectangular, J2000
-                    U_H   = U_H.';  % a 3 X N matrix
-                    
-                    % convert to Barycentric - no improvment
-                    %S_B = Args.INPOP.getPos('Sun',Time(It)-LightTime);
-                    %U_B = U_B + S_B;
-                    
-                    S_Btau = Args.INPOP.getVel('Sun',Time(It)-LightTime, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits','au');
-                    U_B = U_H + S_B;
-                    U   = U_B - E_B;
-                    %Q = U_B - S_Btau;
-                    %U   = U_H - E_H;
-                    
-                    
-                    %U = U_B - E_H;  % U_B(t-tau)
-                    % Q = U_B - S_B; % U_B(t-tau) - S_B(t-tau)
-                    %U_H = U_B - S_B;
-
-                    Delta = sqrt(sum(U.^2, 1));
-                    LightTime = Delta./Caud;
-                    % more accuratly - use:
-                    % celestial.Kepler.LightTimeCorrection
-
-                end
-                R     = sqrt(sum(U_B.^2, 1));
-
-                % J2000 RA/Dec Coordinates from celiptic cartesian
-                [RA, Dec] = celestial.SolarSys.cart2eqAng(U, 'Delta',Delta,...
-                                                             'InputSys','ec',...
-                                                             'Aberration',Args.Aberration,...
-                                                             'E_dotH',E_dotH,...
-                                                             'OutUnitsDeg',Args.OutUnitsDeg);
-                                                                                
-                
-                % calculate angles
-                R_Obs = sqrt(sum(E_H.^2, 1));  % Sun-Earth distance
-                [Ang_SOT, Ang_STO] = celestial.SolarSys.anglesFromDistances(R_Obs, R, Delta, 'deg');
-                
-                
-                if Args.IncludeMag
-                    Mag = magnitude(Obj, R(:), Delta(:), Ang_STO(:), 'PhaseUnits','deg');
-                else
-                    Mag = nan(size(RA));
-                end
-                
-                if Nt==1
-                    % single time, multiple elements
-                    Cat = [Time(:).*ones(Ntarget,1), RA(:), Dec(:), R(:), Delta(:), Ang_SOT(:), Ang_STO(:), Mag(:)];
-                else
-                    % assume single orbital element and multiple times
-                    Cat(It, :) = [Time(It), RA, Dec, R, Delta, Ang_SOT, Ang_STO, Mag];
-                end
-            end
-            
-             if Args.AddDesignation
-                Cat = array2table(Cat);
-                if Nt>1
-                    % assume a single asteroid ephemerides -
-                    % duplicate name
-                    [NameCell{1:1:Nt}] = deal(Obj.Designation{1});
-                else
-                    NameCell = Obj.Designation;
-                end
-                Cat = [Cat, NameCell(:)];
-                ColNames = {ColNames{:}, 'Designation'};
-                ColUnits = {ColUnits{:}, ''};
-            end
-
-            switch lower(Args.OutType)
-                case 'mat'
-                    Result = Cat;
-                case 'astrocatalog'
-                    Result = AstroCatalog({Cat}, 'ColNames',ColNames', 'ColUnits',ColUnits);
-                otherwise
-                    error('Unknown OutType option');
-            end
-                
-            
-        end
-        
-        
-        function Result = ephemKeplerEQ(Obj, Time, Args)
-            % Calculate ephemerides for OrbitalEl object by solving the Kepler equation.
-            %   For each orbital-element or time, return the Geocentric or
-            %   topocentric ephemerides of the target.
-            %   This is like the ephem function, but not including the
-            %   orbital integation option.
-            %
-            %   For definitions and formulae, see Explanatory Supplement to the Astronomical
-            %   Alamanac (Seidelmann 2006), chapter 3.313, p. 148.
-            % Input  : - A single element OrbitalEl object.
-            %            This object may include multiple orbital elements
-            %            in vectors of parameters.
-            %          - A vector of JD in the TDT time scale.
-            %            If the input OrbitalEl object contains multiple
-            %            orbital elements, then the length of the vector of
-            %            times may be 1 or equal to the number of orbital
-            %            elements. In this case, different times corresponds
-            %            to different orbital elements.
-            %            Alternatively, if the input OrbitalEl object
-            %            contains a single orbital element, then it will be
-            %            calculated at the different times.
-            %          * ...,key,val,...
-            %            'Tol' - Tolerance [rad] for solving the Kepler
-            %                   equation. Default is 1e-8.
-            %            'TolLT' - Tolerance [day] for the light-time
-            %                   correction iterations. Default is 1e-6.
-            %            'OutUnitsDeg' - A logical indicating if to list
-            %                   the RA and Dec in degrees. If false list in
-            %                   radians. Default is true.
-            %            'Aberration' - A logical indicating if to include
-            %                   aberration of light. Default is false.
-            %                   Note that for the default (false) the
-            %                   output is in an "astrometric" reference
-            %                   frame (i.e., relative to the stars).
-            %            'EarthEphem' - Earth ephemeris to use:
-            %                   'vsop87' - VSOP87 (default).
-            %                   'inpop' - INPOP.
-            %            'INPOP' - A populated celestial.INPOP object.
-            %                   If empty, will generate one.
-            %            'TimeScale' - Time scale of JD. Relevant only if
-            %                   EarthEphem='INPOP'.
-            %                   Default is 'TDB'.
-            %            'GeoPos' - Geodetic position of the observer (on
-            %                   Earth). [Lon (rad), Lat (rad), Height (m)].
-            %                   If empty, then calculate geocentric
-            %                   positions. Default is [].
-            %            'RefEllipsoid' - Reference ellipsoid for the
-            %                   geodetic positions. Default is 'WGS84'.
-            %            'OutType' - Output type:
-            %                   'mat' - a matrix
-            %                   'AstroCatalog' - An AstroCatalog object.
-            %                   Default is 'AstroCatalog'
-            %            'MaxIterLT' - Maximum numbre of iterations for
-            %                   light-time corrections. Default is 2.
-            %                   0 will force to no ligh-time correction
-            %                   (e.g., for quick calculation).
-            %            'IncludeMag' - A logical indicating if to include
-            %                   magnitude in output catalog.
-            %                   Default is true.
-            %            'AddDesignation' - A logical indicating if to add
-            %                   the asteroid designation (in the last
-            %                   column) to the output.
-            %                   If true, then the output will be in a
-            %                   format of table instead of a matrix.
-            %                   Default is true.
-            %            'ObserverEphem' - A matrix contain observer position [au] and velocities [au/d] in
-            %                   Heliocentric coordinates for each epoch. The columns are [x,y,z,vx,vy,vz]. 
-            %                   If empty, the function will use EarthEphem and GeoPos.
-            %                   In case of size [Nepoch,3], the function assume zero velocity.
-            %                   Defauls is [].
-            % Output : - Output ephemerides with the following columns:
-            %            {'JD', 'RA', 'Dec', 'R', 'Delta','SOT','STO', 'Mag'}
-            %            and units:
-            %            {'day','deg','deg', 'au','au','deg','deg','mag'}.
-            % Author : Eran Ofek (Sep 2021)
-            % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem([],9804);
-            %          JD = celestial.time.julday([9 9 2021])
-            %          Cat = ephemKepler(OrbEl, JD +(1:1:100)')
-            %
-            %          OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
-            %          Cat = ephem(OrbEl, JD);
-            %          tic;CatE = ephemKepler(OrbEl, JD, 'GeoPos',[],'MaxIterLT',0,'IncludeMag',false);toc           
-            
-            arguments
-                Obj(1,1)
-                Time
-                Args.Tol                         = 1e-8;   % [rad]
-                %Args.TolLT                       = 1e-6;   % [day]
-                Args.OutUnitsDeg(1,1) logical    = true;
-                Args.Aberration(1,1) logical     = false; %false;
-                Args.EarthEphem                  = 'inpop'; %'vsop87';  % 'vsop87' | 'inpop'
-                Args.INPOP                       = [];
-                Args.TimeScale                   = 'TDB';
-                Args.GeoPos                      = [];  % [] - topocentric  ; [rad, rad, m]
-                Args.RefEllipsoid                = 'WGS84';
-                Args.OutType                     = 'AstroCatalog';  % 'mat' | 'AstroCatalog'
-                Args.MaxIterLT                   = 1;  % use 0 for quick and dirty
-                Args.IncludeMag(1,1) logical     = true;  % use false to speed up
-                Args.AddDesignation(1,1) logical = true;  % works only for AstroCatalog output
-                %Args.Integration(1,1) logical    = false; %false; 
-                %Args.TolInt                      = 1e-10; 
-                Args.ObserverEphem               = []; % Heliocentric coordinate of observer - [x,y,z,vx,vy,vz]
-            end
-            RAD  = 180./pi;
-            Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
-            
-            Nt      = numel(Time);
-            Ntarget = numEl(Obj);
-            if ~(Nt==1 || Ntarget==1)
-                error('Number of epochs or number of targets must be 1');
-            end
-            Ncat = max(Nt, Ntarget);
-            
-            ColNames      = {'JD', 'RA', 'Dec', 'R', 'Delta','SOT','STO', 'Mag'};
-            if Args.OutUnitsDeg
-                ColUnits      = {'day','deg','deg', 'au','au','deg','deg','mag'};
-            else
-                ColUnits      = {'day','rad','rad', 'au','au','deg','deg','mag'};
-            end
-            Cat           = nan(Ncat, numel(ColNames));
-            
-            for It=1:1:Nt
-                % rectangular heliocentric ecliptic coordinates of Earth with equinox of J2000
-                if ~isempty(Args.ObserverEphem)
-                    E_H    = Args.ObserverEphem(It,1:3)';
-                    E_dotH = Args.ObserverEphem(It,4:6)';
-                else
-                    % Eb(t)
-                    [E_H, E_dotB, Args.INPOP]=celestial.SolarSys.earthObserverPos(Time(It),...
-                                                                                'CooSys','h',...
-                                                                                'RefFrame','ec',...
-                                                                                'SunLightTime',0,...
-                                                                                'GeoPos',Args.GeoPos,...
-                                                                                'EarthEphem',Args.EarthEphem,...
-                                                                                'INPOP',Args.INPOP,...
-                                                                                'TimeScale',Args.TimeScale,...
-                                                                                'OutUnits','au',...
-                                                                                'RefEllipsoid',Args.RefEllipsoid);                        
-                end
-                % Sb(t)
-                S_B = Args.INPOP.getVel('Sun',Time, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits','au');
-                %E_H = E_B - S_B;   % Earth Heliocentric
-                E_dotH = E_dotB;  % not correct
-                
-                LightTime = 0;
-                for Iter=0:1:Args.MaxIterLT
-                    
-                    [E_H, E_dotB, Args.INPOP]=celestial.SolarSys.earthObserverPos(Time(It),...
-                                                                                'CooSys','h',...
-                                                                                'RefFrame','ec',...
-                                                                                'SunLightTime',LightTime,...
-                                                                                'GeoPos',Args.GeoPos,...
-                                                                                'EarthEphem',Args.EarthEphem,...
-                                                                                'INPOP',Args.INPOP,...
-                                                                                'TimeScale',Args.TimeScale,...
-                                                                                'OutUnits','au',...
-                                                                                'RefEllipsoid',Args.RefEllipsoid);                        
-                
-                    
-                    % Solution via Kepler equation
-                    % Output is in heliocentric system
-                    [Nu, R, E, Vel, M]          = keplerSolve(Obj, Time(It)-LightTime,'Tol',Args.Tol);
-                    % target ecliptic Heliocentric rect. position
-                    [U_H] = trueAnom2rectPos(Obj, Nu, R, 'rad');
-                    U_H   = U_H.';  % a 3 X N matrix
-                    
-                    % convert to Barycentric - no improvment
-                    %S_B = Args.INPOP.getPos('Sun',Time(It)-LightTime);
-                    %U_B = U_B + S_B;
-                    
-                    % Sb(t-tau)
-                    %S_Btau = Args.INPOP.getVel('Sun',Time-LightTime, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits','au');
-                    %U_B = U_H + S_Btau;
-                    %U   = U_B - E_B;
-                    %Q = U_B - S_Btau;
-                    
-                    
-                    
-                    U   = U_H - E_H;
-                    
-                    
-                    %U = U_B - E_H;  % U_B(t-tau)
-                    % Q = U_B - S_B; % U_B(t-tau) - S_B(t-tau)
-                    %U_H = U_B - S_B;
-
-                    Delta = sqrt(sum(U.^2, 1));
-                    LightTime = Delta./Caud;
-                    % more accuratly - use:
-                    % celestial.Kepler.LightTimeCorrection
-
-                end
-                R     = sqrt(sum(U_H.^2, 1));
-
-                % J2000 RA/Dec Coordinates from celiptic cartesian
-                [RA, Dec] = celestial.SolarSys.cart2eqAng(U, 'Delta',Delta,...
-                                                             'InputSys','ec',...
-                                                             'Aberration',Args.Aberration,...
-                                                             'E_dotH',E_dotH,...
-                                                             'OutUnitsDeg',Args.OutUnitsDeg);
-                                                                                
-                
-                % calculate angles
-                R_Obs = sqrt(sum(E_H.^2, 1));  % Sun-Earth distance
-                [Ang_SOT, Ang_STO] = celestial.SolarSys.anglesFromDistances(R_Obs, R, Delta, 'deg');
-                
-                
-                if Args.IncludeMag
-                    Mag = magnitude(Obj, R(:), Delta(:), Ang_STO(:), 'PhaseUnits','deg');
-                else
-                    Mag = nan(size(RA));
-                end
-                
-                if Nt==1
-                    % single time, multiple elements
-                    Cat = [Time(:).*ones(Ntarget,1), RA(:), Dec(:), R(:), Delta(:), Ang_SOT(:), Ang_STO(:), Mag(:)];
-                else
-                    % assume single orbital element and multiple times
-                    Cat(It, :) = [Time(It), RA, Dec, R, Delta, Ang_SOT, Ang_STO, Mag];
-                end
-            end
-            
-             if Args.AddDesignation
-                Cat = array2table(Cat);
-                if Nt>1
-                    % assume a single asteroid ephemerides -
-                    % duplicate name
-                    [NameCell{1:1:Nt}] = deal(Obj.Designation{1});
-                else
-                    NameCell = Obj.Designation;
-                end
-                Cat = [Cat, NameCell(:)];
-                ColNames = {ColNames{:}, 'Designation'};
-                ColUnits = {ColUnits{:}, ''};
-            end
-
-            switch lower(Args.OutType)
-                case 'mat'
-                    Result = Cat;
-                case 'astrocatalog'
-                    Result = AstroCatalog({Cat}, 'ColNames',ColNames', 'ColUnits',ColUnits);
-                otherwise
-                    error('Unknown OutType option');
-            end
-                
-            %celestial.coo.convertdms(RA,'r','SH')
-            %celestial.coo.convertdms(Dec,'R','SD')
-            % geocentric  05 39 59.38 +11 02 53.3
-            % topocentric 05 39 59.53 +11 02 51.9
-            
-        end
-        
-        
-        
-        function Result = ephemKeplerEQbary(Obj, Time, Args)
-            % Calculate ephemerides for OrbitalEl object by solving the Kepler equation.
-            %   For each orbital-element or time, return the Geocentric or
-            %   topocentric ephemerides of the target.
-            %   This is like the ephem function, but not including the
-            %   orbital integation option.
-            %
-            %   For definitions and formulae, see Explanatory Supplement to the Astronomical
-            %   Alamanac (Seidelmann 2006), chapter 3.313, p. 148.
-            % Input  : - A single element OrbitalEl object.
-            %            This object may include multiple orbital elements
-            %            in vectors of parameters.
-            %          - A vector of JD in the TDT time scale.
-            %            If the input OrbitalEl object contains multiple
-            %            orbital elements, then the length of the vector of
-            %            times may be 1 or equal to the number of orbital
-            %            elements. In this case, different times corresponds
-            %            to different orbital elements.
-            %            Alternatively, if the input OrbitalEl object
-            %            contains a single orbital element, then it will be
-            %            calculated at the different times.
-            %          * ...,key,val,...
-            %            'Tol' - Tolerance [rad] for solving the Kepler
-            %                   equation. Default is 1e-8.
-            %            'TolLT' - Tolerance [day] for the light-time
-            %                   correction iterations. Default is 1e-6.
-            %            'OutUnitsDeg' - A logical indicating if to list
-            %                   the RA and Dec in degrees. If false list in
-            %                   radians. Default is true.
-            %            'Aberration' - A logical indicating if to include
-            %                   aberration of light. Default is false.
-            %                   Note that for the default (false) the
-            %                   output is in an "astrometric" reference
-            %                   frame (i.e., relative to the stars).
-            %            'EarthEphem' - Earth ephemeris to use:
-            %                   'vsop87' - VSOP87 (default).
-            %                   'inpop' - INPOP.
-            %            'INPOP' - A populated celestial.INPOP object.
-            %                   If empty, will generate one.
-            %            'TimeScale' - Time scale of JD. Relevant only if
-            %                   EarthEphem='INPOP'.
-            %                   Default is 'TDB'.
-            %            'GeoPos' - Geodetic position of the observer (on
-            %                   Earth). [Lon (rad), Lat (rad), Height (m)].
-            %                   If empty, then calculate geocentric
-            %                   positions. Default is [].
-            %            'RefEllipsoid' - Reference ellipsoid for the
-            %                   geodetic positions. Default is 'WGS84'.
-            %            'OutType' - Output type:
-            %                   'mat' - a matrix
-            %                   'AstroCatalog' - An AstroCatalog object.
-            %                   Default is 'AstroCatalog'
-            %            'MaxIterLT' - Maximum numbre of iterations for
-            %                   light-time corrections. Default is 2.
-            %                   0 will force to no ligh-time correction
-            %                   (e.g., for quick calculation).
-            %            'IncludeMag' - A logical indicating if to include
-            %                   magnitude in output catalog.
-            %                   Default is true.
-            %            'AddDesignation' - A logical indicating if to add
-            %                   the asteroid designation (in the last
-            %                   column) to the output.
-            %                   If true, then the output will be in a
-            %                   format of table instead of a matrix.
-            %                   Default is true.
-            %            'ObserverEphem' - A matrix contain observer position [au] and velocities [au/d] in
-            %                   Heliocentric coordinates for each epoch. The columns are [x,y,z,vx,vy,vz]. 
-            %                   If empty, the function will use EarthEphem and GeoPos.
-            %                   In case of size [Nepoch,3], the function assume zero velocity.
-            %                   Defauls is [].
-            % Output : - Output ephemerides with the following columns:
-            %            {'JD', 'RA', 'Dec', 'R', 'Delta','SOT','STO', 'Mag'}
-            %            and units:
-            %            {'day','deg','deg', 'au','au','deg','deg','mag'}.
-            % Author : Eran Ofek (Sep 2021)
-            % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem([],9804);
-            %          JD = celestial.time.julday([9 9 2021])
-            %          Cat = ephemKepler(OrbEl, JD +(1:1:100)')
-            %
-            %          OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
-            %          Cat = ephem(OrbEl, JD);
-            %          tic;CatE = ephemKepler(OrbEl, JD, 'GeoPos',[],'MaxIterLT',0,'IncludeMag',false);toc           
-            
-            arguments
-                Obj(1,1)
-                Time
-                Args.Tol                         = 1e-8;   % [rad]
-                %Args.TolLT                       = 1e-6;   % [day]
-                Args.OutUnitsDeg(1,1) logical    = true;
-                Args.Aberration(1,1) logical     = false; %false;
-                Args.EarthEphem                  = 'inpop'; %'vsop87';  % 'vsop87' | 'inpop'
-                Args.INPOP                       = [];
-                Args.TimeScale                   = 'TDB';
-                Args.GeoPos                      = [];  % [] - topocentric  ; [rad, rad, m]
-                Args.RefEllipsoid                = 'WGS84';
-                Args.OutType                     = 'AstroCatalog';  % 'mat' | 'AstroCatalog'
-                Args.MaxIterLT                   = 1;  % use 0 for quick and dirty
-                Args.IncludeMag(1,1) logical     = true;  % use false to speed up
-                Args.AddDesignation(1,1) logical = true;  % works only for AstroCatalog output
-                %Args.Integration(1,1) logical    = false; %false; 
-                %Args.TolInt                      = 1e-10; 
-                Args.ObserverEphem               = []; % Heliocentric coordinate of observer - [x,y,z,vx,vy,vz]
-            end
-            RAD  = 180./pi;
-            Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
-            
-            Nt      = numel(Time);
-            Ntarget = numEl(Obj);
-            if ~(Nt==1 || Ntarget==1)
-                error('Number of epochs or number of targets must be 1');
-            end
-            Ncat = max(Nt, Ntarget);
-            
-            ColNames      = {'JD', 'RA', 'Dec', 'R', 'Delta','SOT','STO', 'Mag'};
-            if Args.OutUnitsDeg
-                ColUnits      = {'day','deg','deg', 'au','au','deg','deg','mag'};
-            else
-                ColUnits      = {'day','rad','rad', 'au','au','deg','deg','mag'};
-            end
-            Cat           = nan(Ncat, numel(ColNames));
-            
-            for It=1:1:Nt
-                
-                
-                LightTime = 0;
-                for Iter=0:1:Args.MaxIterLT
-                    
-                    [E_B, E_dotB, Args.INPOP]=celestial.SolarSys.earthObserverPos(Time(It),...
-                                                                                'CooSys','b',...
-                                                                                'RefFrame','eq',...
-                                                                                'SunLightTime',LightTime,...
-                                                                                'GeoPos',Args.GeoPos,...
-                                                                                'EarthEphem',Args.EarthEphem,...
-                                                                                'INPOP',Args.INPOP,...
-                                                                                'TimeScale',Args.TimeScale,...
-                                                                                'OutUnits','au',...
-                                                                                'RefEllipsoid',Args.RefEllipsoid);                        
-                
-                    % Sb(t)
-                    S_B = Args.INPOP.getVel('Sun',Time, 'IsEclipticOut',false, 'TimeScale',Args.TimeScale, 'OutUnits','au');
-                    %E_H = E_B - S_B;   % Earth Heliocentric
-                    E_dotH = E_dotB;  % not correct
-
-                
-                    % Solution via Kepler equation
-                    % Output is in heliocentric system
-                    [Nu, R, E, Vel, M]          = keplerSolve(Obj, Time(It)-LightTime,'Tol',Args.Tol);
-                    % target ecliptic Heliocentric rect. position
-                    [U_H] = trueAnom2rectPos(Obj, Nu, R, 'rad');  % ecliptic ref. frame
-                    U_H   = U_H.';  % a 3 X N matrix
-                    U_H   = celestial.coo.rotm_coo('E')*U_H;  % J2000 Equatorial
-                    
-                    % convert to Barycentric - no improvment
-                    S_B = Args.INPOP.getPos('Sun',Time(It)-LightTime, 'IsEclipticOut',false, 'TimeScale',Args.TimeScale, 'OutUnits','au');
-                    U_B = U_H + S_B;
-                    
-                    % Sb(t-tau)
-                    %S_Btau = Args.INPOP.getVel('Sun',Time-LightTime, 'IsEclipticOut',true, 'TimeScale',Args.TimeScale, 'OutUnits','au');
-                    %U_B = U_H + S_Btau;
-                    %U   = U_B - E_B;
-                    %Q = U_B - S_Btau;
-                    
-                    
-                    
-                    U   = U_B - E_B;
-                    
-                    
-                    %U = U_B - E_H;  % U_B(t-tau)
-                    % Q = U_B - S_B; % U_B(t-tau) - S_B(t-tau)
-                    %U_H = U_B - S_B;
-
-                    Delta = sqrt(sum(U.^2, 1));
-                    LightTime = Delta./Caud;
-                    % more accuratly - use:
-                    % celestial.Kepler.LightTimeCorrection
-
-                end
-                R     = sqrt(sum(U_H.^2, 1));
-
-                % J2000 RA/Dec Coordinates from celiptic cartesian
-                [RA, Dec] = celestial.SolarSys.cart2eqAng(U, 'Delta',Delta,...
-                                                             'InputSys','ec',...
-                                                             'Aberration',Args.Aberration,...
-                                                             'E_dotH',E_dotH,...
-                                                             'OutUnitsDeg',Args.OutUnitsDeg);
-                                                                                
-                
-                % calculate angles
-                
-                E_H = E_B;  % incorrect!!!
-                
-                R_Obs = sqrt(sum(E_H.^2, 1));  % Sun-Earth distance
-                [Ang_SOT, Ang_STO] = celestial.SolarSys.anglesFromDistances(R_Obs, R, Delta, 'deg');
-                
-                
-                if Args.IncludeMag
-                    Mag = magnitude(Obj, R(:), Delta(:), Ang_STO(:), 'PhaseUnits','deg');
-                else
-                    Mag = nan(size(RA));
-                end
-                
-                if Nt==1
-                    % single time, multiple elements
-                    Cat = [Time(:).*ones(Ntarget,1), RA(:), Dec(:), R(:), Delta(:), Ang_SOT(:), Ang_STO(:), Mag(:)];
-                else
-                    % assume single orbital element and multiple times
-                    Cat(It, :) = [Time(It), RA, Dec, R, Delta, Ang_SOT, Ang_STO, Mag];
-                end
-            end
-            
-             if Args.AddDesignation
-                Cat = array2table(Cat);
-                if Nt>1
-                    % assume a single asteroid ephemerides -
-                    % duplicate name
-                    [NameCell{1:1:Nt}] = deal(Obj.Designation{1});
-                else
-                    NameCell = Obj.Designation;
-                end
-                Cat = [Cat, NameCell(:)];
-                ColNames = {ColNames{:}, 'Designation'};
-                ColUnits = {ColUnits{:}, ''};
-            end
-
-            switch lower(Args.OutType)
-                case 'mat'
-                    Result = Cat;
-                case 'astrocatalog'
-                    Result = AstroCatalog({Cat}, 'ColNames',ColNames', 'ColUnits',ColUnits);
-                otherwise
-                    error('Unknown OutType option');
-            end
-                
-            %celestial.coo.convertdms(RA,'r','SH')
-            %celestial.coo.convertdms(Dec,'R','SD')
-            % geocentric  05 39 59.38 +11 02 53.3
-            % topocentric 05 39 59.53 +11 02 51.9
-            
-        end
-        
-        
-        
-        
-        
-        
-        
-        
-        function Result = ephemIntegration(Obj, Time, Args)
-            %
-            % Example: Result = ephemIntegration(OrbEl,2451545)
-            
-            arguments
-                Obj
                 Time
                 Args.Tol                         = 1e-8;   % [rad]
                 Args.TolLT                       = 1e-6;   % [day]
                 Args.OutUnitsDeg(1,1) logical    = true;
-                Args.Aberration(1,1) logical     = false;
-                Args.EarthEphem                  = 'vsop87';  % 'vsop87' | 'inpop'
+                Args.Aberration(1,1) logical     = false; %false;
+                Args.EarthEphem                  = 'inpop'; %'vsop87';  % 'vsop87' | 'inpop'
                 Args.INPOP                       = [];
                 Args.TimeScale                   = 'TDB';
                 Args.GeoPos                      = [];  % [] - topocentric  ; [rad, rad, m]
@@ -1567,7 +922,6 @@ classdef OrbitalEl < Base
                 %Args.TolInt                      = 1e-10; 
                 Args.ObserverEphem               = []; % Heliocentric coordinate of observer - [x,y,z,vx,vy,vz]
             end
-            
             RAD  = 180./pi;
             Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
             
@@ -1586,48 +940,67 @@ classdef OrbitalEl < Base
             end
             Cat           = nan(Ncat, numel(ColNames));
             
+            % Rotation matrix: Ecliptic to Equatorial, J2000
+            RotMatEc2Eq = celestial.coo.rotm_coo('E');
             
-            [U, Delta, R, E_H, E_dotH, INPOP] = celestial.SolarSys.orbitIntegrationLightTime1(Time, Obj, 'TimeScale',Args.TimeScale,...
-                                                                                                                'ObserverEphem',[],...
-                                                                                                                'GeoPos',Args.GeoPos);
-                                                                                                            
-%             Args.TimeScale          = 'TDB';
-%         Args.ObserverEphem      = [];
-%         Args.GeoPos             = [];
-%         Args.RefEllipsoid       = 'WGS84';
-%         Args.TolKepler          = 1e-8;
-%         Args.TolInt             = 1e-10;
-%         Args.TolLT              = 1e-6;   % [s]
-%         Args.MaxIterLT          = 10;
-%         Args.EarthEphem         = 'INPOP';
-%         Args.INPOP              = [];
-            
-            
-            % J2000 RA/Dec Coordinates from celiptic cartesian
-            [RA, Dec] = celestial.SolarSys.cart2eqAng(U, 'Delta',Delta,...
-                                                         'InputSys','ec',...
-                                                         'Aberration',Args.Aberration,...
-                                                         'E_dotH',E_dotH,...
-                                                         'OutUnitsDeg',Args.OutUnitsDeg);
+            for It=1:1:Nt
+                LightTime             = 0;
+                for Iter=1:1:Args.MaxIterLT
+                    
+                    % Solution via Kepler equation
+                    % Target, Heliocentric, ecliptic
+                    [Nu, R, E, Vel, M]          = keplerSolve(Obj, Time(It)-LightTime,'Tol',Args.Tol);
+                    % Target, Ecliptic Heliocentric rect. position
+                    [U_B] = trueAnom2rectPos(Obj, Nu, R, 'rad');
+                    U_B   = U_B.';  % a 3 X N matrix
+                    % convert to Equatorial, Heliocentric
+                    U_B   = RotMatEc2Eq * U_B;
+             
+                    [E_H, E_dotH]=celestial.SolarSys.earthObserverPos(Time(It), 'CooSys','h',...
+                                                                                'RefFrame','eq',...
+                                                                                'INPOP',Args.INPOP,...
+                                                                                'ObserverEphem',Args.ObserverEphem,...
+                                                                                'SunLightTime',LightTime,...
+                                                                                'RefEllipsoid',Args.RefEllipsoid);
 
+                    U = U_B - E_H;  % U_B(t-tau)
 
-            % calculate angles
-            R_Obs = sqrt(sum(E_H.^2, 1));  % Sun-Earth distance
-            [Ang_SOT, Ang_STO] = celestial.SolarSys.anglesFromDistances(R_Obs, R, Delta, 'deg');
+                    Delta = sqrt(sum(U.^2, 1));
 
+                    %PrevLightTime = LightTime;
+                    LightTime = Delta./Caud;
+                   
+                end
+                R     = sqrt(sum(U_B.^2, 1));
 
-            if Args.IncludeMag
-                Mag = magnitude(Obj, R(:), Delta(:), Ang_STO(:), 'PhaseUnits','deg');
-            else
-                Mag = nan(size(RA));
-            end
+                % ignore light deflection
+                if Args.Aberration
+                    U2 = celestial.SolarSys.aberrationSolarSystem(U, E_dotH, Delta);
+                else
+                    U2 = U;
+                end
 
-            if Nt==1
-                % single time, multiple elements
-                Cat = [Time(:).*ones(Ntarget,1), RA(:), Dec(:), R(:), Delta(:), Ang_SOT(:), Ang_STO(:), Mag(:)];
-            else
-                % assume single orbital element and multiple times
-                Cat(It, :) = [Time(It), RA, Dec, R, Delta, Ang_SOT, Ang_STO, Mag];
+                % U2 is already in equatorial caretesian coordinates
+                [RA, Dec, Delta] = celestial.SolarSys.cart2eqAng(U2, 'InputSys','eq', 'Delta',Delta, 'Aberration',Args.Aberration, 'E_dotH',E_dotH, 'OutUnitsDeg',Args.OutUnitsDeg);
+                
+                % calculate angles
+                R_obs_sun = sqrt(sum(E_H.^2, 1));  % Sun-Earth distance
+                [Ang_SOT, Ang_STO, Ang_TSO] = celestial.SolarSys.anglesFromDistances(R_obs_sun, R, Delta, Args.OutUnitsDeg);
+                
+                
+                if Args.IncludeMag
+                    Mag = magnitude(Obj, R(:), Delta(:), Ang_STO(:), 'PhaseUnits','deg');
+                else
+                    Mag = nan(size(RA));
+                end
+                
+                if Nt==1
+                    % single time, multiple elements
+                    Cat = [Time(:).*ones(Ntarget,1), RA(:), Dec(:), R(:), Delta(:), Ang_SOT(:), Ang_STO(:), Mag(:)];
+                else
+                    % assume single orbital element and multiple times
+                    Cat(It, :) = [Time(It), RA, Dec, R, Delta, Ang_SOT, Ang_STO, Mag];
+                end
             end
             
              if Args.AddDesignation
@@ -1652,13 +1025,237 @@ classdef OrbitalEl < Base
                 otherwise
                     error('Unknown OutType option');
             end
-            
-            
+                
             
             
             
         end
         
+        
+        
+        function Result = ephemKeplerMultiTime(Obj, Time, Args)
+            % Calculate ephemerides for OrbitalEl object by solving the Kepler equation.
+            %   This function is optimized for multi objects.
+            %   See ephemKeplerMultiTime for a function optimied for
+            %   multiple times.
+            %
+            %   For each orbital-element or time, return the Geocentric or
+            %   topocentric ephemerides of the target.
+            %   This is like the ephem function, but not including the
+            %   orbital integation option.
+            %
+            %   For definitions and formulae, see Explanatory Supplement to the Astronomical
+            %   Alamanac (Seidelmann 2006), chapter 3.313, p. 148.
+            % Input  : - A single element OrbitalEl object.
+            %            This object may include multiple orbital elements
+            %            in vectors of parameters.
+            %          - A vector of JD in the TDT time scale.
+            %            If the input OrbitalEl object contains multiple
+            %            orbital elements, then the length of the vector of
+            %            times may be 1 or equal to the number of orbital
+            %            elements. In this case, different times corresponds
+            %            to different orbital elements.
+            %            Alternatively, if the input OrbitalEl object
+            %            contains a single orbital element, then it will be
+            %            calculated at the different times.
+            %          * ...,key,val,...
+            %            'Tol' - Tolerance [rad] for solving the Kepler
+            %                   equation. Default is 1e-8.
+            %            'TolLT' - Tolerance [day] for the light-time
+            %                   correction iterations. Default is 1e-6.
+            %            'OutUnitsDeg' - A logical indicating if to list
+            %                   the RA and Dec in degrees. If false list in
+            %                   radians. Default is true.
+            %            'Aberration' - A logical indicating if to include
+            %                   aberration of light. Default is false.
+            %                   Note that for the default (false) the
+            %                   output is in an "astrometric" reference
+            %                   frame (i.e., relative to the stars).
+            %            'EarthEphem' - Earth ephemeris to use:
+            %                   'vsop87' - VSOP87 (default).
+            %                   'inpop' - INPOP.
+            %            'INPOP' - A populated celestial.INPOP object.
+            %                   If empty, will generate one.
+            %            'TimeScale' - Time scale of JD. Relevant only if
+            %                   EarthEphem='INPOP'.
+            %                   Default is 'TDB'.
+            %            'GeoPos' - Geodetic position of the observer (on
+            %                   Earth). [Lon (rad), Lat (rad), Height (m)].
+            %                   If empty, then calculate geocentric
+            %                   positions. Default is [].
+            %            'RefEllipsoid' - Reference ellipsoid for the
+            %                   geodetic positions. Default is 'WGS84'.
+            %            'OutType' - Output type:
+            %                   'mat' - a matrix
+            %                   'AstroCatalog' - An AstroCatalog object.
+            %                   Default is 'AstroCatalog'
+            %            'MaxIterLT' - Maximum numbre of iterations for
+            %                   light-time corrections. Default is 2.
+            %                   0 will force to no ligh-time correction
+            %                   (e.g., for quick calculation).
+            %            'IncludeMag' - A logical indicating if to include
+            %                   magnitude in output catalog.
+            %                   Default is true.
+            %            'AddDesignation' - A logical indicating if to add
+            %                   the asteroid designation (in the last
+            %                   column) to the output.
+            %                   If true, then the output will be in a
+            %                   format of table instead of a matrix.
+            %                   Default is true.
+            %            'ObserverEphem' - A matrix contain observer position [au] and velocities [au/d] in
+            %                   Heliocentric equatorial coordinates for each epoch. The columns are [x,y,z,vx,vy,vz]. 
+            %                   If empty, the function will use EarthEphem and GeoPos.
+            %                   In case of size [Nepoch,3], the function assume zero velocity.
+            %                   Defauls is [].
+            % Output : - Output ephemerides with the following columns:
+            %            {'JD', 'RA', 'Dec', 'R', 'Delta','SOT','STO', 'Mag'}
+            %            and units:
+            %            {'day','deg','deg', 'au','au','deg','deg','mag'}.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem([],9804);
+            %          JD = celestial.time.julday([9 9 2021])
+            %          Cat = ephemKeplerMultiTime(OrbEl, JD +(1:10:100)');
+            %
+            %          %Single time, multiple objects:
+            %          OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
+            %          Cat = ephemKeplerMultiTime(OrbEl, JD);
+            %          tic;CatE = ephemKeplerMultiTime(OrbEl, JD, 'GeoPos',[],'MaxIterLT',0,'IncludeMag',false);toc    
+            %
+            %          % This time with defining INPOP prior to run
+            %          IN = celestial.INPOP;
+            %          IN.populateTables('all');
+            %          IN.populateTables('all','FileData','vel');
+            %          tic;CatE = ephemKeplerMultiTime(OrbEl, JD, 'GeoPos',[],'MaxIterLT',0,'IncludeMag',false,'INPOP',IN);toc    
+            
+            
+            arguments
+                Obj(1,1)
+                Time
+                Args.Tol                         = 1e-8;   % [rad]
+                Args.TolLT                       = 1e-6;   % [day]
+                Args.OutUnitsDeg(1,1) logical    = true;
+                Args.Aberration(1,1) logical     = false; %false;
+                Args.EarthEphem                  = 'inpop'; %'vsop87';  % 'vsop87' | 'inpop'
+                Args.INPOP                       = [];
+                Args.TimeScale                   = 'TDB';
+                Args.GeoPos                      = [];  % [] - topocentric  ; [rad, rad, m]
+                Args.RefEllipsoid                = 'WGS84';
+                Args.OutType                     = 'AstroCatalog';  % 'mat' | 'AstroCatalog'
+                Args.MaxIterLT                   = 2;  % use 0 for quick and dirty
+                Args.IncludeMag(1,1) logical     = true;  % use false to speed up
+                Args.AddDesignation(1,1) logical = true;  % works only for AstroCatalog output
+                %Args.Integration(1,1) logical    = false; %false; 
+                %Args.TolInt                      = 1e-10; 
+                Args.ObserverEphem               = []; % Heliocentric coordinate of observer - [x,y,z,vx,vy,vz]
+            end
+            RAD  = 180./pi;
+            Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
+            
+            Nt      = numel(Time);
+            Ntarget = numEl(Obj);
+            if Ntarget>1
+                error('This function can be used for a single object and multiple times - see instead ephemKeplerMultiObj');
+            end
+            
+            Ncat = Nt; %max(Nt, Ntarget);
+            
+            ColNames      = {'JD', 'RA', 'Dec', 'R', 'Delta','SOT','STO', 'Mag'};
+            if Args.OutUnitsDeg
+                ColUnits      = {'day','deg','deg', 'au','au','deg','deg','mag'};
+            else
+                ColUnits      = {'day','rad','rad', 'au','au','deg','deg','mag'};
+            end
+            Cat           = nan(Ncat, numel(ColNames));
+            
+            % Rotation matrix: Ecliptic to Equatorial, J2000
+            RotMatEc2Eq = celestial.coo.rotm_coo('E');
+            
+            LightTime             = 0;
+            for Iter=1:1:Args.MaxIterLT
+
+                % Solution via Kepler equation
+                % Target, Heliocentric, ecliptic
+                [Nu, R, E, Vel, M]          = keplerSolve(Obj, Time(:)-LightTime(:),'Tol',Args.Tol);
+                % Target, Ecliptic Heliocentric rect. position
+                [U_B] = trueAnom2rectPos(Obj, Nu, R, 'rad');
+                U_B   = U_B.';  % a 3 X N matrix
+                % convert to Equatorial, Heliocentric
+                U_B   = RotMatEc2Eq * U_B;
+
+                [E_H, E_dotH]=celestial.SolarSys.earthObserverPos(Time(:), 'CooSys','h',...
+                                                                        'RefFrame','eq',...
+                                                                        'INPOP',Args.INPOP,...
+                                                                        'ObserverEphem',Args.ObserverEphem,...
+                                                                        'SunLightTime',LightTime(:),...
+                                                                        'RefEllipsoid',Args.RefEllipsoid);
+
+                U = U_B - E_H;  % U_B(t-tau)
+
+                Delta = sqrt(sum(U.^2, 1));
+
+                %PrevLightTime = LightTime;
+                LightTime = Delta./Caud;
+
+            end
+            R     = sqrt(sum(U_B.^2, 1));
+
+            % ignore light deflection
+            if Args.Aberration
+                U2 = celestial.SolarSys.aberrationSolarSystem(U, E_dotH, Delta);
+            else
+                U2 = U;
+            end
+
+            % U2 is already in equatorial caretesian coordinates
+            [RA, Dec, Delta] = celestial.SolarSys.cart2eqAng(U2, 'InputSys','eq', 'Delta',Delta, 'Aberration',Args.Aberration, 'E_dotH',E_dotH, 'OutUnitsDeg',Args.OutUnitsDeg);
+
+            % calculate angles
+            R_obs_sun = sqrt(sum(E_H.^2, 1));  % Sun-Earth distance
+            [Ang_SOT, Ang_STO, Ang_TSO] = celestial.SolarSys.anglesFromDistances(R_obs_sun, R, Delta, Args.OutUnitsDeg);
+
+
+            if Args.IncludeMag
+                Mag = magnitude(Obj, R(:), Delta(:), Ang_STO(:), 'PhaseUnits','deg');
+            else
+                Mag = nan(size(RA));
+            end
+                
+            % assume single orbital element and multiple times
+            Cat = [Time(:), RA(:), Dec(:), R(:), Delta(:), Ang_SOT(:), Ang_STO(:), Mag(:)];
+            
+            if Args.AddDesignation
+                Cat = array2table(Cat);
+                if Nt>1
+                    % assume a single asteroid ephemerides -
+                    % duplicate name
+                    [NameCell{1:1:Nt}] = deal(Obj.Designation{1});
+                else
+                    NameCell = Obj.Designation;
+                end
+                Cat = [Cat, NameCell(:)];
+                ColNames = {ColNames{:}, 'Designation'};
+                ColUnits = {ColUnits{:}, ''};
+            end
+
+            switch lower(Args.OutType)
+                case 'mat'
+                    Result = Cat;
+                case 'astrocatalog'
+                    Result = AstroCatalog;
+                    Result.Catalog = Cat;
+                    Result.ColNames = ColNames;
+                    Result.ColUnits = ColUnits;
+                    %Result = AstroCatalog({Cat}, 'ColNames',ColNames', 'ColUnits',ColUnits);
+                otherwise
+                    error('Unknown OutType option');
+            end
+                            
+            
+        end
+        
+        
+        
+      
         
         function Result = ephem(Obj, Time, Args)
             % Calculate ephemerides for OrbitalEl object.
@@ -1936,6 +1533,10 @@ classdef OrbitalEl < Base
                 Ang_SOT = acosd((Rsun.^2 + Delta.^2 - R.^2)./(2.*Rsun.*Delta));  % [deg]
                 % Observer-Target-Sun
                 Ang_STO = acosd((R.^2 + Delta.^2 - Rsun.^2)./(2.*R.*Delta));   % [deg]
+                
+                                
+                
+                
                 
                 if Args.IncludeMag
                     Mag = magnitude(Obj, R(:), Delta(:), Ang_STO(:), 'PhaseUnits','deg');
