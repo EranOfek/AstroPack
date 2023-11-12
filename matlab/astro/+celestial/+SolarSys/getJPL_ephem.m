@@ -44,7 +44,16 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
     %            'StepUnits' - Ephemeris step units.
     %                   'm','h','d', for min, hour, day.
     %                   Default is 'd'.
-    %
+    %            'OutType' - Default is 'table'.
+    %                   'OrbitalEl' is possible for 'ELEMENTS' options.
+    %            'OrbEl' - An optional celestial.OrbitalEl object.
+    %                   If given then the result will be written into one
+    %                   row in OrbEl (wile columns are for different
+    %                   objects).
+    %                   If empty, create a new object. Default is [].
+    %            'LineInd' - An optional line index in which to insert the
+    %                   orbital element. If empty, append to end.
+    %                   Default is [].
     %            See code for additional arguments
     % Output : - A Table with requested ephmeris.
     %          - Output string from JPL horizons website.
@@ -94,6 +103,11 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
         Args.Convert2Numeric logical   = true;
         Args.BaseUrl     = 'https://ssd.jpl.nasa.gov/api/horizons.api?';
         Args.DoubleQoutesFields = {'SOLAR_ELONG','START_TIME','STOP_TIME','STEP_SIZE','QUANTITIES','SITE_COORD'};
+        Args.OutType     = 'table';
+        Args.OrbEl       = [];
+        Args.LineInd     = [];
+        
+        
     end
     
     switch Args.EPHEM_TYPE
@@ -273,6 +287,43 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
                 end
             end
         end
+        
+        switch lower(Args.OutType)
+            case 'table'
+                % do nonthing
+            case 'orbitalel'
+                if strcmp(Args.EPHEM_TYPE, 'ELEMENTS')
+                    if isempty(Args.OrbEl)
+                        OrbEl = celestial.OrbitalEl;
+                    else
+                        OrbEl = Args.OrbEl;
+                    end
+                    if isempty(Args.LineInd)
+                        LineInd = size(OrbEl.Eccen,1) + 1;
+                    else
+                        LineInd = Args.LineInd;
+                    end
+                        
+                    error('not working yet');
+                    OrbEl.Eccen(LineInd,:)     = OutputTable.EC(:).';
+                    OrbEl.A(LineInd,:)         = OutputTable.A(:).';
+                    OrbEl.PeriDist(LineInd,:)  = OutputTable.QR(:).';
+                    OrbEl.W(LineInd,:)         = OutputTable.W(:).';
+                    OrbEl.Node(LineInd,:)      = OutputTable.OM(:).';
+                    OrbEl.Incl(LineInd,:)      = OutputTable.IN(:).';
+                    OrbEl.Tp(LineInd,:)        = OutputTable.Tp(:).';  
+                    OrbEl.Epoch(LineInd,:)     = OutputTable.JDTDB(:).';
+                    OrbEl.Designation{LineInd} = Object;
+                    OutputTable     = OrbEl;
+                else
+                    warning('OutType==OrbitalEl is possible only for EPHEM_TYPE==ELEMENTS - output will be table');
+                end
+                    
+            otherwise
+                error('OutType option %s is not supported',Args.OutType);
+        end
+        
     end
+    
 end
 
