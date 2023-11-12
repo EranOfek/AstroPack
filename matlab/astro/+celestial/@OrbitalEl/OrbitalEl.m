@@ -1,6 +1,34 @@
 % celestial.OrbitalEl - A class for storing and manipulating orbital elements, and two body motion calculations.
 % Author : Eran Ofek (Jan 2022)
 %
+% Comments on usage:
+% Each element of the object may contain multiple orbital parameters.
+% Typically, orbital elements of a single object as a function of epoch are stored in the same row,
+% while orbital elements for different targets are stored in different
+% rows.
+% 
+% Examples:
+% % To download the JPL orbital elements use the Installer.
+% % Load arguments of all numbered asteroids
+% OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
+% % Load parameters for numbreed, unnumbered and comets
+% OrbEl = celestial.OrbitalEl.loadSolarSystem([]);
+% % Load parameters for asteroid number 9804
+% OrbEl = celestial.OrbitalEl.loadSolarSystem('num',9804);
+%
+% % Generate ephemeris:
+% OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
+% JD = 2451545;
+% CatE = ephem(OrbEl, JD, 'GeoPos',[],'MaxIterLT',1,'IncludeMag',false);
+% CatE = ephem(OrbEl, JD, 'GeoPos',[],'MaxIterLT',2,'IncludeMag',true); 
+%
+% % or for a single object and multiple times:
+% OrbEl = celestial.OrbitalEl.loadSolarSystem('num',9804);
+% CatE = ephem(OrbEl, JD+(1:1:100)', 'GeoPos',[]);
+%
+%
+%
+%
 % #functions (autogen)
 % OrbitalEl - Constractor for OrbitalEl class
 % eccAnom2radius - Eccentric anomaly to radius vector
@@ -98,47 +126,78 @@ classdef OrbitalEl < Base
     end
     
     methods % setter/getters
-        function Result = get.A(Obj)
-            % getter for A (semi-major axis)
-           
-            if isempty(Obj.A)
-                % check if PeriDist and Eccen are available
-                if ~isempty(Obj.PeriDist) && ~isempty(Obj.Eccen)
-                    % calc A
-                    Obj.A = Obj.PeriDist./(1 - Obj.Eccen);
-                end
-            end
-            Result = Obj.A;
-        end
-        
-        function Result = get.PeriDist(Obj)
-            % getter for A (semi-major axis)
-           
-            if isempty(Obj.PeriDist)
-                % check if A and Eccen are available
-                if ~isempty(Obj.A) && ~isempty(Obj.Eccen)
-                    % calc PeriDist
-                    Obj.PeriDist = Obj.A.*(1 - Obj.Eccen);
-                end
-            end
-            Result = Obj.PeriDist;
-        end
-        
-        function Result = get.Tp(Obj)
-            % getter for periapsis time [JD]
-            
-            if isempty(Obj.Tp) && (~isempty(Obj.Mepoch) && ~isempty(Obj.A))
-                Obj.Tp = Obj.Epoch - Obj.Mepoch./Obj.meanMotion(Obj.AngUnits);
-            end
-            
-            Obj.Tp = real(Obj.Tp);
-            
-            Result = Obj.Tp;
-            
-        end
+%         function Result = get.A(Obj)
+%             % getter for A (semi-major axis)
+%            
+%             if isempty(Obj.A)
+%                 % check if PeriDist and Eccen are available
+%                 if ~isempty(Obj.PeriDist) && ~isempty(Obj.Eccen)
+%                     % calc A
+%                     Obj.A = Obj.PeriDist./(1 - Obj.Eccen);
+%                 end
+%             end
+%             Result = Obj.A;
+%         end
+%         
+%         function Result = get.PeriDist(Obj)
+%             % getter for A (semi-major axis)
+%            
+%             if isempty(Obj.PeriDist)
+%                 % check if A and Eccen are available
+%                 if ~isempty(Obj.A) && ~isempty(Obj.Eccen)
+%                     % calc PeriDist
+%                     Obj.PeriDist = Obj.A.*(1 - Obj.Eccen);
+%                 end
+%             end
+%             Result = Obj.PeriDist;
+%         end
+%         
+%         function Result = get.Tp(Obj)
+%             % getter for periapsis time [JD]
+%             
+%             if isempty(Obj.Tp) && (~isempty(Obj.Mepoch) && ~isempty(Obj.A))
+%                 Obj.Tp = Obj.Epoch - Obj.Mepoch./Obj.meanMotion(Obj.AngUnits);
+%             end
+%             
+%             Obj.Tp = real(Obj.Tp);
+%             
+%             Result = Obj.Tp;
+%             
+%         end
     end
     
     methods % basic functions
+        function Obj = populate(Obj)
+            % Populate A, PeriDist, Tp from other parameters.
+            % Author : Eran Ofek (Nov 2023)
+            % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
+            %          OrbEl.populate;
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if isempty(Obj(Iobj).A)
+                    % check if PeriDist and Eccen are available
+                    if ~isempty(Obj(Iobj).PeriDist) && ~isempty(Obj(Iobj).Eccen)
+                        % calc A
+                        Obj(Iobj).A = Obj(Iobj).PeriDist./(1 - Obj(Iobj).Eccen);
+                    end
+                end
+                if isempty(Obj(Iobj).PeriDist)
+                    % check if A and Eccen are available
+                    if ~isempty(Obj(Iobj).A) && ~isempty(Obj(Iobj).Eccen)
+                        % calc PeriDist
+                        Obj(Iobj).PeriDist = Obj(Iobj).A.*(1 - Obj(Iobj).Eccen);
+                    end
+                end
+                if isempty(Obj(Iobj).Tp) && (~isempty(Obj(Iobj).Mepoch) && ~isempty(Obj(Iobj).A))
+                    Obj(Iobj).Tp = Obj(Iobj).Epoch - Obj(Iobj).Mepoch./Obj(Iobj).meanMotion(Obj(Iobj).AngUnits);
+                end
+
+                Obj(Iobj).Tp = real(Obj(Iobj).Tp);
+            end
+            
+        end
+        
         function Result = numEl(Obj)
             % Return the number or orbital elements in each OrbitalEl
             % element.
@@ -958,7 +1017,7 @@ classdef OrbitalEl < Base
             %                   Default is 'AstroCatalog'
             %            'MaxIterLT' - Maximum numbre of iterations for
             %                   light-time corrections. Default is 2.
-            %                   0 will force to no ligh-time correction
+            %                   1 will force to no ligh-time correction
             %                   (e.g., for quick calculation).
             %            'IncludeMag' - A logical indicating if to include
             %                   magnitude in output catalog.
@@ -1174,7 +1233,7 @@ classdef OrbitalEl < Base
             %                   Default is 'AstroCatalog'
             %            'MaxIterLT' - Maximum numbre of iterations for
             %                   light-time corrections. Default is 2.
-            %                   0 will force to no ligh-time correction
+            %                   1 will force to no ligh-time correction
             %                   (e.g., for quick calculation).
             %            'IncludeMag' - A logical indicating if to include
             %                   magnitude in output catalog.
@@ -1391,7 +1450,7 @@ classdef OrbitalEl < Base
             %                   Default is 'AstroCatalog'
             %            'MaxIterLT' - Maximum numbre of iterations for
             %                   light-time corrections. Default is 2.
-            %                   0 will force to no ligh-time correction
+            %                   1 will force to no ligh-time correction
             %                   (e.g., for quick calculation).
             %            'IncludeMag' - A logical indicating if to include
             %                   magnitude in output catalog.
@@ -1541,7 +1600,7 @@ classdef OrbitalEl < Base
             %                   Default is 'AstroCatalog'
             %            'MaxIterLT' - Maximum numbre of iterations for
             %                   light-time corrections. Default is 5.
-            %                   0 will force to no ligh-time correction
+            %                   1 will force to no ligh-time correction
             %                   (e.g., for quick calculation).
             %            'IncludeMag' - A logical indicating if to include
             %                   magnitude in output catalog.
@@ -2490,7 +2549,8 @@ classdef OrbitalEl < Base
                         error('Unknown Type option');
                 end
             end
-                
+            % populate missing parameters
+            Result.populate;
         end
         
         function Result = randomElements(N, Args)

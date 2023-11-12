@@ -304,16 +304,17 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
                         LineInd = Args.LineInd;
                     end
                         
-                    error('not working yet');
-                    OrbEl.Eccen(LineInd,:)     = OutputTable.EC(:).';
+                    %error('not working yet');
+                    
                     OrbEl.A(LineInd,:)         = OutputTable.A(:).';
+                    OrbEl.Eccen(LineInd,:)     = OutputTable.EC(:).';
                     OrbEl.PeriDist(LineInd,:)  = OutputTable.QR(:).';
                     OrbEl.W(LineInd,:)         = OutputTable.W(:).';
                     OrbEl.Node(LineInd,:)      = OutputTable.OM(:).';
                     OrbEl.Incl(LineInd,:)      = OutputTable.IN(:).';
                     OrbEl.Tp(LineInd,:)        = OutputTable.Tp(:).';  
                     OrbEl.Epoch(LineInd,:)     = OutputTable.JDTDB(:).';
-                    OrbEl.Designation{LineInd} = Object;
+                    OrbEl.Designation{LineInd,1} = Object;
                     OutputTable     = OrbEl;
                 else
                     warning('OutType==OrbitalEl is possible only for EPHEM_TYPE==ELEMENTS - output will be table');
