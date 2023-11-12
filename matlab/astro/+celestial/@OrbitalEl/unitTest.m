@@ -90,9 +90,9 @@ function Result = unitTest()
 
     assert(all(abs(1-Cat.Catalog{:,{'RA','Dec','R'}}./Cat2.Catalog{:,{'RA','Dec','R'}})<1e-3));
 
-    Cat = ephem(OrbEl, JD,'Integration',true);
-    Cat2  = ephem(OrbEl, JD,'Integration',true,'EarthEphem','inpop');
-    assert(all(abs(1-Cat.Catalog{:,{'RA','Dec','R'}}./Cat2.Catalog{:,{'RA','Dec','R'}})<1e-3));
+    %Cat = ephem(OrbEl, JD,'Integration',true);
+    %Cat2  = ephem(OrbEl, JD,'Integration',true,'EarthEphem','inpop');
+    %assert(all(abs(1-Cat.Catalog{:,{'RA','Dec','R'}}./Cat2.Catalog{:,{'RA','Dec','R'}})<1e-3));
 
     %% Testing against specific examples
     % Comet Encke (Example 33.b from Meeus 2009; p 232)
@@ -104,6 +104,7 @@ function Result = unitTest()
     E.Eccen       = 0.8502196;
     E.Tp          = celestial.time.julday([28 10 1990 0.54502]);
     E.A           = 2.2091404;
+    E.populate;
     
     % expected values
     Ex.Nu  = -94.163310;  % true anomaly

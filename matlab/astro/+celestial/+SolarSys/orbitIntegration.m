@@ -3,11 +3,14 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
     %   in the Solar System includeing perturbations from all planets.
     %   This include only the integration between two points in time (i.e.,
     %   no observer and light time correction).
+    %   The integration is done in the equatorial reference frame.
     % Input  : - Vector of initial and final JD.
     %          - Target asteroids position vector in au.
     %            This is a 3 X Nobj matrix, where 3 is the number of
     %            coordinates, and Nobj the number of objects.
+    %            Barycentric J2000 equatorial ref. frame.
     %          - Target asteroids velocity vector in au / day, same size as X0.
+    %            Barycentric J2000 equatorial ref. frame.
     %          * ...,key,val,...
     %            'RelTol' - Relative tolerance of the ODE.
     %                   Default is 1e-10.
@@ -35,6 +38,7 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
         Args.AbsTol     = 1e-10;
         Args.INPOP      = [];   % if empty use celestial.SolarSys.ple_force
         Args.TimeScale  = 'TDB';
+        %Args.RefFrame   = 'eq';
     end
 
     Nobj = size(X0,2);
@@ -70,7 +74,8 @@ function DXVDt = odeDirectVectorized(T,XVmat,Nobj, ObjINPOP, TimeScale)
         DXVDt(4:6,:) = ObjINPOP.forceAll(T, XVmat(1:3,:), 'IsEclipticOut',false, 'OutUnits','au', 'TimeScale',TimeScale);
     end
 
-    DXVDt(4:6,:) = DXVDt(4:6,:)  -  celestial.SolarSys.ple_force([0 0 0]', T,'EqJ2000',false);
+    % For Heliocentric frame you need the following line:
+    % DXVDt(4:6,:) = DXVDt(4:6,:)  -  celestial.SolarSys.ple_force([0 0 0]', T,'EqJ2000',false);
 
     DXVDt = DXVDt(:);
 end

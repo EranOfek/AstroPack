@@ -808,7 +808,7 @@ classdef OrbitalEl < Base
             
         end
             
-        function [X0, V0, INPOP] = elements2pos(Obj, Args)
+        function [X0, V0, JD, INPOP] = elements2pos(Obj, Args)
             % Get rectangular coordinates and velocity from orbital elements at some epoch.
             % Input  : - A single element celestial.OrbitalEl object.
             %          * ...,key,val,...
@@ -836,6 +836,7 @@ classdef OrbitalEl < Base
             %            orbital element.
             %          - A 3 x N matrix of [X;Y;Z] velocities. Colum per
             %            orbital element.
+            %          - JD of position.
             %          - A populated INPOP object.
             % Author : Eran Ofek (Nov 2023)
             % Example: EA = celestial.OrbitalEl.loadSolarSystem('num');
@@ -892,6 +893,7 @@ classdef OrbitalEl < Base
                     error('Unknown RefFrame option');
             end
                             
+            JD    = Args.JD;
             INPOP = Args.INPOP;
         end
     end
@@ -1686,28 +1688,41 @@ classdef OrbitalEl < Base
             end
             Cat           = nan(Ncat, numel(ColNames));
             
+            
+            % populate INPOP if needed
+            
+            
+            
             % Get initial X, Y, Z, VX, VY, VZ of target
             % Heliocentric system
             %[Nu0]  = keplerSolve(Obj, Obj.Epoch, 'Tol',Args.Tol);
             %[V0,X0] = trueAnom2rectVel(Obj,Nu0,[],[]);  % ecliptic J2000
             
-            [X0, V0] = elements2pos(Obj, 'JD',[],...
+            
+            
+            [X0, V0, JD0] = elements2pos(Obj, 'JD',[],...
                                          'TimeScale',Args.TimeScale,...
                                          'CooSys','eq',...
                                          'RefFrame','bary',...
                                          'Tol',Args.Tol,...
                                          'INPOP',Args.INPOP);
             
-                                     
-            [StartEpochs,~,IndEpochs] = unique(Obj.Epoch); % devide to groups with same initial epoch
+            
             
 
-            for It=1:1:Nt
-                LightTimeNotConverged = true;
-                LightTime             = 0;
-                Iter                  = 0;              
-                while LightTimeNotConverged
-                    Iter = Iter + 1;
+            LightTimeNotConverged = true;
+            LightTime             = 0;
+            Iter                  = 0;      
+            for Iter=1:1:Args.MaxIterLT
+                % Need to specify the RefFrame 
+                [U_B(:,IndTargets),~] = celestial.SolarSys.orbitIntegration([JD0, Time(It)-LightTime(IndLightTime)],...
+                                                                             X0(:,IndTargets),...
+                                                                             V0(:,IndTargets),...
+                                                                             'RelTol',Args.TolInt,...
+                                                                             'AbsTol',Args.TolInt,...
+                                                                             'TimeScale',Args.TimeScale,...
+                                                                             'INPOP',Args.INPOP);
+                                                            
                     % Orbital integration
                     U_B = zeros(3,Ntarget);
                     % loop for each group with same initial epoch
@@ -2598,7 +2613,7 @@ classdef OrbitalEl < Base
             arguments
                 Args.ObjectInd           = 9804;
                 Args.StartJD             = 2460110.5 - 1000;
-                Args.StepSize            = 10;
+                Args.StepSize            = 50;
                 Args.EndJD               = 2460110.5 + 100;
                 Args.GeodPos             = [];  % [deg deg m]
                 Args.Integration logical = false;
@@ -2622,7 +2637,8 @@ classdef OrbitalEl < Base
             CatJPL = celestial.SolarSys.jpl_horizons('ObjectInd',num2str(Args.ObjectInd),'StartJD',Args.StartJD,'StopJD',Args.EndJD,...
                                                      'StepSize',Args.StepSize, 'StepSizeUnits','d','CENTER','500', 'GeodCoo',GeodPosKM);
             % RA nd Dec diff between JPL and ephem:
-            Result = [CatE.Catalog.JD, CatE.Catalog.JD - OrbEl1.Epoch, [CatE.Catalog.RA - CatJPL.Catalog(:,2), CatE.Catalog.Dec - CatJPL.Catalog(:,3)].*RAD.*3600];
+            Result = [CatE.Catalog.JD, CatE.Catalog.JD - OrbEl1.Epoch, ...
+                     [CatE.Catalog.RA - CatJPL.Catalog(:,2), CatE.Catalog.Dec - CatJPL.Catalog(:,3), CatE1.Catalog.RA - CatJPL.Catalog(:,2), CatE1.Catalog.Dec - CatJPL.Catalog(:,3)].*RAD.*3600];
             
             
             
