@@ -290,6 +290,106 @@ classdef MatchedSources < Component
             
         end
         
+        function Result = rdirMatchedSourcesSearch(Args)
+            % Recursive search for MergedMat files and return file names.
+            %   The output is a structure array in which each element
+            %   contains the file name per CropID.
+            % Input  : * ...,key,val,...
+            %            'FileTemplate' - File name template to search
+            %                   Default is '*merged_MergedMat_1.hdf5'.
+            %            'Path' - Path in which to start the recursive
+            %                   search. Default is pwd.
+            %            'MinJD' - Min JD. Default is -Inf.
+            %            'MaxJD' - Max JD. Default is Inf.
+            %            'CropID' - List of CropID files.
+            %                   If empty, then will retrieve all.
+            %            'Product' - Requested Product.
+            %                   Default is 'MergedMat'.
+            % Output : - A structure array with field
+            %            .FullName containing
+            %               a cell array of full file names (including path).
+            %               The structure is an array in which each element
+            %               corresponds to a different CropID.
+            %            .Folder - A cell array of folders.
+            %            .CropID - The CropID index is stored in the .CropID field.
+            % Author : Eran Ofek (Nov 2023)
+            % Example: Result = MatchedSources.rdirMatchedSourcesSearch()
+            %          Result = MatchedSources.rdirMatchedSourcesSearch('CropID',[])
+
+
+            arguments
+                Args.FileTemplate       = '*merged_MergedMat_1.hdf5';
+                Args.Path               = pwd;
+                Args.MinJD              = -Inf;
+                Args.MaxJD              = Inf;
+                Args.CropID             = [];  % can be a vector, empty - will do for each CropID
+                Args.Product            = 'MergedMat';
+            end
+
+            PWD = pwd;
+            cd(Args.Path);
+            List = io.files.rdir(Args.FileTemplate);
+            FN   = FileNames.generateFromFileName({List.name},'FullPathFromFileName',true);
+            JD   = FN.julday;
+            % search by user specified criteria
+            Flag = JD(:)>Args.MinJD & JD(:)<Args.MaxJD & strcmp(FN.Product(:), Args.Product);
+            if isempty(Args.CropID)
+                Args.CropID = sort(unique(FN.CropID));
+            end
+            Ncrop = numel(Args.CropID);
+            Result = struct('FileName',cell(Ncrop,1), 'Folder',cell(Ncrop,1), 'CropID',cell(Ncrop,1));
+            for Icrop=1:1:Ncrop
+                FlagC = Flag & FN.CropID(:)==Args.CropID(Icrop);
+
+                FNC   = FN.reorderEntries(FlagC, 'CreateNewObj',true);
+
+                Result(Icrop).FileName = FNC.genFile;
+                Result(Icrop).Folder   = {List(FlagC).folder}.';
+                Result(Icrop).CropID   = Args.CropID(Icrop);
+            end
+            
+            cd(PWD);
+        end
+    
+        function Result = readList(List, Args)
+            % Read a list of MatchedSources hdf5 files into a MatchedSources object.
+            % Input  : - A structure with two fields:
+            %            .FullName - conatining a cell array of files.
+            %            .Folder - a cell array of folders.
+            %            This structure is the output of MatchedSources.rdirMatchedSourcesSearch
+            %          * ...,key,val,..
+            %            'FieldFullName' - The input structure field
+            %                   containing the file names. Default is
+            %                   'FileName'.
+            %            'FieldFolder' - The input structure field contains
+            %                   the cell of folders. Default is 'Folder'.
+            % Output : - A MatchedSources object populated with the files.
+            % Author : Eran Ofek (Nov 2023)
+            % Example: L = MatchedSources.rdirMatchedSourcesSearch('CropID',[10]);
+            %          MS = MatchedSources.readList(L);
+
+            arguments
+                List
+                Args.FieldFileName   = 'FileName';
+                Args.FieldFolder     = 'Folder';
+            end
+
+            if iscell(List)
+                ListSt(1).(Args.FieldFullName) = List;
+            else
+                ListSt = List;
+            end
+
+            Nst = numel(ListSt);
+            for Ist=1:1:Nst
+                Nfile = numel(ListSt(Ist).(Args.FieldFileName));
+                File = fullfile(ListSt(Ist).(Args.FieldFolder), ListSt(Ist).(Args.FieldFileName));
+                for Ifile=1:1:Nfile
+                    Result(Ifile) = MatchedSources.read(File{Ifile});
+                end
+            end
+
+        end
     end
     
     methods % write
@@ -2097,29 +2197,6 @@ classdef MatchedSources < Component
 
         
         
-%         function matchReturnIndices
-%             
-%         end
-           
-%         function Result = merge(Obj, Args)
-%             %
-%             
-%             arguments
-%                 Obj
-%                 Args.IsCooSphere logical     = true;
-%                 Args.ColNameX                = AstroCatalog.DefNamesX;
-%                 Args.ColNameY                = AstroCatalog.DefNamesY;
-%                 Args.ColNameRA               = AstroCatalog.DefNamesRA;
-%                 Args.ColNameDec              = AstroCatalog.DefNamesDec;
-%             end
-%             
-%             Nobj = numel(Obj);
-%             
-%             for Iobj=1:1:Nobj
-%                 
-%             end
-%             
-%         end
     end
     
     methods % conversions
