@@ -50,7 +50,7 @@ function Result = unitTest()
 
     OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
     Cat = ephem(OrbEl, JD);
-    CatE = ephem(OrbEl, JD, 'GeoPos',[],'MaxIterLT',0,'IncludeMag',false);
+    CatE = ephem(OrbEl, JD, 'GeoPos',[],'MaxIterLT',1,'IncludeMag',false);
 
 
     % compare to JPL
