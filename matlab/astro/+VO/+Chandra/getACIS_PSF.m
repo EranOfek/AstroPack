@@ -1,5 +1,21 @@
 function WPSF = getACIS_PSF(Chip, Args)
     % get a MARX-simulated Chandra ACIS PSF
+    % Input : - Chandra ACIS chip number: 0,1,2,3 (ACIS-I) and ,6,7 (the center of the ACIS-S) only
+    %      * ...,key,val,...
+    %      'Energy' - get the PSF at this energy [in keV], can be in the range of [0.2 -- 8] only
+    %      'Spec'   - a spectrum as a 2 column table: [keV ; photons s(-1) cm(-2) keV(-1)]
+    %                 if Spec is not empty, the PSF is weighted with it
+    %      'PosX'   - pixel X coordinate of the source on the chip
+    %      'PosY'   - pixel Y coordinate of the source on the chip
+    %      'RollAngle' - the ACIS roll angle, PSF is rotated
+    %      'Nornalize' - whether to normalize the output PSF stamp
+    % Output : - a PSF stamp (2D matrix) at mono energy or spectrum-weighted
+    % Author : A.M. Krassilchtchikov (Nov 2023)
+    % Examples: P = VO.Chandra.getACIS_PSF(0, 'Energy', 2.5, 'PosX', 124, 'PosY', 876); 
+    %           RollAngle = 53; 
+    %           P = VO.Chandra.getACIS_PSF(0, 'Energy', 2.5, 'PosX', 124, 'PosY', 876, 'RollAngle', RollAngle);
+    %           En = 0:10'; Sp = [En En.^-2];
+    %           P = VO.Chandra.getACIS_PSF(0,'Spec', Sp, 'PosX', 100, 'PosY', 301);
     arguments
         Chip        = 0;   % the chip number can be 0,1,2,3,6,7 only
         Args.Energy = 4;   % in keV, can be in the range of [0.2 -- 8]
