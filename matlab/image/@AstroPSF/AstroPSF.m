@@ -93,6 +93,14 @@ classdef AstroPSF < Component
                 Args.UseRegExp logical    = false;
                 Args.DataVar              = {};
                 Args.VarHDU               = 1;
+                %
+                Args.Synthetic            = {};
+                Args.StampSize            = [15 15];
+                Args.GaussSigma           = [2 2 0];
+                Args.LorentzianGamma      = 1;
+                Args.CosbellRadii         = [4 7];
+                Args.MoffatAlphaBeta      = [0.5 2];
+                Args.SersicPars           = [2 4 1];                
             end
             
             if ischar(FileName)
@@ -143,6 +151,30 @@ classdef AstroPSF < Component
                     Obj.DataType = AstroDataType.PSF;
                 end % end if isempty...
             end % end for Ifield
+            
+            if ~isempty(Args.Synthetic) % fill in the DataPSF property with a synthetic kernel                
+                if numel(Args.StampSize) < 2
+                    Args.StampSize = [Args.StampSize Args.StampSize];
+                end
+                switch lower(Args.Synthetic)
+                    case 'gauss'
+                        Obj.DataPSF = imUtil.kernel2.gauss(Args.GaussSigma, Args.StampSize);
+                    case 'cosbell'
+                        Obj.DataPSF = imUtil.kernel2.cosbell(Args.CosbellRadii, Args.StampSize);
+                    case 'lorentzian'
+                        Obj.DataPSF = imUtil.kernel2.lorentzian(Args.LorentzianGamma, Args.StampSize);
+                    case 'lorenzian'
+                        Obj.DataPSF = imUtil.kernel2.lorentzian(Args.LorentzianGamma, Args.StampSize);
+                    case 'moffat'
+                        Obj.DataPSF = imUtil.kernel2.moffat(Args.MoffatAlphaBeta, Args.StampSize);
+                    case 'sersic' 
+                        Obj.DataPSF = imUtil.kernel2.sersic(Args.SersicPars, Args.StampSize);
+                    case 'box'
+                        Obj.DataPSF = imUtil.kernel2.box(Args.StampSize);
+                    otherwise
+                        error('The input synthetic kernel type is not supported');
+                end
+            end
             
         end
         

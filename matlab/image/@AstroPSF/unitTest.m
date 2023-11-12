@@ -4,8 +4,15 @@ function Result = unitTest()
     % Author: Eran Ofek, A.M. Krassilchtchikov (Oct 2023)
     % Example: Result = AstroPSF.unitTest
 
-    %io.msgStyle(LogLevel.Test, '@start', 'AstroPSF test started');                                      
-
+    %io.msgStyle(LogLevel.Test, '@start', 'AstroPSF test started');       
+    
+    % synthetic kernels:
+    
+    AP = AstroPSF('Synthetic','gauss','GaussSigma',[3 4 0],'StampSize',[15 19]);    
+    AP = AstroPSF('Synthetic','lorentzian','LorentzianGamma',2);
+    AP = AstroPSF('Synthetic','cosbell','CosbellRadii',[6 10],'StampSize',21);
+    AP = AstroPSF('Synthetic','moffat','MoffatAlphaBeta',[0.7 3]);
+    
     % getPSF
     AP = AstroPSF;
     P = imUtil.kernel2.gauss;
