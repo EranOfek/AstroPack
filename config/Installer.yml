@@ -207,6 +207,15 @@ Items:
         SearchFile           : ''
         Description          : 'modelled ULTRASAT PSF data'
 
+    Chandra_PSF:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'Chandra_PSF'
+        SubDir               : 'Chandra/PSF'
+        URL                  : ['http://data.astropack.org/chandra/ChandraACIS_PSF.tar']
+        Size                 : 1126
+        SearchFile           : ''
+        Description          : 'modelled Chandra ACIS PSF data'
+
         #    ULTRASAT_RawData:
         # The following are cell arrays of entry per dataset
         #        DataName             : 'ULTRASAT_RawData'
