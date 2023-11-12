@@ -167,6 +167,8 @@ function Result = unitTest()
     end
     
     %% testing ephem against JPL
+    E = celestial.OrbitalEl.loadSolarSystem('num',9804);
+    R1 = E.compareEphem2JPL
     
     
     
