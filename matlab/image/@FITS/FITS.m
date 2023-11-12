@@ -1006,7 +1006,11 @@ classdef FITS < handle
             end
             
             % sanify the file name so that it contain the absolute path
-            FileName = tools.os.relPath2absPath(FileName); 
+            if strcmp(FileName(1),'!') % need this for the case when overwrite is requested 
+                FileName = strcat('!',tools.os.relPath2absPath(FileName(2:end)));
+            else
+                FileName = tools.os.relPath2absPath(FileName);
+            end
             
             % Prepare header
             Header = FITS.prepareHeader(Args.Header, HeaderField, 'WriteTime', Args.WriteTime);

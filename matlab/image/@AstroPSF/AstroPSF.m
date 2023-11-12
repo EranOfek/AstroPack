@@ -85,7 +85,9 @@ classdef AstroPSF < Component
             % Output : - An AstroPSF object in which the PSF and variance
             %            are populated.
             % Author : Eran Ofek (May 2022)
-            % Example: P=AstroPSF('ztf_20200207460174_000576_zg_c03_o_q3_diffimgpsf.fits')           
+            % Example: P=AstroPSF('ztf_20200207460174_000576_zg_c03_o_q3_diffimgpsf.fits');  
+            %          P=AstroPSF('Synthetic','gauss','GaussSigma',[3 4 0],'StampSize',[19 19]); 
+            %          P=AstroPSF; % empty structure
             arguments
                 FileName                  = [];
                 Args.HDU                  = 1;
