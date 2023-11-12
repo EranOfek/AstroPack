@@ -8,7 +8,7 @@ function WPSF = getACIS_PSF(Chip, Args)
     %      'PosX'   - pixel X coordinate of the source on the chip
     %      'PosY'   - pixel Y coordinate of the source on the chip
     %      'RollAngle' - the ACIS roll angle, PSF is rotated
-    %      'Nornalize' - whether to normalize the output PSF stamp
+    %      'Normalize' - whether to normalize the output PSF stamp
     % Output : - a PSF stamp (2D matrix) at mono energy or spectrum-weighted
     % Author : A.M. Krassilchtchikov (Nov 2023)
     % Examples: P = VO.Chandra.getACIS_PSF(0, 'Energy', 2.5, 'PosX', 124, 'PosY', 876); 
