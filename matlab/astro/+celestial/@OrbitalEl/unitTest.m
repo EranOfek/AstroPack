@@ -167,7 +167,16 @@ function Result = unitTest()
         error('RA/Dec are wrong');
     end
     
+    
     %% testing ephem against JPL
+    [X, V, JD0] = elements2pos(E, 'CooSys','ec');
+    [T] = celestial.SolarSys.getJPL_ephem('9804;','EPHEM_TYPE','VECTORS','TimeScale','TT', 'StartTime',JD0, 'StopTime',JD0+0.5,'CENTER','500@0');
+    if any(abs([T.X;T.Y;T.Z]-X)>1e-6)
+        error('Conversion orbital elements to position not consistent with JPL ephemeris');
+    end
+            
+    
+    
     E = celestial.OrbitalEl.loadSolarSystem('num',9804);
     R1 = E.compareEphem2JPL
     

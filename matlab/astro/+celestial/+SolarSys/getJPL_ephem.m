@@ -28,7 +28,7 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
     %                           'TimeScale' must be 'TT' or 'UT'.
     %                   'ELEMENTS' - Heliocentric orbital elements.
     %                           'TimeScale' must be 'TDB'.
-    %                   'VECTORS' - Ecliptic Cartesian position.
+    %                   'VECTORS' - J2000.0 Ecliptic Cartesian position.
     %                   Default is 'OBSERVER'.
     %            'CENTER' - Body center (observer or coordinate origin).
     %                   For 'EPHEM_TYPE'='ELEMENTS', the 'CENTER' is

@@ -28,7 +28,8 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
     %          - A 3 X Nobj matrix containing the velocity at the requested
     %            time.
     % Author : Amir Sharon (April 2022)
-    % Example: [X,V] = celestial.SolarSys.orbitIntegration(2451545+(0:1:5),[1 1 1]',[0.001 0.001 0.001]')
+    % Example: [X,V] = celestial.SolarSys.orbitIntegration([2451545 2451546],[1 1 1]',[0.001 0.001 0.001]')
+    %          [X,V] = celestial.SolarSys.orbitIntegration([2451545 2451546],[1 2; 1 1; 1 3],[0.001 0.001; 0.001 0.001; -0.001 0.001])
 
     arguments
         JD
