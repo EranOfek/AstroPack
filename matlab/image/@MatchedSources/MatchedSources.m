@@ -35,9 +35,13 @@
 %   MSU.applyZP(R.FitZP);
 %   MSU.plotRMS
 %
-%   GoodFlag = MSU.selectGoodPhotCalibStars;
+%   [GoodObs, GoodStar] = MSU.selectGoodPhotCalibStars;
+%   MSG = MSU.copy;
+%   MSGs = MSG.selectBySrcIndex(GoodStar);
+%
 %   R=lsqRelPhot(MSU, 'Flag',GoodFlag);
-%   %R=lsqRelPhot(MSU, 'Flag',GoodFlag, 'StarProp',{nanmedian(MSU.Data.X1)', nanmedian(MSU.Data.Y1)', MSU.SrcData.ExtColor(:)});
+%   %R=lsqRelPhot(MSU, 'Flag',GoodFlag, 'StarProp',{nanmedian(MSU.Data.X1)', nanmedian(MSU.Data.Y1)', MSU.SrcData.ExtColor(:)}, 'Method','cgs');
+%   R=lsqRelPhot(MSU, 'Flag',GoodFlag, 'StarProp',{MSU.SrcData.ExtColor(:)}, 'Method','cgs');
 %   MSU.applyZP(R.FitZP);
 %   MSU.plotRMS
 %
@@ -2292,10 +2296,10 @@ classdef MatchedSources < Component
             end
         end
 
-        function GoodFlag = selectGoodPhotCalibStars(Obj, Args)
+        function [GoodObs, GoodStar, Good] = selectGoodPhotCalibStars(Obj, Args)
             % Selects stars which are good for photometric calibration
             %   Given a single element MatchedSources object select stars
-            %   which have good FLGAS, good S/N, errors and chi^2.
+            %   which have good FLGAS, not NaN mag, good S/N, errors and chi^2.
             % Input  : - A single-element MatchedSources object.
             %          * ...,key,val,...
             %            'PropFlags' - The name of the flags matrix in the Data
@@ -2315,15 +2319,29 @@ classdef MatchedSources < Component
             %            'MinMag' - Minimum mag. Default is -Inf.
             %            'MaxMag' - Maximum mag. Default is Inf.
             %            'PropMagErr' - Mag. error property name.
-            %                   Default is 'MAGERR_APER_3'.
+            %                   Default is 'MAGERR_PSF'.
             %            'MaxErr' - Maximum mag. error. Default is 0.05.
             %            'PropPsfChi2' - Chi2 property name.
             %                   Default is 'PSF_CHI2DOF'.
             %            'Chi2Quantile' - [Lower, Upper] range of quantile
             %                   in which to select sources by their chi^2.
             %                   Default is [0.05 0.95].
+            %            'PropExtColor' - Property name in the SrcData
+            %                   property, that contains the external color.
+            %                   Note that this can be populated using the
+            %                   MatchedSources/addExtMagColor method.
+            %                   Default is 'ExtColor'.
+            %            'ExtColorExist' - If true, then will only choose
+            %                   stars for which the SrcData.ExtColor is not NaN.
+            %                   (Only if the SrcData.ExtColor is
+            %                   populated).
+            %                   Default is true.
             % Output : - A matrix of size Nepoch X Nsrc with logicals
-            %            indicating if the source is good for phot. calib.
+            %            indicating if the observation is good for phot. calib.
+            %          - A vector of logical indicating if a star has only
+            %            true (good) entries.
+            %          - A structure with all the specific problem
+            %            logicals.
             % Author : Eran Ofek (Nov 2023)
             % Example: GoodFlag = MSU.selectGoodPhotCalibStars;
 
@@ -2339,11 +2357,12 @@ classdef MatchedSources < Component
                 Args.PropMag          = 'MAG_PSF'
                 Args.MinMag           = -Inf;
                 Args.MaxMag           = Inf;
-                Args.PropMagErr       = 'MAGERR_APER_3'
+                Args.PropMagErr       = 'MAGERR_PSF'
                 Args.MaxErr           = 0.05;
                 Args.PropPsfChi2      = 'PSF_CHI2DOF';
                 Args.Chi2Quantile     = [0.05 0.95];  % will remove lower and upper 0.05
-                
+                Args.PropExtColor     = 'ExtColor';
+                Args.ExtColorExist logical = true;
             end
 
             % sources with good flags
@@ -2357,16 +2376,29 @@ classdef MatchedSources < Component
             % sources with good errors
             Good.Err   = Obj.Data.(Args.PropMagErr)<Args.MaxErr;
 
-            % sources with good mag
-            Good.Mag   = Obj.Data.(Args.PropMag)>Args.MinMag & Obj.Data.(Args.PropMag)<Args.MaxMag;
+            % sources with good mag and not NaN
+            Good.Mag   = Obj.Data.(Args.PropMag)>Args.MinMag & Obj.Data.(Args.PropMag)<Args.MaxMag & ~isnan(Obj.Data.(Args.PropMag));
 
             % sources with good chi2
             RqngeQuantile = quantile(Obj.Data.(Args.PropPsfChi2), Args.Chi2Quantile, 'all');
             Good.Chi2     = Obj.Data.(Args.PropPsfChi2)>RqngeQuantile(1) & Obj.Data.(Args.PropPsfChi2)<RqngeQuantile(2);
 
+            if Args.ExtColorExist
+                if isfield(Obj.SrcData, Args.PropExtColor)
+                    Good.Color = ~isnan(Obj.SrcData.(Args.PropExtColor));
+                else
+                    Good.Color = true;
+                end
+            else
+                Good.Color = true;
+            end
+
             % combine all flags
-            GoodFlag      = Good.Flags & Good.SN & Good.Err & Good.Mag & Good.Chi2;
+            GoodObs      = Good.Flags & Good.SN & Good.Err & Good.Mag & Good.Chi2 & Good.Color;
               
+            % good stars
+            GoodStar = all(GoodObs, 1);
+
         end
 
         function [Result]=lsqRelPhot(Obj, Args)

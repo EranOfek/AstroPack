@@ -18,7 +18,7 @@ function Result=lsqRelPhot(InstMag, Args)
     %                   Data matrix Nepoch N Nsources, it is Data(:)).
     %                   If empty, assume all true.
     %                   Default is [].
-    %            'Method' - LSQ solver method: 'lscov'.
+    %            'Method' - LSQ solver method: 'lscov' | 'cgs' (conjugate gradient).
     %                   Default is 'lscov'.
     %            'Algo' - ALgorithm for the lscov function: 'chol'|'orth'.
     %                   Default is 'chol'.
@@ -88,7 +88,7 @@ function Result=lsqRelPhot(InstMag, Args)
         InstMag                    = [];
         Args.MagErr                = 0.02;
         Args.Flag                  = [];
-        Args.Method                = 'lscov';
+        Args.Method                = 'lscov'; %'lscov' | 'cgs'
         Args.Algo                  = 'chol';  % 'chol' | 'orth'
         Args.Niter                 = 2;
         Args.MaxStarStd            = 0.1;
@@ -164,12 +164,15 @@ function Result=lsqRelPhot(InstMag, Args)
         
         switch lower(Args.Method)
             case 'lscov'
-%A = H(Flag,:)*H(Flag,:).';
-%Par = cgs(A, Y(Flag))
-% getting out of memory error
-
                 [Par, ParErr] = lscov(H(Flag,:), Y(Flag), 1./VarY(Flag), Args.Algo);
                 Resid = Y - H*Par;  % all residuals (including bad stars)
+            case 'cgs'
+                % congugate gradient method
+                A      = H(Flag,:).'*H(Flag,:);
+                YY     = H(Flag,:).' * Y(Flag);
+                Par    = cgs(A, YY);
+                ParErr = nan(size(Par));
+                Resid  = Y - H*Par;
             otherwise
                 error('Unknown Method option');
         end
