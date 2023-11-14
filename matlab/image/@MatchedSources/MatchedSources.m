@@ -19,6 +19,29 @@
 %   summary   - Summary of a specific field matrix in MatchedSources.
 %   plotRMS   - plot rms of mag vs. mag
 %
+% Examples:
+%   % prepare list of files to upload
+%   L = MatchedSources.rdirMatchedSourcesSearch('CropID',10);      
+%   Upload all files to a MatchedSources object
+%   MS = MatchedSources.readList(L);    
+%   % Merge all MatchedSources elkement into a single element object
+%   MSU=mergeByCoo(MS,MS(1));
+%   % To see the rms vs mag prior to calibration
+%   MSU.plotRMS
+%   % Add GAIA mag and colors
+%   MSU.addExtMagColor;
+%
+%   R = lcUtil.zp_meddiff(MSU,'MagField','MAG_PSF','MagErrField','MAGERR_PSF');
+%   MSU.applyZP(R.FitZP);
+%   MSU.plotRMS
+%
+%   GoodFlag = MSU.selectGoodPhotCalibStars;
+%   R=lsqRelPhot(MSU, 'Flag',GoodFlag);
+%   %R=lsqRelPhot(MSU, 'Flag',GoodFlag, 'StarProp',{nanmedian(MSU.Data.X1)', nanmedian(MSU.Data.Y1)', MSU.SrcData.ExtColor(:)});
+%   MSU.applyZP(R.FitZP);
+%   MSU.plotRMS
+%
+%
 % #functions (autogen)
 % addMatrix - Add matrix/struct/matched AstroTable into the MatchedSources Data Obj = addMatrix(Obj, Matrix, FieldName)
 % deleteMatrix - remove matrix and field name from an MatchedSources object
@@ -967,89 +990,6 @@ classdef MatchedSources < Component
             
         end
         
-        function [Obj,ApplyToMagField] = applyZP(Obj, ZP, Args)
-            % Apply zero point and optional color term to MatchedSources matrices.
-            %   This function can be used to apply a vector of ZP to
-            %   instrumental magnitude matrices.
-            %   Only simple ZP can be treated (i.e., no higher terms,
-            %   detrending).
-            % Input  : - A MatchedSources object.
-            %          - A vector of ZP (ZP per epoch), or structure array
-            %            (elelmnt per MatchedSources element)
-            %            with a ZP vector in each element.
-            %          * ...,key,val,...
-            %            'FieldZP' - If the second input is a structure
-            %                   array, then this is the field name
-            %                   containing the ZP vector.
-            %                   Default is 'FitZP'.
-            %            'ApplyToMagField' - A char or cell array.
-            %                   If char, then will first search for all
-            %                   field names in the first element of the
-            %                   MatchedSources object that contains this
-            %                   substring. All the releveant GAIfields will be
-            %                   put in a cell array. Will apply the ZP for
-            %                   all fields in the cell array.
-            %                   Default is 'MAG'.
-            %            'Operator' - A function handke with operator for
-            %                   the ZP. E.g., NewMatrix = operator(Matrix, ZP)
-            %                   Default is @minus.
-            %            'Color' - A vector of colors (one per source).
-            %                   [No support for structure array].
-            %                   Default is [].
-            %            'ColorTerm' - Color terms that multiplys the color
-            %                   vector. Default is [].
-            %            'ColorOperator' - A function handle for the color
-            %                   operator. Default is @minus.
-            % Output : - The MatchedSources object, but with the magnitude
-            %            fields applied with the ZP.
-            %          - A cell array of field names to which the ZP was
-            %            applied.
-            % Author : Eran Ofek (Dec 2021)
-            % Example: MS = MatchedSources;
-            %          MS.addMatrix(rand(100,200),'FLUX')
-            %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
-            %          MS.applyZP(ones(100,1))
-            
-            arguments
-                Obj(1,1)
-                ZP
-                Args.FieldZP          = 'FitZP';
-                Args.ApplyToMagField  = 'MAG_'; % if cell then exact search - for all Matched sources
-                Args.Operator         = @minus;
-                Args.Color            = [];    %will work only for single element MatchedSources
-                Args.ColorTerm        = [];
-                Args.ColorOperator    = @minus;
-                
-            end
-            
-            if ischar(Args.ApplyToMagField)
-                % Args.ApplyToMagCol is a substring to search
-                ApplyToMagField = getFieldNameSearch(Obj(1), Args.ApplyToMagField);
-            else
-                ApplyToMagField = Args.ApplyToMagField;
-            end
-            Nfield = numel(ApplyToMagField);
-            
-            Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-                if isstruct(ZP)
-                    VecZP = ZP(Iobj).(Args.FieldZP);
-                else
-                    VecZP = ZP;
-                end
-             
-                VecZP = VecZP(:); % must be a column vector - line per epoch
-                for Ifield=1:1:Nfield
-                    Obj(Iobj).Data.(ApplyToMagField{Ifield}) = Args.Operator(Obj(Iobj).Data.(ApplyToMagField{Ifield}), VecZP);
-                    if ~isempty(Args.Color)
-                        ColorVec = Args.Color(:).' .* Args.ColorTerm;  % a must be a row vector [per source]
-                        Obj(Iobj).Data.(ApplyToMagField{Ifield}) = Args.ColorOperator(Obj(Iobj).Data.(ApplyToMagField{Ifield}), ColorVec);
-                    end
-                end
-             
-            end
-        end
-        
         function Obj = addSrcData(Obj, Field, Data, Args)
             % Populate/calculate the SrcData structure 
             %   The SrcData property contains a structure in which each
@@ -1671,6 +1611,9 @@ classdef MatchedSources < Component
     
     end
     
+
+
+
     methods % design matrix
         function [H, Y, ErrY] = designMatrix(Obj, ColNames, FunCell, ColNameY, FunY, ColNameErrY, FunErrY)
             % Generate a general purpose design matrix from an MatchedSources object
@@ -2119,7 +2062,7 @@ classdef MatchedSources < Component
             %            'FlagsList' - A cell array containing a list of
             %                   bit names to identify.
             %                   Default is {'NearEdge','Saturated','NaN','Negative'}
-            %            'Opertor' - If multiple bit names are requested
+            %            'Operator' - If multiple bit names are requested
             %                   then this is the operator to apply between
             %                   the bit names. Options are @or | @and.
             %                   Default is @or.
@@ -2134,7 +2077,7 @@ classdef MatchedSources < Component
                Args.BitDic       = BitDictionary;
                Args.PropFlags    = 'FLAGS';
                Args.FlagsList    = {'NearEdge','Saturated','NaN','Negative'};
-               Args.Opertor      = @or; % @or | @and
+               Args.Operator     = @or; % @or | @and
             end
 
             BitClass = Args.BitDic.Class;
@@ -2165,7 +2108,7 @@ classdef MatchedSources < Component
             %            'FlagsList' - A cell array containing a list of
             %                   bit names to identify.
             %                   Default is {'NearEdge','Saturated','NaN','Negative'}
-            %            'Opertor' - If multiple bit names are requested
+            %            'Operator' - If multiple bit names are requested
             %                   then this is the operator to apply between
             %                   the bit names. Options are @or | @and.
             %                   Default is @or.
@@ -2183,7 +2126,7 @@ classdef MatchedSources < Component
                Args.BitDic          = BitDictionary;
                Args.PropFlags       = 'FLAGS';
                Args.FlagsList       = {'NearEdge','Saturated','NaN','Negative'};
-               Args.Opertor         = @or; % @or | @and
+               Args.Operator        = @or; % @or | @and
                Args.NotFlag logical = false;
             end
             
@@ -2265,7 +2208,167 @@ classdef MatchedSources < Component
     end
     
 
-    methods % detrending
+    methods % detrending and photometry
+        function [Obj,ApplyToMagField] = applyZP(Obj, ZP, Args)
+            % Apply zero point and optional color term to MatchedSources matrices.
+            %   This function can be used to apply a vector of ZP to
+            %   instrumental magnitude matrices.
+            %   Only simple ZP can be treated (i.e., no higher terms,
+            %   detrending).
+            % Input  : - A MatchedSources object.
+            %          - A vector of ZP (ZP per epoch), or structure array
+            %            (elelmnt per MatchedSources element)
+            %            with a ZP vector in each element.
+            %          * ...,key,val,...
+            %            'FieldZP' - If the second input is a structure
+            %                   array, then this is the field name
+            %                   containing the ZP vector.
+            %                   Default is 'FitZP'.
+            %            'ApplyToMagField' - A char or cell array.
+            %                   If char, then will first search for all
+            %                   field names in the first element of the
+            %                   MatchedSources object that contains this
+            %                   substring. All the releveant GAIfields will be
+            %                   put in a cell array. Will apply the ZP for
+            %                   all fields in the cell array.
+            %                   Default is 'MAG'.
+            %            'Operator' - A function handke with operator for
+            %                   the ZP. E.g., NewMatrix = operator(Matrix, ZP)
+            %                   Default is @minus.
+            %            'Color' - A vector of colors (one per source).
+            %                   [No support for structure array].
+            %                   Default is [].
+            %            'ColorTerm' - Color terms that multiplys the color
+            %                   vector. Default is [].
+            %            'ColorOperator' - A function handle for the color
+            %                   operator. Default is @minus.
+            % Output : - The MatchedSources object, but with the magnitude
+            %            fields applied with the ZP.
+            %          - A cell array of field names to which the ZP was
+            %            applied.
+            % Author : Eran Ofek (Dec 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(rand(100,200),'FLUX')
+            %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
+            %          MS.applyZP(ones(100,1))
+            
+            arguments
+                Obj(1,1)
+                ZP
+                Args.FieldZP          = 'FitZP';
+                Args.ApplyToMagField  = 'MAG_'; % if cell then exact search - for all Matched sources
+                Args.Operator         = @minus;
+                Args.Color            = [];    %will work only for single element MatchedSources
+                Args.ColorTerm        = [];
+                Args.ColorOperator    = @minus;
+                
+            end
+            
+            if ischar(Args.ApplyToMagField)
+                % Args.ApplyToMagCol is a substring to search
+                ApplyToMagField = getFieldNameSearch(Obj(1), Args.ApplyToMagField);
+            else
+                ApplyToMagField = Args.ApplyToMagField;
+            end
+            Nfield = numel(ApplyToMagField);
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if isstruct(ZP)
+                    VecZP = ZP(Iobj).(Args.FieldZP);
+                else
+                    VecZP = ZP;
+                end
+             
+                VecZP = VecZP(:); % must be a column vector - line per epoch
+                for Ifield=1:1:Nfield
+                    Obj(Iobj).Data.(ApplyToMagField{Ifield}) = Args.Operator(Obj(Iobj).Data.(ApplyToMagField{Ifield}), VecZP);
+                    if ~isempty(Args.Color)
+                        ColorVec = Args.Color(:).' .* Args.ColorTerm;  % a must be a row vector [per source]
+                        Obj(Iobj).Data.(ApplyToMagField{Ifield}) = Args.ColorOperator(Obj(Iobj).Data.(ApplyToMagField{Ifield}), ColorVec);
+                    end
+                end
+             
+            end
+        end
+
+        function GoodFlag = selectGoodPhotCalibStars(Obj, Args)
+            % Selects stars which are good for photometric calibration
+            %   Given a single element MatchedSources object select stars
+            %   which have good FLGAS, good S/N, errors and chi^2.
+            % Input  : - A single-element MatchedSources object.
+            %          * ...,key,val,...
+            %            'PropFlags' - The name of the flags matrix in the Data
+            %                   property. Default is 'FLAGS'.
+            %            'BitDic' - A BitDictionary object to use.
+            %                   Default is BitDictionary.
+            %            'BadFlags' - A cell array containing a list of
+            %                   bit names to identify as bad.
+            %                   Default is {'CR_DeltaHT','NearEdge','Saturated','NaN','Negative'}
+            %            'PropSN' - S/N property name. Default is 'SN_2'.
+            %            'MinSN' - Minimum S/N for good sources.
+            %                   Default is 10.
+            %            'MaxSN' - Maximum S/N for good sources.
+            %                   Default is 1000.
+            %            'PropMag' - Magnitude property name.
+            %                   Default is 'MAG_PSF'.
+            %            'MinMag' - Minimum mag. Default is -Inf.
+            %            'MaxMag' - Maximum mag. Default is Inf.
+            %            'PropMagErr' - Mag. error property name.
+            %                   Default is 'MAGERR_APER_3'.
+            %            'MaxErr' - Maximum mag. error. Default is 0.05.
+            %            'PropPsfChi2' - Chi2 property name.
+            %                   Default is 'PSF_CHI2DOF'.
+            %            'Chi2Quantile' - [Lower, Upper] range of quantile
+            %                   in which to select sources by their chi^2.
+            %                   Default is [0.05 0.95].
+            % Output : - A matrix of size Nepoch X Nsrc with logicals
+            %            indicating if the source is good for phot. calib.
+            % Author : Eran Ofek (Nov 2023)
+            % Example: GoodFlag = MSU.selectGoodPhotCalibStars;
+
+            arguments
+                Obj(1,1)
+
+                Args.PropFlags        = 'FLAGS';
+                Args.BitDic           = BitDictionary;
+                Args.BadFlags cell    = {'CR_DeltaHT','NearEdge','Saturated','NaN','Negative'};
+                Args.PropSN           = 'SN_2';
+                Args.MinSN            = 10;
+                Args.MaxSN            = 1000;
+                Args.PropMag          = 'MAG_PSF'
+                Args.MinMag           = -Inf;
+                Args.MaxMag           = Inf;
+                Args.PropMagErr       = 'MAGERR_APER_3'
+                Args.MaxErr           = 0.05;
+                Args.PropPsfChi2      = 'PSF_CHI2DOF';
+                Args.Chi2Quantile     = [0.05 0.95];  % will remove lower and upper 0.05
+                
+            end
+
+            % sources with good flags
+            Good.Flags = ~searchFlags(Obj, 'BitDic',Args.BitDic,...
+                                       'PropFlags',Args.PropFlags,...
+                                       'FlagsList',Args.BadFlags,...
+                                       'Operator',@or);
+            % sources with good S/N
+            Good.SN    = Obj.Data.(Args.PropSN)>Args.MinSN & Obj.Data.(Args.PropSN)<Args.MaxSN;
+
+            % sources with good errors
+            Good.Err   = Obj.Data.(Args.PropMagErr)<Args.MaxErr;
+
+            % sources with good mag
+            Good.Mag   = Obj.Data.(Args.PropMag)>Args.MinMag & Obj.Data.(Args.PropMag)<Args.MaxMag;
+
+            % sources with good chi2
+            RqngeQuantile = quantile(Obj.Data.(Args.PropPsfChi2), Args.Chi2Quantile, 'all');
+            Good.Chi2     = Obj.Data.(Args.PropPsfChi2)>RqngeQuantile(1) & Obj.Data.(Args.PropPsfChi2)<RqngeQuantile(2);
+
+            % combine all flags
+            GoodFlag      = Good.Flags & Good.SN & Good.Err & Good.Mag & Good.Chi2;
+              
+        end
+
         function [Result]=lsqRelPhot(Obj, Args)
             % Perform relative photometry calibration using the linear least square method.
             %   This function solves the following linear problem:
@@ -2279,6 +2382,13 @@ classdef MatchedSources < Component
             %          * ...,key,val,...
             %            'MagErr' - A scalar, or a matrix of errors in the
             %                   instrumental magnitudes.
+            %            'Flag' - A vector of flags for all stars, indicating if to
+            %                   use them as reference star (true) or not (false).
+            %                   The vector size must be Nepoch X Nsrc and it
+            %                   contains the sources epoch by epoch (i.e., given a
+            %                   Data matrix Nepoch N Nsources, it is Data(:)).
+            %                   If empty, assume all true.
+            %                   Default is [].
             %            'Method' - LSQ solver method: 'lscov'.
             %                   Default is 'lscov'.
             %            'Algo' - ALgorithm for the lscov function: 'chol'|'orth'.
@@ -2325,8 +2435,8 @@ classdef MatchedSources < Component
             %            with the following fields:
             %            .Par   - All fitted parameters.
             %            .ParErr - Error in all fitted parameters.
-            %            .ParZP - Fitted ZP parameters
-            %            .ParMag - Fitted mean mag parameters.
+            %            .FitZP - Fitted ZP parameters
+            %            .FitMag - Fitted mean mag parameters.
             %            .Resid - All residuals.
             %            .Flag - Logical flags indicating which stars where used in
             %                   the solution.
@@ -2352,6 +2462,7 @@ classdef MatchedSources < Component
                 Args.MagErrProp            = 'MAGERR_PSF';
                 
                 Args.MagErr                = 0.02;
+                Args.Flag                  = [];
                 Args.Method                = 'lscov';
                 Args.Algo                  = 'chol';  % 'chol' | 'orth'
                 Args.Niter                 = 2;
