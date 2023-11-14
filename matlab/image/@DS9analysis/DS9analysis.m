@@ -287,7 +287,7 @@ classdef DS9analysis < handle
     end
 
     methods % asteroids/moving sources
-        function blinkAstCrop(Obj, AstData, Args)
+        function AstData=blinkAstCrop(Obj, AstData, Args)
             % Display AstCrop
 
             arguments
@@ -328,7 +328,9 @@ classdef DS9analysis < handle
             Obj.load(AstData.AstCrop(Args.Id).Stamps(StampInd), 'Zoom',Args.Zoom);
             ds9.match_xy;
 
+            % prep MPC report for asteroid
 
+            
         end
 
     end

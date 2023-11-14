@@ -1520,9 +1520,9 @@ classdef DemonLAST < Component
                 cd(Obj.CalibPath);
             end
             
-            fprintf('\n\nAvailable storage space:\n')
-            unix('df -h | grep data');
-            fprintf('\n\nPlease only run the pipeline if disk less than 80percent full.\n\n')
+            %fprintf('\n\nAvailable storage space:\n')
+            %unix('df -h | grep data');
+            %fprintf('\n\nPlease only run the pipeline if disk less than 80percent full.\n\n')
 
             % read latest bias image
             if ismember('bias',lower(Args.ReadProduct))

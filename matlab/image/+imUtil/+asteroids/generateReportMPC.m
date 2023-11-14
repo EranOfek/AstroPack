@@ -31,10 +31,12 @@ function Msg = generateReportMPC(Table, Args)
         Args.ColAstIndex      = 6;
         Args.CooUnits         = 'deg';
         
-        Args.IsComet logical  = false;
+        Args.AddHeader logical = true;
+        Args.IsComet logical   = false;
         Args.IsPrecision logical = true;
         Args.ObsCode          = 'XXX';
-        Args.Contributer      = 'D. Polishook';
+        Args.Contributer1     = 'E. O. Ofek'; %'D. Polishook';
+        Args.Contributer2     = 'D. Polishook';
         Args.EMail            = 'david.polishook@weizmann.ac.il';
         Args.Observer         = 'LAST';
         Args.Measurer         = 'E. O. Ofek';
@@ -75,20 +77,27 @@ function Msg = generateReportMPC(Table, Args)
     
     Position = sprintf('Lon. %12.7f %1s, Lat. %12.7f %1s, Alt. %7.1f %s, %s',abs(Args.ObsLon), SignLon, abs(Args.ObsLat), SignLat, Args.ObsAlt, Args.ObsAltUnits, Args.ObsSys); 
     
-    Msg = sprintf('COD %s\n',Args.ObsCode);
-    Msg = sprintf('%sCON %s\n',Msg, Args.Contributer);
-    Msg = sprintf('%sCON %s\n',Msg, Args.EMail);
-    Msg = sprintf('%sOBS %s\n',Msg, Args.Observer);
-    Msg = sprintf('%sMEA %s\n',Msg, Args.Measurer);
-    Msg = sprintf('%sCOM %s\n',Msg, Position);
-    Msg = sprintf('%sCOM %s\n',Msg, Args.ObsName);
-    Msg = sprintf('%sCOM %s\n',Msg, Args.ObsAddress);
-    if Args.IsComet
-        Msg = sprintf('%sCOM %s\n',Msg, 'Probable comet');
+    if Args.AddHeader
+        Msg = sprintf('COD %s\n',Args.ObsCode);
+        Msg = sprintf('%sCON %s\n',Msg, Args.Contributer1);
+        if ~isempty(Args.Contributer2)
+            Msg = sprintf('%sCON %s\n',Msg, Args.Contributer2);
+        end
+        Msg = sprintf('%sCON %s\n',Msg, Args.EMail);
+        Msg = sprintf('%sOBS %s\n',Msg, Args.Observer);
+        Msg = sprintf('%sMEA %s\n',Msg, Args.Measurer);
+        Msg = sprintf('%sCOM %s\n',Msg, Position);
+        Msg = sprintf('%sCOM %s\n',Msg, Args.ObsName);
+        Msg = sprintf('%sCOM %s\n',Msg, Args.ObsAddress);
+        if Args.IsComet
+            Msg = sprintf('%sCOM %s\n',Msg, 'Probable comet');
+        end
+        Msg = sprintf('%sTEL %s\n',Msg, Args.Telescope);
+        Msg = sprintf('%sNET %s\n',Msg, Args.RefCatalog);
+    else
+        Msg = '';
     end
-    Msg = sprintf('%sTEL %s\n',Msg, Args.Telescope);
-    Msg = sprintf('%sNET %s\n',Msg, Args.RefCatalog);
-    
+
     % sort table by asteroid index and JD
     Table = sortrows(Table, [6 1]);
     
