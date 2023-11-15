@@ -51,8 +51,8 @@ function [AllResult,PM] = pointingModel(Files, Args)
     
     Ndirs = numel(Dirs);
     for Idirs=1:1:Ndirs
-            
-    
+        % For each camera (4 cameras on a LAST mount)  
+        
         cd(Dirs{Idirs});
 
         List = ImagePath.selectByDate(Files, Args.StartDate, Args.EndDate);
@@ -63,6 +63,8 @@ function [AllResult,PM] = pointingModel(Files, Args)
         fprintf('Number of images:')
         Nlist = numel(List)
         %List
+        % Solve astrometry for all the pointing model images obtained by
+        % one camera.
         for Ilist=1:1:Nlist
             Ilist
             List{Ilist}
@@ -108,7 +110,8 @@ function [AllResult,PM] = pointingModel(Files, Args)
         
         cd(PWD);
 
-        TableDiff = array2table([(Result.CenterRA-Result.RA).*cosd(Result.CenterDec), (Result.CenterDec-Result.Dec)]);
+        % There was a sign bug here - fixed 15-Nov-2023
+        TableDiff = array2table([-1.*(Result.CenterRA-Result.RA).*cosd(Result.CenterDec), -1.*(Result.CenterDec-Result.Dec)]);
         TableDiff.Properties.VariableNames = {'DiffHA','DiffDec'};
 
         Result = [Result, TableDiff];
@@ -150,6 +153,22 @@ function [AllResult,PM] = pointingModel(Files, Args)
             ResidHA(:,Idirs)  = AllResult(Idirs).Fha(HADec(:,1),HADec(:,2));
             ResidDec(:,Idirs) = AllResult(Idirs).Fdec(HADec(:,1),HADec(:,2));
         end
+        
+        % Choose Fields which have 4 operational cameras
+%         Flag4 = all(~isnan(ResidHA),2);  % fields with 4 operational cameras
+%         
+%         MeanResidHA      = mean(ResidHA(Flag4,:),2,'omitnan');
+%         MeanResidDec     = mean(ResidDec(Flag4,:),2,'omitnan');
+%         CamOffsetHA      = ResidHA(Flag4,:) - MeanResidHA;  % the offset between each camera and the mean
+%         CamOffsetDec     = ResidDec(Flag4,:) - MeanResidDec;  % the offset between each camera and the mean
+%         MeanCamOffsetHA  = mean(CamOffsetHA);   % mean offset for each camera
+%         MeanCamOffsetDec = mean(CamOffsetDec);   % mean offset for each camera
+%         StdCamOffsetHA   = std(CamOffsetHA);   % mean offset for each camera
+%         StdCamOffsetDec  = std(CamOffsetDec);   % mean offset for each camera
+        
+% use MeanCamOffset for camera w/o solution
+% report the mean offsets and std
+        
         
         MeanResidHA  = mean(ResidHA,2,'omitnan');
         MeanResidDec = mean(ResidDec,2,'omitnan');

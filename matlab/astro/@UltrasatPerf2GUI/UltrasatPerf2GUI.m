@@ -36,7 +36,8 @@ classdef UltrasatPerf2GUI < Component
             
             % Temporary solution!!! @Todo @Chen (2023/05/17)
             if isdeployed
-                FName = fullfile('c:/soc/snr/snr_matlab/', Obj.MatFileName);
+                SOC_PATH = getenv('SOC_PATH');
+                FName = fullfile(SOC_PATH, 'snr', 'snr_matlab', Obj.MatFileName);
             end
             Obj.msgLog(LogLevel.Debug, 'UltrasatPerf2GUI:load: %s', FName);
             Obj.UP = load(FName);  %, 'UP');

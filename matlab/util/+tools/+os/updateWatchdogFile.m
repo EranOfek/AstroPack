@@ -56,7 +56,6 @@ function updateWatchdogFile(WatchdogFilename, WatchdogWriteInterval)
         WATCHDOG_PATH = getDefaultPath();
     end
 
-
     % Initialize the LastWriteTimes map during the first call
     if isempty(LastWriteTimes)
         LastWriteTimes = containers.Map('KeyType', 'char', 'ValueType', 'any');
@@ -96,7 +95,7 @@ function updateWatchdogFile(WatchdogFilename, WatchdogWriteInterval)
             fclose(fid);
     
             if exist(WatchdogFilename, 'file') == 2
-                delete(TmpFilename);
+                delete(WatchdogFilename);
             end
             movefile(TmpFilename, WatchdogFilename);
     
@@ -130,9 +129,9 @@ function defaultPath = getDefaultPath()
 %   path = getDefaultPath();  % Returns either the path from 'SOC_PATH', 'c:\temp\watchdog\', or '/tmp/watchdog/'
 
     if ispc
-        defaultPath = 'c:\temp\watchdog\';
+        defaultPath = 'c:/soc/temp/watchdog/';
     else
-        defaultPath = '/tmp/watchdog/';
+        defaultPath = '/tmp/soc/watchdog/';
     end
 
     socPath = getenv('SOC_PATH');
