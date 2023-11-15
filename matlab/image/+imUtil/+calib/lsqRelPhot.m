@@ -160,7 +160,7 @@ function Result=lsqRelPhot(InstMag, Args)
                                                                'ImagePropNames',Args.ImagePropNames,...
                                                                'AddCalibBlock',AddCalibBlock);
         % remove NaNs
-        Flag = Flag & ~isnan(Y);
+        Flag = Flag & ~isnan(Y) & all(~isnan(H),2);
         
         switch lower(Args.Method)
             case 'lscov'
