@@ -26,24 +26,25 @@
 %   MS = MatchedSources.readList(L);    
 %   % Merge all MatchedSources elkement into a single element object
 %   MSU=mergeByCoo(MS,MS(1));
-%   % To see the rms vs mag prior to calibration
-%   MSU.plotRMS
 %   % Add GAIA mag and colors
 %   MSU.addExtMagColor;
+%
+%   % To see the rms vs mag prior to calibration
+%   MSU.plotRMS
 %
 %   R = lcUtil.zp_meddiff(MSU,'MagField','MAG_PSF','MagErrField','MAGERR_PSF');
 %   MSU.applyZP(R.FitZP);
 %   MSU.plotRMS
 %
-%   [GoodObs, GoodStar] = MSU.selectGoodPhotCalibStars;
 %   MSG = MSU.copy;
+%   [GoodObs, GoodStar] = MSU.selectGoodPhotCalibStars;
 %   MSGs = MSG.selectBySrcIndex(GoodStar);
 %
-%   R=lsqRelPhot(MSU, 'Flag',GoodFlag);
-%   %R=lsqRelPhot(MSU, 'Flag',GoodFlag, 'StarProp',{nanmedian(MSU.Data.X1)', nanmedian(MSU.Data.Y1)', MSU.SrcData.ExtColor(:)}, 'Method','cgs');
-%   R=lsqRelPhot(MSU, 'Flag',GoodFlag, 'StarProp',{MSU.SrcData.ExtColor(:)}, 'Method','cgs');
-%   MSU.applyZP(R.FitZP);
-%   MSU.plotRMS
+%   R=lsqRelPhot(MSG, 'Flag',GoodFlag);
+%   %R=lsqRelPhot(MSG, 'Flag',GoodFlag, 'StarProp',{nanmedian(MSG.Data.X1)', nanmedian(MSG.Data.Y1)', MSG.SrcData.ExtColor(:)}, 'Method','cgs');
+%   R=lsqRelPhot(MSG, 'Flag',GoodFlag, 'StarProp',{MSG.SrcData.ExtColor(:)}, 'Method','cgs');
+%   MSG.applyZP(R.FitZP);
+%   MSG.plotRMS
 %
 %
 % #functions (autogen)
@@ -2569,8 +2570,8 @@ classdef MatchedSources < Component
 
             arguments
                 Obj
-                Args.MagFields              = {'MAG_APER_3','MAG_PSF'};
-                Args.MagErrFields           = {'MAGERR_APER_3','MAGERR_APER_3'};
+                Args.MagFields              = {'MAG_PSF','MAG_APER_3'};
+                Args.MagErrFields           = {'MAGERR_PSF','MAGERR_APER_3'};
                 Args.addSrcDataArgs cell    = {};
                 Args.sysremArgs cell        = {};
                 Args.CreateNewObj logical   = false;
