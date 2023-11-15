@@ -3,9 +3,19 @@ classdef FileMap < Component
     % FileMap is a map object used to solve the problem that in deployed
     % (compiled) MATLAB applications, it is not possible to call addpath()
     % and therefore we need a mechanism to find files.
+    %
+    %
+    % This code should exist in startup.m, to create the map file:
+    %
+    %       fprintf('\nSTARTUP: Calling FileMap to scan and create files map...\n');
+    %       FileMap.getSingleton().addPathFolders();
+    %       FileMap.getSingleton().scanFolders();
+    %       FileMap.getSingleton().saveMap();
+    %
+    %
     % See also:
-    %       base/fileMapFind.m    
-    %       util/+io/+files/load2.m
+    %       base/fileMapFind.m - Global function 
+    %       util/+io/+files/load2.m - Example of using fileMapFind()
     %
 
     % Properties
@@ -39,18 +49,21 @@ classdef FileMap < Component
             Obj.setName('FileMap');
             Obj.Map = containers.Map();
             
+            % Set default filename
             if isunix
-                Obj.StorageFileName = '/tmp/FileMap1';
+                Obj.StorageFileName = '/tmp/AstroPackFileMap_1.mat';
             else
-                Obj.StorageFileName = 'c:/temp/FileMap1';
+                Obj.StorageFileName = 'c:/temp/AstroPackFileMap_1.mat';
             end
+
+            Obj.msgLog(LogLevel.Info, 'created, StorageFileName: %s', Obj.StorageFileName);
         end
     end
 
 
     methods
 
-        function Result = addAll(Obj, AScan)
+        function Result = addPathFolders(Obj)
             %
             % Input   : - Path
             %
@@ -62,7 +75,6 @@ classdef FileMap < Component
             % Example :
             arguments
                 Obj
-                AScan = false;
             end
 
             Result = '';
@@ -70,17 +82,15 @@ classdef FileMap < Component
             for i=1:numel(List)
                 Path = List{i};
                 if ~startsWith(Path, '/usr/local/MATLAB') && ~contains(Path, '\Matlab\')
-                    Obj.add(List{i});
+                    Obj.addFolder(List{i});
                 end
             end
-            if AScan
-                Obj.scan();
-            end
+            Obj.msgLog(LogLevel.Info, 'addPathFolders: total %d folders', numel(Obj.DirList));
         end
 
 
-        function Result = add(Obj, Path)
-            %
+        function Result = addFolder(Obj, Path)
+            % Add the specified path to Obj.DirList
             % Input   : - Path
             %
             %           * Pairs of ...,key,val,...
@@ -98,7 +108,7 @@ classdef FileMap < Component
 
 
         function Result = findFile(Obj, FileName, Args)
-            %
+            % Find the specified file in the map
             % Input   : - File name
             %
             %           * Pairs of ...,key,val,...
@@ -110,7 +120,7 @@ classdef FileMap < Component
             % Example :
             arguments
                 Obj
-                FileName
+                FileName                    %
                 Args.Single = true          %
             end
             
@@ -138,8 +148,8 @@ classdef FileMap < Component
         end
 
 
-        function scan(Obj)
-            %
+        function scanFolders(Obj)
+            % Update Obj.Map by calling scanPath() for all items in Obj.DirList
             % Input   : -
             %
             %           * Pairs of ...,key,val,...
@@ -148,18 +158,18 @@ classdef FileMap < Component
             % Output  : - Full file name
             % Author  : Chen Tishler (Dec. 2022)
             % Example :
-            Obj.msgLog(LogLevel.Info, 'scan started');
+            Obj.msgLog(LogLevel.Info, 'scanFolders: scanning %d folders...', numel(Obj.DirList));
             for i=1:numel(Obj.DirList)
-                Obj.scanPath(Obj.DirList{i});
+                Obj.scanFolder(Obj.DirList{i});
             end
-            Obj.msgLog(LogLevel.Info, 'scan done');
+            Obj.msgLog(LogLevel.Info, 'scanFolders: done, found %d files', Obj.Map.Count);
 
-            %
-            Obj.checkDuplicates();
+            % Check for duplicate files
+            Obj.checkDuplicateFiles();
         end
 
 
-        function scanPath(Obj, Path)
+        function scanFolder(Obj, Path)
 
             % Get list of files and folders in any subfolder
             Files = dir(fullfile(Path, '**/*.*'));
@@ -188,8 +198,8 @@ classdef FileMap < Component
 
 
         function saveMap(Obj)
-            % Save to file
-            Obj.msgLog(LogLevel.Info, 'saveMap: Items: %d, File: %s', Obj.Map.Count, Obj.StorageFileName);
+            % Save FileMap object to storage file
+            Obj.msgLog(LogLevel.Info, 'saveMap: Total files: %d, File: %s', Obj.Map.Count, Obj.StorageFileName);
             if ~isempty(Obj.StorageFileName)
                 M = Obj.Map;
                 save(Obj.StorageFileName, 'M');
@@ -198,19 +208,19 @@ classdef FileMap < Component
         
 
         function loadMap(Obj)
-            % Load from file
-            Obj.msgLog(LogLevel.Info, 'loadMap: File: %s', Obj.StorageFileName);
+            % Load FileMap object from storage file
+            Obj.msgLog(LogLevel.Info, 'loadMap: Loaindg from: %s', Obj.StorageFileName);
             if ~isempty(Obj.StorageFileName)
                 load(Obj.StorageFileName);
                 Obj.Map = M;
-                Obj.msgLog(LogLevel.Info, 'loaded %d items', Obj.Map.Count);
-                Obj.checkDuplicates();
+                Obj.msgLog(LogLevel.Info, 'loadMap: Loaded total %d files', Obj.Map.Count);
+                Obj.checkDuplicateFiles();
             end
         end
 
 
-        function checkDuplicates(Obj)
-            %
+        function checkDuplicateFiles(Obj)
+            % Check for duplicate files in Obj.Map
             if Obj.LogDuplicates
                 K = keys(Obj.Map);
                 FileCount = 0;
@@ -228,13 +238,13 @@ classdef FileMap < Component
                         end
                     end
                 end
-                Obj.msgLog(LogLevel.Info, 'checkDuplicates: Found %d files with duplicate names, %d files out of %d total files', DupCount, DupListCount, FileCount);
+                Obj.msgLog(LogLevel.Info, 'checkDuplicateFiles: Found %d files with duplicate names, %d files out of %d total files', DupCount, DupListCount, FileCount);
             end            
         end
         
             
         function clear(Obj)
-            %
+            % Clear the map
             Obj.DirList = {};
             Obj.Map = containers.Map();
         end
@@ -248,7 +258,7 @@ classdef FileMap < Component
             % Return singleton object, this is the default log file
             % to be used by current process (or workspace)
             % Input:   -
-            % Output:
+            % Output: Singleton FileMap object
             % Example: SysLogFile = LogFile.getSingleton();
             persistent PersObj
             if isempty(PersObj)

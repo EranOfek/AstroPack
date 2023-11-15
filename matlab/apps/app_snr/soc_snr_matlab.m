@@ -1,9 +1,11 @@
 %==========================================================================
-% Author: Chen Tishler, Dec. 2022, Updated: 02/11/2023
+% Author: Chen Tishler, Created: 11/12/2022, Updated: 15/11/2023
 %
 % MATLAB R2023a is required.
-% Build EXE file by running _build.bat from source folder.
 %
+% Build EXE file by running this batch from source folder:
+% 
+%       _build.bat
 %
 % Notes:
 %    - mcc generates EXE file which is a self-extract ZIP, with all required source files.
@@ -20,10 +22,12 @@
 %==========================================================================
 
 function soc_snr_matlab()
-    % SNR App
+    % SNR App - Main function
+
+    global SOC_PATH;
 
     % Set logfile name
-	fprintf('soc_snr_matlab started, V1.03 (02/11/2023)\n');
+	fprintf('soc_snr_matlab started, V1.04 (15/11/2023)\n');
     LogFile.getSingleton('FileName', 'soc_snr_matlab');
             
     fprintf('getPid: %d\n', tools.os.getPid());
@@ -40,33 +44,51 @@ function soc_snr_matlab()
         fprintf('soc_snr_matlab: ismcc = TRUE\n');
     end           
 
+    % Get the SOC_PATH environment variable
+    SOC_PATH = getenv('SOC_PATH');
+
+    % Check if SOC_PATH is not empty
+    if isempty(SOC_PATH)
+        if ispc
+            SOC_PATH = 'c:/soc';
+        else
+            SOC_PATH = '/var/opt/soc';
+        end
+    end
+
     % Test that we can find file 'Gal_Sc.txt'
     if isdeployed
+        fprintf('\n\n================================== Check started\n');
         FName = 'Gal_Sc.txt';
-        fprintf('\n\n\nChecking: %s\n', FName);
-        fprintf('Before loadMap:\n');
-        fprintf('which:\n');
+
+        % Before loadMap - Check which() and fileMapFind()
+        fprintf('Checking: Before loadMap - calling which( %s ) :\n', FName);
         which(FName)
         MatFile = fileMapFind(FName, 'Assert', false);
-        fprintf('FileMap: %s\n', MatFile);
+        fprintf('Checking: Before loadMap - fileMapFind( %s ) - %s\n\n', FName, MatFile);
 
+        % Load the saved FileMap object, it was created by calling FileMap
+        % from **startup.m**, and used to map files to folders, because
+        % MATLAB's addpath() does not work from deployd code.
         FMap = FileMap.getSingleton();
-        if isunix
-            FMap.StorageFileName = '/tmp/FileMap';
-        else
-            FMap.StorageFileName = 'c:/soc/snr/snr_matlab/FileMap';
-        end
-            
+        FMap.StorageFileName = fullfile(SOC_PATH, 'snr', 'snr_matlab', 'AstroPackFileMap_1.mat');
         FMap.loadMap();    
-        fprintf('\nCalling FileMap.addAll ...\n');
-        FMap.addAll(true);    
+        fprintf('\nCalling FileMap.addPathFolders ...\n');
+        FMap.addPathFolders();    
+        fprintf('\nCalling FileMap.scanFolders ...\n');
+        FMap.scanFolders();
 
-        fprintf('After loadMap\n');
-        fprintf('which:\n');
+        % After loadMap - Check which() and fileMapFind()
+        fprintf('\nChecking: AFTER loadMap - calling which( %s ) :\n', FName);
         which(FName)    
         MatFile = fileMapFind(FName, 'Assert', false);
-        fprintf('FileMap: %s\n', MatFile);
-        fprintf('\n\n\n');
+        fprintf('Checking: AFTER loadMap - fileMapFind( %s ) - %s\n', FName, MatFile);
+
+        FName = 'AstFilterCat.mat';
+        MatFile = fileMapFind(FName, 'Assert', false);
+        fprintf('Checking: AFTER loadMap - fileMapFind( %s ) - %s\n', FName, MatFile);
+
+        fprintf('\n\n================================== Check done\n\n\n');
     end
 
     % Create component to trigger Config loading
@@ -101,19 +123,20 @@ end
 
 function Result = mainLoop()
     % mainLoop - Blocking function
+    global SOC_PATH;
 
     MsgLogger.setLogLevel(LogLevel.Debug, 'type', 'file');
     MsgLogger.setLogLevel(LogLevel.Debug, 'type', 'disp');            
     
     io.msgLog(LogLevel.Test, 'SNR mainLoop started');
 
-    InputPath = 'c:/soc/snr/input';
+    InputPath = fullfile(SOC_PATH, 'snr', 'input');
 
     % Create objcet
     fp = FileProcessor('InputPath', InputPath, 'InputMask', '*.json');
     fp.ProcessFileFunc = @fileProcessorCallback;
     fp.EnableDelete = true;
-    fp.WatchdogFileName = 'c:/soc/snr/snr_matlab_watchdog.txt';
+    fp.WatchdogFileName = 'snr_matlab_watchdog.txt';
     fp.WatchdogInterval = 10;
     fp.MaxRunTime = hours(8);
 
