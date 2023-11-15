@@ -166,6 +166,8 @@ function [AllResult,PM] = pointingModel(Files, Args)
 %         StdCamOffsetHA   = std(CamOffsetHA);   % mean offset for each camera
 %         StdCamOffsetDec  = std(CamOffsetDec);   % mean offset for each camera
         
+% use MeanCamOffset for camera w/o solution
+% report the mean offsets and std
         
         
         MeanResidHA  = mean(ResidHA,2,'omitnan');
