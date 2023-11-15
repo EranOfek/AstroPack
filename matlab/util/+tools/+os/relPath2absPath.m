@@ -13,6 +13,9 @@ function NameAbs = relPath2absPath(NameRel)
         cd(NameRel); NameAbs = pwd; cd(Wdir);
     else 
        [Fdir,Fname,Fext] = fileparts(NameRel);
+       if isempty(Fdir) % if a filename is given without any dir name, treat it as local
+           Fdir = '.';
+       end
        FullDir = strtrim(ls('-d',Fdir));
        cd(FullDir); FullDir = pwd; cd(Wdir);
        NameAbs = strcat(FullDir,'/',Fname,Fext);
