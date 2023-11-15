@@ -1,6 +1,6 @@
 function simImage = simulate_ULTRASAT_image (Args)
     % Simulate an ULTRASAT image of a realistic distribution of sky sources 
-    % NB: the size of the actuall modelled region should not be smaller
+    % NB: the size of the actual modelled region should not be smaller
     % than 0.5 x 0.5 deg, otherwise we will sample only the brightest part of
     % the input source distribution!
     % Input: -
@@ -41,6 +41,9 @@ function simImage = simulate_ULTRASAT_image (Args)
         Args.Tile           = 'B';        % the detector tile to be simulated
         Args.OutDir         =  '.';       % the output directory
         Args.OutName        = 'SimImage'; % the output filename template
+        Args.MagDistr       = 'GALEX';    % magnitide distribution 'GALEX' empirical distribution or 'art' (artificial)
+        Args.Temp           = [3500 5800 20000]; % the temperatures to be used for modeling
+        Args.NumSrc         = 1000;       % number of objects per square degree (if the distribution is not 'GALEX')
     end
     
     %%%%% ULTRASAT parameters
@@ -75,6 +78,7 @@ function simImage = simulate_ULTRASAT_image (Args)
         error('Tile name is not correct');
     end
     
+    % set a WCS    
     if Args.SkyCat % make a local WCS: 
         SimWCS = AstroWCS();
         SimWCS.ProjType  = 'TAN';
@@ -96,48 +100,50 @@ function simImage = simulate_ULTRASAT_image (Args)
         SimWCS.CD = RotMatrix * SimWCS.CD;
     end 
     
+    % initialize a set of artificial BB source spectra        
+    NTemp = numel(Args.Temp);
+    S = AstroSpec.blackBody(Wave',Args.Temp);    
+    
     %%%%% source distribution parameters
     
-    MagL = 13; MagH = 26; Delta_m = 0.2; % the distribution grid in NUV Mag (from GALEX)
-    MagBins = (MagH - MagL) / Delta_m;
+    switch lower(Args.MagDistr)        
+        case 'galex'
+            MagL = 13; MagH = 26; Delta_m = 0.2; % the distribution grid in NUV Mag (from GALEX)
+            MagBins = (MagH - MagL) / Delta_m;
+            
+            Mag       = zeros(MagBins,1);
+            SrcDist   = zeros(MagBins,1);
+            
+            for iMag = 1:1:MagBins                
+                Mag(iMag)  = MagL + (iMag - 1) * Delta_m;
+                
+                SrcDeg      = 10.^( 0.35 * Mag(iMag) - 4.9 );  % per 1 deg^2 (fitted from the GALEX data)
+                SrcDist(iMag) = ceil( SrcDeg * Args.Size^2 );  % rescaled for Args.Size^2                
+            end                         
+            NumSrc = sum(SrcDist,'all');            
+            % read in the relation of NUV magnitudes and ULTRASAT magnitudes
+            % for a given set of source spectra (usually, just the 3 BB temperatures)
+            % NB: if you wish to model another set of spectra, first rerun convertGALEXdistribution
+            % in order to make a new GALEX_ULTRASAT_magn.mat object!
+            MagDB = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/GALEX_ULTRASAT_magn.mat');
+            io.files.load1(MagDB); % variables: MagU (3D), Temp, MagNUV, Rad 
+        case 'art'
+            NumSrc = ceil(Args.NumSrc * Args.Size^2); 
+            MagUS  = zeros(NumSrc,1,'single');
+            for Isrc = 1:NumSrc
+                MagUS(Isrc) = 16 + 1.5 * log10(Isrc); % HERE THE DISTRIBUTION IS SET
+                IndT        = rem(Isrc,NTemp) + 1; Spec(Isrc,:) = S(IndT);
+            end
+        otherwise
+            error('Incorrect distribution type');
+    end    
     
-    Mag       = zeros(MagBins,1);
-    SrcDist   = zeros(MagBins,1);
-    
-    for iMag = 1:1:MagBins
-        
-        Mag(iMag)  = MagL + (iMag - 1) * Delta_m;
-        
-        SrcDeg      = 10.^( 0.35 * Mag(iMag) - 4.9 );  % per 1 deg^2 (fitted from the GALEX data)
-        SrcDist(iMag) = ceil( SrcDeg * Args.Size^2 );  % rescaled for Args.Size^2
-        
-    end
-    
-    NumSrc = sum(SrcDist,'all');
-    
-    Cat    = zeros(NumSrc,2);
-    MagUS  = zeros(NumSrc,1);
-    
+    %%%%% create a source catalog 
+  
+    Cat = zeros(NumSrc,2);    
     if Args.SkyCat % make an additional array of pixel coordinates
         CatPix = zeros(NumSrc,2);
     end
-    
-    %         S(1,:) = AstroSpec.blackBody(Wave',3500).Flux; % appears too slow!
-    %         S(2,:) = AstroSpec.blackBody(Wave',5800).Flux;
-    %         S(3,:) = AstroSpec.blackBody(Wave',20000).Flux;
-    
-    S(1) = AstroSpec.blackBody(Wave',3500);
-    S(2) = AstroSpec.blackBody(Wave',5800);
-    S(3) = AstroSpec.blackBody(Wave',20000);
-    
-    % read in the relation of NUV magnitudes and ULTRASAT magnitudes
-    % for a given set of source spectra (usually, just the 3 BB temperatures)
-    % NB: if you wish to model another set of spectra, first rerun convertGALEXdistribution
-    % in order to make a new GALEX_ULTRASAT_magn.mat object!
-    MagDB = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/GALEX_ULTRASAT_magn.mat');
-    io.files.load1(MagDB); % variables: MagU (3D), Temp, MagNUV, Rad 
-
-    %%%%% create a source catalog 
     
     if isempty(Args.Shift) && isempty(Args.Rot) % shift and rotation not given, create and save a new catalog
         
@@ -184,30 +190,32 @@ function simImage = simulate_ULTRASAT_image (Args)
         
     end
 
-    %%%%% determine the ULTRASAT magnitudes and distribute the spectra 
-    Isrc = 0;
-    for iMag = 1:1:MagBins     
-        for jSrc = 1:1:SrcDist(iMag)
-            
-            Isrc = Isrc + 1;
-            
-            if Args.SkyCat % sky coordinates in Cat, use CatPix
-                RadSrc = sqrt( CatPix(Isrc,1)^2 + CatPix(Isrc,2)^2 ) * PixSizeDeg; % deg
-            else           % pixel coordinates in Cat
-                RadSrc = sqrt( Cat(Isrc,1)^2 + Cat(Isrc,2)^2 ) * PixSizeDeg; % deg
+    %%%%% determine the ULTRASAT magnitudes from NUV magnitudes and distribute the spectra  
+    if strcmpi(Args.MagDistr,'galex')        
+        Isrc  = 0;
+        MagUS = zeros(NumSrc,1,'single');
+        for iMag = 1:1:MagBins
+            for jSrc = 1:1:SrcDist(iMag)
+                
+                Isrc = Isrc + 1;
+                
+                if Args.SkyCat % sky coordinates in Cat, use CatPix
+                    RadSrc = sqrt( CatPix(Isrc,1)^2 + CatPix(Isrc,2)^2 ) * PixSizeDeg; % deg
+                else           % pixel coordinates in Cat
+                    RadSrc = sqrt( Cat(Isrc,1)^2 + Cat(Isrc,2)^2 ) * PixSizeDeg; % deg
+                end
+                [~, IndR] = min( abs(RadSrc - Rad) ); % search for the nearest node
+                
+                % divide the population into NTemp colours:
+                IndT = rem(Isrc,NTemp) + 1; Spec(Isrc,:) = S(IndT);
+                %             Spec(Isrc,:) = S(1); % ONE TIME CODE for 1 temperature simulation
+                
+                % search for the nearest magnitude (from the GALEX_ULTRASAT_magn.mat grid)
+                [~, IndM] = min( abs( Mag(iMag) - MagNUV ) );
+                
+                MagUS(Isrc) = MagU( IndT, IndM, IndR );                
             end
-            [~, IndR] = min( abs(RadSrc - Rad) ); % search for the nearest node
-            
-            % divide the population into 3 colours:
-            IndT = rem(Isrc,3) + 1; Spec(Isrc,:) = S(IndT);
-%             Spec(Isrc,:) = S(1); % ONE TIME CODE for 1 temperature simulation 
-            
-            % search for the nearest magnitude (from the GALEX_ULTRASAT_magn.mat grid)
-            [~, IndM] = min( abs( Mag(iMag) - MagNUV ) ); 
-            
-            MagUS(Isrc) = MagU( IndT, IndM, IndR );
-            
-        end
+        end        
     end
     
     %%%% run the simulation 
