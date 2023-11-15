@@ -165,8 +165,9 @@ function [AllResult,PM] = pointingModel(Files, Args)
 %         MeanCamOffsetDec = mean(CamOffsetDec);   % mean offset for each camera
 %         StdCamOffsetHA   = std(CamOffsetHA);   % mean offset for each camera
 %         StdCamOffsetDec  = std(CamOffsetDec);   % mean offset for each camera
-%                 
-%         
+        
+        
+        
         MeanResidHA  = mean(ResidHA,2,'omitnan');
         MeanResidDec = mean(ResidDec,2,'omitnan');
         PM = [HADec, MeanResidHA, MeanResidDec];
