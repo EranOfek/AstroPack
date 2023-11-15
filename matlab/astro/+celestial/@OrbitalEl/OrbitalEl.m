@@ -1562,13 +1562,18 @@ classdef OrbitalEl < Base
         function Result = ephemIntegrateMultiTime1dir(Obj, Time, Args)
             % Calculate ephemerides for OrbitalEl object by integrating the equation of motion 
             %   taking into account all the major bodies in the Solar
-            %   System.
+            %   System. Optimized for a single object and multiple times
+            %   all larger or smaller relative to the Epoch.
             %
             %   For each orbital-element or time, return the Geocentric or
             %   topocentric ephemerides of the target.
             %
             %   For definitions and formulae, see Explanatory Supplement to the Astronomical
             %   Alamanac (Seidelmann 2006), chapter 3.313, p. 148.
+            % 
+            % BUGS: The orbital integration codes are losing accuracy after
+            % ~100 days. No idea why. Need to investigate.
+            %
             % Input  : - A single element OrbitalEl object.
             %            This object may include multiple orbital elements
             %            in vectors of parameters.

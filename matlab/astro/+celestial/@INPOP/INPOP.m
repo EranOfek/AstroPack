@@ -916,7 +916,7 @@ classdef INPOP < Base
             end
             
         end
-        e
+        
         function Result = compare2JPL(Obj, Args)
             % Compare INPOP to JPL horizons ephemeris
             % Author : Eran Ofek (Nov 2023)
