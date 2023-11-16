@@ -3,7 +3,7 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
     %   in the Solar System includeing perturbations from all planets.
     %   This include only the integration between two points in time (i.e.,
     %   no observer and light time correction).
-    %   The integration is done in the equatorial reference frame.
+    %   The integration is done in the equatorial J2000 reference frame.
     % Input  : - Vector of initial and final JD.
     %          - Target asteroids position vector in au.
     %            This is a 3 X Nobj matrix, where 3 is the number of
@@ -49,6 +49,9 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
         InitialValues = [X0;V0];
     
         [Times,Result] = ode45(@(T,XVmat) odeDirectVectorized(T,XVmat,Nobj,Args.INPOP, Args.TimeScale), JD, InitialValues, Opts);
+        
+        % try stiff equation solver / no change
+        %[Times,Result] = ode15s(@(T,XVmat) odeDirectVectorized(T,XVmat,Nobj,Args.INPOP, Args.TimeScale), JD, InitialValues, Opts);
     
         FinalValues = reshape(Result(end,:),[],Nobj);
         

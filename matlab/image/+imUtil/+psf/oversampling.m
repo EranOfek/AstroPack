@@ -21,9 +21,14 @@ function Result = oversampling(PSF, OriginalOversampling, NewOversampling, Args)
             Args.ReNormMethod   = 'int';  % 'int' | 'rms'
         end
         %
-        NewSize = round( (NewOversampling./OriginalOversampling) .* size(PSF) );
-        Result  = imresize(PSF, NewSize, Args.InterpMethod);
+        NPSF = size(PSF,3);
+        Factor = NewOversampling./OriginalOversampling;
+        XYsize = round( Factor .* size(PSF(:,:,1)) );
+        Result = zeros(XYsize(1), XYsize(2), NPSF);
+        for Ipsf = 1:NPSF                
+            Result(:,:,Ipsf) = imresize(PSF(:,:,Ipsf), XYsize, Args.InterpMethod);            
+        end
         if Args.ReNorm
-            Result = imUtil.psf.normPSF(Result,'ReNormMethod',Args.ReNormMethod);
-        end        
+                Result = imUtil.psf.normPSF(Result,'ReNormMethod',Args.ReNormMethod);
+        end
 end

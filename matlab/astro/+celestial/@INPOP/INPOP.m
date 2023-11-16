@@ -477,6 +477,46 @@ classdef INPOP < Base
             end
             
         end
+        
+        function Obj = populateAll(Obj, Args)
+            % Populate all INPOP tables
+            %   In the INPOP object, the PosTables and VelTables contains
+            %   the pos/vel chebyshev coef. for each Solar System object.
+            %   This function read the tables from disk, in some time
+            %   range, and populate the PosTables or VelTables properties.
+            % Input  : - A single element celestial.INPOP object.
+            %          * ...,key,val,...
+            %            'TimeSpan' - Either '100', '1000' (years), or
+            %                   [MinJD MaxJD] vector of JD range.
+            %                   Default is '100'.
+            %            'OriginType' - File type from which to read
+            %                   tables. Default is 'ascii'.
+            %            'TimeScale' - Default is 'TDB'.
+            %            'Version' - Default is Obj.LatestVersion
+            %            'FileType' - 'asc' | ['mat'].
+            %                   Use celestial.INPOP.convertAscii2mat to
+            %                   create the mat files.
+            % Output : - A celestial.INPOP object in which the PosTables or
+            %            VelTables are populated.
+            % Author : Eran Ofek (Apr 2022)
+            % Example: I = celestial.INPOP;
+            %          I.populateAll;
+            
+             arguments
+                Obj
+                Args.TimeSpan    = '100';  % '1000' or [MinJD MaxJD]
+                Args.OriginType  = 'ascii';
+                Args.TimeScale   = 'TDB';
+                Args.Version     = Obj.LatestVersion;
+                Args.FileData    = 'pos';
+                Args.FileType    = 'mat';
+                Args.PopForce logical = false;
+             end
+             
+             Obj.populateTables('all', 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, 'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType);
+             Obj.populateTables('all', 'FileData','vel', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, 'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType);
+             
+        end
     end
     
     methods % ephemeris evaluation
@@ -876,7 +916,7 @@ classdef INPOP < Base
             end
             
         end
-        e
+        
         function Result = compare2JPL(Obj, Args)
             % Compare INPOP to JPL horizons ephemeris
             % Author : Eran Ofek (Nov 2023)

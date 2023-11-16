@@ -23,6 +23,8 @@ function [AllResult,PM] = pointingModel(Files, Args)
         Args.MinAlt                       = 25; % [deg]
         Args.ObsCoo                       = [35 30];  % [deg]
         Args.ConfigFile                   = '/home/ocs/pointingModel.txt';
+
+        Args.RemoveNaN logical            = false;
     end
     
     RAD = 180./pi;
@@ -51,8 +53,8 @@ function [AllResult,PM] = pointingModel(Files, Args)
     
     Ndirs = numel(Dirs);
     for Idirs=1:1:Ndirs
-            
-    
+        % For each camera (4 cameras on a LAST mount)  
+        
         cd(Dirs{Idirs});
 
         List = ImagePath.selectByDate(Files, Args.StartDate, Args.EndDate);
@@ -63,6 +65,8 @@ function [AllResult,PM] = pointingModel(Files, Args)
         fprintf('Number of images:')
         Nlist = numel(List)
         %List
+        % Solve astrometry for all the pointing model images obtained by
+        % one camera.
         for Ilist=1:1:Nlist
             Ilist
             List{Ilist}
@@ -103,12 +107,15 @@ function [AllResult,PM] = pointingModel(Files, Args)
         Result = array2table(Table);
         Result.Properties.VariableNames = Head;
         
-        mask = isnan(Result.RA);
-        Result = Result(~mask,:);
+        if Args.RemoveNaN
+            MaskNaN = isnan(Result.RA);
+            Result = Result(~MaskNaN,:);
+        end
         
         cd(PWD);
 
-        TableDiff = array2table([(Result.CenterRA-Result.RA).*cosd(Result.CenterDec), (Result.CenterDec-Result.Dec)]);
+        % There was a sign bug here - fixed 15-Nov-2023
+        TableDiff = array2table([-1.*(Result.CenterRA-Result.RA).*cosd(Result.CenterDec), -1.*(Result.CenterDec-Result.Dec)]);
         TableDiff.Properties.VariableNames = {'DiffHA','DiffDec'};
 
         Result = [Result, TableDiff];
@@ -117,14 +124,15 @@ function [AllResult,PM] = pointingModel(Files, Args)
         
         
         % generate scattered interpolanets
-        AllResult(Idirs).Fha  = scatteredInterpolant(Result.HA, Result.Dec, Result.DiffHA,'linear','nearest');
-        AllResult(Idirs).Fdec = scatteredInterpolant(Result.HA, Result.Dec, Result.DiffDec,'linear','nearest');
+        %AllResult(Idirs).Fha  = scatteredInterpolant(Result.HA, Result.Dec, Result.DiffHA,'linear','nearest');
+        %AllResult(Idirs).Fdec = scatteredInterpolant(Result.HA, Result.Dec, Result.DiffDec,'linear','nearest');
         
     end
     
     %writetable(AllResult(1).Result,'~/Desktop/nora/data/pm_rawdata.csv','Delimiter',',') 
     
     if Args.PrepPointingModel
+        % construct a grid
         [TileList,~] = celestial.coo.tile_the_sky(Args.Nha, Args.Ndec);
         HADec = TileList(:,1:2);
 
@@ -145,11 +153,29 @@ function [AllResult,PM] = pointingModel(Files, Args)
        
         ResidHA  = zeros(Ntarget,Ndirs);
         ResidDec = zeros(Ntarget,Ndirs);
+
+        % Interpolate the results over the grid
         for Idirs=1:1:Ndirs
                         
             ResidHA(:,Idirs)  = AllResult(Idirs).Fha(HADec(:,1),HADec(:,2));
             ResidDec(:,Idirs) = AllResult(Idirs).Fdec(HADec(:,1),HADec(:,2));
         end
+        
+        % Choose Fields which have 4 operational cameras
+        Flag4 = all(~isnan(ResidHA),2);  % fields with 4 operational cameras
+
+        MeanResidHA      = mean(ResidHA(Flag4,:),2,'omitnan');
+        MeanResidDec     = mean(ResidDec(Flag4,:),2,'omitnan');
+        CamOffsetHA      = ResidHA(Flag4,:) - MeanResidHA;  % the offset between each camera and the mean
+        CamOffsetDec     = ResidDec(Flag4,:) - MeanResidDec;  % the offset between each camera and the mean
+        MeanCamOffsetHA  = mean(CamOffsetHA);   % mean offset for each camera
+        MeanCamOffsetDec = mean(CamOffsetDec);   % mean offset for each camera
+        StdCamOffsetHA   = std(CamOffsetHA);   % mean offset for each camera
+        StdCamOffsetDec  = std(CamOffsetDec);   % mean offset for each camera
+        
+% use MeanCamOffset for camera w/o solution
+% report the mean offsets and std
+        
         
         MeanResidHA  = mean(ResidHA,2,'omitnan');
         MeanResidDec = mean(ResidDec,2,'omitnan');
@@ -209,6 +235,8 @@ function [AllResult,PM] = pointingModel(Files, Args)
 
 
         exportgraphics(f,'~/log/pointing_model.png','Resolution',300)
+    else
+        PM = [];
     end
     
 end
