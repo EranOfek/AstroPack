@@ -17,6 +17,20 @@ function varargout=catalog_interface(Catalog,Path,varargin)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
+% Try D: instead of C: (Chen, 16/11/2023)
+if isdeployed
+    if ispc && ~isfolder(Path)
+        if strncmpi(Path, 'C:', 2)
+            Path = ['D:' Path(3:end)];
+			if ~isfolder(Path)
+				Path = ['E:' Path(3:end)];
+			end
+			fprintf('catalog_interface: fixed path: %s\n', Path);
+        end
+    end
+end
+
+
 MatFileLoader = @io.files.load_check;  % other option is: io.files.load2
 
 Nvar = numel(varargin);
