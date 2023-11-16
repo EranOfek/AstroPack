@@ -35,7 +35,7 @@ function PSF = getULTRASAT_PSF(Args)
             if isempty(Args.Teff) || isempty(Args.logg)
                 error('Both Teff and log(g) must be specified, exiting..');
             end
-            if Args.Teff < 10^logT(1) || Args.Teff > 10^logT(numel(logT)) || Args.logg < logg(1) || Args.logg > logg(numel(logg)) 
+            if any(Args.Teff < 10^logT(1)) || any(Args.Teff > 10^logT(numel(logT))) || any(Args.logg < logg(1)) || any(Args.logg > logg(numel(logg))) 
                 cprintf('red','Warning! The input parameters are outside the modelled range!\n');
             end
             X = 1:size(WPSF,1); Y = 1:size(WPSF,2);            
@@ -51,7 +51,7 @@ function PSF = getULTRASAT_PSF(Args)
             if isempty(Args.Teff)
                 error('Teff not specified, exiting..');
             end
-            if Args.Teff < 10^logT(1) || Args.Teff > 10^logT(numel(logT)) 
+            if any(Args.Teff < 10^logT(1)) || any(Args.Teff > 10^logT(numel(logT))) 
                 cprintf('red','Warning! The input parameters are outside the modelled range!\n');
             end
             X = 1:size(WPSF,1); Y = 1:size(WPSF,2);            
