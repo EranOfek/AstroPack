@@ -19,9 +19,8 @@ function simImage = simulate_ULTRASAT_image (Args)
     %        'ExpNum'   - number of the standard 300 s exposures to stack 
     %        'OutDir'   - the output diretory 
     %        'OutName'  - the output filename template
-    % Output : - an AstroImage object containing the resulting source image and catalog                 
-    %            
-    % Author : A. Krassilchtchikov Aug 2023
+    % Output : - an AstroImage object containing the resulting source image and catalog                             
+    % Author : A. Krassilchtchikov (Aug 2023)
     % Example: Image = simulate_ULTRASAT_image('ExpNum', 30, 'OutDir', '/home/sasha/', 'Size', 7.15)
     %          Im2 = ultrasat.simulate_ULTRASAT_image('SkyCat',1,'RA0',215,'Dec0',52,'X0',216,'Y0',53,'OutName','Pos1')
     %          Im3 = ultrasat.simulate_ULTRASAT_image('SkyCat',1,'RA0',219,'Dec0',51,'X0',216,'Y0',53,'OutName','Pos3','PlaneRotation', 45,'Shift',[0 0])  
@@ -42,8 +41,10 @@ function simImage = simulate_ULTRASAT_image (Args)
         Args.OutDir         =  '.';       % the output directory
         Args.OutName        = 'SimImage'; % the output filename template
         Args.MagDistr       = 'GALEX';    % magnitide distribution 'GALEX' empirical distribution or 'art' (artificial)
-        Args.Temp           = [3500 5800 20000]; % the temperatures to be used for modeling
+        Args.Temp           = [3500 5800 20000]; % the temperature grid (the source are equally distributed on it)
         Args.NumSrc         = 1000;       % number of objects per square degree (if the distribution is not 'GALEX')
+                                          % 10(3)/sq.deg. roughly correspond to the GALEX distribution 
+                                          % integrated upto m_NUV = 22.3  
     end
     
     %%%%% ULTRASAT parameters
@@ -115,10 +116,9 @@ function simImage = simulate_ULTRASAT_image (Args)
             SrcDist   = zeros(MagBins,1);
             
             for iMag = 1:1:MagBins                
-                Mag(iMag)  = MagL + (iMag - 1) * Delta_m;
-                
-                SrcDeg      = 10.^( 0.35 * Mag(iMag) - 4.9 );  % per 1 deg^2 (fitted from the GALEX data)
-                SrcDist(iMag) = ceil( SrcDeg * Args.Size^2 );  % rescaled for Args.Size^2                
+                Mag(iMag)  = MagL + (iMag - 1) * Delta_m;                
+                SrcDeg      = 10.^( 0.35 * Mag(iMag) - 4.9 );            % per 1 deg^2 (fitted from the GALEX data)
+                SrcDist(iMag) = ceil( SrcDeg * Delta_m * Args.Size^2 );  % rescaled for Delta_m and Args.Size^2                
             end                         
             NumSrc = sum(SrcDist,'all');            
             % read in the relation of NUV magnitudes and ULTRASAT magnitudes
@@ -129,9 +129,9 @@ function simImage = simulate_ULTRASAT_image (Args)
             io.files.load1(MagDB); % variables: MagU (3D), Temp, MagNUV, Rad 
         case 'art'
             NumSrc = ceil(Args.NumSrc * Args.Size^2); 
-            MagUS  = zeros(NumSrc,1,'single');
+            MagUS  = zeros(NumSrc,1);
             for Isrc = 1:NumSrc
-                MagUS(Isrc) = 16 + 1.5 * log10(Isrc); % HERE THE DISTRIBUTION IS SET
+                MagUS(Isrc) = 15 + 1.5 * log10(Isrc); % HERE THE DISTRIBUTION IS SET
                 IndT        = rem(Isrc,NTemp) + 1; Spec(Isrc,:) = S(IndT);
             end
         otherwise
@@ -193,7 +193,7 @@ function simImage = simulate_ULTRASAT_image (Args)
     %%%%% determine the ULTRASAT magnitudes from NUV magnitudes and distribute the spectra  
     if strcmpi(Args.MagDistr,'galex')        
         Isrc  = 0;
-        MagUS = zeros(NumSrc,1,'single');
+        MagUS = zeros(NumSrc,1);
         for iMag = 1:1:MagBins
             for jSrc = 1:1:SrcDist(iMag)
                 
