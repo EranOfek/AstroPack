@@ -1,4 +1,4 @@
-function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type)
+function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type, Args)
     % Get clicked positions (mouse, key, rect) interactively.
     % Input  : - Handle for current axes in which the data points are ploted.
     %            If empty matrix, then use gca. Default is [].
@@ -8,6 +8,10 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type)
     %            'rect'  - wait for a mouse selection of a rectanguar region.
     %            'mousem'- wait for a multiple left mouse clicks, and use
     %                      right click to abort.
+    %          * ...,key,val,...
+    %            'DistAxis' - Dimension along to calculate distances to the
+    %                   nearest point: 'X'|'Y'|'XY'.
+    %                   Default is 'X'.
     %          - Waitfor action {'y'|'n'}. Will return only after the user
     %            clicked a key/mouse. Default is 'y'.
     % Output : - Result structure containing the following fields.
@@ -23,6 +27,8 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type)
     %          - A structure containing the plot data (.X, .Y, .Z).
     %          - A structre containing the information for the nearest data
     %            point.
+    %          - A structre containing the information for the nearest data
+    %            local max point.
     % Author : Eran Ofek (Nov 2023)
     % Example: Res = plot.getInteractive(Ha, 'mouse');
 
@@ -30,6 +36,7 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type)
         Ha        = [];
         Type      = 'mouse';
         %WaitFor   = 'y';
+        Args.DistAxis   = 'X'; % 'XY' | 'X' | 'Y'
     end
 
     % must define Res as global because of the WindowButtonDownFcn call
@@ -100,13 +107,43 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type)
 
             if nargout>3
                 % look for nearest point
-                Dist = sqrt((Res.Pos(1) - Data.X).^2 + (Res.Pos(2) - Data.Y).^2);
+                switch lower(Args.DistAxis)
+                    case 'xy'
+                        Dist = sqrt((Res.Pos(1).^2 - Data.X).^2 + (Res.Pos(2).^2 - Data.Y).^2);
+                    case 'x'
+                        Dist = abs(Res.Pos(1)-Data.X);
+                    case 'y'
+                        Dist = abs(Res.Pos(2)-Data.Y);
+                    otherwise
+                        error('Unknown DistAXis option');
+                end
                 [MinDist, MinInd] = min(Dist);
                 Nearest.MinDist = MinDist;
                 Nearest.X = Data.X(MinInd);
                 Nearest.Y = Data.Y(MinInd);
                 %Nearest.Z = Data.Z(MinInd);
 
+                % if nargout>4
+                % % look for neast local maximum
+                %     IsLocalMax = find(localmax(Data.Y));
+                %     DistLocalMax = sqrt((Res.Pos(1) - Data.X(IsLocalMax)).^2 + (Res.Pos(2) - Data.Y(IsLocalMax)).^2);
+                % 
+                %     switch lower(Args.DistAxis)
+                %         case 'xy'
+                %             DistLocalMax = sqrt((Res.Pos(1).^2 - Data.X(IsLocalMax)).^2 + (Res.Pos(2).^2 - Data.Y(IsLocalMax)).^2);
+                %         case 'x'
+                %             Dist = abs(Res.Pos(1)-Data.X(IsLocalMax));
+                %         case 'y'
+                %             Dist = abs(Res.Pos(2)-Data.Y(IsLocalMax));
+                %         otherwise
+                %             error('Unknown DistAXis option');
+                %     end
+                % 
+                %     [MinDist, MinInd] = min(DistLocalMax);
+                %     NearestLocalMax.MinDist = MinDist;
+                %     NearestLocalMax.X = Data.X(MinInd);
+                %     NearestLocalMax.Y = Data.Y(MinInd);
+                % end
             end
         end
 
