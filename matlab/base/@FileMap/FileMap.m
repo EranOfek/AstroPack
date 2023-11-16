@@ -125,6 +125,7 @@ classdef FileMap < Component
             end
             
             Result = '';           
+            Obj.msgLog(LogLevel.Info, 'findFile: %s', FileName);
             if ~contains(FileName, '/') && ~contains(FileName, '\')
                 FName = FileName;
                 if Obj.IgnoreCase
@@ -135,12 +136,17 @@ classdef FileMap < Component
                     if Args.Single
                         if numel(F.folder) == 1
                             Result = fullfile(F.folder{1}, FileName);
+                            Obj.msgLog(LogLevel.Info, 'findFile: Single - Found in map: %s', Result);
                         else
+                            Obj.msgLog(LogLevel.Info, 'findFile: Single - Found multiple in map: %s', FName);
                         end
                     else
                         Result = fullfile(F.folder, FileName);
+                        Obj.msgLog(LogLevel.Info, 'findFile: Not found in map: %s', FName);
                     end
                 else
+                    % Not found in map
+                    Obj.msgLog(LogLevel.Info, 'findFile: File not found in map: %s', FName);
                 end
             else
                 Result = FileName;
