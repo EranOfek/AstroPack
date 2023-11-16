@@ -256,10 +256,15 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
                                                         'SubAnnulusBack',Args.SubAnnulusBack,...
                                                         'SumMethod',Args.SumMethod,...
                                                         Args.constructPSF_cutoutsArgs{:});
+    else
+        warning('PSF construction failed: did not find enough good PSF stars');
+        MeanPSF = [];
+        VarPSF  = [];
+        NimPSF  = 0;
     end
     
     % suppress edges
-    if ~isempty(Args.SuppressWidth)
+    if ~isempty(Args.SuppressWidth) && ~isempty(MeanPSF) 
          MeanPSF = imUtil.psf.suppressEdges(MeanPSF, 'Fun',Args.SuppressFun, 'FunPars', [Args.RadiusPSF-Args.SuppressWidth, Args.RadiusPSF]);
     end
           
