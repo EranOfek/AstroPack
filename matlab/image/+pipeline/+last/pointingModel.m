@@ -235,6 +235,8 @@ function [AllResult,PM] = pointingModel(Files, Args)
 
 
         exportgraphics(f,'~/log/pointing_model.png','Resolution',300)
+    else
+        PM = [];
     end
     
 end
