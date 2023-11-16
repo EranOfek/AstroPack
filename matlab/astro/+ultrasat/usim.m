@@ -320,12 +320,12 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     if numel(Args.Mag) > 1
         InMag = Args.Mag;
     else
-        InMag = Args.Mag(1)*ones(NumSrc,1,'single');
+        InMag = Args.Mag(1)*ones(NumSrc,1);
     end
     if numel(Args.Ebv) > 1
         InEbv = Args.Ebv;
     else
-        InEbv = Args.Ebv(1)*ones(NumSrc,1,'single');
+        InEbv = Args.Ebv(1)*ones(NumSrc,1);
     end
     if numel(Args.FiltFam) > 1
         FiltFam = {Args.FiltFam};
@@ -378,10 +378,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             Args.RotAng = Args.RotAng(Ind);
         end
     end
-                         
-    CatFlux  = zeros(NumSrc,1,'single');  % will be determined below from spectra * transmission 
-    MagU     = zeros(NumSrc,1,'single');  % will be calculated below if requested 
-    CrudeSNR = zeros(NumSrc,1,'single');  % will be calculated below if requested 
+%                          
+    CatFlux  = zeros(NumSrc,1);  % will be determined below from spectra * transmission 
+    MagU     = zeros(NumSrc,1);  % will be calculated below if requested 
+    CrudeSNR = zeros(NumSrc,1);  % will be calculated below if requested 
     
     %%%%%%%%%%%%%%%%%%%%% split the list of objects into chunks and work
     %%%%%%%%%%%%%%%%%%%%% chunk-by-chunk 
@@ -440,7 +440,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                             error('The size of the source temperature array is incorrect, exiting..');
                         elseif numel( Args.Spec ) == 1
                             fprintf('%s%5.0f%s','generating BB spectra for T = ',Args.Spec,' K .. ');
-                            Temp = Args.Spec .* ones(NumSrcCh,1,'single');
+                            Temp = Args.Spec .* ones(NumSrcCh,1);
                         else
                             fprintf('%s','generating BB spectra for individual source temperatures .. ');
                             Temp = Args.Spec( Range );
@@ -454,7 +454,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                             error('The size of the source spectral index array is incorrect, exiting..');
                         elseif numel( Args.Spec ) == 1
                             fprintf('%s%5.0f','generating PL spectra for Alpha = ',Args.Spec);
-                            Alpha = Args.Spec .* ones(NumSrcCh,1,'single');
+                            Alpha = Args.Spec .* ones(NumSrcCh,1);
                         else
                             fprintf('%s','generating PL spectra for individual spectral indexes .. ');
                             Alpha = Args.Spec( Range );
@@ -573,7 +573,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 %             MagSc = astro.spec.synthetic_phot([Wave' SpecIn'],FiltFam(Range),Filter(Range),'AB');
 %         end
 
-        MagSc = zeros(1,NumSrcCh,'single');
+        MagSc = zeros(1,NumSrcCh);
         if strcmp(FiltFam,'ULTRASAT')
             for Isrc = 1:1:NumSrcCh              
                 MagSc(Isrc) = astro.spec.synthetic_phot([Wave' SpecIn(Isrc,:)'],UP.U_AstFilt(IndR(Isrc)),'R1','AB');
