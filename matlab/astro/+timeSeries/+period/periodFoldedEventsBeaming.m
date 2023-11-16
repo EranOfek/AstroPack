@@ -114,9 +114,14 @@ function [PS]=periodFoldedEventsBeaming(T, FreqVec, Args)
         H = [ones(Nbins,1), (3-AlphaVec(:)).*sin(2.*pi.*BinPhaseMat(:)), (3-AlphaVec(:)).*cos(2.*pi.*BinPhaseMat(:))];
         [Par, ParErr] = lscov(H, E(:), Weight(:));
         Resid         = E(:) - H*Par;
+        % Plot as a function of phase
+        % semilogy(BinPhaseMat(:), E(:),'.')
+        % plot(BinPhaseMat(:), Resid(:),'.')
 
         Amp = sqrt(Par(2).^2 + Par(3).^2);
         PS(Ifreq,2:8) = [Amp,  Par(1), Par(2), Par(3), ParErr(1), ParErr(2), ParErr(3)];
+        % Since the amplitude depands on the number of photons this must be
+        % normalized by the response function (window function)
         
     end
     
