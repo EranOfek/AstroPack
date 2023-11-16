@@ -2778,7 +2778,6 @@ classdef OrbitalEl < Base
             % Output : [JD, JD-Epoch, DeltaRA("), DeltaDec(")]
             % Example: VecJD = ((2460110.5 - 2000):10:(2460110.5 +500))';
             %          R1=celestial.OrbitalEl.compareEphem2JPL('StartJD',VecJD(1),'EndJD',VecJD(end));
-            %          R2=celestial.OrbitalEl.compareEphem2JPL('StartJD',VecJD(1),'EndJD',VecJD(end),'Integration',true);
             %          plot(VecJD,R1(:,1)); hold on; plot(VecJD,R2(:,1))
             
             arguments
@@ -2803,13 +2802,14 @@ classdef OrbitalEl < Base
             VecJD  = (Args.StartJD:Args.StepSize:Args.EndJD)';
             %CatE   = ephem(OrbEl1, VecJD, 'GeoPos',Args.GeodPos, 'OutUnitsDeg',false, 'Integration',Args.Integration);
             CatE   = ephemKeplerMultiTime(OrbEl1, VecJD+69./86400, 'GeoPos',Args.GeodPos, 'OutUnitsDeg',false);
-            CatE1   = ephemIntegrate(OrbEl1, VecJD+69./86400, 'GeoPos',Args.GeodPos, 'OutUnitsDeg',false);
+            %CatE1   = ephemIntegrate(OrbEl1, VecJD+69./86400, 'GeoPos',Args.GeodPos, 'OutUnitsDeg',false);
             
             CatJPL = celestial.SolarSys.jpl_horizons('ObjectInd',num2str(Args.ObjectInd),'StartJD',Args.StartJD,'StopJD',Args.EndJD,...
                                                      'StepSize',Args.StepSize, 'StepSizeUnits','d','CENTER','500', 'GeodCoo',GeodPosKM);
             % RA nd Dec diff between JPL and ephem:
             Result = [CatE.Catalog.JD, CatE.Catalog.JD - OrbEl1.Epoch, ...
-                     [CatE.Catalog.RA - CatJPL.Catalog(:,2), CatE.Catalog.Dec - CatJPL.Catalog(:,3), CatE1.Catalog.RA - CatJPL.Catalog(:,2), CatE1.Catalog.Dec - CatJPL.Catalog(:,3)].*RAD.*3600];
+                     [CatE.Catalog.RA - CatJPL.Catalog(:,2), CatE.Catalog.Dec - CatJPL.Catalog(:,3)].*3600];
+                     
             
             
             

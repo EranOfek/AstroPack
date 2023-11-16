@@ -169,20 +169,31 @@ function Result = unitTest()
     
     
     %% testing ephem against JPL
+    E = celestial.OrbitalEl.loadSolarSystem([],9804);
     [X, V, JD0] = elements2pos(E, 'CooSys','ec');
     [T] = celestial.SolarSys.getJPL_ephem('9804;','EPHEM_TYPE','VECTORS','TimeScale','TT', 'StartTime',JD0, 'StopTime',JD0+0.5,'CENTER','500@0');
     if any(abs([T.X;T.Y;T.Z]-X)>1e-6)
         error('Conversion orbital elements to position not consistent with JPL ephemeris');
     end
-            
+        
     
+    % ephmeris comparisons (Kepler equation)
+    TimeStep = 10;
+    OrbEl = celestial.OrbitalEl.loadSolarSystem([],9804);
+    JD = OrbEl.Epoch - 100 + (0:TimeStep:200)';
+    Cat = ephem(OrbEl, JD);
+    [T] = celestial.SolarSys.getJPL_ephem('9804;','EPHEM_TYPE','OBSERVER','TimeScale','TT', 'StartTime',JD(1), 'StopTime',JD(end), 'StepSize',TimeStep); 
+    Diff = [[Cat.Catalog.RA - T.RA], [Cat.Catalog.Dec - T.Dec]].*3600;
+    if any(abs(Diff))>2
+        error('Large difference between JPL and ephem');
+    end
     
-    E = celestial.OrbitalEl.loadSolarSystem('num',9804);
-    R1 = E.compareEphem2JPL
-    
-    
-    
-    
+    % Topocentric position
+%     Cat = ephem(OrbEl, JD, 'GeoPos',[35./RAD 30./RAD 415]);
+%     [T] = celestial.SolarSys.getJPL_ephem('9804;','EPHEM_TYPE','OBSERVER','TimeScale','TT',...
+%                                                   'StartTime',JD(1), 'StopTime',JD(end), 'StepSize',TimeStep,...
+%                                                   'GeoCoo',[35 50 0.415]);
+%     Diff = [[Cat.Catalog.RA - T.RA], [Cat.Catalog.Dec - T.Dec]].*3600;
     
     %io.msgLog(LogLevel.Test, 'OrbitalEl test passed');
     Result = true;

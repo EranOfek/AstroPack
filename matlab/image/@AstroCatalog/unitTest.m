@@ -1,6 +1,6 @@
 function Result = unitTest
     % unitTest for the AstroCatalog class
-    io.msgStyle(LogLevel.Test, '@start', 'AstroCatalog test started')
+    %io.msgStyle(LogLevel.Test, '@start', 'AstroCatalog test started')
 
     DataSampleDir = tools.os.getTestDataDir;
     PWD = pwd;
@@ -60,7 +60,7 @@ function Result = unitTest
         error('AstroCatalog Coordinates not interpreted correctly'); 
     end
 
-    io.msgLog(LogLevel.Test, 'testing AstroCatalog constructor');
+    %io.msgLog(LogLevel.Test, 'testing AstroCatalog constructor');
     AC = AstroCatalog({'asu.fit','asu.fit'}, 'HDU',2);
     % obsolete: [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(AC);
 %             if AC(1).ColX~=AC(2).ColX
@@ -71,7 +71,7 @@ function Result = unitTest
 %             end
 
     % sort
-    io.msgLog(LogLevel.Test, 'testing AstroCatalog sort');
+    %io.msgLog(LogLevel.Test, 'testing AstroCatalog sort');
     AC = AstroCatalog({'asu.fit','asu.fit'}, 'HDU',2);
     [~,~,~,ColY] = getCooType(AC);
     AC(1).SortByCol = ColY(1);
@@ -82,7 +82,7 @@ function Result = unitTest
     end
 
     % sort using the SortByCol property
-    io.msgLog(LogLevel.Test, 'testing AstroCatalog SortByCol');
+    %io.msgLog(LogLevel.Test, 'testing AstroCatalog SortByCol');
     AC = AstroCatalog({'asu.fit','asu.fit'}, 'HDU',2);
     [~,~,~,ColY] = getCooType(AC);
     AC(1).SortByCol = ColY(1);
@@ -93,7 +93,7 @@ function Result = unitTest
     end
 
     % bounding circle
-    io.msgLog(LogLevel.Test, 'testing AstroCatalog boundingCircle');
+    %io.msgLog(LogLevel.Test, 'testing AstroCatalog boundingCircle');
     AC=AstroCatalog({'asu.fit'},'HDU',2);
     AC.Catalog(12242:end,:) = []; % until readtable1 is fixed
     [Result] = imProc.match.coneSearch(AC, [10 1], 'Radius',3600.*10);
@@ -103,30 +103,30 @@ function Result = unitTest
     end
 
     % cropXY
-    io.msgLog(LogLevel.Test, 'testing AstroCatalog cropXY');
+    %io.msgLog(LogLevel.Test, 'testing AstroCatalog cropXY');
     AC = AstroCatalog({rand(100,3).*100}, 'ColNames',{'XWIN','YWIN','Flux'});
     Result = cropXY(AC, [1 50 1 50]);
     Result = cropXY(AC, [81 100 41 70],'AddX',{'Flux'});
     Result = cropXY(AC, [81 100 41 70; 1 50 1 50]); % multiple crops of a single catalog
 
     % cropLonLatlnPoly
-    io.msgLog(LogLevel.Test, 'testing AstroCatalog cropLatInPoly');
+    %io.msgLog(LogLevel.Test, 'testing AstroCatalog cropLatInPoly');
     AC=AstroCatalog({'asu.fit'},'HDU',2);
 %     Result = cropLonLatInPoly(AC, [0.03 0.04], [30 40]);
     
     % getLonLat
-    io.msgLog(LogLevel.Test, 'testing AstroCatalog getLonLat');
+    %io.msgLog(LogLevel.Test, 'testing AstroCatalog getLonLat');
     AC=AstroCatalog({'asu.fit'},'HDU',2);
     [Lon,Lat] = getLonLat(AC);
     [Lon,Lat] = getLonLat(AC,'rad');
 
     % getXY
-    io.msgLog(LogLevel.Test, 'testing AstroCatalog getXY');
+    %io.msgLog(LogLevel.Test, 'testing AstroCatalog getXY');
     AC=AstroCatalog({rand(100,2)},'ColNames',{'XWIN_IMAGE','YWIN_IMAGE'});
     [X,Y] = getXY(AC);
 
     % insertFlagColFromMask
-    io.msgLog(LogLevel.Test, 'testing AstroCatalog insertFlagColFromMask');
+    %io.msgLog(LogLevel.Test, 'testing AstroCatalog insertFlagColFromMask');
     AC = AstroCatalog({rand(100,2).*1023}, 'ColNames',{'X','Y'});
     MI = MaskImage({uint32(ones(1024,1024).*5)});
     insertFlagColFromMask(AC, MI);
@@ -166,10 +166,10 @@ function Result = unitTest
 
 
     % plot
-    io.msgLog(LogLevel.Test, 'testing AstroCatalog getCooTypeAuto');
+    %io.msgLog(LogLevel.Test, 'testing AstroCatalog getCooTypeAuto');
     AC=AstroCatalog({'asu.fit'},'HDU',2);
     %AC.getCooTypeAuto;
-    io.msgLog(LogLevel.Test, 'testing AstroCatalog plotMapFun');
+    %io.msgLog(LogLevel.Test, 'testing AstroCatalog plotMapFun');
     AC.plotMapFun('aitoff',@plotm,{},'.','MarkerSize',1);
     
     % plotSources
@@ -177,7 +177,7 @@ function Result = unitTest
     AT.plotSources;   
 
     % convertCooUnits
-    io.msgLog(LogLevel.Test, 'testing AstroCatalog convertCooUnits');
+    %io.msgLog(LogLevel.Test, 'testing AstroCatalog convertCooUnits');
     AC=AstroCatalog({'asu.fit','asu.fit'},'HDU',2);
     AC.convertCooUnits('deg');
 
@@ -192,6 +192,6 @@ function Result = unitTest
     [Dist, PA] = sphere_dist(AC,1,1);
 
     cd(PWD);           
-    io.msgStyle(LogLevel.Test, '@passed', 'AstroCatalog test passed')
+    %io.msgStyle(LogLevel.Test, '@passed', 'AstroCatalog test passed')
     Result = true;
 end

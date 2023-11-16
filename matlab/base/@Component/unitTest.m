@@ -1,24 +1,24 @@
 function Result = unitTest()
     % Component.unitTest
     
-    io.msgLog(LogLevel.Test, 'Component test started');
+    %io.msgLog(LogLevel.Test, 'Component test started');
 
     % Create instances
     a = Component;
-    a.msgLog(LogLevel.Test, 'a created');            
+    %a.msgLog(LogLevel.Test, 'a created');            
     b = Component;
-    b.msgLog(LogLevel.Test, 'b created');            
+    %b.msgLog(LogLevel.Test, 'b created');            
     c = Component;
-    c.msgLog(LogLevel.Test, 'c created');
+    %c.msgLog(LogLevel.Test, 'c created');
 
     % Make sure that we get different Uuids
-    io.msgLog(LogLevel.Test, 'Testing Uuid');
+    %io.msgLog(LogLevel.Test, 'Testing Uuid');
     a.needUuid();            
     b.needUuid();
     assert(~all(a.Uuid ~= b.Uuid));
 
     % Make sure that we get different MapKeys
-    io.msgLog(LogLevel.Test, 'Testing MapKey');
+    %io.msgLog(LogLevel.Test, 'Testing MapKey');
     a.needMapKey();            
     b.needMapKey();
     assert(~all(a.MapKey ~= b.MapKey));            
@@ -43,6 +43,6 @@ function Result = unitTest()
     f = d.copy();
     assert(~strcmp(d.Uuid, f.Uuid));
     
-    io.msgStyle(LogLevel.Test, '@passed', 'Component test passed');                          
+    %io.msgStyle(LogLevel.Test, '@passed', 'Component test passed');                          
     Result = true;
 end
