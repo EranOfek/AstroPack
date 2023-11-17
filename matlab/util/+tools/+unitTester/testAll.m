@@ -2,7 +2,12 @@ function [Result] = testAll(Args)
     % Search and execute all the unitTest functions in AstroPack
     % Input  : * ...,key,val,... 
     %            See code for details.
-    % Output : - 
+    % Output : - A strucure array with the results of running each of the
+    %            unitTest in AstroPack.
+    %            Including the following fields:
+    %            .FH - unitTest function handle.
+    %            .Result - A logical result for the unitTest.
+    %            .FunPath - Function name and path.
     % Author : Eran Ofek (2023 Nov) 
     % Example: R=tools.unitTester.testAll()
 
