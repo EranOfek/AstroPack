@@ -9,6 +9,18 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
     %            '85' - Io
     %            See https://ssd.jpl.nasa.gov/horizons/manual.html#select
     %          * ...,key,val,...
+    %            'FailMultiName' - A logical indicating on what to do if
+    %                   the object name resulted in multiple possible objects.
+    %                   If true, then will fail.
+    %                   If false, then will attempt to read the name of the
+    %                   barycenter of the likely object and re execute the
+    %                   function.
+    %                   Default is false.
+    %            'AddToName' - Addittional condition to add to object name.
+    %                   'CAP' - apparition solution closest to present date, including any fragments
+    %                   'NOFRAG' -  excluding fragments
+    %                    'CAP; NOFRAG'
+    %                    '' - No additions. Default.
     %            'StartTime' - Start time [D M Y H M S], or JD, or ISO
     %                   string. If empty, then use now.
     %                   Default is [].
@@ -63,10 +75,17 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
     % Example: [T,~,U] = celestial.SolarSys.getJPL_ephem('299;','EPHEM_TYPE','VECTORS','TimeScale','TT');  
     %          [T,~,U] = celestial.SolarSys.getJPL_ephem('299;','EPHEM_TYPE','ELEMENTS','TimeScale','TDB');
     %          [T,~,U] = celestial.SolarSys.getJPL_ephem('299;','EPHEM_TYPE','OBSERVER','TimeScale','TT'); 
+    %          [T,~,U] = celestial.SolarSys.getJPL_ephem('1999 AN10','EPHEM_TYPE','OBSERVER','TimeScale','TT'); 
 
     
     arguments
-        Object           = '9804';    % 'COMMAND'   % use ';' for asteroid
+        Object              = '9804';    % 'COMMAND'   % use ';' for asteroid
+        
+        % BE CARFUL - keyword enfing with capital letters will be used in
+        % the query...
+        Args.FailMultiName logical = false;
+        Args.AddDes logical = false;
+        Args.AddToName      = ''; % 'CAP' | 'NOFRAG'
         Args.StartTime  = [];  % START_TIME : JD%f'  % TT, TDB, UT
         Args.StopTime   = [];  % STOP_TIME
         Args.TimeScale  = 'UT'; %'TDB'; %'TT'; %'TDB'; %'UT';
@@ -107,83 +126,97 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
         Args.OrbEl       = [];
         Args.LineInd     = [];
         
-        
+        % internal usage (for recursive calls)
+        Args.START_TIME  = [];
+        Args.STOP_TIME   = [];
+        Args.SkipFormating logical = false;  
     end
     
-    switch Args.EPHEM_TYPE
-        case 'ELEMENTS'
-            Args.CENTER      = '500@10';  % only heliocentric
-            Args.QUANTITIES  = [];
-            Args.APPARENT    = [];
-            Args.ELEV_CUT    = [];
-            Args.SKIP_DAYLT  = [];
-            Args.SOLAR_ELONG = [];
-            Args.SUPPRESS_RANGE_RATE = [];
-            Args.MAKE_EPHEM  = [];
-        case 'VECTORS'
-            
-        otherwise
-            % do nothing
-    end
-            
+    if ~Args.SkipFormating
+        switch Args.EPHEM_TYPE
+            case 'ELEMENTS'
+                Args.CENTER      = '500@10';  % only heliocentric
+                Args.QUANTITIES  = [];
+                Args.APPARENT    = [];
+                Args.ELEV_CUT    = [];
+                Args.SKIP_DAYLT  = [];
+                Args.SOLAR_ELONG = [];
+                Args.SUPPRESS_RANGE_RATE = [];
+                Args.MAKE_EPHEM  = [];
+            case 'VECTORS'
+
+            otherwise
+                % do nothing
+        end
+
+        if ~isempty(Args.StepSize)
+            % override STEP_SIZE
+            Args.STEP_SIZE = sprintf('%d %s', Args.StepSize, Args.StepUnits);
+        end
     
-    if ~isempty(Args.StepSize)
-        % override STEP_SIZE
-        Args.STEP_SIZE = sprintf('%d %s', Args.StepSize, Args.StepUnits);
-    end
     
-    if isnumeric(Args.StartTime)
-        if numel(Args.StartTime)>1
+        if isnumeric(Args.StartTime)
+            if numel(Args.StartTime)>1
+                JD1 = celestial.time.julday(Args.StartTime);
+            elseif numel(Args.StartTime)==1
+                JD1 = Args.StartTime;
+            else
+                % empty
+                % get now
+                JD1 = celestial.time.julday;
+            end
+        else
             JD1 = celestial.time.julday(Args.StartTime);
-        elseif numel(Args.StartTime)==1
-            JD1 = Args.StartTime;
-        else
-            % empty
-            % get now
-            JD1 = celestial.time.julday;
         end
-    else
-        JD1 = celestial.time.julday(Args.StartTime);
-    end
-    
-    if isnumeric(Args.StopTime)
-        if numel(Args.StopTime)>1
+
+        if isnumeric(Args.StopTime)
+            if numel(Args.StopTime)>1
+                JD2 = celestial.time.julday(Args.StopTime);
+            elseif numel(Args.StopTime)==1
+                JD2 = Args.StopTime;
+            else
+                % empty
+                % get now + 1
+                JD2 = celestial.time.julday + 1;
+            end
+        else
             JD2 = celestial.time.julday(Args.StopTime);
-        elseif numel(Args.StopTime)==1
-            JD2 = Args.StopTime;
-        else
-            % empty
-            % get now + 1
-            JD2 = celestial.time.julday + 1;
         end
-    else
-        JD2 = celestial.time.julday(Args.StopTime);
-    end
-    
-    if JD1>JD2
-        JD2 = JD1 + 1;
-    end
-    
-    Args.START_TIME = sprintf('JD %19.9f %s',JD1, Args.TimeScale);
-    Args.STOP_TIME  = sprintf('JD %19.9f',JD2);
-    
-    
-    
-    
-    if ~isempty(Args.GeoCoo)
-        Args.SITE_COORD = sprintf('%9.5f,%9.5f,%9.5f',Args.GeoCoo);
+
+        if JD1>JD2
+            JD2 = JD1 + 1;
+        end
+
+        Args.START_TIME = sprintf('JD %19.9f %s',JD1, Args.TimeScale);
+        Args.STOP_TIME  = sprintf('JD %19.9f',JD2);
+
+
+        if ~isempty(Args.GeoCoo)
+            Args.SITE_COORD = sprintf('%9.5f,%9.5f,%9.5f',Args.GeoCoo);
+        end
     end
     
     Args.COMMAND = Object;
     
+    if Args.AddDes
+        % add 'DES=' before the object name
+        Args.COMMAND = sprintf('DES= %s',Args.COMMAND);
+    end
+    
+    if ~isempty(Args.AddToName)
+        Args.COMMAND = sprintf('%s; %s',Args.COMMAND, Args.AddToName);
+    end
+    
     % add double quoates
     
-    Ndq = numel(Args.DoubleQoutesFields);
-    for Idq=1:1:Ndq
-        Field = Args.DoubleQoutesFields{Idq};
-        if isfield(Args, Field)
-            if ~isempty(Args.(Field))
-                Args.(Field) = sprintf('''%s''',Args.(Field));
+    if ~Args.SkipFormating
+        Ndq = numel(Args.DoubleQoutesFields);
+        for Idq=1:1:Ndq
+            Field = Args.DoubleQoutesFields{Idq};
+            if isfield(Args, Field)
+                if ~isempty(Args.(Field))
+                    Args.(Field) = sprintf('''%s''',Args.(Field));
+                end
             end
         end
     end
@@ -224,115 +257,142 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
         Output      = [];
         OutputTable = [];
     else
-        Output = webread(StrURL);
+        Output = webread(StrURL);        
         if isfield(Output, 'error')
             error('%s',Output.error);
         end
-
-
-        JDstr = sprintf('JD%s',Args.TimeScale);
-        PosJD = strfind(Output.result, JDstr);
-        PosCD = strfind(Output.result, 'Calendar Date');
-        PosDT = strfind(Output.result, 'Date__');
-
-        Pos = min([PosJD(1); PosCD; PosDT]);
-
-        Tmp1 = regexp(Output.result(Pos:end), '.+\$\$SOE','match');
-
-        ColNames = split(Tmp1{1},',');
-        ColNames = ColNames(1:end-1);
-        ColNames = tools.string.spacedel(ColNames);
-        Ncol     = numel(ColNames);
-
-        Tmp2 = regexp(Output.result, '\$\$SOE.+\$\$EOE','match');
-        Table = strrep(Tmp2{1},'$$SOE','');
-        Table = strrep(Table,'$$EOE','');
-        TS    = split(Table, ',');
-        TS    = TS(1:end-1);
-        TS    = reshape(TS, [Ncol numel(TS)./Ncol]).';
-
-        FlagGoodCol = ~cellfun(@isempty, ColNames);
-        ColNames    = ColNames(FlagGoodCol);
-        TS          = TS(:,FlagGoodCol);
-
-        % rename columns:
-        ColNames = regexprep(ColNames, 'Date\_+JDTT', 'JDTT');
-        ColNames = regexprep(ColNames, 'Date\_\_.+', 'Date');
-        ColNames = regexprep(ColNames, 'Date.+JDUT', 'JDUT');
-        ColNames = regexprep(ColNames, 'Date.+JDTDB', 'JDTDB');
-        ColNames = regexprep(ColNames, 'JDTDB.+', 'JDTDB');
-        ColNames = regexprep(ColNames, 'JDUT.+', 'JDUT');
-        ColNames = regexprep(ColNames, 'JDTT.+', 'JDTT');
-        ColNames = regexprep(ColNames, 'R\.A\..+', 'RA');
-        ColNames = regexprep(ColNames, 'DEC.+', 'Dec');
-        ColNames = regexprep(ColNames, '/r', 'TrailLead');  % trail for evning sky... = 1
-        ColNames = regexprep(ColNames, '-','');
-
-
-
-        OutputTable = cell2table(TS, 'VariableNames',ColNames);
-        % If TrailLead exist in output table:
-        if any(strcmp(OutputTable.Properties.VariableNames, 'TrailLead'))
-            OutputTable.TrailLead = strrep(OutputTable.TrailLead, '/T', '1');
-            OutputTable.TrailLead = strrep(OutputTable.TrailLead, '/L', '0');
+        
+        % Inspect validity of output
+        if contains(Output.result, 'No matches found')
+            error('Object name - No matches found');
         end
+        
+        if contains(Output.result, 'Multiple major-bodies match string')
+            MultiName = true;
+        else
+            MultiName = false;
+        end
+        
+        if MultiName
+            if Args.FailMultiName
+                Output.result
+                error('Multiple body name found');
+            else
+                % extract the body system barycenter
+                Tmp = regexp(Output.result,'(?<N>\d+) .+ \(system barycenter\)','tokens');
 
-        % attmpt to convert to numeric
-        if Args.Convert2Numeric
-            Ncol = numel(ColNames);
-            for Icol=1:1:Ncol
-                Val = str2double(OutputTable.(ColNames{Icol}));
-                if ~any(isnan(Val))
-                    OutputTable.(ColNames{Icol}) = Val;
+                Args.SkipFormating = true;
+                Args = rmfield(Args, {'COMMAND'});
+                % 
+                KeyVal = tools.struct.struct2keyval(Args);
+                [OutputTable, Output, StrURL] = celestial.SolarSys.getJPL_ephem(Tmp{1}{1}, KeyVal{:}); 
+            end
+        else
+                
+
+            JDstr = sprintf('JD%s',Args.TimeScale);
+            PosJD = strfind(Output.result, JDstr);
+            PosCD = strfind(Output.result, 'Calendar Date');
+            PosDT = strfind(Output.result, 'Date__');
+
+            Pos = min([PosJD(1); PosCD; PosDT]);
+
+            Tmp1 = regexp(Output.result(Pos:end), '.+\$\$SOE','match');
+
+            ColNames = split(Tmp1{1},',');
+            ColNames = ColNames(1:end-1);
+            ColNames = tools.string.spacedel(ColNames);
+            Ncol     = numel(ColNames);
+
+            Tmp2 = regexp(Output.result, '\$\$SOE.+\$\$EOE','match');
+            Table = strrep(Tmp2{1},'$$SOE','');
+            Table = strrep(Table,'$$EOE','');
+            TS    = split(Table, ',');
+            TS    = TS(1:end-1);
+            TS    = reshape(TS, [Ncol numel(TS)./Ncol]).';
+
+            FlagGoodCol = ~cellfun(@isempty, ColNames);
+            ColNames    = ColNames(FlagGoodCol);
+            TS          = TS(:,FlagGoodCol);
+
+            % rename columns:
+            ColNames = regexprep(ColNames, 'Date\_+JDTT', 'JDTT');
+            ColNames = regexprep(ColNames, 'Date\_\_.+', 'Date');
+            ColNames = regexprep(ColNames, 'Date.+JDUT', 'JDUT');
+            ColNames = regexprep(ColNames, 'Date.+JDTDB', 'JDTDB');
+            ColNames = regexprep(ColNames, 'JDTDB.+', 'JDTDB');
+            ColNames = regexprep(ColNames, 'JDUT.+', 'JDUT');
+            ColNames = regexprep(ColNames, 'JDTT.+', 'JDTT');
+            ColNames = regexprep(ColNames, 'R\.A\..+', 'RA');
+            ColNames = regexprep(ColNames, 'DEC.+', 'Dec');
+            ColNames = regexprep(ColNames, '/r', 'TrailLead');  % trail for evning sky... = 1
+            ColNames = regexprep(ColNames, '-','');
+
+
+
+            OutputTable = cell2table(TS, 'VariableNames',ColNames);
+            % If TrailLead exist in output table:
+            if any(strcmp(OutputTable.Properties.VariableNames, 'TrailLead'))
+                OutputTable.TrailLead = strrep(OutputTable.TrailLead, '/T', '1');
+                OutputTable.TrailLead = strrep(OutputTable.TrailLead, '/L', '0');
+            end
+
+            % attmpt to convert to numeric
+            if Args.Convert2Numeric
+                Ncol = numel(ColNames);
+                for Icol=1:1:Ncol
+                    Val = str2double(OutputTable.(ColNames{Icol}));
+                    if ~any(isnan(Val))
+                        OutputTable.(ColNames{Icol}) = Val;
+                    end
                 end
             end
+
+            switch lower(Args.OutType)
+                case 'table'
+                    % do nonthing
+                case 'orbitalel'
+                    if strcmp(Args.EPHEM_TYPE, 'ELEMENTS')
+                        if isempty(Args.OrbEl)
+                            OrbEl = celestial.OrbitalEl;
+                        else
+                            OrbEl = Args.OrbEl;
+                        end
+                        if isempty(Args.LineInd)
+                            LineInd = size(OrbEl.Eccen,1) + 1;
+                        else
+                            LineInd = Args.LineInd;
+                        end
+
+                        %error('not working yet');
+
+                        OrbEl.A(LineInd,:)         = OutputTable.A(:).';
+                        OrbEl.Eccen(LineInd,:)     = OutputTable.EC(:).';
+                        OrbEl.PeriDist(LineInd,:)  = OutputTable.QR(:).';
+                        OrbEl.W(LineInd,:)         = OutputTable.W(:).';
+                        OrbEl.Node(LineInd,:)      = OutputTable.OM(:).';
+                        OrbEl.Incl(LineInd,:)      = OutputTable.IN(:).';
+                        OrbEl.Tp(LineInd,:)        = OutputTable.Tp(:).';  
+                        OrbEl.Epoch(LineInd,:)     = OutputTable.JDTDB(:).';
+
+                        CleanObject = strrep(Object, ';','');
+                        if isnan(str2double(CleanObject))
+                            % assume Designation is provided
+                            OrbEl.Designation{LineInd,1} = CleanObject;
+                        else
+                            % assume number is provided
+                            OrbEl.Number(LineInd,1) = str2double(CleanObject);
+                        end
+                        OutputTable     = OrbEl;
+                    else
+                        warning('OutType==OrbitalEl is possible only for EPHEM_TYPE==ELEMENTS - output will be table');
+                    end
+
+                otherwise
+                    error('OutType option %s is not supported',Args.OutType);
+            end
+
         end
-        
-        switch lower(Args.OutType)
-            case 'table'
-                % do nonthing
-            case 'orbitalel'
-                if strcmp(Args.EPHEM_TYPE, 'ELEMENTS')
-                    if isempty(Args.OrbEl)
-                        OrbEl = celestial.OrbitalEl;
-                    else
-                        OrbEl = Args.OrbEl;
-                    end
-                    if isempty(Args.LineInd)
-                        LineInd = size(OrbEl.Eccen,1) + 1;
-                    else
-                        LineInd = Args.LineInd;
-                    end
-                        
-                    %error('not working yet');
-                    
-                    OrbEl.A(LineInd,:)         = OutputTable.A(:).';
-                    OrbEl.Eccen(LineInd,:)     = OutputTable.EC(:).';
-                    OrbEl.PeriDist(LineInd,:)  = OutputTable.QR(:).';
-                    OrbEl.W(LineInd,:)         = OutputTable.W(:).';
-                    OrbEl.Node(LineInd,:)      = OutputTable.OM(:).';
-                    OrbEl.Incl(LineInd,:)      = OutputTable.IN(:).';
-                    OrbEl.Tp(LineInd,:)        = OutputTable.Tp(:).';  
-                    OrbEl.Epoch(LineInd,:)     = OutputTable.JDTDB(:).';
-                    
-                    CleanObject = strrep(Object, ';','');
-                    if isnan(str2double(CleanObject))
-                        % assume Designation is provided
-                        OrbEl.Designation{LineInd,1} = CleanObject;
-                    else
-                        % assume number is provided
-                        OrbEl.Number(LineInd,1) = str2double(CleanObject);
-                    end
-                    OutputTable     = OrbEl;
-                else
-                    warning('OutType==OrbitalEl is possible only for EPHEM_TYPE==ELEMENTS - output will be table');
-                end
-                    
-            otherwise
-                error('OutType option %s is not supported',Args.OutType);
-        end
-        
     end
-    
 end
 
