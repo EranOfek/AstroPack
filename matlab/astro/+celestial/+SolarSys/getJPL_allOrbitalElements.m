@@ -3,6 +3,12 @@ function getJPL_allOrbitalElements(Args)
     %   Retrieve from JPL horizons, from StartTime to EndTime.
     %   data is save is Dir.
     % Input  : * ...,key,val,... 
+    %            'OrbEl' - A celestial.OrbitalEl object. Elements as a function
+    %                   of epoch will be retrieved for each source in this list.
+    %                   If emptyy, then use: celestial.OrbitalEl.loadSolarSystem([]);
+    %                   In this case comets are ignored (Comet names are
+    %                   not recognized from some reasons - need to debug).
+    %                   Default is [].
     %            'StartTime' - Default is [1 1 2000]
     %            'StopTime' - Default is [1 1 2030];
     %            'StepSize' - Default is 100.
@@ -18,6 +24,7 @@ function getJPL_allOrbitalElements(Args)
     % Example: celestial.SolarSys.getJPL_allOrbitalElements
     
     arguments
+        Args.OrbEl             = [];
         Args.StartTime         = [1 1 2010];
         Args.StopTime          = [1 1 2040];
         Args.StepSize          = 100;
@@ -32,7 +39,14 @@ function getJPL_allOrbitalElements(Args)
     PWD = pwd;
     cd(Args.Dir);
     
-    OrbEl = celestial.OrbitalEl.loadSolarSystem([]);
+    if isempty(Args.OrbEl)
+        OrbEl = celestial.OrbitalEl.loadSolarSystem([]);
+        if numel(OrbEl)>2
+            OrbEl = OrbEl(1:2);
+        end
+    else
+        OrbEl = Args.OrbEl;
+    end
     save -v7.3 OrbEl.mat OrbEl
     
     

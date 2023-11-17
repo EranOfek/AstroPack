@@ -314,7 +314,15 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
                     OrbEl.Incl(LineInd,:)      = OutputTable.IN(:).';
                     OrbEl.Tp(LineInd,:)        = OutputTable.Tp(:).';  
                     OrbEl.Epoch(LineInd,:)     = OutputTable.JDTDB(:).';
-                    OrbEl.Designation{LineInd,1} = Object;
+                    
+                    CleanObject = strrep(Object, ';','');
+                    if isnan(str2double(CleanObject))
+                        % assume Designation is provided
+                        OrbEl.Designation{LineInd,1} = CleanObject;
+                    else
+                        % assume number is provided
+                        OrbEl.Number(LineInd,1) = str2double(CleanObject);
+                    end
                     OutputTable     = OrbEl;
                 else
                     warning('OutType==OrbitalEl is possible only for EPHEM_TYPE==ELEMENTS - output will be table');
