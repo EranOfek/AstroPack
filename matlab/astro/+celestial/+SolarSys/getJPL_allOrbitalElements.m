@@ -18,12 +18,12 @@ function getJPL_allOrbitalElements(Args)
     % Example: celestial.SolarSys.getJPL_allOrbitalElements
     
     arguments
-        Args.StartTime         = [1 1 2000];
-        Args.StopTime          = [1 1 2030];
+        Args.StartTime         = [1 1 2010];
+        Args.StopTime          = [1 1 2040];
         Args.StepSize          = 100;
         Args.StepUnits         = 'd';
         
-        Args.ElementsInFile    = 10; %5000;
+        Args.ElementsInFile    = 100; %5000;
         
         Args.Dir               = '/home/eran/matlab/data/SolarSystem/MinorPlanetsET/';
     end
