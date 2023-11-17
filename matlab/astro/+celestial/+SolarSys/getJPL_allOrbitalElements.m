@@ -23,7 +23,7 @@ function getJPL_allOrbitalElements(Args)
         Args.StepSize          = 100;
         Args.StepUnits         = 'd';
         
-        Args.ElementsInFile    = 100; %5000;
+        Args.ElementsInFile    = 10; %5000;
         
         Args.Dir               = '/home/eran/matlab/data/SolarSystem/MinorPlanetsET/';
     end
