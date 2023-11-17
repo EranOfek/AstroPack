@@ -20,9 +20,9 @@ function [RA,Dec,R,SL,EquationTime]=suncoo(JD,EquinoxType)
 % Example: [RA,Dec,R,SL,EquationTime]=celestial.SolarSys.suncoo(2451545+[0:1:10]','j');
 % Reliable: 1
 %------------------------------------------------------------------------------
-if (nargin==1),
+if (nargin==1)
    EquinoxType = 'a';
-elseif (nargin==2),
+elseif (nargin==2)
    % no default
 else
    error('Illigal number of input arguments');
