@@ -1,6 +1,8 @@
 % celestial.KDTreeCoo class
 %       KDTree for spherical coordinates
 %       
+% Examples:
+% 
 
 
 

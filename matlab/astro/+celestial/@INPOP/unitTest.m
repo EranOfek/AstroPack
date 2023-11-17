@@ -1,7 +1,7 @@
 function Result = unitTest()
     % INPOP.unitTest
     
-    io.msgLog(LogLevel.Test, 'INPOP test started');
+    %io.msgLog(LogLevel.Test, 'INPOP test started');
     I = celestial.INPOP();
 
     % Download Constants
@@ -65,7 +65,7 @@ function Result = unitTest()
     % Moon ('Moo') is not initialized and gives an error in isPopulated
     % 
 
-    io.msgLog(LogLevel.Test, 'INPOP test passed');
+    %io.msgLog(LogLevel.Test, 'INPOP test passed');
     Result = true;
 end
 
