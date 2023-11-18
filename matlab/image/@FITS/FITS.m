@@ -59,7 +59,7 @@ classdef FITS < handle
                 List = convertCharsToStrings(FileName);
             elseif ischar(FileName) || isstring(FileName)
                 % read into cell of files
-                List = io.files.filelist(FileName,false);
+                List = io.files.filelist(FileName);
             else
                 error('Unknown FileName type');
             end
@@ -76,7 +76,7 @@ classdef FITS < handle
             
             
             for Ilist=1:1:Nlist
-                Ihdu  =min(Ilist,Nhdu);
+                Ihdu            = min(Ilist,Nhdu);
                 Obj(Ilist).File = List{Ilist};
                 Obj(Ilist).HDU  = ListHDU(Ihdu);
             end
