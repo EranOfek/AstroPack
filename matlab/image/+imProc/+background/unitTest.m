@@ -30,7 +30,7 @@ function Result = unitTest()
     Z = 1+MatX +MatY + MatX.*MatY;
     AI = AstroImage({Z});
     [Result, Surface] = imProc.background.fitSurface(AI);
-    if max(abs(Surface.Image - Z),[],'all')>1e-6
+    if max(abs(Surface.Resid),[],'all')>1e-6
         error('Problem with fitSurface');
     end
     
@@ -38,7 +38,7 @@ function Result = unitTest()
     AI = AstroImage({Z});
     [Result2, Surface] = imProc.background.fitSurface(AI,'Fun',{@(x,y)ones(size(x)),@(x,y)x+3*y,@(x,y)sin(x)},'Niter',1);
 %     [Result2, Surface] = imProc.background.fitSurface(AI,'Fun',{@(x,y)ones(size(x)),@(x,y)x+3*y},'Niter',1);
-    if max(abs(Surface.Image - Z),[],'all')>1e-6
+    if max(abs(Surface.Resid),[],'all')>1e-6
         error('Problem with fitSurface');
     end
     
@@ -47,7 +47,7 @@ function Result = unitTest()
     [MatX, MatY] = meshgrid( VecX, VecY);
     Z = 2+MatX +MatY + MatX.*MatY;
     AI = AstroImage({Z});
-    [Result, Surface] = imProc.background.fitSurface(AI, 'SizeIJ',[1000 1000], 'VecX',VecX, 'VecY',VecY);
+    [Result, Surface] = imProc.background.fitSurface(AI); %, 'SizeIJ',[1000 1000], 'VecX',VecX, 'VecY',VecY);
     
     DataSampleDir = tools.os.getTestDataDir;
     PWD = pwd;
