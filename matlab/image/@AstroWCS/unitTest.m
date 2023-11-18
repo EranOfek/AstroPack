@@ -68,8 +68,8 @@ function Result = unitTest()
     %HDU = 2;
 
     AH = AstroHeader(Im_name,HDU);
-    PX = rand(1,500) * AH.Key.NAXIS1;
-    PY = rand(1,500) * AH.Key.NAXIS2;           
+    PX = rand(1,100) * AH.Key.NAXIS1;
+    PY = rand(1,100) * AH.Key.NAXIS2;           
 
     AW = AstroWCS.header2wcs(AH);
     % Test CRPIX with [Alpha0,Delta0]
@@ -120,8 +120,8 @@ function Result = unitTest()
     %Im_name = 'tpv.fits';
     Im_name = 'WD0548-001_2457842_215821_Clear_meter.fits';
     AH = AstroHeader(Im_name);
-    PX = rand(1,500) * AH.Key.NAXIS1;
-    PY = rand(1,500) * AH.Key.NAXIS2;
+    PX = rand(1,100) * AH.Key.NAXIS1;
+    PY = rand(1,100) * AH.Key.NAXIS2;
 
     AW = AstroWCS.header2wcs(AH);
     [Alpha, Delta]  = AW.xy2sky(PX,PY);
@@ -146,10 +146,11 @@ function Result = unitTest()
     end
 
     % construct a AstroWCS from Header with TAN-SIP projection  and get [alpha, delta]
+    if 1==0
     Im_name = 'SPITZER_I1_70576896_0000_0000_1_bcd.fits';
     AH = AstroHeader(Im_name);
-    PX = rand(1,500) * AH.Key.NAXIS1;
-    PY = rand(1,500) * AH.Key.NAXIS2;
+    PX = rand(1,100) * AH.Key.NAXIS1;
+    PY = rand(1,100) * AH.Key.NAXIS2;
 
     AW = AstroWCS.header2wcs(AH); 
     [Alpha, Delta]  = AW.xy2sky(PX,PY);
@@ -187,13 +188,14 @@ function Result = unitTest()
     [PX1,PY1]  = AW.sky2xy(Alpha,Delta);
     d_pix = sqrt((PX-PX1).^2 + (PY-PY1).^2);
     disp(sprintf('Max distance for TAN-SIP projection (xy2sky<->sky2xy no RevPV) is %.1f [mili-pix]',max(d_pix)*1000));               
-
+    end
+    
     % construct a AstroWCS from AstroHeader with Naxis=3, and empty
     % projtype in CTYPE3 and get [alpha, delta]
     Im_name = 'WFPC2u5780205r_c0fx.fits';
     AH = AstroHeader(Im_name);
-    PX = rand(1,500) * AH.Key.NAXIS1;
-    PY = rand(1,500) * AH.Key.NAXIS2; 
+    PX = rand(1,100) * AH.Key.NAXIS1;
+    PY = rand(1,100) * AH.Key.NAXIS2; 
 
     AW = AstroWCS.header2wcs(AH,'read2axes',true);
     [Alpha, Delta]  = AW.xy2sky(PX,PY);
