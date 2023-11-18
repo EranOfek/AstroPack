@@ -22,7 +22,7 @@ function Result = unitTest()
     
     % read headers to AstroHeader, on construction
     io.msgLog(LogLevel.Test, 'testing AstroHeader constructor 2/2')
-    H = AstroHeader('*.fits', 1);
+    H = AstroHeader('PTF*.fits', 1);
     assert(~isempty(H(1).Key.NAXIS));
     assert(~isempty(H(2).Key.DATE));
 
@@ -79,7 +79,7 @@ function Result = unitTest()
 
     % getCellKey
     io.msgLog(LogLevel.Test, 'testing AstroHeader getCellKey')
-    H = AstroHeader('*.fits',1);
+    H = AstroHeader('PTF*.fits',1);
     [Result,IK] = getCellKey(H, {'EXPTIME','bb'});
     [ResultA,IKA] = getCellKey(H, {'AEXPTIME','bb'});
     [s1, s2] = size(Result)

@@ -193,5 +193,8 @@ function Result = unitTest
 
     cd(PWD);           
     %io.msgStyle(LogLevel.Test, '@passed', 'AstroCatalog test passed')
+    
+    close;
+    
     Result = true;
 end

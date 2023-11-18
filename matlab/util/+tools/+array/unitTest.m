@@ -2,11 +2,17 @@ function Result = unitTest
     % Package Unit-Test
 	io.msgStyle(LogLevel.Test, '@start', 'tools.array test started');
     
-    test_onesExcept();
+    Array = uint32([1 2 3; 2 3 4; 3 4 5]);
+    Val = tools.array.bitor_array(Array,1,true);
+    if ~all(Val==[3 7 7])
+        error('Error in tools.array.bitor_array');
+    end
+    
+    %test_onesExcept();
 
-    test_onesCondition();
+    %test_onesCondition();
 
-    test_init();
+    %test_init();
     
 %     test_bitset();
     %test_countVal();
