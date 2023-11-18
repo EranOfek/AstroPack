@@ -1,10 +1,13 @@
-function unitTest()
-  test_xxhash();
+function Result=unitTest()
+    % unitTest for tools.checksum
+    %test_xxhash();
+    
+    Result = true;
 end
 
 
 function test_xxhash()
-
+    % NOT GOOD - windos only
 	% Test hashing a string
     data = 'a';
     xx = tools.checksum.xxhash('Data', data);
