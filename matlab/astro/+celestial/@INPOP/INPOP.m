@@ -553,6 +553,8 @@ classdef INPOP < Base
             %                   is in equatorial J2000). Default is false.
             %            'Algo' - Algorithm. Currently a single option
             %                   exist.
+            %            'MaxOrder' - Max. order of cheby. polynomials to
+            %                   use. If Inf use all. Default is Inf.
             %           There are additional undocumented arguments - see
             %           code for details.
             % Output : - A 3 by number of epochs matrix of [X; Y; Z]
@@ -586,6 +588,7 @@ classdef INPOP < Base
                 Args.IsEclipticOut logical = false;
                 Args.Algo            = 1;
                 Args.Ncoo            = 3;  % internal argument used to evaluate pos/vel (=3) or time (=1)
+                Args.MaxOrder        = Inf;
             end
             
             if Args.IsPos
@@ -633,16 +636,22 @@ classdef INPOP < Base
             IndJD        = ceil((JD - Tstart(1))./Tstep);
             ChebyOrder   = Ncol - Obj.ColTend;
             
+            
+            Norder = Ncol - ColDataStart + 1;
+            Norder = min(Norder, Args.MaxOrder);
+            VecOrder = (ColDataStart:1:(ColDataStart+Norder-1));
+            
             Pos = zeros(Args.Ncoo, Njd);
             for Icoo=1:1:Args.Ncoo
                 % need to do for each coordinate
                 
-                ChebyCoef    = Obj.(TableName).(Object)(IndJD.*Args.Ncoo+Icoo-Args.Ncoo, ColDataStart:end);
+                ChebyCoef    = Obj.(TableName).(Object)(IndJD.*Args.Ncoo+Icoo-Args.Ncoo, VecOrder); %ColDataStart:end);
             
                 % maybe need to divide by half time span
-                ChebyEval    = Obj.ChebyFun{ChebyOrder}((JD - Tmid(IndJD))./Thstep);
+                %ChebyEval    = Obj.ChebyFun{ChebyOrder}((JD - Tmid(IndJD))./Thstep);
+                ChebyEval    = Obj.ChebyFun{Norder}((JD - Tmid(IndJD))./Thstep);
                 
-                Pos(Icoo,:)  = sum([ChebyCoef.*ChebyEval(:,1:(Ncol-ColDataStart+1))].',1);
+                Pos(Icoo,:)  = sum([ChebyCoef.*ChebyEval(:,1:Norder)].',1);
             end
             
             switch lower(Args.OutUnits)

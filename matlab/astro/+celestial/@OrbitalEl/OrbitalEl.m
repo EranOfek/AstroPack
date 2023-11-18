@@ -1171,7 +1171,11 @@ classdef OrbitalEl < Base
                 case 'mat'
                     Result = Cat;
                 case 'astrocatalog'
-                    Result = AstroCatalog({Cat}, 'ColNames',ColNames', 'ColUnits',ColUnits);
+                    %Result = AstroCatalog({Cat}, 'ColNames',ColNames', 'ColUnits',ColUnits);
+                    Result          = AstroCatalog;
+                    Result.Catalog  = Cat;
+                    Result.ColNames = ColNames;
+                    Result.ColUnits = ColUnits;
                 otherwise
                     error('Unknown OutType option');
             end
@@ -1387,8 +1391,8 @@ classdef OrbitalEl < Base
                 case 'mat'
                     Result = Cat;
                 case 'astrocatalog'
-                    Result = AstroCatalog;
-                    Result.Catalog = Cat;
+                    Result          = AstroCatalog;
+                    Result.Catalog  = Cat;
                     Result.ColNames = ColNames;
                     Result.ColUnits = ColUnits;
                     %Result = AstroCatalog({Cat}, 'ColNames',ColNames', 'ColUnits',ColUnits);
@@ -2446,6 +2450,9 @@ classdef OrbitalEl < Base
             %                   orbital integartion on the objects within the
             %                   search radius.
             %                   Default is false.
+            %            'INPOP' - A populated celestial.INPOP object.
+            %                   If empty then will be generated.
+            %                   Default is [].
             % Output : - An AstroCatalog object with the ephemerides of the
             %            minor planets / comets found near the search
             %            position. The number of elements are equal to the
@@ -2475,6 +2482,7 @@ classdef OrbitalEl < Base
                 Args.QuickSearchBuffer   = 500;    % to be added to SearchRadis (same units).
                 Args.SearchBufferUnits   = 'arcsec';
                 Args.Integration logical = false;
+                Args.INPOP               = [];
             end
             
             SearchRadiusRAD      = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
@@ -2496,7 +2504,10 @@ classdef OrbitalEl < Base
             
             % quick and dirty
             for Iobj=1:1:Nobj
-                Cat    = ephem(ObjNew(Iobj), JD, 'GeoPos',[], 'MaxIterLT',0, 'IncludeMag',IncludeMag, 'OutUnitsDeg',false, 'OutType','mat', 'AddDesignation',false);
+                Cat    = ephem(ObjNew(Iobj), JD, 'GeoPos',[], 'MaxIterLT',1,...
+                                                 'IncludeMag',IncludeMag, 'OutUnitsDeg',false,...
+                                                 'OutType','mat', 'AddDesignation',false,...
+                                                 'INPOP',Args.INPOP);
                 
                 Dist   = celestial.coo.sphere_dist_fast(RA, Dec, Cat(:,2), Cat(:,3));
                 
@@ -2520,7 +2531,9 @@ classdef OrbitalEl < Base
                                                   'OutUnitsDeg',false,...
                                                   'AddDesignation',Args.AddDesignation,...
                                                   'OutUnitsDeg',Args.OutUnitsDeg,...
-                                                  'Integration',Args.Integration);
+                                                  'INPOP',Args.INPOP);
+                                              
+                                              %    'Integration',Args.Integration);
 
 
                     [Result(Iobj), Flag] = imProc.match.coneSearch(Result(Iobj), [RA, Dec], 'CooType','sphere',...
