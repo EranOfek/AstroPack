@@ -1,4 +1,4 @@
-function [Result] = testAll(Args)
+function [Result, Failed] = testAll(Args)
     % Search and execute all the unitTest functions in AstroPack
     % Input  : * ...,key,val,... 
     %            See code for details.
@@ -36,8 +36,9 @@ function [Result] = testAll(Args)
                 catch
                     ResF = false;
                 end
-                Result(I).FH = FH;
-                Result(I).Result = ResF;
+                Result(I).FunH    = FH;
+                Result(I).FunName = func2str(FH);
+                Result(I).Result  = ResF;
                 Result(I).FunPath = ResWhich;
             end
         end
@@ -61,10 +62,15 @@ function [Result] = testAll(Args)
                 catch
                     ResF = false;
                 end
-                Result(I).FH = FH;
-                Result(I).Result = ResF;
+                Result(I).FunH    = FH;
+                Result(I).FunName = func2str(FH);
+                Result(I).Result  = ResF;
                 Result(I).FunPath = ResWhich;
             end
         end
     end
+    
+    % List of failed unitTest
+    Failed = Result(~[Result.Result]);
+    
 end
