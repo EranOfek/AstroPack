@@ -12,10 +12,9 @@ function Var = load2(MatFile,varargin)
     %    URL : http://weizmann.ac.il/home/eofek/matlab/
     % Reliable: 2
 
-    % @Deploy - Use singleton file mapper to locate the file
-    %io.msgLog(LogLevel.Debug, 'load2: %s', MatFile);
-    
+    % @Deploy - Use singleton file mapper to locate the file     
     if isdeployed
+        io.msgLog(LogLevel.Debug, 'load2: %s', MatFile);
         if ~isfile(MatFile)        
             MatFile = fileMapFind(MatFile);
         end

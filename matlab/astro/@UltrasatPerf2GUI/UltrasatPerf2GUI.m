@@ -37,7 +37,12 @@ classdef UltrasatPerf2GUI < Component
             % Temporary solution!!! @Todo @Chen (2023/05/17)
             if isdeployed
                 SOC_PATH = getenv('SOC_PATH');
-                FName = fullfile(SOC_PATH, 'snr', 'snr_matlab', Obj.MatFileName);
+                if ~isempty(SOC_PATH)
+                    Obj.msgLog(LogLevel.Debug, 'Using SOC_PATH for FName: %s', SOC_PATH);
+                    FName = fullfile(SOC_PATH, 'snr', 'snr_matlab', Obj.MatFileName);
+                else
+                    Obj.msgLog(LogLevel.Warning, 'SOC_PATH is not set. Required for deployed apps');
+                end
             end
             Obj.msgLog(LogLevel.Debug, 'UltrasatPerf2GUI:load: %s', FName);
             Obj.UP = load(FName);  %, 'UP');
