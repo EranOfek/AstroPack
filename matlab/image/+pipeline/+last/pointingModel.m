@@ -1,4 +1,4 @@
-function [AllResult,PM] = pointingModel(Files, Args)
+function [AllResult,PM, Report] = pointingModel(Files, Args)
     % Calculate pointing model from a lsit of images and write it to a configuration file.
     % Input  : - File name template to analyze.
     %            Default is 'LAST*PointingModel*sci*.fits'.
@@ -25,6 +25,7 @@ function [AllResult,PM] = pointingModel(Files, Args)
         Args.ConfigFile                   = '/home/ocs/pointingModel.txt';
 
         Args.RemoveNaN logical            = false;
+        Args.Plot logical                 = true;
     end
     
     RAD = 180./pi;
@@ -157,29 +158,35 @@ function [AllResult,PM] = pointingModel(Files, Args)
         % Interpolate the results over the grid
         for Idirs=1:1:Ndirs
                         
-            ResidHA(:,Idirs)  = AllResult(Idirs).Fha(HADec(:,1),HADec(:,2));
-            ResidDec(:,Idirs) = AllResult(Idirs).Fdec(HADec(:,1),HADec(:,2));
+            %ResidHA(:,Idirs)  = AllResult(Idirs).Fha(HADec(:,1),HADec(:,2));
+            %ResidDec(:,Idirs) = AllResult(Idirs).Fdec(HADec(:,1),HADec(:,2));
+            %[-1.*(Result.CenterRA-Result.RA).*cosd(Result.CenterDec), -1.*(Result.CenterDec-Result.Dec)]
+            
+            % HA diff - Mount - Astrometry
+            DiffHA_Mnt_Ast(:,Idirs)  = AllResult(Idirs).Result.M_JRA  - AllResult(Idirs).Result.CenterRA;
+            DiffDec_Mnt_Ast(:,Idirs) = AllResult(Idirs).Result.M_JDEC - AllResult(Idirs).Result.CenterDec;
+            
         end
-        
-        % Choose Fields which have 4 operational cameras
-        Flag4 = all(~isnan(ResidHA),2);  % fields with 4 operational cameras
 
-        MeanResidHA      = mean(ResidHA(Flag4,:),2,'omitnan');
-        MeanResidDec     = mean(ResidDec(Flag4,:),2,'omitnan');
-        CamOffsetHA      = ResidHA(Flag4,:) - MeanResidHA;  % the offset between each camera and the mean
-        CamOffsetDec     = ResidDec(Flag4,:) - MeanResidDec;  % the offset between each camera and the mean
-        MeanCamOffsetHA  = mean(CamOffsetHA);   % mean offset for each camera
-        MeanCamOffsetDec = mean(CamOffsetDec);   % mean offset for each camera
-        StdCamOffsetHA   = std(CamOffsetHA);   % mean offset for each camera
-        StdCamOffsetDec  = std(CamOffsetDec);   % mean offset for each camera
+        % Make sure that all the differences are around zero (not 360)
+        Flag = DiffHA_Mnt_Ast>180;
+        DiffHA_Mnt_Ast(Flag) = DiffHA_Mnt_Ast(Flag) - 360;
+        Flag = DiffHA_Mnt_Ast<-180;
+        DiffHA_Mnt_Ast(Flag) = DiffHA_Mnt_Ast(Flag) + 360;
+
         
-% use MeanCamOffset for camera w/o solution
-% report the mean offsets and std
+        % Distortions as a function of J2000 HA and Dec
+        MeanDiffHA  = mean(DiffHA_Mnt_Ast,2);
+        MeanDiffDec = mean(DiffDec_Mnt_Ast,2);
+
+        PM = [AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JHA(Fd), MeanDiffHA(Fd), MeanDiffDec(Fd)];
+
+
         
+        %MeanResidHA  = mean(ResidHA,2,'omitnan');
+        %MeanResidDec = mean(ResidDec,2,'omitnan');
+        %PM = [HADec, MeanResidHA, MeanResidDec];
         
-        MeanResidHA  = mean(ResidHA,2,'omitnan');
-        MeanResidDec = mean(ResidDec,2,'omitnan');
-        PM = [HADec, MeanResidHA, MeanResidDec];
         Flag = any(isnan(PM),2);
         PM   = PM(~Flag,:);
         
@@ -204,37 +211,88 @@ function [AllResult,PM] = pointingModel(Files, Args)
         end
         
         
-        % plot pointing model
-        factor = 15; % increase shifts for visibility
+        if nargout>2
+            % Generate report
+
+            % % plot pointing model
+            % factor = 15; % increase shifts for visibility
+            % 
+            % f = figure('Position',[100,100,600,600]);
+            % hold on
+            % 
+            % Npoints = length(Result.HA);
+            % for i=1:1:Npoints
+            %     plot([Result.HA(i),Result.HA(i)+Result.DiffHA(i)*factor], [Result.Dec(i), Result.Dec(i)+Result.DiffDec(i)*factor], '-b','linewidth',3)
+            % end
+            % plot(Result.HA, Result.Dec, 'xb','MarkerSize',8)
+            % 
+            % Npoints_inter = length(PM(:,1));
+            % for i=1:1:Npoints_inter
+            %     plot([PM(i,1), PM(i,1)+PM(i,3)*factor], [PM(i,2), PM(i,2)+PM(i,4)*factor], '-r')
+            % end
+            % 
+            % 
+            % xlabel('HA (deg)')
+            % ylabel('Dec (deg)')
+            % title('Pointing Model (shifts increased by x15)')
+            % 
+            % 
+            % exportgraphics(f,'~/log/pointing_model.png','Resolution',300)
+
+            Report.M_JHA           = AllResult(1).Result.M_JHA;
+            Report.M_JDEC          = AllResult(1).Result.M_JDEC;
+            Report.M_JRA           = AllResult(1).Result.M_JDEC;
+            Report.DiffHA_Mnt_Ast  = DiffHA_Mnt_Ast;   % Mount - Astrometry [HA] (deg)
+            Report.MeanDiffHA      = MeanDiffHA;       % mean of 4 cameras
+            Report.DiffDec_Mnt_Ast = DiffDec_Mnt_Ast;   % Mount - Astrometry [Dec] (deg)
+            Report.MeanDiffDec     = MeanDiffDec;       % mean of 4 cameras
+            
+
+            if Args.Plot
+           
+                Fd = AllResult(1).Result.M_JDEC<90;
+
+                % DiffHA vs HA/Dec
+                figure(1);
+                scatter(Report.M_JHA(Fd), Report.M_JDEC(Fd), [], Report.MeanDiffHA(Fd), 'filled');
+                Hc = colorbar;
+                H = xlabel('HA [deg]');
+                H.FontSize = 18;
+                H.Interpreter = 'latex';
+                H = ylabel('Dec [deg]');
+                H.FontSize = 18;
+                H.Interpreter = 'latex';
+                Hc.Label.String='HA [Mnt-Ast] (deg)';
+
+                % DiffDec vs HA/Dec
+                figure(2);
+                scatter(Report.M_JHA(Fd), Report.M_JDEC(Fd), [], Report.MeanDiffDec(Fd).*cosd(Report.M_JDEC(Fd)), 'filled');
+                Hc = colorbar;
+                H = xlabel('HA [deg]');
+                H.FontSize = 18;
+                H.Interpreter = 'latex';
+                H = ylabel('Dec [deg]');
+                H.FontSize = 18;
+                H.Interpreter = 'latex';
+                Hc.Label.String='HA [Mnt-Ast] (deg)';
 
 
-        f = figure('Position',[100,100,600,600]);
-        hold on
+                % plot differences between cameras on the same mount                
+                DiffH = (DiffHA_Mnt_Ast(:,1) - DiffHA_Mnt_Ast(:,4)).*cosd(AllResult(1).Result.M_JDEC);
+                figure(3); scatter(AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JDEC(Fd), [], DiffH(Fd), 'filled'); colorbar
+                DiffH = (DiffHA_Mnt_Ast(:,2) - DiffHA_Mnt_Ast(:,3)).*cosd(AllResult(1).Result.M_JDEC);
+                figure(4); scatter(AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JDEC(Fd), [], DiffH(Fd), 'filled'); colorbar
+        
+                DiffH = (DiffDec_Mnt_Ast(:,1) - DiffDec_Mnt_Ast(:,2));
+                figure(5); scatter(AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JDEC(Fd), [], DiffH(Fd), 'filled'); colorbar
+                DiffH = (DiffDec_Mnt_Ast(:,4) - DiffDec_Mnt_Ast(:,3));
+                figure(6);scatter(AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JDEC(Fd), [], DiffH(Fd), 'filled'); colorbar
 
-        Npoints = length(Result.HA);
-        for i=1:1:Npoints
-    
-            plot([Result.HA(i),Result.HA(i)+Result.DiffHA(i)*factor], [Result.Dec(i), Result.Dec(i)+Result.DiffDec(i)*factor], '-b','linewidth',3)
-
+            end
         end
 
-        plot(Result.HA, Result.Dec, 'xb','MarkerSize',8)
 
 
-        Npoints_inter = length(PM(:,1));
-        for i=1:1:Npoints_inter
-    
-            plot([PM(i,1), PM(i,1)+PM(i,3)*factor], [PM(i,2), PM(i,2)+PM(i,4)*factor], '-r')
-    
-        end
-
-
-        xlabel('HA (deg)')
-        ylabel('Dec (deg)')
-        title('Pointing Model (shifts increased by x15)')
-
-
-        exportgraphics(f,'~/log/pointing_model.png','Resolution',300)
     else
         PM = [];
     end
