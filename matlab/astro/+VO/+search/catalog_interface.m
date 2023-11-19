@@ -17,15 +17,22 @@ function varargout=catalog_interface(Catalog,Path,varargin)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-% Try D: instead of C: (Chen, 16/11/2023)
+% Temporary solution for deployed SNR on AWS (Chen, 16/11/2023)
+% Try D: or E: instead of C:
+% @Todo - Should be fixed to use ASTROPACK_DATA_PATH
 if isdeployed
     if ispc && ~isfolder(Path)
+        io.msgLog(LogLevel.Debug, 'catalog_interface: Cannot find folder: %s', Path);
         if strncmpi(Path, 'C:', 2)
             Path = ['D:' Path(3:end)];
 			if ~isfolder(Path)
 				Path = ['E:' Path(3:end)];
-			end
-			fprintf('catalog_interface: fixed path: %s\n', Path);
+            end
+        end
+        if isfolder(Path)
+            io.msgLog(LogLevel.Debug, 'catalog_interface: Fixed path: %s', Path);
+        else
+            Path = ['C:' Path(3:end)];
         end
     end
 end
