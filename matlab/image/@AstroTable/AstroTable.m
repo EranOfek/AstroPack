@@ -696,7 +696,7 @@ classdef AstroTable < Component
             %            array of column indices.
             %            If empty, then return all columns.
             %            Default is empty.
-            %          - If the colun name is char or cell, and it doesn't
+            %          - If the column name is char or cell, and it doesn't
             %            exist, this is the fill value for the column
             %            index. If empty, will fail. Default is NaN.
             % Output : - A vector of column indices corresponding to the column names.

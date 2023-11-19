@@ -130,7 +130,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         %%% FFU: in order for this to work the PreAllocCube must be an handle object...
         PreAllocCube = []; %ImageComponent({zeros(Nepoch, SizeSI(1), SizeSJ(1), 'like',AllSI(1).Image)});
     else
-        PreAllocCube = [];
+        PreAllocCube = []; 
     end
         
     ResultCoadd = struct('ShiftX',cell(Nfields,1),...

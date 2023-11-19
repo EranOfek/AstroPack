@@ -207,7 +207,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     % fit proper motion
     if Args.FitPM
         FitMotion = lcUtil.fitMotion(MatchedS, Args.fitMotionArgs{:});
-        NumColPM    = 9;
+        NumColPM    = 10;
     else
         NumColPM    = 0;
     end
@@ -231,8 +231,8 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
             ColUnits = cell(1, NumCol);
             Cat      = zeros(MatchedS(Ifields).Nsrc, NumCol);
             if Args.FitPM
-                ColNames(1:NumColPM) = {'RA','Dec','Nobs', 'Noutlier', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_TdistProb'};
-                ColUnits(1:NumColPM) = {'deg','deg','', '', 'deg','deg','deg/day','deg/day',''};
+                ColNames(1:NumColPM) = {'RA','Dec','Nobs', 'Noutlier', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_TdistProb', 'JD_PM'};
+                ColUnits(1:NumColPM) = {'deg','deg','', '', 'deg','deg','deg/day','deg/day','','day'};
 
                 Cat(:,1)       = FitMotion(Ifields).RA.ParH1(1,:).';
                 Cat(:,2)       = FitMotion(Ifields).Dec.ParH1(1,:).';
@@ -243,6 +243,8 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
                 Cat(:,7)       = FitMotion(Ifields).RA.ParH1(2,:).';
                 Cat(:,8)       = FitMotion(Ifields).Dec.ParH1(2,:).';
                 Cat(:,9)       = (1 - (1 - FitMotion(Ifields).RA.StudentT_ProbH1).*(1 - FitMotion(Ifields).Dec.StudentT_ProbH1)).';
+                % Reference time for PM fit
+                Cat(:,10)      = repmat(FitMotion(Ifields).MeanT , MatchedS(Ifields).Nsrc, 1);
 
                 %Cat(:,8)       = (FitMotion(Ifields).RA.DeltaChi2 + FitMotion(Ifields).Dec.DeltaChi2).';
                 Icol = NumColPM;
