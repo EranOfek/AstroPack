@@ -778,6 +778,8 @@ classdef INPOP < Base
             %            'IsEclipticOut' - A logical indicating if output
             %                   is in ecliptic coordinates (if false then output
             %                   is in equatorial J2000). Default is false.
+            %            'Bodies' - Bodies for which to generate ephemeris
+            %                   Default is {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'}
             %            'Exclude' - A cell array of INPOP objects to
             %                   exclude. For excluded objects the output
             %                   will be set to NaN.
@@ -806,6 +808,7 @@ classdef INPOP < Base
                 Args.TimeScale             = 'TDB';
                 Args.OutUnits              = 'au';
                 Args.IsEclipticOut logical = false;
+                Args.Bodies                = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
                 Args.Exclude               = {};
                 Args.Permute               = [1 3 2];
             end
@@ -813,7 +816,7 @@ classdef INPOP < Base
             G = (constant.G./(constant.au).^3 .*86400.^2 .* constant.SunM);  % [G: au^3 SunM^-1 day^-2]
     
             %Msun   = 1.98847e33;  % [gram]
-            Bodies = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
+            %Bodies = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
             %                Mercury      Venus       Earth       Moon           Mars         Jupiter      Sat         Ura         Nep         Plu        
             %Mass   = [Msun,  0.330103e27, 4.86731e27, 5.97217e27, 7.34767309e25, 0.641691e27, 1898.125e27, 568.317e27, 86.8099e27, 102.4092e27 0.01303e27]./Msun;  % [solar mass]
             %Msun  = 1;
@@ -821,14 +824,14 @@ classdef INPOP < Base
             
             Nt = numel(JD);
             
-            Nbody    = numel(Bodies);
+            Nbody    = numel(Args.Bodies);
             Pos     = nan(3,Nt,Nbody);
             Vel     = nan(3,Nt,Nbody);
             for Ibody=1:1:Nbody
-                if ~any(strcmp(Args.Exclude,Bodies{Ibody}))
-                    Pos(:,:,Ibody) = Obj.getPos(Bodies{Ibody}, JD, 'OutUnits',Args.OutUnits, 'TimeScale',Args.TimeScale, 'IsEclipticOut',Args.IsEclipticOut);
+                if ~any(strcmp(Args.Exclude, Args.Bodies{Ibody}))
+                    Pos(:,:,Ibody) = Obj.getPos(Args.Bodies{Ibody}, JD, 'OutUnits',Args.OutUnits, 'TimeScale',Args.TimeScale, 'IsEclipticOut',Args.IsEclipticOut);
                     if nargout>1
-                        Vel(:,:,Ibody) = Obj.getVel(Bodies{Ibody}, JD, 'OutUnits',Args.OutUnits, 'TimeScale',Args.TimeScale, 'IsEclipticOut',Args.IsEclipticOut);
+                        Vel(:,:,Ibody) = Obj.getVel(Args.Bodies{Ibody}, JD, 'OutUnits',Args.OutUnits, 'TimeScale',Args.TimeScale, 'IsEclipticOut',Args.IsEclipticOut);
                     end
                 end
             
@@ -857,6 +860,9 @@ classdef INPOP < Base
             %            'IsEclipticOut' - A logical indicating if output
             %                   is in ecliptic coordinates (if false then output
             %                   is in equatorial J2000). Default is false.
+            %            'Bodies' - List of bodies to include in the force
+            %                   calaculations. Default is 
+            %                   {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep','Plu'};
             %            'Exclude' - A cell array of INPOP objects to
             %                   exclude. For excluded objects the output
             %                   will be set to NaN.
@@ -877,19 +883,42 @@ classdef INPOP < Base
                 Args.TimeScale             = 'TDB';
                 Args.OutUnits              = 'au';  % or AU/day
                 Args.IsEclipticOut logical = false;
+                Args.Bodies                = {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep','Plu'};
+                %Args.GM                    = [0.00029591, 4.9125e-11, 7.2435e-10, 8.997e-10, 9.5495e-11, 2.8253e-07, 8.4597e-08, 1.292e-08, 1.5244e-08, 2.1668e-12];
                 Args.Exclude               = {}; %{'Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
                 
             end
             Permute  = [1 3 2];
-            SEC_DAY  = 86400;
-            Msun   = 1.98847e33;  % [gram]
-            G        = (constant.G./(constant.au).^3 .*SEC_DAY.^2 .* Msun);  % [G: au^3 SunM^-1 day^-2]
             
-            Bodies = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
+            % Old version
+            %SEC_DAY  = 86400;
+            %Msun   = 1.98847e33;  % [gram]
+            %G        = (constant.G./(constant.au).^3 .*SEC_DAY.^2 .* Msun);  % [G: au^3 SunM^-1 day^-2]
+            %Args.Bodies = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
             %                Mercury      Venus       Earth       Moon           Mars         Jupiter      Sat         Ura         Nep         Plu        
-            Mass   = [Msun,  0.330103e27, 4.86731e27, 5.97217e27, 7.34767309e25, 0.641691e27, 1898.125e27, 568.317e27, 86.8099e27, 102.4092e27 0.01303e27];  % [gr]
-            Mass   = Mass./Msun;   % [Msun]
-            GM     = G .* Mass;
+            %Mass   = [Msun,  0.330103e27, 4.86731e27, 5.97217e27, 7.34767309e25, 0.641691e27, 1898.125e27, 568.317e27, 86.8099e27, 102.4092e27 0.01303e27];  % [gr]
+            %Mass   = Mass./Msun;   % [Msun]
+            %Args.GM     = G .* Mass;
+            
+            % use constants from INPOP:
+            %Args.Bodies = {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep','Plu'};
+            %         Sun       Mer         Ven         EMB        Mar         Jup         Sat         Ura        Nep         Plu
+            %GM     = [00029591, 4.9125e-11, 7.2435e-10, 8.997e-10, 9.5495e-11, 2.8253e-07, 8.4597e-08, 1.292e-08, 1.5244e-08, 2.1668e-12];
+            
+            %     GM_Mer: 4.9125e-11
+            %     GM_Ven: 7.2435e-10
+            %     GM_EMB: 8.997e-10
+            %     GM_Mar: 9.5495e-11
+            %     GM_Jup: 2.8253e-07
+            %     GM_Sat: 8.4597e-08
+            %     GM_Ura: 1.292e-08
+            %     GM_Nep: 1.5244e-08
+            %     GM_Plu: 2.1668e-12
+            %     GM_Sun: 0.00029591
+
+            Args.GM = [Obj.Constant.GM_Sun, Obj.Constant.GM_Mer, Obj.Constant.GM_Ven, Obj.Constant.GM_EMB, Obj.Constant.GM_Mar, Obj.Constant.GM_Jup, Obj.Constant.GM_Sat, Obj.Constant.GM_Ura, Obj.Constant.GM_Nep, Obj.Constant.GM_Plu];
+                      
+            
             
             % get position for all planets
             
@@ -897,12 +926,14 @@ classdef INPOP < Base
                 [Pos, Vel] = getAll(Obj, JD, 'TimeScale',Args.TimeScale,...
                                          'OutUnits',Args.OutUnits,...
                                          'IsEclipticOut',Args.IsEclipticOut,...
+                                         'Bodies',Args.Bodies,...
                                          'Exclude',Args.Exclude,...
                                          'Permute',Permute);
             else
                 [Pos]      = getAll(Obj, JD, 'TimeScale',Args.TimeScale,...
                                          'OutUnits',Args.OutUnits,...
                                          'IsEclipticOut',Args.IsEclipticOut,...
+                                         'Bodies',Args.Bodies,...
                                          'Exclude',Args.Exclude,...
                                          'Permute',Permute);
             end
@@ -917,7 +948,7 @@ classdef INPOP < Base
             DistToTarget = sqrt(sum(PosRelToTarget.^2,1));
 
             % calc force and sum over planets
-            Force = squeeze(sum(GM .* PosRelToTarget./(DistToTarget.^3), 2, 'omitnan'));
+            Force = squeeze(sum(Args.GM .* PosRelToTarget./(DistToTarget.^3), 2, 'omitnan'));
             
             if nargout>1
                 % calc force time derivative
