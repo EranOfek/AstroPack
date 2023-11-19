@@ -841,7 +841,7 @@ classdef INPOP < Base
         end
         
         function [Force,DFDT]=forceAll(Obj, JD, TargetXYZ, Args)
-            % Calculate the Sun+Planets+Moon force on a Solar System object.
+            % Calculate the Sun+Planets+Moon G*M on a Solar System object.
             % Input  : - A populated INPOP object (both Pos and Vel should
             %            be populated).
             %          - A vector of JD.
@@ -877,7 +877,7 @@ classdef INPOP < Base
                 Args.TimeScale             = 'TDB';
                 Args.OutUnits              = 'au';  % or AU/day
                 Args.IsEclipticOut logical = false;
-                Args.Exclude               = {};
+                Args.Exclude               = {}; %{'Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
                 
             end
             Permute  = [1 3 2];

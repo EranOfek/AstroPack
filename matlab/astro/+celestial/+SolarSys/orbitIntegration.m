@@ -42,21 +42,46 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
         %Args.RefFrame   = 'eq';
     end
 
-    Nobj = size(X0,2);
-    Opts = odeset('RelTol',Args.RelTol, 'AbsTol',Args.AbsTol);
-
+    
     if JD(1)~=JD(2)
-        InitialValues = [X0;V0];
-    
-        [Times,Result] = ode45(@(T,XVmat) odeDirectVectorized(T,XVmat,Nobj,Args.INPOP, Args.TimeScale), JD, InitialValues, Opts);
+        Nobj = size(X0,2);
         
-        % try stiff equation solver / no change
-        %[Times,Result] = ode15s(@(T,XVmat) odeDirectVectorized(T,XVmat,Nobj,Args.INPOP, Args.TimeScale), JD, InitialValues, Opts);
-    
-        FinalValues = reshape(Result(end,:),[],Nobj);
+        Opts = odeset('RelTol',Args.RelTol, 'AbsTol',Args.AbsTol);
+
+        Method = 'rkn1210';
+        switch Method
+            case 'ode45'
+                InitialValues = [X0;V0];
+                [Times,Result] = ode45(@(T,XVmat) odeDirectVectorized(T,XVmat,Nobj,Args.INPOP, Args.TimeScale), JD, InitialValues, Opts);
+                FinalValues = reshape(Result(end,:),[],Nobj);
+
+                X = FinalValues(1:3,:);
+                V = FinalValues(4:6,:);
+            case 'rkn86'
+                [Times, X, V] = tools.math.ode.rkn86(@(T,XVmat) odeSecondOrder(T,XVmat,Nobj,Args.INPOP, Args.TimeScale),...
+                                                       JD(1), JD(2), X0, V0, Args.RelTol);
+                X = X(end,:).';
+                V = V(end,:).';
+            case 'rkn1210'
+
+                [Times, X, V] = tools.math.ode.rkn1210(@(T,XVmat) odeSecondOrder(T,XVmat,Nobj,Args.INPOP, Args.TimeScale),...
+                                                        [JD(1), JD(2)], X0, V0, Opts);
+
+                 X = X(end,:).';
+                 V = V(end,:).';
+            case 'ode15s'
+                InitialValues = [X0;V0];
+                
+                % try stiff equation solver / no change
+                [Times,Result] = ode15s(@(T,XVmat) odeDirectVectorized(T,XVmat,Nobj,Args.INPOP, Args.TimeScale), JD, InitialValues, Opts);
+                FinalValues = reshape(Result(end,:),[],Nobj);
+
+                X = FinalValues(1:3,:);
+                V = FinalValues(4:6,:);
+            otherwise
+                error('Unknown Method option');
+        end
         
-        X = FinalValues(1:3,:);
-        V = FinalValues(4:6,:);
     else
         X = X0;
         V = V0;
@@ -67,7 +92,11 @@ end
 
 
 function DXVDt = odeDirectVectorized(T,XVmat,Nobj, ObjINPOP, TimeScale)
-
+    % DXVDt - elements 1:3 contains:
+    %           \dot{X} = V
+    %         elements 4:6 contains:
+    %           \dot{V} = sum force
+    
     XVmat = reshape(XVmat,[],Nobj);
     DXVDt = zeros(6,Nobj);
     DXVDt(1:3,:) = XVmat(4:6,:);
@@ -82,4 +111,16 @@ function DXVDt = odeDirectVectorized(T,XVmat,Nobj, ObjINPOP, TimeScale)
     % DXVDt(4:6,:) = DXVDt(4:6,:)  -  celestial.SolarSys.ple_force([0 0 0]', T,'EqJ2000',false);
 
     DXVDt = DXVDt(:);
+end
+
+
+function DXDt = odeSecondOrder(T,XVmat,Nobj, ObjINPOP, TimeScale)
+    %
+    
+    if isempty(ObjINPOP)
+        DXDt(1:3,:) = celestial.SolarSys.ple_force(XVmat(1:3,:), T,'EqJ2000',true);
+    else
+        DXDt(1:3,:) = ObjINPOP.forceAll(T, XVmat(1:3,:), 'IsEclipticOut',false, 'OutUnits','au', 'TimeScale',TimeScale);
+    end
+
 end
