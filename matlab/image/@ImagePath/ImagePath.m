@@ -1009,10 +1009,11 @@ classdef ImagePath < Base %Component
             else
                 List = Files;
             end
-            
+           
             if isempty(StartDate)
                 % do nothing
                 Flag = [];
+                IP   = [];
             else
                 if numel(StartDate)==1
                     StartJD = StartDate;
