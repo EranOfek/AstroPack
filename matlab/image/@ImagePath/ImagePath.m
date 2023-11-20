@@ -1013,7 +1013,9 @@ classdef ImagePath < Base %Component
             if isempty(StartDate)
                 % do nothing
                 Flag = [];
-                IP   = [];
+                if nargout>2
+                    IP   = FileNames.generateFromFileName(Files);
+                end
             else
                 if numel(StartDate)==1
                     StartJD = StartDate;
