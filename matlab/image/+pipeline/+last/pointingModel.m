@@ -54,7 +54,7 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
         
         cd(Dirs{Idirs});
 
-        List = ImagePath.selectByDate(Files, Args.StartDate, Args.EndDate);
+        [List,~,FN] = ImagePath.selectByDate(Files, Args.StartDate, Args.EndDate);
         if numel(List)>Args.Nfiles
             List = List(end-Args.Nfiles+1:end);
         end
@@ -292,5 +292,9 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
     else
         PM = [];
     end
-    
+
+    Date = convert.time(FN(1).Time,'JD','StrDateO');
+    PM_FileName = sprintf('PointingModel_%s_%s', FN(1).ProjName, Date{1});
+    save('-v7.3', PM_FileName, 'Report');
+
 end
