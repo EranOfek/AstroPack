@@ -289,7 +289,9 @@ classdef DS9analysis < handle
     methods % asteroids/moving sources
         function [AstData,AstTable,ReportMPC]=blinkAstCrop(Obj, AstData, Args)
             % Display AstCrop
-            % Example: [AstData,AstTable,ReportMPC] = D9.blinkAstCrop;
+            % Example: D9=DS9analysis;
+            %          [AstData,AstTable,ReportMPC] = D9.blinkAstCrop;
+            %          [AstData,AstTable,ReportMPC] = D9.blinkAstCrop(AstData,'Id',2);
 
             arguments
                 Obj
@@ -299,7 +301,7 @@ classdef DS9analysis < handle
                 Args.AstFileTemp = '*merged_Asteroids*.mat';
                 Args.Zoom        = 8;
                 Args.DispInfo logical = true;
-                Args.ReportType       = 'FittedDetection';
+                Args.ReportType       = 'AllDetections'; %'FittedDetection';
             end
 
             if isempty(AstData)
@@ -358,8 +360,8 @@ classdef DS9analysis < handle
                 fprintf('PM_RA         : %f [deg/day]\n',AstTable.PM_RA);
                 fprintf('PM_Dec        : %f [deg/day]\n',AstTable.PM_Dec);
                 fprintf('JD_PM         : %15.6f\n',AstTable.JD_PM);
-                fprintf('MAG mean      : %f\n', AstTable.Mean_MAG_CONV_3);
-                fprintf('MAG range     : %f\n', AstTable.Range_MAG_CONV_3);
+                fprintf('MAG mean      : %f\n', AstTable.Mean_MAG_PSF);
+                fprintf('MAG range     : %f\n', AstTable.Range_MAG_PSF);
                 fprintf('S/N mean      : %f\n', AstTable.Mean_SN_3);
                 BD = BitDictionary;
                 FlagsName = BD.bitdec2name(AstTable.FLAGS);
@@ -380,7 +382,7 @@ classdef DS9analysis < handle
                 case 'AllDetections'
                     ReportMPC = imProc.asteroids.generateReportMPC(AstData.AstCrop(Args.Id).Stamps, 'RA', AstData.AstCrop(Args.Id).RA, 'Dec', AstData.AstCrop(Args.Id).Dec);
                 case 'FittedDetection'
-                    ReportMPC = imProc.asteroids.generateReportMPC(AstData.AstCrop(Args.Id).SelectedCatPM, 'RA', AstData.AstCrop(Args.Id).RA, 'Dec', AstData.AstCrop(Args.Id).Dec, 'ColMag','Mean_MAG_CONV_3');
+                    ReportMPC = imProc.asteroids.generateReportMPC(AstData.AstCrop(Args.Id).SelectedCatPM, 'RA', AstData.AstCrop(Args.Id).RA, 'Dec', AstData.AstCrop(Args.Id).Dec, 'ColMag','Mean_MAG_PSF');
                 otherwise
                     error('Unknown ReportType option');
             end
