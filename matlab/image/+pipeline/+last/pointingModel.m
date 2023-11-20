@@ -30,10 +30,6 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
     
     RAD = 180./pi;
     
-    if isempty(Files)
-        Files = 'LAST*sci*.fits';
-    end
-    
     PWD = pwd;
     
     if ischar(Args.Dirs)
@@ -64,7 +60,7 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
         end
 
         fprintf('Number of images:')
-        Nlist = numel(List)
+        Nlist = numel(List);
         %List
         % Solve astrometry for all the pointing model images obtained by
         % one camera.

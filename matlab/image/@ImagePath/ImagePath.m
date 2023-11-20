@@ -981,7 +981,7 @@ classdef ImagePath < Base %Component
             end
         end
         
-        function [List, Flag] = selectByDate(Files, StartDate, EndDate)
+        function [List, Flag, IP] = selectByDate(Files, StartDate, EndDate)
             % Select files in some range of dates and times.
             % Input  : - A file name with possible wild cards, or a cell
             %            array of file names.
@@ -994,6 +994,7 @@ classdef ImagePath < Base %Component
             % Output : - A list of selected files which dates is between
             %            the start and end dates.
             %          - A logical vector of selected files.
+            %          - FileNames object
             % Author : Eran Ofek (Jun 2022)
             % Example: ImagePath.selectByDate('PTF*.fits');
             
