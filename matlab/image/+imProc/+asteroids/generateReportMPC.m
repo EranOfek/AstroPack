@@ -10,7 +10,9 @@ function Msg = generateReportMPC(Obj, Args)
         Obj     % AstroCatalog or AstroImage array
         Args.Msg                      = [];  % if given than concat to existing report
         Args.Ind                      = [];  % empty, scalar, or vector of element per image
-        Args.ErrorIfMultiLine logical = false;
+        Args.RA                       = [];  % expected RA
+        Args.Dec                      = [];  % expected Dec
+        Args.CooUnits                 = 'rad';
 
         Args.AstIndex                 = 1;
         Args.Filter                   = 'C';
@@ -20,8 +22,8 @@ function Msg = generateReportMPC(Obj, Args)
         Args.ColRA                    = 'RA';
         Args.ColDec                   = 'Dec';
         Args.ColMag                   = 'MAG_PSF';
+        Args.ColJD                    = [];  % if empty get from property
     end
-
 
     if isempty(Args.Msg)
         AddHeader = true;
@@ -48,11 +50,14 @@ function Msg = generateReportMPC(Obj, Args)
                 % skip
                 Ind = [];
             elseif Nline>1
-                if Args.ErrorIfMultiLine
-                    error('Object %d contains a catalog with %d lines', Iobj, Nline);
+                if isempty(Args.RA) || isempty(Args.Dec)
+                    error('RA/Dec must be provided');
                 end
-                % skip or error
-                Ind = [];
+                [Dist, PA] = sphere_dist(Obj(Iobj).CatData, Args.RA, Args.Dec, Args.CooUnits, 'deg');
+                [MinDist, Ind] = min(Dist);
+                if MinDist>(5./3600)
+                    error('Possible problem" distance of nearest source to cutout center is too large %f arcsec', MinDist.*3600);
+                end
             else
                 % Nline==1
                 Ind = 1;
@@ -61,9 +66,15 @@ function Msg = generateReportMPC(Obj, Args)
             Ind = Args.Ind(min(Nind,Iobj));
         end
 
+        if isempty(Args.ColJD)
+            JD = Cat.JD;
+        else
+            JD = getCol(Cat, Args.ColJD);
+        end
+
         if ~isempty(Ind)
             % [JD, RA, Dec, Mag, Filter, AstIndex]
-            Table = [Table; [Cat.JD, Cat.getCol(Args.ColRA,'SelectRows',Ind),...
+            Table = [Table; [JD, Cat.getCol(Args.ColRA,'SelectRows',Ind),...
                              Cat.getCol(Args.ColDec,'SelectRows',Ind),...
                              Cat.getCol(Args.ColMag,'SelectRows',Ind),...
                              NaN, Args.AstIndex]];
