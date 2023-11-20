@@ -863,6 +863,10 @@ classdef INPOP < Base
             %            'Bodies' - List of bodies to include in the force
             %                   calaculations. Default is 
             %                   {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep','Plu'};
+            %            'GM' - A vector pg G*M for the objects specified
+            %                   in bodies. If empty, then will use INPOP constants
+            %                   for the default bodies.
+            %                   Default is [].
             %            'Exclude' - A cell array of INPOP objects to
             %                   exclude. For excluded objects the output
             %                   will be set to NaN.
@@ -884,8 +888,9 @@ classdef INPOP < Base
                 Args.OutUnits              = 'au';  % or AU/day
                 Args.IsEclipticOut logical = false;
                 Args.Bodies                = {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep','Plu'};
+                Args.GM                    = [];
                 %Args.GM                    = [0.00029591, 4.9125e-11, 7.2435e-10, 8.997e-10, 9.5495e-11, 2.8253e-07, 8.4597e-08, 1.292e-08, 1.5244e-08, 2.1668e-12];
-                Args.Exclude               = {}; %{'Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
+                Args.Exclude               = {}; %{'Mer','Plu'}; %{'Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
                 
             end
             Permute  = [1 3 2];
@@ -916,9 +921,14 @@ classdef INPOP < Base
             %     GM_Plu: 2.1668e-12
             %     GM_Sun: 0.00029591
 
-            Args.GM = [Obj.Constant.GM_Sun, Obj.Constant.GM_Mer, Obj.Constant.GM_Ven, Obj.Constant.GM_EMB, Obj.Constant.GM_Mar, Obj.Constant.GM_Jup, Obj.Constant.GM_Sat, Obj.Constant.GM_Ura, Obj.Constant.GM_Nep, Obj.Constant.GM_Plu];
-                      
+            if isempty(Args.GM)
+                Args.GM = [Obj.Constant.GM_Sun, Obj.Constant.GM_Mer, Obj.Constant.GM_Ven, Obj.Constant.GM_EMB, Obj.Constant.GM_Mar, Obj.Constant.GM_Jup, Obj.Constant.GM_Sat, Obj.Constant.GM_Ura, Obj.Constant.GM_Nep, Obj.Constant.GM_Plu];
+            end      
             
+            if ~isempty(Args.Exclude)
+                [Args.Bodies, IndBodies] = setdiff(Args.Bodies, Args.Exclude);
+                Args.GM = Args.GM(IndBodies);
+            end
             
             % get position for all planets
             
@@ -927,14 +937,12 @@ classdef INPOP < Base
                                          'OutUnits',Args.OutUnits,...
                                          'IsEclipticOut',Args.IsEclipticOut,...
                                          'Bodies',Args.Bodies,...
-                                         'Exclude',Args.Exclude,...
                                          'Permute',Permute);
             else
                 [Pos]      = getAll(Obj, JD, 'TimeScale',Args.TimeScale,...
                                          'OutUnits',Args.OutUnits,...
                                          'IsEclipticOut',Args.IsEclipticOut,...
                                          'Bodies',Args.Bodies,...
-                                         'Exclude',Args.Exclude,...
                                          'Permute',Permute);
             end
             % Calculate the force on Target at position TargetXYZ

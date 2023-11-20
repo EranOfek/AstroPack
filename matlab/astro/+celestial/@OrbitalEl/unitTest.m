@@ -188,6 +188,23 @@ function Result = unitTest()
         error('Large difference between JPL and ephem');
     end
     
+    % Testing orbital integration
+    OrbEl = celestial.OrbitalEl.loadSolarSystem([],[9804]);
+    JD=ceil(OrbEl.Epoch)+0.5;
+    IN = celestial.INPOP;
+    IN.populateAll;
+    CatInt = ephemIntegrateMultiTime1dir(OrbEl, JD+(0:100:5000).', 'INPOP',IN);
+    Cat = ephemKeplerMultiTime(OrbEl, JD+(0:100:5000).');
+    [T,~,U] = celestial.SolarSys.getJPL_ephem('9804;','EPHEM_TYPE','OBSERVER','TimeScale','TT','StartTime',JD,'StopTime',JD+5000,'StepSize',100);
+    [(Cat.Catalog.RA-T.RA).*3600, (CatInt.Catalog.RA-T.RA).*3600, (CatInt.Catalog.Dec-T.Dec).*3600]
+    if any((CatInt(:,2)-T.RA).*3600>1) || any((CatInt(:,2)-T.RA).*3600>1)
+        error('Orbital integration diverges by more than 1 arcsec over 5000 days');
+    end
+    if any((CatInt.Catalog.SOT - T.SOT)>1)
+        error('Error in SOT angle');
+    end
+    
+    
     % Topocentric position
 %     Cat = ephem(OrbEl, JD, 'GeoPos',[35./RAD 30./RAD 415]);
 %     [T] = celestial.SolarSys.getJPL_ephem('9804;','EPHEM_TYPE','OBSERVER','TimeScale','TT',...

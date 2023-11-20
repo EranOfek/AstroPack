@@ -48,7 +48,12 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
         
         Opts = odeset('RelTol',Args.RelTol, 'AbsTol',Args.AbsTol);
 
-        Method = 'rkn1210';
+        if size(X0,2)==1
+            Method = 'rkn1210';
+        else
+            Method = 'ode45';
+        end
+        
         switch Method
             case 'ode45'
                 InitialValues = [X0;V0];
