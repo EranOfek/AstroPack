@@ -21,9 +21,16 @@ function [Elem,Elem2]=position2elements(Date,R,V,Mu,GK)
 %     By : Eran O. Ofek                    Oct 2001
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Reliable: NOT READY
-%------------------------------------------------------------------------------
+
+
+arguments
+
+end
+
 
 error('Not ready for use');
+
+
 
 if (nargin==3),
    % Gaussian grav. constant
