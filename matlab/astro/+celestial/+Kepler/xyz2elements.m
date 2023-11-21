@@ -1,4 +1,4 @@
-function [Result] = xyz2elements(R, V, Epoch, Args)
+function [Result,OrbEl] = xyz2elements(R, V, Epoch, Args)
     % Convert rectangular heliocentric coo. and vel. to orbital elements.
     % Input  : - (R) A matrix of positions.
     %            If Dim=1 (default), then this is a 3 x N matrix in wgich
@@ -24,11 +24,12 @@ function [Result] = xyz2elements(R, V, Epoch, Args)
     %            'AngUnits' - Angular units of outputs: 'deg' | 'rad'.
     %                   Default is 'deg'.
     % Output : - A structure containing the derived orbital elements.
+    %          - A celestial.OrbitalEl object with the orbital elements.
     % Author : Eran Ofek (2023 Nov) 
     % Example: 
     %          OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9804:9805])
     %          [X,V]=OrbEl.elements2pos('CooSys','ec', 'RefFrame','helio');
-    %          Res=celestial.Kepler.xyz2elements(X,V, OrbEl.Epoch);
+    %          [Res,EE]=celestial.Kepler.xyz2elements(X,V, OrbEl.Epoch);
     %          [Res.A.' - OrbEl.A, Res.Eccen.' - OrbEl.Eccen, Res.PeriDist.' - OrbEl.PeriDist]
     %          [Res.Incl.' - OrbEl.Incl, Res.W.' - OrbEl.W, Res.Node.' - OrbEl.Node]
     %          [Res.MeanMotion.' - OrbEl.meanMotion]
@@ -41,6 +42,11 @@ function [Result] = xyz2elements(R, V, Epoch, Args)
         Args.K                 = 0.017202098950000;
         Args.Dim               = 1;  % dimension along the [X, Y, Z] are given
         Args.AngUnits          = 'deg';
+        
+        Args.Number            = [];
+        Args.Designation       = [];
+        Args.MagType           = '';
+        Args.MagPar            = [];
     end
 
     if Args.Dim==2
@@ -157,6 +163,24 @@ function [Result] = xyz2elements(R, V, Epoch, Args)
     Result.Tp    = T;
     Result.M     = M;
     Result.MeanMotion = MeanMotion;
+    Result.Epoch = Epoch;
 
-
+    if nargout>1
+        % Store in celestial.OrbitalEl object
+        OrbEl = celestial.OrbitalEl;
+        OrbEl.MagType     = Args.MagType;
+        OrbEl.MagPar      = Args.MagPar;
+        OrbEl.Number      = Args.Number;
+        OrbEl.Designation = Args.Designation;
+        OrbEl.Node        = Result.Node(:);
+        OrbEl.W           = Result.W(:);
+        OrbEl.Incl        = Result.Incl(:);
+        OrbEl.A           = Result.A(:);
+        OrbEl.PeriDist    = Result.PeriDist(:);
+        OrbEl.Eccen       = Result.Eccen(:);
+        OrbEl.Tp          = Result.Tp(:);
+        OrbEl.Epoch       = Result.Epoch(:);
+        OrbEl.Mepoch      = M;
+        OrbEl.AngUnits    = Args.AngUnits;
+    end
 end

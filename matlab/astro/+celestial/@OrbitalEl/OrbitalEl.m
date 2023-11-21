@@ -802,13 +802,14 @@ classdef OrbitalEl < Base
             R  = R(:).';
             N  = numel(Obj.Eccen);
             
-            X = [R.*cos(Nu); R.*sin(Nu); zeros(1,N)];
-            V = sqrt(Mu .* Obj.A(:).')./R .* [-sin(E); sqrt(1-Obj.Eccen(:).'.^2).*cos(E); zeros(1,N)];
+            NN = max(numel(R), numel(Nu));
+            X = [R.*cos(Nu); R.*sin(Nu); zeros(1,NN)];
+            V = sqrt(Mu .* Obj.A(:).')./R .* [-sin(E); sqrt(1-Obj.Eccen(:).'.^2).*cos(E); zeros(1,NN)];
             
             
         end
             
-        function [X0, V0, JD, INPOP] = elements2pos(Obj, Args)
+        function [X0, V0, JD, S_B, S_Bdot] = elements2pos(Obj, Args)
             % Get rectangular coordinates and velocity from orbital elements at some epoch.
             % Input  : - A single element celestial.OrbitalEl object.
             %          * ...,key,val,...
@@ -837,7 +838,10 @@ classdef OrbitalEl < Base
             %          - A 3 x N matrix of [X;Y;Z] velocities. Colum per
             %            orbital element.
             %          - JD of position.
-            %          - A populated INPOP object.
+            %          - Sun barycentric position (available only for
+            %            RefFrame='bary').
+            %          - Sun barycentric velocity (available only for
+            %            RefFrame='bary').
             % Author : Eran Ofek (Nov 2023)
             % Example: EA = celestial.OrbitalEl.loadSolarSystem('num');
             %          [X, V] = elements2pos(EA);
@@ -880,6 +884,8 @@ classdef OrbitalEl < Base
             switch lower(Args.RefFrame)
                 case 'helio'
                     % do nothing
+                    S_B    = [];
+                    S_Bdot = [];
                 case 'bary'
                     % get sun position
                     if isempty(Args.INPOP)
@@ -889,10 +895,10 @@ classdef OrbitalEl < Base
                     end
                     
                     S_B  = Args.INPOP.getPos('Sun',Args.JD, 'TimeScale',Args.TimeScale, 'IsEclipticOut',IsEcOut, 'OutUnits','au');
-                    Sv_B = Args.INPOP.getVel('Sun',Args.JD, 'TimeScale',Args.TimeScale, 'IsEclipticOut',IsEcOut, 'OutUnits','au');
+                    S_Bdot = Args.INPOP.getVel('Sun',Args.JD, 'TimeScale',Args.TimeScale, 'IsEclipticOut',IsEcOut, 'OutUnits','au');
                     
                     X0   = X0 + S_B;
-                    V0   = V0 + Sv_B;
+                    V0   = V0 + S_Bdot;
                 otherwise
                     error('Unknown RefFrame option');
             end
@@ -1130,6 +1136,190 @@ classdef OrbitalEl < Base
             
         end
                 
+        function [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(Obj, JD, Args)
+            % Target barycentric position.
+            %   Calculate the target barycentric position in rectangular
+            %   J2000.0 equatorial system.
+            %   The calculation can be done by solving the Kepler equation,
+            %   or by direct integration of the equation of motion, under
+            %   perturbations from all the planets.
+            %   The code can work on either a single time and multiple
+            %   objects, or a single object and multiple times.
+            %   If direct integation is used it is recomnded that the times
+            %   will be sorted with increasing distance from the epoch.
+            % Input  : - A single element celestialOrbitalEl object.
+            %          - JD at which to calculate the position.
+            %          * ...,key,val,...
+            %            'JD0' - An optional epoch for the input orbital
+            %               elements, or X0, V0 (initial position).
+            %               If empty, then will be taken from the
+            %               celestial.OrbitalEl object (Epoch field).
+            %               Default is [].
+            %            'X0' - An optional 3 X N matrix of initial
+            %               positions [au]. If given, then will be used as
+            %               a starting position for the direct integration,
+            %               instead of the orbital elements.
+            %               Default is [].
+            %            'V0' - Like X0, but for the velocity [au/day]
+            %            'Integration' - A logical indicating if to use
+            %               direct integration (true), or Kepler equation
+            %               (false). Default is false.
+            %            'TimeScale' - 'TDB'|'TT'. Default is 'TDB'.
+            %            'INPOP' - An optional populated celestial.INPOP
+            %               object (provided for speed). If empty, then
+            %               will be generated.
+            %               Default is [].
+            %            'LightTime' - Light time correction [days].
+            %               If this is a vector, then the elements
+            %               corresponds to the different times or different
+            %               objects. Default is 0.
+            %            'SunLightTime' - Sun light time correction [days].
+            %               Default is 0.
+            %            'Tol' - Tolerance for Kepler equation. 
+            %               Default is 1e-10.
+            %            'TolInt' - Tolerance for integration.
+            %               Default is 1e-10.
+            % 
+            % Output : - (U_B) Target barycentric position [au]
+            %            Rectangular J2000.0 equatorial.
+            %          - (U_Bdot) Target barycentric velocity [au/day].
+            %          - (S_B) Sun barycentric position [au].
+            %          - (S_Bdot) Sun barycentric velocity [au/day]
+            % Author : Eran Ofek (Nov 2023)
+            % Example: OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801:9900]');
+            %          JD = celestial.time.julday([1 1 2023]);
+            %          [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl, JD)
+            %          [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl, JD, 'Integration',true)
+            %
+            %          OrbEl1=celestial.OrbitalEl.loadSolarSystem('num',9804);
+            %          [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl1, JD+(0:1:100)');
+            %          [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl1, JD+(0:1:100)','Integration',true)
+            
+            arguments
+                Obj(1,1)
+                JD
+                Args.JD0                   = [];
+                Args.X0                    = [];
+                Args.V0                    = [];
+                Args.Integration logical   = false;
+                Args.TimeScale             = 'TDB';
+                Args.INPOP                 = [];
+                Args.LightTime             = 0;
+                Args.SunLightTime          = 0;   % must be scalar
+                Args.TolInt                = 1e-10;
+                Args.Tol                   = 1e-8;
+            end
+            
+            if isempty(Args.INPOP)
+                Args.INPOP = celestial.INPOP;
+                Args.INPOP.populateAll;
+            end
+            
+            Nel  = Obj.numEl;
+            Njd  = numel(JD);
+            Nlt  = numel(Args.LightTime);
+            if Nel>1 && Njd>1
+                error('Njd>1 and Nel>1 is not supported');
+            end
+                        
+            if nargout>1
+                GetVelocity = true;
+            end
+            
+            if Args.Integration
+                % Find target barycentric position using orbital integration
+                % Integration is done in:
+                % Barycentric system
+                % Equatorial J2000 cartesian coordinates
+                if isempty(Args.X0) && isempty(Args.V0) && isempty(Args.JD0)
+                    % get initial conditions from orbital elements
+                    [Args.X0, Args.V0, Args.JD0, S_B, S_Bdot] = elements2pos(Obj, 'JD',[],...
+                                         'TimeScale',Args.TimeScale,...
+                                         'CooSys','eq',...
+                                         'RefFrame','bary',...
+                                         'Tol',Args.Tol,...
+                                         'INPOP',Args.INPOP);
+                else
+                    S_B    = [];
+                    S_Bdot = [];
+                end
+                Args.JD0 = unique(Args.JD0);
+                if numel(Args.JD0)>1
+                    error('For orbital integration all epochs must be the same');
+                end
+                
+                if Njd==1
+                    % Integrate all bodies simultanosly
+                    if numel(Args.LightTime)>1
+                        error('For Njd=1 LightTime must be scalar');
+                    end
+                    [U_B, U_Bdot] = celestial.SolarSys.orbitIntegration([Args.JD0, JD-Args.LightTime],...
+                                                             Args.X0,...
+                                                             Args.V0,...
+                                                             'RelTol',Args.TolInt,...
+                                                             'AbsTol',Args.TolInt,...
+                                                             'TimeScale',Args.TimeScale,...
+                                                             'INPOP',Args.INPOP);
+                
+                else
+                    % integrate one body over multiple times
+                    % assume all times are either larger or smaller than
+                    % epoch and are ordered with increased distance from
+                    % epoch
+                    
+                    JD1    = Args.JD0;
+                    U_B    = zeros(3, Njd);
+                    U_Bdot = zeros(3, Njd);
+                    for Ijd=1:1:Njd
+                        Ilt = min(Nlt, Ijd);
+                        JD2 = JD(Ijd) - Args.LightTime(Ilt);
+                        [U_B(:,Ijd), U_Bdot(:,Ijd)] = celestial.SolarSys.orbitIntegration([JD1, JD2],...
+                                                             Args.X0,...
+                                                             Args.V0,...
+                                                             'RelTol',Args.TolInt,...
+                                                             'AbsTol',Args.TolInt,...
+                                                             'TimeScale',Args.TimeScale,...
+                                                             'INPOP',Args.INPOP);
+                        %
+                        Args.X0 = U_B(:,Ijd);
+                        Args.V0 = U_Bdot(:,Ijd);
+                        JD1     = JD2;
+                    end
+                end
+                
+            else
+                % Find target Heliocentric position via Kepler equation
+                % Heliocentric system
+                % Eclitpic J2000 cartesian coordinates
+                [Nu, R, E]       = keplerSolve(Obj, JD-Args.LightTime, 'Tol',Args.Tol);
+                % Target, Ecliptic Heliocentric rect. position
+                if GetVelocity
+                    [U_Hdot, U_H] = trueAnom2rectVel(Obj, Nu, R, E, 'rad');
+                    %U_H    = U_H.';  % a 3 X N matrix
+                    %U_Hdot = U_Hdot.';
+                else
+                    [U_H] = trueAnom2rectPos(Obj, Nu, R, 'rad');
+                    U_H   = U_H.';  % a 3 X N matrix
+                end
+                % convert to Equatorial J2000, Heliocentric
+                RotMatEc2Eq = celestial.coo.rotm_coo('E');
+                U_H   = RotMatEc2Eq * U_H;
+                if GetVelocity
+                    U_Hdot = RotMatEc2Eq * U_Hdot;
+                end
+                
+                % Earth/observer heliocentric position
+                S_B    = Args.INPOP.getPos('Sun', JD - Args.SunLightTime, 'TimeScale',Args.TimeScale, 'IsEclipticOut',false);
+                S_Bdot = Args.INPOP.getVel('Sun', JD - Args.SunLightTime, 'TimeScale',Args.TimeScale, 'IsEclipticOut',false);
+                
+                U_B     = S_B + U_H;
+                
+                U_Bdot  = S_Bdot + U_Hdot;
+            end                
+                            
+        end
+        
+        
         function Result = ephemKeplerMultiObj(Obj, Time, Args)
             % Calculate ephemerides for OrbitalEl object by solving the Kepler equation.
             %   This function is optimized for multi objects.
@@ -2298,6 +2488,7 @@ classdef OrbitalEl < Base
 
             if Args.MaxIterLT>1
                 % second iteration for light time correction
+                
                 for Ilt=1:1:Nlt
                     [U_B(:,Ilt),~] = celestial.SolarSys.orbitIntegration([Time, Time-LightTime(Ilt)],...
                                                                              U_B(:,Ilt),...
