@@ -139,6 +139,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
         Args.ColNamesStat            = {'RA',  'Dec', 'X1',  'Y1',  'MAG_PSF','MAGERR_PSF','MAG_APER_2', 'MAG_APER_3','SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};  % must be a subset of MatchedColums
         Args.FunIndStat              = {[1 3], [1 3], [1 3], [1 3], [1:8],    [1 3],       [1 3],        [1:8],       [1 3], [1 3], [1 3], [1 3], [1 3],    [1 3],   [1 3],         [1 3]};
         
+        
         %Args.ColNamesAll             = {'MAG_CONV_2','MAGERR_CONV_2'};
         Args.ColNamesAll             = {'MAG_PSF','MAG_APER_3'};
         %Args.MagCalibColName         = 'MAG_APER_3'; %'MAG_CONV_2';
