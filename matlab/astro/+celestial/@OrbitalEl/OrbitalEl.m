@@ -1145,6 +1145,8 @@ classdef OrbitalEl < Base
             %   perturbations from all the planets.
             %   The code can work on either a single time and multiple
             %   objects, or a single object and multiple times.
+            %   If using the Kepler equation, then the code can run on
+            %   different time for each object.
             %   If direct integation is used it is recomnded that the times
             %   will be sorted with increasing distance from the epoch.
             % Input  : - A single element celestialOrbitalEl object.
@@ -1194,6 +1196,11 @@ classdef OrbitalEl < Base
             %          OrbEl1=celestial.OrbitalEl.loadSolarSystem('num',9804);
             %          [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl1, JD+(0:1:100)');
             %          [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl1, JD+(0:1:100)','Integration',true)
+            %
+            %          % Kepler equation / different time for each object
+            %          OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801:9900]');
+            %          JD = celestial.time.julday([1 1 2023]);
+            %          [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl, JD+(1:100)')
             
             arguments
                 Obj(1,1)
@@ -1219,7 +1226,13 @@ classdef OrbitalEl < Base
             Njd  = numel(JD);
             Nlt  = numel(Args.LightTime);
             if Nel>1 && Njd>1
-                error('Njd>1 and Nel>1 is not supported');
+                if Args.Integration
+                    error('Njd>1 and Nel>1 is not supported');
+                else
+                    if Nel~=Njd
+                        error('For Integration=false, either Njd=1, or Nel=1, or Nel=Njd');
+                    end
+                end
             end
                         
             if nargout>1
@@ -2522,7 +2535,125 @@ classdef OrbitalEl < Base
             
         end
                     
+        
+        function [Result, ColNames, ColUnits] = ephemMultiObjTest(Obj, JD, Args)
+          
+           
+            arguments
+                Obj(1,1)
+                JD
+                
+                Args.TimeScale                   = 'TDB';
+                Args.GeoPos                      = [];  % [] - topocentric  ; [rad, rad, m]
+                Args.RefEllipsoid                = 'WGS84';
+                Args.OutType                     = 'AstroCatalog';
+                Args.IncludeMag logical          = true;  % use false to speed up
+                Args.IncludeAngles logical       = true;
+                Args.IncludeDesignation logical  = true;  % works only for AstroCatalog output
+                Args.INPOP                       = [];
+                
+                Args.Tol                         = 1e-8;   % [rad]
+                Args.TolLT                       = 1e-6;   % [day]
+                Args.TolInt                      = 1e-8; 
+                
+                Args.OutUnitsDeg(1,1) logical    = true;
+                
+                Args.Aberration(1,1) logical     = false;
+                Args.ObserverEphem               = []; % Heliocentric coordinate of observer - [x,y,z,vx,vy,vz]
+                Args.EarthEphem                  = 'INPOP';  % 'vsop87' | 'inpop'
+
+                Args.MaxIterLT                   = 2;  % use 0 for quick and dirty
+                
+                
+            end
+            RAD  = 180./pi;
+            Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
             
+            Nt      = numel(JD);
+            Ntarget = numEl(Obj);
+            if ~(Nt==1 || Ntarget==1)
+                error('Number of times or number of targets must be 1');
+            end
+                        
+            % populate INPOP if needed
+            if isempty(Args.INPOP)
+                Args.INPOP = celestial.INPOP;
+                Args.INPOP.populateTables('all');
+                Args.INPOP.populateTables('all','FileData','vel');
+            end
+            
+            
+            % calculate the target position at Time
+            % start with initial epoch given by orbital elements
+            % Output: J2000.0 Equatorial, rectangular
+            % U_B - Target barycentric position
+            % S_B - Sun barycentric position
+            % JD is a scalar
+            [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(Obj, JD, 'JD0',[], 'X0',[], 'V0',[],...
+                                                                  'INPOP',Args.INPOP,...
+                                                                  'LightTime',0, 'SunLightTime',0,...
+                                                                  'Integration',Args.Integration,...
+                                                                  'Tol',Args.Tol, 'TolInt',Args.TolInt);
+                            
+            % Observer/Earth/Topocentric position
+            [E_B, E_Bdot] = celestial.SolarSys.earthObserverPos(JD, 'CooSys','bary',...
+                                                                    'RefFrame','eq',...
+                                                                    'INPOP',Args.INPOP,...
+                                                                    'ObserverEphem',Args.ObserverEphem,...
+                                                                    'SunLightTime',0,...
+                                                                    'RefEllipsoid',Args.RefEllipsoid);
+            
+                                                                               
+            % Topocentric position
+            U     = U_B - E_B;  % U_B(t-tau)
+            %U_dot = U_Bdot - E_Bdot;
+            
+            % Topocentric distance
+            Delta = sqrt(sum(U.^2, 1));
+            LightTime = Delta./Caud;
+            
+            Nlt = numel(LightTime);
+
+            if Args.MaxIterLT>1
+                % second iteration for light time correction
+                
+                if Args.Integration
+                    % if Integration=true, then Convert X, V positions back to orbital elements
+                   
+                    error('create new elements');
+                end
+                
+                % Propagate the orbit by solving the Kepler equation
+                % should be good enough for the small step
+                
+                [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(Obj, JD-LightTime, 'JD0',[], 'X0',U_B, 'V0',U_Bdot,...
+                                                                  'INPOP',Args.INPOP,...
+                                                                  'LightTime',0, 'SunLightTime',0,...
+                                                                  'Integration',Args.IntegrationLT,...
+                                                                  'Tol',Args.Tol, 'TolInt',Args.TolInt);
+                % Topocentric position
+                U = U_B - E_B;  % U_B(t-tau)
+                %U_dot = U_Bdot - E_Bdot;
+
+            end
+            
+            
+            % Note: for r, need to provide the Sun position...
+            error('for r need to provide S_B');
+            % 
+            [Result, ColNames, ColUnits] = prepEphemOutput(Obj, Time, U, U_B, E_B, E_dotH,...
+                                                           'OutType',Args.OutType,...
+                                                           'Aberration',Args.Aberration,...
+                                                           'OutUnitsDeg',Args.OutUnitsDeg,...
+                                                           'IncludeMag',Args.IncludeMag,...
+                                                           'IncludeAngles',Args.IncludeAngles,...
+                                                           'IncludeDesignation',Args.IncludeDesignation);
+            
+            
+        end
+        
+        
+        
                     
         function [Result, Names] = searchMinorPlanetsNearPosition(Obj, JD, RA, Dec, SearchRadius, Args)
             % Search all minor planets/comets near position on a specific date.
