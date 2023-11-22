@@ -22,9 +22,8 @@ function Result = unitTest()
         db.AstroDb.setupSSH();
     end
     
-    try
-        LDB = db.AstroDb();
-    catch
+    LDB = db.AstroDb();
+    if strcmp(LDB.Tables,'failed')
         warning('Connection to the DB cannot be establsihed');
         Result = 2;
         return

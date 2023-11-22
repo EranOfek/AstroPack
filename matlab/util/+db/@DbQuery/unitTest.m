@@ -10,8 +10,14 @@ function Result = unitTest()
     
     % Query Postgres version, result should be similar to
     % 'PostgreSQL 13.1, compiled by Visual C++ build 1914, 64-bit'    
-    Q = db.DbQuery('unittest');    
-    pgver = Q.getDbVersion();
+    Q = db.DbQuery('unittest'); 
+    try
+        pgver = Q.getDbVersion();
+    catch
+        warning('Connection to the DB cannot be establsihed');
+        Result = 2;
+        return        
+    end
     io.msgLog(LogLevel.Test, 'Version: %s', pgver);
     assert(contains(pgver, 'PostgreSQL'));
 

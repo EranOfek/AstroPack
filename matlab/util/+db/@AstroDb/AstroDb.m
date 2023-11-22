@@ -122,7 +122,13 @@ classdef AstroDb < Component
             end
             
             % Query database version, to verify that we have a connection
-            pgver = Obj.Query.getDbVersion();
+            try
+                pgver = Obj.Query.getDbVersion();
+            catch
+                Obj.msgLog(LogLevel.Info, 'Connection failed');
+                Obj.Tables = 'failed';
+                return
+            end
             Obj.msgLog(LogLevel.Info, 'Connected, Postgres version: %s', pgver);
             assert(contains(pgver, 'PostgreSQL'));   
             
