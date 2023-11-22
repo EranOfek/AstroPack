@@ -23,8 +23,8 @@ function Result = unitTest()
     end
     
     LDB = db.AstroDb();
-    if strcmp(LDB.Tables,'failed')
-        warning('Connection to the DB cannot be establsihed');
+    if ~LDB.ConnectionEstablished
+        warning('Connection to the DB was not establsihed');
         Result = 2;
         return
     end

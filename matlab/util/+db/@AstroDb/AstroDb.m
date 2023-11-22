@@ -63,6 +63,7 @@ classdef AstroDb < Component
         Tables      = []      % the list of existing DB tables (filled when a DB object is created)
         Tname       = 'raw_images'; % current table name (overriden by a user input to the Obj.insert function)
         Telescope   = 'LAST'  % Telescope name
+        ConnectionEstablished = [] % will be set to true or false
         
 %       These will be later transfered to the LastDb class:
 %         TnRawImages     = 'raw_images';
@@ -126,9 +127,10 @@ classdef AstroDb < Component
                 pgver = Obj.Query.getDbVersion();
             catch
                 Obj.msgLog(LogLevel.Info, 'Connection failed');
-                Obj.Tables = 'failed';
+                Obj.ConnectionEstablished = false;
                 return
             end
+            Obj.ConnectionEstablished = true;
             Obj.msgLog(LogLevel.Info, 'Connected, Postgres version: %s', pgver);
             assert(contains(pgver, 'PostgreSQL'));   
             
