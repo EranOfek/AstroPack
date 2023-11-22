@@ -22,7 +22,13 @@ function Result = unitTest()
         db.AstroDb.setupSSH();
     end
     
-    LDB = db.AstroDb();
+    try
+        LDB = db.AstroDb();
+    catch
+        warning('Connection to the DB cannot be establsihed');
+        Result = 2;
+        return
+    end
     
     Tables = LDB.Query.select('*','TableName','pg_tables','Where','schemaname = ''public''');
     Tables.Data.tablename % show public tables in the DB
