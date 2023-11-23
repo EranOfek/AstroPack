@@ -1,5 +1,5 @@
 function [Result,OrbEl] = xyz2elements(R, V, Epoch, Args)
-    % Convert rectangular heliocentric coo. and vel. to orbital elements.
+    % Convert rectangular heliocentric ecliptic coo. and vel. to orbital elements.
     % Input  : - (R) A matrix of positions.
     %            If Dim=1 (default), then this is a 3 x N matrix in wgich
     %            the lines corresponds to the X, Y, Z coordinates and the
@@ -13,6 +13,11 @@ function [Result,OrbEl] = xyz2elements(R, V, Epoch, Args)
     %          - Epoch in which the coordinates are given.
     %            Default units are days (e.g., Julian days).
     %          * ...,key,val,... 
+    %            'CooSys' - Coordinate system of the input R and V.
+    %                   'ec' - J2000.0 ecliptic system.
+    %                   'eq' - J2000.0 equatorial system (convert to
+    %                       ecliptic).
+    %                   Default is 'ec'.
     %            'Mu' - G*M for the Sun or central object.
     %                   Default is 0.00029591220828538141
     %                   Units are [solar mass, au, day]
@@ -33,11 +38,13 @@ function [Result,OrbEl] = xyz2elements(R, V, Epoch, Args)
     %          [Res.A.' - OrbEl.A, Res.Eccen.' - OrbEl.Eccen, Res.PeriDist.' - OrbEl.PeriDist]
     %          [Res.Incl.' - OrbEl.Incl, Res.W.' - OrbEl.W, Res.Node.' - OrbEl.Node]
     %          [Res.MeanMotion.' - OrbEl.meanMotion]
+    %
 
     arguments
         R
         V
         Epoch
+        Args.CooSys            = 'ec';
         Args.Mu                = 0.00029591220828538141;  % G*M of the Sun
         Args.K                 = 0.017202098950000;
         Args.Dim               = 1;  % dimension along the [X, Y, Z] are given
@@ -54,7 +61,19 @@ function [Result,OrbEl] = xyz2elements(R, V, Epoch, Args)
         V = V.';
     end
 
-
+    switch lower(Args.CooSys)
+        case 'ec'
+            % do nothing
+        case 'eq'
+            % convert to ecliptic
+            RotM = celestial.coo.rotm_coo('e');
+            R    = RotM * R;
+            V    = RotM * V;
+        otherwise
+            error('Unknown CooSys option');
+    end
+            
+    
     Nbody = size(R, 2);
 
     % Following Methods of orbits determination (Boulet); pp 151-157 

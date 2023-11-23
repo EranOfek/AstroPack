@@ -1152,6 +1152,11 @@ classdef OrbitalEl < Base
             % Input  : - A single element celestialOrbitalEl object.
             %          - JD at which to calculate the position.
             %          * ...,key,val,...
+            %            'CooSys' - Coordinate system of input X0 and V0
+            %               rectangular coordinates.
+            %               'ec' - J2000.0 ecliptic.
+            %               'eq' - J2000.0 equatorial.
+            %               Default is 'eq'.
             %            'JD0' - An optional epoch for the input orbital
             %               elements, or X0, V0 (initial position).
             %               If empty, then will be taken from the
@@ -1206,6 +1211,7 @@ classdef OrbitalEl < Base
             arguments
                 Obj(1,1)
                 JD
+                Args.CooSys                = 'eq';
                 
                 Args.JD0                   = [];
                 Args.X0                    = [];
@@ -1224,6 +1230,8 @@ classdef OrbitalEl < Base
                 Args.INPOP = celestial.INPOP;
                 Args.INPOP.populateAll;
             end
+            
+            
             
             Nel  = Obj.numEl;
             Njd  = numel(JD);
@@ -1253,6 +1261,19 @@ classdef OrbitalEl < Base
                 % Barycentric system
                 % Equatorial J2000 cartesian coordinates
                 if isempty(Args.X0) && isempty(Args.V0) && isempty(Args.JD0)
+                    % convert to equatorial
+                    switch lower(Args.CooSys)
+                        case 'ec'
+                            % X0/V0 in ecliptic - convert to equatorial J2000
+                            RotM = celestial.coo.rotm_coo('E');
+                            Args.X0 = RotM * Args.X0;
+                            Args.V0 = RotM * Args.V0;
+                        case 'eq'
+                            % do nothing - already in equatorial
+                        otherwise
+                            error('Unknown CooSys option');
+                    end
+
                     % get initial conditions from orbital elements
                     [Args.X0, Args.V0, Args.JD0, S_B, S_Bdot] = elements2pos(Obj, 'JD',[],...
                                          'TimeScale',Args.TimeScale,...
@@ -2554,6 +2575,7 @@ classdef OrbitalEl < Base
         function [Result, ColNames, ColUnits] = ephemMultiObjTest(Obj, JD, Args)
             %
 
+            % Not take into account the finite velocity of gravity!
            
             arguments
                 Obj(1,1)
@@ -2636,20 +2658,38 @@ classdef OrbitalEl < Base
             if Args.MaxIterLT>1
                 % second iteration for light time correction
                 
-                if Args.Integration
+                if Args.Integration && ~Args.IntegrationLT
                     % if Integration=true, then Convert X, V positions back to orbital elements
-                    [~,OrbEl] = celestial.Kepler.xyz2elements(U_B-S_B, U_Bdot-S_Bdot, JD);
-                    error('Orbital elements are not correct');
+                    
+                    % convert to ecliptic coordinate;
+%                     RotM = celestial.coo.rotm_coo('e');
+%                     U_H_ec    = RotM * (U_B    - S_B);
+%                     U_Hdot_ec = RotM * (U_Bdot - S_Bdot);
+
+                    [~,OrbEl] = celestial.Kepler.xyz2elements(U_B - S_B, U_Bdot - S_Bdot, JD, 'CooSys','eq');
+                    
+                    [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl, JD, 'JD0',[], 'X0',[], 'V0',[],...
+                                                                  'INPOP',Args.INPOP,...
+                                                                  'LightTime',LightTime, 'SunLightTime',0,...
+                                                                  'Integration',Args.IntegrationLT,...
+                                                                  'Tol',Args.Tol, 'TolInt',Args.TolInt);
+                else
+                    OrbEl = Obj;
+                    [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl, JD, 'JD0',JD, 'X0',U_B, 'V0',U_Bdot,...
+                                                                  'INPOP',Args.INPOP,...
+                                                                  'LightTime',LightTime, 'SunLightTime',0,...
+                                                                  'Integration',Args.IntegrationLT,...
+                                                                  'Tol',Args.Tol, 'TolInt',Args.TolInt);
                 end
                 
                 % Propagate the orbit by solving the Kepler equation
                 % should be good enough for the small step
                 
-                [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(Obj, JD-LightTime, 'JD0',[], 'X0',U_B, 'V0',U_Bdot,...
-                                                                  'INPOP',Args.INPOP,...
-                                                                  'LightTime',0, 'SunLightTime',0,...
-                                                                  'Integration',Args.IntegrationLT,...
-                                                                  'Tol',Args.Tol, 'TolInt',Args.TolInt);
+%                 [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl, JD-LightTime, 'JD0',JD, 'X0',U_B, 'V0',U_Bdot,...
+%                                                                   'INPOP',Args.INPOP,...
+%                                                                   'LightTime',0, 'SunLightTime',0,...
+%                                                                   'Integration',Args.IntegrationLT,...
+%                                                                   'Tol',Args.Tol, 'TolInt',Args.TolInt);
                 % Topocentric position
                 U = U_B - E_B;  % U_B(t-tau)
                 %U_dot = U_Bdot - E_Bdot;

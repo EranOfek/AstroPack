@@ -16,6 +16,8 @@ function Result = unitTest()
         error('Error in xyz2elements');
     end
 
+        
+    
 
 	%io.msgStyle(LogLevel.Test, '@passed', 'test passed');
 	Result = true;
