@@ -204,6 +204,17 @@ function Result = unitTest()
         error('Error in SOT angle');
     end
     
+    % Testing target position
+
+    % OrbEl1=celestial.OrbitalEl.loadSolarSystem('num',9804);
+    % JD = 2460000;
+    % [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl1, JD+(0:1:10)','Integration',true, 'RefFrame','bary');
+    % 
+    % [T,~,U] = celestial.SolarSys.getJPL_ephem('9804;','EPHEM_TYPE','VECTORS','TimeScale','TDB', 'StartTime',JD, 'StopTime',JD+10, 'StepSize',1);
+    % 
+    % T.X - U_B(1,:)'
+
+
     
     % Topocentric position
 %     Cat = ephem(OrbEl, JD, 'GeoPos',[35./RAD 30./RAD 415]);

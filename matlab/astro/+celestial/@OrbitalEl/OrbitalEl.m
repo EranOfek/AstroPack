@@ -1071,9 +1071,9 @@ classdef OrbitalEl < Base
                 otherwise
                     error('Unknown OutType option');
             end
-            
+
         end
-    
+
         function Mag = magnitude(Obj, R, Delta, Phase, Args)
             % Calculate magnitude for an OrbitalEl object
             % Input  : - A single element OrbitalEl object.
@@ -1091,7 +1091,7 @@ classdef OrbitalEl < Base
             % Author : Eran Ofek (Sep 2021)
             % Example: OrbElA = celestial.OrbitalEl.loadSolarSystem('num');
             %          Mag = magnitude(OrbElA, 1, 1, 0)
-            
+
             arguments
                 Obj(1,1)
                 R
@@ -1101,16 +1101,16 @@ classdef OrbitalEl < Base
                 Args.MagPar      = [];  % if empty, use OrbitalEl.MagPar
                 Args.PhaseUnits  = 'deg';
             end
-            
+
             if isempty(Args.MagType)
                 Args.MagType = Obj.MagType;
             end
             if isempty(Args.MagPar)
                 Args.MagPar = Obj.MagPar;
             end
-            
+
             Phase = convert.angular(Args.PhaseUnits, 'rad', Phase); % [rad]
-            
+
             if ischar(Args.MagType)
                 switch lower(Args.MagType)
                     case 'hg'
@@ -1125,7 +1125,7 @@ classdef OrbitalEl < Base
                             otherwise
                                 error('Unknown MagPar size option');
                         end
-                                
+
                     otherwise
                         error('Unknown planetray magnitude algorithm');
                 end
@@ -1133,7 +1133,7 @@ classdef OrbitalEl < Base
                 % assume function handle is provided
                 error('Unknown MagType option');
             end
-            
+
         end
                 
         function [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(Obj, JD, Args)
@@ -1167,6 +1167,7 @@ classdef OrbitalEl < Base
             %               direct integration (true), or Kepler equation
             %               (false). Default is false.
             %            'TimeScale' - 'TDB'|'TT'. Default is 'TDB'.
+            %            'RefFrame' - 'helio' | 'bary' - Default is 'bary'.
             %            'INPOP' - An optional populated celestial.INPOP
             %               object (provided for speed). If empty, then
             %               will be generated.
@@ -1205,11 +1206,13 @@ classdef OrbitalEl < Base
             arguments
                 Obj(1,1)
                 JD
+                
                 Args.JD0                   = [];
                 Args.X0                    = [];
                 Args.V0                    = [];
                 Args.Integration logical   = false;
                 Args.TimeScale             = 'TDB';
+                Args.RefFrame              = 'bary';  % 'bary'|'helio'
                 Args.INPOP                 = [];
                 Args.LightTime             = 0;
                 Args.SunLightTime          = 0;   % must be scalar
@@ -1217,6 +1220,8 @@ classdef OrbitalEl < Base
                 Args.Tol                   = 1e-8;
             end
             
+error('BUG - see unitTest')
+
             if isempty(Args.INPOP)
                 Args.INPOP = celestial.INPOP;
                 Args.INPOP.populateAll;
@@ -1240,6 +1245,9 @@ classdef OrbitalEl < Base
             end
             
             if Args.Integration
+                if strcmp(Args.RefFrame, 'helio')
+                    error('Integration=true, currently works only with RefFrame=bary');
+                end
                 % Find target barycentric position using orbital integration
                 % Integration is done in:
                 % Barycentric system
@@ -1322,12 +1330,21 @@ classdef OrbitalEl < Base
                 end
                 
                 % Earth/observer heliocentric position
-                S_B    = Args.INPOP.getPos('Sun', JD - Args.SunLightTime, 'TimeScale',Args.TimeScale, 'IsEclipticOut',false);
-                S_Bdot = Args.INPOP.getVel('Sun', JD - Args.SunLightTime, 'TimeScale',Args.TimeScale, 'IsEclipticOut',false);
-                
-                U_B     = S_B + U_H;
-                
-                U_Bdot  = S_Bdot + U_Hdot;
+                switch lower(Args.RefFrame)
+                    case 'bary'
+                        S_B    = Args.INPOP.getPos('Sun', JD - Args.SunLightTime, 'TimeScale',Args.TimeScale, 'IsEclipticOut',false);
+                        S_Bdot = Args.INPOP.getVel('Sun', JD - Args.SunLightTime, 'TimeScale',Args.TimeScale, 'IsEclipticOut',false);
+                        
+                        U_B     = S_B + U_H;
+                        
+                        U_Bdot  = S_Bdot + U_Hdot;
+                    case 'helio'
+                        % already heliocentric
+                        U_B    = U_H; 
+                        U_Bdot = U_Hdot;
+                    otherwise
+                        error('Unknown  RefFrame option');
+                end
             end                
                             
         end
@@ -2428,8 +2445,8 @@ classdef OrbitalEl < Base
 
                 Args.MaxIterLT                   = 2;  % use 0 for quick and dirty
                 
-                
             end
+
             RAD  = 180./pi;
             Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
             
@@ -2530,9 +2547,7 @@ classdef OrbitalEl < Base
                                                            'IncludeMag',Args.IncludeMag,...
                                                            'IncludeAngles',Args.IncludeAngles,...
                                                            'IncludeDesignation',Args.IncludeDesignation);
-            
-            
-            
+                        
         end
                     
         
@@ -2543,6 +2558,8 @@ classdef OrbitalEl < Base
                 Obj(1,1)
                 JD
                 
+                Args.Integration logical         = false;
+
                 Args.TimeScale                   = 'TDB';
                 Args.GeoPos                      = [];  % [] - topocentric  ; [rad, rad, m]
                 Args.RefEllipsoid                = 'WGS84';
@@ -2619,8 +2636,8 @@ classdef OrbitalEl < Base
                 
                 if Args.Integration
                     % if Integration=true, then Convert X, V positions back to orbital elements
-                   
-                    error('create new elements');
+                    [~,OrbEl] = celestial.Kepler.xyz2elements(U_B-S_B, U_Bdot-S_Bdot, JD);
+                    %error('create new elements');
                 end
                 
                 % Propagate the orbit by solving the Kepler equation
@@ -2639,9 +2656,9 @@ classdef OrbitalEl < Base
             
             
             % Note: for r, need to provide the Sun position...
-            error('for r need to provide S_B');
+            %error('for r need to provide S_B');
             % 
-            [Result, ColNames, ColUnits] = prepEphemOutput(Obj, Time, U, U_B, E_B, E_dotH,...
+            [Result, ColNames, ColUnits] = prepEphemOutput(Obj, JD, U, U_B, E_B, E_Bdot,...
                                                            'OutType',Args.OutType,...
                                                            'Aberration',Args.Aberration,...
                                                            'OutUnitsDeg',Args.OutUnitsDeg,...
