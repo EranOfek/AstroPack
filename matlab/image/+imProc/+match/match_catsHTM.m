@@ -36,6 +36,9 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
     %            'AddColNmatch' - Default is true.
     %            'ColNmatchPos' - Default is Inf.
     %            'ColNmatchName' - Default is 'Nmatch'.
+    %            'CreateNewObj' -If input is AstroImage, then indicating if
+    %                   to create a new copy of the catalog.
+    %                   Default is false.
     % Output : - The input catalog with added columns for the nearest match
     %            in the catsHTM catalog.
     %          - Select lines only from the input catalog. Only sources
@@ -65,13 +68,19 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
         Args.AddColNmatch logical = true;
         Args.ColNmatchPos         = Inf;
         Args.ColNmatchName        = 'Nmatch';
+        Args.CreateNewObj logical = false;
     end
 
     % convert AstroImage to AstroCatalog
     if isa(Obj,'AstroImage')
-        Obj = astroImage2AstroCatalog(Obj,'CreateNewObj',Args.CreateNewObj);
+        Result = astroImage2AstroCatalog(Obj,'CreateNewObj',Args.CreateNewObj);
     elseif isa(Obj,'AstroCatalog')
         % do nothing
+        if Args.CreateNewObj
+            Result = Obj.copy;
+        else
+            Result = Obj;
+        end
     elseif isnumeric(Obj)
         error('Input Obj is of unsupported class');
     else
@@ -87,9 +96,9 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
 
 
     Nobj = numel(Obj);
-    MatchedObj = AstroCatalog(size(Obj));
+    %MatchedObj = AstroCatalog(size(Obj));
     
-    Result = Obj.copy();
+    
     if nargout>1
         SelObj = AstroCatalog(size(Obj));
     end
@@ -98,7 +107,7 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
     for Iobj=1:1:Nobj
         if isempty(Args.Coo) || isempty(Args.CatRadius)
             % get coordinates using boundingCircle
-            [CircX, CircY, CircR] = Obj(Iobj).boundingCircle('OutUnits','rad');
+            [CircX, CircY, CircR] = Obj(Iobj).boundingCircle('OutUnits','rad', 'CooType','sphere');
             Args.Coo                 = [CircX, CircY];
             Args.CatRadius      = CircR;
             Args.CooUnits       = 'rad';
