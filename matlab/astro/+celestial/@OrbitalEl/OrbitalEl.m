@@ -1220,8 +1220,6 @@ classdef OrbitalEl < Base
                 Args.Tol                   = 1e-8;
             end
             
-error('BUG - see unitTest')
-
             if isempty(Args.INPOP)
                 Args.INPOP = celestial.INPOP;
                 Args.INPOP.populateAll;
@@ -1242,6 +1240,8 @@ error('BUG - see unitTest')
                         
             if nargout>1
                 GetVelocity = true;
+            else
+                GetVelocity = false;
             end
             
             if Args.Integration
@@ -2552,13 +2552,15 @@ error('BUG - see unitTest')
                     
         
         function [Result, ColNames, ColUnits] = ephemMultiObjTest(Obj, JD, Args)
-          
+            %
+
            
             arguments
                 Obj(1,1)
                 JD
                 
                 Args.Integration logical         = false;
+                Args.IntegrationLT logical       = false;
 
                 Args.TimeScale                   = 'TDB';
                 Args.GeoPos                      = [];  % [] - topocentric  ; [rad, rad, m]
@@ -2637,7 +2639,7 @@ error('BUG - see unitTest')
                 if Args.Integration
                     % if Integration=true, then Convert X, V positions back to orbital elements
                     [~,OrbEl] = celestial.Kepler.xyz2elements(U_B-S_B, U_Bdot-S_Bdot, JD);
-                    %error('create new elements');
+                    error('Orbital elements are not correct');
                 end
                 
                 % Propagate the orbit by solving the Kepler equation

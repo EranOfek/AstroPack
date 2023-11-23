@@ -205,14 +205,15 @@ function Result = unitTest()
     end
     
     % Testing target position
-
-    % OrbEl1=celestial.OrbitalEl.loadSolarSystem('num',9804);
-    % JD = 2460000;
-    % [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl1, JD+(0:1:10)','Integration',true, 'RefFrame','bary');
-    % 
-    % [T,~,U] = celestial.SolarSys.getJPL_ephem('9804;','EPHEM_TYPE','VECTORS','TimeScale','TDB', 'StartTime',JD, 'StopTime',JD+10, 'StepSize',1);
-    % 
-    % T.X - U_B(1,:)'
+    OrbEl1=celestial.OrbitalEl.loadSolarSystem('num',9804);
+    JD = 2460000;
+    [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl1, JD+(0:1:10)','Integration',true, 'RefFrame','bary');
+    % convert to ecliptic
+    U_B_ec = celestial.coo.rotm_coo('e')*U_B;
+    [T,~,U] = celestial.SolarSys.getJPL_ephem('9804;','EPHEM_TYPE','VECTORS','TimeScale','TDB', 'StartTime',JD, 'StopTime',JD+10, 'StepSize',1, 'CENTER','500@0');
+     if any(abs(T.X - U_B_ec(1,:)')>1e-6)
+         error('Error in targetBaryPos');
+     end
 
 
     
