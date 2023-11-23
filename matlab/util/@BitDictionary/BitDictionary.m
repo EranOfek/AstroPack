@@ -138,7 +138,7 @@ classdef BitDictionary < Component
     
     methods % utilities
         function [List,Data] = showDictionaries(Obj, Args)
-            % Show alla avialable BitMask related configuration files.
+            % Show all avialable BitMask related configuration files.
             % Input  : - (self) A BitDictionary object.
             %          * ...,key,val,...
             %            'Str' - Default is 'BitMask'.
