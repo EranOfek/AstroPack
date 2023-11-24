@@ -216,6 +216,25 @@ function Result = unitTest()
      end
 
 
+     % integrateElements
+     % Test the orbital elements propagation from one epoch to another via
+     %direct integration
+     OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801:9900]);
+     OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801]);
+     JD = 2460000.5;
+     Result = integrateElements(OrbEl, JD);
+     % compare with JPL
+     [OrbEl_J] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','ELEMENTS','TimeScale','TDB','StartTime',JD,'StopTime',JD+0.5, 'OutType','OrbitalEl');
+            
+     if abs(OrbEl_J.Node - OrbEl.Node)>1e-4 || ...
+            abs(OrbEl_J.W - OrbEl.W)>1e-4 || ...
+            abs(OrbEl_J.Incl - OrbEl.Incl)>1e-4 || ...
+            abs(OrbEl_J.A - OrbEl.A)>1e-7 || ...
+            abs(OrbEl_J.Eccen - OrbEl.Eccen)>1e-7
+        error('Error in integrateElements');
+     end
+     
+     
     
     % Topocentric position
 %     Cat = ephem(OrbEl, JD, 'GeoPos',[35./RAD 30./RAD 415]);

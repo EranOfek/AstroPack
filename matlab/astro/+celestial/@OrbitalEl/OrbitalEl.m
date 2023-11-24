@@ -1152,7 +1152,12 @@ classdef OrbitalEl < Base
             % Input  : - A single element celestialOrbitalEl object.
             %          - JD at which to calculate the position.
             %          * ...,key,val,...
-            %            'CooSys' - Coordinate system of input X0 and V0
+            %            'CooSys' - Coordinate system of the output
+            %                   coordinates
+            %               'ec' - J2000.0 ecliptic.
+            %               'eq' - J2000.0 equatorial.
+            %               Default is 'eq'.
+            %            'CooSys0' - Coordinate system of input X0 and V0
             %               rectangular coordinates.
             %               'ec' - J2000.0 ecliptic.
             %               'eq' - J2000.0 equatorial.
@@ -1212,6 +1217,7 @@ classdef OrbitalEl < Base
                 Obj(1,1)
                 JD
                 Args.CooSys                = 'eq';
+                Args.CooSys0               = 'eq';
                 
                 Args.JD0                   = [];
                 Args.X0                    = [];
@@ -1262,7 +1268,7 @@ classdef OrbitalEl < Base
                 % Equatorial J2000 cartesian coordinates
                 if isempty(Args.X0) && isempty(Args.V0) && isempty(Args.JD0)
                     % convert to equatorial
-                    switch lower(Args.CooSys)
+                    switch lower(Args.CooSys0)
                         case 'ec'
                             % X0/V0 in ecliptic - convert to equatorial J2000
                             RotM = celestial.coo.rotm_coo('E');
@@ -1271,7 +1277,7 @@ classdef OrbitalEl < Base
                         case 'eq'
                             % do nothing - already in equatorial
                         otherwise
-                            error('Unknown CooSys option');
+                            error('Unknown CooSys0 option');
                     end
 
                     % get initial conditions from orbital elements
@@ -1366,10 +1372,87 @@ classdef OrbitalEl < Base
                     otherwise
                         error('Unknown  RefFrame option');
                 end
-            end                
+            end         
+            
+            switch lower(Args.CooSys)
+                case 'eq'
+                    % already in eqotorial system
+                case 'ec'
+                    % convert to ecliptic
+                    RotM    = celestial.coo.rotm_coo('e');
+                    U_B     = RotM * U_B;
+                    U_Bdot  = RotM * U_Bdot;
+                    S_B     = RotM * S_B;
+                    S_Bdot  = RotM * S_Bdot;
+                otherwise
+                    error('Uknown CooSys option');
+            end
                             
         end
         
+        function Result = integrateElements(Obj, FinalEpoch, Args)
+            % Convert OrbitalEl object from one epoch to another
+            %   via direct integration of the target, given perturbations
+            %   from all major planets.
+            %   This can be used to convert multiple target elements that
+            %   have a common epoch into a new (scalar) epoch.
+            % Input  : - A celestial.OrbitalEl object.
+            %          - A scalar Julian day of final epoch to which o convert the
+            %            epoch of the elements.
+            %          * ...,key,val,...
+            %            'TimeScale' - Default is 'TDB'.
+            %            'INPOP' - A populated celestial.INPOP object.
+            %                   Provide in order to expedite the
+            %                   calculations. If [], then will be loaded.
+            %                   Default is [].
+            %            'Tol' - Tolerance for Kepler equation solution.
+            %                   Default is 1e-8.
+            %            'TolInt' - Integration tolerance.
+            %                   Default is 1e-10.
+            % Output : - A new celestial.OrbitalEl object with the elements
+            %            refered to the FinalEpoch.
+            % Author : Eran Ofek (Nov 2023)
+            % Example: OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801:9900]);
+            %          JD = 2460000.5;
+            %          Result = integrateElements(OrbEl, JD);
+            %          % compare with JPL
+            %          [T] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','ELEMENTS','TimeScale','TDB','StartTime',JD,'StopTime',JD+0.5);
+            
+            arguments
+                Obj(1,1)
+                FinalEpoch
+                Args.TimeScale       = 'TDB';
+                Args.INPOP           = [];
+                Args.Tol             = 1e-8;
+                Args.TolInt          = 1e-10;
+            end
+           
+            % check that all initial epochs are the same
+            StartEpoch = unique(Obj.Epoch);
+            if numel(StartEpoch)>1
+                error('All Epoch must be the same');
+            end
+            if numel(FinalEpoch)>1
+                error('FinalEpoch must be scalar');
+            end
+            
+            % Calculate the rectangular ecliptic coordinate of the targets
+            % via direct integration
+            [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(Obj, FinalEpoch, 'X0',[],'V0',[],'JD0',[],...
+                                                                        'Integration',true,...
+                                                                        'TimeScale',Args.TimeScale,...
+                                                                        'CooSys','ec',...
+                                                                        'RefFrame','bary',...
+                                                                        'INPOP',Args.INPOP,...
+                                                                        'Tol',Args.Tol, 'TolInt',Args.TolInt);
+            
+            % Convert barycentric to heliocentric (ecliptic)
+            U_H    = U_B - S_B;
+            U_Hdot = U_Bdot - S_Bdot;
+            % Convert rectangular position to orbital elements
+            [~,Result] = celestial.Kepler.xyz2elements(U_H, U_Hdot, Obj.Epoch, 'CooSys','ec');
+            
+        end
         
         function Result = ephemKeplerMultiObj(Obj, Time, Args)
             % Calculate ephemerides for OrbitalEl object by solving the Kepler equation.
