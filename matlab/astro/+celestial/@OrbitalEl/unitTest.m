@@ -221,7 +221,7 @@ function Result = unitTest()
      %direct integration
      OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801:9900]);
      OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801]);
-     JD = 2460000.5;
+     JD = 2460300.5;
      Result = integrateElements(OrbEl, JD);
      % compare with JPL
      [OrbEl_J] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','ELEMENTS','TimeScale','TDB','StartTime',JD,'StopTime',JD+0.5, 'OutType','OrbitalEl');
@@ -233,6 +233,18 @@ function Result = unitTest()
             abs(OrbEl_J.Eccen - OrbEl.Eccen)>1e-7
         error('Error in integrateElements');
      end
+     
+    % ephemMultiObj
+    OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801:9900]);
+    IN=celestial.INPOP;
+    IN.populateAll;
+    JD = 2460300.5;
+    Result = ephemMultiObj(OrbEl, JD, 'INPOP',IN, 'Integration',true, 'MaxIterLT',1);
+    % compare to JPL
+    [T] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','OBSERVER','TimeScale','TT','StartTime',JD,'StopTime',JD+0.5); 
+    [(Result.Catalog.Dec(1)-T.Dec(1)), (Result.Catalog.RA(1)-T.RA(1))].*3600
+
+     
      
      
     

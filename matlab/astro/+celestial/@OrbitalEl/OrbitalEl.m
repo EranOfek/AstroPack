@@ -1420,7 +1420,7 @@ classdef OrbitalEl < Base
             
             arguments
                 Obj(1,1)
-                FinalEpoch
+                FinalEpoch(1,1)
                 Args.TimeScale       = 'TDB';
                 Args.INPOP           = [];
                 Args.Tol             = 1e-8;
@@ -1431,9 +1431,6 @@ classdef OrbitalEl < Base
             StartEpoch = unique(Obj.Epoch);
             if numel(StartEpoch)>1
                 error('All Epoch must be the same');
-            end
-            if numel(FinalEpoch)>1
-                error('FinalEpoch must be scalar');
             end
             
             % Calculate the rectangular ecliptic coordinate of the targets
@@ -1450,10 +1447,97 @@ classdef OrbitalEl < Base
             U_H    = U_B - S_B;
             U_Hdot = U_Bdot - S_Bdot;
             % Convert rectangular position to orbital elements
-            [~,Result] = celestial.Kepler.xyz2elements(U_H, U_Hdot, Obj.Epoch, 'CooSys','ec');
+            [~,Result] = celestial.Kepler.xyz2elements(U_H, U_Hdot, FinalEpoch, 'CooSys','ec');
             
         end
         
+        % Not working yet
+        function Result = ephemMultiObj(Obj, Time, Args)
+            %
+            % Example: OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801:9900]);
+            %          IN=celestial.INPOP;
+            %          IN.populateAll;
+            %          JD = 2460000;
+            %          Result = ephemMultiObj(OrbEl, JD, 'INPOP',IN)
+            %          % compare to JPL
+            %          [T] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','OBSERVER','TimeScale','TT','StartTime',JD,'StopTime',JD+0.5); 
+            %          [(Result.Catalog.Dec(1)-T.Dec(1)), (Result.Catalog.RA(1)-T.RA(1))].*3600
+            
+            arguments
+                Obj
+                Time
+                Args.INPOP                   = [];
+                Args.Integration logical     = true;
+                Args.IntegrationLT logical   = false;
+                
+                Args.GeoPos                  = [];
+                Args.RefEllipsoid            = 'WGS84';
+                
+                Args.MaxIterLT               = 2;
+                Args.TimeScale               = 'TDB';
+                Args.ObserverEphem           = [];
+                Args.Tol                     = 1e-8;
+                Args.TolInt                  = 1e-10;
+            end
+            Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
+            
+            
+            % Target position
+            ObjTime = integrateElements(Obj, Time, 'TimeScale',Args.TimeScale,...
+                                                   'INPOP',Args.INPOP,...
+                                                   'Tol',Args.Tol,...
+                                                   'TolInt',Args.TolInt);
+         
+            
+            [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(ObjTime, Time, 'Integration',false,...
+                                                                  'INPOP',Args.INPOP,...
+                                                                  'CooSys','eq',...
+                                                                  'TimeScale',Args.TimeScale,...
+                                                                  'RefFrame','bary',...
+                                                                  'LightTime',0,...
+                                                                  'SunLightTime',0,...
+                                                                  'Tol',Args.Tol,...
+                                                                  'TolInt',Args.TolInt);
+                                                             
+                                                                 
+                                                             
+            % Observer position
+            [E_B, E_Bdot] = celestial.SolarSys.earthObserverPos(Time, 'CooSys','bary',...
+                                                                      'RefFrame','eq',...
+                                                                      'INPOP',Args.INPOP,...
+                                                                      'SunLightTime',0,...
+                                                                      'TimeScale',Args.TimeScale,...
+                                                                      'ObserverEphem',Args.ObserverEphem,...
+                                                                      'GeoPos',Args.GeoPos,...
+                                                                      'RefEllipsoid',Args.RefEllipsoid,...
+                                                                      'OutUnits','au');
+                                                                      
+      
+            % Topocentric position
+            U = U_B - E_B;  % U_B(t-tau)
+            % Topocentric distance
+            Delta = sqrt(sum(U.^2, 1));
+            % Light time correction iteration
+            if Args.MaxIterLT>1
+                LightTime = Delta./Caud;   % scalar (single object)     
+                [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(ObjTime, Time, 'Integration',Args.IntegrationLT,...
+                                                                 'INPOP',Args.INPOP,...
+                                                                 'LightTime',LightTime,...
+                                                                 'SunLightTime',LightTime,...
+                                                                 'CooSys','eq',...
+                                                                 'TimeScale',Args.TimeScale,...
+                                                                 'RefFrame','bary',...
+                                                                 'Tol',Args.Tol,...
+                                                                 'TolInt',Args.TolInt);
+                                                                                                    
+                                                                 
+                %
+                U = U_B - E_B;  % U_B(t-tau)
+            end
+            
+            [Result, ColNames, ColUnits] = prepEphemOutput(Obj, Time, U, U_B, E_B - S_B, E_Bdot - S_Bdot);
+            
+        end
         
         
         function Result = ephemKeplerMultiObj(Obj, Time, Args)
@@ -2054,7 +2138,21 @@ classdef OrbitalEl < Base
       
         
         
-        
+        function ephemIntMultiObj(Obj, Time, Args)
+            %
+            
+            arguments
+                Obj
+                Time(1,1)
+                Args
+            end
+            
+            NewEl = integrateElements(Obj, Time, Args)
+           
+            Result = ephemKeplerMultiObj(Obj, Time, Args)
+            
+            
+        end
         
         
         % done
