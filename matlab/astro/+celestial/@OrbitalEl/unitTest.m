@@ -206,7 +206,7 @@ function Result = unitTest()
     
     % Testing target position
     OrbEl1=celestial.OrbitalEl.loadSolarSystem('num',9804);
-    JD = 2460000;
+    JD = 2461000;
     [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl1, JD+(0:1:10)','Integration',true, 'RefFrame','bary');
     % convert to ecliptic
     U_B_ec = celestial.coo.rotm_coo('e')*U_B;
@@ -226,6 +226,8 @@ function Result = unitTest()
      % compare with JPL
      [OrbEl_J] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','ELEMENTS','TimeScale','TDB','StartTime',JD,'StopTime',JD+0.5, 'OutType','OrbitalEl');
             
+     [OrbEl_J.W - Result.W, OrbEl_J.Incl - Result.Incl]
+     
      if abs(OrbEl_J.Node - OrbEl.Node)>1e-4 || ...
             abs(OrbEl_J.W - OrbEl.W)>1e-4 || ...
             abs(OrbEl_J.Incl - OrbEl.Incl)>1e-4 || ...

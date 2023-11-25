@@ -1390,6 +1390,7 @@ classdef OrbitalEl < Base
                             
         end
         
+        % Not working - likely a problem here - 
         function Result = integrateElements(Obj, FinalEpoch, Args)
             % Convert OrbitalEl object from one epoch to another
             %   via direct integration of the target, given perturbations
@@ -1426,7 +1427,8 @@ classdef OrbitalEl < Base
                 Args.Tol             = 1e-8;
                 Args.TolInt          = 1e-10;
             end
-           
+           Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
+            
             % check that all initial epochs are the same
             StartEpoch = unique(Obj.Epoch);
             if numel(StartEpoch)>1
@@ -1442,7 +1444,18 @@ classdef OrbitalEl < Base
                                                                         'RefFrame','bary',...
                                                                         'INPOP',Args.INPOP,...
                                                                         'Tol',Args.Tol, 'TolInt',Args.TolInt);
-            
+            %
+%             Delta = sqrt(sum(U_B.^2, 1));
+%             [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(Obj, FinalEpoch, 'X0',[],'V0',[],'JD0',[],...
+%                                                                         'Integration',true,...
+%                                                                         'TimeScale',Args.TimeScale,...
+%                                                                         'CooSys','ec',...
+%                                                                         'SunLightTime',Delta./Caud,...
+%                                                                         'RefFrame','bary',...
+%                                                                         'INPOP',Args.INPOP,...
+%                                                                         'Tol',Args.Tol, 'TolInt',Args.TolInt);
+%             
+                                                                    
             % Convert barycentric to heliocentric (ecliptic)
             U_H    = U_B - S_B;
             U_Hdot = U_Bdot - S_Bdot;
