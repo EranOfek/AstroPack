@@ -2,7 +2,7 @@ function Result = unitTest()
     % unitTest for celestial.Kepler
 	%io.msgStyle(LogLevel.Test, '@start', 'test started');
     
-    %
+    % Test xyz2elements
     OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801:9810]);
     [X,V]=OrbEl.elements2pos('CooSys','ec', 'RefFrame','helio');
     Res=celestial.Kepler.xyz2elements(X,V, OrbEl.Epoch);
@@ -15,8 +15,17 @@ function Result = unitTest()
     if any(abs([Res.MeanMotion.' - OrbEl.meanMotion])>1e-4,'all')
         error('Error in xyz2elements');
     end
-
-        
+    
+    % Test xyz2elements against JPL
+     JD = 2460300.5;
+     [OrbEl_J] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','ELEMENTS','TimeScale','TDB','StartTime',JD,'StopTime',JD+0.5, 'OutType','OrbitalEl');
+     [T] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','VECTORS','TimeScale','TDB','StartTime',JD,'StopTime',JD+0.5, 'CENTER','500@10');
+     X = [T.X; T.Y; T.Z];
+     V = [T.VX; T.VY; T.VZ];
+     [~,EE]=celestial.Kepler.xyz2elements(X,V, JD);
+     if abs(EE.Incl - OrbEl_J.Incl)>1e-10 || abs(EE.A - OrbEl_J.A)>1e-10 || abs(EE.Eccen - OrbEl_J.Eccen)>1e-10
+         error('Error in xyz2elements');
+     end
     
 
 	%io.msgStyle(LogLevel.Test, '@passed', 'test passed');

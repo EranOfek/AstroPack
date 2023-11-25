@@ -206,16 +206,26 @@ function Result = unitTest()
     
     % Testing target position
     OrbEl1=celestial.OrbitalEl.loadSolarSystem('num',9804);
-    JD = 2461000;
+    JD = 2461000.5;
     [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl1, JD+(0:1:10)','Integration',true, 'RefFrame','bary');
     % convert to ecliptic
     U_B_ec = celestial.coo.rotm_coo('e')*U_B;
+    S_B_ec = celestial.coo.rotm_coo('e')*S_B;
     [T,~,U] = celestial.SolarSys.getJPL_ephem('9804;','EPHEM_TYPE','VECTORS','TimeScale','TDB', 'StartTime',JD, 'StopTime',JD+10, 'StepSize',1, 'CENTER','500@0');
-     if any(abs(T.X - U_B_ec(1,:)')>1e-6)
-         error('Error in targetBaryPos');
-     end
+    if any(abs(T.X - U_B_ec(1,:)')>1e-6)
+        error('Error in targetBaryPos');
+    end
 
-
+    % same with heliocentric position
+    % Not working!
+    % Test by obtaining the Sun barycentric position
+    [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl1, JD+(0:1:10)','Integration',true, 'RefFrame','bary');
+    [Th,~,U] = celestial.SolarSys.getJPL_ephem('9804;','EPHEM_TYPE','VECTORS','TimeScale','TDB', 'StartTime',JD, 'StopTime',JD+10.1, 'StepSize',1, 'CENTER','500@10');
+    if any(abs(Th.X - (U_B_ec(1,:)' - S_B_ec(1,:)'))>1e-6)
+        error('Error in targetBaryPos');
+    end
+    
+     
      % integrateElements
      % Test the orbital elements propagation from one epoch to another via
      %direct integration
@@ -235,6 +245,13 @@ function Result = unitTest()
             abs(OrbEl_J.Eccen - OrbEl.Eccen)>1e-7
         error('Error in integrateElements');
      end
+     
+     
+     
+     
+     
+     
+     
      
     % ephemMultiObj
     OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801:9900]);
