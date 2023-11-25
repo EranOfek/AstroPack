@@ -221,6 +221,7 @@ function Result = unitTest()
     % Test by obtaining the Sun barycentric position
     [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl1, JD+(0:1:10)','Integration',true, 'RefFrame','bary');
     [Th,~,U] = celestial.SolarSys.getJPL_ephem('9804;','EPHEM_TYPE','VECTORS','TimeScale','TDB', 'StartTime',JD, 'StopTime',JD+10.1, 'StepSize',1, 'CENTER','500@10');
+    [TSB,~,U] = celestial.SolarSys.getJPL_ephem('500@10','EPHEM_TYPE','VECTORS','TimeScale','TDB', 'StartTime',JD, 'StopTime',JD+10.1, 'StepSize',1, 'CENTER','500@0');
     if any(abs(Th.X - (U_B_ec(1,:)' - S_B_ec(1,:)'))>1e-6)
         error('Error in targetBaryPos');
     end
