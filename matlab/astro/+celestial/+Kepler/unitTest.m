@@ -17,7 +17,7 @@ function Result = unitTest()
     end
     
     % Test xyz2elements against JPL
-     JD = 2460300.5;
+     JD = 2461300.5;
      [OrbEl_J] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','ELEMENTS','TimeScale','TDB','StartTime',JD,'StopTime',JD+0.5, 'OutType','OrbitalEl');
      [T] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','VECTORS','TimeScale','TDB','StartTime',JD,'StopTime',JD+0.5, 'CENTER','500@10');
      X = [T.X; T.Y; T.Z];

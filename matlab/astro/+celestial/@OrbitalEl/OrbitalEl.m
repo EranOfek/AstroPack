@@ -1258,6 +1258,7 @@ classdef OrbitalEl < Base
                 GetVelocity = false;
             end
             
+            S_B = [];
             if Args.Integration
                 if strcmp(Args.RefFrame, 'helio')
                     error('Integration=true, currently works only with RefFrame=bary');
@@ -1281,15 +1282,15 @@ classdef OrbitalEl < Base
                     end
 
                     % get initial conditions from orbital elements
-                    [Args.X0, Args.V0, Args.JD0, S_B, S_Bdot] = elements2pos(Obj, 'JD',[],...
+                    [Args.X0, Args.V0, Args.JD0] = elements2pos(Obj, 'JD',[],...
                                          'TimeScale',Args.TimeScale,...
                                          'CooSys','eq',...
                                          'RefFrame','bary',...
                                          'Tol',Args.Tol,...
                                          'INPOP',Args.INPOP);
-                else
-                    S_B    = [];
-                    S_Bdot = [];
+                %else
+                %    S_B    = [];
+                %    S_Bdot = [];
                 end
                 Args.JD0 = unique(Args.JD0);
                 if numel(Args.JD0)>1
@@ -1372,8 +1373,20 @@ classdef OrbitalEl < Base
                     otherwise
                         error('Unknown  RefFrame option');
                 end
-            end         
+                
+            end
+           
+            % Sun
+            if isempty(S_B)
+                if nargout>2 
+                    S_B = Args.INPOP.getPos('Sun', JD - Args.SunLightTime, 'TimeScale',Args.TimeScale, 'IsEclipticOut',false);
+                    if nargout>3
+                        S_Bdot = Args.INPOP.getVel('Sun', JD - Args.SunLightTime, 'TimeScale',Args.TimeScale, 'IsEclipticOut',false);
+                    end
+                end
+            end
             
+                
             switch lower(Args.CooSys)
                 case 'eq'
                     % already in eqotorial system
@@ -1414,7 +1427,7 @@ classdef OrbitalEl < Base
             %            refered to the FinalEpoch.
             % Author : Eran Ofek (Nov 2023)
             % Example: OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801:9900]);
-            %          JD = 2460000.5;
+            %          JD = 2460300.5;
             %          Result = integrateElements(OrbEl, JD);
             %          % compare with JPL
             %          [T] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','ELEMENTS','TimeScale','TDB','StartTime',JD,'StopTime',JD+0.5);
@@ -1444,21 +1457,23 @@ classdef OrbitalEl < Base
                                                                         'RefFrame','bary',...
                                                                         'INPOP',Args.INPOP,...
                                                                         'Tol',Args.Tol, 'TolInt',Args.TolInt);
-%             %
-%             Delta = sqrt(sum(U_B.^2, 1));
-%             [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(Obj, FinalEpoch, 'X0',[],'V0',[],'JD0',[],...
-%                                                                         'Integration',true,...
-%                                                                         'TimeScale',Args.TimeScale,...
-%                                                                         'CooSys','ec',...
-%                                                                         'LightTime',-Delta./Caud,...
-%                                                                         'RefFrame','bary',...
-%                                                                         'INPOP',Args.INPOP,...
-%                                                                         'Tol',Args.Tol, 'TolInt',Args.TolInt);
-%             
-                                                                    
+            % compare U_B w/ JPL
+            %[T] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','VECTORS',...
+            %                    'TimeScale','TDB','StartTime',FinalEpoch,'StopTime',FinalEpoch+0.5, 'CENTER','500@0');
+            %U_B(:,1) - [T.X; T.Y; T.Z]
+            % looks good
+                                                
             % Convert barycentric to heliocentric (ecliptic)
             U_H    = U_B - S_B;
             U_Hdot = U_Bdot - S_Bdot;
+            
+            
+            % compare with JPL
+            %[T] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','VECTORS',...
+            %                    'TimeScale','TDB','StartTime',FinalEpoch,'StopTime',FinalEpoch+0.5, 'CENTER','500@10');
+            %U_H(:,1) - [T.X; T.Y; T.Z]
+            
+            
             % Convert rectangular position to orbital elements
             [~,Result] = celestial.Kepler.xyz2elements(U_H, U_Hdot, FinalEpoch, 'CooSys','ec');
             
@@ -1500,8 +1515,11 @@ classdef OrbitalEl < Base
                                                    'INPOP',Args.INPOP,...
                                                    'Tol',Args.Tol,...
                                                    'TolInt',Args.TolInt);
-         
+            % compare with:
+            [OrbEl_J] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','ELEMENTS','TimeScale','TDB','StartTime',Time,'StopTime',Time+0.5, 'OutType','OrbitalEl');
+         error('PROBLEM - probably with Tp? M?')
             
+                                               
             [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(ObjTime, Time, 'Integration',false,...
                                                                   'INPOP',Args.INPOP,...
                                                                   'CooSys','eq',...
@@ -1511,7 +1529,9 @@ classdef OrbitalEl < Base
                                                                   'SunLightTime',0,...
                                                                   'Tol',Args.Tol,...
                                                                   'TolInt',Args.TolInt);
-                                                             
+            % compare with:
+            [T] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','VECTORS','TimeScale','TDB','StartTime',Time,'StopTime',Time+0.5, 'OutType','OrbitalEl','CENTER','500@0');
+            celestial.coo.rotm_coo('E') * [T.X;T.Y;T.Z]
                                                                  
                                                              
             % Observer position
@@ -1536,7 +1556,7 @@ classdef OrbitalEl < Base
                 [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(ObjTime, Time, 'Integration',Args.IntegrationLT,...
                                                                  'INPOP',Args.INPOP,...
                                                                  'LightTime',LightTime,...
-                                                                 'SunLightTime',LightTime,...
+                                                                 'SunLightTime',0,...
                                                                  'CooSys','eq',...
                                                                  'TimeScale',Args.TimeScale,...
                                                                  'RefFrame','bary',...
