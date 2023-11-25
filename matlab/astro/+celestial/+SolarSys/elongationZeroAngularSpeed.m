@@ -31,7 +31,5 @@ function [Elon0, V_pElon] = elongationZeroAngularSpeed(A_Obj,A_Earth, Elon)
     
     V_pElon = V_Earth.*sind(Elon - 90) + V_Obj.*cos(  asin(A_Earth./A_Obj) .* sind(Elon) );
     
-    
-    
-    
+   
 end
