@@ -3,9 +3,10 @@ function Result = unitTest()
 	%io.msgStyle(LogLevel.Test, '@start', 'test started');
     
     % Test xyz2elements
+    OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801]);
     OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801:9810]);
     [X,V]=OrbEl.elements2pos('CooSys','ec', 'RefFrame','helio');
-    Res=celestial.Kepler.xyz2elements(X,V, OrbEl.Epoch);
+    [Res,EE]=celestial.Kepler.xyz2elements(X,V, OrbEl.Epoch);
     if any(abs([Res.A.' - OrbEl.A, Res.Eccen.' - OrbEl.Eccen, Res.PeriDist.' - OrbEl.PeriDist])>1e-11,'all')
         error('Error in xyz2elements');
     end
