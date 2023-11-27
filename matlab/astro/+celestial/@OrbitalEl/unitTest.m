@@ -197,7 +197,7 @@ function Result = unitTest()
     Cat = ephemKeplerMultiTime(OrbEl, JD+(0:100:5000).');
     [T,~,U] = celestial.SolarSys.getJPL_ephem('9804;','EPHEM_TYPE','OBSERVER','TimeScale','TT','StartTime',JD,'StopTime',JD+5000,'StepSize',100);
     [(Cat.Catalog.RA-T.RA).*3600, (CatInt.Catalog.RA-T.RA).*3600, (CatInt.Catalog.Dec-T.Dec).*3600]
-    if any((CatInt(:,2)-T.RA).*3600>1) || any((CatInt(:,2)-T.RA).*3600>1)
+    if any(abs([(CatInt.Catalog.RA-T.RA).*3600, (CatInt.Catalog.Dec-T.Dec).*3600])>1,'all')
         error('Orbital integration diverges by more than 1 arcsec over 5000 days');
     end
     if any((CatInt.Catalog.SOT - T.SOT)>1)
