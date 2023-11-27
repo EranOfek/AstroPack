@@ -55,7 +55,8 @@ function [Result,OrbEl] = xyz2elements(R, V, Epoch, Args)
         Args.MagType           = '';
         Args.MagPar            = [];
     end
-
+    RAD = 180./pi;
+    
     if Args.Dim==2
         R = R.';
         V = V.';
@@ -142,7 +143,8 @@ function [Result,OrbEl] = xyz2elements(R, V, Epoch, Args)
     % Mean anomaly
     M = E - Eccen.*sin(E);
     % mean motion (n)
-    MeanMotion = Args.K.*sqrt(Args.Mu./A.^3);
+    %MeanMotion = Args.K.*sqrt(Args.Mu./A.^3);
+    MeanMotion = sqrt(Args.Mu./A.^3);
     % Test: OrbEl.meanMotion - MeanMotion'.*RAD
 
     % hyperbolic orbit
@@ -170,6 +172,7 @@ function [Result,OrbEl] = xyz2elements(R, V, Epoch, Args)
     Node    = ConvAng.*Node;
     W       = ConvAng.*W;
     Nu      = ConvAng.*Nu;
+    M       = ConvAng.*M;
     MeanMotion = ConvAng.*MeanMotion; % [angle/day]
 
     Result.A     = A;

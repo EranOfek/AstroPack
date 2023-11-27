@@ -1404,7 +1404,7 @@ classdef OrbitalEl < Base
         end
         
         % Not working - likely a problem here - 
-        function Result = integrateElements(Obj, FinalEpoch, Args)
+        function [Result, U_B, U_Bdot, S_B, S_Bdot] = integrateElements(Obj, FinalEpoch, Args)
             % Convert OrbitalEl object from one epoch to another
             %   via direct integration of the target, given perturbations
             %   from all major planets.
@@ -1425,6 +1425,11 @@ classdef OrbitalEl < Base
             %                   Default is 1e-10.
             % Output : - A new celestial.OrbitalEl object with the elements
             %            refered to the FinalEpoch.
+            %          - (U_B) A 3 x N matrix of target barycentric
+            %            ecliptic position based on the orbital integration.
+            %          - (U_Bdot) target barycentric ecliptic velocity.
+            %          - (S_B) Sun barycentric ecliptic position.
+            %          - (S_Bdot) Sun barycentric ecliptic position.
             % Author : Eran Ofek (Nov 2023)
             % Example: OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801:9900]);
             %          JD = 2460300.5;
@@ -1481,7 +1486,11 @@ classdef OrbitalEl < Base
         
         % Not working yet
         function Result = ephemMultiObj(Obj, Time, Args)
-            %
+            % Generate multiple targets ephmeris for a single epoch by orbital integration.
+            %   
+            % Input  : - 
+            % Output : - 
+            % Author : Eran Ofek (Nov 2023)
             % Example: OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801:9900]);
             %          IN=celestial.INPOP;
             %          IN.populateAll;
@@ -1509,17 +1518,21 @@ classdef OrbitalEl < Base
             end
             Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
             
+            if Args.Integration
+                % Propgate the targets orbital elements to the new epoch (Time)
+                % Here U_B, S_B are in the ecliptic system
+                [ObjTime, U_B, U_Bdot, S_B, S_Bdot] = integrateElements(Obj, Time, 'TimeScale',Args.TimeScale,...
+                                                       'INPOP',Args.INPOP,...
+                                                       'Tol',Args.Tol,...
+                                                       'TolInt',Args.TolInt);
+                % DEBUG: compare with:
+                %[OrbEl_J] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','ELEMENTS','TimeScale','TDB','StartTime',Time,'StopTime',Time+0.5, 'OutType','OrbitalEl');
+            else
+                % Use orbital elements with no change
+                ObjTime = Obj;
+            end
             
-            % Target position
-            ObjTime = integrateElements(Obj, Time, 'TimeScale',Args.TimeScale,...
-                                                   'INPOP',Args.INPOP,...
-                                                   'Tol',Args.Tol,...
-                                                   'TolInt',Args.TolInt);
-            % compare with:
-            [OrbEl_J] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','ELEMENTS','TimeScale','TDB','StartTime',Time,'StopTime',Time+0.5, 'OutType','OrbitalEl');
-         error('PROBLEM - probably with Tp? M?')
-            
-                                               
+            % Use the new orbital elements to calculate the target position                                  
             [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(ObjTime, Time, 'Integration',false,...
                                                                   'INPOP',Args.INPOP,...
                                                                   'CooSys','eq',...
@@ -1530,8 +1543,8 @@ classdef OrbitalEl < Base
                                                                   'Tol',Args.Tol,...
                                                                   'TolInt',Args.TolInt);
             % compare with:
-            [T] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','VECTORS','TimeScale','TDB','StartTime',Time,'StopTime',Time+0.5, 'OutType','OrbitalEl','CENTER','500@0');
-            celestial.coo.rotm_coo('E') * [T.X;T.Y;T.Z]
+            %[T] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','VECTORS','TimeScale','TDB','StartTime',Time,'StopTime',Time+0.5, 'OutType','OrbitalEl','CENTER','500@0');
+            %celestial.coo.rotm_coo('E') * [T.X;T.Y;T.Z]
                                                                  
                                                              
             % Observer position
@@ -1568,6 +1581,7 @@ classdef OrbitalEl < Base
                 U = U_B - E_B;  % U_B(t-tau)
             end
             
+            % prepare output table:
             [Result, ColNames, ColUnits] = prepEphemOutput(Obj, Time, U, U_B, E_B - S_B, E_Bdot - S_Bdot);
             
         end
