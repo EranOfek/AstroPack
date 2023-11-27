@@ -18,7 +18,7 @@ function Result = unitTest()
 
         %% Test: celestial.ephem.ephemMultiObj
         OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801:9900]);
-        JD = 2461000;
+        JD = OrbEl.Epoch(1)+1000;  % integrate to epoch+1000 days
         Result = celestial.ephem.ephemMultiObj(OrbEl, JD, 'INPOP',IN);
         % compare to JPL
         [T1] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','OBSERVER','TimeScale','TT','StartTime',JD,'StopTime',JD+0.5); 
@@ -29,9 +29,18 @@ function Result = unitTest()
             error('Error in orbital integration - celestial.ephem.ephemMultiObj - residuals larger than 0.1 arcsec');
         end
 
-        %%
-
-
+        %% Test: celestial.ephem.ephemKeplerMultiObj
+        OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
+        JD = OrbEl.Epoch(1); % should be accurate only on epoch
+        Result = celestial.ephem.ephemKeplerMultiObj(OrbEl, JD, 'INPOP',IN);
+        [T] = celestial.SolarSys.getJPL_ephem('1;','EPHEM_TYPE','OBSERVER','TimeScale','TT','StartTime',JD,'StopTime',JD+0.5); 
+        Resid1 = (Result.Catalog(1,:).RA - T.RA).*3600;
+        Resid2 = (Result.Catalog(1,:).Dec - T.Dec).*3600;
+        if any(abs(Resid1)>0.1,'all') || any(abs(Resid2)>0.1,'all')
+            error('Error in kepler equation based ephemeris - celestial.ephem.ephemKeplerMultiObj - residuals larger than 0.1 arcsec');
+        end
+        
+        
     end
 
 

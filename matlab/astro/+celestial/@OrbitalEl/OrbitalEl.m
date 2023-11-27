@@ -922,7 +922,9 @@ classdef OrbitalEl < Base
             %            U represent the target topocentric position in the
             %            equatorial J2000 system. Units are AU.
             %          - Like the U matrix, but for U_B - the target
-            %            barycentrix position.
+            %            barycentric or heliocentric position.
+            %            This is used only for the calculation of the
+            %            target radius vector.
             %          - Like the U matrix, but for E_H - the topocentric
             %            heliocentric poistion. Default is [].
             %          - Like the U matrix, but for E_dotH - the
@@ -1490,7 +1492,7 @@ classdef OrbitalEl < Base
 
   
         
-        
+        % now exist in celestial.ephem.ephemKeplerMultiObj
         function Result = ephemKeplerMultiObj(Obj, Time, Args)
             % Calculate ephemerides for OrbitalEl object by solving the Kepler equation.
             %   This function is optimized for multi objects.
