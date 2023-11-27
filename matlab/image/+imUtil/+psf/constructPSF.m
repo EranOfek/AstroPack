@@ -105,6 +105,16 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
     %                   function (see imUtil.psf.suppressEdges).
     %                   Default is 3.
     %            'SuppressFun' - Default is @imUtil.kernel2.cosbell
+    %             
+    %            'DataType' - if not empty, convert the result to to 'single', or
+    %            'double' or other type if needed; Default is empty
+    %
+    %            'CropByQuantile' - crop the stamp so that it contain only
+    %                   the central part of the stamp with flux above 'Quantile' 
+    %                   Default is false
+    %            'Quantile' - defines the flux level where the stamp should be
+    %                   cut if 'CropByQuantile' is true
+    %                   Default is 0.999
     %
     % Output : - A structure containing information about the stars used
     %            for the PSF construction.
@@ -154,6 +164,11 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         Args.SmoothWings logical       = true;
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
         Args.SuppressWidth             = 3;
+        
+        Args.DataType                  = []; % or '@single', '@double',...
+        
+        Args.CropByQuantile logical    = false;
+        Args.Quantile                  = 0.999;
     end
     
     if ndims(Image)==2
@@ -263,10 +278,20 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         NimPSF  = 0;
     end
     
+    % convert data type 
+    if ~isempty(Args.DataType)
+        MeanPSF = Args.DataType(MeanPSF);
+        VarPSF  = Args.DataType(VarPSF);
+    end
+    
     % suppress edges
     if ~isempty(Args.SuppressWidth) && ~isempty(MeanPSF) 
          MeanPSF = imUtil.psf.suppressEdges(MeanPSF, 'Fun',Args.SuppressFun, 'FunPars', [Args.RadiusPSF-Args.SuppressWidth, Args.RadiusPSF]);
     end
-          
+    
+    % cut the stamp and its variance to a given quantile
+    if Args.CropByQuantile
+        [MeanPSF, VarPSF] = imUtil.psf.cropByQuantile(MeanPSF,Args.Quantile,'Variance',VarPSF);
+    end          
           
 end
