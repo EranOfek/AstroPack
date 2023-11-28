@@ -40,6 +40,40 @@ function Result = unitTest()
             error('Error in kepler equation based ephemeris - celestial.ephem.ephemKeplerMultiObj - residuals larger than 0.1 arcsec');
         end
         
+
+        %% Test: celestial.ephem.ephemKeplerMultiTime
+        OrbEl = celestial.OrbitalEl.loadSolarSystem('num',9804);
+        JD = OrbEl.Epoch;
+        Result = celestial.ephem.ephemKeplerMultiTime(OrbEl, JD+(0:1:10)', 'INPOP',IN);
+        [T] = celestial.SolarSys.getJPL_ephem('9804;','EPHEM_TYPE','OBSERVER','TimeScale','TT','StartTime',JD,'StopTime',JD+10.5); 
+        Resid = [(Result.Catalog.Dec-T.Dec), (Result.Catalog.RA-T.RA)].*3600;
+        if any(abs(Resid)>0.1,'all')
+            error('Error in kepler equation based ephemeris - celestial.ephem.ephemKeplerMultiTime - residuals larger than 0.1 arcsec');
+        end
+
+        %% Test: celestial.ephem.ephemKepler
+        OrbEl = celestial.OrbitalEl.loadSolarSystem('num',9804);
+        JD = OrbEl.Epoch;
+        Result = celestial.ephem.ephemKepler(OrbEl, JD+(0:1:10)');
+        [T] = celestial.SolarSys.getJPL_ephem('9804;','EPHEM_TYPE','OBSERVER','TimeScale','TT','StartTime',JD,'StopTime',JD+10.5); 
+        Resid = [(Result.Catalog.Dec-T.Dec), (Result.Catalog.RA-T.RA)].*3600;
+        if any(abs(Resid)>0.1,'all')
+            error('Error in kepler equation based ephemeris - celestial.ephem.ephemKeplerMultiTime - residuals larger than 0.1 arcsec');
+        end
+
+        OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
+        JD = OrbEl.Epoch(1);
+        Result = celestial.ephem.ephemKepler(OrbEl, JD);
+        [T] = celestial.SolarSys.getJPL_ephem('1;','EPHEM_TYPE','OBSERVER','TimeScale','TT','StartTime',JD,'StopTime',JD+0.5); 
+        Resid1 = (Result.Catalog(1,:).RA - T.RA).*3600;
+        Resid2 = (Result.Catalog(1,:).Dec - T.Dec).*3600;
+        if any(abs(Resid1)>0.1,'all') || any(abs(Resid2)>0.1,'all')
+            error('Error in kepler equation based ephemeris - celestial.ephem.ephemKeplerMultiObj - residuals larger than 0.1 arcsec');
+        end
+
+
+        %%
+
         
     end
 

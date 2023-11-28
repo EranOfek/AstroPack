@@ -887,7 +887,7 @@ classdef INPOP < Base
                 Args.TimeScale             = 'TDB';
                 Args.OutUnits              = 'au';  % or AU/day
                 Args.IsEclipticOut logical = false;
-                Args.Bodies                = {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep','Plu'};
+                Args.Bodies                = {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep'}; %,'Plu'};
                 Args.GM                    = [];
                 %Args.GM                    = [0.00029591, 4.9125e-11, 7.2435e-10, 8.997e-10, 9.5495e-11, 2.8253e-07, 8.4597e-08, 1.292e-08, 1.5244e-08, 2.1668e-12];
                 Args.Exclude               = {}; %{'Mer','Plu'}; %{'Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
@@ -922,7 +922,7 @@ classdef INPOP < Base
             %     GM_Sun: 0.00029591
 
             if isempty(Args.GM)
-                Args.GM = [Obj.Constant.GM_Sun, Obj.Constant.GM_Mer, Obj.Constant.GM_Ven, Obj.Constant.GM_EMB, Obj.Constant.GM_Mar, Obj.Constant.GM_Jup, Obj.Constant.GM_Sat, Obj.Constant.GM_Ura, Obj.Constant.GM_Nep, Obj.Constant.GM_Plu];
+                Args.GM = [Obj.Constant.GM_Sun, Obj.Constant.GM_Mer, Obj.Constant.GM_Ven, Obj.Constant.GM_EMB, Obj.Constant.GM_Mar, Obj.Constant.GM_Jup, Obj.Constant.GM_Sat, Obj.Constant.GM_Ura, Obj.Constant.GM_Nep]; %, Obj.Constant.GM_Plu];
             end      
             
             if ~isempty(Args.Exclude)
