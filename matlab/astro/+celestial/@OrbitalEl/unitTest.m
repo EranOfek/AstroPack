@@ -148,6 +148,16 @@ function Result = unitTest()
         error('propagate2commonEpoch returned more than one epoch');
     end
 
+    %% Test: integrateElements
+    OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801]);   
+    JD = OrbEl.Epoch + 1000;
+    Result = integrateElements(OrbEl, JD, 'TolInt',1e-6);
+    [T] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','ELEMENTS','TimeScale','TDB','StartTime',JD,'StopTime',JD+0.5, 'OutType','OrbitalEl');
+    Resid = [Result.Node - T.Node, Result.W-T.W, Result.Incl-T.Incl, Result.A-T.A, Result.PeriDist-T.PeriDist, Result.Eccen-T.Eccen];
+    if any(abs(Resid)>1e-4)
+        error('Error in integrateElements');
+    end
+    
     %io.msgLog(LogLevel.Test, 'OrbitalEl test passed');
     Result = true;
 end

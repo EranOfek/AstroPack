@@ -39,6 +39,7 @@ function [Result,ColNames,ColUnits] = ephemKepler(Obj, Time, Args)
     %                   Defauls is [].
     %            'Tol' - Tolerance [rad] for solving the Kepler
     %                   equation. Default is 1e-8.
+    %            'TolInt' - Tolerance for integration. Default is 1e-8.
     %
     %            'OutType' - Output type:
     %                   'mat' - A matrix output.

@@ -239,9 +239,10 @@ classdef OrbitalEl < Base
             Nprop = numel(Prop);
             for Iprop=1:1:Nprop
                 Ndata = size(Result.(Prop{Iprop}), 1);
-                if numel(Flag)==Ndata
+                %if numel(Flag)==Ndata
+                if Ndata>1 || Ne==1
                     if iscell(Result.(Prop{Iprop}))
-                        Result.(Prop{Iprop}) = Result.(Prop{Iprop})(Flag);
+                        Result.(Prop{Iprop}) = Result.(Prop{Iprop})(Flag,:);
                     else
                         Result.(Prop{Iprop}) = Result.(Prop{Iprop})(Flag,:);
                     end
@@ -1494,7 +1495,7 @@ classdef OrbitalEl < Base
             %            'Tol' - Tolerance for Kepler equation solution.
             %                   Default is 1e-8.
             %            'TolInt' - Integration tolerance.
-            %                   Default is 1e-10.
+            %                   Default is 1e-8.
             % Output : - A new celestial.OrbitalEl object with the elements
             %            refered to the FinalEpoch.
             %          - (U_B) A 3 x N matrix of target barycentric
@@ -1515,9 +1516,9 @@ classdef OrbitalEl < Base
                 Args.TimeScale       = 'TDB';
                 Args.INPOP           = [];
                 Args.Tol             = 1e-8;
-                Args.TolInt          = 1e-10;
+                Args.TolInt          = 1e-8;
             end
-           Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
+            Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
             
             % check that all initial epochs are the same
             StartEpoch = unique(Obj.Epoch);
@@ -1635,7 +1636,7 @@ classdef OrbitalEl < Base
     end
 
     methods % ephemerides
-        function [Result, Names] = searchMinorPlanetsNearPosition(Obj, JD, RA, Dec, SearchRadius, Args)
+        function [Result] = searchMinorPlanetsNearPosition(Obj, JD, RA, Dec, SearchRadius, Args)
             % Search all minor planets/comets near position on a specific date.
             %   Given an OrbitalEl object with multiple elements, in which
             %   each elements contains vectors of multiple orbital
@@ -1658,47 +1659,76 @@ classdef OrbitalEl < Base
             %            'CooUnits' - Search coordinate units.
             %                   Default is 'deg'.
             %            'MagLimit' - Magnitude limit. Default is Inf.
+            %            'INPOP' - A populated celestial.INPOP object.
+            %                   If empty then will be generated.
+            %                   Default is [].
+            %
             %            'GeoPos' - Geodetic position of the observer (on
             %                   Earth). [Lon (rad), Lat (rad), Height (m)].
             %                   If empty, then calculate geocentric
             %                   positions. Default is [].
             %            'RefEllipsoid' - Reference ellipsoid for the
             %                   geodetic positions. Default is 'WGS84'.
-            %            'OutUnitsDeg' - A logical indicating if the output
-            %                   objects coordinates are in degrees (true)
-            %                   or radians (false). Default is true.
+            %
+            %            'ConeSearch' - A logical indicating if to refine
+            %                   the final search and to list only bodies
+            %                   within the search radius. Otherwise will
+            %                   return all sources found in the intial
+            %                   search + buffer.
+            %                   Default is false.
             %            'coneSearchArgs' - A cell array of additional
             %                   arguments to pass to imProc.match.coneSearch
             %                   Default is {}.
-            %            'AddDesignation' - A logical indicating if to add
-            %                   the asteroid designation (in the last
-            %                   column) to the output.
-            %                   If true, then the output will be in a
-            %                   format of table instead of a matrix.
-            %                   Default is true.
             %            'QuickSearchBuffer' - In the first iteration the
             %                   search radius is increased by this amount.
             %                   Default is 500 (units given by the
             %                   'SearchBufferUnits' key/val).
             %            'SearchBufferUnits' - Units of
             %                   'QuickSearchBuffer'. Default is 'arcsec'.
+            %
             %            'Integration' - A logical indicating if to perform
-            %                   orbital integartion on the objects within the
-            %                   search radius.
-            %                   Default is false.
-            %            'INPOP' - A populated celestial.INPOP object.
-            %                   If empty then will be generated.
-            %                   Default is [].
+            %                   orbital integration, including major bodies
+            %                   perturbations. The integration is done only
+            %                   on bodies found within the search radius + buffer
+            %                   in the first iteration.
+            %                   Default is true.
+            %            
+            %            'TimeScale' - Time scale of JD. 
+            %                   Default is 'TDB'.
+            %            'ObserverEphem' - A matrix contain observer position [au] and velocities [au/d] in
+            %                   Heliocentric equatorial coordinates for each epoch. The columns are [x,y,z,vx,vy,vz]. 
+            %                   If empty, the function will use EarthEphem and GeoPos.
+            %                   In case of size [Nepoch,3], the function assume zero velocity.
+            %                   Defauls is [].
+            %            'Tol' - Tolerance [rad] for solving the Kepler
+            %                   equation. Default is 1e-8.
+            %
+            %            'OutUnitsDeg' - A logical indicating if to list
+            %                   the RA and Dec in degrees. If false list in
+            %                   radians. Default is true.
+            %            'Aberration' - A logical indicating if to include
+            %                   aberration of light. Default is false.
+            %                   Note that for the default (false) the
+            %                   output is in an "astrometric" reference
+            %                   frame (i.e., relative to the stars).
+            %            'IncludeMag' - A logical indicating if to add
+            %                   magnitude to the output table.
+            %                   Default is true.
+            %            'IncludeAngles' - A logical indicating if to
+            %                   include angles. Default is true.
+            %            'IncludeDesignation' - A logical indicatig if to
+            %                   include desigmation.
+            %                   Default is true.
             % Output : - An AstroCatalog object with the ephemerides of the
             %            minor planets / comets found near the search
             %            position. The number of elements are equal to the
             %            number of elements in the input OrbitalEl object.
             %            You can merge the results using AstroTable/merge.
-            %          - A structure array (element per Result element)
-            %            with the selected minor planets 'Number' and 'Designation'.
             % Author : Eran Ofek (Sep 2021)
-            % Example: OrbEl= celestial.OrbitalEl.loadSolarSystem;
-            %          [Result, Names] = searchMinorPlanetsNearPosition(OrbEl, 2451545, 0, 0, 1000)
+            % Example: OrbEl1= celestial.OrbitalEl.loadSolarSystem('num');
+            %          OrbEl1.propagate2commonEpoch;
+            %          IN = celestial.INPOP; IN.populateAll;
+            %          [Result] = searchMinorPlanetsNearPosition(OrbEl1, 2461000, 0, 0, 1000, 'INPOP',IN)
             
 
             arguments
@@ -1706,27 +1736,42 @@ classdef OrbitalEl < Base
                 JD
                 RA
                 Dec
-                SearchRadius             = 1000;
-                Args.SearchRadiusUnits   = 'arcsec';
-                Args.CooUnits            = 'deg';
-                Args.MagLimit            = Inf;
-                Args.GeoPos              = [];
-                Args.RefEllipsoid        = 'WGS84';
-                Args.OutUnitsDeg logical = true;
-                Args.coneSearchArgs cell = {};
-                Args.AddDesignation(1,1) logical = true;
-                Args.QuickSearchBuffer   = 500;    % to be added to SearchRadis (same units).
-                Args.SearchBufferUnits   = 'arcsec';
-                Args.Integration logical = false;
-                Args.INPOP               = [];
+                SearchRadius               = 1000;
+                
+                Args.SearchRadiusUnits     = 'arcsec';
+                Args.CooUnits              = 'deg';
+                
+                Args.MagLimit              = Inf;
+                Args.INPOP                 = [];
+                Args.GeoPos                = [];
+                Args.RefEllipsoid          = 'WGS84';
+
+                
+                Args.ConeSearch logical    = false;
+                Args.coneSearchArgs cell   = {};
+                Args.QuickSearchBuffer     = 500;    % to be added to SearchRadis (same units).
+                Args.SearchBufferUnits     = 'arcsec';
+                
+                Args.Integration logical   = true;
+                
+                Args.TimeScale             = 'TDB';
+                Args.ObserverEphem         = [];
+                
+                Args.Tol                   = 1e-8;
+                Args.TolInt                = 1e-8;
+                
+                Args.OutType               = 'AstroCatalog';
+                Args.OutUnitsDeg logical   = true;
+                Args.IncludeMag logical    = true;
+                Args.IncludeAngles logical = true;
+                Args.IncludeDesignation logical = true;
+                
             end
             
-            SearchRadiusRAD      = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
-            QuickSearchBufferRAD = convert.angular(Args.SearchBufferUnits, 'rad', Args.QuickSearchBuffer);
-            
-            RA  = convert.angular(Args.CooUnits,'rad', RA);
-            Dec = convert.angular(Args.CooUnits,'rad', Dec);
-            
+            if isempty(Args.INPOP)
+                Args.INPOP = celestial.INPOP;
+                Args.INPOP.populateAll;
+            end
             
             if isinf(Args.MagLimit)
                 IncludeMag = false;
@@ -1734,26 +1779,49 @@ classdef OrbitalEl < Base
                 IncludeMag = true;
             end
             
+            SearchRadiusRAD      = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
+            QuickSearchBufferRAD = convert.angular(Args.SearchBufferUnits, 'rad', Args.QuickSearchBuffer);
+            
+            RA  = convert.angular(Args.CooUnits,'rad', RA);
+            Dec = convert.angular(Args.CooUnits,'rad', Dec);
+                        
             ObjNew = Obj.copy();
-            
+
             Nobj = numel(ObjNew);
-            
             % quick and dirty
             for Iobj=1:1:Nobj
-                Cat    = ephem(ObjNew(Iobj), JD, 'GeoPos',[], 'MaxIterLT',1,...
-                                                 'IncludeMag',IncludeMag, 'OutUnitsDeg',false,...
-                                                 'OutType','mat', 'AddDesignation',false,...
-                                                 'INPOP',Args.INPOP);
+                [Cat,ColNames] = celestial.ephem.ephemKepler(Obj(Iobj), JD, 'INPOP',Args.INPOP,...
+                                                                  'GeoPos',Args.GeoPos,...
+                                                                  'RefEllipsoid',Args.RefEllipsoid,...
+                                                                  'MaxIterLT',1,...
+                                                                  'TimeScale',Args.TimeScale,...
+                                                                  'ObserverEphem',Args.ObserverEphem,...
+                                                                  'Tol',Args.Tol,...
+                                                                  'OutType','mat',...
+                                                                  'Aberration',false,...
+                                                                  'OutUnitsDeg',false,...
+                                                                  'IncludeMag',IncludeMag,...
+                                                                  'IncludeAngles',IncludeMag,...
+                                                                  'IncludeDesignation',false);
+                                                                   
+               
+                % Column indices
+                ColRA  = find(strcmp(ColNames,'RA'));
+                ColDec = find(strcmp(ColNames,'Dec'));
+                ColMag = find(strcmp(ColNames,'Mag'));
                 
-                Dist   = celestial.coo.sphere_dist_fast(RA, Dec, Cat(:,2), Cat(:,3));
+                Dist   = celestial.coo.sphere_dist_fast(RA, Dec, Cat(:,ColRA), Cat(:,ColDec));
                 
                 % within search radius and MagLimit
                 % RA - col 2
                 % Dec - col 3
                 % Mag - col 8
-                Flag   = Dist<(SearchRadiusRAD + QuickSearchBufferRAD) & (Cat(:,8)<Args.MagLimit | isnan(Cat(:,8)));
+                Flag   = Dist<(SearchRadiusRAD + QuickSearchBufferRAD);
+                if IncludeMag
+                    Flag = Flag & Cat(:,ColMag)<Args.MagLimit;
+                end
             
-                ObjNew(Iobj).selectFlag(Flag);
+                selectFlag(ObjNew(Iobj), Flag, false);
             end
             
             % accurate search on selected sample:
@@ -1762,33 +1830,53 @@ classdef OrbitalEl < Base
                 if  numEl(ObjNew(Iobj))==0
                     Flag = [];
                 else
-                    Result(Iobj) = ephem(ObjNew(Iobj), JD, 'GeoPos',Args.GeoPos,...
-                                                  'RefEllipsoid',Args.RefEllipsoid,...
-                                                  'OutUnitsDeg',false,...
-                                                  'AddDesignation',Args.AddDesignation,...
-                                                  'OutUnitsDeg',Args.OutUnitsDeg,...
-                                                  'INPOP',Args.INPOP);
-                                              
-                                              %    'Integration',Args.Integration);
-
-
-                    [Result(Iobj), Flag] = imProc.match.coneSearch(Result(Iobj), [RA, Dec], 'CooType','sphere',...
+                    if Args.Integration
+                        % ise orbital integration
+                        Result(Iobj) = celestial.ephem.ephemMultiObj(ObjNew(Iobj), JD, 'INPOP',Args.INPOP,...
+                                                       'Integration',true,...
+                                                       'IntegrationLT',false,...
+                                                       'GeoPos',Args.GeoPos,...
+                                                       'RefEllipsoid',Args.RefEllipsoid,...
+                                                       'MaxIterLT',2,...
+                                                       'TimeScale',Args.TimeScale,...
+                                                       'ObserverEphem',Args.ObserverEphem,...
+                                                       'Tol',Args.Tol,...
+                                                       'TolInt',Args.TolInt,...
+                                                       'OutType',Args.OutType,...
+                                                       'Aberration',false,...
+                                                       'OutUnitsDeg',Args.OutUnitsDeg,...
+                                                       'IncludeMag',Args.IncludeMag,...
+                                                       'IncludeAngles',Args.IncludeAngles,...
+                                                       'IncludeDesignation',Args.IncludeDesignation);
+                    else
+                        % use kepler equation
+                        [Result(Iobj)] = celestial.ephem.ephemKepler(ObjNew(Iobj), JD, 'INPOP',Args.INPOP,...
+                                                                  'GeoPos',Args.GeoPos,...
+                                                                  'RefEllipsoid',Args.RefEllipsoid,...
+                                                                  'MaxIterLT',2,...
+                                                                  'TimeScale',Args.TimeScale,...
+                                                                  'ObserverEphem',Args.ObserverEphem,...
+                                                                  'Tol',Args.Tol,...
+                                                                  'OutType',Args.OutType,...
+                                                                  'Aberration',false,...
+                                                                  'OutUnitsDeg',Args.OutUnitsDeg,...
+                                                                  'IncludeMag',Args.IncludeMag,...
+                                                                  'IncludeAngles',Args.IncludeAngles,...
+                                                                  'IncludeDesignation',Args.IncludeDesignation);
+                                                                   
+                        
+                    end                           
+               
+                    if Args.ConeSearch
+                        [Result(Iobj), Flag] = imProc.match.coneSearch(Result(Iobj), [RA, Dec], 'CooType','sphere',...
                                                       'Radius',SearchRadiusRAD,...
                                                       'RadiusUnits','rad',...
                                                       'CooUnits','rad',...
                                                       'CreateNewObj',false,...
                                                       Args.coneSearchArgs{:});
+                    end
                 end
-                if isempty(ObjNew(Iobj).Number)
-                    Names(Iobj).Number      = nan(sizeCatalog(Result(Iobj)));
-                else
-                    Names(Iobj).Number      = ObjNew(Iobj).Number(Flag);
-                end
-                if isempty(ObjNew(Iobj).Designation)
-                    Names(Iobj).Designation = cell(sizeCatalog(Result(Iobj)));
-                else
-                    Names(Iobj).Designation = ObjNew(Iobj).Designation(Flag);
-                end
+               
             end
                         
                         

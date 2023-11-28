@@ -1,5 +1,5 @@
 function [Result, ObjTime] = ephemMultiObj(Obj, Time, Args)
-    % Generate multiple targets ephmeris for a single epoch by orbital integration.
+    % Generate multiple targets ephemeris for a single epoch by orbital integration.
     %   Given orbital elements of multiple targets with the same
     %   epoch, integrate the position of the targets to the (scalar)
     %   requested time, taking into account planetray
@@ -19,7 +19,64 @@ function [Result, ObjTime] = ephemMultiObj(Obj, Time, Args)
     %            elements to the same epoch.
     %          - Julian day (scalar) of requested ephemeris.
     %          * ...,key,val,...
-    %            '
+    %            'INPOP' - A populated celestial.INPOP object.
+    %                   If empty, will generate one.
+    %            'Integration' - A logical indicating if to use orbital
+    %                   integration in the first iteration (up to the light
+    %                   time correction). Default is true.
+    %            'IntegrationLT' - A logical indicating if to do orbital
+    %                   integration in the light time correction.
+    %                   (Not really needed).
+    %                   Default is false.
+    %
+    %            'GeoPos' - Geodetic position of the observer (on
+    %                   Earth). [Lon (rad), Lat (rad), Height (m)].
+    %                   If empty, then calculate geocentric
+    %                   positions. Default is [].
+    %            'RefEllipsoid' - Reference ellipsoid for the
+    %                   geodetic positions. Default is 'WGS84'.
+    %
+    %            'MaxIterLT' - Maximum numbre of iterations for
+    %                   light-time corrections. Default is 2.
+    %                   1 will force to no ligh-time correction
+    %                   (e.g., for quick calculation).
+    %            'TimeScale' - Time scale of JD. Relevant only if
+    %                   EarthEphem='INPOP'.
+    %                   Default is 'TDB'.
+    %            'ObserverEphem' - A matrix contain observer position [au] and velocities [au/d] in
+    %                   Heliocentric equatorial coordinates for each epoch. The columns are [x,y,z,vx,vy,vz]. 
+    %                   If empty, the function will use EarthEphem and GeoPos.
+    %                   In case of size [Nepoch,3], the function assume zero velocity.
+    %                   Defauls is [].
+    %            'Tol' - Tolerance [rad] for solving the Kepler
+    %                   equation. Default is 1e-8.
+    %            'TolInt' - Tolerance for integration. Default is 1e-8.
+    %
+    %            'OutType' - Output type:
+    %                   'mat' - A matrix output.
+    %                   'AstroCatalog' - An AstroCatalog object.
+    %                   'table' - A table.
+    %            'OrbEl' - An optional celestial.OrbitalEl object.
+    %                   Will be used for the mag calculations.
+    %                   If empty, then exclude mag.
+    %                   Default is [].
+    %
+    %            'OutUnitsDeg' - A logical indicating if to list
+    %                   the RA and Dec in degrees. If false list in
+    %                   radians. Default is true.
+    %            'Aberration' - A logical indicating if to include
+    %                   aberration of light. Default is false.
+    %                   Note that for the default (false) the
+    %                   output is in an "astrometric" reference
+    %                   frame (i.e., relative to the stars).
+    %            'IncludeMag' - A logical indicating if to add
+    %                   magnitude to the output table.
+    %                   Default is true.
+    %            'IncludeAngles' - A logical indicating if to
+    %                   include angles. Default is true.
+    %            'IncludeDesignation' - A logical indicatig if to
+    %                   include desigmation.
+    %                   Default is true.
     % Output : - A table/AstroCatalog/matrix of output ephemeris for the
     %            selected targets.
     %          - A celestial.OrbitalEl object with the propagated orbital
@@ -29,7 +86,7 @@ function [Result, ObjTime] = ephemMultiObj(Obj, Time, Args)
     %          IN=celestial.INPOP;
     %          IN.populateAll;
     %          JD = 2460000;
-    %          Result = ephemMultiObj(OrbEl, JD, 'INPOP',IN)
+    %          Result = celestial.ephem.ephemMultiObj(OrbEl, JD, 'INPOP',IN)
     %          % compare to JPL
     %          [T] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','OBSERVER','TimeScale','TT','StartTime',JD,'StopTime',JD+0.5); 
     %          [(Result.Catalog.Dec(1)-T.Dec(1)), (Result.Catalog.RA(1)-T.RA(1))].*3600
@@ -48,7 +105,7 @@ function [Result, ObjTime] = ephemMultiObj(Obj, Time, Args)
         Args.TimeScale               = 'TDB';
         Args.ObserverEphem           = [];
         Args.Tol                     = 1e-8;
-        Args.TolInt                  = 1e-10;
+        Args.TolInt                  = 1e-8;
 
         Args.OutType               = 'AstroCatalog'; % 'mat'|'astrocatalog'|'table'
         Args.Aberration logical    = false;
