@@ -264,7 +264,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         % PSF phot for single images
         Args.SingleImAddPSF logical                   = true;
-        Args.SingleImconstructPSFArgs cell            = {'CropByQuantile',true,'Quantile',0.999};
+        Args.SingleImconstructPSFArgs cell            = {}; % {'CropByQuantile',true,'Quantile',0.999};
         Args.SingleImPsfPhot logical                  = true;
 
         % save products
