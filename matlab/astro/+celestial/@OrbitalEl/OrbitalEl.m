@@ -309,13 +309,22 @@ classdef OrbitalEl < Base
                     end
                 else
                     % insert in specific positions
-                    if isempty(Obj.(FN{Ifn})) || size(Obj.(FN{Ifn}), 1)==1 || isempty(NewObj.(FN{Ifn}))
+                    %if isempty(Obj.(FN{Ifn})) || size(Obj.(FN{Ifn}), 1)==1 || isempty(NewObj.(FN{Ifn}))
+                    if isempty(Obj.(FN{Ifn})) || isempty(NewObj.(FN{Ifn}))
                         % skip
                     else
-                        if size(NewObj.(FN{Ifn}), 1)==1
-                            Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn});
+%                         if size(NewObj.(FN{Ifn}), 1)==1
+%                             Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn});
+%                         else
+%                             Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn})(IndNew,:);
+                        if (numel( NewObj.(FN{Ifn}) )==1 &&  numel(IndNew)>1)
+                            Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn})(1,:);
                         else
-                            Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn})(IndNew,:);
+                            if ischar(NewObj.(FN{Ifn}))
+                                Result.(FN{Ifn}) = NewObj.(FN{Ifn});
+                            else
+                                Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn})(IndNew,:);
+                            end
                         end
                     end
                 end
@@ -1624,6 +1633,7 @@ classdef OrbitalEl < Base
             end
 
             for IunEpoch=1:1:NunEpoch
+                %[IunEpoch, NunEpoch, SumUn(IunEpoch)]
                 ObjUn = selectFlag(Obj, FlagUn{IunEpoch}, true);
                 if UniqueEpochs(IunEpoch)==CommonEpoch
                     % skip - no need to integrate
