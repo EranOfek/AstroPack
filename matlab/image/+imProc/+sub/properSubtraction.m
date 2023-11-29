@@ -243,7 +243,7 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
                                                                                
 
         if Args.CalcTranslient
-            [ImageZ2,Zhat,Norm] = imUtil.properSub.translient(N.*Fn, R.*Fr, Pn, Pr, SigmaN, SigmaR);
+            [ImageZ2,Zhat,Norm] = imUtil.properSub.translient(N, R, Pn, Pr, SigmaN, SigmaR);
             % move this to the translient code
             ImageZ2(FlagNaN) = NaN;
     
