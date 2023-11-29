@@ -64,7 +64,7 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
 
         Args.Eps                      = 0;
 
-        Args.NormalizeZ2(1,1) logical = false;
+        Args.NormalizeZ2(1,1) logical = true;
     end
 
 
@@ -97,7 +97,8 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     end
 
 
-    [Z2Prefactors,Norm] = imUtil.properSub.translientAuxiliary(Pnhat, Prhat, SigmaN, SigmaR, 'IsPsfFFT',true,'Eps',Args.Eps);
+    [Z2Prefactors,Norm] = imUtil.properSub.translientAuxiliary(Pnhat, Prhat, ...
+        SigmaN, SigmaR, 'IsPsfFFT',true,'Eps',Args.Eps);
     
     Zhat = Z2Prefactors.*(Pnhat.*Rhat - Prhat.*Nhat);
 
@@ -107,6 +108,8 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
 
     if Args.NormalizeZ2
         Z2 = Z2./Norm;
+        Z2 = Z2 - median(Z2, [1 2], 'omitnan');
+        Z2 = Z2./tools.math.stat.rstd(Z2, [1 2]);
     end
          
 end

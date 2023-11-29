@@ -1,4 +1,4 @@
-function [Scorr, S, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, SdeltaR] = subtractionScorr(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
+function [Scorr, S, S2, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, SdeltaR] = subtractionScorr(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
     % Return the S_corr, S, D subtraction images (proper subtraction)
     %   The function can deal with cube inputs in which the image index is
     %   in the 3rd dimension.
@@ -152,6 +152,7 @@ function [Scorr, S, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, SdeltaR] =
     end
     
     Scorr = S./sqrt(Vcorr + Vast);
+    S2 = S.^2;
     
     if ~isempty(Args.SetToNaN)
         Scorr(Args.SetToNaN) = NaN;
@@ -166,10 +167,13 @@ function [Scorr, S, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, SdeltaR] =
         D = D./Fd;
     end
     
-    % normalize S and Scorr
+    % normalize S, S2 and Scorr
     if Args.NormS
         Scorr = Scorr - median(Scorr, [1 2], 'omitnan');
         Scorr = Scorr./tools.math.stat.rstd(Scorr, [1 2]);
+
+        S2 = S2 - median(S2, [1 2], 'omitnan');
+        S2 = S2./tools.math.stat.rstd(S2, [1 2]);    
     end
     
 end
