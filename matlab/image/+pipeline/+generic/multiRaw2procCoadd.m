@@ -131,7 +131,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
 %         Args.CoaddMatchMergedCat logical      = true;
 %         Args.MergedMatchMergedCat logical     = true;
 %         
-%         Args.mergeCatalogsArgs cell           = {};
+%         Args.mergeCatalogsArgs cell           = {}; 
 %         
 %         Args.ReturnRegisteredAllSI logical    = true;  % use true if you want the return AllSI to be registered versions. If you don't care use true (should be faster/less mem)
 %         
@@ -264,7 +264,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         % PSF phot for single images
         Args.SingleImAddPSF logical                   = true;
-        Args.SingleImconstructPSFArgs cell            = {};
+        Args.SingleImconstructPSFArgs cell            = {}; % {'CropByQuantile',true,'Quantile',0.999};
         Args.SingleImPsfPhot logical                  = true;
 
         % save products

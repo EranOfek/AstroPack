@@ -153,7 +153,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.GeoPos                           = [];
         
         Args.AddPSF logical                   = false;
-        Args.constructPSFArgs cell            = {};
+        Args.constructPSFArgs cell            = {}; % can be, e.g. {'CropByQuantile',true,'Quantile',0.999}; 
         Args.PsfPhot logical                  = false;
         
         Args.SaveFileName                     = [];  % full path or ImagePath object
@@ -332,8 +332,9 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         % Estimate PSF
         if Args.AddPSF
             [SI] = imProc.psf.constructPSF(SI, Args.constructPSFArgs{:});
+%             [SI] = imProc.psf.populatePSF(SI, Args.constructPSFArgs{:}); 
             % add PSF FWHM to header
-            imProc.psf.fwhm(SI);
+            imProc.psf.fwhm(SI); 
 
             if Args.PsfPhot
                 % PSF photometry
