@@ -131,7 +131,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
 %         Args.CoaddMatchMergedCat logical      = true;
 %         Args.MergedMatchMergedCat logical     = true;
 %         
-%         Args.mergeCatalogsArgs cell           = {};
+%         Args.mergeCatalogsArgs cell           = {}; 
 %         
 %         Args.ReturnRegisteredAllSI logical    = true;  % use true if you want the return AllSI to be registered versions. If you don't care use true (should be faster/less mem)
 %         
@@ -264,7 +264,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         % PSF phot for single images
         Args.SingleImAddPSF logical                   = true;
-        Args.SingleImconstructPSFArgs cell            = {};
+        Args.SingleImconstructPSFArgs cell            = {}; % {'CropByQuantile',true,'Quantile',0.999};
         Args.SingleImPsfPhot logical                  = true;
 
         % save products
@@ -419,6 +419,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             
         end
        
+        io.msgLog(LogLevel.Info, 'multiRaw2procCoadd: image %d of %d processed: %s', ...
+                  Iim, Nim,AI(Iim).getStructKey('FILENAME').FILENAME);
+        
         if Iim==1
             % alocate AstroImage for all sub images
             Nsub  = numel(SI);
@@ -482,6 +485,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     % coadd the sub images of each field
     % generate a mask and a catalog for each coadd image
     % generate a PSF for each field.
+    
+    io.msgLog(LogLevel.Info, 'multiRaw2procCoadd: started coadding the sub images');
     
     [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd] = pipeline.generic.procMergeCoadd(AllSI,...
                                                                                              'mergeCatalogsArgs',Args.mergeCatalogsArgs,...

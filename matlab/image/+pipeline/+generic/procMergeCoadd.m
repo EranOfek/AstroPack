@@ -130,7 +130,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         %%% FFU: in order for this to work the PreAllocCube must be an handle object...
         PreAllocCube = []; %ImageComponent({zeros(Nepoch, SizeSI(1), SizeSJ(1), 'like',AllSI(1).Image)});
     else
-        PreAllocCube = [];
+        PreAllocCube = []; 
     end
         
     ResultCoadd = struct('ShiftX',cell(Nfields,1),...
@@ -141,6 +141,9 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                          'PhotCat',cell(Nfields,1)); % ini ResultCoadd struct
     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
     for Ifields=1:1:Nfields
+        
+        io.msgLog(LogLevel.Info, 'procMergeCoadd: coadding field %d',Ifields);
+        
         if FlagGoodAstrometry(Ifields)
             ResultCoadd(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.(Args.ColX),1,1), 2, 'omitnan');
             ResultCoadd(Ifields).ShiftY = median(diff(MatchedS(Ifields).Data.(Args.ColY),1,1), 2, 'omitnan');
@@ -152,7 +155,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
 
             % Remove Images with high background
             if ~isempty(Args.HighBackNsigma)
-                MedBack = imProc.stat.median(AllSI(:,Ifields));
+                MedBack = imProc.stat.medianSparse(AllSI(:,Ifields));
                 FlagGoodBack = MedBack < (median(MedBack) + Args.HighBackNsigma.*tools.math.stat.rstd(MedBack));
 
                 FlagGood = FlagGoodWCS & FlagGoodBack;
@@ -237,6 +240,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
 
             % Estimate PSF
             [Coadd(Ifields), Summary] = imProc.psf.constructPSF(Coadd(Ifields), Args.constructPSFArgs{:},'TypePSF',@single);
+%             [Coadd(Ifields), Summary] = imProc.psf.populatePSF(Coadd(Ifields), Args.constructPSFArgs{:},'DataType',@single);
 
 
             % PSF photometry

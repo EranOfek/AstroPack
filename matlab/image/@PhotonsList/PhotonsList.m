@@ -236,7 +236,7 @@ classdef PhotonsList < Component
                 case 'chandra'
                     % Chandra
                     Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT, 'Num1',11,'Num2',12);
-                case 'XRT'
+                case 'xrt'
                     % Swift-XRT
                     Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT, 'Num1',2,'Num2',3);
                 otherwise
@@ -329,6 +329,9 @@ classdef PhotonsList < Component
             %            'NperBin' - Mean number of points per bin that
             %                   will be used to estimate the bin size.
             %                   Default is 100.
+            %            'MinTimeBin' - If 'NperBin' is used and it results
+            %                   in time bin shorter than this value, then the time
+            %                   bin will be adjusted to be equal to this value.
             %            'TimeBin' - Time bin. If not empty this will override
             %                   the 'NperBin' argument. Default is [].
             %            'MeanFun' - A function handle that will be used to
@@ -349,6 +352,7 @@ classdef PhotonsList < Component
                 Obj
                 Args.ColTime                   = [];
                 Args.NperBin                   = 100;
+                Args.MinTimeBin                = 30;   % [s]
                 Args.TimeBin                   = [];
                 Args.MeanFun function_handle   = @tools.math.stat.nanmedian;
                 Args.ThresholdSN               = 4;
@@ -370,6 +374,9 @@ classdef PhotonsList < Component
                 if isempty(Args.TimeBin)
                     % use NperBin
                     TimeBin = Args.NperBin .* TimeRange ./Nt;
+                    if TimeBin<Args.MinTimeBin
+                        TimeBin = Args.MinTimeBin;
+                    end
                 else
                     TimeBin = Args.TimeBin;
                 end

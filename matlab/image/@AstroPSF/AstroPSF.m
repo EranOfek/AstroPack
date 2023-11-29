@@ -49,7 +49,7 @@ classdef AstroPSF < Component
     properties (SetAccess = public)
         DataPSF           = [];    % parameters of a PSF-generating function or a data cube, where the first 2 dimensions are the PSF image stamp (X, Y)
         DataVar           = [];    % variance 
-        Oversampling      = [1 1]; % pixel oversampling in X and Y (may be different) 
+        Scale             = [1 1]; % pixel oversampling in X and Y (may be different) 
         FunPSF            = [];    % PSF-generating function, e.g., Map = Fun(Data, X,Y, Color, Flux)
         DimName cell      = {'Wave', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'}; % the standard set of dimensions, but may be changed 
                             % NB: if the names here are changed, the dimension names a user provides to getPSF need to be changed accordingly 
@@ -85,7 +85,9 @@ classdef AstroPSF < Component
             % Output : - An AstroPSF object in which the PSF and variance
             %            are populated.
             % Author : Eran Ofek (May 2022)
-            % Example: P=AstroPSF('ztf_20200207460174_000576_zg_c03_o_q3_diffimgpsf.fits')           
+            % Example: P=AstroPSF('ztf_20200207460174_000576_zg_c03_o_q3_diffimgpsf.fits');  
+            %          P=AstroPSF('Synthetic','gauss','GaussSigma',[3 4 0],'StampSize',[19 19]); 
+            %          P=AstroPSF; % empty structure
             arguments
                 FileName                  = [];
                 Args.HDU                  = 1;
@@ -93,6 +95,14 @@ classdef AstroPSF < Component
                 Args.UseRegExp logical    = false;
                 Args.DataVar              = {};
                 Args.VarHDU               = 1;
+                %
+                Args.Synthetic            = {};
+                Args.StampSize            = [15 15];
+                Args.GaussSigma           = [2 2 0];
+                Args.LorentzianGamma      = 1;
+                Args.CosbellRadii         = [4 7];
+                Args.MoffatAlphaBeta      = [0.5 2];
+                Args.SersicPars           = [2 4 1];                
             end
             
             if ischar(FileName)
@@ -144,6 +154,30 @@ classdef AstroPSF < Component
                 end % end if isempty...
             end % end for Ifield
             
+            if ~isempty(Args.Synthetic) % fill in the DataPSF property with a synthetic kernel                
+                if numel(Args.StampSize) < 2
+                    Args.StampSize = [Args.StampSize Args.StampSize];
+                end
+                switch lower(Args.Synthetic)
+                    case 'gauss'
+                        Obj.DataPSF = imUtil.kernel2.gauss(Args.GaussSigma, Args.StampSize);
+                    case 'cosbell'
+                        Obj.DataPSF = imUtil.kernel2.cosbell(Args.CosbellRadii, Args.StampSize);
+                    case 'lorentzian'
+                        Obj.DataPSF = imUtil.kernel2.lorentzian(Args.LorentzianGamma, Args.StampSize);
+                    case 'lorenzian'
+                        Obj.DataPSF = imUtil.kernel2.lorentzian(Args.LorentzianGamma, Args.StampSize);
+                    case 'moffat'
+                        Obj.DataPSF = imUtil.kernel2.moffat(Args.MoffatAlphaBeta, Args.StampSize);
+                    case 'sersic' 
+                        Obj.DataPSF = imUtil.kernel2.sersic(Args.SersicPars, Args.StampSize);
+                    case 'box'
+                        Obj.DataPSF = imUtil.kernel2.box(Args.StampSize);
+                    otherwise
+                        error('The input synthetic kernel type is not supported');
+                end
+            end
+            
         end
         
     end
@@ -175,6 +209,7 @@ classdef AstroPSF < Component
     methods % generating PSF stamp 
         
         function [Result, Res] = getPSF(Obj, Args)
+<<<<<<< HEAD
             % get PSF from an AstroPSF object
             % Input : - An AstroPSF object (or a matrix of objects) 
             %         * ...,key,val,...
@@ -189,6 +224,29 @@ classdef AstroPSF < Component
             %         'InterpMethod' - interpolation method (may be a vector, different methods for each dimension)
             %         'Oversampling' - resample the output stamp if required
             %         'ReNorm'    - whether to renormalize the PSF stamp
+=======
+            % get a PSF stamp (or a matrix of stamps) from an AstroPSF object
+            % The position(s) of the desired stamp(s) in the multi-D space of Obj.DataPSF
+            % is determined or by the input coordinates from Args.PsfArgs
+            % or the mean values of the object's DimVals are taken for each
+            % of the dimensions. The Obj.DataPSF cube is interpolated to
+            % the requested positions according to the Args.InterpMethod method(s)
+            %
+            % Input : - An AstroPSF object (or a matrix of objects) 
+            %         * ...,key,val,...
+            %         'FunPSF' - a PSF-generating function handle
+            %         'StampSize' - an option to pad the PSF stamp 
+            %         'fftpshift' - if padding is requested, whether to perform fft shift: 
+            %                       'none' (default),'fftshift','ifftshift'
+            %         'PsfArgs'   - desired position of the stamp in the multi-D space of PSF.DataPSF:
+            %                       a cell array of values (or value vectors) corresponding 
+            %                       to each of the dimensions of PSF.DataPSF 
+            %                       NB: the dynamic dimension names are stored in the DimName cell array
+            %         'FunArgs'   - optinal arguments to pass to FunPSF
+            %         'InterpMethod' - interpolation method (may be a cell array with different methods for each dimension)
+            %         'Oversampling' - resample the output stamp to this value (if not empty) 
+            %         'ReNorm'       - whether to renormalize the output PSF stamp
+>>>>>>> dev1
             %         'ReNormMethod' - 'int' or 'rms' 
             % Output : - a 2D PSF stamp (X, Y) or a stack of stamps if a vector of objects or parameters is put in 
             % Author : Eran Ofek, A.M. Krassilchtchikov (Oct 2023)
@@ -230,7 +288,11 @@ classdef AstroPSF < Component
                     IntMeth = Obj(IObj).InterpMethod;
                 end
                 
+<<<<<<< HEAD
                 if isempty(Args.FunPSF) % treat PSF is a multidimentional image stamp
+=======
+                if isempty(Args.FunPSF) % treat PSF as a multidimentional image stamp
+>>>>>>> dev1
                     Ndim = ndims(Obj(IObj).DataPSF)-2; % the number of additional data dimensions in the object
                     if Ndim == 0 % no additional dimensions, just copy the 2D matrix
                         Result = Obj(IObj).DataPSF;
@@ -269,7 +331,11 @@ classdef AstroPSF < Component
                 % resample the output PSF stamp 
                 if ~isempty(Args.Oversampling)
                     % will renorm at the next step, so do not need to renorm once more here
+<<<<<<< HEAD
                     Result = imUtil.psf.oversampling(Result, Obj(IObj).Oversampling, Args.Oversampling, 'ReNorm', false);
+=======
+                    Result = imUtil.psf.oversampling(Result, Obj(IObj).Scale, Args.Oversampling, 'ReNorm', false);
+>>>>>>> dev1
                 end
                 % normalize the stamp 
                 if Args.ReNorm
@@ -307,7 +373,11 @@ classdef AstroPSF < Component
                 Args.Pos   = {}; % additional arguments to pass to getPSF, e.g., position: {'PosX',2,'PosY',3} 
             end
             
+<<<<<<< HEAD
             Tiny = 1e-30;
+=======
+            Tiny = 1e-30; 
+>>>>>>> dev1
             
             Ind = find( strcmpi( Args.Axis, Obj.DimName ), 1);      % find the required axis in the object's dimensions
             if isempty(Ind)
@@ -841,7 +911,11 @@ classdef AstroPSF < Component
         end
 
         function Obj = normPSF(Obj,Args)
+<<<<<<< HEAD
             % Normalize PSFs such there sum will be 1.
+=======
+            % Normalize a PSF so that its sum is 1
+>>>>>>> dev1
             % Input  : - An AstroPSF object
             %        * ...,key,val,... 
             %        'ReNormMethod' - 'int' -- normalize to the sum of pixel values; 'rms' -- normalize to rms
@@ -884,8 +958,13 @@ classdef AstroPSF < Component
                 else
                     Fx = 1;                   Fy = 1;
                 end
+<<<<<<< HEAD
                 Obj(Iobj).Oversampling(1)  = Obj(Iobj).Oversampling(1) * Fx; 
                 Obj(Iobj).Oversampling(2)  = Obj(Iobj).Oversampling(2) * Fy; 
+=======
+                Obj(Iobj).Scale(1)  = Obj(Iobj).Scale(1) * Fx; 
+                Obj(Iobj).Scale(2)  = Obj(Iobj).Scale(2) * Fy; 
+>>>>>>> dev1
             end
             
         end

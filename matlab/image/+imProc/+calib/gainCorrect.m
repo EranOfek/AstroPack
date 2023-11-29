@@ -6,7 +6,7 @@ function Result = gainCorrect(Obj, Gain, Args)
     %            Units are electrons/ADU.
     %            Default is 'GAIN';
     %          * ...,key,val,...
-    %            'CreateNewObj' - [], true, false. Default is [].
+    %            'CreateNewObj' - Default is false.
     %            'getValArgs' - A cell array of additional arguments to
     %                   pass to AstroHeader/getVal. Default is {}.
     %            'DataProp' - AstroImage data properties which to divide by
@@ -28,7 +28,7 @@ function Result = gainCorrect(Obj, Gain, Args)
     arguments
         Obj
         Gain                      = 'GAIN';  % keyword, scalar, vector [e/ADU]
-        Args.CreateNewObj         = [];
+        Args.CreateNewObj logical = false;
         Args.getValArgs cell      = {};
         Args.DataProp             = {'Image','Var','Back'};
         Args.replaceValArgs cell  = {};
@@ -37,7 +37,12 @@ function Result = gainCorrect(Obj, Gain, Args)
     end
     DefGainKey = 'GAIN';
     
-    [Result, Args.CreateNewObj] = createNewObj(Obj, Args.CreateNewObj, nargout);
+    %[Result, Args.CreateNewObj] = createNewObj(Obj, Args.CreateNewObj, nargout);
+    if Args.CreateNewObj
+        Result = Obj.copy;
+    else
+        Result = Obj;
+    end
     
     Ngain = numel(Gain);
     Nprop = numel(Args.DataProp);

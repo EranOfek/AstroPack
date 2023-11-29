@@ -1,6 +1,5 @@
 function Var = load2(MatFile,varargin)
     % Load a mat file into a variable
-    % Package: Util.IO
     % Description: load a mat file containing a single variable to a variable
     %              name (rather than a structure, like load.m).
     %              If multiple variables are returned then will behave like
@@ -13,9 +12,9 @@ function Var = load2(MatFile,varargin)
     %    URL : http://weizmann.ac.il/home/eofek/matlab/
     % Reliable: 2
 
-    % @Deploy - Use singleton file mapper to locate the file
-    io.msgLog(LogLevel.Debug, 'load2: %s', MatFile);
+    % @Deploy - Use singleton file mapper to locate the file     
     if isdeployed
+        io.msgLog(LogLevel.Debug, 'load2: %s', MatFile);
         if ~isfile(MatFile)        
             MatFile = fileMapFind(MatFile);
         end

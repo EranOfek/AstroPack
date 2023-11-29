@@ -662,12 +662,19 @@ classdef AstroImage < Component
         end
         
         function Result = readFileNamesObj(ObjFN, Args)
-            % Read images contained in a FileNames object into an AstroImage object.
+            % Read the images and products associated with an image contained in a FileNames object into an AstroImage object.
             %   Optionally read not only the image but also additional
             %   products (e.g., 'Cat','PSF').
-            % Input  : - A single element FileNames object from which file names can be
+            % Input  : - A single element FileNames object (that may contain
+            %            multiple file names) from which file names can be
             %            generated, or a file name with optional wild cards,
             %            or a cell array of file names.
+            %            If the 'AddProduct' is empty, then just read the
+            %            specified files into an AstroImage.
+            %            However, if the 'AddProduct' is not empty, then in
+            %            addition to the specifoed files, will locate the
+            %            other data products associated with the image and
+            %            upload them into the AstroImage.
             %          * ...,key,val,...
             %            'Path' - A path for the files. If given then will
             %                   override the genPath method.
@@ -682,8 +689,13 @@ classdef AstroImage < Component
             % Output : - An AstroImage object with the images and other
             %            data products.
             % Author : Eran Ofek (Jan 2023)
-            % Example: 
-            
+            % Example: % load the image specified in the file name along
+            %          % with the requested data products to an AstroImage
+            %          AI=AstroImage.readFileNamesObj('LAST.00.01.01_20220303.224914.224_clear__001_001_001_sci_proc_Image_1.fits');
+            %          % the same for a FileNames object
+            %          AI=AstroImage.readFileNamesObj(FN); 
+            %          % or read only the specified file
+            %          AI=AstroImage.readFileNamesObj(FN, 'AddProduct',{}); 
             arguments
                 ObjFN
                 Args.Path                     = [];

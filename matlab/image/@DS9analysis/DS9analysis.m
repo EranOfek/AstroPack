@@ -124,7 +124,7 @@ classdef DS9analysis < handle
             % Input  : - Self.
             %          - An AstroImage object, or a cell array of images,
             %            or a file name.
-            %            THe images will be loaded to frame 1..N according
+            %            The images will be loaded to frame 1..N according
             %            to their order.
             %          * ...,key,val,...
             %            'Frames' - A vector of frames into to load the
@@ -140,6 +140,8 @@ classdef DS9analysis < handle
             %                   accessed by names. Default is {}.
             %            'Disp' - A logical indicating if to display the
             %                   images. Default is true.
+            %            'Zoom' - zoom parameter for display.
+            %                   If empty, do nothing. Default is [].
             % Output : - An updated object.
             % Author : Eran Ofek (Jun 2023)
             % Example: D9.load([AIreg(2), AIreg(1), Scorr],'Names',{'N','R','Scorr'})
@@ -152,6 +154,7 @@ classdef DS9analysis < handle
                 Args.LikeLAST logical    = true;
                 Args.Names               = {};
                 Args.Disp logical        = true;
+                Args.Zoom                = [];
             end
 
             if isa(Image, 'AstroImage')
@@ -187,6 +190,9 @@ classdef DS9analysis < handle
             if Args.Disp
                 for Iim=1:1:Nim
                     ds9.disp(Obj.Images(Iim), Frames(Iim));
+                    if ~isempty(Args.Zoom)
+                        ds9.zoom(Args.Zoom);
+                    end
                 end
             end
 
@@ -278,6 +284,112 @@ classdef DS9analysis < handle
         % 
         % goto: next | prev | first | last | ind
         
+    end
+
+    methods % asteroids/moving sources
+        function [AstData,AstTable,ReportMPC]=blinkAstCrop(Obj, AstData, Args)
+            % Display AstCrop
+            % Example: D9=DS9analysis;
+            %          [AstData,AstTable,ReportMPC] = D9.blinkAstCrop;
+            %          [AstData,AstTable,ReportMPC] = D9.blinkAstCrop(AstData,'Id',2);
+
+            arguments
+                Obj
+                AstData = [];
+                Args.Id          = 1;
+                Args.StampsStep  = [];
+                Args.AstFileTemp = '*merged_Asteroids*.mat';
+                Args.Zoom        = 8;
+                Args.DispInfo logical = true;
+                Args.ReportType       = 'AllDetections'; %'FittedDetection';
+            end
+
+            if isempty(AstData)
+                % attempt to load Asteroids MAT file
+                Files = dir(Args.AstFileTemp);
+                if numel(Files)>0
+                    AstData = io.files.load2(Files(1).name);
+                else
+                    error('No asteroid file found');
+                end
+            end
+
+            if ischar(AstData)
+                AstData = io.files.load2(Files(1).name);
+            end
+
+            Nast = numel(AstData.AstCrop);
+            if Args.Id>Nast
+                error('Requested Id=%d is > Number of asteroids in file is %d',Args.Id, Nast);
+            end
+
+            Nstamp = numel(AstData.AstCrop(Args.Id).Stamps);
+            if isempty(Args.StampsStep)
+                % show only first and last images
+                StampInd = [1 Nstamp];
+            else
+                StampInd = (1:Args.StampStep:Nstamp);
+            end
+            Obj.load(AstData.AstCrop(Args.Id).Stamps(StampInd), 'Zoom',Args.Zoom);
+            ds9.match_xy;
+
+            % Display information
+            NsrcCat = sizeCatalog(AstData.AstCrop(Args.Id).SelectedCatPM);
+            switch NsrcCat
+                case 0
+                    error('Possible bug: %d sources found in catalog', NsrcCat);
+                case 1
+                    AstSrcId = 1;
+                otherwise
+                    [Dist, PA] = sphere_dist(AstData.AstCrop(Args.Id).SelectedCatPM, AstData.AstCrop(Args.Id).RA, AstData.AstCrop(Args.Id).Dec, 'rad', 'deg');
+                    [MinDist, AstSrcId] = min(Dist);
+                    if MinDist>(5./3600)
+                        error('Possible problem" distance of nearest source to cutout center is too large %f arcsec', MinDist.*3600);
+                    end
+            end
+            
+            AstTable = AstData.AstCrop(Args.Id).SelectedCatPM.toTable;
+            AstTable = AstTable(AstSrcId,:);
+
+            if Args.DispInfo
+                fprintf('SubImage      : %d\n',AstData.AstCrop(Args.Id).FieldIndex);
+                fprintf('RA            : %s\n', celestial.coo.convertdms(AstTable.RA, 'd', 'SH'));
+                fprintf('Dec           : %s\n',celestial.coo.convertdms(AstTable.Dec, 'd', 'SD'));
+                fprintf('Nobs          : %d\n',AstTable.Nobs);
+                fprintf('Noutlier      : %d\n',AstTable.Noutlier);
+                fprintf('PM_RA         : %f [deg/day]\n',AstTable.PM_RA);
+                fprintf('PM_Dec        : %f [deg/day]\n',AstTable.PM_Dec);
+                fprintf('JD_PM         : %15.6f\n',AstTable.JD_PM);
+                fprintf('MAG mean      : %f\n', AstTable.Mean_MAG_PSF);
+                fprintf('MAG range     : %f\n', AstTable.Range_MAG_PSF);
+                fprintf('S/N mean      : %f\n', AstTable.Mean_SN_3);
+                BD = BitDictionary;
+                FlagsName = BD.bitdec2name(AstTable.FLAGS);
+                FlagsName = FlagsName{1};
+                fprintf('FLAGS         :');
+                for I=1:1:numel(FlagsName)
+                    fprintf('  %s', FlagsName{I});
+                end
+                fprintf('\n');
+                fprintf('MergedCat flags : %d\n', AstTable.MergedCatMask);
+                fprintf('PolyDeltaChi2   : %f\n', AstTable.PolyDeltaChi2);
+            end
+
+            % prep MPC report for asteroid
+
+            %
+            switch Args.ReportType
+                case 'AllDetections'
+                    ReportMPC = imProc.asteroids.generateReportMPC(AstData.AstCrop(Args.Id).Stamps, 'RA', AstData.AstCrop(Args.Id).RA, 'Dec', AstData.AstCrop(Args.Id).Dec);
+                case 'FittedDetection'
+                    ReportMPC = imProc.asteroids.generateReportMPC(AstData.AstCrop(Args.Id).SelectedCatPM, 'RA', AstData.AstCrop(Args.Id).RA, 'Dec', AstData.AstCrop(Args.Id).Dec, 'ColMag','Mean_MAG_PSF');
+                otherwise
+                    error('Unknown ReportType option');
+            end
+
+
+        end
+
     end
     
     methods  % basic utilities

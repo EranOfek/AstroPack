@@ -55,6 +55,11 @@ function [Obj,Result]=populatePSF(Obj, Args)
         Args.SmoothWings logical       = true;
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
         Args.SuppressWidth             = 3;
+        
+        Args.DataType                  = []; 
+        
+        Args.CropByQuantile logical    = false;
+        Args.Quantile                  = 0.999;
     end
     
     %Result = [];
@@ -106,11 +111,15 @@ function [Obj,Result]=populatePSF(Obj, Args)
                                                                         'SumMethod',Args.SumMethod,...
                                                                         'SmoothWings',Args.SmoothWings,...
                                                                         'SuppressFun',Args.SuppressFun,...
-                                                                        'SuppressWidth',Args.SuppressWidth);
+                                                                        'SuppressWidth',Args.SuppressWidth,...
+                                                                        'DataType',Args.DataType,...
+                                                                        'CropByQuantile',Args.CropByQuantile,...
+                                                                        'Quantile',Args.Quantile);
                                                                         
             % insert PSF data
             Obj(Iobj).PSFData.Data = MeanPSF;
             Obj(Iobj).PSFData.Var  = VarPSF;
+            Obj(Iobj).PSFData.Nstars = NimPSF;
             
         end
         

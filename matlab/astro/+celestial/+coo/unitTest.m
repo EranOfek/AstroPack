@@ -1,17 +1,9 @@
-% Package Unit-Test
-%
-% ### Requirements:
-%
-%
-%
-
-
 function Result = unitTest()
-    % 
+    % Unit Test for celestial.coo
     
-	io.msgStyle(LogLevel.Test, '@start', 'test started');
+	%io.msgStyle(LogLevel.Test, '@start', 'test started');
     
-    test_sphere_dist_fast();
+    %test_sphere_dist_fast();
     
     RAD = 180/pi;
     % Check conversion for altitude to hour angle, and the inverse.
@@ -76,7 +68,7 @@ function Result = unitTest()
     
     func_unitTest();    
     
-	io.msgStyle(LogLevel.Test, '@passed', 'test passed');
+	%io.msgStyle(LogLevel.Test, '@passed', 'test passed');
 	Result = true;	
 end
 
@@ -85,9 +77,9 @@ end
 
 function Result = func_unitTest()
 	% Function Unit-Test
-	io.msgStyle(LogLevel.Test, '@start', 'test started');
+	%io.msgStyle(LogLevel.Test, '@start', 'test started');
    
-	io.msgStyle(LogLevel.Test, '@passed', 'passed');
+	%io.msgStyle(LogLevel.Test, '@passed', 'passed');
 	Result = true;
 end
 

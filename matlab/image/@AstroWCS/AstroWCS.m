@@ -1407,7 +1407,7 @@ classdef AstroWCS < Component
                     Result(Iobj).CUNIT = AH(Iobj).getCellKey(KeyCunit);
                     Result(Iobj).read_ctype;
                 
-                    if isnumeric(Result(Iobj).CTYPE{1}) && any(isnan(Result(Iobj).CTYPE{1}))
+                    if isempty(Result(Iobj).CTYPE) || (isnumeric(Result(Iobj).CTYPE{1}) && any(isnan(Result(Iobj).CTYPE{1})))
                         Result(Iobj).Success = false;
                     else
                         [Result(Iobj).RADESYS, Result(Iobj).EQUINOX] = Result(Iobj).read_radesys_equinox(AH(Iobj));

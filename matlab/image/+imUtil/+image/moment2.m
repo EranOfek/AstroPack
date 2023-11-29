@@ -110,7 +110,7 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %          [M1,M2,Aper]=imUtil.image.moment2(Image,X,Y);
 %          Matrix = imUtil.kernel2.gauss(2, [31 31]);
 %          [M1,M2,Aper]=imUtil.image.moment2(Matrix,16,16)
-%          [M1,M2,Aper]=imUtil.image.moment2(Matrix,8,8,'WeightFun',@(r) 1)
+%          %[M1,M2,Aper]=imUtil.image.moment2(Matrix,8,8,'WeightFun',@(r) 1)
 %          Cube = imUtil.kernel2.gauss([2;2.1;2.2], [31 31]);
 %          [M1,M2,Aper]=imUtil.image.moment2(Cube,16,16)
 
@@ -220,6 +220,7 @@ else
 end
 % construct a window with maximal radiu
 W_Max = ones(size(MatR2),'like',Image);
+%W_Max = repmat(cast(1, 'like',Image), size(MatR2));  % no speed improvment
 W_Max(MatR2>MomRadius2) = 0;
 
 
@@ -308,7 +309,8 @@ else
         end
 
         % construct a window with maximal radius
-        W_Max = ones(size(MatR2), 'like',Image);
+        %W_Max = ones(size(MatR2), 'like',Image); 
+        W_Max = repmat(cast(1, 'like',Image), size(MatR2));  % much faster
         W_Max(MatR2>MomRadius2) = 0;
 
 

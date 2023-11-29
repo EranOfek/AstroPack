@@ -278,7 +278,7 @@ classdef FileNames < Component
             %            'DoNotExist' - What to do in case a file doesn't
             %                   exist: 'error'|'warnning'
             %                   Default is 'error'.
-            %            'FullPathFtomFileName' - If the user provided file
+            %            'FullPathFromFileName' - If the user provided file
             %                   name contains a path and this argument is
             %                   true, then the FullPath property will be
             %                   populated with the user-provided path.
@@ -298,7 +298,7 @@ classdef FileNames < Component
                 Args.WarningIfEmpty logical       = true;
                 Args.CheckExist logical           = false;
                 Args.DoNotExist                   = 'error';
-                Args.FullPathFtomFileName logical = false;
+                Args.FullPathFromFileName logical = false;
             end
                         
             if ischar(List)
@@ -343,7 +343,7 @@ classdef FileNames < Component
                 %[SplitNameCell] = split(SplitName{1}, filesep);
                 [UserPath, Tmp1,Tmp2] = fileparts(SplitName{1});
                 SplitName{1} = sprintf('%s%s',Tmp1,Tmp2);
-                if Args.FullPathFtomFileName && ~isempty(UserPath)
+                if Args.FullPathFromFileName && ~isempty(UserPath)
                     Obj.FullPath = UserPath;
                 end
                 Obj.ProjName{Ilist} = SplitName{1}; %Cell{end};
@@ -940,7 +940,10 @@ classdef FileNames < Component
             %                   BasePath property. If empty, use object default.
             %                   Default is [].
             %            'FullPath' - A full path to insert into the object
-            %                   FullPath property. If empty, use object default.
+            %                   FullPath property.
+            %                   If FullPath is not empty then it will
+            %                   replace the automatic path construction.
+            %                   If empty, use object default.
             %                   Default is [].
             %            'Product' - See genFile.
             %            'Level' - Level to add to file and path.

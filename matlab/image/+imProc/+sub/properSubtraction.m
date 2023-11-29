@@ -43,16 +43,16 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
     if 1==0
         % Debug code:
 
-        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/171342v1
+        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/171342v2
         AI(1) = AstroImage.readFileNamesObj('LAST.01.02.01_2*010_sci_coadd_Image_1.fits');
 
         %AI(1) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.215545.030_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
 
-        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/172022v1
+        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/172022v2
         AI(2) = AstroImage.readFileNamesObj('LAST.01.02.01_2*010_sci_coadd_Image_1.fits');
         %AI(2) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.214904.914_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
         
-        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/181501v1
+        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/181501v2
         AI(3) = AstroImage.readFileNamesObj('LAST.01.02.01_2*010_sci_coadd_Image_1.fits');
 
         cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/9/
@@ -67,6 +67,9 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
 
         %AIreg=imProc.transIm.imwarp(AI, AI(1), 'FillValues',NaN,'CreateNewObj',true);
         AIreg=imProc.transIm.interp2wcs(AI, AI(1), 'InterpMethod','cubic');
+
+        % shift by 0.1 pix (for testing translient)
+        AIshift = imProc.transIm.imwarp(AIreg, [0.1 0.1])
 
         AIreg= imProc.background.background(AIreg,'SubSizeXY',[]); %[256 256]);  
         AIreg=imProc.sources.findMeasureSources(AIreg);           
@@ -85,8 +88,9 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
         ds9(AIreg(1),1)
         ds9(AIreg(2),2)
 
-        [DD,S,Scorr,Z2,S2, F_S,SdN, SdR] = imProc.sub.properSubtraction(AIreg(3), AIreg(1) ,'HalfSize',[8 8]);
 
+        [DD,S,Scorr,Z2,S2, F_S,SdN, SdR] = imProc.sub.properSubtraction(AIreg(3), AIreg(1) ,'HalfSize',[8 8]);
+        [DDs,Ss,Scorrs,Z2s,S2s, F_Ss,SdNs, SdRs] = imProc.sub.properSubtraction(AIshift(3), AIreg(1) ,'HalfSize',[8 8]);
 
         R=imProc.sources.findTransients(AIreg(3), AIreg(1), DD, S, Scorr, Z2, S2);
     end
@@ -239,7 +243,7 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
                                                                                
 
         if Args.CalcTranslient
-            [ImageZ2,Zhat,Norm] = imUtil.properSub.translient(N.*Fn, R.*Fr, Pn, Pr, SigmaN, SigmaR);
+            [ImageZ2,Zhat,Norm] = imUtil.properSub.translient(N, R, Pn, Pr, SigmaN, SigmaR);
             % move this to the translient code
             ImageZ2(FlagNaN) = NaN;
     

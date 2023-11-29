@@ -9,6 +9,9 @@
 %   Important - do this in the config/local directory, this directory is
 %   private and not distributed in github.
 %   The format for adding password data:
+%   File name should be Passwords.yml
+%   
+%   File content:
 %   e.g.,  
 %       PTF : ['eran', 'palomar', 'eran.ofek@weizmann.ac.il', 'VO.PTF.wget_corrim']
 %   For Project name, user, password, e-mail, functions
@@ -20,6 +23,7 @@
 %   PM = PasswordsManager;
 %   [Result]=PM.search('ptf') 
 %   [Result]=PM.search('VO.PTF.wget_corrim','fun',false)
+%
 
 classdef PasswordsManager < Component
     % Base class for all objects

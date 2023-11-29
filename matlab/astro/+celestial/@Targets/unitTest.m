@@ -19,44 +19,29 @@ function Result = unitTest
     T = celestial.Targets;
     T.generateTargetList('last');
 
-    T=celestial.Targets;
-    T.generateTargetList('last');
-    T.write('try1.mat');
+    T = celestial.Targets.generateTargetList('last');
+    T.write('try1aaa.mat');
+    !rm try1aaa.mat
 
-    T=celestial.Targets;
-    T.generateTargetList('last');
     [Lon, Lat] = T.ecliptic;
 
-    T=celestial.Targets;
-    T.generateTargetList('last');
     [Lon, Lat] = T.galactic;
 
-    T.generateTargetList('last');
     [Sun] = T.sunCoo;
 
-    T.generateTargetList('last');
     [Moon] = T.moonCoo;
 
-    T.generateTargetList('last');
     [MD, Moon] = T.moonDist;
 
-    T.generateTargetList('last');
     [Az, Alt] = T.azalt;
 
-    T.generateTargetList('last');
     [HA, LST] = T.ha;
 
-    T=celestial.Targets;
-    T.generateTargetList('last');
     [VisibilityTime] = leftVisibilityTime(T);
 
-    T=celestial.Targets;
-    T.generateTargetList('last');
     [FlagAll, Flag] = isVisible(T);
 
-    T=celestial.Targets;
-    T.generateTargetList('last');
-    [T, P] = calcPriority(T, 2451545.5, 'west2east');
+    [T, P] = calcPriority(T, 2451545.5, 'cycle');
 
             
     Result = true;

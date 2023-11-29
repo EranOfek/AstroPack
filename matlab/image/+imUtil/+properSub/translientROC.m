@@ -33,15 +33,15 @@ arguments
     Args.Eps        = 0;
 end
 
-M = size(Pn,1);
+[Nrows,Ncols]     = size(Pn);
 
 Pnhat = fft2(Pn);
 Prhat = fft2(Pr);
 
 EtaThr = zeros(2,Args.Nsim);
 
-Noiser = randn(M,M,Args.Nsim);
-Noisen = randn(M,M,Args.Nsim);
+Noiser = randn(Nrows,Ncols,Args.Nsim);
+Noisen = randn(Nrows,Ncols,Args.Nsim);
 %
 for i = 1:Args.Nsim
     R = Noiser(:,:,i);
@@ -53,8 +53,8 @@ Sourcer = Alphar * fftshift(Pr);
 Sourcen = Alphan * fftshift(Pn);
 Sourcen = circshift(Sourcen,DeltaXY);
 
-Noiser = randn(M,M,Args.Nsim);
-Noisen = randn(M,M,Args.Nsim);
+Noiser = randn(Nrows,Ncols,Args.Nsim);
+Noisen = randn(Nrows,Ncols,Args.Nsim);
 %
 for i = 1:Args.Nsim
     R = Noiser(:,:,i)+Sourcer;

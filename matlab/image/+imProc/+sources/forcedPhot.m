@@ -338,7 +338,9 @@ function [Result] = forcedPhot(Obj, Args)
             if Obj(Iobj).isemptyPSF || Args.ReconstructPSF
                 % No PSF in AstroImage
                 % generate PSF
-                Obj(Iobj) = imProc.psf.constructPSF(Obj(Iobj), 'HalfSize',Args.HalfSizePSF, Args.constructPSFArgs{:});
+%                 Obj(Iobj) = imProc.psf.constructPSF(Obj(Iobj), 'HalfSize',Args.HalfSizePSF, Args.constructPSFArgs{:});
+                % use the new function instead of imProc.psf.constructPSF: 
+                Obj(Iobj) = imProc.psf.populatePSF(Obj(Iobj), 'RadiusPSF',Args.HalfSizePSF, Args.constructPSFArgs{:});
 
             end
             PSF = Obj(Iobj).PSFData.Data;

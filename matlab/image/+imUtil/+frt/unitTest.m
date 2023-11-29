@@ -18,4 +18,5 @@ function Result = unitTest()
     
     % [FlatR] = imUtil.frt.frt(ones(size(Image)),'NumThreads',4);
     
+    Result = true;
 end

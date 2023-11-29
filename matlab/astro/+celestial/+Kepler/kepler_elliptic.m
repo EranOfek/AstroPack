@@ -94,11 +94,14 @@ if (~isnan(K))
    %PeriodEran = 2.*pi.*(A.^1.5)./K;   % in time units - true for M= 1 solar mass
    %Periodold = 2.*pi.*(A.^1.5)./K./sqrt(Mass);
    %Period = 2*pi*sqrt(((A.*(constant.au)).^3)./((constant.G).*((Mass)).*(constant.SunM)))./86400; %Period [days] 
-   Period = 2.*pi.*sqrt( (A.*(constant.au)).^3 ./ (constant.G.*Mass.*constant.SunM) )./86400;  % Period [days]
+   %Period = 2.*pi.*sqrt( (A.*(constant.au)).^3 ./ (constant.G.*Mass.*constant.SunM) )./86400;  % Period [days]
+   
+   Period = (A.^1.5).* 2.*pi./(K.*sqrt(Mass));
    
    N      = 2.*pi./Period;        % mean motion (n)
    M      = N.*T;                 % Mean anomaly n*(t-T)
    M      = mod(M,2.*pi);
+   
 else
    % use first argument as mean anomaly
    M      = T;

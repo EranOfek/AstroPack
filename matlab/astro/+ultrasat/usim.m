@@ -232,7 +232,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %%%%%%%%%%%%%%%%%%%% load the matlab object with the ULTRASAT properties:
     I = Installer;
 %     UP_db = sprintf('%s%s',tools.os.getAstroPackPath,'/../data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat');  
-    UP_db = sprintf('%s%s',I.getDataDir('ULTRASAT_UP'),'/P90_UP_test_60_ZP_Var_Cern_21.mat');  
+    UP_db = sprintf('%s%s',I.getDataDir('ULTRASAT_Properties'),'/P90_UP_test_60_ZP_Var_Cern_21.mat');  
     io.files.load1(UP_db,'UP');
     
     %%%%%%%%%%%%%%%%%%%%%  read the chosen PSF database from a .mat file
@@ -378,17 +378,17 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             Args.RotAng = Args.RotAng(Ind);
         end
     end
-                         
-    CatFlux  = zeros(NumSrc,1);   % will be determined below from spectra * transmission 
-    MagU     = zeros(NumSrc,1);   % will be calculated below if requested 
-    CrudeSNR = zeros(NumSrc,1);   % will be calculated below if requested 
+%                          
+    CatFlux  = zeros(NumSrc,1);  % will be determined below from spectra * transmission 
+    MagU     = zeros(NumSrc,1);  % will be calculated below if requested 
+    CrudeSNR = zeros(NumSrc,1);  % will be calculated below if requested 
     
     %%%%%%%%%%%%%%%%%%%%% split the list of objects into chunks and work
     %%%%%%%%%%%%%%%%%%%%% chunk-by-chunk 
     
     NCh  = ceil ( NumSrc / Args.MaxNumSrc );
-    ChL  = zeros(NCh,1); 
-    ChR  = zeros(NCh,1);
+    ChL  = zeros(NCh,1,'uint32'); % upto 4,29 x 10(9) objects 
+    ChR  = zeros(NCh,1,'uint32');
     
     for ICh = 1:NCh-1
         
@@ -400,7 +400,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     ChL(NCh) = (NCh-1) * Args.MaxNumSrc + 1;
     ChR(NCh) = NumSrc; 
     
-    ImageSrc = zeros(ImageSizeX, ImageSizeY); % make an empty source image
+    ImageSrc = zeros(ImageSizeX, ImageSizeY, 'single'); % make an empty source image
     
     %%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%
@@ -682,7 +682,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 %                                     'Dark',Args.NoiseDark,'Sky',Args.NoiseSky,...
 %                                     'Poisson',Args.NoisePoisson,'ReadOut',Args.NoiseReadout);                              
         
-    NoiseLevel    = Back.Tot * ones(ImageSizeX,ImageSizeY);   % already in [counts], see above
+    NoiseLevel    = Back.Tot * ones(ImageSizeX,ImageSizeY,'single');   % already in [counts], see above
     SrcAndNoise   = ImageSrc .* Exposure + NoiseLevel; 
     
 %     ImageSrcNoise = poissrnd( SrcAndNoise, ImageSizeX, ImageSizeY);                             
@@ -708,7 +708,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     if Args.Exposure(1) == 1
         ImageSrcNoiseGainMask = ImageSrcNoise > GainThresh;  % if the signal is above the threshold, use low gain
         ImageSrcNoiseGain = ImageSrcNoise .* ( ImageSrcNoiseGainMask .* E2ADUlow + ...
-                                              (ones(ImageSizeX,ImageSizeY)-ImageSrcNoiseGainMask) .* E2ADUhigh );
+                                              (ones(ImageSizeX,ImageSizeY,'single')-ImageSrcNoiseGainMask) .* E2ADUhigh );
         ImageSrcNoiseADU = ultrasat.e2ADU(ImageSrcNoiseGain, ImageSrcNoiseGainMask); % the ADU is a 14-bit integer 
     else
         fprintf('NOTE: the ADU image is not produced once multiple exposures are modelled..\n'); 

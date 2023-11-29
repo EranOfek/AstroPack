@@ -8,7 +8,7 @@
 
 function Result = unitTest()
     % Package Unit-Test   
-	io.msgStyle(LogLevel.Test, '@start', 'test started');
+	%io.msgStyle(LogLevel.Test, '@start', 'test started');
     
     jd = celestial.time.julday;
     Date = celestial.time.jd2date(jd);
@@ -43,7 +43,7 @@ function Result = unitTest()
     
     
     Result = true;
-	io.msgStyle(LogLevel.Test, '@passed', 'test passed');
+	%io.msgStyle(LogLevel.Test, '@passed', 'test passed');
 end
 
 %--------------------------------------------------------------------------
@@ -51,9 +51,9 @@ end
 
 function Result = func_unitTest()
 	% Function Unit-Test
-	io.msgStyle(LogLevel.Test, '@start', 'test started');
+	%io.msgStyle(LogLevel.Test, '@start', 'test started');
    
-	io.msgStyle(LogLevel.Test, '@passed', 'passed');
+	%io.msgStyle(LogLevel.Test, '@passed', 'passed');
 	Result = true;
 end
 

@@ -17,6 +17,7 @@
 %       JD=[2414106.00,2451545]';
 %       Pos = IP.getPos('Ear',JD);   % Get Eath Barycentric position, Equatorial J2000
 %
+% BUGS: (100 km offset in X coo) https://github.com/EranOfek/AstroPack/issues/281 
 %
 % NOTES [Answers from IMCCE]
 %
@@ -141,7 +142,7 @@ classdef INPOP < Base
         end
         
         function download(Args)
-            % Download INPOP planetary ephemerides files
+            % Download INPOP planetary ephemerides files from INPOP website
             % Input  : * ...,key,val,...
             %            'Location' - Location in which to download the
             %                   files. Default is '~/matlab/data/SolarSystem/INPOP/'.
@@ -321,10 +322,11 @@ classdef INPOP < Base
     end
     
     methods (Static)  % transformations
-        function CooEcl = eqJ2000_2ecliptic(CooJ2000)
+        function [CooEcl, RotM] = eqJ2000_2ecliptic(CooJ2000)
             % Rotate [X;Y;Z] Equatorial J2000 coordinates to ecliptic [X;Y;Z]
             % Input  : - A 3xN matrix of positions [X;Y;Z] in equatorial J2000.
             % Output : - A matrix of [X;Y;Z] ecliptic positions.
+            %          - The rotation matrix for the conversion.
             % Author : Eran Ofek (May 2022)
             % Example: CooEcl = celestial.INPOP.eqJ2000_2ecliptic(rand(3,6))
             
@@ -400,6 +402,7 @@ classdef INPOP < Base
             %          I.populateTables;  % load 'pos' '100' years tables for Sun and Earth
             %          I.populateTables('Mars','TimeSpan',[2451545 2451545+365]); % load data in some specific range for Mars
             %          I.populateTables('all');
+            %          I.populateTables('all','FileData','vel');
             
             arguments
                 Obj
@@ -475,6 +478,46 @@ classdef INPOP < Base
             end
             
         end
+        
+        function Obj = populateAll(Obj, Args)
+            % Populate all INPOP tables
+            %   In the INPOP object, the PosTables and VelTables contains
+            %   the pos/vel chebyshev coef. for each Solar System object.
+            %   This function read the tables from disk, in some time
+            %   range, and populate the PosTables or VelTables properties.
+            % Input  : - A single element celestial.INPOP object.
+            %          * ...,key,val,...
+            %            'TimeSpan' - Either '100', '1000' (years), or
+            %                   [MinJD MaxJD] vector of JD range.
+            %                   Default is '100'.
+            %            'OriginType' - File type from which to read
+            %                   tables. Default is 'ascii'.
+            %            'TimeScale' - Default is 'TDB'.
+            %            'Version' - Default is Obj.LatestVersion
+            %            'FileType' - 'asc' | ['mat'].
+            %                   Use celestial.INPOP.convertAscii2mat to
+            %                   create the mat files.
+            % Output : - A celestial.INPOP object in which the PosTables or
+            %            VelTables are populated.
+            % Author : Eran Ofek (Apr 2022)
+            % Example: I = celestial.INPOP;
+            %          I.populateAll;
+            
+             arguments
+                Obj
+                Args.TimeSpan    = '100';  % '1000' or [MinJD MaxJD]
+                Args.OriginType  = 'ascii';
+                Args.TimeScale   = 'TDB';
+                Args.Version     = Obj.LatestVersion;
+                Args.FileData    = 'pos';
+                Args.FileType    = 'mat';
+                Args.PopForce logical = false;
+             end
+             
+             Obj.populateTables('all', 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, 'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType);
+             Obj.populateTables('all', 'FileData','vel', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, 'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType);
+             
+        end
     end
     
     methods % ephemeris evaluation
@@ -487,6 +530,8 @@ classdef INPOP < Base
             %   multiple times.
             %   The function can be used also to evaluate the TT time
             %   table (see getTT for details).
+            %   Instructions on how to read the INPOP original files:
+            %   https://www.imcce.fr/content/medias/recherche/equipes/asd/inpop/inpop_file_format_2_0.pdf
             % Input  : - A single-element celestial.INPOP object.
             %          - A planet/object name:
             %            'Sun', 'Mer', 'Ven', 'Ear', 'EMB', 'Moo', 'Mar',
@@ -509,11 +554,15 @@ classdef INPOP < Base
             %                   is in equatorial J2000). Default is false.
             %            'Algo' - Algorithm. Currently a single option
             %                   exist.
+            %            'MaxOrder' - Max. order of cheby. polynomials to
+            %                   use. If Inf use all. Default is Inf.
             %           There are additional undocumented arguments - see
             %           code for details.
             % Output : - A 3 by number of epochs matrix of [X; Y; Z]
             %            positions or velocities.
             %            Units are given by OutUnits, or OutUnits per day.
+            %            If 'IsEclipticOut' is false, then the output
+            %            reference frame is equatorial ICRS J2000.
             % Author : Eran Ofek (Apr 2022)
             % Example: I = celestial.INPOP;
             %          I.populateTables;
@@ -540,6 +589,7 @@ classdef INPOP < Base
                 Args.IsEclipticOut logical = false;
                 Args.Algo            = 1;
                 Args.Ncoo            = 3;  % internal argument used to evaluate pos/vel (=3) or time (=1)
+                Args.MaxOrder        = Inf;
             end
             
             if Args.IsPos
@@ -583,19 +633,26 @@ classdef INPOP < Base
             IndVec       = (1:Nrow./Args.Ncoo).';
             % The index of the JD is measured in the Tmid vector and not in
             % the XYZ coef. table...
-            IndJD        = interp1(Tmid, IndVec, JD, 'nearest','extrap');
+            %IndJD        = interp1(Tmid, IndVec, JD, 'nearest','extrap');
+            IndJD        = ceil((JD - Tstart(1))./Tstep);
             ChebyOrder   = Ncol - Obj.ColTend;
+            
+            
+            Norder = Ncol - ColDataStart + 1;
+            Norder = min(Norder, Args.MaxOrder);
+            VecOrder = (ColDataStart:1:(ColDataStart+Norder-1));
             
             Pos = zeros(Args.Ncoo, Njd);
             for Icoo=1:1:Args.Ncoo
                 % need to do for each coordinate
                 
-                ChebyCoef    = Obj.(TableName).(Object)(IndJD.*Args.Ncoo+Icoo-Args.Ncoo, ColDataStart:end);
+                ChebyCoef    = Obj.(TableName).(Object)(IndJD.*Args.Ncoo+Icoo-Args.Ncoo, VecOrder); %ColDataStart:end);
             
                 % maybe need to divide by half time span
-                ChebyEval    = Obj.ChebyFun{ChebyOrder}((JD - Tmid(IndJD))./Thstep);
-            
-                Pos(Icoo,:)  = sum([ChebyCoef.*ChebyEval(:,1:(Ncol-ColDataStart+1))].',1);
+                %ChebyEval    = Obj.ChebyFun{ChebyOrder}((JD - Tmid(IndJD))./Thstep);
+                ChebyEval    = Obj.ChebyFun{Norder}((JD - Tmid(IndJD))./Thstep);
+                
+                Pos(Icoo,:)  = sum([ChebyCoef.*ChebyEval(:,1:Norder)].',1);
             end
             
             switch lower(Args.OutUnits)
@@ -706,6 +763,234 @@ classdef INPOP < Base
             TT = Obj.getPos('TT',JD, 'IsPos',true, 'OutUnits','km', 'Ncoo',1, 'Algo', Args.Algo, 'TimeScale',Args.TimeScale);
 
         end
+    
+        function [Pos, Vel] = getAll(Obj, JD, Args)
+            % Get the position and velocity for all INPOP objects
+            %   {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'}
+            % Input  : - A populated celestial.INPOP object
+            %          - A vector of JD
+            %          * ...,key,val,...
+            %            'TimeScale' - The JD time scale. Default is 'TDB'.
+            %            'OutUnits'  - 'km','cm','au',... for velocity this
+            %                   is always, the same per day.
+            %                   Default is 'au'.
+            %                   Note that the value of he AU is taken from
+            %                   the Constant.AU property.
+            %            'IsEclipticOut' - A logical indicating if output
+            %                   is in ecliptic coordinates (if false then output
+            %                   is in equatorial J2000). Default is false.
+            %            'Bodies' - Bodies for which to generate ephemeris
+            %                   Default is {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'}
+            %            'Exclude' - A cell array of INPOP objects to
+            %                   exclude. For excluded objects the output
+            %                   will be set to NaN.
+            %                   Default is {}.
+            %            'Permute' - Permute output.
+            %                   If [], then dimensions of output are:
+            %                   [3 cco, JD, Body]
+            %                   Default is [1 3 2] (i.e., [3 coo, Body, Time]
+            % Output : - An array of objects position (see Permute argument
+            %            for dimensions).
+            %            Reference coordinate system is equatorial J2000 if
+            %            IsEclipticOut=false, and ecliptic if
+            %            IsEclipticOut=true.
+            %          - An array of objects velocity (see Permute argument
+            %            for dimensions).
+            %            Uints are given by OutUnits per day.
+            % Author : Eran Ofek (Oct 2023)
+            % Example: I=celestial.INPOP;
+            %          I.populateTables('all');
+            %          I.populateTables('all','FileData','vel');
+            %          [Pos,Vel]=I.getAll(2451545+(0:1));
+
+            arguments
+                Obj
+                JD
+                Args.TimeScale             = 'TDB';
+                Args.OutUnits              = 'au';
+                Args.IsEclipticOut logical = false;
+                Args.Bodies                = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
+                Args.Exclude               = {};
+                Args.Permute               = [1 3 2];
+            end
+            
+            G = (constant.G./(constant.au).^3 .*86400.^2 .* constant.SunM);  % [G: au^3 SunM^-1 day^-2]
+    
+            %Msun   = 1.98847e33;  % [gram]
+            %Bodies = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
+            %                Mercury      Venus       Earth       Moon           Mars         Jupiter      Sat         Ura         Nep         Plu        
+            %Mass   = [Msun,  0.330103e27, 4.86731e27, 5.97217e27, 7.34767309e25, 0.641691e27, 1898.125e27, 568.317e27, 86.8099e27, 102.4092e27 0.01303e27]./Msun;  % [solar mass]
+            %Msun  = 1;
+            %GM  = G .* Mass;
+            
+            Nt = numel(JD);
+            
+            Nbody    = numel(Args.Bodies);
+            Pos     = nan(3,Nt,Nbody);
+            Vel     = nan(3,Nt,Nbody);
+            for Ibody=1:1:Nbody
+                if ~any(strcmp(Args.Exclude, Args.Bodies{Ibody}))
+                    Pos(:,:,Ibody) = Obj.getPos(Args.Bodies{Ibody}, JD, 'OutUnits',Args.OutUnits, 'TimeScale',Args.TimeScale, 'IsEclipticOut',Args.IsEclipticOut);
+                    if nargout>1
+                        Vel(:,:,Ibody) = Obj.getVel(Args.Bodies{Ibody}, JD, 'OutUnits',Args.OutUnits, 'TimeScale',Args.TimeScale, 'IsEclipticOut',Args.IsEclipticOut);
+                    end
+                end
+            
+            end
+            if ~isempty(Args.Permute)
+                Pos = permute(Pos, Args.Permute);
+                Vel = permute(Vel, Args.Permute);
+            end
+            
+        end
+        
+        function [Force,DFDT]=forceAll(Obj, JD, TargetXYZ, Args)
+            % Calculate the Sun+Planets+Moon G*M on a Solar System object.
+            % Input  : - A populated INPOP object (both Pos and Vel should
+            %            be populated).
+            %          - A vector of JD.
+            %          - A 3XN matrix with the targets (target per colum)
+            %            XYZ coordinate.
+            %          * ...,key,val,...
+            %            'TimeScale' - The JD time scale. Default is 'TDB'.
+            %            'OutUnits'  - 'km','cm','au',... for velocity this
+            %                   is always, the same per day.
+            %                   Default is 'au'.
+            %                   Note that the value of he AU is taken from
+            %                   the Constant.AU property.
+            %            'IsEclipticOut' - A logical indicating if output
+            %                   is in ecliptic coordinates (if false then output
+            %                   is in equatorial J2000). Default is false.
+            %            'Bodies' - List of bodies to include in the force
+            %                   calaculations. Default is 
+            %                   {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep','Plu'};
+            %            'GM' - A vector pg G*M for the objects specified
+            %                   in bodies. If empty, then will use INPOP constants
+            %                   for the default bodies.
+            %                   Default is [].
+            %            'Exclude' - A cell array of INPOP objects to
+            %                   exclude. For excluded objects the output
+            %                   will be set to NaN.
+            %                   Default is {}.
+            % Output : - The force that acts on the list of targets at the
+            %            give times.
+            %          - The force derivative (per day).
+            % Author : Eran Ofek (Nov 2023)
+            % Example: I=celestial.INPOP;
+            %          I.populateTables('all');
+            %          I.populateTables('all','FileData','vel');
+            %          [Force]=I.forceAll(2451545,[2 2 2]');
+           
+            arguments
+                Obj
+                JD
+                TargetXYZ
+                Args.TimeScale             = 'TDB';
+                Args.OutUnits              = 'au';  % or AU/day
+                Args.IsEclipticOut logical = false;
+                Args.Bodies                = {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep'}; %,'Plu'};
+                Args.GM                    = [];
+                %Args.GM                    = [0.00029591, 4.9125e-11, 7.2435e-10, 8.997e-10, 9.5495e-11, 2.8253e-07, 8.4597e-08, 1.292e-08, 1.5244e-08, 2.1668e-12];
+                Args.Exclude               = {}; %{'Mer','Plu'}; %{'Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
+                
+            end
+            Permute  = [1 3 2];
+            
+            % Old version
+            %SEC_DAY  = 86400;
+            %Msun   = 1.98847e33;  % [gram]
+            %G        = (constant.G./(constant.au).^3 .*SEC_DAY.^2 .* Msun);  % [G: au^3 SunM^-1 day^-2]
+            %Args.Bodies = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
+            %                Mercury      Venus       Earth       Moon           Mars         Jupiter      Sat         Ura         Nep         Plu        
+            %Mass   = [Msun,  0.330103e27, 4.86731e27, 5.97217e27, 7.34767309e25, 0.641691e27, 1898.125e27, 568.317e27, 86.8099e27, 102.4092e27 0.01303e27];  % [gr]
+            %Mass   = Mass./Msun;   % [Msun]
+            %Args.GM     = G .* Mass;
+            
+            % use constants from INPOP:
+            %Args.Bodies = {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep','Plu'};
+            %         Sun       Mer         Ven         EMB        Mar         Jup         Sat         Ura        Nep         Plu
+            %GM     = [00029591, 4.9125e-11, 7.2435e-10, 8.997e-10, 9.5495e-11, 2.8253e-07, 8.4597e-08, 1.292e-08, 1.5244e-08, 2.1668e-12];
+            
+            %     GM_Mer: 4.9125e-11
+            %     GM_Ven: 7.2435e-10
+            %     GM_EMB: 8.997e-10
+            %     GM_Mar: 9.5495e-11
+            %     GM_Jup: 2.8253e-07
+            %     GM_Sat: 8.4597e-08
+            %     GM_Ura: 1.292e-08
+            %     GM_Nep: 1.5244e-08
+            %     GM_Plu: 2.1668e-12
+            %     GM_Sun: 0.00029591
+
+            if isempty(Args.GM)
+                Args.GM = [Obj.Constant.GM_Sun, Obj.Constant.GM_Mer, Obj.Constant.GM_Ven, Obj.Constant.GM_EMB, Obj.Constant.GM_Mar, Obj.Constant.GM_Jup, Obj.Constant.GM_Sat, Obj.Constant.GM_Ura, Obj.Constant.GM_Nep]; %, Obj.Constant.GM_Plu];
+            end      
+            
+            if ~isempty(Args.Exclude)
+                [Args.Bodies, IndBodies] = setdiff(Args.Bodies, Args.Exclude);
+                Args.GM = Args.GM(IndBodies);
+            end
+            
+            % get position for all planets
+            
+            if nargout>1
+                [Pos, Vel] = getAll(Obj, JD, 'TimeScale',Args.TimeScale,...
+                                         'OutUnits',Args.OutUnits,...
+                                         'IsEclipticOut',Args.IsEclipticOut,...
+                                         'Bodies',Args.Bodies,...
+                                         'Permute',Permute);
+            else
+                [Pos]      = getAll(Obj, JD, 'TimeScale',Args.TimeScale,...
+                                         'OutUnits',Args.OutUnits,...
+                                         'IsEclipticOut',Args.IsEclipticOut,...
+                                         'Bodies',Args.Bodies,...
+                                         'Permute',Permute);
+            end
+            % Calculate the force on Target at position TargetXYZ
+            
+            Njd   = size(TargetXYZ,2); % to support 1 date for multiple targets
+    
+            % transform planets coordinates to target reference frame
+            PosRelToTarget = Pos - reshape(TargetXYZ, [3, 1, Njd]);
+
+            % Distances
+            DistToTarget = sqrt(sum(PosRelToTarget.^2,1));
+
+            % calc force and sum over planets
+            Force = squeeze(sum(Args.GM .* PosRelToTarget./(DistToTarget.^3), 2, 'omitnan'));
+            
+            if nargout>1
+                % calc force time derivative
+                error('Not yet available - need also TargetV');
+            end
+            
+        end
+        
+        function Result = compare2JPL(Obj, Args)
+            % Compare INPOP to JPL horizons ephemeris
+            % Author : Eran Ofek (Nov 2023)
+            % Example: R=I.compare2JPL
+           
+            arguments
+                Obj
+                Args.BodyINPOP   = 'Mar';
+                Args.BodyJPL     = '499';
+                Args.JD = celestial.time.julday + (0:10:100)';
+            end
+           
+            
+            Njd = numel(Args.JD);
+            Diff = zeros(Njd,3);
+            for Ijd=1:1:Njd
+                XYZ = Obj.getPos(Args.BodyINPOP, Args.JD(Ijd), 'IsEclipticOut',true, 'TimeScale','TT','OutUnits','km');
+                [T] = celestial.SolarSys.getJPL_ephem(Args.BodyJPL,'EPHEM_TYPE','VECTORS','TimeScale','TT','CENTER','500@0','StartTime',Args.JD(Ijd), 'StopTime',Args.JD(Ijd)+0.5, 'OUT_UNITS','KM-S');
+                Diff(Ijd,:) = [XYZ - [T.X; T.Y; T.Z]].';
+            end
+            Result.JD   = Args.JD;
+            Result.Diff = Diff;
+            
+        end
+        
     end
     
     methods(Static) % Unit test

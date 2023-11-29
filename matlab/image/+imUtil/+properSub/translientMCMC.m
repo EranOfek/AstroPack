@@ -98,40 +98,40 @@ if isempty(Args.Ndrop)
     Args.Ndrop = floor(Args.Nchain/5);
 end
 
-M     = size(Pnhat,1);
-Mcenter = ceil(M/2);
-FreqArr = fftshift(-Mcenter:(Mcenter-1));
+[Nrows,Ncols]      = size(Pnhat);
+FreqArrRows = fftshift(-ceil(Nrows/2):(floor(Nrows/2)-1));
+FreqArrCols = fftshift(-ceil(Ncols/2):(floor(Ncols/2)-1));
 
-[Kx,Ky] = meshgrid(FreqArr);
+[Kx,Ky] = meshgrid(FreqArrCols,FreqArrRows);
 
 TotalVar = abs(Prhat).^2*SigmaN.^2+abs(Pnhat).^2*SigmaR.^2+Args.Eps;
 
-Phase = exp(-2i*pi*(Kx*(Xc(1)-1)+Ky*(Xc(2)-1))/M);
+Phase = exp(-2i*pi*(Kx*(Xc(1)-1)/Ncols+Ky*(Xc(2)-1)/Nrows));
 
 switch Args.ParameterSet
     case 1  % Equation (28)
-        Loglike = @(x,data) 1/M^2*sum(abs(Prhat.*N_hat - Pnhat.*R_hat + ...
-            Phase.*Prhat.*Pnhat.*(x(3)*exp(1i*pi*(Kx*x(1)+Ky*x(2))/M)-...
-            x(4)*exp(-1i*pi*(Kx*x(1)+Ky*x(2))/M))).^2./TotalVar,"all");
+        Loglike = @(x,data) 1/(Nrows*Ncols)*sum(abs(Prhat.*N_hat - Pnhat.*R_hat + ...
+            Phase.*Prhat.*Pnhat.*(x(3)*exp(1i*pi*(Kx*x(1)/Ncols+Ky*x(2)/Nrows))-...
+            x(4)*exp(-1i*pi*(Kx*x(1)/Ncols+Ky*x(2)/Nrows)))).^2./TotalVar,"all");
 
         ParamNames = {'DeltaX','DeltaY','AlphaR','AlphaN'};
-        ParamBounds = [-M/2+1,-M/2-1,0,0;
-            M/2-1,M/2-1,inf,inf];
+        ParamBounds = [-Ncols/2+1,-Ncols/2-1,0,0;
+            Nrows/2-1,Nrows/2-1,inf,inf];
         InitialGuess = [0,0,max([sum(R(:)),max(R(:))]),max([sum(N(:)),max(N(:))])];
 
     case 2  % Equation (29)
-        Loglike = @(x,data) 1/M^2*sum(abs(Prhat.*N_hat - Pnhat.*R_hat + ...
-            Phase.*Prhat.*Pnhat.*((x(3)+x(4))*exp(1i*pi*(Kx*x(1)*cos(x(2))+Ky*x(1)*sin(x(2)))/M)-...
-            (x(4)-x(3))*exp(-1i*pi*(Kx*x(1)*cos(x(2))+Ky*x(1)*sin(x(2)))/M))/2).^2./TotalVar,"all");
+        Loglike = @(x,data) 1/(Nrows*Ncols)*sum(abs(Prhat.*N_hat - Pnhat.*R_hat + ...
+            Phase.*Prhat.*Pnhat.*((x(3)+x(4))*exp(1i*pi*(Kx*x(1)/Ncols*cos(x(2))+Ky*x(1)/Nrows*sin(x(2))))-...
+            (x(4)-x(3))*exp(-1i*pi*(Kx*x(1)/Ncols*cos(x(2))+Ky*x(1)/Nrows*sin(x(2)))))/2).^2./TotalVar,"all");
 
         ParamNames = {'Delta','Theta','AlphaRNdiff','AlphaRNsum'};
         ParamBounds = [0,-2*pi,-inf,0;
-            M/2-1,2*pi,inf,inf];
+            min([Nrows,Nrows])/2-1,2*pi,inf,inf];
         InitialGuess = [0,0,sum(R(:))-sum(N(:)),max([sum(R(:))+sum(N(:)),max(R(:)+N(:))])];
 
     case 3  % Equation (30)
-        Loglike = @(x,data) 1/M^2*sum(abs(Prhat.*N_hat - Pnhat.*R_hat + ...
-            Phase.*Prhat.*Pnhat.*(x(2)+x(3)*1i*pi*(Kx*cos(x(1))+Ky*sin(x(1)))/M)).^2./TotalVar,"all");
+        Loglike = @(x,data) 1/(Nrows*Ncols)*sum(abs(Prhat.*N_hat - Pnhat.*R_hat + ...
+            Phase.*Prhat.*Pnhat.*(x(2)+x(3)*1i*pi*(Kx*cos(x(1))/Ncols+Ky*sin(x(1))/Nrows))).^2./TotalVar,"all");
 
         ParamNames = {'Theta','AlphaRNdiff','DeltaAlphaRNsum'};
         ParamBounds = [-2*pi,-inf,0;

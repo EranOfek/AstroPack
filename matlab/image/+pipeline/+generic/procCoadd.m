@@ -326,8 +326,9 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                        'Threshold',Args.Threshold,...
                                                        'CreateNewObj',false);
 
-            % Estimate PSF
+            % Estimate PSF (need to switch to  imProc.psf.populatePSF after the tests)
             [Coadd(Ifields), Summary] = imProc.psf.constructPSF(Coadd(Ifields), Args.constructPSFArgs{:},'TypePSF',@single);
+%             [Coadd(Ifields), Summary] = imProc.psf.populatePSF(Coadd(Ifields), Args.constructPSFArgs{:},'DataType',@single);
 
 
             % PSF photometry

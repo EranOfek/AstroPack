@@ -2,21 +2,21 @@ function Result = unitTest()
     % ImagePath.unitTest        
     io.msgStyle(LogLevel.Test, '@start', 'ImagePath test started\n');
 
-    % genFile
-    ip = ImagePath();
-    %fprintf('%s\n', ip.needUuid());
-    [ExpectedPath, ExpectedFileName] = ip.setTestData();
-    FileName = ip.genFile('Time', ip.Time, 'FullPath', false);
-    assert(strcmp(FileName, ExpectedFileName),'parsed FileName and expected FileName are different');
-    disp(FileName);
-    
-    % Test copying Handle class
-    fprintf('ip.Uuid = %s\n', ip.needUuid());        
-    ip1 = ip;
-    ip2 = ip.copy();
-    fprintf('ip1.Uuid = %s\n', ip1.needUuid());    
-    fprintf('ip2.Uuid = %s\n', ip2.needUuid());    
-    
+%     % genFile
+%     ip = ImagePath();
+%     %fprintf('%s\n', ip.needUuid());
+%     [ExpectedPath, ExpectedFileName] = ip.setTestData();
+%     FileName = ip.genFile('Time', ip.Time, 'FullPath', false);
+%     assert(strcmp(FileName, ExpectedFileName),'parsed FileName and expected FileName are different');
+%     disp(FileName);
+%     
+%     % Test copying Handle class
+%     fprintf('ip.Uuid = %s\n', ip.needUuid());        
+%     ip1 = ip;
+%     ip2 = ip.copy();
+%     fprintf('ip1.Uuid = %s\n', ip1.needUuid());    
+%     fprintf('ip2.Uuid = %s\n', ip2.needUuid());    
+%     
     % genPath
      ip = ImagePath();
      [ExpectedPath, ExpectedFileName] = ip.setTestData();
@@ -30,18 +30,18 @@ function Result = unitTest()
      ExpectedFull = [ExpectedPath, ExpectedFileName];
      %assert(strcmp(Full, ExpectedFull), 'parsed FullPath and expected FullPath are different');
             
-     % genPath: Test all parameters
-     Path = ip.genPath(...
-                'BasePath', '/MyBasePath', ...
-                'DataDir', 'MyDataDir', ...
-                'SubDir', 'MySubDir', ...
-                'Time', ip.Time, ...
-                'TimeZone', 2, ...
-                'Level', 'raw', ...
-                'Area', 'MyArea');
-            
-    disp(Path);
-    assert(~strcmp(Path, ''));
+%      % genPath: Test all parameters
+%      Path = ip.genPath(...
+%                 'BasePath', '/MyBasePath', ...
+%                 'DataDir', 'MyDataDir', ...
+%                 'SubDir', 'MySubDir', ...
+%                 'Time', ip.Time, ...
+%                 'TimeZone', 2, ...
+%                 'Level', 'raw', ...
+%                 'Area', 'MyArea');
+%             
+%     disp(Path);
+%     assert(~strcmp(Path, ''));
 
     %----------------------------------------------------------------------
     

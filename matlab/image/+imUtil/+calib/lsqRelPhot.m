@@ -11,7 +11,14 @@ function Result=lsqRelPhot(InstMag, Args)
     %          * ...,key,val,...
     %            'MagErr' - A scalar, or a matrix of errors in the
     %                   instrumental magnitudes.
-    %            'Method' - LSQ solver method: 'lscov'.
+    %            'Flag' - A vector of flags for all stars, indicating if to
+    %                   use them as reference star (true) or not (false).
+    %                   The vector size must be Nepoch X Nsrc and it
+    %                   contains the sources epoch by epoch (i.e., given a
+    %                   Data matrix Nepoch N Nsources, it is Data(:)).
+    %                   If empty, assume all true.
+    %                   Default is [].
+    %            'Method' - LSQ solver method: 'lscov' | 'cgs' (conjugate gradient).
     %                   Default is 'lscov'.
     %            'Algo' - ALgorithm for the lscov function: 'chol'|'orth'.
     %                   Default is 'chol'.
@@ -56,8 +63,8 @@ function Result=lsqRelPhot(InstMag, Args)
     % Output : - A structure with the following fields:
     %            .Par   - All fitted parameters.
     %            .ParErr - Error in all fitted parameters.
-    %            .ParZP - Fitted ZP parameters
-    %            .ParMag - Fitted mean mag parameters.
+    %            .FitZP - Fitted ZP parameters
+    %            .FitMag - Fitted mean mag parameters.
     %            .Resid - All residuals.
     %            .Flag - Logical flags indicating which stars where used in
     %                   the solution.
@@ -80,7 +87,8 @@ function Result=lsqRelPhot(InstMag, Args)
     arguments
         InstMag                    = [];
         Args.MagErr                = 0.02;
-        Args.Method                = 'lscov';
+        Args.Flag                  = [];
+        Args.Method                = 'lscov'; %'lscov' | 'cgs'
         Args.Algo                  = 'chol';  % 'chol' | 'orth'
         Args.Niter                 = 2;
         Args.MaxStarStd            = 0.1;
@@ -135,7 +143,11 @@ function Result=lsqRelPhot(InstMag, Args)
         Y             = [Y; Args.CalibMag(:)];
     end
     
-    Flag = true(size(Y));
+    if isempty(Args.Flag)
+        Flag = true(size(Y));
+    else
+        Flag = Args.Flag;
+    end
     for Iiter=1:1:Args.Niter
         
                 
@@ -148,18 +160,25 @@ function Result=lsqRelPhot(InstMag, Args)
                                                                'ImagePropNames',Args.ImagePropNames,...
                                                                'AddCalibBlock',AddCalibBlock);
         % remove NaNs
-        Flag = Flag & ~isnan(Y);
+        Flag = Flag & ~isnan(Y) & all(~isnan(H),2);
         
         switch lower(Args.Method)
             case 'lscov'
                 [Par, ParErr] = lscov(H(Flag,:), Y(Flag), 1./VarY(Flag), Args.Algo);
                 Resid = Y - H*Par;  % all residuals (including bad stars)
+            case 'cgs'
+                % congugate gradient method
+                A      = H(Flag,:).'*H(Flag,:);
+                YY     = H(Flag,:).' * Y(Flag);
+                Par    = cgs(A, YY);
+                ParErr = nan(size(Par));
+                Resid  = Y - H*Par;
             otherwise
                 error('Unknown Method option');
         end
         
         ParZP  = Par(1:Nimage);
-        ParMag = Par(Nimage+1:end);
+        ParMag = Par(Nimage+1:Nimage+Nstar);
         % Std per star
         ResidSquare = reshape(Resid,[Nimage, Nstar]);
         FlagSquare  = reshape(Flag,[Nimage, Nstar]);
@@ -168,7 +187,13 @@ function Result=lsqRelPhot(InstMag, Args)
         
         if Iiter<Args.Niter
             % skip this step in the last iteration
-            [FlagResid,Res] = imUtil.calib.resid_vs_mag(ParMag(:), StdStar(:), Args.ThresholdSigma, Args.resid_vs_magArgs{:});
+
+            % remove NaNs from StdStar
+            StdStar = StdStar(:);
+            ParMag  = ParMag(:);
+            FlagNN  = ~isnan(StdStar);
+
+            [FlagResid,Res] = imUtil.calib.resid_vs_mag(ParMag, StdStar(:), 'ThresholdSigma',Args.ThresholdSigma, Args.resid_vs_magArgs{:});
             FlagResid = repmat(FlagResid(:),[1, Nimage]).';
             
             % calc VarY
@@ -190,8 +215,8 @@ function Result=lsqRelPhot(InstMag, Args)
     
     Result.Par       = Par;
     Result.ParErr    = ParErr;
-    Result.ParZP     = ParZP;
-    Result.ParMag    = ParMag;
+    Result.FitZP     = ParZP;
+    Result.FitMag    = ParMag;
     Result.Resid     = Resid;
     Result.Flag      = Flag;
     Result.NusedMeas = sum(Flag);

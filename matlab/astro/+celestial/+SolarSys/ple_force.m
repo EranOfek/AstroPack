@@ -1,5 +1,5 @@
 function Force = ple_force(TargetXYZ, JD, CooFrame, IncludeSun)
-    % Calculate the net Sun+planets force on a solar system body.
+    % Calculate the net Sun+planets G*M on a solar system body.
     % Input  : - Target body positiopn vector.
     %            This is a 3 X Ntimes matrix, where 3 is the numbr of
     %            coordinates, and Ntimes the number of times.

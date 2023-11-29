@@ -19,9 +19,11 @@ function Obj = fwhm(Obj, Args)
     %                   keyword. Default is Inf.
     %            'KeysMom2' - 2nd moment column names in catalog.
     %                   Default is {'X2','Y2','XY'}.
+    %            'constructPSFArgs' - the PSF construction arguments to be
+    %                   passed to imProc.psf.populatePSF
     % Output : - The AstroImage object with the populated PSF object and FWHM in
     %            the header [arcsec].
-    %            Also pipulated are the MED_A [pix], MED_B [pix], MED_TH [deg]
+    %            Also populated are the MED_A [pix], MED_B [pix], MED_TH [deg]
     % Author : Eran Ofek (Jan 2022)
     % Example: imProc.psf.fwhm(Coadd);
     
@@ -33,6 +35,7 @@ function Obj = fwhm(Obj, Args)
         Args.AddPos                 = Inf;
         Args.AddMom2 logical        = true;
         Args.KeysMom2 cell          = {'X2','Y2','XY'};
+        Args.constructPSFArgs       = {};
     end
     ARCSEC_DEG = 3600;    
     
@@ -41,7 +44,8 @@ function Obj = fwhm(Obj, Args)
         if isemptyPSF(Obj(Iobj).PSFData)
             % construct the PSF
             if isnan(Obj(Iobj).PSFData.Nstars)
-                [Obj(Iobj)] = imProc.psf.constructPSF(Obj(Iobj), Args.constructPSFArgs{:});
+%                 [Obj(Iobj)] = imProc.psf.constructPSF(Obj(Iobj), Args.constructPSFArgs{:});
+                [Obj(Iobj)] = imProc.psf.populatePSF(Obj(Iobj), Args.constructPSFArgs{:});
             end
         end
         

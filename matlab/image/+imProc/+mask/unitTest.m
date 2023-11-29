@@ -1,6 +1,6 @@
 function Result = unitTest()
     % unitTest for +imProc.mask
-    io.msgLog(LogLevel.Test, 'imProc.mask test started');
+    %io.msgLog(LogLevel.Test, 'imProc.mask test started');
     
     AI = AstroImage({rand(10,10).*1000});
     Result = imProc.mask.maskSaturated(AI, 'SatLevel',500);
@@ -40,6 +40,6 @@ function Result = unitTest()
     imProc.mask.maskTracks(AI);
 
 
-    io.msgStyle(LogLevel.Test, '@passed', 'imProc.mask test passed');
+    %io.msgStyle(LogLevel.Test, '@passed', 'imProc.mask test passed');
     Result = true; 
 end

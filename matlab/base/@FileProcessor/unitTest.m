@@ -1,6 +1,19 @@
 
 function Result = unitTest()
     % FileProcessor.unitTest
+    % Unit test for the FileProcessor class.
+    %
+    % This test function initializes a FileProcessor object with a predefined input path and input mask.
+    % It sets a custom file processing callback and triggers the processing loop for a specified time.
+    % The function also configures the message logging levels for both file and display outputs.
+    %
+    % The test primarily validates the file processing loop, ensuring it can handle input files correctly
+    % and execute the custom callback function.
+    %
+    % Returns:
+    %   Result (boolean): True if the test passes, indicating that the FileProcessor operates as expected.
+    %
+    % Author : Chen Tishler (2021)
 
     MsgLogger.setLogLevel(LogLevel.Debug, 'type', 'file');
     MsgLogger.setLogLevel(LogLevel.Debug, 'type', 'disp');            
@@ -15,7 +28,7 @@ function Result = unitTest()
 
     % Input loop will call FileProcessorCallback (below) for each input
     % file found in the folder
-    fp.process('DelaySec', 0.1);
+    fp.process('DelaySec', 0.1, 'MaxProcessTime', 5);
     
     io.msgStyle(LogLevel.Test, '@passed', 'FileProcessor test passed');                          
     Result = true;
@@ -24,22 +37,22 @@ end
 %------------------------------------------------------------------------
 
 function Result = processItem(item)
-    % Process item, return result
-    % See ultrasat.git/python/prj/src/webapps/webapp_snr/rest_snr_server1.py
-    
-    % Input   : - item - struct Item with op, x, y fields
+    % Processes a given item and returns a result.
+    % This function performs operations based on the 'op' field of the input item, 
+    % such as addition, multiplication, subtraction, and division.
+    %
+    % Input:
+    %   item (struct): Struct containing operation fields 'op', 'x', and 'y'.
+    %
+    % Returns:
+    %   Result (struct): Struct containing fields 'message', 'result', and 'json_text'.
+    %                    'message' contains processing information or error messages,
+    %                    'result' contains the outcome of the operation, and 'json_text'
+    %                    is reserved for additional data in JSON format.
+    %
+    % Author : Chen Tishler (2021)
+    %
 
-    %           * Pairs of ...,key,val,...
-    %             The following keys are available:            			            
-
-    %                      
-    % Output  : struct ResponseMessage with message, result fields
-    % Author  : Chen Tishler (2021)
-    % Example : 
-    
-    % Item 
-    % ResponseMessage
-    
     % Prepare output
     out = struct;
     out.message = 'MATLAB: Exception in processItem';
@@ -63,7 +76,7 @@ function Result = processItem(item)
                 throw(ME);
             end
         elseif strcmp(item.op, 'snr')            
-            out = processSnrJson(item.json_text);
+            % Moved to apps/app_snr/soc_snt_matlab.m
         else
             strcpy(out.message, 'MATLAB: unknown op');
         end
@@ -77,6 +90,18 @@ end
 %------------------------------------------------------------------------
 
 function fileProcessorCallback(FileName)
+    % Callback function for FileProcessor.
+    % This function is called for each file processed by FileProcessor. It reads a JSON file,
+    % decodes it, processes the data, and writes the result to an output JSON file.
+    %
+    % Input:
+    %   FileName (string): Path of the file to be processed.
+    %
+    % This function demonstrates the integration of custom processing logic into the FileProcessor workflow.
+    % It exemplifies file reading, JSON parsing, data processing, and writing output in a structured format.
+    %
+    % Author : Chen Tishler (2021)
+
     io.msgLog(LogLevel.Info, 'FileProcessorCallback started: %s', FileName);
       
     TmpFileName = strcat(FileName, '.out.tmp');
@@ -115,102 +140,3 @@ function fileProcessorCallback(FileName)
     catch
     end
 end
-
-%------------------------------------------------------------------------
-
-function Result = processSnrJson(json_text)
-    % Process SNR
-    % See ultrasat.git/python/prj/src/webapps/webapp_snr/rest_snr_server1.py
-    %    
-    % Input   : - snr - struct 
-    % 
-    %                      
-    % Output  : struct ResponseMessage with fields: message, result
-    % Author  : Chen Tishler (2022)
-    % Example : 
-    
-    % Decode text
-    snr_input = jsondecode(json_text);
-            
-    out = struct;
-    out.message = sprintf('MATLAB: processSnr started');
-    out.result = -1;
-    out.json_text = '';
-    
-    % Do the actual SNR processing here
-    [snr_out, message] = doProcessSnr(snr_input);
-    
-    % Done
-    out.message = message;
-    snr_out.message = '';
-    out.result = 0;    
-    out.json_text = jsonencode(snr_out);
-    out.json_text = strrep(out.json_text, '"', '\"');
-    Result = out;
-end
-
-%------------------------------------------------------------------------
-
-function [Result, Message] = doProcessSnr(Params)
-    % Process SNR
-    % See ultrasat.git/python/prj/src/webapps/webapp_snr/rest_snr_server1.py
-    
-    % Input   : - Params - struct with these fields:
-	%
-    %   ExpTime
-    %   NumImages
-    %   R
-    %   Source
-    %   PicklesModels
-    %   SnrMagnitude
-    %   CalibFilterFamily
-    %   CalibFilter
-    %   MagnitudeSystem
-    %   LimitingMagnitude
-    %    
-    %                      
-    % Output  : - Result - struct with fields: 
-    %   ResultSnr
-    %   ResultLimitingMagnitude
-    %           - Message - char with text message
-    %
-    % Author  : Arie B. (2023)
-    % Example : 
-
-    io.msgLog(LogLevel.Debug, 'doProcessSnr: started - Params:');
-    disp(Params);
- 
-    % Calculate
-    try
-        if strcmp(Params.Source, 'PicklesModels')
-            Params.Source = Params.PicklesModels;
-            Params = rmfield(Params, 'PicklesModels');
-        end
-        
-        if strcmp(Params.Source, 'BlackBody')
-            Params.Source = strcat('Planck spectrum T=', Params.BlackBodyTemperature, '.000000');
-            Params = rmfield(Params, 'BlackBodyTemperature');
-        end
-        
-        io.msgLog(LogLevel.Debug, 'doProcessSnr: creating UltrasatPerf2GUI');
-        UsatPerf2GUI = UltrasatPerf2GUI();
-        
-        io.msgLog(LogLevel.Debug, 'doProcessSnr: calling namedargs2cell');
-        ArgsCell = namedargs2cell(Params);
-        
-        io.msgLog(LogLevel.Debug, 'doProcessSnr: calling calcSNR');
-        Result = UsatPerf2GUI.calcSNR(ArgsCell{:});
-        
-        io.msgLog(LogLevel.Debug, 'doProcessSnr: calling calcSNR done');
-    catch ex
-        Result.message = sprintf("doProcessSnr: error: UG threw exception identifier='%s' with message='%s'", ex.identifier, ex.message);
-    end
-
-    %
-    disp(Result);
-    Message = Result.message;
-    Result = rmfield(Result, 'message');
-    
-    io.msgLog(LogLevel.Debug, 'doProcessSnr: done');    
-end
-

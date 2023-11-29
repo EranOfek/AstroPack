@@ -8,8 +8,6 @@
 %          D.prepMasterDark
 %
 
-
-
 classdef DemonLAST < Component
     % 
             
@@ -197,6 +195,7 @@ classdef DemonLAST < Component
     end
       
     methods (Static) % path and files
+        
         function Result = constructProjectName(Project,Node,Mount,Camera)
             % Construct project name of the form LAST.01.02.03
             % Input  : - Project name.
@@ -406,12 +405,11 @@ classdef DemonLAST < Component
             Path = fullfile(PathProc,SubDir);
 
         end
-
+        
     end
 
-    
-    
     methods (Static)  % fields related utilities
+        
         function List = fieldsListLAST(Args)
             % (Static) Return a table with list of LAST predefined field indices
             % Input  : * ...,key,val,...
@@ -589,8 +587,7 @@ classdef DemonLAST < Component
                 CamNum = str2double(CamNum);
             end
             
-        end
-        
+        end        
     end
 
     
@@ -626,6 +623,8 @@ classdef DemonLAST < Component
             %                   overwrite the pipeline.DemonLAST property.
             %                   If empty, will use the pipeline.DemonLAST property.
             %                   Default is [].
+            %            'HostName' - set the host name by hand and not 
+            %                       from the actual machine name (for pipeline runs outside the LAST nodes)
             % Output : - Path
             %          - Camera number
             %          - Computer side
@@ -633,19 +632,14 @@ classdef DemonLAST < Component
             %          - Project name
             %          - Mount number string
             % Author : Eran Ofek (Mar 2023)
-
-
             arguments
                 Obj
                 SubDir          = '';
-
                 Args.DataDir    = [];
                 Args.CamNumber  = [];
-
-                
+                Args.HostName   = [];                
             end
 
-            
             if ~isempty(Args.DataDir)
                 Obj.DataDir = Args.DataDir;
             end
@@ -656,7 +650,8 @@ classdef DemonLAST < Component
             [BasePath,CameraNumber,Side,HostName,ProjName,MountNumberStr] = pipeline.DemonLAST.getBasePath('DataDir',Obj.DataDir,...
                                         'CamNumber',Obj.CamNumber,...
                                         'Node',Obj.Node,...
-                                        'ProjectName',Obj.ProjectName);
+                                        'ProjectName',Obj.ProjectName,...
+                                         'HostName',Args.HostName);
             Path = fullfile(BasePath,SubDir);
         end
 
@@ -889,6 +884,7 @@ classdef DemonLAST < Component
             %          * ...,key,val,...
             %            'ProjName' - Project name. If empty, read from
             %                   system. Default is [].
+            %            'HostName' - Host name. If empty, get from OS
             % Output : - A pipeline.DemonLAST object in which the Logger
             %            property is updated with the log file name.
             % Author : Eran Ofek (May 2023)
@@ -896,12 +892,13 @@ classdef DemonLAST < Component
             arguments
                 Obj
                 Args.ProjName = [];
+                Args.HostName = []; 
             end
 
             if isempty(Args.ProjName)
             end
 
-            [~,~,~,~,ProjName,~]=getPath(Obj);
+            [~,~,~,~,ProjName,~]=getPath(Obj,'HostName',Args.HostName);
 
             FN = FileNames;
             FN.ProjName = ProjName;
@@ -946,6 +943,7 @@ classdef DemonLAST < Component
     end
     
     methods % ref image utilities
+        
         function [Path, File, AI] = getRefImage(Obj, Args)
             % Get reference images corresponding to some field
             % Input  : * ...,key,val,...
@@ -976,8 +974,14 @@ classdef DemonLAST < Component
             % Output : - Path for the reference images.
             %          - File names of the refernce images.
             %          - An AstroImage object with all the ref images.
-            % Author : Eran Ofek (Oct 2023)
-            % Example: 
+            % Author : Eran Ofek & Nora (Oct 2023)
+            % Example:
+            %
+            % FN=FileNames.generateFromFileName({'LAST.01.01.01_20220826.182338.681_clear_297+41_20_001_021_sci_proc_Image_001.fits'});
+            % D=pipeline.DemonLAST;
+            % [Path,File,AI]=D.getRefImage('FN',FN)
+            % or
+            % [Path,File,AI]=D.getRefImage('Camera',1,'CropID',10,'FieldID',1220)
             
             arguments
                 
@@ -1014,15 +1018,17 @@ classdef DemonLAST < Component
                 Args.RefPath = Obj.RefPath;
             end
             
-            if ~isnumeric(Args.FieldID)
+            
+            if ~isnumeric(str2double(Args.FieldID))
                 % FieldID is likely in RA+Dec str - convert to FieldID
                 % index
-                [FieldID, ~, ~] = pipeline.DemonLAST.searchFieldLAST(Obj.FieldList, Args.FieldID);
-            else
-                FieldID = Args.FieldID;
+                [Args.FieldID, ~, ~] = pipeline.DemonLAST.searchFieldLAST(Obj.FieldList, Args.FieldID);
+                
+            elseif ~isnumeric(Args.FieldID)
+                Args.FieldID = str2double(Args.FieldID);
             end
                                
-            Path = fullfile(Args.RefPath, string(FieldID), sprintf('%d',Args.Camera));
+            Path = fullfile(Args.RefPath, string(Args.FieldID), sprintf('%d',Args.Camera));
             
             if nargout>1
                 % construct FileName using a FileNames object
@@ -1031,7 +1037,7 @@ classdef DemonLAST < Component
                 RefFN = FileNames;
                 RefFN.ProjName = {'LAST.01*'};
                 RefFN.Time = {'*'};
-                RefFN.FieldID = {string(FieldID)};
+                RefFN.FieldID = {string(Args.FieldID)};
                 RefFN.Counter = 1;
                 RefFN.Level = 'coadd';
                 RefFN.FullPath = Path;
@@ -1044,9 +1050,13 @@ classdef DemonLAST < Component
                 RefName = dir(AbsFile);
                 
                 if isempty(RefName)
-                    error('No reference image found.')
+                    File = [];
+                    AI = [];
+                    fprintf('No reference image found.')
+                    return;
                 elseif length(RefName)>1
-                    error('Found several reference images.')
+                    fprintf('Found several reference images. Using the first one.')
+                    File = RefName.name;
                 else
                     % do nothing
                     File = RefName.name;
@@ -1064,15 +1074,12 @@ classdef DemonLAST < Component
                 end
             end
             
-        end
+        end     
         
     end
 
-    
-    
-    
-    
     methods % pipelines
+        
         function [Obj, FN, FN_Master]=prepMasterDark(Obj, Args)
             % prepare master dark images
             %   Given a (D=) pipeline.DemonLAST object select files in either
@@ -1513,9 +1520,9 @@ classdef DemonLAST < Component
                 cd(Obj.CalibPath);
             end
             
-            fprintf('\n\nAvailable storage space:\n')
-            unix('df -h | grep data');
-            fprintf('\n\nPlease only run the pipeline if disk less than 80percent full.\n\n')
+            %fprintf('\n\nAvailable storage space:\n')
+            %unix('df -h | grep data');
+            %fprintf('\n\nPlease only run the pipeline if disk less than 80percent full.\n\n')
 
             % read latest bias image
             if ismember('bias',lower(Args.ReadProduct))
@@ -1548,8 +1555,7 @@ classdef DemonLAST < Component
             cd(PWD);
 
         end
-        
-        
+             
         function Obj=main(Obj, Args)
             % The main LAST pipeline demon.
             %   The demon waits for images in the new/ directory, analyze
@@ -1580,6 +1586,7 @@ classdef DemonLAST < Component
 
                 Args.StartJD       = -Inf;           % refers only to Science observations: JD, or [D M Y]
                 Args.EndJD         = Inf;            %
+                Args.NightJD       = [];             % Reduce single night (from date to +1) - set StopWhenDone to true.
                 Args.StopWhenDone logical = false;   % If true, then will not look for new images (i.e., images that were created after the function started)
                 Args.RegenCalib logical = false;     % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
 
@@ -1606,11 +1613,13 @@ classdef DemonLAST < Component
                 Args.DB_Table_Raw      = 'raw_images';
                 Args.DB_Table_Proc     = 'proc_images';
                 Args.DB_Table_Coadd    = 'coadd_images';
-                Args.DB_Table_ProcCat  = 'test_proc_src_catalog';
-                Args.DB_Table_CoaddCat = 'test_coadd_src_catalog';
+                Args.DB_Table_ProcCat  = 'proc_src_catalog';
+                Args.DB_Table_CoaddCat = 'coadd_src_catalog';
                 Args.DB_ImageBulk   logical = false; % whether to use bulk or direct injection method
                 Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};
+                
+                Args.HostName          = []; 
             end
 
             ADB = [];  % AstroDB
@@ -1633,6 +1642,17 @@ classdef DemonLAST < Component
                 Args.EndJD = celestial.time.julday(Args.EndJD);
             end
 
+            if ~isempty(Args.NightJD)
+                if numel(Args.NightJD)>1
+                    Args.NightJD = celestial.time.julday(Args.NightJD);
+                end
+                Args.StartJD = Args.NightJD;
+                Args.EndJD   = Args.NightJD + 1;
+                Args.StopWhenDone = true;
+            end
+
+
+
             % if ~Args.RegenCalib
             %     [IsEmB, IsEmF] = Obj.CI.isemptyProp({'Bias','Flat'});
             %     if IsEmB || IsEmF
@@ -1653,7 +1673,7 @@ classdef DemonLAST < Component
             Cont = true;
             while Cont
                 % set Logger log file 
-                Obj.setLogFile;
+                Obj.setLogFile('HostName',Args.HostName);
 
                 if Args.RegenCalib
                     % prep Master dark and move to raw/ dir
@@ -1726,15 +1746,14 @@ classdef DemonLAST < Component
                     if FN_Sci_Groups(Igroup).nfiles>Args.MinNumIMageVisit
 
                         % set Logger log file 
-                        Obj.setLogFile;
+                        Obj.setLogFile('HostName',Args.HostName);
 
                         RawImageList = FN_Sci_Groups(Igroup).genFull('FullPath',NewPath);
     
                         FN_Sci_Groups(Igroup).BasePath = BasePath;
                         
-                        % call visit pipeline
-                        
-                        Msg{1} = sprintf('pipline.DemonLAST executing pipeline for group %d - First image: %s',Igroup, RawImageList{end});
+                        % call visit pipeline                        
+                        Msg{1} = sprintf('pipline.DemonLAST executing pipeline for group %d - First image: %s',Igroup, RawImageList{1});
                         Obj.writeLog(Msg, LogLevel.Info);
 
                         try
@@ -1752,7 +1771,7 @@ classdef DemonLAST < Component
                                                                        'BasePath', BasePath,...
                                                                        'SaveAll',false);
     
-                            Msg{1} = sprintf('pipline.DemonLAST finish executing pipeline - start saving data',Igroup, RawImageList{end});
+                            Msg{1} = sprintf('pipline.DemonLAST finish executing pipeline for group %d - start saving data',Igroup);
                             Obj.writeLog(Msg, LogLevel.Info);
                             
                             %CoaddTransienst = imProc.cat.searchExternalCatOrphans(Coadd);
@@ -1818,136 +1837,71 @@ classdef DemonLAST < Component
                             writeStatus(Obj, FN_Proc.genPath);
                             writeStatus(Obj, fileparts(RawImageListFinal{1}));
 
-
-                            % Insert images to DB tables
-                            % Insert raw images
-                            
-                            % 
-                            if Args.Insert2DB
-                                
-                                try
-                                    
-                                if isempty(ADB)
-                                    % connect to DB
-                                    ADB = db.AstroDb(Args.AstroDBArgs{:});
-                                end
-                                
-                                if ~Args.DB_ImageBulk
-                                
-                                    % insert raw images into the DB:
-                                    RawFileName = RawImageListFinal; % regexprep(RawImageList,'.*/','');
-                                    [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawFileName);
-                                    Msg{1} = sprintf('Insert images to LAST raw images table - success: %d', OK);
+                            % Insert pipeline products to the DB
+                            if Args.Insert2DB                                
+                                try                                    
+                                    Msg{1} = sprintf('pipline.DemonLAST started injecting data for group %d into the DB',Igroup);
                                     Obj.writeLog(Msg, LogLevel.Info);
-
-                                    % insert proc images into the DB:
-    %                                 FN_Proc.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
+                                if isempty(ADB) % connect to DB                                    
+                                    ADB = db.AstroDb(Args.AstroDBArgs{:});
+                                end                                
+                                % RAW, PROC, and COADD images
+                                if ~Args.DB_ImageBulk                                
+                                    [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawImageListFinal);
+                                    Msg{1} = sprintf('Inserted images into LAST raw images table - success: %d', OK);
+                                    Obj.writeLog(Msg, LogLevel.Info);
+                                    %
                                     HasImage = ~AllSI.isemptyImage; % use only AI's with Image properties filled
                                     ProcFileName = FN_Proc.genFull;
-%                                     HasFile = cellfun(@(name) exist(name, 'file') == 2, ProcFileName);
-%                                     HasFile = reshape(HasFile,size(AllSI,1),size(AllSI,2));
-%                                     [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage.*HasFile), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage.*HasFile));
-                                    [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage),'Hash',0);  % w/o hash
-                                                                        
+%                                     HasFile = cellfun(@(name) exist(name, 'file') == 2, ProcFileName); HasFile = reshape(HasFile,size(AllSI,1),size(AllSI,2));
+%                                     [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage.*HasFile), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage.*HasFile)); % w/hash;
+                                    [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage),'Hash',0);  % w/o hash                                                                                                                                                
+                                    ID_RawImage = repmat(ID_RawImage,1,24); ID_RawImage = ID_RawImage(:); % there are ~N*24 ProcImages, and only N RawImages
+                                    OKupd = ADB.updateByTupleID(ID_ProcImage, 'raw_image_id', ID_RawImage, 'Table',Args.DB_Table_Proc);
                                     Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
-                                    
                                     Obj.writeLog(Msg, LogLevel.Info);
-                                    % there are ~N*24 ProcImages, and only N RawImages
-                                    ID_RawImage = repmat(ID_RawImage,1, 24);
-                                    ID_RawImage = ID_RawImage(:);
-                                    OK = ADB.updateByTupleID(ID_ProcImage, 'raw_image_id', ID_RawImage, 'Table',Args.DB_Table_Proc);
-
-                                    % insert coadd images into the DB:
-    %                                 FN_Coadd.genFull('RemoveLeadingStr', Obj.getBasePathWithOutProjName);
+                                    %
                                     HasImage = ~Coadd.isemptyImage; % use only AI's with Image properties filled
                                     CoaddFileName = FN_Coadd.genFull('LevelPath','proc');
-%                                     HasFile = cellfun(@(name) exist(name, 'file') == 2, CoaddFileName);
-%                                     HasFile = reshape(HasFile,size(Coadd,1),size(Coadd,2));
-%                                     [ID_CoaddImage, OK] = ADB.insert(Coadd(HasImage.*HasFile), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImage.*HasFile));
                                     [ID_CoaddImage, OK] = ADB.insert(Coadd(HasImage), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImage),'Hash',0); % w/o hash
-                                    Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
+                                    Msg{1} = sprintf('Insert images to LAST coadd images table - success: %d', OK);
+                                    Obj.writeLog(Msg, LogLevel.Info);                                    
+                                else % prepare CSV files for further injection into the DB                                                                          
+                                    ADB.insert(RawHeader,'Type','bulkima', 'BulkFN',FN_I,    'BulkCatType','raw');
+                                    ADB.insert(AllSI,    'Type','bulkima', 'BulkFN',FN_Proc, 'BulkCatType','proc');       
+                                    ADB.insert(Coadd,    'Type','bulkima', 'BulkFN',FN_Coadd,'BulkCatType','coadd');                                                                               
+                                    
+                                    FN_I_DB = FN_I.copy; OK = 1; 
+                                    Obj.writeStatus(FN_I_DB.genPath, 'Msg', 'ready-for-DB'); 
+                                    Msg{1} = sprintf('CSV files with image header data written to disk');
                                     Obj.writeLog(Msg, LogLevel.Info);
-                                    
-                                else
-                                    % prepare CSV files for further injection into the DB
-                                    
-                                    FN_I_DB = FN_I.copy;
-                                    FN_I_DB = FN_I_DB.updateIfNotEmpty('FileType',{'csv'});
-                                    RawFileName = FN_I_DB.genFull{1};
-                                    RawHeader.writeCSV(RawFileName,'CleanHeaderValues',1);
-                                    Obj.writeStatus(FN_I_DB.genPath, 'Msg', 'ready-for-DB');
-
-                                    FN_Proc_DB = FN_Proc.copy;
-                                    FN_Proc_DB = FN_Proc_DB.updateIfNotEmpty('FileType',{'csv'});
-                                    ProcFileName = FN_Proc_DB.genFull{1};
-                                    AH = [AllSI.HeaderData];
-                                    AH.writeCSV(ProcFileName,'CleanHeaderValues',1);
-                                    Obj.writeStatus(FN_Proc_DB.genPath, 'Msg', 'ready-for-DB');
-
-                                    FN_Coadd_DB = FN_Coadd.copy;
-                                    FN_Coadd_DB = FN_Coadd_DB.updateIfNotEmpty('FileType',{'csv'});
-                                    CoaddFileName = FN_Coadd_DB.genFull('LevelPath','proc');
-                                    CoaddFileName = CoaddFileName{1};
-                                    AH = [Coadd.HeaderData];
-                                    AH.writeCSV(CoaddFileName,'CleanHeaderValues',1);
-                                    
-                                    OK = 1;
-                                
-                                end
-                                
-                                % insert PROC and COADD catalogs into the DB 
-
-                                FN_CatProc = FN_Proc.copy;
-                                FN_CatProc = FN_CatProc.updateIfNotEmpty('Product','Cat', 'FileType',{'csv'});
-                                ProcCatFileName  = FN_CatProc.genFull{1}; 
-                                ProcCat = [AllSI.CatData];
-                                
-                                FN_CatCoadd = FN_Coadd.copy;
-                                FN_CatCoadd = FN_CatCoadd.updateIfNotEmpty('Product','Cat', 'FileType',{'csv'});
-                                CoaddCatFileName  = FN_CatCoadd.genFull('LevelPath','proc');
-                                CoaddCatFileName  = CoaddCatFileName{1};  
-                                CoaddCat = [Coadd.CatData];
-                                
-                                if Args.DB_CatalogBulk 
-                                    
-                                     % write PROC and COADD catalog data to local csv files 
-                                     % to be injected into the DB later on outside this pipeline
-
-                                    StKey = AllSI(1).getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
-                                    ProcCat.writeLargeCSV(ProcCatFileName,...
-                                        'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
-                                        'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUMB, StKey.JD, StKey.EXPTIME] );
-                                    
-                                    StKey = Coadd(1).getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
-                                    CoaddCat.writeLargeCSV(CoaddCatFileName,...
-                                        'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
-                                        'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUMB, StKey.JD, StKey.EXPTIME] );
-                                    
+                                end                                
+                                % PROC and COADD catalogs 
+                                ProcCat = [AllSI.CatData]; CoaddCat = [Coadd.CatData];                                
+                                if Args.DB_CatalogBulk % write PROC and COADD catalog data to local csv files                                    
+                                                       % to be injected into the DB later on outside this pipeline                                                       
+                                    ADB.insert(ProcCat, 'Type','bulkcat', 'BulkFN',FN_Proc, 'BulkCatType','proc','BulkAI',AllSI(1));
+                                    ADB.insert(CoaddCat,'Type','bulkcat', 'BulkFN',FN_Coadd,'BulkCatType','coadd','BulkAI',Coadd(1));
+                                    FN_CatProc = FN_Proc.copy;
                                     Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB'); 
-                                
-                                else
-                                    
-                                    % insert PROC and COADD catalog data into the appropriate DB tables
-                                    
-                                    ADB.insert(ProcCat,  'Table',Args.DB_Table_ProcCat,  'FileNames', ' ', 'Type','cat');
-                                    ADB.insert(CoaddCat, 'Table',Args.DB_Table_CoaddCat, 'FileNames', ' ', 'Type','cat');
-                                    
-                                end
-                                
-                                Msg{1} = sprintf('Insert catalog objects to LAST catalog tables - success: %d', OK);
-                                Obj.writeLog(Msg, LogLevel.Info);
-                                
+                                    Msg{1} = sprintf('CSV files with catalog data written to disk');
+                                    Obj.writeLog(Msg, LogLevel.Info);
+                                else                   % insert PROC and COADD catalog data into the appropriate DB tables
+                                    ADB.insert(ProcCat, 'Table',Args.DB_Table_ProcCat, 'Type','cat');
+                                    ADB.insert(CoaddCat,'Table',Args.DB_Table_CoaddCat,'Type','cat');
+                                    Msg{1} = sprintf('Catalog data injected into the DB tables');
+                                    Obj.writeLog(Msg, LogLevel.Info);
+                                end                                
+                                %                                 
                                 catch DBMsg
                                     DBErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', DBMsg.message, DBMsg.stack(1).name, DBMsg.stack(1).line);
                                     Obj.writeLog(DBErrorMsg, LogLevel.Error);
                                     Obj.writeLog(DBMsg, LogLevel.Error);
                                 end
-
                             end
 
                             RunTime = etime(clock, Tstart); % toc;
-                        catch ME
-                             
+                        catch ME                             
                             
                             RunTime = etime(clock, Tstart); % toc;
     
@@ -1964,18 +1918,13 @@ classdef DemonLAST < Component
 
                             % move images to failed/ dir
                             io.files.moveFiles(RawImageList, FN_Sci_Groups(Igroup).genFull('FullPath',FailedPath));
-    
                             
                         end
-    
-    
+        
                         % write summary and run time to log
                         Msg{1} = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd analyzed %d images starting at %s',numel(RawImageList), FN_Sci_Groups(Igroup).Time{1});
                         Msg{2} = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd run time [s]: %6.1f', RunTime);
-                        Obj.writeLog(Msg, LogLevel.Info);                        
-    
-                        
-                        
+                        Obj.writeLog(Msg, LogLevel.Info);                                                                            
                         
                         % check if stop loop
                         if Args.StopButton && StopGUI()
@@ -2004,10 +1953,10 @@ classdef DemonLAST < Component
         end
         % delete abort msg box
         %Hstop.delete;
-
     end
 
     methods % image subtraction
+        
         function [Path, FieldName, Telescope, CropID] = getRefPath(Obj, FN)
             % Get path for reference images
             % Input  : - A pipeline.DemonLAST object
@@ -2121,10 +2070,8 @@ classdef DemonLAST < Component
 
 
         end
-
+        
     end
-
-
 
     %----------------------------------------------------------------------
     % Unit test

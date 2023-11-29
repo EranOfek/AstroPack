@@ -207,7 +207,7 @@ classdef ImageComponent < Component
                 AI(Iobj).(DataProp).Scale       = IC(Iobj).Scale;
                 AI(Iobj).(DataProp).CCDSEC      = IC(Iobj).CCDSEC;
                 AI(Iobj).(DataProp).Config      = IC(Iobj).Config;
-                AI(Iobj).(DataProp).Log         = IC(Iobj).Log;
+                AI(Iobj).(DataProp).Logger      = IC(Iobj).Logger;
             end
         end
     end

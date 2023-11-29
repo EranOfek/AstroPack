@@ -48,7 +48,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
     %           
     %            'mexCutout' - mexCutout argument for
     %                   imUtil.cut.image2cutouts. Default is true.
-    %            'Circle' - rgument for
+    %            'Circle' - argument for
     %                   imUtil.cut.image2cutouts. Default is false.
     %            'psfPhotCubeArgs' - A cell array of additional arguments
     %                   to pass to imUtil.sources.psfPhotCube.
@@ -66,7 +66,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
     % Example: AI=AstroImage('PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits');
     %          AI=imProc.background.background(AI);
     %          AI=imProc.sources.findMeasureSources(AI);
-    %          AI=imProc.psf.constructPSF(AI);
+    %          AI=imProc.psf.constructPSF(AI); or AI=imProc.psf.populatePSF(AI);
     %          R = imProc.sources.psfFitPhot(AI);
     
     

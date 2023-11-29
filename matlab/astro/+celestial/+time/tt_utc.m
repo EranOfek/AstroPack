@@ -4,7 +4,8 @@ function [TTmUTC, TTmUT1, UT1mTAI, UT1mUTC]=tt_utc(JD, Args)
     %              which succeeded ephemeris time (ET). 
     %              \Delta{T} = TT - UT1
     %              TAI − GPS time = +19 seconds
-    % Input  : - Vector of JDs
+    % Input  : - Vector of JDs.
+    %            Default is now.
     %          * ...,key,val,...
     %            'WhereToGet' -
     %                   'get' - get the latest EOP data from the IERS website and
@@ -27,7 +28,7 @@ function [TTmUTC, TTmUT1, UT1mTAI, UT1mUTC]=tt_utc(JD, Args)
     % Example: [TTmUTC, TTmUT1, UT1mTAI, UT1mUTC]=celestial.time.tt_utc([0;2451545;celestial.time.julday+10]);
 
     arguments
-        JD
+        JD                             = celestial.time.julday;
         Args.WhereToGet                = 'use';   % 'use' | 'get'
         Args.FillVal                   = NaN;
         Args.SourceFile                = '1992';  % '1992' | '1962'
