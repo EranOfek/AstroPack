@@ -334,15 +334,26 @@ classdef OrbitalEl < Base
         end
 
         
-        function Result = merge(Obj)
+        function Result = merge(Obj, Args)
             % Merge the orbital-elements in several elements of the OrbitalEl object.
             %   This function is custom made for merging the JPL
             %   epehmerides, and may fail in other cases.
             % Input  : - An OrbitalEl object, with multiple elements.
+            %          * ...,key,val,...
+            %            'MinEpoch' - Select bodies with Epoch above this
+            %                   one. Default is -Inf.
+            %            'MaxEccen' - Select bodies with Eccen below this
+            %                   one. Default is Inf.
             % Output : - A merged OrbitalEl objt with a single element.
             %            This is always a new copy.
             % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem;
             %          O = merge(OrbEl);
+            
+            arguments
+                Obj
+                Args.MinEpoch = -Inf;
+                Args.MaxEccen = Inf;
+            end
             
             ConCatProp  = {'Number','Designation','Node','W','Incl','Eccen','PeriDist','A','Epoch','Tp','Mepoch','Ref','MagPar'};
             SingleProp  = {'Equinox','AngUnits','LenUnits','TimeUnits','K','UserData'};
@@ -376,6 +387,12 @@ classdef OrbitalEl < Base
                         end
                     end
                 end
+            end
+            
+            % clean file
+            Flag = Result.Epoch>Args.MinEpoch & Result.Eccen<Args.MaxEccen;
+            if ~all(Flag)
+                Result = selectFlag(Result, Flag, false);
             end
             
         end
