@@ -202,7 +202,7 @@ function [Result,OrbEl] = xyz2elements(R, V, Epoch, Args)
         OrbEl.Eccen       = Result.Eccen(:);
         OrbEl.Tp          = Result.Tp(:);
         OrbEl.Epoch       = Result.Epoch(:);
-        OrbEl.Mepoch      = M;
+        OrbEl.Mepoch      = M(:);
         OrbEl.AngUnits    = Args.AngUnits;
     end
 end

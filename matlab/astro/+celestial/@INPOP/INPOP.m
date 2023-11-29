@@ -322,10 +322,11 @@ classdef INPOP < Base
     end
     
     methods (Static)  % transformations
-        function CooEcl = eqJ2000_2ecliptic(CooJ2000)
+        function [CooEcl, RotM] = eqJ2000_2ecliptic(CooJ2000)
             % Rotate [X;Y;Z] Equatorial J2000 coordinates to ecliptic [X;Y;Z]
             % Input  : - A 3xN matrix of positions [X;Y;Z] in equatorial J2000.
             % Output : - A matrix of [X;Y;Z] ecliptic positions.
+            %          - The rotation matrix for the conversion.
             % Author : Eran Ofek (May 2022)
             % Example: CooEcl = celestial.INPOP.eqJ2000_2ecliptic(rand(3,6))
             
