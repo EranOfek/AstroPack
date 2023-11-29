@@ -312,7 +312,11 @@ classdef OrbitalEl < Base
                     if isempty(Obj.(FN{Ifn})) || size(Obj.(FN{Ifn}), 1)==1 || isempty(NewObj.(FN{Ifn}))
                         % skip
                     else
-                        Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn})(IndNew,:);
+                        if size(NewObj.(FN{Ifn}), 1)==1
+                            Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn});
+                        else
+                            Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn})(IndNew,:);
+                        end
                     end
                 end
             end
