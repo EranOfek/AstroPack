@@ -1,5 +1,6 @@
 function Result = unitTest()
     % INPOP.unitTest
+    % Example: celestial.INPOP.unitTest
     
     %io.msgLog(LogLevel.Test, 'INPOP test started');
     I = celestial.INPOP();
@@ -64,6 +65,20 @@ function Result = unitTest()
     assert(Passed,'Failed in populating and calculating objects')
     % Moon ('Moo') is not initialized and gives an error in isPopulated
     % 
+    
+    % Test  TimeSpan
+    JD = 2460000.1+(0:0.1:100)';
+    IN=celestial.INPOP;
+    IN.populateAll('TimeSpan',[2459000, 2461000],'PopForce',true);
+    xx=IN.getPos('Ear',JD);
+    IN.populateAll('PopForce',true);                              
+    xn=IN.getPos('Ear',JD);
+    if max(abs(xx-xn),[],'all')>eps
+        error('celestial.INPOP failed to evaluate ephemeris when TimeSpan option is used');
+    end
+
+
+    
 
     %io.msgLog(LogLevel.Test, 'INPOP test passed');
     Result = true;

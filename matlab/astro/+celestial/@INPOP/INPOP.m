@@ -549,6 +549,7 @@ classdef INPOP < Base
                         otherwise
                             error('Unknown FileData option');
                     end
+                    
                 end
                 
             end
@@ -590,8 +591,8 @@ classdef INPOP < Base
                 Args.PopForce logical = false;
              end
              
-             Obj.populateTables('all', 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, 'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType);
-             Obj.populateTables('all', 'FileData','vel', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, 'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType);
+             Obj.populateTables('all', 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, 'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType, 'PopForce',Args.PopForce);
+             Obj.populateTables('all', 'FileData','vel', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, 'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType, 'PopForce',Args.PopForce);
              Obj.populateTables('TT');
         end
     end

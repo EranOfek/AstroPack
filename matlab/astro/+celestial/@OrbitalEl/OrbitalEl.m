@@ -1650,7 +1650,7 @@ classdef OrbitalEl < Base
             end
 
             for IunEpoch=1:1:NunEpoch
-                %[IunEpoch, NunEpoch, SumUn(IunEpoch)]
+                [IunEpoch, NunEpoch, SumUn(IunEpoch)]
                 ObjUn = selectFlag(Obj, FlagUn{IunEpoch}, true);
                 if UniqueEpochs(IunEpoch)==CommonEpoch
                     % skip - no need to integrate
