@@ -6,7 +6,7 @@ function Result=transmissionPivotWave(Lambda, Response, Dim)
     % Output : - Mean wavelength for each transmission.
     % Author : Eran Ofek (Oct 2023)
     % Reference: See Bohlin et al. 2014 for definitions
-    % Example: astro.spec.transmissionPivotWave((1:1:10)',rand(10,3))
+    % Example: astro.mag.transmissionPivotWave((1:1:10)',rand(10,3))
     
     arguments
         Lambda
