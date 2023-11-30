@@ -1611,9 +1611,16 @@ classdef OrbitalEl < Base
             % Output : - A celestial.OrbitalEl object in which all the
             %            bodies have the same epoch.
             % Author : Eran Ofek (Nov 2023)
-            % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
-            %          Result = propagate2commonEpoch(OrbEl);
-            %          Result = propagate2commonEpoch(OrbEl, 2460100);
+            % Example: Result = propagate2commonEpoch(OrbEl, 2460100);
+            %          
+            %          % full example to the most common epoch
+            %          OrbEl = celestial.OrbitalEl.loadSolarSystem;
+            %          E=merge(OrbEl,'MinEpoch',2451545.5,'MaxEccen',0.9999);
+            %          IN = celestial.INPOP;
+            %          IN.populateTables('all','TimeSpan',[min(E.Epoch)-100, max(E.Epoch)+100])
+            %          IN.populateTables('Sun','FileData','vel');
+            %          Result = propagate2commonEpoch(E, [], 'INPOP',IN);
+            %          
 
             arguments
                 Obj(1,1)
@@ -1621,7 +1628,7 @@ classdef OrbitalEl < Base
                 Args.TimeScale       = 'TDB';
                 Args.INPOP           = [];
                 Args.Tol             = 1e-8;
-                Args.TolInt          = 1e-10;
+                Args.TolInt          = 1e-8;
                 
                 Args.CreateNewObj logical = true;
 
