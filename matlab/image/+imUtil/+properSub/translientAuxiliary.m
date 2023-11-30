@@ -74,7 +74,8 @@ function [Z2Prefactors,Norm] = translientAuxiliary(Pn, Pr, SigmaN, SigmaR, Args)
     Term1 = ifft2(Z2Prefactors.*SigmaR.*Pnhat);
     Term2 = ifft2(Z2Prefactors.*SigmaN.*Prhat);
     
-    Norm = sum(imag(Term1).^2,3)+sum(imag(Term2).^2,3);
+    %Norm = sum(imag(Term1).^2,3)+sum(imag(Term2).^2,3);
+    Norm = sum(imag(Term1(:)).^2+imag(Term2(:)).^2)/2;
          
 end
 

@@ -172,7 +172,9 @@ function [Scorr, S, S2, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, Sdelta
         Scorr = Scorr - median(Scorr, [1 2], 'omitnan');
         Scorr = Scorr./tools.math.stat.rstd(Scorr, [1 2]);
 
-        S2 = S2 - median(S2, [1 2], 'omitnan');
+        k = 2;
+        median_expected = k.*(1 - 2./(9.*k)).^3;
+        S2 = S2 - median(S2, [1 2], 'omitnan') + median_expected;
         S2 = S2./tools.math.stat.rstd(S2, [1 2]);    
     end
     

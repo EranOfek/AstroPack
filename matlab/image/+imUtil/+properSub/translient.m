@@ -34,7 +34,10 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     %                   to avoid division by zero due to roundoff errors.
     %                   Default is 0. (If needed set to about 100.*eps).
     %            'NormalizeZ2' - A logical indicating whether to return Z2
-    %            after normalization, that is Z2->Z2./Norm
+    %            after normalization, that is Z2->Z2./Norm    %
+    %            'NormalizationMethod' - Method in which Z2 should be
+    %            normalized. Choices are 'analytical', 'empirical', and
+    %            'None'. Default is 'empirical'.
     % Output : - (Z2) The translient statistic.
     %          - (Zhat) The translient Zhat vector. Size (M,M,2) where M is
     %            the image size.
@@ -65,6 +68,7 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
         Args.Eps                      = 0;
 
         Args.NormalizeZ2(1,1) logical = true;
+        Args.NormalizationMethod = 'empiricial';
     end
 
 
@@ -106,10 +110,17 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
 
     Z2 = sum(Z.^2,3);
 
-    if Args.NormalizeZ2
-        Z2 = Z2./Norm;
-        Z2 = Z2 - median(Z2, [1 2], 'omitnan');
-        Z2 = Z2./tools.math.stat.rstd(Z2, [1 2]);
+    switch Args.NormalizationMethod
+        case 'analytical'
+            % Zs^2 from Translient paper eq. 23
+            Z2 = Z2./Norm; 
+        case 'empirical'
+            k = 2;
+            median_expected = k.*(1 - 2./(9.*k)).^3;
+            Z2 = Z2 - median(Z2, 'all', 'omitnan') + median_expected;
+        case 'None'
     end
-         
+
+    Z2 = Z2./tools.math.stat.rstd(Z2, 'all');
+
 end
