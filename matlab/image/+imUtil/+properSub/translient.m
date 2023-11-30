@@ -33,11 +33,14 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     %            'Eps' - A small value to add to the demoninators in order
     %                   to avoid division by zero due to roundoff errors.
     %                   Default is 0. (If needed set to about 100.*eps).
-    %            'NormalizeZ2' - A logical indicating whether to return Z2
-    %            after normalization, that is Z2->Z2./Norm    %
+    %            'SetToNaN' - A matrix of logical flags which size is equal
+    %                   to N and R. Before the normalization: Z2 will be
+    %                   set to NaN when the flags map equal true.
+    %                   If empty, then skip this step.
+    %                   Default is [].
     %            'NormalizationMethod' - Method in which Z2 should be
     %            normalized. Choices are 'analytical', 'empirical', and
-    %            'None'. Default is 'empirical'.
+    %            'None'. Default is 'analytical'.
     % Output : - (Z2) The translient statistic.
     %          - (Zhat) The translient Zhat vector. Size (M,M,2) where M is
     %            the image size.
@@ -67,8 +70,8 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
 
         Args.Eps                      = 0;
 
-        Args.NormalizeZ2(1,1) logical = true;
-        Args.NormalizationMethod = 'empiricial';
+        Args.SetToNaN         = [];
+        Args.NormalizationMethod = 'analytical';
     end
 
 
@@ -110,17 +113,23 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
 
     Z2 = sum(Z.^2,3);
 
+    if ~isempty(Args.SetToNaN)
+        Z2(Args.SetToNaN) = NaN;
+    end
+
+    % degrees of freedom
+    k = 2;
     switch Args.NormalizationMethod
         case 'analytical'
             % Zs^2 from Translient paper eq. 23
             Z2 = Z2./Norm; 
         case 'empirical'
-            k = 2;
+            % force median to be that of a chi2 with dof=2
             median_expected = k.*(1 - 2./(9.*k)).^3;
             Z2 = Z2 - median(Z2, 'all', 'omitnan') + median_expected;
         case 'None'
     end
 
-    Z2 = Z2./tools.math.stat.rstd(Z2, 'all');
+    Z2 = Z2./tools.math.stat.rstd(Z2, 'all').*sqrt(2.*k);
 
 end

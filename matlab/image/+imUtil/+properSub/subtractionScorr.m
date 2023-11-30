@@ -152,7 +152,6 @@ function [Scorr, S, S2, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, Sdelta
     end
     
     Scorr = S./sqrt(Vcorr + Vast);
-    S2 = S.^2;
     
     if ~isempty(Args.SetToNaN)
         Scorr(Args.SetToNaN) = NaN;
@@ -167,6 +166,7 @@ function [Scorr, S, S2, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, Sdelta
         D = D./Fd;
     end
     
+    S2 = S.^2;
     % normalize S, S2 and Scorr
     if Args.NormS
         Scorr = Scorr - median(Scorr, [1 2], 'omitnan');
@@ -174,8 +174,8 @@ function [Scorr, S, S2, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, Sdelta
 
         k = 2;
         median_expected = k.*(1 - 2./(9.*k)).^3;
-        S2 = S2 - median(S2, [1 2], 'omitnan') + median_expected;
-        S2 = S2./tools.math.stat.rstd(S2, [1 2]);    
+        S2 = S2 - median(S2, 'all', 'omitnan') + median_expected;
+        S2 = S2./tools.math.stat.rstd(S2, [1 2]).*sqrt(2.*k);
     end
     
 end

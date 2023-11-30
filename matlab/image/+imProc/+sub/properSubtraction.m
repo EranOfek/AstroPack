@@ -266,13 +266,12 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
         SdR(Imax).Image = SdeltaR;
 
         if Args.CalcTranslient
-            [ImageZ2,~,~] = imUtil.properSub.translient(N, R, Pn, Pr, SigmaN, SigmaR);
-
-            ImageZ2(FlagNaN) = NaN;
+            [ImageZ2,~,~] = imUtil.properSub.translient(N, R, Pn, Pr, SigmaN, SigmaR, ...
+                'SetToNan', FlagNaN,'NormalizationMethod', 'analytical');
     
             Z2(Imax).Image = ImageZ2;
             Z2(Imax).MaskData = D(Imax).MaskData;
-            
+
             S2(Imax).Image    = ImageS2;
             S2(Imax).MaskData = D(Imax).MaskData;
 
