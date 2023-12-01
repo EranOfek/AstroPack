@@ -98,6 +98,35 @@ function Result = unitTest
     AC(1).Catalog = [AC(1).Catalog; AC(3).Catalog(1:5,:); AC(2).Catalog(1:2,:)];
     Result = imProc.match.unifiedSourcesCatalog(AC, 'CooType','sphere');
     
+    
+    %% Test: match2solarSystem
+
+    OrbEl= celestial.OrbitalEl.loadSolarSystem('num');
+    OrbEl.propagate2commonEpoch;
+    IN = celestial.INPOP;
+    IN.populateAll;
+    JD = OrbEl.Epoch(1) + 500;
+    % select some asteroids from JPL:    
+    T = celestial.SolarSys.getJPL_ephem('600000;','EPHEM_TYPE','OBSERVER','TimeScale','TT','StartTime',JD,'StopTime',JD+0.1); 
+    
+    Cat = [T.RA, T.Dec] + [[0, 0]; rand(1000,2)-0.5];
+    AC  = AstroCatalog({Cat}, 'ColNames',{'RA','Dec'}, 'ColUnits',{'deg','deg'});
+    AC.JD = JD;
+        
+    AC1 = AC.copy;
+    [OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(AC1, 'JD',JD, 'GeoPos',[], 'OrbEl',OrbEl, 'SearchRadius',1);
+    % verify that the asteroid was recovered
+    if OnlyMP.sizeCatalog==0
+        error('match2solarSystem failed');
+    end
+    % verify that the asteroid entry was updated
+    if sum(~isnan(AC1.Catalog(:,3)))~=1
+        error('match2solarSystem failed');
+    end
+    
+        
+    
+    
     cd(PWD);
     
     Result = true;
