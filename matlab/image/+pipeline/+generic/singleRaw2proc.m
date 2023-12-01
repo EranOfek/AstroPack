@@ -333,8 +333,6 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         if Args.AddPSF
             [SI] = imProc.psf.constructPSF(SI, Args.constructPSFArgs{:});
 %             [SI] = imProc.psf.populatePSF(SI, Args.constructPSFArgs{:}); 
-            % add PSF FWHM to header
-            imProc.psf.fwhm(SI); 
 
             if Args.PsfPhot
                 % PSF photometry
@@ -389,6 +387,11 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
             
             % Update Cat astrometry
             %SI = imProc.astrometry.addCoordinates2catalog(SI, Args.addCoordinates2catalogArgs{:},'UpdateCoo',true);
+        end
+        
+        % add PSF FWHM to the header after the astrometry, as it employs WCS.CD
+        if Args.AddPSF
+            imProc.psf.fwhm(SI); 
         end
 
         % Photometric ZP
