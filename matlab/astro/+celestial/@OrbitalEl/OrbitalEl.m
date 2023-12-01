@@ -1611,9 +1611,16 @@ classdef OrbitalEl < Base
             % Output : - A celestial.OrbitalEl object in which all the
             %            bodies have the same epoch.
             % Author : Eran Ofek (Nov 2023)
-            % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
-            %          Result = propagate2commonEpoch(OrbEl);
-            %          Result = propagate2commonEpoch(OrbEl, 2460100);
+            % Example: Result = propagate2commonEpoch(OrbEl, 2460100);
+            %          
+            %          % full example to the most common epoch
+            %          OrbEl = celestial.OrbitalEl.loadSolarSystem;
+            %          E=merge(OrbEl,'MinEpoch',2451545.5,'MaxEccen',0.9999);
+            %          IN = celestial.INPOP;
+            %          IN.populateTables('all','TimeSpan',[min(E.Epoch)-100, max(E.Epoch)+100])
+            %          IN.populateTables('Sun','FileData','vel');
+            %          Result = propagate2commonEpoch(E, [], 'INPOP',IN);
+            %          
 
             arguments
                 Obj(1,1)
@@ -1621,7 +1628,7 @@ classdef OrbitalEl < Base
                 Args.TimeScale       = 'TDB';
                 Args.INPOP           = [];
                 Args.Tol             = 1e-8;
-                Args.TolInt          = 1e-10;
+                Args.TolInt          = 1e-8;
                 
                 Args.CreateNewObj logical = true;
 
@@ -1650,7 +1657,7 @@ classdef OrbitalEl < Base
             end
 
             for IunEpoch=1:1:NunEpoch
-                %[IunEpoch, NunEpoch, SumUn(IunEpoch)]
+                [IunEpoch, NunEpoch, SumUn(IunEpoch)]
                 ObjUn = selectFlag(Obj, FlagUn{IunEpoch}, true);
                 if UniqueEpochs(IunEpoch)==CommonEpoch
                     % skip - no need to integrate
@@ -1693,6 +1700,11 @@ classdef OrbitalEl < Base
             %            'INPOP' - A populated celestial.INPOP object.
             %                   If empty then will be generated.
             %                   Default is [].
+            %            'AddDist' - A logical indicating if to add a
+            %                   'Dist' column to the output table, containing the
+            %                   distance between the search position and asteroid
+            %                   [arcsec].
+            %                   Deafult is true.
             %
             %            'GeoPos' - Geodetic position of the observer (on
             %                   Earth). [Lon (rad), Lat (rad), Height (m)].
@@ -1771,6 +1783,7 @@ classdef OrbitalEl < Base
                 
                 Args.SearchRadiusUnits     = 'arcsec';
                 Args.CooUnits              = 'deg';
+                Args.AddDist logical       = true;
                 
                 Args.MagLimit              = Inf;
                 Args.INPOP                 = [];
@@ -1798,6 +1811,7 @@ classdef OrbitalEl < Base
                 Args.IncludeDesignation logical = true;
                 
             end
+            RAD = 180./pi;
             
             if isempty(Args.INPOP)
                 Args.INPOP = celestial.INPOP;
@@ -1905,6 +1919,12 @@ classdef OrbitalEl < Base
                                                       'CooUnits','rad',...
                                                       'CreateNewObj',false,...
                                                       Args.coneSearchArgs{:});
+                    end
+                    
+                    % add Dist
+                    if Args.AddDist
+                        Dist = celestial.coo.sphere_dist_fast(RA, Dec, Result(Iobj).Catalog.RA./RAD, Result(Iobj).Catalog.Dec./RAD) ;
+                        Result(Iobj).insertCol(Dist.*RAD.*3600, Inf, {'Dist'}, {'arcsec'});
                     end
                 end
                

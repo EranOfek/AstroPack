@@ -3,6 +3,7 @@ function Result = unitTest()
 	%io.msgStyle(LogLevel.Test, '@start', 'test started');
     
     % Test xyz2elements
+    RAD = 180./pi;
     OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801]);
     OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801:9810]);
     [X,V]=OrbEl.elements2pos('CooSys','ec', 'RefFrame','helio');
@@ -13,7 +14,7 @@ function Result = unitTest()
     if any(abs([Res.Incl.' - OrbEl.Incl, Res.W.' - OrbEl.W, Res.Node.' - OrbEl.Node])>1e-9,'all')
         error('Error in xyz2elements');
     end
-    if any(abs([Res.MeanMotion.' - OrbEl.meanMotion])>1e-4,'all')
+    if any(abs([Res.MeanMotion.' - OrbEl.meanMotion.*RAD])>1e-4,'all')
         error('Error in xyz2elements');
     end
     

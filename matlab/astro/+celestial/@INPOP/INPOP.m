@@ -293,6 +293,8 @@ classdef INPOP < Base
             %                   create the mat files.
             %                   Default is 'asc'.
             %            'TimePeriod' - ['100'] | '1000'.
+            %            'MaxOrder' - Max polynomial order to load.
+            %                   If Inf load all. Default is Inf.
             % Output : - A matrix containing the requested data file.
             %            Containing columns with:
             %            JDstart JDend Chebyshev coef. for the object position
@@ -310,6 +312,7 @@ classdef INPOP < Base
                 Args.FileType      = 'asc';   % 'mat' | 'asc';
                 Args.TimePeriod    = '100';   % '100' | '1000'
                 Args.FileData      = 'pos';
+                Args.MaxOrder      = Inf;
             end
             
             FileName    = celestial.INPOP.inpopFileName('Object', Args.Object, 'Version',Args.Version, 'TimeScale',Args.TimeScale, 'FileType',Args.FileType, 'TimePeriod',Args.TimePeriod, 'FileData',Args.FileData);
@@ -322,6 +325,9 @@ classdef INPOP < Base
                     Result = io.files.load2(FullFileName);
                 otherwise
                     error('Unknown FileType option');
+            end
+            if (2+Args.MaxOrder)<size(Result,2)
+                Result = Result(:,1:2+Args.MaxOrder);
             end
             
         end
@@ -471,6 +477,8 @@ classdef INPOP < Base
             %            'PopForce' - A logical indicating if to repopulate
             %                   the table even if not empty.
             %                   Default is false.
+            %            'MaxOrder' - Max. polynomial order to load.
+            %                   If Inf load all. Default is Inf.
             % Output : - A celestial.INPOP object in which the PosTables or
             %            VelTables are populated.
             % Author : Eran Ofek (Apr 2022)
@@ -490,6 +498,7 @@ classdef INPOP < Base
                 Args.FileData    = 'pos';
                 Args.FileType    = 'mat';
                 Args.PopForce logical = false;
+                Args.MaxOrder    = Inf;
             end
             
             if ischar(Object)
@@ -526,7 +535,8 @@ classdef INPOP < Base
                                                           'Version',Args.Version,...
                                                           'TimePeriod',TimePeriod,...
                                                           'FileData',Args.FileData,...
-                                                          'FileType',Args.FileType);
+                                                          'FileType',Args.FileType,...
+                                                          'MaxOrder',Args.MaxOrder);
                         else
                             Table = [];
                         end
@@ -549,6 +559,7 @@ classdef INPOP < Base
                         otherwise
                             error('Unknown FileData option');
                     end
+                    
                 end
                 
             end
@@ -573,6 +584,8 @@ classdef INPOP < Base
             %            'FileType' - 'asc' | ['mat'].
             %                   Use celestial.INPOP.convertAscii2mat to
             %                   create the mat files.
+            %            'MaxOrder' - Max. polynomial order to load.
+            %                   If Inf load all. Default is Inf.
             % Output : - A celestial.INPOP object in which the PosTables or
             %            VelTables are populated.
             % Author : Eran Ofek (Apr 2022)
@@ -588,10 +601,15 @@ classdef INPOP < Base
                 Args.FileData    = 'pos';
                 Args.FileType    = 'mat';
                 Args.PopForce logical = false;
+                Args.MaxOrder    = Inf;
              end
              
-             Obj.populateTables('all', 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, 'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType);
-             Obj.populateTables('all', 'FileData','vel', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, 'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType);
+             Obj.populateTables('all', 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+                                       'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType,...
+                                       'PopForce',Args.PopForce, 'MaxOrder',Args.MaxOrder);
+             Obj.populateTables('all', 'FileData','vel', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+                                       'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType,...
+                                       'PopForce',Args.PopForce, 'MaxOrder',Args.MaxOrder);
              Obj.populateTables('TT');
         end
     end

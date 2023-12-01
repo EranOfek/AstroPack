@@ -8,7 +8,7 @@ function Result = unitTest
     cd(DataSampleDir);
 
 
-%     addMagCols
+    % addMagCols
     AC=AstroCatalog('LAST.01.02.01_20230115.170832.639_clear_050+09_001_001_024_sci_coadd_Cat_001.fits');
     AC2 = AC.copy();
     NamesFlux = AC.ColNames(contains(AC.ColNames, 'FLUX_'));
