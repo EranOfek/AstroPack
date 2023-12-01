@@ -65,8 +65,8 @@ function Result = unitTest()
 
     % overscan
     AI = AstroImage({rand(200,100)});
-    [Result, OverScanAI] = imProc.dark.overscan(AI, 'OverScan',[1 10 1 200]);
-    [Result, OverScanAI] = imProc.dark.overscan(AI, 'OverScan',[91 100 1 200]);
+    [Result, OverScanAI] = imProc.dark.overscan(AI, 'OverScan',[1 10 1 200], 'CreateNewObj',true);
+    [Result, OverScanAI] = imProc.dark.overscan(AI, 'OverScan',[91 100 1 200], 'CreateNewObj',true);
     [Result, OverScanAI] = imProc.dark.overscan(AI, 'OverScan',[91 100 1 200],'Method','medmedfilt');
     [y,x] = sizeImage(Result);
     if ~(x==90 && y==200)

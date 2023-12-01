@@ -132,6 +132,7 @@ function Result = unitTest()
     % Not working!
     % Test by obtaining the Sun barycentric position
     OrbEl1 = celestial.OrbitalEl.loadSolarSystem('num',9804);
+    JD = OrbEl1.Epoch - 1000;
     [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl1, JD+(0:1:10)','Integration',true, 'RefFrame','bary');
     RotM = celestial.coo.rotm_coo('e');
     U_B_ec = RotM * U_B;

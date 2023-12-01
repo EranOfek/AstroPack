@@ -155,6 +155,25 @@ classdef ds9 < handle
     % Static methods for ds9
     % Basic methods (system, command construction, open, exit,...)
     methods (Static)
+        function Result=isXPAexist
+            % check if xpa is installed
+            % Input  : null
+            % Output : - A logical indicating if XPA exist.
+            % Author : Eran Ofek (Dec 2023)
+            % Example: ds9.isXPAexist
+            
+            try
+                Res=ds9.xpaget('version');
+            catch ME
+                Res = ME.message;
+            end
+            if contains(Res, 'ds9')
+               Result = true;
+            else
+                Result = false;
+            end
+            
+        end
         
         % execute xpa command
         function [Answer,Status] = system(String,varargin)

@@ -46,7 +46,7 @@ function Result = trimOverscan(Obj, Args)
         Obj AstroImage
         Args.OverScan                  = 'OVERSCAN';
         Args.FinalCrop                 = [];
-        Args.OverScanDir               = 1;  % 1 for Y axis
+        Args.OverScanDir               = [];  % 1 for Y axis
         Args.DataProp                  = {'Image','Mask'};
         Args.UpdateHeader logical      = true;
         Args.KeyCCDSEC                 = 'CCDSEC';

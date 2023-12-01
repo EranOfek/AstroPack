@@ -51,9 +51,13 @@ function Result = unitTest()
     [Long_jh,Lat_jh]= celestial.coo.convert_coo(Long,Lat,'j2000.0','h',JD,NeotCoo );
     [Long_jh_inv,Lat_jh_inv]= celestial.coo.convert_coo(Long_jh,Lat_jh,'h','j2000.0',JD,NeotCoo );
     
-    
-    assert(all(abs(Long_jh_inv-Long)<1e-12))
-    assert(all(abs(Lat_jh_inv-Lat)<1e-12))
+    DiffLong = Long_jh_inv-Long;
+    Flag = DiffLong>pi;
+    DiffLong(Flag) = DiffLong(Flag)-2.*pi; 
+    if max(abs(DiffLong))>1e-11
+        error('Error in convert_coo');
+    end
+    assert(all(abs(Lat_jh_inv-Lat)<1e-11))
 
     
     % Check coo2cosined

@@ -1,6 +1,7 @@
 function Result = unitTest()
     % FileNames.unitTest        
-    io.msgStyle(LogLevel.Test, '@start', 'FileNames test started\n');
+    
+    %io.msgStyle(LogLevel.Test, '@start', 'FileNames test started\n');
 
     
     F = FileNames;
@@ -24,14 +25,15 @@ function Result = unitTest()
     F.getProp('CropID');
     F.getProp('Time',1);
     
-    F.genFile(1,true)
+    F.genFile(1, 'ReturnChar',true);
     tic;F.genFile;toc
-    F.genPath
+    F.genPath;
     
-    F.genFull
+    F.genFull;
     
     % Done
-    io.msgStyle(LogLevel.Test, '@passed', 'FileNames test passed')
-    %Result = true;
+    %io.msgStyle(LogLevel.Test, '@passed', 'FileNames test passed')
+    
+    Result = true;
 end
 
