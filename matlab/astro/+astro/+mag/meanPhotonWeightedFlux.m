@@ -22,7 +22,7 @@ function [MeanF,ErrMeanF]=meanPhotonWeightedFlux(Lambda, F, Response, Args)
     %            Empty, if error flux is not provided.
     % Reference: See Bohlin et al. 2014 for definitions
     % Author : Eran Ofek (Oct 2023)
-    % Example: [MeanF,ErrMeanF]=astro.spec.meanPhotonWeightedFlux((1:10)', rand(10,3), rand(10,3), 'ErrF',0.01)
+    % Example: [MeanF,ErrMeanF]=astro.mag.meanPhotonWeightedFlux((1:10)', rand(10,3), rand(10,3), 'ErrF',0.01)
     
     arguments
         Lambda

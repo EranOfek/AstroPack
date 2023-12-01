@@ -66,6 +66,20 @@ classdef INPOP < Base
     end
     
     properties (Constant)
+%         ChebyFun cell     = {NaN,NaN, @celestial.INPOP.chebyshevFun2,...
+%                                        @celestial.INPOP.chebyshevFun3,...
+%                                        @celestial.INPOP.chebyshevFun4,...
+%                                        @celestial.INPOP.chebyshevFun5,...
+%                                        @celestial.INPOP.chebyshevFun6,...
+%                                        @celestial.INPOP.chebyshevFun7,...
+%                                        @celestial.INPOP.chebyshevFun8,...
+%                                        @celestial.INPOP.chebyshevFun9,...
+%                                        @celestial.INPOP.chebyshevFun10,...
+%                                        @celestial.INPOP.chebyshevFun11,...
+%                                        @celestial.INPOP.chebyshevFun12,...
+%                                        @celestial.INPOP.chebyshevFun13,...
+%                                        @celestial.INPOP.chebyshevFun14,...
+%                                        @celestial.INPOP.chebyshevFun15};
         LatestVersion     = 'inpop21a';
         Location          = '~/matlab/data/SolarSystem/INPOP/';
         RangeShort        = [2414105.00, 2488985.00];
@@ -100,6 +114,68 @@ classdef INPOP < Base
     end
     
     methods (Static) % download/create INPOP files
+        % Chebyshev of the first kind - horner representations
+        % generated using: tools.math.fun.chebyshevFun
+        function Result=chebyshevFun2(x)
+            % chebyshevFun2
+            N = numel(x);
+            Result = [ones(size(x)),x,2.*x.^2-1];
+        end
+        function Result=chebyshevFun3(x)
+            % chebyshevFun3
+            N = numel(x);
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3)];
+        end
+        function Result=chebyshevFun4(x)
+            % chebyshevFun4
+            N = numel(x);
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1];
+        end
+        function Result=chebyshevFun5(x)
+            % chebyshevFun5
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5)];
+        end
+        function Result=chebyshevFun6(x)
+            % chebyshevFun6
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1];
+        end
+        function Result=chebyshevFun7(x)
+            % chebyshevFun7
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7)];
+        end
+        function Result=chebyshevFun8(x)
+            % chebyshevFun8
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7),x.^2.*(x.^2.*(x.^2.*(128.*x.^2-256)+160)-32)+1];
+        end
+        function Result=chebyshevFun9(x)
+            % chebyshevFun9
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7),x.^2.*(x.^2.*(x.^2.*(128.*x.^2-256)+160)-32)+1,x.*(x.^2.*(x.^2.*(x.^2.*(256.*x.^2-576)+432)-120)+9)];
+        end
+        function Result=chebyshevFun10(x)
+            % chebyshevFun10
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7),x.^2.*(x.^2.*(x.^2.*(128.*x.^2-256)+160)-32)+1,x.*(x.^2.*(x.^2.*(x.^2.*(256.*x.^2-576)+432)-120)+9),x.^2.*(x.^2.*(x.^2.*(x.^2.*(512.*x.^2-1280)+1120)-400)+50)-1];
+        end
+        function Result=chebyshevFun11(x)
+            % chebyshevFun11
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7),x.^2.*(x.^2.*(x.^2.*(128.*x.^2-256)+160)-32)+1,x.*(x.^2.*(x.^2.*(x.^2.*(256.*x.^2-576)+432)-120)+9),x.^2.*(x.^2.*(x.^2.*(x.^2.*(512.*x.^2-1280)+1120)-400)+50)-1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(1024.*x.^2-2816)+2816)-1232)+220)-11)];
+        end
+        function Result=chebyshevFun12(x)
+            % chebyshevFun12
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7),x.^2.*(x.^2.*(x.^2.*(128.*x.^2-256)+160)-32)+1,x.*(x.^2.*(x.^2.*(x.^2.*(256.*x.^2-576)+432)-120)+9),x.^2.*(x.^2.*(x.^2.*(x.^2.*(512.*x.^2-1280)+1120)-400)+50)-1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(1024.*x.^2-2816)+2816)-1232)+220)-11),x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(2048.*x.^2-6144)+6912)-3584)+840)-72)+1];
+        end
+        function Result=chebyshevFun13(x)
+            % chebyshevFun13
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7),x.^2.*(x.^2.*(x.^2.*(128.*x.^2-256)+160)-32)+1,x.*(x.^2.*(x.^2.*(x.^2.*(256.*x.^2-576)+432)-120)+9),x.^2.*(x.^2.*(x.^2.*(x.^2.*(512.*x.^2-1280)+1120)-400)+50)-1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(1024.*x.^2-2816)+2816)-1232)+220)-11),x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(2048.*x.^2-6144)+6912)-3584)+840)-72)+1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(4096.*x.^2-13312)+16640)-9984)+2912)-364)+13)];
+        end
+        function Result=chebyshevFun14(x)
+            % chebyshevFun14
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7),x.^2.*(x.^2.*(x.^2.*(128.*x.^2-256)+160)-32)+1,x.*(x.^2.*(x.^2.*(x.^2.*(256.*x.^2-576)+432)-120)+9),x.^2.*(x.^2.*(x.^2.*(x.^2.*(512.*x.^2-1280)+1120)-400)+50)-1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(1024.*x.^2-2816)+2816)-1232)+220)-11),x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(2048.*x.^2-6144)+6912)-3584)+840)-72)+1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(4096.*x.^2-13312)+16640)-9984)+2912)-364)+13),x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(8192.*x.^2-28672)+39424)-26880)+9408)-1568)+98)-1];
+        end
+        function Result=chebyshevFun15(x)
+            % chebyshevFun15
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7),x.^2.*(x.^2.*(x.^2.*(128.*x.^2-256)+160)-32)+1,x.*(x.^2.*(x.^2.*(x.^2.*(256.*x.^2-576)+432)-120)+9),x.^2.*(x.^2.*(x.^2.*(x.^2.*(512.*x.^2-1280)+1120)-400)+50)-1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(1024.*x.^2-2816)+2816)-1232)+220)-11),x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(2048.*x.^2-6144)+6912)-3584)+840)-72)+1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(4096.*x.^2-13312)+16640)-9984)+2912)-364)+13),x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(8192.*x.^2-28672)+39424)-26880)+9408)-1568)+98)-1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(16384.*x.^2-61440)+92160)-70400)+28800)-6048)+560)-15)];
+        end
+        
         function FileName = inpopFileName(Args)
             % Construct INPOP data file name
             % Input  : * ...,key,val,...
@@ -217,6 +293,8 @@ classdef INPOP < Base
             %                   create the mat files.
             %                   Default is 'asc'.
             %            'TimePeriod' - ['100'] | '1000'.
+            %            'MaxOrder' - Max polynomial order to load.
+            %                   If Inf load all. Default is Inf.
             % Output : - A matrix containing the requested data file.
             %            Containing columns with:
             %            JDstart JDend Chebyshev coef. for the object position
@@ -234,6 +312,7 @@ classdef INPOP < Base
                 Args.FileType      = 'asc';   % 'mat' | 'asc';
                 Args.TimePeriod    = '100';   % '100' | '1000'
                 Args.FileData      = 'pos';
+                Args.MaxOrder      = Inf;
             end
             
             FileName    = celestial.INPOP.inpopFileName('Object', Args.Object, 'Version',Args.Version, 'TimeScale',Args.TimeScale, 'FileType',Args.FileType, 'TimePeriod',Args.TimePeriod, 'FileData',Args.FileData);
@@ -246,6 +325,9 @@ classdef INPOP < Base
                     Result = io.files.load2(FullFileName);
                 otherwise
                     error('Unknown FileType option');
+            end
+            if (2+Args.MaxOrder)<size(Result,2)
+                Result = Result(:,1:2+Args.MaxOrder);
             end
             
         end
@@ -395,6 +477,8 @@ classdef INPOP < Base
             %            'PopForce' - A logical indicating if to repopulate
             %                   the table even if not empty.
             %                   Default is false.
+            %            'MaxOrder' - Max. polynomial order to load.
+            %                   If Inf load all. Default is Inf.
             % Output : - A celestial.INPOP object in which the PosTables or
             %            VelTables are populated.
             % Author : Eran Ofek (Apr 2022)
@@ -414,6 +498,7 @@ classdef INPOP < Base
                 Args.FileData    = 'pos';
                 Args.FileType    = 'mat';
                 Args.PopForce logical = false;
+                Args.MaxOrder    = Inf;
             end
             
             if ischar(Object)
@@ -450,7 +535,8 @@ classdef INPOP < Base
                                                           'Version',Args.Version,...
                                                           'TimePeriod',TimePeriod,...
                                                           'FileData',Args.FileData,...
-                                                          'FileType',Args.FileType);
+                                                          'FileType',Args.FileType,...
+                                                          'MaxOrder',Args.MaxOrder);
                         else
                             Table = [];
                         end
@@ -473,6 +559,7 @@ classdef INPOP < Base
                         otherwise
                             error('Unknown FileData option');
                     end
+                    
                 end
                 
             end
@@ -497,6 +584,8 @@ classdef INPOP < Base
             %            'FileType' - 'asc' | ['mat'].
             %                   Use celestial.INPOP.convertAscii2mat to
             %                   create the mat files.
+            %            'MaxOrder' - Max. polynomial order to load.
+            %                   If Inf load all. Default is Inf.
             % Output : - A celestial.INPOP object in which the PosTables or
             %            VelTables are populated.
             % Author : Eran Ofek (Apr 2022)
@@ -512,11 +601,16 @@ classdef INPOP < Base
                 Args.FileData    = 'pos';
                 Args.FileType    = 'mat';
                 Args.PopForce logical = false;
+                Args.MaxOrder    = Inf;
              end
              
-             Obj.populateTables('all', 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, 'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType);
-             Obj.populateTables('all', 'FileData','vel', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, 'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType);
-             
+             Obj.populateTables('all', 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+                                       'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType,...
+                                       'PopForce',Args.PopForce, 'MaxOrder',Args.MaxOrder);
+             Obj.populateTables('all', 'FileData','vel', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+                                       'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType,...
+                                       'PopForce',Args.PopForce, 'MaxOrder',Args.MaxOrder);
+             Obj.populateTables('TT');
         end
     end
     
@@ -650,6 +744,9 @@ classdef INPOP < Base
             
                 % maybe need to divide by half time span
                 %ChebyEval    = Obj.ChebyFun{ChebyOrder}((JD - Tmid(IndJD))./Thstep);
+                
+                %TTmid = ((JD - Tmid(IndJD))./Thstep);
+                %ChebyEval    = Obj.ChebyFun{Norder}(TTmid);
                 ChebyEval    = Obj.ChebyFun{Norder}((JD - Tmid(IndJD))./Thstep);
                 
                 Pos(Icoo,:)  = sum([ChebyCoef.*ChebyEval(:,1:Norder)].',1);

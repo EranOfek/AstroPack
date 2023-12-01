@@ -1715,6 +1715,7 @@ classdef AstroImage < Component
             % Output : - A structure containing:
             %            .Center - [RA, Dec] of center (of CCDSEC).
             %            .Corners - [RA, Dec] of 4 image corners.
+            %            .FOV_Radius - max Radius to corners.
             % Author : Eran Ofek (Jan 2023)
             % Example: RR=AI.cooImage([1 1000 1 1000])
             %          RR=AI.cooImage([])
@@ -1725,6 +1726,7 @@ classdef AstroImage < Component
                 CCDSEC         = [];
                 Args.OutUnits  = 'deg';
             end
+            Factor = convert.angular(Args.OutUnits, 'rad');
 
             Nobj = numel(Obj);
             Result = struct('Center',cell(Nobj,1), 'Corners',cell(Nobj,1));
@@ -1744,7 +1746,14 @@ classdef AstroImage < Component
                 end
                 
                 Result(Iobj) = Obj(Iobj).WCS.cooImage(CCDSECxy, 'OutUnits',Args.OutUnits);
+                
+                % add Radius:
+                Result(Iobj).FOV_Radius = max(celestial.coo.sphere_dist_fast(Result(Iobj).Center(1).*Factor, Result(Iobj).Center(2).*Factor, Result(Iobj).Corners(:,1).*Factor, Result(Iobj).Corners(:,2).*Factor))./Factor;
+                
             end
+            
+            
+            
 
         end
         

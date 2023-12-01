@@ -132,6 +132,7 @@ function Result = unitTest()
     % Not working!
     % Test by obtaining the Sun barycentric position
     OrbEl1 = celestial.OrbitalEl.loadSolarSystem('num',9804);
+    JD = OrbEl1.Epoch - 1000;
     [U_B, U_Bdot, S_B, S_Bdot] = targetBaryPos(OrbEl1, JD+(0:1:10)','Integration',true, 'RefFrame','bary');
     RotM = celestial.coo.rotm_coo('e');
     U_B_ec = RotM * U_B;
@@ -157,6 +158,26 @@ function Result = unitTest()
     if any(abs(Resid)>1e-4)
         error('Error in integrateElements');
     end
+    
+    %% Test: searchMinorPlanetsNearPosition
+    OrbEl= celestial.OrbitalEl.loadSolarSystem('num');
+    OrbEl.propagate2commonEpoch;
+    IN = celestial.INPOP;
+    IN.populateAll;
+    JD = OrbEl.Epoch(1) + 500;
+    % select some asteroids from JPL:
+    AsteroidsList = {'299;', '9804;', '56123;', '234187;','514100;','600000;'};
+    Nast = numel(AsteroidsList);
+    for Iast=1:1:Nast
+        T = celestial.SolarSys.getJPL_ephem(AsteroidsList{Iast},'EPHEM_TYPE','OBSERVER','TimeScale','TT','StartTime',JD,'StopTime',JD+0.1); 
+        [Result] = searchMinorPlanetsNearPosition(OrbEl, JD, T.RA, T.Dec, 5, 'CooUnits','deg','INPOP',IN, 'ConeSearch',true);
+        if ~any(Result.Catalog.Dist<2)
+            error('Astroid not found by searchMinorPlanetsNearPosition');
+        end
+    end
+            
+
+    
     
     %io.msgLog(LogLevel.Test, 'OrbitalEl test passed');
     Result = true;

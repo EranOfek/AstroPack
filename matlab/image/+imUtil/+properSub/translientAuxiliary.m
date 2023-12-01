@@ -55,8 +55,8 @@ function [Z2Prefactors,Norm] = translientAuxiliary(Pn, Pr, SigmaN, SigmaR, Args)
 
     [Nrows,Ncols]     = size(Pnhat);
 
-% because the linearization of the translation phase (Delta*K), 
-% it is not 2*Pi periodic, use negative frequancies.
+    % because the linearization of the translation phase (Delta*K), 
+    % it is not 2*Pi periodic, use negative frequancies.
     FreqArrRows = fftshift(-ceil(Nrows/2):(floor(Nrows/2)-1));
     FreqArrCols = fftshift(-ceil(Ncols/2):(floor(Ncols/2)-1));
 
@@ -66,11 +66,15 @@ function [Z2Prefactors,Norm] = translientAuxiliary(Pn, Pr, SigmaN, SigmaR, Args)
 
     Zden = abs(Prhat).^2 .* SigmaN.^2 + abs(Pnhat).^2 .*SigmaR.^2 + Args.Eps;
     Znom = 4*pi * conj(Pnhat).*conj(Prhat);
+
+    % Kxy is a vector so now Z2Prefactors is two matrices, i.e., 
+    % it is a higher dimension matrix with an x and an y component
     Z2Prefactors = Znom./Zden.*Kxy;
 
     Term1 = ifft2(Z2Prefactors.*SigmaR.*Pnhat);
     Term2 = ifft2(Z2Prefactors.*SigmaN.*Prhat);
     
+    %Norm = sum(imag(Term1).^2,3)+sum(imag(Term2).^2,3);
     Norm = sum(imag(Term1(:)).^2+imag(Term2(:)).^2)/2;
          
 end
