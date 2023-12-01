@@ -135,20 +135,20 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
         Args.AstCat                        = [];   % catalog of asteroids
         Args.INPOP                         = [];
         
-        Args.RA                    = [];
-        Args.Dec                   = [];
-        Args.FOV_Radius            = [];
-        Args.InCooUnits            = [];        
-        Args.UseWCS logical        = true;  % 
+        Args.RA                            = [];
+        Args.Dec                           = [];
+        Args.FOV_Radius                    = [];
+        Args.InCooUnits                    = [];        
+        Args.UseWCS logical                = true;  % 
         
         Args.GeoPos                        = [];
         Args.RefEllipsoid                  = 'WGS84';
-        Args.KeyLon     = 'OBSLON';
-        Args.KeyLat     = 'OBSLAT';
-        Args.KeyAlt     = 'OBSEL';
+        Args.KeyLon                        = 'OBSLON';
+        Args.KeyLat                        = 'OBSLAT';
+        Args.KeyAlt                        = 'OBSEL';
         
-        Args.MagLimit               = Inf;
-        Args.Integration logical    = true;
+        Args.MagLimit                      = Inf;
+        Args.Integration logical           = true;
               
         %Args.AddPlanets(1,1) logical       = false;
         Args.SearchRadius                  = 3;

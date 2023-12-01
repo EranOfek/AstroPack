@@ -114,7 +114,15 @@ function Result = unitTest
     AC.JD = JD;
         
     AC1 = AC.copy;
-    [OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(AC1, 'JD',JD, 'GeoPos',[], 'OrbEl',OrbEl, 'SearchRadius',1);
+    tic;
+    [OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(AC1, 'JD',JD, 'GeoPos',[], 'OrbEl',OrbEl, 'SearchRadius',1, 'INPOP',IN);
+    toc
+    
+    AC2 = AC.copy;
+    tic;
+    [OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(AC2, 'JD',JD, 'GeoPos',[], 'AstCat',AstCat, 'SearchRadius',1, 'INPOP',IN);
+    toc
+    
     % verify that the asteroid was recovered
     if OnlyMP.sizeCatalog==0
         error('match2solarSystem failed');
