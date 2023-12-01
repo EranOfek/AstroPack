@@ -111,7 +111,8 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
     %            input AstroCatalog that are matched with minor planets.
     %            Possibly adding ang. dist, Nmatch, and minor planet
     %            designation to the output.
-    %          - If a second output is requested, then the input
+    %          - The AstroCatalog of all minor planets in searched radius.
+    %          - If nargout>2, then the input 
     %            AstroCatalog object will be modified (see 'CreateNewObj'
     %            argument). The modified object may be sorted and may
     %            include additional information on the angular distance to
