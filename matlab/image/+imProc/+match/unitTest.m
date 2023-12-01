@@ -113,11 +113,13 @@ function Result = unitTest
     AC  = AstroCatalog({Cat}, 'ColNames',{'RA','Dec'}, 'ColUnits',{'deg','deg'});
     AC.JD = JD;
         
+    % search using OrbitalEl object
     AC1 = AC.copy;
     tic;
     [OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(AC1, 'JD',JD, 'GeoPos',[], 'OrbEl',OrbEl, 'SearchRadius',1, 'INPOP',IN);
     toc
     
+    % search using AstroCatalog containing known asteroids (in AstCat)
     AC2 = AC.copy;
     tic;
     [OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(AC2, 'JD',JD, 'GeoPos',[], 'AstCat',AstCat, 'SearchRadius',1, 'INPOP',IN);
