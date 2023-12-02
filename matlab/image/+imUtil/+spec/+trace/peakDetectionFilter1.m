@@ -32,7 +32,7 @@ function [SN, Peaks] = peakDetectionFilter1(Array, Dim, Args)
     %                   S/N>ThresholdSum.
     % Author : Eran Ofek (May 2023)
     % Example: R=randn(100,100); R(30,:)=R(30,:)+10;
-    %          [SN, Peak]=specUtil.trace.peakDetectionFilter1(R);
+    %          [SN, Peak]=imUtil.spec.trace.peakDetectionFilter1(R);
     
     
     arguments
