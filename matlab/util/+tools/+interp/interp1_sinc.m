@@ -14,8 +14,8 @@ function Yxx=interp1_sinc(Y,XX)
 % Tested : Matlab R2015a
 %     By : Eran O. Ofek                    Jun 2015
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: X=(1:1:100)'; Y=sin(2.*pi.*X./10); Yxx=Util.interp.interp1_sinc(Y,[2.1 3.4])
-%          XX = [1:0.1:100]; Yxx=Util.interp.interp1_sinc(Y,XX)
+% Example: X=(1:1:100)'; Y=sin(2.*pi.*X./10); Yxx=tools.interp.interp1_sinc(Y,[2.1 3.4])
+%          XX = [1:0.1:100]; Yxx=tools.interp.interp1_sinc(Y,XX)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
