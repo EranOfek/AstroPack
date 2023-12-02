@@ -33,12 +33,12 @@ function Result=moment1d(Array, Pos, Args)
     % Example: % No noise - initail pos is best pos
     %          Yg = normpdf((-100:1:100),0,2)';
     %          Array = Yg.*ones(1,200);
-    %          Result=specUtil.trace.moment1d(Array, 101);
+    %          Result=imUtil.spec.trace.moment1d(Array, 101);
     %          % no noise - initial pos is not best pos
-    %          Result=specUtil.trace.moment1d(Array, 101+randn(1,200).*1);
+    %          Result=imUtil.spec.trace.moment1d(Array, 101+randn(1,200).*1);
     %          max(abs(Result.X1-101))  % max error
     %          % with noise
-    %          Result=specUtil.trace.moment1d(Array+randn(size(Array)).*0.001, 101+randn(1,200).*1);
+    %          Result=imUtil.spec.trace.moment1d(Array+randn(size(Array)).*0.001, 101+randn(1,200).*1);
     %          max(abs(Result.X1-101))  % max error
     %          max(abs(Result.X1W-101))  % max error using weighted moments
     
@@ -69,7 +69,7 @@ function Result=moment1d(Array, Pos, Args)
     
     RoundedPos = round(Pos);
     
-    Cutout = specUtil.trace.image2cutouts1d(Array, Pos, 'Dim',1, 'WinHalfSize',Args.WinHalfSize);
+    Cutout = imUtil.spec.trace.image2cutouts1d(Array, Pos, 'Dim',1, 'WinHalfSize',Args.WinHalfSize);
     
     Center = Args.WinHalfSize + 1;
     Norm   = sum(Cutout, 1);
