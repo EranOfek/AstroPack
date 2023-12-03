@@ -429,8 +429,8 @@ if nargout>1
         Args.PSF             = [];
         if Args.UseAperPhotCube
             % looks like an error use M1.X/M1.Y?
-            XX   = M1.X; % - M1.Xstart + StampCenterX;
-            YY   = M1.Y; % - M1.Ystart + StampCenterY;
+            XX   = M1.X - M1.Xstart + StampCenterX; % + 0.5;
+            YY   = M1.Y - M1.Ystart + StampCenterY; % + 0.5;
             % probelms:
             % when using fft - large fraction of negative flux - why?
             

@@ -28,6 +28,12 @@ function Result = unitTest()
     SimFlux  = 1000; %1000;
     BackFlux = 100;
     
+    
+    Matrix = imUtil.kernel2.gauss(2, [51 51],[32.0 34.0]).*SimFlux + BackFlux;
+    Matrix = poissrnd(Matrix); %+BackFlux;
+    [M1,M2,AperN]=imUtil.image.moment2(Matrix,32,34, 'SubPixShift','none');
+
+          
     AllFlux  = zeros(Nsim,1);
     AllFluxN = zeros(Nsim,1);
     AllB     = zeros(Nsim,1);
