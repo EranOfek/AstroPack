@@ -137,7 +137,7 @@ arguments
     Args.CalcBoxPhot logical                           = false;
     Args.CalcWeightedAper logical                      = false;
     %Args.SubPixShiftBeforePhot logical                 = false;
-    Args.SubPixShift                                   = 'fft';   % 'fft' | 'lanczos' | 'none'
+    Args.SubPixShift                                   = 'fft'; %'fft';   % 'fft' | 'lanczos' | 'none'
 end
 
 % make sure all the variables has the same type as the Image
@@ -428,8 +428,9 @@ if nargout>1
         Args.UseAperPhotCube = true;
         Args.PSF             = [];
         if Args.UseAperPhotCube
-            XX   = M1.X - M1.Xstart + StampCenterX;
-            YY   = M1.Y - M1.Ystart + StampCenterY;
+            % looks like an error use M1.X/M1.Y?
+            XX   = M1.X; % - M1.Xstart + StampCenterX;
+            YY   = M1.Y; % - M1.Ystart + StampCenterY;
             % probelms:
             % when using fft - large fraction of negative flux - why?
             
@@ -439,7 +440,11 @@ if nargout>1
             YY(IsXXnan) = StampCenterY;
             
             AnnulusBack = Aper.AnnulusBack;
-            Aper = imUtil.sources.aperPhotCube(Cube, XX, YY, 'PSF',Args.PSF,'SubPixShift',Args.SubPixShift, 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus, 'SubBack',false);            
+            % debuging w/unitTest
+            %Aper = imUtil.sources.aperPhotCube(Cube, 16.5, 16.5, 'PSF',Args.PSF,'SubPixShift',Args.SubPixShift, 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus, 'SubBack',false);            
+            Aper = imUtil.sources.aperPhotCube(Cube, XX, YY, 'PSF',Args.PSF,'SubPixShift',Args.SubPixShift, 'AperRad',Args.AperRadius,...
+                                    'AnnulusRad',Args.Annulus, 'SubBack',false,...
+                                    'AnnulusBack',AnnulusBack);
             Aper.AnnulusBack = AnnulusBack; % return annulus back to first value, otherwise will be zero...
         else
         
