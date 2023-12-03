@@ -43,7 +43,7 @@ classdef FileManager < handle
         NameID char
         FullName                    = '';
         FileName                    = '';
-        Path                        = '';FM = FileManager;
+        Path                        = '';
         ExtName                     = 'log';
         FileTimeStamp
         AddDateToFileName logical   = true;

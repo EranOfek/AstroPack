@@ -13,14 +13,14 @@ function Result = unitTest()
         disp(f);
     else    
         if isunix
-            a.add('~/dev');
-            a.scan();
+            a.addFolder('~/dev');
+            a.scanFolders();
             a.saveMap();            
         else
-            %a.add('c:/temp');
-            %a.add('c:/Ultrasat');
-            a.add('c:/');
-            a.scan();
+            %a.addFolder('c:/temp');
+            %a.addFolder('c:/Ultrasat');
+            a.addFolder('c:/temp');
+            a.scanFolders();
             a.saveMap();
         end
     end
@@ -29,10 +29,10 @@ function Result = unitTest()
     f = a.findFile('ZDbc.dproj');
     disp(f);  %{1});
     
-    f = a.findFile1('ZDbc1.dproj');
+    f = a.findFile('ZDbc1.dproj', 'Single', true);
     disp(f);    
     
-    f = a.findFile1('c:/temp/123.txtj');
+    f = a.findFile('c:/temp/123.txtj', 'Single', true);
     disp(f);        
     
     %
