@@ -35,9 +35,11 @@ function [IntVal, NewT] = uniformResample(T, Val, Args)
 
     % check if already uniform
     UniqueDT = unique(diff(T));
-    if numel(UniqueDT)==1 && (UniqueDT(1)-Args.DeltaDT)<eps
+    if numel(UniqueDT)==1 && (UniqueDT(1)-Args.DeltaT)<eps
         % Data is already sampled at requested DeltaT
         % skip function
+        NewT   = T;
+        IntVal = Val;
     else
         % 
         if (~iscell(Args.InterpMethod))

@@ -10,8 +10,8 @@ function [Info] = xcorr1_scale_shift(Data, Template, Args)
     %          Template = [S.Wave, S.Flux];
     % 
 %          Data = interp1(Template(:,1),Template(:,2),(3300:0.7:5400).');
-%          Data = [(1:1:length(Data)).'.*0.75+10,Data];
-%          Info=xcorr_scale_shift(Data,Template)
+%          Data = [(1:1:length(Data)).'.*0.75+10, Data];
+%          Info=imUtil.filter.xcorr1_scale_shift(Data,Template)
 %          X1=(1:1.3:100).'; Y1=zeros(size(X1)); Y1(10)=1; Y1(20)=1;
 %          X2=(1:0.9:100).'; Y2=zeros(size(X2)); Y2(12)=1; Y2(30)=1;
 %          Data = [X1,Y1]; Template = [X2, Y2];
@@ -21,18 +21,21 @@ function [Info] = xcorr1_scale_shift(Data, Template, Args)
         Data
         Template
         
-        Args.uniformResample cell   = {};
+        Args.uniformResampleArgs cell   = {};
         
         Args.MaxRange          = 1e-8;
         Args.InterpMethod      = 'linear';
         Args.ScaleVec          = logspace(-1,1,1000);
         Args.Back              = 'median';
-        Args.BackPar           = {};
+        Args.subtract_back1dArgs cell = {};
 
         Args.ColX              = 1;
         Args.ColY              = 2;
         
     end
+    
+    error('still some bugs');
+    
 
     % make ScaleVec a row vector
     Args.ScaleVec = Args.ScaleVec(:).';
@@ -53,7 +56,7 @@ function [Info] = xcorr1_scale_shift(Data, Template, Args)
     StTemplateX = bsxfun(@times,TempI,Args.ScaleVec);
     StTemplateY = interp1(TempI,Template(:,Args.ColY),StTemplateX,Args.InterpMethod,'extrap');
 
-    [~,~,Info]         = xcorr_fft_multi(StTemplateY,Data(:,Args.ColY),Args.Back,Args.BackPar);
+    [~,~,Info]         = imUtil.filter.xcorr1_fft_multi(StTemplateY, Data(:,Args.ColY), 'Back',Args.Back, 'subtract_back1dArgs',Args.subtract_back1dArgs);
 
     Info.BestScale     = Args.ScaleVec(Info.BestCol);
     Info.ScaleData     = mean(diff(Data(:,Args.ColX)));
