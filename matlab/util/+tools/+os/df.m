@@ -1,5 +1,5 @@
 function [Str, DiskP] = df(Template)
-    % Get disk storage status (for UNIX like systems)
+    % Get disk storage status (for UNIX-like systems)
     % Input  : - An optional disk name (e.g., 'data1')
     %            If given, then only the disk name data will be retrieved,
     %            and the second output argument will contain the disk
