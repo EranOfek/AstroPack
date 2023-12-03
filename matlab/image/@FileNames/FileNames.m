@@ -1301,7 +1301,7 @@ classdef FileNames < Component
 
 
                 otherwise
-                    error('Unknwon class of DataObj');
+                    error('Unknown class of DataObj');
             end
 
             Result.updateIfNotEmpty('Counter',Counter, 'CROPID',CropID, 'Time',JD);
