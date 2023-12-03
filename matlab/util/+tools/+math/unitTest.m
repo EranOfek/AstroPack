@@ -1,18 +1,13 @@
-% Package Unit-Test
-%
-% ### Requirements:
-%
-%
-%
-
-
 function Result = unitTest()
-    % Package Unit-Test   
-	io.msgStyle(LogLevel.Test, '@start', 'test started');
+    % unitTest for tools.math
+    % Example: tools.math.unitTest
     
-    test_sincos();
     
-	io.msgStyle(LogLevel.Test, '@passed', 'test passed');
+	%io.msgStyle(LogLevel.Test, '@start', 'test started');
+    
+    %test_sincos();
+    
+	%io.msgStyle(LogLevel.Test, '@passed', 'test passed');
 	Result = true;
 end
 

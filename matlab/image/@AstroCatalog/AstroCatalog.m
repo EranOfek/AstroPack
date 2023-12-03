@@ -38,10 +38,10 @@ classdef AstroCatalog < AstroTable
     end
     
     properties (Hidden, Constant)
-        DefNamesX cell                   = {'X','X1','X_IMAGE','XWIN_IMAGE','X1','X_PEAK','XPEAK','x'};
-        DefNamesY cell                   = {'Y','Y1','Y_IMAGE','YWIN_IMAGE','Y1','Y_PEAK','YPEAK','y'};
-        DefNamesRA cell                  = {'RA','Mean_RA','Median_RA','ALPHA','ALPHAWIN_J2000','ALPHA_J2000','RA_J2000','RAJ2000','RightAsc'};
-        DefNamesDec cell                 = {'Dec','DEC','Mean_Dec','Median_Dec','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DEJ2000','Declination'};
+        DefNamesX cell                   = {'X','X1','X_IMAGE','XWIN_IMAGE','X1','X_PEAK','XPEAK','x','xpos'};
+        DefNamesY cell                   = {'Y','Y1','Y_IMAGE','YWIN_IMAGE','Y1','Y_PEAK','YPEAK','y','ypos'};
+        DefNamesRA cell                  = {'RA','ra','Mean_RA','Median_RA','ALPHA','ALPHAWIN_J2000','ALPHA_J2000','RA_J2000','RAJ2000','RightAsc'};
+        DefNamesDec cell                 = {'Dec','dec','DEC','Mean_Dec','Median_Dec','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DEJ2000','Declination'};
         DefNamesPMRA cell                = {'PMRA'};
         DefNamesPMDec cell               = {'PMDec'};
         DefNamesRV cell                  = {'RV','radial_velocity'};

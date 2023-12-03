@@ -66,6 +66,20 @@ classdef INPOP < Base
     end
     
     properties (Constant)
+%         ChebyFun cell     = {NaN,NaN, @celestial.INPOP.chebyshevFun2,...
+%                                        @celestial.INPOP.chebyshevFun3,...
+%                                        @celestial.INPOP.chebyshevFun4,...
+%                                        @celestial.INPOP.chebyshevFun5,...
+%                                        @celestial.INPOP.chebyshevFun6,...
+%                                        @celestial.INPOP.chebyshevFun7,...
+%                                        @celestial.INPOP.chebyshevFun8,...
+%                                        @celestial.INPOP.chebyshevFun9,...
+%                                        @celestial.INPOP.chebyshevFun10,...
+%                                        @celestial.INPOP.chebyshevFun11,...
+%                                        @celestial.INPOP.chebyshevFun12,...
+%                                        @celestial.INPOP.chebyshevFun13,...
+%                                        @celestial.INPOP.chebyshevFun14,...
+%                                        @celestial.INPOP.chebyshevFun15};
         LatestVersion     = 'inpop21a';
         Location          = '~/matlab/data/SolarSystem/INPOP/';
         RangeShort        = [2414105.00, 2488985.00];
@@ -100,6 +114,68 @@ classdef INPOP < Base
     end
     
     methods (Static) % download/create INPOP files
+        % Chebyshev of the first kind - horner representations
+        % generated using: tools.math.fun.chebyshevFun
+        function Result=chebyshevFun2(x)
+            % chebyshevFun2
+            N = numel(x);
+            Result = [ones(size(x)),x,2.*x.^2-1];
+        end
+        function Result=chebyshevFun3(x)
+            % chebyshevFun3
+            N = numel(x);
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3)];
+        end
+        function Result=chebyshevFun4(x)
+            % chebyshevFun4
+            N = numel(x);
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1];
+        end
+        function Result=chebyshevFun5(x)
+            % chebyshevFun5
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5)];
+        end
+        function Result=chebyshevFun6(x)
+            % chebyshevFun6
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1];
+        end
+        function Result=chebyshevFun7(x)
+            % chebyshevFun7
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7)];
+        end
+        function Result=chebyshevFun8(x)
+            % chebyshevFun8
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7),x.^2.*(x.^2.*(x.^2.*(128.*x.^2-256)+160)-32)+1];
+        end
+        function Result=chebyshevFun9(x)
+            % chebyshevFun9
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7),x.^2.*(x.^2.*(x.^2.*(128.*x.^2-256)+160)-32)+1,x.*(x.^2.*(x.^2.*(x.^2.*(256.*x.^2-576)+432)-120)+9)];
+        end
+        function Result=chebyshevFun10(x)
+            % chebyshevFun10
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7),x.^2.*(x.^2.*(x.^2.*(128.*x.^2-256)+160)-32)+1,x.*(x.^2.*(x.^2.*(x.^2.*(256.*x.^2-576)+432)-120)+9),x.^2.*(x.^2.*(x.^2.*(x.^2.*(512.*x.^2-1280)+1120)-400)+50)-1];
+        end
+        function Result=chebyshevFun11(x)
+            % chebyshevFun11
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7),x.^2.*(x.^2.*(x.^2.*(128.*x.^2-256)+160)-32)+1,x.*(x.^2.*(x.^2.*(x.^2.*(256.*x.^2-576)+432)-120)+9),x.^2.*(x.^2.*(x.^2.*(x.^2.*(512.*x.^2-1280)+1120)-400)+50)-1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(1024.*x.^2-2816)+2816)-1232)+220)-11)];
+        end
+        function Result=chebyshevFun12(x)
+            % chebyshevFun12
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7),x.^2.*(x.^2.*(x.^2.*(128.*x.^2-256)+160)-32)+1,x.*(x.^2.*(x.^2.*(x.^2.*(256.*x.^2-576)+432)-120)+9),x.^2.*(x.^2.*(x.^2.*(x.^2.*(512.*x.^2-1280)+1120)-400)+50)-1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(1024.*x.^2-2816)+2816)-1232)+220)-11),x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(2048.*x.^2-6144)+6912)-3584)+840)-72)+1];
+        end
+        function Result=chebyshevFun13(x)
+            % chebyshevFun13
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7),x.^2.*(x.^2.*(x.^2.*(128.*x.^2-256)+160)-32)+1,x.*(x.^2.*(x.^2.*(x.^2.*(256.*x.^2-576)+432)-120)+9),x.^2.*(x.^2.*(x.^2.*(x.^2.*(512.*x.^2-1280)+1120)-400)+50)-1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(1024.*x.^2-2816)+2816)-1232)+220)-11),x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(2048.*x.^2-6144)+6912)-3584)+840)-72)+1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(4096.*x.^2-13312)+16640)-9984)+2912)-364)+13)];
+        end
+        function Result=chebyshevFun14(x)
+            % chebyshevFun14
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7),x.^2.*(x.^2.*(x.^2.*(128.*x.^2-256)+160)-32)+1,x.*(x.^2.*(x.^2.*(x.^2.*(256.*x.^2-576)+432)-120)+9),x.^2.*(x.^2.*(x.^2.*(x.^2.*(512.*x.^2-1280)+1120)-400)+50)-1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(1024.*x.^2-2816)+2816)-1232)+220)-11),x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(2048.*x.^2-6144)+6912)-3584)+840)-72)+1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(4096.*x.^2-13312)+16640)-9984)+2912)-364)+13),x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(8192.*x.^2-28672)+39424)-26880)+9408)-1568)+98)-1];
+        end
+        function Result=chebyshevFun15(x)
+            % chebyshevFun15
+            Result = [ones(size(x)),x,2.*x.^2-1,x.*(4.*x.^2-3),x.^2.*(8.*x.^2-8)+1,x.*(x.^2.*(16.*x.^2-20)+5),x.^2.*(x.^2.*(32.*x.^2-48)+18)-1,x.*(x.^2.*(x.^2.*(64.*x.^2-112)+56)-7),x.^2.*(x.^2.*(x.^2.*(128.*x.^2-256)+160)-32)+1,x.*(x.^2.*(x.^2.*(x.^2.*(256.*x.^2-576)+432)-120)+9),x.^2.*(x.^2.*(x.^2.*(x.^2.*(512.*x.^2-1280)+1120)-400)+50)-1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(1024.*x.^2-2816)+2816)-1232)+220)-11),x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(2048.*x.^2-6144)+6912)-3584)+840)-72)+1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(4096.*x.^2-13312)+16640)-9984)+2912)-364)+13),x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(8192.*x.^2-28672)+39424)-26880)+9408)-1568)+98)-1,x.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(x.^2.*(16384.*x.^2-61440)+92160)-70400)+28800)-6048)+560)-15)];
+        end
+        
         function FileName = inpopFileName(Args)
             % Construct INPOP data file name
             % Input  : * ...,key,val,...
@@ -217,6 +293,8 @@ classdef INPOP < Base
             %                   create the mat files.
             %                   Default is 'asc'.
             %            'TimePeriod' - ['100'] | '1000'.
+            %            'MaxOrder' - Max polynomial order to load.
+            %                   If Inf load all. Default is Inf.
             % Output : - A matrix containing the requested data file.
             %            Containing columns with:
             %            JDstart JDend Chebyshev coef. for the object position
@@ -234,6 +312,7 @@ classdef INPOP < Base
                 Args.FileType      = 'asc';   % 'mat' | 'asc';
                 Args.TimePeriod    = '100';   % '100' | '1000'
                 Args.FileData      = 'pos';
+                Args.MaxOrder      = Inf;
             end
             
             FileName    = celestial.INPOP.inpopFileName('Object', Args.Object, 'Version',Args.Version, 'TimeScale',Args.TimeScale, 'FileType',Args.FileType, 'TimePeriod',Args.TimePeriod, 'FileData',Args.FileData);
@@ -246,6 +325,9 @@ classdef INPOP < Base
                     Result = io.files.load2(FullFileName);
                 otherwise
                     error('Unknown FileType option');
+            end
+            if (2+Args.MaxOrder)<size(Result,2)
+                Result = Result(:,1:2+Args.MaxOrder);
             end
             
         end
@@ -322,10 +404,11 @@ classdef INPOP < Base
     end
     
     methods (Static)  % transformations
-        function CooEcl = eqJ2000_2ecliptic(CooJ2000)
+        function [CooEcl, RotM] = eqJ2000_2ecliptic(CooJ2000)
             % Rotate [X;Y;Z] Equatorial J2000 coordinates to ecliptic [X;Y;Z]
             % Input  : - A 3xN matrix of positions [X;Y;Z] in equatorial J2000.
             % Output : - A matrix of [X;Y;Z] ecliptic positions.
+            %          - The rotation matrix for the conversion.
             % Author : Eran Ofek (May 2022)
             % Example: CooEcl = celestial.INPOP.eqJ2000_2ecliptic(rand(3,6))
             
@@ -394,6 +477,8 @@ classdef INPOP < Base
             %            'PopForce' - A logical indicating if to repopulate
             %                   the table even if not empty.
             %                   Default is false.
+            %            'MaxOrder' - Max. polynomial order to load.
+            %                   If Inf load all. Default is Inf.
             % Output : - A celestial.INPOP object in which the PosTables or
             %            VelTables are populated.
             % Author : Eran Ofek (Apr 2022)
@@ -413,6 +498,7 @@ classdef INPOP < Base
                 Args.FileData    = 'pos';
                 Args.FileType    = 'mat';
                 Args.PopForce logical = false;
+                Args.MaxOrder    = Inf;
             end
             
             if ischar(Object)
@@ -449,7 +535,8 @@ classdef INPOP < Base
                                                           'Version',Args.Version,...
                                                           'TimePeriod',TimePeriod,...
                                                           'FileData',Args.FileData,...
-                                                          'FileType',Args.FileType);
+                                                          'FileType',Args.FileType,...
+                                                          'MaxOrder',Args.MaxOrder);
                         else
                             Table = [];
                         end
@@ -472,6 +559,7 @@ classdef INPOP < Base
                         otherwise
                             error('Unknown FileData option');
                     end
+                    
                 end
                 
             end
@@ -496,6 +584,8 @@ classdef INPOP < Base
             %            'FileType' - 'asc' | ['mat'].
             %                   Use celestial.INPOP.convertAscii2mat to
             %                   create the mat files.
+            %            'MaxOrder' - Max. polynomial order to load.
+            %                   If Inf load all. Default is Inf.
             % Output : - A celestial.INPOP object in which the PosTables or
             %            VelTables are populated.
             % Author : Eran Ofek (Apr 2022)
@@ -511,11 +601,16 @@ classdef INPOP < Base
                 Args.FileData    = 'pos';
                 Args.FileType    = 'mat';
                 Args.PopForce logical = false;
+                Args.MaxOrder    = Inf;
              end
              
-             Obj.populateTables('all', 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, 'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType);
-             Obj.populateTables('all', 'FileData','vel', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType, 'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType);
-             
+             Obj.populateTables('all', 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+                                       'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType,...
+                                       'PopForce',Args.PopForce, 'MaxOrder',Args.MaxOrder);
+             Obj.populateTables('all', 'FileData','vel', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+                                       'TimeScale',Args.TimeScale, 'Version',Args.Version, 'FileType',Args.FileType,...
+                                       'PopForce',Args.PopForce, 'MaxOrder',Args.MaxOrder);
+             Obj.populateTables('TT');
         end
     end
     
@@ -649,6 +744,9 @@ classdef INPOP < Base
             
                 % maybe need to divide by half time span
                 %ChebyEval    = Obj.ChebyFun{ChebyOrder}((JD - Tmid(IndJD))./Thstep);
+                
+                %TTmid = ((JD - Tmid(IndJD))./Thstep);
+                %ChebyEval    = Obj.ChebyFun{Norder}(TTmid);
                 ChebyEval    = Obj.ChebyFun{Norder}((JD - Tmid(IndJD))./Thstep);
                 
                 Pos(Icoo,:)  = sum([ChebyCoef.*ChebyEval(:,1:Norder)].',1);
@@ -778,6 +876,8 @@ classdef INPOP < Base
             %            'IsEclipticOut' - A logical indicating if output
             %                   is in ecliptic coordinates (if false then output
             %                   is in equatorial J2000). Default is false.
+            %            'Bodies' - Bodies for which to generate ephemeris
+            %                   Default is {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'}
             %            'Exclude' - A cell array of INPOP objects to
             %                   exclude. For excluded objects the output
             %                   will be set to NaN.
@@ -806,6 +906,7 @@ classdef INPOP < Base
                 Args.TimeScale             = 'TDB';
                 Args.OutUnits              = 'au';
                 Args.IsEclipticOut logical = false;
+                Args.Bodies                = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
                 Args.Exclude               = {};
                 Args.Permute               = [1 3 2];
             end
@@ -813,7 +914,7 @@ classdef INPOP < Base
             G = (constant.G./(constant.au).^3 .*86400.^2 .* constant.SunM);  % [G: au^3 SunM^-1 day^-2]
     
             %Msun   = 1.98847e33;  % [gram]
-            Bodies = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
+            %Bodies = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
             %                Mercury      Venus       Earth       Moon           Mars         Jupiter      Sat         Ura         Nep         Plu        
             %Mass   = [Msun,  0.330103e27, 4.86731e27, 5.97217e27, 7.34767309e25, 0.641691e27, 1898.125e27, 568.317e27, 86.8099e27, 102.4092e27 0.01303e27]./Msun;  % [solar mass]
             %Msun  = 1;
@@ -821,14 +922,14 @@ classdef INPOP < Base
             
             Nt = numel(JD);
             
-            Nbody    = numel(Bodies);
+            Nbody    = numel(Args.Bodies);
             Pos     = nan(3,Nt,Nbody);
             Vel     = nan(3,Nt,Nbody);
             for Ibody=1:1:Nbody
-                if ~any(strcmp(Args.Exclude,Bodies{Ibody}))
-                    Pos(:,:,Ibody) = Obj.getPos(Bodies{Ibody}, JD, 'OutUnits',Args.OutUnits, 'TimeScale',Args.TimeScale, 'IsEclipticOut',Args.IsEclipticOut);
+                if ~any(strcmp(Args.Exclude, Args.Bodies{Ibody}))
+                    Pos(:,:,Ibody) = Obj.getPos(Args.Bodies{Ibody}, JD, 'OutUnits',Args.OutUnits, 'TimeScale',Args.TimeScale, 'IsEclipticOut',Args.IsEclipticOut);
                     if nargout>1
-                        Vel(:,:,Ibody) = Obj.getVel(Bodies{Ibody}, JD, 'OutUnits',Args.OutUnits, 'TimeScale',Args.TimeScale, 'IsEclipticOut',Args.IsEclipticOut);
+                        Vel(:,:,Ibody) = Obj.getVel(Args.Bodies{Ibody}, JD, 'OutUnits',Args.OutUnits, 'TimeScale',Args.TimeScale, 'IsEclipticOut',Args.IsEclipticOut);
                     end
                 end
             
@@ -841,7 +942,7 @@ classdef INPOP < Base
         end
         
         function [Force,DFDT]=forceAll(Obj, JD, TargetXYZ, Args)
-            % Calculate the Sun+Planets+Moon force on a Solar System object.
+            % Calculate the Sun+Planets+Moon G*M on a Solar System object.
             % Input  : - A populated INPOP object (both Pos and Vel should
             %            be populated).
             %          - A vector of JD.
@@ -857,6 +958,13 @@ classdef INPOP < Base
             %            'IsEclipticOut' - A logical indicating if output
             %                   is in ecliptic coordinates (if false then output
             %                   is in equatorial J2000). Default is false.
+            %            'Bodies' - List of bodies to include in the force
+            %                   calaculations. Default is 
+            %                   {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep','Plu'};
+            %            'GM' - A vector pg G*M for the objects specified
+            %                   in bodies. If empty, then will use INPOP constants
+            %                   for the default bodies.
+            %                   Default is [].
             %            'Exclude' - A cell array of INPOP objects to
             %                   exclude. For excluded objects the output
             %                   will be set to NaN.
@@ -877,19 +985,48 @@ classdef INPOP < Base
                 Args.TimeScale             = 'TDB';
                 Args.OutUnits              = 'au';  % or AU/day
                 Args.IsEclipticOut logical = false;
-                Args.Exclude               = {};
+                Args.Bodies                = {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep'}; %,'Plu'};
+                Args.GM                    = [];
+                %Args.GM                    = [0.00029591, 4.9125e-11, 7.2435e-10, 8.997e-10, 9.5495e-11, 2.8253e-07, 8.4597e-08, 1.292e-08, 1.5244e-08, 2.1668e-12];
+                Args.Exclude               = {}; %{'Mer','Plu'}; %{'Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
                 
             end
             Permute  = [1 3 2];
-            SEC_DAY  = 86400;
-            Msun   = 1.98847e33;  % [gram]
-            G        = (constant.G./(constant.au).^3 .*SEC_DAY.^2 .* Msun);  % [G: au^3 SunM^-1 day^-2]
             
-            Bodies = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
+            % Old version
+            %SEC_DAY  = 86400;
+            %Msun   = 1.98847e33;  % [gram]
+            %G        = (constant.G./(constant.au).^3 .*SEC_DAY.^2 .* Msun);  % [G: au^3 SunM^-1 day^-2]
+            %Args.Bodies = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep','Plu'};
             %                Mercury      Venus       Earth       Moon           Mars         Jupiter      Sat         Ura         Nep         Plu        
-            Mass   = [Msun,  0.330103e27, 4.86731e27, 5.97217e27, 7.34767309e25, 0.641691e27, 1898.125e27, 568.317e27, 86.8099e27, 102.4092e27 0.01303e27];  % [gr]
-            Mass   = Mass./Msun;   % [Msun]
-            GM     = G .* Mass;
+            %Mass   = [Msun,  0.330103e27, 4.86731e27, 5.97217e27, 7.34767309e25, 0.641691e27, 1898.125e27, 568.317e27, 86.8099e27, 102.4092e27 0.01303e27];  % [gr]
+            %Mass   = Mass./Msun;   % [Msun]
+            %Args.GM     = G .* Mass;
+            
+            % use constants from INPOP:
+            %Args.Bodies = {'Sun','Mer','Ven','EMB','Mar','Jup','Sat','Ura','Nep','Plu'};
+            %         Sun       Mer         Ven         EMB        Mar         Jup         Sat         Ura        Nep         Plu
+            %GM     = [00029591, 4.9125e-11, 7.2435e-10, 8.997e-10, 9.5495e-11, 2.8253e-07, 8.4597e-08, 1.292e-08, 1.5244e-08, 2.1668e-12];
+            
+            %     GM_Mer: 4.9125e-11
+            %     GM_Ven: 7.2435e-10
+            %     GM_EMB: 8.997e-10
+            %     GM_Mar: 9.5495e-11
+            %     GM_Jup: 2.8253e-07
+            %     GM_Sat: 8.4597e-08
+            %     GM_Ura: 1.292e-08
+            %     GM_Nep: 1.5244e-08
+            %     GM_Plu: 2.1668e-12
+            %     GM_Sun: 0.00029591
+
+            if isempty(Args.GM)
+                Args.GM = [Obj.Constant.GM_Sun, Obj.Constant.GM_Mer, Obj.Constant.GM_Ven, Obj.Constant.GM_EMB, Obj.Constant.GM_Mar, Obj.Constant.GM_Jup, Obj.Constant.GM_Sat, Obj.Constant.GM_Ura, Obj.Constant.GM_Nep]; %, Obj.Constant.GM_Plu];
+            end      
+            
+            if ~isempty(Args.Exclude)
+                [Args.Bodies, IndBodies] = setdiff(Args.Bodies, Args.Exclude);
+                Args.GM = Args.GM(IndBodies);
+            end
             
             % get position for all planets
             
@@ -897,13 +1034,13 @@ classdef INPOP < Base
                 [Pos, Vel] = getAll(Obj, JD, 'TimeScale',Args.TimeScale,...
                                          'OutUnits',Args.OutUnits,...
                                          'IsEclipticOut',Args.IsEclipticOut,...
-                                         'Exclude',Args.Exclude,...
+                                         'Bodies',Args.Bodies,...
                                          'Permute',Permute);
             else
                 [Pos]      = getAll(Obj, JD, 'TimeScale',Args.TimeScale,...
                                          'OutUnits',Args.OutUnits,...
                                          'IsEclipticOut',Args.IsEclipticOut,...
-                                         'Exclude',Args.Exclude,...
+                                         'Bodies',Args.Bodies,...
                                          'Permute',Permute);
             end
             % Calculate the force on Target at position TargetXYZ
@@ -917,7 +1054,7 @@ classdef INPOP < Base
             DistToTarget = sqrt(sum(PosRelToTarget.^2,1));
 
             % calc force and sum over planets
-            Force = squeeze(sum(GM .* PosRelToTarget./(DistToTarget.^3), 2, 'omitnan'));
+            Force = squeeze(sum(Args.GM .* PosRelToTarget./(DistToTarget.^3), 2, 'omitnan'));
             
             if nargout>1
                 % calc force time derivative

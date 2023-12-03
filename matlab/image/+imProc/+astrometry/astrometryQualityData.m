@@ -171,7 +171,7 @@ function Result=astrometryQualityData(Obj, Args)
         else
             % assuming Obj is AstroCatalog
             CatRADec = Obj(Iobj).getLonLat('rad', 'ColLon',Args.ColCatRA, 'ColLat',Args.ColCatDec);
-            CatXY    = Obj(Iobj).getXY('ColX',Args.ColCatX, 'ColY',ColCatY);
+            CatXY    = Obj(Iobj).getXY('ColX',Args.ColCatX, 'ColY',Args.ColCatY);
         end
         RefRADec = MatchedRefCat(Iobj).getLonLat('rad', 'ColLon',Args.ColRefRA, 'ColLat',Args.ColRefDec);
         

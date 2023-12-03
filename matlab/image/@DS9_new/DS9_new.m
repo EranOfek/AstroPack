@@ -481,7 +481,7 @@ classdef DS9_new < handle
             % Example: Obj.xpaset('mode %s',Mode);
             
             Command = sprintf(Command,varargin{:});
-            DS9.system('xpaset -p %s %s',Obj.MethodXPA, Command);
+            DS9_new.system('xpaset -p %s %s',Obj.MethodXPA, Command);
         end
         
         function xpasetFrame(Obj, Frame, Command, varargin)
@@ -548,7 +548,7 @@ classdef DS9_new < handle
             % Author : Eran Ofek (May 2022)
             
             Command = sprintf(Command,varargin{:});
-            Ans = DS9.system('xpaget %s %s',Obj.MethodXPA, Command);
+            Ans = DS9_new.system('xpaget %s %s',Obj.MethodXPA, Command);
             Ans = regexprep(Ans, '\n$','');  % remove the \n at the end of the result string  
         end
     
@@ -867,7 +867,8 @@ classdef DS9_new < handle
                 if Args.Verbose
                     fprintf('Estimate PSF and measure PSF photometry\n');
                 end
-                [AI] = imProc.psf.constructPSF(AI, Args.constructPSFArgs{:});
+%                 [AI] = imProc.psf.constructPSF(AI, Args.constructPSFArgs{:});
+                [AI] = imProc.psf.populatePSF(AI, Args.constructPSFArgs{:});
                 % PSF photometry
                 [AI] = imProc.sources.psfFitPhot(AI, 'CreateNewObj',false);                                   
             end
@@ -1085,7 +1086,7 @@ classdef DS9_new < handle
             
             % get current frame number
             OutStr = Obj.xpaget('frame');
-            Result = DS9.parseOutput(OutStr, 'num');
+            Result = DS9_new.parseOutput(OutStr, 'num');
                                      
         end
         
@@ -1292,11 +1293,11 @@ classdef DS9_new < handle
             end
             
             if Args.PopAI
-                [ImageName, AI] = DS9.loadPrep(Image, 'UseRegExp', Args.UseRegExp,...
+                [ImageName, AI] = DS9_new.loadPrep(Image, 'UseRegExp', Args.UseRegExp,...
                                                        'DataProp',Args.DataProp,...
                                                        'FileName',FileName);
             else
-                [ImageName] = DS9.loadPrep(Image, 'UseRegExp', Args.UseRegExp,...
+                [ImageName] = DS9_new.loadPrep(Image, 'UseRegExp', Args.UseRegExp,...
                                                        'DataProp',Args.DataProp,...
                                                        'FileName',FileName);
                 AI = [];
@@ -1503,7 +1504,7 @@ classdef DS9_new < handle
             %Limits    = split(StrLimits, ' ');
             %Limits    = str2double(Limits);
             %Limits    = Limits(:).';
-            Limits    = DS9.parseOutput(StrLimits, 'num');
+            Limits    = DS9_new.parseOutput(StrLimits, 'num');
             
             if nargout>1
                 ScaleType = Obj.xpaget('scale');

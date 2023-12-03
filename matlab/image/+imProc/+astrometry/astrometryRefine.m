@@ -245,7 +245,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         % can read RA/Dec from Header if AstroImage
         [Args.RA, Args.Dec] = getCoo(Obj(1).HeaderData, 'RA',Args.RA, 'Dec',Args.Dec, 'Units',Args.CooUnits, 'OutUnits',Args.CooUnits);
     else
-        [Args.RA, Args.Dec] = celestial.coo.parseCooInput(1, 1, 'InUnits',Args.CooUnits, 'OutUnits',Args.CooUnits);
+        [Args.RA, Args.Dec] = celestial.coo.parseCooInput(Args.RA, Args.Dec, 'InUnits',Args.CooUnits, 'OutUnits',Args.CooUnits);
     end
     
     
@@ -434,8 +434,10 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
             ProjAstCat = imProc.trans.projection(ProjAstCat, RA, Dec, ProjectionScale, Args.ProjType, 'Coo0Units','rad',...
                                                                                            'AddNewCols',{RefColNameX,RefColNameY},...
                                                                                            'CreateNewObj',false);
-
-            Cat = sortrows(Cat, 'Dec');
+            if ~isempty(Args.SortCat)
+                Cat = sortrows(Cat, Args.SortCat);
+            end
+            %Cat = sortrows(Cat, 'Dec');
 
             % match the RA/Dec against an external catalog
             % sources in MatchedCat corresponds to sources in ProjAstCat
@@ -509,7 +511,8 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                 %if nargout>1
 
                 % update header with astrometric quality information
-                if Args.UpdateHeader
+                if Args.UpdateHeader && isa(Obj, 'AstroImage')
+                    % OOnly AstroImage have Header
                     Keys = {'AST_NSRC','AST_ARMS','AST_ERRM'};
                     Obj(Iobj).HeaderData.replaceVal(Keys,...
                                                     {Result(Iobj).ResFit.Ngood,...

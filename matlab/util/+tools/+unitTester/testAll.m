@@ -12,9 +12,10 @@ function [Result, Failed] = testAll(Args)
     % Example: R=tools.unitTester.testAll()
 
     arguments
-        Args.UnitTestFunName   = 'unitTest';  % unitTest function name
-        Args.SkipClass         = {'FileProcessor'};
-        Args.SkipPackage       = {};
+        Args.UnitTestFunName      = 'unitTest';  % unitTest function name
+        Args.SkipClass            = {'FileProcessor'};
+        Args.SkipPackage          = {};
+        Args.PrintSummary logical = true;
     end
 
     % for all Classes
@@ -72,5 +73,23 @@ function [Result, Failed] = testAll(Args)
     
     % List of failed unitTest
     Failed = Result(~[Result.Result]);
+    
+    % print summary
+    if Args.PrintSummary
+        FlagGood = [Result.Result];
+        FlagBad  = ~FlagGood;
+        
+        fprintf('tools.unitTeser.testAll summary\n');
+        fprintf('Total tested: %d\n', numel(FlagGood));
+        fprintf('Success     : %d\n', sum(FlagGood));
+        fprintf('Failed      : %d\n', sum(FlagBad));
+        fprintf('Liat of failed unitTest:\n')
+        IndBad = find(FlagBad);
+        N      = numel(IndBad);
+        for I=1:1:N
+            fprintf('  Code: %d      Fun: %s\n',uint16(Result(IndBad(I)).Result), Result(IndBad(I)).FunName);
+        end
+            
+    end
     
 end

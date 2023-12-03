@@ -40,7 +40,8 @@ function simImage = simulate_ULTRASAT_image (Args)
         Args.Tile           = 'B';        % the detector tile to be simulated
         Args.OutDir         =  '.';       % the output directory
         Args.OutName        = 'SimImage'; % the output filename template
-        Args.MagDistr       = 'GALEX';    % magnitide distribution 'GALEX' empirical distribution or 'art' (artificial)
+        Args.MagDistr       = 'GALEX';    % magnitide distribution 'GALEX' empirical distribution 
+                                          % or 'art' (artificial) distribution of NumSrc objects/sq.deg. 
         Args.Temp           = [3500 5800 20000]; % the temperature grid (the source are equally distributed on it)
         Args.NumSrc         = 1000;       % number of objects per square degree (if the distribution is not 'GALEX')
                                           % 10(3)/sq.deg. roughly correspond to the GALEX distribution 

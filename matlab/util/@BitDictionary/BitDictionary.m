@@ -137,6 +137,38 @@ classdef BitDictionary < Component
     end
     
     methods % utilities
+        function [List,Data] = showDictionaries(Obj, Args)
+            % Show all avialable BitMask related configuration files.
+            % Input  : - (self) A BitDictionary object.
+            %          * ...,key,val,...
+            %            'Str' - Default is 'BitMask'.
+            % Output : - A cell array of available BitMask configuration
+            %            files.
+            %          - A structure containing all the configurations
+            %            below 'BitMask'.
+            % Author : Eran Ofek (Nov 2023)
+            % Example: BD = BitDictionary; [List,Data] = BD.showDictionaries
+            
+            arguments
+                Obj
+                Args.Str = 'BitMask';
+            end
+            
+            Template = sprintf('*%s*.yml',Args.Str);
+            
+            PWD = pwd;
+            cd(Obj.Config.Path)
+            
+            
+            Dir = io.files.rdir(Template);
+            List = {Dir.name};
+            List = strrep(List, '.yml','');
+            cd(PWD);
+            
+            Data = Obj.Config.Data.(Args.Str);
+            
+        end
+        
         function Result = isemptyBitDict(Obj)
             % Return true if a BitDictionary contains no info
             % Example: Result = isemptyBitDict(BitDictionary)

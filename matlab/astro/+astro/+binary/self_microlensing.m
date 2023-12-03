@@ -35,6 +35,10 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
     %            'LimbFun' - Limb darkning function.
     %                   Default is @astro.binary.limb_darkening
     %            'LimbFunPars' - Default is {'constant'}
+    %            
+    %            'PrepMovie' - Default is false.
+    %            'MovieName' - Default is 'try.avi'.
+    %            'LC'        - Add LC to movie. Default is [].
     % Output : - Total magnification.
     %          - A structure with additional information.
     % Reference: See also Agol 2003
@@ -52,6 +56,12 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
     %          for Id=1:1:numel(Beta);TotMu(Id)=astro.binary.self_microlensing(Beta(Id), 'Dls',Dls(end)); end
     %
     %          [TM,Res]=astro.binary.self_microlensing(1, 'Dls',Dls, 'Algo','2d');
+    %
+    %          % generate movie
+    %          Beta=[0:0.01:3];
+    %          [TM,Res]=astro.binary.self_microlensing(Beta, 'Dls',Dls, 'Algo','1dfast', 'LC',Args.LC);
+    %          Args.LC=[Beta.', TM(:)];
+    %           [TM,Res]=astro.binary.self_microlensing(Beta, 'Dls',Dls, 'Algo','2d', 'LC',Args.LC);  
     
     arguments
         ImpactPar             % in SrcRad units
@@ -85,7 +95,12 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
         Args.LimbDarkCoef = zeros(1,4); %astro.stars.getClaret2020_LimbDarkeningWD(10000,[7]);
         
         Args.UseIndivMag logical  = true;
+        
+        Args.PrepMovie logical  = false;
+        Args.MovieName          = 'try.avi';
+        Args.LC                 = [];
     end
+    
     
     
     switch Args.ImpactParUnits
@@ -194,6 +209,21 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
                             
             Nblock = ceil(Args.Nsim./Args.NsimBlock);
             
+            if Args.PrepMovie
+                Nblock = 1;
+                Vid = VideoWriter(Args.MovieName);
+                Vid.FrameRate = 30;
+                open(Vid);
+                Hf = figure;
+                Hax1 = axes('Position',[0.1 0.1 0.3 0.4]);
+                plot(Args.LC(:,1), Args.LC(:,2), 'k-')
+                hold on;
+                
+                Hax2 = axes('Position',[0.45 0.1 0.45 0.4]);
+                Hax2.XAxis.Visible='off';
+                Hax2.YAxis.Visible='off';
+            end
+            
             for Ib=1:1:Nbeta        
                 Mag = zeros(Nblock,1);
                 
@@ -203,8 +233,6 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
                     % ...
                     
                     [Imu] = astro.stars.limbDarkening(Args.LimbDarkCoef, R./Rstar, 'MuUnits','r', 'Fun','4par');
-                    
-                    
                     
                     U2 = (X - Beta(Ib)).^2 + (Y).^2;
                     U  = sqrt(U2);
@@ -222,8 +250,26 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
                     % (because of occultations) and hence the need to
                     % divide by NsimBlock
                     Mag(Iblock)    = sum(Imu.*(Mag1.*FlagT1 + Mag2.*FlagT2))./sum(Imu); %./Args.NsimBlock;
+                    if Args.PrepMovie && Iblock==1
+                        axes(Hax1)
+                        Hp=plot(ImpactPar(Ib), Args.LC(Ib,2),'ko','MarkerFaceColor','k');
+                        axes(Hax2)
+                        scatter(X,Y,[],log10(Imu.*(Mag1.*FlagT1 + Mag2.*FlagT2)),'filled')
+                        Hax2.XAxis.Visible='off';
+                        Hax2.YAxis.Visible='off';
+                        Hc = colorbar;
+                        Hc.Limits = [0, max((Args.LC(:,2)))];
+                        Frame = getframe(gcf);
+                        
+                        writeVideo(Vid,Frame)
+                        Hp.reset;
+                        
+                    end
                 end
                 TotMu(Ib) = mean(Mag);     
+            end
+            if Args.PrepMovie
+                close(Vid);
             end
     
             

@@ -40,7 +40,6 @@ function [Result, SelObj] = insertCol_matchIndices(Obj, ResInd, Args)
         
     end
     
-    
         
     Nobj = numel(Obj);
     if numel(ResInd)~=Nobj
@@ -48,10 +47,11 @@ function [Result, SelObj] = insertCol_matchIndices(Obj, ResInd, Args)
     end
     
     
+    Result = Obj;
     for Iobj=1:1:Nobj
         % Obj, but with extra columns indicating if there is a match in CatH
         if Args.AddColDist
-            DistData     = convert.angular('rad', Args.ColDistUnits, ResInd(Iobj).Obj2_Dist(FlagNN));
+            DistData     = convert.angular('rad', Args.ColDistUnits, ResInd(Iobj).Obj2_Dist); %(FlagNN));
             Result(Iobj) = insertCol(Result(Iobj), ResInd(Iobj).Obj2_Dist, Args.ColDistPos, Args.ColDistName, Args.ColDistUnits);
         end
         if Args.AddColNmatch
@@ -62,7 +62,7 @@ function [Result, SelObj] = insertCol_matchIndices(Obj, ResInd, Args)
         if nargout>1
             % catalog of selected sources in Obj that has matches in CatH [size like CatH)]
             FlagNN = ~isnan(ResInd(Iobj).Obj2_IndInObj1);
-            SelObj(Iobj) = selectRows(Obj(Iobj), IndObj);
+            SelObj(Iobj) = selectRows(Obj(Iobj), FlagNN); %IndObj);
             % add Dist/Nmatch to SelObj
             if Args.AddColDist
                 DistData     = convert.angular('rad', Args.ColDistUnits, ResInd(Iobj).Obj2_Dist(FlagNN));

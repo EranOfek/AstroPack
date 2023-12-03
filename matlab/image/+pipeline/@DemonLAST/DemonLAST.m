@@ -1586,6 +1586,7 @@ classdef DemonLAST < Component
 
                 Args.StartJD       = -Inf;           % refers only to Science observations: JD, or [D M Y]
                 Args.EndJD         = Inf;            %
+                Args.NightJD       = [];             % Reduce single night (from date to +1) - set StopWhenDone to true.
                 Args.StopWhenDone logical = false;   % If true, then will not look for new images (i.e., images that were created after the function started)
                 Args.RegenCalib logical = false;     % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
 
@@ -1640,6 +1641,17 @@ classdef DemonLAST < Component
             if numel(Args.EndJD)>1
                 Args.EndJD = celestial.time.julday(Args.EndJD);
             end
+
+            if ~isempty(Args.NightJD)
+                if numel(Args.NightJD)>1
+                    Args.NightJD = celestial.time.julday(Args.NightJD);
+                end
+                Args.StartJD = Args.NightJD;
+                Args.EndJD   = Args.NightJD + 1;
+                Args.StopWhenDone = true;
+            end
+
+
 
             % if ~Args.RegenCalib
             %     [IsEmB, IsEmF] = Obj.CI.isemptyProp({'Bias','Flat'});

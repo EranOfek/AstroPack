@@ -43,16 +43,16 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
     if 1==0
         % Debug code:
 
-        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/171342v0
+        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/171342v2
         AI(1) = AstroImage.readFileNamesObj('LAST.01.02.01_2*010_sci_coadd_Image_1.fits');
 
         %AI(1) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.215545.030_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
 
-        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/172022v0
+        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/172022v2
         AI(2) = AstroImage.readFileNamesObj('LAST.01.02.01_2*010_sci_coadd_Image_1.fits');
         %AI(2) = AstroImage.readFileNamesObj('LAST.01.02.01_20230425.214904.914_clear_185-02_001_001_010_sci_coadd_Image_1.fits');
         
-        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/181501v0
+        cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/181501v2
         AI(3) = AstroImage.readFileNamesObj('LAST.01.02.01_2*010_sci_coadd_Image_1.fits');
 
         cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02/2023/04/25/proc/9/
@@ -225,42 +225,22 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
         FlagN      = isnan(Rwb);
         Rwb(FlagN) = median(BackR,'all','omitnan');
         
-        [ImageScorr, ImageS, ImageD, Pd, Fd(Imax), F_S(Imax), D_den, D_num, D_denSqrt, SdeltaN, SdeltaR] = imUtil.properSub.subtractionScorr(N_hat, R_hat,...
-                                                                              Pn_hat, Pr_hat,...
-                                                                              SigmaN, SigmaR,...
-                                                                              Fn, Fr,...
-                                                                              'VN',Nwb,...
-                                                                              'VR',Rwb,...
-                                                                              'SigmaAstN',Args.SigmaAstN,...
-                                                                              'SigmaAstR',Args.SigmaAstR,...
-                                                                              'AbsFun',Args.AbsFun,...
-                                                                              'Eps',Args.Eps,...
-                                                                              'SetToNaN',FlagNaN,...
-                                                                              'NormS',Args.NormS,...
-                                                                              'NormD',Args.NormD,...
-                                                                              'NormDbyFd',Args.NormDbyFd,...
-                                                                              'IsFFT',true);
-                                                                               
-
-        if Args.CalcTranslient
-            [ImageZ2,Zhat,Norm] = imUtil.properSub.translient(N.*Fn, R.*Fr, Pn, Pr, SigmaN, SigmaR);
-            % move this to the translient code
-            ImageZ2(FlagNaN) = NaN;
-    
-            k = 1;  % chi^2 with k=1 dof
-            ExpectedMedian = k.*(1 - 2./(9.*k)).^3;
-    
-            %ImageZ2 = ImageZ2 - median(ImageZ2,'all','omitnan') + ExpectedMedian;
-            ImageZ2 = ImageZ2./tools.math.stat.rstd(ImageZ2,'all').*sqrt(2.*k);
-            Z2(Imax).Image = ImageZ2;
-        
-            ImageS2 = ImageS.^2;
-            ImageS2 = ImageS2./tools.math.stat.rstd(ImageS2,'all').*sqrt(2.*k);
-
-            S2(Imax).Image    = ImageS2;
-            S2(Imax).MaskData = D(Imax).MaskData;
-
-        end  
+        [ImageScorr, ImageS, ImageS2, ImageD, Pd, Fd(Imax), F_S(Imax), ~, ~, ~, SdeltaN, SdeltaR] = ...
+            imUtil.properSub.subtractionScorr(N_hat, R_hat,...
+                                              Pn_hat, Pr_hat,...
+                                              SigmaN, SigmaR,...
+                                              Fn, Fr,...
+                                              'VN',Nwb,...
+                                              'VR',Rwb,...
+                                              'SigmaAstN',Args.SigmaAstN,...
+                                              'SigmaAstR',Args.SigmaAstR,...
+                                              'AbsFun',Args.AbsFun,...
+                                              'Eps',Args.Eps,...
+                                              'SetToNaN',FlagNaN,...
+                                              'NormS',Args.NormS,...
+                                              'NormD',Args.NormD,...
+                                              'NormDbyFd',Args.NormDbyFd,...
+                                              'IsFFT',true);
 
         if ~isempty(Args.HalfSizePSF)
             Pd = imUtil.psf.full2stamp(Pd, 'StampHalfSize',Args.HalfSizePSF, Args.full2stampArgs{:});
@@ -274,20 +254,28 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
         % propagate the mask image
         D(Imax).MaskData = funBinary(ObjNew(In).MaskData, ObjRef(Ir).MaskData,@bitor, 'CreateNewObj',true);
 
-
         S(Imax).Image = ImageS;
         S(Imax).PSF   = Pd;
         S(Imax).MaskData = D(Imax).MaskData;
 
-        
         Scorr(Imax).Image = ImageScorr;
         Scorr(Imax).PSF   = Pd;
         Scorr(Imax).MaskData = D(Imax).MaskData;
 
-        
-
         SdN(Imax).Image = SdeltaN;
         SdR(Imax).Image = SdeltaR;
+
+        if Args.CalcTranslient
+            [ImageZ2,~,~] = imUtil.properSub.translient(N, R, Pn, Pr, SigmaN, SigmaR, ...
+                'SetToNan', FlagNaN,'NormalizationMethod', 'analytical');
+    
+            Z2(Imax).Image = ImageZ2;
+            Z2(Imax).MaskData = D(Imax).MaskData;
+
+            S2(Imax).Image    = ImageS2;
+            S2(Imax).MaskData = D(Imax).MaskData;
+
+        end 
 
     end
 

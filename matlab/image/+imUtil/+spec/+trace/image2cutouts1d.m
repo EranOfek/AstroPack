@@ -6,16 +6,17 @@ function Result=image2cutouts1d(Array, Pos, Args)
     %   the line-stamps centered around each position.
     % Input  : - An array.
     %          - Vector (or scalar) of positions. If scalar, will choose a
-    %            line stamp from each column (or row, of Dim=2).
+    %            line stamp from each column (or row, for Dim=2).
     %          * ...,key,val,...
     %            'Dim' - Dimension along to cut the lines. Default is 1.
     %            'WinHalfSize' - line stamp window half size. The window
     %                   size will be 2.*WinHlafSize + 1.
+    %                   Default is 7.
     % Output : - A matrix in which the columns (regardless of Dim) are the
     %            cutout stamps.
     % Author : Eran Ofek (May 2023)
     % Example: R = rand(100,100); 
-    %          Result=specUtil.trace.image2cutouts1d(R, 5)
+    %          Result=imUtil.trace.image2cutouts1d(R, 5)
     
     arguments
         Array

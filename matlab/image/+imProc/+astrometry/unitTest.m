@@ -17,9 +17,10 @@ function Result = unitTest()
     try
         Ref    = catsHTM.cone_search('GAIAEDR3', RA, Dec, Radius, 'OutType','AstroCatalog');
     catch
-        io.msgStyle(LogLevel.Test, '@failed', 'imProc.astrometry failed probably because GAIA catalog is not installed - skip problem');
+        %io.msgStyle(LogLevel.Test, '@failed', 'imProc.astrometry failed probably because GAIA catalog is not installed - skip problem');
         Cont = false;
     end
+    
     if Cont
         
         % work on semi-simulated catalog:
@@ -189,7 +190,7 @@ function Result = unitTest()
     toc        
     
     cd(PWD);
-    io.msgStyle(LogLevel.Test, '@passed', 'imProc.astrometry test passed')
+    %io.msgStyle(LogLevel.Test, '@passed', 'imProc.astrometry test passed')
     Result = true;
        
 end

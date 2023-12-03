@@ -1,18 +1,21 @@
-function [Rad, Stamp] = quantileRadius (PSFin, Args)
+function [Rad, Stamp, Var] = quantileRadius (PSFin, Args)
     % Measure the radius of signal containment in a PSF stamp at a given level
     % Package: imUtil.psf
     % Description: Measure the radius of signal containment in a PSF stamp at a given level 
     % Input: - PSFin: a 2D array containing the PSF stamp 
     %         * ...,key,val,... 
-    %         'Level' signal containment level [0-1], 0.5 is default
+    %         'Level' - signal containment level [0-1], 0.5 is default
+    %         'Variance' - a variance matrix (optional); once it is given, it is also cropped 
     % Output : - Rad  : containment radius in pixels
     %          - Stamp: the PSF stamp within the containment radius
+    %          - Var:   the PSF variance within the containment radius
     % Tested : Matlab R2020b
     % Author : A. Krassilchtchikov et al. (Feb 2023)
     % Example: Rad = imUtil.psf.quantileRadius (PSF, 'Level', 0.8)
     arguments        
-        PSFin                    % the input PSF stamp        
-        Args.Level     =    0.5; % 50% containment        
+        PSFin                 % the input PSF stamp        
+        Args.Level     = 0.5; % 50% containment   
+        Args.Variance  = [];  % if a variance matrix is given, it is also cropped 
     end    
     % normalize the PSF stamp to 1:    
     PSF = PSFin / sum(PSFin,'all');    
@@ -46,4 +49,7 @@ function [Rad, Stamp] = quantileRadius (PSFin, Args)
         CutY = (SizeY+1)/2-Rad:(SizeY+1)/2+Rad;
     end    
     Stamp = PSF(CutX,CutY);
+    if ~isempty(Args.Variance)
+        Var = Args.Variance(CutX,CutY);
+    end
 end

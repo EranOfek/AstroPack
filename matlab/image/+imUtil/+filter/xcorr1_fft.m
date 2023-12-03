@@ -26,7 +26,7 @@ function [Lag,XC,Info]=xcorr1_fft(S1, S2, Args)
     % Author : Eran Ofek (Aug 2010)
     % Example: R1 = rand(1e5,1); R2 = rand(1e5,1);
     %          R1(2001:2100)=100; R2(1001:1100)=100;
-    %          [XC,Lag,Info] = imUtil.filter.xcorr1_fft(R1(:,1),R2(:,1));
+    %          [Lag,XC,Info] = imUtil.filter.xcorr1_fft(R1(:,1),R2(:,1));
 
 
     arguments

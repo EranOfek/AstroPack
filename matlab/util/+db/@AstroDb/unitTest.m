@@ -6,7 +6,8 @@ function Result = unitTest()
     
     cprintf('hyper','Please, set the appropriate DataDir before running the test (see the next lines).\n');
 %     DataDir = 'c:/ultrasat/last/';        % Windows
-    DataDir = '/home/sasha/LAST/SampleData/'; % Linux
+    DataDir = tools.os.getTestDataDir; % '/home/sasha/LAST/SampleData/'; % Linux
+        
     %%%%%%%%%%%%%%%%%%%%
 
     MsgLogger.getSingleton().setLogLevel(LogLevel.Debug, 'type', 'all');
@@ -23,6 +24,11 @@ function Result = unitTest()
     end
     
     LDB = db.AstroDb();
+    if ~LDB.ConnectionEstablished
+        warning('Connection to the DB was not establsihed');
+        Result = 2;
+        return
+    end
     
     Tables = LDB.Query.select('*','TableName','pg_tables','Where','schemaname = ''public''');
     Tables.Data.tablename % show public tables in the DB
@@ -34,7 +40,7 @@ function Result = unitTest()
     end
       
     % Insert a new row to tables
-    FitsFileName = strcat(DataDir,'LAST.01.01.04_20230308.112234.596_clear_191+31_001_001_001_sci_raw_Image_1.fits');
+    FitsFileName = strcat(DataDir,'/LAST.01.01.04_20230308.112234.596_clear_191+31_001_001_001_sci_raw_Image_1.fits');
     AH = AstroHeader(FitsFileName);    
     xx = tools.checksum.xxhash('FileName', FitsFileName);
     assert(~isempty(xx));
@@ -49,18 +55,18 @@ function Result = unitTest()
     disp(pk);
     
     % test PROC and COADD:
-    FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213718.470_clear_219+50_001_001_024_sci_proc_Image_1.fits');
+    FitsFileName = strcat(DataDir,'/LAST.01.03.01_20230427.213718.470_clear_219+50_001_001_024_sci_proc_Image_1.fits');
     AH = AstroHeader(FitsFileName);  
     pk = LDB.addImage('proc_images',FitsFileName, AH, 'xxhash', xx);        
     disp(pk);
     
-    FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213408.398_clear_219+50_001_001_021_sci_coadd_Image_1.fits');
+    FitsFileName = strcat(DataDir,'/LAST.01.03.01_20230427.213408.398_clear_219+50_001_001_021_sci_coadd_Image_1.fits');
     AH = AstroHeader(FitsFileName);  
     pk = LDB.addImage('coadd_images',FitsFileName, AH, 'xxhash', xx);        
     disp(pk);
     
     % test CAT 
-    FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213408.398_clear_219+50_001_001_024_sci_coadd_Cat_1.fits');
+    FitsFileName = strcat(DataDir,'/LAST.01.03.01_20230427.213408.398_clear_219+50_001_001_024_sci_coadd_Cat_1.fits');
     AC = AstroCatalog(FitsFileName);  
     pk = LDB.addCatalog('src_catalog', AC); 
     disp(pk);
@@ -87,26 +93,26 @@ function Result = unitTest()
     LDB.updateByTupleID(pk,'ra',218, 'Table', 'proc_images')
     
     % Load AstroHeader object from image FITS file, convert to DbRecord
-    FitsFileName = strcat(DataDir,'LAST.01.03.01_20230427.213408.398_clear_219+50_001_001_021_sci_coadd_Image_1.fits');
+    FitsFileName = strcat(DataDir,'/LAST.01.03.01_20230427.213408.398_clear_219+50_001_001_021_sci_coadd_Image_1.fits');
     AH = AstroHeader(FitsFileName);    
     R = db.DbRecord(AH);    
    
     AH = AstroHeader();    
-    TxtFileName = strcat(DataDir,'LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.txt');           
+    TxtFileName = strcat(DataDir,'/LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.txt');           
     AH.readFromTextFile(TxtFileName);   
     
     AH = AstroHeader();    
-    TxtFileName = strcat(DataDir,'LAST.01.08.04_20230125.192423.674_clear_143+41_010_001_001_sci_raw_Image_1.txt');        
+    TxtFileName = strcat(DataDir,'/LAST.01.08.04_20230125.192423.674_clear_143+41_010_001_001_sci_raw_Image_1.txt');        
     AH.readFromTextFile(TxtFileName);   
          
     % 
-    FitsFileName = strcat(DataDir,'LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.fits');
+    FitsFileName = strcat(DataDir,'/LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.fits');
     xx = tools.checksum.xxhash('FileName', FitsFileName);
     assert(~strcmp(xx,''));
     AH = AstroHeader(FitsFileName);    
        
     % Insert new row to table
-    FitsFileName = strcat(DataDir,'LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.fits');
+    FitsFileName = strcat(DataDir,'/LAST.01.02.01_20230401.000728.762_clear_180+53_002_001_001_sci_raw_Image_1.fits');
     xx = tools.checksum.xxhash('FileName', FitsFileName);
     assert(~strcmp(xx,''));
     LDB.addImage('raw_images', FitsFileName, AH, 'xxhash', xx);
