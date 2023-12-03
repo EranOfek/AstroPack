@@ -105,9 +105,14 @@ classdef AstroDb < Component
             end
             
             PM = PasswordsManager;
-            Args.UserName = PM.search(Args.DatabaseName).User;
-            Args.Password = PM.search(Args.DatabaseName).Pass;
-
+            try
+                Args.UserName = PM.search(Args.DatabaseName).User;
+                Args.Password = PM.search(Args.DatabaseName).Pass;
+            catch
+                Obj.msgLog(LogLevel.Info, 'DB password file is not found');
+                Obj.ConnectionEstablished = false;
+                return
+            end
             %
             Obj.setName(Args.DatabaseName);
             
