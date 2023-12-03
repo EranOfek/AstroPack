@@ -13,6 +13,17 @@ function [Result] = getCooCenter(Obj, Args)
     %                   FOV_Radius. Default is [].
     %            'OutCooUnits' - Output coordinates units.
     %                   Default is 'deg'.
+    %            'UseWCS' - A logical. If input is AstroImage, then if this
+    %                   argument is true, then will use the WCS to measure the
+    %                   image center (otherwise use catalog).
+    %                   Default is true.
+    %            'UpdateHeader' - A logical indicating if to update the
+    %                   AstroImage header with the new image center coordinates.
+    %                   Default is false.
+    %            'KeyRA' - The Keyword name in the header in which to store
+    %                   the new calculated RA. Default is 'RA'.
+    %            'KeyDec' - The Keyword name in the header in which to store
+    %                   the new calculated Dec. Default is 'Dec'.
     % Output : - A 3 column matrix of [RA, Dec, FOV_Radius] for each one of
     %            the input image/catalogs.
     % Author : Eran Ofek (2023 Dec) 
@@ -27,6 +38,10 @@ function [Result] = getCooCenter(Obj, Args)
         Args.OutCooUnits           = 'deg';
         
         Args.UseWCS logical        = true;  % if false will use catalog
+
+        Args.UpdateHeader logical  = false;
+        Args.KeyRA                 = 'RA';
+        Args.KeyDec                = 'Dec';
     end
 
     Nobj   = numel(Obj);
@@ -45,6 +60,11 @@ function [Result] = getCooCenter(Obj, Args)
                 if Args.UseWCS
                     ResCoo = Obj(Iobj).cooImage([], 'OutUnits',Args.OutCooUnits);
                     Result(Iobj,:) = [ResCoo.Center, ResCoo.FOV_Radius];
+
+                    if Args.UpdateHeader
+                        Obj(Iobj).HeaderData = replaceVal(Obj(Iobj).HeaderData, {Args.KeyRA, Args.KeyDec}, ResCoo.Center(1:2));
+                    end
+
                 else
                     [RA, Dec, FOV_Radius] = boundingCircle(Obj(Iobj).CatData, 'OutUnits',Args.OutCooUnits ,'CooType','sphere');
                     Result(Iobj,:) = [RA, Dec, FOV_Radius];
