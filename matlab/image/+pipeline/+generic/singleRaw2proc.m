@@ -331,8 +331,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
 
         % Estimate PSF
         if Args.AddPSF
-            [SI] = imProc.psf.constructPSF(SI, Args.constructPSFArgs{:});
-%             [SI] = imProc.psf.populatePSF(SI, Args.constructPSFArgs{:}); 
+            [SI] = imProc.psf.populatePSF(SI, 'Method', 'new', Args.constructPSFArgs{:}); 
 
             if Args.PsfPhot
                 % PSF photometry
