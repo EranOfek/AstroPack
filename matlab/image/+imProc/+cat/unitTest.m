@@ -2,7 +2,8 @@ function Result = unitTest()
     % unitTest for imProc.cat
     % Example: imProc.cat.unitTest
    
-    io.msgLog(LogLevel.Test, 'imProc.CAT test started');
+    %io.msgLog(LogLevel.Test, 'imProc.CAT test started');
+
     RAD = 180./pi;
     
     
@@ -15,7 +16,7 @@ function Result = unitTest()
     C = catsHTM.cone_search('GAIADR2',1,1,1000,'OutType','astrocatalog');
     InE  = 2015;
     OutE = 2021;
-    Result = imProc.cat.applyProperMotion(C, InE, OutE, 'EpochInUnits','J','EpochOutUnits','J','ApplyPlx',0);
+    Result = imProc.cat.applyProperMotion(C, InE, OutE, 'EpochInUnits','J','EpochOutUnits','J','ApplyPlx',false, 'CreateNewObj',true);
 
     % check PM in RA
     DRA = (Result.getCol('RA') - C.getCol('RA')).*RAD.*3600.*1000.*cos(1);  % mas
@@ -56,7 +57,7 @@ function Result = unitTest()
     
     cd(PWD);
     
-    io.msgStyle(LogLevel.Test, '@passed', 'imProc.CAT test passed');
+    %io.msgStyle(LogLevel.Test, '@passed', 'imProc.CAT test passed');
     Result = true;    
 end
     
