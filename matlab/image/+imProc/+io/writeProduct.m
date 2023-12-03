@@ -123,11 +123,8 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
         end
         Nobj  = numel(Obj);
         
-
         % generate a copy of FNin, so the object will not be modified
         FN = FNin.copy;
-
-
         
         FN = FN.updateIfNotEmpty('Type',Args.Type,...
                                  'Level',Args.Level,...
@@ -155,7 +152,12 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                                              'CreateNewObj',true);
                 end
         end
-
+        
+        % change Counter number for COADDs to 0
+        if strcmpi(Args.Level,'coadd')            
+            FN = FN.updateIfNotEmpty('Counter',0);
+        end
+        
         Nfn   = FN.nfiles;
         if Nobj~=Nfn
             error('Number of elements in AstroImage and FileNames object must be identical');
