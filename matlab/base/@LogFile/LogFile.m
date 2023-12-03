@@ -140,7 +140,7 @@ classdef LogFile < handle
             ActualFileName = Obj.FileName;
             if Obj.DayFolder
                 % Use UTC or LocalTime Zone12:00:00                 
-                Date = io.files.getLogDate(true);                
+                Date = io.files.getLogDate('Utc', true);                
 
                 [filepath, basename, extension] = fileparts(Obj.FileName);
                 CurDate = datestr(Date, 'yyyy-mm-dd');               
