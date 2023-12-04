@@ -1582,6 +1582,7 @@ classdef DemonLAST < Component
                 Args.SortDirection = 'descend';      % 'ascend'|'descend' - analyze last image first
                 Args.AbortFileName = '~/abortPipe';  % if this file exit, then abort.
                 Args.StopButton logical = true;      % Display stop button
+                Args.StopDiskFull  = [];             % e.g., use 95 to abort if disk storage is above 95%
                 Args.multiRaw2procCoaddArgs = {};
 
                 Args.StartJD       = -Inf;           % refers only to Science observations: JD, or [D M Y]
@@ -1744,6 +1745,7 @@ classdef DemonLAST < Component
                    
                     % for each visit
                     if FN_Sci_Groups(Igroup).nfiles>Args.MinNumIMageVisit
+
 
                         % set Logger log file 
                         Obj.setLogFile('HostName',Args.HostName);
@@ -1934,6 +1936,16 @@ classdef DemonLAST < Component
                             Cont = false;
                             delete(Args.AbortFileName);
                         end
+
+                        % check disk storage state
+                        if ~isempty(Args.StopDiskFull)
+                            [~,DiskP] = tools.os.df(sprintf('data%d',Obj.DataDir));
+                            if DiskP>Args.StopDiskFull
+                                Cont = false;
+                            end
+                        end
+
+
                         if ~Cont
                             % exist the visit loop
                             break;

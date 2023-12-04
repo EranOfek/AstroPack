@@ -52,6 +52,11 @@ function Result = aperPhotCube(Cube, X, Y, Args)
     %                   If PSF is given, then SubBack should be true.
     %                   If empty, then do not calculate PSF photometry.
     %                   Default is [].
+    %            'AnnulusBack' - If given, then assume that the background
+    %                   was subtracted and this is the background level that will
+    %                   be used for the error calculation and also will be
+    %                   populated  in AnnulusBack.
+    %                   Default is [].
     % Output : - A structure containing the following fields:
     %            .AnnulusBack - Vector of annulus background mean.
     %            .AnnulusStd - Vectof of annulus background std.
@@ -89,6 +94,8 @@ function Result = aperPhotCube(Cube, X, Y, Args)
         
         Args.BoxPhot logical          = false;
         Args.PSF                      = [];   % PSF index is in 3rd dim
+        
+        Args.AnnulusBack              = [];
     end
         
     [SizeY, SizeX, Nim] = size(Cube);
@@ -112,7 +119,11 @@ function Result = aperPhotCube(Cube, X, Y, Args)
     Flag  = cast(MatR2<Rin2 | MatR2>Rout2, 'like',Cube);
     Flag(Flag==1) = NaN;
     CubeAnnulus = Cube+Flag;
-    Result.AnnulusBack  = Args.BackFun(CubeAnnulus, [1 2], Args.BackFunArgs{:});
+    if isempty(Args.AnnulusBack)
+        Result.AnnulusBack  = Args.BackFun(CubeAnnulus, [1 2], Args.BackFunArgs{:});
+    else
+        Result.AnnulusBack = Args.AnnulusBack;
+    end
     Result.AnnulusStd   = Args.StdFun(CubeAnnulus, 0, [1 2], Args.StdFunArgs{:});
     Result.AnnulusBackArea = pi.*(Rout2 - Rin2);
     
@@ -150,12 +161,17 @@ function Result = aperPhotCube(Cube, X, Y, Args)
     end
     
     % aperture photometry
-    Result.AperArea   = pi.*AperRad2;
-    Result.AperRadius = Args.AperRad;
-    Result.AperPhot   = zeros(Nim, Naper);
-    for Iaper=1:1:Naper        
-        Result.AperPhot(:,Iaper)   = squeeze(sum(Cube.*(MatR2 < AperRad2(Iaper)),[1 2],'omitnan'));
+    Result.AperArea    = pi.*AperRad2;
+    Result.AperRadius  = Args.AperRad;
+    Result.AperArea    = zeros(Nim, Naper);
+    Result.AperPhot    = zeros(Nim, Naper);
+    for Iaper=1:1:Naper   
+        FlagPix = MatR2 < AperRad2(Iaper);
+        Result.AperArea(:,Iaper)    = squeeze(sum(FlagPix,[1 2]));
+        %Result.AperPhot(:,Iaper)   = squeeze(sum(Cube.*(MatR2 < AperRad2(Iaper)),[1 2],'omitnan'));
+        Result.AperPhot(:,Iaper)    = squeeze(sum(Cube.*FlagPix,[1 2],'omitnan'));
     end
+    Result.AperPhotErr =  sqrt(Result.AnnulusBack.*Result.AperArea + Result.AperPhot);
     
     if Args.BoxPhot
         Result.BoxPhot = squeeze(sum(Cube,[1 2],'omitnan'));

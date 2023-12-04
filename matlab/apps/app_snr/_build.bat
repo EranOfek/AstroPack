@@ -27,4 +27,4 @@ rem zip a -r
 
 pause
 
-copy soc_snr_matlab.exe c:\soc\snr\snr_matlab\
+copy soc_snr_matlab.exe %SOC_PATH%\snr\snr_matlab\
