@@ -1,6 +1,5 @@
 function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower) 
     % Mode and variance of a distribution
-    % Package: @imUtil.background
     % Description: Calculate the mode and robust variance of an array.
     %              The mode is calculated by making an histogram and choosing
     %              the bin with the highest number of counts. The robust 
@@ -24,10 +23,8 @@ function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower)
     %          - A logical indicating if to calculate the variance on the lower
     %            quantile. Default is true.
     % Output : - The robust median calculated using the scaled iqr
-    %      By: Eran O. Ofek                       Apr 2020             
+    % Author : Eran Ofek (Apr 2020)
     % Example: imUtil.background.mode(randn(1000,1000))
-
-    
     
     arguments
         Array
@@ -137,11 +134,25 @@ function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower)
 %                 %I75 = find(CumN>(0.75.*Ntot), 1);
 %                 IqrVal = [Edges(I25(1)); Edges(I25(2))];% + 0.5.*BinSize;
                 
-                Factor = 0.7413;  %  = 1./norminv(0.75,0,1)
+                Factor = 0.7413;  %  = 1./(norminv(0.75,0,1)-norminv(0.25,0,1))
+                Factor = 1.482602; % 1./(norminv(0.75,0,1)-norminv(0.5,0,1))
+
+                if Log
+                    % convert back to numbers
+                    IqrVal = exp(IqrVal);
+                end
+
+                if OnlyLower
+                    IqrHalfRange = Mode - IqrVal(1);
+                else
+                    IqrHalfRange = 0.5.*(IqrVal(2)-IqrVal(1));
+                end
+
 
                 if OnlyLower
                     IqrVal(2) = log(Mode);
                     Factor    = Factor.*2;
+              
                 end
 
                 if Log

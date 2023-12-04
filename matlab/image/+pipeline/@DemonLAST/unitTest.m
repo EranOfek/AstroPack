@@ -4,6 +4,7 @@ function Result = unitTest(Args)
     % use the last_operational credentials in Args.AstroDBArgs ! 
     % 
     % Author: A.M. Krassilchtchikov (Oct 2023)
+
     arguments
         Args.RestoreNew = true;  % copy the raw data back to new 
         Args.Insert2DB  = false; % whether to perform the DB part
@@ -34,7 +35,61 @@ function Result = unitTest(Args)
         !cp 2023/06/16/raw/LAST*fits new/  
         cd(CurrentDir);
     end
+   
+
+
+
+    Result = true;
     
-    Result = 0;
-    
+end
+
+
+
+function TestDataProducts
+    %
+
+    % cd to data products directory
+
+    %% Test the X1 and X position in the image catalogs
+    AC=AstroCatalog('LAST.01.05.03_20230722.232833.104_clear_264+61_020_001_010_sci_proc_Cat_1.fits');
+    T=AC.toTable;
+
+    % test 1st moment position
+    DiffX = median(T.XPEAK-T.X1, 'all', 'omitnan');
+    DiffY = median(T.YPEAK-T.Y1, 'all', 'omitnan');
+    if abs(DiffX)>0.1 || abs(DiffY)>0.1
+        error('X1/Y1 1st moment positions are not consistent with XPEAK/YPEAK positions');
+    end
+
+    FracInRangeX = sum(abs(T.XPEAK-T.X1)>0.5)./numel(T.X1);
+    FracInRangeY = sum(abs(T.YPEAK-T.Y1)>0.5)./numel(T.Y1);
+    if FracInRangeX>0.1 || FracInRangeY>0.1
+        error('High fraction of X1/Y1 position with difference larger than 0.5 pix relative to XPEAK/YPEAK');
+    end
+
+    % test X/Y PSF fitting position
+    FracInRangeXp = sum(abs(T.XPEAK-T.X)>0.5)./numel(T.X);
+    FracInRangeYp = sum(abs(T.YPEAK-T.Y)>0.5)./numel(T.Y);
+    if FracInRangeXp>0.1 || FracInRangeYp>0.1
+        error('High fraction of X1/Y1 position with difference larger than 0.5 pix relative to XPEAK/YPEAK');
+    end
+
+    % looks good
+    plot(T.SN_3, T.SN_3./T.SN_5,'.')
+    % looks good
+    plot(T.SN_3, T.SN_3./T.SN_1,'.')
+
+    % NOT good
+    plot(T.SN, T.SN./T.SN_1,'.')
+
+    % looks like a bias at S/N>1000 (the one from our paper)
+    semilogx(T.SN_3, T.BACK_ANNULUS./T.BACK_IM,'.')
+
+    % looks like a severe bias - the variance is factor of 2 higher than
+    % expected
+    hist(T.BACK_IM./T.VAR_IM)
+
+    % should be 1 - not too bad
+    median(T.PSF_CHI2DOF)
+
 end

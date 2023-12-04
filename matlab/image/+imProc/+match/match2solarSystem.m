@@ -188,7 +188,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
     end
     
     if ~isempty(Args.RA) && ~isempty(Args.Dec) && ~isempty(Args.FOV_Radius)
-        Factor          = convert.angular(Args.CooUnits, 'rad');
+        Factor          = convert.angular(Args.InCooUnits, 'rad');
         Args.RA         =  Args.RA .* Factor;
         Args.Dec        =  Args.Dec .* Factor;
         Args.FOV_Radius = Args.FOV_Radius .* Factor;
