@@ -11,6 +11,7 @@ function Result = unitTest(Args)
 %         Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};  % use this when running on a LAST node
         Args.DB_ImageBulk   logical = false; % whether to use bulk or direct injection method
         Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
+        Args.SaveEpochProduct = {'Image','Mask','Cat','PSF'}; % for the test we'd need all the products
     end
     
     I = Installer;
@@ -25,7 +26,8 @@ function Result = unitTest(Args)
 
     D.main('StopButton',false,'StopWhenDone',true,'HostName','last08w',...
            'Insert2DB',Args.Insert2DB,'AstroDBArgs',Args.AstroDBArgs,...
-           'DB_ImageBulk',Args.DB_ImageBulk,'DB_CatalogBulk',Args.DB_CatalogBulk);
+           'DB_ImageBulk',Args.DB_ImageBulk,'DB_CatalogBulk',Args.DB_CatalogBulk,...
+           'SaveEpochProduct',Args.SaveEpochProduct);
     
     if Args.RestoreNew % copy the raw data back to new
         % NB: this is hard-coded, because the particular observation
