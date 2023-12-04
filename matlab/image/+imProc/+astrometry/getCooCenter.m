@@ -51,6 +51,7 @@ function [Result] = getCooCenter(Obj, Args)
         Args.RA         = Ones.*Factor .* Args.RA;
         Args.Dec        = Ones.*Factor .* Args.Dec;
         Args.FOV_Radius = Ones.*Factor .* Args.FOV_Radius;
+        Result          = [Args.RA(:), Args.Dec(:), Args.FOV_Radius(:)];
     else
                 
         Result = zeros(Nobj, 3);
