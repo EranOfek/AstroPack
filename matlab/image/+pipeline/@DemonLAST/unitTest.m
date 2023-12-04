@@ -12,7 +12,8 @@ function Result = unitTest(Args)
 %         Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};  % use this when running on a LAST node
         Args.DB_ImageBulk   logical = false; % whether to use bulk or direct injection method
         Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
-        Args.SaveEpochProduct = {'Image','Mask','Cat','PSF'}; % for the test we'd need all the products
+        % for some test we'd need all the epoch products, but the output will weigh 12 Gb instead of 1 Gb! 
+        Args.SaveEpochProduct = {[],[],'Cat',[]}; % {'Image','Mask','Cat','PSF'}; 
     end
     
     I = Installer;
