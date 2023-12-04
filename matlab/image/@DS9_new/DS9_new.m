@@ -820,7 +820,7 @@ classdef DS9_new < handle
             %                   Default is {};
             %            'constructPSFArgs' - A cell array of additional
             %                   arguments to pass to
-            %                   imProc.psf.constructPSF
+            %                   imProc.psf.populatePSF
             %                   Default is {};
             %            'Verbose' - Show status messages. Default is true.
             %            'RePop' - Repopulate Back, Var, Cat, PSF, even if
@@ -867,7 +867,6 @@ classdef DS9_new < handle
                 if Args.Verbose
                     fprintf('Estimate PSF and measure PSF photometry\n');
                 end
-%                 [AI] = imProc.psf.constructPSF(AI, Args.constructPSFArgs{:});
                 [AI] = imProc.psf.populatePSF(AI, Args.constructPSFArgs{:});
                 % PSF photometry
                 [AI] = imProc.sources.psfFitPhot(AI, 'CreateNewObj',false);                                   

@@ -71,7 +71,7 @@ function [AC,MS]=procGALEX(Args)
         AI.Back = zeros(size(AI.Var));
     
         AI = imProc.sources.findMeasureSources(AI, 'ColCell',Args.ColCell, 'ZP',Args.ZP);
-        AI = imProc.psf.constructPSF(AI);
+        AI = imProc.psf.populate(AI);
         AI = imProc.sources.psfFitPhot(AI, 'ZP',Args.ZP);
         
         AI.populateWCS;
