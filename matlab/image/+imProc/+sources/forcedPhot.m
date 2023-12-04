@@ -101,7 +101,7 @@ function [Result] = forcedPhot(Obj, Args)
     %                   Default is [10 12] pix.
     %
     %            'constructPSFArgs' - A cell array of additional arguments
-    %                   to pass to imProc.psf.constructPSF.
+    %                   to pass to imProc.psf.populatePSF.
     %                   Default is {}.
     %            'ImageProp' - AstroImage Image property on which to calculate the PSF
     %                   photometry and moments. Default is 'Image'.
@@ -336,12 +336,8 @@ function [Result] = forcedPhot(Obj, Args)
 
             % generate PSF
             if Obj(Iobj).isemptyPSF || Args.ReconstructPSF
-                % No PSF in AstroImage
-                % generate PSF
-%                 Obj(Iobj) = imProc.psf.constructPSF(Obj(Iobj), 'HalfSize',Args.HalfSizePSF, Args.constructPSFArgs{:});
-                % use the new function instead of imProc.psf.constructPSF: 
+                % if there is no PSF in AstroImage or PSF reconstruction is requested, generate a PSF
                 Obj(Iobj) = imProc.psf.populatePSF(Obj(Iobj), 'RadiusPSF',Args.HalfSizePSF, Args.constructPSFArgs{:});
-
             end
             PSF = Obj(Iobj).PSFData.Data;
 
