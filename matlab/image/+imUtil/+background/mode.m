@@ -134,7 +134,7 @@ function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower)
 %                 %I75 = find(CumN>(0.75.*Ntot), 1);
 %                 IqrVal = [Edges(I25(1)); Edges(I25(2))];% + 0.5.*BinSize;
                 
-                Factor = 0.7413;  %  = 1./(norminv(0.75,0,1)-norminv(0.25,0,1))
+                %Factor = 0.7413;  %  = 1./(norminv(0.75,0,1)-norminv(0.25,0,1))
                 Factor = 1.482602; % 1./(norminv(0.75,0,1)-norminv(0.5,0,1))
 
                 if Log
@@ -147,20 +147,23 @@ function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower)
                 else
                     IqrHalfRange = 0.5.*(IqrVal(2)-IqrVal(1));
                 end
+                
+                Variance = (IqrHalfRange.*Factor).^2;
 
 
-                if OnlyLower
-                    IqrVal(2) = log(Mode);
-                    Factor    = Factor.*2;
-              
-                end
 
-                if Log
-                    %Variance = (range(IqrVal).*Factor).^2;  %(range(exp(IqrVal)).*Factor).^2;
-                    Variance = (range(exp(IqrVal)).*Factor).^2;
-                else
-                    Variance = (range(IqrVal).*Factor).^2;
-                end
+                % if OnlyLower
+                %     IqrVal(2) = log(Mode);
+                %     Factor    = Factor.*2;
+                % 
+                % end
+                % 
+                % if Log
+                %     %Variance = (range(IqrVal).*Factor).^2;  %(range(exp(IqrVal)).*Factor).^2;
+                %     Variance = (range(exp(IqrVal)).*Factor).^2;
+                % else
+                %     Variance = (range(IqrVal).*Factor).^2;
+                % end
                 % range((IqrVal)).*Factor
     %             Variance
     %             'a'
