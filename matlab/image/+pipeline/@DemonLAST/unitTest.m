@@ -38,9 +38,6 @@ function Result = unitTest(Args)
         cd(CurrentDir);
     end
    
-
-
-
     Result = true;
     
 end
@@ -52,7 +49,7 @@ function TestDataProducts
 
     % cd to data products directory
 
-    %% Test the X1 and X position in the image catalogs
+    % Test the X1 and X position in the image catalogs
     AC=AstroCatalog('LAST.01.05.03_20230722.232833.104_clear_264+61_020_001_010_sci_proc_Cat_1.fits');
     T=AC.toTable;
 
