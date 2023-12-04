@@ -1,5 +1,5 @@
 function [Result, Summary] = constructPSF(Obj, Args)
-    % Select PSF stars and construct a PSF for an AstroImage
+    % obsoleted by imProc.psf.populatePSF! Select PSF stars and construct a PSF for an AstroImage
     %       A new vesion: imProc.psf.populatePSF
     % Input  : - An AstroImage object. The CatData must be popualted.
     %          * ...,key,val,...

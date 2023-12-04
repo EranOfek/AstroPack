@@ -109,7 +109,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %                   between the images.
     %                   Default is true.
     %            'constructPSFArgs' - A cell array of arguments to pass to
-    %                   imProc.psf.constructPSF
+    %                   imProc.psf.populatePSF
     %                   Default is {}.
     %            'psfFitPhotArgs' - A cell array of arguments to pass to
     %                   imProc.sources.psfFitPhot
@@ -326,9 +326,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                        'Threshold',Args.Threshold,...
                                                        'CreateNewObj',false);
 
-            % Estimate PSF (need to switch to  imProc.psf.populatePSF after the tests)
-            [Coadd(Ifields), Summary] = imProc.psf.constructPSF(Coadd(Ifields), Args.constructPSFArgs{:},'TypePSF',@single);
-%             [Coadd(Ifields), Summary] = imProc.psf.populatePSF(Coadd(Ifields), Args.constructPSFArgs{:},'DataType',@single);
+            % Estimate PSF 
+            [Coadd(Ifields), Summary] = imProc.psf.populatePSF(Coadd(Ifields), Args.constructPSFArgs{:},'DataType',@single);
 
 
             % PSF photometry

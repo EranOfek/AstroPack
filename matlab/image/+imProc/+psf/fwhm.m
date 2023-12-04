@@ -44,7 +44,6 @@ function Obj = fwhm(Obj, Args)
         if isemptyPSF(Obj(Iobj).PSFData)
             % construct the PSF
             if isnan(Obj(Iobj).PSFData.Nstars)
-%                 [Obj(Iobj)] = imProc.psf.constructPSF(Obj(Iobj), Args.constructPSFArgs{:});
                 [Obj(Iobj)] = imProc.psf.populatePSF(Obj(Iobj), Args.constructPSFArgs{:});
             end
         end

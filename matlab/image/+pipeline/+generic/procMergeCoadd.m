@@ -239,9 +239,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                                                        'CreateNewObj',false);
 
             % Estimate PSF
-            [Coadd(Ifields), Summary] = imProc.psf.constructPSF(Coadd(Ifields), Args.constructPSFArgs{:},'TypePSF',@single);
-%             [Coadd(Ifields), Summary] = imProc.psf.populatePSF(Coadd(Ifields), Args.constructPSFArgs{:},'DataType',@single);
-
+           [Coadd(Ifields), Summary] = imProc.psf.populatePSF(Coadd(Ifields), 'Method', 'new', Args.constructPSFArgs{:}, 'DataType',@single);
 
             % PSF photometry
             [Coadd(Ifields), ResPSF] = imProc.sources.psfFitPhot(Coadd(Ifields), 'CreateNewObj',false, 'ZP',Args.ZP, Args.psfFitPhotArgs{:});                  

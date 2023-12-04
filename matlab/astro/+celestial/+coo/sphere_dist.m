@@ -86,7 +86,7 @@ Dist = abs(Dist);
 
 
 
-if (nargout>1),
+if (nargout>1)
    SinPA = sin(dRA).*cos(Dec_2)./sin(Dist);
    CosPA = (sin(Dec_2).*cos(Dec_1) - cos(Dec_2).*sin(Dec_1).*cos(dRA))./sin(Dist);
    %if (isreal(SinPA)==0 | isreal(CosPA)==0),

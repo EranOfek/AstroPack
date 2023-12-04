@@ -12,6 +12,8 @@ function Result = unitTest(Args)
 %         Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};  % use this when running on a LAST node
         Args.DB_ImageBulk   logical = false; % whether to use bulk or direct injection method
         Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
+        % for some test we'd need all the epoch products, but the output will weigh 12 Gb instead of 1 Gb! 
+        Args.SaveEpochProduct = {[],[],'Cat',[]}; % {'Image','Mask','Cat','PSF'}; 
     end
     
     I = Installer;
@@ -26,7 +28,8 @@ function Result = unitTest(Args)
 
     D.main('StopButton',false,'StopWhenDone',true,'HostName','last08w',...
            'Insert2DB',Args.Insert2DB,'AstroDBArgs',Args.AstroDBArgs,...
-           'DB_ImageBulk',Args.DB_ImageBulk,'DB_CatalogBulk',Args.DB_CatalogBulk);
+           'DB_ImageBulk',Args.DB_ImageBulk,'DB_CatalogBulk',Args.DB_CatalogBulk,...
+           'SaveEpochProduct',Args.SaveEpochProduct);
     
     if Args.RestoreNew % copy the raw data back to new
         % NB: this is hard-coded, because the particular observation
@@ -36,9 +39,6 @@ function Result = unitTest(Args)
         cd(CurrentDir);
     end
    
-
-
-
     Result = true;
     
 end
@@ -50,7 +50,7 @@ function TestDataProducts
 
     % cd to data products directory
 
-    %% Test the X1 and X position in the image catalogs
+    % Test the X1 and X position in the image catalogs
     AC=AstroCatalog('LAST.01.05.03_20230722.232833.104_clear_264+61_020_001_010_sci_proc_Cat_1.fits');
     T=AC.toTable;
 
