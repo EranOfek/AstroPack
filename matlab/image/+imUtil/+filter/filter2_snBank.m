@@ -79,6 +79,7 @@ LogMode = true;  % true will not work if image contains negative numbers.
 if nargin<4
     Template = @imUtil.kernel2.gauss;
     if nargin<3
+     
         [Mode,Variance] =  imUtil.background.mode(Image,LogMode);
         if nargin<2
             if nargin<3
