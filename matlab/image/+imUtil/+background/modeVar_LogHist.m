@@ -22,10 +22,15 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     %                   Default is 0.
     %            'RemoveUpperQuantile' - Remove upper quantile from data.
     %                   Default is 0.
+    %            'UseSlash' - A logical indicating if to use the \ operator
+    %                   to fit the 2nd order polynomial. If false, then use
+    %                   polyfit.
+    %                   Default is true.
     % Output : - Estimated mode.
     %          - Estimated variance.
     % Author : Eran Ofek (2023 Dec) 
     % Example: [M,V]=imUtil.background.modeVar_LogHist(R);
+    %          for I=1:1:numel(AI); [M(I),V(I)]=imUtil.background.modeVar_LogHist(AI(1).Image(:)); [M1(I),V1(I)]=imUtil.background.mode(AI(1).Image(:)); end
 
     arguments
         Array
@@ -36,6 +41,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
         Args.MinVal                    = [];
         Args.RemoveLowerQuantile       = 0; %0.01; %0.01;
         Args.RemoveUpperQuantile       = 0; %0.1; %0.1;
+        Args.UseSlash logical          = true;
     end
     
     % convert to vector
@@ -91,30 +97,50 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     Nhist = Nhist(1:end-1);
     BinCenter = BinCenter(1:end-1);
 
-    Ind   = Nhist>1;
+    Nhist = log(Nhist);
+    [MaxNhist,Imax] = max(Nhist);
+    Mode0 = BinCenter(Imax);
+
+    
+
+    %Ind   = Nhist(:)>1 & BinCenter(:)<Mode0.*1.3;
+    Ind       = Nhist>(MaxNhist-2);
     Nhist = Nhist(Ind);
     BinCenter = BinCenter(Ind);
-    Nhist = log(Nhist);
+    
     Nbin  = numel(Nhist);
     
-    H = [BinCenter.^2, BinCenter, ones(Nbin,1)];
-    Par = (H\Nhist(:)).';
-    % slower
-    %Par   = polyfit(BinCenter, Nhist,2);
+    
+    if Args.UseSlash
+        % H = [BinCenter.^2, ones(Nbin,1)];
+        H = [(BinCenter-Mode0).^2, (BinCenter-Mode0), ones(Nbin,1)];
+        Par = (H\Nhist(:)).';
 
-    % plot(BinCenter, Nhist,'o'); hold on; X=[100:1:250]'; plot(X, polyval(Par,X))
-
-    if Par(1)<0
-        % minimum found
-        Mode  = -Par(2)./(2.*Par(1));
-        Npeak = polyval(Par, Mode);
-        Par1  = Par;
-        Par1(3) = Par1(3) - (Npeak - 0.5);  %.*0.60653;    % normpdf([1],0,1)./normpdf(0,0,1)
-        Roots = roots(Par1);
-        Var   = (0.5.*(Roots(2) - Roots(1))).^2;
+        % X=[100:1:250]';  H = [(X-Mode0).^2, (X-Mode0), ones(numel(X),1)];
+        % plot(BinCenter, Nhist,'o'); hold on; plot(X,H*Par(:) )
+        
     else
-        Mode = NaN;
-        Var  = NaN;
+        % slower
+        Par   = polyfit(BinCenter-Mode0, Nhist,2);
+        % X=[100:1:250]';  H = [(X-Mode0).^2, (X-Mode0), ones(numel(X),1)];
+        % plot(BinCenter, Nhist,'o'); hold on; plot(X,polyval(Par,X) )
+        
     end
+    Mode  = Mode0 - Par(2)./(2.*Par(1));
+    Var = -0.5./Par(1);
+    
+
+    % if Par(1)<0
+    %     % minimum found
+    %     Mode  = -Par(2)./(2.*Par(1));
+    %     Npeak = polyval(Par, Mode);
+    %     Par1  = Par;
+    %     Par1(3) = Par1(3) - (Npeak - 0.5);  %.*0.60653;    % normpdf([1],0,1)./normpdf(0,0,1)
+    %     Roots = roots(Par1);
+    %     Var   = (0.5.*(Roots(2) - Roots(1))).^2;
+    % else
+    %     Mode = NaN;
+    %     Var  = NaN;
+    % end
 
 end
