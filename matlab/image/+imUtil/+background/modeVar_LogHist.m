@@ -26,6 +26,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     %                   to fit the 2nd order polynomial. If false, then use
     %                   polyfit.
     %                   Default is true.
+    %            See code for additional arguments (use with care).
     % Output : - Estimated mode.
     %          - Estimated variance.
     % Author : Eran Ofek (2023 Dec) 
@@ -41,7 +42,13 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
         Args.MinVal                    = [];
         Args.RemoveLowerQuantile       = 0; %0.01; %0.01;
         Args.RemoveUpperQuantile       = 0; %0.1; %0.1;
+
         Args.UseSlash logical          = true;
+
+        Args.EdgesFactor               = 0.5;
+        Args.OverSampling              = 0.3;
+        Args.LogNhistFromPeak          = 2;
+        
     end
     
     % convert to vector
@@ -90,7 +97,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
 %     BinCenter = (Edges(1:end-1) + Edges(2:end)).*0.5;
     
     Mode1 = exp(Mode1);
-    Edges = (Mode1.*0.5: sqrt(Mode1).*0.3:Mode1.*2).';
+    Edges = (Mode1.*Args.EdgesFactor: sqrt(Mode1).*Args.OverSampling:Mode1./Args.EdgesFactor).';
     BinCenter = (Edges(1:end-1) + Edges(2:end)).*0.5;
     
     Nhist = matlab.internal.math.histcounts(Array, Edges);
@@ -104,7 +111,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     
 
     %Ind   = Nhist(:)>1 & BinCenter(:)<Mode0.*1.3;
-    Ind       = Nhist>(MaxNhist-2);
+    Ind       = Nhist>(MaxNhist - Args.LogNhistFromPeak);
     Nhist = Nhist(Ind);
     BinCenter = BinCenter(Ind);
     
