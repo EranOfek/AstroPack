@@ -1,6 +1,6 @@
 function Result = getPid()
     % Return current process id
-    % Author: Chen Tishler, 07/2023
+    % Author: Chen Tishler (Jul 2023)
 
     persistent Pid;
     if isempty(Pid)
