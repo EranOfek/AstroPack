@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LocalDebuggerCommandArguments>-h D:\Ultrasat\wcs\Images\ztf_20190709485764_000600_zg_c04_o_q4_sciimg.fits</LocalDebuggerCommandArguments>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerEnvironment>PATH=%PATH%;D:\Ultrasat\wcs\wcslib\cfitsio\Build\Debug
+$(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LocalDebuggerCommandArguments>-h D:\Ultrasat\wcs\Images\ztf_20190709485764_000600_zg_c04_o_q4_sciimg.fits</LocalDebuggerCommandArguments>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerEnvironment>PATH=%PATH%;D:\Ultrasat\wcs\wcslib\cfitsio\Build\Debug
+$(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
+  </PropertyGroup>
+</Project>

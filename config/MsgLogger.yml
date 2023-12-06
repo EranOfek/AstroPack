@@ -1,0 +1,26 @@
+# MsgLogger Configuration File
+#
+# See Base/LogLevel.m
+#
+# None         % Not set
+# Fatal        % Fatal error, must terminate
+# Error        % Error
+# Assert       % Assert
+# Warning      % Warning
+# Info         % General info
+# Verbose      % Verbose info
+# Debug        % Detailed debug
+# DebugEx      % Very detailed debug, above Test level
+# Perf         % Performance timing
+# Test         % Unit-Test
+# All          % All
+
+MsgLogger:
+
+    FileLevel: LogLevel.All
+    DispLevel: LogLevel.Info
+    SyslogLevel: LogLevel.Info
+    Console: true
+    MaxFileSize: 10000000
+
+

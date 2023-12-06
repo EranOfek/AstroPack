@@ -1,0 +1,255 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="cel.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dis.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="getwcstab.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lin.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="log.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="prj.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="spc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sph.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="spx.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="tab.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wcs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wcserr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wcsfix.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wcshdr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wcsprintf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wcstrig.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wcsunits.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wcsutil.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="flexed\fitshdr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="flexed\wcsbth.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="flexed\wcspih.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="flexed\wcsulex.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="flexed\wcsutrn.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tbth1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tcel1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tcel2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tdis1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tdis2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tdisiter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tfitshdr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tlin.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tlog.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tofits.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tpih1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tpih2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tprj1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tprj2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tspc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tspcaips.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tspcspxe.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tspctrne.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tsph.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tsphdpa.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tspx.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\ttab1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\ttab2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\ttab3.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\tunits.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\twcs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\twcscompare.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\twcsfix.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\twcshdr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\twcsmix.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\twcssub.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\twcstab.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test\twcs_locale.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="cel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="dis.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="fitshdr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="getwcstab.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lin.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="log.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="prj.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="spc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sph.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="spx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="tab.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wcs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wcserr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wcsfix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wcshdr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wcslib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wcsmath.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wcsprintf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wcstrig.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wcsunits.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wcsutil.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wtbarr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

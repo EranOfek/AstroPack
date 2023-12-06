@@ -1,0 +1,4 @@
+classdef MyValueClass 
+   % ...
+end 
+

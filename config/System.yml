@@ -1,0 +1,56 @@
+# System Configuration File
+
+# Notes:
+#
+#   - A document starts with three dashes and ends with three periods, BUT, is not supported by the Java class
+#   - Java exception occurred: expected a single document in the stream
+#   - Seems that Matlab +yaml fails to read multi-document yaml files (with '---')
+#   - Key-3: Value-3 --> Key0x2D3
+#   -KeyMinus: ValueMinus --> x0x2DKeyMinus
+#   - Non-unique keys must be defined as list, otherwise you get the last item
+
+#==========================================================================
+
+#==========================================================================
+
+# Folder macros, use as $ROOT/MyFolder, etc.
+EnvFolders:
+    ROOT: c:/pipeline
+    LOG: c:/pipeline/log
+    TEMP: c:/pipeline/temp
+    IAI: c:/iai
+    PRJ: 
+
+    
+# Folders
+Folders:
+    TestImages: $PRJ/data/test_images/fits_samples
+    VirtImageStore: $TEMP/virt_images/
+
+    
+# ImagePath
+ImagePath:
+    BasePath : /euler/archive
+    DataDir  : LAST
+
+
+
+Time:
+    TimeZone : 2
+
+#==========================================================================
+# Pipeline - IAI GCS Interface
+GcsInterface:
+    InputImagePath: $IAI/gcs/    
+    ProcessedImagePath: $IAI/processed
+
+
+#==========================================================================
+
+# IAI GCS Interface Simulator - used by sim_gcs.py
+GcsSimulator:
+    LogPath: c:/iai/log
+    ImagePath: c:/iai/gcs/
+    ImageSourcePath: c:/iai/images
+    ImageIntervalSeconds: 10
+   

@@ -1,0 +1,87 @@
+# SNR Configuration File
+#
+# Notes:
+#
+# Use http://www.yamllint.com/
+#
+
+# General settings
+General:
+    Host            : 'localhost'       # Host name or IP address
+
+
+# snr arguments sets
+Items:
+
+    # Default values for WebApp
+    Default:
+        FWHM                : 12
+        TargetSpec          : 2e4
+        FilterFamily        : 'ULTRASAT'
+        ClearAper           : 1
+        Trans               : 1
+        Reflection          : 1
+        QE                  : 1
+
+
+    # ULTRASAT values
+    Ultrasat:
+            FWHM            : 12
+            PSFeff          : 0.8
+            Aper            : 33
+            FL              : 36
+            PixSize         : 9.5
+            RN              : 3.5
+            StrayLight      : 12.25     # 3.5.^2
+            DC              : 1e-2
+            Gain            : 2
+            WC              : 160000
+            ExpTime         : 300
+            Nim             : 3
+            ClearAper       : 1
+            Trans           : 1
+            Reflection      : 1
+            QE              : 1
+            TargetSpec      : 2e4
+            BackSpec        : '@telescope.sn.back_comp'
+            BackCompFunPar  : {}
+            Ebv             : 0.02
+            Filter          : Req4m3
+            FilterFamily    : ULTRASAT
+            MagSys          : AB
+
+
+    # Default values
+    DefV:
+        SN                   : 5
+        Mag                  : 22.0
+        CalibFilterFamily    : SDSS     # filter family of input magnitude by which to scale the mag
+        CalibFilter          : r
+        CalibMagSys          : AB
+        Name                 : {}       # override all pthe parameters provided in the list
+        FWHM                 : 12       # FWHM [arcsec]
+        PSFeff               : 0.8      # PSF efficiency
+        Aper                 : 33       # [cm]
+        FL                   : 36       # [cm]
+        PixSize              : 9.5      # [micron]
+        RN                   : 3.5      # [e-]
+        StrayLight           : 12.25    # 3.5.^2  # [e-]  per image/pix
+        DC                   : 1e-2     # [e-/pix/s]
+        Gain                 : 2        # [e-/ADU]
+        WC                   : 160000   # [e-] well capacity
+        ExpTime              : 300      # [s]
+        Nim                  : 3
+        ClearAper            : 1        # 0.75
+        Trans                : 1        # 1  #0.99.^8 .* 0.99.^4
+        Reflection           : 1        # 0.96
+        QE                   : 1        # 0.7
+        TargetSpec           : 2e4
+        BackSpec             : '@telescope.sn.back_comp'     # per arcsec^2 | handle | AstSpec | matrix
+        BackCompFunPar       : {}
+        Ebv                  : 0.02
+        Filter               : Req4m3
+        FilterFamily         : ULTRASAT
+        MagSys               : AB
+        Wave                 : (1000:10:25000).             # [ang]
+        InterpMethod         : linear
+

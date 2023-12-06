@@ -1,0 +1,72 @@
+Testing FITS unit specification parser (tunits.c)
+-------------------------------------------------
+
+Unit string (have): km/h
+Unit string (want): m/ms
+Conversion: "km/h" -> "m/ms"
+            = 0.00027777778 * value
+
+Unit string (have): JY/BEAM
+       Translation: Jy/beam
+Unit string (want): (kg/s^2)/beam
+Conversion: "Jy/beam" -> "(kg/s^2)/beam"
+            = 1e-26 * value
+
+Unit string (have): KM/SEC
+       Translation: km/s
+Unit string (want): m/s
+Conversion: "km/s" -> "m/s"
+            = 1000 * value
+
+Unit string (have): KM/H
+       Translation: km/h   (WARNING: Potentially unsafe translation)
+Unit string (want): M/S
+       Translation: m/s   (WARNING: Potentially unsafe translation)
+Conversion: "km/h" -> "m/s"
+            = 0.27777778 * value
+
+Unit string (have): log(MHZ)
+       Translation: log(MHz)
+Unit string (want): ln(/s)
+Conversion: "log(MHz)" -> "ln(/s)"
+            = 2.3025851 * value + 13.815511
+
+Unit string (have): DEG
+       Translation: deg
+   Parsing: "deg"
+              1 *
+       1.00 plane angle (degree)
+
+Unit string (have): ARCMINS
+       Translation: arcmin
+   Parsing: "arcmin"
+    0.016666667 *
+       1.00 plane angle (degree)
+
+Unit string (have): ARCSEC
+       Translation: arcsec
+   Parsing: "arcsec"
+  0.00027777778 *
+       1.00 plane angle (degree)
+
+Unit string (have): sqrt(HZ^2)
+       Translation: sqrt(Hz^2)
+   Parsing: "sqrt(Hz^2)"
+              1 *
+      -1.00 time (second)
+
+Unit string (have): Jy
+   Parsing: "Jy"
+          1e-26 *
+       1.00 mass (kilogram)
+      -2.00 time (second)
+
+Unit string (have): Volts
+       Translation: V
+   Parsing: "V"
+              1 *
+      -1.00 charge (Coulomb)
+       1.00 mass (kilogram)
+       1.00 length (metre)
+      -2.00 time (second)
+

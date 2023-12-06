@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="text"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r><w:t>left</w:t></w:r>
+</w:p>
+
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="text"/>
+<w:jc w:val="center"/>
+</w:pPr>
+<w:r><w:t>center</w:t></w:r>
+</w:p>
+
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="text"/>
+<w:jc w:val="right"/>
+</w:pPr>
+<w:r><w:t>right</w:t></w:r>
+</w:p>
+
+
+<w:p><w:pPr><w:pStyle w:val="text"/><w:jc w:val="left"/></w:pPr><w:r><w:t></w:t></w:r></w:p>
+
+</w:body></w:document>

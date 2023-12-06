@@ -1,0 +1,238 @@
+# UnitTest Configuration File
+
+# Notes:
+#
+#   - A document starts with three dashes and ends with three periods, BUT, is not supported by the Java class
+#   - Java exception occurred: expected a single document in the stream
+#   - Seems that Matlab +yaml fails to read multi-document yaml files (with '---')
+#   - Key-3: Value-3 --> Key0x2D3
+#   -KeyMinus: ValueMinus --> x0x2DKeyMinus
+#   - Non-unique keys must be defined as list, otherwise you get the last item
+
+#==========================================================================
+#                               Unit-Test Data
+#==========================================================================
+
+# See:
+#
+#   https://www.cloudbees.com/blog/yaml-tutorial-everything-you-need-get-started/
+#
+#
+
+# 'D:\Ultrasat\AstroPack.git\matlab\base\@Configuration\..\..\..\config\UnitTest.yml'
+# UnitTest = Configuration.loadYaml(ConfigFileName);
+# UnitTest =
+#
+#   struct with fields:
+#
+#              Key1: 'Value1'
+#              Key2: 'Value2a'
+#          Key0x2D3: 'Value-3'
+#     x0x2DKeyMinus: 'ValueMinus'
+#             List1: {'Item1'  'Item2'  'Item3'}
+#             Dict1: [1×1 struct]
+#     NonUniqueKeys: {[1×1 struct]  [1×1 struct]  [1×1 struct]  [1×1 struct]  [1×1 struct]  [1×1 struct]}
+#           Header1: {[1×1 struct]  [1×1 struct]  [1×1 struct]  [1×1 struct]  [1×1 struct]}
+#           Header2: [1×1 struct]
+#            Params: {[1×1 struct]  [1×1 struct]  [1×1 struct]}
+#          FileName: 'D:\Ultrasat\AstroPack.git\matlab\base\@Configuration\..\..\..\config\UnitTest.yml'
+
+#----------------------------------------------------------------------------
+# Simple keys, loaded to struct fields 'Key1', etc.
+#
+# K>> yml.Key1
+#
+# ans =
+#
+#    'Value1'
+#
+Key1: Value1
+Key2: Value2
+Key2: Value2a
+
+#----------------------------------------------------------------------------
+# Key names with special character that cannot be included in Matlab variable name
+# 'Key-3' is converted to field name 'Key0x2D3'
+# '-KeyMinus' is converted to field name 'x0x2DVarMinus'
+#
+# K>> yml.Key0x2D3
+#
+# ans =
+#
+#    'Value-3'
+#
+Key-3: Value-3
+-KeyMinus: ValueMinus
+
+#----------------------------------------------------------------------------
+# List of values, loaded as cell array
+# List1: {'Item1'  'Item2'  'Item3'}
+#
+# K>> yml.List1
+#
+# ans =
+#
+#  1×3 cell array
+#
+#    {'Item1'}    {'Item2'}    {'Item3'}
+#
+List1: [Item1, Item2, Item3]
+
+#----------------------------------------------------------------------------
+# List of key1=value, key2=value, etc.
+# Loaded as struct
+# Since key 'thing3' appears twice, only the last one is accessible
+#
+# K>> yml.Dict1
+#
+# ans =
+#
+#  struct with fields:
+#
+#    thing1: 'huey'
+#    thing2: 'louie'
+#    thing3: 'again'
+#
+Dict1: { thing1: huey, thing2: louie, thing3: dewey, thing3: again }
+
+#----------------------------------------------------------------------------
+# List of key1=value, key2=value, loaded as cell array of structs
+# In this case we can access all items even when there are duplicate keys.
+# This data structure is suitable to represent headers
+#
+# K>> yml.NonUniqueKeys
+#
+# ans =
+#
+#  1×6 cell array
+#
+#    {1×1 struct}    {1×1 struct}    {1×1 struct}    {1×1 struct}    {1×1 struct}    {1×1 struct}
+#
+#
+# K>> yml.NonUniqueKeys{1}.key
+#
+# ans =
+#
+#     1
+#
+NonUniqueKeys:
+    - key: 1
+    - key: 2
+    - key: 3
+    - SameKey: Same1
+    - SameKey: Same2
+    - SameKey: Same3
+
+#----------------------------------------------------------------------------
+# Header - K
+Header1:
+    - Key1: Value1
+    - Key2: Value2
+    - NonUnique: NonUniqueValue1
+    - NonUnique: NonUniqueValue2
+    - NonUnique: NonUniqueValue3
+
+
+#----------------------------------------------------------------------------
+# Nested structs
+# K>> yml.Header2
+#
+# ans =
+#
+#   struct with fields:
+#
+#     KeyValueComment: [1×1 struct]
+#
+# K>> yml.Header2.KeyValueComment
+#
+# ans =
+#
+#  struct with fields:
+#
+#    MyKey1: 'MyValue1'
+#
+Header2:
+    KeyValueComment:
+
+        MyKey1: MyValue1
+
+#----------------------------------------------------------------------------
+#
+# K>> yml.Params
+#
+# ans =
+#
+#  1×3 cell array
+#
+#    {1×1 struct}    {1×1 struct}    {1×1 struct}
+#
+# K>> yml.Params{1}
+#
+# ans =
+#
+#  struct with fields:
+#
+#       name: 'args.copycss'
+#      value: 'yes'
+#    comment: 'Comment1'
+#
+
+Params:                             # 1×3 cell array
+
+    # UnitTest.Params{1} = struct with fields:
+    # name: 'args.copycss'
+    # value: 'yes'
+    # comment: 'Comment1'
+    #
+
+    - name: 'args.copycss'
+      value: 'yes'
+      comment: Comment1
+
+    - name: 'args.css'
+      value: 'dita-ot-doc.css'
+      comment: Comment2
+
+    - name: 'args.csspath'
+      value: 'css'
+      comment: Comment3
+
+
+
+Ex:
+
+    Logical:
+        # Logical values can be true/false/yes/no, converted to 0 or 1
+        # true/false and yes/no are already supported, they are converted to 1 or 0, no need to convert
+        true1       : true
+        true2       : True
+        true3       : yes
+        false1      : false
+        false2      : False
+        false3      : no
+
+
+    Func:
+        # Function handles MUST BE STRINGS, they will be converted by Configuration.convert...
+        func1       : '@num2str'
+        func2       : '@str2num'
+        un_func     : '@no_such_function'
+
+
+    Eval:
+        # Eval can be with quotes or without
+        eval1       : 'eval("mod(10, 3)")'
+        eval2       : eval("mod(11, 3)")
+        eval3       : eval("Tran2D('poly3')")
+        eval4       : eval("sin(1)")
+
+
+    Cell:
+        # These values are loaded as cell-array
+        items       : [ 1, 2, 3, 4, 5 ]
+        items2      : [ true, false, false, true ]
+        names       : [ "one", "two", "three", "four" ]
+        names2      : [ 'one', 'two' ]
+
+#----------------------------------------------------------------------------
+

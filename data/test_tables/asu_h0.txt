@@ -1,0 +1,46 @@
+SIMPLE  =                    T / Standard FITS Format
+BITPIX  =                    8 / Character data
+NAXIS   =                    0 / No Image --- just extension(s)
+EXTEND  =                    T / There are standard extensions
+ORIGIN  = 'xml2fits_v1.95'     / Converted from XML-Astrores to FITS
+                         e-mail: question@simbad.u-strasbg.fr
+COMMENT  ARG='-rm'
+LONGSTRN= 'OGIP 1.0'           / Long string convention (&/CONTINUE) may be used
+DATE    = '2021-03-15'         / Written on 2021-03-15:12:36:42 (GMT)
+                             by: apache@vizier.u-strasbg.fr
+         **********************************************************
+             EXCERPT from catalogues stored in VizieR (CDS)
+                        with the following conditions:
+         **********************************************************
+
+         VizieR Astronomical Server vizier.u-strasbg.fr
+         Date: 2021-03-15T12:36:42 [V1.99+ (14-Oct-2013)]
+         Explanations and Statistics of UCDs: See LINK below
+         In case of problem, please report to: cds-question@unistra.fr
+
+INFO    = 'votable-version=1.99+ (14-Oct-2013)' / #
+INFO    = '-ref=VIZ604f53ea8bfd' / #
+INFO    = '-out.max=unlimited' / #
+Q-PARAMS=                   17 / Number of queryParameters (followed by list)
+         -oc.form=dec
+         -out.max=unlimited
+         #out.form=FITS (binary) Table
+         -nav=cat:B/wds&tab:{B/wds/wds}&tab:{B/wds/notes}&tab:{B/wds/refs}&key:s
+         ource=B/wds&HTTPPRM:&
+         -c.eq=J2000
+         -c.r= 2
+         -c.u=arcmin
+         -c.geom=r
+         -source=B/wds/wds,B/wds/notes,B/wds/refs
+         -order=I
+         -out=Obs1
+         -out=pa1
+         -out=sep1
+         -out=mag1
+         -out=mag2
+         -out=RAJ2000
+         -out=DEJ2000
+         #
+INFO    = 'CatalogsExamined=3'
+         3 catalogues with potential matches were examined.
+END

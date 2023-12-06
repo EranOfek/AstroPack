@@ -1,0 +1,13 @@
+# File: matlab/.gitignore
+
+# Autosave files
+**/*.asv
+
+# Log files
+**/*.log
+
+**/*.m$out.m
+**/*.m$bkp.m
+
+**/.idea/
+

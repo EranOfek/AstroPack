@@ -1,0 +1,8 @@
+MIDJD  : ['@(Time,Exp) Time']
+MIDMJD : ['@(Time,Exp) convert.time(Time,''MJD'',''JD'')']
+JD     : ['@(Time,Exp) Time + 0.5.*Exp./86400']
+MJD    : ['@(Time,Exp) convert.time(Time,''MJD'',''JD'') + 0.5.*Exp./86400']
+DATEOBS: ['@(Time,Exp) convert.time(Time,''StrDate'',''JD'') + 0.5.*Exp./86400']
+TIMEOBS: ['@(Time,Exp) convert.time(Time,''StrDate'',''JD'') + 0.5.*Exp./86400']
+DATE   : ['@(Time,Exp) convert.time(Time,''StrDate'',''JD'') + 0.5.*Exp./86400']
+

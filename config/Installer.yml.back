@@ -1,0 +1,9 @@
+InstallationLocation : '~/matlab/data'
+# The following are cell arrays of entry per dataset
+DataName             : ['GAIA_SpecTemplate', '+cats', 'MinorPlanets', 'VSOPE87','Time']
+SubDir               : ['spec/GAIA_SpecTemplate', '+cats', 'SolarSystem/MinorPlanets', 'SolarSystem/VSOPE87', 'SolarSys/Time']
+URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/GAIA_SpecTemplate/index.html', 'https://euler1.weizmann.ac.il/archive/AstroPack/data/+cats/cats.tar',['http://ssd.jpl.nasa.gov/dat/ELEMENTS.NUMBR.gz','http://ssd.jpl.nasa.gov/dat/ELEMENTS.UNNUM.gz','http://ssd.jpl.nasa.gov/dat/ELEMENTS.COMET'], 'https://euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/VSOPE87.tar', ['https://datacenter.iers.org/data/csv/finals2000A.data.csv']]
+Size                 : [1805, 0, 120, 0, 0]
+# true - get tar, false - get indiv. files
+SearchFile           : ['.*\.mat','cats.tar','','','']
+Description          : ['GAIA stars synthetic spectral templates','+cats medium-size catalogs','JPL Orbital Elements of Minor Planets',Solar system VSOPE87 ephmerides','Time and Earth Rotation Orientation Parameters']

@@ -1,0 +1,7 @@
+# MLX Element - Heading 1 - no spaces on the left
+
+<w:hyperlink w:anchor="internal:H_$BmTag">
+<w:r>
+<w:t>$Text</w:t>
+</w:r>
+</w:hyperlink>

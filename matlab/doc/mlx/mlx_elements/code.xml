@@ -1,0 +1,13 @@
+# MLX Element - Code
+
+<w:p>
+
+<w:pPr>
+<w:pStyle w:val="code"/>
+</w:pPr>
+
+<w:r>
+<w:t><![CDATA[$Text]]></w:t>
+</w:r>
+
+</w:p>

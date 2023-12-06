@@ -1,9 +1,8 @@
 # AstroPack (a.k.a. MAATv2)
-Astronomy, Astrophysics, &amp; Image Processing Software Pacakge.
 
-See <a href="https://github.com/EranOfek/AstroPack/wiki">wiki page</a> for details, instruction, and manual pages.
+Astronomy, Astrophysics, &amp; Image Processing Software Pacakge
 
-Main Developers: <a href="https://www.weizmann.ac.il/physics/ofek/home">Eran Ofek</a>, Chen Tishler, Yossi Shvartzvald, Amir Sharon, Dan Elhanati, Noam Segev, Sasha Krassilchtchikov
+Main Developers: <a href="https://www.weizmann.ac.il/physics/ofek/home">Eran Ofek</a>, Sasha Krassilchtchikov, Chen Tishler, Yossi Shvartzvald, Amir Sharon, Dan Elhanati, Noam Segev
 (Weizmann Institute of Science)
 
 ## Installation:
@@ -20,6 +19,7 @@ Please cite:
   3. <a href="https://ui.adsabs.harvard.edu/abs/2019PASP..131e4504O/abstract">Ofek (2019)</a>;
   4. Ofek et al., in prep.
 
+
 ## Getting started and documentation
 
 See <a href="https://github.com/EranOfek/AstroPack/wiki/Getting-Started">getting started wiki page</a>, or 
@@ -29,6 +29,23 @@ Documentation is available in the github <a href="https://github.com/EranOfek/As
 
 ## Content
 A collection of several thousands functions for astronomy, astrophysics, and image processing applications.
+
+The following topics are covered:
+### Astronomical Image Processing
+### Celestial coordinates
+### Celestial mechanics
+### Virtual Observatory excess
+### Large catalogs and catsHTM
+### Statistics
+### Telescopes and Optics
+### Spectra and filters
+### Time series analysis
+### Cosmology
+### Gravitational lensing
+### General utilities
+
+
+
 See also <a href="https://github.com/EranOfek/AstroPack/wiki/AstroPack-function-list">List of all functions</a>, and <a href="https://github.com/EranOfek/AstroPack/wiki/Getting-Started">getting started</a>.
 For detailed help see the <a href="https://github.com/EranOfek/AstroPack/wiki">AstroPack/MAATv2 wiki page</a>
 The following topics are covered:

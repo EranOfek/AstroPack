@@ -1,0 +1,144 @@
+Testing FITS image header parser (tfitshdr.c)
+---------------------------------------------
+
+Found 144 header keyrecords.
+
+The following keyrecords will not be listed:
+  "SIMPLE  "
+  "BITPIX  "
+  "NAXIS   "
+  "COMMENT "
+  "HISTORY "
+  "        "
+  "END     "
+
+74 header keyrecords parsed by fitshdr(), 21 rejected:
+
+   9    0  UNDEF     0
+Undefined keyvalue
+  10    0  TRUE      1  T
+Logical
+  11    0  FALSE     1  F
+Logical
+  12    0  INT32     2  12345
+Not a 64-bit integer
+  13    0  INT32     2  -123456789
+Not a 64-bit integer
+  14    0  INT32     2  -2147483648
+Not a 64-bit integer (INT_MIN)
+  15    0  INT32     2  2147483647
+Not a 64-bit integer (INT_MAX)
+  16    0  INT32     2  12345
+Not a very long integer
+  17    0  INT32     2  -123456789
+Not a very long integer
+  18    0  INT64     3  -2147483649
+64-bit integer (INT_MIN - 1)
+  19    0  INT64     3  +2147483648
+64-bit integer (INT_MAX + 1)
+  20    0  INT64     3  +100000000000000000
+64-bit integer
+  21    0  INT64     3  -876543210987654321
+64-bit integer
+  22    0  INT64     3  -9223372036854775808
+Not a very long integer (LONG_MIN)
+  23    0  INT64     3  +9223372036854775807
+Not a very long integer (LONG_MAX)
+  24    0  INT64     3  -876543210987654321
+64-bit integer
+  25    0  INTVL     4  -9223372036854775809
+Very long integer (LONG_MIN - 1)
+  26    0  INTVL     4  +9223372036854775808
+Very long integer (LONG_MAX + 1)
+  27    0  INTVL     4  -100000000000000000000000000000876543210987654321
+Very-long integer
+  28    0  INTVL     4  +123456789012345678901234567890123456789012345678901234567890123456789
+
+  29    0  INTVL     4  +1234567890123456789012345678901234567890123456789012345678901234567890
+
+  30    0  FLOAT     5  +3.141593e+00
+Floating point
+  31    0  FLOAT     5  +1.602177e-19
+Floating point, lower-case exp allowed
+  32    0  FLOAT     5  +2.997925e+08
+Floating point
+  33    0  FLOAT     5  +6.626070e+00
+Floating point, lower-case exp allowed
+  34    0  FLOAT     5  +6.022141e+00
+Floating point
+  35    0  COMPLEX   6  137  -1
+An integer complex keyvalue
+  36    0  COMPLEX   7  +1.000000e+06  -1.000000e-01
+A floating point complex keyvalue
+  37    0  GOODSTR   8  ""G'DAY""
+A valid string keyvalue
+  38    0  BLANKS    8  " "
+An all-blank string equals a single blank
+  39    0  LONGSTR   8  "The loooooongest possible non-continued string value, 68 characters."
+
+  40    0  CONTSTR  18  "The quick brown "
+Continued string, with & (will be stripped off)
+  41    4  CONTINUE 28  "fox jumps over the"
+CONTINUE  'fox jumps over the'   Relaxed handling of invalid keycomment         
+  42    0  CONTINUE 38  " lazy dog"
+
+  43    0  PI        5  +3.141593e+00
+[!?] is not a valid units specification
+  44    0  CONTINUE  0
+      'Not a valid string continuation'
+  50    1  BADREC =  0
+                     1 / Illegal, "= " not in columns 9-10
+  51    0  BADREC    0
+ =                   1 / Illegal, "= " not in columns 9-10
+  52    0  BADREC    0
+=1                     / Illegal, "= " not in columns 9-10
+  53    0  BADREC    0
+                     1 / Illegal, "= " not in columns 9-10
+  54    1  BadKey    2  111
+Example of a syntax error, invalid keyword
+  55    1  BADKEY!   2  222
+Example of a syntax error, invalid keyword
+  56    1  BAD KEY   2  333
+Example of a syntax error, invalid keyword
+  57    2  BADVAL    0
+BADVAL  =                  BAD / Example of a syntax error, invalid keyvalue    
+  58    2  BADVAL    0
+BADVAL  =                "BAD" / Example of a syntax error, invalid keyvalue    
+  59    4  BADVAL   -8  ("BAD")
+BADVAL  =          'BAD' 'STR' / Example of a syntax error, invalid keyvalue    
+  60    4  BADVAL   -2  (49)
+BADVAL  =              49 + 94 / Example of a syntax error, invalid keyvalue    
+  61    4  BADVAL    0
+BADVAL  =             1934-638 / Example of a syntax error, invalid keyvalue    
+  62    4  BADVAL    0
+BADVAL  =                1.2.3 / Example of a syntax error, invalid keyvalue    
+  63    4  BADVAL    0
+BADVAL  =            12h34m56s / Example of a syntax error, invalid keyvalue    
+  64    4  BADVAL    0
+BADVAL  =                 0xFF / Example of a syntax error, invalid keyvalue    
+  65    4  BADVAL   -2  (58)
+BADVAL  =              58 - 21 / Example of a syntax error, invalid keyvalue    
+  66    2  BADVAL    0
+BADVAL  =                J2000 / Example of a syntax error, invalid keyvalue    
+  67    2  BADVAL    0
+BADVAL  =              B1950.0 / Example of a syntax error, invalid keyvalue    
+  68    4  BADVAL    0
+BADVAL  =            180:00:00 / Example of a syntax error, invalid keyvalue    
+  69    2  BADVAL    0
+BADVAL  =                $9.99 / Example of a syntax error, invalid keyvalue    
+  70    4  BADCOMM  -2  (1)
+BADCOMM =                    1   Example of a syntax error, invalid keycomment  
+  71    4  BADCOMM  -2  (1)
+BADCOMM =                    1   1/8 = 0.125                                    
+ -73    8  END       8  "ILLEGAL"
+Illegal END keyrecord
+
+
+Indexes of selected keywords:
+SIMPLE      1    0   -1   1    F
+BITPIX      1    1   -1   2  -32
+NAXIS       1    2   -1   2    0
+COMMENT     3   45   47   0
+HISTORY     0   -1   -1
+            8    3   71   0
+END         2   72   73   8

@@ -1,0 +1,11 @@
+
+# Generated files
+*.csv
+*.py
+*.m
+*.h
+*.pas
+*.dart
+
+# Do not ignore SQL files, we want to keep them in the repo
+# *.sql

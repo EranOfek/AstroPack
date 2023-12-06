@@ -1,0 +1,30 @@
+# MLX Element - Heading 2
+
+<w:p>
+
+<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+<mc:Choice Requires="R2018b">
+
+<w:pPr>
+<w:pStyle w:val="heading2"/>
+<w:jc w:val="left"/>
+</w:pPr>
+
+</mc:Choice>
+<mc:Fallback>
+
+<w:pPr>
+<w:pStyle w:val="heading"/>
+<w:jc w:val="left"/>
+</w:pPr>
+
+</mc:Fallback>
+</mc:AlternateContent>
+
+$BmStart
+<w:r>
+<w:t>$Text</w:t>
+</w:r>
+$BmEnd
+
+</w:p>

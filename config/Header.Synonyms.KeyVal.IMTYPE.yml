@@ -1,0 +1,7 @@
+Bias    : ['Bias','bias','BIAS']
+Dark    : ['Dark','dark','DARK']
+Flat    : ['Flat','twflat','DomeFlat','FLAT','TWFLAT','flat']
+Science : ['Science','sci','Sci','SCI','object','Object','OBJECT']
+Focus   : ['Focus','foc','Foc','focus']
+Arc     : ['Arc','arc']
+Fringe  : ['Fringe','fringe']

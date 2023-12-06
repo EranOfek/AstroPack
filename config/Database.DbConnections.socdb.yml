@@ -1,0 +1,12 @@
+# Database.DbConnections.UnitTest
+
+DatabaseName    : 'socdb'           # Database name
+Host            : 'socsrv'          # Host name or IP address
+DriverName      : 'postgres'        # Driver name
+UserName        : 'postgres'        # Login user
+Password        : '???'             # Login password
+Port            : 5432              # Port number, 5432 for PostgresV13, 5433 for V14
+ServerSharePath    : '/var/samba/pgshare'   # Linux
+MountSharePath     : '/media/socsrv_pgshare' # Linux
+WinMountSharePath  : 'S:/'                  # Windows (run: net use S: \\gauss\pgshare)
+

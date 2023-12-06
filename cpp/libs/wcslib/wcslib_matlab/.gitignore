@@ -1,0 +1,4 @@
+
+# Build output files
+*.lib
+*.dll

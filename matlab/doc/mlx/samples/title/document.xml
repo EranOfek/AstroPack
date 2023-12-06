@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="title"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r><w:t>Title</w:t></w:r>
+</w:p>
+
+
+<w:p><w:pPr><w:pStyle w:val="text"/><w:jc w:val="left"/></w:pPr><w:r><w:t></w:t></w:r></w:p>
+
+</w:body></w:document>

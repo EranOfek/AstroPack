@@ -1,0 +1,9 @@
+# This folder is intended to be used for local files that are not tracked by git
+
+# All files and subfolders
+*
+*/*
+
+# Exclude this file and readme
+!.gitignore
+!.README.md

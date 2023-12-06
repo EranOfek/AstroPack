@@ -1,0 +1,226 @@
+# Installer Configuration
+#
+# Notes:
+#       1. DataName should match its parent item name
+#
+
+# Common and default settings
+Default:
+    # To override the installation location for each item,
+    # add 'InstallationLocation' to its section
+    InstallationLocation        : '~/matlab/data'
+
+    # Windows
+    InstallationLocationWindows : 'C:/AstroPack/matlab/data'
+
+Items:
+
+    cats:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'cats'
+        SubDir               : '+cats'
+        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/+cats/cats.tar']
+        URL                  : ['http://data.astropack.org/+cats/cats.tar']
+        Size                 : 54000
+        SearchFile           : 'cats.tar'
+        Description          : '+cats medium-size catalogs'
+
+    Starlib23:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'Starlib23'
+        SubDir               : 'spec/Starlib23'
+        URL                  : ['http://astro.wsu.edu/hststarlib/specs_513_fits.zip'] 
+        Size                 : 255
+        SearchFile           : ''
+        Description          : 'HST Low Resolution Stellar Library'
+
+    CALSPEC:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'CALSPEC'
+        SubDir               : 'spec/CALSPEC'
+        URL                  : ['https://archive.stsci.edu/hlsps/reference-atlases/cdbs/current_calspec/index.html']
+        Size                 : 1612
+        SearchFile           : ''
+        Description          : 'STSCI CALSPEC standard spectra library (FITS format)'
+
+    GAIA_SpecTemplate:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'GAIA_SpecTemplate'
+        SubDir               : 'spec/GAIA_SpecTemplate'
+        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/GAIA_SpecTemplate/index.html']
+        URL                  : ['http://data.astropack.org/spec/GAIA_SpecTemplate.tar']
+        Size                 : 1805
+        SearchFile           : '.*\.mat'
+        Description          : 'GAIA stars synthetic spectral templates'
+
+    PhoenixStellarSpec:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'PhoenixStellarSpec'
+        SubDir               : 'spec/Phoenix'
+        URL                  : ['http://data.astropack.org/spec/PhoenixStellarSpec.tar']
+        Size                 : 260
+        SearchFile           : ''
+        Description          : 'Phoenix Model Stellar Spectra'
+
+    PicklesStellarSpec:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'PicklesStellarSpec'
+        SubDir               : 'spec/PicklesStellarSpec'
+        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/PicklesStellarSpec.tar']
+        URL                  : ['http://data.astropack.org/spec/PicklesStellarSpec.tar']
+        Size                 : 8
+        SearchFile           : ''
+        Description          : 'Pickles Stellar Spectra Templates'
+
+    SpecGalQSO:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'SpecGalQSO'
+        SubDir               : 'spec/SpecGalQSO'
+        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/SpecGalQSO.tar']
+        URL                  : ['http://data.astropack.org/spec/SpecGalQSO.tar']
+        Size                 : 2.7
+        SearchFile           : ''
+        Description          : 'Galaxy + Quasar template spectra'
+
+    SunSpec:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'SunSpec'
+        SubDir               : 'spec/Sun'
+        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/Sun/SunSpec.tar']
+        URL                  : ['http://data.astropack.org/spec/SunSpec.tar']
+        Size                 : 0.02
+        SearchFile           : ''
+        Description          : 'Solar Spectrum'
+
+    Atmosphere:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'Atmosphere'
+        SubDir               : 'spec/Atmosphere'
+        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/Atmosphere/Atmosphere.tar']
+        URL                  : ['http://data.astropack.org/spec/Atmosphere/Atmosphere.tar']
+        Size                 : 0.09
+        SearchFile           : ''
+        Description          : 'Earth Atmosphere and Extinction'
+
+    LASTpipelineUnitTest:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'LASTpipelineUnitTest'
+        SubDir               : 'pipeline/LAST'
+        URL                  : ['http://data.astropack.org/pipeline/LASTpipelineUnitTest.tar']
+        Size                 : 7500
+        SearchFile           : ''
+        Description          : 'A minimal test and calibration data suite for the LAST pipeline'
+
+        #    TestImagesLAST:
+        # The following are cell arrays of entry per dataset
+        #        DataName             : 'TestImagesLAST'
+        #SubDir               : 'TestImages/LAST'
+        #URL                  : ['http://euler1.weizmann.ac.il/archive/AstroPack/data/TestImages/LAST/index.html']
+        #Size                 : 151831
+        #SearchFile           : ''
+        #Description          : 'FITS test images taken with LAST prototype'
+
+    TestImagesAstroPack:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'TestImagesAstroPack'
+        SubDir               : 'TestImages/unitTest'
+        URL                  : ['http://euler1.weizmann.ac.il/archive/AstroPack/data/TestImages/unitTest/index.html']
+        Size                 : 203
+        SearchFile           : ''
+        Description          : 'FITS test images for AstroPack unitTest'
+
+    Time:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'Time'
+        SubDir               : 'SolarSystem/Time'
+        URL                  : ['https://datacenter.iers.org/data/csv/finals2000A.data.csv','https://datacenter.iers.org/data/latestVersion/EOP_14_C04_IAU1980_one_file_1962-now.txt','https://datacenter.iers.org/data/latestVersion/EOP_C01_IAU2000_1846-now.txt']
+        Size                 : 1805
+        SearchFile           : ''
+        Description          : 'Time and Earth Rotation Orientation Parameters'
+
+    MinorPlanets:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'MinorPlanets'
+        SubDir               : 'SolarSystem/MinorPlanets'
+        URL                  : ['https://ssd.jpl.nasa.gov/dat/ELEMENTS.NUMBR.gz', 'https://ssd.jpl.nasa.gov/dat/ELEMENTS.UNNUM.gz', 'https://ssd.jpl.nasa.gov/dat/ELEMENTS.COMET']
+        Size                 : 120
+        SearchFile           : ''
+        Description          : 'JPL Orbital Elements of Minor Planets'
+
+    EarthGravity:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'EarthGravity'
+        SubDir               : 'SolarSystem/EarthGravity'
+        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/EarthGravity.tar']
+        URL                  : ['http://data.astropack.org/SolarSystem/EarthGravity.tar']
+        Size                 : 32
+        SearchFile           : ''
+        Description          : 'Earth Gravity Models'
+
+    MoonELP:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'MoonELP'
+        SubDir               : 'SolarSystem/ELP'
+        #        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/ELP.tar']
+        URL                  : ['http://data.astropack.org/SolarSystem/ELP.tar']
+        Size                 : 0.5
+        SearchFile           : ''
+        Description          : 'Moon Ephemerides ELP'
+
+    VSOPE87:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'VSOPE87'
+        SubDir               : 'SolarSystem/VSOPE87'
+        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/VSOPE87.tar']
+        URL                  : ['http://data.astropack.org/SolarSystem/VSOPE87.tar']
+        Size                 : 41
+        SearchFile           : ''
+        Description          : 'Solar system VSOPE87 ephmerides'
+
+    INPOP:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'INPOP'
+        SubDir               : 'SolarSystem/INPOP'
+        #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/SolarSystem/INPOP.tar']
+        URL                  : ['http://data.astropack.org/SolarSystem/INPOP.tar']
+        Size                 : 1990
+        SearchFile           : ''
+        Description          : 'Solar system INPOP ephmerides'
+
+    ULTRASAT_Properties:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'ULTRASAT_Properties'
+        SubDir               : 'ULTRASAT'
+        #        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/ULTRASAT/UP.tar']
+        URL                  : ['http://data.astropack.org/ultrasat/P90_UP_test_60_ZP_Var_Cern_21.mat']
+        Size                 : 16
+        SearchFile           : ''
+        Description          : 'modelled ULTRASAT properties'
+
+    ULTRASAT_PSF:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'ULTRASAT_PSF'
+        SubDir               : 'ULTRASAT/PSF'
+        #        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/ULTRASAT/PSF.tar']
+        URL                  : ['http://data.astropack.org/ultrasat/PSF.tar']
+        Size                 : 1300
+        SearchFile           : ''
+        Description          : 'modelled ULTRASAT PSF data'
+
+    Chandra_PSF:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'Chandra_PSF'
+        SubDir               : 'Chandra/PSF'
+        URL                  : ['http://data.astropack.org/chandra/ChandraACIS_PSF.tar']
+        Size                 : 1126
+        SearchFile           : ''
+        Description          : 'modelled Chandra ACIS PSF data'
+
+        #    ULTRASAT_RawData:
+        # The following are cell arrays of entry per dataset
+        #        DataName             : 'ULTRASAT_RawData'
+        #        SubDir               : 'ULTRASAT/RawData'
+        #        URL                  : ['//euler1.weizmann.ac.il/archive/AstroPack/data/ULTRASAT/Rawdata.tar']
+        #        Size                 : 76
+        #        SearchFile           : ''
+        #        Description          : 'ULTRASAT Raw Data of Optical Design'

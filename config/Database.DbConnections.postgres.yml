@@ -1,0 +1,12 @@
+# Database.DbConnections.UnitTest
+
+DatabaseName       : 'postgres'                 # Database name
+Host               : 'socsrv'                   # Hostname or IP address
+DriverName         : 'postgres'                 # Driver name
+Port               : 5432                       # Port number
+UserName           : 'postgres'                 # Login user
+Password           : '???'                      # Login password
+ServerSharePath    : '/var/samba/pgshare'       # Path on server machine
+MountSharePath     : '/media/gauss_pgshare'     # Path on client machine
+WinMountSharePath  : 'S:/'                      # Windows (run: net use S: \\gauss\pgshare)
+

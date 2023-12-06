@@ -1,0 +1,68 @@
+
+# first dictionary to load into YAML/Config:
+# Name : 'HeaderKeywordComments'
+# Family : 'HeaderKeywordComments'
+
+
+# List of default comments for header keywords
+NAXIS   : Number of dimensions
+NAXIS1  : Size of axis 1 (X)
+NAXIS2  : Size of axis 2 (Y)
+BITPIX  : bits per data value
+BZERO   : zero point in scaling equation
+BSCALE  : linear factor in scaling equation
+MTYPE   : Image type
+GAIN    : Camera gain [e-/ADU]
+INTGAIN : Camera internal gain level
+READNOI : Camera Readout noise [e-]
+DARKCUR : Dark current [e-/s/pix]
+CAMNUM  : Camera Number
+CAMLOC  : Camera Location
+CAMTYPE : Camera Type
+CAMMODEL: Camera Model
+CAMNAME : Camera Name
+MOUNTNUM: Mount Number
+BINX    : Binning along x-axis
+BINY    : Binning along y-axis
+OBSLON  : Observatory WGS84 Geodetic longitude [deg]
+OBSLAT  : Observatory WGS84 Geodetic latitude [deg]
+OBSALT  : Observatory WGS84 Geodetic altitude [m]
+M_JRA   : J2000.0 Right Ascension of mount [deg]
+M_JDEC  : J2000.0 Declination of mount [deg]
+M_JHA   : J2000.0 Hour Angle of mount [deg]
+M_RA    : Equinox of date R.A. of mount [deg]
+M_DEC   : Equinox of date Dec. of mount [deg]
+M_HA    : Equinox of date H.A. of mount [deg]
+RA      : J2000.0 Right Ascension [deg]
+DEC     : J2000.0 Declination [deg]
+HA      : J2000.0 Hour Angle [deg]
+EQUINOX : Equinox in Julian years
+AIRMASS : Hardie Airmass
+AZ      : Telescope Azimuth [deg]
+ALT     : Telescope Altitude [deg]
+LST     : App. LST at the begining of exposure [deg]
+JD      : Julian date at the begining of exposure [day]
+MIDJD   : Julian date at the middle of exposure [day]
+DATE_OBS: YYYYMMDDTHHMMSS.FFF date
+FILTER  : Filter name
+FILTER2 : 2nd Filter name
+TRK_RA  : Tracking speed R.A. [arcsec/s]
+TRK_DEC : Tracking speed Dec. [arcsec/s]
+FOCUS   : Focus position
+PRVFOCUS: Previous focus position
+ORIGIN  : Organization name
+TELESCOP: Telescope
+OBSERVER: Observer
+REFERENC: Bibilographic reference
+EXPTIME : Exposure time [s]
+TEMP_DET: Detector temperature [C]
+COOLPWR : Cooling power
+TEMP_MNT: Mount temperature [C]
+TEMP_MIR: Telescope mirror temperature [C]
+TEMP_OUT: Outside temperature [C]
+TEMP_HUM: Outside humidity [C]
+PRESSURE: Barometric pressure [mb]
+
+
+# config.HeaderKeywordComment.txt
+# Displaying config.HeaderKeywordComment.txt.

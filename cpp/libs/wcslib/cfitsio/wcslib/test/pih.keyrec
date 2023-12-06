@@ -1,0 +1,407 @@
+#-----------------------------------------------------------------------------
+# WCSLIB 7.3 - an implementation of the FITS WCS standard.
+# Copyright (C) 1995-2020, Mark Calabretta
+#
+# This file is part of WCSLIB.
+#
+# WCSLIB is free software: you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# WCSLIB is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+# more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with WCSLIB.  If not, see http://www.gnu.org/licenses.
+#
+# Direct correspondence concerning WCSLIB to mark@calabretta.id.au
+#
+# Author: Mark Calabretta, Australia Telescope National Facility, CSIRO.
+# http://www.atnf.csiro.au/people/Mark.Calabretta
+# $Id: pih.keyrec,v 7.3.1.1 2020/06/03 03:38:11 mcalabre Exp $
+#-----------------------------------------------------------------------------
+#
+# FITS header keyrecords used for testing by tpih1 and tpih2.  See also
+# wcslint.keyrec which tests wcspih() for its ability to recognise syntax
+# errors in WCS keyrecords.
+#
+# Use 'tofits' (supplied) to convert this file to proper FITS format via
+#
+#     tofits < pih.keyrec > pih.fits
+#
+# Lines in this file beginning with '#' are ignored by tofits.
+#
+#-----------------------------------------------------------------------------
+SIMPLE  =                    F / Conforms to FITS standard?  NO!
+BITPIX  =                  -32 / IEEE single precision floating point
+NAXIS   =                    0 / No image data
+
+COMMENT                        WARNING  WARNING  WARNING
+COMMENT                        -------------------------
+COMMENT  This header has been developed for test purposes and as such contains
+COMMENT  all standard WCS keywords.  Combining certain of them (e.g. PCi_ja,
+COMMENT  CDi_ja, and CROTAn) within a single FITS header violates certain WCS
+COMMENT  standards.  However, taken individually, each representation is legal,
+COMMENT  except as indicated.
+COMMENT
+COMMENT  The three alternate representations define essentially the same
+COMMENT  coordinate system in three different ways.  The older AIPS convention
+COMMENT  is necessarily used for the primary representation because the
+COMMENT  alternate version code (e.g. the "a" in CTYPEia) is not applicable in
+COMMENT  that convention.
+COMMENT
+COMMENT  For compatibility testing, the header also contains a number of non-
+COMMENT  standard keywords and constructs: the AIPS keywords CROTAn, EPOCH, and
+COMMENT  VELREF retrofitted with alternate version codes, and PROJPn, a
+COMMENT  forerunner of PVi_ma.  However, non-standard CD00i00j and PC00i00j
+COMMENT  keywords, while recognized, are not included since they can only apply
+COMMENT  to the primary representation which is used here to test the AIPS
+COMMENT  convention.
+COMMENT
+COMMENT  A simple TAN projection used in the primary representation is
+COMMENT  expressed as an equivalent SZP projection in the "A" representation,
+COMMENT  and approximated by a ZPN in the "I" representation.  A bulk image
+COMMENT  rotation of 15 deg applied by the defunct CROTAn keyword in the AIPS
+COMMENT  convention is replaced in the alternates by an equivalent bulk image
+COMMENT  rotation of 30 deg applied by the linear transformation matrix,
+COMMENT  together with an effective bulk rotation of -15 deg applied by
+COMMENT  LONPOLE (this is only possible for zenithal projections).
+COMMENT
+COMMENT  Similarly, the spectral axis in the primary representation, a simple
+COMMENT  linear frequency axis, is recast as non-linear wavelength and redshift
+COMMENT  axes in the alternates.
+COMMENT
+COMMENT  Although the parser handles free-format character string, integer, and
+COMMENT  floating-point keyvalues (NOST 100-2.0, Sect. 5.2) most numeric values
+COMMENT  in this header are given in the conventional fixed-format, with only
+COMMENT  CROTA2I, EPOCHI, and VELREFI as exceptions for testing.  Most string
+COMMENT  values are free-format, only those in the "A" representation are fixed.
+
+COMMENT  =======================================================================
+COMMENT  Primary representation
+COMMENT  ----------------------
+COMMENT
+COMMENT  In the AIPS convention CROTAn associated with the latitude axis
+COMMENT  defines a bulk image rotation.  Strictly speaking, the representation
+COMMENT  here is illegal since it mixes new WCS keywords (WCSAXESa and
+COMMENT  WCSNAMEa) with CROTAn, an older AIPS convention keyword.  WCSAXES is
+COMMENT  used here because setting NAXIS non-zero would require that this FITS
+COMMENT  file contain a data section.
+COMMENT
+COMMENT  Several PROJPn keyrecords (non-standard) are also included here for
+COMMENT  test purposes; they were never part of the AIPS convention and only
+COMMENT  appeared in early drafts of the WCS papers.  Their values are not
+COMMENT  actually used in the TAN projection.
+COMMENT  -----------------------------------------------------------------------
+
+COMMENT  The following two keyrecords are not part of the AIPS convention.
+WCSAXES =                    4 / Four coordinate axes
+WCSNAME =   'AIPS convention: TAN projection' / Name of this coordinate system
+
+CRPIX1  =                513.0 / Pixel coordinate of reference point
+CRPIX2  =                513.0 / Pixel coordinate of reference point
+CRPIX3  =               1025.0 / Pixel coordinate of reference point
+CRPIX4  =                  1.0 / Pixel coordinate of reference point
+
+CDELT1  =                -0.10 / x-scale
+CDELT2  =                 0.10 / y-scale
+CROTA2  =                 15.0 / Bulk image rotation
+CTYPE1  = 'RA---TAN'           / Right ascension in a gnomonic projection
+CRVAL1  =                150.0 / [deg] Right ascension at the reference point
+CTYPE2  = 'DEC--TAN'           / Declination in a gnomonic projection
+CRVAL2  =                -30.0 / [deg] Declination at the reference point
+EPOCH   =               2000.0 / Equinox of equatorial coordinates
+
+CDELT3  =               62.5E3 / Frequency scale
+CTYPE3  = 'FREQ    '           / Frequency axis
+CRVAL3  =             1.3945E9 / [Hz] Reference frequency
+VELREF  =                  258 / Barycentric radio velocity
+ALTRPIX =                  0.0 / Alternate reference pixel (not handled)
+ALTRVAL =                  0.0 / Alternate reference value (not handled)
+RESTFREQ=         1.42040575E9 / HI rest frequency
+
+CDELT4  =                  1.0 / Stokes increment
+CTYPE4  = 'STOKES  '           / Stokes convention axis (I, Q, U, V)
+CRVAL4  =                  1.0 / Stokes I
+
+COMMENT  As explained above, the following keyrecords are non-standard.
+PROJP0  =                  0.0 / Projection parameter (not used)
+PROJP1  =                  0.0 / Projection parameter (not used)
+PROJP2  =                  0.0 / Projection parameter (not used)
+
+COMMENT  =======================================================================
+COMMENT  Alternate representation 'A'
+COMMENT  ----------------------------
+COMMENT
+COMMENT  This coordinate representation utilizing a PCi_ja matrix expresses the
+COMMENT  above gnomonic (TAN) projection as a slant zenithal perspective
+COMMENT  projection (SZP) in order to test the reading of a number of PVi_ma
+COMMENT  keywords.
+COMMENT
+COMMENT  The third, spectral, axis, which is linear in frequency, is here
+COMMENT  re-expressed as a non-linear wavelength axis.
+COMMENT
+COMMENT  For testing purposes, the fourth axis, STOKES, here becomes a linear
+COMMENT  TIME axis, which would be impossible in the real world.
+COMMENT
+COMMENT  This representation contains only standard keywords and usage.
+COMMENT  -----------------------------------------------------------------------
+
+WCSAXESA=                    4 / Four coordinate axes
+WCSNAMEA= 'Standard representation: SZP projection' / Name of this system
+
+CRPIX1A =                513.0 / Pixel coordinate of reference point
+CRPIX2A =                513.0 / Pixel coordinate of reference point
+CRPIX3A =               1025.0 / Pixel coordinate of reference point
+CRPIX4A =                  1.0 / Pixel coordinate of reference point
+PC1_1A  =          0.866025404 / Linear transformation matrix element
+PC1_2A  =          0.500000000 / Linear transformation matrix element
+PC2_1A  =         -0.500000000 / Linear transformation matrix element
+PC2_2A  =          0.866025404 / Linear transformation matrix element
+
+CDELT1A =                -0.10 / [deg] x-scale
+CUNIT1A = 'deg'                / Degree units are required
+CTYPE1A = 'RA---SZP'           / Right ascension in slant zenithal projection
+CRVAL1A =                150.0 / [deg] Right ascension at the reference point
+CNAME1A = 'Right ascension (J2000)' / Axis name for labelling purposes
+CDELT2A =                 0.10 / [deg] y-scale
+CUNIT2A = 'deg'                / Degree units are required
+CTYPE2A = 'DEC--SZP'           / Declination in a slant zenithal projection
+CRVAL2A =                -30.0 / [deg] Declination at the reference point
+CNAME2A = 'Declination (J2000)' / Axis name for labelling purposes
+PV1_1A  =                  0.0 / [deg] Native longitude of the reference point
+PV1_2A  =                 90.0 / [deg] Native latitude  of the reference point
+PV1_3A  =                195.0 / [deg] LONPOLEa by another name (precedence)
+PV1_4A  =                999.0 / [deg] LATPOLEa by another name (precedence)
+PV2_1A  =                  0.0 / SZP distance, in spherical radii
+PV2_2A  =                180.0 / [deg] SZP P-longitude
+PV2_3A  =                 45.0 / [deg] SZP P-latitude
+LONPOLEA=                195.0 / [deg] Native longitude of the NCP
+LATPOLEA=                999.0 / [deg] Native latitude of the NCP
+RADESYSA= 'FK5'                / Mean equatorial coordinates, IAU 1984 system
+EQUINOXA=               2000.0 / [yr] Equinox of equatorial coordinates
+
+CDELT3A =      -9.635265432E-6 / [m] Wavelength scale
+CUNIT3A = 'm'                  / Wavelength units
+CTYPE3A = 'WAVE-F2W'           / Frequency axis expressed as wavelength
+CRVAL3A =          0.214982042 / [m] Reference wavelength
+CNAME3A = 'Wavelength'         / Axis name for labelling purposes
+CRDER3A =              1.0E-11 / [m] Wavelength calibration, random error
+CSYER3A =              1.0E-12 / [m] Wavelength calibration, systematic error
+RESTFRQA=         1.42040575E9 / [Hz] HI rest frequency
+RESTWAVA=          0.211061141 / [m] HI rest wavelength
+SPECSYSA= 'BARYCENT'           / Reference frame of spectral coordinates
+SSYSOBSA= 'TOPOCENT'           / Reference frame of observation
+VELOSYSA=               1500.0 / [m/s] Bary-topo velocity towards the source
+ZSOURCEA=               0.0025 / Redshift of the source
+SSYSSRCA= 'LSRK'               / Reference frame of source redshift
+
+CDELT4A =                  1.0 / [s] Time scale
+CUNIT4A = 's'                  / Time units
+CTYPE4A = 'TIME''x'''          / String value and comment containing quotes (')
+CRVAL4A =                 -2E3 / [s] Time at the reference point
+CNAME4A = 'Time offset'        / Axis name for labelling purposes
+PS4_0A  = 'UTC'                / Time scale
+
+COMMENT  =======================================================================
+COMMENT  Alternate representation 'I'
+COMMENT  ----------------------------
+COMMENT
+COMMENT  While encoding a TAN projection as SZP may be good for testing
+COMMENT  purposes, approximating it by a zenithal polynomial projection (ZPN)
+COMMENT  is even better!  The polynomial coefficients are accurate to the
+COMMENT  number of decimal places given (but don't ever do this in a real
+COMMENT  header).
+COMMENT
+COMMENT  The third, spectral, axis, which is linear in frequency, is here
+COMMENT  re-expressed as a non-linear redshift.
+COMMENT
+COMMENT  The fourth axis, TIME in the A representation, is here re-expressed
+COMMENT  as a PHASE axis in order to test the CZPHSia and CPERIia keywords.
+COMMENT
+COMMENT  In the IRAF representation, if one CDi_ja keyword is given then the
+COMMENT  default is zero for any that are omitted.  CDELTia and CROTAn
+COMMENT  keywords are included for informational purposes only and otherwise
+COMMENT  are to be ignored.
+COMMENT
+COMMENT  Strictly speaking, alternate version codes are not defined for CROTAn
+COMMENT  (e.g. CROTA2I below), EPOCHa or VELREFa.  The latter two should be
+COMMENT  overridden by EQUINOXa and SPECSYSa even though they occur later in
+COMMENT  the header.
+COMMENT  -----------------------------------------------------------------------
+
+WCSAXESI=                    4 / Three coordinate axes
+WCSNAMEI= 'IRAF representation: ZPN projection' / Name of this coordinate system
+
+CRPIX1I =                513.0 / Pixel coordinate of reference point
+CRPIX2I =                513.0 / Pixel coordinate of reference point
+CRPIX3I =               1025.0 / Pixel coordinate of reference point
+CRPIX4I =                  1.0 / Pixel coordinate of reference point
+CD1_1I  =         -0.086602540 / [deg] CD matrix element
+CD1_2I  =         -0.050000000 / [deg] CD matrix element
+CD2_1I  =         -0.050000000 / [deg] CD matrix element
+CD2_2I  =          0.086602540 / [deg] CD matrix element
+CD3_3I  =      -4.565153674E-5 / Redshift scale
+CD4_4I  =                 0.01 / [turn] Phase scale
+
+CDELT1I =                -0.10 / [deg] x-scale (informational)
+CUNIT1I = 'deg'                / Degree units are required
+CTYPE1I = 'RA---ZPN'           / Right ascension in slant zenithal projection
+CRVAL1I =                150.0 / [deg] Right ascension at the reference point
+CNAME1I = 'Right ascension (J2000)' / Axis name for labelling purposes
+CDELT2I =                 0.10 / [deg] y-scale (informational)
+CUNIT2I = 'deg'                / Degree units are required
+CTYPE2I = 'DEC--ZPN'           / Declination in a slant zenithal projection
+CRVAL2I =                -30.0 / [deg] Declination at the reference point
+CNAME2I = 'Declination (J2000)' / Axis name for labelling purposes
+PV2_1I  =          1.000000000 / ZPN P1  coefficient for approximating TAN
+PV2_3I  =          0.333333333 / ZPN P3  coefficient for approximating TAN
+PV2_5I  =          0.133333333 / ZPN P5  coefficient for approximating TAN
+PV2_7I  =          0.053968254 / ZPN P7  coefficient for approximating TAN
+PV2_9I  =          0.021869489 / ZPN P9  coefficient for approximating TAN
+PV2_11I =          0.008863236 / ZPN P11 coefficient for approximating TAN
+PV2_13I =          0.003592128 / ZPN P13 coefficient for approximating TAN
+PV2_15I =          0.001455834 / ZPN P15 coefficient for approximating TAN
+PV2_17I =          0.000590027 / ZPN P17 coefficient for approximating TAN
+PV2_19I =          0.000239129 / ZPN P19 coefficient for approximating TAN
+LONPOLEI=                195.0 / [deg] Native longitude of the NCP
+LATPOLEI=                999.0 / [deg] Native latitude of the NCP
+RADESYSI= 'FK5'                / Mean equatorial coordinates, IAU 1984 system
+EQUINOXI=               2000.0 / [yr] Equinox of equatorial coordinates
+
+CDELT3I =      -4.565153674E-5 / Redshift scale (informational)
+CTYPE3I = 'ZOPT-F2W'           / Frequency axis expressed as redshift
+CRVAL3I =          0.018577089 / Reference redshift
+CNAME3I = 'Redshift'           / Axis name for labelling purposes
+CRDER3I =              5.0E-11 / Redshift calibration, random error
+CSYER3I =              5.0E-12 / Redshift calibration, systematic error
+RESTFRQI=         1.42040575E9 / [Hz] HI rest frequency
+RESTWAVI=          0.211061141 / [m] HI rest wavelength
+SSYSOBSI= 'TOPOCENT'           / Reference frame of observation
+VELOSYSI=               1500.0 / [m/s] Bary-topo velocity towards the source
+VSOURCEI=             748544.3 / [m/s] Apparent radial velocity of the source
+SSYSSRCI= 'LSRK'               / Reference frame of source redshift
+VELANGLI=                 0.00 / [deg] Velocity orientation angle
+
+CDELT4I =                 0.01 / [turn] Phase scale
+CUNIT4I = 'turn'               / Phase units
+CTYPE4I = 'PHASE'              / Phase associated with the ime axis
+CRVAL4I =                  0.0 / [turn] Phase at the reference point
+CZPHS4I =                  0.0 / [s] Time elapsed from MJDREF at zero phase
+CPERI4I =                100.0 / [s] Period
+CNAME4I = 'Phase'              / Axis name for labelling purposes
+
+COMMENT  As explained above, the following keyrecords are non-standard.
+CROTA2I =     30.0             / [deg] Bulk image rotation
+EPOCHI  =   2000               / [yr] Equinox of equatorial coordinates
+VELREFI =    258               / Barycentric radio velocity
+
+COMMENT  =======================================================================
+COMMENT  By themselves, these primary image header auxiliary WCS keywords
+COMMENT  should not be sufficient to cause a wcsprm struct to be created for
+COMMENT  representation X, nor should they affect any of the others.
+COMMENT  -----------------------------------------------------------------------
+
+LONPOLEX=                180.0 / [deg] Native longitude of the celestial pole
+LATPOLEX=               -999.0 / [deg] Native latitude of the celestial pole
+RESTFRQX=          1667.3590E6 / [Hz] OH maser line rest frequency
+RESTWAVX=           0.17980079 / [m] OH maser line rest wavelength
+
+WCSNAMEX= 'eXtraneous'         / Name of this coordinate system
+
+RADESYSX= 'ICRS'               / Mean equatorial coordinates, IAU 1984 system
+EQUINOXX=               1950.0 / [yr] Equinox of equatorial coordinates
+SPECSYSX= 'HELIOCEN'           / Reference frame of spectral coordinates
+SSYSOBSX= 'GEOCENTR'           / Reference frame of observation
+VELOSYSX=              30000.0 / [m/s] Bary-topo velocity towards the source
+ZSOURCEX=               0.0456 / Redshift of the source
+SSYSSRCX= 'LSRK'               / Reference frame of source redshift
+VELANGLX=                35.25 / Velocity orientation angle
+
+COMMENT  =======================================================================
+COMMENT  The following auxiliary keywords have no alternates; they apply to
+COMMENT  each coordinate representation, even that of the AIPS convention for
+COMMENT  which, strictly, only the DATE-OBS keyword should be recognized.
+COMMENT
+COMMENT  For test purposes, the remaining standard global WCS-related keywords
+COMMENT  are included here, even though there is considerable overlap between
+COMMENT  them.  Specifically, the keywords in the following groups all convey
+COMMENT  the same information, only one need be given:
+COMMENT    - MJDREF, MJDREFI+MJDREFF, JDREF, and JDREFI+JDREFF;
+COMMENT    - DATE-OBS, MJD-OBS, JEPOCH, and BEPOCH;
+COMMENT    - DATE-AVG and MJD-AVG;
+COMMENT    - DATE-BEG, MJD-BEG, and TSTART;
+COMMENT    - DATE-END, MJD-END, and TSTOP;
+COMMENT    - OBSGEO-[XYZ] and OBSGEO-[LBH];
+COMMENT    - TELAPSE and TSTOP-TSTART (END-BEG equivalents).
+COMMENT  Interpretation is undefined if there are any inconsistencies between
+COMMENT  them.
+COMMENT
+COMMENT  The keycomments for OBSGEO-Y and OBSGEO-Z have been omitted
+COMMENT  deliberately for test purposes.
+COMMENT  -----------------------------------------------------------------------
+
+TIMESYS = 'UTC'                / Time scale
+TREFPOS = 'TOPOCENTRE'         / Time reference position, with OBSGEO-[XYZLBH]
+TREFDIR = 'RA_NOM,DEC_NOM'     / Time reference direction
+PLEPHEM = 'DE405'              / Ephemerides used for pathlength delays
+
+TIMEUNIT= 's'                  / Time units
+DATEREF = '1957-02-14T15:00:00'/ ISO-8601 fiducial time
+MJDREF  =         35883.625000 / [d] MJD of fiducial time
+MJDREFI =         35883        / [d] MJD of fiducial time, integer part
+MJDREFF =             0.625000 / [d] MJD of fiducial time, fractional part
+JDREF   =       2435884.125000 / [d] JD of fiducial time
+JDREFI  =       2435884        / [d] JD of fiducial time, integer part
+JDREFF  =             0.125000 / [d] JD of fiducial time, fractional part
+TIMEOFFS=                0.010 / [s] Clock correction
+
+DATE-OBS= '1957-02-14T15:00:00'/ ISO-8601 time of observation
+MJD-OBS =         35883.625000 / [d] MJD of observation
+JEPOCH  =       1957.125598905 / [a] Julian epoch of observation
+BEPOCH  =       1957.125960663 / [a] Besselian epoch of observation
+
+DATE-BEG= '1957-02-14T15:00:00'/ ISO-8601 time at start of observation
+MJD-BEG =         35883.625000 / [d] MJD at start of observation
+TSTART  =                  0.0 / [s] Time elapsed since fiducial time at start
+
+DATE-AVG= '1957-02-14T16:48:00'/ ISO-8601 time at midpoint of observation
+MJD-AVG =         35883.700000 / [d] MJD at midpoint of observation
+
+DATE-END= '1957-02-14T18:36:00'/ ISO-8601 time at end of observation
+MJD-END =         35883.775000 / [d] MJD at end of observation
+TSTOP   =              12960.0 / [s] Time elapsed since fiducial time at end
+
+XPOSURE =              12960.0 / [s] Exposure (integration) time
+TELAPSE =              12960.0 / [s] Elapsed time (start to stop)
+
+TIMSYER =                 5E-5 / [s] Systematic error in time measurements
+TIMRDER =                 1E-9 / [s] Relative error in time measurements
+TIMEDEL =                  1.0 / [s] Time resolution
+TIMEPIXR=                  0.5 / Reference position of timestamp in binned data
+
+OBSGEO-X=         -4554231.533 / [m] WGS84 coordinates of Parkes radiotelescope
+OBSGEO-Y=          2816759.109 /
+OBSGEO-Z=         -3454036.323
+OBSGEO-L=           148.263510 / [deg] WGS84, IAU(1976) ellipsoid, longitude
+OBSGEO-B=           -32.998406 / [deg] WGS84, IAU(1976) ellipsoid, latitude
+OBSGEO-H=              411.793 / [m]   WGS84, IAU(1976) ellipsoid, height
+OBSORBIT= 'sputnik-1957.eph'   / Spacecraft orbit ephemeris file
+
+COMMENT  =======================================================================
+COMMENT  The following global auxiliary keywords are non-standard but widely
+COMMENT  used in particular fields of astronomy.  They reside within the
+COMMENT  auxprm struct in wcsprm.  Their presence here should cause that
+COMMENT  struct to be allocated and filled.
+COMMENT  -----------------------------------------------------------------------
+
+RSUN_REF=               696E+6 / [m] Solar radius
+DSUN_OBS=             150.7E+9 / [m] Distance from centre of Sun to observer
+CRLN_OBS=               120.0  / [deg] Carrington heliographic lng of observer
+HGLN_OBS=                 0.0  / [deg] Stonyhurst heliographic lng of observer
+HGLT_OBS=                 7.25 / [deg] heliographic latitude of the observer
+
+END

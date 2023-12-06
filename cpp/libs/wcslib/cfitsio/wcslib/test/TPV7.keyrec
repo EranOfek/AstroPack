@@ -1,0 +1,247 @@
+#-----------------------------------------------------------------------------
+# WCSLIB 7.3 - an implementation of the FITS WCS standard.
+# Copyright (C) 1995-2020, Mark Calabretta
+#
+# This file is part of WCSLIB.
+#
+# WCSLIB is free software: you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# WCSLIB is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+# more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with WCSLIB.  If not, see http://www.gnu.org/licenses.
+#
+# Direct correspondence concerning WCSLIB to mark@calabretta.id.au
+#
+# Author: Mark Calabretta, Australia Telescope National Facility, CSIRO.
+# http://www.atnf.csiro.au/people/Mark.Calabretta
+# $Id: TPV7.keyrec,v 7.3.1.1 2020/06/03 03:38:11 mcalabre Exp $
+#-----------------------------------------------------------------------------
+#
+# FITS header keyrecords used for testing the handling of the "TPV" projection
+# by wcsset() and the disprm routines.
+#
+# Use 'tofits' (supplied) to convert this file to proper FITS format via
+#
+#     tofits < TPV7.keyrec > TPV7.fits
+#
+# Lines in this file beginning with '#' are ignored by tofits.
+#
+#-----------------------------------------------------------------------------
+SIMPLE  =                    T / Conforms to FITS standard
+BITPIX  =                  -32 / IEEE single precision floating point
+NAXIS   =                    2 / 2 image axes
+NAXIS1  =                 8192 / Length of image axis 1
+NAXIS2  =                 8192 / Length of image axis 2
+
+CRPIX1  =               4096.0 / Pixel coordinate of reference point
+CRPIX2  =               4096.0 / Pixel coordinate of reference point
+CDELT1  =                -0.01 / [deg] x-scale
+CDELT2  =                 0.01 / [deg] y-scale
+CUNIT1  = 'deg'                / Degree units are required
+CUNIT2  = 'deg'                / Degree units are required
+CTYPE1  = 'RA---TPV'           / TAN (gnomonic) projection + distortions
+CTYPE2  = 'DEC--TPV'           / TAN (gnomonic) projection + distortions
+CRVAL1  =                150.0 / [deg] Right ascension at the reference point
+CRVAL2  =                -30.0 / [deg] Declination at the reference point
+LONPOLE =                180.0 / [deg] Native longitude of the NCP
+EQUINOX =               2000.0 / [yr] Equinox of equatorial coordinates
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  TPV coefficients for DEIMOS CCD distortion.
+COMMENT
+COMMENT  TPV's fixed axis mapping is tied to the celestial axes.  In the
+COMMENT  keycomments, x and y refer to the RA and DEC axes respectively, which
+COMMENT  are axes 1 and 2 here.
+COMMENT  -----------------------------------------------------------------------
+PV1_0   =        3.0939038E-01 / TPV coefficient: 1
+PV1_1   =        9.8842111E-01 / TPV coefficient: x
+PV1_3   =       -2.1923537E-03 / TPV coefficient: r
+PV1_4   =        2.8380911E-06 / TPV coefficient: xx
+PV1_6   =        3.6847677E-06 / TPV coefficient: yy
+PV1_7   =        9.6423020E-10 / TPV coefficient: xxx
+PV1_9   =        6.0581305E-10 / TPV coefficient: xyy
+PV1_11  =       -4.0302249E-09 / TPV coefficient: rrr
+PV1_12  =        1.7927040E-12 / TPV coefficient: xxxx
+PV1_14  =        3.5994619E-12 / TPV coefficient: xxyy
+PV1_16  =        1.7547166E-12 / TPV coefficient: yyyy
+PV1_17  =       -2.0309873E-17 / TPV coefficient: xxxxx
+PV1_19  =       -2.2638628E-17 / TPV coefficient: xxxyy
+PV1_21  =        3.6912827E-18 / TPV coefficient: xyyyy
+PV1_23  =       -3.7770972E-16 / TPV coefficient: rrrrr
+PV1_24  =        4.0080945E-20 / TPV coefficient: xxxxxx
+PV1_26  =        1.1799892E-19 / TPV coefficient: xxxxyy
+PV1_28  =        1.1810387E-19 / TPV coefficient: xxyyyy
+PV1_30  =        4.0113938E-20 / TPV coefficient: yyyyyy
+PV1_31  =        3.0321154E-25 / TPV coefficient: xxxxxxx
+PV1_33  =        6.3742904E-25 / TPV coefficient: xxxxxyy
+PV1_35  =        2.0537657E-25 / TPV coefficient: xxxyyyy
+PV1_37  =       -1.9848702E-25 / TPV coefficient: xyyyyyy
+PV1_39  =       -1.6392798E-24 / TPV coefficient: rrrrrrr
+
+PV2_1   =        9.9348652E-01 / TPV coefficient: y
+PV2_5   =       -1.8103805E-06 / TPV coefficient: yx
+PV2_7   =        4.7932276E-11 / TPV coefficient: yyy
+PV2_9   =        6.1848457E-10 / TPV coefficient: yxx
+PV2_13  =        1.4059187E-13 / TPV coefficient: yyyx
+PV2_15  =        8.7740187E-14 / TPV coefficient: yxxx
+PV2_17  =        2.8940294E-17 / TPV coefficient: yyyyy
+PV2_19  =        1.5913817E-18 / TPV coefficient: yyyxx
+PV2_21  =       -1.0279657E-17 / TPV coefficient: yxxxx
+PV2_25  =       -2.8008330E-21 / TPV coefficient: yyyyyx
+PV2_27  =       -3.2402087E-21 / TPV coefficient: yyyxxx
+PV2_29  =       -7.9355520E-22 / TPV coefficient: yxxxxx
+PV2_31  =       -6.7738093E-25 / TPV coefficient: yyyyyyy
+PV2_33  =       -3.0173086E-25 / TPV coefficient: yyyyyxx
+PV2_35  =        2.8026002E-25 / TPV coefficient: yyyxxxx
+PV2_37  =        1.4550459E-25 / TPV coefficient: yxxxxxx
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  The above TPV distortion translated to DQia.
+COMMENT
+COMMENT  In the keycomments, x and y refer to axes 1 and 2, which are the RA
+COMMENT  and DEC axes.
+COMMENT  -----------------------------------------------------------------------
+
+CRPIX1A =               4096.0 / Pixel coordinate of reference point
+CRPIX2A =               4096.0 / Pixel coordinate of reference point
+CDELT1A =                -0.01 / [deg] x-scale
+CDELT2A =                 0.01 / [deg] y-scale
+CUNIT1A = 'deg'                / Degree units are required
+CUNIT2A = 'deg'                / Degree units are required
+CTYPE1A = 'RA---TAN'           / TAN (gnomonic) projection
+CTYPE2A = 'DEC--TAN'           / TAN (gnomonic) projection
+CRVAL1A =                150.0 / [deg] Right ascension at the reference point
+CRVAL2A =                -30.0 / [deg] Declination at the reference point
+LONPOLEA=                180.0 / [deg] Native longitude of the NCP
+EQUINOXA=               2000.0 / [yr] Equinox of equatorial coordinates
+
+CQDIS1A = 'TPV'
+DQ1A    = 'NAXES:   2'
+DQ1A    = 'AXIS.1:  1'
+DQ1A    = 'AXIS.2:  2'
+DQ1A    = 'TPV.0:   3.0939038E-01' / TPV coefficient: 1
+DQ1A    = 'TPV.1:   9.8842111E-01' / TPV coefficient: x
+DQ1A    = 'TPV.3:  -2.1923537E-03' / TPV coefficient: r
+DQ1A    = 'TPV.4:   2.8380911E-06' / TPV coefficient: xx
+DQ1A    = 'TPV.6:   3.6847677E-06' / TPV coefficient: yy
+DQ1A    = 'TPV.7:   9.6423020E-10' / TPV coefficient: xxx
+DQ1A    = 'TPV.9:   6.0581305E-10' / TPV coefficient: xyy
+DQ1A    = 'TPV.11: -4.0302249E-09' / TPV coefficient: rrr
+DQ1A    = 'TPV.12:  1.7927040E-12' / TPV coefficient: xxxx
+DQ1A    = 'TPV.14:  3.5994619E-12' / TPV coefficient: xxyy
+DQ1A    = 'TPV.16:  1.7547166E-12' / TPV coefficient: yyyy
+DQ1A    = 'TPV.17: -2.0309873E-17' / TPV coefficient: xxxxx
+DQ1A    = 'TPV.19: -2.2638628E-17' / TPV coefficient: xxxyy
+DQ1A    = 'TPV.21:  3.6912827E-18' / TPV coefficient: xyyyy
+DQ1A    = 'TPV.23: -3.7770972E-16' / TPV coefficient: rrrrr
+DQ1A    = 'TPV.24:  4.0080945E-20' / TPV coefficient: xxxxxx
+DQ1A    = 'TPV.26:  1.1799892E-19' / TPV coefficient: xxxxyy
+DQ1A    = 'TPV.28:  1.1810387E-19' / TPV coefficient: xxyyyy
+DQ1A    = 'TPV.30:  4.0113938E-20' / TPV coefficient: yyyyyy
+DQ1A    = 'TPV.31:  3.0321154E-25' / TPV coefficient: xxxxxxx
+DQ1A    = 'TPV.33:  6.3742904E-25' / TPV coefficient: xxxxxyy
+DQ1A    = 'TPV.35:  2.0537657E-25' / TPV coefficient: xxxyyyy
+DQ1A    = 'TPV.37: -1.9848702E-25' / TPV coefficient: xyyyyyy
+DQ1A    = 'TPV.39: -1.6392798E-24' / TPV coefficient: rrrrrrr
+
+CQDIS2A = 'TPV'
+DQ2A    = 'NAXES:   2'
+DQ2A    = 'AXIS.1:  2'
+DQ2A    = 'AXIS.2:  1'
+DQ2A    = 'TPV.1:   9.9348652E-01' / TPV coefficient: y
+DQ2A    = 'TPV.5:  -1.8103805E-06' / TPV coefficient: yx
+DQ2A    = 'TPV.7:   4.7932276E-11' / TPV coefficient: yyy
+DQ2A    = 'TPV.9:   6.1848457E-10' / TPV coefficient: yxx
+DQ2A    = 'TPV.13:  1.4059187E-13' / TPV coefficient: yyyx
+DQ2A    = 'TPV.15:  8.7740187E-14' / TPV coefficient: yxxx
+DQ2A    = 'TPV.17:  2.8940294E-17' / TPV coefficient: yyyyy
+DQ2A    = 'TPV.19:  1.5913817E-18' / TPV coefficient: yyyxx
+DQ2A    = 'TPV.21: -1.0279657E-17' / TPV coefficient: yxxxx
+DQ2A    = 'TPV.25: -2.8008330E-21' / TPV coefficient: yyyyyx
+DQ2A    = 'TPV.27: -3.2402087E-21' / TPV coefficient: yyyxxx
+DQ2A    = 'TPV.29: -7.9355520E-22' / TPV coefficient: yxxxxx
+DQ2A    = 'TPV.31: -6.7738093E-25' / TPV coefficient: yyyyyyy
+DQ2A    = 'TPV.33: -3.0173086E-25' / TPV coefficient: yyyyyxx
+DQ2A    = 'TPV.35:  2.8026002E-25' / TPV coefficient: yyyxxxx
+DQ2A    = 'TPV.37:  1.4550459E-25' / TPV coefficient: yxxxxxx
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  The above TPV distortion translated to TPD.
+COMMENT
+COMMENT  In the keycomments, x and y refer to axes 1 and 2, which are the RA
+COMMENT  and DEC axes.
+COMMENT  -----------------------------------------------------------------------
+
+CRPIX1B =               4096.0 / Pixel coordinate of reference point
+CRPIX2B =               4096.0 / Pixel coordinate of reference point
+CDELT1B =                -0.01 / [deg] x-scale
+CDELT2B =                 0.01 / [deg] y-scale
+CUNIT1B = 'deg'                / Degree units are required
+CUNIT2B = 'deg'                / Degree units are required
+CTYPE1B = 'RA---TAN'           / TAN (gnomonic) projection
+CTYPE2B = 'DEC--TAN'           / TAN (gnomonic) projection
+CRVAL1B =                150.0 / [deg] Right ascension at the reference point
+CRVAL2B =                -30.0 / [deg] Declination at the reference point
+LONPOLEB=                180.0 / [deg] Native longitude of the NCP
+EQUINOXB=               2000.0 / [yr] Equinox of equatorial coordinates
+
+CQDIS1B = 'TPD'
+DQ1B    = 'NAXES:   2'
+DQ1B    = 'AXIS.1:  1'
+DQ1B    = 'AXIS.2:  2'
+DQ1B    = 'DOCORR:  0'
+DQ1B    = 'TPD.FWD.0:   3.0939038E-01' / TPD coefficient: 1
+DQ1B    = 'TPD.FWD.1:   9.8842111E-01' / TPD coefficient: x
+DQ1B    = 'TPD.FWD.3:  -2.1923537E-03' / TPD coefficient: r
+DQ1B    = 'TPD.FWD.4:   2.8380911E-06' / TPD coefficient: xx
+DQ1B    = 'TPD.FWD.6:   3.6847677E-06' / TPD coefficient: yy
+DQ1B    = 'TPD.FWD.7:   9.6423020E-10' / TPD coefficient: xxx
+DQ1B    = 'TPD.FWD.9:   6.0581305E-10' / TPD coefficient: xyy
+DQ1B    = 'TPD.FWD.11: -4.0302249E-09' / TPD coefficient: rrr
+DQ1B    = 'TPD.FWD.12:  1.7927040E-12' / TPD coefficient: xxxx
+DQ1B    = 'TPD.FWD.14:  3.5994619E-12' / TPD coefficient: xxyy
+DQ1B    = 'TPD.FWD.16:  1.7547166E-12' / TPD coefficient: yyyy
+DQ1B    = 'TPD.FWD.17: -2.0309873E-17' / TPD coefficient: xxxxx
+DQ1B    = 'TPD.FWD.19: -2.2638628E-17' / TPD coefficient: xxxyy
+DQ1B    = 'TPD.FWD.21:  3.6912827E-18' / TPD coefficient: xyyyy
+DQ1B    = 'TPD.FWD.23: -3.7770972E-16' / TPD coefficient: rrrrr
+DQ1B    = 'TPD.FWD.24:  4.0080945E-20' / TPD coefficient: xxxxxx
+DQ1B    = 'TPD.FWD.26:  1.1799892E-19' / TPD coefficient: xxxxyy
+DQ1B    = 'TPD.FWD.28:  1.1810387E-19' / TPD coefficient: xxyyyy
+DQ1B    = 'TPD.FWD.30:  4.0113938E-20' / TPD coefficient: yyyyyy
+DQ1B    = 'TPD.FWD.31:  3.0321154E-25' / TPD coefficient: xxxxxxx
+DQ1B    = 'TPD.FWD.33:  6.3742904E-25' / TPD coefficient: xxxxxyy
+DQ1B    = 'TPD.FWD.35:  2.0537657E-25' / TPD coefficient: xxxyyyy
+DQ1B    = 'TPD.FWD.37: -1.9848702E-25' / TPD coefficient: xyyyyyy
+DQ1B    = 'TPD.FWD.39: -1.6392798E-24' / TPD coefficient: rrrrrrr
+
+CQDIS2B = 'TPD'
+DQ2B    = 'NAXES:   2'
+DQ2B    = 'AXIS.1:  2'
+DQ2B    = 'AXIS.2:  1'
+DQ2B    = 'DOCORR:  0'
+DQ2B    = 'TPD.FWD.1:   9.9348652E-01' / TPD coefficient: y
+DQ2B    = 'TPD.FWD.5:  -1.8103805E-06' / TPD coefficient: yx
+DQ2B    = 'TPD.FWD.7:   4.7932276E-11' / TPD coefficient: yyy
+DQ2B    = 'TPD.FWD.9:   6.1848457E-10' / TPD coefficient: yxx
+DQ2B    = 'TPD.FWD.13:  1.4059187E-13' / TPD coefficient: yyyx
+DQ2B    = 'TPD.FWD.15:  8.7740187E-14' / TPD coefficient: yxxx
+DQ2B    = 'TPD.FWD.17:  2.8940294E-17' / TPD coefficient: yyyyy
+DQ2B    = 'TPD.FWD.19:  1.5913817E-18' / TPD coefficient: yyyxx
+DQ2B    = 'TPD.FWD.21: -1.0279657E-17' / TPD coefficient: yxxxx
+DQ2B    = 'TPD.FWD.25: -2.8008330E-21' / TPD coefficient: yyyyyx
+DQ2B    = 'TPD.FWD.27: -3.2402087E-21' / TPD coefficient: yyyxxx
+DQ2B    = 'TPD.FWD.29: -7.9355520E-22' / TPD coefficient: yxxxxx
+DQ2B    = 'TPD.FWD.31: -6.7738093E-25' / TPD coefficient: yyyyyyy
+DQ2B    = 'TPD.FWD.33: -3.0173086E-25' / TPD coefficient: yyyyyxx
+DQ2B    = 'TPD.FWD.35:  2.8026002E-25' / TPD coefficient: yyyxxxx
+DQ2B    = 'TPD.FWD.37:  1.4550459E-25' / TPD coefficient: yxxxxxx
+
+END

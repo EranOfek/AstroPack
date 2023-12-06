@@ -1,0 +1,8 @@
+
+Edge             : [0  ,       'Edge pixel']
+Window           : [1  ,       'Window']
+Dichroic         : [2  ,       'Dichroic']
+VarPix           : [3  ,       'Variable pixel']
+BrtEdge          : [4  ,       'brtedge']
+Rim              : [5  ,       'Rim']
+HotMask          : [6  ,       'HotMask']

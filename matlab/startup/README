@@ -1,0 +1,11 @@
+# Startup file
+
+startup.m could conflict or shadow an existing startup.m
+
+It is recomended to:
+
+1. Copy the startup.m file to your ~/matlab directory.
+
+2. Edit it according to your needs.
+
+

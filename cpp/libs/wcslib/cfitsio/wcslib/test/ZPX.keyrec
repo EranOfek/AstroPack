@@ -1,0 +1,68 @@
+#-----------------------------------------------------------------------------
+# WCSLIB 7.3 - an implementation of the FITS WCS standard.
+# Copyright (C) 1995-2020, Mark Calabretta
+#
+# This file is part of WCSLIB.
+#
+# WCSLIB is free software: you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# WCSLIB is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+# more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with WCSLIB.  If not, see http://www.gnu.org/licenses.
+#
+# Direct correspondence concerning WCSLIB to mark@calabretta.id.au
+#
+# Author: Mark Calabretta, Australia Telescope National Facility, CSIRO.
+# http://www.atnf.csiro.au/people/Mark.Calabretta
+# $Id: ZPX.keyrec,v 7.3.1.1 2020/06/03 03:38:11 mcalabre Exp $
+#-----------------------------------------------------------------------------
+#
+# FITS header keyrecords used for testing the "ZPX" projection.
+#
+# This header was adapted from the sample provided at
+# http://fits.gsfc.nasa.gov/registry/zpxwcs/zpx-hdr.txt
+#
+# Use 'tofits' (supplied) to convert this file to proper FITS format via
+#
+#     tofits < ZPX.keyrec > ZPX.fits
+#
+# Lines in this file beginning with '#' are ignored by tofits.
+#
+#-----------------------------------------------------------------------------
+SIMPLE  =                    T / Conforms to FITS standard
+BITPIX  =                  -32 / IEEE single precision floating point
+NAXIS   =                    2 / 2 image axes
+NAXIS1  =                  512 / Length of image axis 1
+NAXIS2  =                  512 / Length of image axis 2
+
+CRPIX1  =     4167.56175625891 / Pixel coordinate of reference point
+CRPIX2  =     4120.25894749731 / Pixel coordinate of reference point
+CD1_1   =  -5.2588308681025E-8 / [deg] CD matrix element
+CD2_1   =  -7.2772379161132E-5 / [deg] CD matrix element
+CD1_2   =  -7.2753930850119E-5 / [deg] CD matrix element
+CD2_2   =  -1.8637632244742E-8 / [deg] CD matrix element
+CTYPE1  = 'RA---ZPX'           / RA  in ZPN projection with distortions
+CTYPE2  = 'DEC--ZPX'           / Dec in ZPN projection with distortions
+CRVAL1  =     320.687374999995 / [deg] Right ascension at the reference point
+CRVAL2  =      36.908555555556 / [deg] Declination at the reference point
+
+WAT0_001= 'system=image'       / ZPN parameters and distortion coefficients
+WAT1_001= 'wtype=zpx axtype=ra projp0=0. projp1=1. projp2=0. projp3=337.74 proj'
+WAT1_002= 'p4=0. projp5=632052. lngcor = "3. 3. 3. 2. 0.001876397956622823 0.29'
+WAT1_003= '99113930557312 0.1542460039112511 0.3032873851581314 1.9247409545894'
+WAT1_004= '95E-5 -1.348328290485618E-5 1.414186703253352E-4 -1.792784764381400E'
+WAT1_005= '-4 -1.276226238774833E-4 4.339217671825231E-4 "'
+WAT2_001= 'wtype=zpx axtype=dec projp0=0. projp1=1. projp2=0. projp3=337.74 pro'
+WAT2_002= 'jp4=0. projp5=632052. latcor = "3. 3. 3. 2. 0.001876397956622823 0.2'
+WAT2_003= '999113930557312 0.1542460039112511 0.3032873851581314 9.963957331149'
+WAT2_004= '402E-5 -1.378185066830135E-4 1.559892401479664E-4 -8.280442729203771'
+WAT2_005= 'E-4 3.966701903249366E-4 0.001678960379199465 "'
+
+END

@@ -1,0 +1,4 @@
+
+# Temporary and local files are not tracked by git
+temp/
+local/

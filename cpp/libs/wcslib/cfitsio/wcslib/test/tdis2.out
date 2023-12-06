@@ -1,0 +1,711 @@
+Testing wcssub() with distortions (tdis2.c)
+-------------------------------------------
+
+Initial contents of wcsprm struct:
+       flag: 137
+      naxis: 4
+      crpix: 0x<address>
+               124.00       132.00       1024.5       1.0000    
+         pc: 0x<address>
+    pc[0][]:   0.00024976   0.00023018   0.0000       0.0000    
+    pc[1][]:   0.00023043  -0.00024997   0.0000       0.0000    
+    pc[2][]:   0.0000       0.0000       1.0000e-10   0.0000    
+    pc[3][]:   0.0000       0.0000       0.0000       1.0000    
+      cdelt: 0x<address>
+               1.0000       1.0000       1.0000       1.0000    
+      crval: 0x<address>
+               202.48       47.175       5.0068e-07   0.0000    
+      cunit: 0x<address>
+             "deg"
+             "deg"
+             "m"
+             ""
+      ctype: 0x<address>
+             "RA---TAN-SIP"
+             "DEC--TAN-SIP"
+             "AWAV"
+             "TIME"
+    lonpole: 180.000000
+    latpole: 47.175119
+    restfrq: 0.000000
+    restwav: 0.000000
+        npv: 0
+     npvmax: 0
+         pv: 0x0
+        nps: 0
+     npsmax: 0
+         ps: 0x0
+         cd: 0x<address>
+    cd[0][]:   0.00024976   0.00023018   0.0000       0.0000    
+    cd[1][]:   0.00023043  -0.00024997   0.0000       0.0000    
+    cd[2][]:   0.0000       0.0000       1.0000e-10   0.0000    
+    cd[3][]:   0.0000       0.0000       0.0000       1.0000    
+      crota: 0x<address>
+               0.0000       0.0000       0.0000       0.0000    
+     altlin: 2
+     velref: 0
+        alt: ' '
+     colnum: 0
+      colax: 0x<address>
+                 0      0      0      0
+      cname: 0x<address>
+             UNDEFINED
+             UNDEFINED
+             UNDEFINED
+             UNDEFINED
+      crder: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED    UNDEFINED
+      csyer: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED    UNDEFINED
+      czphs: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED    UNDEFINED
+      cperi: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED    UNDEFINED
+    wcsname: UNDEFINED
+    timesys: UNDEFINED
+    trefpos: UNDEFINED
+    trefdir: UNDEFINED
+    plephem: UNDEFINED
+   timeunit: UNDEFINED
+    dateref: UNDEFINED
+     mjdref:      0.000000000     0.000000000
+   timeoffs: UNDEFINED
+    dateobs: UNDEFINED
+    datebeg: UNDEFINED
+    dateavg: UNDEFINED
+    dateend: UNDEFINED
+     mjdobs: UNDEFINED
+     mjdbeg: UNDEFINED
+     mjdavg: UNDEFINED
+     mjdend: UNDEFINED
+     jepoch: UNDEFINED
+     bepoch: UNDEFINED
+     tstart: UNDEFINED
+      tstop: UNDEFINED
+    xposure: UNDEFINED
+    telapse: UNDEFINED
+    timsyer: UNDEFINED
+    timrder: UNDEFINED
+    timedel: UNDEFINED
+   timepixr: UNDEFINED
+     obsgeo:        UNDEFINED       UNDEFINED       UNDEFINED
+                    UNDEFINED       UNDEFINED       UNDEFINED
+   obsorbit: UNDEFINED
+    radesys: "ICRS"
+    equinox: UNDEFINED
+    specsys: UNDEFINED
+    ssysobs: UNDEFINED
+    velosys: UNDEFINED
+    zsource: UNDEFINED
+    ssyssrc: UNDEFINED
+    velangl: UNDEFINED
+        aux: 0x0
+       ntab: 0
+        tab: 0x0
+       nwtb: 0
+        wtb: 0x0
+      types: 0x<address>
+            2200 2201 3000    0
+     lngtyp: "RA"
+     lattyp: "DEC"
+        lng: 0
+        lat: 1
+       spec: 2
+   cubeface: -1
+        err: 0x0
+        lin: (see below)
+        cel: (see below)
+        spc: (see below)
+     m_flag: 137
+    m_naxis: 4
+    m_crpix: 0x<address>  (= crpix)
+       m_pc: 0x<address>  (= pc)
+    m_cdelt: 0x<address>  (= cdelt)
+    m_crval: 0x<address>  (= crval)
+    m_cunit: 0x<address>  (= cunit)
+    m_ctype: 0x<address>  (= ctype)
+       m_pv: 0x0  (= pv)
+       m_ps: 0x0  (= ps)
+       m_cd: 0x<address>  (= cd)
+    m_crota: 0x<address>  (= crota)
+
+    m_colax: 0x<address>  (= colax)
+    m_cname: 0x<address>  (= cname)
+    m_crder: 0x<address>  (= crder)
+    m_csyer: 0x<address>  (= csyer)
+    m_czphs: 0x<address>  (= czphs)
+    m_cperi: 0x<address>  (= cperi)
+      m_aux: 0x0  (= aux)
+      m_tab: 0x0  (= tab)
+      m_wtb: 0x0  (= wtb)
+
+   lin.*
+       flag: 137
+      naxis: 4
+      crpix: 0x<address>
+               124.00       132.00       1024.5       1.0000    
+         pc: 0x<address>
+    pc[0][]:   0.00024976   0.00023018   0.0000       0.0000    
+    pc[1][]:   0.00023043  -0.00024997   0.0000       0.0000    
+    pc[2][]:   0.0000       0.0000       1.0000e-10   0.0000    
+    pc[3][]:   0.0000       0.0000       0.0000       1.0000    
+      cdelt: 0x<address>
+               1.0000       1.0000       1.0000       1.0000    
+     dispre: 0x<address>  (see below)
+     disseq: 0x0
+piximg[0][]:   0.00024976   0.00023018   0.0000       0.0000    
+piximg[1][]:   0.00023043  -0.00024997   0.0000       0.0000    
+piximg[2][]:   0.0000       0.0000       1.0000e-10   0.0000    
+piximg[3][]:   0.0000       0.0000       0.0000       1.0000    
+imgpix[0][]:   2164.8       1993.4       0.0000       0.0000    
+imgpix[1][]:   1995.6      -2163.0      -0.0000      -0.0000    
+imgpix[2][]:   0.0000       0.0000       1.0000e+10   0.0000    
+imgpix[3][]:   0.0000       0.0000       0.0000       1.0000    
+    i_naxis: 4
+      unity: 0
+     affine: 0
+     simple: 0
+        err: 0x0
+     tmpcrd: 0x<address>
+     m_flag: 137
+    m_naxis: 0
+    m_crpix: 0x0
+       m_pc: 0x0
+    m_cdelt: 0x0
+   m_dispre: 0x<address>  (= dispre)
+   m_disseq: 0x0
+
+dispre.*
+       flag: 137
+      naxis: 4
+      dtype: 0x<address>
+             "SIP"
+             "SIP"
+             ""
+             ""
+        ndp: 38
+     ndpmax: 38
+         dp: 0x<address>
+               1  0            2  DP1.NAXES
+               1  1   124.00      DP1.OFFSET.1
+               1  1   132.00      DP1.OFFSET.2
+               2  0            2  DP2.NAXES
+               2  1   124.00      DP2.OFFSET.1
+               2  1   132.00      DP2.OFFSET.2
+               1  1   2.9656e-06  DP1.SIP.FWD.0_2
+               1  1   3.7746e-09  DP1.SIP.FWD.0_3
+               1  1   2.1886e-05  DP1.SIP.FWD.1_1
+               1  1  -1.6847e-07  DP1.SIP.FWD.1_2
+               1  1  -2.3863e-05  DP1.SIP.FWD.2_0
+               1  1  -8.5610e-09  DP1.SIP.FWD.2_1
+               1  1  -1.4172e-07  DP1.SIP.FWD.3_0
+               2  1   2.3100e-05  DP2.SIP.FWD.0_2
+               2  1  -1.6168e-07  DP2.SIP.FWD.0_3
+               2  1  -2.4386e-05  DP2.SIP.FWD.1_1
+               2  1  -5.7813e-09  DP2.SIP.FWD.1_2
+               2  1   2.1197e-06  DP2.SIP.FWD.2_0
+               2  1  -1.6583e-07  DP2.SIP.FWD.2_1
+               2  1  -2.0249e-08  DP2.SIP.FWD.3_0
+               1  1  -6.4275e-07  DP1.SIP.REV.0_1
+               1  1  -2.9425e-06  DP1.SIP.REV.0_2
+               1  1  -3.5820e-09  DP1.SIP.REV.0_3
+               1  1  -1.4897e-05  DP1.SIP.REV.1_0
+               1  1  -2.2250e-05  DP1.SIP.REV.1_1
+               1  1   1.7195e-07  DP1.SIP.REV.1_2
+               1  1   2.4146e-05  DP1.SIP.REV.2_0
+               1  1   6.7090e-09  DP1.SIP.REV.2_1
+               1  1   1.4492e-07  DP1.SIP.REV.3_0
+               2  1  -1.6588e-05  DP2.SIP.REV.0_1
+               2  1  -2.3424e-05  DP2.SIP.REV.0_2
+               2  1   1.6510e-07  DP2.SIP.REV.0_3
+               2  1  -2.6783e-06  DP2.SIP.REV.1_0
+               2  1   2.4753e-05  DP2.SIP.REV.1_1
+               2  1   3.8917e-09  DP2.SIP.REV.1_2
+               2  1  -2.1510e-06  DP2.SIP.REV.2_0
+               2  1   1.7000e-07  DP2.SIP.REV.2_1
+               2  1   2.0482e-08  DP2.SIP.REV.3_0
+     maxdis: 0x<address>
+               1.3940       1.5010       0.0000       0.0000    
+     totdis:   0.0000    
+     docorr: 0x<address>
+                 1     1     1     1
+       Nhat: 0x<address>
+                 2     2     0     0
+      axmap: 0x<address>
+ axmap[0][]:     0     1    -1    -1
+ axmap[1][]:     0     1    -1    -1
+ axmap[2][]:    -1    -1    -1    -1
+ axmap[3][]:    -1    -1    -1    -1
+     offset: 0x<address>
+offset[0][]:   124.00       132.00       0.0000       0.0000    
+offset[1][]:   124.00       132.00       0.0000       0.0000    
+offset[2][]:   0.0000       0.0000       0.0000       0.0000    
+offset[3][]:   0.0000       0.0000       0.0000       0.0000    
+      scale: 0x<address>
+ scale[0][]:   1.0000       1.0000       1.0000       1.0000    
+ scale[1][]:   1.0000       1.0000       1.0000       1.0000    
+ scale[2][]:   1.0000       1.0000       1.0000       1.0000    
+ scale[3][]:   1.0000       1.0000       1.0000       1.0000    
+      iparm: 0x<address>
+ iparm[0]  : 0x<address>
+ iparm[0][]:            1            7           24           12           12
+                        0            0
+ iparm[1]  : 0x<address>
+ iparm[1][]:            1            7           24           12           12
+                        0            0
+ iparm[2]  : 0x0
+ iparm[3]  : 0x0
+      dparm: 0x<address>
+ dparm[0]  : 0x<address>
+ dparm[0][]:   0.0000       0.0000       0.0000       0.0000      -2.3863e-05
+               2.1886e-05   2.9656e-06  -1.4172e-07  -8.5610e-09  -1.6847e-07
+               3.7746e-09   0.0000       0.0000      -1.4897e-05  -6.4275e-07
+               0.0000       2.4146e-05  -2.2250e-05  -2.9425e-06   1.4492e-07
+               6.7090e-09   1.7195e-07  -3.5820e-09   0.0000    
+ dparm[1]  : 0x<address>
+ dparm[1][]:   0.0000       0.0000       0.0000       0.0000       2.1197e-06
+              -2.4386e-05   2.3100e-05  -2.0249e-08  -1.6583e-07  -5.7813e-09
+              -1.6168e-07   0.0000       0.0000      -2.6783e-06  -1.6588e-05
+               0.0000      -2.1510e-06   2.4753e-05  -2.3424e-05   2.0482e-08
+               1.7000e-07   3.8917e-09   1.6510e-07   0.0000    
+ dparm[2]  : 0x0
+ dparm[3]  : 0x0
+    i_naxis: 4
+       ndis: 2
+        err: 0x0
+     disp2x: 0x<address>
+  disp2x[0]: 0x<address>  (= tpd3)
+  disp2x[1]: 0x<address>  (= tpd3)
+  disp2x[2]: 0x0
+  disp2x[3]: 0x0
+     disx2p: 0x<address>
+  disx2p[0]: 0x<address>
+  disx2p[1]: 0x<address>
+  disx2p[2]: 0x0
+  disx2p[3]: 0x0
+     tmpmem: 0x<address>
+     m_flag: 137
+    m_naxis: 4
+    m_dtype: 0x<address>  (= dtype)
+       m_dp: 0x<address>  (= dp)
+   m_maxdis: 0x<address>  (= maxdis)
+
+   cel.*
+      flag: 137
+     offset: 0
+       phi0:  0.000000
+     theta0: 90.000000
+        ref:   202.48       47.175       180.00       47.175    
+        prj: (see below)
+      euler:   202.48       42.825       180.00       0.73343      0.67976   
+    latpreq: 0 (not required)
+     isolat: 0
+        err: 0x0
+
+   prj.*
+       flag: 103
+       code: "TAN"
+         r0: 57.295780
+         pv: (not used)
+       phi0:  0.000000
+     theta0: 90.000000
+     bounds: 7
+
+       name: "gnomonic"
+   category: 1 (zenithal)
+    pvrange: 0
+  simplezen: 1
+  equiareal: 0
+  conformal: 0
+     global: 0
+  divergent: 1
+         x0: 0.000000
+         y0: 0.000000
+        err: 0x0
+        w[]:   0.0000       0.0000       0.0000       0.0000       0.0000    
+               0.0000       0.0000       0.0000       0.0000       0.0000    
+          m: 0
+          n: 0
+     prjx2s: 0x<address>
+     prjs2x: 0x<address>
+
+   spc.*
+       flag: 0
+       type: "    "
+       code: "   "
+      crval: UNDEFINED
+    restfrq: 0.000000
+    restwav: 0.000000
+         pv: (not used)
+          w:   0.0000       0.0000       0.0000      (remainder unused)
+    isGrism: 0
+        err: 0x0
+     spxX2P: 0x0
+     spxP2S: 0x0
+     spxS2P: 0x0
+     spxP2X: 0x0
+
+
+Extracted contents of wcsprm struct:
+       flag: 137
+      naxis: 3
+      crpix: 0x<address>
+               0.0000       132.00       124.00    
+         pc: 0x<address>
+    pc[0][]:   1.0000       0.0000       0.0000    
+    pc[1][]:   0.0000      -0.00024997   0.00023043
+    pc[2][]:   0.0000       0.00023018   0.00024976
+      cdelt: 0x<address>
+               1.0000       1.0000       1.0000    
+      crval: 0x<address>
+               0.0000       47.175       202.48    
+      cunit: 0x<address>
+             ""
+             "deg"
+             "deg"
+      ctype: 0x<address>
+             ""
+             "DEC--TAN-SIP"
+             "RA---TAN-SIP"
+    lonpole: 180.000000
+    latpole: 47.175119
+    restfrq: 0.000000
+    restwav: 0.000000
+        npv: 0
+     npvmax: 0
+         pv: 0x0
+        nps: 0
+     npsmax: 0
+         ps: 0x0
+         cd: 0x<address>
+    cd[0][]:   1.0000       0.0000       0.0000    
+    cd[1][]:   0.0000      -0.00024997   0.00023043
+    cd[2][]:   0.0000       0.00023018   0.00024976
+      crota: 0x<address>
+               0.0000       0.0000       0.0000    
+     altlin: 2
+     velref: 0
+        alt: ' '
+     colnum: 0
+      colax: 0x<address>
+                 0      0      0
+      cname: 0x<address>
+             UNDEFINED
+             UNDEFINED
+             UNDEFINED
+      crder: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED
+      csyer: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED
+      czphs: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED
+      cperi: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED
+    wcsname: UNDEFINED
+    timesys: UNDEFINED
+    trefpos: UNDEFINED
+    trefdir: UNDEFINED
+    plephem: UNDEFINED
+   timeunit: UNDEFINED
+    dateref: UNDEFINED
+     mjdref:      0.000000000     0.000000000
+   timeoffs: UNDEFINED
+    dateobs: UNDEFINED
+    datebeg: UNDEFINED
+    dateavg: UNDEFINED
+    dateend: UNDEFINED
+     mjdobs: UNDEFINED
+     mjdbeg: UNDEFINED
+     mjdavg: UNDEFINED
+     mjdend: UNDEFINED
+     jepoch: UNDEFINED
+     bepoch: UNDEFINED
+     tstart: UNDEFINED
+      tstop: UNDEFINED
+    xposure: UNDEFINED
+    telapse: UNDEFINED
+    timsyer: UNDEFINED
+    timrder: UNDEFINED
+    timedel: UNDEFINED
+   timepixr: UNDEFINED
+     obsgeo:        UNDEFINED       UNDEFINED       UNDEFINED
+                    UNDEFINED       UNDEFINED       UNDEFINED
+   obsorbit: UNDEFINED
+    radesys: "ICRS"
+    equinox: UNDEFINED
+    specsys: UNDEFINED
+    ssysobs: UNDEFINED
+    velosys: UNDEFINED
+    zsource: UNDEFINED
+    ssyssrc: UNDEFINED
+    velangl: UNDEFINED
+        aux: 0x0
+       ntab: 0
+        tab: 0x0
+       nwtb: 0
+        wtb: 0x0
+      types: 0x<address>
+               0 2201 2200
+     lngtyp: "RA"
+     lattyp: "DEC"
+        lng: 2
+        lat: 1
+       spec: -1
+   cubeface: -1
+        err: 0x0
+        lin: (see below)
+        cel: (see below)
+        spc: (see below)
+     m_flag: 137
+    m_naxis: 3
+    m_crpix: 0x<address>  (= crpix)
+       m_pc: 0x<address>  (= pc)
+    m_cdelt: 0x<address>  (= cdelt)
+    m_crval: 0x<address>  (= crval)
+    m_cunit: 0x<address>  (= cunit)
+    m_ctype: 0x<address>  (= ctype)
+       m_pv: 0x0  (= pv)
+       m_ps: 0x0  (= ps)
+       m_cd: 0x<address>  (= cd)
+    m_crota: 0x<address>  (= crota)
+
+    m_colax: 0x<address>  (= colax)
+    m_cname: 0x<address>  (= cname)
+    m_crder: 0x<address>  (= crder)
+    m_csyer: 0x<address>  (= csyer)
+    m_czphs: 0x<address>  (= czphs)
+    m_cperi: 0x<address>  (= cperi)
+      m_aux: 0x0  (= aux)
+      m_tab: 0x0  (= tab)
+      m_wtb: 0x0  (= wtb)
+
+   lin.*
+       flag: 137
+      naxis: 3
+      crpix: 0x<address>
+               0.0000       132.00       124.00    
+         pc: 0x<address>
+    pc[0][]:   1.0000       0.0000       0.0000    
+    pc[1][]:   0.0000      -0.00024997   0.00023043
+    pc[2][]:   0.0000       0.00023018   0.00024976
+      cdelt: 0x<address>
+               1.0000       1.0000       1.0000    
+     dispre: 0x<address>  (see below)
+     disseq: 0x0
+piximg[0][]:   1.0000       0.0000       0.0000    
+piximg[1][]:   0.0000      -0.00024997   0.00023043
+piximg[2][]:   0.0000       0.00023018   0.00024976
+imgpix[0][]:   1.0000       0.0000       0.0000    
+imgpix[1][]:  -0.0000      -2163.0       1995.6    
+imgpix[2][]:   0.0000       1993.4       2164.8    
+    i_naxis: 3
+      unity: 0
+     affine: 0
+     simple: 0
+        err: 0x0
+     tmpcrd: 0x<address>
+     m_flag: 137
+    m_naxis: 0
+    m_crpix: 0x0
+       m_pc: 0x0
+    m_cdelt: 0x0
+   m_dispre: 0x<address>  (= dispre)
+   m_disseq: 0x0
+
+dispre.*
+       flag: 137
+      naxis: 3
+      dtype: 0x<address>
+             ""
+             "SIP"
+             "SIP"
+        ndp: 42
+     ndpmax: 42
+         dp: 0x<address>
+               2  0            2  DP2.NAXES
+               2  0            3  DP2.AXIS.1
+               2  0            2  DP2.AXIS.2
+               2  1   124.00      DP2.OFFSET.1
+               2  1   132.00      DP2.OFFSET.2
+               2  1   2.3100e-05  DP2.SIP.FWD.0_2
+               2  1  -1.6168e-07  DP2.SIP.FWD.0_3
+               2  1  -2.4386e-05  DP2.SIP.FWD.1_1
+               2  1  -5.7813e-09  DP2.SIP.FWD.1_2
+               2  1   2.1197e-06  DP2.SIP.FWD.2_0
+               2  1  -1.6583e-07  DP2.SIP.FWD.2_1
+               2  1  -2.0249e-08  DP2.SIP.FWD.3_0
+               2  1  -1.6588e-05  DP2.SIP.REV.0_1
+               2  1  -2.3424e-05  DP2.SIP.REV.0_2
+               2  1   1.6510e-07  DP2.SIP.REV.0_3
+               2  1  -2.6783e-06  DP2.SIP.REV.1_0
+               2  1   2.4753e-05  DP2.SIP.REV.1_1
+               2  1   3.8917e-09  DP2.SIP.REV.1_2
+               2  1  -2.1510e-06  DP2.SIP.REV.2_0
+               2  1   1.7000e-07  DP2.SIP.REV.2_1
+               2  1   2.0482e-08  DP2.SIP.REV.3_0
+               3  0            2  DP3.NAXES
+               3  0            3  DP3.AXIS.1
+               3  0            2  DP3.AXIS.2
+               3  1   124.00      DP3.OFFSET.1
+               3  1   132.00      DP3.OFFSET.2
+               3  1   2.9656e-06  DP3.SIP.FWD.0_2
+               3  1   3.7746e-09  DP3.SIP.FWD.0_3
+               3  1   2.1886e-05  DP3.SIP.FWD.1_1
+               3  1  -1.6847e-07  DP3.SIP.FWD.1_2
+               3  1  -2.3863e-05  DP3.SIP.FWD.2_0
+               3  1  -8.5610e-09  DP3.SIP.FWD.2_1
+               3  1  -1.4172e-07  DP3.SIP.FWD.3_0
+               3  1  -6.4275e-07  DP3.SIP.REV.0_1
+               3  1  -2.9425e-06  DP3.SIP.REV.0_2
+               3  1  -3.5820e-09  DP3.SIP.REV.0_3
+               3  1  -1.4897e-05  DP3.SIP.REV.1_0
+               3  1  -2.2250e-05  DP3.SIP.REV.1_1
+               3  1   1.7195e-07  DP3.SIP.REV.1_2
+               3  1   2.4146e-05  DP3.SIP.REV.2_0
+               3  1   6.7090e-09  DP3.SIP.REV.2_1
+               3  1   1.4492e-07  DP3.SIP.REV.3_0
+     maxdis: 0x<address>
+               0.0000       1.5010       1.3940    
+     totdis:   0.0000    
+     docorr: 0x<address>
+                 1     1     1
+       Nhat: 0x<address>
+                 0     2     2
+      axmap: 0x<address>
+ axmap[0][]:    -1    -1    -1
+ axmap[1][]:     2     1    -1
+ axmap[2][]:     2     1    -1
+     offset: 0x<address>
+offset[0][]:   0.0000       0.0000       0.0000    
+offset[1][]:   124.00       132.00       0.0000    
+offset[2][]:   124.00       132.00       0.0000    
+      scale: 0x<address>
+ scale[0][]:   1.0000       1.0000       1.0000    
+ scale[1][]:   1.0000       1.0000       1.0000    
+ scale[2][]:   1.0000       1.0000       1.0000    
+      iparm: 0x<address>
+ iparm[0]  : 0x0
+ iparm[1]  : 0x<address>
+ iparm[1][]:            1            7           24           12           12
+                        0            0
+ iparm[2]  : 0x<address>
+ iparm[2][]:            1            7           24           12           12
+                        0            0
+      dparm: 0x<address>
+ dparm[0]  : 0x0
+ dparm[1]  : 0x<address>
+ dparm[1][]:   0.0000       0.0000       0.0000       0.0000       2.1197e-06
+              -2.4386e-05   2.3100e-05  -2.0249e-08  -1.6583e-07  -5.7813e-09
+              -1.6168e-07   0.0000       0.0000      -2.6783e-06  -1.6588e-05
+               0.0000      -2.1510e-06   2.4753e-05  -2.3424e-05   2.0482e-08
+               1.7000e-07   3.8917e-09   1.6510e-07   0.0000    
+ dparm[2]  : 0x<address>
+ dparm[2][]:   0.0000       0.0000       0.0000       0.0000      -2.3863e-05
+               2.1886e-05   2.9656e-06  -1.4172e-07  -8.5610e-09  -1.6847e-07
+               3.7746e-09   0.0000       0.0000      -1.4897e-05  -6.4275e-07
+               0.0000       2.4146e-05  -2.2250e-05  -2.9425e-06   1.4492e-07
+               6.7090e-09   1.7195e-07  -3.5820e-09   0.0000    
+    i_naxis: 3
+       ndis: 2
+        err: 0x0
+     disp2x: 0x<address>
+  disp2x[0]: 0x0
+  disp2x[1]: 0x<address>  (= tpd3)
+  disp2x[2]: 0x<address>  (= tpd3)
+     disx2p: 0x<address>
+  disx2p[0]: 0x0
+  disx2p[1]: 0x<address>
+  disx2p[2]: 0x<address>
+     tmpmem: 0x<address>
+     m_flag: 137
+    m_naxis: 3
+    m_dtype: 0x<address>  (= dtype)
+       m_dp: 0x<address>  (= dp)
+   m_maxdis: 0x<address>  (= maxdis)
+
+   cel.*
+      flag: 137
+     offset: 0
+       phi0:  0.000000
+     theta0: 90.000000
+        ref:   202.48       47.175       180.00       47.175    
+        prj: (see below)
+      euler:   202.48       42.825       180.00       0.73343      0.67976   
+    latpreq: 0 (not required)
+     isolat: 0
+        err: 0x0
+
+   prj.*
+       flag: 103
+       code: "TAN"
+         r0: 57.295780
+         pv: (not used)
+       phi0:  0.000000
+     theta0: 90.000000
+     bounds: 7
+
+       name: "gnomonic"
+   category: 1 (zenithal)
+    pvrange: 0
+  simplezen: 1
+  equiareal: 0
+  conformal: 0
+     global: 0
+  divergent: 1
+         x0: 0.000000
+         y0: 0.000000
+        err: 0x0
+        w[]:   0.0000       0.0000       0.0000       0.0000       0.0000    
+               0.0000       0.0000       0.0000       0.0000       0.0000    
+          m: 0
+          n: 0
+     prjx2s: 0x<address>
+     prjs2x: 0x<address>
+
+   spc.*
+       flag: 0
+       type: "    "
+       code: "   "
+      crval: UNDEFINED
+    restfrq: 0.000000
+    restwav: 0.000000
+         pv: (not used)
+          w:   0.0000       0.0000       0.0000      (remainder unused)
+    isGrism: 0
+        err: 0x0
+     spxX2P: 0x0
+     spxP2S: 0x0
+     spxS2P: 0x0
+     spxP2X: 0x0
+
+
+Initial linwarp() statistics computed over 65536 sample points:
+  Max distortion, axis 1:    1.43987 pixels
+                  axis 2:    1.53735 pixels
+                  axis 3:    0.00000 pixels
+                  axis 4:    0.00000 pixels
+                   total:    2.10634 pixels
+ Mean distortion, axis 1:   -0.12958 pixels
+                  axis 2:    0.14926 pixels
+                  axis 3:    0.00000 pixels
+                  axis 4:    0.00000 pixels
+                   total:    0.30513 pixels
+  RMS distortion, axis 1:    0.27348 pixels
+                  axis 2:    0.28827 pixels
+                  axis 3:    0.00000 pixels
+                  axis 4:    0.00000 pixels
+                   total:    0.32227 pixels
+
+linwarp() statistics for extract computed over the same 65536 points:
+  Max distortion, axis 1:    0.00000 pixels
+                  axis 2:    1.53735 pixels
+                  axis 3:    1.43987 pixels
+                   total:    2.10634 pixels
+ Mean distortion, axis 1:    0.00000 pixels
+                  axis 2:    0.14926 pixels
+                  axis 3:   -0.12958 pixels
+                   total:    0.30513 pixels
+  RMS distortion, axis 1:    0.00000 pixels
+                  axis 2:    0.28827 pixels
+                  axis 3:    0.27348 pixels
+                   total:    0.32227 pixels

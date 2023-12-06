@@ -1,0 +1,88 @@
+
+Markdown:
+
+**bold text**
+
+Italicized text is the *cat's meow*.
+
+This is really***very***important text.
+
+
+
+<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>
+
+# Paragraph start
+<w:p>
+
+# Paragraph properties: Style=text, Alignment=left
+<w:pPr>
+<w:pStyle w:val="text"/>
+<w:jc w:val="left"/>
+</w:pPr>
+
+# The text
+<w:r>
+<w:t>Normal </w:t>
+</w:r>
+
+# Change to Bold
+<w:r>
+<w:rPr>
+<w:b/>
+</w:rPr>
+<w:t>Bold</w:t>
+</w:r>
+
+# Back to normal text
+<w:r>
+<w:t> </w:t>
+</w:r>
+
+# Text style: Italic
+<w:r>
+<w:rPr>
+<w:i/>
+</w:rPr>
+<w:t>Italic</w:t>
+</w:r>
+
+# Back to normal
+<w:r>
+<w:t> </w:t>
+</w:r>
+
+
+<w:r>
+<w:rPr>
+<w:u/>
+</w:rPr><w:t>Underline</w:t></w:r>
+
+
+<w:r><w:t> </w:t></w:r>
+
+<w:r>
+<w:rPr>
+<w:rFonts w:cs="monospace"/>
+</w:rPr>
+<w:t>Monospace</w:t>
+</w:r>
+
+# Paragraph end
+</w:p>
+
+
+
+
+<w:p>
+<w:pPr>
+<w:pStyle w:val="text"/>
+<w:jc w:val="left"/>
+</w:pPr>
+<w:r>
+<w:t></w:t>
+</w:r>
+</w:p>
+
+
+</w:body></w:document>
+

@@ -1,0 +1,24 @@
+# Top level gitignore
+matlab/startup/startup.m
+
+# Temporary and backup files
+**/_unused/*
+**/_temp/*
+**/temp/*
+**/_bkp/*
+**/_backup/*
+
+# config files
+config
+
+# Log files
+*.log
+
+# Simulation outputs
+SimImage*
+usimImage*
+
+matlab_2021_10_05_before_copyObject/
+
+# Files to exclude from ignore
+!README.md

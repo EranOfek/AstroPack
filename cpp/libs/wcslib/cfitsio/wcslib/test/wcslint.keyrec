@@ -1,0 +1,425 @@
+#-----------------------------------------------------------------------------
+# WCSLIB 7.3 - an implementation of the FITS WCS standard.
+# Copyright (C) 1995-2020, Mark Calabretta
+#
+# This file is part of WCSLIB.
+#
+# WCSLIB is free software: you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# WCSLIB is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+# more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with WCSLIB.  If not, see http://www.gnu.org/licenses.
+#
+# Direct correspondence concerning WCSLIB to mark@calabretta.id.au
+#
+# Author: Mark Calabretta, Australia Telescope National Facility, CSIRO.
+# http://www.atnf.csiro.au/people/Mark.Calabretta
+# $Id: wcslint.keyrec,v 7.3.1.1 2020/06/03 03:38:11 mcalabre Exp $
+#-----------------------------------------------------------------------------
+#
+# List of FITS header keyrecords, many of them invalid, for testing 'wcslint'
+# and also, by extension, wcspih() which it uses.
+#
+# Use 'tofits' (supplied) to convert this file to proper FITS format via
+#
+#     tofits < wcslint.keyrec > wcslint.fits
+#
+# Lines in this file beginning with '#' are ignored by 'tofits'.
+#
+#-----------------------------------------------------------------------------
+SIMPLE  =                    F / Conforms to FITS standard?  NO!
+BITPIX  =                  -32 / IEEE single precision floating point
+NAXIS   =                    0 / No image data
+
+COMMENT                        WARNING  WARNING  WARNING
+COMMENT                        -------------------------
+COMMENT  This header is not a usage template.  It is intended for testing
+COMMENT  'wcslint' and as such mostly contains invalid WCS keyrecords.
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  The 'A' representation is legitimate.
+COMMENT  -----------------------------------------------------------------------
+
+WCSAXESA=                    4 / Four coordinate axes
+WCSNAMEA= 'wcslint test header'
+
+CRPIX1A =                513.0 / Pixel coordinate of reference point
+CRPIX2A =                513.0 / Pixel coordinate of reference point
+CRPIX3A =               1025.0 / Pixel coordinate of reference point
+CRPIX4A =                  1.0 / Pixel coordinate of reference point
+PC1_1A  =          0.866025404 / Linear transformation matrix element
+PC1_2A  =          0.500000000 / Linear transformation matrix element
+PC2_1A  =         -0.500000000 / Linear transformation matrix element
+PC2_2A  =          0.866025404 / Linear transformation matrix element
+
+CDELT1A =                -0.10 / [deg] x-scale
+CUNIT1A = 'deg'                / Degree units are required
+CTYPE1A = 'RA---SZP'           / Right ascension in slant zenithal projection
+CRVAL1A =                150.0 / [deg] Right ascension at the reference point
+CNAME1A = 'Right ascension (J2000)' / Axis name for labelling purposes
+CDELT2A =                 0.10 / [deg] y-scale
+CUNIT2A = 'deg'                / Degree units are required
+CTYPE2A = 'DEC--SZP'           / Declination in a slant zenithal projection
+CRVAL2A =                -30.0 / [deg] Declination at the reference point
+CNAME2A = 'Declination (J2000)' / Axis name for labelling purposes
+PV1_1A  =                  0.0 / [deg] Native longitude of the reference point
+PV1_2A  =                 90.0 / [deg] Native latitude  of the reference point
+PV1_3A  =                195.0 / [deg] LONPOLEa by another name (precedence)
+PV1_4A  =                999.0 / [deg] LATPOLEa by another name (precedence)
+PV2_1A  =                  0.0 / SZP distance, in spherical radii
+PV2_2A  =                180.0 / [deg] SZP P-longitude
+PV2_3A  =                 45.0 / [deg] SZP P-latitude
+LONPOLEA=                195.0 / [deg] Native longitude of the NCP
+LATPOLEA=                999.0 / [deg] Native latitude of the NCP
+RADESYSA= 'FK5'                / Mean equatorial coordinates, IAU 1984 system
+EQUINOXA=               2000.0 / [yr] Equinox of equatorial coordinates
+
+CDELT3A =      -9.635265432e-6 / [m] Wavelength scale
+CUNIT3A = 'm'                  / Wavelength units
+CTYPE3A = 'WAVE-F2W'           / Frequency axis expressed as wavelength
+CRVAL3A =          0.214982042 / [m] Reference wavelength
+CNAME3A = 'Wavelength'         / Axis name for labelling purposes
+CRDER3A =              1.0e-11 / [m] Wavelength calibration, random error
+CSYER3A =              1.0e-12 / [m] Wavelength calibration, systematic error
+RESTFRQA=         1.42040575e9 / [Hz] HI rest frequency
+RESTWAVA=          0.211061141 / [m] HI rest wavelength
+SPECSYSA= 'BARYCENT'           / Reference frame of spectral coordinates
+SSYSOBSA= 'TOPOCENT'           / Reference frame of observation
+VELOSYSA=               1500.0 / [m/s] Bary-topo velocity towards the source
+SSYSSRCA= 'LSRK'               / Reference frame of source redshift
+ZSOURCEA=               0.0025 / Redshift of the source
+
+CDELT4A =                  1.0 / [s] Time scale
+CUNIT4A = 's'                  / Time units
+CTYPE4A = 'TIME''x'''          / String value and comment containing quotes (')
+CRVAL4A =                 -2e3 / [s] Time at the reference point
+CNAME4A = 'Time offset'        / Axis name for labelling purposes
+PS4_0A  = 'UTC'                / Time measurement system
+
+TIMESYS = 'UTC'                / Time scale
+TREFPOS = 'TOPOCENTRE'         / Time reference position, with OBSGEO-[XYZLBH]
+TREFDIR = 'RA_NOM,DEC_NOM'     / Time reference direction
+PLEPHEM = 'DE405'              / Ephemerides used for pathlength delays
+
+TIMEUNIT= 's'                  / Time units
+DATEREF = '1957-02-14T15:00:00'/ Date-time of fiducial time
+MJDREF  =            35883.625 / [d] MJD corresponding to DATEREF
+MJDREFI =            35883     / [d] MJDREF, integer part
+MJDREFF =                0.625 / [d] MJDREF, fractional part
+JDREF   =          2435884.125 / [d] JD corresponding to DATEREF
+JDREFI  =          2435884     / [d] JDREF, integer part
+JDREFF  =                0.125 / [d] JDREF, fractional part
+TIMEOFFS=                0.010 / [s] Clock correction
+
+DATE-OBS= '1957-02-14T15:00:00'/ UTC Date-time at start of observation
+MJD-OBS =            35883.625 / [d] MJD corresponding to DATE-OBS
+JEPOCH  =       1957.125598905 / [a] Julian epoch corresponding to DATE-OBS
+BEPOCH  =       1957.125960663 / [a] Besselian epoch corresponding to DATE-OBS
+
+DATE-BEG= '1957-02-14T15:00:00'/ Date-time at start of observation (UTC)
+MJD-BEG =            35883.625 / [d] MJD corresponding to DATE-BEG
+TSTART  =                  0.0 / [s] Start time with respect to DATEREF
+
+DATE-AVG= '1957-02-14T16:48:00'/ UTC Date-time at midpoint of observation
+MJD-AVG =            35883.700 / [d] MJD corresponding to DATE-AVG
+
+DATE-END= '1957-02-14T18:36:00'/ UTC Date-time at end of observation
+MJD-END =            35883.775 / [d] MJD corresponding to DATE-END
+TSTOP   =              12960.0 / [s] Stop time with respect to DATEREF
+
+XPOSURE =              12960.0 / [s] Exposure (integration) time
+TELAPSE =              12960.0 / [s] Elapsed time (start to stop)
+
+TIMSYER =                 5E-5 / [s] Systematic error in time measurements
+TIMRDER =                 1E-9 / [s] Relative error in time measurements
+TIMEDEL =                  1.0 / [s] Time resolution
+TIMEPIXR=                  0.5 / Reference position of timestamp in binned data
+
+OBSGEO-X=         -4554231.533 / [m] WGS84 coordinates of Parkes radiotelescope
+OBSGEO-Y=          2816759.109 / [m] WGS84 observatory y-coordinate
+OBSGEO-Z=         -3454036.323 / [m] WGS84 observatory z-coordinate
+OBSGEO-L=           148.263510 / [deg] WGS84, IAU(1976) ellipsoid, longitude
+OBSGEO-B=           -32.998406 / [deg] WGS84, IAU(1976) ellipsoid, latitude
+OBSGEO-H=              411.793 / [m]   WGS84, IAU(1976) ellipsoid, height
+OBSORBIT= 'sputnik-1957.eph'   / Spacecraft orbit ephemeris file
+
+COMMENT   The following test parser boundary conditions:
+PV4_1A  =                                                                    1.0
+PV4_2A  =                                                                   2.0/
+PV4_3A  =                                                                  3.0 /
+PV4_4A  =                                                                 4.0 /
+PS4_1A  =                                                                  'ABC'
+PS4_2A  =                                                                 'DEF'/
+PS4_3A  =                                                                'GHI' /
+PS4_4A  =                                                               'JKL' /
+
+
+COMMENT  =======================================================================
+COMMENT  By themselves, these primary image header auxiliary keywords should
+COMMENT  not be sufficient to cause a wcsprm struct to be created for
+COMMENT  representation X, nor should they affect any of the others.
+COMMENT  -----------------------------------------------------------------------
+
+WCSNAMEX= 'eXtraneous'         / Name of this coordinate system
+LONPOLEX=                180.0 / [deg] Native longitude of the NCP
+LATPOLEX=                999.0 / [deg] Native latitude of the NCP
+RESTFRQX=         1.42040575e9 / [Hz] HI rest frequency
+RESTWAVX=          0.211061141 / [m] HI rest wavelength
+EQUINOXX=               2000.0 / [yr] Equinox of equatorial coordinates
+RADESYSX= 'ICRS'               / Mean equatorial coordinates, IAU 1984 system
+SPECSYSX= 'BARYCENT'           / Reference frame of spectral coordinates
+SSYSOBSX= 'TOPOCENT'           / Reference frame of observation
+SSYSSRCX= 'LSRK'               / Reference frame of source redshift
+VELANGLX=                35.25 / Velocity orientation angle
+VELOSYSX=               1500.0 / [m/s] Bary-topo velocity towards the source
+ZSOURCEX=               0.0025 / Redshift of the source
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  Every keyrecord for the 'B' representation below either violates or
+COMMENT  does not strictly conform to the FITS WCS standard.
+COMMENT  -----------------------------------------------------------------------
+
+WCSNAMEB= B means BAD!         / Name of this system
+WCSAXESB=                   -4 / Four coordinate axes
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  The following have invalid keyword indices.
+COMMENT  -----------------------------------------------------------------------
+
+CRPIX0B =                  0.0 / Not a valid CRPIXja keyword
+CDELT0B =                  1.0 / Not a valid CDELTia keyword
+CUNIT0B = 'INVALID'            / Not a valid CUNITia keyword
+CTYPE0B = 'INVALID'            / Not a valid CTYPEia keyword
+CRVAL0B =                  0.0 / Not a valid CRVALia keyword
+CNAME0B = 'INVALID'            / Not a valid CNAMEia keyword
+CRDER0B =                  0.0 / Not a valid CRDERia keyword
+CSYER0B =                  0.0 / Not a valid CSYERia keyword
+PC0_0B  =                  0.0 / Not a valid PCi_ja  keyword
+CD0_0B  =                  0.0 / Not a valid CDi_ja  keyword
+PV0_1B  =                  0.0 / Not a valid PVi_ma  keyword
+PS0_1B  = 'INVALID'            / Not a valid PSi_ma  keyword
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  The following have invalid keyword syntax.
+COMMENT  -----------------------------------------------------------------------
+
+CRPIX01B=                  0.0 / Invalid CRPIXja  keyword syntax
+CDELT01B=                  1.0 / Invalid CDELTia  keyword syntax
+CUNIT01B= 'INVALID'            / Invalid CUNITia  keyword syntax
+CTYPE01B= 'INVALID'            / Invalid CTYPEia  keyword syntax
+CRVAL01B=                  0.0 / Invalid CRVALia  keyword syntax
+CNAME01B= 'INVALID'            / Invalid CNAMEia  keyword syntax
+CRDER01B=                  0.0 / Invalid CRDERia  keyword syntax
+CSYER01B=                  0.0 / Invalid CSYERia  keyword syntax
+PC01_1B =                  1.0 / Invalid PCi_ja   keyword syntax
+PC1_01B =                  0.0 / Invalid PCi_ja   keyword syntax
+PC01_01B=                  0.0 / Invalid PCi_ja   keyword syntax
+PC1-1B  =                  1.0 / Invalid PCi_ja   keyword syntax
+CD01_1B =                  1.0 / Invalid CDi_ja   keyword syntax
+CD1_01B =                  0.0 / Invalid CDi_ja   keyword syntax
+CD01_01B=                  0.0 / Invalid CDi_ja   keyword syntax
+CD1-1B  =                  1.0 / Invalid CDi_ja   keyword syntax
+PV01_1B =                  0.0 / Invalid PVi_ma   keyword syntax
+PV1_01B =                  0.0 / Invalid PVi_ma   keyword syntax
+PV01_01B=                  0.0 / Invalid PVi_ma   keyword syntax
+PV1-1B  =                  0.0 / Invalid PVi_ma   keyword syntax
+PS01_1B = 'INVALID'            / Invalid PSi_ma   keyword syntax
+PS1_01B = 'INVALID'            / Invalid PSi_ma   keyword syntax
+PS01_01B= 'INVALID'            / Invalid PSi_ma   keyword syntax
+PS1-1B  = 'INVALID'            / Invalid PSi_ma   keyword syntax
+EQUINOX1=                  0.0 / Invalid EQUINOXa keyword syntax
+LONPOLE2=                  0.0 / Invalid LONPOLEa keyword syntax
+LATPOLE3=                  0.0 / Invalid LATPOLEa keyword syntax
+RESTFRQ4=                  0.0 / Invalid RESTFRQa keyword syntax
+RESTWAV5=                  0.0 / Invalid RESTWAVa keyword syntax
+RADESYS6= 'INVALID'            / Invalid RADESYSa keyword syntax
+SPECSYS7= 'INVALID'            / Invalid SPECSYSa keyword syntax
+SSYSOBS8= 'INVALID'            / Invalid SSYSOBSa keyword syntax
+SSYSSRC9= 'INVALID'            / Invalid SSYSSRCa keyword syntax
+VELANGL-=                  0.0 / Invalid VELANGLa keyword syntax
+VELOSYS_=                  0.0 / Invalid VELOSYSa keyword syntax
+WCSNAMEb= 'INVALID'            / Invalid WCSNAMEa keyword syntax
+ZSOURCE*=                  0.0 / Invalid ZSOURCEa keyword syntax
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  The following have invalid keyvalues (and many should not appear more
+COMMENT  than once in a header).
+COMMENT  -----------------------------------------------------------------------
+
+CRPIX2B =  INVALID             / Not a valid CRPIXja  keyvalue
+CDELT2B =            (137, -1) / Not a valid CDELTia  keyvalue
+CUNIT2B =                   -1 / Not a valid CUNITia  keyvalue
+CTYPE2B =                    T / Not a valid CTYPEia  keyvalue
+CRVAL2B = 'INVALID'            / Not a valid CRVALia  keyvalue
+CNAME2B =                    F / Not a valid CNAMEia  keyvalue
+CRDER2B =          (10E5,-0.1) / Not a valid CRDERia  keyvalue
+CSYER2B = 'INVALID'            / Not a valid CSYERia  keyvalue
+PC1_1B  =                 0xff / Not a valid PCi_ja   keyvalue
+CD1_1B  = 'INVALID'            / Not a valid CDi_ja   keyvalue
+PV1_1B  = 'INVALID'            / Not a valid PVi_ma   keyvalue
+PS1_1B  =                    0 / Not a valid PSi_ma   keyvalue
+LONPOLEB= 'INVALID'            / Not a valid LONPOLEa keyvalue
+LATPOLEB= 'INVALID'            / Not a valid LATPOLEa keyvalue
+RESTFRQB= 'INVALID'            / Not a valid RESTFRQa keyvalue
+RESTWAVB= 'INVALID'            / Not a valid RESTWAVa keyvalue
+
+WCSNAMEB=                  0.0 / Not a valid WCSNAMEa keyvalue
+
+TIMESYS =                    F / Not a valid TIMESYS  keyvalue
+TREFPOS =                    F / Not a valid TREFPOS  keyvalue
+TREFDIR =                    F / Not a valid TREFDIR  keyvalue
+PLEPHEM =                    F / Not a valid PLEPHEM  keyvalue
+TIMEUNIT=                    F / Not a valid TIMEUNIT keyvalue
+DATEREF =                    F / Not a valid DATEREF  keyvalue
+MJDREF  =                    F / Not a valid MJDREF   keyvalue
+MJDREFI =                    F / Not a valid MJDREFI  keyvalue
+MJDREFF =                    F / Not a valid MJDREFF  keyvalue
+JDREF   = 'INVALID'            / Not a valid JDREF    keyvalue
+JDREFI  = 'INVALID'            / Not a valid JDREFI   keyvalue
+JDREFF  = 'INVALID'            / Not a valid JDREFF   keyvalue
+TIMEOFFS=                    F / Not a valid TIMEOFFS keyvalue
+
+DATE-OBS=                  0.0 / Not a valid DATE-OBS keyvalue
+DATE-BEG=                  0.0 / Not a valid DATE-BEG keyvalue
+DATE-AVG=                  0.0 / Not a valid DATE-AVG keyvalue
+DATE-END=                  0.0 / Not a valid DATE-END keyvalue
+MJD-OBS = 'INVALID'            / Not a valid MJD-OBS  keyvalue
+MJD-BEG = 'INVALID'            / Not a valid MJD-BEG  keyvalue
+MJD-AVG = 'INVALID'            / Not a valid MJD-AVG  keyvalue
+MJD-END = 'INVALID'            / Not a valid MJD-END  keyvalue
+JEPOCH  =                    F / Not a valid JEPOCH   keyvalue
+BEPOCH  =                    F / Not a valid BEPOCH   keyvalue
+TSTART  =                    F / Not a valid TSTART   keyvalue
+TSTOP   =                    F / Not a valid TSTOP    keyvalue
+XPOSURE =                    F / Not a valid XPOSURE  keyvalue
+TELAPSE =                    F / Not a valid TELAPSE  keyvalue
+
+TIMSYER = 'INVALID'            / Not a valid TIMSYER  keyvalue
+TIMRDER = 'INVALID'            / Not a valid TIMRDER  keyvalue
+TIMEDEL = 'INVALID'            / Not a valid TIMEDEL  keyvalue
+TIMEPIXR=                  2.0 / Not a valid TIMEPIXR keyvalue
+
+OBSGEO-X= 'INVALID'            / Not a valid OBSGEO-X keyvalue
+OBSGEO-Y= 'INVALID'            / Not a valid OBSGEO-Y keyvalue
+OBSGEO-Z= 'INVALID'            / Not a valid OBSGEO-Z keyvalue
+OBSGEO-L= 'INVALID'            / Not a valid OBSGEO-L keyvalue
+OBSGEO-B= 'INVALID'            / Not a valid OBSGEO-B keyvalue
+OBSGEO-H= 'INVALID'            / Not a valid OBSGEO-H keyvalue
+OBSORBIT=                    T / Not a valid OBSORBIT keyvalue
+
+RADESYSB=                 ICRS / Not a valid RADESYSa keyvalue
+EPOCH   = 'B1950.0'            / Not a valid EPOCH    keyvalue
+EQUINOXB=             '2000.0' / Not a valid EQUINOXa keyvalue
+SPECSYSB=                  0.0 / Not a valid SPECSYSa keyvalue
+SSYSOBSB=                  0.0 / Not a valid SSYSOBSa keyvalue
+VELOSYSB= 'INVALID'            / Not a valid VELOSYSa keyvalue
+ZSOURCEB= 'INVALID'            / Not a valid ZSOURCEa keyvalue
+SSYSSRCB=                  0.0 / Not a valid SSYSSRCa keyvalue
+VELANGLB= 'INVALID'            / Not a valid VELANGLa keyvalue
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  The following are basic syntax errors.
+COMMENT  -----------------------------------------------------------------------
+
+CRPIX3B=                   0.0 / Illegal, "= " not in columns 9-10
+CDELT3B  =                 1.0 / Illegal, "= " not in columns 9-10
+CUNIT3B ='deg'                 / Illegal, "= " not in columns 9-10
+CTYPE3B   'FREQ'               / Illegal, "= " not in columns 9-10
+CRVAL3B =                2 + 2 / Not a valid keyvalue
+CNAME3B = 'IN' 'VALID'         / Not a valid keyvalue
+CRDER3B =             1934-638 / Not a valid keyvalue
+CSYER3B =                1.2.3 / Not a valid keyvalue
+PC1_1B  =            12h34m56s / Not a valid keyvalue
+CD1_1B  =                 0xFF / Not a valid keyvalue
+PV1_1B  =              58 - 21 / Not a valid keyvalue
+PS1_1B  =                "UTC" / Not a valid keyvalue
+EQUINOXB=                J2000 / Not a valid keyvalue
+EPOCH   =              B1950.0 / Not a valid keyvalue
+LONPOLEB=            180:00:00 / Not a valid keyvalue
+LATPOLEB=                $9.99 / Not a valid keyvalue
+RESTFRQB=                      / Not a valid keyvalue
+RESTWAVB=                      / Not a valid keyvalue
+RADESYSB= ICRS                 / Not a valid keyvalue
+SPECSYSB= 'BARYCENT'             Invalid keycomment
+SSYSOBSB= 'TOPOCENT'             1/8 = 0.125
+PV3_1B  =                                                                   1.0O
+PV3_2B  =                                                                  2 + 2
+PV3_3B  =                                                                 3.0 :
+PS3_1B  =                                                  'Jean-Pierre O'Toole'
+PS3_2B  =                                                                'UVW' :
+PS3_3B  =                                                               'XYZ' :
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  The following are deprecated or unrecognised AIPS-convention keywords.
+COMMENT  -----------------------------------------------------------------------
+
+CRPIX4A_= 'PHONEY'             / Lookalike keyword is not CRPIXja
+CDELT4_B= 'PHONEY'             / Lookalike keyword is not CDELTia
+CUNIT4-B= 'PHONEY'             / Lookalike keyword is not CUNITia
+CTYPE-4B= 'PHONEY'             / Lookalike keyword is not CTYPEia
+CRVAL_4B= 'PHONEY'             / Lookalike keyword is not CRVALia
+CNAME4_ = 'PHONEY'             / Lookalike keyword is not CNAMEia
+CRDER4_ = 'PHONEY'             / Lookalike keyword is not CRDERia
+CSYER4_ = 'PHONEY'             / Lookalike keyword is not CSYERia
+
+PC4X4B  = 'PHONEY'             / Lookalike keyword is not PCi_ja
+PC4__4B = 'PHONEY'             / Lookalike keyword is not PCi_ja
+PC4_IB  = 'PHONEY'             / Lookalike keyword is not PCi_ja
+PC4 4B  = 'PHONEY'             / Lookalike keyword is not PCi_ja
+CD4X4B  = 'PHONEY'             / Lookalike keyword is not CDi_ja
+CD4__4B = 'PHONEY'             / Lookalike keyword is not CDi_ja
+CD4_IB  = 'PHONEY'             / Lookalike keyword is not CDi_ja
+CD4 4B  = 'PHONEY'             / Lookalike keyword is not CDi_ja
+PV4X4B  = 'PHONEY'             / Lookalike keyword is not PVi_ja
+PV4__4B = 'PHONEY'             / Lookalike keyword is not PVi_ja
+PV4_OB  = 'PHONEY'             / Lookalike keyword is not PVi_ja
+PV4 0B  = 'PHONEY'             / Lookalike keyword is not PVi_ja
+PS4X4B  = 'PHONEY'             / Lookalike keyword is not PSi_ja
+PS4__4B = 'PHONEY'             / Lookalike keyword is not PSi_ja
+PS4_IB  = 'PHONEY'             / Lookalike keyword is not PSi_ja
+PS4 0B  = 'PHONEY'             / Lookalike keyword is not PSi_ja
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  The following look vaguely like WCS keywords but should be discarded.
+COMMENT  -----------------------------------------------------------------------
+
+CRPIXELS=                  0.0 / Furphy, not CRPIXja
+PCATALOG=                  0.0 / Furphy, not PCi_ja
+CDELTA  =                  0.0 / Furphy, not CDELTia
+CDI_JA  =                  0.0 / Furphy, not CDi_ja
+CUNITARY=                  0.0 / Furphy, not CUNITia
+CTYPEXY =                  0.0 / Furphy, not CTYPEia
+CRVALUE =                  0.0 / Furphy, not CRVALia
+CNAME   =                  0.0 / Furphy, not CNAMEia
+PV1_1AL =                  0.0 / Furphy, not PVi_ma
+PSEUDO  =                  0.0 / Furphy, not PSi_ma
+EPOCHAL =                  0.0 / Furphy, not EPOCH
+VELREF1 =                  0.0 / Furphy, not VELREF
+
+COMMENT  -----------------------------------------------------------------------
+COMMENT  The following are deprecated or unrecognised AIPS-convention keywords.
+COMMENT  -----------------------------------------------------------------------
+
+EPOCHB  =                  0.0 / Invalid alternate code on EPOCH  keyword
+VELREFB =                    0 / Invalid alternate code on VELREF keyword
+
+PC001001=                  1.0 / PC00i00j keyword is deprecated, use PCi_ja
+CD001001=                  1.0 / PC00i00j keyword is deprecated, use CDi_ja
+VSOURCEB=                  0.0 / VSOURCEa keyword is deprecated, use ZSOURCEa
+RADECSYS= 'DEPRECATED'         / RADECSYS keyword is deprecated, use RADESYSa
+PROJP1  =                  0.0 / PROJPn   keyword is deprecated, use PVi_ma
+CROTA1  =                  0.0 / CROTAn   keyword is deprecated, use PCi_ja
+
+RESTFREQ=                  0.0 / Use RESTFRQa in preference to RESTFREQ
+
+ALTRPIX =                  0.0 / AIPS spectral convention, not recognised
+ALTRVAL =                  0.0 / AIPS spectral convention, not recognised
+
+END

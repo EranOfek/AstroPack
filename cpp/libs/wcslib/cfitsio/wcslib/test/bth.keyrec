@@ -1,0 +1,491 @@
+#-----------------------------------------------------------------------------
+# WCSLIB 7.3 - an implementation of the FITS WCS standard.
+# Copyright (C) 1995-2020, Mark Calabretta
+#
+# This file is part of WCSLIB.
+#
+# WCSLIB is free software: you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# WCSLIB is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+# more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with WCSLIB.  If not, see http://www.gnu.org/licenses.
+#
+# Direct correspondence concerning WCSLIB to mark@calabretta.id.au
+#
+# Author: Mark Calabretta, Australia Telescope National Facility, CSIRO.
+# http://www.atnf.csiro.au/people/Mark.Calabretta
+# $Id: bth.keyrec,v 7.3.1.1 2020/06/03 03:38:11 mcalabre Exp $
+#-----------------------------------------------------------------------------
+#
+# FITS header keyrecords used for testing by tbth1.
+#
+# Use 'tofits' (supplied) to convert this file to proper FITS format via
+#
+#     tofits < bth.keyrec > bth.fits
+#
+# Lines in this file beginning with '#' are ignored by tofits.
+#
+#-----------------------------------------------------------------------------
+XTENSION= 'BINTABLE'           / Binary table extension
+BITPIX  =                    8 / 8-bit bytes
+NAXIS   =                    2 / 2-dimensional binary table
+NAXIS1  =                 3330 / Width of table in bytes
+NAXIS2  =                   68 / Number of rows in table
+PCOUNT  =                    0 / Size of special data area
+GCOUNT  =                    1 / One data group (required keyword)
+TFIELDS =                   33 / Number of fields in each row
+
+COMMENT  wcsbth() ignores all of the above keywords except for TFIELDS which it
+COMMENT  only considers to be advisory.  In fact, TFIELDS here is incorrect
+COMMENT  (deliberately) since WCS keywords are present below for column numbers
+COMMENT  greater than 33.
+
+COMMENT                        WARNING  WARNING  WARNING
+COMMENT                        -------------------------
+COMMENT  This header has been developed for test purposes.  It contains a mix
+COMMENT  of WCS keywords whose presence within a single FITS header extends or
+COMMENT  violates the FITS WCS standard.
+COMMENT
+COMMENT  The main extension to the standard is the presence of image header
+COMMENT  keywords in what is meant to be a binary table extension header.  The
+COMMENT  usage notes for wcsbth() in wcshdr.h explains how it interprets these
+COMMENT  keywords.
+COMMENT  -----------------------------------------------------------------------
+
+COMMENT  =======================================================================
+COMMENT  The primary image header keywords define a coordinate representation
+COMMENT  using AIPS-convention WCS keywords.  As it happens, no binary table
+COMMENT  image array inherits these keywords and consequently they define an
+COMMENT  "unattached" representation, one that is not associated with any
+COMMENT  particular table column(s).  Human intervention is required to form
+COMMENT  such an association based on a priori knowledge.
+COMMENT
+COMMENT  An old FITS WCS interpreter that only understood the AIPS convention
+COMMENT  would most likely be confused by this header because NAXIS = 2 (above)
+COMMENT  is fixed for a binary table.  wcsbth() ignores NAXIS and deduces that
+COMMENT  there are four coordinate axes by looking at the highest axis number
+COMMENT  encoded in the WCS keywords themselves.
+COMMENT
+COMMENT  An old FITS WCS interpreter also would not recognize the new WCSNAMEa
+COMMENT  keyword, though its presence should not cause it any harm.  It is set
+COMMENT  here solely for identification purposes.
+COMMENT
+COMMENT  This representation contains only standard image header keywords, but
+COMMENT  their use in a binary table header is non-standard.
+COMMENT  -----------------------------------------------------------------------
+
+COMMENT  The following keyrecord is not part of the AIPS convention.
+WCSNAME =   'AIPS convention: TAN projection' / Name of this coordinate system
+
+CRPIX1  =                513.0 / Pixel coordinate of reference point
+CRPIX2  =                513.0 / Pixel coordinate of reference point
+CRPIX3  =               1025.0 / Pixel coordinate of reference point
+CRPIX4  =                  1.0 / Pixel coordinate of reference point
+
+CDELT1  =                -0.10 / x-scale
+CDELT2  =                 0.10 / y-scale
+CROTA2  =                 15.0 / Bulk image rotation
+CTYPE1  = 'RA---TAN'           / Right ascension in a gnomonic projection
+CRVAL1  =                150.0 / [deg] Right ascension at the reference point
+CTYPE2  = 'DEC--TAN'           / Declination in a gnomonic projection
+CRVAL2  =                -30.0 / [deg] Declination at the reference point
+EPOCH   =               2000.0 / Equinox of equatorial coordinates
+
+CDELT3  =               62.5e3 / Frequency scale
+CTYPE3  = 'FREQ    '           / Frequency axis
+CRVAL3  =             1.3945e9 / [Hz] Reference frequency
+VELREF  =                  258 / Barycentric radio velocity
+ALTRPIX =                  0.0 / Alternate reference pixel (not handled)
+ALTRVAL =                  0.0 / Alternate reference value (not handled)
+RESTFREQ=         1.42040575e9 / HI rest frequency
+
+CDELT4  =                  1.0 / Stokes increment
+CTYPE4  = 'STOKES  '           / Stokes convention axis (I, Q, U, V)
+CRVAL4  =                  1.0 / Stokes I
+
+COMMENT  =======================================================================
+COMMENT  This coordinate representation utilizing a PCi_ja matrix expresses the
+COMMENT  above AIPS convention header using standard WCS keywords.  This set of
+COMMENT  image header keywords with alternate representation 'I' is defined for
+COMMENT  the purpose of inheritance (below) and so does not result in an
+COMMENT  unattached representation as did the primary image header
+COMMENT  representation above.
+COMMENT
+COMMENT  This representation contains only standard image header keywords but
+COMMENT  their use in a binary table header is non-standard.
+COMMENT  -----------------------------------------------------------------------
+
+WCSAXESI=                    4 / Number of coordinate axes
+
+CRPIX1I =                  513 / Pixel coordinate of reference point
+CRPIX2I =                  513 / Pixel coordinate of reference point
+CRPIX3I =                 1025 / Pixel coordinate of reference point
+CRPIX4I =                    1 / Pixel coordinate of reference point
+
+PC1_1I  =       0.965925826289 / Coordinate transformation matrix element
+PC1_2I  =       0.258819045103 / Coordinate transformation matrix element
+PC2_1I  =      -0.258819045103 / Coordinate transformation matrix element
+PC2_2I  =       0.965925826289 / Coordinate transformation matrix element
+
+CDELT1I =                 -0.1 / [deg] Coordinate increment at reference point
+CDELT2I =                  0.1 / [deg] Coordinate increment at reference point
+CDELT3I =                62500 / [Hz] Coordinate increment at reference point
+CDELT4I =                    1 / Coordinate increment at reference point
+
+CUNIT1I = 'deg'                / Units of coordinate increment and value
+CUNIT2I = 'deg'                / Units of coordinate increment and value
+CUNIT3I = 'Hz'                 / Units of coordinate increment and value
+
+CTYPE1I = 'RA---TAN'           / Right ascension, gnomonic projection
+CTYPE2I = 'DEC--TAN'           / Declination, gnomonic projection
+CTYPE3I = 'FREQ'               / Frequency (linear)
+CTYPE4I = 'STOKES'             / Coordinate type code
+
+CRVAL1I =                  150 / [deg] Coordinate value at reference point
+CRVAL2I =                  -30 / [deg] Coordinate value at reference point
+CRVAL3I =           1394500000 / [Hz] Coordinate value at reference point
+CRVAL4I =                    1 / Stokes I
+
+LONPOLEI=                  180 / [deg] Native longitude of celestial pole
+LATPOLEI=                  -30 / [deg] Native latitude of celestial pole
+RESTFRQI=           1420405750 / [Hz] Line rest frequency
+RESTWAVI=                    0 / [Hz] Line rest wavelength
+
+WCSNAMEI= 'AIPS convention: TAN projection' / Coordinate system title
+EQUINOXI=                 2000 / [yr] Equinox of equatorial coordinates
+SPECSYSI= 'BARYCENT'           / Reference frame of spectral coordinates
+
+COMMENT  =======================================================================
+COMMENT  Binary table column 33 contains an image array, most of whose WCS
+COMMENT  keywords would be inherited from the preceding image header keywords
+COMMENT  with a = "I" provided that wcsbth() is invoked with an option that
+COMMENT  allows it (i.e. by setting the WCSHDR_ALLIMG flag in its 'relax'
+COMMENT  argument).
+COMMENT
+COMMENT  Without full inheritance enabled, the presence of a single binary
+COMMENT  table image array keyword, WCSN33I, would not be sufficient to cause
+COMMENT  wcsbth() to create a wcsprm struct for this representation.  However,
+COMMENT  with inheritance enabled, WCSN33I is sufficient to trigger this
+COMMENT  mechanism, in which case it overrides WCSNAMEI.
+COMMENT
+COMMENT  Setting WCSHDR_AUXIMG alone only allows inheritance of the auxiliary
+COMMENT  image header keywords.  In this case it would not be sufficient to
+COMMENT  cause wcsbth() to create a wcsprm struct for this representation
+COMMENT  because there are no WCS keywords, either direct or inherited, that
+COMMENT  allow the dimensionality of the coordinate system to be determined.
+COMMENT
+COMMENT  The keyword is standard but such inheritance is non-standard.
+COMMENT  -----------------------------------------------------------------------
+WCSN33I = 'All WCS keywords inherited except for this one' / WCS title
+
+COMMENT  =======================================================================
+COMMENT  Binary table column 44 is analogous to column 33 except with extra
+COMMENT  binary table image array keywords that may override the image-header
+COMMENT  equivalent if inheritance is enabled.
+COMMENT
+COMMENT  wcsbth() would always create at least a 2D coordinate representation
+COMMENT  for column 44, regardless of what other keywords were inherited.  If
+COMMENT  WCSHDR_ALLIMG was set, then a 4D representation would be constructed
+COMMENT  from inherited keywords.  WCSHDR_AUXIMG would not be sufficient for
+COMMENT  this; however it would cause LONPOLEI and LATPOLEI to be inherited
+COMMENT  (and four others) and these would affect the interpretation of the
+COMMENT  coordinate system.
+COMMENT
+COMMENT  The keywords are standard but such inheritance is non-standard.
+COMMENT  -----------------------------------------------------------------------
+WCSN44I = 'Most WCS keywords inherited' / WCS title
+1CTY44I = 'RA---SIN'           / Right ascension, orthographic projection
+2CTY44I = 'DEC--SIN'           / Declination, orthographic projection
+
+COMMENT  =======================================================================
+COMMENT  Binary table keywords for the image array in column 77 with alternate
+COMMENT  representation 'B'.
+COMMENT
+COMMENT  This coordinate representation utilizing a PC (ijPCna) matrix
+COMMENT  expresses the above gnomonic (TAN) projection as a slant zenithal
+COMMENT  perspective projection (SZP) in order to test the reading of a number
+COMMENT  of PVi_ma keywords.  It also includes a linear time axis.
+COMMENT
+COMMENT  This representation contains only standard keywords and usage.  In
+COMMENT  particular, it is is self-contained, i.e. no inheritance.
+COMMENT  -----------------------------------------------------------------------
+WCAX77B =                    4 / Number of coordinate axes
+
+1CRP77B =                  513 / Pixel coordinate of reference point
+2CRP77B =                  513 / Pixel coordinate of reference point
+3CRP77B =                 1025 / Pixel coordinate of reference point
+4CRP77B =                    1 / Pixel coordinate of reference point
+
+11PC77B =          0.866025404 / Coordinate transformation matrix element
+12PC77B =                  0.5 / Coordinate transformation matrix element
+21PC77B =                 -0.5 / Coordinate transformation matrix element
+22PC77B =          0.866025404 / Coordinate transformation matrix element
+
+1CDE77B =                 -0.1 / [deg] Coordinate increment at reference point
+2CDE77B =                  0.1 / [deg] Coordinate increment at reference point
+3CDE77B =     -9.635265432e-06 / [m] Coordinate increment at reference point
+4CDE77B =                    1 / [s] Coordinate increment at reference point
+
+1CUN77B = 'deg'                / Units of coordinate increment and value
+2CUN77B = 'deg'                / Units of coordinate increment and value
+3CUN77B = 'm'                  / Units of coordinate increment and value
+4CUN77B = 's'                  / Units of coordinate increment and value
+
+1CTY77B = 'RA---SZP'           / Right ascension, slant zenithal perspective pro
+2CTY77B = 'DEC--SZP'           / Declination, slant zenithal perspective project
+3CTY77B = 'WAVE-F2W'           / Vacuum wavelength (linear in frequency)
+4CTY77B = 'TIME'               / Coordinate type code
+
+1CRV77B =                  150 / [deg] Coordinate value at reference point
+2CRV77B =                  -30 / [deg] Coordinate value at reference point
+3CRV77B =          0.214982042 / [m] Coordinate value at reference point
+4CRV77B =                -2000 / [s] Coordinate value at reference point
+
+1V77_1B =                    0 / [deg] Native longitude of the reference point
+1V77_2B =                   90 / [deg] Native latitude  of the reference point
+1V77_3B =                  195 / [deg] alias for LONP77A (has precedence)
+1V77_4B =                  -30 / [deg] alias for LATP77A (has precedence)
+2V77_1B =                    0 / SZP projection parameter
+2V77_2B =                  180 / SZP projection parameter
+2V77_3B =                   45 / SZP projection parameter
+4S77_0B = 'UTC'                / Coordinate transformation parameter
+
+LONP77B =                  195 / [deg] Native longitude of celestial pole
+LATP77B =                  -30 / [deg] Native latitude of celestial pole
+RFRQ77B =           1420405750 / [Hz] Line rest frequency
+RWAV77B =          0.211061141 / [Hz] Line rest wavelength
+
+WCSN77B = 'St''d representation: SZP projection' / Coordinate system title
+1CNA77B = 'Right ascension (J2000)' / Axis name for labelling purposes
+2CNA77B = 'Declination (J2000)' / Axis name for labelling purposes
+3CNA77B = 'Wavelength'         / Axis name for labelling purposes
+4CNA77B = 'Time offset'        / Axis name for labelling purposes
+3CRD77B =                1e-11 / [m] Random error in coordinate
+3CSY77B =                1e-12 / [m] Systematic error in coordinate
+
+DOBS77  = '1957-02-14T15:00:00' / ISO-8601 observation date
+MJDOB77 =         35883.625000 / [d] MJD of observation
+DAVG77  = '1957-02-14T16:48:00' / ISO-8601 time at midpoint of observation
+MJDA77  =         35883.700000 / [d] MJD at midpoint of observation
+
+OBSGX77 =           -4554231.5 / [m] observatory X-coordinate
+COMMENT  OBSGEO-Y (below) should be inherited for OBSGY77.
+OBSGZ77 =           -3454036.3 / [m] observatory Z-coordinate
+RADE77B = 'FK5'                / Equatorial coordinate system
+EQUI77B =                 2000 / [yr] Equinox of equatorial coordinates
+SPEC77B = 'BARYCENT'           / Reference frame of spectral coordinates
+SOBS77B = 'TOPOCENT'           / Reference frame of spectral observation
+VSYS77B =                 1500 / [m/s] Velocity towards source
+ZSOU77B =               0.0025 / Redshift of the source
+SSRC77B = 'LSRK'               / Reference frame of source redshift
+VANG77B =                 0.00 / [deg] Velocity orientation angle
+
+COMMENT  =======================================================================
+COMMENT  Pixel list keywords with axes in columns 8, 9 and 10 and alternate
+COMMENT  representation 'P'.
+COMMENT
+COMMENT  In the IRAF representation, if one CDi_ja (TCDn_ka) keyword is given
+COMMENT  then the default is zero for any that are omitted.  CDELTia (TCDLTna)
+COMMENT  and CROTAn (TCROTna) keywords are included for informational purposes
+COMMENT  only and otherwise are to be ignored.
+COMMENT
+COMMENT  This representation uses the non-standard long form for some pixel
+COMMENT  list keywords with non-blank alternate version specifier (these forms
+COMMENT  are standard for a = ' ' only):
+COMMENT    TCRPXna instead of TCRPna
+COMMENT    TCDn_ka            TCn_ka
+COMMENT    TCDLTna            TCDEna
+COMMENT    TCUNIna            TCUNna
+COMMENT    TCTYPna            TCTYna
+COMMENT    TCRVLna            TCRVna
+COMMENT    TPVn_ma            TVn_ma
+COMMENT    TCNAMna            TCNAna
+COMMENT    TCRDEna            TCRDna
+COMMENT    TCSYEna            TCSYna
+COMMENT  Also, strictly speaking, alternate version codes are not defined for
+COMMENT  TCROTn (e.g. TCROT9P below), and WCSNna should be TWCSna.  However,
+COMMENT  these are considered to be natural extensions that all FITS WCS
+COMMENT  interpreters should support.  Apart from that, this representation
+COMMENT  contains standard keywords and usage.
+COMMENT
+COMMENT  For reasons explained in the usage notes for wcsbth() in wcshdr.h,
+COMMENT  OBSGX99, OBSGEO-Y, and OBSGZ77, which appears above, apply to the
+COMMENT  pixel list image in this header.
+COMMENT  -----------------------------------------------------------------------
+TCRPX8P =                  513 / Pixel coordinate of reference point
+TCRPX9P =                  513 / Pixel coordinate of reference point
+TCRPX10P=                 1025 / Pixel coordinate of reference point
+
+TCD8_8P =          -0.08660254 / Coordinate transformation matrix element
+TCD8_9P =                -0.05 / Coordinate transformation matrix element
+TCD9_8P =                -0.05 / Coordinate transformation matrix element
+TCD9_9P =           0.08660254 / Coordinate transformation matrix element
+TC10_10P=      -4.565153674e-5 / Coordinate transformation matrix element
+
+TCDLT8P =                -0.10 / [deg] Coordinate increment at reference point
+TCDLT9P =                 0.10 / [deg] Coordinate increment at reference point
+TCDLT10P=      -4.565153674e-5 / Coordinate increment at reference point
+TCROT9P =                 30.0 / [deg] Bulk image rotation
+
+TCUNI8P = 'deg'                / Units of coordinate increment and value
+TCUNI9P = 'deg'                / Units of coordinate increment and value
+
+TCTYP8P = 'RA---ZPN'           / Right ascension, zenithal/azimuthal polynomial
+TCTYP9P = 'DEC--ZPN'           / Declination, zenithal/azimuthal polynomial proj
+TCTYP10P= 'ZOPT-F2W'           / Redshift (linear in frequency)
+
+TCRVL8P =                  150 / [deg] Coordinate value at reference point
+TCRVL9P =                  -30 / [deg] Coordinate value at reference point
+TCRVL10P=          0.018577089 / Coordinate value at reference point
+
+TPV9_1P =                    1 / ZPN projection parameter
+TPV9_3P =          0.333333333 / ZPN projection parameter
+TPV9_5P =          0.133333333 / ZPN projection parameter
+TPV9_7P =          0.053968254 / ZPN projection parameter
+TPV9_9P =          0.021869489 / ZPN projection parameter
+TPV9_11P=          0.008863236 / ZPN projection parameter
+TPV9_13P=          0.003592128 / ZPN projection parameter
+TPV9_15P=          0.001455834 / ZPN projection parameter
+TPV9_17P=          0.000590027 / ZPN projection parameter
+TPV9_19P=          0.000239129 / ZPN projection parameter
+
+LONP8P  =                  195 / [deg] Native longitude of celestial pole
+LATP8P  =                  -30 / [deg] Native latitude of celestial pole
+RFRQ8P  =           1420405750 / [Hz] Line rest frequency
+RWAV8P  =          0.211061141 / [Hz] Line rest wavelength
+
+WCSN8P  = 'IRAF representation: ZPN projection' / Coordinate system title
+TCNAM8P = 'Right ascension (J2000)' / Axis name for labelling purposes
+TCNAM9P = 'Declination (J2000)' / Axis name for labelling purposes
+TCNAM10P= 'Redshift'           / Axis name for labelling purposes
+TCRDE10P=                5e-11 / Random error in coordinate
+TCSYE10P=                5e-12 / Systematic error in coordinate
+
+DOBS8   = '1957-02-14T15:00:00' / ISO-8601 time of observation
+MJDOB8  =         35883.625000 / [d] MJD of observation
+DAVG8   = '1957-02-14T16:48:00' / ISO-8601 time at midpoint of observation
+MJDA8   =         35883.700000 / [d] MJD at midpoint of observation
+
+OBSGX99 =          -4554231.53 / [m] observatory X-coordinate
+RADE8P  = 'FK5'                / Equatorial coordinate system
+EQUI8P  =                 2000 / [yr] Equinox of equatorial coordinates
+SPEC8P  = 'BARYCENT'           / Reference frame of spectral coordinates
+SOBS8P  = 'TOPOCENT'           / Reference frame of spectral observation
+VSYS8P  =                 1500 / [m/s] Velocity towards source
+ZSOU8P  =     0.00250000001174 / Redshift of the source
+SSRC8P  = 'LSRK'               / Reference frame of source redshift
+VANG8P  =                 0.00 / [deg] Velocity orientation angle
+
+COMMENT  =======================================================================
+COMMENT  By themselves, these primary image header auxiliary WCS keywords
+COMMENT  should not be sufficient to cause a wcsprm struct to be created for
+COMMENT  representation X, nor should they affect any of the others.
+COMMENT  -----------------------------------------------------------------------
+
+LONPOLEX=                180.0 / [deg] Native longitude of the NCP
+LATPOLEX=                999.0 / [deg] Native latitude of the NCP
+RESTFRQX=         1.42040575e9 / [Hz] HI rest frequency
+RESTWAVX=          0.211061141 / [m] HI rest wavelength
+WCSNAMEX= 'eXtraneous'         / Name of this coordinate system
+RADESYSX= 'ICRS'               / Mean equatorial coordinates, IAU 1984 system
+EQUINOXX=               2000.0 / [yr] Equinox of equatorial coordinates
+SPECSYSX= 'BARYCENT'           / Reference frame of spectral coordinates
+SSYSOBSX= 'TOPOCENT'           / Reference frame of observation
+VELOSYSX=               1500.0 / [m/s] Bary-topo velocity towards the source
+ZSOURCEX=               0.0025 / Redshift of the source
+SSYSSRCX= 'LSRK'               / Reference frame of source redshift
+VELANGLX=                35.25 / [deg] Velocity orientation angle
+
+COMMENT  =======================================================================
+COMMENT  The following global keywords have no alternates.  Except where
+COMMENT  overridden by their binary table equivalents, they apply to each
+COMMENT  coordinate representation, even that of the AIPS convention for
+COMMENT  which, strictly, only the DATE-OBS keyword should be recognized.
+COMMENT
+COMMENT  For test purposes, the remaining standard global WCS-related keywords
+COMMENT  are included here, even though there is considerable overlap between
+COMMENT  them.  Specifically, the keywords in the following groups all convey
+COMMENT  the same information, only one need be given:
+COMMENT    - MJDREF, MJDREFI + MJDREFF, JDREF, and JDREFI + JDREFF;
+COMMENT    - DATE-OBS, MJD-OBS, JEPOCH, and BEPOCH;
+COMMENT    - DATE-AVG and MJD-AVG;
+COMMENT    - DATE-BEG, MJD-BEG, and TSTART;
+COMMENT    - DATE-END, MJD-END, and TSTOP;
+COMMENT    - OBSGEO-[XYZ] and OBSGEO-[LBH];
+COMMENT    - TELAPSE, DATE-END - DATE-BEG, MJD-END - MJD-BEG, and
+COMMENT      TSTOP - TSTART.
+COMMENT  Interpretation is undefined if there are any inconsistencies between
+COMMENT  them.
+COMMENT
+COMMENT  The keycomments for OBSGEO-Y and OBSGEO-Z have been omitted
+COMMENT  deliberately for test purposes.
+COMMENT  -----------------------------------------------------------------------
+
+TIMESYS = 'UTC'                / Time scale
+TREFPOS = 'TOPOCENTRE'         / Time reference position, with OBSGEO-[XYZLBH]
+TREFDIR = 'RA_NOM,DEC_NOM'     / Time reference direction
+PLEPHEM = 'DE405'              / Ephemerides used for pathlength delays
+
+TIMEUNIT= 's'                  / Time units
+DATEREF = '1957-02-14T15:00:00'/ ISO-8601 fiducial time
+MJDREF  =         35883.625000 / [d] MJD of fiducial time
+MJDREFI =         35883        / [d] MJD of fiducial time, integer part
+MJDREFF =             0.625000 / [d] MJD of fiducial time, fractional part
+JDREF   =       2435884.125000 / [d] JD of fiducial time
+JDREFI  =       2435884        / [d] JD of fiducial time, integer part
+JDREFF  =             0.125000 / [d] JD of fiducial time, fractional part
+TIMEOFFS=                0.010 / [s] Clock correction
+
+DATE-OBS= '1957-02-14T15:00:00'/ ISO-8601 time of observation
+MJD-OBS =         35883.625000 / [d] MJD of observation
+JEPOCH  =       1957.125598905 / [a] Julian epoch of observation
+BEPOCH  =       1957.125960663 / [a] Besselian epoch of observation
+
+DATE-BEG= '1957-02-14T15:00:00'/ ISO-8601 time at start of observation
+MJD-BEG =         35883.625000 / [d] MJD at start of observation
+TSTART  =                  0.0 / [s] Time elapsed since fiducial time at start
+
+DATE-AVG= '1957-02-14T16:48:00'/ ISO-8601 time at midpoint of observation
+MJD-AVG =         35883.700000 / [d] MJD at midpoint of observation
+
+DATE-END= '1957-02-14T18:36:00'/ ISO-8601 time at end of observation
+MJD-END =         35883.775000 / [d] MJD at end of observation
+TSTOP   =              12960.0 / [s] Time elapsed since fiducial time at end
+
+XPOSURE =              12960.0 / [s] Exposure (integration) time
+TELAPSE =              12960.0 / [s] Elapsed time (start to stop)
+
+TIMSYER =                 5E-5 / [s] Systematic error in time measurements
+TIMRDER =                 1E-9 / [s] Relative error in time measurements
+TIMEDEL =                  1.0 / [s] Time resolution
+TIMEPIXR=                  0.5 / Reference position of timestamp in binned data
+
+OBSGEO-X=         -4554231.533 / [m] WGS84 coordinates of Parkes radiotelescope
+OBSGEO-Y=          2816759.109 /
+OBSGEO-Z=         -3454036.323
+OBSGEO-L=           148.263510 / [deg] WGS84, IAU(1976) ellipsoid, longitude
+OBSGEO-B=           -32.998406 / [deg] WGS84, IAU(1976) ellipsoid, latitude
+OBSGEO-H=              411.793 / [m]   WGS84, IAU(1976) ellipsoid, height
+OBSORBIT= 'sputnik-1957.eph'   / Spacecraft orbit ephemeris file
+
+COMMENT  =======================================================================
+COMMENT  The following global auxiliary keywords are non-standard but widely
+COMMENT  used in particular fields of astronomy.  They reside within the
+COMMENT  auxprm struct in wcsprm.  Their presence here should cause that
+COMMENT  struct to be allocated and filled.
+COMMENT  -----------------------------------------------------------------------
+
+RSUN_REF=               696E+6 / [m] Solar radius
+DSUN_OBS=             150.7E+9 / [m] Distance from centre of Sun to observer
+CRLN_OBS=               120.0  / [deg] Carrington heliographic lng of observer
+HGLN_OBS=                 0.0  / [deg] Stonyhurst heliographic lng of observer
+HGLT_OBS=                 7.25 / [deg] heliographic latitude of the observer
+
+END

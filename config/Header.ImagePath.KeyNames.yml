@@ -1,0 +1,18 @@
+       
+Telescope       : ['TEL']
+Node            : ['NODE']
+Mount           : ['MOUNT']
+Camera          : ['CAMERA']
+JD              : ['JD']
+Timezone        : ['TIMEZONE']
+Filter          : ['FILTER']
+FieldId         : ['FIELDID']
+CropId          : ['CROPID']
+ImageType       : ['IMTYPE']
+ImageLevel      : ['IMLEVEL']
+ImageSubLevel   : ['IMSLEVEL']
+ImageProduct    : ['IMPROD']
+ImageVer        : ['IMVER']
+FileType        : ['FILETYPE']
+            
+            

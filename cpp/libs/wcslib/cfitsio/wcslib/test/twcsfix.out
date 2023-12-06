@@ -1,0 +1,468 @@
+Testing WCSLIB translator for non-standard usage (twcsfix.c)
+------------------------------------------------------------
+
+wcsfix status returns: (-1, 0, 0, 0, 0, 0, -1)
+
+INFORMATIVE message from datfix() at line 589 of file wcsfix.c:
+Set MJD-OBS to 35884.048611 from BEPOCH.
+Set DATE-OBS to '1957-02-15T01:10:00.018' from MJD-OBS.
+Set DATE-BEG to '1957-02-15T01:09:59.990' from MJD-BEG.
+Set MJD-AVG to 35884.090278 from DATE-AVG.
+Changed DATE-AVG from '1957/02/15 02:10:00' to '1957-02-15T02:10:00'.
+Set MJD-END to 35884.131944 from DATE-END.
+Changed DATE-END from '1957/02/15 03:10:00' to '1957-02-15T03:10:00'.
+
+INFORMATIVE message from obsfix() at line 694 of file wcsfix.c:
+Set OBSGEO-X to -4554231.538 from OBSGEO-[LBH].
+Set OBSGEO-Y to  2816759.125 from OBSGEO-[LBH].
+Set OBSGEO-Z to -3454036.303 from OBSGEO-[LBH].
+
+INFORMATIVE message from unitfix() at line 834 of file wcsfix.c:
+Changed units:
+  'ARCSEC' -> 'arcsec',
+  'ARCSEC' -> 'arcsec',
+  'KM/SEC' -> 'km/s.
+
+INFORMATIVE message from spcfix() at line 882 of file wcsfix.c:
+Changed CTYPE3 from 'FELO-HEL' to 'VOPT-F2W' (VELREF=2).
+
+       flag: 137
+      naxis: 3
+      crpix: 0x<address>
+               90.000       90.000       1.0000    
+         pc: 0x<address>
+    pc[0][]:   1.0000       0.0000       0.0000    
+    pc[1][]:   0.0000       1.0000       0.0000    
+    pc[2][]:   0.0000       0.0000       1.0000    
+      cdelt: 0x<address>
+              -0.00027778   0.00027778   19687.    
+      crval: 0x<address>
+               265.62      -28.988       5.5693e+06
+      cunit: 0x<address>
+             "deg"
+             "deg"
+             "m/s"
+      ctype: 0x<address>
+             "RA---SIN"
+             "DEC--SIN"
+             "VOPT-F2W"
+    lonpole: 180.000000
+    latpole: -28.988500
+    restfrq: 1420405750.000000
+    restwav: 0.000000
+        npv: 3
+     npvmax: 3
+         pv: 0x<address>
+              -1  -1  -1.0000    
+               2   1   0.0000    
+               2   2  -1.8049    
+        nps: 0
+     npsmax: 8
+         ps: 0x<address>
+         cd: 0x<address>
+    cd[0][]:   0.0000       0.0000       0.0000    
+    cd[1][]:   0.0000       0.0000       0.0000    
+    cd[2][]:   0.0000       0.0000       0.0000    
+      crota: 0x<address>
+               0.0000       0.0000       0.0000    
+     altlin: 0
+     velref: 2
+        alt: ' '
+     colnum: 0
+      colax: 0x<address>
+                 0      0      0
+      cname: 0x<address>
+             UNDEFINED
+             UNDEFINED
+             UNDEFINED
+      crder: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED
+      csyer: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED
+      czphs: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED
+      cperi: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED
+    wcsname: UNDEFINED
+    timesys: UNDEFINED
+    trefpos: UNDEFINED
+    trefdir: UNDEFINED
+    plephem: UNDEFINED
+   timeunit: UNDEFINED
+    dateref: UNDEFINED
+     mjdref:      0.000000000     0.000000000
+   timeoffs: UNDEFINED
+    dateobs: "1957-02-15T01:10:00.018"
+    datebeg: "1957-02-15T01:09:59.990"
+    dateavg: "1957-02-15T02:10:00"
+    dateend: "1957-02-15T03:10:00"
+     mjdobs:  35884.048611317
+     mjdbeg:  35884.048611000
+     mjdavg:  35884.090277778
+     mjdend:  35884.131944444
+     jepoch: UNDEFINED
+     bepoch:   1957.124382563
+     tstart: UNDEFINED
+      tstop: UNDEFINED
+    xposure: UNDEFINED
+    telapse: UNDEFINED
+    timsyer: UNDEFINED
+    timrder: UNDEFINED
+    timedel: UNDEFINED
+   timepixr: UNDEFINED
+     obsgeo:  -4554231.538450  2816759.125233 -3454036.303343
+                   148.263510      -32.998406      411.793000
+   obsorbit: UNDEFINED
+    radesys: "ICRS"
+    equinox: UNDEFINED
+    specsys: "BARYCENT"
+    ssysobs: UNDEFINED
+    velosys: UNDEFINED
+    zsource: UNDEFINED
+    ssyssrc: UNDEFINED
+    velangl: UNDEFINED
+        aux: 0x0
+       ntab: 0
+        tab: 0x0
+       nwtb: 0
+        wtb: 0x0
+      types: 0x<address>
+            2200 2201 3300
+     lngtyp: "RA"
+     lattyp: "DEC"
+        lng: 0
+        lat: 1
+       spec: 2
+   cubeface: -1
+        err: 0x0
+        lin: (see below)
+        cel: (see below)
+        spc: (see below)
+     m_flag: 137
+    m_naxis: 3
+    m_crpix: 0x<address>  (= crpix)
+       m_pc: 0x<address>  (= pc)
+    m_cdelt: 0x<address>  (= cdelt)
+    m_crval: 0x<address>  (= crval)
+    m_cunit: 0x<address>  (= cunit)
+    m_ctype: 0x<address>  (= ctype)
+       m_pv: 0x<address>  (= pv)
+       m_ps: 0x<address>  (= ps)
+       m_cd: 0x<address>  (= cd)
+    m_crota: 0x<address>  (= crota)
+
+    m_colax: 0x<address>  (= colax)
+    m_cname: 0x<address>  (= cname)
+    m_crder: 0x<address>  (= crder)
+    m_csyer: 0x<address>  (= csyer)
+    m_czphs: 0x<address>  (= czphs)
+    m_cperi: 0x<address>  (= cperi)
+      m_aux: 0x0  (= aux)
+      m_tab: 0x0  (= tab)
+      m_wtb: 0x0  (= wtb)
+
+   lin.*
+       flag: 137
+      naxis: 3
+      crpix: 0x<address>
+               90.000       90.000       1.0000    
+         pc: 0x<address>
+    pc[0][]:   1.0000       0.0000       0.0000    
+    pc[1][]:   0.0000       1.0000       0.0000    
+    pc[2][]:   0.0000       0.0000       1.0000    
+      cdelt: 0x<address>
+              -0.00027778   0.00027778   19687.    
+     dispre: 0x0
+     disseq: 0x0
+     piximg: (nil)
+     imgpix: (nil)
+    i_naxis: 0
+      unity: 1
+     affine: 1
+     simple: 1
+        err: 0x0
+     tmpcrd: 0x<address>
+     m_flag: 0
+    m_naxis: 0
+    m_crpix: 0x0
+       m_pc: 0x0
+    m_cdelt: 0x0
+   m_dispre: 0x0
+   m_disseq: 0x0
+
+   cel.*
+      flag: 137
+     offset: 0
+       phi0:  0.000000
+     theta0: 90.000000
+        ref:   265.62      -28.988       180.00      -28.988    
+        prj: (see below)
+      euler:   265.62       118.99       180.00      -0.48463      0.87472   
+    latpreq: 0 (not required)
+     isolat: 0
+        err: 0x0
+
+   prj.*
+       flag: 105
+       code: "SIN"
+         r0: 57.295780
+         pv: (0)
+              0.0000      -1.8049    
+       phi0:  0.000000
+     theta0: 90.000000
+     bounds: 7
+
+       name: "orthographic/synthesis"
+   category: 1 (zenithal)
+    pvrange: 102
+  simplezen: 0
+  equiareal: 0
+  conformal: 0
+     global: 0
+  divergent: 0
+         x0: 0.000000
+         y0: 0.000000
+        err: 0x0
+        w[]:   0.017453     3.2577       4.2577       2.2577       0.0000    
+               0.0000       0.0000       0.0000       0.0000       0.0000    
+          m: 0
+          n: 0
+     prjx2s: 0x<address>
+     prjs2x: 0x<address>
+
+   spc.*
+       flag: 111
+       type: "VOPT"
+       code: "F2W"
+      crval:  5.5693e+06
+    restfrq: 1420405750.000000
+    restwav: 0.000000
+         pv: (not used)
+          w:   0.21106      1.3945e+09  -4.5667      (remainder unused)
+    isGrism: 0
+        err: 0x0
+     spxX2P: 0x<address>
+     spxP2S: 0x<address>
+     spxS2P: 0x<address>
+     spxP2X: 0x<address>
+
+------------------------------------------------------------------------
+       flag: 137
+      naxis: 3
+      crpix: 0x<address>
+               90.000       90.000       1.0000    
+         pc: 0x<address>
+    pc[0][]:   1.0000       0.0000       0.0000    
+    pc[1][]:   0.0000       1.0000       0.0000    
+    pc[2][]:   0.0000       0.0000       1.0000    
+      cdelt: 0x<address>
+              -0.00027778   0.00027778  -89906.    
+      crval: 0x<address>
+               265.62      -28.988       1.3945e+09
+      cunit: 0x<address>
+             "deg"
+             "deg"
+             "Hz"
+      ctype: 0x<address>
+             "RA---SIN"
+             "DEC--SIN"
+             "FREQ"
+    lonpole: 180.000000
+    latpole: -28.988500
+    restfrq: 1420405750.000000
+    restwav: 0.000000
+        npv: 3
+     npvmax: 3
+         pv: 0x<address>
+              -1  -1  -1.0000    
+               2   1   0.0000    
+               2   2  -1.8049    
+        nps: 0
+     npsmax: 8
+         ps: 0x<address>
+         cd: 0x<address>
+    cd[0][]:   0.0000       0.0000       0.0000    
+    cd[1][]:   0.0000       0.0000       0.0000    
+    cd[2][]:   0.0000       0.0000       0.0000    
+      crota: 0x<address>
+               0.0000       0.0000       0.0000    
+     altlin: 0
+     velref: 2
+        alt: ' '
+     colnum: 0
+      colax: 0x<address>
+                 0      0      0
+      cname: 0x<address>
+             UNDEFINED
+             UNDEFINED
+             UNDEFINED
+      crder: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED
+      csyer: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED
+      czphs: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED
+      cperi: 0x<address>
+               UNDEFINED    UNDEFINED    UNDEFINED
+    wcsname: UNDEFINED
+    timesys: UNDEFINED
+    trefpos: UNDEFINED
+    trefdir: UNDEFINED
+    plephem: UNDEFINED
+   timeunit: UNDEFINED
+    dateref: UNDEFINED
+     mjdref:      0.000000000     0.000000000
+   timeoffs: UNDEFINED
+    dateobs: "1957-02-15T01:10:00.018"
+    datebeg: "1957-02-15T01:09:59.990"
+    dateavg: "1957-02-15T02:10:00"
+    dateend: "1957-02-15T03:10:00"
+     mjdobs:  35884.048611317
+     mjdbeg:  35884.048611000
+     mjdavg:  35884.090277778
+     mjdend:  35884.131944444
+     jepoch: UNDEFINED
+     bepoch:   1957.124382563
+     tstart: UNDEFINED
+      tstop: UNDEFINED
+    xposure: UNDEFINED
+    telapse: UNDEFINED
+    timsyer: UNDEFINED
+    timrder: UNDEFINED
+    timedel: UNDEFINED
+   timepixr: UNDEFINED
+     obsgeo:  -4554231.538450  2816759.125233 -3454036.303343
+                   148.263510      -32.998406      411.793000
+   obsorbit: UNDEFINED
+    radesys: "ICRS"
+    equinox: UNDEFINED
+    specsys: "BARYCENT"
+    ssysobs: UNDEFINED
+    velosys: UNDEFINED
+    zsource: UNDEFINED
+    ssyssrc: UNDEFINED
+    velangl: UNDEFINED
+        aux: 0x0
+       ntab: 0
+        tab: 0x0
+       nwtb: 0
+        wtb: 0x0
+      types: 0x<address>
+            2200 2201 3000
+     lngtyp: "RA"
+     lattyp: "DEC"
+        lng: 0
+        lat: 1
+       spec: 2
+   cubeface: -1
+        err: 0x0
+        lin: (see below)
+        cel: (see below)
+        spc: (see below)
+     m_flag: 137
+    m_naxis: 3
+    m_crpix: 0x<address>  (= crpix)
+       m_pc: 0x<address>  (= pc)
+    m_cdelt: 0x<address>  (= cdelt)
+    m_crval: 0x<address>  (= crval)
+    m_cunit: 0x<address>  (= cunit)
+    m_ctype: 0x<address>  (= ctype)
+       m_pv: 0x<address>  (= pv)
+       m_ps: 0x<address>  (= ps)
+       m_cd: 0x<address>  (= cd)
+    m_crota: 0x<address>  (= crota)
+
+    m_colax: 0x<address>  (= colax)
+    m_cname: 0x<address>  (= cname)
+    m_crder: 0x<address>  (= crder)
+    m_csyer: 0x<address>  (= csyer)
+    m_czphs: 0x<address>  (= czphs)
+    m_cperi: 0x<address>  (= cperi)
+      m_aux: 0x0  (= aux)
+      m_tab: 0x0  (= tab)
+      m_wtb: 0x0  (= wtb)
+
+   lin.*
+       flag: 137
+      naxis: 3
+      crpix: 0x<address>
+               90.000       90.000       1.0000    
+         pc: 0x<address>
+    pc[0][]:   1.0000       0.0000       0.0000    
+    pc[1][]:   0.0000       1.0000       0.0000    
+    pc[2][]:   0.0000       0.0000       1.0000    
+      cdelt: 0x<address>
+              -0.00027778   0.00027778  -89906.    
+     dispre: 0x0
+     disseq: 0x0
+     piximg: (nil)
+     imgpix: (nil)
+    i_naxis: 0
+      unity: 1
+     affine: 1
+     simple: 1
+        err: 0x0
+     tmpcrd: 0x<address>
+     m_flag: 0
+    m_naxis: 0
+    m_crpix: 0x0
+       m_pc: 0x0
+    m_cdelt: 0x0
+   m_dispre: 0x0
+   m_disseq: 0x0
+
+   cel.*
+      flag: 137
+     offset: 0
+       phi0:  0.000000
+     theta0: 90.000000
+        ref:   265.62      -28.988       180.00      -28.988    
+        prj: (see below)
+      euler:   265.62       118.99       180.00      -0.48463      0.87472   
+    latpreq: 0 (not required)
+     isolat: 0
+        err: 0x0
+
+   prj.*
+       flag: 105
+       code: "SIN"
+         r0: 57.295780
+         pv: (0)
+              0.0000      -1.8049    
+       phi0:  0.000000
+     theta0: 90.000000
+     bounds: 7
+
+       name: "orthographic/synthesis"
+   category: 1 (zenithal)
+    pvrange: 102
+  simplezen: 0
+  equiareal: 0
+  conformal: 0
+     global: 0
+  divergent: 0
+         x0: 0.000000
+         y0: 0.000000
+        err: 0x0
+        w[]:   0.017453     3.2577       4.2577       2.2577       0.0000    
+               0.0000       0.0000       0.0000       0.0000       0.0000    
+          m: 0
+          n: 0
+     prjx2s: 0x<address>
+     prjs2x: 0x<address>
+
+   spc.*
+       flag: 0
+       type: "    "
+       code: "   "
+      crval: UNDEFINED
+    restfrq: 0.000000
+    restwav: 0.000000
+         pv: (not used)
+          w:   0.0000       0.0000       0.0000      (remainder unused)
+    isGrism: 0
+        err: 0x0
+     spxX2P: 0x0
+     spxP2S: 0x0
+     spxS2P: 0x0
+     spxP2X: 0x0

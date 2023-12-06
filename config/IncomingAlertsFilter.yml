@@ -1,0 +1,85 @@
+# UnitTest Configuration File
+
+# Notes:
+#
+#   - A document starts with three dashes and ends with three periods, BUT, is not supported by the Java class
+#   - Java exception occurred: expected a single document in the stream
+#   - Seems that Matlab +yaml fails to read multi-document yaml files (with '---')
+#   - Key-3: Value-3 --> Key0x2D3
+#   -KeyMinus: ValueMinus --> x0x2DKeyMinus
+#   - Non-unique keys must be defined as list, otherwise you get the last item
+
+#==========================================================================
+#                               Unit-Test Data
+#==========================================================================
+
+# See:
+#
+#   https://www.cloudbees.com/blog/yaml-tutorial-everything-you-need-get-started/
+#
+#
+
+#UnitTest:
+
+Key1: Value1
+Key2: Value2
+Key2: Value2a
+
+# Key0x2D3
+Key-3: Value-3
+
+# x0x2DVarMinus
+-KeyMinus: ValueMinus
+
+# List
+List1: [Item1, Item2, Item3]
+
+# Dict = struct
+# Since thing3 appears twice, only the last one is accessible
+Dict1: { thing1: huey, thing2: louie, thing3: dewey, thing3: again }
+
+#
+NonUniqueKeys:
+    - key: 1
+    - key: 2
+    - key: 3
+    - SameKey: Same1
+    - SameKey: Same2
+    - SameKey: Same3
+
+
+# Header
+Header1:
+    - Key1: Value1
+    - Key2: Value2
+    - NonUnique: NonUniqueValue1
+    - NonUnique: NonUniqueValue2
+    - NonUnique: NonUniqueValue3
+
+Header2:
+    KeyValueComment:
+
+        MyKey1: MyValue1
+
+#
+Params:                             # 1×3 cell array
+
+    # UnitTest.Params{1} = struct with fields:
+    # name: 'args.copycss'
+    # value: 'yes'
+    # comment: 'Comment1'
+    #
+
+    - name: 'args.copycss'
+      value: 'yes'
+      comment: Comment1
+
+    - name: 'args.css'
+      value: 'dita-ot-doc.css'
+      comment: Comment2
+
+    - name: 'args.csspath'
+      value: 'css'
+      comment: Comment3
+
+

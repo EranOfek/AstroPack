@@ -1,0 +1,153 @@
+<deployment-project plugin="plugin.toolbox" plugin-version="1.0">
+  <configuration file="D:\MATLAB\Live-Script-to-Markdown-Converter\main\LiveScriptToMarkdownConverterToolbox.prj" location="D:\MATLAB\Live-Script-to-Markdown-Converter\main" name="LiveScriptToMarkdownConverterToolbox" target="target.toolbox" target-name="Package Toolbox">
+    <param.appname>Live Script To Markdown Converter</param.appname>
+    <param.authnamewatermark>Pavel Roslovets</param.authnamewatermark>
+    <param.email>p.v.roslovets@gmail.com</param.email>
+    <param.company>https://roslovets.github.io</param.company>
+    <param.summary>Easily convert live scripts to markdown files</param.summary>
+    <param.description />
+    <param.screenshot>${PROJECT_ROOT}\img\LiveScriptToMarkdownConverter-cover.png</param.screenshot>
+    <param.version>1.0.2</param.version>
+    <param.output>${PROJECT_ROOT}\Live Script To Markdown Converter.mltbx</param.output>
+    <param.products.name />
+    <param.products.id />
+    <param.products.version />
+    <param.platforms />
+    <param.guid>c5ce6999-1e66-4758-81ee-567db8689a9b</param.guid>
+    <param.exclude.filters>*.asv
+installer
+img</param.exclude.filters>
+    <param.exclude.pcodedmfiles>true</param.exclude.pcodedmfiles>
+    <param.examples />
+    <param.demosxml />
+    <param.apps />
+    <param.registered.apps />
+    <param.docs />
+    <param.getting.started.guide>${PROJECT_ROOT}\doc\GettingStarted.mlx</param.getting.started.guide>
+    <param.matlabpath.excludes>
+      <item>/dev</item>
+      <item>/installer</item>
+    </param.matlabpath.excludes>
+    <param.javaclasspath.excludes />
+    <param.exported.on.package>false</param.exported.on.package>
+    <param.required.addons>
+      <requiredaddons>
+        <requiredAddOn earliest="1.3.1" fromRepository="true" id="f009e5ec-2cf3-4906-b9d1-04ccc04aee43" include="true" latest="latest">livescript2markdown_ MATLAB's live scripts to markdown</requiredAddOn>
+      </requiredaddons>
+    </param.required.addons>
+    <param.matlab.project.id />
+    <param.matlab.project.name />
+    <param.release.start>R2020b</param.release.start>
+    <param.release.end>latest</param.release.end>
+    <param.release.current.only>false</param.release.current.only>
+    <param.compatiblity.windows>true</param.compatiblity.windows>
+    <param.compatiblity.macos>true</param.compatiblity.macos>
+    <param.compatiblity.linux>true</param.compatiblity.linux>
+    <param.compatiblity.matlabonline>true</param.compatiblity.matlabonline>
+    <param.installation.map />
+    <param.additional.sw.names />
+    <param.additional.sw.licenses />
+    <param.additional.sw.win.url />
+    <param.additional.sw.mac.url />
+    <param.additional.sw.linux.url />
+    <unset>
+      <param.description />
+      <param.output />
+      <param.products.name />
+      <param.products.id />
+      <param.products.version />
+      <param.platforms />
+      <param.exclude.pcodedmfiles />
+      <param.examples />
+      <param.demosxml />
+      <param.apps />
+      <param.registered.apps />
+      <param.docs />
+      <param.javaclasspath.excludes />
+      <param.exported.on.package />
+      <param.matlab.project.id />
+      <param.matlab.project.name />
+      <param.release.current.only />
+      <param.compatiblity.windows />
+      <param.compatiblity.macos />
+      <param.compatiblity.linux />
+      <param.compatiblity.matlabonline />
+      <param.installation.map />
+      <param.additional.sw.names />
+      <param.additional.sw.licenses />
+      <param.additional.sw.win.url />
+      <param.additional.sw.mac.url />
+      <param.additional.sw.linux.url />
+    </unset>
+    <fileset.rootdir>
+      <file>${PROJECT_ROOT}</file>
+    </fileset.rootdir>
+    <fileset.rootfiles>
+      <file>${PROJECT_ROOT}\code</file>
+      <file>${PROJECT_ROOT}\doc</file>
+    </fileset.rootfiles>
+    <fileset.depfun.included />
+    <fileset.depfun.excluded />
+    <fileset.package />
+    <build-deliverables>
+      <file location="${PROJECT_ROOT}" name="Live Script To Markdown Converter.mltbx" optional="false">D:\MATLAB\Live-Script-to-Markdown-Converter\main\Live Script To Markdown Converter.mltbx</file>
+    </build-deliverables>
+    <workflow />
+    <matlab>
+      <root>C:\Program Files\MATLAB\R2021a</root>
+      <toolboxes>
+        <toolbox name="matlabcoder" />
+        <toolbox name="embeddedcoder" />
+        <toolbox name="gpucoder" />
+        <toolbox name="fixedpoint" />
+        <toolbox name="matlabhdlcoder" />
+        <toolbox name="neuralnetwork" />
+      </toolboxes>
+      <toolbox>
+        <matlabcoder>
+          <enabled>true</enabled>
+        </matlabcoder>
+      </toolbox>
+      <toolbox>
+        <embeddedcoder>
+          <enabled>true</enabled>
+        </embeddedcoder>
+      </toolbox>
+      <toolbox>
+        <gpucoder>
+          <enabled>true</enabled>
+        </gpucoder>
+      </toolbox>
+      <toolbox>
+        <fixedpoint>
+          <enabled>true</enabled>
+        </fixedpoint>
+      </toolbox>
+      <toolbox>
+        <matlabhdlcoder>
+          <enabled>true</enabled>
+        </matlabhdlcoder>
+      </toolbox>
+      <toolbox>
+        <neuralnetwork>
+          <enabled>true</enabled>
+        </neuralnetwork>
+      </toolbox>
+    </matlab>
+    <platform>
+      <unix>false</unix>
+      <mac>false</mac>
+      <windows>true</windows>
+      <win2k>false</win2k>
+      <winxp>false</winxp>
+      <vista>false</vista>
+      <linux>false</linux>
+      <solaris>false</solaris>
+      <osver>10.0</osver>
+      <os32>false</os32>
+      <os64>true</os64>
+      <arch>win64</arch>
+      <matlab>true</matlab>
+    </platform>
+  </configuration>
+</deployment-project>
