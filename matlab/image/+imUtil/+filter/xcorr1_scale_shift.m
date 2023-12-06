@@ -8,7 +8,13 @@ function [Info] = xcorr1_scale_shift(Data, Template, Args)
     % Author : Eran Ofek (2023 Dec) 
     % Example: S=AstroSpec.specGalQSO('Gal_E');
     %          Template = [S.Wave, S.Flux];
-    % 
+    %          % no shift/no scale
+    %          Data     = Template;
+    %          Info=imUtil.filter.xcorr1_scale_shift(Data,Template)
+    %          Data     = Template; Data(:,1) = Data(:,1) + 10;
+    %          Info=imUtil.filter.xcorr1_scale_shift(Data,Template)
+
+    
 %          Data = interp1(Template(:,1),Template(:,2),(3300:0.7:5400).');
 %          Data = [(1:1:length(Data)).'.*0.75+10, Data];
 %          Info=imUtil.filter.xcorr1_scale_shift(Data,Template)
@@ -34,7 +40,7 @@ function [Info] = xcorr1_scale_shift(Data, Template, Args)
         
     end
     
-    error('still some bugs');
+    %error('still some bugs');
     
 
     % make ScaleVec a row vector
