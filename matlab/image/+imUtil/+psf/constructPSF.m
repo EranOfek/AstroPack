@@ -220,7 +220,7 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         [M1, M2]    = imUtil.image.moment2(Cube, Xstamp, Ystamp, 'Annulus',Args.Annulus, Args.moment2Args{:});
         Sigma       = sqrt(abs(M2.X2)+abs(M2.Y2));
 
-        MedSigma    = imUtil.background.mode(Sigma);
+        MedSigma    = imUtil.background.modeVar_QuantileHist(Sigma);
 
         FlagGoodPsf = FlagGoodPsf & (Sigma>(MedSigma - Args.DeltaSigma) & Sigma<(MedSigma + Args.DeltaSigma));
     else
