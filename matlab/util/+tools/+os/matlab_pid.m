@@ -1,5 +1,6 @@
 function [PID, Host] = matlab_pid
 % Return the matlab PID and computer host name
+% Author : Eran Ofek (May 2023)
 % Example: [PID, Host] = tools.os.matlab_pid;
 
 Str   = java.lang.management.ManagementFactory.getRuntimeMXBean.getName.char;
