@@ -179,7 +179,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
         
     end
     RAD = 180./pi;
-    QuickSearchBuffer = 500./3600./RAD;
+    QuickSearchBuffer = 500;  % arcsec
 
     % read orbital elements from disk
     if isempty(Args.AstCat)
