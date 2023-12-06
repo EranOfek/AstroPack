@@ -48,9 +48,11 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
         Args.EdgesFactor               = 0.5;
         Args.OverSampling              = 0.3;
         Args.LogNhistFromPeak          = 2;
+        Args.MinNbin1                  = 7;   % minimum number of bins in the 1st log iteration
         
     end
     
+    %OrigArray = Array;
     % convert to vector
     Array = Array(:);
  
@@ -81,9 +83,11 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     Min      = min(LogArray);
     Max      = max(LogArray);
     Range    = Max - Min;
-    Nbin     = max(5, 2.*ceil(Range));
+    Nbin     = max(Args.MinNbin1, 2.*ceil(Range));
     BinSize   = Range./Nbin;
-    Edges     = (Min:BinSize:Max).';
+    % Wht Max+2.*BinSize: sometimes due to pixels with low counts, the
+    % number of bins (Args.MinNbin1) is not sufficient 
+    Edges     = (Min:BinSize:(Max+2.*BinSize)).';
     BinCenter = (Edges(1:end-1) + Edges(2:end)).*0.5;
     Nhist = matlab.internal.math.histcounts(LogArray, Edges);
     Nhist = Nhist(1:end-1);
@@ -136,6 +140,9 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     Mode  = Mode0 - Par(2)./(2.*Par(1));
     Var = -0.5./Par(1);
     
+    if isinf(Mode) || isnan(Mode)
+        error('Unable to find Mode - need to debug: Mode=%f   Var=%f',Mode,Var);
+    end
 
     % if Par(1)<0
     %     % minimum found

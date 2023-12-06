@@ -1569,7 +1569,7 @@ classdef DemonLAST < Component
             %          D=pipeline.DemonLAST;
             %          D.setPath('/raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02')
             %          
-            %          D.main('StartJD',[24 4 2023],'EndJD',[26 4 2023]);
+            %          D.main('StartJD',[24 4 2023],'EndJD',[26 4 2023], 'StopWhenDone',true, 'Insert2DB',false, 'SaveEpochProduct',{'Image','Mask','Cat','PSF'});
 
             arguments
                 Obj
@@ -1587,7 +1587,7 @@ classdef DemonLAST < Component
 
                 Args.StartJD       = -Inf;           % refers only to Science observations: JD, or [D M Y]
                 Args.EndJD         = Inf;            %
-                Args.NightJD       = [];             % Reduce single night (from date to +1) - set StopWhenDone to true.
+                Args.NightJD       = [];             % Reduce single night (from -0.5 to 0.5 from date) - set StopWhenDone to true.
                 Args.StopWhenDone logical = false;   % If true, then will not look for new images (i.e., images that were created after the function started)
                 Args.RegenCalib logical = false;     % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
 
@@ -1647,8 +1647,8 @@ classdef DemonLAST < Component
                 if numel(Args.NightJD)>1
                     Args.NightJD = celestial.time.julday(Args.NightJD);
                 end
-                Args.StartJD = Args.NightJD;
-                Args.EndJD   = Args.NightJD + 1;
+                Args.StartJD = Args.NightJD - 0.5;
+                Args.EndJD   = Args.NightJD + 0.5;
                 Args.StopWhenDone = true;
             end
 
@@ -1784,7 +1784,7 @@ classdef DemonLAST < Component
                             %{'EpochImage', 'EpochMask', 'EpochCat', 'EpochPSF', 'VisitImage','VisitMask', 'VisitCat', 'VisitPSF', 'MergedCat', 'MergedMat', 'MergedAsteroids'};
 
                             % the following call also update the AllSI.ImageData.FileName
-                            [FN_Proc,~,Status] = imProc.io.writeProduct(AllSI, FN_I, 'Product',Args.SaveEpochProduct, 'WriteHeader',[true false true false],...
+                            [FN_Proc,~,Status] = imProc.io.writeProduct(AllSI(60), FN_I, 'Product',Args.SaveEpochProduct, 'WriteHeader',[true false true false],...
                                                    'Level','proc',...
                                                    'LevelPath','proc',...
                                                    'FindSubDir',true);

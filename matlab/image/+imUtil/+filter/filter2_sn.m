@@ -69,19 +69,19 @@ arguments
     Template             = [];
 end
 
-LogMode = false;  % don't use log option in mode - because of negative numbers...
+%LogMode = false;  % don't use log option in mode - because of negative numbers...
 
 if isempty(Template)
     Template = imUtil.kernel2.gauss;
 end
 if isempty(Variance)
-    [Mode,Variance] =  imUtil.background.mode(Image,LogMode);
+    [Mode,Variance] =  imUtil.background.modeVar_LogHist(Image);
 else
     Mode = [];
 end
 if isempty(Background)
     if isempty(Mode)
-        Background =  imUtil.background.mode(Image,LogMode);
+        Background =  imUtil.background.modeVar_LogHist(Image);
     else
         Background = Mode;
     end
@@ -91,13 +91,13 @@ end
 % treat empty background/variance:
 if isempty(Background)
     if isempty(Variance)
-        [Background,Variance] =  imUtil.background.mode(Image,LogMode);
+        [Background,Variance] =  imUtil.background.modeVar_LogHist(Image);
     else
-        [Background] =  imUtil.background.mode(Image,LogMode);
+        [Background] =  imUtil.background.modeVar_LogHist(Image);
     end
 else
     if isempty(Variance)
-        [~,Variance] =  imUtil.background.mode(Image);
+        [~,Variance] =  imUtil.background.modeVar_LogHist(Image);
     end
 end
 

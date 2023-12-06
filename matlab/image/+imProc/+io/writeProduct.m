@@ -199,6 +199,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                                              'WriteHeader',WriteHeader(Iprod),...
                                              'MkDir',~DirCreated,...
                                              'OverWrite',Args.OverWrite);
+                                
                                 DirCreated = true;
                                 % Update FileName in Obj
                                 Obj(Iobj).ImageData.FileName = OutFileNames{Iobj};

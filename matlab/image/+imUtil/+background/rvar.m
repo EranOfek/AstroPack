@@ -2,7 +2,7 @@ function Variance=rvar(Image,varargin)
 % robust variance (default is for a matrix) calculated using scaled iqr
 % Package: @imUtil.background
 % Description: robust variance of an array. Note that using the 
-%              imUtil.background.mode function is much faster.
+%              imUtil.background.modeVar_LogHist function is much faster.
 % Input  : - An array.
 %          - Vector of dimensions over which to calculate the robust
 %            variance. Default is [1 2].

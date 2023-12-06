@@ -9,8 +9,8 @@ function Result = background(Obj, Args)
     %                   where the output Variance is optional.
     %                   The additional parameters are provided by the
     %                   'BackFunPar' keyword (see next keyword).
-    %                   Default is @median [other example:
-    %                   @imUtil.background.mode]
+    %                   Default is @imUtil.background.modeVar_LogHist
+    %                   [other example: @median]
     %            'BackFunPar' - A cell array of additional parameters to pass
     %                   to the BackFun function.
     %                   Default is {[1 2]} [other example: {true,true,0.1}]
@@ -72,8 +72,12 @@ function Result = background(Obj, Args)
     arguments
         Obj AstroImage
         
-        Args.BackFun                     = @imUtil.background.mode; %@median;
-        Args.BackFunPar cell             = {true}; %{[1 2]};
+        %Args.BackFun                     = @imUtil.background.mode; %@median;
+        %Args.BackFunPar cell             = {true}; %{[1 2]};
+        
+        Args.BackFun                     = @imUtil.background.modeVar_LogHist; %@median;
+        Args.BackFunPar cell             = {}; %{[1 2]};
+
         Args.VarFun                      = []; %@imUtil.background.rvar; % [];
         Args.VarFunPar cell              = {};
         Args.SubSizeXY                   = [128 128];

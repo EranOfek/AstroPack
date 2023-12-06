@@ -17,7 +17,8 @@ function [SN,Flux,FiltImage,FiltImageVar,Info]=filter2_snBank(Image,Background,V
 % Input  : - An image.
 %          - A background map, or scalar. If the input image is background
 %            subtracted then give here 0.
-%            If empty, or not provided then use imUtil.background.mode
+%            If empty, or not provided then use
+%            imUtil.background.modeVar_LogHist
 %            to calculate the robust background.
 %            The mode is calculated with the Log=false option in order to
 %            avoid the log of negative numbers.
@@ -74,17 +75,17 @@ function [SN,Flux,FiltImage,FiltImageVar,Info]=filter2_snBank(Image,Background,V
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-LogMode = true;  % true will not work if image contains negative numbers.
+%LogMode = true;  % true will not work if image contains negative numbers.
 
 if nargin<4
     Template = @imUtil.kernel2.gauss;
     if nargin<3
-        [Mode,Variance] =  imUtil.background.mode(Image,LogMode);
+        [Mode,Variance] =  imUtil.background.modeVar_LogHist(Image);
         if nargin<2
             if nargin<3
                 Background = Mode;
             else
-                Background =  imUtil.background.mode(Image,LogMode);
+                Background =  imUtil.background.modeVar_LogHist(Image);
             end
         end
     end
@@ -103,13 +104,13 @@ end
 % treat empty background/variance:
 if isempty(Background)
     if isempty(Variance)
-        [Background,Variance] =  imUtil.background.mode(Image,LogMode);
+        [Background,Variance] =  imUtil.background.modeVar_LogHist(Image);
     else
-        [Background] =  imUtil.background.mode(Image,LogMode);
+        [Background] =  imUtil.background.modeVar_LogHist(Image);
     end
 else
     if isempty(Variance)
-        [~,Variance] =  imUtil.background.mode(Image);
+        [~,Variance] =  imUtil.background.modeVar_LogHist(Image);
     end
 end
 
