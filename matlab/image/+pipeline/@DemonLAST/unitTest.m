@@ -50,9 +50,11 @@ function TestDataProducts
 
     % cd to data products directory
 
-    % Test the X1 and X position in the image catalogs
-    AC=AstroCatalog('LAST.01.05.03_20230722.232833.104_clear_264+61_020_001_010_sci_proc_Cat_1.fits');
-    T=AC.toTable;
+
+
+    %% Test the X1 and X position in the image catalogs
+    AC=AstroCatalog('LAST.*_010_sci_proc_Cat_1.fits');
+    T=AC(1).toTable;
 
     % test 1st moment position
     DiffX = median(T.XPEAK-T.X1, 'all', 'omitnan');
@@ -86,10 +88,20 @@ function TestDataProducts
     semilogx(T.SN_3, T.BACK_ANNULUS./T.BACK_IM,'.')
 
     % looks like a severe bias - the variance is factor of 2 higher than
-    % expected
+
+    % expected - CORRECTED (issue 300)
     hist(T.BACK_IM./T.VAR_IM)
 
     % should be 1 - not too bad
-    median(T.PSF_CHI2DOF)
+    
 
+    %% Read all images of a vist
+    AI=AstroImage.readFileNamesObj('LAST*sci_proc_Image_1.fits');
+
+    LL = AI.getStructKey({'LIMMAG','PH_ZP','PH_COL1','PH_RMS','FWHM'});
+    hist([LL.LIMMAG])
+    plot([LL.PH_ZP],[LL.LIMMAG],'.')
+    hist([LL.FWHM])
+    plot([LL.FWHM],[LL.LIMMAG],'.')
+    
 end
