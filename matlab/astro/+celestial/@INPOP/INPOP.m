@@ -1053,6 +1053,11 @@ classdef INPOP < Base
             % Distances
             DistToTarget = sqrt(sum(PosRelToTarget.^2,1));
 
+            % sometimes slow integration because distance is small...
+            % if min(DistToTarget)<0.001
+            %     'a'
+            % end
+
             % calc force and sum over planets
             Force = squeeze(sum(Args.GM .* PosRelToTarget./(DistToTarget.^3), 2, 'omitnan'));
             
