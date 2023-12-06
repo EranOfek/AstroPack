@@ -197,6 +197,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
         Args.Dec        =  Args.Dec .* Factor;
         Args.FOV_Radius = Args.FOV_Radius .* Factor;
         Args.InCooUnits = 'rad';
+        
     end
     
     Nobj = numel(Obj);
