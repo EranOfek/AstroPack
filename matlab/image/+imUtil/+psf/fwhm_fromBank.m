@@ -117,7 +117,7 @@ switch lower(InPar.Method)
         SigmaVec = [0.1; InPar.SigmaVec(:)];  % add a sharp object (always first) to bank of templates
         
         if isempty(InPar.Background) || isempty(InPar.Variance)
-            [InPar.Background, InPar.Variance] =  imUtil.background.mode(Image, true);
+            [InPar.Background, InPar.Variance] =  imUtil.background.modeVar_LogHist(Image);
         end
         
         Cont = true;

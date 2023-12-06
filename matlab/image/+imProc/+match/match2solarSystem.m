@@ -118,15 +118,19 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
     %            include additional information on the angular distance to
     %            the nearest minor planet.
     % Author : Eran Ofek (Sep 2021)
-    % Example: Cat = ephem(OrbEl, JD, 'AddDesignation',false);
-    %          R = rand(10,8); R(:,2:3) = R(:,2:3) + [82 11];
-    %          Cat1 = AstroCatalog({R});
-    %          Cat2  = merge([Cat;Cat1]);
-    %          Cat2  = deleteCol(Cat2, 'JD');
-    %          Result = imProc.match.match2solarSystem(Cat2, 'JD',JD, 'GeoPos',[]);
-    %          O = celestial.OrbitalEl.loadSolarSystem;
-    %          Result = imProc.match.match2solarSystem(Cat2, 'JD',JD, 'GeoPos',[], 'OrbEl',O);
-    %          [Result, CatOut] = imProc.match.match2solarSystem(Cat2, 'JD',JD, 'GeoPos',[], 'OrbEl',O);
+    % Example: OrbEl= celestial.OrbitalEl.loadSolarSystem('num');
+    %          OrbEl.propagate2commonEpoch;
+    %           IN = celestial.INPOP;
+    %           IN.populateAll;
+    %           JD = OrbEl.Epoch(1) + 500;
+    %           % select some asteroids from JPL:    
+    %           T = celestial.SolarSys.getJPL_ephem('600000;','EPHEM_TYPE','OBSERVER','TimeScale','TT','StartTime',JD,'StopTime',JD+0.1); 
+    %           Cat = [T.RA, T.Dec] + [[0, 0]; rand(1000,2)-0.5];
+    %           AC  = AstroCatalog({Cat}, 'ColNames',{'RA','Dec'}, 'ColUnits',{'deg','deg'});
+    %           AC.JD = JD;
+    %           % search using OrbitalEl object
+    %           AC1 = AC.copy;
+    %           [OnlyMP, AstCat, AC1] = imProc.match.match2solarSystem(AC1, 'JD',JD, 'GeoPos',[], 'OrbEl',OrbEl, 'SearchRadius',1, 'INPOP',IN);
     
     arguments
         Obj                                              % AstroCatalog | AstroImage
@@ -175,7 +179,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
         
     end
     RAD = 180./pi;
-    QuickSearchBuffer = 500./3600./RAD;
+    QuickSearchBuffer = 500;  % arcsec
 
     % read orbital elements from disk
     if isempty(Args.AstCat)
@@ -192,6 +196,8 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
         Args.RA         =  Args.RA .* Factor;
         Args.Dec        =  Args.Dec .* Factor;
         Args.FOV_Radius = Args.FOV_Radius .* Factor;
+        Args.InCooUnits = 'rad';
+
     end
     
     Nobj = numel(Obj);

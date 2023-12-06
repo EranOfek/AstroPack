@@ -20,7 +20,7 @@ function [Back,Var]=background(Image,Args)
 %                   The additional parameters are provided by the
 %                   'BackFunPar' keyword (see next keyword).
 %                   Default is @median [other example:
-%                   @imUtil.background.mode]
+%                   @imUtil.background.modeVar_LogHist]
 %            'BackFunPar' - A cell array of additional parameters to pass
 %                   to the BackFun function.
 %                   Default is {[1 2]} [other example: {true,true,0.1}]

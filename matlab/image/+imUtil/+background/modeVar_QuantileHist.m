@@ -1,5 +1,6 @@
-function [Mode,Variance]=mode(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower) 
+function [Mode,Variance]=modeVar_QuantileHist(Array,Log,IgnoreNaN,Accuracy,MinN,OnlyLower) 
     % Mode and variance of a distribution
+    %   For images use: imUtil.background.modeVar_LogHist
     % Description: Calculate the mode and robust variance of an array.
     %              The mode is calculated by making an histogram and choosing
     %              the bin with the highest number of counts. The robust 

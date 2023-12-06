@@ -21,7 +21,7 @@ function [Out, varargout] = mode(Obj, varargin)
     %          [a,b,c] = imProc.stat.mode(AI)
     %          mode on non saturated pixels
     %          [a,b]=imProc.stat.mode(AI,'BitNames',{'Saturated'},'UseNot',true)
-    
-    [Out, varargout{1:nargout-1}] = funUnaryScalarWithMask(Obj, @imUtil.background.mode, 'OpArgs',{}, varargin{:});
+   
+    [Out, varargout{1:nargout-1}] = funUnaryScalarWithMask(Obj, @imUtil.background.modeVar_LogHist, 'OpArgs',{}, varargin{:});
     
 end

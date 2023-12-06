@@ -47,7 +47,7 @@ end
 
 InPar = inputParser;
 addOptional(InPar,'Funs',{@(x) ones(size(x)), @(x) x});
-addOptional(InPar,'MaxIter',2); % @imUtil.background.mode); 
+addOptional(InPar,'MaxIter',2); 
 addOptional(InPar,'ClipMethod','sigclip');  % 'minmax' | 'sigclip' 
 addOptional(InPar,'StdFun',@imUtil.background.rstd); 
 addOptional(InPar,'MeanFun',@median); 
