@@ -39,6 +39,7 @@ function [Result] = unitTest()
     % * Telluric correction
     % * stitching
     % * line width measurments (on lamp and sky)
+    %       (started) imUtil.spec.lines.xcorrLineWidth
     %
     
     %% imUtil.spec.trace.collapse
