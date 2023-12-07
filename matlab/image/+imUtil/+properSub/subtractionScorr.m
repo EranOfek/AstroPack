@@ -174,9 +174,12 @@ function [Scorr, S, S2, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, Sdelta
         Scorr = Scorr - median(Scorr, [1 2], 'omitnan');
         Scorr = Scorr./tools.math.stat.rstd(Scorr, [1 2]);
         
-        % force mean to be that of a chi2 with dof=1
+        % force median to be that of a chi2 with dof=1
         k = 1;
-        S2 = S2./mean(S2, 'all', 'omitnan')*k;
+        expected_median = k.*(1 - 2./(9.*k)).^3;
+        S2 = S2./median(S2, 'all', 'omitnan')*expected_median;
+        %S2 = S2./mean(S2, 'all', 'omitnan')*k;
+        %S2 = S2./tools.math.stat.rstd(S2, [1 2])*sqrt(2*k);
     end
     
 end
