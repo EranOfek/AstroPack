@@ -188,7 +188,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         
         % cutouts
         Args.HalfSizeXY                   = [50 50];
-        Args.cropLonLatArgs               = {'DataProp',{'ImageData'}, 'DeleteProp',{'BackData','VarData'}, 'UpdateCat',true, 'UpdateWCS',false, 'cropXYargs', {}, 'UpdateHeader',true};
+        Args.cropLonLatArgs               = {'DataProp',{'ImageData'}, 'DeleteProp',{'BackData','VarData'}, 'UpdateCat',true, 'UpdateWCS',true, 'cropXYargs', {}, 'UpdateHeader',true};
     end
     
     Args.PM_Radius   = convert.angular(Args.PM_RadiusUnits, 'deg', Args.PM_Radius); % deg
