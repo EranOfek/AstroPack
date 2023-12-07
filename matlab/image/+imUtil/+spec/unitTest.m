@@ -38,6 +38,7 @@ function [Result] = unitTest()
     %
     %
     % * calibration/extinction
+    %       (Done) AstroSpec/getSpecPhotStandard
     % * Telluric correction
     % * stitching
     % * line width measurments (on lamp and sky)
