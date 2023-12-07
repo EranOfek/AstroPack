@@ -157,8 +157,8 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
         In = min(N_N, Imax);
 
         % keep the new and ref with background:
-        Nwb = ObjNew(In).Image;
-        Rwb = ObjRef(Ir).Image;
+        Nwb = ObjNew(In).Var;
+        Rwb = ObjRef(Ir).Var;
 
         % subtract background
         N = ObjNew(In).Image - ObjNew(In).Back;
@@ -267,7 +267,7 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
 
         if Args.CalcTranslient
             [ImageZ2,~,~] = imUtil.properSub.translient(N, R, Pn, Pr, SigmaN, SigmaR, ...
-                'SetToNan', FlagNaN,'NormalizationMethod', 'analytical');
+                'SetToNan', FlagNaN,'NormalizationMethod', 'empirical');
     
             Z2(Imax).Image = ImageZ2;
             Z2(Imax).MaskData = D(Imax).MaskData;
