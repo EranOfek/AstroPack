@@ -2353,6 +2353,79 @@ classdef AstroSpec < Component
             
         end
         
+        function Result = scaleWave(Obj, Scale, Args)
+            % Scale wavelength axis (multiply by scale).
+            % Input  : - An AstroSpec object.
+            %          - A scalar or vector of scale.
+            %            One scale per AstroSpec element, or scalar for all
+            %            of them.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the object.
+            %                   Default is false.
+            % Output : - An AstroSpec object in which the wavelength axis
+            %            was multiplied by scale.
+            % Author : Eran Ofek (Dec 2023)
+            % Example: AS = AstroSpec({[ones(10,2)]});
+            %          AS.scaleWave(2)
+            
+            arguments
+                Obj
+                Scale
+                Args.CreateNewObj logical   = false;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Ns   = numel(Scale);
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Is = min(Iobj, Ns);
+                Result(Iobj).Wave = Result(Iobj).Wave .* Scale(Is);
+            end
+            
+        end
+        
+        function Result = shiftWave(Obj, Shift, Args)
+            % Shift wavelength axis (add a shift).
+            % Input  : - An AstroSpec object.
+            %          - A scalar or vector of shifts.
+            %            One shift per AstroSpec element, or scalar for all
+            %            of them.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the object.
+            %                   Default is false.
+            % Output : - An AstroSpec object in which the wavelength axis
+            %            were added to shift.
+            % Author : Eran Ofek (Dec 2023)
+            % Example: AS = AstroSpec({[ones(10,2)]});
+            %          AS.shiftWave(2)
+            
+            arguments
+                Obj
+                Shift
+                Args.CreateNewObj logical   = false;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Ns   = numel(Shift);
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Is = min(Iobj, Ns);
+                Result(Iobj).Wave = Result(Iobj).Wave + Shift(Is);
+            end
+            
+        end
         
     end
        
