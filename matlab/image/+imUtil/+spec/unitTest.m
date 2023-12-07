@@ -32,6 +32,7 @@ function [Result] = unitTest()
     %       (OLD) ImUtil.Spec.spec_wavecalib_xcorr
     %       (OLD) ImUtil.Spec.spec_wavecalib_lines
     %       (Done) imUtil.filter.xcorr1_fft_multi
+    %       (Done) imUtil.spec.lines.xcorrLineWidth
     %       (started/debug) imUtil.filter.xcorr1_scale_shift
     %
     %
@@ -39,6 +40,7 @@ function [Result] = unitTest()
     % * Telluric correction
     % * stitching
     % * line width measurments (on lamp and sky)
+    %       (started) imUtil.spec.lines.xcorrLineWidth
     %
     
     %% imUtil.spec.trace.collapse
