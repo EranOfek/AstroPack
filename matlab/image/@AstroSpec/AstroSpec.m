@@ -61,7 +61,7 @@ classdef AstroSpec < Component
     end
     
     properties
-        Data table
+        Data table                % table 
         MaskData MaskImage   = MaskImage;
         Z                    = [];   % spectrum redshift-frame [0 - restframe]
         Vel                  = [];   % override Z
@@ -70,6 +70,8 @@ classdef AstroSpec < Component
         Ebv                  = [];   % Vector - [mag]
         Zext                 = 0;    % Vector - redshift of extinction
         R                    = 3.08; % Vector -
+        Lines                % optional lines list
+        Ref
     end
         
     
@@ -169,6 +171,9 @@ classdef AstroSpec < Component
         function set.Wave(Obj, Input)
             % setter for Wave
             
+            if isempty(Obj.Data)
+                Obj.Data = array2table(Input, 'VariableNames',{Obj.DefColNameWave});
+            end
             Obj.Data.(Obj.DefColNameWave) = Input;
         end
         
@@ -190,12 +195,15 @@ classdef AstroSpec < Component
             if ~any(Flag)
                 error('Wavelength column is not populated');
             end
-            CurUnits  = Obj.Data.Properties.VariableUnits{Flag};
-            WaveData  = Obj.Data.(Obj.DefColNameWave);
-            
-            Obj.Data.(Obj.DefColNameWave) = convert.length(CurUnits, OutUnits, WaveData);
-            Obj.Data.Properties.VariableUnits{Flag} = OutUnits;
-            
+            if isempty(Obj.Data.Properties.VariableUnits)
+                Obj.Data.Properties.VariableUnits{(Flag)} = OutUnits;
+            else
+                CurUnits  = Obj.Data.Properties.VariableUnits{Flag};
+                WaveData  = Obj.Data.(Obj.DefColNameWave);
+
+                Obj.Data.(Obj.DefColNameWave) = convert.length(CurUnits, OutUnits, WaveData);
+                Obj.Data.Properties.VariableUnits{Flag} = OutUnits;
+            end
         end
         
         function Result = get.Flux(Obj)
@@ -212,6 +220,9 @@ classdef AstroSpec < Component
         function set.Flux(Obj, Input)
             % setter for Flux
             
+            if isempty(Obj.Data)
+                Obj.Data = array2table(Input, 'VariableNames',{Obj.DefColNameFlux});
+            end
             Obj.Data.(Obj.DefColNameFlux) = Input;
         end
         
@@ -271,7 +282,7 @@ classdef AstroSpec < Component
             
             Flag = ismember(Obj.Data.Properties.VariableNames, Obj.DefColNameFlux); % index of flux columns
             if ~any(Flag)
-                'hi'
+                
                 error('Flux column is not populated');
             end
             
@@ -282,20 +293,22 @@ classdef AstroSpec < Component
             % setter for FluxUnits
             
             Flag = ismember(Obj.Data.Properties.VariableNames, Obj.DefColNameFlux); % index of wave columns
-            if ~any(Flag)
-                error('Wavelength column is not populated');
+            
+            if ~any(Flag) || isempty(Obj.Data.Properties.VariableUnits{(Flag)})
+                Obj.Data.Properties.VariableUnits{(Flag)} = OutUnits;
+            else
+                CurUnits     = Obj.Data.Properties.VariableUnits{Flag};
+                WaveData     = Obj.Data.(Obj.DefColNameWave);
+                FluxData     = Obj.Data.(Obj.DefColNameFlux);
+                FluxErrData  = Obj.Data.(Obj.DefColNameFlux);
+                BackData     = Obj.Data.(Obj.DefColNameFlux);
+
+                Obj.Data.(Obj.DefColNameFlux)    = convert.flux(FluxData,    CurUnits, OutUnits, WaveData, Obj.WaveUnits);
+                Obj.Data.(Obj.DefColNameFluxErr) = convert.flux(FluxErrData, CurUnits, OutUnits, WaveData, Obj.WaveUnits);
+                Obj.Data.(Obj.DefColNameBack)    = convert.flux(BackData,    CurUnits, OutUnits, WaveData, Obj.WaveUnits);
+
+                Obj.Data.Properties.VariableUnits{Flag} = OutUnits;
             end
-            CurUnits     = Obj.Data.Properties.VariableUnits{Flag};
-            WaveData     = Obj.Data.(Obj.DefColNameWave);
-            FluxData     = Obj.Data.(Obj.DefColNameFlux);
-            FluxErrData  = Obj.Data.(Obj.DefColNameFlux);
-            BackData     = Obj.Data.(Obj.DefColNameFlux);
-            
-            Obj.Data.(Obj.DefColNameFlux)    = convert.flux(FluxData,    CurUnits, OutUnits, WaveData, Obj.WaveUnits);
-            Obj.Data.(Obj.DefColNameFluxErr) = convert.flux(FluxErrData, CurUnits, OutUnits, WaveData, Obj.WaveUnits);
-            Obj.Data.(Obj.DefColNameBack)    = convert.flux(BackData,    CurUnits, OutUnits, WaveData, Obj.WaveUnits);
-            
-            Obj.Data.Properties.VariableUnits{Flag} = OutUnits;
             
         end
         
@@ -1126,6 +1139,153 @@ classdef AstroSpec < Component
             
             
         end
+    
+        function AS=getSkyArcsSpecLines(Name)
+            % Get sky/arcs spectra and lines list DB
+            % Input  : - If empty, then return an AstroSpec object with all
+            %            spectra/lines list in DB.
+            %            If 'show', then return a cell array with spectra
+            %            names.
+            %            If a char array of spectra name (e.g., 'Cd'), then
+            %            return a single element AstroSpec object with the
+            %            requested spectra/lines list.
+            % Output : - An AstroSpec object or list of lines.
+            % Author : Eran Ofek (Dec 2023)
+            % Example: AS=AstroSpec.getSkyArcsSpecLines
+            %          AS=AstroSpec.getSkyArcsSpecLines('show')
+            %          AS=AstroSpec.getSkyArcsSpecLines('SkyLow')
+            
+            arguments
+                Name    = [];
+            end
+            
+            % prep AstroSpec from old format
+            % I=1;AS(I)=AstroSpec;AS(I).Wave=SpecArcs(I).Spec(:,1);AS(I).Flux=SpecArcs(I).Spec(:,2); S(I).WaveUnits='A';ASI=1;AS(I)=AstroSpec;AS(I).Wave=SpecArcs(I).Spec(:,1);AS(I).Flux=SpecArcs(I).Spec(:,2); S(I).WaveUnits='A';AS(I)I=1;AS(I)=AstroSpec;AS(I).Wave=SpecArcs(I).Spec(:,1);AS(I).Flux=SpecArcs(I).Spec(:,2); S(I).WaveUnits='A';AS(I).FluxUnits='';
+
+            AS = io.files.load2('WaveCalib_AstroSpec.mat');
+            
+            if isempty(Name)
+                % return all spectra and lines list
+            else
+                if strcmp(Name, 'show')
+                    AS = {AS.Name};
+                else
+                    % search specific spec/lines list
+                    
+                    Ind = strcmp(Name, {AS.Name});
+                    AS = AS(Ind);
+                    
+                end
+            end
+                
+                
+        end
+    
+        function AS=getSpecPhotStandard(Name, Dec, Args)
+            % Get spectrum of standard star
+            %   This function retrieve spectrum of spectrophotometric
+            %   standard stars as AstroSpec object.
+            %   The function supports one of the following standard stars
+            %   lists:
+            %       SpecPhotStandardStar.mat - 52 standard stars
+            % Input  : - Star name (e.g., 'HIP45880'), or RA [deg|rad]
+            %          - Optional Dec [deg|rad]
+            %          * ...,key,val,...
+            %            'SearchRadius' - Default is 100.
+            %            'SearchRadiusUnits' - Default is 'arcsec'.
+            %            'CooUnits' - Default is 'deg'.
+            %            'List' - List of std stars:
+            %                   'SpecPhotStandardStar.mat' - 52 std stars.
+            % Output : - An AstroSpec object.
+            %            Some info like RA, Dec, Mag is stored in the
+            %            Userdata.
+            %            The .Lines properties containing the grid points of
+            %               wavelengths [Ang] that can be used as ancor points
+            %               in the interpolation of the spectra over
+            %               emission/absorbtion lines.
+            % Author : Eran Ofek (Dec 2023)
+            % Example: AstroSpec.getSpecPhotStandard('HIP45880')
+            %          AstroSpec.getSpecPhotStandard(140.33, 81.724)
+
+            arguments
+                Name    = [];
+                Dec     = [];
+                Args.SearchRadius      = 100;
+                Args.SearchRadiusUnits = 'arcsec';
+                Args.CooUnits          = 'deg';
+                Args.List              = 'SpecPhotStandardStar.mat'
+            end
+
+            % prep AstroSpec from old format
+            %             for I=1:1:numel(SpecPhot_Stand)
+            %                 AS(I) = AstroSpec;
+            %                 AS(I).Name = SpecPhot_Stand(I).Name;
+            %                 AS(I).UserData.SpecType = SpecPhot_Stand(I).SpecType;
+            %                 AS(I).UserData.RA       = SpecPhot_Stand(I).RA;
+            %                 AS(I).UserData.Dec      = SpecPhot_Stand(I).Dec;
+            %                 AS(I).UserData.MagV     = SpecPhot_Stand(I).MagV;
+            %                 AS(I).Lines             = SpecPhot_Stand(I).GridWave;
+            %                 AS(I).Wave              = SpecPhot_Stand(I).Spec(:,1);
+            %                 AS(I).Flux              = SpecPhot_Stand(I).Spec(:,2);
+            %                 AS(I).WaveUnits         = 'A';
+            %                 AS(I).FluxUnits         = 'erg/cm^2/s/A'; 
+            %             end
+
+            AS = io.files.load2(Args.List);
+            Nas = numel(AS);
+            if isempty(Name)
+                % return all spectra
+            else
+                if ischar(Name)
+                    if strcmp(Name, 'show')
+                        % show spectra name
+                        AS = {AS.Name};
+                    else
+                        % search by star name
+                        Ind = [];
+                        for Ias=1:1:Nas
+                            Flag = strcmp(Name, AS(Ias).Name);
+                            if any(Flag)
+                                Ind = Ias;
+                            end
+                        end
+                        if isempty(Ind)
+                            error('Star name not found');
+                        end
+                        AS = AS(Ind);
+
+                    end
+                else
+                    % search by coordinates
+                    RA = Name;
+                    Factor = convert.angular(Args.CooUnits, 'rad');
+                    RA     = Factor.*RA;
+                    Dec    = Factor.*Dec;
+                    SearchRadius = convert.angular(Args.SearchRadiusUnits, 'rad', Args.SearchRadius); % [rad]
+                    
+                    StdRA  = zeros(Nas,1);
+                    StdDec = zeros(Nas,1);
+                    for Ias=1:1:Nas
+                        StdRA(Ias)  = AS(Ias).UserData.RA;  % [rad]
+                        StdDec(Ias) = AS(Ias).UserData.Dec; % [rad]
+                    end
+                    Dist = celestial.coo.sphere_dist_fast(RA, Dec, StdRA, StdDec);
+                    Flag = Dist<SearchRadius;
+                    if any(Flag)
+                        [~,Ias] = min(Dist);
+                        AS = AS(Ias);
+                    else
+                        AS = [];
+                    end
+                        
+                end
+            end
+
+
+                
+            
+        end
+        
     end
     
     methods  % resampling, sort, interpolation

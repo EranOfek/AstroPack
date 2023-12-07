@@ -29,6 +29,7 @@ function [Result] = unitTest()
     %       (started) imUtil.spec.extract.fitPSF1d
     %
     % * Wavelength calibration
+    %       (Done) AstroSpec/getSkyArcsSpecLines
     %       (OLD) ImUtil.Spec.spec_wavecalib_xcorr
     %       (OLD) ImUtil.Spec.spec_wavecalib_lines
     %       (Done) imUtil.filter.xcorr1_fft_multi
