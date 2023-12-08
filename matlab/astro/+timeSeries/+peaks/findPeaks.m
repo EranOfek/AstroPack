@@ -22,6 +22,8 @@ function [Result] = findLines(Data, Args)
         Args.Threshold         = 10;
     end
     
+    error('not working')
+    
     % make sure that the wavelengh is in the first dim
     if Args.DimWave==2
         Data = Data.';
