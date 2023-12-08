@@ -20,10 +20,6 @@ function [Result] = unitTest()
     %       (Done) imUtil.trace.image2cutouts1d
     %       (started) imUtil.spec.trace.trace - Return trace from 2D image
     %
-    % * Arc/sky spectral libraries
-    %       (OLD) ImUtil.Spec.spec_get_arc
-    %       (TBD) imUtil.spec.wavecalib.getWaveCalibSpec
-    %
     % * Measure flux as a fun. of dispersion direction
     %       (Done) imUtil.spec.extract.fitBackground
     %       (started) imUtil.spec.extract.fitPSF1d
