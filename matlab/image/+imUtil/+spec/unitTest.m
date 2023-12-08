@@ -31,6 +31,7 @@ function [Result] = unitTest()
     %       (Done) imUtil.filter.xcorr1_fft_multi
     %       (Done) imUtil.spec.lines.xcorrLineWidth
     %       (started/debug) imUtil.filter.xcorr1_scale_shift
+    %       (Done) timeSeries.peaks.localMax
     %
     %
     % * calibration/extinction
