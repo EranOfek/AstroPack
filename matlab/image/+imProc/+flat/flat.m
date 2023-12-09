@@ -133,6 +133,9 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
         % use all images
         Nufilt = 1;
     else
+        if ~ImObj(1).HeaderData.isKeyExist(Args.FilterKey)
+            error('Header keyword %s - does not exist - If not filters, use FilterKey=[]');
+        end
         St           = getStructKey(ImObj, Args.FilterKey, 'UseDict',true);
         FilterCell   = {St.(Args.FilterKey)};
         UniqueFilter = unique(FilterCell);
@@ -150,7 +153,7 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
             FlagFilter = strcmp(UniqueFilter{Iufilt}, FilterCell);
         end
         
-        [Result(Iufilt), CoaddN, ImageCube] = imProc.stack.coadd(ImObj(FlagFilter), 'CCDSEC',[],...
+        [Result(Iufilt), CoaddN, ImageCube] = imProc.stack.coadd(ImObj(FlagFilter(:) & IsFlat(:)), 'CCDSEC',[],...
                                       'Offset',[],...
                                       'PreNorm',Args.PreNorm,...
                                       'PreNormArgs',Args.PreNormArgs,...
