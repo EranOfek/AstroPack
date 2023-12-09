@@ -1,37 +1,46 @@
 function [Info] = xcorr1_scale_shift(Data, Template, Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
+    % Find best shift and scale between two time series using cross-correlation
+    %       The function first resample the data and template unfirmally.
+    %       Next a new version of the template with possible stretches is
+    %       generated. All the template-stretches are cross correlated with
+    %       the data to find the best shift and stretch.
+    % Input  : - An equally spaced data time series [T, X]
+    %          - An equally spaced template time series [T, X]
     %          * ...,key,val,... 
-    % Output : - 
+    %            'ScaleVec' - Vector of scales to test:
+    %                   Default is logspace(-0.3,0.3,1000)
+    %            'uniformResampleArgs' - A cell array of arguments to pass
+    %                   to uniformResample. Default is {}.
+    %            See code for additional arguments.
+    % Output : - A structure containing the following fields:
+    %            .BestCol - The column index out of all scaled templates
+    %                   with the highest correlation.
+    %            .Shift - Best shift index.
+    %            .Corr - Best correlation.
+    %            .Best2dr - 2nd derivative of correlation at max point.
+    %            .BestScale - Best scale used (corresponding to BestCol)
+    %            .ScaledTemplate - The template time series scaled and
+    %                   interpolated to the Data time series.
     % Author : Eran Ofek (2023 Dec) 
-    % Example: S=AstroSpec.specGalQSO('Gal_E');
-    %          Template = [S.Wave, S.Flux];
-    %          % no shift/no scale
+    % Example: Scale    = 1.1;
+    %          Shift    = 10;
+    %          Template = AS(1).Flux;
     %          Data     = Template;
-    %          Info=imUtil.filter.xcorr1_scale_shift(Data,Template)
-    %          Data     = Template; Data(:,1) = Data(:,1) + 10;
-    %          Info=imUtil.filter.xcorr1_scale_shift(Data,Template)
+    %          Data     = [(1:Scale:numel(Data).*Scale).', Data];
+    %          Template = [(1:1:numel(Template)+Shift).', [zeros(Shift,1); Template]];
+    %          Info     = imUtil.filter.xcorr1_scale_shift(Data,Template);
 
-    
-%          Data = interp1(Template(:,1),Template(:,2),(3300:0.7:5400).');
-%          Data = [(1:1:length(Data)).'.*0.75+10, Data];
-%          Info=imUtil.filter.xcorr1_scale_shift(Data,Template)
-%          X1=(1:1.3:100).'; Y1=zeros(size(X1)); Y1(10)=1; Y1(20)=1;
-%          X2=(1:0.9:100).'; Y2=zeros(size(X2)); Y2(12)=1; Y2(30)=1;
-%          Data = [X1,Y1]; Template = [X2, Y2];
-%          Info=xcorr_scale_shift(Data,Template)
 
     arguments
         Data
         Template
         
+        Args.ScaleVec          = logspace(-0.3,0.3,1000);
+        
         Args.uniformResampleArgs cell   = {};
         
         Args.MaxRange          = 1e-8;
         Args.InterpMethod      = 'linear';
-        Args.ScaleVec          = logspace(-1,1,1000);
         Args.Back              = 'median';
         Args.subtract_back1dArgs cell = {};
 
@@ -68,8 +77,12 @@ function [Info] = xcorr1_scale_shift(Data, Template, Args)
     Info.ScaleData     = mean(diff(Data(:,Args.ColX)));
     Info.ScaleTemplate = mean(diff(Template(:,Args.ColX)));
 
-    Info.DataTemp = (DataI + Info.BestShift).*Info.BestScale.*Info.ScaleTemplate+min(Template(:,Args.ColX));
+    %Info.DataTemp = (DataI + Info.BestShift).*Info.BestScale.*Info.ScaleTemplate+min(Template(:,Args.ColX));
 
+    XX = (Template(:,1)./Info.BestScale) - Info.BestShift;
+    
+    YY = interp1(XX, Template(:,2), Data(:,1));
+    Info.ScaledTemplate = [Data(:,1), YY];
 
     % plot(Info.DataTemp,Data(:,2));
     % hold on;

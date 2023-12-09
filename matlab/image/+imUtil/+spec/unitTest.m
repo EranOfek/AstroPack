@@ -30,7 +30,7 @@ function [Result] = unitTest()
     %       (OLD) ImUtil.Spec.spec_wavecalib_lines
     %       (Done) imUtil.filter.xcorr1_fft_multi
     %       (Done) imUtil.spec.lines.xcorrLineWidth
-    %       (started/debug) imUtil.filter.xcorr1_scale_shift
+    %       (Done) imUtil.filter.xcorr1_scale_shift
     %       (Done) timeSeries.peaks.localMax
     %       (Done) timeSeries.filter.filterStd
     %
@@ -104,6 +104,7 @@ function [Result] = unitTest()
         error('imUtil.spec.extract.fitBackground - Not estimated back correctly');
     end
 
+    %%
     
 
     Result = true;
