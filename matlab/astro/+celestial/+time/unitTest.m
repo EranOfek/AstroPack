@@ -1,13 +1,8 @@
-% celestial.time package Unit-Test
-%
-% ### Requirements:
-%
-%
-%
-
-
 function Result = unitTest()
-    % Package Unit-Test   
+    % unitTest for celestial.time
+    % Example: celestial.time
+    
+    
 	%io.msgStyle(LogLevel.Test, '@start', 'test started');
     
     jd = celestial.time.julday;

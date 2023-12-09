@@ -16,7 +16,7 @@ function [Result]=observatoryCoo(Args)
     %                   search. Default is [].
     % Output : - A structure array of found observatories.
     % Author : Eran Ofek (Apr 2023)
-    % Example: [Result]=celestial.earth.observatoryCoo('FullName','Wise')
+    % Example: [Result]=celestial.earth.observatoryCoo('Name','Wise')
 
     arguments
         Args.Name     = [];
