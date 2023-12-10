@@ -5,7 +5,7 @@ function [SN, Peaks] = peakDetectionFilter1(Array, Dim, Args)
     %   units of sigma).
     %   The filtering is done simolutanosly to all columns/rows.
     % Input  : - A vector or a 2-D array.
-    %          - Dimension in which to search for local maxim.
+    %          - Dimension in which to search for local maxima.
     %            Default is 1.
     %          * ...,key,val,...
     %            'Threshold' - Detection threshold in units of noise.

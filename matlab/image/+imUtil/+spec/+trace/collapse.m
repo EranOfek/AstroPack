@@ -36,7 +36,7 @@ function [Result,PeakDet]=collapse(Image, Args)
     %                   collapsed data. Default is 5 (sigmas).
     % Output : - Vector of collapse data.
     %          - A structure with the following fields:
-    %            .PeaksPos - Position (whole pixel) of found peaks.
+    %            .PeakPos - Position (whole pixel) of found peaks.
     %            .PeakSN - S/N of found peaks.
     %
     % AUthor : Eran Ofek (May 2023)
@@ -81,7 +81,7 @@ function [Result,PeakDet]=collapse(Image, Args)
     end
            
     % post filter
-    Std = tools.math.stat.rstd(Result);
+    Std = tools.math.stat.rstd(Result(:));
     
     if ~isempty(Args.PostFilter)
         FiltSize = ceil(Args.PostFilter.*4);
@@ -102,8 +102,8 @@ function [Result,PeakDet]=collapse(Image, Args)
         Flag = logical((SN > Args.Threshold).*islocalmax(Result));
         %[find(Flag), SN(Flag)]
         
-        PeakDet.PeaksPos = find(Flag);
-        PrekDet.PeakSN   = SN(Flag);
+        PeakDet.PeakPos  = find(Flag);
+        PeakDet.PeakSN   = SN(Flag);
     end
         
     
