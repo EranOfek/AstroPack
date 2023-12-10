@@ -20,23 +20,23 @@ function [Result] = unitTest()
     %       (Done) imUtil.trace.image2cutouts1d
     %       (started) imUtil.spec.trace.trace - Return trace from 2D image
     %
-    % * Arc/sky spectral libraries
-    %       (OLD) ImUtil.Spec.spec_get_arc
-    %       (TBD) imUtil.spec.wavecalib.getWaveCalibSpec
-    %
     % * Measure flux as a fun. of dispersion direction
     %       (Done) imUtil.spec.extract.fitBackground
     %       (started) imUtil.spec.extract.fitPSF1d
     %
     % * Wavelength calibration
+    %       (Done) AstroSpec/getSkyArcsSpecLines
     %       (OLD) ImUtil.Spec.spec_wavecalib_xcorr
     %       (OLD) ImUtil.Spec.spec_wavecalib_lines
     %       (Done) imUtil.filter.xcorr1_fft_multi
     %       (Done) imUtil.spec.lines.xcorrLineWidth
-    %       (started/debug) imUtil.filter.xcorr1_scale_shift
+    %       (Done) imUtil.filter.xcorr1_scale_shift
+    %       (Done) timeSeries.peaks.localMax
+    %       (Done) timeSeries.filter.filterStd
     %
     %
     % * calibration/extinction
+    %       (Done) AstroSpec/getSpecPhotStandard
     % * Telluric correction
     % * stitching
     % * line width measurments (on lamp and sky)
@@ -104,6 +104,7 @@ function [Result] = unitTest()
         error('imUtil.spec.extract.fitBackground - Not estimated back correctly');
     end
 
+    %%
     
 
     Result = true;

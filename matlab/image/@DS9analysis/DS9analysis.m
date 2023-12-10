@@ -390,6 +390,86 @@ classdef DS9analysis < handle
 
         end
 
+        function [Result, OrbEl] = plotKnownAst(Obj, Args)
+            % Search for known minor bodies in image coordinates and plot their positions.
+            % Input  : - A DS9analayis object.
+            %          * ...,key,val,...
+            %            'MagLimit' - Search asteroid mag. limit.
+            %                   Default is Inf.
+            
+            %            'PlotDesig' - Add designation label near each
+            %                   marked asteroid.
+            %                   Default is true.
+            %            'AddNumber' - Add Asteroid number to label.
+            %                   Default is true.
+            %            'AddMag' - Add asteroid mag to label.
+            %                   Default is true.
+            %            'OrbEl' - A celestial.OrbitalEl object containing
+            %                   the asteroids orbital elements.
+            %                   If empty, then will load the 'merge' file.
+            %                   Default is [].
+            %            'INPOP' - A populated celestial.INPOP object.
+            %                   If empty, then will create one.
+            %                   Default is [].
+            % Output : - An AstroCatalog containing the asteroids found
+            %            within the search radius + buffer.
+            %          - A populated celestial.OrbitalEl object.
+            % Author : Eran Ofek (Dec 2023)
+            % Example: D9 = DS9analayis;
+            %          [KA,OrbEl] = D9.plotKnownAst
+            %          [KA] = D9.plotKnownAst('OrbEl',OrbEl);
+
+
+            arguments
+                Obj
+                Args.MagLimit  = Inf;
+                Args.PlotDesig logical = true;
+                Args.AddNumber logical = true;
+                Args.AddMag logical    = true;
+                Args.OrbEl     = [];
+                Args.INPOP     = [];
+                
+            end
+
+            if isempty(Args.INPOP)
+                Args.INPOP = celestial.INPOP;
+                Args.INPOP.populateAll;
+            end
+
+            if isempty(Args.OrbEl)
+                OrbEl = celestial.OrbitalEl.loadSolarSystem('merge');
+            else
+                OrbEl = Args.OrbEl;
+            end
+
+            FrameInd = ds9.frame;
+            
+            CooCenter = imProc.astrometry.getCooCenter(Obj.Images(FrameInd), 'OutCooUnits','deg');
+            JD        = Obj.Images(FrameInd).julday;
+
+            [Result] = searchMinorPlanetsNearPosition(OrbEl, JD, CooCenter(1), CooCenter(2), CooCenter(3), 'INPOP',Args.INPOP, 'CooUnits','deg', 'SearchRadiusUnits','deg', 'MagLimit',Args.MagLimit);
+
+            DesigCell = Result.Catalog.Desig;
+            Nast      = numel(DesigCell);
+
+            if Args.AddNumber
+                AstNumber = OrbEl.desig2number(Result.Catalog.Desig);
+                for Iast=1:1:Nast
+                    DesigCell{Iast} = sprintf('%s / %d', DesigCell{Iast}, AstNumber(Iast));
+                end
+            end
+            if Args.AddMag
+                for Iast=1:1:Nast
+                    DesigCell{Iast} = sprintf('%s / %4.1f', DesigCell{Iast}, Result.Catalog.Mag(Iast));
+                end
+            end
+           
+
+            ds9.plotc(Result.Catalog.RA, Result.Catalog.Dec, 'Text',DesigCell)
+
+        end
+
+
     end
     
     methods  % basic utilities

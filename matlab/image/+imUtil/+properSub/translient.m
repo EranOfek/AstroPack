@@ -118,18 +118,18 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     end
 
     % degrees of freedom
-    k = 2;
     switch Args.NormalizationMethod
         case 'analytical'
             % Zs^2 from Translient paper eq. 23
             Z2 = Z2./Norm; 
         case 'empirical'
             % force median to be that of a chi2 with dof=2
-            median_expected = k.*(1 - 2./(9.*k)).^3;
-            Z2 = Z2 - median(Z2, 'all', 'omitnan') + median_expected;
+            k = 2;
+            expected_median = k.*(1 - 2./(9.*k)).^3;
+            Z2 = Z2./median(Z2, 'all', 'omitnan')*expected_median;
+            %Z2 = Z2./mean(Z2, 'all', 'omitnan')*k;
+            %Z2 = Z2./tools.math.stat.rstd(Z2, [1 2])*sqrt(2*k);
         case 'None'
     end
-
-    Z2 = Z2./tools.math.stat.rstd(Z2, 'all').*sqrt(2.*k);
 
 end

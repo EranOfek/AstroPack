@@ -372,7 +372,7 @@ classdef ds9 < handle
     methods (Static)
         
         % set/get frame
-        function Answer=frame(FrameNumber)
+        function Answer=frame(FrameNumber, GetNum)
             % Set ds9 frame
             % Package: @ds9
             % Input  : - If not given than only get the current frame
@@ -382,9 +382,18 @@ classdef ds9 < handle
             %            Additional possibilities include:
             %            'hide'|'move first'|'move last'|'move back'|
             %            'move forward'|'match wcs'|'lock wcs'|...
+            %          - A logical indicating if to convert to number.
+            %            Default is true.
             % Output : - Current frame number.
             % Reliable: 2
-            if (nargin==0)
+
+            arguments
+                FrameNumber = [];
+                GetNum logical   = true;
+            end
+
+
+            if isempty(FrameNumber)
                 % get frame number
                 Answer = ds9.system('xpaget ds9 frame frameno');
             else
@@ -402,6 +411,11 @@ classdef ds9 < handle
                     Answer = ds9.system('xpaget ds9 frame frameno');
                 end
             end
+    
+            if GetNum
+                Answer = sscanf(Answer,'%d');
+            end
+
             pause(0.2);
         end
         

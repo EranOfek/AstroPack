@@ -347,6 +347,8 @@ classdef OrbitalEl < Base
             %                   one. Default is -Inf.
             %            'MaxEccen' - Select bodies with Eccen below this
             %                   one. Default is Inf.
+            %            'MaxH' - Select bodies with abs. mah (H) below
+            %                   this one. Default is Inf.
             % Output : - A merged OrbitalEl objt with a single element.
             %            This is always a new copy.
             % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem;
@@ -356,6 +358,7 @@ classdef OrbitalEl < Base
                 Obj
                 Args.MinEpoch = -Inf;
                 Args.MaxEccen = Inf;
+                Args.MaxH     = Inf;
             end
             
             ConCatProp  = {'Number','Designation','Node','W','Incl','Eccen','PeriDist','A','Epoch','Tp','Mepoch','Ref','MagPar'};
@@ -393,7 +396,7 @@ classdef OrbitalEl < Base
             end
             
             % clean file
-            Flag = Result.Epoch>Args.MinEpoch & Result.Eccen<Args.MaxEccen;
+            Flag = Result.Epoch>Args.MinEpoch & Result.Eccen<Args.MaxEccen & Result.MagPar(:,1)<Args.MaxH;
             if ~all(Flag)
                 Result = selectFlag(Result, Flag, false);
             end
@@ -1938,7 +1941,37 @@ classdef OrbitalEl < Base
     end
     
     methods % conversion
-        
+        function Number = desig2number(Obj, Desig)
+            % Convert asteroid designation to number
+            % Input  : - A single element celestial.OrbitalEl object.
+            %          - Asteroid designation, or a cell array of asteroids
+            %            designation.
+            % Output : - Asteroid number.
+            %            If 0, then the designation was not found.
+            %            If NaN, then the designation was found but the
+            %            number is NaN.
+            % Author : Eran Ofek (Dec 2023)
+            % Example: OrbEl.desig2number('1998 ST50')
+            %          OrbEl.desig2number({'1998 ST50','Ceres'})
+
+            if ischar(Desig)
+                Desig = {Desig};
+            end
+
+            Ndesig = numel(Desig);
+            Number = zeros(Ndesig,1);
+            for Idesig=1:1:Ndesig
+                
+                Ind = find(strcmp(Obj.Designation, Desig{Idesig}));
+                if isempty(Ind)
+                    Number(Idesig) = 0;
+                else
+                    Number(Idesig) = Obj.Number(Ind);
+                end
+            end
+    
+        end
+
         function TI=thiele_innes(Obj)
             % Convert orbital elements to Thiele-Innes elements
             % Description: Convert orbital elements to Thiele-Innes
@@ -2010,7 +2043,11 @@ classdef OrbitalEl < Base
         function Result = loadSolarSystem(Type, Desig)
             % Load the JPL Solar System orbital elements from local disk
             %   To install the orbital elements use the Installer class.
-            % Input  : - Type: [] - read all | 'num' | 'unnum' | 'comet'
+            % Input  : - Type: [] - read all | 'num' | 'unnum' | 'comet' |
+            %            'merge'.
+            %            'merge' is stored in
+            %            ~/matlab/data/SolarSystem/MinorPlanetsCT and
+            %            contains a merged catalog with a common epoch.
             %            Default is [].
             %          - Minor planets designation (string) or number.
             %            If empty, return all. Default is [].
@@ -2122,6 +2159,11 @@ classdef OrbitalEl < Base
                             %Result(Itype).Tp          = T.Tp(Flag);
                             Result(Itype).Ref         = T.Ref(Flag);
                         end
+                    case 'merge'
+                        % load the merged common epoch orbital elements
+                        % file
+                        Result = io.files.load2('MergedEpoch_2460200.mat');
+
                     otherwise
                         error('Unknown Type option');
                 end

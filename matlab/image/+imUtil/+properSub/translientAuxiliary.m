@@ -67,7 +67,7 @@ function [Z2Prefactors,Norm] = translientAuxiliary(Pn, Pr, SigmaN, SigmaR, Args)
     Zden = abs(Prhat).^2 .* SigmaN.^2 + abs(Pnhat).^2 .*SigmaR.^2 + Args.Eps;
     Znom = 4*pi * conj(Pnhat).*conj(Prhat);
 
-    % Kxy is a vector so now Z2Prefactors is two matrices, i.e., 
+    % Kxy is a vector so now Z2Prefactors is two matrices, i.e.,
     % it is a higher dimension matrix with an x and an y component
     Z2Prefactors = Znom./Zden.*Kxy;
 
