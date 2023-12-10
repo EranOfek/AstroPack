@@ -1603,8 +1603,8 @@ classdef DemonLAST < Component
                 Args.PauseNight        = 10;
 
                 % Save data products
-                Args.SaveEpochProduct  = {[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat','PSF'};,
-                Args.SaveVisitProduct  = {'Image','Mask','Cat','PSF'};
+                Args.SaveEpochProduct  = {[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat','PSF'};,  % 'all'
+                Args.SaveVisitProduct  = {'Image','Mask','Cat','PSF'};      % 'all'
                 Args.SaveMergedCat     = true;
                 Args.SaveMergedMat     = true;
                 Args.SaveAsteroids     = true;
@@ -1633,6 +1633,18 @@ classdef DemonLAST < Component
             BasePath   = Obj.BasePath;
             FailedPath = Obj.FailedPath;
 
+
+            if ischar(Args.SaveEpochProduct)
+                if strcmp(Args.SaveEpochProduct,'all')
+                    Args.SaveEpochProduct  = {'Image','Mask','Cat','PSF'};
+                end
+            end
+            if ischar(Args.SaveVisitProduct)
+                if strcmp(Args.SaveVisitProduct,'all')
+                    Args.SaveVisitProduct  = {'Image','Mask','Cat','PSF'};
+                end
+            end
+            
 
             PWD = pwd;
             cd(NewPath);
