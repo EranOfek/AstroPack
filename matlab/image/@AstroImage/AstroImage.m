@@ -2930,6 +2930,9 @@ classdef AstroImage < Component
             %            or 'center' [Xcenter, Ycenter, Xhalfsize, Yhalfsize].
             %            If multiple lines then each line corresponding to
             %            an AstroImage element.
+            %            The Xmax and Ymax can be replaced with Inf. In
+            %            this case , the max number of pix along this
+            %            dimension will be used.
             %            If empty, then do not crop.
             %          * ...,key,val,...
             %            'Type' - ['ccdsec'] | 'center'
@@ -2990,6 +2993,16 @@ classdef AstroImage < Component
                 Nsec  = size(CCDSEC,1);
                 for Iobj=1:1:Nobj
                     Isec = min(Iobj, Nsec);
+                    % replace Inf with actual size
+                    if isinf(CCDSEC(Isec,2))
+                        [SizeX, SizeY] = sizeImage(Result(Iobj));
+                        CCDSEC(Isec,2) = SizeX;
+                    end
+                    if isinf(CCDSEC(Isec,4))
+                        [SizeX, SizeY] = sizeImage(Result(Iobj).(Args.DataProp{1}));
+                        CCDSEC(Isec,4) = SizeY;
+                    end
+                    
                     for Iprop=1:1:Nprop
                         Result(Iobj).(Args.DataProp{Iprop}) = crop(Result(Iobj).(Args.DataProp{Iprop}), CCDSEC(Isec,:),...
                                                         'Type',Args.Type,...

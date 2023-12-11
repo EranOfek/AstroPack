@@ -15,6 +15,7 @@ function [Result] = unitTest()
     %       
     % * Find trace
     %       (Done) imUtil.spec.trace.moment1d
+    %       (Done) imUtil.spec.trace.fitTrace
     %
     % * Extract trace into a linearized trace
     %       (Done) imUtil.trace.image2cutouts1d

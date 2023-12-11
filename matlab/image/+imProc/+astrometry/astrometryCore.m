@@ -118,6 +118,14 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %                   RA column name. Default is AstroCatalog.DefNamesRA.
     %            'RefColNamesDec' - A cell array dictionary of reference astrometric catalog
     %                   Dec column name. Default is AstroCatalog.DefNamesDec.
+    %
+    %            'UpdateHeaderCoo' - A logical indicating if to update the
+    %                   RA/Dec keywords in the header with the image center
+    %                   coordinates. Header keywords are specified in
+    %                   'KeyRA','KeyDec'.
+    %                   Default is true.
+    %            'KeyRA' - RA header keyword to update. Default is 'RA'.
+    %            'KeyDec' - Dec header keyword to update. Default is 'DEC'.
     % Output : - A structure array of results.
     %            Element per input catalog.
     %            Available fields are:
@@ -221,6 +229,9 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.RefColNamesRA                = AstroCatalog.DefNamesRA;
         Args.RefColNamesDec               = AstroCatalog.DefNamesDec;
         
+        Args.UpdateHeaderCoo logical      = true;
+        Args.KeyRA                        = 'RA';
+        Args.KeyDec                       = 'DEC';
     end
     RAD         = 180./pi;
     ARCSEC_DEG  = 3600;
@@ -561,6 +572,15 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                     % add RA/Dec corners to header
                     Obj(Iobj).HeaderData = addCornersCoo2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
                         
+                    if Args.UpdateHeaderCoo
+                        % update RA/Dec keywords in header
+                        imProc.astrometry.getCooCenter(Obj(Iobj), 'OutCooUnits','deg',...
+                                                                  'UseWCS',true,...
+                                                                  'UpdateHeader',true,...
+                                                                  'KeyRA',Args.KeyRA,...
+                                                                  'KeyDec',Args.KeyDec);
+                    end
+
                 else
                     % assume Obj is AstroCatalog
                     Obj(Iobj) = Cat;
