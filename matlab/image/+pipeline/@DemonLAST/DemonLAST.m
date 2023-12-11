@@ -940,6 +940,79 @@ classdef DemonLAST < Component
             Path = fullfile(filesep, HostName, Args.DefRefPath);
         end
         
+        function SpecialArgs=specialInstruction(Obj, JD, InArgs, Args)
+            % Check for pipeline special instructions
+            %   If the 'zSpecialInst.txt' file exist in the new/ dir, then
+            %   will be read. This file contains lines of:
+            %   D M Y HH MM SS Key Val, where Key is a main pipeline
+            %   argument name, and Val is its value.
+            %   E.g., 1 1 2023 10 0 0   SaveEpochProduct all
+            %   allways a last line of Inf JD is added.
+            %   The code checks if there are any special instructions for
+            %   the time range containing the JD input argument.
+            % Input  : - A pipeline.DemonLAST object
+            %          - Date [D M Y H M S] or JD in which to check if
+            %            there are any special instructions.
+            %          - A structure array of input argumnets passed to the
+            %            pipeline.
+            %          * ...,key,val,...
+            %            See code for options
+            % Output : - Updated structure array of input arguments.
+            % Author : Eran Ofek (Dec 2023)
+            % Example: SA=D.specialInstruction([2 1 2023], Args)
+
+            arguments
+                Obj
+                JD
+                InArgs
+                Args.InstructionFileName = 'zSpecialInst.txt';  % [D M Y HH MM SS  | SaveEpochProduct all
+                Args.InstTable           = [];
+            end
+
+            if numel(JD)>1
+                JD = celestial.time.julday(JD);
+            end
+
+            if isempty(Args.InstTable)
+                InstFile = fullfile(Obj.NewPath, Args.InstructionFileName);
+                if isfile(InstFile)
+                    T        = readtable(InstFile);
+                else
+                    T        = [];
+                end
+            else
+                T        = Args.InstTable;
+            end
+
+            SpecialArgs = InArgs;
+            if isempty(T)
+                % do nothing
+            else
+                TableJD  = celestial.time.julday([T.Var1 T.Var2 T.Var3 T.Var4 T.Var5 T.Var6]);
+                TableJD  = [TableJD; Inf];
+                Flag     = JD>TableJD(1:end-1) & JD<TableJD(2:end);
+    
+                if any(Flag)
+                    if sum(Flag)>1
+                        error('InstFile=%s contains conflicting dates',InstFile);
+                    end
+                    Ncol = size(T,2);
+                    
+                    I = 0;
+                    for Icol=7:2:Ncol
+                        I = I + 1;
+                        Tmp1 = table2array(T(Flag,Icol));
+                        Tmp2 = table2array(T(Flag,Icol+1));
+                        I = I + 1;
+                        SpecialArgs.(Tmp1{1}) = Tmp2{1};
+                    end
+                else
+                    % do nothing
+                end
+            end
+
+        end
+
     end
     
     methods % ref image utilities
@@ -1635,13 +1708,23 @@ classdef DemonLAST < Component
 
 
             if ischar(Args.SaveEpochProduct)
-                if strcmp(Args.SaveEpochProduct,'all')
-                    Args.SaveEpochProduct  = {'Image','Mask','Cat','PSF'};
+                switch Args.SaveEpochProduct
+                    case 'all'
+                        Args.SaveEpochProduct  = {'Image','Mask','Cat','PSF'};
+                    case 'cat'
+                        Args.SaveEpochProduct  = {[],[],'Cat',[]};
+                    otherwise
+                        error('Unknown SaveEpochProduct option');
                 end
             end
             if ischar(Args.SaveVisitProduct)
-                if strcmp(Args.SaveVisitProduct,'all')
-                    Args.SaveVisitProduct  = {'Image','Mask','Cat','PSF'};
+                switch Args.SaveVisitProduct
+                    case 'all'
+                        Args.SaveVisitProduct  = {'Image','Mask','Cat','PSF'};
+                    case 'cat'
+                        Args.SaveVisitProduct  = {[],[],'Cat',[]};
+                    otherwise
+                        error('Unknown SaveEpochProduct option');
                 end
             end
             
@@ -1769,6 +1852,10 @@ classdef DemonLAST < Component
     
                         FN_Sci_Groups(Igroup).BasePath = BasePath;
                         
+                        % check for special instructions
+                        JDepochs = FN_Sci_Groups(Igroup).julday;
+                        UpArgs = Obj.specialInstruction(JDepochs(1), Args);
+
                         % call visit pipeline                        
                         Msg{1} = sprintf('pipline.DemonLAST executing pipeline for group %d - First image: %s',Igroup, RawImageList{1});
                         Obj.writeLog(Msg, LogLevel.Info);
@@ -1800,35 +1887,35 @@ classdef DemonLAST < Component
 
                             % the following call also update the AllSI.ImageData.FileName
 
-                            [FN_Proc,~,Status] = imProc.io.writeProduct(AllSI, FN_I, 'Product',Args.SaveEpochProduct, 'WriteHeader',[true false true false],...
+                            [FN_Proc,~,Status] = imProc.io.writeProduct(AllSI, FN_I, 'Product',UpArgs.SaveEpochProduct, 'WriteHeader',[true false true false],...
                                                    'Level','proc',...
                                                    'LevelPath','proc',...
                                                    'FindSubDir',true);
                             Obj.writeLog(Status, LogLevel.Info);
         
                             % the following call also update the Coadd.ImageData.FileName
-                            [FN_Coadd,~,Status]=imProc.io.writeProduct(Coadd, FN_I, 'Product',Args.SaveVisitProduct, 'WriteHeader',[true false true false],...
+                            [FN_Coadd,~,Status]=imProc.io.writeProduct(Coadd, FN_I, 'Product',UpArgs.SaveVisitProduct, 'WriteHeader',[true false true false],...
                                                    'Level','coadd',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
                             Obj.writeLog(Status, LogLevel.Info);
 
                             [~,~,Status]=imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
-                                                   'Save',Args.SaveMergedCat,...
+                                                   'Save',UpArgs.SaveMergedCat,...
                                                    'Level','merged',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
                             Obj.writeLog(Status, LogLevel.Info);
 
                             [~,~,Status]=imProc.io.writeProduct(MatchedS, FN_I, 'Product',{'MergedMat'}, 'WriteHeader',[false],...
-                                                   'Save',Args.SaveMergedMat,...
+                                                   'Save',UpArgs.SaveMergedMat,...
                                                    'Level','merged',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
                             Obj.writeLog(Status, LogLevel.Info);
 
                             [~,~,Status]=imProc.io.writeProduct(ResultAsteroids, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
-                                                   'Save',Args.SaveAsteroids,...
+                                                   'Save',UpArgs.SaveAsteroids,...
                                                    'Level','merged',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);

@@ -160,7 +160,7 @@ classdef DS9analysis < handle
             if isa(Image, 'AstroImage')
                 AI = Image;
             else
-                if LikeLAST
+                if Args.LikeLAST
                     AI = AstroImage.readFileNamesObj(Image);
                 else
                     if ischar(Image) || iscell(Image)
@@ -396,7 +396,6 @@ classdef DS9analysis < handle
             %          * ...,key,val,...
             %            'MagLimit' - Search asteroid mag. limit.
             %                   Default is Inf.
-            
             %            'PlotDesig' - Add designation label near each
             %                   marked asteroid.
             %                   Default is true.
