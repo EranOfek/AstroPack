@@ -260,9 +260,11 @@ function [TS, significance] = process_TS_map(TS_map, x_vec, y_vec, dist, dof)
 
     % construct query indices relative to the search square center position
     % account for zero padded matrix by adding dist
-    x_rel = -dist:dist+dist;
-    y_rel = -dist:dist+dist;
-    
+    x_rel = 0:dist*2;
+    y_rel = 0:dist*2;
+
+    disp(x_rel);
+    disp(y_rel);
     % construct and fill TS vector
     TS = zeros(num_trans,1);
     for n=1:num_trans
@@ -278,4 +280,5 @@ function [TS, significance] = process_TS_map(TS_map, x_vec, y_vec, dist, dof)
     % convert TS values to gaussian significance
     p_val = chi2cdf(TS,dof,'upper');
     significance = -norminv(p_val);
+    significance(isinf(significance)) = nan;
 end
