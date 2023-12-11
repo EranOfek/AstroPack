@@ -1,5 +1,8 @@
 function [Mode, Var] = modeVar_LogHist(Array, Args)
     % Estimate the mode and variance of an array (over all dims).
+    %   This function is designed for astronomical images in units of
+    %   electrons (i.e., their Poisson properties are still in place) and
+    %   that do not have negative values.
     %   The mode is estimated by two iteration histograms.
     %   In the first iteration an approximate mode (of the log array) is
     %   estimated, while in the second iteartion its value is refined.
@@ -95,6 +98,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     Nhist = matlab.internal.math.histcounts(LogArray, Edges);
     Nhist = Nhist(1:end-1);
     BinCenter = BinCenter(1:end-1);
+    % Debug: bar(BinCenter, Nhist)
 
     [~,Imax] = max(Nhist);
     Mode1 = BinCenter(Imax);
@@ -114,7 +118,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     Nhist = log(Nhist);
     [MaxNhist,Imax] = max(Nhist);
     Mode0 = BinCenter(Imax);
-
+    % Debug: bar(BinCenter, Nhist)
     
 
     %Ind   = Nhist(:)>1 & BinCenter(:)<Mode0.*1.3;

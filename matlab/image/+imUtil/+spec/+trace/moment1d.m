@@ -14,6 +14,9 @@ function Result=moment1d(Array, Pos, Args)
     %            If scalar, then assume all columns have the same initial
     %            position.
     %          * ...,key,val,...
+    %            'Dim' - Dimension over to calculate the moments.
+    %                   For spectra, this will be the spatial dimension.
+    %                   Default is 1.
     %            'WinHalfSize' - Half size of window in which to calculate
     %                   the moments.
     %                   Default is 7.
@@ -45,7 +48,7 @@ function Result=moment1d(Array, Pos, Args)
     arguments
         Array
         Pos
-        Args.Dim = 1;
+        Args.Dim           = 1;
         Args.WinHalfSize   = 7;
         Args.MaxIter       = 10;
         Args.WeightSigma   = 3;
