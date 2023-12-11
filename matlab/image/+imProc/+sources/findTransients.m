@@ -263,8 +263,6 @@ function [TS, significance] = process_TS_map(TS_map, x_vec, y_vec, dist, dof)
     x_rel = 0:dist*2;
     y_rel = 0:dist*2;
 
-    disp(x_rel);
-    disp(y_rel);
     % construct and fill TS vector
     TS = zeros(num_trans,1);
     for n=1:num_trans
