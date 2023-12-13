@@ -24,6 +24,8 @@ function [Result] = unitTest()
     %
     % * Measure flux as a fun. of dispersion direction
     %       (Done) imUtil.spec.extract.fitBackground
+    %       (TBD) imUtil.spec.extract.backStd
+    %       (started) imUtil.spec.extract.measurePSF
     %       (started) imUtil.spec.extract.fitPSF1d
     %
     % * Wavelength calibration

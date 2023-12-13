@@ -1,7 +1,13 @@
-function [Result] = fitPSF1d(Image, Args)
-    % Given a 2D spectrum, fit a line-PSF to each wavelength
-    % 
-    % Input  : - 
+function [Result] = fitPSF1d(Image, SpatPos, Args)
+    % Given a linear spectrum in a 2D image, fit the flux of a line-PSF to each wavelength.
+    %   This function assumes that the spectrum in a 2D image is in a
+    %   vertical or horizontal form, and it fits only the flux level.
+    %   Assuming the spectrum is background subtracted.
+    % Input  : - A 2D matrix containing a spectrum, where the spectrum is
+    %            either horizontal or vertical.
+    %          - Spatial position of the spectrum. If empty, then will
+    %            assume it is in (Nspat-1).*0.5, where Nspat is the number
+    %            of spatial pixels.
     %          * ...,key,val,... 
     % Output : - 
     % Author : Eran Ofek (Dec 2023) 
@@ -9,6 +15,7 @@ function [Result] = fitPSF1d(Image, Args)
 
     arguments
         Image
+        SpatPos                = [];
         Args.DimWave           = 2;
         Args.PSF               = @(Sigma, Mu, X) normpdf(X, Mu, Sigma);         % line PSF
         Args.InterpMethod      = 'cubic';
@@ -19,19 +26,22 @@ function [Result] = fitPSF1d(Image, Args)
         Args.FixedPos          = [];  % assume trace position is exactly known
     end
 
-    % Convert to wave dir is in 1st dim.
-    if Args.DimWave==2
+    % Convert to wave dir is in 2nd dim.
+    if Args.DimWave==1
         Image = Image.';
     end
-    
+        
     % number of pixels in each axis
-    [Ndisp, Nspat] = size(Image);
+    [Nspat, Nwave] = size(Image);
     
+    if isempty(SpatPos)
+        SpatPos = (Nspat - 1).*0.5;
+    end
     
     % prepare the PSF for the fit
     if isa(Args.PSF, 'function_handle')
         % evaluate PSF
-        Args.PSF
+        PSF = Args.PSF
         
     end
     
