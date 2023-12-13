@@ -13,7 +13,8 @@ function Result = background(Obj, Args)
     %                   [other example: @median]
     %            'BackFunPar' - A cell array of additional parameters to pass
     %                   to the BackFun function.
-    %                   Default is {[1 2]} [other example: {true,true,0.1}]
+    %                   Default is {'MinVal',1} (i.e., additional arguments
+    %                   to pass to @imUtil.background.modeVar_LogHist).
     %            'VarFun' - A function handle for the background estimation.
     %                   The function is of the form:
     %                   [Var]=Fun(Matrix,additional parameters,...).
@@ -77,7 +78,7 @@ function Result = background(Obj, Args)
         %Args.BackFunPar cell             = {true}; %{[1 2]};
         
         Args.BackFun                     = @imUtil.background.modeVar_LogHist; %@median;
-        Args.BackFunPar cell             = {}; %{[1 2]};
+        Args.BackFunPar cell             = {'MinVal',1}; %{[1 2]};
 
         Args.VarFun                      = []; %@imUtil.background.rvar; % [];
         Args.VarFunPar cell              = {};

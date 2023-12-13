@@ -588,6 +588,30 @@ classdef DemonLAST < Component
             end
             
         end        
+    
+        function NewVal = PrepSaveProductArg(Val)
+            % Convert SaveEpochProduct/SaveVisitProduct char to cell array
+            %   Given the value of the aveEpochProduct/SaveVisitProduc if
+            %   it is char ('all'|'cat') then convert it to cell array of
+            %   data products to save.
+            % Input  : - Argument value.
+            % Output : - Updated argument value.
+            % Author : Eran Ofek (Dec 2023)
+
+            if ischar(Val)
+                switch Val
+                    case 'all'
+                        NewVal  = {'Image','Mask','Cat','PSF'};
+                    case 'cat'
+                        NewVal  = {[],[],'Cat',[]};
+                    otherwise
+                        error('Unknown Val option');
+                end
+            else
+                NewVal = Val;
+            end
+        end
+    
     end
 
     
@@ -941,7 +965,7 @@ classdef DemonLAST < Component
         end
         
         function SpecialArgs=specialInstruction(Obj, JD, InArgs, Args)
-            % Check for pipeline special instructions
+            % Check for pipeline special instructions and modify arguments using new instructions
             %   If the 'zSpecialInst.txt' file exist in the new/ dir, then
             %   will be read. This file contains lines of:
             %   D M Y HH MM SS Key Val, where Key is a main pipeline
@@ -1013,6 +1037,7 @@ classdef DemonLAST < Component
 
         end
 
+        
     end
     
     methods % ref image utilities
@@ -1706,28 +1731,9 @@ classdef DemonLAST < Component
             BasePath   = Obj.BasePath;
             FailedPath = Obj.FailedPath;
 
-
-            if ischar(Args.SaveEpochProduct)
-                switch Args.SaveEpochProduct
-                    case 'all'
-                        Args.SaveEpochProduct  = {'Image','Mask','Cat','PSF'};
-                    case 'cat'
-                        Args.SaveEpochProduct  = {[],[],'Cat',[]};
-                    otherwise
-                        error('Unknown SaveEpochProduct option');
-                end
-            end
-            if ischar(Args.SaveVisitProduct)
-                switch Args.SaveVisitProduct
-                    case 'all'
-                        Args.SaveVisitProduct  = {'Image','Mask','Cat','PSF'};
-                    case 'cat'
-                        Args.SaveVisitProduct  = {[],[],'Cat',[]};
-                    otherwise
-                        error('Unknown SaveEpochProduct option');
-                end
-            end
-            
+            % convert 'all'|'cat' to cell array of data products
+            Args.SaveEpochProduct = pipeline.DemonLAST.PrepSaveProductArg(Args.SaveEpochProduct);
+            Args.SaveVisitProduct = pipeline.DemonLAST.PrepSaveProductArg(Args.SaveVisitProduct);
 
             PWD = pwd;
             cd(NewPath);
@@ -1855,6 +1861,10 @@ classdef DemonLAST < Component
                         % check for special instructions
                         JDepochs = FN_Sci_Groups(Igroup).julday;
                         UpArgs = Obj.specialInstruction(JDepochs(1), Args);
+                        % convert 'all'|'cat' to cell array of data products
+                        UpArgs.SaveEpochProduct = pipeline.DemonLAST.PrepSaveProductArg(UpArgs.SaveEpochProduct);
+                        UpArgs.SaveVisitProduct = pipeline.DemonLAST.PrepSaveProductArg(UpArgs.SaveVisitProduct);
+
 
                         % call visit pipeline                        
                         Msg{1} = sprintf('pipline.DemonLAST executing pipeline for group %d - First image: %s',Igroup, RawImageList{1});

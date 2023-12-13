@@ -4,7 +4,7 @@ function [Nut,NutMatrix]=nutation(JD,MatType)
 % Description: Calculate the Nutation in longitude and latitude, and the
 %              nutation rotation matrix.
 %              This is a low accuracy version based on the IAU 1984 nutation
-    %              series. See also: nutation1984.m
+%              series. See also: nutation1984.m
 % Input  : - Column vector of julian day.
 %          - Type of nutation matrix:
 %            'f' : full precision, (default).
