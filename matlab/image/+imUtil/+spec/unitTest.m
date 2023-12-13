@@ -18,7 +18,8 @@ function [Result] = unitTest()
     %       (Done) imUtil.spec.trace.fitTrace
     %
     % * Extract trace into a linearized trace
-    %       (Done) imUtil.trace.image2cutouts1d
+    %       (Done) imUtil.spec.trace.image2cutouts1d
+    %       (Done) imUtil.spec.trace.linearizeTrace
     %       (started) imUtil.spec.trace.trace - Return trace from 2D image
     %
     % * Measure flux as a fun. of dispersion direction
