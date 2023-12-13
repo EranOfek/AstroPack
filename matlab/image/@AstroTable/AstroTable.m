@@ -66,6 +66,7 @@ classdef AstroTable < Component
     
     properties (SetAccess = public)
         Catalog                                                = [];
+        Table                                                  = [];
         ColNames cell                                          = {};
         ColUnits cell                                          = {};
         ColDesc cell                                           = {};
@@ -240,6 +241,25 @@ classdef AstroTable < Component
 
  
     methods % Setter/Getters
+        function Result=get.Table(Obj)
+            % getter for dependent property Table
+            % create a table from the catalog
+            if istable(Obj.Catalog)
+                Result = Obj.Catalog;
+            else
+                Result = array2table(Obj.Catalog);
+                Result.Properties.VariableNames = Obj.ColNames;
+                Result.Properties.VariableUnits = Obj.ColUnits;
+            end
+        end
+
+        function Result=set.Table(Obj,Data)
+            % setter for dependent property Table
+
+            % currently do nothing
+            
+        end
+
         function set.Catalog(Obj, Data)
             % setter for catalog - set also column names and units if table
             % and available
