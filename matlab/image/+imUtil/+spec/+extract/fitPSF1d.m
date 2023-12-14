@@ -17,8 +17,13 @@ function [Result] = fitPSF1d(Image, SpatPos, Args)
         Image
         SpatPos                = [];
         Args.DimWave           = 2;
-        Args.PSF               = @(Sigma, Mu, X) normpdf(X, Mu, Sigma);         % line PSF
+        Args.PSF               = []; %[Spat, Wave] %@(Sigma, Mu, X) normpdf(X, Mu, Sigma);         % line PSF
+        Args.FitRad            = 3;
+        
+        Args.WaveAxisPSF       = [];
         Args.InterpMethod      = 'cubic';
+        
+        
         
         Args.ParPSF            = [2, 3, 4];
         Args.FunPSF            = @(Sigma, Mu, X) normpdf(X, Mu, Sigma);
@@ -30,7 +35,7 @@ function [Result] = fitPSF1d(Image, SpatPos, Args)
     if Args.DimWave==1
         Image = Image.';
     end
-        
+            
     % number of pixels in each axis
     [Nspat, Nwave] = size(Image);
     
@@ -38,14 +43,31 @@ function [Result] = fitPSF1d(Image, SpatPos, Args)
         SpatPos = (Nspat - 1).*0.5;
     end
     
-    % prepare the PSF for the fit
-    if isa(Args.PSF, 'function_handle')
-        % evaluate PSF
-        PSF = Args.PSF
-        
+    if isempty(Args.WaveAxisPSF)
+        % assume a single PSF for all wavelength
+        PSF = Args.PSF;
+    else
+        % multiple PSF - interpolate to all wavelengths
+        NspatPSF = size(Args.PSF,1);
+        VecSpat  = (1:1:NspatPSF);
+        VecWave  = (1:1:Nwave).';
+        PSF      = interp2(Args.WaveAxisPSF, VecSpat, Args.PSF, VecWave, VecSpat);
     end
     
-    Yxx=tools.interp.interp1_sinc(Args.PSF
+    SpatCoo = SpatPos - (1:1:Nspat).';
+    Flag    = abs(SpatCoo)<=Args.FitRad;
     
+    switch lower(Args.FitMethod)
+        case 'mean'
+            mean(Image(Flag,:)./PSF(Flag,:));
+        case 'lsq'
+            
+        case 'wlsq'
+            
+        otherwise
+            error('Unknown FitMethod option');
+    end
+        
+            
     
 end

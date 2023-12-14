@@ -1,4 +1,4 @@
-function [Result, BackStd] = measurePSF(Image, SpatPos, Args)
+function [PSF, WaveCenter, SpatPos, SN_PSF, BackStd, Result] = measurePSF(Image, SpatPos, Args)
     % Measure line-PSF in spectral image
     %       The PSF can measured over the entire image, or in sections
     %       along the wavelength dimension.
@@ -34,7 +34,23 @@ function [Result, BackStd] = measurePSF(Image, SpatPos, Args)
     %            'WinSN' - Half size window around the spatial position inw
     %                   which to calculate the S/N of the PSF. This S/N
     %                   will be reported in the SN_PSF field of the output.
-    % Output : - A structure array of PSF, one element per edge range.
+    %            'AddEdgesPSF' - If true and if WaveEdges is not empty,
+    %                   then will add to output PSF, WaveCenter,
+    %                   and SN_PSF, columns containing values for the fisrt
+    %                   and last wavelength pixels.
+    %                   This is needed in order to simpligy the
+    %                   interpolation of the PSF to any wavelength.
+    %                   Default is true.
+    % Output : - A matrix of lines PSF, with PSF per matrix column.
+    %            each column corresponds to the wavelength in the
+    %            WaveCenter (second output arg).
+    %          - WavelengthCenter for each PSF column.
+    %          - Spatial position of PSF in image. This is also the center
+    %            of the PSF in the line PSF.
+    %          - S/N for each PSF column.
+    %          - Vector of background std estimated for each wavelength in
+    %            thre original image grid.
+    %          - A structure array of PSF, one element per edge range.
     %            Available fields are:
     %            .WaveEdges - [Min Max] pix along the wavelength direction
     %                   in which the PSF was estimated.
@@ -42,7 +58,12 @@ function [Result, BackStd] = measurePSF(Image, SpatPos, Args)
     %            .SN_PSF - S/N of the PSF.
     %            .BackStdMean - maen of the background std in this range.
     % Author : Eran Ofek (2023 Dec) 
-    % Example: [R,Bstd] = imUtil.spec.extract.measurePSF(BackSubIm,'DimWave',1);
+    % Example: [R,W,SpatPos,SN,Bstd,Res] = imUtil.spec.extract.measurePSF(BackSubIm,'DimWave',1, 'WaveEdges',(1:100:2800));
+    %          % to interpolate this PSF to any wavelength position (1500):
+    %          % only for non empty WaveEdges:
+    %          interp2([Res.WaveCenter],[1:1:numel(Res(1).PSF)],[Res.PSF],1500,[1:1:numel(Res(1).PSF)])
+    %          interp2(W,(1:1:size(R,1)),R, 1500, (1:1:size(R,1)))
+    %          interp2(W,(1:1:size(R,1)),R, [300; 2500], (1:1:size(R,1)))
 
     arguments
         Image
@@ -54,8 +75,10 @@ function [Result, BackStd] = measurePSF(Image, SpatPos, Args)
         Args.Annulus           = [15 20];
         Args.RobustStd logical = false;
         
-        Args.WaveEdges         = (1:100:2800); %[1 700 1400 2100 2800];
+        Args.WaveEdges         = []; %(1:100:2800); %[1 700 1400 2100 2800];
         Args.WinSN             = 3;
+        
+        Args.AddEdgesPSF logical = true;
         
     end
 
@@ -93,23 +116,39 @@ function [Result, BackStd] = measurePSF(Image, SpatPos, Args)
     
     if isempty(Args.WaveEdges)
         PSF = sum(WeiPSF, 1);
-        Result.WaveEdges = [1 Nwave];
-        Result.PSF = PSF./sum(PSF);
+        Result.WaveEdges  = [1 Nwave];
+        Result.WaveCenter = Nwave.*0.5; 
+        Result.PSF = PSF(:)./sum(PSF);
         Result.SN_PSF   = sqrt(sum(SN2map(:, SpatCoo), 'all'));
         Result.BackStdMean = mean(BackStd);
     else
         Nedges = numel(Args.WaveEdges);
+        Result = struct('WaveEdges',cell(Nedges-1,1), 'WaveCenter',cell(Nedges-1,1), 'PSF',cell(Nedges-1,1),...
+                        'SN_PSF',cell(Nedges-1,1), 'BackStdMean',cell(Nedges-1,1));
         for Iedges=1:1:(Nedges-1)
             Pos = (Args.WaveEdges(Iedges):Args.WaveEdges(Iedges+1)).';
             PSF = sum(WeiPSF(Pos, :), 1);
-            Result(Iedges).WaveEdges = [Args.WaveEdges(Iedges), Args.WaveEdges(Iedges+1)];
-            Result(Iedges).PSF       = PSF./sum(PSF);
-            Result(Iedges).SN_PSF    = sqrt(sum(SN2map(Pos, SpatCoo), 'all'));
+            Result(Iedges).WaveEdges   = [Args.WaveEdges(Iedges), Args.WaveEdges(Iedges+1)];
+            Result(Iedges).WaveCenter  = 0.5.*(Args.WaveEdges(Iedges) + Args.WaveEdges(Iedges+1));
+            Result(Iedges).PSF         = PSF(:)./sum(PSF);
+            Result(Iedges).SN_PSF      = sqrt(sum(SN2map(Pos, SpatCoo), 'all'));
             Result(Iedges).BackStdMean = mean(BackStd(Pos));
             
             %plot(Result(Iedges).PSF)
             %hold on
         end
     end
-     
+    
+    PSF        = [Result.PSF];   % [spat, wave]
+    WaveCenter = [Result.WaveCenter];
+    SN_PSF     = [Result.SN_PSF];
+    
+    if Args.AddEdgesPSF && ~isempty(Args.WaveEdges)
+        % Add the PSF to the end and start corresponding to the 1st and
+        % last wavelength pixel
+        PSF = [PSF(:,1), PSF, PSF(:,end)];
+        WaveCenter = [1, WaveCenter, Nwave];
+        SN_PSF     = [SN_PSF(1), SN_PSF, SN_PSF(end)];
+    end
+    
 end
