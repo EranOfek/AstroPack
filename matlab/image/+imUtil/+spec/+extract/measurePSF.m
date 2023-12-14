@@ -30,6 +30,7 @@ function [Result] = measurePSF(Image, Args)
         
         Args.BackStd           = [];
         Args.BackAnnulus       = [10 15];
+        Args.RobustStd logical = false;
         
         Args.WaveEdges         = [];
         Args.MinSN             = 50;
@@ -46,15 +47,11 @@ function [Result] = measurePSF(Image, Args)
         SpatPos = (Nspat - 1).*0.5;
     end
     
+    
     %====== move this to: imUtil.spec.extract.backStd function
     Xspat = (1:1:Nspat) - SpatPos;
     if isempty(Args.BackStd)
-        % estimated background std from image back region std
-        FlagBack = abs(Xspat)>min(Args.BackAnnulus) & abs(Xspat)<max(Args.BackAnnulus);
-        
-        BackRegion   = Image(:,FlagBack);
-        Args.BackStd = std(BackRegion, [], 2);
-        
+        BackStd = imUtil.spec.extract.backStd(Image, SpatPos, 'DimWave',1, 'BackAnnulus',Args.BackAnnulus, 'RobustStd',Args.RobustStd);
                 
     end
     
