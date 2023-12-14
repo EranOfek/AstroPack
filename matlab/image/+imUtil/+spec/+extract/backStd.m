@@ -20,8 +20,8 @@ function [BackStd] = backStd(Image, SpatPos, Args)
     %          * ...,key,val,...
     %            'DimWave' - Dimension of the wavelength axis.
     %                   Default is 2.
-    %            'BackAnnulus' - Region in which to calculate the StD
-    %                   Default is [10 15].
+    %            'Annulus' - Region in which to calculate the StD
+    %                   Default is [15 20].
     %            'RobustStd' - Use robust std. Default is false.
     % Output : - A vector of background std per pixel in the wavelength
     %            axis.
@@ -35,15 +35,16 @@ function [BackStd] = backStd(Image, SpatPos, Args)
         SpatPos                = [];  % if NaN - BackAnnulus is a a range in X coo
         
         Args.DimWave           = 2;
-        Args.BackAnnulus       = [10 15];
+        Args.Annulus           = [15 20];
         Args.RobustStd logical = false;
         
     end
 
     % convert wavelength to Y axis.
-    if Args.DimWave==2
-        Image = Image';
+    if Args.DimWave==2    WeiPSF = PeakFlux.*Image.'./(BackStd.^2);
+        Image = Image.';
     end
+    % Output dim is: [Wave, Spat]
     
     [~, Nspat] = size(Image);
     
@@ -53,11 +54,11 @@ function [BackStd] = backStd(Image, SpatPos, Args)
     
     if isnan(SpatPos)
         Xspat = (1:1:Nspat);
-        FlagBack = Xspat>min(Args.BackAnnulus) & Xspat<max(Args.BackAnnulus);
+        FlagBack = Xspat>min(Args.Annulus) & Xspat<max(Args.Annulus);
     else
         % estimated background std from image back region std
         Xspat = (1:1:Nspat) - SpatPos;
-        FlagBack = abs(Xspat)>min(Args.BackAnnulus) & abs(Xspat)<max(Args.BackAnnulus);
+        FlagBack = abs(Xspat)>min(Args.Annulus) & abs(Xspat)<max(Args.Annulus);
     end
     
     BackRegion   = Image(:,FlagBack);

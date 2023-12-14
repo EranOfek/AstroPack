@@ -53,17 +53,17 @@ function [Back, Image] = fitBackground(Image, Args)
     % Example: Image = 100+randn(50,1000);
     %          [Back] = imUtil.spec.extract.fitBackground(Image)
     %          [Back] = imUtil.spec.extract.fitBackground(Image, 'Method','global')
-    %          [Back] = imUtil.spec.extract.fitBackground(Image, 'Method','slope')
+    %          [Back] = imUtil.spec.extract.fitBackground(Image, 'Method','poly')
     %          %Test with NaN
     %          Image(11,10) = NaN; Image(12,12) = NaN;
-    %          [Back] = imUtil.spec.extract.fitBackground(Image, 'Method','slope')
+    %          [Back] = imUtil.spec.extract.fitBackground(Image, 'Method','poly')
 
     arguments
         Image
         Args.DimWave                 = 2;
         Args.Flag                    = [];     % an optional flag image (ignote flagged pixels)
         Args.TracePos                = [];   % or scalar
-        Args.Annulus                 = [10 15];
+        Args.Annulus                 = [15 20];
         Args.Method                  = 'wave';     % 'poly'|'wave'|'global';  
         Args.Fun                     = @median;
         Args.FunArgs                 = {'omitnan'};  % F(X, Dim, other pars)
@@ -75,6 +75,9 @@ function [Back, Image] = fitBackground(Image, Args)
     % Convert image such that the wave-dir is in the 2nd dim (x-axis)
     if Args.DimWave==1
         Image = Image.';
+        TransposeBack = true;
+    else
+        TransposeBack = false;
     end
         
     % number of pixels in each direction
@@ -147,8 +150,9 @@ function [Back, Image] = fitBackground(Image, Args)
     end
      
     % return to original shape
-    if Args.DimWave==1
+    if TransposeBack
         Image = Image.';
+        Back  = Back.';
     end
     
 end
