@@ -1289,7 +1289,7 @@ classdef AstroCatalog < AstroTable
             Result = AstroCatalog({zeros(numel(NewTime), Ncol)}, 'ColNames',Obj.ColNames, 'ColUnits',Obj.ColUnits);
             
             % convert to radians
-            ConvFactor = convert.angular(Units, 'rad');
+            ConvFactor = convert.angular(Units{1}, 'rad');
             RA         = RA.*ConvFactor;
             Dec        = Dec.*ConvFactor;
             [NewRA, NewDec] = celestial.coo.interp_coo(JD, RA, Dec, NewTime, Args.InterpCoo);
@@ -1302,7 +1302,13 @@ classdef AstroCatalog < AstroTable
             Result.replaceCol(NewDec,  ColDec);
             
             % interpolate all the other columns
-            Result.Catalog(:,NonCooCol) = interp1(JD, Obj.Catalog(:,NonCooCol), NewTime, Args.InterpOther);
+            if istable(Obj.Catalog)
+                ArrayNonCooCol = table2array(Obj.Catalog(:,NonCooCol));
+            else
+                ArrayNonCooCol = Obj.Catalog(:,NonCooCol);
+            end
+
+            Result.Catalog(:,NonCooCol) = interp1(JD, ArrayNonCooCol, NewTime, Args.InterpOther);
             
         end
         

@@ -102,10 +102,10 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         Args.SumMethod             = 'sigclip';
         Args.mean_sigclipArgs cell = {};
         Args.PostNormBySum logical = true;
-        Args.PostNorm              = 1;
+        Args.PostNorm logical      = true;
         
         Args.MedianCubeSumRange    = [0.9 1.1];
-        Args.CubeSumRange          = [0.8 1.2];
+        Args.CubeSumRange          = [0.5 2];
         Args.SmoothWings logical   = true;
         Args.psf_zeroConvergeArgs  = {};
         
