@@ -62,7 +62,7 @@ function [Res,LimitAM]=coo_visibility(JD,RA,Dec,varargin)
 %          - A vector of AM limits per target as calculated by requireing
 %            the MinVisibilityTime for the target
 %      By: Eran Ofek                      Oct 2020
-% Example: [TileList,TileArea]=celestial.coo.tile_the_sky(56,42);
+% Example: [TileList,TileArea]=celestial.grid.tile_the_sky(56,42);
 % [Res,LimitAM]=celestial.scheduling.coo_visibility(2451556,TileList(:,1),TileList(:,2))
 % [Res]=celestial.scheduling.coo_visibility(2451556,TileList(:,1),TileList(:,2),'MaxAM',LimitAM)
 

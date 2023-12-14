@@ -3238,7 +3238,7 @@ classdef AstSpec < HEAD
                     Conv = convert.units('ang','micron',1);
                     warning('Assume wavelength for AstSpec %d is in ang',Is);
                 end
-                Ext = astro.spec.extinction(abs(Ebv(Is)),AS(Is).Wave.*Conv,[],R);
+                Ext = astro.extinction.extinction(abs(Ebv(Is)),AS(Is).Wave.*Conv,[],R);
                 if (~isempty(AS(Is).Int))
                     % apply extinction to .Int
                     AS(Is).Int = AS(Is).Int.*10.^(-sign(Ebv(Is)).*0.4.*Ext);

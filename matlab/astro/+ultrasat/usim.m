@@ -587,7 +587,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Factor   = 10.^(-0.4.*(MagSc' - InMag(Range))); % rescaling factor
         SpecIn   = SpecIn ./ Factor;  
         % account for the extinction:
-        ExtMag   = astro.spec.extinction(InEbv(Range)',(Wave./1e4)');
+        ExtMag   = astro.extinction.extinction(InEbv(Range)',(Wave./1e4)');
         Extinction = 10.^(-0.4.*ExtMag);
         SpecObs  = SpecIn .* Extinction';               % observed (extincted) spectrum
         % if requested produce the ULTRASAT magnitude for the source

@@ -55,7 +55,7 @@ function simImage = simulateKeplerField(Args)
     
     % deredden the V magnidues (the simulator deals with dereddened values!)
     Filt = AstFilter.get('Johnson','V');
-    deltaMag = astro.spec.extinction(Ebv,Filt.pivot_wl/1e4);
+    deltaMag = astro.extinction.extinction(Ebv,Filt.pivot_wl/1e4);
     Mag = Mag0 - deltaMag;    
     % figure(1);hold off; histogram(Mag); hold on; histogram(Mag0)
     

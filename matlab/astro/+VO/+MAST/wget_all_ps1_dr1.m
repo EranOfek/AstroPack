@@ -18,7 +18,7 @@ if (nargin<3)
 end
 
 if (CreateTile)
-    [TileList,TileArea]=celestial.coo.tile_the_sky(360.*5,180./StepSize);
+    [TileList,TileArea]=celestial.grid.tile_the_sky(360.*5,180./StepSize);
     % all tiles in TileList start at RA=0 (no RA=0 crossing...)
     TileList = TileList.*RAD;  % convert to deg
     % remove tiles below dec of -32

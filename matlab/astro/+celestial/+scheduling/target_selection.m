@@ -53,7 +53,7 @@ if isempty(InPar.TargetList)
    
     InPar.DecRange = [-30 90]./RAD;
     
-    [TileList,TileArea]=celestial.coo.tile_the_sky(56,42);
+    [TileList,TileArea]=celestial.grid.tile_the_sky(56,42);
     Flag = TileList(:,2)>=InPar.DecRange(1) & TileList(:,2)<=InPar.DecRange(2);
     TileList = TileList(Flag,:);
     Ntarget  = size(TileList,1);

@@ -123,10 +123,10 @@ end
 if any(Ebv>0)
    % apply extinction
    if iscell(Spec)
-       A = astro.spec.extinction(shiftdim(Ebv,-1),Spec{1}(:)./10000,[],R);
+       A = astro.extinction.extinction(shiftdim(Ebv,-1),Spec{1}(:)./10000,[],R);
        Spec{2} = Spec{2}.*10.^(-0.4.*A);
    else
-       A = AstroUtil.spec.extinction(Ebv,Spec(:,1)./10000,[],R);
+       A = astro.extinction.extinction(Ebv,Spec(:,1)./10000,[],R);
        Spec(:,2) = Spec(:,2).*10.^(-0.4.*A);
    end
 end
