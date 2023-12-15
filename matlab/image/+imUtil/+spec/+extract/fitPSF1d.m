@@ -46,8 +46,8 @@ function [Result] = fitPSF1d(Image, SpatPos, Args)
     %                   Default is [3 3].
     %            'StdFun' - Function handle for estimating the std for the
     %                   sigma clipping.
-    %                   E.g., @mad, @std, @tools.math.stat.rstd
-    %                   Default is @mad.
+    %                   E.g., @(x) 1.253.*mad(x), @std, @tools.math.stat.rstd
+    %                   Default is @(x) 1.253.*mad(x)
     %            'MinNptFit' - Minimum number of spatial points (in each
     %                   wavelength) that are needed in order to fit the data.
     %                   If this number of points is not available, then the
@@ -90,7 +90,7 @@ function [Result] = fitPSF1d(Image, SpatPos, Args)
         Args.FlagImage         = [];
         Args.Niter             = 2;
         Args.SigmaClip         = [3 3];
-        Args.StdFun            = @mad;  % @std, @tools.math.stat.rstd
+        Args.StdFun            = @(x) 1.253.*mad(x);  % @std, @tools.math.stat.rstd
         Args.MinNptFit         = 3;
         Args.BackStd           = [];
         
