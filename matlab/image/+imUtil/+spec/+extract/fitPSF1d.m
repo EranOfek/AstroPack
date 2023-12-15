@@ -6,7 +6,7 @@ function [Result] = fitPSF1d(Image, SpatPos, Args)
     % Input  : - A 2D matrix containing a spectrum, where the spectrum is
     %            either horizontal or vertical.
     %          - Spatial position of the spectrum. If empty, then will
-    %            assume it is in (Nspat-1).*0.5, where Nspat is the number
+    %            assume it is in (Nspat+1).*0.5, where Nspat is the number
     %            of spatial pixels.
     %          * ...,key,val,... 
     %            'DimWave' - Dimension of the wavelength axis.
@@ -56,10 +56,14 @@ function [Result] = fitPSF1d(Image, SpatPos, Args)
     %                   TerminatedIter field in the output.
     %                   Default is 3.
     %            'BackStd' - A vector of background std. If given, this will be used
-    %                   in the calculation of the weights in the ]chi^2
+    %                   in the calculation of the weights in the \chi^2
     %                   fitting. The length of this vector should be as the
     %                   wavelength dimension of the input matrix.
-    %                   Default is [].
+    %                   If 'fit' - then will call
+    %                   imUtil.spec.extract.backStd.
+    %                   Default is 'fit'.
+    %            'BackStdArgs' - A cell array of additional arguments to
+    %                   pass to: imUtil.spec.extract.backStd.
     %            'InterpPSF' - A method by which to interpolate the PSF
     %                   lines for all wavelengths.
     %                   Default is 'linear'.
@@ -92,7 +96,8 @@ function [Result] = fitPSF1d(Image, SpatPos, Args)
         Args.SigmaClip         = [3 3];
         Args.StdFun            = @(x) 1.253.*mad(x);  % @std, @tools.math.stat.rstd
         Args.MinNptFit         = 3;
-        Args.BackStd           = [];
+        Args.BackStd           = 'fit';
+        Args.BackStdArgs cell  = {};
         
         Args.InterpPSF         = 'linear';
         
@@ -102,6 +107,7 @@ function [Result] = fitPSF1d(Image, SpatPos, Args)
     if Args.DimWave==1
         Image          = Image.';
         Args.FlagImage = Args.FlagImage.';
+        Args.DimWave   = 2;
     end
           
     if isempty(Args.FlagImage)
@@ -114,6 +120,10 @@ function [Result] = fitPSF1d(Image, SpatPos, Args)
     
     if isempty(SpatPos)
         SpatPos = (Nspat + 1).*0.5;
+    end
+    
+    if ischar(Args.BackStd)
+        Args.BackStd = imUtil.spec.extract.backStd(Image, SpatPos, Args.BackStdArgs{:}, 'DimWave',Args.DimWave);
     end
     
     if isempty(Args.WaveAxisPSF)

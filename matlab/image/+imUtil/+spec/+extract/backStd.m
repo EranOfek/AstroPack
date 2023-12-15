@@ -1,4 +1,4 @@
-function [BackStd] = backStd(Image, SpatPos, Args)
+function [BackStd, BackMean] = backStd(Image, SpatPos, Args)
     % Calculate the std of the background in a 2D spectral image.
     %       Assuming a 2D image (usually containing a linearized spectrum)
     %       calculate the background std as a function of the wavelength
@@ -20,15 +20,22 @@ function [BackStd] = backStd(Image, SpatPos, Args)
     %          * ...,key,val,...
     %            'DimWave' - Dimension of the wavelength axis.
     %                   Default is 2.
-    %            'Annulus' - Region in which to calculate the StD
-    %                   Default is [15 20].
+    %            'Annulus' - An optional logical image, with the same
+    %                   size as the input image. Pixels with false, will be
+    %                   not used in the fitting process.
+    %                   If empty, use a matrix of true for all pixels.
+    %                   Default is [].
     %            'RobustStd' - Use robust std. Default is false.
+    %            'MeanFun' - Function for calculting the background mean.
+    %                   Default is @median.
     % Output : - A vector of background std per pixel in the wavelength
+    %            axis.
+    %          - A vector of background mean per pixel in the wavelength
     %            axis.
     % Author : Eran Ofek (2023 Dec) 
     % Example: BackStd = imUtil.spec.extract.backStd(randn(100,30))
     %          BackStd = imUtil.spec.extract.backStd(randn(100,30),NaN)
-    %          BackStd = imUtil.spec.extract.backStd(randn(100,30),[],'RobustStd',true)
+    %          [BackStd,M] = imUtil.spec.extract.backStd(randn(100,30),[],'RobustStd',true)
 
     arguments
         Image
@@ -38,10 +45,12 @@ function [BackStd] = backStd(Image, SpatPos, Args)
         Args.Annulus           = [15 20];
         Args.RobustStd logical = false;
         
+        Args.MeanFun           = @median;
     end
 
     % convert wavelength to Y axis.
-    if Args.DimWave==2    WeiPSF = PeakFlux.*Image.'./(BackStd.^2);
+    if Args.DimWave==2  
+        %WeiPSF = PeakFlux.*Image.'./(BackStd.^2);
         Image = Image.';
     end
     % Output dim is: [Wave, Spat]
@@ -66,6 +75,10 @@ function [BackStd] = backStd(Image, SpatPos, Args)
         BackStd = tools.math.stat.rstd(BackRegion, 2);
     else
         BackStd = std(BackRegion, [], 2);
+    end
+    
+    if nargout>1
+        BackMean = Args.MeanFun(BackRegion, 2, 'omitnan');
     end
     
 end

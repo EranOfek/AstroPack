@@ -27,6 +27,7 @@ function [Result] = unitTest()
     %       (Done) imUtil.spec.extract.backStd
     %       (Done) imUtil.spec.extract.measurePSF
     %       (Done) imUtil.spec.extract.fitPSF1d
+    %       (Done) imUtil.spec.extract.aperPhot
     %
     % * Wavelength calibration
     %       (Done) AstroSpec/getSkyArcsSpecLines
