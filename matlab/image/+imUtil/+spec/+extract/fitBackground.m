@@ -13,7 +13,7 @@ function [Back, Image] = fitBackground(Image, Args)
     %                   Default is [].
     %            'TracePos' - The position of the trace (spectrum) in the
     %                   spatial direction.
-    %                   If empty, then set it to (Npsat-1)/2, where Nspat
+    %                   If empty, then set it to (Npsat+1)/2, where Nspat
     %                   is the number of spatial pixels.
     %                   Default is [].
     %            'Annulus' - Annulus (like in 2D photometry) is the
@@ -84,7 +84,7 @@ function [Back, Image] = fitBackground(Image, Args)
     [Nspat, Nwave] = size(Image);
     
     if isempty(Args.TracePos)
-        Args.TracePos = (Nspat - 1).*0.5;
+        Args.TracePos = (Nspat + 1).*0.5;
     end
     
     AnnulusRangeLow  = (round(Args.TracePos - Args.Annulus(2)):1:round(Args.TracePos - Args.Annulus(1)));

@@ -12,7 +12,7 @@ function [BackStd] = backStd(Image, SpatPos, Args)
     %            spatial positions (in pixel units) specified in
     %            Args.BackAnnulus.
     %            If [], then will take the center of the spatial axis:
-    %            (Nspat - 1).*0.5, where Nspat is the number of pixels in
+    %            (Nspat + 1).*0.5, where Nspat is the number of pixels in
     %            the spatial dimension.
     %            If SpatPos is given, or empty, then the BackAnnulus is
     %            taken in both sides of the trace.
@@ -49,7 +49,7 @@ function [BackStd] = backStd(Image, SpatPos, Args)
     [~, Nspat] = size(Image);
     
     if isempty(SpatPos)
-        SpatPos = (Nspat - 1).*0.5;
+        SpatPos = (Nspat + 1).*0.5;
     end
     
     if isnan(SpatPos)

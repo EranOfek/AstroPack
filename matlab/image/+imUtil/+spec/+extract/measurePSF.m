@@ -9,7 +9,7 @@ function [PSF, WaveCenter, SpatPos, SN_PSF, BackStd, Result] = measurePSF(Image,
     %            is linearized (vertical or horizontal).
     %          - The spatial position of the trace (scalar).
     %            If [], then will take the center of the spatial axis:
-    %            (Nspat - 1).*0.5, where Nspat is the number of pixels in
+    %            (Nspat + 1).*0.5, where Nspat is the number of pixels in
     %            the spatial dimension.
     %            Default is [].
     %          * ...,key,val,... 
@@ -34,6 +34,9 @@ function [PSF, WaveCenter, SpatPos, SN_PSF, BackStd, Result] = measurePSF(Image,
     %            'WinSN' - Half size window around the spatial position inw
     %                   which to calculate the S/N of the PSF. This S/N
     %                   will be reported in the SN_PSF field of the output.
+    %            'RemNegative' - A logical indicating if to replace
+    %                   negative PSF values with 0.
+    %                   Default is true.
     %            'AddEdgesPSF' - If true and if WaveEdges is not empty,
     %                   then will add to output PSF, WaveCenter,
     %                   and SN_PSF, columns containing values for the fisrt
@@ -54,7 +57,8 @@ function [PSF, WaveCenter, SpatPos, SN_PSF, BackStd, Result] = measurePSF(Image,
     %            Available fields are:
     %            .WaveEdges - [Min Max] pix along the wavelength direction
     %                   in which the PSF was estimated.
-    %            .PSF - The line PSF.
+    %            .PSF - The line PSF, prior to removal of negative values
+    %                   and edge smoothings.
     %            .SN_PSF - S/N of the PSF.
     %            .BackStdMean - maen of the background std in this range.
     % Author : Eran Ofek (2023 Dec) 
@@ -78,6 +82,8 @@ function [PSF, WaveCenter, SpatPos, SN_PSF, BackStd, Result] = measurePSF(Image,
         Args.WaveEdges         = []; %(1:100:2800); %[1 700 1400 2100 2800];
         Args.WinSN             = 3;
         
+        Args.RemNegative logical = true;
+        
         Args.AddEdgesPSF logical = true;
         
     end
@@ -91,7 +97,7 @@ function [PSF, WaveCenter, SpatPos, SN_PSF, BackStd, Result] = measurePSF(Image,
     [Nwave, Nspat] = size(Image);
     
     if isempty(SpatPos)
-        SpatPos = (Nspat - 1).*0.5;
+        SpatPos = (Nspat + 1).*0.5;
     end
         
     if isempty(Args.BackStd)
@@ -142,6 +148,12 @@ function [PSF, WaveCenter, SpatPos, SN_PSF, BackStd, Result] = measurePSF(Image,
     PSF        = [Result.PSF];   % [spat, wave]
     WaveCenter = [Result.WaveCenter];
     SN_PSF     = [Result.SN_PSF];
+    
+    if Args.RemNegative
+        PSF(PSF<0) = 0;
+        % renormalize
+        PSF = PSF./sum(PSF, 1);
+    end
     
     if Args.AddEdgesPSF && ~isempty(Args.WaveEdges)
         % Add the PSF to the end and start corresponding to the 1st and
