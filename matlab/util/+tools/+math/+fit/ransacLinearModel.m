@@ -13,6 +13,10 @@ function [FlagGood, BestPar, BestStd] = ransacLinearModel(H, Y, Args)
     %                   Default is false.
     %            'NsigmaClip' - Sigma clipping in good points selection.
     %                   Default is [3 3].
+    %            'MinNunique' - Number of unique data points in each
+    %                   simulation. If the number of unique data points is
+    %                   smaller than this number then skip simulation.
+    %                   Default is 4.
     % Output : - A vector of logicals indicating good data points.
     %          - Vector of best fit parameters, using all good data points.
     %          - Vector of best std, using all good data points.
@@ -27,6 +31,8 @@ function [FlagGood, BestPar, BestStd] = ransacLinearModel(H, Y, Args)
         Args.NptSim             = []
         Args.CleanNaN logical   = false;
         Args.NsigmaClip         = [3 3];
+        
+        Args.MinNunique         = 4;
     end
     
     if Args.CleanNaN
@@ -45,14 +51,16 @@ function [FlagGood, BestPar, BestStd] = ransacLinearModel(H, Y, Args)
     PrevStd = Inf;
     for Isim=1:1:Args.Nsim
         IndRand = randi([1 Npt], NptSim, 1);
-        Par     = H(IndRand,:)\Y(IndRand);
-        Resid   = Y(IndRand) - H(IndRand,:)*Par;
-        Std     = std(Resid);
-        if Std<PrevStd
-            PrevStd     = Std;
-            BestIndRand = IndRand;
-            BestPar     = Par;
-            BestStd     = Std;
+        if numel(unique(IndRand))>=Args.MinNunique
+            Par     = H(IndRand,:)\Y(IndRand);
+            Resid   = Y(IndRand) - H(IndRand,:)*Par;
+            Std     = std(Resid);
+            if ~isnan(Std) && Std<PrevStd
+                PrevStd     = Std;
+                BestIndRand = IndRand;
+                BestPar     = Par;
+                BestStd     = Std;
+            end
         end
     end
     
