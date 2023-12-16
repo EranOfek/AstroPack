@@ -116,10 +116,12 @@ function [Result] = fitWaveCalib(PixPos, WavePos, Args)
         if isempty(Args.MinNunique)
             Args.MinNunique = numel(Args.PolyOrder) + 1;
         end
-        [Flag, ~, ~] = tools.math.fit.ransacLinearModel(H, WavePos, 'NptSim',Nlines-Args.Nrem,...
+        if (Nlines-Args.Nrem)>numel(Args.PolyOrder)
+            [Flag, ~, ~] = tools.math.fit.ransacLinearModel(H, WavePos, 'NptSim',Nlines-Args.Nrem,...
                                                                     'MinNunique',Args.MinNunique,...
                                                                     'Nsim',Args.Nsim,...
                                                                     'NsigmaClip',Args.SigmaClipRANSAC);
+        end
     end
         
     
