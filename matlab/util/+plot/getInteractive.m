@@ -12,8 +12,7 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type, Args)
     %            'DistAxis' - Dimension along to calculate distances to the
     %                   nearest point: 'X'|'Y'|'XY'.
     %                   Default is 'X'.
-    %          - Waitfor action {'y'|'n'}. Will return only after the user
-    %            clicked a key/mouse. Default is 'y'.
+    %            'DataInd' - Index of data in plot. Default is 1.
     % Output : - Result structure containing the following fields.
     %            .Key    - Keyborad key entered.
     %            .Pos    - Mouse position [X,Y] or rectangule position
@@ -37,6 +36,7 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type, Args)
         Type      = 'mouse';
         %WaitFor   = 'y';
         Args.DistAxis   = 'X'; % 'XY' | 'X' | 'Y'
+        Args.DataInd    = 1;
     end
 
     % must define Res as global because of the WindowButtonDownFcn call
@@ -101,9 +101,9 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type, Args)
         if nargout>2
             AxObjs = Hf.Children;
             DataObjs = AxObjs.Children;
-            Data.X   = DataObjs.XData;
-            Data.Y   = DataObjs.YData;
-            Data.Z   = DataObjs.ZData;
+            Data.X   = DataObjs(Args.DataInd).XData;
+            Data.Y   = DataObjs(Args.DataInd).YData;
+            Data.Z   = DataObjs(Args.DataInd).ZData;
 
             if nargout>3
                 % look for nearest point

@@ -333,6 +333,10 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         if Args.AddPSF
             [SI] = imProc.psf.populatePSF(SI, 'Method', 'new', Args.constructPSFArgs{:}); 
 
+            if any(isemptyPSF(SI))
+                'a'
+            end
+
             if Args.PsfPhot
                 % PSF photometry
                 [SI, ResPSF] = imProc.sources.psfFitPhot(SI, 'CreateNewObj',false);                                   

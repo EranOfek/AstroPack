@@ -56,7 +56,8 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
     %            'StepUnits' - Ephemeris step units.
     %                   'm','h','d', for min, hour, day.
     %                   Default is 'd'.
-    %            'OutType' - Default is 'table'.
+    %            'OutType' - 'table'|'orbel'|'astrocatalog'.
+    %                    Default is 'table'.
     %                   'OrbitalEl' is possible for 'ELEMENTS' options.
     %            'OrbEl' - An optional celestial.OrbitalEl object.
     %                   If given then the result will be written into one
@@ -106,6 +107,7 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
         
         %Args.TLIST_TYPE  = 'JD';  % 'JD' | 'MJD' | 'CAL'
         Args.QUANTITIES  = '1,9,10,13,19,20,23,24,47';  % https://ssd.jpl.nasa.gov/horizons.cgi?s_tset=1#top
+        Args.ColUnits    = {'day','deg','deg','mag','mag/arcsec^2','%','arcsec','au','au','deg','','deg','arcsec/min','deg','deg'};
         Args.REF_SYSTEM  = 'J2000';
         Args.OUT_UNITS   = 'AU-D';   % 'KM-S' | 'AU-D' | 'KM-D'
         Args.CAL_FORMAT  = 'JD'; %'CAL';   % 'CAL' | 'JD' | 'BOTH'  
@@ -336,6 +338,10 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
                 OutputTable.TrailLead = strrep(OutputTable.TrailLead, '/T', '1');
                 OutputTable.TrailLead = strrep(OutputTable.TrailLead, '/L', '0');
             end
+            if strcmp(Args.EPHEM_TYPE, 'OBSERVER')
+                % update units
+                OutputTable.Properties.VariableUnits = Args.ColUnits;
+            end
 
             % attmpt to convert to numeric
             if Args.Convert2Numeric
@@ -351,6 +357,14 @@ function [OutputTable, Output, StrURL] = getJPL_ephem(Object, Args)
             switch lower(Args.OutType)
                 case 'table'
                     % do nonthing
+                case 'astrocatalog'
+                    AC = AstroCatalog;
+                    AC.Catalog  = OutputTable;
+                    AC.ColNames = OutputTable.Properties.VariableNames;
+                    AC.ColUnits = OutputTable.Properties.VariableUnits;
+
+                    OutputTable = AC;
+                    
                 case 'orbitalel'
                     if strcmp(Args.EPHEM_TYPE, 'ELEMENTS')
                         if isempty(Args.OrbEl)

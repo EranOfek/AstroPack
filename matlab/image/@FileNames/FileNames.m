@@ -338,6 +338,9 @@ classdef FileNames < Component
             Nlist = numel(List);
             for Ilist=1:1:Nlist
                 SplitName = regexp(List{Ilist},'_','split');
+                if numel(SplitName)~=11
+                    error('Illegal file name - number of underline-seperators in file name %s is not 11',List{Ilist});
+                end
                 % make sure the first splitted term doesn't contain the
                 % path
                 %[SplitNameCell] = split(SplitName{1}, filesep);

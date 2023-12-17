@@ -13,8 +13,7 @@ function [StdX] = filterStd(X, HalfSize, Args)
     % Author : Eran Ofek (2023 Dec) 
     % Example: AS=AstroSpec.getSkyArcsSpecLines;
     %          Data = AS(1).Flux;
-    %          StdF = timeSeries.filter.filterStd(Data);
-
+    %          
     arguments
         X
         HalfSize               = [10 20];

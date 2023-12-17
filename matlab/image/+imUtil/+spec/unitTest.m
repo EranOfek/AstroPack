@@ -24,9 +24,10 @@ function [Result] = unitTest()
     %
     % * Measure flux as a fun. of dispersion direction
     %       (Done) imUtil.spec.extract.fitBackground
-    %       (TBD) imUtil.spec.extract.backStd
-    %       (started) imUtil.spec.extract.measurePSF
-    %       (started) imUtil.spec.extract.fitPSF1d
+    %       (Done) imUtil.spec.extract.backStd
+    %       (Done) imUtil.spec.extract.measurePSF
+    %       (Done) imUtil.spec.extract.fitPSF1d
+    %       (Done) imUtil.spec.extract.aperPhot
     %
     % * Wavelength calibration
     %       (Done) AstroSpec/getSkyArcsSpecLines
@@ -37,7 +38,8 @@ function [Result] = unitTest()
     %       (Done) imUtil.filter.xcorr1_scale_shift
     %       (Done) timeSeries.peaks.localMax
     %       (Done) timeSeries.filter.filterStd
-    %
+    %       (Done) imUtil.spec.waveCalib.fitWaveCalib
+    %       (started) imUtil.spec.waveCalib.interactiveWaveCalib
     %
     % * calibration/extinction
     %       (Done) AstroSpec/getSpecPhotStandard
@@ -108,7 +110,16 @@ function [Result] = unitTest()
         error('imUtil.spec.extract.fitBackground - Not estimated back correctly');
     end
 
-    %%
+    %% imUtil.spec.waveCalib.fitWaveCalib
+    PixPos = [100  4000; 200 5000; 300 6000; 350 6500; 450 7500; 490 7900];
+    PixPos = PixPos +randn(size(PixPos)).*1;
+    R = imUtil.spec.waveCalib.fitWaveCalib(PixPos,[]);
+    % use the pix2wave function:
+    if any((R.pix2wave(PixPos(:,1), R) - PixPos(:,2))>10)
+        (R.pix2wave(PixPos(:,1), R) - PixPos(:,2))
+        error('Problem with imUtil.spec.waveCalib.fitWaveCalib');
+    end
+    
     
 
     Result = true;
