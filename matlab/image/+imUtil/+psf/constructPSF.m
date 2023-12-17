@@ -85,7 +85,10 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
     %            'DeltaSigma' - Maximum differennce between the median 2nd
     %                   moment of sources and the 2nd moment itself.
     %                   If empty, then skip this step.
-    %                   Default is 0.5.
+    %                   Default is 0.5. OBSOLETE.
+    %            'SigmaQuantile' - Select only stars wihich 2nd moment
+    %                   Sigma is in these quantile rane.
+    %                   Default is [0.1 0.7].
     %            'NighRadius' - If a star has a neighboor star within this
     %                   radius, then it will not be used.
     %                   Default is 7.
@@ -155,6 +158,8 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         Args.SNdiff                    = 0;  % if empty skip
         Args.moment2Args cell          = {};
         Args.DeltaSigma                = 0.5;   % if empty skip
+        Args.SigmaQuantile             = [0.1 0.7];
+
         Args.NighRadius                = 7;     % if empty skip
         Args.MinNumGoodPsf             = 5;
         
@@ -220,9 +225,14 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         [M1, M2]    = imUtil.image.moment2(Cube, Xstamp, Ystamp, 'Annulus',Args.Annulus, Args.moment2Args{:});
         Sigma       = sqrt(abs(M2.X2)+abs(M2.Y2));
 
-        MedSigma    = imUtil.background.modeVar_QuantileHist(Sigma);
+        
 
-        FlagGoodPsf = FlagGoodPsf & (Sigma>(MedSigma - Args.DeltaSigma) & Sigma<(MedSigma + Args.DeltaSigma));
+        %MedSigma    = imUtil.background.modeVar_QuantileHist(Sigma);
+        %FlagGoodPsf = FlagGoodPsf & (Sigma>(MedSigma - Args.DeltaSigma) & Sigma<(MedSigma + Args.DeltaSigma));
+
+        SigmaRange  = quantile(Sigma, Args.SigmaQuantile);
+        FlagGoodPsf = FlagGoodPsf & Sigma>SigmaRange(1) & Sigma<SigmaRange(2);
+
     else
         M1 = [];
         M2 = [];
