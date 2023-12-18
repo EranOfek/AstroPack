@@ -18,7 +18,7 @@ function MS=forcedPhotAll(Args)
         Args.Coo                        % [RA, Dec], for moving use EphemTable
         Args.CooUnits       = 'deg';
         Args.EphemTable     = [];  % if given then Moving=true
-        
+        Args.EphemTableColJD = 'Date';
         
         Args.MaxIter        = 1;
         
@@ -76,7 +76,7 @@ function MS=forcedPhotAll(Args)
                 % moving source
                 Moving = true;
 
-                InterpTable = interp1(Args.EphemTable, 'JD',{'RA','Dec'}, JD(:));
+                InterpTable = interp1(Args.EphemTable, Args.EphemTableColJD,{'RA','Dec'}, JD(:));
                 Coo         = InterpTable.Catalog(:,[2 3]);
                 if isempty(InterpTable.ColUnits)
                    CooUnits = Args.CooUnits;
