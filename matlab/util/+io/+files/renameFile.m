@@ -1,10 +1,10 @@
 function renameFile(Template, InExp, OutExp)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
-    %          * ...,key,val,... 
-    % Output : - 
+    % Rename  file names using regular expression replacments
+    % Input  : - File name template. Only file names with this templates
+    %            will be selected.
+    %          - Input regular expression.
+    %          - Output expression.
+    % Output : null
     % Author : Eran Ofek (2023 Dec) 
     % Example: io.files.renameFile('LAST*.fits','_WD_','_WD')
 
