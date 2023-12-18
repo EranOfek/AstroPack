@@ -1,4 +1,4 @@
-function psfPhot(Cube, Args)
+function Result = psfPhot(Cube, Args)
     %
     % Example: imUtil.psf.psfPhot
    
@@ -30,7 +30,7 @@ function psfPhot(Cube, Args)
         Args.SN = [];  % is this needed?
         Args.ConvThresh = 1e-4;
         
-        
+        Args.ZP         = 25; 
     end
     
     if isempty(Args.PSF)
@@ -90,11 +90,7 @@ function psfPhot(Cube, Args)
     end
     
     FitRadius2 = Args.FitRadius.^2;
-    
-    
-    
-    
-    
+        
     %% got here
     
     % adaptive conversion threshold 
@@ -137,17 +133,19 @@ function psfPhot(Cube, Args)
     X1 = 0;
     Y1 = 0;
     RadiusRange = Args.RadiusRange;
-    while Ind<Args.MaxIter && NotConverged
-        Ind = Ind + 1;
+    
+    if Args.UseSourceNoise
+        % Add source noise to Std
+        % source noise can be treated as scalar or a matrix
         
-        if Args.UseSourceNoise
-            % Add source noise to Std
-            % source noise can be treated as scalar or a matrix
-            
-            StdIter = sqrt(pi.*FitRadius2.*Std.^2 + permute(Args.PsfPeakVal(:),[3 2 1]));
-        else
-            StdIter = Std;
-        end
+        StdIter = sqrt(pi.*FitRadius2.*Std.^2 + permute(Args.PsfPeakVal(:),[3 2 1]));
+    else
+        StdIter = Std;
+    end
+    
+    while Ind<Args.MaxIter && NotConverged
+        
+        Ind = Ind + 1;
             
         X1prev = X1;
         Y1prev = Y1;
@@ -164,18 +162,33 @@ function psfPhot(Cube, Args)
                                                                            'MaxStep_RadiusRangeUnits',Args.MaxStep_RadiusRangeUnits,...
                                                                            'GridPointsX',Args.GridPointsX,...
                                                                            'GridPointsY',Args.GridPointsY,...
-                                                                           'H',H);
-    
-        
+                                                                           'H',H); 
         %
         RadiusRange = RadiusRange./2;
-        [X1, Y1, sqrt(((X1 - X1prev).^2 + (Y1 - Y1prev).^2)), ((X1 - X1prev).^2 + (Y1 - Y1prev).^2)<ConvThresh.^2, MinChi2./Dof]
-        Ind
+        
+%         [X1, Y1, sqrt(((X1 - X1prev).^2 + (Y1 - Y1prev).^2)), ((X1 - X1prev).^2 + (Y1 - Y1prev).^2)<ConvThresh.^2, Flux0/1e3, MinChi2./Dof]
+%         Ind % deb
+        
         if all( ((X1 - X1prev).^2 + (Y1 - Y1prev).^2)<ConvThresh.^2)
             NotConverged = false;
         end
         
     end
     % final fit and return flux
-    'a'
+    % do we really need to fit once more ? 
+    
+    Result.Flux = squeeze(Flux0);
+    Result.SNm  = sign(Result.Flux).*abs(Result.Flux)./sqrt(abs(Result.Flux) + (squeeze(StdBack)).^2);  % S/N for measurments
+    Result.Mag  = convert.luptitude(Result.Flux, 10.^(0.4.*Args.ZP));
+    Result.DX = X1;
+    Result.DY = Y1;
+    Result.Xinit = Args.Xinit;
+    Result.Yinit = Args.Yinit;
+    Result.Xcenter = Xcenter;
+    Result.Ycenter = Ycenter;
+    Result.ConvergeFlag = 1-NotConverged;
+    Result.Niter   = Ind;
+    Result.Dof     = Dof;
+    Result.Chi2    = MinChi2;
+    
 end
