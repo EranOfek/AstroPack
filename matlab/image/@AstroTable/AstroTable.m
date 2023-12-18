@@ -1561,8 +1561,12 @@ classdef AstroTable < Component
                 Obj = Obj.sortrows(InterpColX);
             end
 
-            NewY = interp1(Obj.Catalog(:,ColIndX), Obj.Catalog(:,ColIndY), NewX, Args.InterpMethod);
-
+            if istable(Obj.Catalog)
+                NewY = interp1(table2array(Obj.Catalog(:,ColIndX)), table2array(Obj.Catalog(:,ColIndY)), NewX, Args.InterpMethod);
+            else
+                NewY = interp1(Obj.Catalog(:,ColIndX), Obj.Catalog(:,ColIndY), NewX, Args.InterpMethod);
+            end
+            
             if isa(Obj, 'AstroCatalog')
                 Result = AstroCatalog({[NewX, NewY]});
             else
