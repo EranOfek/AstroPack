@@ -111,6 +111,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
     end
 
     if Args.Save
+
         % Save data products
         Nprod = numel(Args.Product);
         if numel(Args.WriteHeader)==1
@@ -192,9 +193,12 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                             % create dir only on first file
                             
                             if (FlagGoodTimes(Iobj) && ~isempty(Obj(Iobj).Image)) || Args.WriteEmpty
-                                
-                                Obj(Iobj).write1(OutFileNames{Iobj}, Args.Product{Iprod},...
-                                             'FileType',FN.FileType{1},...
+                                % select the correct image (may have
+                                % different JD):
+                                FN1 = FN.reorderEntries(Iobj, 'CreateNewObj',true);
+                                OutFileNames1  = FN1.genFull('Product',Args.Product{Iprod}, 'LevelPath',Args.LevelPath);
+                                Obj(Iobj).write1(OutFileNames1{1}, Args.Product{Iprod},...
+                                             'FileType',FN1.FileType{1},...
                                              'IsSimpleFITS',Args.IsSimpleFITS,...
                                              'WriteHeader',WriteHeader(Iprod),...
                                              'MkDir',~DirCreated,...
@@ -202,7 +206,8 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
 
                                 DirCreated = true;
                                 % Update FileName in Obj
-                                Obj(Iobj).ImageData.FileName = OutFileNames{Iobj};
+                                %Obj(Iobj).ImageData.FileName = OutFileNames{Iobj};
+                                Obj(Iobj).ImageData.FileName = OutFileNames1{1};
                             else
                                 Istat = Istat + 1;
                                 Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', OutFileNames{Iobj}, Args.Product{Iprod});
@@ -214,10 +219,13 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                 % AstroCatalog input
                 %OutFileNames = FN.genFull('Product','Cat', 'LevelPath',Args.LevelPath);
                 OutFileNames = FN.genFull('Product',Args.Product{1}, 'LevelPath',Args.LevelPath);
+
                 for Iobj=1:1:Nobj
                     if ~isempty(Obj(Iobj).ColNames) || Args.WriteEmpty
-                        Obj(Iobj).write1(OutFileNames{Iobj},...
-                                     'FileType',FN.FileType{1});
+                        FN1 = FN.reorderEntries(Iobj, 'CreateNewObj',true);
+                        OutFileNames1  = FN1.genFull('Product',Args.Product{1}, 'LevelPath',Args.LevelPath);
+                        Obj(Iobj).write1(OutFileNames1{1},...
+                                     'FileType',FN1.FileType{1});
                     else
                         Istat = Istat + 1;
                         Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', OutFileNames{Iobj}, 'CatData');
@@ -231,8 +239,12 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                 OutFileNames = FN.genFull('Product','MergedMat', 'LevelPath',Args.LevelPath);
                 for Iobj=1:1:Nobj
                     if ~isempty(Obj(Iobj).Fields) || Args.WriteEmpty
-                        Obj(Iobj).write1(OutFileNames{Iobj},...
-                                     'FileType',FN.FileType{1});
+
+                        FN1 = FN.reorderEntries(Iobj, 'CreateNewObj',true);
+                        OutFileNames1  = FN1.genFull('Product',Args.Product{1}, 'LevelPath',Args.LevelPath);
+
+                        Obj(Iobj).write1(OutFileNames1{1},...
+                                     'FileType',FN1.FileType{1});
                     else
                         Istat = Istat + 1;
                         Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', OutFileNames{Iobj}, 'MergedMat');

@@ -1756,8 +1756,7 @@ classdef DemonLAST < Component
                 Args.StopWhenDone = true;
             end
 
-
-
+            
             % if ~Args.RegenCalib
             %     [IsEmB, IsEmF] = Obj.CI.isemptyProp({'Bias','Flat'});
             %     if IsEmB || IsEmF
