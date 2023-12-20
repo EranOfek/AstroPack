@@ -58,7 +58,9 @@ function [PsfXY, Flag, Flux, Back] = selectPsfStars(Obj, Args)
     FlagSN   = SN(:,2)>Args.RangeSN(1) & SN(:,2)<Args.RangeSN(2) & (SN(:,2)-SN(:,1))>Args.MinDeltaSN;
     Sigma    = sqrt(abs(Mom2(:,1))+abs(Mom2(:,2)));
     %MedSigma = median(Sigma, 1, 'omitnan');
-    MedSigma = imUtil.background.mode(Sigma(FlagSN));
+    
+    MedSigma = imUtil.background.modeVar_QuantileHist(Sigma(FlagSN));
+    
     FlagSig  = Sigma>(MedSigma - Args.DeltaSigma) & Sigma<(MedSigma + Args.DeltaSigma);
     
     Flag     = FlagSN & FlagSig;
