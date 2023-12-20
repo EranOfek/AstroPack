@@ -7,6 +7,7 @@ function Illum=moonlight(Alt,HP,Elon)
 % Input  : - Vector of Altitude in radians.
 %          - Vector of Horizontal Parallax in radians.
 %          - Vector of Elongation in radians.
+%            Elongation must be in the range of 0 to pi.
 % Output : - Illumination in Lux on horiz. surface.
 % See also: sunlight.m, skylight.m
 % Tested : Matlab 5.2
