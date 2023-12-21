@@ -1689,7 +1689,8 @@ classdef DemonLAST < Component
 
                 Args.StopWhenDone logical = false;   % If true, then will not look for new images (i.e., images that were created after the function started)
                 Args.RegenCalib logical = false;     % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
-
+                Args.ReloadCalibTimeDiff   = 0.7;
+                
                 Args.DeleteSciDayTime logical = false;   % Delete 'sci' images taken during day time.
                 Args.DeleteSunAlt  = 0;                  % SunAlt for previous argument
 
@@ -1774,6 +1775,7 @@ classdef DemonLAST < Component
                 [StopGUI, Hstop]  = tools.gui.stopButton('Msg',GUI_Text);
             end
 
+            JDlastCalib = 0;
             Cont = true;
             while Cont
                 % set Logger log file 
@@ -1868,6 +1870,18 @@ classdef DemonLAST < Component
                         % call visit pipeline                        
                         Msg{1} = sprintf('pipline.DemonLAST executing pipeline for group %d - First image: %s',Igroup, RawImageList{1});
                         Obj.writeLog(Msg, LogLevel.Info);
+
+
+                        % reload calibration files
+                        JDgr = FN_Sci_Groups(Igroup).julday;
+                        if abs(JDgr(1)-JDlastCalib)>Args.ReloadCalibTimeDiff
+                            % if time difference between the last time
+                            % calibration was loaded and current image >
+                            % 0.7 days, then reload...
+                            Obj.loadCalib('FlatNearJD',JDgr(1), 'BiasNearJD',JDgr(1));
+                            JDlastCalib = JDgr(1);
+                        end
+
 
                         try
                          
