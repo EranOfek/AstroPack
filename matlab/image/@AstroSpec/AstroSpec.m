@@ -360,7 +360,7 @@ classdef AstroSpec < Component
             A_LambdaMag = zeros(numel(ObsWaveMicrons), Nz);
             for Iz=1:1:Nz
                 ObsWaveMicronsZ = ObsWaveMicrons ./ (1 + Zext(Iz));
-                A_LambdaMag(:,Iz)  = astro.spec.extinction(EbvZ(Iz), ObsWaveMicronsZ, [], RZ(Iz));
+                A_LambdaMag(:,Iz)  = astro.extinction.extinction(EbvZ(Iz), ObsWaveMicronsZ, [], RZ(Iz));
             end
             Factor = 10.^(-0.4.*sum(A_LambdaMag, 2));
         end
@@ -2148,7 +2148,7 @@ classdef AstroSpec < Component
                                 H    = [NewModelSpec.Flux(:), ones(Nw,1)];
                             case 'ext'
                                 WaveMicrons       = convert.length(NewModelSpec.WaveUnits, 'micrometer', NewModelSpec.Wave);
-                                A_W               = astro.spec.extinction(1, WaveMicrons, [], Args.R);
+                                A_W               = astro.extinction.extinction(1, WaveMicrons, [], Args.R);
                                 NewModelSpec.Flux = NewModelSpec.Flux.*10.^(-0.4.*A_W);
                                 H                 = [NewModelSpec.Flux(:)];
                             otherwise

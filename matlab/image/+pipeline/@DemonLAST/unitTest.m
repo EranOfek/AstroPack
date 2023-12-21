@@ -50,9 +50,7 @@ function TestDataProducts
 
     % cd to data products directory
 
-
-
-    %% Test the X1 and X position in the image catalogs
+    % Test the X1 and X position in the image catalogs
     AC=AstroCatalog('LAST.*_010_sci_proc_Cat_1.fits');
     T=AC(1).toTable;
 
@@ -95,7 +93,7 @@ function TestDataProducts
     % should be 1 - not too bad
     
 
-    %% Read all images of a vist
+    % Read all images of a vist
     AI=AstroImage.readFileNamesObj('LAST*sci_proc_Image_1.fits');
 
     LL = AI.getStructKey({'LIMMAG','PH_ZP','PH_COL1','PH_RMS','FWHM'});

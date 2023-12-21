@@ -108,7 +108,7 @@ Ext = cell(Nfilt,1);
 for Ifilt=1:1:Nfilt
     Ext{Ifilt} = zeros(Nebv,Nr);
     for Ir=1:1:Nr
-        Ext{Ifilt}(:,Ir) = astro.spec.extinction(VecEbv,InPar.FilterList{Ifilt,1},InPar.FilterList{Ifilt,1},VecR(Ir));
+        Ext{Ifilt}(:,Ir) = astro.extinction.extinction(VecEbv,InPar.FilterList{Ifilt,1},InPar.FilterList{Ifilt,1},VecR(Ir));
     end
 end
 

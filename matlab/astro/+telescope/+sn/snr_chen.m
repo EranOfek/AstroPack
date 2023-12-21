@@ -206,7 +206,7 @@ end
     
 
 % extinction curve
-% A_w = AstroUtil.spec.extinction(InPar.Ebv,InPar.Wave./1e4); % extinction per wave [mag]
+% A_w = AstroUtil.extinction.extinction(InPar.Ebv,InPar.Wave./1e4); % extinction per wave [mag]
     
 % BackSpec = AstSpec(3);
 % RAD=180./pi;

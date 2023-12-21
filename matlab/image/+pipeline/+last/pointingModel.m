@@ -130,7 +130,7 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
     
     if Args.PrepPointingModel
         % construct a grid
-        [TileList,~] = celestial.coo.tile_the_sky(Args.Nha, Args.Ndec);
+        [TileList,~] = celestial.grid.tile_the_sky(Args.Nha, Args.Ndec);
         HADec = TileList(:,1:2);
 
         [Az, Alt] = celestial.coo.hadec2azalt(HADec(:,1), HADec(:,2), Args.ObsCoo(2)./RAD);

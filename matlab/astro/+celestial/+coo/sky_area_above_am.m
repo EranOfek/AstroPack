@@ -22,7 +22,7 @@ import celestial.SolarSys.*
 
 RAD = 180./pi;
 
-%Cat = tile_the_sky(60,30);
+%Cat = celestial.grid.tile_the_sky(60,30);
 RA = 0;
 
 Dec = (-30:1:90).'./RAD;

@@ -317,7 +317,7 @@ if (nargout>3) && (~isempty(InPar.FiltFam) || ~isempty(InPar.Wave))
         [~,In]=astro.spec.black_body(Tc./(1+InPar.redshift),InPar.Wave).*(1+InPar.redshift).^4;
         Mag = convert.flux(In.*R.^2./(Dist.*Pc).^2,'cgs/Hz','AB',InPar.Wave,'A');
         if any(InPar.Ebv>0)
-            A = astro.spec.extinction(InPar.Ebv,InPar.FiltFam,InPar.FiltName,InPar.Rv);
+            A = astro.extinction.extinction(InPar.Ebv,InPar.FiltFam,InPar.FiltName,InPar.Rv);
             Mag = Mag + A;
         end
     end

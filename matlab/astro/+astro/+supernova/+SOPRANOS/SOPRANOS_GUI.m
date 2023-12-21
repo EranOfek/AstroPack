@@ -411,7 +411,7 @@ handles.SNname.String = settings.data.snname;
 handles.RedShift.String = settings.data.redshift;
 handles.RA.String = settings.data.RAh;
 handles.dec.String = settings.data.decd;
-handles.MWEbv.String = sprintf('MW Ebv %6.4f',AstroUtil.spec.sky_ebv(settings.data.RArad,settings.data.decRad));
+handles.MWEbv.String = sprintf('MW Ebv %6.4f',astro.extinction.sky_ebv(settings.data.RArad,settings.data.decRad));
 Table_Update(1,handles);
 
 nBands = length(settings.data.bands);

@@ -65,7 +65,7 @@ for It=1:1:Nt
    %[Il,If] = black_body(Temp(It),WaveRange);
    [Il] = AstSpec.blackbody(Temp(It),WaveRange);
    % apply extinction
-   Extin = astro.spec.extinction(Ebv,Il.Wave./1e4);
+   Extin = astro.extinction.extinction(Ebv,Il.Wave./1e4);
    Il.Int = Il.Int.* 10.^(-0.4.*Extin);
    
    Spec    = [WaveRange, Il.Int .* 4.*pi.* Radius(It).^2 ./(4.*pi.*(Dist(It).*Pc).^2)];

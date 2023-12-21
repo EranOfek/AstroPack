@@ -413,7 +413,7 @@ classdef DemonLAST < Component
         function List = fieldsListLAST(Args)
             % (Static) Return a table with list of LAST predefined field indices
             % Input  : * ...,key,val,...
-            %            'N_LonLat' - Arguments for celestial.coo.tile_the_sky
+            %            'N_LonLat' - Arguments for celestial.grid.tile_the_sky
             %                   Default is [85 28]
             % Output : - A table with the LAST predefined fields.
             % Author : Eran Ofek (Jul 2023)
@@ -425,9 +425,9 @@ classdef DemonLAST < Component
 
             RAD = 180./pi;
             
-            [TileList,TileArea] = celestial.coo.tile_the_sky(Args.N_LonLat(1), Args.N_LonLat(2));
+            [TileList,TileArea] = celestial.grid.tile_the_sky(Args.N_LonLat(1), Args.N_LonLat(2));
             try
-                Ebv      = astro.spec.sky_ebv(TileList(:,1),TileList(:,2));
+                Ebv      = astro.extinction.sky_ebv(TileList(:,1),TileList(:,2));
             catch
                 Ebv      = nan(size(TileList,1),1);
             end

@@ -169,12 +169,12 @@ ObsRestSpec(:,2) = ObsRestSpec(:,2).*FluxCorr;
 
 % Get extinction from Schlegal maps
 if (~isempty(InPar.RA) && ~isempty(InPar.Dec))
-    InPar.Ebv = sky_ebv(InPar.RA,InPar.Dec);
+    InPar.Ebv = astro.extinction.sky_ebv(InPar.RA,InPar.Dec);
 else
     % use default Ebv
 end
 
-GalExtinCorr = 10.^(+0.4.*(AstroUtil.spec.extinction(InPar.Ebv,ObsRestSpec(:,1)./10000,[],InPar.Rv)));
+GalExtinCorr = 10.^(+0.4.*(AstroUtil.extinction.extinction(InPar.Ebv,ObsRestSpec(:,1)./10000,[],InPar.Rv)));
 CorrSpec = ObsRestSpec;
 CorrSpec(:,2) = CorrSpec(:,2).*GalExtinCorr;
 
@@ -184,7 +184,7 @@ if (InPar.z~=0)
 end
 
 % rest frame (e.g., host galaxy) extinction
-RestExtinCorr = 10.^(+0.4.*(AstroUtil.spec.extinction(InPar.Ebv_z,CorrSpec(:,1)./10000,[],InPar.Rv_z)));
+RestExtinCorr = 10.^(+0.4.*(AstroUtil.extinction.extinction(InPar.Ebv_z,CorrSpec(:,1)./10000,[],InPar.Rv_z)));
 CorrSpec(:,2) = CorrSpec(:,2).*RestExtinCorr;
 
 Par.PolyDeg       = InPar.PolyDeg;
