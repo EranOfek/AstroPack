@@ -55,7 +55,7 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     %                   in this range are excluded from the summation.
     %                   This may be useful in order to remove stamps which
     %                   contains more than one source.
-    %                   Default is [0.8 1.2].
+    %                   Default is [0.5 3].
     %            'SmoothWings' - A logical indicating if to smooth PSF wings
     %                   using imUtil.psf.psf_zeroConvergeArgs.
     %                   Default is true.
@@ -105,7 +105,7 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         Args.PostNorm logical      = true;
         
         Args.MedianCubeSumRange    = [0.9 1.1];
-        Args.CubeSumRange          = [0.5 2];
+        Args.CubeSumRange          = [0.5 3];
         Args.SmoothWings logical   = true;
         Args.psf_zeroConvergeArgs  = {};
         
