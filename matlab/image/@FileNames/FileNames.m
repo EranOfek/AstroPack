@@ -564,7 +564,7 @@ classdef FileNames < Component
         
         function Result = getProp(Obj, Prop, Ind, Args)
             % get property (all or single by index).
-            % Input  : - An ImageNames object.
+            % Input  : - A FileNames object.
             %          - Property to retrieve. Default is 'Time'.
             %          - An index of element in array to retrieve
             %            If empty, then get all, in array or cell array.
