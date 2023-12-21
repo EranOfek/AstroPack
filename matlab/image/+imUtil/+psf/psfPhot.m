@@ -166,8 +166,8 @@ function Result = psfPhot(Cube, Args)
         %
         RadiusRange = RadiusRange./2;
         
-%         [X1, Y1, sqrt(((X1 - X1prev).^2 + (Y1 - Y1prev).^2)), ((X1 - X1prev).^2 + (Y1 - Y1prev).^2)<ConvThresh.^2, Flux0/1e3, MinChi2./Dof]
-%         Ind % deb
+         [X1, Y1, sqrt(((X1 - X1prev).^2 + (Y1 - Y1prev).^2)), ((X1 - X1prev).^2 + (Y1 - Y1prev).^2)<ConvThresh.^2, Flux0/1e3, MinChi2./Dof]
+         Ind % deb
         
         if all( ((X1 - X1prev).^2 + (Y1 - Y1prev).^2)<ConvThresh.^2)
             NotConverged = false;
