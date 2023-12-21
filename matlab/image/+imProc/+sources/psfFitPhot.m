@@ -188,7 +188,11 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                                                                     Args.psfPhotCubeArgs{:});
                     
                 case 'new'
+<<<<<<< HEAD
                     Cube = Cube(:,:,10:20); Std = Std(10:20); % deb test
+=======
+%                     Cube = Cube(:,:,1:10); Std = Std(1:10); % deb test
+>>>>>>> 2e36af22829a08db95f7d10ca8b19ff247338072
                     Result                = imUtil.psf.psfPhot(Cube, 'PSF',PSF,...
                                                             'Std',Std,...
                                                             'Back',0,...
