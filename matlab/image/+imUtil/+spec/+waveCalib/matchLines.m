@@ -21,7 +21,7 @@ function [Result] = matchLines(ObsLines, RefLines, Args)
         ObsLines
         RefLines
         Args.StrongestN           = 30;
-        Args.MinRange             = 100;
+        Args.MinRang
     end
 
     % add line intensity if missing
@@ -47,28 +47,50 @@ function [Result] = matchLines(ObsLines, RefLines, Args)
     % choose 3 out of N
     AllC = nchoosek((1:1:Args.StrongestN).',3);
     
-    RefW = RefLinesSel(:,1);
-    ObsW = ObsLinesSel(:,1);
+    RefW = sort(RefLinesSel(:,1));
+    ObsW = sort(ObsLinesSel(:,1));
     MatRefW = RefW(AllC.');
     MatObsW = ObsW(AllC.');
     % Range of all reference combinations
-    RangeRefComb = range(MatRefW);
-    Flag         = RangeRefComb>Args.MinRange;
-    MatRefW      = MatRefW(:,Flag);
+    RangeRefComb = range(MatRefW)./3000;
     
-    NrefW = size(MatRefW,2);
+    
+    NrefW  = size(MatRefW,2);
     ColPar = zeros(2, NrefW);
-    ColMin = zeros(1,NrefW);
+    RStd   = zeros(1, NrefW);
+    MinRStd = Inf;
     for IrefW=1:1:NrefW
         H = [ones(3,1), MatRefW(:,IrefW)];
         Par = H\MatObsW;
         
         Resid = MatObsW - H*Par;
         Std   = std(Resid,[],1);
-        [MinStd,Imin] = min(Std); %./(RangeRefComb(IrefW)./1000) );
+        [MinStd,Imin] = min(Std./RangeRefComb(IrefW));
         ColPar(:,IrefW) = Par(:,Imin);
         ColMin(IrefW) = MinStd;
+        
+        BestPar = Par(:,Imin);
+        
+        H = [ones(size(RefW)), RefW];
+        PredW = H*BestPar;
+        
+        Im=tools.find.mfind_bin(ObsW(:), PredW(:).');
+        RStd(IrefW) = 1.25.*mad(ObsW(Im) - PredW);
+        
+        if RStd(IrefW)<MinRStd
+            BestObsW  = ObsW(Im);
+            BestPredW = PredW;
+            BestRefW  = RefW;
+            BestInd   = IrefW;
+            MinRStd   = RStd(IrefW);
+        end
+            
     end
+    
+    [~,Ibest] = min(RStd);
+    IrefW = Ibest;
+    
+    %[Result] = imUtil.spec.waveCalib.fitWaveCalib(BestObsW, BestRefW, 'Nsim',[])
     
     'a'
     
