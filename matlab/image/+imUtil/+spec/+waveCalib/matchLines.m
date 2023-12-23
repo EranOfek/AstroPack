@@ -21,7 +21,7 @@ function [Result] = matchLines(ObsLines, RefLines, Args)
         ObsLines
         RefLines
         Args.StrongestN           = 30;
-        Args.MinRang
+        Args.MinRange             = 500;
     end
 
     % add line intensity if missing
@@ -52,7 +52,9 @@ function [Result] = matchLines(ObsLines, RefLines, Args)
     MatRefW = RefW(AllC.');
     MatObsW = ObsW(AllC.');
     % Range of all reference combinations
-    RangeRefComb = range(MatRefW)./3000;
+    RangeRefComb = range(MatRefW);
+    FlagGoodRange = RangeRefComb > Args.MinRange;
+    MatRefW       = MatRefW(:,FlagGoodRange);
     
     
     NrefW  = size(MatRefW,2);
