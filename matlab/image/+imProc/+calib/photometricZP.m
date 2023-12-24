@@ -90,6 +90,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %                   string to match to all other columns, and columns containing
     %                   this string will be updated, or a cell array of
     %                   column names to update. Default is 'MAG_'.
+    %            'SignZP' - The sign of the ZP to add.
+    %                   Default is 1.
     %
     %            'MagSys' - Magnitude system for photometric calibration.
     %                   'Vega'|'AB'. Default is 'AB',
@@ -158,7 +160,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         % Update catalog
         Args.UpdateMagCols logical     = true;
         Args.MagColName2update         = 'MAG_';  % or e.g., {'MAG_APER_1','MAG_APER_2'}
-        
+        Args.SignZP                    = 1;
+
         Args.matchReturnIndicesArgs cell = {};
         
         Args.CreateNewObj logical      = false;
@@ -486,7 +489,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     MagColFlag = ismember(Cat.ColNames, Args.MagColName2update);
                 end
 
-                Cat.Catalog(:,MagColFlag) = Cat.Catalog(:,MagColFlag) + ResFit(Iobj).Par(1);  % donot add full ZP
+                Cat.Catalog(:,MagColFlag) = Cat.Catalog(:,MagColFlag) + Args.SignZP.*ResFit(Iobj).Par(1);  % donot add full ZP
 
                 % This should happen automatically, but we are doing this for
                 % readability and order

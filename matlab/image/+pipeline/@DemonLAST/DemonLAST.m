@@ -1437,6 +1437,9 @@ classdef DemonLAST < Component
                 error('Can not execute prepMasterFlat without bias/dark images');
             end
 
+            PWD = pwd;
+            cd(Obj.NewPath);
+
             FN        = [];
             FN_Master = [];
             NoImages = false;
@@ -1568,6 +1571,7 @@ classdef DemonLAST < Component
                 io.files.moveFiles(RawList, FN.genFull);
             end
 
+            cd(PWD);
         end
         
         function Obj=loadCalib(Obj, Args)
