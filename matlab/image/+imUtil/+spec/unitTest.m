@@ -40,6 +40,7 @@ function [Result] = unitTest()
     %       (Done) timeSeries.filter.filterStd
     %       (Done) imUtil.spec.waveCalib.fitWaveCalib
     %       (started) imUtil.spec.waveCalib.interactiveWaveCalib
+    %       (started) imUtil.spec.waveCalib.matchLines
     %
     % * calibration/extinction
     %       (Done) AstroSpec/getSpecPhotStandard
