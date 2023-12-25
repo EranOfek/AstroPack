@@ -1437,6 +1437,9 @@ classdef DemonLAST < Component
                 error('Can not execute prepMasterFlat without bias/dark images');
             end
 
+            PWD = pwd;
+            cd(Obj.NewPath);
+
             FN        = [];
             FN_Master = [];
             NoImages = false;
@@ -1568,6 +1571,7 @@ classdef DemonLAST < Component
                 io.files.moveFiles(RawList, FN.genFull);
             end
 
+            cd(PWD);
         end
         
         function Obj=loadCalib(Obj, Args)
@@ -1721,7 +1725,31 @@ classdef DemonLAST < Component
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};
                 
                 Args.HostName          = []; 
+
+                Args.SelectKnownAsteroid logical      = false;
+                Args.GeoPos                           = [];    %[Lon (rad), Lat (rad), Height (m)].
+                Args.OrbEl                            = [];
+                Args.INPOP                            = [];
+                Args.AsteroidSearchRadius             = 10;
             end
+            RAD = 180./pi;
+
+            if Args.SelectKnownAsteroid
+                if isempty(Args.GeoPos)
+                    ObsCooSt = celestial.earth.observatoryCoo('Name','LAST');
+                    Args.GeoPos = [ObsCooSt.Lon./RAD, ObsCooSt.Lat./RAD, ObsCooSt.Height];
+                end
+                if isempty(Args.OrbEl)
+                    Args.OrbEl  = celestial.OrbitalEl.loadSolarSystem('merge');
+                end
+                if isempty(Args.INPOP)
+                    Args.INPOP = celestial.INPOP;
+                    Args.INPOP.populateTables('all', 'MaxOrder',5);
+                    Args.INPOP.populateTables({'Ear','Sun'}, 'FileData','vel', 'MaxOrder',5);
+                end
+
+            end
+
 
             ADB = [];  % AstroDB
 
@@ -1890,14 +1918,19 @@ classdef DemonLAST < Component
                             %AI = AstroImage(FilesList, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
                             % Insert AI to DB
 
-
+                            
                             % Instead of AI, it used to be: RawImageList
-                            [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
+                            [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
                                                                        Args.multiRaw2procCoaddArgs{:},...
                                                                        'SubDir',NaN,...
                                                                        'BasePath', BasePath,...
-                                                                       'SaveAll',false);
-    
+                                                                       'SaveAll',false,...
+                                                                       'SelectKnownAsteroid',Args.SelectKnownAsteroid,...
+                                                                       'GeoPos',Args.GeoPos,...
+                                                                       'OrbEl',Args.OrbEl,...
+                                                                       'INPOP',Args.INPOP,...
+                                                                       'AsteroidSearchRadius',Args.AsteroidSearchRadius);
+
                             Msg{1} = sprintf('pipline.DemonLAST finish executing pipeline for group %d - start saving data',Igroup);
                             Obj.writeLog(Msg, LogLevel.Info);
                             

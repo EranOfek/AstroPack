@@ -1,4 +1,4 @@
-function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd] = procMergeCoadd(AllSI, Args)
+function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd, OnlyMP] = procMergeCoadd(AllSI, Args)
     % Given a list of processed images, merged their catalogs, coadd
     % their images, and produce coadd catalogs.
     %   This is a basic generic pipeline conducting the following steps:
@@ -73,6 +73,13 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         Args.psfFitPhotArgs cell              = {};
         
         Args.Col2copy cell                    = {'Nobs'};  % cell array of columns to copy from MergedCat to Coadd
+
+        Args.SelectKnownAsteroid logical      = false;
+        Args.GeoPos                           = [];
+        Args.OrbEl                            = [];
+        Args.INPOP                            = [];
+        Args.AsteroidSearchRadius             = 10;
+    
     end
     SEC_DAY = 86400;
     
@@ -313,6 +320,14 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     % match Coadd catalog against MergedCat
     [Coadd] = imProc.match.insertColFromMatched_matchIndices(Coadd, MergedCat, [], 'CreateNewObj',false, 'Col2copy', Args.Col2copy);
     
-        
+    % adding known minor planets
+    % FFU
+    if Args.SelectKnownAsteroid
+        [OnlyMP] = imProc.match.match2solarSystem(Coadd, 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);
+    else
+        OnlyMP = [];
+    end
+
+
 end
 

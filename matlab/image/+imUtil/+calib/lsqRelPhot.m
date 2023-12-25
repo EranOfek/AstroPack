@@ -115,11 +115,17 @@ function Result=lsqRelPhot(InstMag, Args)
         Nstar  = 300;
         Mag    = rand(Nstar,1).*10;
         ZP     = rand(Nimage,1).*2;
-
-        InstMag = ZP + Mag.';
+        X      = rand(Nimage,Nstar).*1024;
+        Y      = rand(Nimage,Nstar).*1024;
+        Color  = rand(Nimage,1).*1;
+        
+        InstMag = ZP + Mag.'; %+ X.*1e-4 + Y.*5e-5 + Color.*0.03;
+        
         InstMag = InstMag + MagErr.*randn(size(InstMag));
         %InstMag(100) +InstMag + 0.5;
         % add outliers
+        
+        
         
         
         Args.MagErr = MagErr;

@@ -155,7 +155,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
         Args.Integration logical           = true;
               
         %Args.AddPlanets(1,1) logical       = false;
-        Args.SearchRadius                  = 3;
+        Args.SearchRadius                  = 10;
         Args.SearchRadiusUnits             = 'arcsec';
         
         Args.AddColDist(1,1) logical       = true;
@@ -245,7 +245,8 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
                                                               'Radius',Args.SearchRadius,...
                                                               'RadiusUnits',Args.SearchRadiusUnits);
         % we are inside Iobj loop, so there is only one ResInd:
-        SourcesWhichAreMP(Iobj) = selectRows(Obj(Iobj), ResInd.Obj2_IndInObj1, 'IgnoreNaN',true, 'CreateNewObj',true);
+        %SourcesWhichAreMP(Iobj) = selectRows(Obj(Iobj), ResInd.Obj2_IndInObj1, 'IgnoreNaN',true, 'CreateNewObj',true);
+        SourcesWhichAreMP(Iobj) = selectRows(Cat, ResInd.Obj2_IndInObj1, 'IgnoreNaN',true, 'CreateNewObj',true);
 
         LinesNN = ~isnan(ResInd(Iobj).Obj2_IndInObj1);
         % add columns: Dist, Nmatch, Designation
