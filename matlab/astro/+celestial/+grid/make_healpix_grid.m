@@ -1,5 +1,5 @@
 function make_healpix_grid(Npix, Args)
-    %  make a grid of HEALPix positions covering the whole sky
+    % make a grid of HEALPix positions covering the whole sky
     % Input: - Npix parameter of the HEALPix algorythm (effective map resolution)
     %      * ...,key,val,...
     %      'Python' - system command for the python3 executable

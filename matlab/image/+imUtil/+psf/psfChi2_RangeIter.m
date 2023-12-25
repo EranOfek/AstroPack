@@ -195,11 +195,11 @@ function [X1,Y1,MinChi2,Flux0,Dof,H, Result]=psfChi2_RangeIter(Cube, Std, PSF, A
     % The MatChi2 matrix tends to have high condition numbers, and that leads to
     % instabilities, so it is better to use some regularization
     % instead of a simple solution (Tikhonov regularization is applied here): 
-    
+%     
     LambdaT = 1e-6;
-    Par = (H' * H + LambdaT * eye(size(H, 2))) \ (H' * MatChi2); 
-    
-    Par(Par==0) = 1e-16; 
+    Par = (H' * H + LambdaT * eye(size(H, 2))) \ (H' * MatChi2);
+
+    Par(Par==0) = 1e-16;
     
     % Find the parameters 
     %
