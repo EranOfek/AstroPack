@@ -1726,7 +1726,7 @@ classdef DemonLAST < Component
                 
                 Args.HostName          = []; 
 
-                Args.SelectKnownAsteroid logical      = false;
+                Args.SelectKnownAsteroid logical      = true;
                 Args.GeoPos                           = [];    %[Lon (rad), Lat (rad), Height (m)].
                 Args.OrbEl                            = [];
                 Args.INPOP                            = [];
@@ -1918,8 +1918,9 @@ classdef DemonLAST < Component
                             %AI = AstroImage(FilesList, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
                             % Insert AI to DB
 
-                            
+
                             % Instead of AI, it used to be: RawImageList
+                           
                             [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
                                                                        Args.multiRaw2procCoaddArgs{:},...
                                                                        'SubDir',NaN,...
@@ -1977,6 +1978,15 @@ classdef DemonLAST < Component
                                                    'SubDir',FN_Proc.SubDir);
                             Obj.writeLog(Status, LogLevel.Info);
 
+                            % Known Matched asteroids
+                            MergedKnownAst = merge(OnlyMP,'IsTable',1,'AddEntryPerElement',[[OnlyMP.JD].',(1:1:numel(OnlyMP)).'],'AddColNames',{'JD','SubImageIndex'});
+                            MergedAst.Table = MergedKnownAst.Catalog;
+                            [~,~,Status]=imProc.io.writeProduct(MergedAst, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
+                                                   'Save',UpArgs.SaveAsteroids,...
+                                                   'Level','coadd',...
+                                                   'LevelPath','proc',...
+                                                   'SubDir',FN_Proc.SubDir);
+                            Obj.writeLog(Status, LogLevel.Info);
 
                             
                             % if CoaddTransienst.sizeCatalog>0
