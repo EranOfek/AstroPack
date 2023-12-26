@@ -1593,8 +1593,7 @@ classdef OrbitalEl < Base
             
         end
         
-        function Result = propa
-            gate2commonEpoch(Obj, CommonEpoch, Args)
+        function Result = propagate2commonEpoch(Obj, CommonEpoch, Args)
             % Propagate all orbital elements to a common epoch
             % Input  : - A single element celestial.OrbitalEl object.
             %          - JD of common epoch in which to integrate all the
