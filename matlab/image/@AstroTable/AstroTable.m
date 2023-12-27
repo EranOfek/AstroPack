@@ -412,6 +412,9 @@ classdef AstroTable < Component
                 elseif isnumeric(OldArray) && iscell(NewData)
                     OldArray = array2table(OldArray);
                     NewData = cell2table(NewData);
+                elseif isnumeric(OldArray) && isstring(NewData)
+                    OldArray = array2table(OldArray);
+                    NewData  = table(NewData);
                 else
                     error('First two input argumnets must be of compatible classes');
                 end

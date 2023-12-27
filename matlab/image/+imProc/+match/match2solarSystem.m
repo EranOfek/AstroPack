@@ -95,7 +95,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
     %            'ColDesigName' - Name of designation column.
     %                   Default is 'Designation'.
     %            'AddColMag' - A logical indicating if to add predicted
-    %                   mag. Default is false.
+    %                   mag to SourcesWhichAreMP. Default is false.
     %            'ColMag' - Column name for predicted mag.
     %                   Default is 'PredMag'.
     %
@@ -153,7 +153,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
         Args.RefEllipsoid                  = 'WGS84';
         Args.KeyLon                        = 'OBSLON';
         Args.KeyLat                        = 'OBSLAT';
-        Args.KeyAlt                        = 'OBSEL';
+        Args.KeyAlt                        = 'OBSALT';
         
         Args.MagLimit                      = Inf;
         Args.Integration logical           = true;
@@ -215,7 +215,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
         % Get catalog with populated JD
         Cat = imProc.cat.getCat(Obj(Iobj), 'JD',Args.JD);
         
-        if isempty(Args.AstCat)
+        if isempty(Args.AstCat) 
             % Get image/catalog coordinates
             CatCoo = imProc.astrometry.getCooCenter(Obj(Iobj), 'RA',Args.RA,...
                                                            'Dec',Args.Dec,...
@@ -226,7 +226,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
         
             % Get image/catalog obs position
             if isempty(Args.GeoPos) && isa(Obj, 'AstroImage')
-                [Lon, Lat, Alt] = getObsCoo(Obj(Iobj).HeaderData, 'KeyLon',Args.KeyLon, 'KeyLat',Args.KeyLat', 'KeyAlt',Args.KeyAlt);
+                [Lon, Lat, Alt] = getObsCoo(Obj(Iobj).HeaderData, 'KeyLon',Args.KeyLon, 'KeyLat',Args.KeyLat, 'KeyAlt',Args.KeyAlt);
                 Args.GeoPos     = [Lon, Lat, Alt]; 
             end
         
@@ -247,7 +247,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
             AstCat = Args.AstCat;
         end
         
-        if isemptyCatalog(AstCat)
+        if isemptyCatalog(AstCat) || isemptyCatalog(Cat)
             % No Asteroids in search radius - skip
             SourcesWhichAreMP(Iobj)    = AstroCatalog;
             SourcesWhichAreMP(Iobj).JD = Cat.JD;
@@ -264,6 +264,8 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
             SourcesWhichAreMP(Iobj) = selectRows(Cat, ResInd.Obj2_IndInObj1, 'IgnoreNaN',true, 'CreateNewObj',true);
             %SourcesWhichAreMP(Iobj) = selectRows(Cat, ResInd.Obj1_IndInObj2, 'IgnoreNaN',true, 'CreateNewObj',true);
     
+
+
             LinesNN = ~isnan(ResInd.Obj2_IndInObj1);
             % add columns: Dist, Nmatch, Designation
             if Args.AddColDist
@@ -278,6 +280,13 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
             if Args.AddColDesignation
                 Desig = getCol(AstCat, 'Desig', 'SelectRows',LinesNN);
                 SourcesWhichAreMP(Iobj) = insertCol(SourcesWhichAreMP(Iobj), Desig, Args.ColDesigPos, Args.ColDesigName, '');
+            end
+
+            % ADding predicted magnitude column:
+            if Args.AddColMag
+                % Args.ColMag
+                PredMag = getCol(AstCat, 'Mag', 'SelectRows',LinesNN);
+                SourcesWhichAreMP(Iobj) = insertCol(SourcesWhichAreMP(Iobj), PredMag, Inf, Args.ColMag, '');
             end
 
 
@@ -306,11 +315,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
                     error('Unknwon first input object type (must be AstroImage or AstroCatalog)');
                 end
 
-                % ADding predicted magnitude column:
-                if Args.AddColMag
-                    % Args.ColMag
-
-                end
+                
                         
 
             end

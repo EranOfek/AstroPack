@@ -1140,7 +1140,7 @@ classdef OrbitalEl < Base
                 if ischar(Designation)
                     Designation = {Designation};
                 end
-                if iscell(Designation)
+                if iscell(Designation) || isstring(Designation)
                     if numel(Designation)==1
                         Desig = repmat(Designation, Ncat, 1);
                     else
