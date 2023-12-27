@@ -1929,7 +1929,9 @@ classdef OrbitalEl < Base
                     
                     % add Dist
                     if Args.AddDist
-                        Dist = celestial.coo.sphere_dist_fast(RA, Dec, Result(Iobj).Catalog.RA./RAD, Result(Iobj).Catalog.Dec./RAD) ;
+                        AstLonLat = getLonLat(Result(Iobj), 'rad');
+                        Dist = celestial.coo.sphere_dist_fast(RA, Dec, AstLonLat(:,1), AstLonLat(:,2));
+                        
                         Result(Iobj).insertCol(Dist.*RAD.*3600, Inf, {'Dist'}, {'arcsec'});
                     end
                 end

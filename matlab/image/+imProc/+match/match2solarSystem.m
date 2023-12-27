@@ -94,6 +94,10 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
     %                   Default is Inf.
     %            'ColDesigName' - Name of designation column.
     %                   Default is 'Designation'.
+    %            'AddColMag' - A logical indicating if to add predicted
+    %                   mag. Default is false.
+    %            'ColMag' - Column name for predicted mag.
+    %                   Default is 'PredMag'.
     %
     %       If nargout>1, then add, for each
     %       source in the input AstroCatalog object, the
@@ -171,12 +175,17 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
         Args.ColDesigPos                    = Inf;
         Args.ColDesigName                   = 'Desig';
 
+        Args.AddColMag logical              = false;
+        Args.ColMag                         = 'PredMag';
+        
         %Args.CreateNewObj(1,1) logical      = false;
 
         Args.SourcesColDistPos              = Inf;
         Args.SourcesColDistName             = 'DistMP';
         Args.SourcesColDistUnits            = 'arcsec';
         
+
+
     end
     RAD = 180./pi;
     QuickSearchBuffer = 500;  % arcsec
@@ -271,6 +280,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
                 SourcesWhichAreMP(Iobj) = insertCol(SourcesWhichAreMP(Iobj), Desig, Args.ColDesigPos, Args.ColDesigName, '');
             end
 
+
             % adding a column to Obj(Iobj) indicating if there is a match to a
             % minor planet
             if nargout>2
@@ -295,6 +305,14 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
                 else
                     error('Unknwon first input object type (must be AstroImage or AstroCatalog)');
                 end
+
+                % ADding predicted magnitude column:
+                if Args.AddColMag
+                    % Args.ColMag
+
+                end
+                        
+
             end
         end
     end
