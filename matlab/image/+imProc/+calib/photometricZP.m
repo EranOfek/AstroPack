@@ -122,7 +122,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.RadiusUnits              = 'arcsec';
         Args.Method                   = 'simple';
         Args.UseOnlyMainSeq logical   = false;
-        Args.MaxErr                   = 0.01;
+        Args.MaxErr                   = 0.02;
         Args.MaxSN                    = 1000;  % if empty, do not use
         
         Args.CatColNameMag            = {'MAG_PSF', 'MAG_APER_3'}; %'MAG_APER_3'; %'MAG_CONV_3';
@@ -341,8 +341,10 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     end
 
                     
-                    [Rzp,~,VarY] = imUtil.calib.simplePhotometricZP([CatMag, CatMagErr],[RefMag,RefMagErr],'Color',Color,'ColorOrder',Args.ColorOrder,'Width',Width);
-
+                    [Rzp,~,VarY] = imUtil.calib.simplePhotometricZP([CatMag, CatMagErr],[RefMag,RefMagErr],'Color',Color,'ColorOrder',Args.ColorOrder,'Width',Width, 'MaxMagErr',Args.MaxErr);
+                    if Rzp.Ndof<2
+                        [Rzp,~,VarY] = imUtil.calib.simplePhotometricZP([CatMag, CatMagErr],[RefMag,RefMagErr],'Color',Color,'ColorOrder',Args.ColorOrder,'Width',Width, 'MaxMagErr',Args.MaxErr.*2);
+                    end
                     ResFit(Iobj).Par = Rzp.Par;
 
                     %ResFit(Iobj).ZP     = ResFit(Iobj).Par(1) + Args.MagZP;

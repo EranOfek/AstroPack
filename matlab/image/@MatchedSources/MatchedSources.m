@@ -2577,14 +2577,14 @@ classdef MatchedSources < Component
                 Args.CreateNewObj logical   = false;
             end
 
+            % add the SrcData property
+            Obj.addSrcData(Args.addSrcDataArgs{:});
+
             if Args.CreateNewObj
                 Result = Obj.copy;
             else
                 Result = Obj;
             end
-
-            % add the SrcData property
-            Result.addSrcData(Args.addSrcDataArgs{:});
 
             Nmag = numel(Args.MagFields);
 
@@ -2592,9 +2592,13 @@ classdef MatchedSources < Component
             for Iobj=1:1:Nobj
                 % for each element of the MatchedSources object
                 for Imag=1:1:Nmag
-                    [SysRemChi2,SysRemRes] = timeSeries.detrend.sysrem(Obj(Iobj).Data.(Args.MagFields{Imag}),...
+                    % create Resid matrix
+                    ResidMat = Obj(Iobj).Data.(Args.MagFields{Imag}) - Obj(Iobj).SrcData.(Args.MagFields{Imag});
+
+                    [SysRemChi2,SysRemRes] = timeSeries.detrend.sysrem(ResidMat,...
                                                                        Obj(Iobj).Data.(Args.MagErrFields{Imag}),...
                                                                        Args.sysremArgs{:});
+                   
                     Result(Iobj).Data.(Args.MagFields{Imag}) = Result(Iobj).SrcData.(Args.MagFields{Imag}) + SysRemRes(end).Resid;
                 end
 

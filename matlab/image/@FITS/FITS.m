@@ -1315,6 +1315,91 @@ classdef FITS < handle
         end
         
     end
+
+    methods (Static)
+        function fpack(List, Command, Args)
+            % Compress FITS files using fpack
+            % Input  : - A file name, a file name containing wild
+            %            cards or regular expression, a cell array of
+            %            file names, or a structure arrawy which is the
+            %            output of the dir command.
+            %          - fpack command string.
+            %            Default is 'fpack -r'.
+            %          * ...,key,val,...
+            %            'RegExp' - A logical indicating if to use regular expression (true) or
+            %                   wild cards (false). Default is false.
+            %            'ListList' - If this argument is true, and the file name in the first
+            %                   argument starts with '@', then will read the file names from
+            %                   this files (lines start with % and # ignored).
+            %                   Default is true.
+            % Output : null.
+            % Author : Eran Ofek (Dec 2023)
+
+            arguments
+                List
+                Command                       = 'fpack -r';
+                Args.RegExp logical        = false;
+                Args.ListList logical      = true;
+            end
+
+            List = io.files.filelist(List, Args.RegExp, Args.ListList);
+
+            Nlist = numel(List);
+
+            % check if external code installed
+            Res = system(Command);
+            if Res~=255
+                error('fpack not installed - in linux use: apt-get install libcfitsio-bin')
+            end
+
+            for Ilist=1:1:Nlist
+                system(sprintf('%s %s',Command, List{Ilist}));
+            end
+
+        end
+
+        function funpack(List, Command, Args)
+            % Uncompress FITS files using fpack
+            % Input  : - A file name, a file name containing wild
+            %            cards or regular expression, a cell array of
+            %            file names, or a structure arrawy which is the
+            %            output of the dir command.
+            %          - fpack command string.
+            %            Default is 'funpack'.
+            %          * ...,key,val,...
+            %            'RegExp' - A logical indicating if to use regular expression (true) or
+            %                   wild cards (false). Default is false.
+            %            'ListList' - If this argument is true, and the file name in the first
+            %                   argument starts with '@', then will read the file names from
+            %                   this files (lines start with % and # ignored).
+            %                   Default is true.
+            % Output : null.
+            % Author : Eran Ofek (Dec 2023)
+
+            arguments
+                List
+                Command                       = 'funpack';
+                Args.RegExp logical        = false;
+                Args.ListList logical      = true;
+            end
+
+            List = io.files.filelist(List, Args.RegExp, Args.ListList);
+
+            Nlist = numel(List);
+
+            % check if external code installed
+            Res = system(Command);
+            if Res~=255
+                error('fpack not installed - in linux use: apt-get install libcfitsio-bin')
+            end
+
+            for Ilist=1:1:Nlist
+                system(sprintf('%s %s',Command, List{Ilist}));
+            end
+
+        end
+
+    end
     
     methods (Static)   % write_old
         % write_old (previously fitswrite_my)

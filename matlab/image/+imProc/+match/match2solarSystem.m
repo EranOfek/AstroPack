@@ -94,6 +94,10 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
     %                   Default is Inf.
     %            'ColDesigName' - Name of designation column.
     %                   Default is 'Designation'.
+    %            'AddColMag' - A logical indicating if to add predicted
+    %                   mag to SourcesWhichAreMP. Default is false.
+    %            'ColMag' - Column name for predicted mag.
+    %                   Default is 'PredMag'.
     %
     %       If nargout>1, then add, for each
     %       source in the input AstroCatalog object, the
@@ -149,7 +153,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
         Args.RefEllipsoid                  = 'WGS84';
         Args.KeyLon                        = 'OBSLON';
         Args.KeyLat                        = 'OBSLAT';
-        Args.KeyAlt                        = 'OBSEL';
+        Args.KeyAlt                        = 'OBSALT';
         
         Args.MagLimit                      = Inf;
         Args.Integration logical           = true;
@@ -171,12 +175,17 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
         Args.ColDesigPos                    = Inf;
         Args.ColDesigName                   = 'Desig';
 
+        Args.AddColMag logical              = false;
+        Args.ColMag                         = 'PredMag';
+        
         %Args.CreateNewObj(1,1) logical      = false;
 
         Args.SourcesColDistPos              = Inf;
         Args.SourcesColDistName             = 'DistMP';
         Args.SourcesColDistUnits            = 'arcsec';
         
+
+
     end
     RAD = 180./pi;
     QuickSearchBuffer = 500;  % arcsec
@@ -206,7 +215,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
         % Get catalog with populated JD
         Cat = imProc.cat.getCat(Obj(Iobj), 'JD',Args.JD);
         
-        if isempty(Args.AstCat)
+        if isempty(Args.AstCat) 
             % Get image/catalog coordinates
             CatCoo = imProc.astrometry.getCooCenter(Obj(Iobj), 'RA',Args.RA,...
                                                            'Dec',Args.Dec,...
@@ -217,7 +226,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
         
             % Get image/catalog obs position
             if isempty(Args.GeoPos) && isa(Obj, 'AstroImage')
-                [Lon, Lat, Alt] = getObsCoo(Obj(Iobj).HeaderData, 'KeyLon',Args.KeyLon, 'KeyLat',Args.KeyLat', 'KeyAlt',Args.KeyAlt);
+                [Lon, Lat, Alt] = getObsCoo(Obj(Iobj).HeaderData, 'KeyLon',Args.KeyLon, 'KeyLat',Args.KeyLat, 'KeyAlt',Args.KeyAlt);
                 Args.GeoPos     = [Lon, Lat, Alt]; 
             end
         
@@ -238,58 +247,79 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
             AstCat = Args.AstCat;
         end
         
-        % Match AstCat with Cat
-        
-        % NOTE: Obj may be modified and returned sorted
-        ResInd = imProc.match.matchReturnIndices(Cat, AstCat, 'CooType','sphere',...
-                                                              'Radius',Args.SearchRadius,...
-                                                              'RadiusUnits',Args.SearchRadiusUnits);
-        % we are inside Iobj loop, so there is only one ResInd:
-        %SourcesWhichAreMP(Iobj) = selectRows(Obj(Iobj), ResInd.Obj2_IndInObj1, 'IgnoreNaN',true, 'CreateNewObj',true);
-        SourcesWhichAreMP(Iobj) = selectRows(Cat, ResInd.Obj2_IndInObj1, 'IgnoreNaN',true, 'CreateNewObj',true);
+        if isemptyCatalog(AstCat) || isemptyCatalog(Cat)
+            % No Asteroids in search radius - skip
+            SourcesWhichAreMP(Iobj)    = AstroCatalog;
+            SourcesWhichAreMP(Iobj).JD = Cat.JD;
+        else
 
-        LinesNN = ~isnan(ResInd(Iobj).Obj2_IndInObj1);
-        % add columns: Dist, Nmatch, Designation
-        if Args.AddColDist
-            Dist = convert.angular('rad', Args.ColDistUnits, ResInd.Obj2_Dist(LinesNN));
-            SourcesWhichAreMP(Iobj) = insertCol(SourcesWhichAreMP(Iobj), Dist, Args.ColDistPos, Args.ColDistName, Args.ColDistUnits);
-        end
+            % Match AstCat with Cat
+            
+            % NOTE: Obj may be modified and returned sorted
+            ResInd = imProc.match.matchReturnIndices(Cat, AstCat, 'CooType','sphere',...
+                                                                  'Radius',Args.SearchRadius,...
+                                                                  'RadiusUnits',Args.SearchRadiusUnits);
+         
+            % we are inside Iobj loop, so there is only one ResInd:
+            SourcesWhichAreMP(Iobj) = selectRows(Cat, ResInd.Obj2_IndInObj1, 'IgnoreNaN',true, 'CreateNewObj',true);
+            %SourcesWhichAreMP(Iobj) = selectRows(Cat, ResInd.Obj1_IndInObj2, 'IgnoreNaN',true, 'CreateNewObj',true);
+    
 
-        if Args.AddColNmatch
-            SourcesWhichAreMP(Iobj) = insertCol(SourcesWhichAreMP(Iobj), ResInd.Obj2_NmatchObj1(LinesNN), Args.ColNmatchPos, Args.ColNmatchName, '');
-        end
 
-        if Args.AddColDesignation
-            Desig = getCol(AstCat, 'Desig', 'SelectRows',LinesNN);
-            SourcesWhichAreMP(Iobj) = insertCol(SourcesWhichAreMP(Iobj), Desig, Args.ColDesigPos, Args.ColDesigName, '');
-        end
-
-        % adding a column to Obj(Iobj) indicating if there is a match to a
-        % minor planet
-        if nargout>2
-
-            Tmp=ResInd.Obj1_IndInObj2;
-            IsnanTmp = isnan(Tmp);
-            if all(IsnanTmp)
-                % no asteroid - add nan column
-                Obj_DistCol = nan(size(ResInd.Obj1_FlagNearest));
-            else
-                Tmp(IsnanTmp) = 1;   
-                Obj_DistCol = ResInd.Obj2_Dist(Tmp);
-                Obj_DistCol = convert.angular('rad', Args.SourcesColDistUnits, Obj_DistCol);
+            LinesNN = ~isnan(ResInd.Obj2_IndInObj1);
+            % add columns: Dist, Nmatch, Designation
+            if Args.AddColDist
+                Dist = convert.angular('rad', Args.ColDistUnits, ResInd.Obj2_Dist(LinesNN));
+                SourcesWhichAreMP(Iobj) = insertCol(SourcesWhichAreMP(Iobj), Dist, Args.ColDistPos, Args.ColDistName, Args.ColDistUnits);
             end
-            insertCol(Cat, Obj_DistCol, Args.SourcesColDistPos, Args.SourcesColDistName, Args.SourcesColDistUnits);
+    
+            if Args.AddColNmatch
+                SourcesWhichAreMP(Iobj) = insertCol(SourcesWhichAreMP(Iobj), ResInd.Obj2_NmatchObj1(LinesNN), Args.ColNmatchPos, Args.ColNmatchName, '');
+            end
+    
+            if Args.AddColDesignation
+                Desig = getCol(AstCat, 'Desig', 'SelectRows',LinesNN);
+                SourcesWhichAreMP(Iobj) = insertCol(SourcesWhichAreMP(Iobj), Desig, Args.ColDesigPos, Args.ColDesigName, '');
+            end
 
-            % return the Cat into the original input object
-            if isa(Obj, 'AstroImage')
-                Obj(Iobj).CatData = Cat;
-            elseif isa(Obj, 'AstroCatalog')
-                Obj(Iobj) = Cat;
-            else
-                error('Unknwon first input object type (must be AstroImage or AstroCatalog)');
+            % ADding predicted magnitude column:
+            if Args.AddColMag
+                % Args.ColMag
+                PredMag = getCol(AstCat, 'Mag', 'SelectRows',LinesNN);
+                SourcesWhichAreMP(Iobj) = insertCol(SourcesWhichAreMP(Iobj), PredMag, Inf, Args.ColMag, '');
+            end
+
+
+            % adding a column to Obj(Iobj) indicating if there is a match to a
+            % minor planet
+            if nargout>2
+    
+                Tmp=ResInd.Obj1_IndInObj2;
+                IsnanTmp = isnan(Tmp);
+                if all(IsnanTmp)
+                    % no asteroid - add nan column
+                    Obj_DistCol = nan(size(ResInd.Obj1_FlagNearest));
+                else
+                    Tmp(IsnanTmp) = 1;   
+                    Obj_DistCol = ResInd.Obj2_Dist(Tmp);
+                    Obj_DistCol = convert.angular('rad', Args.SourcesColDistUnits, Obj_DistCol);
+                end
+                insertCol(Cat, Obj_DistCol, Args.SourcesColDistPos, Args.SourcesColDistName, Args.SourcesColDistUnits);
+    
+                % return the Cat into the original input object
+                if isa(Obj, 'AstroImage')
+                    Obj(Iobj).CatData = Cat;
+                elseif isa(Obj, 'AstroCatalog')
+                    Obj(Iobj) = Cat;
+                else
+                    error('Unknwon first input object type (must be AstroImage or AstroCatalog)');
+                end
+
+                
+                        
+
             end
         end
-
     end
     
    
