@@ -1,5 +1,6 @@
 function [Result] = predictTransit(Epoch0, Period, Args)
     % Given binary ephemeris, predict the time of transits
+    %       Nota including light time correction.
     % Input  : - Vector of epochs.
     %          - Vector of periods.
     %          * ...,key,val,... 
