@@ -318,6 +318,8 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
                     end
                 end
             end % isemptyCatalog(AstCat) || isemptyCatalog(Cat)
+        else
+            SourcesWhichAreMP(Iobj).JD = NaN;
         end % if ~Cat.isemptyCatalog
     end % for Iobj=1:1:Nobj
     
