@@ -27,7 +27,7 @@ function Result = psfPhot(Cube, Args)
         Args.MaxIter = 20;
         Args.UseSourceNoise logical = true;
         
-        Args.SN = [];  % is this needed?
+        Args.SN = [];  
         Args.ConvThresh = 1e-4;
         
         Args.ZP         = 25; 
@@ -126,10 +126,10 @@ function Result = psfPhot(Cube, Args)
     Ind   = 0;
     NotConverged = true;
     StdBack = Std;
-    Flux0   = 0;
+    Flux0   = zeros(Nim,1);
     
-    X1 = 0;
-    Y1 = 0;
+    X1 = zeros(Nim,1);
+    Y1 = zeros(Nim,1);
     RadiusRange = Args.RadiusRange;
     
     if Args.UseSourceNoise
@@ -148,6 +148,9 @@ function Result = psfPhot(Cube, Args)
         X1prev = X1;
         Y1prev = Y1;
         
+%         Args.GridPointsX = Args.GridPointsX * RadiusRange;
+%         Args.GridPointsY = Args.GridPointsY * RadiusRange;
+        
         [X1,Y1,MinChi2,Flux0,Dof,H, Result] = imUtil.psf.psfChi2_RangeIter(Cube, StdIter, Args.PSF,...
                                                                            'DX',X1,...
                                                                            'DY',Y1',...
@@ -164,8 +167,10 @@ function Result = psfPhot(Cube, Args)
         %
         RadiusRange = RadiusRange./2;
         
-%          [X1, Y1, sqrt(((X1 - X1prev).^2 + (Y1 - Y1prev).^2)), ((X1 - X1prev).^2 + (Y1 - Y1prev).^2)<ConvThresh.^2, Flux0/1e3, MinChi2./Dof]
-%          Ind % deb
+         subr = 10:20; % subrange to show
+         [X1(subr), Y1(subr), sqrt(((X1(subr) - X1prev(subr)).^2 + (Y1(subr) - Y1prev(subr)).^2)), ...
+          ((X1(subr) - X1prev(subr)).^2 + (Y1(subr) - Y1prev(subr)).^2)<ConvThresh(subr).^2, Flux0(subr)/1e3, MinChi2(subr)./Dof(subr)]
+         Ind % deb
 %         
         if all( ((X1 - X1prev).^2 + (Y1 - Y1prev).^2)<ConvThresh.^2)
             NotConverged = false;

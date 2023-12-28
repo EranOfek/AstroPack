@@ -188,7 +188,6 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                                                                     Args.psfPhotCubeArgs{:});
                     
                 case 'new'
-%                     Cube = Cube(:,:,10:20); Std = Std(10:20); SN = SN(10:20); % deb test
                     Result                = imUtil.psf.psfPhot(Cube, 'PSF',PSF,...
                                                             'Std',Std,...
                                                             'Back',0,...
@@ -197,7 +196,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                                                             'ConvThresh', 1e-4,...
                                                             'SN', SN,... % test
                                                             'FitRadius', 3,... % Args.HalfSize,... %test
-                                                            'RadiusRange', 0.2,... % test
+                                                            'RadiusRange', 0.5,... % test % 0.2, 0.5, 1.0
                                                             'backgroundCubeArgs',Args.backgroundCubeArgs,...
                                                             Args.psfPhotCubeArgs{:}); 
 
