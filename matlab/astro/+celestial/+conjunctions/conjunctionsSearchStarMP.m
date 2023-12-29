@@ -17,8 +17,8 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
         Args.ElementsIndex = 2;  % 1 for numbered asteroid; 2 for unnumbered
         Args.DistRange = [9 Inf];
         Args.HRange    = [-Inf 7];
-        Args.StartDate = [20 3 2023];
-        Args.EndDate   = [9 6 2023];
+        Args.StartJD   = [20 3 2023];
+        Args.EndJD     = [9 6 2023];
         Args.AddPlanets  = {'799','899'};  % Uranus, Neptune
         Args.PlanetsRadius = [25362, 24622];
 
@@ -57,7 +57,7 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
         %ObjName
         
         try
-            [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',ObjName, 'StartJD',Args.StartDate,'StopJD',Args.EndDate, 'StepSize',3,'StepSizeUnits','h');
+            [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',ObjName, 'StartJD',Args.StartJD,'StopJD',Args.EndJD, 'StepSize',3,'StepSizeUnits','h');
             
             Hmag = E(Ie).MagPar(1);
             [OcculterRadius] = celestial.SolarSys.asteroid_radius(Hmag, 0.15);
@@ -71,7 +71,7 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
     
     Npl = numel(Args.AddPlanets);
     for Ipl=1:1:Npl
-        [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',Args.AddPlanets{Ipl}, 'StartJD',Args.StartDate,'StopJD',Args.EndDate, 'StepSize',3,'StepSizeUnits','h');
+        [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',Args.AddPlanets{Ipl}, 'StartJD',Args.StartJD,'StopJD',Args.EndJD, 'StepSize',3,'StepSizeUnits','h');
     
         ObjName = Args.AddPlanets{Ipl};
         Result = celestial.conjunctions.conjunctionsStars(EphemCat, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',Args.PlanetsRadius(Ipl));
