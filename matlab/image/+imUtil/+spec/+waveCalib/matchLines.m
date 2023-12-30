@@ -28,13 +28,13 @@ function [Result] = matchLines(ObsLines, RefLines, Args)
         fprintf('Simulation mode');
         
         Nl         = 45;
-        Noverlap   = 25;
-        Nnoise     = 10;
+        Noverlap   = 45; %25;
+        Nnoise     = 0; %10;
         ObsLines   = rand(Nl,1).*3000 + 3000;
         NoiseLines = rand(Nnoise,1).*3000 + 3000;
         
         Ir       = randi(Nl, Noverlap,1);
-        RefLines = [ObsLines(Ir); NoiseLines].*1.3 + 500;
+        RefLines = [ObsLines(Ir); NoiseLines].*1.0 + 500;
         
         
         
@@ -42,10 +42,22 @@ function [Result] = matchLines(ObsLines, RefLines, Args)
     
     %% an other method
    
+    ObsLines = sort(ObsLines);
+    RefLines = sort(RefLines);
+    
     D1 = ObsLines(:) - ObsLines(:).';
     D2 = RefLines(:) - RefLines(:).';
+    D  = ObsLines(:) - RefLines(:).';
     
-    [FlagGood, BestPar, BestStd] = ransacLinearModel(H, Y, Args)
+    R1 = ObsLines(:)./ObsLines(:).';
+    R2 = RefLines(:)./RefLines(:).';
+    
+    N1 = numel(R1);
+    N2 = numel(R2);
+    N  = min(N1, N2);
+    
+    H = [ones(N,1), D1(1:N).'];
+    [FlagGood, BestPar, BestStd] = tools.math.fit.ransacLinearModel(H, D2(:));
     
     P=polyfit(D1(:),D2(:),1);  % use RANSAC
     D=L1-L2.'./P(1);
