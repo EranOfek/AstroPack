@@ -34,7 +34,7 @@ function [Result] = matchLines(ObsLines, RefLines, Args)
         NoiseLines = rand(Nnoise,1).*3000 + 3000;
         
         Ir       = randi(Nl, Noverlap,1);
-        RefLines = [ObsLines(Ir); NoiseLines].*1.0 + 500;
+        RefLines = [ObsLines(Ir); NoiseLines].*1.1 + 500;
         
         
         
@@ -46,11 +46,13 @@ function [Result] = matchLines(ObsLines, RefLines, Args)
     RefLines = sort(RefLines);
     
     D1 = ObsLines(:) - ObsLines(:).';
+    
     D2 = RefLines(:) - RefLines(:).';
     D  = ObsLines(:) - RefLines(:).';
     
     R1 = ObsLines(:)./ObsLines(:).';
     R2 = RefLines(:)./RefLines(:).';
+    R  = ObsLines(:)./RefLines(:).';
     
     N1 = numel(R1);
     N2 = numel(R2);
