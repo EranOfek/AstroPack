@@ -194,7 +194,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
     AstCat = [];
     if isempty(Args.AstCat)
         if isempty(Args.OrbEl) 
-            Args.OrbEl= celestial.OrbitalEl.loadSolarSystem;
+            Args.OrbEl= celestial.OrbitalEl.loadSolarSystem('merge');
             if numel(unique(Args.OrbEl.Epoch))>1
                 error('OrbEl contains multiple Epochs');
             end

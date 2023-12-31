@@ -18,83 +18,54 @@ function [Result] = matchLines(ObsLines, RefLines, Args)
     %          imUtil.spec.waveCalib.matchLines(RO, RL);
 
     arguments
-        ObsLines
-        RefLines
+        ObsLines                  = [];
+        RefLines                  = [];
         Args.StrongestN           = 30;
         Args.MinRange             = 500;
     end
 
-    % add line intensity if missing
-    Nobs = size(ObsLines,1);
-    Nref = size(RefLines,1);
-    if size(ObsLines,2)==1
-        % add random intensity
-        ObsLines = [ObsLines, 1 + randn(Nobs,1).*0.0001];
-    end
-    if size(RefLines,2)==1
-        % add random intensity
-        RefLines = [RefLines, 1 + randn(Nref,1).*0.0001];
-    end
-    
-    % sort line lists by intensity
-    ObsLinesSel = sortrows(ObsLines, 2);
-    RefLinesSel = sortrows(RefLines, 2);
-    
-    % select strongest lines:
-    ObsLinesSel = ObsLinesSel(1:Args.StrongestN,:);
-    RefLinesSel = RefLinesSel(1:Args.StrongestN,:);
-    
-    % choose 3 out of N
-    AllC = nchoosek((1:1:Args.StrongestN).',3);
-    
-    RefW = sort(RefLinesSel(:,1));
-    ObsW = sort(ObsLinesSel(:,1));
-    MatRefW = RefW(AllC.');
-    MatObsW = ObsW(AllC.');
-    % Range of all reference combinations
-    RangeRefComb = range(MatRefW);
-    FlagGoodRange = RangeRefComb > Args.MinRange;
-    MatRefW       = MatRefW(:,FlagGoodRange);
-    
-    
-    NrefW  = size(MatRefW,2);
-    ColPar = zeros(2, NrefW);
-    RStd   = zeros(1, NrefW);
-    MinRStd = Inf;
-    for IrefW=1:1:NrefW
-        H = [ones(3,1), MatRefW(:,IrefW)];
-        Par = H\MatObsW;
+    if isempty(ObsLines) && isempty(RefLines)
+        fprintf('Simulation mode');
         
-        Resid = MatObsW - H*Par;
-        Std   = std(Resid,[],1);
-        [MinStd,Imin] = min(Std./RangeRefComb(IrefW));
-        ColPar(:,IrefW) = Par(:,Imin);
-        ColMin(IrefW) = MinStd;
+        Nl         = 45;
+        Noverlap   = 45; %25;
+        Nnoise     = 0; %10;
+        ObsLines   = rand(Nl,1).*3000 + 3000;
+        NoiseLines = rand(Nnoise,1).*3000 + 3000;
         
-        BestPar = Par(:,Imin);
+        Ir       = randi(Nl, Noverlap,1);
+        RefLines = [ObsLines(Ir); NoiseLines].*1.1 + 500;
         
-        H = [ones(size(RefW)), RefW];
-        PredW = H*BestPar;
         
-        Im=tools.find.mfind_bin(ObsW(:), PredW(:).');
-        RStd(IrefW) = 1.25.*mad(ObsW(Im) - PredW);
         
-        if RStd(IrefW)<MinRStd
-            BestObsW  = ObsW(Im);
-            BestPredW = PredW;
-            BestRefW  = RefW;
-            BestInd   = IrefW;
-            MinRStd   = RStd(IrefW);
-        end
-            
     end
     
-    [~,Ibest] = min(RStd);
-    IrefW = Ibest;
+    %% an other method
+   
+    ObsLines = sort(ObsLines);
+    RefLines = sort(RefLines);
     
-    %[Result] = imUtil.spec.waveCalib.fitWaveCalib(BestObsW, BestRefW, 'Nsim',[])
+    D1 = ObsLines(:) - ObsLines(:).';
     
-    'a'
+    D2 = RefLines(:) - RefLines(:).';
+    D  = ObsLines(:) - RefLines(:).';
+    
+    R1 = ObsLines(:)./ObsLines(:).';
+    R2 = RefLines(:)./RefLines(:).';
+    R  = ObsLines(:)./RefLines(:).';
+    
+    N1 = numel(R1);
+    N2 = numel(R2);
+    N  = min(N1, N2);
+    
+    H = [ones(N,1), D1(1:N).'];
+    [FlagGood, BestPar, BestStd] = tools.math.fit.ransacLinearModel(H, D2(:));
+    
+    P=polyfit(D1(:),D2(:),1);  % use RANSAC
+    D=L1-L2.'./P(1);
+
+    % peak of hist D give the -shift (-100)
+    hist(D(:),1000)
     
     
     

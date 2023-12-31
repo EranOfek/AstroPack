@@ -13,6 +13,9 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
     %            'CooUnits' - RA,Dec coordinates units. Default is 'rad'.
     %            'VelOutUnits' - 'cm/s' | 'm/s' | 'km/s' | 'au/day' | ...
     %                   Default is 'cm/s'.
+    %            'INPOP' - A populated celestial.INPOP object.
+    %                   If empty, then create and populate.
+    %                   Default is [].
     % Output : - Barycentric JD (TDB).
     %          - Barycentric velocity in Equatorial J2000.0 frame
     %            Default units [cm/s]. Control the output units using the
@@ -30,6 +33,7 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
         Args.Object         = 'Ear';
         Args.CooUnits       = 'rad';
         Args.VelOutUnits    = 'cm/s';
+        Args.INPOP          = [];
     end
     
     warning('not tested')
@@ -46,10 +50,13 @@ function [BJD, BVel] = barycentricJD(JD, RA, Dec, Args)
     C          = constant.c;
     SEC_IN_DAY = 86400;
     
-    
-    IP = celestial.INPOP;
-    IP.populateTables(Args.Object, 'FileData', 'pos');
-    IP.populateTables(Args.Object, 'FileData', 'vel');
+    if isempty(Args.INPOP)
+        IP = celestial.INPOP;
+        IP.populateTables(Args.Object, 'FileData', 'pos');
+        IP.populateTables(Args.Object, 'FileData', 'vel');
+    else
+        IP = Args.INPOP;
+    end
     
     AU         = IP.Constant.AU .* 1e5;   % cm
     
