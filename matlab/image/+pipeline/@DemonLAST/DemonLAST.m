@@ -989,7 +989,7 @@ classdef DemonLAST < Component
                 Obj
                 JD
                 InArgs
-                Args.InstructionFileName = 'zSpecialInst.txt';  % [D M Y HH MM SS  | SaveEpochProduct all
+                Args.InstructionFileName = 'zSpecialInst.txt';  % [D M Y HH MM SS  | SaveEpochProduct all/cat
                 Args.InstTable           = [];
             end
 
