@@ -147,6 +147,15 @@ Items:
         SearchFile           : ''
         Description          : 'JPL Orbital Elements of Minor Planets'
 
+    MinorPlanetsCT:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'MinorPlanetsCT'
+        SubDir               : 'SolarSystem/MinorPlanetsCT'
+        URL                  : ['http://data.astropack.org/SolarSystem/MinorPlanetsCT.tar']
+        Size                 : 695
+        SearchFile           : ''
+        Description          : 'Minor Planets Merged Common Epoch Orbital Elements'
+
     EarthGravity:
         # The following are cell arrays of entry per dataset
         DataName             : 'EarthGravity'
