@@ -23,7 +23,7 @@ function [Ebv,A]=sky_ebv(RA,Dec,CooType,CorrectHigh)
 % Tested : Matlab 7.0
 %     By : Eran O. Ofek                    May 2006
 %    URL : hhtp://weizmann.ac.il/home/eofek/matlab/
-% Example: [Ebv]=astro.spec.sky_ebv(1,1);
+% Example: [Ebv]=astro.extinction.sky_ebv(1,1);
 % Reliable: 2
 %--------------------------------------------------------------------------
 
