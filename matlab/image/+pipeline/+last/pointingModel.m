@@ -30,7 +30,11 @@ function [AllResult,PM, Report] = pointingModel_plots(Files, Args)
                
         cd(Dirs{Idirs});
 
-        List = FileNames.selectByDate(Files, Args.StartDate, Args.EndDate);
+        %%% TODO remove dependency on deprecated ImagePath and use
+        %%% FileNames instead
+        %List = FileNames.selectByDate(Files, Args.StartDate, Args.EndDate);
+        List = ImagePath.selectByDate(Files, Args.StartDate, Args.EndDate);
+        
         if numel(List)>Args.Nfiles
             List = List(end-Args.Nfiles+1:end);
         end
@@ -42,7 +46,7 @@ function [AllResult,PM, Report] = pointingModel_plots(Files, Args)
         Head   = {'RA','Dec','HA','M_JRA','M_JDEC','M_JHA', ...
             'M_RA','M_DEC','M_HA', 'JD','LST', ...
             'CenterRA','CenterDec','Scale','Rotation','Ngood',...
-            'AssymRMS', 'M_RA', 'M_DEC', 'M_HA'};
+            'AssymRMS'};
         Nhead  = numel(Head);
         Table  = zeros(Nfiles,Nhead);
         
@@ -73,7 +77,6 @@ function [AllResult,PM, Report] = pointingModel_plots(Files, Args)
                 fprintf('Astrometry failed for image %d\n',Ifile);
                 Table(Ifile,:) = ones(1, Nhead)*NaN;
             end
-                          
         end
 
         Result = array2table(Table);
@@ -149,6 +152,9 @@ function [AllResult,PM, Report] = pointingModel_plots(Files, Args)
     Report.M_JHA           = M_JHA;
     Report.M_JDEC          = M_JDEC;
     Report.M_JRA           = M_JRA;
+    Report.M_HA           = M_HA;
+    Report.M_DEC          = M_DEC;
+    Report.M_RA           = M_RA;
     Report.DiffHA_Mnt_Ast  = DiffHA_Mnt_Ast;   % Mount - Astrometry [HA] (deg)
     Report.MeanDiffHA      = MeanDiffHA;       % mean of 4 cameras
     Report.DiffDec_Mnt_Ast = DiffDec_Mnt_Ast;   % Mount - Astrometry [Dec] (deg)
