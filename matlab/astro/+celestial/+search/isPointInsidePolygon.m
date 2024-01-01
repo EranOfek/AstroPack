@@ -1,6 +1,6 @@
 function Result = isPointInsidePolygon(lon0, lat0, polygon)
     % determine if a point on a sphere is inside a given polygon
-    % NB: may not work if the region contains both poles!
+    % NB: will not work if the region contains both poles!
     % Input: - longitude in deg
     %        - latitute in deg
     %        - a polygon as a 2-column matrix of [lon, lat] in deg
