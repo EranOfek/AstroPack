@@ -4,10 +4,10 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
     %            Default is 'LAST*PointingModel*sci*.fits'.
     %          * ...,key,val,...
     %            see code.
-    % Example: R = pipeline.last.pointingModel([],'StartDate',[08 06 2022 17 54 00],'EndDate',[08 06 2022 18 06 00]);
+    % Example: [R,PM,Report] = pipeline.last.pointingModel('LAST*_PointingModel*sci*.fits','StartDate',[08 06 2022 17 54 00],'EndDate',[08 06 2022 18 06 00]);
     
     arguments
-        Files                             = 'LAST*PointingModel*sci*.fits';
+        Files                             = 'LAST*_PointingModel*sci*.fits';
         Args.Dirs                         = 'ALL'; %{};
         Args.StartDate                    = [];
         Args.EndDate                      = [];
@@ -59,18 +59,18 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
             List = List(end-Args.Nfiles+1:end);
         end
 
-        fprintf('Number of images:')
         Nlist = numel(List);
-        %List
+        fprintf('\n\nNumber of images: %i\n\n', Nlist)
+
         % Solve astrometry for all the pointing model images obtained by
         % one camera.
         for Ilist=1:1:Nlist
-            Ilist
-            List{Ilist}
+            fprintf('%i %s\n', Ilist, List{Ilist}(42:end));
             AI = AstroImage(List{Ilist});
             Keys = AI.getStructKey({'RA','DEC','HA','M_JRA','M_JDEC','M_JHA','JD','LST', 'M_RA', 'M_DEC', 'M_HA'});
             try
-                [R, CAI, S] = imProc.astrometry.astrometryCropped(List{Ilist}, 'RA',Keys.RA, 'Dec',Keys.DEC, 'CropSize',[],Args.astrometryCroppedArgs{:});
+                [R, CAI, S] = imProc.astrometry.astrometryCropped(List{Ilist}, ...
+                    'RA',Keys.RA, 'Dec',Keys.DEC, 'CropSize',[],Args.astrometryCroppedArgs{:});
             catch ME
                 ME
                 
@@ -96,7 +96,9 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
 
             end
             if Ilist==1
+
                 Head   = {'RA','Dec','HA','M_JRA','M_JDEC','M_JHA','M_RA','M_DEC','M_HA','JD','LST','CenterRA','CenterDec','Scale','Rotation','Ngood','AssymRMS'};
+
                 Nhead  = numel(Head);
                 Table  = zeros(Nlist,Nhead);
             end
@@ -159,14 +161,18 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
 
         % Interpolate the results over the grid
         for Idirs=1:1:Ndirs
-                        
-            %ResidHA(:,Idirs)  = AllResult(Idirs).Fha(HADec(:,1),HADec(:,2));
-            %ResidDec(:,Idirs) = AllResult(Idirs).Fdec(HADec(:,1),HADec(:,2));
-            %[-1.*(Result.CenterRA-Result.RA).*cosd(Result.CenterDec), -1.*(Result.CenterDec-Result.Dec)]
-            
+                                    
             % HA diff - Mount - Astrometry
-            DiffHA_Mnt_Ast(:,Idirs)  = AllResult(Idirs).Result.M_RA  - AllResult(Idirs).Result.CenterRA;
-            DiffDec_Mnt_Ast(:,Idirs) = AllResult(Idirs).Result.M_DEC - AllResult(Idirs).Result.CenterDec;
+            [Dists, Angles] = celestial.coo.sphere_dist(AllResult(Idirs).Result.M_JRA, AllResult(Idirs).Result.M_JDEC,...
+                AllResult(Idirs).Result.CenterRA, AllResult(Idirs).Result.CenterDec, 'deg');
+           
+            DiffHA_Mnt_Ast(:,Idirs) = Dists.*sin(Angles)*RAD;
+            DiffDec_Mnt_Ast(:,Idirs) = Dists.*cos(Angles)*RAD;
+
+
+            % HA diff - Mount - Astrometry
+            %DiffHA_Mnt_Ast(:,Idirs)  = AllResult(Idirs).Result.M_RA  - AllResult(Idirs).Result.CenterRA;
+            %DiffDec_Mnt_Ast(:,Idirs) = AllResult(Idirs).Result.M_DEC - AllResult(Idirs).Result.CenterDec;
             
         end
 
@@ -181,13 +187,10 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
         MeanDiffHA  = mean(DiffHA_Mnt_Ast,2);
         MeanDiffDec = mean(DiffDec_Mnt_Ast,2);
 
-        PM = [AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JHA(Fd), MeanDiffHA(Fd), MeanDiffDec(Fd)];
 
+        PM = [AllResult(1).Result.M_JHA, AllResult(1).Result.M_JHA, ...
+            MeanDiffHA, MeanDiffDec];
 
-        
-        %MeanResidHA  = mean(ResidHA,2,'omitnan');
-        %MeanResidDec = mean(ResidDec,2,'omitnan');
-        %PM = [HADec, MeanResidHA, MeanResidDec];
         
         Flag = any(isnan(PM),2);
         PM   = PM(~Flag,:);
@@ -216,31 +219,6 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
         if nargout>2
             % Generate report
 
-            % % plot pointing model
-            % factor = 15; % increase shifts for visibility
-            % 
-            % f = figure('Position',[100,100,600,600]);
-            % hold on
-            % 
-            % Npoints = length(Result.HA);
-            % for i=1:1:Npoints
-            %     plot([Result.HA(i),Result.HA(i)+Result.DiffHA(i)*factor], [Result.Dec(i), Result.Dec(i)+Result.DiffDec(i)*factor], '-b','linewidth',3)
-            % end
-            % plot(Result.HA, Result.Dec, 'xb','MarkerSize',8)
-            % 
-            % Npoints_inter = length(PM(:,1));
-            % for i=1:1:Npoints_inter
-            %     plot([PM(i,1), PM(i,1)+PM(i,3)*factor], [PM(i,2), PM(i,2)+PM(i,4)*factor], '-r')
-            % end
-            % 
-            % 
-            % xlabel('HA (deg)')
-            % ylabel('Dec (deg)')
-            % title('Pointing Model (shifts increased by x15)')
-            % 
-            % 
-            % exportgraphics(f,'~/log/pointing_model.png','Resolution',300)
-
             Report.M_JHA           = AllResult(1).Result.M_JHA;
             Report.M_JDEC          = AllResult(1).Result.M_JDEC;
             Report.M_JRA           = AllResult(1).Result.M_JDEC;
@@ -255,7 +233,8 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
                 Fd = AllResult(1).Result.M_JDEC<90;
 
                 % DiffHA vs HA/Dec
-                figure(1);
+                fig1 = figure(1);
+                colormap(fig1,jet);
                 scatter(Report.M_JHA(Fd), Report.M_JDEC(Fd), [], Report.MeanDiffHA(Fd), 'filled');
                 Hc = colorbar;
                 H = xlabel('HA [deg]');
@@ -265,9 +244,13 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
                 H.FontSize = 18;
                 H.Interpreter = 'latex';
                 Hc.Label.String='HA [Mnt-Ast] (deg)';
+                exportgraphics(fig1,'~/log/PM_offsets_HA.png','Resolution',300)
 
+                
+                
                 % DiffDec vs HA/Dec
-                figure(2);
+                fig2 = figure(2);
+                colormap(fig2,jet);
                 scatter(Report.M_JHA(Fd), Report.M_JDEC(Fd), [], Report.MeanDiffDec(Fd).*cosd(Report.M_JDEC(Fd)), 'filled');
                 Hc = colorbar;
                 H = xlabel('HA [deg]');
@@ -276,23 +259,94 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
                 H = ylabel('Dec [deg]');
                 H.FontSize = 18;
                 H.Interpreter = 'latex';
-                Hc.Label.String='HA [Mnt-Ast] (deg)';
+                Hc.Label.String='Dec [Mnt-Ast] (deg)';
+                exportgraphics(fig2,'~/log/PM_offsets_Dec.png','Resolution',300)
 
 
-                % plot differences between cameras on the same mount                
-                DiffH = (DiffHA_Mnt_Ast(:,1) - DiffHA_Mnt_Ast(:,4)).*cosd(AllResult(1).Result.M_JDEC);
-                figure(3); scatter(AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JDEC(Fd), [], DiffH(Fd), 'filled'); colorbar
-                DiffH = (DiffHA_Mnt_Ast(:,2) - DiffHA_Mnt_Ast(:,3)).*cosd(AllResult(1).Result.M_JDEC);
-                figure(4); scatter(AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JDEC(Fd), [], DiffH(Fd), 'filled'); colorbar
-        
-                DiffH = (DiffDec_Mnt_Ast(:,1) - DiffDec_Mnt_Ast(:,2));
-                figure(5); scatter(AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JDEC(Fd), [], DiffH(Fd), 'filled'); colorbar
-                DiffH = (DiffDec_Mnt_Ast(:,4) - DiffDec_Mnt_Ast(:,3));
-                figure(6);scatter(AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JDEC(Fd), [], DiffH(Fd), 'filled'); colorbar
+
+                % plot offset for individual cameras                
+                
+                fig3 = figure(3); 
+                colormap(fig3,jet);
+                scatter(AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JDEC(Fd), [], DiffHA_Mnt_Ast(:,1), 'filled'); colorbar
+                title('HA offset camera 1');
+                xlabel('HA');
+                ylabel('Dec');
+                colorbar;
+                exportgraphics(fig3,'~/log/PM_offsets_HA_cam1.png','Resolution',300)
+                
+                fig4 = figure(4); 
+                colormap(fig4,jet);
+                scatter(AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JDEC(Fd), [], DiffDec_Mnt_Ast(:,1), 'filled'); colorbar
+                title('Dec offset Camera 1');
+                xlabel('HA');
+                ylabel('Dec');
+                colorbar;
+                exportgraphics(fig4,'~/log/PM_offsets_Dec_cam1.png','Resolution',300)
+                   
+                fig5 = figure(5); 
+                colormap(fig5,jet);
+                scatter(AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JDEC(Fd), [], DiffHA_Mnt_Ast(:,2), 'filled'); colorbar
+                title('HA offset camera 2');
+                xlabel('HA');
+                ylabel('Dec');
+                colorbar;
+                exportgraphics(fig5,'~/log/PM_offsets_HA_cam2.png','Resolution',300)
+                
+                fig6 = figure(6); 
+                colormap(fig6,jet);
+                scatter(AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JDEC(Fd), [], DiffDec_Mnt_Ast(:,2), 'filled'); colorbar
+                title('Dec offset Camera 2');
+                xlabel('HA');
+                ylabel('Dec');
+                colorbar;
+                exportgraphics(fig6,'~/log/PM_offsets_Dec_cam2.png','Resolution',300)
 
             end
         end
 
+                 
+                fig7 = figure(7); 
+                colormap(fig7,jet);
+                scatter(AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JDEC(Fd), [], DiffHA_Mnt_Ast(:,3), 'filled'); colorbar
+                title('HA offset camera 3');
+                xlabel('HA');
+                ylabel('Dec');
+                colorbar;
+                exportgraphics(fig7,'~/log/PM_offsets_HA_cam3.png','Resolution',300)
+                
+                fig8 = figure(8); 
+                colormap(fig8,jet);
+                scatter(AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JDEC(Fd), [], DiffDec_Mnt_Ast(:,3), 'filled'); colorbar
+                title('Dec offset Camera 3');
+                xlabel('HA');
+                ylabel('Dec');
+                colorbar;
+                exportgraphics(fig8,'~/log/PM_offsets_Dec_cam3.png','Resolution',300)
+
+
+                   
+                fig9 = figure(9); 
+                colormap(fig9,jet);
+                scatter(AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JDEC(Fd), [], DiffHA_Mnt_Ast(:,4), 'filled'); colorbar
+                title('HA offset camera 4');
+                xlabel('HA');
+                ylabel('Dec');
+                colorbar;
+                exportgraphics(fig9,'~/log/PM_offsets_HA_cam4.png','Resolution',300)
+                
+                fig10 = figure(10);
+                colormap(fig10,jet);
+                scatter(AllResult(1).Result.M_JHA(Fd), AllResult(1).Result.M_JDEC(Fd), [], DiffDec_Mnt_Ast(:,4), 'filled'); colorbar
+                title('Dec offset Camera 4');
+                xlabel('HA');
+                ylabel('Dec');
+                colorbar;
+                exportgraphics(fig10,'~/log/PM_offsets_Dec_cam4.png','Resolution',300)
+
+ 
+            end
+        end
 
 
     else
