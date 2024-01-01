@@ -68,7 +68,7 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
             Ilist
             List{Ilist}
             AI = AstroImage(List{Ilist});
-            Keys = AI.getStructKey({'RA','DEC','HA','M_JRA','M_JDEC','M_JHA','JD','LST'});
+            Keys = AI.getStructKey({'RA','DEC','HA','M_JRA','M_JDEC','M_JHA','JD','LST', 'M_RA', 'M_DEC', 'M_HA'});
             try
                 [R, CAI, S] = imProc.astrometry.astrometryCropped(List{Ilist}, 'RA',Keys.RA, 'Dec',Keys.DEC, 'CropSize',[],Args.astrometryCroppedArgs{:});
             catch ME
@@ -89,14 +89,20 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
                 Keys.M_JRA = NaN;
                 Keys.M_JDEC = NaN;
                 Keys.M_JHA = NaN;
-                
+
+                Keys.M_RA = NaN;
+                Keys.M_DEC = NaN;
+                Keys.M_HA = NaN;
+
             end
             if Ilist==1
-                Head   = {'RA','Dec','HA','M_JRA','M_JDEC','M_JHA','JD','LST','CenterRA','CenterDec','Scale','Rotation','Ngood','AssymRMS'};
+                Head   = {'RA','Dec','HA','M_JRA','M_JDEC','M_JHA','M_RA','M_DEC','M_HA','JD','LST','CenterRA','CenterDec','Scale','Rotation','Ngood','AssymRMS'};
                 Nhead  = numel(Head);
                 Table  = zeros(Nlist,Nhead);
             end
-            Table(Ilist,:) = [Keys.RA, Keys.DEC, Keys.HA, Keys.M_JRA, Keys.M_JDEC, Keys.M_JHA, Keys.JD, Keys.LST, ...
+            Table(Ilist,:) = [Keys.RA, Keys.DEC, Keys.HA, Keys.M_JRA, Keys.M_JDEC, Keys.M_JHA, ...
+                              Keys.M_RA, Keys.M_DEC, Keys.M_HA,...
+                              Keys.JD, Keys.LST, ...
                               S.CenterRA, S.CenterDec, S.Scale, S.Rotation, S.Ngood, S.AssymRMS];
 
         end
@@ -112,10 +118,10 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
         cd(PWD);
 
         % There was a sign bug here - fixed 15-Nov-2023
-        TableDiff = array2table([-1.*(Result.CenterRA-Result.RA).*cosd(Result.CenterDec), -1.*(Result.CenterDec-Result.Dec)]);
-        TableDiff.Properties.VariableNames = {'DiffHA','DiffDec'};
+        %TableDiff = array2table([-1.*(Result.CenterRA-Result.RA).*cosd(Result.CenterDec), -1.*(Result.CenterDec-Result.Dec)]);
+        %TableDiff.Properties.VariableNames = {'DiffHA','DiffDec'};
 
-        Result = [Result, TableDiff];
+        %Result = [Result, TableDiff];
 
         AllResult(Idirs).Result = Result;
         
@@ -159,8 +165,8 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
             %[-1.*(Result.CenterRA-Result.RA).*cosd(Result.CenterDec), -1.*(Result.CenterDec-Result.Dec)]
             
             % HA diff - Mount - Astrometry
-            DiffHA_Mnt_Ast(:,Idirs)  = AllResult(Idirs).Result.M_JRA  - AllResult(Idirs).Result.CenterRA;
-            DiffDec_Mnt_Ast(:,Idirs) = AllResult(Idirs).Result.M_JDEC - AllResult(Idirs).Result.CenterDec;
+            DiffHA_Mnt_Ast(:,Idirs)  = AllResult(Idirs).Result.M_RA  - AllResult(Idirs).Result.CenterRA;
+            DiffDec_Mnt_Ast(:,Idirs) = AllResult(Idirs).Result.M_DEC - AllResult(Idirs).Result.CenterDec;
             
         end
 

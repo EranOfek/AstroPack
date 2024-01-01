@@ -1524,7 +1524,7 @@ classdef MatchedSources < Component
             arguments
                 Obj
                 Args.Catalog       = 'GAIADR3';
-                Args.ColMag        = 'phot_g_mean_mag';
+                Args.ColMag        = 'phot_bp_mean_mag';
                 Args.ColColor      = {'phot_bp_mean_mag','phot_rp_mean_mag'};  % single column or two columns
                 Args.ColCoo        = {'RA','Dec'};
                 Args.SearchRadius  = 2;

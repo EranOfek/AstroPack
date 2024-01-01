@@ -31,6 +31,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %                   Default is 5.
     %            'LimMagColor' - Color in which to calculate the lim. mag.
     %                   Default is 1.
+    %            'CatMagColor' - Assume this color for all sources when
+    %                   calculating the magnitudes. Default is 1.
     %
     %            'RefColNameMag' - Mag. column name in reference catalog.
     %                   Default is 'Mag_BP'.
@@ -135,7 +137,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         
         Args.LimMagSN                 = 5;  % limiting mag for S/N calc
         Args.LimMagColor              = 1;  % Color for lim. mag calc
-        
+        Args.CatMagColor              = 1;  % Color for Cat mag.
+
         Args.RefColNameMag            = 'phot_bp_mean_mag'; %'Mag_BP';
         Args.RefColNameMagErr         = 'phot_rp_mean_flux_over_error'; %'ErrMag_BP';
         Args.RefColNameMagBands       = {'phot_rp_mean_mag','phot_g_mean_mag'};  %{'Mag_RP','Mag_G'};   % red to blue...
@@ -491,7 +494,10 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     MagColFlag = ismember(Cat.ColNames, Args.MagColName2update);
                 end
 
-                Cat.Catalog(:,MagColFlag) = Cat.Catalog(:,MagColFlag) + Args.SignZP.*ResFit(Iobj).Par(1);  % donot add full ZP
+                %Cat.Catalog(:,MagColFlag) = Cat.Catalog(:,MagColFlag) + Args.SignZP.*ResFit(Iobj).Par(1);  % donot add full ZP
+                %Cat.Catalog(:,MagColFlag) = Cat.Catalog(:,MagColFlag) + Args.SignZP.*ResFit(Iobj).Par(1);  % donot add full ZP
+
+                Cat.Catalog(:,MagColFlag) = ResFit(Iobj).Fun(ResFit(Iobj).Par, Cat.Catalog(:,MagColFlag), Args.CatMagColor, ResFit(Iobj).MedC);
 
                 % This should happen automatically, but we are doing this for
                 % readability and order
