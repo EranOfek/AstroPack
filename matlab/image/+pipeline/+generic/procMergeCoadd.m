@@ -69,7 +69,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
         Args.AddGlobalMotion logical          = true;
         Args.UseShift logical                 = true;
         Args.UseInterp2 logical               = true;
-        Args.constructPSFArgs cell            = {};
+        Args.constructPSFArgs cell            = {}; % can be, e.g. {'CropByQuantile',true,'Quantile',0.999};
         Args.psfFitPhotArgs cell              = {};
         
         Args.Col2copy cell                    = {'Nobs'};  % cell array of columns to copy from MergedCat to Coadd
