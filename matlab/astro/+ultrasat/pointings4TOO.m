@@ -1,5 +1,7 @@
 function Grid = pointings4TOO(Pol, Args)
-
+    % construct ULTRASAT pointings to fill a given sky polygon
+    % NB: this is a first version taking the pointings from the best
+    % all-sky grid and selecting those whose center fall into the polygon
     arguments
         Pol = [  0,  0;  ... % RA, Dec
             45,-30;
