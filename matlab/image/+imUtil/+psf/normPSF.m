@@ -1,5 +1,5 @@
 function Result = normPSF(PSF, Args)
-    % normalize a PSF stamp 
+    % normalize a PSF stamp to 1 or to its RMS value
     % Input: - a PSF stamp (may be N+2 dimentional, N = 0..M, the first 2 dimensions are pixel dimensions X and Y)
     %        * ...,key,val,... 
     %        'ReNormMethod' - 'int' -- normalize to the sum of pixel values; 'rms' -- normalize to rms
