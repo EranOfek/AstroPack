@@ -32,7 +32,7 @@ function Result = aperPhotCube(Cube, X, Y, Args)
     %            'StdFun' - A function handle for std background
     %                   calculation. The function is of the forms
     %                   Fun(Data,Dim,...)
-    %                   Default is @std
+    %                   Default is @std (consider changing to mad).
     %            'StdFunArgs' - A cell array of additional arguments to
     %                   pass to 'StdFun' (after the dimension arguments.
     %                   Defauly is {'omitnan'}.
