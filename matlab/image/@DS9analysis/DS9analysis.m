@@ -371,8 +371,16 @@ classdef DS9analysis < handle
                     fprintf('  %s', FlagsName{I});
                 end
                 fprintf('\n');
-                fprintf('MergedCat flags : %d\n', AstTable.MergedCatMask);
-                fprintf('PolyDeltaChi2   : %f\n', AstTable.PolyDeltaChi2);
+                BDmc = BitDictionary('BitMask.MergedCat.Default');
+                FlagsName = BDmc.bitdec2name(AstTable.MergedCatMask);
+                FlagsName = FlagsName{1};
+                fprintf('MergedCat     :');
+                for I=1:1:numel(FlagsName)
+                    fprintf('  %s', FlagsName{I});
+                end
+                fprintf('\n');
+
+                fprintf('PolyDeltaChi2 : %f\n', AstTable.PolyDeltaChi2);
             end
 
             % prep MPC report for asteroid
@@ -448,23 +456,24 @@ classdef DS9analysis < handle
 
             [Result] = searchMinorPlanetsNearPosition(OrbEl, JD, CooCenter(1), CooCenter(2), CooCenter(3), 'INPOP',Args.INPOP, 'CooUnits','deg', 'SearchRadiusUnits','deg', 'MagLimit',Args.MagLimit);
 
-            DesigCell = Result.Catalog.Desig;
-            Nast      = numel(DesigCell);
-
-            if Args.AddNumber
-                AstNumber = OrbEl.desig2number(Result.Catalog.Desig);
-                for Iast=1:1:Nast
-                    DesigCell{Iast} = sprintf('%s / %d', DesigCell{Iast}, AstNumber(Iast));
+            if ~isemptyCatalog(Result)
+                DesigCell = Result.Catalog.Desig;
+                Nast      = numel(DesigCell);
+    
+                if Args.AddNumber
+                    AstNumber = OrbEl.desig2number(Result.Catalog.Desig);
+                    for Iast=1:1:Nast
+                        DesigCell{Iast} = sprintf('%s / %d', DesigCell{Iast}, AstNumber(Iast));
+                    end
                 end
-            end
-            if Args.AddMag
-                for Iast=1:1:Nast
-                    DesigCell{Iast} = sprintf('%s / %4.1f', DesigCell{Iast}, Result.Catalog.Mag(Iast));
+                if Args.AddMag
+                    for Iast=1:1:Nast
+                        DesigCell{Iast} = sprintf('%s / %4.1f', DesigCell{Iast}, Result.Catalog.Mag(Iast));
+                    end
                 end
+    
+                ds9.plotc(Result.Catalog.RA, Result.Catalog.Dec, 'Text',DesigCell)
             end
-
-            ds9.plotc(Result.Catalog.RA, Result.Catalog.Dec, 'Text',DesigCell)
-
         end
 
 
