@@ -1318,13 +1318,21 @@ classdef ds9 < handle
                 end
                 
                 % additional properties
+                Itext = min(Ireg,Ntext);
+                if isstring(Args.Text{1})
+                    Ntext = numel(Args.Text{1});
+                    Text = Args.Text{1}(Itext);
+                else
+                    Text = Args.Text{Itext};
+                end
+
                 fprintf(FID,'# color=%s width=%d font="%s %d %s" text={%s}\n',...
                             Args.Color{min(Ireg,Ncolor)},...
                             Args.Width(min(Ireg,Nwidth)),...
                             Args.Font{min(Ireg,Nfont)},...
                             Args.FontSize(min(Ireg,Nfontsize)),...
                             Args.FontStyle{min(Ireg,Nfontstyle)},...
-                            Args.Text{min(Ireg,Ntext)});
+                            Text);
                         
             end
             fclose(FID); % close region file

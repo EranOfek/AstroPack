@@ -462,7 +462,6 @@ classdef DS9analysis < handle
                     DesigCell{Iast} = sprintf('%s / %4.1f', DesigCell{Iast}, Result.Catalog.Mag(Iast));
                 end
             end
-           
 
             ds9.plotc(Result.Catalog.RA, Result.Catalog.Dec, 'Text',DesigCell)
 

@@ -14,6 +14,8 @@ function Result = interpOverMaskedPix(Obj, Args)
     %                   pixels. If empty, ignore, otherwise, for any interpolated
     %                   pixel, set this bit to on.
     %                   Default is 'Interpolated'.
+    %            'MaxBadPix' - Maximum number of bad pixels allowd.
+    %                   Default is 1e5.
     %            'CreateNewObj' - A logical indicating if to create a new
     %                   object. Default is false.
     % Output : - An AstroImage object in which the 'Image' data bad pixels
@@ -26,6 +28,7 @@ function Result = interpOverMaskedPix(Obj, Args)
         Args.BitNamesToInterp        = {'Saturated','HighRN','DarkHighVal','Hole','Spike','CR_DeltaHT'};
         Args.interpOverNanArgs       = {};
         Args.BitNameInterpolated     = 'Interpolated';
+        Args.MaxBadPix               = 1e5;
         Args.CreateNewObj logical    = false;
         
     end
@@ -47,7 +50,7 @@ function Result = interpOverMaskedPix(Obj, Args)
         % set selected pixels to NaN
         Result(Iobj).Image(Ind) = NaN;
 
-        if numel(Ind)>1e5
+        if numel(Ind)>Args.MaxBadPix
             % too many band pixels
             error('Too many bad pixels: %d',numel(Ind));
         end
