@@ -28,7 +28,7 @@ function Result = interpOverMaskedPix(Obj, Args)
         Args.BitNamesToInterp        = {'Saturated','HighRN','DarkHighVal','Hole','Spike','CR_DeltaHT'};
         Args.interpOverNanArgs       = {};
         Args.BitNameInterpolated     = 'Interpolated';
-        Args.MaxBadPix               = 1e5;
+        Args.MaxBadPix               = inf; %1e5;
         Args.CreateNewObj logical    = false;
         
     end
