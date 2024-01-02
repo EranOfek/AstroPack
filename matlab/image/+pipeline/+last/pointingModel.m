@@ -1,4 +1,4 @@
-function [AllResult,PM, Report] = pointingModel_plots(Files, Args)
+function [AllResult,PM, Report] = pointingModel(Files, Args)
     % Calculate pointing model from a lsit of images and write it to a configuration file.
     % Input  : - File name template to analyze.
     %            Default is 'LAST*PointingModel*sci*.fits'.
@@ -12,7 +12,7 @@ function [AllResult,PM, Report] = pointingModel_plots(Files, Args)
         Args.StartDate                    = [];
         Args.EndDate                      = [];
         Args.Nfiles                       = Inf;  % use only last N files
-        Args.astrometryCroppedArgs cell   = {};
+        %Args.astrometryCroppedArgs cell   = {};
         
         Args.ObsCoo                       = [35 30];  % [deg]
         Args.ConfigFile                   = '/home/ocs/pointingModel.txt';
@@ -56,37 +56,12 @@ function [AllResult,PM, Report] = pointingModel_plots(Files, Args)
         for Ifile=1:1:Nfiles
             
             fprintf('%i %s\n', Ifile, List{Ifile}(42:end));
-            
-            AI = AstroImage(List{Ifile});
-            Keys = AI.getStructKey({'RA','DEC','HA','M_JRA','M_JDEC', ...
-                'M_JHA','M_RA','M_DEC','M_HA','JD','LST'});
-            try
-                [~, ~, S] = imProc.astrometry.astrometryCropped(...
-                    List{Ifile}, 'RA',Keys.RA, 'Dec',Keys.DEC, ...
-                    'CropSize',[], Args.astrometryCroppedArgs{:});
-                
-                Table(Ifile,:) = [Keys.RA, Keys.DEC, Keys.HA, ...
-                    Keys.M_JRA, Keys.M_JDEC, Keys.M_JHA, ...
-                    Keys.M_RA, Keys.M_DEC, Keys.M_HA, Keys.JD, Keys.LST, ...
-                    S.CenterRA, S.CenterDec, S.Scale, S.Rotation, ...
-                    S.Ngood, S.AssymRMS];
-                
-            catch ME
-                %ME
-                
-                fprintf('Astrometry failed for image %d\n',Ifile);
-                Table(Ifile,:) = ones(1, Nhead)*NaN;
-            end
+            Table(Ifile,:) = getAstrometricSolution(List{Ifile});
         end
 
         Result = array2table(Table);
         Result.Properties.VariableNames = Head;
         
-
-        % There was a sign bug here - fixed 15-Nov-2023
-        %TableDiff = array2table([-1.*(Result.CenterRA-Result.RA).*cosd(Result.CenterDec), -1.*(Result.CenterDec-Result.Dec)]);
-        %TableDiff.Properties.VariableNames = {'DiffHA','DiffDec'};
-        %Result = [Result, TableDiff];
 
         AllResult(Idirs).Result = Result;
         
@@ -106,33 +81,33 @@ function [AllResult,PM, Report] = pointingModel_plots(Files, Args)
             AllResult(Idirs).Result.CenterRA, ...
             AllResult(Idirs).Result.CenterDec, 'deg');
            
-        DiffHA_Mnt_Ast(:,Idirs) = Dists.*sin(Angles)*RAD;
-        DiffDec_Mnt_Ast(:,Idirs) = Dists.*cos(Angles)*RAD;
+        DiffHA(:,Idirs) = Dists.*sin(Angles)*RAD;
+        DiffDec(:,Idirs) = Dists.*cos(Angles)*RAD;
 
     end
 
     % Make sure that all the differences are around zero (not 360)
-    Flag = DiffHA_Mnt_Ast>180;
-    DiffHA_Mnt_Ast(Flag) = DiffHA_Mnt_Ast(Flag) - 360;
-    Flag = DiffHA_Mnt_Ast<-180;
-    DiffHA_Mnt_Ast(Flag) = DiffHA_Mnt_Ast(Flag) + 360;
+    Flag = DiffHA>180;
+    DiffHA(Flag) = DiffHA(Flag) - 360;
+    Flag = DiffHA<-180;
+    DiffHA(Flag) = DiffHA(Flag) + 360;
 
         
     % Mean distortion for all 4 cameras as a function of J2000 HA and Dec
-    MeanDiffHA  = mean(DiffHA_Mnt_Ast,2);
-    MeanDiffDec = mean(DiffDec_Mnt_Ast,2);
+    MeanDiffHA  = mean(DiffHA,2);
+    MeanDiffDec = mean(DiffDec,2);
 
-    M_JRA = AllResult(1).Result.M_JRA;
-    M_JHA = AllResult(1).Result.M_JHA;
-    M_JDEC = AllResult(1).Result.M_JDEC;
+    M_RA = AllResult(1).Result.M_RA;
+    M_HA = AllResult(1).Result.M_HA;
+    M_DEC = AllResult(1).Result.M_DEC;
     
-    PM = [M_JHA, M_JDEC, MeanDiffHA, MeanDiffDec];
+    PM = [M_HA, M_DEC, MeanDiffHA, MeanDiffDec];
 
 
     Flag = any(isnan(PM),2);
     PM   = PM(~Flag,:);
         
-    % add these values to avoid extrapolation at dec 90 deg
+    % add these values to avoid interpolation at dec 90 deg
     AtPole = [-135 90 0 0; -90 90 0 0; -45 90 0 0; 0 90 0 0; 45 90 0 0; ...
         90 90 0 0; 135 90 0 0];
     PM = [PM; AtPole];
@@ -148,17 +123,13 @@ function [AllResult,PM, Report] = pointingModel_plots(Files, Args)
     end
         
     % Generate report
-
-    Report.M_JHA           = M_JHA;
-    Report.M_JDEC          = M_JDEC;
-    Report.M_JRA           = M_JRA;
     Report.M_HA           = M_HA;
     Report.M_DEC          = M_DEC;
     Report.M_RA           = M_RA;
-    Report.DiffHA_Mnt_Ast  = DiffHA_Mnt_Ast;   % Mount - Astrometry [HA] (deg)
-    Report.MeanDiffHA      = MeanDiffHA;       % mean of 4 cameras
-    Report.DiffDec_Mnt_Ast = DiffDec_Mnt_Ast;   % Mount - Astrometry [Dec] (deg)
-    Report.MeanDiffDec     = MeanDiffDec;       % mean of 4 cameras
+    Report.DiffHA         = DiffHA;   % Mount - Astrometry [HA] (deg)
+    Report.MeanDiffHA     = MeanDiffHA;       % mean of 4 cameras
+    Report.DiffDec        = DiffDec;   % Mount - Astrometry [Dec] (deg)
+    Report.MeanDiffDec    = MeanDiffDec;       % mean of 4 cameras
             
 
     
@@ -174,17 +145,17 @@ function [AllResult,PM, Report] = pointingModel_plots(Files, Args)
            
     
     
-    Fd = M_JDEC<90;
+    Fd = M_DEC<90;
            
     
-    Flag = M_JRA>180;
-    M_JRA(Flag) = M_JRA(Flag)-360;
+    Flag = M_RA>180;
+    M_RA(Flag) = M_RA(Flag)-360;
 
     
     fig = figure('Position',[100 100 900 600]);
     hold on
 
-    mount = scatter(M_JRA, M_JDEC, 40, 'xb');
+    mount = scatter(M_RA, M_DEC, 40, 'xb');
 
     CenterRA = zeros(Nfiles, 4);
     CenterDec = zeros(Nfiles, 4);
@@ -220,15 +191,15 @@ function [AllResult,PM, Report] = pointingModel_plots(Files, Args)
         
 
     % plot mean HA offset
-    plotOffsets(AllResult(1).Result.M_JHA(Fd), ...
-        AllResult(1).Result.M_JDEC(Fd), Report.MeanDiffHA(Fd), ...
+    plotOffsets(AllResult(1).Result.M_HA(Fd), ...
+        AllResult(1).Result.M_DEC(Fd), Report.MeanDiffHA(Fd), ...
         'HA offset (mean for 4 cameras)', ...
         '~/log/PM_offsets_HA.png')
 
     % plot mean Dec offset
-    plotOffsets(AllResult(1).Result.M_JHA(Fd), ...
-        AllResult(1).Result.M_JDEC(Fd), ...
-        Report.MeanDiffDec(Fd).*cosd(Report.M_JDEC(Fd)), ...
+    plotOffsets(AllResult(1).Result.M_HA(Fd), ...
+        AllResult(1).Result.M_DEC(Fd), ...
+        Report.MeanDiffDec(Fd).*cosd(Report.M_DEC(Fd)), ...
         'Dec offset (mean for 4 cameras)', ...
         '~/log/PM_offsets_Dec.png')
        
@@ -236,14 +207,14 @@ function [AllResult,PM, Report] = pointingModel_plots(Files, Args)
     for Icam = 1:1:4
         
         % plot HA offset
-        plotOffsets(AllResult(1).Result.M_JHA(Fd), ...
-            AllResult(1).Result.M_JDEC(Fd), DiffHA_Mnt_Ast(Fd,Icam), ...
+        plotOffsets(AllResult(1).Result.M_HA(Fd), ...
+            AllResult(1).Result.M_DEC(Fd), DiffHA(Fd,Icam), ...
             'Dec offset Camera '+string(Icam), ...
             '~/log/PM_offsets_Dec_cam'+string(Icam)+'.png')
 
         % plot Dec offset
-        plotOffsets(AllResult(1).Result.M_JHA(Fd), ...
-            AllResult(1).Result.M_JDEC(Fd), DiffDec_Mnt_Ast(Fd,Icam), ...
+        plotOffsets(AllResult(1).Result.M_HA(Fd), ...
+            AllResult(1).Result.M_DEC(Fd), DiffDec(Fd,Icam), ...
             'Dec offset Camera '+string(Icam), ...
             '~/log/PM_offsets_Dec_cam'+string(Icam)+'.png')
     end
@@ -275,6 +246,31 @@ function ImgDirs = getImageDirs(Dirs)
 
 end
 
+function Row = getAstrometricSolution(ImageFileName)
+
+	AI = AstroImage(ImageFileName);
+            
+    Keys = AI.getStructKey({'RA','DEC','HA','M_JRA','M_JDEC', ...
+        'M_JHA','M_RA','M_DEC','M_HA','JD','LST'});
+    try
+        [~, ~, S] = imProc.astrometry.astrometryCropped(...
+            AI, 'RA',Keys.RA, 'Dec',Keys.DEC, ...
+            'CropSize',[]); %, Args.astrometryCroppedArgs{:});
+                
+        Row = [Keys.RA, Keys.DEC, Keys.HA, ...
+        	Keys.M_JRA, Keys.M_JDEC, Keys.M_JHA, ...
+            Keys.M_RA, Keys.M_DEC, Keys.M_HA, Keys.JD, Keys.LST, ...
+            S.CenterRA, S.CenterDec, S.Scale, S.Rotation, ...
+            S.Ngood, S.AssymRMS];
+                
+    catch
+        fprintf('Astrometry failed for image %s\n',ImageFileName);
+        Row = ones(1, 17)*NaN;
+    end
+
+
+end
+
 
 function writePMFile(ConfigFile, date, PM)
 
@@ -282,7 +278,7 @@ function writePMFile(ConfigFile, date, PM)
     FID = fopen(ConfigFile,'w');
     fprintf(FID,'# pointing model interpolation data\n');
     fprintf(FID,'# Generated on: %s\n',date);
-    fprintf(FID,'# format:       [M_JHA,  M_JDec,  offsetHA,  offsetDec]\n');
+    fprintf(FID,'# format:       [M_HA,  M_Dec,  offsetHA,  offsetDec]\n');
             
     fprintf(FID,'PointingData : [\n');
     Npm = size(PM,1);
@@ -291,7 +287,7 @@ function writePMFile(ConfigFile, date, PM)
     end
     fprintf(FID,'     ]\n');
     fclose(FID);
-    
+     
 end
 
 
