@@ -69,10 +69,10 @@ function [ObjCat, OnlyMP, AstrometricCat, Skip, Path] = reanalize_ZTF_psfcat(Fil
     end
 
     % Add MergedCat
-    ObjCat = imProc.match.match_catsHTMmerged(ObjCat)
+    ObjCat = imProc.match.match_catsHTMmerged(ObjCat);
     
 
-    % Re do photometric calibration
+    % Re do photometric calibration - what about g/r/i?
     [ObjCat, ZP, PhotCat] = imProc.calib.photometricZP(ObjCat,'UseOnlyMainSeq',false,'Plot',false, 'CreateNewObj',false,...
                                                               'CatColNameMag',{'mag'},'CatColNameMagErr',{'sigmag'},...
                                                               'CatColNameSN','snr',...

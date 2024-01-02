@@ -331,7 +331,7 @@ classdef DS9analysis < handle
                 StampInd = (1:Args.StampStep:Nstamp);
             end
             Obj.load(AstData.AstCrop(Args.Id).Stamps(StampInd), 'Zoom',Args.Zoom);
-            ds9.match_xy;
+            ds9.match_wcs;
 
             % Display information
             NsrcCat = sizeCatalog(AstData.AstCrop(Args.Id).SelectedCatPM);
