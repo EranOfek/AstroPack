@@ -2164,7 +2164,9 @@ classdef OrbitalEl < Base
                     case 'merge'
                         % load the merged common epoch orbital elements
                         % file
-                        Result = io.files.load2('MergedEpoch_2460200.mat');
+                        I = Installer; 
+                        DataFile = strcat(I.getDataDir(I.Items.MinorPlanetsCT),'/MergedEpoch_2460200.mat');
+                        Result = io.files.load2(DataFile);
 
                     otherwise
                         error('Unknown Type option');
