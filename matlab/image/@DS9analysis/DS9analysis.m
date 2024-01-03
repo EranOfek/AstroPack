@@ -119,17 +119,17 @@ classdef DS9analysis < handle
 
         end
 
-        function Obj=load(Obj, Image, Args)
+        function Obj=load(Obj, Image, Frames, Args)
             % Load images to a DS9analysis object
             % Input  : - Self.
             %          - An AstroImage object, or a cell array of images,
             %            or a file name.
             %            The images will be loaded to frame 1..N according
             %            to their order.
+            %          - A vector of frames into to load the
+            %            images. If empty, use 1..N.
+            %            Default is [].
             %          * ...,key,val,...
-            %            'Frames' - A vector of frames into to load the
-            %                   images. If empty, use 1..N.
-            %                   Default is [].
             %            'LikeLAST' - A logical indicating if to read LAST like names.
             %                   If true then will use AstroImage.readFileNamesObj
             %                   to read images and thir corresponding Mask, PSF,
@@ -150,7 +150,7 @@ classdef DS9analysis < handle
                 Obj
                 Image
 
-                Args.Frames              = [];
+                Frames                   = [];
                 Args.LikeLAST logical    = true;
                 Args.Names               = {};
                 Args.Disp logical        = true;
@@ -170,7 +170,7 @@ classdef DS9analysis < handle
             end
 
             Nim = numel(AI);
-            if isempty(Args.Frames)
+            if isempty(Frames)
                 Frames = (1:1:Nim);
             else
                 Frames = Args.Frames;
@@ -331,7 +331,7 @@ classdef DS9analysis < handle
                 StampInd = (1:Args.StampStep:Nstamp);
             end
             Obj.load(AstData.AstCrop(Args.Id).Stamps(StampInd), 'Zoom',Args.Zoom);
-            ds9.match_xy;
+            ds9.match_wcs;
 
             % Display information
             NsrcCat = sizeCatalog(AstData.AstCrop(Args.Id).SelectedCatPM);
@@ -480,7 +480,7 @@ classdef DS9analysis < handle
     end
     
     methods  % basic utilities
-        function [X, Y, Val, AI, Key] = getXY(Obj, Coo, Mode, Args)
+        function [X, Y, Val, AI, Key, Coo] = getXY(Obj, Coo, Mode, Args)
             % Get X/Y position for user clicked/specified position
             % Input  : - self.
             %          - If empty, then prompt the user to click the ds9
@@ -496,6 +496,8 @@ classdef DS9analysis < handle
             %            'CooSys' - Coordinate system of user specified
             %                   coordinates: 'sphere'|'pix'. Default is 'sphere.
             %            'CooUnits' - Coordinates units. Default is 'deg'.
+            %            'OutUnits' - Units of output RA/Dec coordinates.
+            %                   Default is 'deg'.
             %            'Msg' - Printed message for mouse click:
             %                   Default is 'Select point in ds9 using mouse'
             % Output : - X position.
@@ -504,7 +506,9 @@ classdef DS9analysis < handle
             %          - AstroImage at current frame for which
             %            positions/values where obtained.
             %          - Clicked key.
+            %          - [RA, Dec] at position.
             % Author : Eran Ofek (May 2023)
+            % Example: [X,Y, Val,~,Key,Coo] = D9.getXY()
 
             arguments
                 Obj
@@ -512,10 +516,11 @@ classdef DS9analysis < handle
                 Mode   = 1;
                 Args.CooSys    = 'sphere';
                 Args.CooUnits  = 'deg';
+                Args.OutUnits  = 'deg';
                 Args.Msg       = 'Select point in ds9 using mouse';
             end
 
-            Frame = str2double(ds9.frame);
+            Frame = ds9.frame;
             Ind   = Frame; %Obj.MapInd(Frame);
             AI    = Obj.getImage(Ind);
 
@@ -547,7 +552,10 @@ classdef DS9analysis < handle
                 Ypix      = round(Y);
                 Val       = AI.Image(Ypix, Xpix);
             end
-
+            if nargout>5
+                [RA, Dec] = AI.WCS.xy2sky(X, Y, 'OutUnits',Args.OutUnits);
+                Coo = [RA, Dec];
+            end
         end
 
     end
@@ -578,6 +586,7 @@ classdef DS9analysis < handle
             %            .DistAng - Angular distance.
             %            .PAang - P.A. relative to the North
             % Author : Eran Ofek (May 2023)
+            % Example: R=D9.dist
             
             
             arguments
@@ -608,9 +617,9 @@ classdef DS9analysis < handle
                 [Result.RA, Result.Dec] = AI.WCS.xy2sky(Result.X, Result.Y, 'OutUnits',Args.OutUnits);
                 
                 Factor = convert.angular(Args.OutUnits, 'rad', 1);
-                RA     = RA.*Factor;
-                Dec    = Dec.*Factor;
-                [Result.DistAng, Result.PA] = celestial.coo.sphere_dist(RA(1), Dec(1), RA(2), Dec(2));
+                Result.RA     = Result.RA.*Factor;
+                Result.Dec    = Result.Dec.*Factor;
+                [Result.DistAng, Result.PA] = celestial.coo.sphere_dist(Result.RA(1), Result.Dec(1), Result.RA(2), Result.Dec(2));
                 Result.DistAng = convert.angular('rad', Args.OutUnits, Result.DistAng);
                 Result.PAang   = convert.angular('rad', Args.OutUnits, Result.PA);
                 
@@ -653,7 +662,9 @@ classdef DS9analysis < handle
             %            .MeanV - Mean image val of points in bin.
             %            .MedV - Median image val of points in bin.
             %            .StdV - Std image val of points in bin.
-            
+            % Author : Eran Ofek (Oct 2023)
+            % Example: R=D9.radial
+
             arguments
                 Obj
                 Coo              = [];  % [X1 Y1; X2 Y2]
@@ -678,7 +689,7 @@ classdef DS9analysis < handle
             [M1, M2, Aper] = imUtil.image.moment2(Cube, Xcut, Ycut, Args.moments2args{:});
             
             % calc radial profiles
-            Result = imUtil.psf.radialProfile(Cube, M1.X, M1.Y, 'Radius',Args.Radius, 'Step',Args.Step);
+            Result = imUtil.psf.radialProfile(Cube, [M1.X, M1.Y], 'Radius',Args.Radius, 'Step',Args.Step);
             
             if Args.Plot
                 plot(Result(end).R, Result(end).MeanV, 'k-');
@@ -747,6 +758,7 @@ classdef DS9analysis < handle
             %           - The AstroImage object from which the information
             %             was extracted.
             % Author : Eran Ofek (May 2023)
+            % Example: [M1, M2, Aper, RADec, AI] = D9.moments;
             
             arguments
                 Obj
@@ -766,12 +778,13 @@ classdef DS9analysis < handle
             [X, Y, Val, AI] = getXY(Obj, Coo, Mode, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
             
             
-            [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(AI.Image, X, Y, Args.HalfSize);
-            [M1, M2, Aper]               = imUtil.image.moment2(Cube, X, Y, 'SubBack',true,...
+            %[Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(AI.Image, X, Y, Args.HalfSize);
+            [M1, M2, Aper]               = imUtil.image.moment2(AI.Image, X, Y, 'SubBack',true,...
                                                                             'MaxIter',Args.MaxIter,...
                                                                             'MaxStep',Args.MaxStep,...
                                                                             'AperRadius',Args.AperRadius,...
                                                                             'Annulus',Args.Annulus);
+            
             if nargout>3
                 [RA, Dec] = AI.WCS.xy2sky(M1.X, M1.Y, 'OutUnits',Args.OutUnits);
                 RADec = [RA, Dec];
@@ -806,7 +819,8 @@ classdef DS9analysis < handle
             % Output : - A MatchedSources object with the output measured
             %            forced photometry parameters.
             % Author : Eran Ofek (May 2023)
-            
+            % Example: R=D9.forcedPhot
+
             arguments
                 Obj
                 Coo              = [];  % [X1 Y1; X2 Y2]
@@ -820,7 +834,7 @@ classdef DS9analysis < handle
             
             [X, Y, Val, AI] = getXY(Obj, Coo, Mode, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
             
-            MS = imProc.sources.forcedPhot(AI,'Coo',[X(:) Y(:)], 'AddRefStarsDist',false, 'Moving',false, Args.forcedPhotArgs{:});
+            MS = imProc.sources.forcedPhot(AI,'Coo',[X(:) Y(:)], 'AddRefStarsDist',false, 'Moving',false, 'CooUnits','pix', Args.forcedPhotArgs{:});
             
             switch lower(Args.OutType)
                 case {'ms','matchedsources'}
@@ -853,6 +867,7 @@ classdef DS9analysis < handle
             %            position. If empty, then bit mask is 0.
             %          - Bit mask decimal value.
             % Author : Eran Ofek (May 2023)
+            % Example: D9.getMask
 
             arguments
                 Obj
@@ -944,6 +959,7 @@ classdef DS9analysis < handle
             %          - Vector of indices of the returned sources in the
             %            original AstroCatalog in the AstroImage.
             % Author : Eran Ofek (May 2023)
+            % Example: [R,Dist]=D9.near
             
             arguments
                 Obj
