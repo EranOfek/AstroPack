@@ -73,10 +73,23 @@ function [ObjCat, OnlyMP, AstrometricCat, Skip, Path] = reanalize_ZTF_psfcat(Fil
     
 
     % Re do photometric calibration - what about g/r/i?
+    Att     = split(File,'_');
+    Filter  = Att{4};
+    switch lower(Filter)
+        case 'zg'
+            RefColNameMag    = 'phot_bp_mean_mag';
+            RefColNameMagErr = 'phot_bp_mean_flux_over_error';
+        otherwise
+            % zr zi
+            RefColNameMag    = 'phot_rp_mean_mag';
+            RefColNameMagErr = 'phot_rp_mean_flux_over_error';
+    end
     [ObjCat, ZP, PhotCat] = imProc.calib.photometricZP(ObjCat,'UseOnlyMainSeq',false,'Plot',false, 'CreateNewObj',false,...
                                                               'CatColNameMag',{'mag'},'CatColNameMagErr',{'sigmag'},...
                                                               'CatColNameSN','snr',...
                                                               'UpdateMagCols',true,...
+                                                              'RefColNameMag',RefColNameMag,...
+                                                              'RefColNameMagErr' ,RefColNameMagErr,...
                                                               'MagZP',0,...
                                                               'SignZP',-1,...
                                                               'MagColName2update','mag');
@@ -95,6 +108,10 @@ function [ObjCat, OnlyMP, AstrometricCat, Skip, Path] = reanalize_ZTF_psfcat(Fil
         [OnlyMP, AstCat, ~] = imProc.match.match2solarSystem(ObjCat, 'JD',JD, 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',1, 'INPOP',Args.INPOP);
 
     end
+
+    ObjCat.UserData.ZP     = ZP;
+    ObjCat.UserData.Astrom = ResAstrometry.ResFit;
+
 
     if ~isempty(Args.Path)
         cd(PWD);
