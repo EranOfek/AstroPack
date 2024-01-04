@@ -2951,6 +2951,11 @@ classdef AstroImage < Component
             %                   header keywords. Default is true.
             %            'UpdateWCS' - A logical indicating if to update
             %                   the WCS. Default is true.
+            %            'FillVal' - In case that the trim section is near the edge,
+            %                   this is the fill value to insert into the edge, such that the
+            %                   trim section will have the requires size. If empty, then
+            %                   return only the overlap region.
+            %                   Default is [].
             %            'CreateNewObj' - Indicating if the output
             %                   is a new copy of the input (true), or an
             %                   handle of the input (false).
@@ -2971,6 +2976,7 @@ classdef AstroImage < Component
                 Args.cropXYargs cell           = {};
                 Args.UpdateHeader(1,1) logical = true;
                 Args.UpdateWCS(1,1) logical    = true;
+                Args.FillVal                   = [];
                 Args.CreateNewObj logical      = false;
             end
 
@@ -3007,6 +3013,7 @@ classdef AstroImage < Component
                         Result(Iobj).(Args.DataProp{Iprop}) = crop(Result(Iobj).(Args.DataProp{Iprop}), CCDSEC(Isec,:),...
                                                         'Type',Args.Type,...
                                                         'DataPropIn',Args.DataPropIn,...
+                                                        'FillVal',Args.FillVal,...
                                                         'CreateNewObj',false);
                     end
                     % make sure CCDSEC is in 'ccdsec' format and not 'center'
@@ -3019,7 +3026,12 @@ classdef AstroImage < Component
                     end
                     if Args.UpdateWCS
                         %warning('UpdateWCS in AstroImage/crop is not implemented');
-                        Result(Iobj).WCS.CRPIX = Result(Iobj).WCS.CRPIX - CCDSEC(Isec,[1 3]) + [1 1];
+                        if isempty(Args.FillVal)
+                            CCDSEC_Min = max(CCDSEC(Isec,[1 3]),1);
+                            Result(Iobj).WCS.CRPIX = Result(Iobj).WCS.CRPIX - CCDSEC_Min + [1 1];
+                        else
+                            Result(Iobj).WCS.CRPIX = Result(Iobj).WCS.CRPIX - CCDSEC(Isec,[1 3]) + [1 1];
+                        end
                         Result(Iobj).propagateWCS('UpdateCat',false);
                     end
                     
@@ -3117,6 +3129,7 @@ classdef AstroImage < Component
                                                        'cropXYargs',Args.cropXYargs,...
                                                        'UpdateHeader',Args.UpdateHeader,...
                                                        'UpdateWCS',Args.UpdateWCS,...
+                                                       'FillVal',[],...
                                                        'CreateNewObj',Args.CreateNewObj);
             end
         
