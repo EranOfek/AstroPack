@@ -19,7 +19,7 @@ function A_3=extinction(Ebv,Family,Filter,R)
 % See also: optical_extinction.m
 % Reference : Cardelli, Clayton, Mathis 1989 ApJ 345, 245
 % Example: % to calculate The extinction in 'U' band given E(B-V)=0.1
-%          A_U = astro.spec.extinction(0.1,'Johnson','U')
+%          A_U = astro.extinction.extinction(0.1,'Johnson','U')
 % Reliable: 1
 %--------------------------------------------------------------------------
 if (nargin==2)

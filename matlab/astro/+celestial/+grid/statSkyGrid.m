@@ -1,5 +1,5 @@
 function Stat = statSkyGrid(GridData, StatGridFile, Args)
-    % calculate statistics of a gridded value for a given sky position and radius
+    % calculate statistics of a gridded value for a given sky position within a given angular distance 
     % NOTE: the input sky position(s) should belong to the same coordinate
     % system as those in the input GridData! 
     % NOTE2: for the statistics be sensible, the StatGrid should consist of

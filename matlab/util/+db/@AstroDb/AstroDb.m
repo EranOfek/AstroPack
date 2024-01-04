@@ -757,7 +757,7 @@ classdef AstroDb < Component
                     Obj.msgLog(LogLevel.Info, 'Table %s successfully populated with %s metadata', Table, Args.Type');
             end
             
-            Result = 0;            
+            Result = 1;            
         end
         
         function Result = updateByTupleID(Obj, TupleID, Colname, Colval, Args)
@@ -769,7 +769,7 @@ classdef AstroDb < Component
             %          * ...,key,val,...
             %          'Table'  : table name (by default = Obj.Tname)
             %
-            % Output : - success flag (0 -- images successfully changed the values in the DB)
+            % Output : - success flag (1 -- images successfully changed the values in the DB)
             % Tested : Matlab R2020b
             % Author : A. Krassilchtchikov (May 2023)
             % Examples: A = db.AstroDb; 
