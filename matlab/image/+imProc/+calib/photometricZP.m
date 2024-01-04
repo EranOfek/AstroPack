@@ -140,7 +140,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.CatMagColor              = 1;  % Color for Cat mag.
 
         Args.RefColNameMag            = 'phot_bp_mean_mag'; %'Mag_BP';
-        Args.RefColNameMagErr         = 'phot_rp_mean_flux_over_error'; %'ErrMag_BP';
+        Args.RefColNameMagErr         = 'phot_bp_mean_flux_over_error'; %'ErrMag_BP';
         Args.RefColNameMagBands       = {'phot_rp_mean_mag','phot_g_mean_mag'};  %{'Mag_RP','Mag_G'};   % red to blue...
         Args.RefColNameMagBandsErr    = {'phot_rp_mean_flux_over_error','phot_g_mean_flux_over_error'}; % {'ErrMag_RP','ErrMag_G'};
         Args.IsErrSN logical          = true; % referes to CatColNameMagErr and RefColNameMagBandsErr

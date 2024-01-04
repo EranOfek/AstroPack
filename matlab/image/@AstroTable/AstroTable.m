@@ -430,8 +430,11 @@ classdef AstroTable < Component
                 error('Column index in which to insert the column must be between 1 and number of columns +1');
             end
             
-            
-            NewArray = [OldArray(:,1:(ColInd-1)), NewData, OldArray(:,ColInd:end)];
+            if isempty(NewData)
+                NewArray = OldArray;
+            else
+                NewArray = [OldArray(:,1:(ColInd-1)), NewData, OldArray(:,ColInd:end)];
+            end
        end
         
        function [Name, IndInCell, IndInSynonym] = searchSynonym(Cell, SynonymCell, Args)
