@@ -78,8 +78,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                  'LIGHTSEC','[1 6388 25 9600]';...
                                                  'OVERSCAN','[6389 6422 1 9600]'};   % '[1 6354 1 9600]'};
                                              % 'COUNTER',1;...
-        Args.UpdateHeader logical             = true;   % CROPID & LEVEL
-        
+        Args.UpdateHeader logical             = true;   % CROPID & LEVEL        
         
         Args.MultiplyByGain logical           = true; % after fringe correction
         Args.MaskSaturated(1,1) logical       = true;
@@ -147,19 +146,19 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         
         
         
-        Args.OrbEl                            = []; %celestial.OrbitalEl.loadSolarSystem;  % prepare ahead to save time % empty/don't match
-        Args.KnownAsteroidsSearchRadius       = 8;     % [arcsec]
+        Args.OrbEl                            = []; % celestial.OrbitalEl.loadSolarSystem;  % prepare ahead to save time % empty/don't match
+        Args.KnownAsteroidsSearchRadius       =  8; % [arcsec]
         Args.match2solarSystemArgs            = {};
         Args.GeoPos                           = [];
         
+        Args.MinNstar                         = 10; % minimal number of sources in a subimage
         Args.AddPSF logical                   = false;
         Args.constructPSFArgs cell            = {}; % can be, e.g. {'CropByQuantile',true,'Quantile',0.999}; 
         Args.PsfPhot logical                  = false;
         
         Args.SaveFileName                     = [];  % full path or ImagePath object
         Args.CreateNewObj logical             = false;
-        
-        
+                
     end
     
     % Get Image
@@ -326,6 +325,11 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                    'CreateNewObj',false);
         %SI.cast('single');
 
+        if any(SI.sizeCatalog < Args.MinNstar)
+            [MinVal, MinInd] = min(SI.sizeCatalog);
+            error('Sub-image: %d has only %d sources', MinInd, MinVal)
+        end
+        
         % FFU: flags Holes
         % imProc.mask.maskHoles
 
