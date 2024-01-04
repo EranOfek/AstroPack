@@ -10,9 +10,12 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type, Args)
     %                      right click to abort.
     %          * ...,key,val,...
     %            'DistAxis' - Dimension along to calculate distances to the
-    %                   nearest point: 'X'|'Y'|'XY'.
+    %                   nearest point: 'X'|'Y'|'XY'|'scale'.
     %                   Default is 'X'.
-    %            'DataInd' - Index of data in plot. Default is 1.
+    %            'DataInd' - Index of data in plot.
+    %                   If 'end', then use last element, which is the first
+    %                   data set that was plotted.
+    %                   Default is 1.
     % Output : - Result structure containing the following fields.
     %            .Key    - Keyborad key entered.
     %            .Pos    - Mouse position [X,Y] or rectangule position
@@ -101,6 +104,9 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type, Args)
         if nargout>2
             AxObjs = Hf.Children;
             DataObjs = AxObjs.Children;
+            if ~isnumeric(Args.DataInd)
+                Args.DataInd = numel(DataObjs);
+            end
             Data.X   = DataObjs(Args.DataInd).XData;
             Data.Y   = DataObjs(Args.DataInd).YData;
             Data.Z   = DataObjs(Args.DataInd).ZData;
@@ -108,8 +114,13 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type, Args)
             if nargout>3
                 % look for nearest point
                 switch lower(Args.DistAxis)
+                    case 'scale'
+                        [DataPosX, DataPosY] = plot.xy2axesPos(Ha, Data.X, Data.Y);
+                        [IntPosX,  IntPosY] = plot.xy2axesPos(Ha, Res.Pos(1), Res.Pos(2));
+
+                        Dist = sqrt((IntPosX - DataPosX).^2 + (IntPosY - DataPosY).^2);
                     case 'xy'
-                        Dist = sqrt((Res.Pos(1).^2 - Data.X).^2 + (Res.Pos(2).^2 - Data.Y).^2);
+                        Dist = sqrt((Res.Pos(1) - Data.X).^2 + (Res.Pos(2) - Data.Y).^2);
                     case 'x'
                         Dist = abs(Res.Pos(1)-Data.X);
                     case 'y'
@@ -121,6 +132,7 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type, Args)
                 Nearest.MinDist = MinDist;
                 Nearest.X = Data.X(MinInd);
                 Nearest.Y = Data.Y(MinInd);
+                Nearest.Ind = MinInd;
                 %Nearest.Z = Data.Z(MinInd);
 
                 % if nargout>4
