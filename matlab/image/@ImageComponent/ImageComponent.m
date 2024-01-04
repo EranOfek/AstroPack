@@ -1532,6 +1532,11 @@ classdef ImageComponent < Component
             %            'Type' - ['ccdsec'] | 'center'
             %            'DataPropIn' - Data property on which to operate.
             %                   Default is 'Data'.
+            %            'FillVal' - In case that the trim section is near the edge,
+            %                   this is the fill value to insert into the edge, such that the
+            %                   trim section will have the requires size. If empty, then
+            %                   return only the overlap region.
+            %                   Default is [].
             %            'CreateNewObj' - Copy to new object.
             %                   Default is false.
             % Output : - An ImageComponent object with the cropped images.
@@ -1544,6 +1549,7 @@ classdef ImageComponent < Component
                 CCDSEC                  % [xmin xmax ymin ymax]
                 Args.Type char                   = 'ccdsec';
                 Args.DataPropIn char             = 'Data';
+                Args.FillVal                     = [];
                 Args.CreateNewObj logical        = false;
             end
             
@@ -1566,7 +1572,7 @@ classdef ImageComponent < Component
                     Iobj = min(Imax, Nobj);
                     Isec = min(Imax, Nsec);
                     
-                    [Result(Imax).Data, UsedCCDSEC]   = imUtil.cut.trim(Obj(Iobj).(Args.DataPropIn), CCDSEC(Isec,:), Args.Type);
+                    [Result(Imax).Data, UsedCCDSEC]   = imUtil.cut.trim(Obj(Iobj).(Args.DataPropIn), CCDSEC(Isec,:), Args.Type, Args.FillVal);
                     Result(Imax).CCDSEC = UsedCCDSEC;
                 end
             else

@@ -2071,6 +2071,10 @@ classdef MatchedSources < Component
             %                   then this is the operator to apply between
             %                   the bit names. Options are @or | @and.
             %                   Default is @or.
+            %            'UseSrcData' - A logical indicating if to search
+            %                   the flags on SrcData property (true), or the 
+            %                   Data property (false).
+            %                   Default is false.
             % Output : - An array of logicals of size Nepoch X Nsrc.
             %            Each element in the array indicate if the
             %            requested bit names where found in this entry.
@@ -2083,10 +2087,15 @@ classdef MatchedSources < Component
                Args.PropFlags    = 'FLAGS';
                Args.FlagsList    = {'NearEdge','Saturated','NaN','Negative'};
                Args.Operator     = @or; % @or | @and
+               Args.UseSrcData logical = false;
             end
 
             BitClass = Args.BitDic.Class;
-            Flags = BitClass(MS.Data.(Args.PropFlags));
+            if Args.UseSrcData
+                Flags = BitClass(MS.SrcData.(Args.PropFlags));
+            else
+                Flags = BitClass(MS.Data.(Args.PropFlags));
+            end
 
             Result = zeros(size(Flags));
             Nflag  = numel(Args.FlagsList);
@@ -2868,14 +2877,14 @@ classdef MatchedSources < Component
     end
     
     methods % plot
-        function H = plotRMS(Obj, Args)
+        function [H, AxisX, AxisY] = plotRMS(Obj, Args)
             % plot rms of a propery (field) vs. its mean.
             % Input  : - A single element MatchedSources object.
             %          * ...,key,val,...
             %            'FieldX' - A cell array of field names. Will chose
             %                   the first field name that appears in the
             %                   Data structure, and its content will be plotted.
-            %                   Default is {'MAG','MAG_PSF','MAG_APER'}.
+            %                   Default is {'MAG','MAG_PSF','MAG_APER', 'MAG_APER_3', 'MAG_APER_2'}.
             %            'FieldY' - Like 'FieldX', but for Y-axis (rms).
             %                   If empty, will use rms of FieldX.
             %                   Default is {}.
@@ -2906,6 +2915,8 @@ classdef MatchedSources < Component
             %            ** Additional parameters available for adding a
             %            noise curve.
             % Output : - Handle for data points plot.
+            %          - X positions of plotted points.
+            %          - Y positions of plotted points.
             % Author : Eran Ofek (Jun 2021)
             % Example: MS = MatchedSources;
             %          MS.addMatrix(rand(100,200),'MAG_PSF');
@@ -3051,6 +3062,128 @@ classdef MatchedSources < Component
             
         end
         
+        function H = plotRMSint(Obj, Args)
+            % plot rms vs. magnitude with interactive selection of stars
+            %   Run plotRMS and allow the user to interactively select
+            %   sources, plot their light curves and power spectrum.
+            %   In the rms vs. mag plot the following colors are used:
+            %       black - all
+            %       red - NearEgge or Overlap flags.
+            %       blue - NaN or Negative flags.
+            %       yellow - Cosmic ray flags.
+            %       green - Saturated flag.
+            % Input  : - A single element MatchedSources object.
+            %          * ...,key,val,...
+            %            'FieldX' - A cell array of field names. Will chose
+            %                   the first field name that appears in the
+            %                   Data structure, and its content will be plotted.
+            %                   Default is {'MAG','MAG_PSF','MAG_APER', 'MAG_APER_3', 'MAG_APER_2'}.
+            %            'plotRMSArgs' - A cell array of additional
+            %                   arguments to pass to plotRMS.
+            %                   Default is {}.
+            %            'MAG_LC' - Magnitude column to use while plotting
+            %                   the light curve.
+            %                   Default is {'MAG_PSF'}.
+            %            'PropFlags' - Default is 'FLAGS'.
+            %            'BitDic' - A BitDictionary object.
+            %                   Default is BitDictionary.
+            %            'UnitsLC' - Time units for LC. Default is 's'.
+            % Output : null.
+            % Author : Eran Ofek (Jan 2023)
+            % Example: MS.plotRMSint
+
+            arguments
+                Obj(1,1)
+
+                Args.FieldX                   = {'MAG','MAG_PSF','MAG_APER','MAG_APER_3','MAG_APER_2'};
+                Args.plotRMSArgs cell         = {};
+                
+                Args.MAG_LC                   = {'MAG_PSF'};
+                Args.PropFlags                = 'FLAGS';
+
+                Args.BitDic                   = BitDictionary;
+                Args.UnitsLC                  = 's';
+            end
+
+
+            Tmp = Obj.combineFlags('FlagsNameDic',Args.PropFlags);
+            CombFlags = Tmp.(Args.PropFlags);
+
+            FlagEdge = searchFlags(Obj, 'FlagsList',{'NearEdge','Overlap'}, 'UseSrcData',true);
+            FlagSat  = searchFlags(Obj, 'FlagsList',{'Saturated'}, 'UseSrcData',true);
+            FlagBad  = searchFlags(Obj, 'FlagsList',{'NaN','Negative'}, 'UseSrcData',true);
+            FlagCR   = searchFlags(Obj, 'FlagsList',{'CR_DeltaHT','CR_Laplacian','CR_Streak'}, 'UseSrcData',true);
+
+            [Hd, XP, YP] = Obj.plotRMS('FieldX',Args.FieldX, Args.plotRMSArgs{:});
+            Ha = gca;
+            Hf = gcf;
+            title('rms vs. mag.')
+            hold on;
+            plot(XP(FlagEdge), YP(FlagEdge), 'r.','MarkerSize',3)
+            plot(XP(FlagSat), YP(FlagSat), 'g.','MarkerSize',3)
+            plot(XP(FlagBad), YP(FlagBad), 'b.','MarkerSize',3)
+            plot(XP(FlagCR), YP(FlagCR), 'y.','MarkerSize',3)
+
+            Hlc = [];
+            Hps = [];
+            Cont = true;
+            while Cont
+
+                fprintf('Select source in the rms vs. mag plot\n');
+                figure(Hf);
+                
+                
+                [Res,FigH,Data,Nearest] = plot.getInteractive(Ha, 'mouse', 'DistAxis','scale', 'DataInd','end');
+                [JD, Mag] = getLC_ind(Obj, Nearest.Ind, Args.MAG_LC);
+    
+                if isempty(Hlc)
+                    Hlc = figure;
+                    title('Light Curve');
+                    H = xlabel(sprintf('Time [%s]', Args.UnitsLC));
+                    H.FontSize = 18;
+                    H.Interpreter = 'latex';
+                    H = ylabel('Magnitude');
+                    H.FontSize = 18;
+                    H.Interpreter = 'latex';
+                else
+                    figure(Hlc);
+                    clc;
+                end
+
+                Time = convert.timeUnits('day', Args.UnitsLC, JD-min(JD));
+                plot(Time, Mag, 'o')
+                [Obj.Data.BACK_ANNULUS(:,Nearest.Ind), Obj.Data.FLAGS(:,Nearest.Ind)]
+    
+                Ans = input('Click: q-quit; p-ps; other-continue : ','s');
+                switch lower(Ans)
+                    case 'p'
+                        PS = timeSeries.period.period([Time, Mag]);
+                        if isempty(Hps)
+                            Hps = figure;
+                            title('Power Spectrum');
+                            H = xlabel(sprintf('Frequency [1/%s]', Args.UnitsLC));
+                            H.FontSize = 18;
+                            H.Interpreter = 'latex';
+                            H = ylabel('Power');
+                            H.FontSize = 18;
+                            H.Interpreter = 'latex';
+                        else
+                            figure(Hps);
+                            clc;
+                        end
+                        plot(PS(:,1),PS(:,2));
+                    case 'q'
+                        Cont = false;
+                    otherwise
+                        % continue
+                end
+            end
+
+            close(Hf);
+            close(Hlc);
+            close(Hps);
+        end
+
         % get LC by source index
         function [JD, Mag] = getLC_ind(Obj, Ind, FieldMag)
             % get the LC [JD, Mag] of a source by its index (column number)
