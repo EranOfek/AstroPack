@@ -1,6 +1,13 @@
 function U2 = aberrationSolarSystem(U, E_dotH, Delta)
+    % Apply aberration of light to solar system observer and body
+    % Input  : - (U) A 3 row matrix of object barycentric position.
+    %            All coordinate systems should be consistent.
+    %          - A 3 row matrix of observer barycentric velocity.
+    %          - A vector of observer-object distance.
+    %            Note that for a star This will be 1, and U is the unit
+    %            vector of the star position.
+    % Output : - Abberated U.
     %
-    
     % Here:
     %   u_B - The Barycentric position of the object.
     %   E_B - The Barycentric position of the earth.
@@ -12,7 +19,8 @@ function U2 = aberrationSolarSystem(U, E_dotH, Delta)
     % Alamanac (Seidelmann 2006), chapter 3.315, p. 148.
     % Vel should be in the Barycentric system, but here we
     % approximate it in the Heliocentric system
-    
+    %
+    % Author : Eran Ofek (Jan 2016)
     % Example: U2 = celestial.SolarSys.aberrationSolarSystem(U, E_dotH, Delta)
             
     Caud = constant.c.*86400./constant.au;  % speed of light [au/day]

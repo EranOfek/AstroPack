@@ -1,10 +1,13 @@
-function [OutRA, OutDec] = precessCoo(InRA, InDec, Args)
+function [OutRA, OutDec] = precessCoo(InRA, InDec, CD3, Args)
     % Precess coordinates
     %     Allow to precess coordinates from and to some mean/true equinox
     %     of date.
     % Input  : - Array of R.A. If char, string or cell this is treated as
     %            an array of sexagesimal coordinates.
+    %            Alternatively cosine dir 1.
     %          - Array of Dec (like R.A.).
+    %            Alternatively cosine dir 1.
+    %          - cosine dir 3. Default is [].
     %          * ...,key,val,... 
     %            'InEquinox' - date of input equinox.
     %                   Default is 2451545.5 (i.e., J2000).
@@ -23,6 +26,8 @@ function [OutRA, OutDec] = precessCoo(InRA, InDec, Args)
     %            'OutType' - Type of output date (e.g., 'J'-julian years, 'JD', 'MJD').
     %                   Default is 'JD'.
     %            'InUnits' - Input units ('rad'|'deg'). Default is 'deg'.
+    %                   Note that if 3rd input arg. is not empty, then the
+    %                   input is in cosine direction.
     %            'OutUnits' - Output units ('rad'|'deg'). Default is 'deg'.
     % Output : - An array of output R.A.
     %          - An array of output Dec.
@@ -35,6 +40,7 @@ function [OutRA, OutDec] = precessCoo(InRA, InDec, Args)
     arguments
         InRA
         InDec
+        CD3                          = [];
         Args.InEquinox               = 2451545.5;
         Args.InMean logical          = true;
         Args.InType                  = 'JD';
@@ -57,9 +63,21 @@ function [OutRA, OutDec] = precessCoo(InRA, InDec, Args)
     end
     
     % Convert coordinates to radians:
-    AngConv = convert.angular(Args.InUnits, 'rad');
-    InRA    = AngConv .* InRA;
-    InDec   = AngConv .* InDec;
+    SizeIn = size(InRA);
+    if isempty(CD3)
+        AngConv = convert.angular(Args.InUnits, 'rad');
+        InRA    = AngConv .* InRA;
+        InDec   = AngConv .* InDec;
+
+        % convert to cosine direction
+        [CD1,CD2,CD3]=celestial.coo.coo2cosined(InRA(:).', InDec(:).');
+    else
+        % 'cosined'
+            
+        CD1 = InRA(:).';
+        CD2 = InDec(:).';
+        %CD3 = CD3;
+    end
         
     InEquinox  = convert.time(Args.InEquinox, Args.InType, 'JD');
     OutEquinox = convert.time(Args.OutEquinox, Args.OutType, 'JD');
@@ -87,9 +105,6 @@ function [OutRA, OutDec] = precessCoo(InRA, InDec, Args)
     
     RotM2 = celestial.coo.rotm_coo(OutMean, OutEquinox);
     
-    % convert to cosine direction
-    SizeIn = size(InRA);
-    [CD1,CD2,CD3]=celestial.coo.coo2cosined(InRA(:).', InDec(:).');
     
     % precesses
     OutCD = RotM2 * RotM1 * [CD1; CD2; CD3];
