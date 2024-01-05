@@ -25,6 +25,20 @@ function [Result] = unitTest()
         OutDec - AcDec
        error('Error in celestial.convert.precessCoo');
     end 
-        
+    
+    
+    %%
+    RA  = celestial.coo.convertdms('02:31:48.704','gH','d');
+    Dec = celestial.coo.convertdms('+89:15:50.72','gD','d');
+    
+    [OutRA0, OutDec0] = celestial.convert.apparentStarPos(RA, Dec, celestial.time.julday([1 1 2100]),'ApplyAberration',false,...
+                      'OutMean',true,'PM_RA',44.48,'PM_Dec',-11.85,'ApplyRefraction',false);
+    celestial.coo.convertdms(OutRA0, 'd','SH')
+    celestial.coo.convertdms(OutDec0, 'd','SD')
+    
+    
+
+    
+    
     Result = true;
 end

@@ -1,5 +1,5 @@
 function [OutRA,OutDec]=coo_resolver(RA,varargin)
-% Resolve coordinates or target name into RA/Dec 
+% Resolve coordinates or target name into RA/Dec - OBSOLETE: use celestial.convert.cooResolve
 % Package: celestial
 % Description: Given coordinates (Lon/Lat) in any coordinate system or
 %              format, or a target name convert the coordinates into

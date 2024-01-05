@@ -10,6 +10,7 @@ function [OutRA, OutDec] = apparentStarPos(RA, Dec, JD, Args)
     % Input  : - J2000.0 R.A.
     %          - J2000.0 Dec.
     %          - JD of position at time scale (default 'TDB').
+    %            Default is celestial.time.julday().
     %          * ...,key,val,... 
     %            'InCooUnits' - Units of input coo. 'deg'|'rad'.
     %                   Default is 'deg'.
@@ -20,7 +21,8 @@ function [OutRA, OutDec] = apparentStarPos(RA, Dec, JD, Args)
     %            'OutUnits' - Output units.
     %                   Default is 'deg'.
     %            'OutEquinox' - Output coordinates equinox time.
-    %                   Default is celestial.time.julday()
+    %                   If empty, then use the same as JD input.
+    %                   Default is [].
     %            'OutEquinoxUnits' - Default is 'JD'.
     %            'OutMean' - A logical indicating if output coordinates are
     %                   refered to mean equinox of date (true), or true
@@ -47,14 +49,14 @@ function [OutRA, OutDec] = apparentStarPos(RA, Dec, JD, Args)
     arguments
         RA
         Dec
-        JD
+        JD                     = celestial.time.julday();
         Args.InCooUnits        = 'deg';
         Args.Epoch             = 2000;
         Args.EpochUnits        = 'J';
         Args.OutUnits          = 'deg';
         
         
-        Args.OutEquinox        = celestial.time.julday();
+        Args.OutEquinox        = [];
         Args.OutEquinoxUnits   = 'JD';
         Args.OutMean           = false;
         
@@ -72,7 +74,11 @@ function [OutRA, OutDec] = apparentStarPos(RA, Dec, JD, Args)
         Args.ApplyRefraction logical = true;
     end
     InputEqJD = 2451545.5;
+    JYear     = 365.25;
     
+    if isempty(Args.OutEquinox)
+        Args.OutEquinox = JD;
+    end
 
     EpochJD = convert.time(Args.Epoch, Args.EpochUnits, 'JD');
         
@@ -87,7 +93,7 @@ function [OutRA, OutDec] = apparentStarPos(RA, Dec, JD, Args)
     Dec       = AngFactor .* Dec;
     
     % calculate space position and space motion of star
-    [U_dotB, U_B] = celestial.coo.pm2space_motion(RA, Dec, Args.PM_RA, Args.PM_Dec, Args.Plx, Args.RV);
+    [U_dotB, U_B] = celestial.coo.pm2space_motion(RA, Dec, Args.PM_RA, Args.PM_Dec, Args.Plx, Args.RV); % au/day; au
     % convert to 3xN matrix
     U_dotB = U_dotB.';
     U_B    = U_B.';
@@ -123,7 +129,7 @@ function [OutRA, OutDec] = apparentStarPos(RA, Dec, JD, Args)
     if Args.ApplyRefraction
         % [DelAlpha,DelDelta]=refraction_coocor(RA,Dec,Ref,varargin)
         % Instead write: celestial.convert.refractedCoo(RA, Dec, Args)
-        error(refraction not yet ready');
+        error('refraction not yet ready');
     end
     
 end
