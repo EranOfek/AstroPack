@@ -11,11 +11,9 @@ function [ZetaA,ZA,ThetaA]=precession(JD, Type)
 %          - ZA [radians]
 %          - ThetaA [radians]
 % Tested : Matlab 5.3
-%     By : Eran O. Ofek                    Nov 2016
-%    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [ZetaA,ZA,ThetaA]=celestial.coo.precession(2451545+[0:1:5]');
+% Author : Eran Ofek (Nov 2016)
+% Example: [ZetaA,ZA,ThetaA]=celestial.convert.precession(2451545+[0:1:5]');
 % Reliable: 1
-%------------------------------------------------------------------------------
 
 arguments
     JD

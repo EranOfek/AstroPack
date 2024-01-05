@@ -66,7 +66,7 @@ switch Type
  case {'p','P','pd','Pd'}
     %T = (EquinoxJD - 2451545.0)./36525.0;
  
-    [ZetaA,ZA,ThetaA]=celestial.coo.precession(EquinoxJD);
+    [ZetaA,ZA,ThetaA]=celestial.convert.precession(EquinoxJD);
     
 %     ZetaA  = 0.6406161.*T + 0.0000839.*T.*T + 0.0000050.*T.*T.*T;
 %     ZA     = 0.6406161.*T + 0.0003041.*T.*T + 0.0000051.*T.*T.*T;
@@ -93,11 +93,11 @@ switch Type
         RotM = RotM;
      case {'pd'}
         % calculate nutation matrix
-        [~, NutMat]=celestial.coo.nutation(EquinoxJD);
+        [~, NutMat]=celestial.convert.nutation(EquinoxJD);
         RotM = [NutMat']*[RotM'];
      case {'Pd'}
         % calculate nutation matrix
-        [~, NutMat]=celestial.coo.nutation(EquinoxJD);
+        [~, NutMat]=celestial.convert.nutation(EquinoxJD);
         RotM = NutMat*RotM;
      otherwise
         error('Unknown rotation matrix type');

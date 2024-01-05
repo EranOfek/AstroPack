@@ -18,11 +18,10 @@ function [Nut,NutMatrix]=nutation(JD,MatType)
 % Reference : Explanatory Supplement to the Astronomical Almanac (1992)
 % See also: nutation1984.m, nutation2rotmat.m
 % Tested : Matlab 5.2
-%     By : Eran O. Ofek                    Feb 2000
-%    URL : htpp://weizmann.ac.il/home/eofek/matlab/
-% Example: [N,NM]=celestial.coo.nutation(2451545);
+% Author : Eran Ofek (Feb 2000)
+% Example: [N,NM]=celestial.convert.nutation(2451545);
 % Reliable: 2
-%--------------------------------------------------------------------------
+
 if (nargin==1)
    MatType = 'f';
 elseif (nargin==2)

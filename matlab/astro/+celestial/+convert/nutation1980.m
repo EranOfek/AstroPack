@@ -10,11 +10,9 @@ function [Nut,NutMatrix]=nutation1980(JD,Units,MatType)
 %          - A cube of nutation rotation matrices (see nutation2rotmat.m).
 % Reference: http://hpiers.obspm.fr/eop-pc/models/nutations/nut.html
 % Tested : Matlab R2014a
-%     By : Eran O. Ofek                    Jun 2014
-%    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [Nut,NutMatrix]=nutation1984(2451545+[1:1:100].');
+% Author : Eran Ofek (Jun 2014)
+% Example: [Nut,NutMatrix]=celestial.convert.nutation1980(2451545+[1:1:100].');
 % Reliable: 2
-%--------------------------------------------------------------------------
 
 RAD = 180./pi;
 

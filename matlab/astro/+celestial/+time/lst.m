@@ -64,7 +64,7 @@ function LST=lst(JD,EastLong,STType)
             % do nothing
         case {'a'}
             % calculate nutation
-            NutMat = celestial.coo.nutation(JD);
+            NutMat = celestial.convert.nutation(JD);
             Obl    = celestial.coo.obliquity(JD);
             EquationOfEquinox = (RAD.*3600).*NutMat(:,1).*cos(Obl)./15;
             LST = LST + EquationOfEquinox./86400;    
