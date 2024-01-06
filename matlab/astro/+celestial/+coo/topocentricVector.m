@@ -12,13 +12,15 @@ function [G, Gdot] = topocentricVector(JD_UT1, GeoPos, Args)
     %            'Equinox' - Equinox of output: 'date' | 'J2000'.
     %                   Default is 'date'.
     %            'OutUnits' - Output units. Default is 'm'.
-    %            'Xp' - The angle of the celestial epheerius pole of the
+    %            'TimeOutUnits' - Time output units for velocity.
+    %                   Default is 's'.
+    %            'Xp' - The angle of the celestial ephemeris pole of the
     %                   Earth with respect to the terrestial pole [rad].
     %                   Along longitude 0. Default is [].
     %            'Yp' - Like Xp but for long of 270 (East). Default is [].
     % Output : - The position vector of the topocentric observer relative
     %            to the Earth center.
-    %          - The radius vector time derivative [rad/s].
+    %          - The radius vector time derivative.
     % Author : Eran Ofek (Sep 2021)
     % Example: G = celestial.coo.topocentricVector(celestial.time.julday([21 3 2000]), [35 32 0]./RAD)
     
@@ -29,6 +31,7 @@ function [G, Gdot] = topocentricVector(JD_UT1, GeoPos, Args)
         Args.Convert2ecliptic logical       = false; 
         Args.Equinox                        = 'date';  % 'date' | 'J2000'
         Args.OutUnits                       = 'm';
+        Args.TimeOutUnits                   = 's';
         Args.Xp                             = [];
         Args.Yp                             = [];
     end
@@ -76,7 +79,7 @@ function [G, Gdot] = topocentricVector(JD_UT1, GeoPos, Args)
         if nargout>1
             W = 7.2921151467e-5;  % [rad/s]
             RotRot = [-sin(LAST), -cos(LAST), 0; cos(LAST), -sin(LAST), 0; 0, 0, 0];
-            Gdot = W.*RotRot.*RotXY*GeocCart.';
+            Gdot = W.*RotRot*RotXY*GeocCart.';  % [m/s]
             if Args.Convert2ecliptic
                 G = RotMatEq2Ec * G;
             end
@@ -90,9 +93,12 @@ function [G, Gdot] = topocentricVector(JD_UT1, GeoPos, Args)
                 otherwise
                     error('Unknown Equinox option');
             end
+            Gdot = convert.length('m',Args.OutUnits, Gdot);
+            Gdot = convert.timeUnits('s',Args.TimeOutUnits, Gdot);
         end
 
         G = convert.length('m',Args.OutUnits, G);
+        
     end
 end
 
