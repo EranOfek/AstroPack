@@ -1,5 +1,5 @@
 % Component base class
-%   This is the base class from which all the classes in AstroPack hinerits.
+%   This is the base class from which all the classes in AstroPack inherit
 %
 % Authors: Chen Tishler & Eran Ofek (Apr 2021)
 %
@@ -172,6 +172,24 @@ classdef Base < matlab.mixin.Copyable
                 end
             end
         end
+                
+        function Result = isemptyProperty(Obj, PropertyName)
+            % Check if a certain object property is empty in a matrix of objects
+            % Input:  - a matrix of objects
+            %         - the name of the property of interest
+            % Output: - a vector of logical whose length is equal to the length of
+            %           the input object
+            % Author: A.M. Krassilchtchikov (Jan 2024)
+            % Example: AI(1:2) = AstroImage;
+            %          AI.isemptyProperty('Image')
+            Result = false(length(Obj),1);
+            for Iobj = 1:length(Obj)
+                if isempty(Obj(Iobj).(PropertyName))
+                    Result(Iobj) = true;
+                end
+            end
+        end
+        
     end
 
     %----------------------------------------------------------------------
