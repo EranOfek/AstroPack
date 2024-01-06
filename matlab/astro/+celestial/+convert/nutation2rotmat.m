@@ -12,7 +12,7 @@ function NutMatrix=nutation2rotmat(Nut,JD,MatType)
 % Tested : Matlab R2014a
 %     By : Eran O. Ofek                    Jun 2014
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: NutMatrix=nutation2rotmat(Nut,JD);
+% Example: NutMatrix=celestial.convert.nutation2rotmat(Nut,JD);
 % Reliable: 2
 %--------------------------------------------------------------------------
 

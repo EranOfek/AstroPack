@@ -401,6 +401,55 @@ classdef INPOP < Base
             end
         end
         
+        function Result = init(Objects, IsPos, IsVel, Args)
+            % Create and populate celestial.INPOP object
+            % Input  : - Planets to load.
+            %            Default is {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep'}
+            %          - Load position. Default is true.
+            %          - Load velocity. Default is true.
+            %          * ...,key,val,...
+            %            'TimeSpan' - Either '100', '1000' (years), or
+            %                   [MinJD MaxJD] vector of JD range.
+            %                   Default is '100'.
+            %            'OriginType' - File type from which to read
+            %                   tables. Default is 'ascii'.
+            %            'TimeScale' - Default is 'TDB'.
+            %            'FileType' - 'asc' | ['mat'].
+            %                   Use celestial.INPOP.convertAscii2mat to
+            %                   create the mat files.
+            %            'MaxOrder' - Max. polynomial order to load.
+            %                   If Inf load all. Default is Inf.
+            % Output : - A celestial.INPOP object in which the PosTables or
+            %            VelTables are populated.
+            % Author : Eran Ofek (Apr 2022)
+            
+            arguments
+                Objects          = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep'};
+                IsPos            = true;
+                IsVel            = true;
+                Args.TimeSpan    = '100';  % '1000' or [MinJD MaxJD]
+                Args.OriginType  = 'ascii';
+                Args.TimeScale   = 'TDB';
+                Args.FileData    = 'pos';
+                Args.FileType    = 'mat';
+                Args.PopForce logical = false;
+                Args.MaxOrder    = Inf;
+             end
+            
+            
+            Result = celestial.INPOP;
+            
+            if IsPos
+                Result.populateTables(Objects, 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+                                       'TimeScale',Args.TimeScale, 'FileType',Args.FileType,...
+                                       'PopForce',Args.PopForce, 'MaxOrder',Args.MaxOrder);
+            end
+            if IsVel
+                Result.populateTables(Objects, 'FileData','vel', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+                                       'TimeScale',Args.TimeScale, 'FileType',Args.FileType,...
+                                       'PopForce',Args.PopForce, 'MaxOrder',Args.MaxOrder);
+            end
+        end
     end
     
     methods (Static)  % transformations

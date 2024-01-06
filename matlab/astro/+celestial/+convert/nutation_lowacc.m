@@ -9,9 +9,9 @@ function [DLon,DObl]=nutation_lowacc(JD)
 % Tested : Matlab R2014a
 %     By : Eran O. Ofek                    Jul 2014
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [DLon,DObl]=nutation_lowacc(2451666);
+% Example: [DLon,DObl]=celestial.convert.nutation_lowacc(2451666);
 % Reliable: 2
-%--------------------------------------------------------------------------
+
 RAD = 180./pi;
 D = JD - 2451545.0;
 

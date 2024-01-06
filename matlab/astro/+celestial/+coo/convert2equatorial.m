@@ -89,7 +89,7 @@ addOptional(InPar,'InCooType','J2000.0');   % 'eq' | 'gal' | 'ecl' | 'horizon'
 addOptional(InPar,'OutCooType','J2000.0');   % 'eq' | 'gal' | 'ecl' | 'horizon'
 addOptional(InPar,'NameServer','simbad');  % 'simbad' | 'ned' | 'jpl'
 addOptional(InPar,'JD',celestial.time.julday);  % time for solar system ephemerids
-addOptional(InPar,'ObsCoo',[35 30.6 800]);  % 
+addOptional(InPar,'ObsCoo',[35 30.0 415]);  % 
 addOptional(InPar,'HorizonsObsCode','500');  % 500 geocentric
 
 addOptional(InPar,'InputUnits','deg');  
