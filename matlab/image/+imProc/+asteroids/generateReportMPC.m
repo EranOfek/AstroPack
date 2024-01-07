@@ -84,7 +84,7 @@ function Msg = generateReportMPC(Obj, Args)
     if isempty(Table)
         Msg = '';
     else
-        Msg = imUtil.asteroids.generateReportMPC(Table, 'Filter',Args.Filter, 'AddHeader',AddHeader);
+        Msg = imUtil.asteroids.generateReportMPC(Table, 'Filter',Args.Filter, 'AddHeader',AddHeader, Args.generateReportMPCArgs{:});
     end
 
 
