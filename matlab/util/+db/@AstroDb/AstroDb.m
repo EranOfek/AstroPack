@@ -641,6 +641,8 @@ classdef AstroDb < Component
                 % NB! this case is very LAST-specific!                    
                     FN = Args.BulkFN.copy;
                     FN = FN.updateIfNotEmpty('Product','Cat', 'FileType',{'csv'});
+                    FN.CropID = FN.CropID(FN.validTimes);
+                    FN.Time   = FN.Time(FN.validTimes);
                     if strcmpi(Args.BulkCatType,'proc')
                         CatFileName = FN.genFull{1};
                     elseif strcmpi(Args.BulkCatType,'coadd')
