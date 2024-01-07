@@ -73,5 +73,13 @@ function Grid = pointings4TOO(Pol, Args)
     end
     
     Grid = Grid( abs(Grid(:,1))>0 | abs(Grid(:,2))>0, :);
+    
+    Cost = costTOO(Pol,Grid);
+    
+%     options = optimoptions(@fminunc, 'Algorithm', 'quasi-newton', 'Display', 'iter');
+%     optimizedCircleCenters = fminunc(@costTOO, Grid, options);
+    
+    options = optimset('Display', 'iter');
+    optimizedCircleCenters = fminsearch(@costTOO, Grid, options);
 
 end
