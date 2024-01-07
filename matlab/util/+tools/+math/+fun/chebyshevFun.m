@@ -25,8 +25,8 @@ function Fun = chebyshevFun(Type, Orders)
             error('Unknown Chebyshev function type option');
     end
     
-    %sym('x');
-    syms x
+    x = sym('x');
+    %syms x
     
     % use Horner polynomials representation (much faster)
     if any(Orders==0)
