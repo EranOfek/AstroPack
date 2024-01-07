@@ -6,6 +6,8 @@ function U2 = aberrationSolarSystem(U, E_dotH, Delta)
     %          - A vector of observer-object distance.
     %            Note that for a star This will be 1, and U is the unit
     %            vector of the star position.
+    %            If empty, then calculated from U.
+    %            Default is [].
     % Output : - Abberated U.
     %
     % Here:
@@ -23,13 +25,23 @@ function U2 = aberrationSolarSystem(U, E_dotH, Delta)
     % Author : Eran Ofek (Jan 2016)
     % Example: U2 = celestial.SolarSys.aberrationSolarSystem(U, E_dotH, Delta)
             
+    arguments
+        U
+        E_dotH
+        Delta   = [];
+    end
+    
     Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
 
+    if isempty(Delta)
+        Delta = sqrt(sum(U.^2, 1));
+    end
+    
     P       = U./Delta;
     V       = E_dotH./Caud;
     AbsV    = sqrt(sum(V.^2, 1));
     InvBeta = sqrt(1- AbsV.^2);
-    F1      = dot(P, V);
+    F1      = dot(P, V, 1);
     F2      = 1 + F1./(1 + InvBeta);
 
     % The abberated position of the body in the geocentric inertial
@@ -38,4 +50,6 @@ function U2 = aberrationSolarSystem(U, E_dotH, Delta)
 
     U2 = (InvBeta.*U + F2.*Delta.*V)./(1 + F1);
 
+    % non reltivsitic approximation
+    % U2 = U + Delta.*V;
 end

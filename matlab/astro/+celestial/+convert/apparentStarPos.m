@@ -1,4 +1,4 @@
-function [OutRA, OutDec] = apparentStarPos(RA, Dec, JD, Args)
+function [OutRA, OutDec, Alt, Refraction] = apparentStarPos(RA, Dec, JD, Args)
     % Calculate apparent position of stars
     %   Including:
     %   proper motion
@@ -7,12 +7,16 @@ function [OutRA, OutDec] = apparentStarPos(RA, Dec, JD, Args)
     %   (no light deflection)
     %   precession and nutation
     %   atmospheric refraction
-    % Input  : - J2000.0 R.A.
-    %          - J2000.0 Dec.
+    % Input  : - J2000.0 R.A., [deg|rad|sex] or object name.
+    %            If second input is provided and RA is not numeric, then
+    %            will assume input is in sexagesinal coordinates.
+    %          - J2000.0 Dec. [deg|rad|sex]. If empty, then will interpret the
+    %            first input argument as an object name.
+    %            Default is [].
     %          - JD of position at time scale (default 'TDB').
     %            Default is celestial.time.julday().
     %          * ...,key,val,... 
-    %            'InCooUnits' - Units of input coo. 'deg'|'rad'.
+    %            'InUnits' - Units of input coo. 'deg'|'rad'.
     %                   Default is 'deg'.
     %            'Epoch' - Coordinates epoch (of proper motion).
     %                   Default is 2000.
@@ -35,14 +39,32 @@ function [OutRA, OutDec] = apparentStarPos(RA, Dec, JD, Args)
     %            'INPOP' - celestial.INPOP object.
     %                   Default is celestial.INPOP.init({'Ear'})
     %            'GeoPos' - Observer geodetic position [rad rad m].
-    %                   Default is [].
+    %                   If ApplyRefraction is true then this must provided.
+    %                   Default is [35/RAD 30/RAD 415].
+    %            'TypeLST' - 'm'|'a'. Default is 'm'.
+    %
+    %            'Server' - If input is object name, then this is the name
+    %                   server that will be used: @VO.name.server_simbad|
+    %                   @VO.name.server_ned.
+    %                   Default is @VO.name.server_simbad
+    %
     %            'TimeScale' - Default is 'TDB'.
     %            'ApplyAberration' - Apply aberration of light.
     %                   Default is true.
     %            'ApplyRefraction' - Apply atmospheric refraction.
     %                   Default is true.
+    %
+    %            'Wave' - Wavelength [Ang]. Default is 5000 Ang.
+    %            'Temp' - Temperature [C]. Default is 15 C .
+    %            'Pressure' - Pressure [hPa]. Default is 760 mm Hg.
+    %            'Pw' - Partial vapour pressure. Default is 8 mm Hg.
+    %
     % Output : - Apparent RA
     %          - Apparent Dec
+    %          - If ApplyRefraction=true, then this is the unrefracted
+    %            Altitude (otherwise NaN). If <0, then object is below the
+    %            horizon, and refraction is not relevant.
+    %          - Atmospheric refraction angle.
     % Author : Eran Ofek (2024 Jan) 
     % Example: [OutRA, OutDec] = celestial.convert.apparentStarPos(180, 0, celestial.time.julday([1 1 2024]))
 
@@ -50,11 +72,10 @@ function [OutRA, OutDec] = apparentStarPos(RA, Dec, JD, Args)
         RA
         Dec
         JD                     = celestial.time.julday();
-        Args.InCooUnits        = 'deg';
+        Args.InUnits           = 'deg';
         Args.Epoch             = 2000;
         Args.EpochUnits        = 'J';
         Args.OutUnits          = 'deg';
-        
         
         Args.OutEquinox        = [];
         Args.OutEquinoxUnits   = 'JD';
@@ -67,11 +88,20 @@ function [OutRA, OutDec] = apparentStarPos(RA, Dec, JD, Args)
         
         Args.INPOP             = celestial.INPOP.init({'Ear'});
         
-        Args.GeoPos            = [];   % [rad rad m]
+        Args.GeoPos            = [[35 30].*pi./180, 415];   % [rad rad m]
+        Args.TypeLST           = 'm';
+        
+        Args.Server            = @VO.name.server_simbad;
+        
         Args.TimeScale         = 'TDB';
         
         Args.ApplyAberration logical = true;
         Args.ApplyRefraction logical = true;
+        Args.Wave              = 5000;  % [A]
+        Args.Temp              = 15;
+        Args.Pressure          = 760;
+        Args.Pw                = 8;                           
+
     end
     InputEqJD = 2451545.5;
     JYear     = 365.25;
@@ -88,9 +118,7 @@ function [OutRA, OutDec] = apparentStarPos(RA, Dec, JD, Args)
     % E_B - Barycentric position of observer at epoch t.
     
     % convert to radians
-    AngFactor = convert.angular(Args.InCooUnits, 'rad');
-    RA        = AngFactor .* RA;
-    Dec       = AngFactor .* Dec;
+    [RA, Dec]=celestial.convert.cooResolve(RA, Dec, 'InUnits',Args.InUnits, 'OutUnits','rad', 'Server',Args.Server); % [rad]
     
     % calculate space position and space motion of star
     [U_dotB, U_B] = celestial.coo.pm2space_motion(RA, Dec, Args.PM_RA, Args.PM_Dec, Args.Plx, Args.RV); % au/day; au
@@ -98,8 +126,13 @@ function [OutRA, OutDec] = apparentStarPos(RA, Dec, JD, Args)
     U_dotB = U_dotB.';
     U_B    = U_B.';
     
-    % get observer position
-    [E_B, E_dotB] = celestial.SolarSys.earthObserverPos(JD, 'CooSys','b', 'RefFrame','eq', 'GeoPos',Args.GeoPos, 'INPOP',Args.INPOP, 'TimeScale',Args.TimeScale);
+    % get observer position [au; au/day]
+    [E_B, E_dotB] = celestial.SolarSys.earthObserverPos(JD, 'CooSys','b',...
+                                                            'RefFrame','eq',...
+                                                            'GeoPos',Args.GeoPos,...
+                                                            'EarthEphem','inpop',...
+                                                            'INPOP',Args.INPOP,...
+                                                            'TimeScale',Args.TimeScale);
     
     % apply proper motion and parallax
     U0 = U_B + U_dotB.*(JD - EpochJD) - E_B;
@@ -112,7 +145,8 @@ function [OutRA, OutDec] = apparentStarPos(RA, Dec, JD, Args)
     % note velocity should be E_dotH (so this is an approximation)
     if Args.ApplyAberration
         Delta = sqrt(sum(U1.^2, 1));
-        U2 = celestial.SolarSys.aberrationSolarSystem(U1, E_dotB, Delta);
+        U1 = U1./Delta;
+        U2 = celestial.SolarSys.aberrationSolarSystem(U1, E_dotB, 1);
     else
         U2 = U1;
     end
@@ -129,7 +163,18 @@ function [OutRA, OutDec] = apparentStarPos(RA, Dec, JD, Args)
     if Args.ApplyRefraction
         % [DelAlpha,DelDelta]=refraction_coocor(RA,Dec,Ref,varargin)
         % Instead write: celestial.convert.refractedCoo(RA, Dec, Args)
-        error('refraction not yet ready');
+        [OutRA, OutDec, Alt, Refraction]=celestial.convert.refractedCoo(OutRA, OutDec, 'InUnits', Args.OutUnits, 'OutUnits',Args.OutUnits,...
+                                                                           'JD',JD,...
+                                                                           'GeoPos',Args.GeoPos,...
+                                                                           'PosUnits','rad',...
+                                                                           'TypeLST',Args.TypeLST,...
+                                                                           'Wave',Args.Wave,...
+                                                                           'Temp',Args.Temp,...
+                                                                           'Pressure',Args.Pressure,...
+                                                                           'Pw',Args.Pw);
+    else
+        Alt = NaN;
+        Refraction = NaN;
     end
     
 end
