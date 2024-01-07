@@ -295,106 +295,224 @@ classdef DS9analysis < handle
 
             arguments
                 Obj
-                AstData = [];
-                Args.Id          = 1;
+                AstData          = [];  % use 'all' for rdir
+                Args.Id          = 1;  % if [] loop over all
                 Args.StampsStep  = [];
                 Args.AstFileTemp = '*merged_Asteroids*.mat';
                 Args.Zoom        = 8;
                 Args.DispInfo logical = true;
-                Args.ReportType       = 'AllDetections'; %'FittedDetection';
+                Args.ReportType       = 'FittedDetection2'; %'AllDetections'; %'FittedDetection';
+                Args.generateReportMPCArgs cell  = {};
+                Args.PlotKnown logical           = true;
+                Args.INPOP                       = [];
+                Args.OrbEl                       = [];
+                Args.SearchGAIA logical          = true;
+                Args.SearchRadGAIA               = 3;
+                Args.MagGAIA                     = 20.5;
             end
+            RAD = 180./pi;
+
+            if Args.PlotKnown
+                Args.INPOP = celestial.INPOP;
+                Args.INPOP.populateAll;
+                Args.OrbEl = celestial.OrbitalEl.loadSolarSystem('merge');
+            end
+
 
             if isempty(AstData)
                 % attempt to load Asteroids MAT file
                 Files = dir(Args.AstFileTemp);
-                if numel(Files)>0
-                    AstData = io.files.load2(Files(1).name);
-                else
+                if numel(Files)==0
                     error('No asteroid file found');
                 end
-            end
+                Nf = 1;
 
-            if ischar(AstData)
-                AstData = io.files.load2(Files(1).name);
-            end
-
-            Nast = numel(AstData.AstCrop);
-            if Args.Id>Nast
-                error('Requested Id=%d is > Number of asteroids in file is %d',Args.Id, Nast);
-            end
-
-            Nstamp = numel(AstData.AstCrop(Args.Id).Stamps);
-            if isempty(Args.StampsStep)
-                % show only first and last images
-                StampInd = [1 Nstamp];
             else
-                StampInd = (1:Args.StampStep:Nstamp);
-            end
-            Obj.load(AstData.AstCrop(Args.Id).Stamps(StampInd), 'Zoom',Args.Zoom);
-            ds9.match_wcs;
+                if (ischar(AstData) || isstring(AstData)) && strcmp(AstData, 'all')
+                    Files = io.files.rdir(Args.AstFileTemp);
+                    Nf    = numel(Files);
+                else
+                    % assume input is struct
+                    Nf = 1;
+                    Files = [];
 
-            % Display information
-            NsrcCat = sizeCatalog(AstData.AstCrop(Args.Id).SelectedCatPM);
-            switch NsrcCat
-                case 0
-                    error('Possible bug: %d sources found in catalog', NsrcCat);
-                case 1
-                    AstSrcId = 1;
-                otherwise
-                    [Dist, PA] = sphere_dist(AstData.AstCrop(Args.Id).SelectedCatPM, AstData.AstCrop(Args.Id).RA, AstData.AstCrop(Args.Id).Dec, 'rad', 'deg');
-                    [MinDist, AstSrcId] = min(Dist);
-                    if MinDist>(5./3600)
-                        error('Possible problem" distance of nearest source to cutout center is too large %f arcsec', MinDist.*3600);
+                end
+
+            end
+
+            ReportMPC = '';
+            Ireport = 0;
+            Id = Args.Id;
+            for If=1:1:Nf
+                if isempty(Files)
+                    % already loaded
+                else
+                    PWD = pwd;
+                    cd(Files(If).folder);
+                    AstData = io.files.load2(Files(If).name);
+                    fprintf('Folder %s \n',Files(If).folder);
+                    fprintf('File %s loaded\n',Files(If).name);
+                    cd(PWD);
+                    Id = [];
+                end
+                if isempty(Id)
+                    Id = (1:1:numel(AstData.AstCrop));
+                end
+                Nast = numel(AstData.AstCrop);
+                if max(Id)>Nast
+                    error('Requested Id=%d is > Number of asteroids in file is %d',max(Id), Nast);
+                end
+    
+                for Iid=1:1:numel(Id)
+                    I = Id(Iid);
+
+                    % check for GAIA star
+                    if Args.SearchGAIA
+                        
+                        [GaiaCat,Col] = catsHTM.cone_search('GAIADR3',AstData.AstCrop(I).SelectedCatPM.Table.RA./RAD, AstData.AstCrop(I).SelectedCatPM.Table.Dec./RAD, Args.SearchRadGAIA, 'OutType','astrocatalog');
+                        if min(GaiaCat.Table.phot_bp_mean_mag)<Args.MagGAIA     
+                            % skip - GAIA star found at position
+                            Skip = true;
+                        else
+                            Skip = false;
+                        end
                     end
-            end
+
+                    if ~Skip
+                        Nstamp = numel(AstData.AstCrop(I).Stamps);
+                        if isempty(Args.StampsStep)
+                            % show only first and last images
+                            StampInd = [1 Nstamp];
+                        else
+                            StampInd = (1:Args.StampStep:Nstamp);
+                        end
+                        Obj.load(AstData.AstCrop(I).Stamps(StampInd), 'Zoom',Args.Zoom);
+                        ds9.match_wcs;
             
-            AstTable = AstData.AstCrop(Args.Id).SelectedCatPM.toTable;
-            AstTable = AstTable(AstSrcId,:);
+                        % Display information
+                        NsrcCat = sizeCatalog(AstData.AstCrop(I).SelectedCatPM);
+                        switch NsrcCat
+                            case 0
+                                error('Possible bug: %d sources found in catalog', NsrcCat);
+                            case 1
+                                AstSrcId = 1;
+                            otherwise
+                                [Dist, PA] = sphere_dist(AstData.AstCrop(I).SelectedCatPM, AstData.AstCrop(I).RA, AstData.AstCrop(Args.Id).Dec, 'rad', 'deg');
+                                [MinDist, AstSrcId] = min(Dist);
+                                if MinDist>(5./3600)
+                                    error('Possible problem" distance of nearest source to cutout center is too large %f arcsec', MinDist.*3600);
+                                end
+                        end
+                        
+                        AstTable = AstData.AstCrop(I).SelectedCatPM.toTable;
+                        AstTable = AstTable(AstSrcId,:);
+            
+                        if Args.DispInfo
+                            fprintf('SubImage      : %d\n',AstData.AstCrop(I).FieldIndex);
+                            fprintf('RA            : %s\n', celestial.coo.convertdms(AstTable.RA, 'd', 'SH'));
+                            fprintf('Dec           : %s\n',celestial.coo.convertdms(AstTable.Dec, 'd', 'SD'));
+                            fprintf('Nobs          : %d\n',AstTable.Nobs);
+                            fprintf('Noutlier      : %d\n',AstTable.Noutlier);
+                            fprintf('PM_RA         : %f [time-deg/day]\n',AstTable.PM_RA);
+                            fprintf('PM_Dec        : %f [deg/day]\n',AstTable.PM_Dec);
+                            fprintf('JD_PM         : %15.6f\n',AstTable.JD_PM);
+                            fprintf('MAG mean      : %f\n', AstTable.Mean_MAG_PSF);
+                            fprintf('MAG range     : %f\n', AstTable.Range_MAG_PSF);
+                            fprintf('S/N mean      : %f\n', AstTable.Mean_SN_3);
+                            BD = BitDictionary;
+                            FlagsName = BD.bitdec2name(AstTable.FLAGS);
+                            FlagsName = FlagsName{1};
+                            fprintf('FLAGS         :');
+                            for Ifn=1:1:numel(FlagsName)
+                                fprintf('  %s', FlagsName{Ifn});
+                            end
+                            fprintf('\n');
+                            BDmc = BitDictionary('BitMask.MergedCat.Default');
+                            FlagsName = BDmc.bitdec2name(AstTable.MergedCatMask);
+                            FlagsName = FlagsName{1};
+                            fprintf('MergedCat     :');
+                            for Ifn=1:1:numel(FlagsName)
+                                fprintf('  %s', FlagsName{Ifn});
+                            end
+                            fprintf('\n');
+            
+                            fprintf('PolyDeltaChi2 : %f\n', AstTable.PolyDeltaChi2);
+                        end
+            
+                        % plot known asteroids
+                        if Args.PlotKnown
+                            KA = Obj.plotKnownAst('OrbEl',Args.OrbEl, 'INPOP',Args.INPOP);
+                        end
+            
+                        %if If<Nf || I<numel(Id)
+                        
+                        %end
+                        Ans = input('a - add to report; otherwise continue : ','s');
+                        if strcmp(Ans,'a')
+                            % add to report
+                            Ireport = Ireport + 1;
+                            if Ireport==1
+                                AddHeader = true;
+                            else
+                                AddHeader = false;
+                            end
 
-            if Args.DispInfo
-                fprintf('SubImage      : %d\n',AstData.AstCrop(Args.Id).FieldIndex);
-                fprintf('RA            : %s\n', celestial.coo.convertdms(AstTable.RA, 'd', 'SH'));
-                fprintf('Dec           : %s\n',celestial.coo.convertdms(AstTable.Dec, 'd', 'SD'));
-                fprintf('Nobs          : %d\n',AstTable.Nobs);
-                fprintf('Noutlier      : %d\n',AstTable.Noutlier);
-                fprintf('PM_RA         : %f [deg/day]\n',AstTable.PM_RA);
-                fprintf('PM_Dec        : %f [deg/day]\n',AstTable.PM_Dec);
-                fprintf('JD_PM         : %15.6f\n',AstTable.JD_PM);
-                fprintf('MAG mean      : %f\n', AstTable.Mean_MAG_PSF);
-                fprintf('MAG range     : %f\n', AstTable.Range_MAG_PSF);
-                fprintf('S/N mean      : %f\n', AstTable.Mean_SN_3);
-                BD = BitDictionary;
-                FlagsName = BD.bitdec2name(AstTable.FLAGS);
-                FlagsName = FlagsName{1};
-                fprintf('FLAGS         :');
-                for I=1:1:numel(FlagsName)
-                    fprintf('  %s', FlagsName{I});
-                end
-                fprintf('\n');
-                BDmc = BitDictionary('BitMask.MergedCat.Default');
-                FlagsName = BDmc.bitdec2name(AstTable.MergedCatMask);
-                FlagsName = FlagsName{1};
-                fprintf('MergedCat     :');
-                for I=1:1:numel(FlagsName)
-                    fprintf('  %s', FlagsName{I});
-                end
-                fprintf('\n');
+                            % prep MPC report for asteroid
+                            Args.generateReportMPCArgs{1} = 'ObsName';
+                            Args.generateReportMPCArgs{2} = sprintf('Large Array Survey Telescope (LAST) Node %02d Mount %02d Tel %02d',...
+                                                                    AstData.AstCrop(I).Stamps(1).HeaderData.Key.NODENUMB,...
+                                                                    AstData.AstCrop(I).Stamps(1).HeaderData.Key.MOUNTNUM,...
+                                                                    AstData.AstCrop(I).Stamps(1).HeaderData.Key.CAMNUM);
+                            %
+    
+    
+                            switch Args.ReportType
+                                case 'AllDetections'
+                                    ReportMPC = imProc.asteroids.generateReportMPC(AstData.AstCrop(I).Stamps,...
+                                                                        'RA', AstData.AstCrop(I).RA, 'Dec', AstData.AstCrop(I).Dec,...
+                                                                        'generateReportMPCArgs',Args.generateReportMPCArgs, 'AstIndex',Ireport);
+                                case 'FittedDetection'
+                                    ReportMPC = imProc.asteroids.generateReportMPC(AstData.AstCrop(I).SelectedCatPM,...
+                                                                        'RA', AstData.AstCrop(I).RA, 'Dec', AstData.AstCrop(I).Dec,...
+                                                                        'ColMag','Mean_MAG_PSF',...
+                                                                        'generateReportMPCArgs',Args.generateReportMPCArgs, 'AstIndex',Ireport);
+                                case 'FittedDetection2'
+                                    % Evaluate fitted motion at two points
+                                    Nim = numel(AstData.AstCrop(I).Stamps);
+                                    JD1 = AstData.AstCrop(I).JD(1);
+                                    JDe = AstData.AstCrop(I).JD(Nim);
+                                    JDm = AstData.AstCrop(I).SelectedCatPM.JD;
+                                    
+                                    % Note PM_RA is in time units rather than angular units
+                                    % so no cos(Dec) correction is needed
+                                    RA1  = AstData.AstCrop(I).SelectedCatPM.Table.RA + AstData.AstCrop(I).SelectedCatPM.Table.PM_RA.*(JD1-JDm); %./cosd(AstData.AstCrop(I).SelectedCatPM.Table.Dec);
+                                    RA2  = AstData.AstCrop(I).SelectedCatPM.Table.RA + AstData.AstCrop(I).SelectedCatPM.Table.PM_RA.*(JDe-JDm); %./cosd(AstData.AstCrop(I).SelectedCatPM.Table.Dec);
+                                    Dec1 = AstData.AstCrop(I).SelectedCatPM.Table.Dec + AstData.AstCrop(I).SelectedCatPM.Table.PM_Dec.*(JD1-JDm);
+                                    Dec2 = AstData.AstCrop(I).SelectedCatPM.Table.Dec + AstData.AstCrop(I).SelectedCatPM.Table.PM_Dec.*(JDe-JDm);
+                
+                                    Mag = AstData.AstCrop(I).SelectedCatPM.Table.Mean_MAG_PSF;
+                                    Filter = AstData.AstCrop(I).Stamps(1).HeaderData.Key.FILTER;
+                
+                                    % [JD, RA, Dec, Mag, Filter, AstIndex]
+                                    Table = [[JD1;JDe], [RA1;RA2], [Dec1;Dec2], [Mag;Mag], [NaN; NaN], [1;1].*Ireport]; %, 'VariableNames',{'JD','RA','Dec','Mag','Filter','AstIndex'});
+                                    ReportMPC = [ReportMPC, imUtil.asteroids.generateReportMPC(Table, 'Filter','C', 'AddHeader',AddHeader)];
+                                    
+                                    ReportMPC
 
-                fprintf('PolyDeltaChi2 : %f\n', AstTable.PolyDeltaChi2);
-            end
+                                    % ReportMPC = imProc.asteroids.generateReportMPC(AstData.AstCrop(Args.Id).Stamps([1 Nim]),...
+                                    %                                     'RA', [RA1; RA2], 'Dec', [Dec1; Dec2],...
+                                    %                                     'ColMag','Mean_MAG_PSF',...
+                                    %                                     'generateReportMPCArgs',Args.generateReportMPCArgs);
+                                otherwise
+                                    error('Unknown ReportType option');
+                            end
+                        else
+                            % do not report - keep info
 
-            % prep MPC report for asteroid
-
-            %
-            switch Args.ReportType
-                case 'AllDetections'
-                    ReportMPC = imProc.asteroids.generateReportMPC(AstData.AstCrop(Args.Id).Stamps, 'RA', AstData.AstCrop(Args.Id).RA, 'Dec', AstData.AstCrop(Args.Id).Dec);
-                case 'FittedDetection'
-                    ReportMPC = imProc.asteroids.generateReportMPC(AstData.AstCrop(Args.Id).SelectedCatPM, 'RA', AstData.AstCrop(Args.Id).RA, 'Dec', AstData.AstCrop(Args.Id).Dec, 'ColMag','Mean_MAG_PSF');
-                otherwise
-                    error('Unknown ReportType option');
-            end
-
+                        end
+                    end % if ~Skip
+                end %for Iid=1:1:numel(Id)
+            end % for If=1:1:Nf
 
         end
 

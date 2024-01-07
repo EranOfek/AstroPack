@@ -1,4 +1,4 @@
-function [OutRA, OutDec, Alt, Refraction] = apparentStarPos(RA, Dec, JD, Args)
+function [OutRA, OutDec, Alt, Refraction, Aux] = apparentStarPos(RA, Dec, JD, Args)
     % Calculate apparent position of stars
     %   Including:
     %   proper motion
@@ -65,6 +65,8 @@ function [OutRA, OutDec, Alt, Refraction] = apparentStarPos(RA, Dec, JD, Args)
     %            Altitude (otherwise NaN). If <0, then object is below the
     %            horizon, and refraction is not relevant.
     %          - Atmospheric refraction angle.
+    %          - A structure containing the input J2000 and apparent
+    %            coordinates
     % Author : Eran Ofek (2024 Jan) 
     % Example: [OutRA, OutDec] = celestial.convert.apparentStarPos(180, 0, celestial.time.julday([1 1 2024]))
 
@@ -120,6 +122,9 @@ function [OutRA, OutDec, Alt, Refraction] = apparentStarPos(RA, Dec, JD, Args)
     % convert to radians
     [RA, Dec]=celestial.convert.cooResolve(RA, Dec, 'InUnits',Args.InUnits, 'OutUnits','rad', 'Server',Args.Server); % [rad]
     
+    Aux.RA_J2000  = RA;
+    Aux.Dec_J2000 = Dec;
+
     % calculate space position and space motion of star
     [U_dotB, U_B] = celestial.coo.pm2space_motion(RA, Dec, Args.PM_RA, Args.PM_Dec, Args.Plx, Args.RV); % au/day; au
     % convert to 3xN matrix
@@ -176,5 +181,8 @@ function [OutRA, OutDec, Alt, Refraction] = apparentStarPos(RA, Dec, JD, Args)
         Alt = NaN;
         Refraction = NaN;
     end
-    
+
+    Aux.RA_App  = OutRA;
+    Aux.Dec_App = OutDec;
+
 end

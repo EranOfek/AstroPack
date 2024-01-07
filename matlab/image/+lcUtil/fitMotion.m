@@ -18,6 +18,8 @@ function Result = fitMotion(Obj, Args)
     %                   the chi2 for the H1 hypothesis to 1.
     %                   Default is true.
     % Output : - A structure with the following fields:
+    %            [Note that RA fit is in time units (cos(Dec) factor) while Dec is in angular
+    %            units]
     %            .MeanT - Mean epoch relative to which the fit is done.
     %            .RA.ParH1 - Parameters for H1 [pos; vel] for each source.
     %            .RA.ParH0 - Parameters for H0 [pos] for each source.
