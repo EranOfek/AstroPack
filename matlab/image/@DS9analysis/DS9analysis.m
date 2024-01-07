@@ -301,7 +301,7 @@ classdef DS9analysis < handle
                 Args.AstFileTemp = '*merged_Asteroids*.mat';
                 Args.Zoom        = 8;
                 Args.DispInfo logical = true;
-                Args.ReportType       = 'FittedDetection2'; %'AllDetections'; %'FittedDetection';
+                Args.ReportType       = 'FittedDetection3'; %'AllDetections'; %'FittedDetection';
                 Args.generateReportMPCArgs cell  = {};
                 Args.PlotKnown logical           = true;
                 Args.INPOP                       = [];
@@ -476,7 +476,7 @@ classdef DS9analysis < handle
                                                                         'RA', AstData.AstCrop(I).RA, 'Dec', AstData.AstCrop(I).Dec,...
                                                                         'ColMag','Mean_MAG_PSF',...
                                                                         'generateReportMPCArgs',Args.generateReportMPCArgs, 'AstIndex',Ireport);
-                                case 'FittedDetection2'
+                                case 'FittedDetection3'
                                     % Evaluate fitted motion at two points
                                     Nim = numel(AstData.AstCrop(I).Stamps);
                                     JD1 = AstData.AstCrop(I).JD(1);
@@ -486,16 +486,18 @@ classdef DS9analysis < handle
                                     % Note PM_RA is in time units rather than angular units
                                     % so no cos(Dec) correction is needed
                                     RA1  = AstData.AstCrop(I).SelectedCatPM.Table.RA + AstData.AstCrop(I).SelectedCatPM.Table.PM_RA.*(JD1-JDm); %./cosd(AstData.AstCrop(I).SelectedCatPM.Table.Dec);
-                                    RA2  = AstData.AstCrop(I).SelectedCatPM.Table.RA + AstData.AstCrop(I).SelectedCatPM.Table.PM_RA.*(JDe-JDm); %./cosd(AstData.AstCrop(I).SelectedCatPM.Table.Dec);
+                                    RA2  = AstData.AstCrop(I).SelectedCatPM.Table.RA + AstData.AstCrop(I).SelectedCatPM.Table.PM_RA.*(JDm-JDm); %./cosd(AstData.AstCrop(I).SelectedCatPM.Table.Dec);
+                                    RA3  = AstData.AstCrop(I).SelectedCatPM.Table.RA + AstData.AstCrop(I).SelectedCatPM.Table.PM_RA.*(JDe-JDm); %./cosd(AstData.AstCrop(I).SelectedCatPM.Table.Dec);
                                     Dec1 = AstData.AstCrop(I).SelectedCatPM.Table.Dec + AstData.AstCrop(I).SelectedCatPM.Table.PM_Dec.*(JD1-JDm);
-                                    Dec2 = AstData.AstCrop(I).SelectedCatPM.Table.Dec + AstData.AstCrop(I).SelectedCatPM.Table.PM_Dec.*(JDe-JDm);
+                                    Dec2 = AstData.AstCrop(I).SelectedCatPM.Table.Dec + AstData.AstCrop(I).SelectedCatPM.Table.PM_Dec.*(JDm-JDm);
+                                    Dec3 = AstData.AstCrop(I).SelectedCatPM.Table.Dec + AstData.AstCrop(I).SelectedCatPM.Table.PM_Dec.*(JDe-JDm);
                 
                                     Mag = AstData.AstCrop(I).SelectedCatPM.Table.Mean_MAG_PSF;
                                     Filter = AstData.AstCrop(I).Stamps(1).HeaderData.Key.FILTER;
                 
                                     % [JD, RA, Dec, Mag, Filter, AstIndex]
-                                    Table = [[JD1;JDe], [RA1;RA2], [Dec1;Dec2], [Mag;Mag], [NaN; NaN], [1;1].*Ireport]; %, 'VariableNames',{'JD','RA','Dec','Mag','Filter','AstIndex'});
-                                    ReportMPC = [ReportMPC, imUtil.asteroids.generateReportMPC(Table, 'Filter','C', 'AddHeader',AddHeader)];
+                                    Table = [[JD1;JDm;JDe], [RA1;RA2;RA3], [Dec1;Dec2;Dec3], [Mag;Mag;Mag], [NaN; NaN; NaN], [1;1;1].*Ireport]; %, 'VariableNames',{'JD','RA','Dec','Mag','Filter','AstIndex'});
+                                    ReportMPC = [ReportMPC, imUtil.asteroids.generateReportMPC(Table, 'Filter','C', 'AddHeader',AddHeader, Args.generateReportMPCArgs{:})];
                                     
                                     ReportMPC
 

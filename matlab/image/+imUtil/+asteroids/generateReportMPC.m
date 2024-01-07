@@ -6,7 +6,7 @@ function Msg = generateReportMPC(Table, Args)
     %            'ColDec', 'ColJD', 'ColRA', 'ColDec', 'ColMag',
     %            'ColFilter', 'ColAstIndex', to specify the column index.
     %            ColAstIndex is a some integer uniquly indicating asteroids
-    %            in the same batch.
+    %            
     %          * ...,key,val,...
     %            'Filter' - If not empty, will overrid the filter in the
     %                   table. Default is 'C'.
@@ -105,12 +105,19 @@ function Msg = generateReportMPC(Table, Args)
     N = size(Table(:,1));
     DesigCounter = 1;
     for I=1:1:N
-        if Table(I,Args.ColAstIndex)==LastAstIndex
-            % keep DesigCounter as is
+        if Table(I,Args.ColAstIndex)==0
+            % User AstIndex is 0 - use internal counter
+            if Table(I,Args.ColAstIndex)==LastAstIndex
+                % keep DesigCounter as is
+            else
+                DesigCounter = DesigCounter + 1;
+            end
+            LastAstIndex = Table(I,Args.ColAstIndex);
         else
-            DesigCounter = DesigCounter + 1;
+            % user user provided index
+            DesigCounter = Table(I,Args.ColAstIndex);
         end
-        LastAstIndex = Table(I,Args.ColAstIndex);
+        
         
         
         Desig   = sprintf('%s%05d', Args.DesigPrefix, DesigCounter);
