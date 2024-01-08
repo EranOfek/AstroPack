@@ -292,6 +292,7 @@ classdef DS9analysis < handle
             % Example: D9=DS9analysis;
             %          [AstData,AstTable,ReportMPC] = D9.blinkAstCrop;
             %          [AstData,AstTable,ReportMPC] = D9.blinkAstCrop(AstData,'Id',2);
+            %          [AstData,AstTable,ReportMPC] = D9.blinkAstCrop('all,'Id',[]);
 
             arguments
                 Obj
