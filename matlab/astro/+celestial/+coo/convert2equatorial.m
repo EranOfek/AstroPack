@@ -1,5 +1,6 @@
 function [DistRA,DistDec,Aux]=convert2equatorial(Long,Lat,varargin)
-% Convert coordinates/name to apparent equatorial coordinates. 
+% Convert coordinates/name to apparent equatorial coordinates. OBSOLETE -
+% instead use: celestial.convert.j2000_toApparent 
 % Package: celestial
 % Description: Given a coordinates in some coordinate system or equinox,
 %              or an object name, convert it to euatorial coordinates that
