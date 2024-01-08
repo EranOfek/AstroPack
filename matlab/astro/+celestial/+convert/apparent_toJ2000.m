@@ -98,6 +98,7 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = apparent_toJ2000(RA, Dec, JD, A
 
     % populate Az/Alt
     [Aux.Az_App, Aux.Alt_App] = celestial.coo.hadec2azalt(Aux.HA_App,Aux.Dec_App, Args.GeoPos(2).*RAD, 'deg');
+    Aux.AirMass = celestial.coo.hardie((90-Aux.Alt_App)./RAD);
 
 
 end

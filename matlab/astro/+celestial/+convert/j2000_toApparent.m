@@ -271,6 +271,8 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = j2000_toApparent(RA, Dec, JD, A
         else
             [Aux.Az_App, Aux.Alt_App]=celestial.coo.hadec2azalt(Aux.HA_App,Aux.Dec_App, Args.GeoPos(2).*RAD, 'deg');
         end
+        Aux.AirMass = celestial.coo.hardie((90-Aux.Alt_App)./RAD);
+
     end
 
     % convert to OutUnits
