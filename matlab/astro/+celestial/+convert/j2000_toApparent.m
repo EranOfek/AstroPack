@@ -1,5 +1,5 @@
-function [OutRA, OutDec, Alt, Refraction, Aux] = apparentStarPos(RA, Dec, JD, Args)
-    % Calculate apparent position of stars
+function [OutRA, OutDec, Alt, Refraction, Aux] = j2000_toApparent(RA, Dec, JD, Args)
+    % Convert J2000 coordinates to the apparent position of a star
     %   Including:
     %   proper motion
     %   parallax
@@ -59,6 +59,17 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = apparentStarPos(RA, Dec, JD, Ar
     %            'Pressure' - Pressure [hPa]. Default is 760 mm Hg.
     %            'Pw' - Partial vapour pressure. Default is 8 mm Hg.
     %
+    %            'ShiftRA' - Shift in deg to add to RA/HA. Default is 0.
+    %            'ShiftDec' - Shift in deg to add to Dec. Default is 0.
+    %            'ApplyDistortion' - Apply additional distortion (e.g.,
+    %                   mount distortion).
+    %                   Default is false.
+    %            'InterpHA' - A distortion to add to HA/RA or an
+    %                   interpolating function Fun(HA, Dec) that returns the
+    %                   distortions to add. All in deg.
+    %                   Default is 0.
+    %            'InterpDec' - Line 'InterpHA', but for declination.
+    %                   Default is 0.
     % Output : - Apparent RA
     %          - Apparent Dec
     %          - If ApplyRefraction=true, then this is the unrefracted
@@ -66,9 +77,9 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = apparentStarPos(RA, Dec, JD, Ar
     %            horizon, and refraction is not relevant.
     %          - Atmospheric refraction angle.
     %          - A structure containing the input J2000 and apparent
-    %            coordinates
+    %            coordinates [all in deg].
     % Author : Eran Ofek (2024 Jan) 
-    % Example: [OutRA, OutDec] = celestial.convert.apparentStarPos(180, 0, celestial.time.julday([1 1 2024]))
+    % Example: [OutRA, OutDec] = celestial.convert.j2000_toApparent(180, 0, celestial.time.julday([1 1 2024]))
 
     arguments
         RA
@@ -104,7 +115,15 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = apparentStarPos(RA, Dec, JD, Ar
         Args.Pressure          = 760;
         Args.Pw                = 8;                           
 
+        Args.ShiftRA                  = 0;
+        Args.ShiftDec                 = 0;
+
+        Args.ApplyDistortion logical  = false;
+        Args.InterpHA                 = 0;  % numeric [deg] or interpolation function [deg]
+        Args.InterpDec                = 0;
+        
     end
+    RAD       = 180./pi;
     InputEqJD = 2451545.5;
     JYear     = 365.25;
     
@@ -122,8 +141,9 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = apparentStarPos(RA, Dec, JD, Ar
     % convert to radians
     [RA, Dec]=celestial.convert.cooResolve(RA, Dec, 'InUnits',Args.InUnits, 'OutUnits','rad', 'Server',Args.Server); % [rad]
     
-    Aux.RA_J2000  = RA;
-    Aux.Dec_J2000 = Dec;
+    % input coordinates 
+    Aux.RA_J2000  = RA.*RAD;   % [deg]
+    Aux.Dec_J2000 = Dec.*RAD;  % [deg]
 
     % calculate space position and space motion of star
     [U_dotB, U_B] = celestial.coo.pm2space_motion(RA, Dec, Args.PM_RA, Args.PM_Dec, Args.Plx, Args.RV); % au/day; au
@@ -163,12 +183,12 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = apparentStarPos(RA, Dec, JD, Ar
                                                                               'OutEquinox',Args.OutEquinox,...
                                                                               'OutType',Args.OutEquinoxUnits,...
                                                                               'OutMean',Args.OutMean,...
-                                                                              'OutUnits',Args.OutUnits);
+                                                                              'OutUnits','deg');
     % apply refraction of light
     if Args.ApplyRefraction
         % [DelAlpha,DelDelta]=refraction_coocor(RA,Dec,Ref,varargin)
         % Instead write: celestial.convert.refractedCoo(RA, Dec, Args)
-        [OutRA, OutDec, Alt, Refraction]=celestial.convert.refractedCoo(OutRA, OutDec, 'InUnits', Args.OutUnits, 'OutUnits',Args.OutUnits,...
+        [OutRA, OutDec, Alt, Refraction]=celestial.convert.refractedCoo(OutRA, OutDec, 'InUnits', 'deg', 'OutUnits','deg',...
                                                                            'JD',JD,...
                                                                            'GeoPos',Args.GeoPos,...
                                                                            'PosUnits','rad',...
@@ -182,7 +202,57 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = apparentStarPos(RA, Dec, JD, Ar
         Refraction = NaN;
     end
 
-    Aux.RA_App  = OutRA;
-    Aux.Dec_App = OutDec;
+    
+    % add shift
+    OutRA  = OutRA  + Args.ShiftRA./cosd(OutDec);
+    OutDec = OutDec + Args.ShiftDec;
+
+    if nargout>4 || Args.ApplyDistortion
+        Aux.RA_App  = OutRA;
+        Aux.Dec_App = OutDec;
+        Aux.HA_App  = celestial.convert.convert_ha(Aux.RA_App, JD, 'InUnits','deg', 'OutUnits','deg',...
+                                                                 'Long',Args.GeoPos(1),...
+                                                                 'LongUnits','rad',...
+                                                                 'TypeLST','a',...
+                                                                 'OutRange','pi');
+       Aux.HA_J2000 = celestial.convert.convert_ha(Aux.RA_J2000, JD, 'InUnits','deg', 'OutUnits','deg',...
+                                                                 'Long',Args.GeoPos(1),...
+                                                                 'LongUnits','rad',...
+                                                                 'TypeLST','a',...
+                                                                 'OutRange','pi');
+    end
+        
+
+    if Args.ApplyDistortion
+        % apply geometric distortion of mount - mount specific - not
+        % astrophysical
+
+        if isnumeric(Args.InterpHA)
+            Aux.HA_AppDist  = Aux.HA_App + Args.InterpHA;
+        else
+            Aux.HA_AppDist  = Aux.HA_App  + Args.InterpHA(Aux.HA_App, Aux.Dec_App);
+        end
+        if isnumeric(Args.InterpDec)
+            Aux.Dec_AppDist = Aux.Dec_App + Args.InterpDec;
+        else
+            Aux.Dec_AppDist = Aux.Dec_App + Args.InterpDec(Aux.HA_App, Aux.Dec_App);
+        end
+
+        % convert HA to RA
+        Aux.RA_AppDist = celestial.convert.convert_ha(Aux.HA_AppDist, JD, 'InUnits','deg', 'OutUnits','deg',...
+                                                 'Long',Args.GeoPos(1),...
+                                                 'LongUnits','rad',...
+                                                 'TypeLST','a',...
+                                                 'OutRange','2pi');
+
+        OutRA  = Aux.RA_AppDist;
+        OutDec = Aux.Dec_AppDist;
+
+    end
+
+    % convert to OutUnits
+    AngFactor = convert.angular('deg',Args.OutUnits);
+    OutRA     = AngFactor .* OutRA;
+    OutDec    = AngFactor .* OutDec;
 
 end
