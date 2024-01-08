@@ -110,6 +110,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
         Args.WriteEmpty logical     = false;
     end
 
+    
     if Args.Save
 
         % Save data products
@@ -262,5 +263,9 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                 end
 
         end
+    else
+        FN = [];
+        SubDir = [];
+        Status = [];
     end  % if Args.Save
 end

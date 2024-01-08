@@ -351,8 +351,7 @@ classdef DS9analysis < handle
                     PWD = pwd;
                     cd(Files(If).folder);
                     AstData = io.files.load2(Files(If).name);
-                    fprintf('Folder %s \n',Files(If).folder);
-                    fprintf('File %s loaded\n',Files(If).name);
+                    
                     cd(PWD);
                     Id = [];
                 end
@@ -409,6 +408,8 @@ classdef DS9analysis < handle
                         AstTable = AstTable(AstSrcId,:);
             
                         if Args.DispInfo
+                            fprintf('Folder %s \n',Files(If).folder);
+                            fprintf('File %s loaded\n',Files(If).name);
                             fprintf('SubImage      : %d\n',AstData.AstCrop(I).FieldIndex);
                             fprintf('RA            : %s\n', celestial.coo.convertdms(AstTable.RA, 'd', 'SH'));
                             fprintf('Dec           : %s\n',celestial.coo.convertdms(AstTable.Dec, 'd', 'SD'));
