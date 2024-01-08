@@ -127,6 +127,8 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = j2000_toApparent(RA, Dec, JD, A
     InputEqJD = 2451545.5;
     JYear     = 365.25;
     
+    
+
     if isempty(Args.OutEquinox)
         Args.OutEquinox = JD;
     end
@@ -144,6 +146,18 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = j2000_toApparent(RA, Dec, JD, A
     % input coordinates 
     Aux.RA_J2000  = RA.*RAD;   % [deg]
     Aux.Dec_J2000 = Dec.*RAD;  % [deg]
+
+    if nargout>4
+        Aux.RA_App = NaN;
+        Aux.HA_App = NaN;
+        Aux.Dec_App = NaN;
+        Aux.RA_AppDist = NaN;
+        Aux.HA_AppDist = NaN;
+        Aux.Dec_AppDist = NaN;
+        Aux.Alt_App     = NaN;
+        Aux.Az_App      = NaN;
+       
+    end
 
     % calculate space position and space motion of star
     [U_dotB, U_B] = celestial.coo.pm2space_motion(RA, Dec, Args.PM_RA, Args.PM_Dec, Args.Plx, Args.RV); % au/day; au
@@ -248,6 +262,15 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = j2000_toApparent(RA, Dec, JD, A
         OutRA  = Aux.RA_AppDist;
         OutDec = Aux.Dec_AppDist;
 
+    end
+
+    % add Az/Alt to Aux
+    if nargout>4
+        if Args.ApplyDistortion
+            [Aux.Az_App, Aux.Alt_App]=celestial.coo.hadec2azalt(Aux.HA_AppDist,Aux.Dec_AppDist, Args.GeoPos(2).*RAD, 'deg');
+        else
+            [Aux.Az_App, Aux.Alt_App]=celestial.coo.hadec2azalt(Aux.HA_App,Aux.Dec_App, Args.GeoPos(2).*RAD, 'deg');
+        end
     end
 
     % convert to OutUnits

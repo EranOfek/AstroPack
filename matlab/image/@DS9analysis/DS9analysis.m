@@ -341,6 +341,8 @@ classdef DS9analysis < handle
 
             end
 
+            BD = BitDictionary;
+
             ReportMPC = '';
             Ireport = 0;
             Id = Args.Id;
@@ -377,6 +379,12 @@ classdef DS9analysis < handle
                             Skip = false;
                         end
                     end
+
+                    % Skip if Overlap or NearEdge
+                    if BD.findBit(AstData.AstCrop(I).SelectedCatPM.Table.FLAGS,{'Overlap','NearEdge'}, 'Method','any');
+                        Skip = true;
+                    end
+
 
                     if ~Skip
                         Nstamp = numel(AstData.AstCrop(I).Stamps);
@@ -421,7 +429,7 @@ classdef DS9analysis < handle
                             fprintf('MAG mean      : %f\n', AstTable.Mean_MAG_PSF);
                             fprintf('MAG range     : %f\n', AstTable.Range_MAG_PSF);
                             fprintf('S/N mean      : %f\n', AstTable.Mean_SN_3);
-                            BD = BitDictionary;
+                            
                             FlagsName = BD.bitdec2name(AstTable.FLAGS);
                             FlagsName = FlagsName{1};
                             fprintf('FLAGS         :');
@@ -445,6 +453,7 @@ classdef DS9analysis < handle
                         if Args.PlotKnown
                             KA = Obj.plotKnownAst('OrbEl',Args.OrbEl, 'INPOP',Args.INPOP);
                         end
+                        ds9.plotc(AstData.AstCrop(I).SelectedCatPM,'sg')
             
                         %if If<Nf || I<numel(Id)
                         
