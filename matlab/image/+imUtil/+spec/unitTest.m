@@ -41,6 +41,7 @@ function [Result] = unitTest()
     %       (Done) imUtil.spec.waveCalib.fitWaveCalib
     %       (started) imUtil.spec.waveCalib.interactiveWaveCalib
     %       (started) imUtil.spec.waveCalib.matchLines
+    %       (started) imUtil.spec.waveCalib.matchLines_Scale
     %
     % * calibration/extinction
     %       (Done) AstroSpec/getSpecPhotStandard
