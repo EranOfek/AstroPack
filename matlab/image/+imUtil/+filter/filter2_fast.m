@@ -53,7 +53,10 @@ if UseFFT
 else
     % note Mat2 is the first argument
     Nfilter = size(Mat2,3);
-    Res     = zeros(size(Mat1,1), size(Mat1,2), Nfilter);
+    %Res     = zeros(size(Mat1,1), size(Mat1,2), Nfilter);
+    % should be faster
+    Res     = repmat(0, size(Mat1,1), size(Mat1,2), Nfilter);
+
     for Ifilter=1:1:Nfilter
         Res(:,:,Ifilter) = filter2(Mat2(:,:,Ifilter),Mat1,'same');
     end
