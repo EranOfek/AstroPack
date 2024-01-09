@@ -188,14 +188,28 @@ classdef ds9 < handle
             % Example: ds9.system('xpaset -p ds9 frame frameno %d',FrameNumber);
             % Reliable: 2
             String = sprintf(String,varargin{:});
-            if ismac
-               String = strcat('set DYLD_LIBRARY_PATH "";', String);
-               [Status,Answer]=system(String);
-            elseif isunix
-               [Status,Answer]=system(String);
-            else
-               fprintf('\ds9.system(): Windows is not supported yet!\n');
+
+            Success = false;
+            FailCounter = 0;
+            while ~Success && FailCounter<2
+                try
+                    if ismac
+                       String = strcat('set DYLD_LIBRARY_PATH "";', String);
+                       [Status,Answer]=system(String);
+                    elseif isunix
+                       [Status,Answer]=system(String);
+                    else
+                       fprintf('\ds9.system(): Windows is not supported yet!\n');
+                    end
+                    Success = true;
+                catch ME
+                    FailCounter = FailCounter + 1;
+                    warning('catch error in ds9.system - try again');
+                    ME
+    
+                end
             end
+
             if (Status~=0)
                 if contains(Answer,'not found')
                     % It is possible that xpa is not installed

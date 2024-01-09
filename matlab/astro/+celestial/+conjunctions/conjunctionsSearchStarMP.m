@@ -22,7 +22,7 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
         Args.AddPlanets  = {'799','899'};  % Uranus, Neptune
         Args.PlanetsRadius = [25362, 24622];
 
-        Args.ObsCoo    = [35 30 0.415];
+        Args.ObsCoo    = [35.04073 30.05298 0.415];
         Args.MaxSunAlt = -11.0;
         Args.MinAlt    = 25;
         
@@ -30,7 +30,7 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
     
     RAD = 180./pi;
 
-    E = celestial.OrbitalEl.loadSolarSystem;
+    E = celestial.OrbitalEl.loadSolarSystem; %('num',[50000 88267 119066]);
 
     Ie = Args.ElementsIndex;
     Flag = E(Ie).A(:)>Args.DistRange(1) & E(Ie).A(:)<Args.DistRange(2) & ...
@@ -59,7 +59,7 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
         try
             [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',ObjName, 'StartJD',Args.StartJD,'StopJD',Args.EndJD, 'StepSize',3,'StepSizeUnits','h');
             
-            Hmag = E(Ie).MagPar(1);
+            Hmag = E(Ie).MagPar(Ind(Iast), 1);
             [OcculterRadius] = celestial.SolarSys.asteroid_radius(Hmag, 0.15);
         
             Result = celestial.conjunctions.conjunctionsStars(EphemCat, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',OcculterRadius);
