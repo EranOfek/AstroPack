@@ -41,6 +41,18 @@ function U2 = aberrationSolarSystem(U, E_dotH, Delta)
     V       = E_dotH./Caud;
     AbsV    = sqrt(sum(V.^2, 1));
     InvBeta = sqrt(1- AbsV.^2);
+    
+    % match sizes
+    SizeP   = size(P, 2);
+    SizeV   = size(V, 2);
+    if SizeP>1 && SizeV==1
+        V = repmat(V, 1, SizeP);
+    elseif SizeV>1 && SizeP==1
+        P = repmat(P, 1, SizeV);
+    else
+        % do nothing
+    end
+        
     F1      = dot(P, V, 1);
     F2      = 1 + F1./(1 + InvBeta);
 
