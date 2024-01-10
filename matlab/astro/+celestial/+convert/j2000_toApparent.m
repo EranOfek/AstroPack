@@ -78,6 +78,7 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = j2000_toApparent(RA, Dec, JD, A
     %          - Atmospheric refraction angle.
     %          - A structure containing the input J2000 and apparent
     %            coordinates [all in deg].
+    %            Note that Az/Alt are calculated using the App coordinates.
     % Author : Eran Ofek (2024 Jan) 
     % Example: [OutRA, OutDec] = celestial.convert.j2000_toApparent(180, 0, celestial.time.julday([1 1 2024]))
 
@@ -102,7 +103,7 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = j2000_toApparent(RA, Dec, JD, A
         Args.INPOP             = celestial.INPOP.init({'Ear'});
         
         Args.GeoPos            = [[35 30].*pi./180, 415];   % [rad rad m]
-        Args.TypeLST           = 'm';
+        Args.TypeLST           = 'a';
         
         Args.Server            = @VO.name.server_simbad;
         
@@ -157,6 +158,7 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = j2000_toApparent(RA, Dec, JD, A
         Aux.Alt_App     = NaN;
         Aux.Az_App      = NaN;
        
+        Aux.LST         = celestial.time.lst(JD, Args.GeoPos(1), Args.TypeLST) .* 360; % [deg]
     end
 
     % calculate space position and space motion of star
@@ -266,11 +268,11 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = j2000_toApparent(RA, Dec, JD, A
 
     % add Az/Alt to Aux
     if nargout>4
-        if Args.ApplyDistortion
-            [Aux.Az_App, Aux.Alt_App]=celestial.coo.hadec2azalt(Aux.HA_AppDist,Aux.Dec_AppDist, Args.GeoPos(2).*RAD, 'deg');
-        else
-            [Aux.Az_App, Aux.Alt_App]=celestial.coo.hadec2azalt(Aux.HA_App,Aux.Dec_App, Args.GeoPos(2).*RAD, 'deg');
-        end
+        %if Args.ApplyDistortion
+        %    [Aux.Az_App, Aux.Alt_App]=celestial.coo.hadec2azalt(Aux.HA_AppDist,Aux.Dec_AppDist, Args.GeoPos(2).*RAD, 'deg');
+        %else
+            [Aux.Az_App, Aux.Alt_App]=celestial.coo.hadec2azalt(Aux.HA_App, Aux.Dec_App, Args.GeoPos(2).*RAD, 'deg');
+        %end
         Aux.AirMass = celestial.coo.hardie((90-Aux.Alt_App)./RAD);
 
     end
