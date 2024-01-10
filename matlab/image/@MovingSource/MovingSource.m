@@ -90,7 +90,6 @@ classdef MovingSource < Component
             Obj.ImageID = Val;
         end
 
-
         function Val=get.JD(Obj)
             % getter for JD
 
@@ -255,7 +254,7 @@ classdef MovingSource < Component
 
     end
 
-    methods (Static)  % static methods
+    methods (Static)  % static methods: read/write/convert
         % conversions
         function Obj=readFromAstCrop(AstCrop, Args)
             % Read AstCrop structure (old format) into MovingSource object
@@ -430,6 +429,244 @@ classdef MovingSource < Component
 
         end
 
+        % NOT TESTED
+        function [Flag, NewObj] = selectByBitMask(Obj, Args)
+            % Select elements of MovingSource object that have specific BitMask.
+            %   This function check the value of the FLAGS column in the
+            %   MergedCat property of the MovingSource object. It returns
+            %   list of elements that satisfy some criteria (i.e., some of
+            %   the bits are on or off).
+            % Input  : - A MovingSource object.
+            %          * ...,key,val,...
+            %            'Flags' - A cell array of FLAGS to select (or not)
+            %                   Default is {''NearEdge','Overlap'}.
+            %            'ColFlags' - Column name containing the flags
+            %                   information. Default is 'FLAGS'.
+            %            'Method' - Select 'any' | 'all' flags.
+            %                   Default is 'any'.
+            %            'NotFlags' - Apply not the search bits.
+            %                   If true then select elements that do not
+            %                   contain the flags in 'Flags'.
+            %                   Default is true.
+            %            'BitDict' - BitDictionary object.
+            %                   Default is BitDictionary.
+            %            'CreateNewObj' - If two output arguments are
+            %                   requested, then the program returns only
+            %                   the selected elements. In thsi case, this
+            %                   argument indicate if to create a new
+            %                   object.
+            %                   Default is false.
+            % Output : - Logical flags indicating, for each element, if the
+            %            flags were satisfied.
+            %          - The selected elements of the MovingSource object.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: [~,MP]=MP.selectByBitMask;
+            
+            
+            arguments
+                Obj
+                Args.Flags                   = {'NearEdge','Overlap'};
+                Args.ColFlags                = 'FLAGS';
+                Args.Method                  = 'any';
+                Args.NotFlags logical        = true;
+                Args.BitDict                 = BitDictionary;
+                Args.CreateNewObj logical    = false;
+                
+            end
+            
+            Nobj = numel(Obj);
+            Flag = false(Nobj,1);
+            for Iobj=1:1:Nobj
+                DecFlag = Obj(Iobj).MergedCat.getCol.(Args.ColFlags);
+                if Args.NotFlags
+                    Flag(Iobj) = ~Args.BitDict.findBit(DecFlag, Args.Flags, 'Method',Args.Method);
+                else
+                    Flag(Iobj) = Args.BitDict.findBit(DecFlag, Args.Flags, 'Method',Args.Method);
+                end
+            end
+            
+            if nargout>1
+                if Args.CreateNewObj
+                    NewObj = Obj(Flag).copy;
+                else
+                    NewObj = Obj(Flag);
+                end
+            end
+                            
+        end
+    
+        % NOT TESTED
+        function Result=selectMovingFromStamps(Obj, Args)
+            % Create a catalog of the moving source position as a function of time
+            %   as appear in the MovingSource Stamps.
+            %   The positions are selected as the nearest source within the
+            %   search radius, to the RA and Dec, in each Stamp.
+            % Input  : - A MovingSource object.
+            %          * ...,key,val,...
+            %            'SearchRadius' - Search radius. Default is 3.
+            %            'SearchRadiusUnits' - Search radius units.
+            %                   Default is 'arcsec'.
+            %            'TableCol' - Additional columns to add after 'JD'.
+            %                   Default is {'RA','Dec','MAG_PSF','FLAGS'}.
+            % Output : - An AstroCatalog object with a table of positions
+            %            of the moving source in each stamp.
+            %            If no source found within the search radius, then
+            %            the time entry will contain NaN.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: Result = MP.selectMovingFromStamps;
+            
+            arguments
+                Obj(1,1)
+                Args.SearchRadius      = 3;
+                Args.SearchRadiusUnits = 'arcsec';
+                Args.TableCol          = {'RA','Dec','MAG_PSF','FLAGS'};
+            end
+           
+            SearchRadiusAS = convert.angular(Args.SearchRadiusUnits, 'arcsec', Args.SearchRadius);
+            NextraCol      = numel(Args.TableCol);
+            
+            Nobj = numel(Obj);
+            Result = AstroCatalog(size(Obj));
+            
+            ColNames = ['JD', Args.TableCol];
+            
+            for Iobj=1:1:Nobj
+                JD = Obj(Iobj).Stamps(Istamp).julday;
+
+                Iobj = 1;
+                Nstamp = numel(Obj(Iobj).Stamps);
+                Cat    = nan(Nstamp, 1+ NextraCol);
+                for Istamp=1:1:Nstamp
+                    Dist = Obj(Iobj).Stamps(Istamp).CatData.sphere_dist(Obj(Iobj).RA, Obj(Iobj).Dec, Obj(Iobj).CooUnits, 'arcsec');
+                    [MinDist, MinInd] = min(Dist);
+                    if MinDist>Args.SearchRadiusAS
+                       % no source found
+                       Cat(Istamp,1) = JD(Istamp);
+                    else
+                        % source found
+                        Cat(Istamp,:) = [JD(Istamp), Obj(Iobj).Stamps(Istamp).getCol(Args.TableCol)];
+                    end
+
+                end
+                Result(Iobj) = AstroCatalog(Cat, 'ColNames',ColNames);
+                
+            end
+            
+        end
+        
+        % NOT TESTED
+        function ReportMPC=reportMPC(Obj, Args)
+            % Generate MPC report for MovingSource object
+            %   Generate an MPC report for all elements of a MovingSource object
+            % Input  : - A MovingSource object.
+            %          * ...,key,val,...
+            %            'ReportType' - Options are:
+            %                   'AllDetections'
+            %                   'FittedDetection'
+            %                   'FittedDetection3'
+            %            'AddHeader' - Default is true.
+            %            'Filter' - Default is 'C'.
+            %            'ColMag' - Default is 'MAG_PSF'.
+            %            'PM_IsArcTime' -  If false then units of PM_RA is
+            %                   arc/time. If true its time-arc/time
+            %                   Default is true.
+            %            'DefaultObsName' - LAST default. Default is true.
+            % Output : - Char array of MPC report.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: MP.reportMPC
+            
+            arguments
+                Obj
+                Args.ReportType     = 'FittedDetection3';
+                
+                Args.AddHeader      = true;
+                Args.Filter         = 'C';
+                Args.ColMag         = 'MAG_PSF';
+                Args.PM_IsArcTime logical   = true;  % if false then uinst of PM_RA is arc/time
+                
+                Args.generateReportMPCArgs cell = {};
+                Args.DefaultObsName logical     = true;
+            end
+            
+            
+            % prep MPC report for asteroid
+            ObsName = sprintf('Large Array Survey Telescope (LAST) Node %02d Mount %02d Tel %02d',...
+                                                    Obj(Iobj).ImageID.NODENUMB,...
+                                                    Obj(Iobj).ImageID.MOUNTNUM,...
+                                                    Obj(Iobj).ImageID.CAMNUM);
+                                                
+        
+            AddHeader = Args.AddHeader;
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Result           = Obj(Iobj).selectMovingFromStamps;
+                VecJD            = Result.Catalog.getCol('JD');
+                [VecRA, VecDec]  = Result.Catalog.getLonLat('deg');
+                Mag              = Result.Catalog.getCol(Args.ColMag);
+                MedMag           = median(Mag, 1, 'omitnan');
+                FlagNN = ~isnan(VecRA);
+                NN     = sum(FlagNN);
+                
+                switch Args.ReportType
+                    case 'AllDetections'
+                        % [JD, RA, Dec, Mag, Filter, AstIndex]
+                        ReportTable  = [JD(FlagNN), VecRA(FlagNN), VecDec(FlagNN), nan(NN,1),  AstIndex.*ones(NN,1)];
+                        CooUnits     = 'deg';
+                        
+                    case 'FittedDetection'
+                        % [JD, RA, Dec, Mag, Filter, AstIndex]
+                        ReportTable = [Obj(Iobj).JD, Obj(Iobj).RA, Obj(Iobj).Dec, Obj(Iobj).Mag, NaN, AstIndex];
+                        CooUnits = Obj(Iobj).CooUnits;
+                        
+                    case 'FittedDetection3'
+                        % Evaluate fitted motion at three points
+                        JD1 = min(VecJD);
+                        JD2 = Obj(Iobj).JD;
+                        JD3 = max(VecJD);
+                        
+                        if Args.PM_IsArcTime
+                            CC = 1;
+                        else
+                            CC = 1./cos(convert.angular(Obj(Iobj).CooUnits, 'rad', Obj(Iobj).Dec));
+                        end
+                        
+                        % Note PM_RA is in time units rather than angular units
+                        % so no cos(Dec) correction is needed
+                        RA1  = Obj(Iobj).RA + Obj(Iobj).PM_RA.*(JD1-JD2).*CC;
+                        RA2  = Obj(Iobj).RA;
+                        RA3  = Obj(Iobj).RA + Obj(Iobj).PM_RA.*(JD3-JD2).*CC;
+                        Dec1 = Obj(Iobj).Dec + Obj(Iobj).PM_Dec.*(JD1-JD2);
+                        Dec2 = Obj(Iobj).Dec;
+                        Dec3 = Obj(Iobj).Dec + Obj(Iobj).PM_Dec.*(JD3-JD2);
+                        
+                        
+                        % [JD, RA, Dec, Mag, Filter, AstIndex]
+                        ReportTable = [ [JD1; JD2; JD3], [RA1; RA2; RA3], [Dec1; Dec2; Dec3], MedMag.*ones(3,1), AstIndex.*ones(3,1)];
+                        CooUnits = Obj(Iobj).CooUnits;
+                        
+                    otherwise
+                        error('Unknown RepotyType option');
+                end
+                
+                if Args.DefaultObsName
+                    ReportMPC = [ReportMPC, imUtil.asteroids.generateReportMPC(ReportTable, 'Filter',Args.Filter,...
+                                                                                  'AddHeader',AddHeader,...
+                                                                                  'CooUnits',CooUnits,...
+                                                                                  'ObsName',ObsName,...
+                                                                                  Args.generateReportMPCArgs{:})];
+                else
+                    ReportMPC = [ReportMPC, imUtil.asteroids.generateReportMPC(ReportTable, 'Filter',Args.Filter,...
+                                                                                  'AddHeader',AddHeader,...
+                                                                                  'CooUnits',CooUnits,...
+                                                                                  Args.generateReportMPCArgs{:})];
+                end                                                          
+                AddHeader = false;
+            end
+
+            
+        end
+        
     end
 
     methods % display and plot
