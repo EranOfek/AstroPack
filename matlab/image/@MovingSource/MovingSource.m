@@ -242,7 +242,9 @@ classdef MovingSource < Component
                                     'INPOP',Obj.INPOP,...
                                     'CooUnits',Obj.CooUnits,...
                                     'SearchRadiusUnits',Obj.AstSearchRadiusUnits,...
-                                    'MagLimit',Obj.AstMagLimit);
+                                    'MagLimit',Obj.AstMagLimit,...
+                                    'AddDist',true,...
+                                    'ConeSearch',true);
                 Val = Result;
                 %Obj.PopulatedKnownAst = true;
             else
@@ -398,6 +400,33 @@ classdef MovingSource < Component
             end
 
             
+
+        end
+
+        function [Dist, Mag]=nearestKnownAst(Obj)
+            % Return the angular distance for the nearest known asteroid.
+            % Input  : - A MovingSource object.
+            % Output : - A vector of angular distance [arcsec].
+            %            Each element corresponds to one element in the
+            %            MovingSource. NaN if no source was found.
+            %          - Like angular distance, but for the magnitude of
+            %            the nearest asteroid.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: [Dist,Mag]=MP.nearestKnownAst
+
+            arguments
+                Obj
+            end
+
+            Nobj = numel(Obj);
+            Dist = nan(Nobj,1);
+            Mag  = nan(Nobj,1);
+            for Iobj=1:1:Nobj
+                if ~isemptyCatalog(Obj(Iobj).KnownAst)
+                    Dist(Iobj) = Obj(Iobj).KnownAst.Table.Dist;
+                    Mag(Iobj)  = Obj(Iobj).KnownAst.Table.Mag;
+                end
+            end
 
         end
 
