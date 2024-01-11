@@ -1,5 +1,5 @@
 % MovingSource class
-%   MinorPlanet class can be used to store detection of minor planet
+%   MovingSources class can be used to store detection of minor planet
 %   (or any moving) objects.
 % Description: 
 % Author : Eran Ofek (Jan 2024)
@@ -13,7 +13,7 @@
 %   FlagGood    = MP.selectByBitMask;
 %   MP = MP(~[FlagStatic.Flag].' & FlagGood(:));
 %   % Populate known asteroids:
-%   MP.PopKA;
+%   MP.popKnownAst;
 %   % Some inspection operations:
 %   [Dist, Mag]=MP.nearestKnownAst;
 %   % possible unknwon asteroids
@@ -71,7 +71,7 @@ classdef MovingSource < Component
     
     methods % Constructor
        
-        function Obj = MinorPlanet(Nobj, Args)
+        function Obj = MovingSources(Nobj, Args)
             % Constructor of MinorPlanet class 
             % Input  : - Number of elements in object.
             %            If empty, set to 1.
@@ -411,6 +411,7 @@ classdef MovingSource < Component
                             Iall = Iall + 1;
                             Obj(Iall).Stamps    = AstCrop.AstCrop(Icrop).Stamps;
                             Obj(Iall).MergedCat = AstCrop.AstCrop(Icrop).SelectedCatPM;
+                            Obj(Iall).FileName  = fullfile(Files(If).folder,  Files(If).name);
                         end
                     end
                 end
@@ -426,6 +427,19 @@ classdef MovingSource < Component
     end
 
     methods  % utilities
+        function Obj=popKnownAst(Obj)
+            % Populate KnownAst in all elements of MovingSource object
+            % Input  : - A MovingSource object.
+            % Output : - A populated MovingSource object.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: MP.popKnownAst;
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).PopKA = true;
+            end
+        end
+        
         function Flag=nearStatisSrc(Obj, Args)
             % Check for static sources near the moving source
             %   Search a PGC galaxy or GAIA star near the moving source.
@@ -442,6 +456,8 @@ classdef MovingSource < Component
             %            .MagGAIA - The mag. of the GAIA contaminants.
             %            .PGC - A logical indicating if there is a PGC
             %                   galaxy that may contaminate the detection.
+            %            .GLADE - A logical indicating if there is a GLADEp
+            %                   galaxy that may contaminate the detection.
             %            .Flag - A logical flag indicating if there is a
             %                   contaminant of any kind.
             % Author : Eran Ofek (Jan 2024)
@@ -449,10 +465,14 @@ classdef MovingSource < Component
             arguments
                 Obj
                 Args.CatNameGAIA = 'GAIADR3';
-                Args.CatNamePGC  = 'PGC';
+                
                 Args.ColMagGAIA  = 'phot_bp_mean_mag';
                 Args.MaxMagGAIA  = 20.5;
-
+                
+                Args.CatNamePGC  = 'PGC';
+                Args.CatNameGlade = 'GLADEp';
+                Args.MaxDistGlade = 10;
+                
                 Args.SearchRadius      = 60;
                 Args.SearchRadiusUnits = 'arcsec';
 
@@ -482,18 +502,29 @@ classdef MovingSource < Component
                 end
 
                 % PGC
-                Flag(Iobj).Galaxy = false;
+                Flag(Iobj).PGC = false;
                 CatPGC = catsHTM.cone_search(Args.CatNamePGC, RA_rad, Dec_rad, Args.SearchRadius, 'RadiusUnits',Args.SearchRadiusUnits, 'OutType','AstroCatalog');
                 if ~CatPGC.isemptyCatalog
                     Dist    = CatPGC.sphere_dist(RA_rad, Dec_rad, 'rad', 'arcsec');
                     
                     GalRadius = 3.*10.^(CatPGC.Table.LogD25);
                     if ~isempty(Dist) && any(Dist<GalRadius)
-                        Flag(Iobj).Galaxy = true;
+                        Flag(Iobj).PGC = true;
                     end
                 end
                 
-                Flag(Iobj).Flag = Flag(Iobj).GAIA || Flag(Iobj).Galaxy;
+                % GLADE
+                Flag(Iobj).GLADE = false;
+                CatGLADE = catsHTM.cone_search(Args.CatNameGlade, RA_rad, Dec_rad, Args.SearchRadius, 'RadiusUnits',Args.SearchRadiusUnits, 'OutType','AstroCatalog');
+                if ~CatGLADE.isemptyCatalog
+                    Dist    = CatGLADE.sphere_dist(RA_rad, Dec_rad, 'rad', 'arcsec');
+                    
+                    if ~isempty(Dist) && any(Dist<Args.MaxDistGlade)
+                        Flag(Iobj).GLADE = true;
+                    end
+                end
+                
+                Flag(Iobj).Flag = Flag(Iobj).GAIA || Flag(Iobj).PGC & Flag(Iobj).GLADE;
             end
 
             
