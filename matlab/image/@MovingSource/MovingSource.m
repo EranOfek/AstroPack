@@ -951,6 +951,139 @@ classdef MovingSource < Component
             
         end
 
+        function [ReportMPC,Result]=blink(Obj, Args)
+            % Interactivly loop over all moving sources with blink1.
+            %   Each element in the MovingSources object will be displayed
+            %   in ds9 using the blink1 method.
+            %   The user will be prompt to add comments/select/reject and
+            %   prepare an MPC report.
+            % Input  : - A MovingSources object.
+            %          * ...,key,val,...
+            %            'Ndisp' - Number if stamps to dispaly.
+            %                   For example, if 2, then will display the
+            %                   first and last stamp in the vector of
+            %                   Stamps.
+            %                   Default is 2.
+            %            'Zoom' - Zoom argument to pass to ds9.
+            %                   Default is 'to fit'.
+            %            'PlotSrc' - Plot arguments for the statis sources
+            %                   detected in the Stamps.
+            %                   If [], then do not plot static sources.
+            %                   If cell, then will pass multiple arguments
+            %                   contained in the cell.
+            %                   Default is 'sg'.
+            %            'PlotAst' - The same as 'PlotSrc', but for the
+            %                   moving source (asteroid) detected in the
+            %                   images.
+            %                   Default is 'sr'.
+            %            'PlotKnown' - The same as 'PlotSrc', but for the
+            %                   Known Asteroid detected in the
+            %                   images.
+            %                   Default is 'or'.
+            %            'PlotIndiv' - The same as 'PlotSrc', but for the
+            %                   individual position detections of the
+            %                   asteroid in each one of the stamps.
+            %                   Default is {'sc','Size',8}.
+            %            'MaxDistIndiv' - Plot individual image detection
+            %                   within this search radius [arcsec] from the
+            %                   moving source position.
+            %                   Default is 3.
+            %            'AutoBlink' - Start auto blink. Default is true.
+            %            'DispInfo' - A logical indicating if to display
+            %                   text information regarding the moving source
+            %                   on the screen.
+            %                   Default is true.
+            %
+            %            'ReportMPC' - Char array of MPC report to which to
+            %                   concat this report.
+            %                   Default is ''.
+            %            'AddHeader' - Default is true.
+            %            'StartAstIndex' - AstIndex start with this number + 1.
+            %                   Default is 0.
+            %            'reportMPCArgs' - Cell array of additional
+            %                   arguments to pass to MovingSources/reportMPC.
+            %                   Default is {}.
+            %
+            % Output : - A char array of MPC report.
+            %          - A structure array of results for each
+            %            MovingSources element.
+            %
+            % Author : Eran Ofek (Jan 2024)
+            % Example: MP.blink
+
+            arguments
+                Obj
+                Args.Ndisp             = 2; % number of stamps to display
+                Args.Zoom              = 'to fit';
+                Args.PlotSrc           = 'sg';
+                Args.PlotAst           = 'sr';
+                Args.PlotKnown         = 'or';
+                Args.PlotIndiv         = {'sc','Size',8};
+                Args.MaxDistIndiv      = 3; % arcsec
+                Args.AutoBlink         = true;
+                Args.DispInfo logical  = true;
+
+                Args.ReportMPC          = '';
+                Args.AddHeader logical  = true;
+                Args.StartAstIndex      = 0;
+                Args.reportMPCArgs cell = {};
+                
+
+            end
+
+            ReportMPC = Args.ReportMPC;
+            AddHeader = Args.AddHeader;
+
+            AstIndex  = Args.StartAstIndex;
+
+            PromptChar = '......Options : \n   q - quit\n   r - add to report\n   Any other text to add to bad comment\n Your selection : ';
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+
+                % blink current element
+                Obj(Iobj).blink1('Ndisp',Args.Ndisp,...
+                           'Zoom',Args.Zoom,...
+                           'PlotSrc',Args.PlotSrc,...
+                           'PlotAst',Args.PlotAst,...
+                           'PlotKnown',Args.PlotKnown,...
+                           'PlotIndiv',Args.PlotIndiv,...
+                           'MaxDistIndiv',Args.MaxDistIndiv,...
+                           'AutoBlink',Args.AutoBlink,...
+                           'DispInfo',Args.DispInfo);
+
+                % Prompt to user
+                Ans = input(PromptChar,'s');
+                Result(Iobj).Comment = Ans;
+                %if numel(Ans)==1
+                    if numel(Ans)==1
+                        switch lower(Ans)
+                            case 'q'
+                                Result(Iobj).Flag = NaN;
+                                break;
+                            case 'r'
+                                % add to report
+                                ReportMPC = Obj(Iobj).reportMPC('AddHeader',AddHeader, 'ReportMPC',ReportMPC,...
+                                                                'AstIndex',AstIndex,...
+                                                                Args.reportMPCArgs{:});
+                                                                
+                                AddHeader = false;
+                                Result(Iobj).Flag = true;
+                            otherwise
+                                % skip
+                                Result(Iobj).Flag = false;
+                        end
+                    else
+                        % Skip
+                        Result(Iobj).Flag = false;
+                    end
+                     
+                %end
+                ds9.single;
+            end
+            ds9.single;
+
+        end
     end
 
     
