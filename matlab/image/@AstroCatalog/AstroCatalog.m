@@ -756,7 +756,7 @@ classdef AstroCatalog < AstroTable
             Lat              = Lat.*ConvertFactor;
             
             [Dist, PA]    = celestial.coo.sphere_dist(ObjLon, ObjLat, Lon, Lat);
-            ConvertFactor = convert.angular('rad',LonLatUnits);
+            ConvertFactor = convert.angular('rad',OutUnits);
             Dist          = Dist.*ConvertFactor;
             PA            = PA.*ConvertFactor;
             

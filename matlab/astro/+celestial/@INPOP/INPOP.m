@@ -424,7 +424,7 @@ classdef INPOP < Base
             % Author : Eran Ofek (Apr 2022)
             
             arguments
-                Objects          = {'Sun','Mer','Ven','Ear','Moo','Mar','Jup','Sat','Ura','Nep'};
+                Objects          = {'Sun','Mer','Ven','Ear','Moo','EMB','Mar','Jup','Sat','Ura','Nep'};
                 IsPos            = true;
                 IsVel            = true;
                 Args.TimeSpan    = '100';  % '1000' or [MinJD MaxJD]

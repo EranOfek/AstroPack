@@ -1724,6 +1724,8 @@ classdef OrbitalEl < Base
             %                   within the search radius. Otherwise will
             %                   return all sources found in the intial
             %                   search + buffer.
+            %                   This is operational only if 'AddDist' is
+            %                   true.
             %                   Default is false.
             %            'coneSearchArgs' - A cell array of additional
             %                   arguments to pass to imProc.match.coneSearch
@@ -1918,15 +1920,6 @@ classdef OrbitalEl < Base
                         
                     end                           
                
-                    if Args.ConeSearch
-                        [Result(Iobj), Flag] = imProc.match.coneSearch(Result(Iobj), [RA, Dec], 'CooType','sphere',...
-                                                      'Radius',SearchRadiusRAD,...
-                                                      'RadiusUnits','rad',...
-                                                      'CooUnits','rad',...
-                                                      'CreateNewObj',false,...
-                                                      Args.coneSearchArgs{:});
-                    end
-                    
                     % add Dist
                     if Args.AddDist
                         AstLonLat = getLonLat(Result(Iobj), 'rad');
@@ -1934,6 +1927,23 @@ classdef OrbitalEl < Base
                         
                         Result(Iobj).insertCol(Dist.*RAD.*3600, Inf, {'Dist'}, {'arcsec'});
                     end
+
+                    if Args.ConeSearch && Args.AddDist
+                        SearchRadiusAS = convert.angular('rad','arcsec', SearchRadiusRAD);
+                        Flag = Result(Iobj).getCol('Dist')<SearchRadiusAS;
+                        Result(Iobj).selectRows(Flag, 'CreateNewObj',false);
+
+
+
+                        % [Result(Iobj), Flag] = imProc.match.coneSearch(Result(Iobj), [RA, Dec], 'CooType','sphere',...
+                        %                               'Radius',SearchRadiusRAD,...
+                        %                               'RadiusUnits','rad',...
+                        %                               'CooUnits','rad',...
+                        %                               'CreateNewObj',false,...
+                        %                               Args.coneSearchArgs{:});
+                    end
+                    
+                    
                 end
                
             end

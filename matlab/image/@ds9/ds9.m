@@ -206,6 +206,8 @@ classdef ds9 < handle
                     FailCounter = FailCounter + 1;
                     warning('catch error in ds9.system - try again');
                     ME
+
+                    pause(2);
     
                 end
             end
@@ -1099,7 +1101,7 @@ classdef ds9 < handle
             %             'Color'   - A string or a cell array of strings
             %                         of marker colors
             %                         ('red'|'blue'|'green'|'black'|
-            %                          'white'|...).
+            %                          'white'|'yellow'|'cyan').
             %                         Default is 'red'.
             %             'Width'   - A scalar or a vector of markers
             %                         width. Default is 1.
