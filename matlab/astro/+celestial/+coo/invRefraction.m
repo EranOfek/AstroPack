@@ -1,12 +1,22 @@
-function [AltGeometrical] = invRefraction(AltRefracted, Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
+function [AltGeometrical,RefAng] = invRefraction(AltRefracted, Args)
+    % Refracted altitude (apparent) to geometrical altitude (real).
+    % Input  : - Refracted altitude of star (apparent position).
     %          * ...,key,val,... 
-    % Output : - 
+    %            'InUnits' - Default is 'rad'.
+    %            'OutUnits' - Default is 'rad'.
+    %            'Lam' - Wavelength. Default is 5000 Ang.
+    %            'T' - Temperature. Default is 15 C.
+    %            'P' - Pressure. Default is 760 mmHg.
+    %            'Pw' - Water vapor pressure. Default is 8 mmHg.
+    %
+    % Output : - Geometrical altitude of source.
+    %          - Refraction angle needed to be added to Alt refracted in
+    %            order to get Alt geometrica;.
     % Author : Eran Ofek (2024 Jan) 
-    % Example: [AltGeometrical] = celestial.coo.invRefraction(30./RAD)
+    % Example: AltRefracted = 30./RAD;
+    %          [AltGeometrical] = celestial.coo.invRefraction(AltRefracted)
+    %          RefAng = celestial.coo.refraction_wave(AltGeometrical); 
+    %          %AltRefracted should be equal to: AltGeometrical - RefAng
 
     arguments
         AltRefracted
@@ -23,13 +33,12 @@ function [AltGeometrical] = invRefraction(AltRefracted, Args)
     AltRefractedRad = convert.angular(Args.InUnits, 'rad', AltRefracted);
     
     [RefAng] = celestial.coo.refraction_wave(AltRefractedRad, Args.Lam, Args.T, Args.P, Args.Pw);
-    
-    for I=1:1:10
-        AltRefractedRad1 =  AltRefractedRad + RefAng;
-        [RefAng] = celestial.coo.refraction_wave(AltRefractedRad1, Args.Lam, Args.T, Args.P, Args.Pw);
-        AltRefractedRad2 = AltRefractedRad1 -RefAng;
-        [AltRefractedRad2 - AltRefracted]
-        
-    end
-    AltGeometrical = 1;
+    AltRefractedRad1 =  AltRefractedRad + RefAng;  % approximate unrefracted
+    [RefAng1] = celestial.coo.refraction_wave(AltRefractedRad1, Args.Lam, Args.T, Args.P, Args.Pw);
+    DeltaRef = (RefAng - RefAng1); %.*RAD.*3600
+    RefAng = RefAng - DeltaRef;
+    AltGeometrical = AltRefracted + RefAng;
+
+    AngFactor = convert.angular('rad',Args.OutUnits);
+
 end
