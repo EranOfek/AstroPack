@@ -31,7 +31,7 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = apparent_toJ2000(RA, Dec, JD, A
         Args.INPOP             = celestial.INPOP.init({'Ear'});
         
         Args.GeoPos            = [[35 30].*pi./180, 415];   % [rad rad m]
-        Args.TypeLST           = 'm';
+        Args.TypeLST           = 'a';
         
         Args.Server            = @VO.name.server_simbad;
         

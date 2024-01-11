@@ -843,6 +843,16 @@ classdef MovingSource < Component
                     fprintf('\n');
                     fprintf('PolyDeltaChi2 : %f\n', Obj(Iobj).MergedCat.Table.PolyDeltaChi2);
                     
+                    % KnownAst
+                    if ~isempty(Obj(Iobj).KnownAst)
+                        if isemptyCatalog(Obj(Iobj).KnownAst)
+                            fprintf('Known Asteroid : None\n')
+                        else
+                            [~,Imin] = min(Obj(Iobj).KnownAst.Table.Dist);
+                            fprintf('Known Asteroid : %s / Mag=%5.2f\n',Obj(Iobj).KnownAst.Table.Desig{Imin}, Obj(Iobj).KnownAst.Table.Mag(Imin));
+                        end
+                        
+                    end
                 end
             end
 
@@ -928,7 +938,7 @@ classdef MovingSource < Component
             for IstV=1:1:NstV
                 IndS = StampVec(IstV);
 
-                if Args.DispInfo
+                if Args.DispInfo && IstV==1
                     % display information:
                     Obj.dispInfo;
                 end
@@ -1062,7 +1072,7 @@ classdef MovingSource < Component
 
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-
+                fprintf('... MovingSource object element %d out of %d\n',Iobj, Nobj);
                 % blink current element
                 Obj(Iobj).blink1('Ndisp',Args.Ndisp,...
                            'Zoom',Args.Zoom,...
@@ -1075,6 +1085,7 @@ classdef MovingSource < Component
                            'DispInfo',Args.DispInfo);
 
                 % Prompt to user
+                fprintf('.....\n');
                 Ans = input(PromptChar,'s');
                 Result(Iobj).Comment = Ans;
                 %if numel(Ans)==1
@@ -1086,7 +1097,7 @@ classdef MovingSource < Component
                             case 'r'
                                 % add to report
                                 ReportMPC = Obj(Iobj).reportMPC('AddHeader',AddHeader, 'ReportMPC',ReportMPC,...
-                                                                'AstIndex',AstIndex,...
+                                                                'StartAstIndex',AstIndex,...
                                                                 Args.reportMPCArgs{:});
                                                                 
                                 AddHeader = false;
