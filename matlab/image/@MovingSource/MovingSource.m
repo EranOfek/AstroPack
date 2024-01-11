@@ -7,12 +7,13 @@
 % Example:
 %   % read all AstCrop files into MovingSources object.
 %   MP=MovingSource.readFromAstCrop();
-%   % Populate known asteroids:
-%   MP.PopKA;
+%   
 %   % remove sources that are likely statis sources and NearEdge || Overlap
 %   FlagStatic = MP.nearStatisSrc
 %   FlagGood    = MP.selectByBitMask;
-%   MP = MP(~[FlagStatic.Flag] & FlagGood);
+%   MP = MP(~[FlagStatic.Flag].' & FlagGood(:));
+%   % Populate known asteroids:
+%   MP.PopKA;
 %   % Some inspection operations:
 %   [Dist, Mag]=MP.nearestKnownAst;
 %   % possible unknwon asteroids
@@ -483,11 +484,13 @@ classdef MovingSource < Component
                 % PGC
                 Flag(Iobj).Galaxy = false;
                 CatPGC = catsHTM.cone_search(Args.CatNamePGC, RA_rad, Dec_rad, Args.SearchRadius, 'RadiusUnits',Args.SearchRadiusUnits, 'OutType','AstroCatalog');
-                Dist    = CatPGC.sphere_dist(RA_rad, Dec_rad, 'rad', 'arcsec');
-                
-                GalRadius = 3.*10.^(CatPGC.Table.LogD25);
-                if ~isempty(Dist) && any(Dist<GalRadius)
-                    Flag(Iobj).Galaxy = true;
+                if ~CatPGC.isemptyCatalog
+                    Dist    = CatPGC.sphere_dist(RA_rad, Dec_rad, 'rad', 'arcsec');
+                    
+                    GalRadius = 3.*10.^(CatPGC.Table.LogD25);
+                    if ~isempty(Dist) && any(Dist<GalRadius)
+                        Flag(Iobj).Galaxy = true;
+                    end
                 end
                 
                 Flag(Iobj).Flag = Flag(Iobj).GAIA || Flag(Iobj).Galaxy;
@@ -499,6 +502,8 @@ classdef MovingSource < Component
 
         function [Dist, Mag]=nearestKnownAst(Obj)
             % Return the angular distance for the nearest known asteroid.
+            %   Will also pipulate the KnownAst property in fot already
+            %   populated.
             % Input  : - A MovingSource object.
             % Output : - A vector of angular distance [arcsec].
             %            Each element corresponds to one element in the
@@ -516,6 +521,7 @@ classdef MovingSource < Component
             Dist = nan(Nobj,1);
             Mag  = nan(Nobj,1);
             for Iobj=1:1:Nobj
+                Obj(Iobj).PopKA = true;
                 if ~isemptyCatalog(Obj(Iobj).KnownAst)
                     Dist(Iobj) = Obj(Iobj).KnownAst.Table.Dist;
                     Mag(Iobj)  = Obj(Iobj).KnownAst.Table.Mag;
