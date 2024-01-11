@@ -4,7 +4,23 @@
 % Description: 
 % Author : Eran Ofek (Jan 2024)
 %
-%
+% Example:
+%   % read all AstCrop files into MovingSources object.
+%   MP=MovingSource.readFromAstCrop();
+%   % Populate known asteroids:
+%   MP.PopKA;
+%   % remove sources that are likely statis sources and NearEdge || Overlap
+%   FlagStatic = MP.nearStatisSrc
+%   FlagGood    = MP.selectByBitMask;
+%   MP = MP(~[FlagStatic.Flag] & FlagGood);
+%   % Some inspection operations:
+%   [Dist, Mag]=MP.nearestKnownAst;
+%   % possible unknwon asteroids
+%   UNK = isnan(Dist);
+%   % generate report blindly
+%   Report = MP.reportMPC;
+%   % blink and report
+%   [Report,Res] = MS.blink;
 %
 
 classdef MovingSource < Component
