@@ -18,7 +18,8 @@ function [AltGeometrical] = invRefraction(AltRefracted, Args)
         Args.P                 = 760;
         Args.Pw                = 8;
     end
-
+    RAD = 180./pi;
+    
     AltRefractedRad = convert.angular(Args.InUnits, 'rad', AltRefracted);
     
     [RefAng] = celestial.coo.refraction_wave(AltRefractedRad, Args.Lam, Args.T, Args.P, Args.Pw);
