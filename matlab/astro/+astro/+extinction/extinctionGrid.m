@@ -31,7 +31,7 @@ function [Alam, RA_grid, Dec_grid] = extinctionGrid(SkyGrid, Args)
 
     % convert to galactic l, b (in radians):
     switch Args.CooType
-        case 'eq'
+        case {'eq', 'j2000.0'}
             [gal_lon, gal_lat] = celestial.coo.convert_coo(RA_grid./RAD,Dec_grid./RAD,'j2000.0','g');
         case 'ec'
             [gal_lon, gal_lat] = celestial.coo.convert_coo(RA_grid./RAD,Dec_grid./RAD,'ec','g');
