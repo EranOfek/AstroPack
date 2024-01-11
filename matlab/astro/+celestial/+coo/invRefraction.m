@@ -23,7 +23,7 @@ function [AltGeometrical,RefAng] = invRefraction(AltRefracted, Args)
         Args.InUnits           = 'rad';
         Args.OutUnits          = 'rad';
         
-        Args.Lam               = 5000;
+        Args.Wave               = 5000;
         Args.T                 = 15;
         Args.P                 = 760;
         Args.Pw                = 8;
@@ -32,9 +32,9 @@ function [AltGeometrical,RefAng] = invRefraction(AltRefracted, Args)
     
     AltRefractedRad = convert.angular(Args.InUnits, 'rad', AltRefracted);
     
-    [RefAng] = celestial.coo.refraction_wave(AltRefractedRad, Args.Lam, Args.T, Args.P, Args.Pw);
+    [RefAng] = celestial.coo.refraction_wave(AltRefractedRad, Args.Wave, Args.T, Args.P, Args.Pw);
     AltRefractedRad1 =  AltRefractedRad + RefAng;  % approximate unrefracted
-    [RefAng1] = celestial.coo.refraction_wave(AltRefractedRad1, Args.Lam, Args.T, Args.P, Args.Pw);
+    [RefAng1] = celestial.coo.refraction_wave(AltRefractedRad1, Args.Wave, Args.T, Args.P, Args.Pw);
     DeltaRef = (RefAng - RefAng1); %.*RAD.*3600
     RefAng = RefAng - DeltaRef;
     AltGeometrical = AltRefracted + RefAng;
