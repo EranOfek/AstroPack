@@ -43,8 +43,9 @@ classdef MovingSource < Component
     end
 
     properties (Hidden, SetAccess = public)
-        OrbEl     = celestial.OrbitalEl.loadSolarSystem('merge');
-        INPOP     = celestial.INPOP.init;
+        PopKA logical         
+        OrbEl                 = []; %celestial.OrbitalEl.loadSolarSystem('merge');
+        INPOP                 = []; %celestial.INPOP.init;
         AstSearchRadius       = 10;
         AstSearchRadiusUnits  = 'arcsec';
         AstMagLimit           = Inf;
@@ -53,18 +54,81 @@ classdef MovingSource < Component
     
     methods % Constructor
        
-        function Obj = MinorPlanet(varargin)
-            % Constructor of MinorPlanet class using the superclass
-            % (ImageComponent) constructor
+        function Obj = MinorPlanet(Nobj, Args)
+            % Constructor of MinorPlanet class 
+            % Input  : - Number of elements in object.
+            %            If empty, set to 1.
+            %            Default is [].
+            %          * ...,key,val,...
+            %            'PopKA' - A logical indicating of to populate the
+            %                   KnonwAst property. If true, then will
+            %                   search for known asteroids within Obj.AstSearchRadius
+            %                   and Obj.AstMagLimit.
+            %                   Default is false.
+            %            'OrbEl' - A celestial.OrbitalEl object.
+            %                   If empty, then will be populated with
+            %                   celestial.OrbitalEl.loadSolarSystem('merge')
+            %                   only if 'PopKA' is true.
+            %            'INPOP' - A celestial.INPOP object.
+            %                   If empty, then will be populated with
+            %                   celestial.INPOP.init
+            %                   only if 'PopKA' is true.
+            %            'AstSearchRadius' - Known asteroid search radius
+            %                   to put in the Obj.AstSearchRadius hidden property.
+            %                   Default is 10.
+            %            'AstSearchRadiusUnits' - Known asteroid search
+            %                   radius units
+            %                   to put in the Obj.AstSearchRadiusUnits hidden property.
+            %                   Default is 'arcsec'.
+            %            'AstMagLimit' - Known asteroid magnitude limit
+            %                   to put in the Obj.AstMagLimit hidden property.
+            %                   Default is Inf.
+            %
+            % Output : - A MovingSource object.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: MP = MovingSource;
+            %          MP = MovingSource(3, 'PopKA',true);
             
+            arguments
+                Nobj = [];
+                Args.PopKA logical         = false;
+                Args.OrbEl                 = []; %celestial.OrbitalEl.loadSolarSystem('merge');
+                Args.INPOP                 = []; %celestial.INPOP.init;
+                Args.AstSearchRadius       = 10;
+                Args.AstSearchRadiusUnits  = 'arcsec';
+                Args.AstMagLimit           = Inf;
+
+            end
+
             %Obj@ImageComponent(varargin{:});
             %for Iobj=1:1:numel(Obj)
             %    Obj(Iobj).DataType = AstroDataType.ExpTime;
             %end
+
+            if isempty(Nobj)
+                Nobj = 1;
+            end
+            if Args.PopKA
+                if isempty(Args.OrbEl)
+                    Args.OrbEl = celestial.OrbitalEl.loadSolarSystem('merge');
+                end
+                if isempty(Args.INPOP)
+                    Args.INPOP = celestial.INPOP.init;
+                end
+            end
+
+            for Iobj=1:1:Nobj
+                Obj(Iobj).PopKA    = Args.PopKA;
+                if Args.PopKA
+                    Obj(Iobj).OrbEl = Args.OrbEl; 
+                    Obj(Iobj).INPOP = Args.INPOP;
+                end
+                Obj(Iobj).AstSearchRadius      = Args.AstSearchRadius;
+                Obj(Iobj).AstSearchRadiusUnits = Args.AstSearchRadiusUnits;
+                Obj(Iobj).AstMagLimit          = Args.AstMagLimit;
+            end
             
         end
-
-
 
     end
  
@@ -234,9 +298,16 @@ classdef MovingSource < Component
             
         end
 
-        function Val=get.KnownAst(Obj)
-            % getter for KnownAst
-            if ~isempty(Obj.JD) && ~isempty(Obj.RA) && ~isempty(Obj.Dec)
+        function set.PopKA(Obj, Val)
+            % setter for PopKA (populated KnownAst)
+
+            if Val && ~isempty(Obj.JD) && ~isempty(Obj.RA) && ~isempty(Obj.Dec)
+                if isempty(Obj.OrbEl)
+                    Obj.OrbEl = celestial.OrbitalEl.loadSolarSystem('merge');
+                end
+                if isempty(Obj.INPOP)
+                    Obj.INPOP = celestial.INPOP.init;
+                end
                 [Result] = searchMinorPlanetsNearPosition(Obj.OrbEl, Obj.JD, Obj.RA, Obj.Dec, Obj.AstSearchRadius,...
                                     'INPOP',Obj.INPOP,...
                                     'CooUnits',Obj.CooUnits,...
@@ -244,13 +315,13 @@ classdef MovingSource < Component
                                     'MagLimit',Obj.AstMagLimit,...
                                     'AddDist',true,...
                                     'ConeSearch',true);
-                Val = Result;
-                %Obj.PopulatedKnownAst = true;
-            else
-                Val = Obj.KnownAst;
-            end
+                Obj.KnownAst = Result;
 
+            end
+            Obj.PopKA = Val;
+            
         end
+
 
     end
 
@@ -269,6 +340,8 @@ classdef MovingSource < Component
             %                   Default is [].
             %            'AstFileTemp' - File template to search.
             %                   Default is '*merged_Asteroids*.mat'.
+            %            'PopKA' - Populate known asteroids.
+            %                   Default is false.
             % Output : - A MovingSource object.
             % Example: MP=MovingSource.readFromAstCrop(AC)
             %          MP=MovingSource.readFromAstCrop('LAST.01.10.01_20231107.010845.394_clear_091+10_001_001_001_sci_merged_Asteroids_1.mat')
@@ -278,7 +351,9 @@ classdef MovingSource < Component
                 AstCrop          = [];
                 Args.Path        = pwd;
                 Args.Id          = [];
-                Args.AstFileTemp = '*merged_Asteroids*.mat';
+               
+                Args.AstFileTemp   = '*merged_Asteroids*.mat';
+                Args.PopKA logical = false;
             end
 
             PWD = pwd;
@@ -325,6 +400,10 @@ classdef MovingSource < Component
             end
 
             cd(PWD);
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).PopKA = Args.PopKA;
+            end
         end
 
     end
@@ -429,8 +508,7 @@ classdef MovingSource < Component
 
         end
 
-        % NOT TESTED
-        function [Flag, NewObj] = selectByBitMask(Obj, Args)
+        function [Flag] = selectByBitMask(Obj, Args)
             % Select elements of MovingSource object that have specific BitMask.
             %   This function check the value of the FLAGS column in the
             %   MergedCat property of the MovingSource object. It returns
@@ -450,12 +528,6 @@ classdef MovingSource < Component
             %                   Default is true.
             %            'BitDict' - BitDictionary object.
             %                   Default is BitDictionary.
-            %            'CreateNewObj' - If two output arguments are
-            %                   requested, then the program returns only
-            %                   the selected elements. In thsi case, this
-            %                   argument indicate if to create a new
-            %                   object.
-            %                   Default is false.
             % Output : - Logical flags indicating, for each element, if the
             %            flags were satisfied.
             %          - The selected elements of the MovingSource object.
@@ -470,32 +542,22 @@ classdef MovingSource < Component
                 Args.Method                  = 'any';
                 Args.NotFlags logical        = true;
                 Args.BitDict                 = BitDictionary;
-                Args.CreateNewObj logical    = false;
                 
             end
             
             Nobj = numel(Obj);
             Flag = false(Nobj,1);
             for Iobj=1:1:Nobj
-                DecFlag = Obj(Iobj).MergedCat.getCol.(Args.ColFlags);
+                DecFlag = Obj(Iobj).MergedCat.getCol(Args.ColFlags);
                 if Args.NotFlags
                     Flag(Iobj) = ~Args.BitDict.findBit(DecFlag, Args.Flags, 'Method',Args.Method);
                 else
                     Flag(Iobj) = Args.BitDict.findBit(DecFlag, Args.Flags, 'Method',Args.Method);
                 end
             end
-            
-            if nargout>1
-                if Args.CreateNewObj
-                    NewObj = Obj(Flag).copy;
-                else
-                    NewObj = Obj(Flag);
-                end
-            end
                             
         end
     
-        % NOT TESTED
         function Result=selectMovingFromStamps(Obj, Args)
             % Create a catalog of the moving source position as a function of time
             %   as appear in the MovingSource Stamps.
@@ -516,7 +578,7 @@ classdef MovingSource < Component
             % Example: Result = MP.selectMovingFromStamps;
             
             arguments
-                Obj(1,1)
+                Obj
                 Args.SearchRadius      = 3;
                 Args.SearchRadiusUnits = 'arcsec';
                 Args.TableCol          = {'RA','Dec','MAG_PSF','FLAGS'};
@@ -531,7 +593,7 @@ classdef MovingSource < Component
             ColNames = ['JD', Args.TableCol];
             
             for Iobj=1:1:Nobj
-                JD = Obj(Iobj).Stamps(Istamp).julday;
+                JD = Obj(Iobj).Stamps.julday; % all JD
 
                 Iobj = 1;
                 Nstamp = numel(Obj(Iobj).Stamps);
@@ -539,22 +601,21 @@ classdef MovingSource < Component
                 for Istamp=1:1:Nstamp
                     Dist = Obj(Iobj).Stamps(Istamp).CatData.sphere_dist(Obj(Iobj).RA, Obj(Iobj).Dec, Obj(Iobj).CooUnits, 'arcsec');
                     [MinDist, MinInd] = min(Dist);
-                    if MinDist>Args.SearchRadiusAS
+                    if MinDist>SearchRadiusAS
                        % no source found
                        Cat(Istamp,1) = JD(Istamp);
                     else
                         % source found
-                        Cat(Istamp,:) = [JD(Istamp), Obj(Iobj).Stamps(Istamp).getCol(Args.TableCol)];
+                        Cat(Istamp,:) = [JD(Istamp), Obj(Iobj).Stamps(Istamp).CatData.getCol(Args.TableCol, false, false, 'SelectRows',MinInd)];
                     end
 
                 end
-                Result(Iobj) = AstroCatalog(Cat, 'ColNames',ColNames);
+                Result(Iobj) = AstroCatalog({Cat}, 'ColNames',ColNames);
                 
             end
             
         end
         
-        % NOT TESTED
         function ReportMPC=reportMPC(Obj, Args)
             % Generate MPC report for MovingSource object
             %   Generate an MPC report for all elements of a MovingSource object
@@ -571,6 +632,11 @@ classdef MovingSource < Component
             %                   arc/time. If true its time-arc/time
             %                   Default is true.
             %            'DefaultObsName' - LAST default. Default is true.
+            %            'StartAstIndex' - AstIndex start with this number + 1.
+            %                   Default is 0.
+            %            'ReportMPC' - Char array of MPC report to which to
+            %                   concat this report.
+            %                   Default is ''.
             % Output : - Char array of MPC report.
             % Author : Eran Ofek (Jan 2024)
             % Example: MP.reportMPC
@@ -586,28 +652,36 @@ classdef MovingSource < Component
                 
                 Args.generateReportMPCArgs cell = {};
                 Args.DefaultObsName logical     = true;
+
+                Args.StartAstIndex = 0;
+                Args.ReportMPC     = '';
             end
             
             
             % prep MPC report for asteroid
+            % KeyID     = {'NODENUMB','MOUNTNUM','CAMNUM','CROPID','FIELDID','COUNTER'};
+            Iobj = 1;
             ObsName = sprintf('Large Array Survey Telescope (LAST) Node %02d Mount %02d Tel %02d',...
-                                                    Obj(Iobj).ImageID.NODENUMB,...
-                                                    Obj(Iobj).ImageID.MOUNTNUM,...
-                                                    Obj(Iobj).ImageID.CAMNUM);
+                                                    Obj(Iobj).ImageID(1).NODENUMB,...
+                                                    Obj(Iobj).ImageID(1).MOUNTNUM,...
+                                                    Obj(Iobj).ImageID(1).CAMNUM);
                                                 
         
             AddHeader = Args.AddHeader;
             
+            AstIndex = Args.StartAstIndex;
             Nobj = numel(Obj);
+            ReportMPC = Args.ReportMPC;
             for Iobj=1:1:Nobj
                 Result           = Obj(Iobj).selectMovingFromStamps;
-                VecJD            = Result.Catalog.getCol('JD');
-                [VecRA, VecDec]  = Result.Catalog.getLonLat('deg');
-                Mag              = Result.Catalog.getCol(Args.ColMag);
+                VecJD            = Result.getCol('JD');
+                [VecRA, VecDec]  = Result.getLonLat('deg');
+                Mag              = Result.getCol(Args.ColMag);
                 MedMag           = median(Mag, 1, 'omitnan');
                 FlagNN = ~isnan(VecRA);
                 NN     = sum(FlagNN);
                 
+                AstIndex = AstIndex + 1;
                 switch Args.ReportType
                     case 'AllDetections'
                         % [JD, RA, Dec, Mag, Filter, AstIndex]
@@ -621,10 +695,11 @@ classdef MovingSource < Component
                         
                     case 'FittedDetection3'
                         % Evaluate fitted motion at three points
+                        JDm = Obj(Iobj).JD;
                         JD1 = min(VecJD);
-                        JD2 = Obj(Iobj).JD;
                         JD3 = max(VecJD);
-                        
+                        JD2 = 0.5.*(JD1 + JD3);
+
                         if Args.PM_IsArcTime
                             CC = 1;
                         else
@@ -633,16 +708,16 @@ classdef MovingSource < Component
                         
                         % Note PM_RA is in time units rather than angular units
                         % so no cos(Dec) correction is needed
-                        RA1  = Obj(Iobj).RA + Obj(Iobj).PM_RA.*(JD1-JD2).*CC;
-                        RA2  = Obj(Iobj).RA;
-                        RA3  = Obj(Iobj).RA + Obj(Iobj).PM_RA.*(JD3-JD2).*CC;
-                        Dec1 = Obj(Iobj).Dec + Obj(Iobj).PM_Dec.*(JD1-JD2);
-                        Dec2 = Obj(Iobj).Dec;
-                        Dec3 = Obj(Iobj).Dec + Obj(Iobj).PM_Dec.*(JD3-JD2);
+                        RA1  = Obj(Iobj).RA + Obj(Iobj).PM_RA.*(JD1-JDm).*CC;
+                        RA2  = Obj(Iobj).RA + Obj(Iobj).PM_RA.*(JD2-JDm).*CC;
+                        RA3  = Obj(Iobj).RA + Obj(Iobj).PM_RA.*(JD3-JDm).*CC;
+                        Dec1 = Obj(Iobj).Dec + Obj(Iobj).PM_Dec.*(JD1-JDm);
+                        Dec2 = Obj(Iobj).Dec + Obj(Iobj).PM_Dec.*(JD2-JDm);
+                        Dec3 = Obj(Iobj).Dec + Obj(Iobj).PM_Dec.*(JD3-JDm);
                         
                         
                         % [JD, RA, Dec, Mag, Filter, AstIndex]
-                        ReportTable = [ [JD1; JD2; JD3], [RA1; RA2; RA3], [Dec1; Dec2; Dec3], MedMag.*ones(3,1), AstIndex.*ones(3,1)];
+                        ReportTable = [ [JD1; JD2; JD3], [RA1; RA2; RA3], [Dec1; Dec2; Dec3], MedMag.*ones(3,1), nan(3,1), AstIndex.*ones(3,1)];
                         CooUnits = Obj(Iobj).CooUnits;
                         
                     otherwise
@@ -751,13 +826,50 @@ classdef MovingSource < Component
 
         end
     
-
         function blink1(Obj, Args)
             % Display stamps along with sources, asteroid, and known minor planets positions and blink
             %   the images.
             %   
             % Input  : - A single element MovingSource object.
+            %          * ...,key,val,...
+            %            'Ndisp' - Number if stamps to dispaly.
+            %                   For example, if 2, then will display the
+            %                   first and last stamp in the vector of
+            %                   Stamps.
+            %                   Default is 2.
+            %            'Zoom' - Zoom argument to pass to ds9.
+            %                   Default is 'to fit'.
+            %            'PlotSrc' - Plot arguments for the statis sources
+            %                   detected in the Stamps.
+            %                   If [], then do not plot static sources.
+            %                   If cell, then will pass multiple arguments
+            %                   contained in the cell.
+            %                   Default is 'sg'.
+            %            'PlotAst' - The same as 'PlotSrc', but for the
+            %                   moving source (asteroid) detected in the
+            %                   images.
+            %                   Default is 'sr'.
+            %            'PlotKnown' - The same as 'PlotSrc', but for the
+            %                   Known Asteroid detected in the
+            %                   images.
+            %                   Default is 'or'.
+            %            'PlotIndiv' - The same as 'PlotSrc', but for the
+            %                   individual position detections of the
+            %                   asteroid in each one of the stamps.
+            %                   Default is {'sc','Size',8}.
+            %            'MaxDistIndiv' - Plot individual image detection
+            %                   within this search radius [arcsec] from the
+            %                   moving source position.
+            %                   Default is 3.
+            %            'AutoBlink' - Start auto blink. Default is true.
+            %            'DispInfo' - A logical indicating if to display
+            %                   text information regarding the moving source
+            %                   on the screen.
+            %                   Default is true.
             %
+            % Output : null
+            % Author : Eran Ofek (Jan 2024)
+            % Example: MP(1).blink1
 
             arguments
                 Obj(1,1)
