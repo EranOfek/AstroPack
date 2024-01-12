@@ -1,10 +1,27 @@
 % MovingSource class
-%   MinorPlanet class can be used to store detection of minor planet
+%   MovingSources class can be used to store detection of minor planet
 %   (or any moving) objects.
 % Description: 
 % Author : Eran Ofek (Jan 2024)
 %
-%
+% Example:
+%   % read all AstCrop files into MovingSources object.
+%   MP=MovingSource.readFromAstCrop();
+%   
+%   % remove sources that are likely statis sources and NearEdge || Overlap
+%   FlagStatic = MP.nearStatisSrc
+%   FlagGood    = MP.selectByBitMask;
+%   MP = MP(~[FlagStatic.Flag].' & FlagGood(:));
+%   % Populate known asteroids:
+%   MP.popKnownAst;
+%   % Some inspection operations:
+%   [Dist, Mag]=MP.nearestKnownAst;
+%   % possible unknwon asteroids
+%   UNK = isnan(Dist);
+%   % generate report blindly
+%   Report = MP.reportMPC;
+%   % blink and report
+%   [Report,Res] = MS.blink;
 %
 
 classdef MovingSource < Component
@@ -54,7 +71,7 @@ classdef MovingSource < Component
     
     methods % Constructor
        
-        function Obj = MinorPlanet(Nobj, Args)
+        function Obj = MovingSources(Nobj, Args)
             % Constructor of MinorPlanet class 
             % Input  : - Number of elements in object.
             %            If empty, set to 1.
@@ -394,6 +411,7 @@ classdef MovingSource < Component
                             Iall = Iall + 1;
                             Obj(Iall).Stamps    = AstCrop.AstCrop(Icrop).Stamps;
                             Obj(Iall).MergedCat = AstCrop.AstCrop(Icrop).SelectedCatPM;
+                            Obj(Iall).FileName  = fullfile(Files(If).folder,  Files(If).name);
                         end
                     end
                 end
@@ -409,6 +427,19 @@ classdef MovingSource < Component
     end
 
     methods  % utilities
+        function Obj=popKnownAst(Obj)
+            % Populate KnownAst in all elements of MovingSource object
+            % Input  : - A MovingSource object.
+            % Output : - A populated MovingSource object.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: MP.popKnownAst;
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj).PopKA = true;
+            end
+        end
+        
         function Flag=nearStatisSrc(Obj, Args)
             % Check for static sources near the moving source
             %   Search a PGC galaxy or GAIA star near the moving source.
@@ -425,6 +456,8 @@ classdef MovingSource < Component
             %            .MagGAIA - The mag. of the GAIA contaminants.
             %            .PGC - A logical indicating if there is a PGC
             %                   galaxy that may contaminate the detection.
+            %            .GLADE - A logical indicating if there is a GLADEp
+            %                   galaxy that may contaminate the detection.
             %            .Flag - A logical flag indicating if there is a
             %                   contaminant of any kind.
             % Author : Eran Ofek (Jan 2024)
@@ -432,10 +465,14 @@ classdef MovingSource < Component
             arguments
                 Obj
                 Args.CatNameGAIA = 'GAIADR3';
-                Args.CatNamePGC  = 'PGC';
+                
                 Args.ColMagGAIA  = 'phot_bp_mean_mag';
                 Args.MaxMagGAIA  = 20.5;
-
+                
+                Args.CatNamePGC  = 'PGC';
+                Args.CatNameGlade = 'GLADEp';
+                Args.MaxDistGlade = 10;
+                
                 Args.SearchRadius      = 60;
                 Args.SearchRadiusUnits = 'arcsec';
 
@@ -465,16 +502,29 @@ classdef MovingSource < Component
                 end
 
                 % PGC
-                Flag(Iobj).Galaxy = false;
+                Flag(Iobj).PGC = false;
                 CatPGC = catsHTM.cone_search(Args.CatNamePGC, RA_rad, Dec_rad, Args.SearchRadius, 'RadiusUnits',Args.SearchRadiusUnits, 'OutType','AstroCatalog');
-                Dist    = CatPGC.sphere_dist(RA_rad, Dec_rad, 'rad', 'arcsec');
-                
-                GalRadius = 3.*10.^(CatPGC.Table.LogD25);
-                if ~isempty(Dist) && any(Dist<GalRadius)
-                    Flag(Iobj).Galaxy = true;
+                if ~CatPGC.isemptyCatalog
+                    Dist    = CatPGC.sphere_dist(RA_rad, Dec_rad, 'rad', 'arcsec');
+                    
+                    GalRadius = 3.*10.^(CatPGC.Table.LogD25);
+                    if ~isempty(Dist) && any(Dist<GalRadius)
+                        Flag(Iobj).PGC = true;
+                    end
                 end
                 
-                Flag(Iobj).Flag = Flag(Iobj).GAIA || Flag(Iobj).Galaxy;
+                % GLADE
+                Flag(Iobj).GLADE = false;
+                CatGLADE = catsHTM.cone_search(Args.CatNameGlade, RA_rad, Dec_rad, Args.SearchRadius, 'RadiusUnits',Args.SearchRadiusUnits, 'OutType','AstroCatalog');
+                if ~CatGLADE.isemptyCatalog
+                    Dist    = CatGLADE.sphere_dist(RA_rad, Dec_rad, 'rad', 'arcsec');
+                    
+                    if ~isempty(Dist) && any(Dist<Args.MaxDistGlade)
+                        Flag(Iobj).GLADE = true;
+                    end
+                end
+                
+                Flag(Iobj).Flag = Flag(Iobj).GAIA || Flag(Iobj).PGC & Flag(Iobj).GLADE;
             end
 
             
@@ -483,6 +533,8 @@ classdef MovingSource < Component
 
         function [Dist, Mag]=nearestKnownAst(Obj)
             % Return the angular distance for the nearest known asteroid.
+            %   Will also pipulate the KnownAst property in fot already
+            %   populated.
             % Input  : - A MovingSource object.
             % Output : - A vector of angular distance [arcsec].
             %            Each element corresponds to one element in the
@@ -500,6 +552,7 @@ classdef MovingSource < Component
             Dist = nan(Nobj,1);
             Mag  = nan(Nobj,1);
             for Iobj=1:1:Nobj
+                Obj(Iobj).PopKA = true;
                 if ~isemptyCatalog(Obj(Iobj).KnownAst)
                     Dist(Iobj) = Obj(Iobj).KnownAst.Table.Dist;
                     Mag(Iobj)  = Obj(Iobj).KnownAst.Table.Mag;
@@ -821,6 +874,16 @@ classdef MovingSource < Component
                     fprintf('\n');
                     fprintf('PolyDeltaChi2 : %f\n', Obj(Iobj).MergedCat.Table.PolyDeltaChi2);
                     
+                    % KnownAst
+                    if ~isempty(Obj(Iobj).KnownAst)
+                        if isemptyCatalog(Obj(Iobj).KnownAst)
+                            fprintf('Known Asteroid : None\n')
+                        else
+                            [~,Imin] = min(Obj(Iobj).KnownAst.Table.Dist);
+                            fprintf('Known Asteroid : %s / Mag=%5.2f\n',Obj(Iobj).KnownAst.Table.Desig{Imin}, Obj(Iobj).KnownAst.Table.Mag(Imin));
+                        end
+                        
+                    end
                 end
             end
 
@@ -906,7 +969,7 @@ classdef MovingSource < Component
             for IstV=1:1:NstV
                 IndS = StampVec(IstV);
 
-                if Args.DispInfo
+                if Args.DispInfo && IstV==1
                     % display information:
                     Obj.dispInfo;
                 end
@@ -951,6 +1014,140 @@ classdef MovingSource < Component
             
         end
 
+        function [ReportMPC,Result]=blink(Obj, Args)
+            % Interactivly loop over all moving sources with blink1.
+            %   Each element in the MovingSources object will be displayed
+            %   in ds9 using the blink1 method.
+            %   The user will be prompt to add comments/select/reject and
+            %   prepare an MPC report.
+            % Input  : - A MovingSources object.
+            %          * ...,key,val,...
+            %            'Ndisp' - Number if stamps to dispaly.
+            %                   For example, if 2, then will display the
+            %                   first and last stamp in the vector of
+            %                   Stamps.
+            %                   Default is 2.
+            %            'Zoom' - Zoom argument to pass to ds9.
+            %                   Default is 'to fit'.
+            %            'PlotSrc' - Plot arguments for the statis sources
+            %                   detected in the Stamps.
+            %                   If [], then do not plot static sources.
+            %                   If cell, then will pass multiple arguments
+            %                   contained in the cell.
+            %                   Default is 'sg'.
+            %            'PlotAst' - The same as 'PlotSrc', but for the
+            %                   moving source (asteroid) detected in the
+            %                   images.
+            %                   Default is 'sr'.
+            %            'PlotKnown' - The same as 'PlotSrc', but for the
+            %                   Known Asteroid detected in the
+            %                   images.
+            %                   Default is 'or'.
+            %            'PlotIndiv' - The same as 'PlotSrc', but for the
+            %                   individual position detections of the
+            %                   asteroid in each one of the stamps.
+            %                   Default is {'sc','Size',8}.
+            %            'MaxDistIndiv' - Plot individual image detection
+            %                   within this search radius [arcsec] from the
+            %                   moving source position.
+            %                   Default is 3.
+            %            'AutoBlink' - Start auto blink. Default is true.
+            %            'DispInfo' - A logical indicating if to display
+            %                   text information regarding the moving source
+            %                   on the screen.
+            %                   Default is true.
+            %
+            %            'ReportMPC' - Char array of MPC report to which to
+            %                   concat this report.
+            %                   Default is ''.
+            %            'AddHeader' - Default is true.
+            %            'StartAstIndex' - AstIndex start with this number + 1.
+            %                   Default is 0.
+            %            'reportMPCArgs' - Cell array of additional
+            %                   arguments to pass to MovingSources/reportMPC.
+            %                   Default is {}.
+            %
+            % Output : - A char array of MPC report.
+            %          - A structure array of results for each
+            %            MovingSources element.
+            %
+            % Author : Eran Ofek (Jan 2024)
+            % Example: MP.blink
+
+            arguments
+                Obj
+                Args.Ndisp             = 2; % number of stamps to display
+                Args.Zoom              = 'to fit';
+                Args.PlotSrc           = 'sg';
+                Args.PlotAst           = 'sr';
+                Args.PlotKnown         = 'or';
+                Args.PlotIndiv         = {'sc','Size',8};
+                Args.MaxDistIndiv      = 3; % arcsec
+                Args.AutoBlink         = true;
+                Args.DispInfo logical  = true;
+
+                Args.ReportMPC          = '';
+                Args.AddHeader logical  = true;
+                Args.StartAstIndex      = 0;
+                Args.reportMPCArgs cell = {};
+                
+
+            end
+
+            ReportMPC = Args.ReportMPC;
+            AddHeader = Args.AddHeader;
+
+            AstIndex  = Args.StartAstIndex;
+
+            PromptChar = '......Options : \n   q - quit\n   r - add to report\n   Any other text to add to bad comment\n Your selection : ';
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                fprintf('... MovingSource object element %d out of %d\n',Iobj, Nobj);
+                % blink current element
+                Obj(Iobj).blink1('Ndisp',Args.Ndisp,...
+                           'Zoom',Args.Zoom,...
+                           'PlotSrc',Args.PlotSrc,...
+                           'PlotAst',Args.PlotAst,...
+                           'PlotKnown',Args.PlotKnown,...
+                           'PlotIndiv',Args.PlotIndiv,...
+                           'MaxDistIndiv',Args.MaxDistIndiv,...
+                           'AutoBlink',Args.AutoBlink,...
+                           'DispInfo',Args.DispInfo);
+
+                % Prompt to user
+                fprintf('.....\n');
+                Ans = input(PromptChar,'s');
+                Result(Iobj).Comment = Ans;
+                %if numel(Ans)==1
+                    if numel(Ans)==1
+                        switch lower(Ans)
+                            case 'q'
+                                Result(Iobj).Flag = NaN;
+                                break;
+                            case 'r'
+                                % add to report
+                                ReportMPC = Obj(Iobj).reportMPC('AddHeader',AddHeader, 'ReportMPC',ReportMPC,...
+                                                                'StartAstIndex',AstIndex,...
+                                                                Args.reportMPCArgs{:});
+                                                                
+                                AddHeader = false;
+                                Result(Iobj).Flag = true;
+                            otherwise
+                                % skip
+                                Result(Iobj).Flag = false;
+                        end
+                    else
+                        % Skip
+                        Result(Iobj).Flag = false;
+                    end
+                     
+                %end
+                ds9.single;
+            end
+            ds9.single;
+
+        end
     end
 
     
