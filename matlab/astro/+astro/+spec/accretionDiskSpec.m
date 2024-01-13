@@ -16,8 +16,8 @@ function [IntegratedSpec, Wave, VecR, T, Ibb] = accretionDiskSpec(Args)
     %
     % Output : - Integrated spectrum emittance [erg/sec/cm^2/cm(lambda)]
     %          - Vector of wavelength [Ang].
-    %          - Vector of Radii.
-    %          - Effectove temperature at each radius.
+    %          - Vector of Radii [cm].
+    %          - Effectove temperature at each radius [K].
     %          - Spectrum for each radius (spectra in columns).
     % Author : Eran Ofek (2024 Jan) 
     % Example: [IntegratedSpec, Wave, VecR, T, Ibb] = astro.spec.accretionDiskSpec;

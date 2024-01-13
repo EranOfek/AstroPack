@@ -21,7 +21,7 @@ function Lum=limb_darkening(R, ModelType, Pars)
 %     By : Eran O. Ofek                    Aug 2001
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Reference: Claret et al. 1995, A&ASS, 114, 247
-% Example: Lum=AstroUtil.binary.limb_darkening(0.1,'Diaz',[1 1]);
+% Example: Lum=astro.binary.limb_darkening(0.1,'Diaz',[1 1]);
 % Reliable: 2
 %------------------------------------------------------------------------------
 Mu   = sqrt(1-R.^2);  % cos(Gamma)    
