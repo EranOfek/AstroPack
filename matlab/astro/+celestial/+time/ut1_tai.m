@@ -35,7 +35,8 @@ function [UT1mTAI, TblEOP] = ut1_tai(JD, Args)
     
     MJD    = convert.time(JD, 'JD', 'MJD');
 
-    UT1mTAI = interp1(TblEOP.MJD, TblEOP.UT1_TAI, MJD, 'linear',NaN);
+    FNN = ~isnan(TblEOP.UT1_TAI);
+    UT1mTAI = interp1(TblEOP.MJD(FNN), TblEOP.UT1_TAI(FNN), MJD, 'linear',NaN);
 
     UT1mTAI(isnan(UT1mTAI)) = Args.FillVal;
     

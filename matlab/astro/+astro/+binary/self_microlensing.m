@@ -32,10 +32,14 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
     %                   Default is [].
     %            'Oversampling' - An oversampling factor for the automatic
     %                   selection of Nstep. Default is 3.
-    %            'LimbFun' - Limb darkning function.
-    %                   Default is @astro.binary.limb_darkening
-    %            'LimbFunPars' - Default is {'constant'}
-    %            
+    %
+    %            'FunLimb' - Either a matrix of [R/Rstar, LimbDark] profile
+    %                   or a function handle of the form:
+    %                   Imu = Fun(Coef, R, FunLimbBar{:})
+    %                   Default is @astro.stars.limbDarkening
+    %            'LimbDarkCoef' - Coef of FunLimb. Default is zeros(1,4).
+    %            'FunLimbPar' - Default is {'MuUnits','r', 'Fun','4par'}.
+    %                
     %            'PrepMovie' - Default is false.
     %            'MovieName' - Default is 'try.avi'.
     %            'LC'        - Add LC to movie. Default is [].
@@ -80,8 +84,8 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
         Args.TotL      = 1;
                 
         Args.IntStep       = 1e-5;   % in units of ER
-        Args.LimbFun       = @astro.binary.limb_darkening;
-        Args.LimbFunPars   = {'constant'};
+        %Args.LimbFun       = @astro.binary.limb_darkening;
+        %Args.LimbFunPars   = {'constant'};
         
         Args.Algo          = '1dfast';
         Args.Nstep         = [];
@@ -92,7 +96,10 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
         Args.NsimBlock     = 1e6;  % number of simotanous ismulations
         
         % limb darkening
+        Args.FunLimb      = @astro.stars.limbDarkening;
         Args.LimbDarkCoef = zeros(1,4); %astro.stars.getClaret2020_LimbDarkeningWD(10000,[7]);
+        Args.FunLimbPar   = {'MuUnits','r', 'Fun','4par'};
+        
         
         Args.UseIndivMag logical  = true;
         
@@ -232,7 +239,15 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
                     % apply limb darkening (using R)
                     % ...
                     
-                    [Imu] = astro.stars.limbDarkening(Args.LimbDarkCoef, R./Rstar, 'MuUnits','r', 'Fun','4par');
+                    
+                    %[Imu] = astro.stars.limbDarkening(Args.LimbDarkCoef, R./Rstar, 'MuUnits','r', 'Fun','4par');
+                    if isnumeric(Args.FunLimb)
+                        % FunLimb is a [R LimbDark] matrix - interpolate
+                        Imu = interp1(Args.FunLimb(:,1), Args.FunLimb(:,2), R./Rstar);
+                    else
+                        % FunLimb is a function
+                        Imu = Args.FunLimb(Args.LimbDarkCoef, R./Rstar, Args.FunLimbPar{:});
+                    end
                     
                     U2 = (X - Beta(Ib)).^2 + (Y).^2;
                     U  = sqrt(U2);

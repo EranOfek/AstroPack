@@ -16,7 +16,7 @@ function [AltGeometrical,RefAng] = invRefraction(AltRefracted, Args)
     % Example: AltRefracted = 30./RAD;
     %          [AltGeometrical] = celestial.coo.invRefraction(AltRefracted)
     %          RefAng = celestial.coo.refraction_wave(AltGeometrical); 
-    %          %AltRefracted should be equal to: AltGeometrical - RefAng
+    %          %AltRefracted should be equal to: AltGeometrical + RefAng
 
     arguments
         AltRefracted
@@ -37,8 +37,10 @@ function [AltGeometrical,RefAng] = invRefraction(AltRefracted, Args)
     [RefAng1] = celestial.coo.refraction_wave(AltRefractedRad1, Args.Wave, Args.T, Args.P, Args.Pw);
     DeltaRef = (RefAng - RefAng1); %.*RAD.*3600
     RefAng = RefAng - DeltaRef;
-    AltGeometrical = AltRefracted + RefAng;
+    AltGeometrical = AltRefractedRad + RefAng;
 
     AngFactor = convert.angular('rad',Args.OutUnits);
+    AltGeometrical = AltGeometrical.* AngFactor;
+    RefAng         = RefAng.* AngFactor;
 
 end
