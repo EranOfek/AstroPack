@@ -683,6 +683,7 @@ classdef MovingSource < Component
             %            'ColMag' - Default is 'MAG_PSF'.
             %            'PM_IsArcTime' -  If false then units of PM_RA is
             %                   arc/time. If true its time-arc/time
+            %                   FFU: *** IN FUTURE DEFAULT WILL BE FALSE ***
             %                   Default is true.
             %            'DefaultObsName' - LAST default. Default is true.
             %            'StartAstIndex' - AstIndex start with this number + 1.
@@ -753,7 +754,7 @@ classdef MovingSource < Component
                         JD3 = max(VecJD);
                         JD2 = 0.5.*(JD1 + JD3);
 
-                        if Args.PM_IsArcTime
+                        if Args.PM_IsArcTime || strcmp(Obj(Iobj).PMUnits, 'tdeg/deg')
                             CC = 1;
                         else
                             CC = 1./cos(convert.angular(Obj(Iobj).CooUnits, 'rad', Obj(Iobj).Dec));
