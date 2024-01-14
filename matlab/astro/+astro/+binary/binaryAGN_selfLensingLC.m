@@ -70,6 +70,7 @@ function [Result] = binaryAGN_selfLensingLC(Args)
     Result.ResSL         = ResSL;
     Result.VecR          = VecR;
     Result.Rs            = Rs;
+    Result.Vel           = K.v;
 end
     
     
