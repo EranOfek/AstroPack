@@ -60,7 +60,8 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
         
         Args.ColX                             = 'X1';   % used for shift estimate
         Args.ColY                             = 'Y1';
-        Args.StackMethod                      = 'sigmaclip';        
+        Args.StackMethod                      = 'sigmaclip';      
+        Args.StackArgs                        = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
         Args.Asteroids_PM_MatchRadius         = 3;
 
         Args.DeleteBackBeforeCoadd logical    = false;
@@ -219,8 +220,8 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
             [Coadd(Ifields), ResultCoadd(Ifields).CoaddN] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
                                                                                                  'Cube',PreAllocCube,...
                                                                                                  'StackMethod',Args.StackMethod,...
-                                                                                                 'StackArgs',{'MeanFun',@tools.math.stat.nanmean, 'Nsigma',[2 2]});
-
+                                                                                                 'StackArgs',Args.StackArgs);
+                                                                                                
 
             % Background
             Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:},...
