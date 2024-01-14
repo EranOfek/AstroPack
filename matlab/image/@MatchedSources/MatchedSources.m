@@ -1557,7 +1557,7 @@ classdef MatchedSources < Component
                 Nra = numel(RA);
                 MagVector   = nan(1, Nra);
                 ColorVector = nan(1, Nra);
-                ColorVector = nan(1, Nra);
+                RAVector    = nan(1, Nra);
                 DecVector   = nan(1, Nra);
                 for Ira=1:1:Nra
                     if ~isnan(RA(Ira)) && ~isnan(Dec(Ira))
