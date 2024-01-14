@@ -1557,6 +1557,8 @@ classdef MatchedSources < Component
                 Nra = numel(RA);
                 MagVector   = nan(1, Nra);
                 ColorVector = nan(1, Nra);
+                ColorVector = nan(1, Nra);
+                DecVector   = nan(1, Nra);
                 for Ira=1:1:Nra
                     if ~isnan(RA(Ira)) && ~isnan(Dec(Ira))
                         [Cat] = catsHTM.cone_search(Args.Catalog, RA(Ira).*ConvertFactor, Dec(Ira).*ConvertFactor, Args.SearchRadius,...
