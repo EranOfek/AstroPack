@@ -4,6 +4,13 @@
 % Description: 
 % Author : Eran Ofek (Jan 2024)
 %
+% Properties:
+%   Note that the RA, Dec, PM_RA, PM_Dec, Mag properties are always
+%   scalars. They are obtained from the first line of MergedCat.
+%
+% Methods:
+%
+%
 % Example:
 %   % read all AstCrop files into MovingSources object.
 %   MP=MovingSource.readFromAstCrop();
@@ -199,7 +206,7 @@ classdef MovingSource < Component
                 if isempty(Obj.MergedCat)
                     Val = [];
                 else
-                    Val = getCol(Obj.MergedCat, Obj.(ColName));
+                    Val = getCol(Obj.MergedCat, Obj.(ColName), false, false, 'SelectRows',1);
                 end
             else
                 Val = Obj.(Key);
@@ -217,7 +224,7 @@ classdef MovingSource < Component
                 if isempty(Obj.MergedCat)
                     Val = [];
                 else
-                    Val = getCol(Obj.MergedCat, Obj.(ColName));
+                    Val = getCol(Obj.MergedCat, Obj.(ColName), false, false, 'SelectRows',1);
                 end
             else
                 Val = Obj.(Key);
@@ -235,7 +242,7 @@ classdef MovingSource < Component
                 if isempty(Obj.MergedCat)
                     Val = [];
                 else
-                    [~,Tmp] = getCol(Obj.MergedCat, Obj.(ColName));
+                    [~,Tmp] = getCol(Obj.MergedCat, Obj.(ColName), false, false, 'SelectRows',1);
                     Val = Tmp{1};
                 end
             else
@@ -253,7 +260,7 @@ classdef MovingSource < Component
                 if isempty(Obj.MergedCat)
                     Val = [];
                 else
-                    Val = getCol(Obj.MergedCat, Obj.(ColName));
+                    Val = getCol(Obj.MergedCat, Obj.(ColName), false, false, 'SelectRows',1);
                 end
             else
                 Val = Obj.(Key);
@@ -271,7 +278,7 @@ classdef MovingSource < Component
                 if isempty(Obj.MergedCat)
                     Val = [];
                 else
-                    Val = getCol(Obj.MergedCat, Obj.(ColName));
+                    Val = getCol(Obj.MergedCat, Obj.(ColName), false, false, 'SelectRows',1);
                 end
             else
                 Val = Obj.(Key);
@@ -289,7 +296,7 @@ classdef MovingSource < Component
                 if isempty(Obj.MergedCat)
                     Val = [];
                 else
-                    [~,Tmp] = getCol(Obj.MergedCat, Obj.(ColName));
+                    [~,Tmp] = getCol(Obj.MergedCat, Obj.(ColName), false, false, 'SelectRows',1);
                     Val = Tmp{1};
                 end
             else
@@ -307,7 +314,7 @@ classdef MovingSource < Component
                 if isempty(Obj.MergedCat)
                     Val = [];
                 else
-                    Val = getCol(Obj.MergedCat, Obj.(ColName));
+                    Val = getCol(Obj.MergedCat, Obj.(ColName), false, false, 'SelectRows',1);
                 end
             else
                 Val = Obj.(Key);
@@ -630,7 +637,7 @@ classdef MovingSource < Component
             %   search radius, to the RA and Dec, in each Stamp.
             % Input  : - A MovingSource object.
             %          * ...,key,val,...
-            %            'SearchRadius' - Search radius. Default is 3.
+            %            'SearchRadius' - Search radius. Default is 4.
             %            'SearchRadiusUnits' - Search radius units.
             %                   Default is 'arcsec'.
             %            'TableCol' - Additional columns to add after 'JD'.
@@ -644,7 +651,7 @@ classdef MovingSource < Component
             
             arguments
                 Obj
-                Args.SearchRadius      = 3;
+                Args.SearchRadius      = 4;
                 Args.SearchRadiusUnits = 'arcsec';
                 Args.TableCol          = {'RA','Dec','MAG_PSF','FLAGS'};
             end
@@ -660,7 +667,6 @@ classdef MovingSource < Component
             for Iobj=1:1:Nobj
                 JD = Obj(Iobj).Stamps.julday; % all JD
 
-                Iobj = 1;
                 Nstamp = numel(Obj(Iobj).Stamps);
                 Cat    = nan(Nstamp, 1+ NextraCol);
                 for Istamp=1:1:Nstamp
@@ -808,6 +814,70 @@ classdef MovingSource < Component
             
         end
         
+        function [Table,Variability]=lightCurveVariability(Obj, Args)
+            % Create simple light curve for moving source
+            %   Based on the Stamps catalog
+            % Input  : - A MovingSourceObject.
+            %          * ...,key,val,...
+            %            'SearchRadius' - Search radius. Default is 4.
+            %            'SearchRadiusUnits' - Search radius units.
+            %                   Default is 'arcsec'.
+            %            'TableCol' - Additional columns to add after 'JD'.
+            %                   Default is {'RA','Dec','MAG_PSF','FLAGS'}.
+            %            'PolyDeg' - A cell array in wich each element contains all
+            %                   the degrees of the polynomial to fit.
+            %                   E.g., [0:1:2], is a full 2nd deg polynomial.
+            %                   The first cell corresponds to the null hypothesis.
+            %                   The Delta\chi2^2 is calculated relative to the null
+            %                   hypothesis. In addition, the error normalization is
+            %                   calculated such that the chi^2/dof of the null
+            %                   hypothesis will be 1 (with uniform errors).
+            %                   Default is {[0], [0:1:1], [0:1:2]}.
+            %
+            % Output : - An AstroTable with the light/position curves.
+            %          - A structure array (element per MovingSource
+            %            element) with the following fields:
+            %            .PS - power spectrum.
+            %            .VarPolyHT - See details in: timeSeries.fit.fitPolyHyp
+            %            .MedMag - Median mag.
+            %            .StdMag - Std mag.
+            %            .RStdMag - RStd mag.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: [Table,Variability]=MP.lightCurveVariability
+
+            arguments
+                Obj
+                Args.SearchRadius      = 4;
+                Args.SearchRadiusUnits = 'arcsec';
+                Args.TableCol          = {'RA','Dec','MAG_PSF','FLAGS'};
+                Args.PolyDeg cell      = {[0], [0:1:1], [0:1:2]};
+            end
+
+            Table=selectMovingFromStamps(Obj, 'SearchRadius',Args.SearchRadius,...
+                                               'SearchRadiusUnits',Args.SearchRadiusUnits,...
+                                               'TableCol',Args.TableCol);
+            
+            Nobj = numel(Obj);
+            Variability = struct('PS',cell(Nobj,1), 'VarPolyHT',cell(Nobj,1), 'MedMag',cell(Nobj,1), 'StdMag',cell(Nobj,1), 'RStdMag',cell(Nobj,1));
+            for Iobj=1:1:Nobj
+                if ~isemptyCatalog(Table(Iobj))
+                    % LC analysis / variability
+                    Time = Table(Iobj).Table.JD;
+                    Mag  = Table(Iobj).Table.MAG_PSF;
+                    % power spectrum
+                    PS = timeSeries.period.period([Time, Mag]);
+                    % polynomial variability hypothesis testing
+                    VarPolyHT = timeSeries.fit.fitPolyHyp(Time, Mag, 'PolyDeg',Args.PolyDeg);
+                    Variability(Iobj).PS        = PS;
+                    Variability(Iobj).VarPolyHT = VarPolyHT;
+                    Variability(Iobj).MedMag    = median(Mag, 'all','omitnan');
+                    Variability(Iobj).StdMag    = std(Mag, [], 'all','omitnan');
+                    Variability(Iobj).RStdMag   = tools.math.stat.rstd(Mag);
+                end
+            end
+
+        end
+
     end
 
     methods % display and plot

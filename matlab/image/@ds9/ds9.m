@@ -1480,24 +1480,28 @@ classdef ds9 < handle
                     else
                         Marker = 'o';
                     end
-                    if (~isempty(strfind(varargin{2},'r')))
-                        Color = 'red';
-                    elseif (~isempty(strfind(varargin{2},'b')))
-                        Color = 'blue';
-                    elseif (~isempty(strfind(varargin{2},'g')))
-                        Color = 'green';
-                    elseif (~isempty(strfind(varargin{2},'k')))
-                        Color = 'black';
-                    elseif (~isempty(strfind(varargin{2},'w')))
-                        Color = 'white';
-                    elseif (~isempty(strfind(varargin{2},'m')))
-                        Color = 'magenta';
-                    elseif (~isempty(strfind(varargin{2},'c')))
-                        Color = 'cyan';
-                    elseif (~isempty(strfind(varargin{2},'y')))
-                        Color = 'yellow';
+                    if any(strcmpi(varargin,'Color'))
+                        Color = varargin{find(strcmpi(varargin,'Color'))+1};
                     else
-                        Color = 'red';
+                        if (~isempty(strfind(varargin{2},'r')))
+                            Color = 'red';
+                        elseif (~isempty(strfind(varargin{2},'b')))
+                            Color = 'blue';
+                        elseif (~isempty(strfind(varargin{2},'g')))
+                            Color = 'green';
+                        elseif (~isempty(strfind(varargin{2},'k')))
+                            Color = 'black';
+                        elseif (~isempty(strfind(varargin{2},'w')))
+                            Color = 'white';
+                        elseif (~isempty(strfind(varargin{2},'m')))
+                            Color = 'magenta';
+                        elseif (~isempty(strfind(varargin{2},'c')))
+                            Color = 'cyan';
+                        elseif (~isempty(strfind(varargin{2},'y')))
+                            Color = 'yellow';
+                        else
+                            Color = 'red';
+                        end
                     end
                     varargin = varargin([1, 3:end]);
                     if any(strcmpi(varargin,'size'))
