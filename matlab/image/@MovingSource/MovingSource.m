@@ -459,7 +459,7 @@ classdef MovingSource < Component
             end
         end
         
-        function Flag=nearStatisSrc(Obj, Args)
+        function [FlagComb, Flag]=nearStatisSrc(Obj, Args)
             % Check for static sources near the moving source
             %   Search a PGC galaxy or GAIA star near the moving source.
             %   The PGC search is based on the galaxy radius.
@@ -468,7 +468,9 @@ classdef MovingSource < Component
             % Input  : - A MovingSource object.
             %          * ...,key,val,...
             %            See code for details.
-            % Output : - A structure array (element per MovingSource
+            % Output : - A Flag indicating if the source is good (i.e., no
+            %            associated static source).
+            %          - A structure array (element per MovingSource
             %            element) with the following fields:
             %            .GAIA - A logical indicating if there is a GAIA
             %                   star that may contaminate the detection.
@@ -546,7 +548,8 @@ classdef MovingSource < Component
                 Flag(Iobj).Flag = Flag(Iobj).GAIA || Flag(Iobj).PGC & Flag(Iobj).GLADE;
             end
 
-            
+            FlagComb = ~[Flag.Flag];
+            FlagComb = FlagComb(:);
 
         end
 
@@ -621,6 +624,8 @@ classdef MovingSource < Component
             Flag = false(Nobj,1);
             for Iobj=1:1:Nobj
                 DecFlag = Obj(Iobj).MergedCat.getCol(Args.ColFlags);
+                % If there are multiple entries - use only the first:
+                DecFlag = DecFlag(1);
                 if Args.NotFlags
                     Flag(Iobj) = ~Args.BitDict.findBit(DecFlag, Args.Flags, 'Method',Args.Method);
                 else
