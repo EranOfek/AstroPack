@@ -137,6 +137,7 @@ function Result = findMeasureSources(Obj, Args)
         Args.maskCR_Args cell              = {};
         Args.FlagDiffXY logical            = true;
         Args.maskDiffXY_Args cell          = {};
+        Args.MaskType                      = 'uint32';
 
         Args.RemoveBadSources logical      = false;  % OBSOLETE
         Args.BadBitNames cell              = {};
@@ -202,6 +203,11 @@ function Result = findMeasureSources(Obj, Args)
     else
         Result = Obj;
     end
+
+    % create Mask if needed
+    if Args.FlagCR && isemptyImage(Obj(1), 'Mask')
+        Result.createMask(Args.MaskType);
+    end
     
     % calculate background
     imProc.background.background(Result, 'CreateNewObj',false, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
@@ -253,7 +259,7 @@ function Result = findMeasureSources(Obj, Args)
                    
             % remove bad sources
             % works only for Gaussian PSF
-            if Args.FlagCR
+            if Args.FlagCR && ~isemptyImage(Obj(Iobj), 'Mask')
                 Result(Iobj) = imProc.mask.maskCR(Result(Iobj), Args.maskCR_Args{:});
             end
             if Args.FlagDiffXY
