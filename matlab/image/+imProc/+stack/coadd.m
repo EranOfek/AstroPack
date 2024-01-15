@@ -451,7 +451,8 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
         else
             Result.HeaderData = replaceVal(Result.HeaderData, 'EXPTIME', {mean(VecExpTime)});
         end
-        Result.HeaderData = replaceVal(Result.HeaderData, 'MIDJD', {median(MidJD)});
+%         Result.HeaderData = replaceVal(Result.HeaderData, 'MIDJD', {median(MidJD)});
+        Result.HeaderData = replaceVal(Result.HeaderData, 'MIDJD', {sum(MidJD.*VecExpTime)/sum(VecExpTime)});        
 
     end
     
