@@ -526,17 +526,17 @@ classdef MovingSource < Component
                 end
                 
                 % GLADE
-                % Flag(Iobj).GLADE = false;
-                % CatGLADE = catsHTM.cone_search(Args.CatNameGlade, RA_rad, Dec_rad, Args.SearchRadius, 'RadiusUnits',Args.SearchRadiusUnits, 'OutType','AstroCatalog');
-                % if ~CatGLADE.isemptyCatalog
-                %     Dist    = CatGLADE.sphere_dist(RA_rad, Dec_rad, 'rad', 'arcsec');
-                % 
-                %     if ~isempty(Dist) && any(Dist<Args.MaxDistGlade)
-                %         Flag(Iobj).GLADE = true;
-                %     end
-                % end
+                Flag(Iobj).GLADE = false;
+                CatGLADE = catsHTM.cone_search(Args.CatNameGlade, RA_rad, Dec_rad, Args.SearchRadius, 'RadiusUnits',Args.SearchRadiusUnits, 'OutType','AstroCatalog');
+                if ~CatGLADE.isemptyCatalog
+                    Dist    = CatGLADE.sphere_dist(RA_rad, Dec_rad, 'rad', 'arcsec');
+
+                    if ~isempty(Dist) && any(Dist<Args.MaxDistGlade)
+                        Flag(Iobj).GLADE = true;
+                    end
+                end
                 
-                Flag(Iobj).Flag = Flag(Iobj).GAIA || Flag(Iobj).PGC; % & Flag(Iobj).GLADE;
+                Flag(Iobj).Flag = Flag(Iobj).GAIA || Flag(Iobj).PGC & Flag(Iobj).GLADE;
             end
 
             
