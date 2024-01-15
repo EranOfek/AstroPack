@@ -359,6 +359,10 @@ classdef MovingSource < Component
             %                   Default is '*merged_Asteroids*.mat'.
             %            'PopKA' - Populate known asteroids.
             %                   Default is false.
+            %            'KeepOnlyFirstAndLast' - A logical indicating if
+            %                   to delete all the Stamps images excep the first
+            %                   and last.
+            %                   Default is true.
             % Output : - A MovingSource object.
             % Example: MP=MovingSource.readFromAstCrop(AC)
             %          MP=MovingSource.readFromAstCrop('LAST.01.10.01_20231107.010845.394_clear_091+10_001_001_001_sci_merged_Asteroids_1.mat')
@@ -371,6 +375,7 @@ classdef MovingSource < Component
                
                 Args.AstFileTemp   = '*merged_Asteroids*.mat';
                 Args.PopKA logical = false;
+                Args.KeepOnlyFirstAndLast logical  = true;
             end
 
             PWD = pwd;
@@ -412,6 +417,13 @@ classdef MovingSource < Component
                             Obj(Iall).Stamps    = AstCrop.AstCrop(Icrop).Stamps;
                             Obj(Iall).MergedCat = AstCrop.AstCrop(Icrop).SelectedCatPM;
                             Obj(Iall).FileName  = fullfile(Files(If).folder,  Files(If).name);
+
+                            % Remove some image to save memory
+                            if Args.KeepOnlyFirstAndLast
+                                Nstamp = numel(Obj(Iall).Stamps);
+                                Obj(Iall).Stamps(2:Nstamp-1).deleteProp({'Image','Back','Var','Mask','PSFData'});
+                            end
+
                         end
                     end
                 end
@@ -514,17 +526,17 @@ classdef MovingSource < Component
                 end
                 
                 % GLADE
-                Flag(Iobj).GLADE = false;
-                CatGLADE = catsHTM.cone_search(Args.CatNameGlade, RA_rad, Dec_rad, Args.SearchRadius, 'RadiusUnits',Args.SearchRadiusUnits, 'OutType','AstroCatalog');
-                if ~CatGLADE.isemptyCatalog
-                    Dist    = CatGLADE.sphere_dist(RA_rad, Dec_rad, 'rad', 'arcsec');
-                    
-                    if ~isempty(Dist) && any(Dist<Args.MaxDistGlade)
-                        Flag(Iobj).GLADE = true;
-                    end
-                end
+                % Flag(Iobj).GLADE = false;
+                % CatGLADE = catsHTM.cone_search(Args.CatNameGlade, RA_rad, Dec_rad, Args.SearchRadius, 'RadiusUnits',Args.SearchRadiusUnits, 'OutType','AstroCatalog');
+                % if ~CatGLADE.isemptyCatalog
+                %     Dist    = CatGLADE.sphere_dist(RA_rad, Dec_rad, 'rad', 'arcsec');
+                % 
+                %     if ~isempty(Dist) && any(Dist<Args.MaxDistGlade)
+                %         Flag(Iobj).GLADE = true;
+                %     end
+                % end
                 
-                Flag(Iobj).Flag = Flag(Iobj).GAIA || Flag(Iobj).PGC & Flag(Iobj).GLADE;
+                Flag(Iobj).Flag = Flag(Iobj).GAIA || Flag(Iobj).PGC; % & Flag(Iobj).GLADE;
             end
 
             
