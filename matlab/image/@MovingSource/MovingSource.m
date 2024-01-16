@@ -355,6 +355,23 @@ classdef MovingSource < Component
 
     methods (Static)  % static methods: read/write/convert
         % conversions
+        function Obj=read(File, Args)
+            % Read a MovingSource object from file
+            % Input  : - Either a a mat file name containing a MovingSource
+            %            object, or a structure with a single field containing a
+            %            MovingSource object, or an old format AstCrop
+            %            structure.
+            %            If empty, then will recursivly look for all mat file with
+            %            specific template and upload them.
+            %          * ...,key,val,...
+            %            '
+            % Output : - A MovingSource object
+            % Author : Eran Ofek (Jan 2024)
+            % Example: MP = MovingSource.read()
+
+            
+        end
+
         function Obj=readFromAstCrop(AstCrop, Args)
             % Read AstCrop structure (old format) into MovingSource object
             % Input  : - AstCrop strtucture, or mat file name containing
