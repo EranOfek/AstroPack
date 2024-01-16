@@ -192,6 +192,10 @@ classdef MsgLogger < handle
 			
             % Check if first element is cell array
             is_cell = ~isempty(varargin) && iscell(varargin{1});
+            
+            if isempty(varargin)
+                return;
+            end
                 
             % Always use msgStyle to print errors in red color
             if (Level == LogLevel.Error || Level == LogLevel.Fatal || Level == LogLevel.Assert) && ~is_cell
@@ -222,14 +226,22 @@ classdef MsgLogger < handle
                 if is_cell
                     cellArray = varargin{1};
                     for i = 1:numel(cellArray)
+                        msg = sprintf(cellArray{i});
+                        if msg == ""
+                            continue; % empty mesage
+                        end
+                        
                         fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
-                        fprintf(cellArray{i});
+                        fprintf(msg);
                         fprintf('\n');
                     end
                 else
-                    fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
-                    fprintf(varargin{:});
-                    fprintf('\n');
+                    msg = sprintf(varargin{:});
+                    if msg ~= ""
+                        fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
+                        fprintf(varargin{:});
+                        fprintf('\n');
+                    end
                 end
             end
 
@@ -249,7 +261,7 @@ classdef MsgLogger < handle
             
             % Log to Syslog
             if LogToSyslog
-                if ~isempty(Obj.Syslog)
+                if ~isempty(Obj.Syslog) && ~isempty(Obj.Syslog.UdpSocket)
                     if is_cell
                         cellArray = varargin{1};
                         for i = 1:numel(cellArray)
@@ -286,10 +298,17 @@ classdef MsgLogger < handle
             
             % Prepare prompt with log level
             LevStr = MsgLogger.getLevelStr(Level);
+            if isprop(Obj, 'Tag') && ~ isempty(Obj.Tag)
+                LevStr = "[" + LevStr + "] " + Obj.Tag;
+            end
+            
+            DateStr = datestr(now, 'hh:MM:SS.FFF') + " ";
 
             % Log to display
             if LogToDisplay
-                cprintf(Style, '[%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
+                cprintf(Style, DateStr);
+                %cprintf(Style, '[%s] ', LevStr);
+                cprintf(Style, LevStr);
                 cprintf(Style, varargin{:});
                 fprintf('\n');
             end
@@ -316,8 +335,13 @@ classdef MsgLogger < handle
             %          varargin - Any fprintf arguments
             % Output:  -
             % Example: Obj.msgLogEx(LogLevel.Debug, Ex, 'Function failed, elapsed time: %f', toc)
-            MsgReport = getReport(Ex, 'extended', 'hyperlinks', 'off');
-            MsgReport = strrep(MsgReport, newline, [newline, '[ERR] ']);
+            MsgReport = getReport(Ex, 'extended', 'hyperlinks', 'off');            
+            DateStr = datestr(now, 'hh:MM:SS.FFF') + " ";
+            PrefixStr = newline + DateStr + "[Err] ";
+            if isprop(Obj, 'Tag')
+                PrefixStr = PrefixStr + Obj.Tag;
+            end
+            MsgReport = strrep(MsgReport, newline, [PrefixStr]);
             if ~isempty(varargin)
                 Msg = sprintf('Exception: %s - %s - %s - %s', Ex.identifier, Ex.message, MsgReport, sprintf(varargin{:}));
             else

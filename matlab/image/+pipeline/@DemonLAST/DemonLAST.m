@@ -1932,7 +1932,8 @@ classdef DemonLAST < Component
                                                                        'INPOP',Args.INPOP,...
                                                                        'AsteroidSearchRadius',Args.AsteroidSearchRadius);
 
-                            Msg{1} = sprintf('pipline.DemonLAST finish executing pipeline for group %d - start saving data',Igroup);
+                            RunTime = etime(clock, Tstart);
+                            Msg{1} = sprintf('pipline.DemonLAST finish executing pipeline for group %d - start saving data / RunTime: %f', Igroup, RunTime);
                             Obj.writeLog(Msg, LogLevel.Info);
                             
                             %CoaddTransienst = imProc.cat.searchExternalCatOrphans(Coadd);

@@ -47,6 +47,7 @@ classdef MovingSource < Component
         CooUnits
         PMUnits
         Mag
+        Info              % additional optional information
         ImageID     = []; % struct with fields defined by KeyID
         Stamps      = AstroImage;
         MergedCat
@@ -61,7 +62,7 @@ classdef MovingSource < Component
         ColDec    = 'Dec';
         ColPM_RA  = 'PM_RA';
         ColPM_Dec = 'PM_Dec';
-        ColMag    = 'Mean_MAG_PSF';
+        ColMag    = {'Mean_MAG_PSF','Mean_MAG_APER_2'};
 
         %PopulatedKnownAst logical = false;
     end
@@ -314,7 +315,10 @@ classdef MovingSource < Component
                 if isempty(Obj.MergedCat)
                     Val = [];
                 else
-                    Val = getCol(Obj.MergedCat, Obj.(ColName), false, false, 'SelectRows',1);
+                    Val = getColDic(Obj.MergedCat, Obj.(ColName)); %, false, false, 'SelectRows',1);
+                    if numel(Val)>1
+                        Val = Val(1);
+                    end
                 end
             else
                 Val = Obj.(Key);
