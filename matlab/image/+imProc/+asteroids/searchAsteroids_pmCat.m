@@ -219,6 +219,9 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         Args.TimeSpan = max(Args.JD) - min(Args.JD);
     end
     
+    if Args.UseMovingSource
+        AstCrop = MovingSource(); 
+    end
     Icrop = 0;
     for Icat=1:1:Ncat
         % select columns from CatPM
@@ -317,7 +320,6 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
 
                 % create MovingSource object
                 if Args.UseMovingSource
-                    AstCrop = MovingSource(); 
 
                     for Iun=1:1:Nunique
                         % for each unique asteroid
@@ -333,7 +335,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
                                 Icrop = Icrop + 1;
                                 
                                 AstCrop(Icrop).MergedCat             = CatPM(Icat).selectRows(Iast);
-                                AstCrop(Icrop).JD                    = Args.JD;
+                                %AstCrop(Icrop).JD                    = Args.JD;
                                 %AstCrop(Icrop).RA             = RA(Iast(1));   % [rad]
                                 %AstCrop(Icrop).Dec            = Dec(Iast(1));  % [rad]
                                 [AstCrop(Icrop).Stamps, Info] = cropLonLat(Args.Images(:, Icat), AstCrop(Icrop).RA, AstCrop(Icrop).Dec,...

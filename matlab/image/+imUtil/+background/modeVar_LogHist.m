@@ -21,6 +21,9 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     %            'MinVal' - Remove values from the array which are below
     %                   this number. If empty, then do not remove.
     %                   Default is [].
+    %            'MaxVal' - Remove values from the array which are above
+    %                   this number. If empty, then do not remove.
+    %                   Default is [].
     %            'RemoveLowerQuantile' - Remove lower quantile from data.
     %                   Default is 0.
     %            'RemoveUpperQuantile' - Remove upper quantile from data.
@@ -43,6 +46,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
         
         Args.Convert2single logical    = false;
         Args.MinVal                    = [];
+        Args.MaxVal                    = [];
         Args.RemoveLowerQuantile       = 0; %0.01; %0.01;
         Args.RemoveUpperQuantile       = 0; %0.1; %0.1;
 
@@ -70,8 +74,8 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     if Args.Convert2single
         Array = single(Array);
     end
-    if ~isempty(Args.MinVal)
-        Array = Array(Array>Args.MinVal);
+    if ~isempty(Args.MinVal) || ~isempty(Args.MaxVal)
+        Array = Array(Array>Args.MinVal & Array<Args.MaxVal);
     end
     
     

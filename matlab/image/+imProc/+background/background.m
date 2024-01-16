@@ -78,7 +78,7 @@ function Result = background(Obj, Args)
         %Args.BackFunPar cell             = {true}; %{[1 2]};
         
         Args.BackFun                     = @imUtil.background.modeVar_LogHist; %@median;
-        Args.BackFunPar cell             = {'MinVal',1}; %{[1 2]};
+        Args.BackFunPar cell             = {'MinVal',30, 'MaxVal',7000}; %{[1 2]};  % 5000 is the max vab. allowed in LAST images
 
         Args.VarFun                      = []; %@imUtil.background.rvar; % [];
         Args.VarFunPar cell              = {};
