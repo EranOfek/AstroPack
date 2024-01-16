@@ -38,7 +38,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     }
 
     // Tell systemd what is the PID of the process to be monitored
-    char *message;
+    char message[64];
     sprintf(message, "MAINPID=%d", getpid());
     sd_notify(0, message);
 }
