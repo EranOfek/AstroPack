@@ -1,4 +1,4 @@
-function extinctionGrid(SkyGrid, Args)
+function [Alam, RA_grid, Dec_grid] = extinctionGrid(SkyGrid, Args)
     % Make a .mat object containing extinction (A_lam) for a given sky grid and filter (or frequency) 
     % 
     % The map of Schlegel, Finkbeiner, and Davis was based on the data of IRAS,
@@ -31,7 +31,7 @@ function extinctionGrid(SkyGrid, Args)
 
     % convert to galactic l, b (in radians):
     switch Args.CooType
-        case 'eq'
+        case {'eq', 'j2000.0'}
             [gal_lon, gal_lat] = celestial.coo.convert_coo(RA_grid./RAD,Dec_grid./RAD,'j2000.0','g');
         case 'ec'
             [gal_lon, gal_lat] = celestial.coo.convert_coo(RA_grid./RAD,Dec_grid./RAD,'ec','g');
@@ -42,7 +42,7 @@ function extinctionGrid(SkyGrid, Args)
     end    
 
     % calculate E(B-V)
-    Ebv = astro.spec.sky_ebv(gal_lon,gal_lat,'g');
+    Ebv = astro.extinction.sky_ebv(gal_lon,gal_lat,'g');
 
     % calculate A_lam
     if strcmpi(Args.Filter,'ultrasat')
@@ -54,7 +54,7 @@ function extinctionGrid(SkyGrid, Args)
         Filter = Args.Filter;
     end
     
-    Alam = astro.spec.extinction(Ebv,Filter);
+    Alam = astro.extinction.extinction(Ebv,Filter);
     
     % plot E(B-V) and A_lam
     if Args.Plot

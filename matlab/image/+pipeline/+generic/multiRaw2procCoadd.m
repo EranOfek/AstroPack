@@ -339,7 +339,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         end
     end
     
-    % ADd FieldID to header
+    % Add FieldID to header
     if Args.AddFieldID2Header
         Nfile = numel(AI);
         for Ifile=1:1:Nfile

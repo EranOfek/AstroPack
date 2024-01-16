@@ -21,6 +21,9 @@ function [Result, Flag] = cleanSources(Obj, Args)
     %                   some flux measurments. These, along with the annulus
     %                   std, are used to calculate the annulus-std-based
     %                   S/N. Default is {'FLUX_CONV_2','FLUX_CONV_3'}.
+    %            'LocationShift' - Max distance between PEAK position and
+    %                   first moment position, above which to declare the
+    %                   source is bad. Default is 1.5 pix.
     %            'SigmaPSF' - The width of the PSF (i.e., unit of sigma).
     %                   This is a vector which must have the same number of
     %                   elements as ColNameFlux. This is used to calculate
@@ -63,6 +66,8 @@ function [Result, Flag] = cleanSources(Obj, Args)
         Args.ColNameVarIm              = 'VAR_IM';
         Args.ColNamePos                = {'X1','Y1','XPEAK','YPEAK'};
         
+        Args.LocationShift             = 1.5;
+
         Args.ThresholdSN               = 5;
         
         Args.MaskCR logical            = true;
@@ -113,14 +118,15 @@ function [Result, Flag] = cleanSources(Obj, Args)
         XY = getCol(Cat, Args.ColNamePos);
         Dist = sqrt((XY(:,1) - XY(:,3)).^2 + (XY(:,2) - XY(:,4)).^2);
         
-        Flag(Iobj).BadLocation = Dist>1;
+        Flag(Iobj).BadLocation = Dist>Args.LocationShift;
         
         F = (SN.*sqrt(VarIm) + BackIm - BackAnn) < (Args.ThresholdSN.*StdAnn);
         %(1 + 20.*log( max(BackAnn./BackIm,1) )));
         Flag(Iobj).BadSN = all(F,2);
+        %Flag(Iobj).BadSN = false;
         
         % Flag CR
-        Flag(Iobj).CR = SN(:,1) > SN(:,2);
+        Flag(Iobj).CR = SN(:,1) > (SN(:,2)-0);
         
         % Flag bad S/N
         %SN_FluxAnn = Flux./(StdAnn.*sqrt(AreaPSF(:).'));

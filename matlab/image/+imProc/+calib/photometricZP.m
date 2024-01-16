@@ -128,7 +128,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.MaxSN                    = 1000;  % if empty, do not use
         
         Args.CatColNameMag            = {'MAG_PSF', 'MAG_APER_3'}; %'MAG_APER_3'; %'MAG_CONV_3';
-        Args.CatColNameMagErr         = {'MAGERR_APER_3'}; %'MAGERR_CONV_3';
+        Args.CatColNameMagErr         = {'MAGERR_PSF', 'MAGERR_APER_3'}; %'MAGERR_CONV_3';
         Args.CatColNameSN             = 'SN_2'; %'SN_3';
         Args.MagZP                    = 25;
         Args.PixScale                 = [];

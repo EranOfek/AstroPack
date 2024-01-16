@@ -1932,7 +1932,8 @@ classdef DemonLAST < Component
                                                                        'INPOP',Args.INPOP,...
                                                                        'AsteroidSearchRadius',Args.AsteroidSearchRadius);
 
-                            Msg{1} = sprintf('pipline.DemonLAST finish executing pipeline for group %d - start saving data',Igroup);
+                            RunTime = etime(clock, Tstart);
+                            Msg{1} = sprintf('pipline.DemonLAST finish executing pipeline for group %d - start saving data / RunTime: %f', Igroup, RunTime);
                             Obj.writeLog(Msg, LogLevel.Info);
                             
                             %CoaddTransienst = imProc.cat.searchExternalCatOrphans(Coadd);
@@ -1979,15 +1980,16 @@ classdef DemonLAST < Component
                             Obj.writeLog(Status, LogLevel.Info);
 
                             % Known Matched asteroids
-                            MergedKnownAst = merge(OnlyMP,'IsTable',1,'AddEntryPerElement',[[OnlyMP.JD].',(1:1:numel(OnlyMP)).'],'AddColNames',{'JD','SubImageIndex'});
-                            MergedAst.Table = MergedKnownAst.Catalog;
-                            [~,~,Status]=imProc.io.writeProduct(MergedAst, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
-                                                   'Save',UpArgs.SaveAsteroids,...
-                                                   'Level','coadd',...
-                                                   'LevelPath','proc',...
-                                                   'SubDir',FN_Proc.SubDir);
-                            Obj.writeLog(Status, LogLevel.Info);
-
+                            if ~isempty(OnlyMP)
+                                MergedKnownAst = merge(OnlyMP,'IsTable',1,'AddEntryPerElement',[[OnlyMP.JD].',(1:1:numel(OnlyMP)).'],'AddColNames',{'JD','SubImageIndex'});
+                                MergedAst.Table = MergedKnownAst.Catalog;
+                                [~,~,Status]=imProc.io.writeProduct(MergedAst, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
+                                                       'Save',UpArgs.SaveAsteroids,...
+                                                       'Level','coadd',...
+                                                       'LevelPath','proc',...
+                                                       'SubDir',FN_Proc.SubDir);
+                                Obj.writeLog(Status, LogLevel.Info);
+                            end
                             
                             % if CoaddTransienst.sizeCatalog>0
                             %     [~,~,Status]=imProc.io.writeProduct(CoaddTransienst, FN_I, 'Product',{'TransientsCat'}, 'WriteHeader',[false],...

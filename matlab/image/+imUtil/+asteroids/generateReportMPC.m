@@ -48,7 +48,7 @@ function Msg = generateReportMPC(Table, Args)
         Args.ObsName          = 'Large Array Survey Telescope (LAST) Node 01 Mount 01';  %'Weizmann Institute Observatory at Neot Smadar';
         Args.ObsAddress       = 'Weizmann Institute of Science, 234 Herzl St. Rehovot 76100, Israel';
         Args.Telescope        = '11-inch f/2.2 Schmidt + 9K x 6K CMOS';
-        Args.RefCatalog       = 'GAIA-DRE3';
+        Args.RefCatalog       = 'GAIA-DR3';
         
         Args.InstType         = 'B';  % B for CMOS; C for CCD   % https://minorplanetcenter.net/iau/info/OpticalObs.html
         Args.SkyCond          = '';    % https://minorplanetcenter.net/iau/info/ObsNote.html
