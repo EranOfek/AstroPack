@@ -355,7 +355,7 @@ classdef MovingSource < Component
 
     methods (Static)  % static methods: read/write/convert
         % conversions
-        function Obj=read(File, Args)
+        function Obj=read(InFile, Args)
             % Read a MovingSource object from file
             % Input  : - Either a a mat file name containing a MovingSource
             %            object, or a structure with a single field containing a
@@ -364,12 +364,76 @@ classdef MovingSource < Component
             %            If empty, then will recursivly look for all mat file with
             %            specific template and upload them.
             %          * ...,key,val,...
-            %            '
+            %            'Path' - Move to this path. Default is pwd.
+            %            'AstFileTemp' - File template to search.
+            %                   Default is '*merged_Asteroids*.mat'.
+            %            'PopKA' - Populate known asteroids.
+            %                   Default is false.
+            %            'KeepOnlyFirstAndLast' - A logical indicating if
+            %                   to delete all the Stamps images excep the first
+            %                   and last.
+            %                   Default is true.
             % Output : - A MovingSource object
             % Author : Eran Ofek (Jan 2024)
             % Example: MP = MovingSource.read()
 
+
+            arguments
+                InFile           = [];
+                Args.Path        = pwd;
+               
+                Args.AstFileTemp   = '*merged_Asteroids*.mat';
+                Args.PopKA logical = false;
+                Args.KeepOnlyFirstAndLast logical  = true;
+            end
             
+            PWD = pwd;
+            cd(Args.Path);
+            
+            if isempty(InFile)
+                Files = io.files.rdir(Args.AstFileTemp);
+            elseif ischar(InFile) || isstring(InFile)
+                Files(1).folder = pwd;
+                Files(1).name   = AstCrop;
+            else
+                error('Unkonwn InFile option');
+            end
+            
+            Obj = [];
+            Nf = numel(Files);
+            for If=1:1:Nf
+                FileName = fullfile(Files(If).folder, Files(If).name);
+                Tmp = io.files.load2(FileName);
+                I = I + 1;
+                
+                if any(strcmp(fieldnames(Tmp), 'AstCrop'))
+                    Tmp = Tmp.AstCrop;
+                end
+                
+                if isa(Tmp, 'MovingSource')
+                    if If==1
+                        Obj = Tmp;
+                    else
+                        Obj = [Obj(:); Tmp];
+                    end
+                elseif isa(Tmp, 'struct')
+                    % Assume an AstCrop object
+                    Obj = astCrop2MovingSource(Tmp, 'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
+                                                     'FileName',FileName,...
+                                                     'ConcatObj',Obj,...
+                                                     'PopKA',false);
+                 
+                else
+                    error('Unknown content format in file %s', FileName);
+                end
+                
+            end            
+            
+            if Args.PopKA
+                Obj.popKnownAst;
+            end
+            
+            cd(PWD);
         end
 
         function Obj=readFromAstCrop(AstCrop, Args)
@@ -418,42 +482,57 @@ classdef MovingSource < Component
                 % do nothing
             end
 
-            Obj = MovingSource;
+            Obj = []; % MovingSource;
             
             
 
             if isstruct(AstCrop)
-                Ncrop = numel(AstCrop.AstCrop);
-                Iall = 0;
-                for Icrop=1:1:Ncrop
-                    if isempty(Args.Id) || Icrop==Args.Id
-                        Iall = Iall + 1;
-                        Obj(Iall).Stamps    = AstCrop.AstCrop(Icrop).Stamps;
-                        Obj(Iall).MergedCat = AstCrop.AstCrop(Icrop).SelectedCatPM;
-                    end
-                end
+                Obj = MovingSource.astCrop2MovingSource(AstCrop, 'Id',Args.Id,...
+                                                                     'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
+                                                                     'FileName', fullfile(Files(If).folder,  Files(If).name),...
+                                                                     'ConcatObj',Obj);
+                
+%                 Ncrop = numel(AstCrop.AstCrop);
+%                 Iall = 0;
+%                 for Icrop=1:1:Ncrop
+%                     if isempty(Args.Id) || Icrop==Args.Id
+%                         Iall = Iall + 1;
+%                         Obj(Iall).Stamps    = AstCrop.AstCrop(Icrop).Stamps;
+%                         Obj(Iall).MergedCat = AstCrop.AstCrop(Icrop).SelectedCatPM;
+%                     end
+%                 end
 
             else
                 Nf = numel(Files);
-                Iall = 0;
+                
                 for If=1:1:Nf
                     AstCrop = io.files.load2(fullfile(Files(If).folder, Files(If).name));
-                    Ncrop   = numel(AstCrop.AstCrop);
-                    for Icrop=1:1:Ncrop
-                        if isempty(Args.Id) || Icrop==Args.Id
-                            Iall = Iall + 1;
-                            Obj(Iall).Stamps    = AstCrop.AstCrop(Icrop).Stamps;
-                            Obj(Iall).MergedCat = AstCrop.AstCrop(Icrop).SelectedCatPM;
-                            Obj(Iall).FileName  = fullfile(Files(If).folder,  Files(If).name);
-
-                            % Remove some image to save memory
-                            if Args.KeepOnlyFirstAndLast
-                                Nstamp = numel(Obj(Iall).Stamps);
-                                Obj(Iall).Stamps(2:Nstamp-1).deleteProp({'Image','Back','Var','Mask','PSFData'});
-                            end
-
-                        end
+                    if any(strcmp(fieldnames(AstCrop), 'AstCrop'))
+                        AstCrop = AstCrop.AstCrop;
                     end
+                        
+                    Obj = MovingSource.astCrop2MovingSource(AstCrop, 'Id',Args.Id,...
+                                                                     'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
+                                                                     'FileName', fullfile(Files(If).folder,  Files(If).name),...
+                                                                     'ConcatObj',Obj);
+                    
+                     %Iall = 0;
+%                     Ncrop   = numel(AstCrop.AstCrop);
+%                     for Icrop=1:1:Ncrop
+%                         if isempty(Args.Id) || Icrop==Args.Id
+%                             Iall = Iall + 1;
+%                             Obj(Iall).Stamps    = AstCrop.AstCrop(Icrop).Stamps;
+%                             Obj(Iall).MergedCat = AstCrop.AstCrop(Icrop).SelectedCatPM;
+%                             Obj(Iall).FileName  = fullfile(Files(If).folder,  Files(If).name);
+% 
+%                             % Remove some image to save memory
+%                             if Args.KeepOnlyFirstAndLast
+%                                 Nstamp = numel(Obj(Iall).Stamps);
+%                                 Obj(Iall).Stamps(2:Nstamp-1).deleteProp({'Image','Back','Var','Mask','PSFData'});
+%                             end
+% 
+%                         end
+%                     end
                 end
             end
 
@@ -462,6 +541,60 @@ classdef MovingSource < Component
             for Iobj=1:1:Nobj
                 Obj(Iobj).PopKA = Args.PopKA;
             end
+        end
+        
+        
+        function Obj=astCrop2MovingSource(AstCrop, Args)
+            % Convert old AstCrop structure into a MovingSource object
+            % Input  : - An old AstCrop structure array.
+            %          * ...,key,val,...
+            %            'KeepOnlyFirstAndLast' - A logical indicating if
+            %                   to delete all the Stamps images excep the first
+            %                   and last.
+            %                   Default is true.
+            %            'FileName' - File name. Default is ''.
+            %            'Id' - An index of a specific structure array
+            %                   element to convert. If empty, convert all.
+            %                   Default is [].
+            %            'ConcatObj' - An optional MovingSource object to
+            %                   which to concat the new elements.
+            %                   Default is [].
+            % Output : - A MovingSource object populated with the content
+            %            of the AstCrop structure.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: MP = MovingSource.astCrop2MovingSource(AstCrop)
+            
+            arguments
+                AstCrop
+                Args.KeepOnlyFirstAndLast logical   = true;
+                Args.FileName                       = '';
+                Args.Id                             = [];
+                Args.ConcatObj                      = [];
+            end
+            
+            if isempty(Args.ConcatObj)
+                Obj   = MovingSource;
+                Index = 0;
+            else
+                Obj   = Args.Args.ConcatObj;
+                Index = numel(Obj);
+            end
+            Nast = numel(AstCrop);
+            for Iast=1:1:Nast
+                if isempty(Args.Id) || Iast==Args.Id
+                    Index = Index + 1;
+                    Obj(Index).Stamps    = AstCrop(Iast).Stamps;
+                    Obj(Index).MergedCat = AstCrop(Iast).SelectedCatPM;
+                    Obj(Index).FileName  = Args.FileName;
+
+                    % Remove some image to save memory
+                    if Args.KeepOnlyFirstAndLast
+                        Nstamp = numel(Obj(Index).Stamps);
+                        Obj(Index).Stamps(2:Nstamp-1).deleteProp({'Image','Back','Var','Mask','PSFData'});
+                    end
+                end
+            end
+
         end
 
     end
