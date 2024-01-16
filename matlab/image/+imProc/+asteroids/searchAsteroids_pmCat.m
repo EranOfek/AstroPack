@@ -326,33 +326,38 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
                         % extract a cutout from Args.Images
                         Iast = find(LinkedColumn==UniquAst(Iun));
 
-                        if ~isempty(Args.RemoveByMergedCatFlags)
+                        if isempty(Args.RemoveByMergedCatFlags)
+                            StoreAsteroid = true;
+                        else
                             BitDec = CatPM(Icat).getCol(Args.ColNameMergedCat);
 
                             if Args.BitDicMergedCat.findBit(BitDec(Iast), Args.RemoveByMergedCatFlags, 'Method','any')
                                 % skip
-                            else                                
-                                Icrop = Icrop + 1;
-                                
-                                AstCrop(Icrop).MergedCat             = CatPM(Icat).selectRows(Iast);
-                                %AstCrop(Icrop).JD                    = Args.JD;
-                                %AstCrop(Icrop).RA             = RA(Iast(1));   % [rad]
-                                %AstCrop(Icrop).Dec            = Dec(Iast(1));  % [rad]
-                                [AstCrop(Icrop).Stamps, Info] = cropLonLat(Args.Images(:, Icat), AstCrop(Icrop).RA, AstCrop(Icrop).Dec,...
-                                                                                'CooUnits','deg',...
-                                                                                'HalfSizeXY',Args.HalfSizeXY,...
-                                                                                Args.cropLonLatArgs{:});
-                                
-                                AstCrop(Icrop).Info.X                = Info.X;
-                                AstCrop(Icrop).Info.Y                = Info.Y;
-                                AstCrop(Icrop).Info.CCDSEC           = Info.CCDSEC;
-                                AstCrop(Icrop).Info.FieldIndex     = Icat;
-                                AstCrop(Icrop).Info.AstIndex       = UniquAst(Iun);
-                                % asteroid selected lines from CatPM
-                                AstCrop(Icrop).Info.IndexInMergedCat = Iast;
-                                
-    
+                                StoreAsteroid = false;
+                            else             
+                                StoreAsteroid = true;
                             end
+                        end
+                        if StoreAsteroid
+                            Icrop = Icrop + 1;
+                            
+                            AstCrop(Icrop).MergedCat             = CatPM(Icat).selectRows(Iast);
+                            %AstCrop(Icrop).JD                    = Args.JD;
+                            %AstCrop(Icrop).RA             = RA(Iast(1));   % [rad]
+                            %AstCrop(Icrop).Dec            = Dec(Iast(1));  % [rad]
+                            [AstCrop(Icrop).Stamps, Info] = cropLonLat(Args.Images(:, Icat), AstCrop(Icrop).RA, AstCrop(Icrop).Dec,...
+                                                                            'CooUnits','deg',...
+                                                                            'HalfSizeXY',Args.HalfSizeXY,...
+                                                                            Args.cropLonLatArgs{:});
+                            
+                            AstCrop(Icrop).Info.X                = Info.X;
+                            AstCrop(Icrop).Info.Y                = Info.Y;
+                            AstCrop(Icrop).Info.CCDSEC           = Info.CCDSEC;
+                            AstCrop(Icrop).Info.FieldIndex     = Icat;
+                            AstCrop(Icrop).Info.AstIndex       = UniquAst(Iun);
+                            % asteroid selected lines from CatPM
+                            AstCrop(Icrop).Info.IndexInMergedCat = Iast;
+                                                            
                         end
                     end
 
