@@ -111,6 +111,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
         Args.FullPath               = [];
         Args.WriteEmpty logical     = false;
         Args.Write1mat logical      = false;
+        Args.SanifyPath logical     = false; % true can be time-consuming
     end
 
     
@@ -208,7 +209,8 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                                              'IsSimpleFITS',Args.IsSimpleFITS,...
                                              'WriteHeader',WriteHeader(Iprod),...
                                              'MkDir',~DirCreated,...
-                                             'OverWrite',Args.OverWrite);
+                                             'OverWrite',Args.OverWrite,...
+                                             'SanifyPath',Args.SanifyPath);
 
                                 DirCreated = true;
                                 % Update FileName in Obj
