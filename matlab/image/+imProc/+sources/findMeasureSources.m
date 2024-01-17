@@ -2,8 +2,26 @@ function Result = findMeasureSources(Obj, Args)
     % Basic sources finder and measurements on AstroImage object.
     %   This function uses the +imUtil.sources.find_measure_sources function.
     % Input  : - An AstroImage object (multi elements are supported).
+    %         * ...,key,val,...
+    %           'FlagCR' - A logical indicating if to search for CR
+    %                   using imProc.mask.maskCR to flag them in the bit
+    %                   mask, and optionaly remove them.
+    %                   Default is true.
+    %           'maskCR_Args' - A cell array of arguments to pass to 
+    %                   imProc.mask.maskCR
+    %                   Default is {}.
+    %           'FlagDiffXY' - A logical indicating if to search for
+    %                   sources which X1 and XPEAK positions deviates
+    %                   using imProc.mask.maskDiffXY to flag them in the bit
+    %                   mask, and optionaly remove them.
+    %                   Default is true.
+    %           'maskDiffXY_Args' - A cell array of arguments to pass to 
+    %                   imProc.mask.maskDiffXY
+    %                   Default is {}.
+    %
     %            'RemoveBadSources' - A logical indicating if to remove
     %                   bad sources using imProc.sources.cleanSources.
+    %                   OBSOLETE.
     %                   This will work only if the following columns are requested
     %                   'SN_1','SN_2','FLUX_CONV_2','FLUX_CONV_3','STD_ANNULUS'.
     %                   Default is false.
@@ -12,8 +30,6 @@ function Result = findMeasureSources(Obj, Args)
     %                   function, then the source will be removed from the
     %                   list. For example {'ColumnLow','ColumnHigh'},...
     %                   Default is {}.
-    %            'FlagCR' - A logical indicating if to flag cosmic rays
-    %                   (CR)  using the CR_DeltaHT flag. Default is true.
     %            'ReFind' - A logical indicating if to find stars if the
     %                   catalog is already populated. Default is true.
     %            'Threshold' - Detection threshold above background in units of
@@ -116,9 +132,16 @@ function Result = findMeasureSources(Obj, Args)
    
     arguments
         Obj AstroImage
-        Args.RemoveBadSources logical      = false;
-        Args.BadBitNames cell              = {};
+        
         Args.FlagCR logical                = true;
+        Args.maskCR_Args cell              = {};
+        Args.FlagDiffXY logical            = true;
+        Args.maskDiffXY_Args cell          = {};
+        Args.MaskType                      = 'uint32';
+
+        Args.RemoveBadSources logical      = false;  % OBSOLETE
+        Args.BadBitNames cell              = {};
+        
         Args.ReFind(1,1) logical           = true;
         Args.Threshold                     = 5;
         Args.Psf                           = [];
@@ -180,6 +203,11 @@ function Result = findMeasureSources(Obj, Args)
     else
         Result = Obj;
     end
+
+    % create Mask if needed
+    if Args.FlagCR && isemptyImage(Obj(1), 'Mask')
+        Result.createMask(Args.MaskType);
+    end
     
     % calculate background
     imProc.background.background(Result, 'CreateNewObj',false, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
@@ -231,7 +259,14 @@ function Result = findMeasureSources(Obj, Args)
                    
             % remove bad sources
             % works only for Gaussian PSF
-            if Args.FlagCR || Args.RemoveBadSources 
+            if Args.FlagCR && ~isemptyImage(Obj(Iobj), 'Mask')
+                Result(Iobj) = imProc.mask.maskCR(Result(Iobj), Args.maskCR_Args{:});
+            end
+            if Args.FlagDiffXY
+                Result(Iobj) = imProc.mask.xpeak_x1_diff(Result(Iobj), Args.maskDiffXY_Args{:});
+            end
+
+            if Args.RemoveBadSources
                 [Result(Iobj)] = imProc.sources.cleanSources(Result(Iobj), 'SigmaPSF',Args.PsfFunPar{1}(1:2),...
                                                                            'ColNamsSN',{'SN_1','SN_2'},...
                                                                            'RemoveBadSources',Args.RemoveBadSources,...

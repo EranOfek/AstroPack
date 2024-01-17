@@ -84,12 +84,12 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = apparent_toJ2000(RA, Dec, JD, A
         if isnumeric(Args.InterpHA)
             Aux.HA_App  = Aux.HA_AppDist - Args.InterpHA;
         else
-            Aux.HA_App  = Aux.HA_AppDist  - Args.InterpHA(AuxJ.HA_AppDist, AuxJ.Dec_AppDist);
+            Aux.HA_App  = Aux.HA_AppDist  - Args.InterpHA(Aux.HA_AppDist, Aux.Dec_AppDist);
         end
         if isnumeric(Args.InterpDec)
             Aux.Dec_App = Aux.Dec_AppDist - Args.InterpDec;
         else
-            Aux.Dec_App = Aux.Dec_AppDist - Args.InterpDec(AuxJ.HA_App, AuxJ.Dec_App);
+            Aux.Dec_App = Aux.Dec_AppDist - Args.InterpDec(Aux.HA_AppDist, Aux.Dec_AppDist);
         end
 
         % convert HA to RA
@@ -117,26 +117,32 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = apparent_toJ2000(RA, Dec, JD, A
     Aux.AirMass = celestial.coo.hardie((90-Aux.Alt_App)./RAD);
     
     % apply inverse refraction
-%     if Args.ApplyRefraction
-%         [Aux.Alt_App] = celestial.coo.invRefraction(Aux.Alt_App,'Wave',Args.Wave,...
-%                                                        'T',Args.Temp,...
-%                                                        'P',Args.Pressure,...
-%                                                        'Pw',Args.Pw);
-%     
-%         % update: HA, Dec
-%         [Aux.HA_App,Aux.Dec_App] = celestial.coo.azalt2hadec(Aux.Az_App, Aux.Alt_App, Args.GeoPos(2).*RAD, 'deg');
-%         % and RA
-%        
-%         Aux.RA_App = celestial.convert.convert_ha(Aux.HA_App, JD, 'InUnits','deg', 'OutUnits','deg',...
-%                                                  'Long',Args.GeoPos(1),...
-%                                                  'LongUnits','rad',...
-%                                                  'TypeLST','a',...
-%                                                  'OutRange','2pi');
-%     end
+    % THIS SECTION RETURNS WEIRD RESULTS
+    % THEREFORE running with apply refraction ...
+    %
+    % if Args.ApplyRefraction
+    %     [Aux.Alt_App] = celestial.coo.invRefraction(Aux.Alt_App,'Wave',Args.Wave,...
+    %                                                    'InUnits','deg',...
+    %                                                    'OutUnits','deg',...
+    %                                                    'T',Args.Temp,...
+    %                                                    'P',Args.Pressure,...
+    %                                                    'Pw',Args.Pw);
+    % 
+    %     % update: HA, Dec
+    %     [Aux.HA_App,Aux.Dec_App] = celestial.coo.azalt2hadec(Aux.Az_App, Aux.Alt_App, Args.GeoPos(2).*RAD, 'deg');
+    %     % and RA
+    % 
+    %     Aux.RA_App = celestial.convert.convert_ha(Aux.HA_App, JD, 'InUnits','deg', 'OutUnits','deg',...
+    %                                              'Long',Args.GeoPos(1),...
+    %                                              'LongUnits','rad',...
+    %                                              'TypeLST','a',...
+    %                                              'OutRange','2pi');
+    % end
 
     % Apparent to J2000
     CellArgs = namedargs2cell(Args);
     [RA1, Dec1, Alt, Refraction, AuxJ] = celestial.convert.j2000_toApparent(Aux.RA_App, Aux.Dec_App, JD, CellArgs{:},...
+                                                                            'ApplyRefraction',Args.ApplyRefraction,...
                                                                             'ApplyDistortion',false, 'ShiftRA',0, 'ShiftDec',0);
 
     

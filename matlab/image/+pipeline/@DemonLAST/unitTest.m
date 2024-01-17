@@ -13,7 +13,7 @@ function Result = unitTest(Args)
         Args.DB_ImageBulk   logical = false; % whether to use bulk or direct injection method
         Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
         % for some test we'd need all the epoch products, but the output will weigh 12 Gb instead of 1 Gb! 
-        Args.SaveEpochProduct = {[],[],'Cat',[]}; % {'Image','Mask','Cat','PSF'}; 
+        Args.SaveEpochProduct = {'Image','Mask','Cat','PSF'}; % {[],[],'Cat',[]}; % {'Image','Mask','Cat','PSF'}; 
     end
     
     I = Installer;

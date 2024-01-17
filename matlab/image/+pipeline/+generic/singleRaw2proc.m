@@ -90,7 +90,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.RemoveBadImages logical          = true;
         Args.identifyBadImagesArgs cell       = {};
         
-        Args.BitNameBadPix                  = {'NaN','Negative'};
+        Args.BitNameBadPix                  = {}; %{'NaN','Negative'};
         Args.BitNameInterpolated            = 'Interpolated';
                 
         Args.KeySoftVer                       = 'PIPEVER';
@@ -119,6 +119,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.subtractMeanColRowArgs cell      = {};
         
         Args.findMeasureSourcesArgs cell      = {};
+        Args.RemoveBadSources logical         = true;
         Args.ZP                               = 25;
         Args.photometricZPArgs cell           = {};
         Args.astrometrySubImagesArgs cell     = {};
@@ -318,7 +319,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         % Source finding
         %SI.cast('double');
         SI = imProc.sources.findMeasureSources(SI, Args.findMeasureSourcesArgs{:},...
-                                                   'RemoveBadSources',true,...
+                                                   'RemoveBadSources',Args.RemoveBadSources,...
                                                    'Threshold',Args.Threshold,...
                                                    'ColCell',Args.ColCell,...
                                                    'ZP',Args.ZP,...
@@ -419,6 +420,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         end
         
         % interpolate over problematic pixels
+        % FFU: maybe remove as this is already done by CalibImages/processImage
         if Args.InterpolateOverProblems
             % interpolate over staurated pixels
             SI = imProc.mask.interpOverMaskedPix(SI, 'BitNamesToInterp',Args.BitNamesToInterp,...

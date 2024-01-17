@@ -22,12 +22,12 @@ RAD = 180./pi;
 DefV.Name                 = {};     % override all the parameters provided in the list
 
 DefV.MinSunDist = (70-7)./RAD;
-DefV.MinMoonDist = (35-7)./RAD;
+DefV.MinMoonDist = (34-7)./RAD;
 DefV.MinEarthDist = (56-7)./RAD;
 
-DefV.Power_MaxSunDist = 135./RAD; %90+45; 45 for thr solar panels
-DefV.Comm_MinEarthDist = 40./RAD;
-DefV.Comm_MaxEarthDist = 180./RAD;
+DefV.Power_MaxSunDist = 130./RAD; %90+45; 45 for thr solar panels
+DefV.Comm_MinEarthDist = 0./RAD; 
+DefV.Comm_MaxEarthDist = 180./RAD; 
 
 if (numel(varargin)==1)
     % assume input is a structure (like DefV)

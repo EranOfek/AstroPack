@@ -1281,7 +1281,7 @@ classdef CalibImages < Component
             %                   Default is true.
             %           'BitNameBadPix' - A cell array of bad pixels over
             %                   which to interpolate.
-            %                   Default is {'Saturated','NaN'}.
+            %                   Default is {}.
             %           'BitName_Interpolated' - Bit name for interpolated
             %                   pixels. Default is 'Interpolated'.
             %           'interpOverNanArgs' - A cell array of additional
@@ -1319,7 +1319,7 @@ classdef CalibImages < Component
                 Args.BitNameNegative                = 'Negative';
                 Args.SetNegativeTo0 logical         = true;
                 Args.InterpolateOverBadPix logical  = true;
-                Args.BitNameBadPix                  = {'Saturated','NaN', 'Negative'};
+                Args.BitNameBadPix                  = {}; %{'Saturated','NaN', 'Negative'};
                 Args.BitNameInterpolated            = 'Interpolated';
                 Args.interpOverNanArgs cell         = {};
                 

@@ -1,7 +1,16 @@
-function Grid = pointings4TOO(Pol, Args)
+function [Grid, GridOpt] = pointings4TOO(Pol, Args)
     % construct ULTRASAT pointings to fill a given sky polygon
     % NB: this is a first version taking the pointings from the best
     % all-sky grid and selecting those whose center fall into the polygon
+    % Input: - a sky polygon as a a vector of [RA, Dec]
+    %          * ...,key,val,...
+    %          'InitialGridFile' - an  all-sky grid to build the initial set of pointings
+    %          'FOVradius' - the radius of the telescope FOV
+    %          'RepairMC'  - whether to try to improve the intial solution 
+    % Output: - a list of pointing centers as [RA, Dec]
+    %        -  an improved list of pointing centers (if a repair algorithm is invoked)
+    % Author: A.M. Krassilchtchikov (Jan 2024)
+    % Example: Grid = pointings4TOO(Polygon, 'RepairMC', true);
     arguments
         Pol = [  0,  0;  ... % RA, Dec
             45,-30;
@@ -12,8 +21,9 @@ function Grid = pointings4TOO(Pol, Args)
             45, 20; ...
             0, 40; ...
             20, 10];
-        Args.InitialGridFile = '/home/sasha/ULTRASAT/SkyGrid/charged_particles_350_rep1.txt'
+        Args.InitialGridFile = '~/matlab/data/ULTRASAT/charged_particles_350_rep1.txt'
         Args.FOVradius       = 7; % deg NB: the radius should, in principle, match the grid 
+        Args.RepairMC        = false;
     end
 
     RAD = 180/pi;
@@ -42,7 +52,7 @@ function Grid = pointings4TOO(Pol, Args)
 %         98,64; ...
 %         88,59];
 
-%     % Test point and test figure:
+%     % Test point and figure:
 %     p = [10, 10]; % RA, Dec
 % 
 %     figure(2); clf
@@ -73,5 +83,50 @@ function Grid = pointings4TOO(Pol, Args)
     end
     
     Grid = Grid( abs(Grid(:,1))>0 | abs(Grid(:,2))>0, :);
+    Ng   = size(Grid,1);
+    
+    [Cost0,~,Uncov] = ultrasat.costTOO(Pol,Grid);    
+    GridOpt = Grid;
+    
+    if Args.RepairMC        
+        
+        fprintf('Initial Cost: %.1f, Uncovered fraction: %.3f\n', Cost0, Uncov);
+        MinScale = 1; MaxScale = 3; % deg
+        MaxIter  = 100; % maximal number of random iterations %
+        % for a complex region with 300 iterations we get only ~ 8%
+        % improvement of the uncovered fraction   
+        CostMin = Cost0;
+        for IRand = 1:MaxIter
+            RandScale = MinScale + rand(Ng,2) .* (MaxScale-MinScale);
+            GridRand = Grid + RandScale .* (0.5-rand(Ng,2));
+            [CostRand,~,Uncov] = ultrasat.costTOO(Pol,GridRand);
+            fprintf('Cost: %.1f, Uncovered fraction: %.3f\n', CostRand, Uncov);
+            if CostRand < CostMin
+                GridOpt = GridRand;
+                CostMin = CostRand;
+                %             fprintf('Cost: %d', CostMin);
+            end
+        end        
+        [CostOpt,~,Uncov] = costTOO(Pol,GridOpt,'plot',1);
+        fprintf('Best Cost: %.1f, Uncovered fraction: %.3f\n', CostOpt, Uncov);        
+    end
+    
+    % a couple more optimization facilities that did not appear efficient:
+    
+%     options = optimoptions(@fminunc, 'Algorithm', 'quasi-newton', 'Display', 'iter');
+%     optimizedCircleCenters = fminunc(@costTOO, Grid, options);
+    
+%     options = optimset('Display', 'iter','MaxIter',20,'TolFun',0.2,'TolX',0.1);
+%     Grid1 = fminsearch(@costTOO, Grid, options);
+%     
+%     Cost1 = costTOO(Pol,Grid1,'plot',true);
 
+%     options = struct('GradObj','on','Display','iter','LargeScale','off','HessUpdate','bfgs',...
+%         'InitialHessType','identity','GoalsExactAchieve',0,'TolX',1e-2);
+%     options = struct('GradObj','off','Display','iter','LargeScale','off','HessUpdate','bfgs',...
+%         'InitialHessType','identity','GoalsExactAchieve',0,'TolX',1e-2);
+%     [Grid2,~] = fminlbfgs(@costTOO,Grid,options);
+%     
+%     Cost2 = costTOO(Pol,Grid2,'plot',true);
+    
 end

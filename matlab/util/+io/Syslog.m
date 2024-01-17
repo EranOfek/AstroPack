@@ -16,9 +16,6 @@ classdef Syslog < handle
         HostName string     % The current machine's hostname
         ProgName string     % The current process' name
         Pid uint32          % The current process' pid
-    end
-    
-    properties (Access = private)
         UdpSocket           % Socket to the Syslog server
     end
     
@@ -94,7 +91,11 @@ classdef Syslog < handle
             
             Obj.ServerIp = Args.ServerIp;
             Obj.ServerPort = Args.ServerPort;            
-            Obj.UdpSocket = udpport('byte', 'EnablePortSharing', true);
+            try
+                Obj.UdpSocket = udpport('byte', 'EnablePortSharing', true);
+            catch
+                return
+            end
             
             Obj.ProgName = MsgLogger.getProgramName;
             if isempty(Obj.ProgName)
@@ -120,7 +121,9 @@ classdef Syslog < handle
                 MsgLogger.getLevelStr(LogLevel), ...
                 sprintf(varargin{:}));
 
-            Obj.UdpSocket.write(Message, Obj.ServerIp, Obj.ServerPort);
+            if ~isempty(Obj.UdpSocket)
+                Obj.UdpSocket.write(Message, Obj.ServerIp, Obj.ServerPort);
+            end
         end
         
         function delete(Obj)

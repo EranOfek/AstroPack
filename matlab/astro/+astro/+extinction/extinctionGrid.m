@@ -1,5 +1,6 @@
 function [Alam, RA_grid, Dec_grid] = extinctionGrid(SkyGrid, Args)
-    % Make a .mat object containing extinction (A_lam) for a given sky grid and filter (or frequency) 
+    % Make a grid of extinction (A_lam) values for a given sky grid and filter (or frequency) 
+    % Optionally save the results in a .mat file
     % 
     % The map of Schlegel, Finkbeiner, and Davis was based on the data of IRAS,
     % whose beam was about 5 arcmin ~ 0.083 deg, so there is no sense in making
@@ -21,6 +22,7 @@ function [Alam, RA_grid, Dec_grid] = extinctionGrid(SkyGrid, Args)
         Args.CooType  = 'ec';       % can be 'ec', 'g', 'j2000.0'
         Args.Filter   = 'ULTRASAT'; % or wavelength in [mum]
         Args.Plot logical = false;
+        Args.SaveMat logical = false;
     end
     
     RAD = 180./pi;
@@ -74,8 +76,10 @@ function [Alam, RA_grid, Dec_grid] = extinctionGrid(SkyGrid, Args)
     end
     
     % save a mat object with the sky grid and A_lam
-    Fname = sprintf('extinction_grid_%s_%s',Args.CooType,Args.Filter);
-    save(Fname,'Alam','RA_grid','Dec_grid');
+    if Args.SaveMat
+        Fname = sprintf('extinction_grid_%s_%s.mat',Args.CooType,Args.Filter);
+        save(Fname,'Alam','RA_grid','Dec_grid');
+    end
 end
 
 

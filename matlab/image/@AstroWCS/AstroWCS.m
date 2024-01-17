@@ -1237,7 +1237,16 @@ classdef AstroWCS < Component
                     if size(XY,1)>1
                         error('wrong XY dimensions');
                     else
-                        [PX,PY] = meshgrid(XY(1):Args.Sampling:XY(2),XY(3):Args.Sampling:XY(4));
+                        VecX = (XY(1):Args.Sampling:XY(2));
+                        if VecX(end)~=XY(2)
+                            VecX = [VecX, XY(2)];
+                        end
+                        VecY = (XY(3):Args.Sampling:XY(4));
+                        if VecY(end)~=XY(4)
+                            VecY = [VecY, XY(4)];
+                        end
+                        %[PX,PY] = meshgrid(XY(1):Args.Sampling:XY(2),XY(3):Args.Sampling:XY(4));
+                        [PX,PY] = meshgrid(VecX, VecY);
                     end
                 case 2                              % matrix of xy
                    PX = XY(:,1);
