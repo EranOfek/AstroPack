@@ -18,6 +18,7 @@ function writeSimpleFITS(Image, FileName, Args)
     %                   'help matlab.io.fits.setComplessionType').
     %                   Default is 'NOCOMPRESS'. Only effective if
     %                   UseMatlabIo=true.
+    %            'SanifyPath ' - whether to get a true full path (may appear time-consuming)
     % Output : null
     % Author : Eran Ofek (Jan 2022), Enrico Segre (Feb 2023)
     % Example: io.fits.writeSimpleFITS(AI.Image, 'try.fits','Header',AI.HeaderData.Data);
@@ -29,10 +30,13 @@ function writeSimpleFITS(Image, FileName, Args)
         Args.DataType                 = [];
         Args.UseMatlabIo              = true;
         Args.CompressType    char     = 'NOCOMPRESS';
+        Args.SanifyPath logical       = true;
     end
 
-    % sanify the file name so that it contain the absolute path
-    FileName = tools.os.relPath2absPath(FileName); 
+    % sanify the file name so that it contains the absolute path
+    if Args.SanifyPath
+        FileName = tools.os.relPath2absPath(FileName);
+    end
     
     if isempty(Args.DataType)
         Args.DataType = class(Image);
