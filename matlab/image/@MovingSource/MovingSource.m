@@ -404,8 +404,7 @@ classdef MovingSource < Component
             for If=1:1:Nf
                 FileName = fullfile(Files(If).folder, Files(If).name);
                 Tmp = io.files.load2(FileName);
-                I = I + 1;
-                
+               
                 if any(strcmp(fieldnames(Tmp), 'AstCrop'))
                     Tmp = Tmp.AstCrop;
                 end
@@ -418,10 +417,10 @@ classdef MovingSource < Component
                     end
                 elseif isa(Tmp, 'struct')
                     % Assume an AstCrop object
-                    Obj = astCrop2MovingSource(Tmp, 'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
+                    Obj = MovingSource.astCrop2MovingSource(Tmp, 'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
                                                      'FileName',FileName,...
                                                      'ConcatObj',Obj,...
-                                                     'PopKA',false);
+                                                     'Id',[]);
                  
                 else
                     error('Unknown content format in file %s', FileName);
