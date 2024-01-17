@@ -16,9 +16,9 @@
 %   MP=MovingSource.readFromAstCrop();
 %   
 %   % remove sources that are likely statis sources and NearEdge || Overlap
-%   FlagStatic = MP.nearStatisSrc
+%   FlagStatic = MP.nearStaticSrc
 %   FlagGood    = MP.selectByBitMask;
-%   MP = MP(~[FlagStatic.Flag].' & FlagGood(:));
+%   MP = MP(FlagStatic(:) & FlagGood(:));
 %   % Populate known asteroids:
 %   MP.popKnownAst;
 %   % Some inspection operations:
@@ -612,7 +612,7 @@ classdef MovingSource < Component
             end
         end
         
-        function [FlagComb, Flag]=nearStatisSrc(Obj, Args)
+        function [FlagComb, Flag]=nearStaticSrc(Obj, Args)
             % Check for static sources near the moving source
             %   Search a PGC galaxy or GAIA star near the moving source.
             %   The PGC search is based on the galaxy radius.
@@ -635,13 +635,14 @@ classdef MovingSource < Component
             %            .Flag - A logical flag indicating if there is a
             %                   contaminant of any kind.
             % Author : Eran Ofek (Jan 2024)
-            % Example: Res=MP(3).nearStatisSrc
+            % Example: Res=MP(3).nearStaticSrc
             arguments
                 Obj
                 Args.CatNameGAIA = 'GAIADR3';
                 
                 Args.ColMagGAIA  = 'phot_bp_mean_mag';
                 Args.MaxMagGAIA  = 20.5;
+                Args.SearchRadiusNStar = 5;
                 
                 Args.CatNamePGC  = 'PGC';
                 Args.CatNameGlade = 'GLADEp';
@@ -649,8 +650,6 @@ classdef MovingSource < Component
                 
                 Args.SearchRadius      = 60;
                 Args.SearchRadiusUnits = 'arcsec';
-
-                
 
             end
 
@@ -667,13 +666,20 @@ classdef MovingSource < Component
                 Flag(Iobj).MagGAIA = [];
                 CatGAIA = catsHTM.cone_search(Args.CatNameGAIA, RA_rad, Dec_rad, Args.SearchRadius, 'RadiusUnits',Args.SearchRadiusUnits, 'OutType','AstroCatalog');
                 Dist    = CatGAIA.sphere_dist(RA_rad, Dec_rad, 'rad', 'arcsec');
+                
                 DistThresholdPerStar = max(20-CatGAIA.Table.(Args.ColMagGAIA), 3);
+
+                
                 FlagM   = CatGAIA.Table.(Args.ColMagGAIA)<Args.MaxMagGAIA & Dist<DistThresholdPerStar;
 
                 if any(FlagM)
                     Flag(Iobj).GAIA = true;
                     Flag(Iobj).MagGAIA = CatGAIA.Table.(Args.ColMagGAIA)(FlagM);
                 end
+
+                % check it there is more than one star within RadiusNStar
+                SearchRadiusNStar = convert.angular(Args.SearchRadiusUnits, 'arcsec', Args.SearchRadiusNStar);
+                Flag(Iobj).GAIA_N = sum(CatGAIA.Table.(Args.ColMagGAIA)<Args.MaxMagGAIA & Dist<SearchRadiusNStar)>1;
 
                 % PGC
                 Flag(Iobj).PGC = false;
@@ -698,7 +704,7 @@ classdef MovingSource < Component
                     end
                 end
                 
-                Flag(Iobj).Flag = Flag(Iobj).GAIA || Flag(Iobj).PGC & Flag(Iobj).GLADE;
+                Flag(Iobj).Flag = Flag(Iobj).GAIA || Flag(Iobj).PGC || Flag(Iobj).GLADE || Flag(Iobj).GAIA_N;
             end
 
             FlagComb = ~[Flag.Flag];
