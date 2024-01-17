@@ -84,12 +84,12 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = apparent_toJ2000(RA, Dec, JD, A
         if isnumeric(Args.InterpHA)
             Aux.HA_App  = Aux.HA_AppDist - Args.InterpHA;
         else
-            Aux.HA_App  = Aux.HA_AppDist  - Args.InterpHA(AuxJ.HA_AppDist, AuxJ.Dec_AppDist);
+            Aux.HA_App  = Aux.HA_AppDist  - Args.InterpHA(Aux.HA_AppDist, Aux.Dec_AppDist);
         end
         if isnumeric(Args.InterpDec)
             Aux.Dec_App = Aux.Dec_AppDist - Args.InterpDec;
         else
-            Aux.Dec_App = Aux.Dec_AppDist - Args.InterpDec(AuxJ.HA_App, AuxJ.Dec_App);
+            Aux.Dec_App = Aux.Dec_AppDist - Args.InterpDec(Aux.HA_AppDist, Aux.Dec_AppDist);
         end
 
         % convert HA to RA
