@@ -68,6 +68,9 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
     %                   Default is [].
     %            'WriteEmpty' - Logical indicating if to write an empty
     %                   product. Default is false.
+    %            'Write1mat' - A logical. If saving mat file save only one
+    %                   file (true), or file per element (false).
+    %                   Default is false.
     % Output : - A FileNames object for the written files
     %            (Product='Image').
     %          - Used SubDir.
@@ -108,6 +111,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
         Args.BasePath               = [];
         Args.FullPath               = [];
         Args.WriteEmpty logical     = false;
+        Args.Write1mat logical      = false;
     end
 
     
@@ -119,7 +123,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
             WriteHeader = repmat(Args.WriteHeader, Nprod,1);
         else
             WriteHeader = Args.WriteHeader;
-            if numel(WriteHeader)~=Nprod
+            if numel(WriteHeader)~=Nprod && ~Args.Write1mat
                 error('Number of elements in WriteHeader must be 1 or equal to the number of products');
             end
         end
@@ -161,7 +165,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
         end
         
         Nfn   = FN.nfiles;
-        if Nobj~=Nfn
+        if Nobj~=Nfn && ~Args.Write1mat
             error('Number of elements in AstroImage and FileNames object must be identical');
         end
 
@@ -258,8 +262,12 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                 FN.Level    = Args.Level;
                 FN.FileType = {'mat'};
                 OutFileNames = FN.genFull('Product',Args.Product, 'LevelPath',Args.LevelPath);
-                for Iobj=1:1:Nobj
-                    save(OutFileNames{Iobj}, 'Obj', '-v7.3');
+                if Args.Write1mat
+                    save(OutFileNames, 'Obj', '-v7.3');
+                else
+                    for Iobj=1:1:Nobj
+                        save(OutFileNames{Iobj}, 'Obj', '-v7.3');
+                    end
                 end
 
         end

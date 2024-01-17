@@ -1806,6 +1806,9 @@ classdef DemonLAST < Component
             JDlastCalib = 0;
             Cont = true;
             while Cont
+                % Notify watchdog that process is running 
+                tools.systemd.mex.notify_watchdog;
+
                 % set Logger log file 
                 Obj.setLogFile('HostName',Args.HostName);
 
@@ -1875,7 +1878,9 @@ classdef DemonLAST < Component
                 
 
                 for Igroup=1:1:Ngroup
-                   
+                    % Notify watchdog that process is running 
+                    tools.systemd.mex.notify_watchdog;
+
                     % for each visit
                     if FN_Sci_Groups(Igroup).nfiles>Args.MinNumIMageVisit
 
@@ -1932,6 +1937,9 @@ classdef DemonLAST < Component
                                                                        'INPOP',Args.INPOP,...
                                                                        'AsteroidSearchRadius',Args.AsteroidSearchRadius);
 
+                            % Notify watchdog that process is running 
+                            tools.systemd.mex.notify_watchdog;
+
                             RunTime = etime(clock, Tstart);
                             Msg{1} = sprintf('pipline.DemonLAST finish executing pipeline for group %d - start saving data / RunTime: %f', Igroup, RunTime);
                             Obj.writeLog(Msg, LogLevel.Info);
@@ -1972,12 +1980,15 @@ classdef DemonLAST < Component
                                                    'SubDir',FN_Proc.SubDir);
                             Obj.writeLog(Status, LogLevel.Info);
 
-                            [~,~,Status]=imProc.io.writeProduct(ResultAsteroids, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
+                            if ~isempty(ResultAsteroids)
+                                SaveAst.MP = ResultAsteroids;
+                                [~,~,Status]=imProc.io.writeProduct(SaveAst, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
                                                    'Save',UpArgs.SaveAsteroids,...
                                                    'Level','merged',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
-                            Obj.writeLog(Status, LogLevel.Info);
+                                Obj.writeLog(Status, LogLevel.Info);
+                            end
 
                             % Known Matched asteroids
                             if ~isempty(OnlyMP)
