@@ -7,6 +7,7 @@ function [AbsPath] = relPath2absPath2(RelPath)
     % Author : Eran Ofek (2024 Jan) 
     % Example: FN = '~/matlab/data/spec/../a.fits'; FN1 = tools.os.relPath2absPath2(FN)
     %          DN = '~/matlab/data/../AstroPack/../data/'; DN1 = tools.os.relPath2absPath2(DN)
+    %          DN = '~/matlab/AstroPack/../../matlab/../'; DN1 = tools.os.relPath2absPath2(DN)
 
     FileSep = filesep;
     
@@ -30,15 +31,14 @@ function [AbsPath] = relPath2absPath2(RelPath)
         else
             FoundDots = false;
         end
+        Splitted = Splitted(~cellfun(@isempty, Splitted));
     end
     
     % rebuilt path
     Ns = numel(Splitted);
     AbsPath = '';
     for Is=1:1:Ns
-        if ~isempty(Splitted{Is})
-            AbsPath = sprintf('%s%s%s', AbsPath, FileSep, Splitted{Is});
-        end
+        AbsPath = sprintf('%s%s%s', AbsPath, FileSep, Splitted{Is});
     end
     
         
