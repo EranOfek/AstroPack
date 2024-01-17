@@ -223,7 +223,11 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
                                                                                                  'StackMethod',Args.StackMethod,...
                                                                                                  'StackArgs',Args.StackArgs);
                                                                                                 
-
+            % In some cases the first image of the stack is rejected, so
+            % the 'DATEOBS' in the resulting Coadd may be not the same 
+            % in all the subimages. Here we correct it taking the date from the first Proc image:
+            Coadd(Ifields).HeaderData.setVal('DATEOBS',AllSI(1,1).HeaderData.getVal('DATEOBS'));
+                                                                                             
             % Background
             Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:},...
                                                                           'SubSizeXY',Args.BackSubSizeXY);
