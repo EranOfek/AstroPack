@@ -575,7 +575,7 @@ classdef MovingSource < Component
                 Obj   = MovingSource;
                 Index = 0;
             else
-                Obj   = Args.Args.ConcatObj;
+                Obj   = Args.ConcatObj;
                 Index = numel(Obj);
             end
             Nast = numel(AstCrop);
