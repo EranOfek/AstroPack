@@ -148,6 +148,7 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
         % value at position
         ValScorr = Scorr(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
         ValS     = S(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
+
         if isempty(SdN)
             ValSdN = nan(Nsrc,1);
         else
@@ -205,12 +206,22 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
         Result(Iobj).LocalMax = LocalMax;
 
         TranTable = AstroCatalog;
-        TranTable.ColNames = {'XPEAK',            'YPEAK',       'Scorr',       'PSF_SNm',   'Chi2_D', 'NewMaskVal','RefMaskVal','ValSdN','ValSdR', 'Z2_TS', 'Z2_Sig', 'S2_TS', 'S2_Sig', 'N_SNm',    'N_Chi2dof',               'N_Flux',     'R_SNm',     'R_Chi2dof',               'R_Flux'};
-        TranTable.Catalog  = table(LocalMax(:,1), LocalMax(:,2), LocalMax(:,3), ResultD.SNm, Chi2dof,  NewMaskVal,  RefMaskVal,  ValSdN,  ValSdR,   Z2_TS,  Z2_sig, S2_TS,  S2_sig, ResultN.SNm, ResultN.Chi2./ResultN.Dof, ResultN.Flux, ResultR.SNm, ResultR.Chi2./ResultR.Dof, ResultR.Flux );
+        
+        TranTable.ColNames = {'XPEAK', 'YPEAK', 'Scorr', ...
+            'PSF_SNm', 'Chi2_D', 'NewMaskVal', 'RefMaskVal',...
+            'ValSdN', 'ValSdR', 'Z2_TS', 'Z2_Sig', 'S2_TS', 'S2_Sig', ...
+            'N_SNm', 'N_Chi2dof', 'N_Flux', 'N_Mag', ...
+            'R_SNm', 'R_Chi2dof', 'R_Flux', 'R_Mag'};
+
+        TranTable.Catalog  = table(LocalMax(:,1), LocalMax(:,2), LocalMax(:,3), ...
+            ResultD.SNm, Chi2dof,  NewMaskVal,  RefMaskVal, ...
+            ValSdN,  ValSdR,   Z2_TS,  Z2_sig, S2_TS,  S2_sig, ...
+            ResultN.SNm, ResultN.Chi2./ResultN.Dof, ResultN.Flux, ResultN.Mag, ...
+            ResultR.SNm, ResultR.Chi2./ResultR.Dof, ResultR.Flux, ResultR.Mag );
+
         TranTable.Catalog.Properties.VariableNames = TranTable.ColNames;
         Result(Iobj).TranTable = TranTable;
         
-
     end
 
 end
