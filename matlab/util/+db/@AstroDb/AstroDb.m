@@ -232,9 +232,14 @@ classdef AstroDb < Component
             Q.addColumn(TN, 'm_ha',     'double', 'default 0');
             Q.addColumn(TN, 'm_jra',    'double', 'default 0');
             Q.addColumn(TN, 'm_jdec',   'double', 'default 0');
-            Q.addColumn(TN, 'm_jha',    'double', 'default 0');
-            Q.addColumn(TN, 'ha',       'double', 'default 0');
-
+%             Q.addColumn(TN, 'm_jha',    'double', 'default 0');
+%             Q.addColumn(TN, 'ha',       'double', 'default 0');
+            Q.addColumn(TN, 'm_ara',    'double', 'default 0');
+            Q.addColumn(TN, 'm_aha',    'double', 'default 0');
+            Q.addColumn(TN, 'm_adec',   'double', 'default 0');
+            Q.addColumn(TN, 'm_adra',   'double', 'default 0');
+            Q.addColumn(TN, 'm_adha',   'double', 'default 0');
+            Q.addColumn(TN, 'm_addec',  'double', 'default 0');                                    
             %
             Q.addColumn(TN, 'equinox',  'single', 'default 0');
             Q.addColumn(TN, 'm_az',     'single', 'default 0');
