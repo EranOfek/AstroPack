@@ -979,7 +979,7 @@ classdef MovingSource < Component
         end
         
         function [Table,Variability]=lightCurveVariability(Obj, Args)
-            % Create simple light curve for moving source
+            % Create simple light curve for moving source and calculate variability indicators.
             %   Based on the Stamps catalog
             % Input  : - A MovingSourceObject.
             %          * ...,key,val,...
