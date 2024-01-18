@@ -1187,6 +1187,7 @@ classdef AstroImage < Component
                 Args.WriteTime logical        = false;
                 Args.MkDir logical            = false;
                 Args.Status                   = [];
+                Args.SanifyPath               = true; 
             end
             
             if Args.WriteHeader
@@ -1221,7 +1222,8 @@ classdef AstroImage < Component
                                 Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', Name, DataProp);
                             else
                                 if Args.IsSimpleFITS
-                                    FITS.writeSimpleFITS(Obj.(DataProp), Name, 'Header',HeaderDataToWrite); %,...
+                                    FITS.writeSimpleFITS(Obj.(DataProp), Name, 'Header',HeaderDataToWrite,...
+                                                                     'SanifyPath',Args.SanifyPath); %,...
                                                                %    'DataType',class(Obj.(DataProp)));
                                 else
                                     FITS.write(Obj.(DataProp), Name, 'Header',HeaderDataToWrite,...

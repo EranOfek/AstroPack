@@ -18,6 +18,7 @@ function Result = unitTest(Args)
     
     I = Installer;
     BaseDir = I.getDataDir('LASTpipelineUnitTest');
+    BaseDir = tools.os.relPath2absPath(BaseDir);
     
     CatsHTMdir = strcat(BaseDir,'/catsHTM/');
     startup('AstroPack_CatsHTMPath',CatsHTMdir)

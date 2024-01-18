@@ -1065,6 +1065,7 @@ classdef FITS < handle
             %                 All algorithms are said to be lossless for
             %                 integer images, but PLIO works only for
             %                 positive integer values.
+            %             'SanifyPath' - whether to sanify the file path (may appear slow)
             %
             % Output : null
             % Author : Eran Ofek (Jan 2022)
@@ -1075,12 +1076,13 @@ classdef FITS < handle
                 FileName
                 Args.Header cell              = {};
                 Args.DataType                 = [];
-                Args.CompressType  char        = 'NOCOMPRESS';
+                Args.CompressType  char       = 'NOCOMPRESS';
+                Args.SanifyPath logical       = true;
             end
             
             io.fits.writeSimpleFITS(Image, FileName, 'Header',Args.Header,...
                                      'DataType',Args.DataType,'UseMatlabIo',true,...
-                                     'CompressType',Args.CompressType);
+                                     'CompressType',Args.CompressType,'SanifyPath',Args.SanifyPath);
             
         end
         
