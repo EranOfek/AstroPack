@@ -1,4 +1,4 @@
-function [AbsPath] = relPath2absPath2(RelPath)
+function [AbsPath] = relPath2absPath(RelPath)
     % Generate an absolute path from relative path
     %     Given a relative path including '~' and '/../' create a clean
     %     absolute path.
