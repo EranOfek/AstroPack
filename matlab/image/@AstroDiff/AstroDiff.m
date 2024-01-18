@@ -45,7 +45,10 @@ classdef AstroDiff < Component
     end
     
     properties (Hidden)
-
+        D_FFT
+        Pd_FFT
+        S_FFT
+        Zvec_FFT
     end
 
 
@@ -59,6 +62,16 @@ classdef AstroDiff < Component
 
     methods % utilities
         % norm
+
+        % cleanFFT
+
+        % fft
+
+        % ifft
+
+        % shift
+        
+        % resizePSF
 
     end
 
@@ -83,15 +96,27 @@ classdef AstroDiff < Component
 
         % injectArt
 
-        
+
 
     end
+
+    methods % transients
+        % transientsCutouts
+
+        % mergeTransients
+
+        % searchSolarSystem
+
+        % nearestRedshift
+
+        % nearestGalaxy
+
+
+    end
+
     
     methods % display
-        function ds9(Obj, Args)
-            % Open selected cutouts in ds9
-            
-        end
+        
         
     end    
     
