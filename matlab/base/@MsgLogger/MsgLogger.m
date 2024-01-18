@@ -236,11 +236,13 @@ classdef MsgLogger < handle
                         fprintf('\n');
                     end
                 else
-                    msg = sprintf(varargin{:});
-                    if msg ~= ""
-                        fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
-                        fprintf(varargin{:});
-                        fprintf('\n');
+                    if ~isempty(varargin)
+                        msg = sprintf(varargin{:});
+                        if msg ~= ""
+                            fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
+                            fprintf(msg);
+                            fprintf('\n');
+                        end
                     end
                 end
             end
@@ -265,7 +267,9 @@ classdef MsgLogger < handle
                     if is_cell
                         cellArray = varargin{1};
                         for i = 1:numel(cellArray)
-                            Obj.Syslog.sendMessage(Level, cellArray{i});
+                            if ~isempty(cellArray{i})
+                                Obj.Syslog.sendMessage(Level, cellArray{i});
+                            end
                         end
                     else                    
                         Obj.Syslog.sendMessage(Level, varargin{:});
@@ -297,17 +301,13 @@ classdef MsgLogger < handle
             end            
             
             % Prepare prompt with log level
-            LevStr = MsgLogger.getLevelStr(Level);
-            if isprop(Obj, 'Tag') && ~ isempty(Obj.Tag)
-                LevStr = "[" + LevStr + "] " + Obj.Tag;
-            end
+            LevStr = "[" + MsgLogger.getLevelStr(Level) + "] ";
             
             DateStr = datestr(now, 'hh:MM:SS.FFF') + " ";
 
             % Log to display
             if LogToDisplay
                 cprintf(Style, DateStr);
-                %cprintf(Style, '[%s] ', LevStr);
                 cprintf(Style, LevStr);
                 cprintf(Style, varargin{:});
                 fprintf('\n');
