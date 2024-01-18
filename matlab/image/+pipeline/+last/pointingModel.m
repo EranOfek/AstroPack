@@ -1,5 +1,5 @@
 function [AllResult,PM, Report] = pointingModel(Files, Args)
-    % Calculate pointing model from a lsit of images and write it to a configuration file.
+    % Calculate pointing model from a list of images and write it to a configuration file.
     % Input  : - File name template to analyze.
     %            Default is 'LAST*PointingModel*sci*.fits'.
     %          * ...,key,val,...
@@ -43,20 +43,19 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
         fprintf('\n\n%i images in dir %s\n\n', Nfiles, Dirs{Idirs})
 
         
-        Head   = {'RA','Dec','HA','M_JRA','M_JDEC','M_JHA', ...
-            'M_RA','M_DEC','M_HA', 'JD','LST', ...
-            'CenterRA','CenterDec', 'CenterHA','Scale','Rotation','Ngood',...
-            'AssymRMS'};
-        Nhead  = numel(Head);
-        Table  = zeros(Nfiles,Nhead);
-        
         
         % Solve astrometry for all the pointing model images obtained by
         % one camera.
         for Ifile=1:1:Nfiles
             
             fprintf('%i %s\n', Ifile, List{Ifile}(42:end));
-            Table(Ifile,:) = getAstrometricSolution(List{Ifile});
+            TableRow = getAstrometricSolution(List{Ifile});
+            
+            if Ifile==1
+                Table = TableRow
+            else
+                Table = [Table; TableRow]
+            end
         end
 
         Result = array2table(Table);
@@ -247,7 +246,13 @@ function ImgDirs = getImageDirs(Dirs)
 
 end
 
+
 function Row = getAstrometricSolution(ImageFileName)
+        
+    Head   = {'RA','Dec','HA','M_JRA','M_JDEC','M_JHA', ...
+            'M_RA','M_DEC','M_HA', 'JD','LST', ...
+            'CenterRA','CenterDec', 'CenterHA','Scale','Rotation','Ngood',...
+            'AssymRMS'};
 
 	AI = AstroImage(ImageFileName);
             
@@ -273,8 +278,11 @@ function Row = getAstrometricSolution(ImageFileName)
                 
     catch
         fprintf('Astrometry failed for image %s\n',ImageFileName);
-        Row = ones(1, 18)*NaN;
+        Row = ones(1, length(Head))*NaN;
     end
+
+    Row = array2table(Row);
+    Row.Properties.VariableNames = Head;
 
 
 end
