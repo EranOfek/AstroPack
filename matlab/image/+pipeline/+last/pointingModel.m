@@ -1,10 +1,10 @@
 function [AllResult,PM, Report] = pointingModel(Files, Args)
-    % Calculate pointing model from a lsit of images and write it to a configuration file.
+    % Calculate pointing model from a list of images and write it to a configuration file.
     % Input  : - File name template to analyze.
-    %            Default is 'LAST*PointingModel*sci*.fits'.
+    %            Default is 'LAST*_PointingModel*sci*.fits'.
     %          * ...,key,val,...
     %            see code.
-    % Example: [R,PM,Report] = pipeline.last.pointingModel_plots('LAST*_PointingModel*sci*.fits','StartDate',[08 06 2022 17 54 00],'EndDate',[08 06 2022 18 06 00]);
+    % Example: [R,PM,Report] = pipeline.last.pointingModel('LAST*_PointingModel*sci*.fits','StartDate',[08 06 2022 17 54 00],'EndDate',[08 06 2022 18 06 00]);
     
     arguments
         Files                             = 'LAST*_PointingModel*sci*.fits';
@@ -12,7 +12,6 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
         Args.StartDate                    = [];
         Args.EndDate                      = [];
         Args.Nfiles                       = Inf;  % use only last N files
-        %Args.astrometryCroppedArgs cell   = {};
         
         Args.ObsCoo                       = [35 30];  % [deg]
         Args.ConfigFile                   = '/home/ocs/pointingModel.txt';
@@ -43,25 +42,20 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
         fprintf('\n\n%i images in dir %s\n\n', Nfiles, Dirs{Idirs})
 
         
-        Head   = {'RA','Dec','HA','M_JRA','M_JDEC','M_JHA', ...
-            'M_RA','M_DEC','M_HA', 'JD','LST', ...
-            'CenterRA','CenterDec', 'CenterHA','Scale','Rotation','Ngood',...
-            'AssymRMS'};
-        Nhead  = numel(Head);
-        Table  = zeros(Nfiles,Nhead);
-        
         
         % Solve astrometry for all the pointing model images obtained by
         % one camera.
         for Ifile=1:1:Nfiles
             
             fprintf('%i %s\n', Ifile, List{Ifile}(42:end));
-            Table(Ifile,:) = getAstrometricSolution(List{Ifile});
+            TableRow = getAstrometricSolution(List{Ifile});
+            
+            if Ifile==1
+                Result = TableRow;
+            else
+                Result = [Result; TableRow];
+            end
         end
-
-        Result = array2table(Table);
-        Result.Properties.VariableNames = Head;
-        
 
         AllResult(Idirs).Result = Result;
         
@@ -79,7 +73,7 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
         [Dists, Angles] = celestial.coo.sphere_dist( ...
             AllResult(Idirs).Result.CenterHA, ...
             AllResult(Idirs).Result.CenterDec, ...
-            AllResult(Idirs).Result.M_HA, AllResult(Idirs).Result.M_DEC, ...
+            AllResult(Idirs).Result.M_JHA, AllResult(Idirs).Result.M_JDEC, ...
             'deg');
            
         DiffHA(:,Idirs) = Dists.*sin(Angles)*RAD;
@@ -161,9 +155,9 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
     CenterDec = zeros(Nfiles, 4);
     for Idir=1:1:4
         
+        % make sure the coordinate range is ok
         Flag = AllResult(:,Idir).Result.RA>180;
         AllResult(:,Idir).Result.RA(Flag) = AllResult(Idir).Result.RA(Flag)-360;
-        
         Flag = AllResult(:,Idir).Result.CenterRA>180;
         AllResult(:,Idir).Result.CenterRA(Flag) = AllResult(Idir).Result.CenterRA(Flag)-360;
 
@@ -172,8 +166,7 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
         CenterDec(:,Idir) = AllResult(Idir).Result.CenterDec;
         
         
-        scatter(AllResult(Idir).Result.CenterRA, ...
-            AllResult(Idir).Result.CenterDec, 20, '+r')
+        scatter(CenterRA(:,Idir), CenterDec(:,Idir), 20, '+r')
             
         scatter(AllResult(Idir).Result.RA, ...
             AllResult(Idir).Result.Dec, 20, 'xb')
@@ -247,7 +240,13 @@ function ImgDirs = getImageDirs(Dirs)
 
 end
 
+
 function Row = getAstrometricSolution(ImageFileName)
+        
+    Head   = {'RA','Dec','HA','M_JRA','M_JDEC','M_JHA', ...
+            'M_RA','M_DEC','M_HA', 'JD','LST', ...
+            'CenterRA','CenterDec', 'CenterHA','Scale','Rotation','Ngood',...
+            'AssymRMS'};
 
 	AI = AstroImage(ImageFileName);
             
@@ -273,8 +272,11 @@ function Row = getAstrometricSolution(ImageFileName)
                 
     catch
         fprintf('Astrometry failed for image %s\n',ImageFileName);
-        Row = ones(1, 18)*NaN;
+        Row = ones(1, length(Head))*NaN;
     end
+
+    Row = array2table(Row);
+    Row.Properties.VariableNames = Head;
 
 
 end
