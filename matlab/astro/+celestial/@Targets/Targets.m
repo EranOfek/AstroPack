@@ -336,7 +336,7 @@ classdef Targets < Component
                     case 'last'
                         Obj.VisibilityArgs.DecRange        = [-90 90];
                         
-                        [TileList,TileArea] = celestial.grid.tile_the_sky(Args.N_LonLat(1), Args.N_LonLat(2));
+                        [TileList,TileArea] = celestial.coo.tile_the_sky(Args.N_LonLat(1), Args.N_LonLat(2));
                         RA  = TileList(:,1).*RAD;
                         Dec = TileList(:,2).*RAD;
 
@@ -902,7 +902,26 @@ classdef Targets < Component
         end
             
         
+          function [Obj, P, Ind]=cadence_highest(Obj, JD)
+            % observe the highest field
+            % Author: Nora Strotjohann (January 2023)
+                    
+            SEC_DAY = 86400;
+            
+            TimeOnTarget = (Obj.NperVisit+1).*Obj.ExpTime/SEC_DAY; % days
+            [FlagAllVisible, ~] = isVisible(Obj, JD,'MinVisibilityTime',TimeOnTarget);
+            FlagObserve = (Obj.GlobalCounter<Obj.MaxNobs) & FlagAllVisible;
+            
+            [~,Alt] = Obj.azalt(JD);
+            P = Alt/90+1;
+            [HA, ~]=Obj.ha(JD);
+            
+            P = P.*FlagObserve;
+            [~,Ind] = max(P);
+            
+          end
         
+      
         function [Obj, P, Ind]=cadence_predefined(Obj, JD)
             % observed according to predefined priority (order in
             % list if no priority given). Switch to next target
@@ -1126,6 +1145,12 @@ classdef Targets < Component
                     % implemented by Nora in May 2023
                     [Obj, P, Ind] = Obj.cadence_highest_setting(JD);
                     
+                    
+                 case 'highest'
+                    % observe the highest field 
+                    % implemented by Nora in January 2023
+                    [Obj, P, Ind] = Obj.cadence_highest(JD);
+                   
                     
                 case 'cycle'
                     % observe according to predefined priority (order in
