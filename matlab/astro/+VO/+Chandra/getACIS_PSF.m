@@ -32,7 +32,7 @@ function WPSF = getACIS_PSF(Chip, Args)
     if isempty(Args.Spec) && Args.Energy < 0.2 && Args.Energy > 8.0
         error('The input energy is out of the valid range');
     end
-    if Args.PosX > 1024 || Args.PosX < 1 || Args.PosY > 1024 || Args.PosY < 1
+    if Args.PosX > 992 || Args.PosX < 32 || Args.PosY > 992 || Args.PosY < 32
         error('The input XY position is out of the valid range');
     end
     
