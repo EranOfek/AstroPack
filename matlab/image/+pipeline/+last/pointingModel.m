@@ -1,10 +1,10 @@
 function [AllResult,PM, Report] = pointingModel(Files, Args)
     % Calculate pointing model from a list of images and write it to a configuration file.
     % Input  : - File name template to analyze.
-    %            Default is 'LAST*PointingModel*sci*.fits'.
+    %            Default is 'LAST*_PointingModel*sci*.fits'.
     %          * ...,key,val,...
     %            see code.
-    % Example: [R,PM,Report] = pipeline.last.pointingModel_plots('LAST*_PointingModel*sci*.fits','StartDate',[08 06 2022 17 54 00],'EndDate',[08 06 2022 18 06 00]);
+    % Example: [R,PM,Report] = pipeline.last.pointingModel('LAST*_PointingModel*sci*.fits','StartDate',[08 06 2022 17 54 00],'EndDate',[08 06 2022 18 06 00]);
     
     arguments
         Files                             = 'LAST*_PointingModel*sci*.fits';
@@ -12,7 +12,6 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
         Args.StartDate                    = [];
         Args.EndDate                      = [];
         Args.Nfiles                       = Inf;  % use only last N files
-        %Args.astrometryCroppedArgs cell   = {};
         
         Args.ObsCoo                       = [35 30];  % [deg]
         Args.ConfigFile                   = '/home/ocs/pointingModel.txt';
@@ -52,15 +51,11 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
             TableRow = getAstrometricSolution(List{Ifile});
             
             if Ifile==1
-                Table = TableRow
+                Result = TableRow;
             else
-                Table = [Table; TableRow]
+                Result = [Result; TableRow];
             end
         end
-
-        Result = array2table(Table);
-        Result.Properties.VariableNames = Head;
-        
 
         AllResult(Idirs).Result = Result;
         
@@ -78,7 +73,7 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
         [Dists, Angles] = celestial.coo.sphere_dist( ...
             AllResult(Idirs).Result.CenterHA, ...
             AllResult(Idirs).Result.CenterDec, ...
-            AllResult(Idirs).Result.M_HA, AllResult(Idirs).Result.M_DEC, ...
+            AllResult(Idirs).Result.M_JHA, AllResult(Idirs).Result.M_JDEC, ...
             'deg');
            
         DiffHA(:,Idirs) = Dists.*sin(Angles)*RAD;
@@ -160,9 +155,9 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
     CenterDec = zeros(Nfiles, 4);
     for Idir=1:1:4
         
+        % make sure the coordinate range is ok
         Flag = AllResult(:,Idir).Result.RA>180;
         AllResult(:,Idir).Result.RA(Flag) = AllResult(Idir).Result.RA(Flag)-360;
-        
         Flag = AllResult(:,Idir).Result.CenterRA>180;
         AllResult(:,Idir).Result.CenterRA(Flag) = AllResult(Idir).Result.CenterRA(Flag)-360;
 
@@ -171,8 +166,7 @@ function [AllResult,PM, Report] = pointingModel(Files, Args)
         CenterDec(:,Idir) = AllResult(Idir).Result.CenterDec;
         
         
-        scatter(AllResult(Idir).Result.CenterRA, ...
-            AllResult(Idir).Result.CenterDec, 20, '+r')
+        scatter(CenterRA(:,Idir), CenterDec(:,Idir), 20, '+r')
             
         scatter(AllResult(Idir).Result.RA, ...
             AllResult(Idir).Result.Dec, 20, 'xb')
