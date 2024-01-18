@@ -1297,7 +1297,7 @@ classdef CalibImages < Component
                 Args.CreateNewObj logical           = false;   % refers to the Image and not the Obj!!!
                 
                 % bit dictionary
-                Args.BitDictinaryName               = 'BitMask.Image.Default';
+                Args.BitDictinaryName               = 'BitMask.Image.Default'; % or BitDictionary object.
                 
                 Args.SingleFilter logical           = false;
                 Args.MaskSaturated logical          = true;
@@ -1318,7 +1318,7 @@ classdef CalibImages < Component
                 Args.BitNameNaN                     = 'NaN';
                 Args.BitNameNegative                = 'Negative';
                 Args.SetNegativeTo0 logical         = true;
-                Args.InterpolateOverBadPix logical  = true;
+                Args.InterpolateOverBadPix logical  = false;
                 Args.BitNameBadPix                  = {}; %{'Saturated','NaN', 'Negative'};
                 Args.BitNameInterpolated            = 'Interpolated';
                 Args.interpOverNanArgs cell         = {};
@@ -1332,6 +1332,12 @@ classdef CalibImages < Component
                 Result = Image;
             end
                 
+            if isa(Args.BitDictinaryName, 'BitDictionary')
+                BD = Args.BitDictinaryName;
+            else
+                BD = BitDictionary(Args.BitDictinaryName);
+            end
+
             [Nobj, Nim] = Obj.checkObjImageSize(Image);
                   
             % populate calibration images in a different function
@@ -1345,7 +1351,7 @@ classdef CalibImages < Component
                 if Args.MaskSaturated
                     Result(Iim) = imProc.mask.maskSaturated(Result(Iim), Args.maskSaturatedArgs{:},...
                                                                      'CreateNewObj',false,...
-                                                                     'DefBitDict', BitDictionary(Args.BitDictinaryName) );
+                                                                     'DefBitDict', BD);
                 end
             end
                         
