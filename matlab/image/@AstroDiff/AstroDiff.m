@@ -47,20 +47,22 @@ classdef AstroDiff < Component
     end
     
     properties (Hidden)
-        R_hat
-        N_hat
-        D_hat
-        Pd_hat
-        S_hat
-        Zvec_hat
+        FFT
+%         R_hat
+%         N_hat
+%         D_hat
+%         Pd_hat
+%         S_hat
+%         Zvec_hat
         
         Fd
         F_S
-        D_den_hat
-        D_num_hat
-        D_denSqrt_hat
-        P_deltaNhat
-        P_deltaRhat
+%         AuxFFT
+%         D_den_hat
+%         D_num_hat
+%         D_denSqrt_hat
+%         P_deltaNhat
+%         P_deltaRhat
     end
 
 
@@ -80,6 +82,7 @@ classdef AstroDiff < Component
         end
         
         
+        
     end
     
     methods % read/write
@@ -91,11 +94,14 @@ classdef AstroDiff < Component
 
         % cleanFFT
 
-        % fft
+        % fft(Obj, Fields) - store the results in the *_hat properties
+        % 
 
-        % ifft
+        % ifft(Obj, Fields) from hat to non-hat
 
         % shift
+        
+        % shiftfft
         
         % resizePSF
 
