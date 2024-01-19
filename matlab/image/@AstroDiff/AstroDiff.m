@@ -13,6 +13,8 @@ classdef AstroDiff < Component
         Header
         Key
         PSF
+        Catalog
+        Table
     end
 
     properties
@@ -37,23 +39,47 @@ classdef AstroDiff < Component
         Fr
 
         %
-        RA
-        Dec
-        Table AstroCatalog              % Measurments
-        Cutouts
-        DiffCutouts
+        %RA
+        %Dec
+        %Table AstroCatalog              % Measurments
+        %Cutouts
+        %DiffCutouts
     end
     
     properties (Hidden)
-        D_FFT
-        Pd_FFT
-        S_FFT
-        Zvec_FFT
+        R_hat
+        N_hat
+        D_hat
+        Pd_hat
+        S_hat
+        Zvec_hat
+        
+        Fd
+        F_S
+        D_den_hat
+        D_num_hat
+        D_denSqrt_hat
+        P_deltaNhat
+        P_deltaRhat
     end
 
 
     methods % constructor
        
+    end
+    
+    methods % setters/getters
+        function Val=get.Image(Obj)
+            % getter for Image
+            Val = Obj.D.Image;
+        end
+        
+        function set.Image(Obj, Val)
+            % setter for Image
+            Obj.D.Image = Val;
+        end
+        
+        
     end
     
     methods % read/write
@@ -85,6 +111,7 @@ classdef AstroDiff < Component
         % estimateVar
 
         % subtractionD
+        % [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt, P_deltaNhat, P_deltaRhat] = subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
 
         % subtractionS
 
@@ -93,30 +120,33 @@ classdef AstroDiff < Component
         % subtractionZ2
 
         % findTransients
-
-        % injectArt
-
-
+    end
+    
+    methods % injection simulations
+        % injectArtNew
 
     end
 
-    methods % transients
+    
+    methods % transients inspection and measurment
         % transientsCutouts
 
         % mergeTransients
 
         % searchSolarSystem
 
-        % nearestRedshift
+        % nearRedshift
 
-        % nearestGalaxy
-
+        % nearGalaxy
+        
+        % nearStar
 
     end
 
     
     methods % display
-        
+        % ds9
+        % Display Ref, New, D, S, Z2 in ds9 and mark transients
         
     end    
     
