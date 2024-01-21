@@ -99,8 +99,10 @@ function Result=interp2affine(Obj, AffineTran, Args)
                 switch Args.DataProp{Iprop}
                     case 'Mask'
                         Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
+                        %Result(Iobj).(Args.DataProp{Iprop}) = tools.interp.interp2fast_isMeshGrid(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
                     otherwise
                         Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
+                        %Result(Iobj).(Args.DataProp{Iprop}) = tools.interp.interp2fast_isMeshGrid(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
                 end
             end
         end
