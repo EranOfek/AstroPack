@@ -679,7 +679,7 @@ classdef DemonLAST < Component
             Path = fullfile(BasePath,SubDir);
         end
 
-        function Obj=deleteDayTimeImages(Obj, Args)
+        function [FN, Flag]=deleteDayTimeImages(Obj, Args)
             % Delete science images taken when the Sun is above the horizon
             % Input  : - A pipeline.DemonLAST object.
             %          * ...,key,val,...
@@ -689,7 +689,10 @@ classdef DemonLAST < Component
             %                   Default is {'sci','science'}.
             %            'SunAlt' - Sun altitude threshold above to delete
             %                   the images. Default is 0.
-            % Output : null
+            %            'Delete' - Logical indicating if to delete the
+            %                   images. Default is true.
+            % Output : - FileNames object of all found images
+            %          - Logical indicating, for each image, if Alt>0 
             % Author : Eran Ofek (Apr 2023)
             
             arguments
@@ -697,6 +700,7 @@ classdef DemonLAST < Component
                 Args.TempFileName = '*.fits';
                 Args.Type         = {'sci','science'};
                 Args.SunAlt       = 0;
+                Args.Delete logical = true;
                 
             end
             
@@ -710,7 +714,9 @@ classdef DemonLAST < Component
             Flag     = SunAlt>Args.SunAlt;
             
             FN.reorderEntries(Flag);
-            io.files.delete_cell(FN.genFile());
+            if Args.Delete
+                io.files.delete_cell(FN.genFile());
+            end
             
             cd(PWD);
         end
