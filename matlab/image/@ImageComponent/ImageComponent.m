@@ -52,6 +52,7 @@ classdef ImageComponent < Component
         
         CCDSEC                       = [];      % [Xmin, Xmax, Ymin, Ymax] from previous image. [] - unknown or full
         
+        IsFFT logical               = false;
         %DataProp cell = {'Data'};              % a cell of properties on which the fun_* methods will be applied
         FileName                     = '';      % @FFU
         
