@@ -2,34 +2,16 @@
 %
 %
 
-classdef AstroDiff < Component
+classdef AstroDiff < AstroImage
     
     properties (Dependent)
-        % Linked to the Image in the D image
-        Image    
-        Back
-        Var
-        Mask
-        Header
-        Key
-        PSF
-        Catalog
-        Table
+      
     end
 
     properties
         Ref AstroImage
         New AstroImage
         
-        % Option I:
-        D ImageComponent  % or better a new DiffComponent (inclusing IsFFT), or adding IsFFT to ImageComponent?
-        PSFData AstroPSF
-        HeaderData AstroHeader
-
-        % Option II:
-        D AstroImage
-
-        %
         S ImageComponent  % with IsFFT
         Scorr ImageComponent
         Z2 ImageComponent
@@ -38,12 +20,6 @@ classdef AstroDiff < Component
         Fn
         Fr
 
-        %
-        %RA
-        %Dec
-        %Table AstroCatalog              % Measurments
-        %Cutouts
-        %DiffCutouts
     end
     
     properties (Hidden)
