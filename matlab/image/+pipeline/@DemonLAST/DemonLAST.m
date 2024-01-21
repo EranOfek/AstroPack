@@ -612,7 +612,7 @@ classdef DemonLAST < Component
             end
         end
     
-        function prep_zSpecial(File, Mount, Camera, OutFile, Args)
+        function prep_zSpecialInst(File, Mount, Camera, OutFile, Args)
             % prep a zSpecial.txt file from a list
             %   Given a file of format: fieldName, mount, cam, Nimages, StartJD, EndJD
             %   prep a zSpecial.txt file
