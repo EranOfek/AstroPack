@@ -9,7 +9,7 @@ function [AbsPath] = relPath2absPath(RelPath)
     %          DN = '~/matlab/data/../AstroPack/../data/'; DN1 = tools.os.relPath2absPath(DN)
     %          DN = '~/matlab/AstroPack/../../matlab/../'; DN1 = tools.os.relPath2absPath(DN)
     %          DN1 = tools.os.relPath2absPath('a.fits')
-    
+    %          DN1 = tools.os.relPath2absPath('../a.fits')
 
     FileSep = filesep;
 
@@ -48,11 +48,27 @@ function [AbsPath] = relPath2absPath(RelPath)
             for Is=1:1:Ns
                 AbsPath = sprintf('%s%s%s', AbsPath, FileSep, Splitted{Is});
             end
+
+            % rebuilt path
+            Ns = numel(Splitted);
+            if Ns > 1
+                AbsPath = '';
+                for Is=1:1:Ns
+                    AbsPath = sprintf('%s%s%s', AbsPath, FileSep, Splitted{Is});
+                end
+            else
+                AbsPath = sprintf('%s%s%s',pwd,FileSep,Splitted{1});
+            end    
+
         end
+
+       
+        
     else
         % No change
         AbsPath = RelPath;
     
     end
-        
+
+   
 end
