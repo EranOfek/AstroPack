@@ -5,9 +5,9 @@ function [AbsPath] = relPath2absPath(RelPath)
     % Input  : - Relative path.
     % Output : - Absolute path
     % Author : Eran Ofek (2024 Jan) 
-    % Example: FN = '~/matlab/data/spec/../a.fits'; FN1 = tools.os.relPath2absPath2(FN)
-    %          DN = '~/matlab/data/../AstroPack/../data/'; DN1 = tools.os.relPath2absPath2(DN)
-    %          DN = '~/matlab/AstroPack/../../matlab/../'; DN1 = tools.os.relPath2absPath2(DN)
+    % Example: FN = '~/matlab/data/spec/../a.fits'; FN1 = tools.os.relPath2absPath(FN)
+    %          DN = '~/matlab/data/../AstroPack/../data/'; DN1 = tools.os.relPath2absPath(DN)
+    %          DN = '~/matlab/AstroPack/../../matlab/../'; DN1 = tools.os.relPath2absPath(DN)
 
     FileSep = filesep;
     
@@ -36,10 +36,13 @@ function [AbsPath] = relPath2absPath(RelPath)
     
     % rebuilt path
     Ns = numel(Splitted);
-    AbsPath = '';
-    for Is=1:1:Ns
-        AbsPath = sprintf('%s%s%s', AbsPath, FileSep, Splitted{Is});
-    end
-    
+    if Ns > 1
+        AbsPath = '';
+        for Is=1:1:Ns
+            AbsPath = sprintf('%s%s%s', AbsPath, FileSep, Splitted{Is});
+        end
+    else
+        AbsPath = sprintf('%s%s%s',pwd,FileSep,Splitted{1});
+    end    
         
 end
