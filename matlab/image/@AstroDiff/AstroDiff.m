@@ -239,27 +239,59 @@ classdef AstroDiff < AstroImage
 
         % estimateVar
 
-        function subtractionD(Obj, Args)
+        function Obj=subtractionD(Obj, Args)
             %
+            % Input  : - 
+            %          * ...,key,val,...
+            %            'AbsFun' - absolute value function.
+            %                   Default is @(X) abs(X)
+            %            'Eps' - A small value to add to the demoninators in order
+            %                   to avoid division by zero due to roundoff errors.
+            %                   Default is 0. (If needed set to about 100.*eps).
+            %            'CleanPd' - A logical indicating if to clean Pd (zero low
+            %                   frequencies).
+            %                   Default is true.
+
 
             arguments
                 Obj
-                Args.ZeroPadRowsFFT = [];
-                Args.ZeroPadColsFFT = [];
+                
+                Args.AbsFun            = @(X) abs(X);
+                Args.Eps               = 0;
+                Args.CleanPd logical   = true;          
             end
 
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 
-                [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt, P_deltaNhat, P_deltaRhat] = subtractionD(Obj(Iobj).N_hat,...
+                [Obj(Iobj).D_hat, Obj(Iobj).Pd_hat, Obj(Iobj).Fd, Obj(Iobj).F_S, Obj(Iobj).D_den, Obj(Iobj).D_num, Obj(Iobj).D_denSqrt, Obj(Iobj).P_deltaNhat, Obj(Iobj).P_deltaRhat] = subtractionD(Obj(Iobj).N_hat,...
                                                                                                            Obj(Iobj).R_hat,...
                                                                                                            Obj(Iobj).Pn_hat,...
                                                                                                            Obj(Iobj).Pr_hat,...
-                                                                                                           SigmaN, SigmaR, Fn, Fr, Args)
+                                                                                                           Obj(Iobj).SigmaN,...
+                                                                                                           Obj(Iobj).SigmaR,...
+                                                                                                           Obj(Iobj).Fn,...
+                                                                                                           Obj(Iobj).Fr,...
+                                                                                                           'AbsFun',Args.AbsFun,...
+                                                                                                           'Eps',Args.Eps,...
+                                                                                                           'IsFFT',true,...
+                                                                                                           'IsOutFFT',true,...
+                                                                                                           'CleanPd',Args.CleanPd);
+
+    
             end
         end
 
-        % subtractionS
+
+        function Obj=subtractionS(Obj, Args)
+            %
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Obj(Iobj.S_hat = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
+            end
+        end
+
 
         % subtractionScorr
 

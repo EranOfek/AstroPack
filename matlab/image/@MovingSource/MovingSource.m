@@ -421,14 +421,15 @@ classdef MovingSource < Component
                                                      'FileName',FileName,...
                                                      'ConcatObj',Obj,...
                                                      'Id',[]);
-                 
+                elseif isempty(Tmp)
+                    % do nothing
                 else
                     error('Unknown content format in file %s', FileName);
                 end
                 
             end            
             
-            if Args.PopKA
+            if Args.PopKA && ~isempty(Obj)
                 Obj.popKnownAst;
             end
             
