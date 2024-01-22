@@ -60,15 +60,14 @@ function [AbsPath] = relPath2absPath(RelPath)
                 AbsPath = sprintf('%s%s%s',pwd,FileSep,Splitted{1});
             end    
 
-        end
-
-       
+        end       
         
     else
         % No change
-        AbsPath = RelPath;
-    
+%         AbsPath = RelPath;
+        % still needs some changes
+        RelPath = sprintf('%s%s%s', pwd, FileSep, RelPath);
+        AbsPath = tools.os.relPath2absPath(RelPath);    
     end
-
    
 end
