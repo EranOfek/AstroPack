@@ -284,11 +284,12 @@ classdef AstroDiff < AstroImage
 
 
         function Obj=subtractionS(Obj, Args)
-            %
+            % Given D and Pd, populate S and S_hat
 
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                Obj(Iobj.S_hat = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
+                Obj(Iobj).S_hat = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
+                Obj(Iobj).S     = ifft2(Obj(Iobj).S_hat);
             end
         end
 
