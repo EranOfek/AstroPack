@@ -1965,7 +1965,7 @@ classdef DemonLAST < Component
                         
                         % check for specialspecialIns instructions
                         JDepochs = FN_Sci_Groups(Igroup).julday;
-                        UpArgs = Obj.specialInstruction(JDepochs(1));
+                        UpArgs = Obj.specialInstruction(JDepochs(1), Args);
                         % convert 'all'|'cat' to cell array of data products
                         UpArgs.SaveEpochProduct = pipeline.DemonLAST.PrepSaveProductArg(UpArgs.SaveEpochProduct);
                         UpArgs.SaveVisitProduct = pipeline.DemonLAST.PrepSaveProductArg(UpArgs.SaveVisitProduct);
