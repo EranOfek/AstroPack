@@ -1358,6 +1358,55 @@ classdef ds9 < handle
             
         end
         
+        function write_polygon_region(Vertexes,FileName,Args)
+            % write a ds9 region file with one or more polygon lines 
+            % 
+            % Input: - a 2 column vector of vertex coordinates [RA, Dec] or a
+            %        3-column table where the 3rd column is the polygon number
+            %        - a filename
+            %       ...,key,val,... 
+            %       'CooType' - fk5 (default), fk4, image
+            %       'Color' - line color
+            %       'Width' - line width
+            %       'Font'  - font name
+            %       'FontSize' - font size in pt
+            %       'FontStyle' - font style (e.g., normal, condensed)
+            % Output: - a ds9 region file
+            % Author: A.M. Krassilchtchikov (Jan 2024)
+            % Example: 
+            arguments
+                Vertexes
+                FileName
+                Args.CooType         = 'fk5';   % 'image'|'fk5'
+                Args.Color           = 'green';
+                Args.Width           = 1;
+                Args.Size            = 10;
+                Args.Text            = '';
+                Args.Font            = 'helvetica';  %'helvetica 16 normal'
+                Args.FontSize        = 16;
+                Args.FontStyle       = 'normal';
+            end
+            fileID = fopen(FileName,'w');
+            fprintf(fileID,'# Region file format: DS9 version 4.1\n');
+            fprintf(fileID,'global color=%s dashlist=8 3 width=%d font="%s %d %s roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1\n',...
+                            Args.Color,Args.Width,Args.Font,Args.FontSize,Args.FontStyle);
+            fprintf(fileID,'%s\n',Args.CooType);
+            NumPol = size(Vertexes,3); % number of polygons lines to write
+            for IPol = 1:NumPol
+                fprintf(fileID,'polygon(');
+                X = Vertexes(:,1,IPol);
+                Y = Vertexes(:,2,IPol);
+                for Ivert = 1:numel(X)
+                    fprintf(fileID, '%g,%g,', X(Ivert), Y(Ivert));
+                end
+                % Move the file position indicator back to overwrite the last comma
+                fseek(fileID, -1, 'cof');
+                fprintf(fileID, ')\n'); % close the polygon line
+            end
+            % 
+            fclose(fileID);  
+        end
+        
         % load regions from file
         function load_region(FileName)
             % load regions file name into current ds9 frame
