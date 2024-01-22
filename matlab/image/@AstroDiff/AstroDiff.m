@@ -251,14 +251,14 @@ classdef AstroDiff < AstroImage
             %            'CleanPd' - A logical indicating if to clean Pd (zero low
             %                   frequencies).
             %                   Default is true.
-
+            
 
             arguments
                 Obj
                 
                 Args.AbsFun            = @(X) abs(X);
                 Args.Eps               = 0;
-                Args.CleanPd logical   = true;          
+                Args.CleanPd logical   = true;Args.PopS_hat          = true;
             end
 
             Nobj = numel(Obj);
@@ -284,11 +284,23 @@ classdef AstroDiff < AstroImage
 
 
         function Obj=subtractionS(Obj, Args)
+            % Given D and Pd, populate S and S_hat
             %
+            %            'PopS_hat' - A logical indicating if to populate
+            %                   S_hat. Default is true.
+
+            arguments
+                Obj
+                Args.PopS_hat logical    = true;
+            end
 
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                Obj(Iobj.S_hat = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
+                S_hat           = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
+                if Args.PopS_hat
+                    Obj(Iobj).S_hat = S_hat;
+                end
+                Obj(Iobj).S     = ifft2(Obj(Iobj).S_hat);
             end
         end
 
