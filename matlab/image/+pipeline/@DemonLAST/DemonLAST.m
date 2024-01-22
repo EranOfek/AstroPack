@@ -612,7 +612,7 @@ classdef DemonLAST < Component
             end
         end
     
-        function prep_zSpecialInst(File, Mount, Camera, OutFile, Args)
+        function prep_zSpecialInstruction(File, Mount, Camera, OutFile, Args)
             % prep a zSpecialInst.txt file from a list
             %   Given a file of format: fieldName, mount, cam, Nimages, StartJD, EndJD
             %   prep a zSpecial.txt file
@@ -624,7 +624,7 @@ classdef DemonLAST < Component
             %            See code.
             % Output : - A zSpecialInst.txt file
             % Author : Eran Ofek (Jan 2024)
-            % Example: pipeline.DemonLAST.prep_zSpecialInst('flares_m5',5,[1 2],'zSpecial.txt_05')
+            % Example: pipeline.DemonLAST.prep_zSpecialInstruction('flares_m5',5,[1 2],'zSpecial.txt_05')
 
             arguments
                 File
