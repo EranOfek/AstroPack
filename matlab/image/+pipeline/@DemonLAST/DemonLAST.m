@@ -612,6 +612,55 @@ classdef DemonLAST < Component
             end
         end
     
+        function prep_zSpecialInst(File, Mount, Camera, OutFile, Args)
+            % prep a zSpecialInst.txt file from a list
+            %   Given a file of format: fieldName, mount, cam, Nimages, StartJD, EndJD
+            %   prep a zSpecial.txt file
+            % Input  : - Input File name
+            %          - Mount
+            %          - Camera
+            %          - Output file name.
+            %          * ...,key,val,...
+            %            See code.
+            % Output : - A zSpecialInst.txt file
+            % Author : Eran Ofek (Jan 2024)
+            % Example: pipeline.DemonLAST.prep_zSpecialInst('flares_m5',5,[1 2],'zSpecial.txt_05')
+
+            arguments
+                File
+                
+                Mount
+                Camera
+                OutFile
+                Args.ColName   = 'x_SNName'
+                Args.ColMount  = 'Mount';
+                Args.ColCamera = 'Camera';
+                Args.ColStart  = 'StartJD';
+                Args.ColEnd    = 'EndJD';
+                Args.Parameter = 'SaveEpochProduct'
+            end
+            
+            T = readtable(File);
+
+            Flag = T.(Args.ColMount) == Mount & any(T.(Args.ColCamera) == Camera, 2);
+            T    = T(Flag,:);
+
+            FID = fopen(OutFile,'w');
+            Nt = size(T,1);
+            for It=1:1:Nt
+                Name = T.(Args.ColName){It};
+                Start = T.(Args.ColStart)(It) - 20./86400;
+                End   = T.(Args.ColEnd)(It) + 20./86400;
+
+                DateStart = celestial.time.jd2date(Start,'H');
+                DateEnd   = celestial.time.jd2date(End,'H');
+            
+                fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  %% %s\n', DateStart, Args.Parameter, 'all', Name);
+                fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  %% %s\n', DateEnd,   Args.Parameter, 'cat', Name);
+            end
+
+        end
+        fclose(FID);
     end
 
     
