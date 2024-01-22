@@ -11,6 +11,7 @@ classdef AstroDiff < AstroImage
     properties
         Ref AstroImage
         New AstroImage
+        IsRegistered logical   = false;
         
         S ImageComponent  % with IsFFT
         Scorr ImageComponent
@@ -178,7 +179,7 @@ classdef AstroDiff < AstroImage
 
         end
 
-        function Val=get.S_hat(Obj)
+            % S_hat(Obj)
             % getter for S_hat
 
             % get D_hat
@@ -186,7 +187,7 @@ classdef AstroDiff < AstroImage
             % cross correlate
             % normalize to sigma units
 
-        end
+        
 
         % Need getters for:
         % Fn
@@ -234,6 +235,59 @@ classdef AstroDiff < AstroImage
         % loadRef
 
         % register
+        function Obj=register(Obj, Args)
+            % Register the New and Ref images in AstroDiff
+
+            arguments
+                Obj
+                Args.ReRegister logical   = false;
+                Args.RegisterRef logical  = true;
+
+                Args.InterpMethod             = 'cubic';  % 'makima'
+                Args.InterpMethodMask         = 'nearest';
+                Args.DataProp                 = {'Image','Mask'};
+                Args.ExtrapVal                = NaN;
+                Args.CopyPSF logical          = true;
+                Args.CopyWCS logical          = true;
+                Args.CopyHeader logical       = true;
+                Args.Sampling                 = 20;
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+
+                if ~Obj(Iobj).IsRegistered || Args.ReRegister
+                    if Args.RegisterRef
+
+                        Obj(Iobj).Ref = imProc.transIm.interp2wcs(Obj(Iobj).Ref, Obj(Iobj).New,...
+                                                                  'InterpMethod',Args.InterpMethod,...
+                                                                  'InterpMethodMask',Args.InterpMethodMask,...
+                                                                  'DataProp',Args.DataProp,...
+                                                                  'ExtrapVal',Args.ExtrapVal,...
+                                                                  'CopyPSF',Args.CopyPSF,...
+                                                                  'CopyWCS',Args.CopyWCS,...
+                                                                  'CopyHeader',Args.CopyHeader,...
+                                                                  'Sampling',Args.Sampling,...
+                                                                  'CreateNewObj',false);
+                    else
+                        Obj(Iobj).New = imProc.transIm.interp2wcs(Obj(Iobj).New, Obj(Iobj).Ref,...
+                                                                  'InterpMethod',Args.InterpMethod,...
+                                                                  'InterpMethodMask',Args.InterpMethodMask,...
+                                                                  'DataProp',Args.DataProp,...
+                                                                  'ExtrapVal',Args.ExtrapVal,...
+                                                                  'CopyPSF',Args.CopyPSF,...
+                                                                  'CopyWCS',Args.CopyWCS,...
+                                                                  'CopyHeader',Args.CopyHeader,...
+                                                                  'Sampling',Args.Sampling,...
+                                                                  'CreateNewObj',false);
+                                                                
+                    end
+                    % set IsRegistered
+                    Obj(Iobj).IsRegistered = true;
+                end
+            end % for Iobj=1:1:Nobj
+        end
+
 
         % estimateF
 
@@ -263,7 +317,6 @@ classdef AstroDiff < AstroImage
 
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                
                 [Obj(Iobj).D_hat, Obj(Iobj).Pd_hat, Obj(Iobj).Fd, Obj(Iobj).F_S, Obj(Iobj).D_den, Obj(Iobj).D_num, Obj(Iobj).D_denSqrt, Obj(Iobj).P_deltaNhat, Obj(Iobj).P_deltaRhat] = subtractionD(Obj(Iobj).N_hat,...
                                                                                                            Obj(Iobj).R_hat,...
                                                                                                            Obj(Iobj).Pn_hat,...
@@ -308,6 +361,34 @@ classdef AstroDiff < AstroImage
         % subtractionScorr
 
         % subtractionZ2
+        function translient(Obj, Args)
+            %
+
+            arguments
+                Obj
+
+                Args.Eps              = 0;
+                Args.SetToNaN         = [];
+                Args.NormMethod       = 'analytical';
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                [Z2,Zhat,Norm] = imUtil.properSub.translient(Obj(Iobj).N_hat, Obj(Iobj).R_hat,...
+                                                         Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat,...
+                                                         Obj(Iobj).SigmaN, Obj(Iobj).SigmaR,...
+                                                         'Fn',Obj(Iobj).Fn,...
+                                                         'Fr',Obj(Iobj).Fr,...
+                                                         'IsImFFT',true,...
+                                                         'IsPsfFFT',true,...
+                                                         'ShiftIm',false,...
+                                                         'ShiftPsf',false,...
+                                                         'Eps',Args.Eps,...
+                                                         'SetToNaN',[],...
+                                                         'NormaMethod',Args.NormMethod);
+            end
+
+        end
 
         % findTransients
     end
