@@ -515,7 +515,7 @@ classdef DbQuery < Component
                    % Copy CsvFileName to shared folder, only if we need to copy it                    
                     copyfile(Args.CsvFileName, ClientFileName);
                     NeedDelete = true;
-                    Obj.msgLog(LogLevel.Debug, 'insert: Inserting CSV file, copied to: %s', ClientFileName);
+%                     Obj.msgLog(LogLevel.Debug, 'insert: Inserting CSV file, copied to: %s', ClientFileName);
                 end
 
                 % Prepare COPY FROM statement
@@ -525,7 +525,7 @@ classdef DbQuery < Component
                 t1 = tic();
                 Result = Obj.exec();
                 t2 = toc(t1);
-                Obj.msgLog(LogLevel.Debug, 'insert: COPY FROM: %0.6f', t2);
+%                 Obj.msgLog(LogLevel.Debug, 'insert: COPY FROM: %0.6f', t2);
                 
                 % Delete temporary file
                 if NeedDelete
@@ -567,7 +567,7 @@ classdef DbQuery < Component
                 TempFileName = sprintf('%s.dat', Component.newUuid());
                 [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
                 copyfile(Args.CsvFileName, ClientFileName);
-                Obj.msgLog(LogLevel.Debug, 'insert: Inserting Binary file, copied to: %s', ClientFileName);
+%                 Obj.msgLog(LogLevel.Debug, 'insert: Inserting Binary file, copied to: %s', ClientFileName);
 
                 Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' BINARY', Args.TableName, Columns, ServerFileName);
                 Result = Obj.exec();
@@ -630,7 +630,7 @@ classdef DbQuery < Component
                 TempFileName = sprintf('%s.csv', Component.newUuid());
                 [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
                 Rec.writeCsv(ClientFileName);                
-                Obj.msgLog(LogLevel.Debug, 'insert: Using COPY FROM');
+%                 Obj.msgLog(LogLevel.Debug, 'insert: Using COPY FROM');
                 Obj.SqlText = ['COPY ', string(Args.TableName).char, ' FROM ''', string(ServerFileName).char, ''' DELIMITER '','' CSV HEADER;'];
                 Result = Obj.exec();            
                 return;
@@ -642,7 +642,7 @@ classdef DbQuery < Component
             % See: https://www.programcreek.com/java-api-examples/?class=java.sql.Statement&method=executeUpdate
             T1 = tic();
             RecSqlText = ['INSERT INTO ', string(Args.TableName).char, ' (', SqlColumns, ') VALUES (', SqlValues, ')'];
-            Obj.msgLog(LogLevel.Debug, 'insert: SqlText: %s', RecSqlText);
+%             Obj.msgLog(LogLevel.Debug, 'insert: SqlText: %s', RecSqlText);
 
             % @Todo - RETURNING
             if ~isempty(Args.Returning)
