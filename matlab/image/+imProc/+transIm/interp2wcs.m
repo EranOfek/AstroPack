@@ -1,6 +1,6 @@
 function Result=interp2wcs(Obj, Ref, Args)
     % Transform an image with a WCS into a new grid defined by a ref WCS, using interp2.
-    % Input  : - An AstroImage object, with WCS updated.
+    % Input  : - An (new) AstroImage object, with WCS updated.
     %            Use populateWCS to update WCS from the header.
     %          - An AstroWCS object, or AstroImage containing AstroWCS.
     %            This is either a single element object, or have the same
@@ -28,7 +28,7 @@ function Result=interp2wcs(Obj, Ref, Args)
     %                   Default is true.
     %            'Sampling' - AstroWCS/xy2refxy sampling parameter.
     %                   Default is 20.
-    % Output : - An AstroImage registered to the reference WCS.
+    % Output : - The new AstroImage registered to the reference WCS.
     % Author : Eran Ofek (Jun 2023)
     % Example: AIreg1=imProc.transIm.interp2wcs(AI, AI(1))
 

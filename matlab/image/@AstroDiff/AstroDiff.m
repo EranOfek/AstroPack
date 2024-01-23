@@ -2,34 +2,17 @@
 %
 %
 
-classdef AstroDiff < Component
+classdef AstroDiff < AstroImage
     
     properties (Dependent)
-        % Linked to the Image in the D image
-        Image    
-        Back
-        Var
-        Mask
-        Header
-        Key
-        PSF
-        Catalog
-        Table
+      
     end
 
     properties
         Ref AstroImage
         New AstroImage
+        IsRegistered logical   = false;
         
-        % Option I:
-        D ImageComponent  % or better a new DiffComponent (inclusing IsFFT), or adding IsFFT to ImageComponent?
-        PSFData AstroPSF
-        HeaderData AstroHeader
-
-        % Option II:
-        D AstroImage
-
-        %
         S ImageComponent  % with IsFFT
         Scorr ImageComponent
         Z2 ImageComponent
@@ -37,32 +20,35 @@ classdef AstroDiff < Component
         %
         Fn
         Fr
+        Fd
+        SigmaN
+        SigmaR
 
-        %
-        %RA
-        %Dec
-        %Table AstroCatalog              % Measurments
-        %Cutouts
-        %DiffCutouts
+        ZeroPadRowsFFT   = [];
+        ZeroPadColsFFT   = [];
     end
     
-    properties (Hidden)
-        FFT
-%         R_hat
-%         N_hat
-%         D_hat
-%         Pd_hat
-%         S_hat
-%         Zvec_hat
+    properties (Hidden)  % auxilary images
+       
+        %FFT
+        R_hat
+        Pr_hat
+        N_hat
+        Pn_hat
+
+        D_hat
+        Pd_hat
+        S_hat
         
-        Fd
+        D_den_hat
+        D_num_hat
+        D_denSqrt_hat
+        P_deltaNhat
+        P_deltaRhat
+        
         F_S
-%         AuxFFT
-%         D_den_hat
-%         D_num_hat
-%         D_denSqrt_hat
-%         P_deltaNhat
-%         P_deltaRhat
+
+        Zvec_hat
     end
 
 
@@ -71,18 +57,156 @@ classdef AstroDiff < Component
     end
     
     methods % setters/getters
-        function Val=get.Image(Obj)
-            % getter for Image
-            Val = Obj.D.Image;
+        function Val=get.R_hat(Obj)
+            % getter for R_hat
+
+            if isempty(Obj.R_hat)
+                % R_hat is not available - calculate
+                if Obj.Ref.isemptyImage
+                    error('Ref image is not populated');
+                else
+                    Obj.R_hat = fft2(Obj.Ref.Image, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
+                end
+            else
+                % R_hat is already available - use as is
+            end
+            Val = Obj.R_hat;
         end
-        
-        function set.Image(Obj, Val)
-            % setter for Image
-            Obj.D.Image = Val;
+
+        function Val=get.N_hat(Obj)
+            % getter for N_hat
+
+            if isempty(Obj.N_hat)
+                % N_hat is not available - calculate
+                if Obj.New.isemptyImage
+                    error('New image is not populated');
+                else
+                    Obj.N_hat = fft2(Obj.New.Image, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
+                end
+            else
+                % N_hat is already available - use as is
+            end
+            Val = Obj.N_hat;
         end
+
+        function Val=get.Pr_hat(Obj)
+            % getter for Pr_hat
+
+            if isempty(Obj.Pr_hat)
+                % Pr_hat is not available - calculate
+                if Obj.Ref.isemptyPSF
+                    error('Ref PSF is not populated');
+                else
+                    % pad and shift PSF to full image size
+                    ImageSize = size(Obj.Ref.Image);
+
+                    % Padded Pr to the size of the full image and shifted
+                    % such that the PSF center is at origin:
+                    Pr = Obj.Ref.PSFData.getPSF('StampSize',ImageSize, 'fftshift','fftshift');
+
+                    Obj.Pr_hat = fft2(Pr, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
+                end
+            else
+                % Pr_hat is already available - use as is
+            end
+            Val = Obj.Pr_hat;
+
+        end
+
+        function Val=get.Pn_hat(Obj)
+            % getter for Pn_hat
+
+            if isempty(Obj.Pn_hat)
+                % Pn_hat is not available - calculate
+                if Obj.New.isemptyPSF
+                    error('New PSF is not populated');
+                else
+                    % pad and shift PSF to full image size
+                    ImageSize = size(Obj.New.Image);
+
+                    % Padded Pr to the size of the full image and shifted
+                    % such that the PSF center is at origin:
+                    Pn = Obj.New.PSFData.getPSF('StampSize',ImageSize, 'fftshift','fftshift');
+
+                    Obj.Pn_hat = fft2(Pn, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
+                end
+            else
+                % Pn_hat is already available - use as is
+            end
+            Val = Obj.Pn_hat;
+
+        end
+
+        function Val=get.D_hat(Obj)
+            % getter for D_hat
+
+            if isempty(Obj.D_hat)
+                % D_hat is not available - calculate
+                if Obj.isemptyImage
+                    % consider calculating D here
+                    fprintf('In the future D will be calculated in the getter')
+                    error('D image is not populated');
+                else
+                    Obj.D_hat = fft2(Obj.Image, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
+                end
+            else
+                % D_hat is already available - use as is
+            end
+            Val = Obj.D_hat;
+        end
+
+        function Val=get.Pd_hat(Obj)
+            % getter for Pd_hat
+
+            if isempty(Obj.Pd_hat)
+                % Pd_hat is not available - calculate
+                if Obj.isemptyPSF
+                    error('D PSF is not populated');
+                else
+                    % pad and shift PSF to full image size
+                    ImageSize = size(Obj.Image);
+
+                    % Padded Pd to the size of the full image and shifted
+                    % such that the PSF center is at origin:
+                    Pd = Obj.PSFData.getPSF('StampSize',ImageSize, 'fftshift','fftshift');
+
+                    Obj.Pd_hat = fft2(Pd, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
+                end
+            else
+                % Pd_hat is already available - use as is
+            end
+            Val = Obj.Pd_hat;
+
+        end
+
+            % S_hat(Obj)
+            % getter for S_hat
+
+            % get D_hat
+            % get_Pd_hat
+            % cross correlate
+            % normalize to sigma units
+
         
-        
-        
+
+        % Need getters for:
+        % Fn
+        % Fr
+        % Fd
+        % SigmaN
+        % SigmaR
+
+        % need getters for:
+        % D_den_hat
+        % D_num_hat
+        % D_denSqrt_hat
+        % P_deltaNhat
+        % P_deltaRhat
+        % 
+        % F_S
+        % 
+        % Zvec_hat
+
     end
     
     methods % read/write
@@ -111,19 +235,160 @@ classdef AstroDiff < Component
         % loadRef
 
         % register
+        function Obj=register(Obj, Args)
+            % Register the New and Ref images in AstroDiff
+
+            arguments
+                Obj
+                Args.ReRegister logical   = false;
+                Args.RegisterRef logical  = true;
+
+                Args.InterpMethod             = 'cubic';  % 'makima'
+                Args.InterpMethodMask         = 'nearest';
+                Args.DataProp                 = {'Image','Mask'};
+                Args.ExtrapVal                = NaN;
+                Args.CopyPSF logical          = true;
+                Args.CopyWCS logical          = true;
+                Args.CopyHeader logical       = true;
+                Args.Sampling                 = 20;
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+
+                if ~Obj(Iobj).IsRegistered || Args.ReRegister
+                    if Args.RegisterRef
+
+                        Obj(Iobj).Ref = imProc.transIm.interp2wcs(Obj(Iobj).Ref, Obj(Iobj).New,...
+                                                                  'InterpMethod',Args.InterpMethod,...
+                                                                  'InterpMethodMask',Args.InterpMethodMask,...
+                                                                  'DataProp',Args.DataProp,...
+                                                                  'ExtrapVal',Args.ExtrapVal,...
+                                                                  'CopyPSF',Args.CopyPSF,...
+                                                                  'CopyWCS',Args.CopyWCS,...
+                                                                  'CopyHeader',Args.CopyHeader,...
+                                                                  'Sampling',Args.Sampling,...
+                                                                  'CreateNewObj',false);
+                    else
+                        Obj(Iobj).New = imProc.transIm.interp2wcs(Obj(Iobj).New, Obj(Iobj).Ref,...
+                                                                  'InterpMethod',Args.InterpMethod,...
+                                                                  'InterpMethodMask',Args.InterpMethodMask,...
+                                                                  'DataProp',Args.DataProp,...
+                                                                  'ExtrapVal',Args.ExtrapVal,...
+                                                                  'CopyPSF',Args.CopyPSF,...
+                                                                  'CopyWCS',Args.CopyWCS,...
+                                                                  'CopyHeader',Args.CopyHeader,...
+                                                                  'Sampling',Args.Sampling,...
+                                                                  'CreateNewObj',false);
+                                                                
+                    end
+                    % set IsRegistered
+                    Obj(Iobj).IsRegistered = true;
+                end
+            end % for Iobj=1:1:Nobj
+        end
+
 
         % estimateF
 
         % estimateVar
 
-        % subtractionD
-        % [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt, P_deltaNhat, P_deltaRhat] = subtractionD(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fn, Fr, Args)
+        function Obj=subtractionD(Obj, Args)
+            %
+            % Input  : - 
+            %          * ...,key,val,...
+            %            'AbsFun' - absolute value function.
+            %                   Default is @(X) abs(X)
+            %            'Eps' - A small value to add to the demoninators in order
+            %                   to avoid division by zero due to roundoff errors.
+            %                   Default is 0. (If needed set to about 100.*eps).
+            %            'CleanPd' - A logical indicating if to clean Pd (zero low
+            %                   frequencies).
+            %                   Default is true.
+            
 
-        % subtractionS
+            arguments
+                Obj
+                
+                Args.AbsFun            = @(X) abs(X);
+                Args.Eps               = 0;
+                Args.CleanPd logical   = true;Args.PopS_hat          = true;
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                [Obj(Iobj).D_hat, Obj(Iobj).Pd_hat, Obj(Iobj).Fd, Obj(Iobj).F_S, Obj(Iobj).D_den, Obj(Iobj).D_num, Obj(Iobj).D_denSqrt, Obj(Iobj).P_deltaNhat, Obj(Iobj).P_deltaRhat] = subtractionD(Obj(Iobj).N_hat,...
+                                                                                                           Obj(Iobj).R_hat,...
+                                                                                                           Obj(Iobj).Pn_hat,...
+                                                                                                           Obj(Iobj).Pr_hat,...
+                                                                                                           Obj(Iobj).SigmaN,...
+                                                                                                           Obj(Iobj).SigmaR,...
+                                                                                                           Obj(Iobj).Fn,...
+                                                                                                           Obj(Iobj).Fr,...
+                                                                                                           'AbsFun',Args.AbsFun,...
+                                                                                                           'Eps',Args.Eps,...
+                                                                                                           'IsFFT',true,...
+                                                                                                           'IsOutFFT',true,...
+                                                                                                           'CleanPd',Args.CleanPd);
+
+    
+            end
+        end
+
+
+        function Obj=subtractionS(Obj, Args)
+            % Given D and Pd, populate S and S_hat
+            %
+            %            'PopS_hat' - A logical indicating if to populate
+            %                   S_hat. Default is true.
+
+            arguments
+                Obj
+                Args.PopS_hat logical    = true;
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                S_hat           = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
+                if Args.PopS_hat
+                    Obj(Iobj).S_hat = S_hat;
+                end
+                Obj(Iobj).S     = ifft2(Obj(Iobj).S_hat);
+            end
+        end
+
 
         % subtractionScorr
 
         % subtractionZ2
+        function translient(Obj, Args)
+            %
+
+            arguments
+                Obj
+
+                Args.Eps              = 0;
+                Args.SetToNaN         = [];
+                Args.NormMethod       = 'analytical';
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                [Z2,Zhat,Norm] = imUtil.properSub.translient(Obj(Iobj).N_hat, Obj(Iobj).R_hat,...
+                                                         Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat,...
+                                                         Obj(Iobj).SigmaN, Obj(Iobj).SigmaR,...
+                                                         'Fn',Obj(Iobj).Fn,...
+                                                         'Fr',Obj(Iobj).Fr,...
+                                                         'IsImFFT',true,...
+                                                         'IsPsfFFT',true,...
+                                                         'ShiftIm',false,...
+                                                         'ShiftPsf',false,...
+                                                         'Eps',Args.Eps,...
+                                                         'SetToNaN',[],...
+                                                         'NormaMethod',Args.NormMethod);
+            end
+
+        end
 
         % findTransients
     end
