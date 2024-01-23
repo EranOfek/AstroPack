@@ -1801,7 +1801,7 @@ classdef OrbitalEl < Base
                 
                 Args.ConeSearch logical    = false;
                 Args.coneSearchArgs cell   = {};
-                Args.QuickSearchBuffer     = 500;    % to be added to SearchRadis (same units).
+                Args.QuickSearchBuffer     = 1000;    % to be added to SearchRadis (same units).
                 Args.SearchBufferUnits     = 'arcsec';
                 
                 Args.Integration logical   = true;
