@@ -157,7 +157,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
     arguments
         CatPM AstroCatalog
         
-        Args.BitDict(1,1) BitDictionary
+        Args.BitDict(1,1) BitDictionary   = BitDictionary;
         Args.Images                       = [];   % column per CatPM element
         
         Args.ColNameRA                    = 'RA';  % RA at central epoch
@@ -287,7 +287,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
             LinkedAstIndex       = 0;
             LinkedColumn         = nan(Nsrc, 1);  % nan - no PM | negative/unique(not necessely continous) - asteroid w/o links | >0 - asteroid with links
             LinkedColumn(AstInd) = -(1:1:numel(AstInd));
-            if NastCand>1
+            if NastCand>0
                 for Icand=1:1:NastCand
                     Dist = celestial.coo.sphere_dist_fast(CandRA(Icand), CandDec(Icand), CandRA, CandDec);
                     Dist(Icand) = NaN;
