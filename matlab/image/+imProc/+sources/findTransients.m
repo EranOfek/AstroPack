@@ -205,17 +205,20 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
         Result(Iobj).SNm  = ResultD.SNm;
         Result(Iobj).LocalMax = LocalMax;
 
-        [RA, Dec] = xy2sky(New.WCS, LocalMax(:,1), LocalMax(:,2));
+        [RA, Dec] = xy2sky(New.WCS, LocalMax(:,1), LocalMax(:,2),'OutUnits','rad');
+        RA = cast(RA,'double');
+        Dec = cast(Dec,'double');
 
         [MidJD, ExpTime] = New.julday();
-        col_size = ones(size(RA));
+
+        col_size = size(RA);
         ExpTime_d = ExpTime/3600/24;
         StartJD = MidJD-ExpTime_d/2;
         EndJD = MidJD+ExpTime_d/2;
 
-        MidJD = MidJD*col_size;
-        StartJD = StartJD*col_size;
-        EndJD = EndJD*col_size;
+        MidJD = MidJD*ones(col_size);
+        StartJD = StartJD*ones(col_size);
+        EndJD = EndJD*ones(col_size);
 
         TranTable = AstroCatalog;
        
@@ -224,16 +227,35 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
             'PSF_SNm', 'Chi2_D', 'NewMaskVal', 'RefMaskVal',...
             'ValSdN', 'ValSdR', 'Scorr', 'Z2_TS', 'Z2_Sig', 'S2_TS', 'S2_Sig', ...
             'N_SNm', 'N_Chi2dof', 'N_Flux', 'N_Mag', ...
-            'R_SNm', 'R_Chi2dof', 'R_Flux', 'R_Mag'};
+            'R_SNm', 'R_Chi2dof', 'R_Flux', 'R_Mag',...
+            };
 
         TranTable.Catalog  = table(LocalMax(:,1), LocalMax(:,2), RA, Dec, ...
             StartJD, MidJD, EndJD,...
             ResultD.SNm, Chi2dof,  NewMaskVal,  RefMaskVal, ...
             ValSdN,  ValSdR, LocalMax(:,3), Z2_TS, Z2_sig, S2_TS, S2_sig, ...
             ResultN.SNm, ResultN.Chi2./ResultN.Dof, ResultN.Flux, ResultN.Mag, ...
-            ResultR.SNm, ResultR.Chi2./ResultR.Dof, ResultR.Flux, ResultR.Mag );
+            ResultR.SNm, ResultR.Chi2./ResultR.Dof, ResultR.Flux, ResultR.Mag... 
+            );
+
+        TranTable.ColUnits = {'','','','',...
+            '','','',...
+            '','','','',...
+            '','','','','','','',...
+            '','','','',...
+            '','','','',...
+            };
+
 
         TranTable.Catalog.Properties.VariableNames = TranTable.ColNames;
+        TranTable.Catalog.Properties.VariableUnits = TranTable.ColUnits;
+
+        TranTable = imProc.match.match_catsHTMmerged(TranTable);
+        [TranTable, ~, ~, ~] = imProc.match.match_catsHTM(TranTable, ...
+            'GLADE','ColDistName','Galaxy_Dist','ColNmatchName','Galaxy_Matches');
+        [TranTable, ~, ~, ~] = imProc.match.match_catsHTM(TranTable, ...
+            'CRTS_per_var','ColDistName','VarStar_Dist','ColNmatchName','VarStar_Matches');
+
         Result(Iobj).TranTable = TranTable;
         
     end
@@ -305,3 +327,4 @@ function [TS, significance] = process_TS_map(TS_map, x_vec, y_vec, dist, dof)
     significance = -norminv(p_val);
     significance(isinf(significance)) = nan;
 end
+
