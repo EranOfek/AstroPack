@@ -293,7 +293,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
                     Dist(Icand) = NaN;
 
                     FlagLink = Dist < LinkingRadiusRad;
-                    if sum(FlagLink)>0
+                    if sum(FlagLink)>1
                         % found a match for asteroid 
                         LinkedAstIndex = LinkedAstIndex + 1;
 
