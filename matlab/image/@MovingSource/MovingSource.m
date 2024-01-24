@@ -394,7 +394,7 @@ classdef MovingSource < Component
                 Files = io.files.rdir(Args.AstFileTemp);
             elseif ischar(InFile) || isstring(InFile)
                 Files(1).folder = pwd;
-                Files(1).name   = AstCrop;
+                Files(1).name   = InFile;
             else
                 error('Unkonwn InFile option');
             end

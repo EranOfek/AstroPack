@@ -161,7 +161,9 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                 % to the start time of the whole visit:
                 if strcmpi(Args.Level,'coadd')
                     FN = FN.updateIfNotEmpty('Counter',0);
-                    JDstart = repmat(celestial.time.julday(Obj(1).HeaderData.getVal('DATEOBS')),Nobj,1);
+                    IsEmpty = Obj.isemptyImage;
+                    Ind1 = find(~IsEmpty, 1, 'first');
+                    JDstart = repmat(celestial.time.julday(Obj(Ind1).HeaderData.getVal('DATEOBS')),Nobj,1);
                     FN = FN.updateIfNotEmpty('Time',JDstart);
                 end
         end
