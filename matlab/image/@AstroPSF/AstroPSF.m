@@ -219,7 +219,7 @@ classdef AstroPSF < Component
             % Input : - An AstroPSF object (or a matrix of objects) 
             %         * ...,key,val,...
             %         'FunPSF' - a PSF-generating function handle
-            %         'StampSize' - an option to pad the PSF stamp 
+            %         'StampSize' - An option to pad the PSF stamp [I, J]. 
             %         'fftpshift' - if padding is requested, whether to perform fft shift: 
             %                       'none' (default),'fftshift','ifftshift'
             %         'PsfArgs'   - desired position of the stamp in the multi-D space of PSF.DataPSF:

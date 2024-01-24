@@ -38,7 +38,7 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     %                   set to NaN when the flags map equal true.
     %                   If empty, then skip this step.
     %                   Default is [].
-    %            'NormalizationMethod' - Method in which Z2 should be
+    %            'NormMethod' - Method in which Z2 should be
     %            normalized. Choices are 'analytical', 'empirical', and
     %            'None'. Default is 'analytical'.
     % Output : - (Z2) The translient statistic.
@@ -71,7 +71,7 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
         Args.Eps                      = 0;
 
         Args.SetToNaN         = [];
-        Args.NormalizationMethod = 'analytical';
+        Args.NormMethod = 'analytical';
     end
 
 
@@ -118,7 +118,7 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     end
 
     % degrees of freedom
-    switch Args.NormalizationMethod
+    switch Args.NormMethod
         case 'analytical'
             % Zs^2 from Translient paper eq. 23
             Z2 = Z2./Norm; 

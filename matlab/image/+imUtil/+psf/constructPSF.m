@@ -249,8 +249,7 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
     if ~isempty(Args.SN)
         FlagGoodPsf = FlagGoodPsf & (Args.SN(:,2)>Args.RangeSN(1) & Args.SN(:,2)<Args.RangeSN(2));
     end
-        
-    
+            
     % FlagGoodPsf contains the good sources
     NgoodPsf = sum(FlagGoodPsf);
 
@@ -275,6 +274,11 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         XY = [Xstamp, Ystamp]; %[Args.X, Args.Y];
         XY = XY(IndGoodPsf,:);
         
+        % cut the M1.X and M1.Y values for the selected stars to be
+        % employed in imUtil.psf.constructPSF_cutouts below:
+        M1.X = M1.X(FlagGoodPsf);
+        M1.Y = M1.Y(FlagGoodPsf); 
+        
         [MeanPSF, VarPSF, NimPSF, FlagSelected] = imUtil.psf.constructPSF_cutouts(Cube(:,:,IndGoodPsf), XY,...
                                                         'Annulus',Args.Annulus,...
                                                         'ReCenter',true,...
@@ -282,6 +286,7 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
                                                         'SmoothWings',Args.SmoothWings,...
                                                         'SubAnnulusBack',Args.SubAnnulusBack,...
                                                         'SumMethod',Args.SumMethod,...
+                                                        'M1',M1,...
                                                         Args.constructPSF_cutoutsArgs{:});
     else
         warning('PSF construction failed: did not find enough good PSF stars');

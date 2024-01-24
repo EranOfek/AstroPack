@@ -82,6 +82,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         
         Args.MultiplyByGain logical           = true; % after fringe correction
         Args.MaskSaturated(1,1) logical       = true;
+        Args.InterpolateOverBadPix logical    = false;
         Args.DoAstrometry(1,1) logical        = true;
         Args.DoPhotometry(1,1) logical        = true;
         Args.MatchExternal(1,1) logical       = false;
@@ -90,10 +91,11 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.RemoveBadImages logical          = true;
         Args.identifyBadImagesArgs cell       = {};
         
+        Args.BitDictionaryName                = 'BitMask.Image.Default';
         Args.BitNameBadPix                  = {}; %{'NaN','Negative'};
         Args.BitNameInterpolated            = 'Interpolated';
                 
-        Args.KeySoftVer                       = 'PIPEVER';
+        Args.KeySoftVer                       = []; %'PIPEVER';  % if empty skip
         
         Args.InterpolateOverProblems logical  = false; %true;
         Args.BitNamesToInterp                 = {'Saturated','HighRN','DarkHighVal','Hole','Spike','CR_DeltaHT'};
@@ -141,8 +143,8 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                  'SN','BACK_IM','VAR_IM',...  
                                                  'BACK_ANNULUS', 'STD_ANNULUS', ...
                                                  'FLUX_APER', 'FLUXERR_APER',...
-                                                 'MAG_APER', 'MAGERR_APER',...
-                                                 'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
+                                                 'MAG_APER', 'MAGERR_APER'};
+                                                 %'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
         Args.DeletePropAfterSrcFinding        = {}; %{'Back','Var'};
         
         
@@ -160,6 +162,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.SaveFileName                     = [];  % full path or ImagePath object
         Args.CreateNewObj logical             = false;
                 
+       
     end
     
     % Get Image
@@ -195,7 +198,9 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
     end
     
     % add AstroPack version to headers
-    AI.setKeyVal(Args.KeySoftVer, tools.git.getVersion);
+    if ~isempty(Args.KeySoftVer)
+        AI.setKeyVal(Args.KeySoftVer, tools.git.getVersion);
+    end
 
     % set CalibImages
     if isempty(Args.CalibImages)
@@ -235,7 +240,8 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
     % CalibImages object.
     AI = Args.CalibImages.processImages(AI, ...
                               'SingleFilter',true,...
-                              'InterpolateOverBadPix',true,...
+                              'BitDict',Args.BitDictionaryName,...
+                              'InterpolateOverBadPix',Args.InterpolateOverBadPix,...
                               'BitNameBadPix',Args.BitNameBadPix,...
                               'BitNameInterpolated',Args.BitNameInterpolated,...
                               'MaskSaturated',Args.MaskSaturated,...

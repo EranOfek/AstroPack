@@ -64,48 +64,59 @@ end
 
 % Inear(Ilat) is a two column matrix [low, high] index for each latitude
 % search
-Ilowhigh = double(Inear(Ilat));
-Ilow     = Ilowhigh(:,1);
-Ihigh    = min(Ncat,Ilowhigh(:,2)+1); % add 1 because of the way mfind_bin works
-
-IndTable = [nan(Nlat,2), zeros(Nlat,1)]; % [Index, Dist, Nmatch]
-%tools.struct.struct_def({'Ind','Nmatch','Dist'},Nlat,1);
-
-CatFlagNearest  = false(Ncat,1);
-CatFlagAll      = false(Ncat,1);
-
-
-for I=1:1:Nlat
-    %Dist  = celestial.coo.sphere_dist_fast(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat));
-    Dist  = DistFun(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat), DistFunArgs{:});
-    FlagDist = Dist <= Radius;
+if isempty(Inear)
     
-    IndI  = Ilow(I)-1+find(FlagDist);
-    DistI = Dist(FlagDist);
-    if ~isempty(DistI)
-        [MinDist, MinInd] = min(DistI);
-        %IndTable(I,1) = IndI(MinInd);   % VERIFY THIS???
-        %IndTable(I,2) = MinDist;
-        %IndTable(I,3) = numel(IndI);
-        IndTable(I,:) = [IndI(MinInd), MinDist, numel(IndI)];
+    IndTable = nan(Nlat,3);
+    IndTable(:,3) = 0;
+    
+    CatFlagNearest = [];
+    CatFlagAll = [];
+    IndInRef = [];
+else
+
+    Ilowhigh = double(Inear(Ilat));
+    Ilow     = Ilowhigh(:,1);
+    Ihigh    = min(Ncat,Ilowhigh(:,2)+1); % add 1 because of the way mfind_bin works
+    
+    IndTable = [nan(Nlat,2), zeros(Nlat,1)]; % [Index, Dist, Nmatch]
+    %tools.struct.struct_def({'Ind','Nmatch','Dist'},Nlat,1);
+    
+    CatFlagNearest  = false(Ncat,1);
+    CatFlagAll      = false(Ncat,1);
+    
+    
+    for I=1:1:Nlat
+        %Dist  = celestial.coo.sphere_dist_fast(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat));
+        Dist  = DistFun(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat), DistFunArgs{:});
+        FlagDist = Dist <= Radius;
         
-        CatFlagNearest(IndTable(I,1)) = true;
-        CatFlagAll(IndI)              = true;
+        IndI  = Ilow(I)-1+find(FlagDist);
+        DistI = Dist(FlagDist);
+        if ~isempty(DistI)
+            [MinDist, MinInd] = min(DistI);
+            %IndTable(I,1) = IndI(MinInd);   % VERIFY THIS???
+            %IndTable(I,2) = MinDist;
+            %IndTable(I,3) = numel(IndI);
+            IndTable(I,:) = [IndI(MinInd), MinDist, numel(IndI)];
+            
+            CatFlagNearest(IndTable(I,1)) = true;
+            CatFlagAll(IndI)              = true;
+            
+        end
         
     end
     
-end
-
-
-if nargout>3
-    IndRef = (1:1:Nlat).';
-    NewIndTable = IndTable(:,1);
-
-    FlagNN = ~isnan(NewIndTable);
-    IndRef = IndRef(FlagNN);
-    NewIndTable = NewIndTable(FlagNN);
-
-    IndInRef = nan(Ncat,1);
-
-    IndInRef(NewIndTable) = IndRef;
+    
+    if nargout>3
+        IndRef = (1:1:Nlat).';
+        NewIndTable = IndTable(:,1);
+    
+        FlagNN = ~isnan(NewIndTable);
+        IndRef = IndRef(FlagNN);
+        NewIndTable = NewIndTable(FlagNN);
+    
+        IndInRef = nan(Ncat,1);
+    
+        IndInRef(NewIndTable) = IndRef;
+    end
 end

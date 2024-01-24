@@ -41,7 +41,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
 
     arguments
         Array
-        Args.DiluteFactor              = 1;
+        Args.DiluteFactor              = 2;
         Args.DiluteFactor1             = 10;
         
         Args.Convert2single logical    = false;

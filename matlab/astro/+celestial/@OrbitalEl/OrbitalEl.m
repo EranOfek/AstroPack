@@ -241,11 +241,11 @@ classdef OrbitalEl < Base
                 Ndata = size(Result.(Prop{Iprop}), 1);
                 %if numel(Flag)==Ndata
                 if Ndata>1 || Ne==1
-                    if iscell(Result.(Prop{Iprop}))
+                    %if iscell(Result.(Prop{Iprop}))
                         Result.(Prop{Iprop}) = Result.(Prop{Iprop})(Flag,:);
-                    else
-                        Result.(Prop{Iprop}) = Result.(Prop{Iprop})(Flag,:);
-                    end
+                    %else
+                    %    Result.(Prop{Iprop}) = Result.(Prop{Iprop})(Flag,:);
+                    %end
                 end
             end
             
@@ -1801,7 +1801,7 @@ classdef OrbitalEl < Base
                 
                 Args.ConeSearch logical    = false;
                 Args.coneSearchArgs cell   = {};
-                Args.QuickSearchBuffer     = 500;    % to be added to SearchRadis (same units).
+                Args.QuickSearchBuffer     = 1000;    % to be added to SearchRadis (same units).
                 Args.SearchBufferUnits     = 'arcsec';
                 
                 Args.Integration logical   = true;
