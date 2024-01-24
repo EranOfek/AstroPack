@@ -760,7 +760,7 @@ classdef DbQuery < Component
             Result = false;
 
             % Execute SQL statement (using java calls)
-            Obj.msgLog(LogLevel.Debug, 'DbQuery: updateRecord');
+            %Obj.msgLog(LogLevel.Debug, 'DbQuery: updateRecord');
             tic();
 
             % Use speified TableName or Obj.TableName
@@ -781,10 +781,10 @@ classdef DbQuery < Component
                 Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', string(SetColumns).char];
             end
             
-            Obj.msgLog(LogLevel.Debug, 'update: SqlText: %s', Obj.SqlText);
+            %Obj.msgLog(LogLevel.Debug, 'update: SqlText: %s', Obj.SqlText);
 
             % Prepare query
-            Obj.msgLog(LogLevel.Debug, 'updateRecord: %s', Obj.SqlText);
+            %Obj.msgLog(LogLevel.Debug, 'updateRecord: %s', Obj.SqlText);
             try
                 Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
             catch Ex
@@ -806,7 +806,7 @@ classdef DbQuery < Component
             end
 
             Obj.Toc = toc();
-            Obj.msgLog(LogLevel.Perf, 'update time: %.6f', Obj.Toc);
+            %Obj.msgLog(LogLevel.Perf, 'update time: %.6f', Obj.Toc);
         end
 
 
@@ -840,7 +840,7 @@ classdef DbQuery < Component
             assert(~isempty(Args.TableName));
             
             % Execute SQL statement (using java calls)
-            Obj.msgLog(LogLevel.Debug, 'DbQuery: deleteRecord');
+            %Obj.msgLog(LogLevel.Debug, 'DbQuery: deleteRecord');
             tic();
 
             % Need connection, clear current query
@@ -856,7 +856,7 @@ classdef DbQuery < Component
             end
 
             % Prepare query
-            Obj.msgLog(LogLevel.Debug, 'deleteRecord: %s', Obj.SqlText);
+            %Obj.msgLog(LogLevel.Debug, 'deleteRecord: %s', Obj.SqlText);
             try
                 Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
             catch Ex
@@ -874,7 +874,7 @@ classdef DbQuery < Component
             end
 
             Obj.Toc = toc();
-            Obj.msgLog(LogLevel.Perf, 'deleteRecord time: %.6f', Obj.Toc);
+            %Obj.msgLog(LogLevel.Perf, 'deleteRecord time: %.6f', Obj.Toc);
         end
     end
 
@@ -975,7 +975,7 @@ classdef DbQuery < Component
             end
 
             % Prepare query
-            Obj.msgLog(LogLevel.Debug, 'exec: %s', Obj.SqlText);
+            %Obj.msgLog(LogLevel.Debug, 'exec: %s', Obj.SqlText);
             try
                 Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
             catch Ex
@@ -1789,7 +1789,7 @@ classdef DbQuery < Component
                 end
             end
 
-            Obj.msgLog(LogLevel.Debug, 'makeUpdateColumnText: %s', SqlColumns);
+            %Obj.msgLog(LogLevel.Debug, 'makeUpdateColumnText: %s', SqlColumns);
         end
 
 
@@ -1826,7 +1826,7 @@ classdef DbQuery < Component
                 end
             end
 
-            Obj.msgLog(LogLevel.Debug, 'makeWhereColumnsText: %s', SqlColumns);
+            %Obj.msgLog(LogLevel.Debug, 'makeWhereColumnsText: %s', SqlColumns);
         end
 
 
@@ -1952,7 +1952,7 @@ classdef DbQuery < Component
 
             % Iterate struct fields
             % See https://docs.oracle.com/javase/7/docs/api/java/sql/PreparedStatement.html
-            Obj.msgLog(LogLevel.Debug, 'getColumnNamesOfType: %s', ColumnType);
+            %Obj.msgLog(LogLevel.Debug, 'getColumnNamesOfType: %s', ColumnType);
 
             Result = {};
             for ColIndex = 1:Obj.ColCount
