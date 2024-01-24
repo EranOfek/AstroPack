@@ -16,7 +16,15 @@ function [Stamp, Var] = cropByQuantile(PSF, Quantile, Args)
         Args.Normalize = true;
         Args.Variance  = [];
     end
-    [~, Stamp, Var] = imUtil.psf.quantileRadius(PSF, 'Level', Quantile, 'Variance', Args.Variance);
+    if isempty(PSF) % do nothing
+        Stamp = PSF;
+        return
+    end
+    if ~isempty(Args.Variance)        
+        [~, Stamp, Var] = imUtil.psf.quantileRadius(PSF, 'Level', Quantile, 'Variance', Args.Variance);
+    else
+        [~, Stamp, ~]   = imUtil.psf.quantileRadius(PSF, 'Level', Quantile, 'Variance', Args.Variance);
+    end
     if Args.Normalize
         Stamp = imUtil.psf.normPSF(Stamp); 
     end
