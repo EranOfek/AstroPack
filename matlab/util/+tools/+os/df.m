@@ -18,13 +18,13 @@ function [Str, DiskP] = df(Template)
     DiskP = NaN;
 
     if isunix || ismac
-        if isempty(Args.Template)
-            [~,Str] = system('df');
+        if isempty(Template)
+            [R,Str] = system('df');
         else
-            [~,Str] = system(sprintf('df | grep %d',Template));
+            [R,Str] = system(sprintf('df | grep %d',Template));
             Cell = regexp(Str, 'split', '\s');
             Ind = find(contains(Cell, '%s'));
-            DiskP = str2double(Cell(Ind)(1:end-1));
+            DiskP = str2double(Cell{Ind}(1:end-1));
         end
 
     else

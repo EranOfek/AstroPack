@@ -28,5 +28,5 @@ function startBatchLASTPipeline(Args)
     tools.systemd.mex.notify_ready;
     
     % Run the actual daemon
-    D.main('StopButton', false, 'StopFullDisk', 95);
+    D.main('StopButton', false);
 end
