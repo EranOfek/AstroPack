@@ -13,9 +13,9 @@ classdef AstroDiff < AstroImage
         New AstroImage
         IsRegistered logical   = false;
         
-        S ImageComponent  % with IsFFT
+        S ImageComponent  % with IsFFT - do we need ImageComponent?
         Scorr ImageComponent
-        Z2 ImageComponent
+        Z2sigma ImageComponent
 
         %
         Fn
@@ -216,9 +216,13 @@ classdef AstroDiff < AstroImage
     end
 
     methods % utilities
-        % norm
+        % normS
+        
+        % normZ2
+        
+        % S2
 
-        % cleanFFT
+        % cleanFFT (?)
 
         % fft(Obj, Fields) - store the results in the *_hat properties
         % 
