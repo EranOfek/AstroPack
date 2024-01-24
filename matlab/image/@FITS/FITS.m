@@ -978,6 +978,7 @@ classdef FITS < handle
             %                       is false.
             %            'WriteTime'- Add creation time to image header.
             %                       Default is false.
+            %            'SanifyPath' - whether to sanify the file name
             % Example: Result = FITS.write(rand(100,100),'Try.fits');
             %          Result = FITS.write(rand(10,10,3),'Try.fits');
             %
@@ -990,6 +991,7 @@ classdef FITS < handle
                 Args.Append(1,1) logical      = false;
                 Args.OverWrite(1,1) logical  = false;
                 Args.WriteTime(1,1) logical   = false;
+                Args.SanifyPath logical       = true;
             end
             
             HeaderField = HEAD.HeaderField;
@@ -1006,10 +1008,12 @@ classdef FITS < handle
             end
             
             % sanify the file name so that it contain the absolute path
-            if strcmp(FileName(1),'!') % need this for the case when overwrite is requested 
-                FileName = strcat('!',tools.os.relPath2absPath(FileName(2:end)));
-            else
-                FileName = tools.os.relPath2absPath(FileName);
+            if Args.SanifyPath
+                if strcmp(FileName(1),'!') % need this for the case when overwrite is requested
+                    FileName = strcat('!',tools.os.relPath2absPath(FileName(2:end)));
+                else
+                    FileName = tools.os.relPath2absPath(FileName);
+                end
             end
             
             % Prepare header
