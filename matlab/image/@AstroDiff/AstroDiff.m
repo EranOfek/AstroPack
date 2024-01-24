@@ -21,8 +21,10 @@ classdef AstroDiff < AstroImage
         Fn
         Fr
         Fd
-        SigmaN
-        SigmaR
+        BackN
+        BackR
+        VarN
+        VarR
 
         ZeroPadRowsFFT   = [];
         ZeroPadColsFFT   = [];
@@ -236,7 +238,47 @@ classdef AstroDiff < AstroImage
 
         % register
         function Obj=register(Obj, Args)
-            % Register the New and Ref images in AstroDiff
+            % Register the New and Ref images in AstroDiff using their WCS.
+            %   Use imProc.transIm.interp2wcs to register the Ref and New
+            %   images.
+            %   By default will register the Ref image into the New image
+            %   (such that the New doesn't change) [controlled via the RegisterRef
+            %   argument].
+            %   
+            % Input  : - An AstroDiff object.
+            %            New and Ref must be populated and contains a WCS.
+            %          * ...,key,val,...
+            %            'ReRegister' - A logical indicating if to
+            %                   re-register the images even if the IsRegistere
+            %                   property is true.
+            %                   Default is false.
+            %            'RegisterRef' - A logical.
+            %                   If true register the Ref into New.
+            %                   If false register the New into Ref.
+            %                   Default is true.
+            %            'InterpMethod' - Interpolation method.
+            %                   Default is 'cubic'.
+            %            'InterpMethodMask' - Interpolation method for mask
+            %                   images. Default is 'nearest'.
+            %            'DataProp' - data properties in the AstroImage to
+            %                   interpolate.
+            %                   Default is {'Image','Mask'}.
+            %            'ExtrapVal' - Extrapolation value. Default is NaN.
+            %            'CopyPSF' - Copy PSF from input image. Default is true.
+            %            'CopyWCS' - Copy WCS from input image. Default is true.
+            %            'CopyHeader' - Copy Header from input image. Default is true.
+            %                   If CopyWCS is true, then will update header by the
+            %                   WCS.
+            %            'Sampling' - AstroWCS/xy2refxy sampling parameter.
+            %                   Default is 20.
+            %
+            % Output : - An AstroDiff object in which the Ref and New are
+            %            registered.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: AD.Ref = AstroImage.readFileNamesObj('LAST.01.02.01_20230828.014050.716_clear_358+34_001_001_010_sci_proc_Image_1.fits');
+            %          AD.New = AstroImage.readFileNamesObj('LAST.01.02.01_20230828.014710.841_clear_358+34_020_001_010_sci_proc_Image_1.fits');
+            %          % Register the Ref image into the New image (New won't change)
+            %          AD.register
 
             arguments
                 Obj
@@ -289,9 +331,189 @@ classdef AstroDiff < AstroImage
         end
 
 
-        % estimateF
+        % ready
+        function Obj=estimateFnFr(Obj, Args)
+            % Estimate Fn/Fr (flux matching) and return matching factors such that Fn=1
+            %   Rstimate Fn/Fr using various methods.
+            % Input  : - An AstroDiff object.
+            %          * ...,key,val,...
+            %            'NewZP' - Either Zero Point (in mag or flux), or
+            %                   header keyword name containing the ZP of the New image.
+            %                   Default is 'PH_ZP'.
+            %            'RefZP' - Like 'NewZP', but for the Ref image.
+            %                   Default is 'PH_ZP'.
+            %            'IsMagZP' - If true, then the units of the ZP is
+            %                   mag, if false, then units are flux.
+            %                   Default is true.
+            %
+            % Output : - An AstroDiff object in which the Fn and Fr flux
+            %            matching values are populated.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: AD.estimateFnFr
 
-        % estimateVar
+            arguments
+                Obj
+                %Args.Method           = 'header';
+                Args.NewZP            = 'PH_ZP';
+                Args.RefZP            = 'PH_ZP';
+                Args.IsMagZP logical  = true;
+                Args.Fn               = 1;
+        
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                % get photometric zero point
+                if ischar(Args.NewZP)
+                    Fn = Obj(Iobj).New.HeaderData.getVal(Args.NewZP);
+                else
+                    Fn = Args.NewZP;
+                end
+                if ischar(Args.RefZP)
+                    Fr = Obj(Iobj).Ref.HeaderData.getVal(Args.RefZP);
+                else
+                    Fr = Args.RefZP;
+                end
+
+                % convert to flx units
+                if Args.IsMagZP
+                    Fn     = 10.^(-0.4.*Fn);
+                    Fr     = 10.^(-0.4.*Fr);
+                end
+               
+                if isempty(Args.Fn)
+                    % no normalization
+                else
+                    % Normalize by Fn value.
+                    Fr = Args.Fn .* Fr./Fn;   % Fr = Fn./Fr; bug?
+                    Fn = Args.Fn;
+                end
+                        
+                Obj(Iobj).Fr = Fr;
+                Obj(Iobj).Fn = Fn;
+
+            end
+
+
+        end
+
+        % ready
+        function Obj=estimateBackVar(Obj, Args)
+            % Estimate global background and variance of New and Ref images
+            % and populate the BackN, BackR, VarN, VarR properties.
+            %   The back/var will be calculated as the global "mean" of the
+            %   Back/Var properties in the New/Ref AstroImage objects.
+            %   If not populated, then the Back/Var properties will be
+            %   first populated using: imProc.background.background
+            %
+            % Input  : - An AstroDiff object in which the New and Ref images are populated.
+            %          * ...,key,val,...
+            %            'FunBackImage' - Function handle to use for
+            %                   calculation of the global "mean" background
+            %                   from the Back property in the AstroImage of
+            %                   the New and Ref images.
+            %                   Default is @fast_median.
+            %            'FunBackImageArgs' - A cell array of additional
+            %                   arguments to pass to 'FunBackImage'.
+            %                   Default is {}.
+            %            'FunVarImage' - Like 'FunBackImage', but for the
+            %                   variance.
+            %                   Default is @fast_median.
+            %            'FunVarImageArgs' - A cell array of additional
+            %                   arguments to pass to 'FunVarImage'.
+            %                   Default is {}.
+            %
+            %            'BackFun' - A function handle for the background (and
+            %                   optionally variance) estimation.
+            %                   The function is of the form:
+            %                   [Back,[Var]]=Fun(Matrix,additional parameters,...),
+            %                   where the output Variance is optional.
+            %                   The additional parameters are provided by the
+            %                   'BackFunPar' keyword (see next keyword).
+            %                   Default is @imUtil.background.modeVar_LogHist
+            %                   [other example: @median]
+            %            'BackFunPar' - A cell array of additional parameters to pass
+            %                   to the BackFun function.
+            %                   Default is {'MinVal',1} (i.e., additional arguments
+            %                   to pass to @imUtil.background.modeVar_LogHist).
+            %            'VarFun' - A function handle for the background estimation.
+            %                   The function is of the form:
+            %                   [Var]=Fun(Matrix,additional parameters,...).
+            %                   The additional parameters are provided by the
+            %                   'VarFunPar' keyword (see next keyword).
+            %                   If NaN, then will not calculate the variance.
+            %                   If empty, then will assume the variance is returned as
+            %                   the second output argument of 'BackFun'.
+            %                   If a string then will copy Back value into the Var.
+            %                   Default is empty (i.e., @imUtil.background.rvar returns
+            %                   the robust variance as the second output argument).
+            %            'VarFunPar' - A cell array of additional parameters to pass
+            %                   to the VarFun function.
+            %                   Default is {}.
+            %            'SubSizeXY' - The [X,Y] size of the partitioned sub images.
+            %                   If 'full' or empty, use full image.
+            %                   Default is [].
+            %            'Overlap' - The [X,Y] additional overlaping buffer between
+            %                   sub images to add to each sub image.
+            %                   Default is 16.
+            %
+            % Output : - An AstroDiff object in which the BackN, BackR,
+            %            VarN, VarR properties are populated.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: AD.estimateBackVar
+
+            arguments
+                Obj
+                Args.FunBackImage           = @fast_median;
+                Args.FunBackImageArgs cell  = {};
+                Args.FunVarImage            = @fast_median;
+                Args.FunVarImageArgs cell   = {};
+
+                Args.BackFun                     = @imUtil.background.modeVar_LogHist; %@median;
+                Args.BackFunPar cell             = {'MinVal',30, 'MaxVal',7000}; %{[1 2]};  % 5000 is the max vab. allowed in LAST images
+        
+                Args.VarFun                      = []; %@imUtil.background.rvar; % [];
+                Args.VarFunPar cell              = {};
+                Args.SubSizeXY                   = [];
+                Args.Overlap                     = 16;
+                
+
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if any(isemptyImage(Obj(Iobj).New, {'Back','Var'}), 'all')
+                    % Re calculate global back/var
+                    Obj(Iobj).New = imProc.background.background(Obj(Iobj).New, 'BackFun',Args.BackFun,...
+                                                                                'BackFunPar',Args.BackFunPar,...
+                                                                                'VarFun',Args.VarFun,...
+                                                                                'VarFunPar',Args.VarFunPar,...
+                                                                                'SubSizeXY',Args.SubSizeXY,...
+                                                                                'Overlap',Args.Overlap,...
+                                                                                'SubBack',false);
+                end
+
+                if any(isemptyImage(Obj(Iobj).Ref, {'Back','Var'}), 'all')
+                    % Re calculate global back/var
+                    Obj(Iobj).Ref = imProc.background.background(Obj(Iobj).Ref, 'BackFun',Args.BackFun,...
+                                                                                'BackFunPar',Args.BackFunPar,...
+                                                                                'VarFun',Args.VarFun,...
+                                                                                'VarFunPar',Args.VarFunPar,...
+                                                                                'SubSizeXY',Args.SubSizeXY,...
+                                                                                'Overlap',Args.Overlap,...
+                                                                                'SubBack',false);
+                end
+
+                Obj(Iobj).BackN = Args.FunBackImage(Obj(Iobj).New.Back(:), Args.FunBackImageArgs{:});
+                Obj(Iobj).VarN  = Args.FunBackImage(Obj(Iobj).New.Var(:), Args.FunVarImageArgs{:});
+
+                Obj(Iobj).BackR = Args.FunBackImage(Obj(Iobj).Ref.Back(:), Args.FunBackImageArgs{:});
+                Obj(Iobj).VarR  = Args.FunBackImage(Obj(Iobj).Ref.Var(:), Args.FunVarImageArgs{:});
+                
+            end
+
+        end
+
 
         function Obj=subtractionD(Obj, Args)
             %
