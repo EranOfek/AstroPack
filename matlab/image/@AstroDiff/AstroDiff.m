@@ -271,6 +271,10 @@ classdef AstroDiff < AstroImage
             %                   WCS.
             %            'Sampling' - AstroWCS/xy2refxy sampling parameter.
             %                   Default is 20.
+            %            'SetNaNBitMask' - A logical indicating if to flag
+            %                   NaN pixels (after registration) in the bit mask
+            %                   image.
+            %                   Default is true.
             %
             % Output : - An AstroDiff object in which the Ref and New are
             %            registered.
@@ -293,6 +297,8 @@ classdef AstroDiff < AstroImage
                 Args.CopyWCS logical          = true;
                 Args.CopyHeader logical       = true;
                 Args.Sampling                 = 20;
+
+                Args.SetNaNBitMask logical    = true;
             end
 
             Nobj = numel(Obj);
@@ -311,6 +317,11 @@ classdef AstroDiff < AstroImage
                                                                   'CopyHeader',Args.CopyHeader,...
                                                                   'Sampling',Args.Sampling,...
                                                                   'CreateNewObj',false);
+                        % mask NaN pixels (typically at edges)
+                        if Args.SetNaNBitMask
+                            Obj(Iobj).Ref = imProc.mask.maskNaN(Obj(Iobj).Ref, 'CreateNewObj',false);
+                        end
+
                     else
                         Obj(Iobj).New = imProc.transIm.interp2wcs(Obj(Iobj).New, Obj(Iobj).Ref,...
                                                                   'InterpMethod',Args.InterpMethod,...
@@ -322,7 +333,10 @@ classdef AstroDiff < AstroImage
                                                                   'CopyHeader',Args.CopyHeader,...
                                                                   'Sampling',Args.Sampling,...
                                                                   'CreateNewObj',false);
-                                                                
+                        % mask NaN pixels (typically at edges)
+                        if Args.SetNaNBitMask
+                            Obj(Iobj).New = imProc.mask.maskNaN(Obj(Iobj).New, 'CreateNewObj',false);
+                        end
                     end
                     % set IsRegistered
                     Obj(Iobj).IsRegistered = true;
@@ -514,6 +528,8 @@ classdef AstroDiff < AstroImage
 
         end
 
+        % replaceNaN - replace NaN pixels with Back level with/out noise.
+
 
         function Obj=subtractionD(Obj, Args)
             %
@@ -543,8 +559,8 @@ classdef AstroDiff < AstroImage
                                                                                                            Obj(Iobj).R_hat,...
                                                                                                            Obj(Iobj).Pn_hat,...
                                                                                                            Obj(Iobj).Pr_hat,...
-                                                                                                           Obj(Iobj).SigmaN,...
-                                                                                                           Obj(Iobj).SigmaR,...
+                                                                                                           sqrt(Obj(Iobj).VarN),...
+                                                                                                           sqrt(Obj(Iobj).VarR),...
                                                                                                            Obj(Iobj).Fn,...
                                                                                                            Obj(Iobj).Fr,...
                                                                                                            'AbsFun',Args.AbsFun,...
