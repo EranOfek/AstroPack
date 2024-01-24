@@ -263,6 +263,7 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
     IndGoodPsf = find(FlagGoodPsf);
     
     if NgoodPsf>Args.MinNumGoodPsf && nargout>1
+        
         if ~isempty(Args.Back)
             % read back at X/Y positions
             Ind  = imUtil.image.sub2ind_fast(size(Args.Back), round(Args.Y), round(Args.X));
@@ -288,27 +289,28 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
                                                         'SumMethod',Args.SumMethod,...
                                                         'M1',M1,...
                                                         Args.constructPSF_cutoutsArgs{:});
+                           
+        % convert data type 
+        if ~isempty(Args.DataType)
+            MeanPSF = Args.DataType(MeanPSF);
+            VarPSF  = Args.DataType(VarPSF);
+        end
+
+        % suppress edges
+        if ~isempty(Args.SuppressWidth) && ~isempty(MeanPSF) 
+             MeanPSF = imUtil.psf.suppressEdges(MeanPSF, 'Fun',Args.SuppressFun, 'FunPars', [Args.RadiusPSF-Args.SuppressWidth, Args.RadiusPSF]);
+        end
+
+        % cut the stamp and its variance to a given quantile
+        if Args.CropByQuantile
+            [MeanPSF, VarPSF] = imUtil.psf.cropByQuantile(MeanPSF,Args.Quantile,'Variance',VarPSF);
+        end          
+
     else
         warning('PSF construction failed: did not find enough good PSF stars');
         MeanPSF = [];
         VarPSF  = [];
         NimPSF  = 0;
     end
-    
-    % convert data type 
-    if ~isempty(Args.DataType)
-        MeanPSF = Args.DataType(MeanPSF);
-        VarPSF  = Args.DataType(VarPSF);
-    end
-    
-    % suppress edges
-    if ~isempty(Args.SuppressWidth) && ~isempty(MeanPSF) 
-         MeanPSF = imUtil.psf.suppressEdges(MeanPSF, 'Fun',Args.SuppressFun, 'FunPars', [Args.RadiusPSF-Args.SuppressWidth, Args.RadiusPSF]);
-    end
-    
-    % cut the stamp and its variance to a given quantile
-    if Args.CropByQuantile
-        [MeanPSF, VarPSF] = imUtil.psf.cropByQuantile(MeanPSF,Args.Quantile,'Variance',VarPSF);
-    end          
-          
+              
 end
