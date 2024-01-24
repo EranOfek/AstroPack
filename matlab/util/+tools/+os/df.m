@@ -6,6 +6,7 @@ function [Str, DiskP] = df(Template)
     %            percentage.
     % Output : - String of df output.
     %          - Percentage-full of requested disk name.
+    %            NaN if disk was not found
     % Author : Eran Ofek (2023 Dec) 
     % Example: [Str, DiskP] = tools.os.df('data1')
 
@@ -21,9 +22,12 @@ function [Str, DiskP] = df(Template)
         if isempty(Template)
             [R,Str] = system('df');
         else
-            [R,Str] = system(sprintf('df | grep %d',Template));
-            Cell = regexp(Str, 'split', '\s');
-            Ind = find(contains(Cell, '%s'));
+            [R,Str] = system(sprintf('df | grep %s',Template));
+            if isempty(Str)
+                DiskP = NaN;
+            end
+            Cell = regexp(Str, '\s', 'split');
+            Ind = find(contains(Cell, '%'));
             DiskP = str2double(Cell{Ind}(1:end-1));
         end
 
