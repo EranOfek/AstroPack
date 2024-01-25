@@ -1787,22 +1787,22 @@ classdef DemonLAST < Component
                 Args.INPOP                            = [];
                 Args.AsteroidSearchRadius             = 10;
 
-                Args.RunAsService logical  = false;
+                %Args.RunAsService logical  = false;
             end
             RAD = 180./pi;
 
 
-            if isempty(getenv('SYSTEMD')) 
-                % manual execuation
-                % skip
-            else
-                % SYSTEMD env var exist
-                if Args.RunAsService
-                    % skip
-                else
-                    error('pipeline.DemonLAST/main should be running as a service - if you want to execute it manually then use: RunAsService=true');
-                end
-            end
+            % if isempty(getenv('SYSTEMD')) 
+            %     % manual execuation
+            %     % skip
+            % else
+            %     % SYSTEMD env var exist
+            %     if Args.RunAsService
+            %         % skip
+            %     else
+            %         error('pipeline.DemonLAST/main should be running as a service - if you want to execute it manually then use: RunAsService=true');
+            %     end
+            % end
 
 
             if Args.SelectKnownAsteroid

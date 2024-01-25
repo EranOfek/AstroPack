@@ -1501,6 +1501,53 @@ classdef FileNames < Component
             Result = reorderEntries(Result, Flag);
         end
         
+        function [Result,Flag] = selectByDate(Obj, MinJD, MaxJD, Args)
+            % Select entries by JD in some range
+            % Input  : - A FileNames object.
+            %          - Min JD or date [D M Y H M S].
+            %          - Max JD or date.
+            %          * ...,key,val,...
+            %            'SelectNotVal' - Select files which are not the
+            %                   required val. Default is false.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the input object.
+            %                   Default is true.
+            % Output : - A FileNames object with the selected entries.
+            %          - A vector of logicals indicating the selected
+            %            entries.
+            % Author : Eran Ofek (Jan 2024)
+            
+            arguments
+                Obj
+                MinJD                       = -Inf;
+                MaxJD                       = Inf;
+                Args.SelectNotVal logical   = false;   
+                Args.CreateNewObj logical   = true;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+        
+            if size(MinJD,2)>1
+                MinJD = celestial.time.julday(MinJD);
+            end
+            if size(MaxJD,2)>1
+                MaxJD = celestial.time.julday(MaxJD);
+            end
+
+            JD = Result.julday;
+            Flag = JD>MinJD & JD<MaxJD;
+            if Args.SelectNotVal
+                Flag = ~Flag;
+            end
+            
+            Result = reorderEntries(Result, Flag);
+        end
+
+
         function [Groups, Result] = groupByCounter(Obj, Args)
             % Group entries according to running counter groups.
             %   Given the Counter entry in an FileNames object, create
