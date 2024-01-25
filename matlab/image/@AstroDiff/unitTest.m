@@ -13,7 +13,8 @@ function Result=unitTest()
 
     % Register the Ref image into the New image (New won't change)
     AD.register
-
+    AD.subtractionD
+    
     Result = true;
 
 end

@@ -26,12 +26,14 @@ classdef AstroDiff < AstroImage
         VarN
         VarR
 
-        ZeroPadRowsFFT   = [];
-        ZeroPadColsFFT   = [];
+       
     end
     
     properties (Hidden)  % auxilary images
-       
+        ZeroPadRowsFFT   = [];
+        ZeroPadColsFFT   = [];
+
+
         %FFT
         R_hat
         Pr_hat
@@ -180,6 +182,69 @@ classdef AstroDiff < AstroImage
             Val = Obj.Pd_hat;
 
         end
+
+        function Val=get.Fn(Obj)
+            % getter for Fn
+
+            if isempty(Obj.Fn)
+                [Obj, Val, ~] = Obj.estimateFnFr;
+            else
+                Val = Obj.Fn;
+            end
+            
+        end
+
+        function Val=get.Fr(Obj)
+            % getter for Fr
+
+            if isempty(Obj.Fr)
+                [Obj, ~, Val] = Obj.estimateFnFr;
+            else
+                Val = Obj.Fr;
+            end
+            
+        end
+
+        function Val=get.BackN(Obj)
+            % getter for BackN
+
+            if isempty(Obj.BackN)
+                [Obj] = Obj.estimateBackVar;
+            end
+            Val = Obj.BackN;
+            
+        end
+
+        function Val=get.BackR(Obj)
+            % getter for BackR
+
+            if isempty(Obj.BackR)
+                [Obj] = Obj.estimateBackVar;
+            end
+            Val = Obj.BackR;
+            
+        end
+
+        function Val=get.VarN(Obj)
+            % getter for VarN
+
+            if isempty(Obj.VarN)
+                [Obj] = Obj.estimateBackVar;
+            end
+            Val = Obj.VarN;
+            
+        end
+
+        function Val=get.VarR(Obj)
+            % getter for VarR
+
+            if isempty(Obj.VarR)
+                [Obj] = Obj.estimateBackVar;
+            end
+            Val = Obj.VarR;
+            
+        end
+
 
             % S_hat(Obj)
             % getter for S_hat
@@ -349,10 +414,12 @@ classdef AstroDiff < AstroImage
         end
 
 
-        % ready
-        function Obj=estimateFnFr(Obj, Args)
+        % ready / Fn/Fr not tested
+        function [Obj, Fn, Fr]=estimateFnFr(Obj, Args)
             % Estimate Fn/Fr (flux matching) and return matching factors such that Fn=1
-            %   Rstimate Fn/Fr using various methods.
+            %   Restimate Fn/Fr using various methods.
+            %   This function is automatically called by the Fn/Fr getters.
+            %   Calling this function will recalculate Fr/Fn.
             % Input  : - An AstroDiff object.
             %          * ...,key,val,...
             %            'NewZP' - Either Zero Point (in mag or flux), or
@@ -366,6 +433,8 @@ classdef AstroDiff < AstroImage
             %
             % Output : - An AstroDiff object in which the Fn and Fr flux
             %            matching values are populated.
+            %          - The last value of Fn
+            %          - The last value of Fr
             % Author : Eran Ofek (Jan 2024)
             % Example: AD.estimateFnFr
 
@@ -407,6 +476,7 @@ classdef AstroDiff < AstroImage
                     Fn = Args.Fn;
                 end
                         
+                % Its important not to use the Fn/Fr getters
                 Obj(Iobj).Fr = Fr;
                 Obj(Iobj).Fn = Fn;
 
@@ -423,6 +493,9 @@ classdef AstroDiff < AstroImage
             %   Back/Var properties in the New/Ref AstroImage objects.
             %   If not populated, then the Back/Var properties will be
             %   first populated using: imProc.background.background
+            %
+            %   This function is automatically called by the BackN/BackR/VarN/VarR getters.
+            %   Calling this function will recalculate BackN/BackR/VarN/VarR.
             %
             % Input  : - An AstroDiff object in which the New and Ref images are populated.
             %          * ...,key,val,...
@@ -532,12 +605,59 @@ classdef AstroDiff < AstroImage
 
         end
 
-        % replaceNaN - replace NaN pixels with Back level with/out noise.
+        % ready
+        function Obj=replaceNaN(Obj, Args)
+            % Replace NaN pixels in New and Ref with Back value or other value.
+            % Input  : - An AstroDiff object.
+            %          * ...,key,val,...
+            %            'ReplaceVal' - All the NaN pixels in the New and
+            %                   Ref images will be replaced with this value.
+            %                   If 'back', then will take the value from
+            %                   the 'BackN' and 'BackR' properties.
+            %                   Default is 'back'.
+            % Output : - An updated AstroDiff object, in which the NaN
+            %            values in the New and Ref images is replaced.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: AD.replaceNaN
 
+            arguments
+                Obj
+                Args.ReplaceVal  = 'back';  % or scalar
+            end
 
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                % New image
+                if ischar(Args.ReplaceVal)
+                    ValN = Obj(Iobj).BackN;
+                else
+                    ValN = Args.ReplaceVal;
+                end
+                Obj(Iobj).New = imProc.image.replaceVal(Obj(Iobj).New, NaN, ValN, 'CreateNewObj',false, 'UseOutRange',false);
+
+                % Ref image
+                if ischar(Args.ReplaceVal)
+                    ValR = Obj(Iobj).BackR;
+                else
+                    ValR = Args.ReplaceVal;
+                end
+                Obj(Iobj).Ref = imProc.image.replaceVal(Obj(Iobj).Ref, NaN, ValR, 'CreateNewObj',false, 'UseOutRange',false);
+            end
+           
+        end
+
+        % ready
         function Obj=subtractionD(Obj, Args)
+            % Calculate ZOGY D images and its PSF Pd.
+            %   Given New and Ref images, this function will create the
+            %   ZOGY subtraction image D (proper subtraction image) and
+            %   populate it in AstroDiff along with its PSF Pd.
+            %   By default, the D image will be normalized to units of flux
+            %   using Fd.
+            %   If needed the New and Ref will be registered prior to
+            %   subtraction.
             %
-            % Input  : - 
+            % Input  : - An AstroDiff object.
             %          * ...,key,val,...
             %            'AbsFun' - absolute value function.
             %                   Default is @(X) abs(X)
@@ -547,33 +667,129 @@ classdef AstroDiff < AstroImage
             %            'CleanPd' - A logical indicating if to clean Pd (zero low
             %                   frequencies).
             %                   Default is true.
-            
+            %            'ReplaceNaN' - A logical indicating if to replace
+            %                   NaN's pixels in the New and Ref with thir
+            %                   respective mean background levels.
+            %                   Default is true.
+            %            'ReplaceNaNArgs' - A cell array of additional
+            %                   arguments to pass to replaceNaN.
+            %                   Default is {}.
+            %            'NormDbyFd' - A logical indicating if to normalize
+            %                   D to units of flux, by dividing it by Fd.
+            %                   Default is true.
+            %
+            %            'HalfSizePSF' - The size of the Pd PSF populated
+            %                   in the AstroDiff PSFData property.
+            %                   If 'full', then use a full size image (same
+            %                   size as New and Ref).
+            %                   If empty, then use the PSF size of New.
+            %                   Otherwise [HalfSize] of the output PSF
+            %                   size.
+            %                   Default is [].
+            %            'zeroConvArgs' - A cell array of arguments to pass
+            %                   to zeroConv in imUtil.psf.full2stamp.
+            %                   Default is {}.
+            %            'NormPSF' - A logical indicating if to normalize
+            %                   Pd PSF to unity. Default is true.
+            %            'SuppressEdgesPSF' - A logical indicating if to supress the
+            %                   edges of the PSF using imUtil.psf.suppressEdges
+            %                   Default is true.
+            %            'SuppressEdgesArgs' - A cell array of additional arguments
+            %                   to pass to imUtil.psf.suppressEdges
+            %                   Default is {}.
+            %
+            % Output : - An AstroDiff object with the populated
+            %            D in the Image property.
+            %            Pd in the PSFData property.
+            %            New and Ref registered, and Fr, Fn, BackN, BackR,
+            %            VarN, VarR populated.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: AD.subtractionD
 
             arguments
                 Obj
                 
-                Args.AbsFun            = @(X) abs(X);
-                Args.Eps               = 0;
-                Args.CleanPd logical   = true;Args.PopS_hat          = true;
+                Args.AbsFun              = @(X) abs(X);
+                Args.Eps                 = 0;
+                Args.CleanPd logical     = true;
+                
+                Args.ReplaceNaN logical  = true;
+                Args.ReplaceNaNArgs cell = {};
+
+                Args.NormDbyFd logical   = true;
+                
+                Args.HalfSizePSF         = [];  % []- use New PSF size; 'full', or size
+                Args.zeroConvArgs cell   = {};
+                Args.NormPSF logical     = true;
+                Args.SuppressEdgesPSF logical  = true;
+                Args.SuppressEdgesArgs cell    = {};
+            end
+
+            
+
+            if Args.ReplaceNaN
+                Obj.replaceNaN(Args.ReplaceNaNArgs{:});
             end
 
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                [Obj(Iobj).D_hat, Obj(Iobj).Pd_hat, Obj(Iobj).Fd, Obj(Iobj).F_S, Obj(Iobj).D_den, Obj(Iobj).D_num, Obj(Iobj).D_denSqrt, Obj(Iobj).P_deltaNhat, Obj(Iobj).P_deltaRhat] = subtractionD(Obj(Iobj).N_hat,...
-                                                                                                           Obj(Iobj).R_hat,...
-                                                                                                           Obj(Iobj).Pn_hat,...
-                                                                                                           Obj(Iobj).Pr_hat,...
-                                                                                                           sqrt(Obj(Iobj).VarN),...
-                                                                                                           sqrt(Obj(Iobj).VarR),...
-                                                                                                           Obj(Iobj).Fn,...
-                                                                                                           Obj(Iobj).Fr,...
-                                                                                                           'AbsFun',Args.AbsFun,...
-                                                                                                           'Eps',Args.Eps,...
-                                                                                                           'IsFFT',true,...
-                                                                                                           'IsOutFFT',true,...
-                                                                                                           'CleanPd',Args.CleanPd);
 
-    
+                if ~Obj(Iobj).IsRegistered
+                    % register images if needed
+                    Obj(Iobj).register;
+                end
+
+
+                [Obj(Iobj).D_hat, Obj(Iobj).Pd_hat, Obj(Iobj).Fd, Obj(Iobj).F_S,...
+                                  Obj(Iobj).D_den_hat, Obj(Iobj).D_num_hat, Obj(Iobj).D_denSqrt_hat,...
+                                  Obj(Iobj).P_deltaNhat, Obj(Iobj).P_deltaRhat] = imUtil.properSub.subtractionD(Obj(Iobj).N_hat,...
+                                                                                               Obj(Iobj).R_hat,...
+                                                                                               Obj(Iobj).Pn_hat,...
+                                                                                               Obj(Iobj).Pr_hat,...
+                                                                                               sqrt(Obj(Iobj).VarN),...
+                                                                                               sqrt(Obj(Iobj).VarR),...
+                                                                                               Obj(Iobj).Fn,...
+                                                                                               Obj(Iobj).Fr,...
+                                                                                               'AbsFun',Args.AbsFun,...
+                                                                                               'Eps',Args.Eps,...
+                                                                                               'IsFFT',true,...
+                                                                                               'IsOutFFT',true,...
+                                                                                               'CleanPd',Args.CleanPd);    
+                % calculate D
+                D = ifft2(Obj(Iobj).D_hat);
+                if Args.NormDbyFd
+                    D = D./Obj(Iobj).Fd;
+                end
+                Obj(Iobj).Image = D;
+
+                % calculate Pd
+                Pd = ifft2(Obj(Iobj).Pd_hat);
+                if ischar(Args.HalfSizePSF)
+                    % full - do not touch
+                else
+                    if isempty(Args.HalfSizePSF)
+                        % use PSF size of new
+                        [NPy, NPx] = size(Obj(Iobj).New.PSFData.getPSF);
+                        if NPx~=NPy
+                            error('Asymmetric PSF');
+                        end
+                        HalfSizePSF = (NPx - 1).*0.5;
+                    else
+                        HalfSizePSF = Args.HalfSizePSF;
+                    end
+                    HalfSizePSF = (HalfSizePSF(:).*ones(2,1)).';
+                    Pd = imUtil.psf.full2stamp(Pd, 'StampHalfSize', HalfSizePSF,...
+                                                   'IsCorner',true,...
+                                                   'Recenter',false,...
+                                                   'zeroConvArgs',Args.zeroConvArgs,...
+                                                   'Norm',Args.NormPSF);
+                    
+                end
+                if Args.SuppressEdgesPSF
+                    Pd = imUtil.psf.suppressEdges(Pd, Args.SuppressEdgesArgs{:});
+                end
+                Obj(Iobj).PSFData.Data = Pd;
+
             end
         end
 

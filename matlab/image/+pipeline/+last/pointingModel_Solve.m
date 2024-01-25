@@ -4,7 +4,7 @@ function [AllResult] = pointingModel_Solve(Files, Args)
     %            Default is 'LAST*_PointingModel*sci*.fits'.
     %          * ...,key,val,...
     %            see code.
-    % Example: [R,PM,Report] = pipeline.last.pointingModel('LAST*_PointingModel*sci*.fits','StartDate',[08 06 2022 17 54 00],'EndDate',[08 06 2022 18 06 00]);
+    % Example: [R] = pipeline.last.pointingModel('LAST*_PointingModel*sci*.fits','StartDate',[08 06 2022 17 54 00],'EndDate',[08 06 2022 18 06 00]);
     
     arguments
         Files                             = 'LAST*_PointingModel*sci*.fits';
