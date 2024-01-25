@@ -33,7 +33,7 @@ classdef AstroDiff < AstroImage
         ZeroPadRowsFFT   = [];
         ZeroPadColsFFT   = [];
 
-        
+
         %FFT
         R_hat
         Pr_hat
@@ -648,8 +648,16 @@ classdef AstroDiff < AstroImage
 
 
         function Obj=subtractionD(Obj, Args)
+            % Calculate ZOGY D images and its PSF Pd.
+            %   Given New and Ref images, this function will create the
+            %   ZOGY subtraction image D (proper subtraction image) and
+            %   populate it in AstroDiff along with its PSF Pd.
+            %   By default, the D image will be normalized to units of flux
+            %   using Fd.
+            %   If needed the New and Ref will be registered prior to
+            %   subtraction.
             %
-            % Input  : - 
+            % Input  : - An AstroDiff object.
             %          * ...,key,val,...
             %            'AbsFun' - absolute value function.
             %                   Default is @(X) abs(X)
@@ -659,7 +667,44 @@ classdef AstroDiff < AstroImage
             %            'CleanPd' - A logical indicating if to clean Pd (zero low
             %                   frequencies).
             %                   Default is true.
-            
+            %            'ReplaceNaN' - A logical indicating if to replace
+            %                   NaN's pixels in the New and Ref with thir
+            %                   respective mean background levels.
+            %                   Default is true.
+            %            'ReplaceNaNArgs' - A cell array of additional
+            %                   arguments to pass to replaceNaN.
+            %                   Default is {}.
+            %            'NormDbyFd' - A logical indicating if to normalize
+            %                   D to units of flux, by dividing it by Fd.
+            %                   Default is true.
+            %
+            %            'HalfSizePSF' - The size of the Pd PSF populated
+            %                   in the AstroDiff PSFData property.
+            %                   If 'full', then use a full size image (same
+            %                   size as New and Ref).
+            %                   If empty, then use the PSF size of New.
+            %                   Otherwise [HalfSize] of the output PSF
+            %                   size.
+            %                   Default is [].
+            %            'zeroConvArgs' - A cell array of arguments to pass
+            %                   to zeroConv in imUtil.psf.full2stamp.
+            %                   Default is {}.
+            %            'NormPSF' - A logical indicating if to normalize
+            %                   Pd PSF to unity. Default is true.
+            %            'SuppressEdgesPSF' - A logical indicating if to supress the
+            %                   edges of the PSF using imUtil.psf.suppressEdges
+            %                   Default is true.
+            %            'SuppressEdgesArgs' - A cell array of additional arguments
+            %                   to pass to imUtil.psf.suppressEdges
+            %                   Default is {}.
+            %
+            % Output : - An AstroDiff object with the populated
+            %            D in the Image property.
+            %            Pd in the PSFData property.
+            %            New and Ref registered, and Fr, Fn, BackN, BackR,
+            %            VarN, VarR populated.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: AD.subtractionD
 
             arguments
                 Obj
@@ -680,12 +725,21 @@ classdef AstroDiff < AstroImage
                 Args.SuppressEdgesArgs cell    = {};
             end
 
+            
+
             if Args.ReplaceNaN
                 Obj.replaceNaN(Args.ReplaceNaNArgs{:});
             end
 
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
+
+                if ~Obj(Iobj).IsRegistered
+                    % register images if needed
+                    Obj(Iobj).register;
+                end
+
+
                 [Obj(Iobj).D_hat, Obj(Iobj).Pd_hat, Obj(Iobj).Fd, Obj(Iobj).F_S,...
                                   Obj(Iobj).D_den_hat, Obj(Iobj).D_num_hat, Obj(Iobj).D_denSqrt_hat,...
                                   Obj(Iobj).P_deltaNhat, Obj(Iobj).P_deltaRhat] = imUtil.properSub.subtractionD(Obj(Iobj).N_hat,...
