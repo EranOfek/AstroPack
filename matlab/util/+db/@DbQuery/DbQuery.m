@@ -690,7 +690,7 @@ classdef DbQuery < Component
                 RecIndex = RecIndex + BatchSize;
                 Toc2 = toc(T2);
                 if Obj.PerfLog
-                    Obj.msgLog(LogLevel.Debug, 'insert (%d) prepare time: %f, BatchCount: %d', BatchNum, Toc2, BatchSize);
+                    %Obj.msgLog(LogLevel.Debug, 'insert (%d) prepare time: %f, BatchCount: %d', BatchNum, Toc2, BatchSize);
                 end
 
                 % Execute the statement
