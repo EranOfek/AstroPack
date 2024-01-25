@@ -9,8 +9,8 @@ function [AllResult] = pointingModel_Solve(Files, Args)
     arguments
         Files                             = 'LAST*_PointingModel*sci*.fits';
         Args.Dirs                         = 'ALL';
-        Args.StartDate                    = [];
-        Args.EndDate                      = [];
+        Args.StartDate                    = -Inf;
+        Args.EndDate                      = Inf;
         Args.Nfiles                       = Inf;  % use only last N files
         
         Args.ObsCoo                       = [35 30];  % [deg]
