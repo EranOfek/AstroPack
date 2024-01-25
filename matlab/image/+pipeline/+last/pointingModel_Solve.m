@@ -82,7 +82,12 @@ function ImgDirs = getImageDirs(Dirs)
         % assuming already a cell array
         ImgDirs = Dirs;
         fprintf('\n\nNeed images of all four cameras.\n\n')
-
+    elseif isnumeric(Dirs)
+        N = numel(Dirs);
+        for Icam=1:1:N
+            CamN = Dirs(Icam);
+            ImgDirs{Icam} = pipeline.last.constructCamDir(CumN);
+        end
     else
         error('Dirs must be a char array or cell array');
     end
