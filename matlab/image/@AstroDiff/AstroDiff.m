@@ -414,7 +414,7 @@ classdef AstroDiff < AstroImage
         end
 
 
-        % ready
+        % ready / Fn/Fr not tested
         function [Obj, Fn, Fr]=estimateFnFr(Obj, Args)
             % Estimate Fn/Fr (flux matching) and return matching factors such that Fn=1
             %   Restimate Fn/Fr using various methods.
@@ -646,7 +646,7 @@ classdef AstroDiff < AstroImage
            
         end
 
-
+        % ready
         function Obj=subtractionD(Obj, Args)
             % Calculate ZOGY D images and its PSF Pd.
             %   Given New and Ref images, this function will create the
