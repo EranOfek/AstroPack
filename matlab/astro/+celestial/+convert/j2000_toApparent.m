@@ -66,10 +66,10 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = j2000_toApparent(RA, Dec, JD, A
     %                   Default is false.
     %            'InterpHA' - A distortion to add to HA/RA or an
     %                   interpolating function Fun(HA, Dec) that returns the
-    %                   distortions to add. All in deg.
+    %                   distortions to add. All in deg-time.
     %                   Default is 0.
     %            'InterpDec' - Line 'InterpHA', but for declination.
-    %                   Default is 0.
+    %                   Default is 0. Units deg.
     % Output : - Apparent RA
     %          - Apparent Dec
     %          - If ApplyRefraction=true, then this is the unrefracted
