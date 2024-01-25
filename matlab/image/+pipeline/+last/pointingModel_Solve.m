@@ -30,7 +30,8 @@ function [AllResult] = pointingModel_Solve(Files, Args)
         cd(Dirs{Idirs});
 
         FN = FileNames.generateFromFileName(Files);
-        List = FileNames.selectByDate(FN, Args.StartDate, Args.EndDate);        
+        FN = selectByDate(FN, Args.StartDate, Args.EndDate);        
+        List = genFile(FN); 
 
         if numel(List)>Args.Nfiles
             List = List(end-Args.Nfiles+1:end);
