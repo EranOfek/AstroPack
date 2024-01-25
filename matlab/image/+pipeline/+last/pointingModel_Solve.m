@@ -60,6 +60,11 @@ function [AllResult] = pointingModel_Solve(Files, Args)
         
     end
     
+    FN = FileNames(List{1});
+    Date = convert.time(FN.julday,'JD','StrDateO');
+    ReportFileName = sprintf('/home/ocs/log/PointingModelAstrometry_%s_%s', FN.ProjName{1}, Date{1});
+    save('-v7.3', ReportFileName, 'AllResult');
+    
 end
 
 %%% Internal Functions
