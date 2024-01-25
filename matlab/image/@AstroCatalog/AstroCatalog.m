@@ -46,7 +46,7 @@ classdef AstroCatalog < AstroTable
         DefNamesPMDec cell               = {'PMDec'};
         DefNamesRV cell                  = {'RV','radial_velocity'};
         DefNamesPlx cell                 = {'Plx'};
-        DefNamesMag cell                 = {'MAG','Mag','PSF_MAG','MAG_PSF','Mag_BP','Mag_G','Mag_RP','MAG_CONV_2','phot_g_mean_mag'};
+        DefNamesMag cell                 = {'MAG','Mag','PSF_MAG','MAG_PSF','Mag_BP','Mag_G','Mag_RP','MAG_APER_3','MAG_APER_2','MAG_CONV_2','phot_g_mean_mag'};
     end    
     
     methods % constructor

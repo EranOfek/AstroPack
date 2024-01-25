@@ -1793,6 +1793,7 @@ classdef DemonLAST < Component
             end
             RAD = 180./pi;
 
+            
 
             % if isempty(getenv('SYSTEMD')) 
             %     % manual execuation
@@ -1884,6 +1885,7 @@ classdef DemonLAST < Component
 
                 % set Logger log file 
                 Obj.setLogFile('HostName',Args.HostName);
+                Obj.writeLog('******* pipeline.DemonLAST started ********', LogLevel.Info);
 
                 if Args.RegenCalib
                     % prep Master dark and move to raw/ dir
