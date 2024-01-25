@@ -1,0 +1,24 @@
+CPP CPU:
+CPU :: For N=10, regular time=1.380000e-05
+CPU :: For N=100, regular time=4.436000e-04
+CPU :: For N=1000, regular time=2.524410e-02
+CPU :: For N=10000, regular time=2.522584e+00
+
+CPP GPU:
+GPU :: For N=10, CUDA time=5.437800e-03
+GPU :: For N=100, CUDA time=1.798000e-04
+GPU :: For N=1000, CUDA time=3.059700e-03
+GPU :: For N=10000, CUDA time=2.176140e-02
+
+
+MATLAB CPU:
+For N=10, regular time=3.514000e-04 
+For N=100, regular time=1.271000e-04 
+For N=1000, regular time=3.436700e-03 
+For N=10000, regular time=2.958995e-01
+
+MATLAB GPU:
+For N=10, gpu time=1.286407e-01 
+For N=100, gpu time=3.033000e-04 
+For N=1000, gpu time=4.448000e-04 
+For N=10000, gpu time=3.407060e-02

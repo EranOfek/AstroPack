@@ -7,7 +7,7 @@ for iii = 1 : length(NN)
 
     N = NN(iii);
 
-    M = readmatrix(strcat("ndft_input_",int2str(N),".csv"));
+    M = readmatrix(strcat("../inputs/ndft_input_",int2str(N),".csv"));
     t=M(1,:);
     m=M(2,:);
     f=M(3,:);

@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 #include <stdio.h>
+#include <iomanip>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -50,7 +51,7 @@ int main() {
 
         // Generate file name dynamically
         std::stringstream filename;
-        filename << "ndft_input_" << N << ".csv";
+        filename << "../inputs/ndft_input_" << N << ".csv";
         std::ifstream file(filename.str());
 
         if (!file.is_open()) {
@@ -132,7 +133,7 @@ int main() {
 
         double time_cuda_avg = time_cuda / iters;
 
-        cout << "GPU :: For N=" << N << ", CUDA time=" << time_cuda_avg << endl;
+        cout << "GPU :: For N=" << N << ", CUDA time=" << scientific << setprecision(6) <<  time_cuda_avg << endl;
 
         // Clean up
         delete[] t;
@@ -141,11 +142,27 @@ int main() {
 
         // Write result to CSV file
         std::stringstream outputFilename;
-        outputFilename << "ndft_cpp_cpu_output_" << N << ".csv";
+        outputFilename << "ndft_cpp_gpu_output_" << N << ".csv";
         std::ofstream outputFile(outputFilename.str());
 
-        for (int i = 0; i < N; ++i) {
-            outputFile << result_real[i] << " + " << result_imag[i] << "i \n";
+
+	if (outputFile.is_open()) {
+        // Write complex numbers to the file
+	        for (int i = 0; i < N; ++i) {
+        	    outputFile << result_real[i];
+		    
+		    if (result_imag[i] >= 0) {
+		    	outputFile << "+";		
+		    } else {
+			outputFile << "-";
+		    }
+
+		   outputFile << std::abs(result_imag[i]) << "i\n";
+		
+	        }
+
+        	// Close the file
+        	outputFile.close();
         }
 
         delete[] result_real;
