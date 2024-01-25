@@ -362,7 +362,7 @@ classdef DbQuery < Component
                     if Args.Load
                         tic();
                         Result = db.DbRecord(ClientFileName);
-                        Obj.msgStyle(LogLevel.Debug, 'blue', 'DbRecord from file: RowCount = %d, Time: %.6f', numel(Result.Data), toc());
+                        %Obj.msgStyle(LogLevel.Debug, 'blue', 'DbRecord from file: RowCount = %d, Time: %.6f', numel(Result.Data), toc());
                         if ~isempty(Args.OutType)
                             Result = Result.convert2(Args.OutType);
                         end
@@ -943,7 +943,7 @@ classdef DbQuery < Component
             end
 
             Obj.Toc = toc();
-            Obj.msgStyle(LogLevel.Debug, 'blue', 'query time: %.6f', Obj.Toc);
+            %Obj.msgStyle(LogLevel.Debug, 'blue', 'query time: %.6f', Obj.Toc);
         end
 
 
@@ -995,7 +995,7 @@ classdef DbQuery < Component
                 Obj.msgLogEx(LogLevel.Error, Ex, 'exec: executeQuery failed: %s', Obj.SqlText);
             end
             Obj.Toc = toc();
-            Obj.msgStyle(LogLevel.Debug, 'blue', 'exec time: %.6f', Obj.Toc);
+            %Obj.msgStyle(LogLevel.Debug, 'blue', 'exec time: %.6f', Obj.Toc);
         end        
     end
     
@@ -1113,7 +1113,7 @@ classdef DbQuery < Component
 
             Obj.Toc = toc();
             if Obj.PerfLog
-                Obj.msgStyle(LogLevel.Debug, 'blue', 'DbQuery.loadResultSet, RowCount = %d, Time: %.6f', RowIndex, Obj.Toc);
+                %Obj.msgStyle(LogLevel.Debug, 'blue', 'DbQuery.loadResultSet, RowCount = %d, Time: %.6f', RowIndex, Obj.Toc);
             end
         end
 
