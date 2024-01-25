@@ -1691,7 +1691,8 @@ classdef DemonLAST < Component
                 end
                     
                 Obj.CI.Bias = AstroImage.readFileNamesObj(FN_Bias, 'AddProduct',Args.AddImages);
-                fprintf('\nUsing dark: %s\n', char(FN_Bias.genFile))
+                Obj.writeLog(sprintf('\nUsing dark: %s\n', char(FN_Bias.genFile)), LogLevel.Info);
+                %fprintf('\nUsing dark: %s\n', char(FN_Bias.genFile))
             end
 
             % read latest flat image
@@ -1703,7 +1704,8 @@ classdef DemonLAST < Component
                     [~,~,FN_Flat] = FN_Flat.selectNearest2JD(Args.FlatNearJD);
                 end
                 Obj.CI.Flat = AstroImage.readFileNamesObj(FN_Flat, 'AddProduct',Args.AddImages);
-                fprintf('Using flat: %s\n\n', char(FN_Flat.genFile))
+                Obj.writeLog(sprintf('\nUsing flat: %s\n', char(FN_Flat.genFile)), LogLevel.Info);
+                %fprintf('Using flat: %s\n\n', char(FN_Flat.genFile))
             end
 
             % Read linearity file

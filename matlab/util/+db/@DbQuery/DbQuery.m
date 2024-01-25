@@ -196,7 +196,7 @@ classdef DbQuery < Component
             % Setup component
             Obj.setName('DbQuery');
             Obj.needUuid();
-            Obj.DebugMode = true;
+            Obj.DebugMode = false;
             %Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
 
             % Set connection
