@@ -86,7 +86,7 @@ function ImgDirs = getImageDirs(Dirs)
         N = numel(Dirs);
         for Icam=1:1:N
             CamN = Dirs(Icam);
-            ImgDirs{Icam} = pipeline.last.constructCamDir(CumN);
+            ImgDirs{Icam} = pipeline.last.constructCamDir(CamN);
         end
     else
         error('Dirs must be a char array or cell array');
