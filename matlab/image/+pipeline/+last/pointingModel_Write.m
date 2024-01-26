@@ -98,17 +98,18 @@ function [Result] = pointingModel_Write(R1, Args)
 
     if Args.Plot
         figure(1);
-        title('DiffHA');
         scatter(M_HA, M_DEC, 40, DiffHA, 'filled');
         colorbar
+        title('DiffHA');
+
         box on;
         H = xlabel('HA [deg]');
         H = ylabel('Dec [deg]');
 
         figure(2);
-        title('DiffDec')
         scatter(M_HA, M_DEC, 40, DiffDec, 'filled');
         colorbar
+        title('DiffDec')
         box on;
         H = xlabel('HA [deg]');
         H = ylabel('Dec [deg]');
