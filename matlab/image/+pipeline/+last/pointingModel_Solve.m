@@ -1,14 +1,17 @@
 function [AllResult] = pointingModel_Solve(Files, Args)
-    % Calculate pointing model from a list of images and write it to a configuration file.
+    % Perform astrometric solution to a list of images and keep the data needed for pointing model.
+    %   For calculating and writing the pointing model use:
+    %   pipeline.last.pointingModel_Write
     % Input  : - File name template to analyze.
     %            Default is 'LAST*_PointingModel*sci*.fits'.
     %          * ...,key,val,...
     %            see code.
-    % Example: [R] = pipeline.last.pointingModel('LAST*_PointingModel*sci*.fits','StartDate',[08 06 2022 17 54 00],'EndDate',[08 06 2022 18 06 00]);
+    % Author : Eran Ofek (Jan 2024)
+    % Example: [R] = pipeline.last.pointingModel_Solve('LAST*_PointingModel*sci*.fits','StartDate',[08 06 2022 17 54 00],'EndDate',[08 06 2022 18 06 00]);
     
     arguments
         Files                             = 'LAST*_PointingModel*sci*.fits';
-        Args.Dirs                         = 'ALL';
+        Args.Dirs                         = 'ALL';  % or vector of numbedrs [1 2 3 4]
         Args.StartDate                    = -Inf;
         Args.EndDate                      = Inf;
         Args.Nfiles                       = Inf;  % use only last N files
@@ -39,8 +42,6 @@ function [AllResult] = pointingModel_Solve(Files, Args)
 
         Nfiles = numel(List);
         fprintf('\n\n%i images in dir %s\n\n', Nfiles, Dirs{Idirs})
-
-        
         
         % Solve astrometry for all the pointing model images obtained by
         % one camera.
@@ -59,6 +60,11 @@ function [AllResult] = pointingModel_Solve(Files, Args)
         AllResult(Idirs).Result = Result;
         
     end
+    
+    FN = FileNames(List{1});
+    Date = convert.time(FN.julday,'JD','StrDateO');
+    ReportFileName = sprintf('/home/ocs/log/PointingModelAstrometry_%s_%s', FN.ProjName{1}, Date{1});
+    save('-v7.3', ReportFileName, 'AllResult');
     
 end
 
@@ -82,7 +88,12 @@ function ImgDirs = getImageDirs(Dirs)
         % assuming already a cell array
         ImgDirs = Dirs;
         fprintf('\n\nNeed images of all four cameras.\n\n')
-
+    elseif isnumeric(Dirs)
+        N = numel(Dirs);
+        for Icam=1:1:N
+            CamN = Dirs(Icam);
+            ImgDirs{Icam} = pipeline.last.constructCamDir(CamN);
+        end
     else
         error('Dirs must be a char array or cell array');
     end
