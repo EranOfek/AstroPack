@@ -269,7 +269,11 @@ classdef AstroImage < Component
                     for Iobj=1:1:Nobj
                         Obj(Iobj) = AstroImage([]);
                     end
-                    Obj = reshape(Obj, FileNames);
+                    if prod(FileNames)>0
+                        Obj = reshape(Obj, FileNames);
+                    else
+                        Obj = AstroImage.empty;
+                    end
                     
                 else
                     if isa(FileNames,'AstroImage')

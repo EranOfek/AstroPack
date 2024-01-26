@@ -9,13 +9,13 @@ classdef AstroDiff < AstroImage
     end
 
     properties
-        Ref AstroImage
         New AstroImage
+        Ref AstroImage
         IsRegistered logical   = false;
         
-        S ImageComponent  % with IsFFT - do we need ImageComponent?
-        Scorr ImageComponent
-        Z2sigma ImageComponent
+        S   % with IsFFT - do we need ImageComponent?
+        Scorr 
+        Z2sigma 
 
         %
         Fn
@@ -51,13 +51,56 @@ classdef AstroDiff < AstroImage
         P_deltaRhat
         
         F_S
-
+        
+        Z2
         Zvec_hat
     end
 
 
     methods % constructor
-       
+        function Obj=AstroDiff(New, Ref)
+            % Constructor for the AstroDiff class
+            % Input  : - A New images. This can be any input that is valid
+            %            for the AstroImage class.
+            %            E.g., size, cell array of matrices, file names,
+            %            AstroImage.
+            %            Default is AstroImage(0).
+            %          - Like New, but for the Ref image.
+            %            Default is AstroImage(0).
+            % Output : - An AstroDiff object.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: AD = AstroDiff;
+            %          AD = AstroDiff({randn(100,100)}, {randn(100,100)});
+            %          AD = AstroDiff('LAST*.fits','LAST*1*.fits');
+            
+            arguments
+                New    = AstroImage(0);
+                Ref    = AstroImage(0);
+            end
+            
+            if ~isa(New, 'AstroImage')
+                New = AstroImage(New);
+            end
+            if ~isa(Ref, 'AstroImage')
+                Ref = AstroImage(Ref);
+            end
+            
+            Nn = numel(New);
+            Nr = numel(Ref);
+            Nmax = max(Nn, Nr);
+            if Nn~=Nr && (Nr>1 && Nn>1)
+                error('Number of New and Ref images must be comaptible');
+            end
+            
+            for Imax=1:1:Nmax
+                In = min(Imax, Nn);
+                Ir = min(Imax, Nr);
+                
+                Obj(Imax).New = New(In);
+                Obj(Imax).Ref = Ref(Ir);
+            end
+            
+        end
     end
     
     methods % setters/getters
