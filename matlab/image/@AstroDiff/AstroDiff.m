@@ -836,18 +836,41 @@ classdef AstroDiff < AstroImage
             end
         end
 
-
+        % not tested - (check also norm by various methods)
         function Obj=subtractionS(Obj, Args)
             % Given D and Pd, populate S and S_hat
-            %
+            % Input  : - An AstroDiff object in which the (D) Image and its 
+            %            PSF (Pd) are populated.
+            %          * ...,key,val,...
             %            'PopS_hat' - A logical indicating if to populate
             %                   S_hat. Default is true.
+            %            'NormMethod' - A pre-defined method by which to normalize S
+            %                   See imUtil.image.normalize for option.
+            %                   This is the PreDef argument of imUtil.image.normalize
+            %                   If empty, then do not normalize.
+            %                   Default is 'norm_robust'
+            %            'NormArgs' - A cell array of arguments to pass to
+            %                   imUtil.image.normalize.
+            %                   Default is {}.
+            %            'NormS2' - A logical indicating if normalize by S^2.
+            %                   Default is false.
+            %
+            % Output : - An AstroDiff object in which S and optional S_hat
+            %            are normalize.
+            %            Note that F_S is populated by subtractionD.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: AD.subtractionS;
 
             arguments
                 Obj
-                Args.PopS_hat logical    = true;
+                Args.PopS_hat logical       = true;
+                
+                Args.NormMethod             = 'norm_robust';
+                Args.NormArgs cell          = {};
+                Args.NormS2 logical         = false;
+                
             end
-
+            
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 S_hat           = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
@@ -855,6 +878,27 @@ classdef AstroDiff < AstroImage
                     Obj(Iobj).S_hat = S_hat;
                 end
                 Obj(Iobj).S     = ifft2(Obj(Iobj).S_hat);
+            
+                if ~isempty(Args.NormMethod)
+                    % Normalize to units of significance
+                    if Args.NormS2
+                        Obj(Iobj).S = Obj(Iobj).S.^2;
+                    end
+                    
+                    Obj(Iobj).S = imUtil.image.normalize(Obj(Iobj).S, 'PreDef',Args.NormMethod, 'K',1, Args.NormArgs{:});
+                    
+                    if Args.NormS2
+                        % S^2 is now normalized to \chi^2
+                        % use chi2cdf to convert to probability
+                        Prob = chi2cdf(Obj(Iobj).S, 1);
+                        % one sided
+                        Prob = 1 - (1-Prob).*2;
+                        % convert to Gaussian significance
+                        Obj(Iobj).S = norminv(Prob, 0, 1);
+                    end
+                end
+               
+                
             end
         end
 
