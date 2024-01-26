@@ -915,7 +915,7 @@ classdef DbQuery < Component
             end
 
             % Prepare query
-            Obj.msgLog(LogLevel.Debug, 'query: %s', Obj.SqlText);
+%             Obj.msgLog(LogLevel.Debug, 'query: %s', Obj.SqlText);
             try
                 Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
             catch Ex
