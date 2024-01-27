@@ -694,7 +694,7 @@ classdef AstroDiff < AstroImage
            
         end
 
-        % add mask propagation
+        % ready for testing (including mask, header, wcs)
         function Obj=subtractionD(Obj, Args)
             % Calculate ZOGY D images and its PSF Pd.
             %   Given New and Ref images, this function will create the
@@ -745,6 +745,43 @@ classdef AstroDiff < AstroImage
             %            'SuppressEdgesArgs' - A cell array of additional arguments
             %                   to pass to imUtil.psf.suppressEdges
             %                   Default is {}.
+            %            'PopBackVar' - A logical indicating if to populate
+            %                   the Back and Var images of the D subtraction
+            %                   image. Default is true.
+            %            'BackArgs' - A cell array of additional arguments
+            %                   to pass to the background and variance
+            %                   calculation function:
+            %                   imProc.background.background.
+            %                   Default is {'BackFun',@median, 'BackFunPar',{'all'}, 'VarFun',@imUtil.background.rvar, 'VarFunPar',{}, 'SubSizeXY',[]}
+            %
+            %            'CreateNewMask' - A logical indicating if to
+            %                   create a new copy of the Mask image (or
+            %                   using the New/Ref Mask image - i.e., will
+            %                   modify their Mask).
+            %                   If empty, then do not add Mask image.
+            %                   Default is true.
+            %            'CreateNewWCS' - A logical indicating if to create
+            %                   a new copy of the WCS (or to use the
+            %                   New/Ref WCS).
+            %                   WCS will be copied from Ref image.
+            %                   If empty, then do not add WCS.
+            %                   Default is true.
+            %            'CreateNewHeader' - A logical indicating if to create
+            %                   a new copy of the Header (or to use the
+            %                   New/Ref HeaderData).
+            %                   Header will be copied fron New image.
+            %                   If empty, then do not copy header.
+            %                   Default is true.
+            %            'AddHeaderInfo' - A logical indicating if to add
+            %                   additional header keywords (e.g., from the Ref).
+            %                   Default is true.
+            %            'HeadKeysFromRef' - A two column cell array of the
+            %                   name of the header keywords in Ref and
+            %                   their name in the new generated D image.
+            %                   If empty, then do not add any header
+            %                   keywords from Ref.
+            %                   Default is {'EXPTIME','REF_EXPT';
+            %                               'JD','REF_JD'}
             %
             % Output : - An AstroDiff object with the populated
             %            D in the Image property.
@@ -771,6 +808,16 @@ classdef AstroDiff < AstroImage
                 Args.NormPSF logical     = true;
                 Args.SuppressEdgesPSF logical  = true;
                 Args.SuppressEdgesArgs cell    = {};
+                
+                Args.PopBackVar logical        = true;
+                Args.BackArgs cell             = {'BackFun',@median, 'BackFunPar',{'all'}, 'VarFun',@imUtil.background.rvar, 'VarFunPar',{}, 'SubSizeXY',[]};
+                
+                Args.CreateNewMask             = true;
+                Args.CreateNewWCS              = true;
+                Args.CreateNewHeader           = true;
+                Args.AddHeaderInfo             = true;
+                Args.HeadKeysFromRef           = {'EXPTIME','REF_EXPT'; 'JD','REF_JD'};
+                
             end
 
             
@@ -805,6 +852,42 @@ classdef AstroDiff < AstroImage
                                                                                                'CleanPd',Args.CleanPd);    
                 % calculate D
                 D = ifft2(Obj(Iobj).D_hat);
+                
+                % create mask image propgated from New and Ref
+                if ~isempty(Args.CreateNewMask)
+                    D(Iobj).MaskData = funBinary(Obj(Iobj).New.MaskData, Obj(Iobj).Ref.MaskData, @bitor, 'CreateNewObj',Args.CreateNewMask);
+                end
+                
+                % copy WCS
+                if ~isempty(Args.CreateNewWCS)
+                    if Args.CreateNewWCS
+                        Obj(Iobj).WCS = Obj(Iobj).Ref.WCS.copy;
+                    else
+                        Obj(Iobj).WCS = Obj(Iobj).Ref.WCS;
+                    end
+                end
+                
+                % Copy Header
+                if ~isempty(Args.CreateNewHeader)
+                    if Args.CreateNewHeader
+                        Obj(Iobj).HeaderData = Obj(Iobj).New.HeaderData.copy;
+                    else
+                        Obj(Iobj).HeaderData = Obj(Iobj).New.HeaderData;
+                    end
+                end
+                
+                % Add Information to header
+                if Args.AddHeaderInfo
+                    % Add the following keyords:
+                    % COMMENT: 'ZOGY Subtraction'
+                    % COMMENT: 'Generated by AstroPack, AstroDiff class"
+                    % REF_EXPT: Ref Exp Time
+                    % REF_JD: Ref JD
+                    CellKey = Obj(Iobj).Ref.getCellKey(Args.HeadKeysFromRef(:,1));
+                    Obj(Iobj).HeaderData.replaceVal(Args.HeadKeysFromRef(:,2), CellKey);
+                end
+                
+                % Normalize to flux units (according to Fn, Fr)
                 if Args.NormDbyFd
                     D = D./Obj(Iobj).Fd;
                 end
@@ -838,6 +921,11 @@ classdef AstroDiff < AstroImage
                 end
                 Obj(Iobj).PSFData.Data = Pd;
 
+            end
+            
+            % populate the Back and Var
+            if Args.PopBackVar
+                Obj = imProc.background.background(Obj, Args.BackArgs{:});
             end
         end
 
@@ -991,16 +1079,27 @@ classdef AstroDiff < AstroImage
     
     methods % transients inspection and measurment
         % transientsCutouts
+        % Generate an AstroDiff of cutouts around transients
 
         % mergeTransients
+        % Given multiple AstroDiff objects, search for transients that have similar positions
+        %   and merge them [The meaning of the merged prodict is not clear:
+        %       Is is a table? an AstroDiff with one element per merge?
+        %       If so, then what should we do about the multiple diff and
+        %       New images?]
 
         % searchSolarSystem
+        % Match catalog to solar system objects and add information to CatData
 
         % nearRedshift
-
+        % Match catalog to redshift catalogs and add information to CatData
+        
         % nearGalaxy
+        % Match catalog to galaxy catalogs and add information to CatData
         
         % nearStar
+        % Match catalog to star/galaxy catalogs and add information to CatData
+        
 
     end
 
