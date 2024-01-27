@@ -54,6 +54,11 @@ classdef AstroDiff < AstroImage
         
         Z2
         Zvec_hat
+        
+        % For artificial sources
+        OrigImage    % Original New/Ref image before art source injection
+        OrigIsNew    % Orig is New (true) or Ref (false)
+        
     end
 
 
@@ -689,7 +694,7 @@ classdef AstroDiff < AstroImage
            
         end
 
-        % ready
+        % add mask propagation
         function Obj=subtractionD(Obj, Args)
             % Calculate ZOGY D images and its PSF Pd.
             %   Given New and Ref images, this function will create the
@@ -910,7 +915,7 @@ classdef AstroDiff < AstroImage
 
         % subtractionScorr
 
-        % subtractionZ2
+        % translient (almost ready?)
         function translient(Obj, Args)
             % Apply translient image subtraction to New and Ref in AstroFiff object.
             %   Using: imUtil.properSub.translient
@@ -960,11 +965,26 @@ classdef AstroDiff < AstroImage
         end
 
         % findTransients
+        % Search for positive and negative transients in S
+        %   Only look for local max/min in S above detection threshold
+        
+        % measureTransients
+        % For each transient candidate measure properties.
+        %   Including, fit Pd PSF to D, return S, Zsig, mask, value in New,
+        %   Ref, nearby source in New, Ref
+        
+        % cleanTransients
+        % Select good transients using selection criteria
+        
+        % fitDT
+        % Fit a variability + motion model to the D_T image
         
     end
     
     methods % injection simulations
-        % injectArtNew
+        % injectArt
+        % Inject artificial sources to the New/Ref images
+        %   Will store original New/Ref images in the OrigImage property.
 
     end
 
