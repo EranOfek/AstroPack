@@ -848,12 +848,9 @@ classdef AstroDiff < AstroImage
             %                   See imUtil.image.normalize for option.
             %                   This is the PreDef argument of imUtil.image.normalize
             %                   If empty, then do not normalize.
+            %                   Options include
+            %                   'norm','norm_robust','chi2_mean','chi2_median','chi2_std'.
             %                   Default is 'norm_robust'
-            %            'NormArgs' - A cell array of arguments to pass to
-            %                   imUtil.image.normalize.
-            %                   Default is {}.
-            %            'NormS2' - A logical indicating if normalize by S^2.
-            %                   Default is false.
             %
             % Output : - An AstroDiff object in which S and optional S_hat
             %            are normalize.
@@ -866,8 +863,11 @@ classdef AstroDiff < AstroImage
                 Args.PopS_hat logical       = true;
                 
                 Args.NormMethod             = 'norm_robust';
-                Args.NormArgs cell          = {};
-                Args.NormS2 logical         = false;
+                        %                   'norm_robust' - @fast_median, {}, 0,   @tools.math.stat.std_mad, {0,'all'}, 1
+                        %                   'norm' - @mean, {}, 0,   @std, {0,'all'}, 1
+                        %                   'chi2_mean' - Normalize to the mean of \chi^2 with K degrees of freedoms.
+                        %                   'chi2_median' - Normalize to the median of \chi^2 with K degrees of freedoms.
+                        %                   'chi2_var'    - Normalize to the variance of \chi^2 with K degrees of freedoms.
                 
             end
             
@@ -885,17 +885,22 @@ classdef AstroDiff < AstroImage
                         Obj(Iobj).S = Obj(Iobj).S.^2;
                     end
                     
-                    Obj(Iobj).S = imUtil.image.normalize(Obj(Iobj).S, 'PreDef',Args.NormMethod, 'K',1, Args.NormArgs{:});
+                    switch lower(Args.NormMethod(1:4)
+                        case 'norm'
+                            Obj(Iobj).S = imUtil.image.normalize(Obj(Iobj).S, 'PreDef',Args.NormMethod,...
+                                                                      'K',1,...
+                                                                      'Fun2Prob',...
+                                                                      'Prob2Sig',false);
+                        case 'chi2'
+                            % Nomalize using S^2
+                            Obj(Iobj).S = imUtil.image.normalize(Obj(Iobj).S.^2, 'PreDef',Args.NormMethod,...
+                                                                      'K',1,...
+                                                                      'Fun2Prob',@chi2cdf,...
+                                                                      'Prob2Sig',true);
+                        otherwise
+                            error('Unknown NormMethod option');
+                    end                                  
                     
-                    if Args.NormS2
-                        % S^2 is now normalized to \chi^2
-                        % use chi2cdf to convert to probability
-                        Prob = chi2cdf(Obj(Iobj).S, 1);
-                        % one sided
-                        Prob = 1 - (1-Prob).*2;
-                        % convert to Gaussian significance
-                        Obj(Iobj).S = norminv(Prob, 0, 1);
-                    end
                 end
                
                 

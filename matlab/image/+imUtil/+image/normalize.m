@@ -33,7 +33,20 @@ function [Image] = normalize(Image, Args)
     %                   'chi2_median' - Normalize to the median of \chi^2 with K degrees of freedoms.
     %                   'chi2_var'    - Normalize to the variance of \chi^2 with K degrees of freedoms.
     %            'K' - d.o.f. for the \chi^2 distribution in the PreDef
-    %                   options. Default is 1.
+    %                   options, or the second input argument of Fun2Prob argument.
+    %                   Default is 1.
+    %            'Fun2Prob' - If not empty, then will convert the Image to
+    %                   one-sided probability units using the function
+    %                   handle supplied in this argument
+    %                   (e.g., @chi2cdf)
+    %                   For example, if you use PreDef=chi2_median, then
+    %                   set it to @chi2cdf, in order to convert from \chi^2
+    %                   distribution to probability.
+    %                   Default is [].
+    %            'Prob2Sig' - A logical indicating if to convert the image
+    %                   in units of probability to Gaussian significance.
+    %                   This will work only if Fun2prob is not empty.
+    %                   Default is true.
     % Output : - A normalized array.
     % Author : Eran Ofek (2024 Jan) 
     % Example: %Set mean to zero and ribust std to 1:
@@ -53,6 +66,8 @@ function [Image] = normalize(Image, Args)
         
         Args.PreDef             = [];
         Args.K                  = 1;
+        Args.Fun2Prob           = [];     % @chi2cdf
+        Args.Prob2sig logical   = true;
     end
     
     if ~isempty(Args.PreDef)
@@ -102,5 +117,16 @@ function [Image] = normalize(Image, Args)
         Image      = Args.MultVal .* Image./MultFunVal;
     end
     
-
+    if ~isempty(Args.Fun2Prob)
+        % assume Image is now like \chi^2 distribution
+        % Convert from \chi^2 distribution to probability
+    
+        Image = Args.Fun2Prob(Image, Args.K);
+        % one sided
+        Image = 1 - (1-Image).*2;
+        if Args.Prob2Sig
+            % convert to Gaussian significance
+            Image = norminv(Image, 0, 1);
+        end
+    end
 end
