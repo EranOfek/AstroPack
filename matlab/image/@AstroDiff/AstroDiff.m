@@ -912,19 +912,38 @@ classdef AstroDiff < AstroImage
 
         % subtractionZ2
         function translient(Obj, Args)
-            %
+            % Apply translient image subtraction to New and Ref in AstroFiff object.
+            %   Using: imUtil.properSub.translient
+            % Input  : - An AstroDiff object in which the New and Ref are
+            %            populated. If IsRegistered is false, then the
+            %            images will be registered.
+            %          * ...,key,val,...
+            
 
             arguments
                 Obj
+
+                Args.ReplaceNaN logical  = true;
+                Args.ReplaceNaNArgs cell = {};
 
                 Args.Eps              = 0;
                 Args.SetToNaN         = [];
                 Args.NormMethod       = 'analytical';
             end
 
+            if Args.ReplaceNaN
+                Obj.replaceNaN(Args.ReplaceNaNArgs{:});
+            end
+
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                [Z2,Zhat,Norm] = imUtil.properSub.translient(Obj(Iobj).N_hat, Obj(Iobj).R_hat,...
+
+                if ~Obj(Iobj).IsRegistered
+                    % register images if needed
+                    Obj(Iobj).register;
+                end
+
+                [Obj(Iobj).Z2, Obj(Iobj).Zvec_hat,Norm] = imUtil.properSub.translient(Obj(Iobj).N_hat, Obj(Iobj).R_hat,...
                                                          Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat,...
                                                          Obj(Iobj).SigmaN, Obj(Iobj).SigmaR,...
                                                          'Fn',Obj(Iobj).Fn,...
@@ -941,6 +960,7 @@ classdef AstroDiff < AstroImage
         end
 
         % findTransients
+        
     end
     
     methods % injection simulations
