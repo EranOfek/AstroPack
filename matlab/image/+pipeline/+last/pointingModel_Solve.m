@@ -1,5 +1,5 @@
 function [AllResult] = pointingModel_Solve(Files, Args)
-    % Perform astrometric solution to a list of images and keep the data needed for pointing model.
+    % Perform astrometric solution to a list of images and save the data needed for pointing model.
     %   For calculating and writing the pointing model use:
     %   pipeline.last.pointingModel_Write
     % Input  : - File name template to analyze.
@@ -10,19 +10,14 @@ function [AllResult] = pointingModel_Solve(Files, Args)
     % Example: [R] = pipeline.last.pointingModel_Solve('LAST*_PointingModel*sci*.fits','StartDate',[08 06 2022 17 54 00],'EndDate',[08 06 2022 18 06 00]);
     
     arguments
-        Files                             = 'LAST*_PointingModel*sci*.fits';
-        Args.Dirs                         = 'ALL';  % or vector of numbedrs [1 2 3 4]
-        Args.StartDate                    = -Inf;
-        Args.EndDate                      = Inf;
-        Args.Nfiles                       = Inf;  % use only last N files
-        
-        Args.ObsCoo                       = [35 30];  % [deg]
-        Args.ConfigFile                   = '/home/ocs/pointingModel.txt';
-
-        Args.Plot logical                 = true;
+        Files             = 'LAST*_PointingModel*sci*.fits';
+        Args.Dirs         = 'ALL';  % or vector of numbedrs [1 2 3 4]
+        Args.StartDate    = -Inf;
+        Args.EndDate      = Inf;
+        Args.Nfiles       = Inf;  % use only last N files
+        Args.SaveName     = '/home/ocs/pointingModelAstrometry.mat';
     end
     
-    RAD = 180./pi;
     
     Dirs = getImageDirs(Args.Dirs);    
     Ndirs = numel(Dirs);
@@ -32,6 +27,7 @@ function [AllResult] = pointingModel_Solve(Files, Args)
                
         cd(Dirs{Idirs});
 
+        % get list of files
         FN = FileNames.generateFromFileName(Files);
         FN = selectByDate(FN, Args.StartDate, Args.EndDate);        
         List = genFile(FN); 
@@ -47,7 +43,8 @@ function [AllResult] = pointingModel_Solve(Files, Args)
         % one camera.
         for Ifile=1:1:Nfiles
             
-            fprintf('%i %s\n', Ifile, List{Ifile}(42:end));
+            ImgName = split(List{Ifile}, '/');
+            fprintf('%i %s\n', Ifile, ImgName{end});
             TableRow = getAstrometricSolution(List{Ifile});
             
             if Ifile==1
@@ -57,14 +54,11 @@ function [AllResult] = pointingModel_Solve(Files, Args)
             end
         end
 
-        AllResult(Idirs).Result = Result;
+        ResultAllCams(Idirs).Result = Result;
         
     end
     
-    FN = FileNames(List{1});
-    Date = convert.time(FN.julday,'JD','StrDateO');
-    ReportFileName = sprintf('/home/ocs/log/PointingModelAstrometry_%s_%s', FN.ProjName{1}, Date{1});
-    save('-v7.3', ReportFileName, 'AllResult');
+    save('-v7.3', Args.SaveName, 'ResultAllCams');
     
 end
 
@@ -103,8 +97,8 @@ end
 
 function Row = getAstrometricSolution(ImageFileName)
         
-    HeadHead   = {'RA','DEC','HA',...
-              'M_JRA','M_JDEC','M_JHA',...
+    HeadHead   = {'RA','DEC',...
+              'M_JRA','M_JDEC',...
               'M_RA','M_DEC','M_HA',...
               'M_ARA','M_ADEC','M_AHA',...
               'M_ADRA','M_ADDEC','M_ADHA',...
@@ -151,36 +145,3 @@ function Row = getAstrometricSolution(ImageFileName)
 
 end
 
-
-function writePMFile(ConfigFile, date, PM)
-
-    % write config file
-    FID = fopen(ConfigFile,'w');
-    fprintf(FID,'# pointing model interpolation data\n');
-    fprintf(FID,'# Generated on: %s\n',date);
-    fprintf(FID,'# format:       [M_HA,  M_Dec,  offsetHA,  offsetDec]\n');
-            
-    fprintf(FID,'PointingData : [\n');
-    Npm = size(PM,1);
-    for Ipm=1:1:Npm
-        fprintf(FID,'         [%11.6f, %11.6f, %11.6f, %11.6f],\n',PM(Ipm,:));
-    end
-    fprintf(FID,'     ]\n');
-    fclose(FID);
-     
-end
-
-
-
-function plotOffsets(HA, Dec, Offset, Title, SaveName)
-
-    fig = figure;
-    colormap(fig,jet);
-    scatter(HA, Dec, [], Offset, 'filled'); 
-    colorbar;
-    title(Title);
-    xlabel('HA');
-    ylabel('Dec');
-    exportgraphics(fig,SaveName,'Resolution',300)
-
-end

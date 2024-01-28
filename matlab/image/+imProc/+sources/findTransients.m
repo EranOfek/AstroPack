@@ -228,6 +228,7 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
             'ValSdN', 'ValSdR', 'Scorr', 'Z2_TS', 'Z2_Sig', 'S2_TS', 'S2_Sig', ...
             'N_SNm', 'N_Chi2dof', 'N_Flux', 'N_Mag', ...
             'R_SNm', 'R_Chi2dof', 'R_Flux', 'R_Mag',...
+            'Likely_Not_Transient'...
             };
 
         TranTable.Catalog  = table(LocalMax(:,1), LocalMax(:,2), RA, Dec, ...
@@ -235,7 +236,8 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
             ResultD.SNm, Chi2dof,  NewMaskVal,  RefMaskVal, ...
             ValSdN,  ValSdR, LocalMax(:,3), Z2_TS, Z2_sig, S2_TS, S2_sig, ...
             ResultN.SNm, ResultN.Chi2./ResultN.Dof, ResultN.Flux, ResultN.Mag, ...
-            ResultR.SNm, ResultR.Chi2./ResultR.Dof, ResultR.Flux, ResultR.Mag... 
+            ResultR.SNm, ResultR.Chi2./ResultR.Dof, ResultR.Flux, ResultR.Mag,... 
+            zeros(col_size)...
             );
 
         TranTable.ColUnits = {'','','','',...
@@ -244,6 +246,7 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
             '','','','','','','',...
             '','','','',...
             '','','','',...
+            '',...
             };
 
 
@@ -256,6 +259,8 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
         [TranTable, ~, ~, ~] = imProc.match.match_catsHTM(TranTable, ...
             'CRTS_per_var','ColDistName','VarStar_Dist','ColNmatchName','VarStar_Matches');
 
+
+        TranTable = filter_likely_not_a_transient(TranTable);
         Result(Iobj).TranTable = TranTable;
         
     end
@@ -328,3 +333,72 @@ function [TS, significance] = process_TS_map(TS_map, x_vec, y_vec, dist, dof)
     significance(isinf(significance)) = nan;
 end
 
+function TranTable = filter_likely_not_a_transient(TranTable)
+    %{
+    For a catalog of transients derived by findTransient(), checks if the
+    transients entries are likely not real transients. The function 1)
+    (re)checks that the transient statistic is significant, 2) compares
+    transient and transLient statistics (i.e. is transient higher), 3)
+    checks if magnitude is realistic, 4) and checks if mask in new and ref
+    images show effects that are likely to produce false positives. In the
+    end, the function updates the column 'Likely_Not_Transient' in the
+    transients catalog.
+
+    Input :
+        - TranTable (AstroCatalog) - Catalog containing possible transients
+        as derived by findTransients().
+    Output :
+        - TranTable (AstroCatalog) - Same catalog as in Input but with an
+        updated 'Likely_Not_Transient' column.
+    %}
+
+    cat = TranTable.Catalog;
+
+    % Remember were signficance is nan
+    % (happens when TS is high enough for machine precision not be 
+    % sufficient when converting TS to significance)
+    S2_Sig_isnan = isnan(TranTable.Catalog.S2_Sig);
+
+    % Transient statistic is significant
+    lt = ((cat.S2_Sig > 5.0) | S2_Sig_isnan); % likely a transient
+    % TS of 26.34 is about 5sig for chi2 w. dof = 1
+    lt = lt & ((cat.S2_TS > 26.34) | ~S2_Sig_isnan);
+
+    % Transient statistic is more significant than translient
+    lt = lt & ((cat.S2_Sig > cat.Z2_Sig) | S2_Sig_isnan);
+    % Compare TS as a fallback (strictly incorrect)
+    lt = lt & ((cat.S2_TS > cat.Z2_TS) | ~S2_Sig_isnan);
+    
+    % Magnitude in new is physical
+    lt = lt & (cat.N_Mag < 21);
+
+    % Bit mask shows no systematic issues
+    BDlnt = BitDictionary('BitMask.Image.Default');
+    BM_new = BDlnt.bitdec2name(cat.NewMaskVal);
+    Saturated = cell2mat(cellfun(@(c)any(strcmp(c,{'Saturated'})), ...
+        BM_new, 'UniformOutput', false));
+    Near_Edge = cell2mat(cellfun(@(c)any(strcmp(c,{'Near_Edge'})), ...
+        BM_new, 'UniformOutput', false));
+    Source_Noise_Dom = cell2mat(cellfun(@(c)any(strcmp(c,{'SrcNoiseDominated'})), ...
+        BM_new, 'UniformOutput', false)); 
+    Dark_High_Val = cell2mat(cellfun(@(c)any(strcmp(c,{'DarkHighVal'})), ...
+        BM_new, 'UniformOutput', false)); 
+    Flat_High_StD = cell2mat(cellfun(@(c)any(strcmp(c,{'FlatHighStd'})), ...
+        BM_new, 'UniformOutput', false)); 
+    Bad_New_Mask_Val = Saturated | Near_Edge | Source_Noise_Dom | ...
+        Dark_High_Val | Flat_High_StD;
+
+    BM_ref = BDlnt.bitdec2name(cat.RefMaskVal);
+    Dark_High_Val_Ref = cell2mat(cellfun(@(c)any(strcmp(c,{'DarkHighVal'})), ...
+        BM_ref, 'UniformOutput', false)); 
+    Flat_High_StD_Ref = cell2mat(cellfun(@(c)any(strcmp(c,{'FlatHighStd'})), ...
+        BM_ref, 'UniformOutput', false)); 
+    Bad_Ref_Mask_Val = Dark_High_Val_Ref | Flat_High_StD_Ref;
+
+    Bad_Mask_Val = Bad_New_Mask_Val | Bad_Ref_Mask_Val;
+
+    lt = lt & ~Bad_Mask_Val;
+
+    TranTable.Catalog.Likely_Not_Transient = ~lt;
+
+end
