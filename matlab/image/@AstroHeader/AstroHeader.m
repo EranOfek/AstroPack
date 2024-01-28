@@ -749,7 +749,7 @@ classdef AstroHeader < Component
         end
         
         function [ResultVal, IK] = getCellKey(Obj,ExactKeys,Args)
-            % Get multiple  keys from multiple headers and store in a cell array
+            % Get multiple keys from multiple headers and store in a cell array
             %       The keyword search can be exact (UseDict=false), or
             %       using a keywords dictionary (UseDict=true).
             % Input  : - An AstroHeader object (multiple elements supported)
