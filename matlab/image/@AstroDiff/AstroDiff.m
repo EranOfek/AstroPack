@@ -403,8 +403,8 @@ classdef AstroDiff < AstroImage
 
             arguments
                 Obj
-                Args.ReRegister logical   = false;
-                Args.RegisterRef logical  = true;
+                Args.ReRegister logical       = false;
+                Args.RegisterRef logical      = true;
 
                 Args.InterpMethod             = 'cubic';  % 'makima'
                 Args.InterpMethodMask         = 'nearest';

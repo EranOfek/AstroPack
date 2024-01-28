@@ -13,7 +13,8 @@ function Result=unitTest()
 
     cd /marvin/LAST.01.05.01/2023/12/14/proc/000545v0
     AD.Ref = AstroImage.readFileNamesObj('LAST.01.05.01_20231215.000535.997_clear_TXS0506+056_000_001_010_sci_coadd_Image_1.fits');
-    
+    cd /marvin/LAST.01.05.01/2023/12/14/proc/002834v0
+    AD.New = AstroImage.readFileNamesObj('LAST.01.05.01_20231215.002824.520_clear_TXS0506+056_000_001_010_sci_coadd_Image_1.fits');
 
 
 
