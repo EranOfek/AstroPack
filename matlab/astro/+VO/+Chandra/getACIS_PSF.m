@@ -1,6 +1,6 @@
 function WPSF = getACIS_PSF(Chip, Args)
     % get a MARX-simulated Chandra ACIS PSF
-    % Input : - Chandra ACIS chip number: 0,1,2,3 (ACIS-I) and ,6,7 (the center of the ACIS-S) only
+    % Input : - Chandra ACIS chip number: 0,1,2,3 (ACIS-I) or 6,7 (the center of the ACIS-S only)
     %      * ...,key,val,...
     %      'Energy' - get the PSF at this energy [in keV], can be in the range of [0.2 -- 8] only
     %      'Spec'   - a spectrum as a 2 column table: [keV ; photons s(-1) cm(-2) keV(-1)]
@@ -13,9 +13,9 @@ function WPSF = getACIS_PSF(Chip, Args)
     % Author : A.M. Krassilchtchikov (Nov 2023)
     % Examples: P = VO.Chandra.getACIS_PSF(0, 'Energy', 2.5, 'PosX', 124, 'PosY', 876); 
     %           RollAngle = 53; 
-    %           P = VO.Chandra.getACIS_PSF(0, 'Energy', 2.5, 'PosX', 124, 'PosY', 876, 'RollAngle', RollAngle);
-    %           En = 0:10'; Sp = [En En.^-2];
-    %           P = VO.Chandra.getACIS_PSF(0,'Spec', Sp, 'PosX', 100, 'PosY', 301);
+    %           P = VO.Chandra.getACIS_PSF(1, 'Energy', 2.5, 'PosX', 124, 'PosY', 876, 'RollAngle', RollAngle);
+    %           En = 1:10; Sp = [En; En.^-2]';
+    %           P = VO.Chandra.getACIS_PSF(2,'Spec', Sp, 'PosX', 100, 'PosY', 301);
     arguments
         Chip        = 0;   % the chip number can be 0,1,2,3,6,7 only
         Args.Energy = 4;   % in keV, can be in the range of [0.2 -- 8]
@@ -30,10 +30,10 @@ function WPSF = getACIS_PSF(Chip, Args)
         error('Unsupported ACIS chip number: the library contains data on chips 0-3,6,7 only');
     end
     if isempty(Args.Spec) && Args.Energy < 0.2 && Args.Energy > 8.0
-        error('The input energy is out of the valid range');
+        error('The input energy is out of the valid range 0.2-8.0 keV');
     end
-    if Args.PosX > 1024 || Args.PosX < 1 || Args.PosY > 1024 || Args.PosY < 1
-        error('The input XY position is out of the valid range');
+    if Args.PosX > 992 || Args.PosX < 32 || Args.PosY > 992 || Args.PosY < 32
+        error('The input XY position is out of the valid range 32-992');
     end
     
     I = Installer; Dir = I.getDataDir('Chandra_PSF');
