@@ -434,6 +434,7 @@ classdef AstroDb < Component
 %             Q.addColumn(TN, 'nobs',         'smallint', 'default 0'); 
 %                                              smallint is incompatible with NaN values!
             Q.addColumn(TN, 'nobs',         'single', 'default 0');
+            Q.addColumn(TN, 'distmp',       'single', 'default 0');
             Q.addColumn(TN, 'jd',           'double', 'default 0', 'index', true);
             Q.addColumn(TN, 'exptime',      'single', 'default 0');
                         
