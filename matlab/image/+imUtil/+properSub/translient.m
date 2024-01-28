@@ -38,9 +38,13 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     %                   set to NaN when the flags map equal true.
     %                   If empty, then skip this step.
     %                   Default is [].
-    %            'NormMethod' - Method in which Z2 should be
-    %            normalized. Choices are 'analytical', 'empirical', and
-    %            'None'. Default is 'analytical'.
+    %            'NormMethod' - Method in which Z2 should be normalized.
+    %                   Options are:
+    %                   'analytical' - Analitical normalization.
+    %                   'empirical' - Empirical using the median of \chi^2
+    %                           with 2 dof.
+    %                   'none' - No normalization.
+    %                   Default is 'analytical'.
     % Output : - (Z2) The translient statistic.
     %          - (Zhat) The translient Zhat vector. Size (M,M,2) where M is
     %            the image size.
@@ -118,18 +122,18 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     end
 
     % degrees of freedom
-    switch Args.NormMethod
+    switch lower(Args.NormMethod)
         case 'analytical'
             % Zs^2 from Translient paper eq. 23
             Z2 = Z2./Norm; 
         case 'empirical'
             % force median to be that of a chi2 with dof=2
-            k = 2;
-            expected_median = k.*(1 - 2./(9.*k)).^3;
-            Z2 = Z2./median(Z2, 'all', 'omitnan')*expected_median;
+            K = 2;
+            Expected_median = K.*(1 - 2./(9.*K)).^3;
+            Z2 = Z2./median(Z2, 'all', 'omitnan')*Expected_median;
             %Z2 = Z2./mean(Z2, 'all', 'omitnan')*k;
             %Z2 = Z2./tools.math.stat.rstd(Z2, [1 2])*sqrt(2*k);
-        case 'None'
+        case 'none'
     end
 
 end

@@ -69,7 +69,7 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
         AIreg=imProc.transIm.interp2wcs(AI, AI(1), 'InterpMethod','cubic');
 
         % shift by 0.1 pix (for testing translient)
-        AIshift = imProc.transIm.imwarp(AIreg, [0.1 0.1])
+        AIshift = imProc.transIm.imwarp(AIreg, [0.1 0.1]);
 
         AIreg= imProc.background.background(AIreg,'SubSizeXY',[]); %[256 256]);  
         AIreg=imProc.sources.findMeasureSources(AIreg);           

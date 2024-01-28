@@ -1,6 +1,6 @@
 function Result = background(Obj, Args)
     % Calculate background and variance of an AstroImage object.
-    % Input  : - An AstroImage object multi elements supported).
+    % Input  : - An AstroImage or AstroDiff object multi elements supported).
     %          * ...,key,val,...
     %            'BackFun' - A function handle for the background (and
     %                   optionally variance) estimation.
@@ -71,7 +71,7 @@ function Result = background(Obj, Args)
     %          Result = imProc.background.background(AI);
    
     arguments
-        Obj AstroImage
+        Obj   
         
 
         %Args.BackFun                     = @imUtil.background.mode; %@median;
