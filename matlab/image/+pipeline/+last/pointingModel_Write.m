@@ -37,7 +37,7 @@ function [Result] = pointingModel_Write(R1, Args)
 
     Ncam = numel(R1);
 
-    % Order all the measurmnets from the different camera to much by
+    % Order all the measurements from the different camera to much by
     % coordinates:
     for Icam=1:1:Ncam
         Cam(Icam).AstRA  = nan(Npt,1);
@@ -46,9 +46,14 @@ function [Result] = pointingModel_Write(R1, Args)
         Cam(Icam).CamRot = nan(Npt,1);
 
         for Iobs=1:1:Npt
-            D = celestial.coo.sphere_dist_fast(M_JRA(Iobs)./RAD, M_JDEC(Iobs)./RAD, R1(Icam).Result.M_JRA./RAD, R1(Icam).Result.M_JDEC./RAD);
+            
+            % find images with similar mount coordinates for all 4 cameras
+            D = celestial.coo.sphere_dist_fast( ...
+                M_JRA(Iobs)./RAD, M_JDEC(Iobs)./RAD, ...
+                R1(Icam).Result.M_JRA./RAD, R1(Icam).Result.M_JDEC./RAD);
+            
             [MinD, IndMinD] = min(D);
-            if MinD<(0.01./RAD)
+            if MinD<(0.01/RAD)
                 % found
                 Cam(Icam).AstRA(Iobs)  = R1(Icam).Result.CenterRA(IndMinD);
                 Cam(Icam).AstHA(Iobs)  = R1(Icam).Result.CenterHA(IndMinD);
