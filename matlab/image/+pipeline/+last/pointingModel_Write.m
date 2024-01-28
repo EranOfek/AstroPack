@@ -96,9 +96,11 @@ function [Result] = pointingModel_Write(R1, Args)
             90 90 0 0; 135 90 0 0];
         DistortionMatrix = [DistortionMatrix; AtPole];
     end
-        
+    
+    % remove NaNs
+    mask = ~isnan(DistortionMatrix(:,3));
+    DistortionMatrix = DistortionMatrix(mask,:);
     Result.DistortionMatrix = DistortionMatrix;
-
 
 
     if Args.Plot
