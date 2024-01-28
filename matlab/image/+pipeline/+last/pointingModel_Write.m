@@ -9,8 +9,9 @@ function [Result] = pointingModel_Write(R1, Args)
     %          * ...,key,val,... 
     %            See code
     % Output : - 
-    % Author : Eran Ofek (2024 Jan) 
+    % Author : Eran Ofek & Nora Strotjohann (2024 Jan) 
     % Example: Res=pipeline.last.pointingModel_Write(R1);
+    %          Res=pipeline.last.pointingModel_Write(R1, 'SaveName','/home/ocs/PMResiduals.txt');
 
     arguments
         R1                    
@@ -18,7 +19,7 @@ function [Result] = pointingModel_Write(R1, Args)
         Args.IndRef                = 1;   % camera to use as a reference
         Args.Plot logical          = true;  % Plot distortions as a fun of HA/Dec
         Args.AddZeroAtPole logical = true; % add zero distortion near North celestial pole.
-        Args.ConfigFile            = '/home/ocs/pointingModel.txt';   % name of config file to write
+        Args.SaveName              = '/home/ocs/pointingModel.txt';   % name of config file to write
     end
 
     RAD = 180./pi;
@@ -125,7 +126,7 @@ function [Result] = pointingModel_Write(R1, Args)
         for Icam=1:1:Ncam
             figure(2+Icam);
             scatter(M_HA, M_DEC, 40, CamRot(:,Icam), 'filled');
-            title(sprintf('DiffRot - cam%d',Icam));
+            title(sprintf('Rotation - Camera %d',Icam));
             colorbar
             box on;
             H = xlabel('HA [deg]');
@@ -138,8 +139,8 @@ function [Result] = pointingModel_Write(R1, Args)
     
     % write DistortionMatrix
  
-    if ~isempty(Args.ConfigFile)
-        writePMFile(Args.ConfigFile, date, DistortionMatrix);
+    if ~isempty(Args.SaveName)
+        writePMFile(Args.SaveName, DistortionMatrix);
     end
        
 end
@@ -147,7 +148,7 @@ end
 
 %%% Internal functions
 
-function writePMFile(ConfigFile, date, PM)
+function writePMFile(ConfigFile, PM)
     % write config file
     FID = fopen(ConfigFile,'w');
     fprintf(FID,'# pointing model interpolation data\n');
