@@ -23,6 +23,7 @@ function processChandraPSF(Args)
     StampY = 1:StampNy; 
     
     MPSF = zeros(StampNx, StampNx, Ne, Nx, Ny, 'single'); % 196 * 196 * 5 * 16 * 16 * 4 / 1024^2 = 188 Mb
+    % NB: for chip 4 the size is 1315*1315*3*16*16*4/1024^3 = 5 Gb -- .mat file is too heavy to be written?
     
     % read the data    
         
