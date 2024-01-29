@@ -1,4 +1,4 @@
-function [AllResult] = pointingModel_Solve(Files, Args)
+function [ResultAllCams] = pointingModel_Solve(Files, Args)
     % Perform astrometric solution to a list of images and save the data needed for pointing model.
     %   For calculating and writing the pointing model use:
     %   pipeline.last.pointingModel_Write
@@ -6,12 +6,15 @@ function [AllResult] = pointingModel_Solve(Files, Args)
     %            Default is 'LAST*_PointingModel*sci*.fits'.
     %          * ...,key,val,...
     %            see code.
-    % Author : Eran Ofek (Jan 2024)
-    % Example: [R] = pipeline.last.pointingModel_Solve('LAST*_PointingModel*sci*.fits','StartDate',[08 06 2022 17 54 00],'EndDate',[08 06 2022 18 06 00]);
-    
+    % Author : Eran Ofek & Nora Strotjohann (Jan 2024)
+    % Example: [R] = pipeline.last.pointingModel_Solve('LAST*_PointingModel*sci*.fits','StartDate',[25 01 2024 18 33 00],'EndDate',[25 01 2024 19 00 00]);
+    %          Solve astrometry for data with applied pointing model to
+    %          quantify the size of the residuals.
+    %          [R] = pipeline.last.pointingModel_Solve('LAST*_withPM*sci*.fits','StartDate',[25 01 2024 22 00 00],'EndDate',[25 01 2024 23 10 00],'SaveName','/home/ocs/PMResidualsAstrometry.mat');
+   
     arguments
         Files             = 'LAST*_PointingModel*sci*.fits';
-        Args.Dirs         = 'ALL';  % or vector of numbedrs [1 2 3 4]
+        Args.Dirs         = 'ALL';  % or vector of numbers [1 2 3 4]
         Args.StartDate    = -Inf;
         Args.EndDate      = Inf;
         Args.Nfiles       = Inf;  % use only last N files
