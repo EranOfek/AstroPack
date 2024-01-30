@@ -47,6 +47,9 @@ function [Image] = normalize(Image, Args)
     %                   in units of probability to Gaussian significance.
     %                   This will work only if Fun2prob is not empty.
     %                   Default is true.
+    %            'IfChi2_Sq' - A logical indicating if to square the input,
+    %                   if PreDef is some of the 'chi2' options.
+    %                   Default is true.
     % Output : - A normalized array.
     % Author : Eran Ofek (2024 Jan) 
     % Example: %Set mean to zero and ribust std to 1:
@@ -68,6 +71,7 @@ function [Image] = normalize(Image, Args)
         Args.K                  = 1;
         Args.Fun2Prob           = [];     % @chi2cdf
         Args.Prob2sig logical   = true;
+        Args.IfChi2_Sq logical = true;
     end
     
     if ~isempty(Args.PreDef)
@@ -92,16 +96,28 @@ function [Image] = normalize(Image, Args)
                 Args.MultFun     = @mean;
                 Args.MultFunArgs = {0,'all'};
                 Args.MultVal     = Args.K;
+
+                if Args.IfChi2_Sq
+                    Image = Image.^2;
+                end
             case 'chi2_median'
                 Args.AddFun      = [];
                 Args.MultFun     = @median;
                 Args.MultFunArgs = {0,'all'};
                 Args.MultVal     = Args.K.*(1 - (2./(9.*Args.K))).^3;
+
+                if Args.IfChi2_Sq
+                    Image = Image.^2;
+                end
             case 'chi2_var'
                 Args.AddFun      = [];
                 Args.MultFun     = @var;
                 Args.MultFunArgs = {0,'all'};
                 Args.MultVal     = 2.*Args.K;
+
+                if Args.IfChi2_Sq
+                    Image = Image.^2;
+                end
             otherwise
                 error('Unknown PreDef option');
         end
