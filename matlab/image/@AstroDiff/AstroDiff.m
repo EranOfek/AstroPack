@@ -24,7 +24,8 @@ classdef AstroDiff < AstroImage
         BackR
         VarN
         VarR
-
+        SigmaN
+        SigmaR
        
     end
     
@@ -105,7 +106,7 @@ classdef AstroDiff < AstroImage
                 error('Number of New and Ref images must be comaptible');
             end
             
-            for Imax=1:1:Nmax
+            for Imax=Nmax:-1:1
                 In = min(Imax, Nn);
                 Ir = min(Imax, Nr);
                 
@@ -468,7 +469,7 @@ classdef AstroDiff < AstroImage
             %                   image.
             %                   Default is true.
             %            'ReplaceNaN' - A logical indicating if to replace
-            %                   NaN's pixels in the New and Ref with thir
+            %                   NaN's pixels in the New and Ref with their
             %                   respective mean background levels.
             %                   Default is true.
             %            'ReplaceNaNArgs' - A cell array of additional
@@ -863,6 +864,7 @@ classdef AstroDiff < AstroImage
         
                 Args.VarFun                      = []; %@imUtil.background.rvar; % [];
                 Args.VarFunPar cell              = {};
+                Args.MeanVarFun function_handle   = @tools.math.stat.nanmean;
                 Args.SubSizeXY                   = [];
                 Args.Overlap                     = 16;
                 
@@ -898,9 +900,11 @@ classdef AstroDiff < AstroImage
 
                 Obj(Iobj).BackR = Args.FunBackImage(Obj(Iobj).Ref.Back(:), Args.FunBackImageArgs{:});
                 Obj(Iobj).VarR  = Args.FunBackImage(Obj(Iobj).Ref.Var(:), Args.FunVarImageArgs{:});
-                
-            end
 
+                Obj(Iobj).SigmaN = sqrt(Args.MeanVarFun(Obj(Iobj).VarN, 'all'));
+                Obj(Iobj).SigmaR = sqrt(Args.MeanVarFun(Obj(Iobj).VarR, 'all'));
+            end
+        
         end
         
 
@@ -1245,8 +1249,7 @@ classdef AstroDiff < AstroImage
 
                 Args.Eps              = 0;
                 Args.SetToNaN         = [];
-                Args.NormZ2 logical   = true;  % analytical normalization
-                Args.NormZsigma       = 'none'; %'chi_median'
+                Args.NormMethod       = 'empirical';
             end
 
             if Args.ReplaceNaN
@@ -1273,33 +1276,7 @@ classdef AstroDiff < AstroImage
                                                          'ShiftPsf',false,...
                                                          'Eps',Args.Eps,...
                                                          'SetToNaN',[],...
-                                                         'NormMethod','none');
-                if Args.NormZ2
-                    % analytical normalization
-                    Obj(Iobj).Z2 = Obj(Iobj).Z2./Norm; 
-                end
-
-
-                if ~isempty(Args.NormZsigma)
-                    % Normalize to units of significance
-                    
-                    switch lower(Args.NormZsigma(1:4))
-                        case 'chi2'
-                            % Nomalize using S^2
-                            Obj(Iobj).Z2sigma = imUtil.image.normalize(Obj(Iobj).Z2, 'PreDef',Args.NormMethod,...
-                                                                      'K',1,...
-                                                                      'IfChi2_Sq',true,...
-                                                                      'Fun2Prob',@chi2cdf,...
-                                                                      'Prob2Sig',true);
-                      
-                        case 'none'
-                            % do nothing
-                        otherwise
-                            error('Unknown NormZsigma option');
-                        
-                    end                                  
-                    
-                end
+                                                         'NormMethod',Args.NormMethod);
             end
 
         end
