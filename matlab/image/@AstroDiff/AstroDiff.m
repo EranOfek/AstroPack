@@ -15,7 +15,6 @@ classdef AstroDiff < AstroImage
         
         S   % with IsFFT - do we need ImageComponent?
         Scorr 
-        Z2sigma 
 
         %
         Fn
@@ -25,7 +24,8 @@ classdef AstroDiff < AstroImage
         BackR
         VarN
         VarR
-
+        SigmaN
+        SigmaR
        
     end
     
@@ -53,6 +53,8 @@ classdef AstroDiff < AstroImage
         F_S
         
         Z2
+        S2
+        
         Zvec_hat
         
         % For artificial sources
@@ -104,7 +106,7 @@ classdef AstroDiff < AstroImage
                 error('Number of New and Ref images must be comaptible');
             end
             
-            for Imax=1:1:Nmax
+            for Imax=Nmax:-1:1
                 In = min(Imax, Nn);
                 Ir = min(Imax, Nr);
                 
@@ -317,34 +319,6 @@ classdef AstroDiff < AstroImage
         end
 
 
-            % S_hat(Obj)
-            % getter for S_hat
-
-            % get D_hat
-            % get_Pd_hat
-            % cross correlate
-            % normalize to sigma units
-
-        
-
-        % Need getters for:
-        % Fn
-        % Fr
-        % Fd
-        % SigmaN
-        % SigmaR
-
-        % need getters for:
-        % D_den_hat
-        % D_num_hat
-        % D_denSqrt_hat
-        % P_deltaNhat
-        % P_deltaRhat
-        % 
-        % F_S
-        % 
-        % Zvec_hat
-
     end
     
     methods % read/write
@@ -352,29 +326,108 @@ classdef AstroDiff < AstroImage
     end
 
     methods % utilities
-        % normS
-        
-        % normZ2
-        
-        % S2
+       function Obj=replaceNaN(Obj, Args)
+            % Replace NaN pixels in New and Ref with Back value or other value.
+            % Input  : - An AstroDiff object.
+            %          * ...,key,val,...
+            %            'ReplaceVal' - All the NaN pixels in the New and
+            %                   Ref images will be replaced with this value.
+            %                   If 'back', then will take the value from
+            %                   the 'BackN' and 'BackR' properties.
+            %                   Default is 'back'.
+            % Output : - An updated AstroDiff object, in which the NaN
+            %            values in the New and Ref images is replaced.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: AD.replaceNaN
 
-        % cleanFFT (?)
+            arguments
+                Obj
+                Args.ReplaceVal  = 'back';  % or scalar
+            end
 
-        % fft(Obj, Fields) - store the results in the *_hat properties
-        % 
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                % New image
+                if ischar(Args.ReplaceVal)
+                    ValN = Obj(Iobj).BackN;
+                else
+                    ValN = Args.ReplaceVal;
+                end
+                Obj(Iobj).New = imProc.image.replaceVal(Obj(Iobj).New, NaN, ValN, 'CreateNewObj',false, 'UseOutRange',false);
 
-        % ifft(Obj, Fields) from hat to non-hat
+                % Ref image
+                if ischar(Args.ReplaceVal)
+                    ValR = Obj(Iobj).BackR;
+                else
+                    ValR = Args.ReplaceVal;
+                end
+                Obj(Iobj).Ref = imProc.image.replaceVal(Obj(Iobj).Ref, NaN, ValR, 'CreateNewObj',false, 'UseOutRange',false);
+            end
+           
+        end
+    end
 
-        % shift
-        
-        % shiftfft
-        
-        % resizePSF
+    methods % utilities  % search/load images
+        % loadRef
+
 
     end
 
-    methods % main functionality
-        % loadRef
+    methods % registration and astrometry
+
+        % astrometryRefine
+        function Obj=astrometryRefine(Obj, Args)
+            % Refine the astrometry of the New and Ref images using imProc.astrometry.astrometryRefine
+            % Input  : - An AstroDiff object.
+            %          * ...,key,val,...
+            %            'RefineNew' - A logical indicating if to refine
+            %                   the astrometric solution of the New image.
+            %                   Default is true.
+            %            'RefineRef' - A logical indicating if to refine
+            %                   the astrometric solution of the Ref image.
+            %                   Default is true.
+            %            'astrometryRefineArgs' - A cell array of argumnets
+            %                   to pass to imProc.astrometry.astrometryRefine
+            %                   Default is {}.
+            %            'CatName' - Astrometric catalog name, or AstroCatalog
+            %                   containing catalog.
+            %                   Default is 'GAIADR3'.
+            %            'UseSameCat' - A logical indicating if to use the
+            %                   same catalog for all elements of the AstroDiff
+            %                   (i.e., the same field).
+            %                   Default is false.
+            % Output : - An AstroDiff object in which the New and Ref
+            %            images astrometry is updated.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: AD.astrometryRefine
+
+            arguments
+                Obj
+                Args.RefineNew logical         = true;
+                Args.RefineRef logical         = true;
+                Args.astrometryRefineArgs cell = {};
+                Args.CatName                   = 'GAIADR3';
+
+                Args.UseSameCat logical        = false;
+            end
+
+
+            AstCat = Args.CatName;
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if Args.RefineNew
+                    [~, Obj(Iobj).New, AstCat] = imProc.astrometry.astrometryRefine(Obj(Iobj).New, Args.astrometryRefineArgs{:}, 'CatName',AstCat);
+                end
+                if Args.RefineRef
+                    [~, Obj(Iobj).Ref] = imProc.astrometry.astrometryRefine(Obj(Iobj).Ref, Args.astrometryRefineArgs{:}, 'CatName',AstCat);
+                end
+                if ~Args.UseSameCat
+                    AstCat = Args.CatName;
+                end
+            end
+
+        end
 
         % register
         function Obj=register(Obj, Args)
@@ -416,7 +469,7 @@ classdef AstroDiff < AstroImage
             %                   image.
             %                   Default is true.
             %            'ReplaceNaN' - A logical indicating if to replace
-            %                   NaN's pixels in the New and Ref with thir
+            %                   NaN's pixels in the New and Ref with their
             %                   respective mean background levels.
             %                   Default is true.
             %            'ReplaceNaNArgs' - A cell array of additional
@@ -500,7 +553,9 @@ classdef AstroDiff < AstroImage
 
         end
 
+    end
 
+    methods % estimate: Fn, Fr, Back, Var
         % ready / Fn/Fr not tested
         function [Obj, Fn, Fr]=estimateFnFr(Obj, Args)
             % Estimate Fn/Fr (flux matching) and return matching factors such that Fn=1
@@ -551,16 +606,16 @@ classdef AstroDiff < AstroImage
 
                 % convert to flx units
                 if Args.IsMagZP
-                    Fn     = 10.^(-0.4.*Fn);
-                    Fr     = 10.^(-0.4.*Fr);
+                    % Note that there should be no "-" sign here
+                    Fn     = 10.^(0.4.*Fn);
+                    Fr     = 10.^(0.4.*Fr);
                 end
                
                 if isempty(Args.Fn)
                     % no normalization
                 else
                     % Normalize by Fn value.
-                    Fr = Args.Fn .* Fr./Fn;   % Fr = Fn./Fr; bug?
-                    warning('Check Fn/Fr')
+                    Fr = Args.Fn .* Fr./Fn;   
                     Fn = Args.Fn;
                 end
                         
@@ -569,6 +624,162 @@ classdef AstroDiff < AstroImage
                 Obj(Iobj).Fn = Fn;
 
             end
+
+
+        end
+
+        function Result=subAsFunFn(Obj, Args)
+            % Return statistics of D image as a function of Fr
+            %   Perform subtraction with variable Fr in order to find best
+            %   Fn/Fr.
+            %   This function will not generate a D and Pd in the
+            %   AstroDiff.
+            % Input  : - An AstroDiff object. If needed the New and Ref
+            %            will be registered.
+            %          * ...,key,val,...
+            %            'UseNominalFr' - If true, then the test of Fr used
+            %                   by this function are Obj.Fr * Args.RangeFr.
+            %                   If false, then will use Args.RangeFr as is.
+            %            'RangeFr' - A vector of Fr values to test.
+            %                   Default is (0.9:0.01:1.1);
+            %            
+            %            'AbsFun' - absolute value function.
+            %                   Default is @(X) abs(X)
+            %            'Eps' - A small value to add to the demoninators in order
+            %                   to avoid division by zero due to roundoff errors.
+            %                   Default is 0. (If needed set to about 100.*eps).
+            %            'CleanPd' - A logical indicating if to clean Pd (zero low
+            %                   frequencies).
+            %                   Default is true.
+            %            'ReplaceNaN' - A logical indicating if to replace
+            %                   NaN's pixels in the New and Ref with thir
+            %                   respective mean background levels.
+            %                   Default is false. (By default done in the
+            %                   register step).
+            %            'ReplaceNaNArgs' - A cell array of additional
+            %                   arguments to pass to replaceNaN.
+            %                   Default is {}.
+            %            'NormDbyFd' - A logical indicating if to normalize
+            %                   D to units of flux, by dividing it by Fd.
+            %                   Default is true.
+            %
+            % Output : - A structure array with the D statistics as a
+            %            function of Fr value.
+            %            Each element corresponds to an AstroDiff element.
+            %            The following fields are available:
+            %            .VecFr - Vector of abs value of the Fr.
+            %            .MeanD - Meran of D
+            %            .MedianD - Median of D
+            %            .StdD - Std of D
+            %            .MadD - mad of D calculated using:
+            %                   tools.math.stat.std_mad
+            %            .OptMeanD - Absolute Fr corresponding to MeanD=0.
+            %            .OptMedianD - Absolute Fr corresponding to MedianD=0.
+            %            .OptStdD - Absolute Fr corresponding to min of StdD.
+            %            .OptMadD - Absolute Fr corresponding to min of MadD.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: RR=AD.subAsFunFn
+
+            arguments
+                Obj
+                Args.UseNominalFr logical   = true;
+                Args.RangeFr                = (0.9:0.01:1.1);
+
+                Args.AbsFun              = @(X) abs(X);
+                Args.Eps                 = 0;
+                Args.CleanPd logical     = true;
+                
+                Args.ReplaceNaN logical  = false;
+                Args.ReplaceNaNArgs cell = {};
+
+                Args.NormDbyFd logical   = true;
+                
+            end
+
+            Nfr = numel(Args.RangeFr);
+
+            Nobj = numel(Obj);
+            Result = struct('VecFr',cell(Nobj,1), 'MeanD',cell(Nobj,1), 'MedianD',cell(Nobj,1), 'StdD',cell(Nobj,1), 'MadD',cell(Nobj,1),...
+                                                  'OptMeanD',cell(Nobj,1), 'OptMedianD',cell(Nobj,1), 'OptStdD',cell(Nobj,1), 'OptMadD',cell(Nobj,1));
+            for Iobj=1:1:Nobj
+                if ~Obj(Iobj).IsRegistered
+                    % register images if needed
+                    Obj(Iobj).register;
+                end
+
+                OriginalFr = Obj(Iobj).Fr;
+                if Args.UseNominalFr
+                    VecFr = OriginalFr.*Args.RangeFr;
+                else
+                    VecFr = Args.RangeFr;
+                end
+
+                Result(Iobj).VecFr   = VecFr;
+                Result(Iobj).MeanD   = zeros(Nfr,1);
+                Result(Iobj).MedianD = zeros(Nfr,1);
+                Result(Iobj).StdD    = zeros(Nfr,1);
+                Result(Iobj).MadD    = zeros(Nfr,1);
+                for Ifr=1:1:Nfr
+
+                    [D_hat, Pd_hat, Fd] = imUtil.properSub.subtractionD(Obj(Iobj).N_hat,...
+                                                                                               Obj(Iobj).R_hat,...
+                                                                                               Obj(Iobj).Pn_hat,...
+                                                                                               Obj(Iobj).Pr_hat,...
+                                                                                               sqrt(Obj(Iobj).VarN),...
+                                                                                               sqrt(Obj(Iobj).VarR),...
+                                                                                               Obj(Iobj).Fn,...
+                                                                                               VecFr(Ifr),...
+                                                                                               'AbsFun',Args.AbsFun,...
+                                                                                               'Eps',Args.Eps,...
+                                                                                               'IsFFT',true,...
+                                                                                               'IsOutFFT',true,...
+                                                                                               'CleanPd',Args.CleanPd);    
+                    % calculate D
+                    D = ifft2(D_hat);
+                    if Args.NormDbyFd
+                        D = D./Fd;
+                    end
+                    Result(Iobj).MeanD(Ifr)   = mean(D(:));
+                    Result(Iobj).MedianD(Ifr) = fast_median(D(:));
+                    Result(Iobj).StdD(Ifr)    = std(D(:));
+                    Result(Iobj).MadD(Ifr)    = tools.math.stat.std_mad(D(:));
+
+                end
+                % search optimum Fr
+                % MeanD 
+                List = tools.find.find_local_zeros(Result(Iobj).VecFr(:), Result(Iobj).MeanD(:));
+                if size(List,1)==1
+                    Result(Iobj).OptMeanD = List(1,1);
+                else
+                    Result(Iobj).OptMeanD = NaN;
+                end
+                % MedianD
+                List = tools.find.find_local_zeros(Result(Iobj).VecFr(:), Result(Iobj).MedianD(:));
+                if size(List,1)==1
+                    Result(Iobj).OptMedianD = List(1,1);
+                else
+                    Result(Iobj).OptMedianD = NaN;
+                end
+                % StdD
+                List = tools.find.find_local_extremum(Result(Iobj).VecFr(:), Result(Iobj).StdD(:));
+                if size(List,1)==1 && List(1,3)>0
+                    Result(Iobj).OptStdD = List(1,1);
+                else
+                    Result(Iobj).OptStdD = NaN;
+                end
+                % MadD
+                List = tools.find.find_local_extremum(Result(Iobj).VecFr(:), Result(Iobj).MadD(:));
+                if size(List,1)==1 && List(1,3)>0
+                    Result(Iobj).OptMadD = List(1,1);
+                else
+                    Result(Iobj).OptMadD = NaN;
+                end
+
+
+
+            end
+
+
 
 
         end
@@ -653,6 +864,7 @@ classdef AstroDiff < AstroImage
         
                 Args.VarFun                      = []; %@imUtil.background.rvar; % [];
                 Args.VarFunPar cell              = {};
+                Args.MeanVarFun function_handle   = @tools.math.stat.nanmean;
                 Args.SubSizeXY                   = [];
                 Args.Overlap                     = 16;
                 
@@ -688,52 +900,17 @@ classdef AstroDiff < AstroImage
 
                 Obj(Iobj).BackR = Args.FunBackImage(Obj(Iobj).Ref.Back(:), Args.FunBackImageArgs{:});
                 Obj(Iobj).VarR  = Args.FunBackImage(Obj(Iobj).Ref.Var(:), Args.FunVarImageArgs{:});
-                
-            end
 
+                Obj(Iobj).SigmaN = sqrt(Args.MeanVarFun(Obj(Iobj).VarN, 'all'));
+                Obj(Iobj).SigmaR = sqrt(Args.MeanVarFun(Obj(Iobj).VarR, 'all'));
+            end
+        
         end
+        
 
-        % ready
-        function Obj=replaceNaN(Obj, Args)
-            % Replace NaN pixels in New and Ref with Back value or other value.
-            % Input  : - An AstroDiff object.
-            %          * ...,key,val,...
-            %            'ReplaceVal' - All the NaN pixels in the New and
-            %                   Ref images will be replaced with this value.
-            %                   If 'back', then will take the value from
-            %                   the 'BackN' and 'BackR' properties.
-            %                   Default is 'back'.
-            % Output : - An updated AstroDiff object, in which the NaN
-            %            values in the New and Ref images is replaced.
-            % Author : Eran Ofek (Jan 2024)
-            % Example: AD.replaceNaN
+    end
 
-            arguments
-                Obj
-                Args.ReplaceVal  = 'back';  % or scalar
-            end
-
-            Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-                % New image
-                if ischar(Args.ReplaceVal)
-                    ValN = Obj(Iobj).BackN;
-                else
-                    ValN = Args.ReplaceVal;
-                end
-                Obj(Iobj).New = imProc.image.replaceVal(Obj(Iobj).New, NaN, ValN, 'CreateNewObj',false, 'UseOutRange',false);
-
-                % Ref image
-                if ischar(Args.ReplaceVal)
-                    ValR = Obj(Iobj).BackR;
-                else
-                    ValR = Args.ReplaceVal;
-                end
-                Obj(Iobj).Ref = imProc.image.replaceVal(Obj(Iobj).Ref, NaN, ValR, 'CreateNewObj',false, 'UseOutRange',false);
-            end
-           
-        end
-
+    methods % Subtraction tools
         % ready for testing (including mask, header, wcs)
         function Obj=subtractionD(Obj, Args)
             % Calculate ZOGY D images and its PSF Pd.
@@ -983,8 +1160,11 @@ classdef AstroDiff < AstroImage
             %                   This is the PreDef argument of imUtil.image.normalize
             %                   If empty, then do not normalize.
             %                   Options include
-            %                   'norm','norm_robust','chi2_mean','chi2_median','chi2_std'.
+            %                   'norm','norm_robust','chi2_mean','chi2_median','chi2_std',
+            %                   'none'.
             %                   Default is 'norm_robust'
+            %            'PosS2' - Populate the S2 (S.^2) property.
+            %                   Default is true.
             %
             % Output : - An AstroDiff object in which S and optional S_hat
             %            are normalize.
@@ -1002,6 +1182,7 @@ classdef AstroDiff < AstroImage
                         %                   'chi2_mean' - Normalize to the mean of \chi^2 with K degrees of freedoms.
                         %                   'chi2_median' - Normalize to the median of \chi^2 with K degrees of freedoms.
                         %                   'chi2_var'    - Normalize to the variance of \chi^2 with K degrees of freedoms.
+               Args.PopS2 logical           = true;
                 
             end
             
@@ -1024,14 +1205,20 @@ classdef AstroDiff < AstroImage
                                                                       'Prob2Sig',false);
                         case 'chi2'
                             % Nomalize using S^2
-                            Obj(Iobj).S = imUtil.image.normalize(Obj(Iobj).S.^2, 'PreDef',Args.NormMethod,...
+                            Obj(Iobj).S = imUtil.image.normalize(Obj(Iobj).S, 'PreDef',Args.NormMethod,...
                                                                       'K',1,...
                                                                       'IfChi2_Sq',true,...
                                                                       'Fun2Prob',@chi2cdf,...
                                                                       'Prob2Sig',true);
+                        case 'none'
+                            % do nothing
                         otherwise
                             error('Unknown NormMethod option');
-                    end                                  
+                    end      
+
+                    if Args.PopS2
+                        Obj(Iobj).S2 = Obj(Iobj).S.^2;
+                    end
                     
                 end
                
@@ -1050,7 +1237,9 @@ classdef AstroDiff < AstroImage
             %            populated. If IsRegistered is false, then the
             %            images will be registered.
             %          * ...,key,val,...
-            
+            %
+            % Author : Eran Ofek (Jan 2024)
+            % Example: AD.translient
 
             arguments
                 Obj
@@ -1060,7 +1249,8 @@ classdef AstroDiff < AstroImage
 
                 Args.Eps              = 0;
                 Args.SetToNaN         = [];
-                Args.NormMethod       = 'analytical';
+                Args.NormZsigma       = 'none'; %'chi_median'
+                Args.NormMethod       = 'empirical';
             end
 
             if Args.ReplaceNaN
@@ -1075,9 +1265,10 @@ classdef AstroDiff < AstroImage
                     Obj(Iobj).register;
                 end
 
-                [Obj(Iobj).Z2, Obj(Iobj).Zvec_hat,Norm] = imUtil.properSub.translient(Obj(Iobj).N_hat, Obj(Iobj).R_hat,...
+                [Obj(Iobj).Z2, Obj(Iobj).Zvec_hat,~] = imUtil.properSub.translient(Obj(Iobj).N_hat, Obj(Iobj).R_hat,...
                                                          Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat,...
-                                                         Obj(Iobj).SigmaN, Obj(Iobj).SigmaR,...
+                                                         Obj(Iobj).SigmaN,...
+                                                         Obj(Iobj).SigmaR,...
                                                          'Fn',Obj(Iobj).Fn,...
                                                          'Fr',Obj(Iobj).Fr,...
                                                          'IsImFFT',true,...
@@ -1086,7 +1277,28 @@ classdef AstroDiff < AstroImage
                                                          'ShiftPsf',false,...
                                                          'Eps',Args.Eps,...
                                                          'SetToNaN',[],...
-                                                         'NormaMethod',Args.NormMethod);
+                                                         'NormMethod',Args.NormMethod);
+
+                if ~isempty(Args.NormZsigma)
+                    % Normalize to units of significance
+
+                    switch lower(Args.NormZsigma(1:4))
+                        case 'chi2'
+                            % Nomalize using S^2
+                            Obj(Iobj).Z2sigma = imUtil.image.normalize(Obj(Iobj).Z2, 'PreDef',Args.NormMethod,...
+                                                                      'K',2,...
+                                                                      'IfChi2_Sq',true,...
+                                                                      'Fun2Prob',@chi2cdf,...
+                                                                      'Prob2Sig',true);
+
+                        case 'none'
+                            % do nothing
+                        otherwise
+                            error('Unknown NormZsigma option');
+
+                    end                                  
+
+                end
             end
 
         end

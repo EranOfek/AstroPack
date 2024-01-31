@@ -17,10 +17,19 @@ function Result=unitTest()
     AD.New = AstroImage.readFileNamesObj('LAST.01.05.01_20231215.002824.520_clear_TXS0506+056_000_001_010_sci_coadd_Image_1.fits');
 
 
+    AD.astrometryRefine
+    
+    RR=AD.subAsFunFn
 
     % Register the Ref image into the New image (New won't change)
-    AD.register
-    AD.subtractionD
+    
+
+    AD.register;
+    AD.subtractionD;
+    
+    AD.subtractionS;
+
+    AD.translient;
     
     Result = true;
 

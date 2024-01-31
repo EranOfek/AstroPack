@@ -44,7 +44,7 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     %                   'empirical' - Empirical using the median of \chi^2
     %                           with 2 dof.
     %                   'none' - No normalization.
-    %                   Default is 'analytical'.
+    %                   Default is 'empirical'.
     % Output : - (Z2) The translient statistic.
     %          - (Zhat) The translient Zhat vector. Size (M,M,2) where M is
     %            the image size.
@@ -75,7 +75,7 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
         Args.Eps                      = 0;
 
         Args.SetToNaN         = [];
-        Args.NormMethod = 'analytical';
+        Args.NormMethod = 'empirical';
     end
 
 
@@ -134,6 +134,7 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
             %Z2 = Z2./mean(Z2, 'all', 'omitnan')*k;
             %Z2 = Z2./tools.math.stat.rstd(Z2, [1 2])*sqrt(2*k);
         case 'none'
+            % do nothing
     end
 
 end
