@@ -70,7 +70,7 @@ function [Image] = normalize(Image, Args)
         Args.PreDef             = [];
         Args.K                  = 1;
         Args.Fun2Prob           = [];     % @chi2cdf
-        Args.Prob2sig logical   = true;
+        Args.Prob2Sig logical   = true;
         Args.IfChi2_Sq logical = true;
     end
     
@@ -103,7 +103,7 @@ function [Image] = normalize(Image, Args)
             case 'chi2_median'
                 Args.AddFun      = [];
                 Args.MultFun     = @median;
-                Args.MultFunArgs = {0,'all'};
+                Args.MultFunArgs = {'all'};
                 Args.MultVal     = Args.K.*(1 - (2./(9.*Args.K))).^3;
 
                 if Args.IfChi2_Sq
@@ -138,8 +138,8 @@ function [Image] = normalize(Image, Args)
         % Convert from \chi^2 distribution to probability
     
         Image = Args.Fun2Prob(Image, Args.K);
-        % one sided
-        Image = 1 - (1-Image).*2;
+        % two sided
+        %Image = 1 - (1-Image).*2;
         if Args.Prob2Sig
             % convert to Gaussian significance
             Image = norminv(Image, 0, 1);

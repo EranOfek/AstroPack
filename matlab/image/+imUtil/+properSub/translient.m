@@ -134,6 +134,7 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
             %Z2 = Z2./mean(Z2, 'all', 'omitnan')*k;
             %Z2 = Z2./tools.math.stat.rstd(Z2, [1 2])*sqrt(2*k);
         case 'none'
+            % do nothing
     end
 
 end
