@@ -12,16 +12,18 @@ function Index = findGroupOfConsecutiveVals(A, M, N, Val)
     %          B = [1 2 7 8 7 8 9 0 7 7 1 6 7 7 6 5 7 7 1 0 7 8];
     %          Ind = tools.find.findGroupOfConsecutiveVals(B, 3, 2, 7); 
     %          [will give the indices of the M = 3rd group of N = 2 values Val = 7 in vector B]
+    %          Ind = tools.find.findGroupOfConsecutiveVals(B, 4, 2, 7);
+    %          will be empty, as there is no 4th group of two 7th
     Ind0 = find(A == Val);
-    Index = [];
     for i = 1:length(Ind0)-N+1
         ConsecutiveGroup = Ind0(i:i+N-1);
         if all(diff(ConsecutiveGroup) == 1)
             M = M - 1;
             Index = ConsecutiveGroup;
             if M == 0
-                break;
+                return;
             end
         end
     end
+    Index = []; % nothing is found 
 end
