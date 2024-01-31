@@ -5,7 +5,7 @@
 classdef AstroDiff < AstroImage
     
     properties (Dependent)
-      
+        
     end
 
     properties
@@ -61,6 +61,13 @@ classdef AstroDiff < AstroImage
         
     end
 
+    properties (Hidden, Dependent)  % auxilary images
+        % back subtracted New
+        Nbs
+        % Back subtracted Ref
+        Rbs
+    end
+
 
     methods % constructor
         function Obj=AstroDiff(New, Ref)
@@ -109,15 +116,29 @@ classdef AstroDiff < AstroImage
     end
     
     methods % setters/getters
+        function Val=get.Rbs(Obj)
+            % getter for Rbs - Return background subtracted Ref image
+    
+            Val = Obj.Ref.Image - Obj.BackR;
+        end
+
+        function Val=get.Nbs(Obj)
+            % getter for Mbs - Return background subtracted New image
+    
+            Val = Obj.New.Image - Obj.BackN;
+        end
+
         function Val=get.R_hat(Obj)
             % getter for R_hat
+            % Calculate fft2 of background subtracted Ref image
 
             if isempty(Obj.R_hat)
                 % R_hat is not available - calculate
                 if Obj.Ref.isemptyImage
                     error('Ref image is not populated');
                 else
-                    Obj.R_hat = fft2(Obj.Ref.Image, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
+                    %Obj.R_hat = fft2(Obj.Ref.Image - Obj.BackR, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
+                    Obj.R_hat = fft2(Obj.Rbs, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
                 end
             else
                 % R_hat is already available - use as is
@@ -127,13 +148,15 @@ classdef AstroDiff < AstroImage
 
         function Val=get.N_hat(Obj)
             % getter for N_hat
+            % Calculate fft2 of background subtracted New image
 
             if isempty(Obj.N_hat)
                 % N_hat is not available - calculate
                 if Obj.New.isemptyImage
                     error('New image is not populated');
                 else
-                    Obj.N_hat = fft2(Obj.New.Image, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
+                    %Obj.N_hat = fft2(Obj.New.Image - Obj.BackN, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
+                    Obj.N_hat = fft2(Obj.Nbs, Obj.ZeroPadRowsFFT, Obj.ZeroPadColsFFT);
                 end
             else
                 % N_hat is already available - use as is
@@ -392,6 +415,13 @@ classdef AstroDiff < AstroImage
             %                   NaN pixels (after registration) in the bit mask
             %                   image.
             %                   Default is true.
+            %            'ReplaceNaN' - A logical indicating if to replace
+            %                   NaN's pixels in the New and Ref with thir
+            %                   respective mean background levels.
+            %                   Default is true.
+            %            'ReplaceNaNArgs' - A cell array of additional
+            %                   arguments to pass to replaceNaN.
+            %                   Default is {}.
             %
             % Output : - An AstroDiff object in which the Ref and New are
             %            registered.
@@ -416,6 +446,10 @@ classdef AstroDiff < AstroImage
                 Args.Sampling                 = 20;
 
                 Args.SetNaNBitMask logical    = true;
+
+                Args.ReplaceNaN logical  = true;
+                Args.ReplaceNaNArgs cell = {};
+
             end
 
             Nobj = numel(Obj);
@@ -459,6 +493,11 @@ classdef AstroDiff < AstroImage
                     Obj(Iobj).IsRegistered = true;
                 end
             end % for Iobj=1:1:Nobj
+
+            if Args.ReplaceNaN
+                Obj.replaceNaN(Args.ReplaceNaNArgs{:});
+            end
+
         end
 
 
@@ -521,6 +560,7 @@ classdef AstroDiff < AstroImage
                 else
                     % Normalize by Fn value.
                     Fr = Args.Fn .* Fr./Fn;   % Fr = Fn./Fr; bug?
+                    warning('Check Fn/Fr')
                     Fn = Args.Fn;
                 end
                         
@@ -718,7 +758,8 @@ classdef AstroDiff < AstroImage
             %            'ReplaceNaN' - A logical indicating if to replace
             %                   NaN's pixels in the New and Ref with thir
             %                   respective mean background levels.
-            %                   Default is true.
+            %                   Default is false. (By default done in the
+            %                   register step).
             %            'ReplaceNaNArgs' - A cell array of additional
             %                   arguments to pass to replaceNaN.
             %                   Default is {}.
@@ -798,7 +839,7 @@ classdef AstroDiff < AstroImage
                 Args.Eps                 = 0;
                 Args.CleanPd logical     = true;
                 
-                Args.ReplaceNaN logical  = true;
+                Args.ReplaceNaN logical  = false;
                 Args.ReplaceNaNArgs cell = {};
 
                 Args.NormDbyFd logical   = true;
@@ -974,20 +1015,18 @@ classdef AstroDiff < AstroImage
             
                 if ~isempty(Args.NormMethod)
                     % Normalize to units of significance
-                    if Args.NormS2
-                        Obj(Iobj).S = Obj(Iobj).S.^2;
-                    end
                     
                     switch lower(Args.NormMethod(1:4))
                         case 'norm'
                             Obj(Iobj).S = imUtil.image.normalize(Obj(Iobj).S, 'PreDef',Args.NormMethod,...
                                                                       'K',1,...
-                                                                      'Fun2Prob',...
+                                                                      'Fun2Prob',[],...
                                                                       'Prob2Sig',false);
                         case 'chi2'
                             % Nomalize using S^2
                             Obj(Iobj).S = imUtil.image.normalize(Obj(Iobj).S.^2, 'PreDef',Args.NormMethod,...
                                                                       'K',1,...
+                                                                      'IfChi2_Sq',true,...
                                                                       'Fun2Prob',@chi2cdf,...
                                                                       'Prob2Sig',true);
                         otherwise
