@@ -1249,7 +1249,8 @@ classdef AstroDiff < AstroImage
 
                 Args.Eps              = 0;
                 Args.SetToNaN         = [];
-                Args.NormMethod       = 'empirical';
+                Args.NormZ2 logical   = true;  % analytical normalization
+                Args.NormZsigma       = 'none'; %'chi_median'
             end
 
             if Args.ReplaceNaN
@@ -1276,7 +1277,33 @@ classdef AstroDiff < AstroImage
                                                          'ShiftPsf',false,...
                                                          'Eps',Args.Eps,...
                                                          'SetToNaN',[],...
-                                                         'NormMethod',Args.NormMethod);
+                                                         'NormMethod','none');
+                if Args.NormZ2
+                    % analytical normalization
+                    Obj(Iobj).Z2 = Obj(Iobj).Z2./Norm; 
+                end
+
+
+                if ~isempty(Args.NormZsigma)
+                    % Normalize to units of significance
+
+                    switch lower(Args.NormZsigma(1:4))
+                        case 'chi2'
+                            % Nomalize using S^2
+                            Obj(Iobj).Z2sigma = imUtil.image.normalize(Obj(Iobj).Z2, 'PreDef',Args.NormMethod,...
+                                                                      'K',1,...
+                                                                      'IfChi2_Sq',true,...
+                                                                      'Fun2Prob',@chi2cdf,...
+                                                                      'Prob2Sig',true);
+
+                        case 'none'
+                            % do nothing
+                        otherwise
+                            error('Unknown NormZsigma option');
+
+                    end                                  
+
+                end
             end
 
         end
