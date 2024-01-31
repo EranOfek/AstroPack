@@ -1,8 +1,8 @@
-function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
+function Result=findTransients(New, Ref, D, S, Z2, S2, SdN, SdR, Args)
     %{ 
     Performs a transients search on a set of products derived by the proper
     subtraction of a new and a reference image. Finds local maxima in the
-    Scorr statistic image above a defined threshold. Derives further values
+    S statistic image above a defined threshold. Derives further values
     such as significances and fluxes for identified transient candidates. 
     Results are then stored in a table summerising the transients values.
 
@@ -29,7 +29,7 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
         'Threshold' - Threshold in units of std (=sqrt(Variance)). Search
         for local maxima only above this threshold. Default is 5.
         'findLocalMaxArgs' - Args passed into imUtil.sources.findLocalMax()
-            when looking for local maxima in Scorr.
+            when looking for local maxima in S.
             Default is {}.
         'BitCutHalfSize' - Half size of area on transients positions in 
             image bit masks. Actual size will be 1+2*BitCutHalfSize. Used
@@ -57,7 +57,7 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
         Transient values are given in Result.TranTable.
 
     Author : Eran Ofek (2023)
-    Example: imProc.sources.findTransients(AIreg(2), AIreg(1), DD, S, Scorr, Z2, S2)
+    Example: imProc.sources.findTransients(AIreg(2), AIreg(1), DD, S, Z2, S2)
     %}
 
     arguments
@@ -65,7 +65,7 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
         Ref AstroImage
         D                          = [];
         S                          = [];
-        Scorr                      = [];
+        %Scorr                      = [];
         Z2                         = [];
         S2                         = [];
         SdN                        = [];
@@ -97,9 +97,9 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
         % for each image
 
         % find positive and negative sources in S
-        [PosLocalMax] = imUtil.sources.findLocalMax(Scorr(Iobj).Image, ...
+        [PosLocalMax] = imUtil.sources.findLocalMax(S, ...
             'Variance',1, 'Threshold',Args.Threshold, Args.findLocalMaxArgs{:});
-        [NegLocalMax] = imUtil.sources.findLocalMax(-Scorr.Image, ...
+        [NegLocalMax] = imUtil.sources.findLocalMax(-S, ...
             'Variance',1, 'Threshold',Args.Threshold, Args.findLocalMaxArgs{:});
 
         % Output *LocalMax contains: [X,Y,SN,ImageIndex,LinaerIndexIn2D]
@@ -146,8 +146,9 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
         [ResultR, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', Ref(Iobj).PSFData.getPSF, Args.psfPhotCubeArgs{:});
     
         % value at position
-        ValScorr = Scorr(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
-        ValS     = S(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
+        %ValScorr = Scorr(Iobj).getImageVal(LocalMax(:,1),LocalMax(:,2));
+        %S_Iobj = S(Iobj);
+        ValS     = S(LocalMax(:,1),LocalMax(:,2));
 
         if isempty(SdN)
             ValSdN = nan(Nsrc,1);
@@ -173,7 +174,7 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
             S2_TS = nan(Nsrc,1);
             S2_sig = nan(Nsrc,1);
         else
-            [S2_TS, S2_sig] = process_TS_map(S2(Iobj).Image, ...
+            [S2_TS, S2_sig] = process_TS_map(S2, ...
                 LocalMax(:,1), LocalMax(:,2), Args.HalfSizeTS, 1);
         end
 
@@ -181,13 +182,13 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
             Z2_TS = nan(Nsrc,1);
             Z2_sig = nan(Nsrc,1);
         else
-            [Z2_TS, Z2_sig] = process_TS_map(Z2(Iobj).Image, ...
+            [Z2_TS, Z2_sig] = process_TS_map(Z2, ...
                 LocalMax(:,1), LocalMax(:,2), Args.HalfSizeTS, 2);
         end
 
         % fill result struct
         Result(Iobj).Flag.ThresholdD  = ResultD.SNm>Args.Threshold;
-        Result(Iobj).Flag.ThresholdScorr = ValScorr>Args.Threshold;
+        %Result(Iobj).Flag.ThresholdScorr = ValScorr>Args.Threshold;
         Result(Iobj).Flag.ThresholdSfit  = ResultD.SNm>Args.Threshold;
 
         Result(Iobj).Flag.NotCR          = abs(ValS)>(abs(ValSdN)+1) & abs(ValS)>(abs(ValSdR)+1);
@@ -197,7 +198,8 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
         Result(Iobj).Flag.MaskHard    = ~NewFlagBad & ~RefFlagBad;
         Result(Iobj).Flag.MaskSoft    = ~NewFlagSoft & ~RefFlagSoft;
 
-        Result(Iobj).Flag.SummaryHard = Result(Iobj).Flag.ThresholdScorr & Result(Iobj).Flag.Chi2 & Result(Iobj).Flag.ThresholdSfit & Result(Iobj).Flag.MaskHard & Result(Iobj).Flag.NotCR;
+        %Result(Iobj).Flag.ThresholdScorr & 
+        Result(Iobj).Flag.SummaryHard = Result(Iobj).Flag.Chi2 & Result(Iobj).Flag.ThresholdSfit & Result(Iobj).Flag.MaskHard & Result(Iobj).Flag.NotCR;
         Result(Iobj).FlagSummaryHard  = Result(Iobj).Flag.SummaryHard;
         Result(Iobj).Ntran = sum(Result(Iobj).Flag.SummaryHard);
         
@@ -225,7 +227,7 @@ function Result=findTransients(New, Ref, D, S, Scorr, Z2, S2, SdN, SdR, Args)
         TranTable.ColNames = {'XPEAK', 'YPEAK', 'RA', 'Dec',  ...
             'StartJD', 'MidJD', 'EndJD',...
             'PSF_SNm', 'Chi2_D', 'NewMaskVal', 'RefMaskVal',...
-            'ValSdN', 'ValSdR', 'Scorr', 'Z2_TS', 'Z2_Sig', 'S2_TS', 'S2_Sig', ...
+            'ValSdN', 'ValSdR', 'S', 'Z2_TS', 'Z2_Sig', 'S2_TS', 'S2_Sig', ...
             'N_SNm', 'N_Chi2dof', 'N_Flux', 'N_Mag', ...
             'R_SNm', 'R_Chi2dof', 'R_Flux', 'R_Mag',...
             'Transient_Prefered', 'Bad_Pixel_Hard','Bad_Pixel_Soft'...

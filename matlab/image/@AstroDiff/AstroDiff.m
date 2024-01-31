@@ -26,6 +26,9 @@ classdef AstroDiff < AstroImage
         VarR
         SigmaN
         SigmaR
+
+        %
+        TranCat AstroCatalog
        
     end
     
@@ -1059,8 +1062,8 @@ classdef AstroDiff < AstroImage
                                                                                                Obj(Iobj).R_hat,...
                                                                                                Obj(Iobj).Pn_hat,...
                                                                                                Obj(Iobj).Pr_hat,...
-                                                                                               sqrt(Obj(Iobj).VarN),...
-                                                                                               sqrt(Obj(Iobj).VarR),...
+                                                                                               Obj(Iobj).SigmaN,...
+                                                                                               Obj(Iobj).SigmaR,...
                                                                                                Obj(Iobj).Fn,...
                                                                                                Obj(Iobj).Fr,...
                                                                                                'AbsFun',Args.AbsFun,...
@@ -1188,9 +1191,9 @@ classdef AstroDiff < AstroImage
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                S_hat           = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
+                S_hat           = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat); %#ok<PROPLC>
                 if Args.PopS_hat
-                    Obj(Iobj).S_hat = S_hat;
+                    Obj(Iobj).S_hat = S_hat; %#ok<PROPLC>
                 end
                 Obj(Iobj).S     = ifft2(Obj(Iobj).S_hat);
             
@@ -1303,9 +1306,40 @@ classdef AstroDiff < AstroImage
 
         end
 
+        
+    end
+
+    methods % transients search
+
         % findTransients
-        % Search for positive and negative transients in S
-        %   Only look for local max/min in S above detection threshold
+        function findTransients(Obj, Args)
+            %{
+            Search for positive and negative transients in S
+            Only look for local max/min in S above detection threshold
+            Input  : - An AstroDiff object in which the ... 
+                            TODO: fill out
+                     * ...,key,val,...
+                     - Args.Threshold ...
+            Author : Ruslan Konno (Jan 2024)
+            Example: AD.findTransients
+            %}
+            arguments
+                Obj
+
+                Args.Threshold = 5.0;
+            end
+
+            Nobj = numel(Obj);
+
+            for Iobj=Nobj:-1:1
+                Result(Iobj)=imProc.sources.findTransients(Obj(Iobj).New,...
+                    Obj(Iobj).Ref, Obj(Iobj), Obj(Iobj).S,...
+                    Obj(Iobj).Z2, Obj(Iobj).S2, [], [], ...
+                    'Threshold', Args.Threshold);  
+                Obj(Iobj).TranCat = Result(Iobj).TranTable;
+            end
+        end
+        
         
         % measureTransients
         % For each transient candidate measure properties.
@@ -1313,11 +1347,51 @@ classdef AstroDiff < AstroImage
         %   Ref, nearby source in New, Ref
         
         % cleanTransients
-        % Select good transients using selection criteria
+        function cleanTransients(Obj, Args)
+            %{
+            Select good transients using selection criteria
+                        TODO: fill out
+            Inout   : - An AstroDiff object in which the ... 
+                      - Args.filterTranslient ...
+                      - Args.filterBadPix_Hard ...
+                      - Args.filterBadPix_Soft ...
+            Author  : Ruslan Konno (Jan 2024)
+            Example : AD.cleanTransients
+            %}
+
+            arguments
+                Obj
+
+                Args.filterTranslient logical   = true;
+                Args.filterBadPix_Hard logical  = true;
+                Args.filterBadPix_Soft logical  = true;
+            end
+
+            Nobj = numel(Obj);
+
+            for Iobj=1:1:Nobj
+                sizeCat = size(Obj(Iobj).TranCat.Catalog,1);
+                keep = true(sizeCat,1);
+                if Args.filterTranslient
+                    keep = keep & ...
+                        Obj(Iobj).TranCat.Table.Transient_Prefered;
+                end
+                if Args.filterBadPix_Hard
+                    keep = keep & ...
+                        ~Obj(Iobj).TranCat.Table.Bad_Pixel_Hard;
+                end
+                if Args.filterBadPix_Soft
+                    keep = keep & ...
+                        ~Obj(Iobj).TranCat.Table.Bad_Pixel_Soft;                    
+                end
+
+                Obj(Iobj).TranCat = Obj(Iobj).TranCat.selectRows(keep);
+            end
+        end
         
         % fitDT
         % Fit a variability + motion model to the D_T image
-        
+
     end
     
     methods % injection simulations
