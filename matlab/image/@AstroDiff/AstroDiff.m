@@ -21,6 +21,48 @@ classdef AstroDiff < AstroImage
         BackR
         VarN
         VarR
+
+        %SigmaN
+        %SigmaR
+
+        %
+        TranCat AstroCatalog
+       
+    end
+    
+    properties (Hidden)  % auxilary images
+        ZeroPadRowsFFT   = [];
+        ZeroPadColsFFT   = [];
+
+
+        %FFT
+        R_hat
+        Pr_hat
+        N_hat
+        Pn_hat
+
+        D_hat
+        Pd_hat
+        S_hat
+        
+        D_den_hat
+        D_num_hat
+        D_denSqrt_hat
+        P_deltaNhat
+        P_deltaRhat
+        
+        F_S
+        
+        Z2
+        S2
+        
+        Zvec_hat
+        
+        % For artificial sources
+        OrigImage    % Original New/Ref image before art source injection
+        OrigIsNew    % Orig is New (true) or Ref (false)
+        
+>>>>>>> d9f8b5b188583b2449deffc9a33c3dab1c7cb666
     end
 
     properties (Hidden, Dependent)  % auxilary images
@@ -84,7 +126,7 @@ classdef AstroDiff < AstroImage
                 error('Number of New and Ref images must be comaptible');
             end
             
-            for Imax=1:1:Nmax
+            for Imax=Nmax:-1:1
                 In = min(Imax, Nn);
                 Ir = min(Imax, Nr);
                 
@@ -321,7 +363,7 @@ classdef AstroDiff < AstroImage
             %                   image.
             %                   Default is true.
             %            'ReplaceNaN' - A logical indicating if to replace
-            %                   NaN's pixels in the New and Ref with thir
+            %                   NaN's pixels in the New and Ref with their
             %                   respective mean background levels.
             %                   Default is true.
             %            'ReplaceNaNArgs' - A cell array of additional
@@ -564,6 +606,7 @@ classdef AstroDiff < AstroImage
         
                 Args.VarFun                      = []; %@imUtil.background.rvar; % [];
                 Args.VarFunPar cell              = {};
+                Args.MeanVarFun function_handle   = @tools.math.stat.nanmean;
                 Args.SubSizeXY                   = [];
                 Args.Overlap                     = 16;
                 
@@ -599,19 +642,447 @@ classdef AstroDiff < AstroImage
 
                 Obj(Iobj).BackR = Args.FunBackImage(Obj(Iobj).Ref.Back(:), Args.FunBackImageArgs{:});
                 Obj(Iobj).VarR  = Args.FunBackImage(Obj(Iobj).Ref.Var(:), Args.FunVarImageArgs{:});
-                
-            end
 
+                Obj(Iobj).SigmaN = sqrt(Args.MeanVarFun(Obj(Iobj).VarN, 'all'));
+                Obj(Iobj).SigmaR = sqrt(Args.MeanVarFun(Obj(Iobj).VarR, 'all'));
+            end
+        
         end
         
 
     end
 
+<<<<<<< HEAD
    methods
+=======
+    methods % Subtraction tools
+        % ready for testing (including mask, header, wcs)
+        function Obj=subtractionD(Obj, Args)
+            % Calculate ZOGY D images and its PSF Pd.
+            %   Given New and Ref images, this function will create the
+            %   ZOGY subtraction image D (proper subtraction image) and
+            %   populate it in AstroDiff along with its PSF Pd.
+            %   By default, the D image will be normalized to units of flux
+            %   using Fd.
+            %   If needed the New and Ref will be registered prior to
+            %   subtraction.
+            %
+            % Input  : - An AstroDiff object.
+            %          * ...,key,val,...
+            %            'AbsFun' - absolute value function.
+            %                   Default is @(X) abs(X)
+            %            'Eps' - A small value to add to the demoninators in order
+            %                   to avoid division by zero due to roundoff errors.
+            %                   Default is 0. (If needed set to about 100.*eps).
+            %            'CleanPd' - A logical indicating if to clean Pd (zero low
+            %                   frequencies).
+            %                   Default is true.
+            %            'ReplaceNaN' - A logical indicating if to replace
+            %                   NaN's pixels in the New and Ref with thir
+            %                   respective mean background levels.
+            %                   Default is false. (By default done in the
+            %                   register step).
+            %            'ReplaceNaNArgs' - A cell array of additional
+            %                   arguments to pass to replaceNaN.
+            %                   Default is {}.
+            %            'NormDbyFd' - A logical indicating if to normalize
+            %                   D to units of flux, by dividing it by Fd.
+            %                   Default is true.
+            %
+            %            'HalfSizePSF' - The size of the Pd PSF populated
+            %                   in the AstroDiff PSFData property.
+            %                   If 'full', then use a full size image (same
+            %                   size as New and Ref).
+            %                   If empty, then use the PSF size of New.
+            %                   Otherwise [HalfSize] of the output PSF
+            %                   size.
+            %                   Default is [].
+            %            'zeroConvArgs' - A cell array of arguments to pass
+            %                   to zeroConv in imUtil.psf.full2stamp.
+            %                   Default is {}.
+            %            'NormPSF' - A logical indicating if to normalize
+            %                   Pd PSF to unity. Default is true.
+            %            'SuppressEdgesPSF' - A logical indicating if to supress the
+            %                   edges of the PSF using imUtil.psf.suppressEdges
+            %                   Default is true.
+            %            'SuppressEdgesArgs' - A cell array of additional arguments
+            %                   to pass to imUtil.psf.suppressEdges
+            %                   Default is {}.
+            %            'PopBackVar' - A logical indicating if to populate
+            %                   the Back and Var images of the D subtraction
+            %                   image. Default is true.
+            %            'BackArgs' - A cell array of additional arguments
+            %                   to pass to the background and variance
+            %                   calculation function:
+            %                   imProc.background.background.
+            %                   Default is {'BackFun',@median, 'BackFunPar',{'all'}, 'VarFun',@imUtil.background.rvar, 'VarFunPar',{}, 'SubSizeXY',[]}
+            %
+            %            'CreateNewMask' - A logical indicating if to
+            %                   create a new copy of the Mask image (or
+            %                   using the New/Ref Mask image - i.e., will
+            %                   modify their Mask).
+            %                   If empty, then do not add Mask image.
+            %                   Default is true.
+            %            'CreateNewWCS' - A logical indicating if to create
+            %                   a new copy of the WCS (or to use the
+            %                   New/Ref WCS).
+            %                   WCS will be copied from Ref image.
+            %                   If empty, then do not add WCS.
+            %                   Default is true.
+            %            'CreateNewHeader' - A logical indicating if to create
+            %                   a new copy of the Header (or to use the
+            %                   New/Ref HeaderData).
+            %                   Header will be copied fron New image.
+            %                   If empty, then do not copy header.
+            %                   Default is true.
+            %            'AddHeaderInfo' - A logical indicating if to add
+            %                   additional header keywords (e.g., from the Ref).
+            %                   Default is true.
+            %            'HeadKeysFromRef' - A two column cell array of the
+            %                   name of the header keywords in Ref and
+            %                   their name in the new generated D image.
+            %                   If empty, then do not add any header
+            %                   keywords from Ref.
+            %                   Default is {'EXPTIME','REF_EXPT';
+            %                               'JD','REF_JD'}
+            %
+            % Output : - An AstroDiff object with the populated
+            %            D in the Image property.
+            %            Pd in the PSFData property.
+            %            New and Ref registered, and Fr, Fn, BackN, BackR,
+            %            VarN, VarR populated.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: AD.subtractionD
+
+            arguments
+                Obj
+                
+                Args.AbsFun              = @(X) abs(X);
+                Args.Eps                 = 0;
+                Args.CleanPd logical     = true;
+                
+                Args.ReplaceNaN logical  = false;
+                Args.ReplaceNaNArgs cell = {};
+
+                Args.NormDbyFd logical   = true;
+                
+                Args.HalfSizePSF         = [];  % []- use New PSF size; 'full', or size
+                Args.zeroConvArgs cell   = {};
+                Args.NormPSF logical     = true;
+                Args.SuppressEdgesPSF logical  = true;
+                Args.SuppressEdgesArgs cell    = {};
+                
+                Args.PopBackVar logical        = true;
+                Args.BackArgs cell             = {'BackFun',@median, 'BackFunPar',{'all'}, 'VarFun',@imUtil.background.rvar, 'VarFunPar',{}, 'SubSizeXY',[]};
+                
+                Args.CreateNewMask             = true;
+                Args.CreateNewWCS              = true;
+                Args.CreateNewHeader           = true;
+                Args.AddHeaderInfo             = true;
+                Args.HeadKeysFromRef           = {'EXPTIME','REF_EXPT'; 'JD','REF_JD'};
+                
+            end
+
+            
+
+            if Args.ReplaceNaN
+                Obj.replaceNaN(Args.ReplaceNaNArgs{:});
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+
+                if ~Obj(Iobj).IsRegistered
+                    % register images if needed
+                    Obj(Iobj).register;
+                end
+
+
+                [Obj(Iobj).D_hat, Obj(Iobj).Pd_hat, Obj(Iobj).Fd, Obj(Iobj).F_S,...
+                                  Obj(Iobj).D_den_hat, Obj(Iobj).D_num_hat, Obj(Iobj).D_denSqrt_hat,...
+                                  Obj(Iobj).P_deltaNhat, Obj(Iobj).P_deltaRhat] = imUtil.properSub.subtractionD(Obj(Iobj).N_hat,...
+                                                                                               Obj(Iobj).R_hat,...
+                                                                                               Obj(Iobj).Pn_hat,...
+                                                                                               Obj(Iobj).Pr_hat,...
+                                                                                               Obj(Iobj).SigmaN,...
+                                                                                               Obj(Iobj).SigmaR,...
+                                                                                               Obj(Iobj).Fn,...
+                                                                                               Obj(Iobj).Fr,...
+                                                                                               'AbsFun',Args.AbsFun,...
+                                                                                               'Eps',Args.Eps,...
+                                                                                               'IsFFT',true,...
+                                                                                               'IsOutFFT',true,...
+                                                                                               'CleanPd',Args.CleanPd);    
+                % calculate D
+                D = ifft2(Obj(Iobj).D_hat);
+                
+                % create mask image propgated from New and Ref
+                if ~isempty(Args.CreateNewMask)
+                    Obj(Iobj).MaskData = funBinary(Obj(Iobj).New.MaskData, Obj(Iobj).Ref.MaskData, @bitor, 'CreateNewObj',Args.CreateNewMask);
+                end
+                
+                % copy WCS
+                if ~isempty(Args.CreateNewWCS)
+                    if Args.CreateNewWCS
+                        Obj(Iobj).WCS = Obj(Iobj).Ref.WCS.copy;
+                    else
+                        Obj(Iobj).WCS = Obj(Iobj).Ref.WCS;
+                    end
+                end
+                
+                % Copy Header
+                if ~isempty(Args.CreateNewHeader)
+                    if Args.CreateNewHeader
+                        Obj(Iobj).HeaderData = Obj(Iobj).New.HeaderData.copy;
+                    else
+                        Obj(Iobj).HeaderData = Obj(Iobj).New.HeaderData;
+                    end
+                end
+                
+                % Add Information to header
+                if Args.AddHeaderInfo
+                    % Add the following keyords:
+                    % COMMENT: 'ZOGY Subtraction'
+                    % COMMENT: 'Generated by AstroPack, AstroDiff class"
+                    % REF_EXPT: Ref Exp Time
+                    % REF_JD: Ref JD
+                    CellKey = Obj(Iobj).Ref.HeaderData.getCellKey(Args.HeadKeysFromRef(:,1));
+                    Obj(Iobj).HeaderData.replaceVal(Args.HeadKeysFromRef(:,2), CellKey);
+                end
+                
+                % Normalize to flux units (according to Fn, Fr)
+                if Args.NormDbyFd
+                    D = D./Obj(Iobj).Fd;
+                end
+                Obj(Iobj).Image = D;
+
+                % calculate Pd
+                Pd = ifft2(Obj(Iobj).Pd_hat);
+                if ischar(Args.HalfSizePSF)
+                    % full - do not touch
+                else
+                    if isempty(Args.HalfSizePSF)
+                        % use PSF size of new
+                        [NPy, NPx] = size(Obj(Iobj).New.PSFData.getPSF);
+                        if NPx~=NPy
+                            error('Asymmetric PSF');
+                        end
+                        HalfSizePSF = (NPx - 1).*0.5;
+                    else
+                        HalfSizePSF = Args.HalfSizePSF;
+                    end
+                    HalfSizePSF = (HalfSizePSF(:).*ones(2,1)).';
+                    Pd = imUtil.psf.full2stamp(Pd, 'StampHalfSize', HalfSizePSF,...
+                                                   'IsCorner',true,...
+                                                   'Recenter',false,...
+                                                   'zeroConvArgs',Args.zeroConvArgs,...
+                                                   'Norm',Args.NormPSF);
+                    
+                end
+                if Args.SuppressEdgesPSF
+                    Pd = imUtil.psf.suppressEdges(Pd, Args.SuppressEdgesArgs{:});
+                end
+                Obj(Iobj).PSFData.Data = Pd;
+
+            end
+            
+            % populate the Back and Var
+            if Args.PopBackVar
+                Obj = imProc.background.background(Obj, Args.BackArgs{:});
+            end
+        end
+
+        % not tested - (check also norm by various methods)
+        function Obj=subtractionS(Obj, Args)
+            % Given D and Pd, populate S and S_hat
+            % Input  : - An AstroDiff object in which the (D) Image and its 
+            %            PSF (Pd) are populated.
+            %          * ...,key,val,...
+            %            'PopS_hat' - A logical indicating if to populate
+            %                   S_hat. Default is true.
+            %            'NormMethod' - A pre-defined method by which to normalize S
+            %                   See imUtil.image.normalize for option.
+            %                   This is the PreDef argument of imUtil.image.normalize
+            %                   If empty, then do not normalize.
+            %                   Options include
+            %                   'norm','norm_robust','chi2_mean','chi2_median','chi2_std',
+            %                   'none'.
+            %                   Default is 'norm_robust'
+            %            'PosS2' - Populate the S2 (S.^2) property.
+            %                   Default is true.
+            %
+            % Output : - An AstroDiff object in which S and optional S_hat
+            %            are normalize.
+            %            Note that F_S is populated by subtractionD.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: AD.subtractionS;
+
+            arguments
+                Obj
+                Args.PopS_hat logical       = true;
+                
+                Args.NormMethod             = 'norm_robust';
+                        %                   'norm_robust' - @fast_median, {}, 0,   @tools.math.stat.std_mad, {0,'all'}, 1
+                        %                   'norm' - @mean, {}, 0,   @std, {0,'all'}, 1
+                        %                   'chi2_mean' - Normalize to the mean of \chi^2 with K degrees of freedoms.
+                        %                   'chi2_median' - Normalize to the median of \chi^2 with K degrees of freedoms.
+                        %                   'chi2_var'    - Normalize to the variance of \chi^2 with K degrees of freedoms.
+               Args.PopS2 logical           = true;
+                
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                S_hat           = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat); %#ok<PROPLC>
+                if Args.PopS_hat
+                    Obj(Iobj).S_hat = S_hat; %#ok<PROPLC>
+                end
+                Obj(Iobj).S     = ifft2(Obj(Iobj).S_hat);
+            
+                if ~isempty(Args.NormMethod)
+                    % Normalize to units of significance
+                    
+                    switch lower(Args.NormMethod(1:4))
+                        case 'norm'
+                            Obj(Iobj).S = imUtil.image.normalize(Obj(Iobj).S, 'PreDef',Args.NormMethod,...
+                                                                      'K',1,...
+                                                                      'Fun2Prob',[],...
+                                                                      'Prob2Sig',false);
+                        case 'chi2'
+                            % Nomalize using S^2
+                            Obj(Iobj).S = imUtil.image.normalize(Obj(Iobj).S, 'PreDef',Args.NormMethod,...
+                                                                      'K',1,...
+                                                                      'IfChi2_Sq',true,...
+                                                                      'Fun2Prob',@chi2cdf,...
+                                                                      'Prob2Sig',true);
+                        case 'none'
+                            % do nothing
+                        otherwise
+                            error('Unknown NormMethod option');
+                    end      
+
+                    if Args.PopS2
+                        Obj(Iobj).S2 = Obj(Iobj).S.^2;
+                    end
+                    
+                end
+               
+                
+            end
+        end
+
+
+        % subtractionScorr
+
+        % translient (almost ready?)
+        function translient(Obj, Args)
+            % Apply translient image subtraction to New and Ref in AstroFiff object.
+            %   Using: imUtil.properSub.translient
+            % Input  : - An AstroDiff object in which the New and Ref are
+            %            populated. If IsRegistered is false, then the
+            %            images will be registered.
+            %          * ...,key,val,...
+            %
+            % Author : Eran Ofek (Jan 2024)
+            % Example: AD.translient
+
+            arguments
+                Obj
+
+                Args.ReplaceNaN logical  = true;
+                Args.ReplaceNaNArgs cell = {};
+
+                Args.Eps              = 0;
+                Args.SetToNaN         = [];
+                Args.NormZsigma       = 'none'; %'chi_median'
+                Args.NormMethod       = 'empirical';
+            end
+
+            if Args.ReplaceNaN
+                Obj.replaceNaN(Args.ReplaceNaNArgs{:});
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+
+                if ~Obj(Iobj).IsRegistered
+                    % register images if needed
+                    Obj(Iobj).register;
+                end
+
+                [Obj(Iobj).Z2, Obj(Iobj).Zvec_hat,~] = imUtil.properSub.translient(Obj(Iobj).N_hat, Obj(Iobj).R_hat,...
+                                                         Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat,...
+                                                         Obj(Iobj).SigmaN,...
+                                                         Obj(Iobj).SigmaR,...
+                                                         'Fn',Obj(Iobj).Fn,...
+                                                         'Fr',Obj(Iobj).Fr,...
+                                                         'IsImFFT',true,...
+                                                         'IsPsfFFT',true,...
+                                                         'ShiftIm',false,...
+                                                         'ShiftPsf',false,...
+                                                         'Eps',Args.Eps,...
+                                                         'SetToNaN',[],...
+                                                         'NormMethod',Args.NormMethod);
+
+                if ~isempty(Args.NormZsigma)
+                    % Normalize to units of significance
+
+                    switch lower(Args.NormZsigma(1:4))
+                        case 'chi2'
+                            % Nomalize using S^2
+                            Obj(Iobj).Z2sigma = imUtil.image.normalize(Obj(Iobj).Z2, 'PreDef',Args.NormMethod,...
+                                                                      'K',2,...
+                                                                      'IfChi2_Sq',true,...
+                                                                      'Fun2Prob',@chi2cdf,...
+                                                                      'Prob2Sig',true);
+
+                        case 'none'
+                            % do nothing
+                        otherwise
+                            error('Unknown NormZsigma option');
+
+                    end                                  
+
+                end
+            end
+
+        end
+>>>>>>> d9f8b5b188583b2449deffc9a33c3dab1c7cb666
+
+        
+    end
+
+    methods % transients search
 
         % findTransients
-        % Search for positive and negative transients in S
-        %   Only look for local max/min in S above detection threshold
+        function findTransients(Obj, Args)
+            %{
+            Search for positive and negative transients in S
+            Only look for local max/min in S above detection threshold
+            Input  : - An AstroDiff object in which the ... 
+                            TODO: fill out
+                     * ...,key,val,...
+                     - Args.Threshold ...
+            Author : Ruslan Konno (Jan 2024)
+            Example: AD.findTransients
+            %}
+            arguments
+                Obj
+
+                Args.Threshold = 5.0;
+            end
+
+            Nobj = numel(Obj);
+
+            for Iobj=Nobj:-1:1
+                Result(Iobj)=imProc.sources.findTransients(Obj(Iobj).New,...
+                    Obj(Iobj).Ref, Obj(Iobj), Obj(Iobj).S,...
+                    Obj(Iobj).Z2, Obj(Iobj).S2, [], [], ...
+                    'Threshold', Args.Threshold);  
+                Obj(Iobj).TranCat = Result(Iobj).TranTable;
+            end
+        end
+        
         
         % measureTransients
         % For each transient candidate measure properties.
@@ -619,11 +1090,51 @@ classdef AstroDiff < AstroImage
         %   Ref, nearby source in New, Ref
         
         % cleanTransients
-        % Select good transients using selection criteria
+        function cleanTransients(Obj, Args)
+            %{
+            Select good transients using selection criteria
+                        TODO: fill out
+            Inout   : - An AstroDiff object in which the ... 
+                      - Args.filterTranslient ...
+                      - Args.filterBadPix_Hard ...
+                      - Args.filterBadPix_Soft ...
+            Author  : Ruslan Konno (Jan 2024)
+            Example : AD.cleanTransients
+            %}
+
+            arguments
+                Obj
+
+                Args.filterTranslient logical   = true;
+                Args.filterBadPix_Hard logical  = true;
+                Args.filterBadPix_Soft logical  = true;
+            end
+
+            Nobj = numel(Obj);
+
+            for Iobj=1:1:Nobj
+                sizeCat = size(Obj(Iobj).TranCat.Catalog,1);
+                keep = true(sizeCat,1);
+                if Args.filterTranslient
+                    keep = keep & ...
+                        Obj(Iobj).TranCat.Table.Transient_Prefered;
+                end
+                if Args.filterBadPix_Hard
+                    keep = keep & ...
+                        ~Obj(Iobj).TranCat.Table.Bad_Pixel_Hard;
+                end
+                if Args.filterBadPix_Soft
+                    keep = keep & ...
+                        ~Obj(Iobj).TranCat.Table.Bad_Pixel_Soft;                    
+                end
+
+                Obj(Iobj).TranCat = Obj(Iobj).TranCat.selectRows(keep);
+            end
+        end
         
         % fitDT
         % Fit a variability + motion model to the D_T image
-        
+
     end
     
     methods % injection simulations
