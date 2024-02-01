@@ -416,11 +416,20 @@ classdef MovingSource < Component
                         Obj = [Obj(:); Tmp];
                     end
                 elseif isa(Tmp, 'struct')
-                    % Assume an AstCrop object
-                    Obj = MovingSource.astCrop2MovingSource(Tmp, 'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
-                                                     'FileName',FileName,...
-                                                     'ConcatObj',Obj,...
-                                                     'Id',[]);
+                    FieldsName = fieldnames(Tmp);
+                    if numel(FieldsName)==1 && isa(Tmp.(FieldsName{1}), 'MovingSource')
+                        if If==1
+                            Obj = Tmp.(FieldsName{1});
+                        else
+                            Obj = [Obj(:); Tmp.(FieldsName{1})];
+                        end
+                    else
+                        % Assume an AstCrop object
+                        Obj = MovingSource.astCrop2MovingSource(Tmp, 'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
+                                                         'FileName',FileName,...
+                                                         'ConcatObj',Obj,...
+                                                         'Id',[]);
+                    end
                 elseif isempty(Tmp)
                     % do nothing
                 else
