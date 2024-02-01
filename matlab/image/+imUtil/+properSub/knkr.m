@@ -1,4 +1,4 @@
-function [Kn_hat, Kr_hat, Kn, Kr]=knkr(Fn, Fr, Pn_hat, Pr_hat, D_den, AbsFun)
+function [Kn_hat, Kr_hat, Kn, Kr]=knkr(Fn, Fr, Pn_hat, Pr_hat, D_den, AbsFun, Norm)
     % Calculate the subtraction kr_hat and kn_hat
     %    ZOGY Equations 26-29
     %   The function can deal with cube inputs in which the image index is
@@ -7,9 +7,10 @@ function [Kn_hat, Kr_hat, Kn, Kr]=knkr(Fn, Fr, Pn_hat, Pr_hat, D_den, AbsFun)
     %          - (Fr) Flux normalization of new.
     %          - (Pn_hat) fft of ref PSF.
     %          - (Pr_hat) fft of new PSF.
-    %          - (D_den) D denominator = (SigmaN.^2 .* Fr.^2) .* AbsFun(Pr_hat).^2 + (SigmaR.^2 .*Fn.^2) .* AbsFun(Pn_hat).^2 + Args.Eps;
+    %          - (D_den) D denominator fft = (SigmaN.^2 .* Fr.^2) .* AbsFun(Pr_hat).^2 + (SigmaR.^2 .*Fn.^2) .* AbsFun(Pn_hat).^2 + Args.Eps;
     %          - Absolute value function - e.g., @(X) conj(X).*X or @(X) abs(X);
     %            Default is @(x) abs(X)
+    %          - Renormalize kn and kr to unity. Default is false.
     % Output : - kn_hat
     %          - kr_hat
     %          - kn
@@ -26,6 +27,7 @@ function [Kn_hat, Kr_hat, Kn, Kr]=knkr(Fn, Fr, Pn_hat, Pr_hat, D_den, AbsFun)
         D_den
         AbsFun   = @(x) abs(x);
 
+        Norm logical = false;
     end
     
     % ZOGY Equations 26-29
@@ -41,5 +43,13 @@ function [Kn_hat, Kr_hat, Kn, Kr]=knkr(Fn, Fr, Pn_hat, Pr_hat, D_den, AbsFun)
     if nargout>2
         Kr = ifft2(Kr_hat);
         Kn = ifft2(Kn_hat);
+
+        if Norm
+            Kr = Kr./sum(Kr, [1 2]);
+            Kn = Kn./sum(Kn, [1 2]);
+        end
     end
+
+    
+        
 end
