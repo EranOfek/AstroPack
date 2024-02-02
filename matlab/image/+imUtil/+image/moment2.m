@@ -311,7 +311,10 @@ else
         % construct a window with maximal radius
         %W_Max = ones(size(MatR2), 'like',Image); 
         W_Max = repmat(cast(1, 'like',Image), size(MatR2));  % much faster
-        W_Max(MatR2>MomRadius2) = 0;
+        % slow
+        %W_Max(MatR2>MomRadius2) = 0;
+        % fast
+        W_Max = W_Max.*(MatR2<MomRadius2);
 
 
         WInt = W.*W_Max.*Cube; % Weighted intensity
@@ -363,10 +366,15 @@ else
         else
             error('WeightFun must be a function handle or a numeric scalar');
         end
-        % construct a window with maximal radiu
-        W_Max = ones(size(MatR2), 'like',Image);
-        W_Max(MatR2>(Args.MomRadius.^2)) = 0;
+        % construct a window with maximal radius
+        % slow
+        %W_Max = ones(size(MatR2), 'like',Image);
+        %W_Max(MatR2>(Args.MomRadius.^2)) = 0;
+        % fast
+        W_Max = repmat(cast(1, 'like',Image), size(MatR2));  % much faster
+        W_Max = W_Max.*(MatR2<Args.MomRadius.^2);
 
+        
 
         WW_Max = W.*W_Max;
         WInt = WW_Max.*Cube; % Weighted intensity
