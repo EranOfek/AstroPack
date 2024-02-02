@@ -32,9 +32,15 @@ function Result = conv2_nan(Mat1, Mat2, UseFFT, PadMethod)
 
     Mat0 = Mat1;
     IsNaN = isnan(Mat1);
-    Mat0(IsNaN) = 0;
-    MatN = ones(size(Mat0));
-    MatN(IsNaN) = 0;
+    
+    %Mat0(IsNaN) = 0; % slow
+    Mat0 = Mat0.*(~IsNaN);
+    
+    %MatN = ones(size(Mat0)); % slow
+    MatN = repmat(cast(1, 'like',Mat0), size(Mat0));
+
+    %MatN(IsNaN) = 0; % slow
+    MatN = MatN.*(~IsNaN);
     
     Norm    = imUtil.filter.conv2_fast(MatN, Mat2, UseFFT, PadMethod);
     Result  = imUtil.filter.conv2_fast(Mat0, Mat2, UseFFT, PadMethod)./Norm;

@@ -29,7 +29,9 @@ function [IndLocalMax, I, J, BW] = findLocalMaxImregionalmax(Image, Thresh, Conn
     else
     
         ThresholdedSN = Image;
-        ThresholdedSN(Image<Thresh) = 0;
+        %ThresholdedSN(Image<Thresh) = 0;
+        % faster
+        ThresholdedSN = ThresholdedSN.*(Image>Thresh);
         BW = imregionalmax(ThresholdedSN,Conn);
 
         IndLocalMax   = find(BW);

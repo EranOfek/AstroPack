@@ -40,7 +40,9 @@ function Result=cosbell(Pars, SizeXY, PosXY, IsNormPeak)
     for Ipars=1:1:Npars
         Val    = ones(SizeXY(2), SizeXY(1));
         
-        Val(MatR>Pars(Ipars,2))  = 0;
+        %Val(MatR>Pars(Ipars,2))  = 0;
+        % faster
+        Val = Val.*(MatR<Pars(Ipars,2));
         SpanQ = Pars(Ipars,2) - Pars(Ipars,1);
         Ind = find(MatR>Pars(Ipars,1) & MatR<=Pars(Ipars,2));
         Val(Ind) = 0.5.*(1+cos( pi.*(MatR(Ind) - Pars(Ipars,1))./SpanQ ));
