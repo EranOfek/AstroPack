@@ -1,4 +1,4 @@
-function [Result] = dirDir(varargin)
+function [Result] = dirDir()
     % dir function for directories only without '..' and '.'
     %     Optional detailed description
     % Input  : null
@@ -6,7 +6,7 @@ function [Result] = dirDir(varargin)
     % Author : Eran Ofek (2024 Feb) 
     % Example: 
 
-    Result = dir(varargin{:});
+    Result = dir();
 
     Flag = [Result.isfolder] && ~strcmp({Result.name}, '.') && ~strcmp({Result.name}, '..');
     Result = Result(Flag);
