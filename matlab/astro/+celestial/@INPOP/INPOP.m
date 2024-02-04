@@ -81,7 +81,7 @@ classdef INPOP < Base
 %                                        @celestial.INPOP.chebyshevFun14,...
 %                                        @celestial.INPOP.chebyshevFun15};
         LatestVersion     = 'inpop21a';
-        Location          = '~/matlab/data/SolarSystem/INPOP/';
+        Location          = ''; %~/matlab/data/SolarSystem/INPOP/';
         RangeShort        = [2414105.00, 2488985.00];
         ColTstart         = 1;
         ColTend           = 2;
@@ -316,7 +316,11 @@ classdef INPOP < Base
             end
             
             FileName    = celestial.INPOP.inpopFileName('Object', Args.Object, 'Version',Args.Version, 'TimeScale',Args.TimeScale, 'FileType',Args.FileType, 'TimePeriod',Args.TimePeriod, 'FileData',Args.FileData);
-            FullFileName = sprintf('%s%s%s',Args.Location, filesep, FileName);
+            if isempty(Args.Location)
+                FullFileName = FileName;
+            else
+                FullFileName = sprintf('%s%s%s',Args.Location, filesep, FileName);
+            end
             
             switch lower(Args.FileType)
                 case 'asc'
