@@ -1139,13 +1139,13 @@ classdef DemonLAST < Component
                             cd ..
                             % delete raw dir
                             if Args.DeleteRawDir
-                                delete('raw');
+                                rmdir('raw');
                             end
                         end
 
                         if Args.DeleteProc
                             if isfolder('proc')
-                                delete('proc');
+                                rmdir('proc','s');
                             end
                         end
                     end
