@@ -1111,8 +1111,7 @@ classdef DemonLAST < Component
             cd(Obj.BasePath);
 
             Nyear = numel(YearList);
-            Ny    = numel(Nyear);
-            for Iy=1:1:Ny
+            for Iy=1:1:Nyear
                 cd(YearList{Iy});
                 
                 DirMonth = dirDir;
