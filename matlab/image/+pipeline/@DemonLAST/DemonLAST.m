@@ -1106,6 +1106,7 @@ classdef DemonLAST < Component
                 
                 Args.DeleteFocus logical   = true;
                 Args.DeleteProc logical    = true;
+                Args.DeleteRawDir logical  = false;
             end
 
             cd(Obj.BasePath);
@@ -1136,7 +1137,9 @@ classdef DemonLAST < Component
 
                             cd ..
                             % delete raw dir
-                            delete('raw');
+                            if Args.DeleteRawDir
+                                delete('raw');
+                            end
                         end
 
                         if Args.DeleteProc
