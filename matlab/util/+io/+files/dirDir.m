@@ -8,7 +8,7 @@ function [Result] = dirDir()
 
     Result = dir();
 
-    Flag = [Result.isdir] && ~strcmp({Result.name}, '.') && ~strcmp({Result.name}, '..');
+    Flag = [Result.isdir] & ~strcmp({Result.name}, '.') & ~strcmp({Result.name}, '..');
     Result = Result(Flag);
 
 end
