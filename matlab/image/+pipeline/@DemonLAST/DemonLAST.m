@@ -1142,7 +1142,7 @@ classdef DemonLAST < Component
                             % delete raw dir
                             if Args.DeleteRawDir
                                 %rmdir('raw');
-                                !rmdir raw
+                                !rm -rf raw/
                             end
                         end
 
