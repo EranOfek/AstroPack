@@ -1148,6 +1148,7 @@ classdef DemonLAST < Component
                                 rmdir('proc','s');
                             end
                         end
+                        cd ..
                     end
                     cd ..
                 end
