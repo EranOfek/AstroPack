@@ -1133,7 +1133,8 @@ classdef DemonLAST < Component
                             end
                             
                             % move raw to new
-                            io.files.moveFiles('LAST*.fits',[],'',Obj.NewPath);
+                            List=io.files.filelist('LAST*.fits',false);
+                            io.files.moveFiles(List,[],'',Obj.NewPath);
 
                             cd ..
                             % delete raw dir
