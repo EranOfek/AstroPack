@@ -1133,19 +1133,23 @@ classdef DemonLAST < Component
                             end
                             
                             % move raw to new
-                            List=io.files.filelist('LAST*.fits', 'UseRegExp',false, 'AddPath',false);
-                            io.files.moveFiles(List,[],'',Obj.NewPath);
+                            !mv LAST*.fits ../../../../new/.
+
+                            %List=io.files.filelist('LAST*.fits', 'UseRegExp',false, 'AddPath',false);
+                            %io.files.moveFiles(List,[],'',Obj.NewPath);
 
                             cd ..
                             % delete raw dir
                             if Args.DeleteRawDir
-                                rmdir('raw');
+                                %rmdir('raw');
+                                !rmdir raw
                             end
                         end
 
                         if Args.DeleteProc
                             if isfolder('proc')
-                                rmdir('proc','s');
+                                %rmdir('proc','s');
+                                !rm -rf proc/
                             end
                         end
                         cd ..
