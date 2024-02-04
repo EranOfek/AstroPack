@@ -406,6 +406,8 @@ classdef DemonLAST < Component
 
         end
         
+        
+    
     end
 
     methods (Static)  % fields related utilities
@@ -1092,7 +1094,64 @@ classdef DemonLAST < Component
 
         end
 
-        
+        function moveRaw2New_AndDeleteProc(Obj, YearList, Args)
+            % Move raw images back to new/ dir and delete the proc/ dir
+            % Input  : - see code for options
+            % Output : null
+            % Author : Eran Ofek (Feb 2024)
+
+            arguments
+                Obj
+                YearList  = {'2023','2024'};
+                
+                Args.DeleteFocus logical   = true;
+                Args.DeleteProc logical    = true;
+            end
+
+            cd(Obj.BasePath);
+
+            Nyear = numel(YearList);
+            Ny    = numel(Nyear);
+            for Iy=1:1:Ny
+                cd(YearList{Iy});
+                
+                DirMonth = dirDir;
+                Nm       = numel(DirMonth);
+                for Im=1:1:Nm
+                    cd(DirMonth(Im).name);
+
+                    DirDay   = dirDir;
+                    Nd       = numel(DirDay);
+
+                    for Id=1:1:Nd
+
+                        if isfolder('raw')
+                            cd ('raw');
+                            
+                            if Args.DeleteFocus
+                                delete('LAST*focus*.fits');
+                            end
+                            
+                            % move raw to new
+                            io.files.moveFiles('LAST*.fits',[],'',Obj.NewPath);
+
+                            cd ..
+                            % delete raw dir
+                            delete('raw');
+                        end
+
+                        if Args.DeleteProc
+                            if isfolder('proc')
+                                delete('proc');
+                            end
+                        end
+                    end
+                    cd ..
+                end
+                cd ..
+            end
+        end
+
     end
     
     methods % ref image utilities
