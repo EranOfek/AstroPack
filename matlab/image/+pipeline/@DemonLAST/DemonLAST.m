@@ -1094,7 +1094,7 @@ classdef DemonLAST < Component
 
         end
 
-        function moveRaw2New_AndDeleteProc(Obj, YearList, Args)
+        function moveRaw2New_AndDeleteProc(Obj, Args)
             % Move raw images back to new/ dir and delete the proc/ dir
             % Input  : - see code for options
             % Output : null
@@ -1102,7 +1102,7 @@ classdef DemonLAST < Component
 
             arguments
                 Obj
-                YearList  = {'2023','2024'};
+                Args.YearList  = {'2023','2024'};
                 
                 Args.DeleteFocus logical   = true;
                 Args.DeleteProc logical    = true;
@@ -1110,16 +1110,16 @@ classdef DemonLAST < Component
 
             cd(Obj.BasePath);
 
-            Nyear = numel(YearList);
+            Nyear = numel(Args.YearList);
             for Iy=1:1:Nyear
                 cd(YearList{Iy});
                 
-                DirMonth = dirDir;
+                DirMonth = io.files.dirDir;
                 Nm       = numel(DirMonth);
                 for Im=1:1:Nm
                     cd(DirMonth(Im).name);
 
-                    DirDay   = dirDir;
+                    DirDay   = io.files.dirDir;
                     Nd       = numel(DirDay);
 
                     for Id=1:1:Nd
