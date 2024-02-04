@@ -1112,7 +1112,7 @@ classdef DemonLAST < Component
 
             Nyear = numel(Args.YearList);
             for Iy=1:1:Nyear
-                cd(YearList{Iy});
+                cd(Args.YearList{Iy});
                 
                 DirMonth = io.files.dirDir;
                 Nm       = numel(DirMonth);
