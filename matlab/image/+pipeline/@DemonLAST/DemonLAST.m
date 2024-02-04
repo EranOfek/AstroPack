@@ -1106,7 +1106,7 @@ classdef DemonLAST < Component
                 
                 Args.DeleteFocus logical   = true;
                 Args.DeleteProc logical    = true;
-                Args.DeleteRawDir logical  = false;
+                Args.DeleteRawDir logical  = true;
             end
 
             cd(Obj.BasePath);
