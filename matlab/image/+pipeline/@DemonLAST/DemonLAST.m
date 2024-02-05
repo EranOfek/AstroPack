@@ -1700,7 +1700,7 @@ classdef DemonLAST < Component
             cd(PWD);
         end
         
-        function [Flag, Info]=checkMasterDark(Obj, AI, Args)
+        function [Flag, Info,AI]=checkMasterDark(Obj, AI, Args)
             % Check if MasterDark image is good
             % Input  : - A pipeline.DemonLAST object
             %          - Either an AstroImage containing dark image,
@@ -1741,7 +1741,7 @@ classdef DemonLAST < Component
                 Info(Iai).FileName = '';
                 if Info(Iai).Median>Args.MedianRange(1) && Info(Iai).Median<Args.MedianRange(2) && ...
                         Info(Iai).Std>Args.StdRange(1) && Info(Iai).Std<Args.StdRange(2) && ...
-                        Info(Iai).SRtd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2)
+                        Info(Iai).RStd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2)
                     Flag(Iai) = true;
                 end
                     
@@ -1751,7 +1751,7 @@ classdef DemonLAST < Component
             cd(PWD);
         end
         
-        function [Flag, Info]=checkMasterFlat(Obj, AI, Args)
+        function [Flag, Info,AI]=checkMasterFlat(Obj, AI, Args)
             % Check if MasterFlat image is good
             % Input  : - A pipeline.DemonLAST object
             %          - Either an AstroImage containing flat image,
@@ -1792,7 +1792,7 @@ classdef DemonLAST < Component
                 Info(Iai).FileName = '';
                 if Info(Iai).Median>Args.MedianRange(1) && Info(Iai).Median<Args.MedianRange(2) && ...
                         Info(Iai).Std>Args.StdRange(1) && Info(Iai).Std<Args.StdRange(2) && ...
-                        Info(Iai).SRtd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2)
+                        Info(Iai).RStd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2)
                     Flag(Iai) = true;
                 end
                     
