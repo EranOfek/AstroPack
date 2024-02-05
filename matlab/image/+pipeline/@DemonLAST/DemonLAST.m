@@ -1426,6 +1426,8 @@ classdef DemonLAST < Component
                         
                         %Obj = readFromHeader(, Input, DataProp
                         
+                        % FFU: check if bias/dark is good
+                        
                         % write file
                         JD = CI.Bias.julday;
                         FN_Master = FileNames;
@@ -1637,6 +1639,8 @@ classdef DemonLAST < Component
                         
                         CI.createFlat(AI, 'FlatArgs',Args.FlatArgs, 'Convert2single',true);
         
+                        % FFU: check if flat is good
+                        
                         % write file
                         JD = CI.Flat.julday;
                         FN_Master = FileNames;
