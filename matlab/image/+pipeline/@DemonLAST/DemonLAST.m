@@ -1738,7 +1738,7 @@ classdef DemonLAST < Component
                 Info(Iai).Std     = imProc.stat.std(AI(Iai));
                 Info(Iai).RStd    = imProc.stat.rstd(AI(Iai));
                 
-                Info(Iai).FileName = '';
+                Info(Iai).FileName = AI(Iai).ImageData.FileName;
                 if Info(Iai).Median>Args.MedianRange(1) && Info(Iai).Median<Args.MedianRange(2) && ...
                         Info(Iai).Std>Args.StdRange(1) && Info(Iai).Std<Args.StdRange(2) && ...
                         Info(Iai).RStd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2)
@@ -1789,7 +1789,7 @@ classdef DemonLAST < Component
                 Info(Iai).Std     = imProc.stat.std(AI(Iai));
                 Info(Iai).RStd    = imProc.stat.rstd(AI(Iai));
                 
-                Info(Iai).FileName = '';
+                Info(Iai).FileName = AI(Iai).ImageData.FileName;
                 if Info(Iai).Median>Args.MedianRange(1) && Info(Iai).Median<Args.MedianRange(2) && ...
                         Info(Iai).Std>Args.StdRange(1) && Info(Iai).Std<Args.StdRange(2) && ...
                         Info(Iai).RStd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2)
