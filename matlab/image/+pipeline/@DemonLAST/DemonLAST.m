@@ -1770,8 +1770,8 @@ classdef DemonLAST < Component
                 Obj
                 AI                = 'LAST*_twflat_*.fits';
                 Args.MedianRange  = [0.95 1.05];
-                Args.RStdRange    = [2 5];
-                Args.StdRange     = [2 10];
+                Args.RStdRange    = [0.01 0.05];
+                Args.StdRange     = [0 1];
             end
             
             PWD = pwd;
