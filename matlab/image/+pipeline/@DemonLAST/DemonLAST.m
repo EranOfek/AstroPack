@@ -1708,6 +1708,8 @@ classdef DemonLAST < Component
             %            image, if its good dark image.
             %          - A structure array with information per image.
             % Author : Eran Ofek (Feb 2024)
+            % Example: D.checkMasterDark;  % check all images in Calib dir
+            %          D.checkMasterDark(D.CI.Bias) % check current dark
             
             arguments
                 Obj
@@ -1757,6 +1759,8 @@ classdef DemonLAST < Component
             %            image, if its good flat image.
             %          - A structure array with information per image.
             % Author : Eran Ofek (Feb 2024)
+            % Example: D.checkMasterFlat;  % check all images in Calib dir
+            %          D.checkMasterFlat(D.CI.Flat) % check current flat
             
             arguments
                 Obj
