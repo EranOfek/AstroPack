@@ -2194,7 +2194,7 @@ classdef OrbitalEl < Base
             %            'RangeE' - Eccntricity range.
             %                   Default is [0, 0.9].
             %            'Epoch' - Epoch of observations.
-            %                   Default is 0.
+            %                   Default is 2451545.
             % Output : - An OrbitalEl object with random elements.
             % Author : Eran Ofek (Apr 2022)
             % Example: R = celestial.OrbitalEl.randomElements;
@@ -2203,7 +2203,7 @@ classdef OrbitalEl < Base
                 N             = 1e6;
                 Args.A        = 1;
                 Args.RangeE   = [0, 0.9];
-                Args.Epoch    = 0;
+                Args.Epoch    = 2451545;
             end
             
             Result = celestial.OrbitalEl;
@@ -2211,11 +2211,17 @@ classdef OrbitalEl < Base
             Result.A         = ones(N,1).*Args.A;
             Result.Node      = rand(N,1).*360;
             Result.W         = rand(N,1).*360;
-            Result.Incl      = rand(N,1).*180 - 90;
+            %Result.Incl      = rand(N,1).*180 - 90;
+            Inc        = (-90:1:90).';
+            Result.Incl      = tools.math.stat.randgen([Inc, cosd(Inc)],1e6);
+
             Result.Eccen     = rand(N,1).*range(Args.RangeE) + min(Args.RangeE);
             Result.Epoch     = ones(N,1).*Args.Epoch;
             Result.Mepoch    = rand(N,1).*360;
-            
+            Result.PeriDist  = Result.A.*(1 - Result.Eccen);
+
+            % M = n*(t-T)
+            Result.Tp = Args.Epoch - Result.Mepoch./Result.meanMotion('deg');
             
         end
         
