@@ -1718,9 +1718,9 @@ classdef DemonLAST < Component
             arguments
                 Obj
                 AI                = 'LAST*_dark_*.fits';
-                Args.MedianRange  = [50 200];
-                Args.RStdRange    = [2 5];
-                Args.StdRange     = [2 10];
+                Args.MedianRange  = [20 160];
+                Args.RStdRange    = [1 3];
+                Args.StdRange     = [0 60];
             end
             
             PWD = pwd;
