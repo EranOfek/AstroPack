@@ -1734,9 +1734,9 @@ classdef DemonLAST < Component
             Nai = numel(AI);
             Flag = false(Nai,1);
             for Iai=1:1:Nai
-                Info(Iai).Median  = imProc.stat.median(AI(Ia));
-                Info(Iai).Std     = imProc.stat.std(AI(Ia));
-                Info(Iai).RStd    = imProc.stat.rstd(AI(Ia));
+                Info(Iai).Median  = imProc.stat.median(AI(Iai));
+                Info(Iai).Std     = imProc.stat.std(AI(Iai));
+                Info(Iai).RStd    = imProc.stat.rstd(AI(Iai));
                 
                 Info(Iai).FileName = '';
                 if Info(Iai).Median>Args.MedianRange(1) && Info(Iai).Median<Args.MedianRange(2) && ...
@@ -1785,9 +1785,9 @@ classdef DemonLAST < Component
             Nai = numel(AI);
             Flag = false(Nai,1);
             for Iai=1:1:Nai
-                Info(Iai).Median  = imProc.stat.median(AI(Ia));
-                Info(Iai).Std     = imProc.stat.std(AI(Ia));
-                Info(Iai).RStd    = imProc.stat.rstd(AI(Ia));
+                Info(Iai).Median  = imProc.stat.median(AI(Iai));
+                Info(Iai).Std     = imProc.stat.std(AI(Iai));
+                Info(Iai).RStd    = imProc.stat.rstd(AI(Iai));
                 
                 Info(Iai).FileName = '';
                 if Info(Iai).Median>Args.MedianRange(1) && Info(Iai).Median<Args.MedianRange(2) && ...
