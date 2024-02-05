@@ -33,8 +33,9 @@ function Result=cosbell(Pars, SizeXY, PosXY, IsNormPeak)
     %MatR        = sqrt(MatX.^2 + MatY.^2);
     VecX = (1:1:SizeXY(1))-PosXY(1);
     VecY = (1:1:SizeXY(2)).'-PosXY(2);
-    MatR = sqrt(VecX.^2 + VecY.^2);
-    
+    %MatR = sqrt(VecX.^2 + VecY.^2);
+    % faster
+    MatR = hypot(VecX, VecY);
     
     Result      = ones(SizeXY(2), SizeXY(1), Npars);
     for Ipars=1:1:Npars

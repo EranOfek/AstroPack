@@ -16,8 +16,8 @@ function [Dist,PA]=plane_dist(X1,Y1,varargin)
 %     By : Eran O. Ofek                    Jan 2004
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % See also: sphere_dist.m
-% Example: [Dist,PA]=Util.Geom.plane_dist(1,1,2,2);
-%          [Dist,PA]=Util.Geom.plane_dist([1 1;2 1],[1 2; 2 2]);
+% Example: [Dist,PA]=tools.math.geometry.plane_dist(1,1,2,2);
+%          [Dist,PA]=tools.math.geometry.plane_dist([1 1;2 1],[1 2; 2 2]);
 % Reliable: 1
 %--------------------------------------------------------------------------
 if (nargin==2)
@@ -31,7 +31,8 @@ else
    Y2 = varargin{2};
 end
 
-Dist = sqrt((X1-X2).^2 + (Y1-Y2).^2);
+%Dist = sqrt((X1-X2).^2 + (Y1-Y2).^2);
+Dist = hypot(X1-X2, Y1-Y2);
 if (nargout>1)
    PA   = atan2((Y2-Y1),(X2-X1));
 end

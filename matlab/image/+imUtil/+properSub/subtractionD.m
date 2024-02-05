@@ -87,7 +87,9 @@ function [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt, P_deltaNhat, P_deltaR
     D_denSqrt = sqrt(D_den);
     D_hat     = D_num./D_denSqrt;
     
-    F_num     = sqrt( (SigmaN.*Fr).^2 + (SigmaR.*Fn).^2 );
+    %F_num     = sqrt( (SigmaN.*Fr).^2 + (SigmaR.*Fn).^2 );
+    % faster
+    F_num      = hypot(SigmaN.*Fr, SigmaR.*Fn);
 
     Fd        = Fr .* Fn ./F_num;
     

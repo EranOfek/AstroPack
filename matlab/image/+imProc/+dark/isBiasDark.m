@@ -1,5 +1,5 @@
-function [Result,Flag] = isDark(AI, Args)
-    % Check and validate that a set of images in an AstroImage object are dark images
+function [Result,Flag] = isBiasDark(AI, Args)
+    % Check and validate that a set of images in an AstroImage object are bias or dark images
     % Input  : - An AstroImage object.
     %          * ...,key,val,...
     %            'MaxAllowedFrac' - The fraction of identical
@@ -36,7 +36,7 @@ function [Result,Flag] = isDark(AI, Args)
     %            individaul tests.
     % Author : Eran Ofek (May 2021)
     % Example: A=AstroImage('LAST.*_dark.fits');
-    %          [Result,Flag] = imProc.dark.isDark(A)
+    %          F=imProc.image.isBiasDark(A);
 
     arguments
         AI AstroImage
@@ -54,15 +54,26 @@ function [Result,Flag] = isDark(AI, Args)
         Args.IsInputAlt(1,1) logical                                    = true;
         Args.KeyDict                                                    = [];
     end
-    ImTypeVal = 'Dark';
+    ImTypeVal = 'Bias';
 
     % AI is now an AstroImage object
-    Flag.IsImType = isImType(AI, ImTypeVal, 'UseDict',Args.UseDict,...
+    Flag.IsImTypeBias = isImType(AI, ImTypeVal, 'UseDict',Args.UseDict,...
                                      'CaseSens',Args.CaseSens,...
                                      'SearchAlgo',Args.SearchAlgo,...
                                      'IsInputAlt',Args.IsInputAlt,...
                                      'KeyDict',Args.KeyDict);
 
+    ImTypeVal = 'Dark';
+
+    % AI is now an AstroImage object
+    Flag.IsImTypeDark = isImType(AI, ImTypeVal, 'UseDict',Args.UseDict,...
+                                     'CaseSens',Args.CaseSens,...
+                                     'SearchAlgo',Args.SearchAlgo,...
+                                     'IsInputAlt',Args.IsInputAlt,...
+                                     'KeyDict',Args.KeyDict);
+
+    Flag.IsImType = Flag.IsImTypeBias | Flag.IsImTypeDark;
+    
     % validation
     if isempty(Args.MaxAllowedFrac)
         Flag.IdenticalPixOK = true(size(Flag.IsImType));
@@ -85,4 +96,3 @@ function [Result,Flag] = isDark(AI, Args)
     Result = Flag.IsImType & Flag.IdenticalPixOK & Flag.TemplateOK;
 
 end
-
