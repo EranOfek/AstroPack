@@ -72,10 +72,19 @@ while Iter<=Args.MaxIter && NrejectNew~=0
     else
         Zstat = (DataF - Mean)./(Std+Args.EpsilonStd);
         
+        % option 1:
         %FlagGood = Zstat>(-abs(Args.Nsigma(1))) & Zstat<Args.Nsigma(2);
-        IndBad   = find(Zstat<(-abs(Args.Nsigma(1))) | Zstat>Args.Nsigma(2));
         %DataF(~FlagGood) = NaN;
+        
+        % option 2:
+        IndBad   = find(Zstat<(-abs(Args.Nsigma(1))) | Zstat>Args.Nsigma(2));
         DataF(IndBad) = NaN;
+        
+        % option 3:
+        %IndBad   = find(abs(Zstat)>(abs(Args.Nsigma(1))));
+        %DataF(IndBad) = NaN;
+        
+        
     end
     % total number of rejected data points
     NrejectPrev = Nreject;

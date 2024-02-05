@@ -1696,6 +1696,105 @@ classdef DemonLAST < Component
             cd(PWD);
         end
         
+        function [Flag, Info]=checkMasterDark(Obj, AI, Args)
+            % Check if MasterDark image is good
+            % Input  : - A pipeline.DemonLAST object
+            %          - Either an AstroImage containing dark image,
+            %            or a char array of template file name. Will look
+            %            for files in the CalibPath dir.
+            %          * ...,key,val,...
+            %            See code.
+            % Output : - A vector of logical flags indicating, for each
+            %            image, if its good dark image.
+            %          - A structure array with information per image.
+            % Author : Eran Ofek (Feb 2024)
+            
+            arguments
+                Obj
+                AI                = 'LAST*_dark_*.fits';
+                Args.MedianRange  = [50 200];
+                Args.RStdRange    = [2 5];
+                Args.StdRange     = [2 10];
+            end
+            
+            PWD = pwd;
+            cd(Obj.CalibPath);
+            if ischar(AI) || isstring(AI)
+                AI = AstroImage.readFileNamesObj(AI);
+            else
+                % AI is supplied by user
+            end
+            
+            Nai = numel(AI);
+            Flag = false(Nai,1);
+            for Iai=1:1:Nai
+                Info(Iai).Median  = imProc.stat.median(AI(Ia));
+                Info(Iai).Std     = imProc.stat.std(AI(Ia));
+                Info(Iai).RStd    = imProc.stat.rstd(AI(Ia));
+                
+                Info(Iai).FileName = '';
+                if Info(Iai).Median>Args.MedianRange(1) && Info(Iai).Median<Args.MedianRange(2) && ...
+                        Info(Iai).Std>Args.StdRange(1) && Info(Iai).Std<Args.StdRange(2) && ...
+                        Info(Iai).SRtd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2)
+                    Flag(Iai) = true;
+                end
+                    
+            end
+                            
+            
+            cd(PWD);
+        end
+        
+        function [Flag, Info]=checkMasterFlat(Obj, AI, Args)
+            % Check if MasterFlat image is good
+            % Input  : - A pipeline.DemonLAST object
+            %          - Either an AstroImage containing flat image,
+            %            or a char array of template file name. Will look
+            %            for files in the CalibPath dir.
+            %          * ...,key,val,...
+            %            See code.
+            % Output : - A vector of logical flags indicating, for each
+            %            image, if its good flat image.
+            %          - A structure array with information per image.
+            % Author : Eran Ofek (Feb 2024)
+            
+            arguments
+                Obj
+                AI                = 'LAST*_twflat_*.fits';
+                Args.MedianRange  = [0.95 1.05];
+                Args.RStdRange    = [2 5];
+                Args.StdRange     = [2 10];
+            end
+            
+            PWD = pwd;
+            cd(Obj.CalibPath);
+            if ischar(AI) || isstring(AI)
+                AI = AstroImage.readFileNamesObj(AI);
+            else
+                % AI is supplied by user
+            end
+            
+            Nai = numel(AI);
+            Flag = false(Nai,1);
+            for Iai=1:1:Nai
+                Info(Iai).Median  = imProc.stat.median(AI(Ia));
+                Info(Iai).Std     = imProc.stat.std(AI(Ia));
+                Info(Iai).RStd    = imProc.stat.rstd(AI(Ia));
+                
+                Info(Iai).FileName = '';
+                if Info(Iai).Median>Args.MedianRange(1) && Info(Iai).Median<Args.MedianRange(2) && ...
+                        Info(Iai).Std>Args.StdRange(1) && Info(Iai).Std<Args.StdRange(2) && ...
+                        Info(Iai).SRtd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2)
+                    Flag(Iai) = true;
+                end
+                    
+            end
+                            
+            
+            cd(PWD);
+        end
+        
+        
         function Obj=loadCalib(Obj, Args)
             % load CalibImages into the pipeline.DemonLAST object
             % Input  : - A pipeline.DemonLAST object.
