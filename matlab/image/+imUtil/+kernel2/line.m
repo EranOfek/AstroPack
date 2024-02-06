@@ -72,6 +72,8 @@ for I=1:1:Ntemp
 
     Tmp = imrotate(Tmp,Angle(I),'nearest','crop');
     Tmp(MatR<Gap(I)) = 0;
+    %Tmp = Tmp .* (MatR>Gap(I));  % no speed improvment
+
         
     if size(Par,2)>4
         % convolve with Gaussian

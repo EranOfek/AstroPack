@@ -733,7 +733,8 @@ classdef AstroWCS < Component
             % distorion for TPV
             if strcmpi(Obj.ProjType,'tpv') && includeDistortion
                 
-                R = sqrt(X.^2 + Y.^2);
+                %R = sqrt(X.^2 + Y.^2);
+                R = hypot(X, Y);  % faster
 
                 [X,Y]  = AstroWCS.forwardDistortion(Obj.PV,X,Y,'R',R);
 
@@ -787,7 +788,10 @@ classdef AstroWCS < Component
 
                     switch lower(Obj.ProjType)
                         case {'tan','tpv','tan-sip'}
-                            Rtheta = sqrt(X.^2 + Y.^2);        % deg
+                            %Rtheta = sqrt(X.^2 + Y.^2);        % deg
+                            % faster
+                            Rtheta = hypot(X, Y);        % deg
+
                             Theta  = atan(180./(pi.*Rtheta));  % rad
                             Phi    = atan2(X,-Y);              % rad
 
@@ -2555,7 +2559,8 @@ classdef AstroWCS < Component
                 if isempty(PV.PolyX_Rdeg) && isempty(PV.PolyY_Rdeg)
                     R = 1;
                 else
-                    R = sqrt(Xi.^2 + Yi.^2); % FFU - change to arbitrary function f(x,y)
+                    %R = sqrt(Xi.^2 + Yi.^2); % FFU - change to arbitrary function f(x,y)
+                    R = hypot(Xi, Yi); % faster and more accurate
                 end
                 
                 [Xi1,Yi1] = AstroWCS.forwardDistortion(PV,Xi,Yi,'R',R,'plusXY_bool',Args.plusXY_bool);

@@ -80,12 +80,16 @@ function Result = applyProperMotion(Obj, EpochIn, EpochOut, Args)
         
             
         % remove NaNs
-        PM_RA(isnan(PM_RA))   = 0;
-        PM_Dec(isnan(PM_Dec)) = 0;
+        PM_RA(isnan(PM_RA))   = 0; % slow
+        %PM_RA = PM_RA .* (~isnan(PM_RA)); % fast but introduce NaNs...
+
+        PM_Dec(isnan(PM_Dec)) = 0; % slow
+        %PM_Dec = PM_Dec .* (~isnan(PM_Dec)); % fast but introduce NaNs...
         
         % check if RV exiat
-        RV(isnan(RV)) = 0;
-        
+        RV(isnan(RV)) = 0; % slow
+        %RV = RV .* (~isnan(RV)); % fast but introduce NaNs...
+
         % Check if Plx exist
         if Args.ApplyPlx && ~all(isnan(Plx))
             Plx(isnan(Plx)) = 0;

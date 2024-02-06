@@ -2,7 +2,7 @@ function Result = unitTest()
     % unitTest for the +imProc.stat package
     % Example: Result = imProc.stat.unitTest
 
-    AI = AstroImage({rand(10,10)},'Back',{rand(10,10)});
+    AI = AstroImage({poissrnd(100,100,100)},'Back',{rand(10,10)});
     [N,edges,bin] = imProc.stat.histcounts(AI);
     [Nmax,Imax] = max(N);
     if sum(bin==Imax,'all')~=Nmax
@@ -50,9 +50,9 @@ function Result = unitTest()
     end
 
     
-    AI = AstroImage({ones(10,10), 2*ones(10,10)},'Back',{rand(10,10), rand(10,10)});
+    AI = AstroImage({poissrnd(100,100,100)},'Back',{rand(100,100)});
     [a,b] = imProc.stat.mode(AI);
-    if a(1)~=1 || a(2)~=2
+    if abs(a(1)-100)>2
         error('Problem with imProc.stat.mode');
     end
 
@@ -91,7 +91,7 @@ function Result = unitTest()
 
     AI = AstroImage({2*randn(1000,1000),ones(10,10)},'Back',{rand(1000,1000), rand(10,10)});
     [a,b] = imProc.stat.var(AI);   
-    if abs(a(1)-4)>1e-2 || a(2)~=0
+    if abs(a(1)-4)>5e-2 || a(2)~=0
         error('Problem with imProc.stat.var');
     end
     

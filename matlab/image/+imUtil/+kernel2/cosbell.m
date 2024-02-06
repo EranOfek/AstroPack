@@ -33,14 +33,17 @@ function Result=cosbell(Pars, SizeXY, PosXY, IsNormPeak)
     %MatR        = sqrt(MatX.^2 + MatY.^2);
     VecX = (1:1:SizeXY(1))-PosXY(1);
     VecY = (1:1:SizeXY(2)).'-PosXY(2);
-    MatR = sqrt(VecX.^2 + VecY.^2);
-    
+    %MatR = sqrt(VecX.^2 + VecY.^2);
+    % faster
+    MatR = hypot(VecX, VecY);
     
     Result      = ones(SizeXY(2), SizeXY(1), Npars);
     for Ipars=1:1:Npars
         Val    = ones(SizeXY(2), SizeXY(1));
         
-        Val(MatR>Pars(Ipars,2))  = 0;
+        %Val(MatR>Pars(Ipars,2))  = 0;
+        % faster
+        Val = Val.*(MatR<Pars(Ipars,2));
         SpanQ = Pars(Ipars,2) - Pars(Ipars,1);
         Ind = find(MatR>Pars(Ipars,1) & MatR<=Pars(Ipars,2));
         Val(Ind) = 0.5.*(1+cos( pi.*(MatR(Ind) - Pars(Ipars,1))./SpanQ ));

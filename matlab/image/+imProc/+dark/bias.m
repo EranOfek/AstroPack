@@ -15,7 +15,7 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
     %                   indicating which image is a bias/dark
     %                   image. If empty use all images.
     %                   The function must be a method of Dark.
-    %                   Default is @imProc.dark.isBias.
+    %                   Default is @imProc.dark.isBiasDark.
     %            'IsBiasArgs' - A cell array of arguments to pass
     %                   to the  IsBias function. Default is {}.
     %            'StackMethod' - For options, see
@@ -97,7 +97,7 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
         ImObj AstroImage
         Args.BitDictinaryName           = 'BitMask.Image.Default';  % char array or BitDictionary
 
-        Args.IsBias                     = @imProc.dark.isBias;  % @isBias, @isDark, vector of logical or [] - use all.
+        Args.IsBias                     = @imProc.dark.isBiasDark;  % @isBias, @isDark, vector of logical or [] - use all.
         Args.IsBiasArgs cell            = {};
 
         Args.StackMethod                = 'sigmaclip';   
