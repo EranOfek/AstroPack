@@ -336,7 +336,7 @@ classdef Targets < Component
                     case 'last'
                         Obj.VisibilityArgs.DecRange        = [-90 90];
                         
-                        [TileList,TileArea] = celestial.coo.tile_the_sky(Args.N_LonLat(1), Args.N_LonLat(2));
+                        [TileList,TileArea] = celestial.grid.tile_the_sky(Args.N_LonLat(1), Args.N_LonLat(2));
                         RA  = TileList(:,1).*RAD;
                         Dec = TileList(:,2).*RAD;
 
