@@ -1776,6 +1776,8 @@ classdef DemonLAST < Component
                 Args.RStdRange    = [0.01 0.05];
                 Args.StdRange     = [0 1];
                 Args.MaxNaN       = 20000;
+                Args.MaxAbsGrad   = 0.05;
+                Args.MaxNmaxGrad  = 1000;
             end
             
             PWD = pwd;
@@ -1794,11 +1796,15 @@ classdef DemonLAST < Component
                 Info(Iai).RStd    = imProc.stat.rstd(AI(Iai));
                 Info(Iai).CountNaN = sum(isnan(AI(Iai).Image(:)));
 
+                [Gx] = gradient(AI(Iai).Image);
+                NmaxGrad = abs(Gx(:))>Args.MaxAbsGrad;
+                Info(Iai).NmaxGrad = NmaxGrad;
+
                 Info(Iai).FileName = AI(Iai).ImageData.FileName;
                 if Info(Iai).Median>Args.MedianRange(1) && Info(Iai).Median<Args.MedianRange(2) && ...
                         Info(Iai).Std>Args.StdRange(1) && Info(Iai).Std<Args.StdRange(2) && ...
                         Info(Iai).RStd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2) && ...
-                        Info(Iai).CountNaN<Args.MaxNaN
+                        Info(Iai).CountNaN<Args.MaxNaN && nfo(Iai).NmaxGrad<Args.MaxNmaxGrad
                     Flag(Iai) = true;
                 end
                     
