@@ -1718,7 +1718,7 @@ classdef DemonLAST < Component
             arguments
                 Obj
                 AI                = 'LAST*_dark_*.fits';
-                Args.MedianRange  = [20 160];
+                Args.MedianRange  = [20 200];
                 Args.RStdRange    = [1 3];
                 Args.StdRange     = [0 60];
                 Args.MaxNaN       = 20000;
