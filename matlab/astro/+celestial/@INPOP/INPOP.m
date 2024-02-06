@@ -106,6 +106,7 @@ classdef INPOP < Base
                 Obj.ChebyFun{Args.PopOrder(Iorder)+1} = tools.math.fun.chebyshevFun(1, [0:1:Args.PopOrder(Iorder)]);
             end
             
+            Obj.Constant          = celestial.INPOP.readConstants;
         end
     end
     

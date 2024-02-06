@@ -1426,6 +1426,8 @@ classdef DemonLAST < Component
                         
                         %Obj = readFromHeader(, Input, DataProp
                         
+                        % FFU: check if bias/dark is good
+                        
                         % write file
                         JD = CI.Bias.julday;
                         FN_Master = FileNames;
@@ -1637,6 +1639,8 @@ classdef DemonLAST < Component
                         
                         CI.createFlat(AI, 'FlatArgs',Args.FlatArgs, 'Convert2single',true);
         
+                        % FFU: check if flat is good
+                        
                         % write file
                         JD = CI.Flat.julday;
                         FN_Master = FileNames;
@@ -1695,6 +1699,109 @@ classdef DemonLAST < Component
 
             cd(PWD);
         end
+        
+        function [Flag, Info,AI]=checkMasterDark(Obj, AI, Args)
+            % Check if MasterDark image is good
+            % Input  : - A pipeline.DemonLAST object
+            %          - Either an AstroImage containing dark image,
+            %            or a char array of template file name. Will look
+            %            for files in the CalibPath dir.
+            %          * ...,key,val,...
+            %            See code.
+            % Output : - A vector of logical flags indicating, for each
+            %            image, if its good dark image.
+            %          - A structure array with information per image.
+            % Author : Eran Ofek (Feb 2024)
+            % Example: D.checkMasterDark;  % check all images in Calib dir
+            %          D.checkMasterDark(D.CI.Bias) % check current dark
+            
+            arguments
+                Obj
+                AI                = 'LAST*_dark_*.fits';
+                Args.MedianRange  = [20 160];
+                Args.RStdRange    = [1 3];
+                Args.StdRange     = [0 60];
+            end
+            
+            PWD = pwd;
+            cd(Obj.CalibPath);
+            if ischar(AI) || isstring(AI)
+                AI = AstroImage.readFileNamesObj(AI);
+            else
+                % AI is supplied by user
+            end
+            
+            Nai = numel(AI);
+            Flag = false(Nai,1);
+            for Iai=1:1:Nai
+                Info(Iai).Median  = imProc.stat.median(AI(Iai));
+                Info(Iai).Std     = imProc.stat.std(AI(Iai));
+                Info(Iai).RStd    = imProc.stat.rstd(AI(Iai));
+                
+                Info(Iai).FileName = AI(Iai).ImageData.FileName;
+                if Info(Iai).Median>Args.MedianRange(1) && Info(Iai).Median<Args.MedianRange(2) && ...
+                        Info(Iai).Std>Args.StdRange(1) && Info(Iai).Std<Args.StdRange(2) && ...
+                        Info(Iai).RStd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2)
+                    Flag(Iai) = true;
+                end
+                    
+            end
+                            
+            
+            cd(PWD);
+        end
+        
+        function [Flag, Info,AI]=checkMasterFlat(Obj, AI, Args)
+            % Check if MasterFlat image is good
+            % Input  : - A pipeline.DemonLAST object
+            %          - Either an AstroImage containing flat image,
+            %            or a char array of template file name. Will look
+            %            for files in the CalibPath dir.
+            %          * ...,key,val,...
+            %            See code.
+            % Output : - A vector of logical flags indicating, for each
+            %            image, if its good flat image.
+            %          - A structure array with information per image.
+            % Author : Eran Ofek (Feb 2024)
+            % Example: D.checkMasterFlat;  % check all images in Calib dir
+            %          D.checkMasterFlat(D.CI.Flat) % check current flat
+            
+            arguments
+                Obj
+                AI                = 'LAST*_twflat_*.fits';
+                Args.MedianRange  = [0.95 1.05];
+                Args.RStdRange    = [0.01 0.05];
+                Args.StdRange     = [0 1];
+            end
+            
+            PWD = pwd;
+            cd(Obj.CalibPath);
+            if ischar(AI) || isstring(AI)
+                AI = AstroImage.readFileNamesObj(AI);
+            else
+                % AI is supplied by user
+            end
+            
+            Nai = numel(AI);
+            Flag = false(Nai,1);
+            for Iai=1:1:Nai
+                Info(Iai).Median  = imProc.stat.median(AI(Iai));
+                Info(Iai).Std     = imProc.stat.std(AI(Iai));
+                Info(Iai).RStd    = imProc.stat.rstd(AI(Iai));
+                
+                Info(Iai).FileName = AI(Iai).ImageData.FileName;
+                if Info(Iai).Median>Args.MedianRange(1) && Info(Iai).Median<Args.MedianRange(2) && ...
+                        Info(Iai).Std>Args.StdRange(1) && Info(Iai).Std<Args.StdRange(2) && ...
+                        Info(Iai).RStd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2)
+                    Flag(Iai) = true;
+                end
+                    
+            end
+                            
+            
+            cd(PWD);
+        end
+        
         
         function Obj=loadCalib(Obj, Args)
             % load CalibImages into the pipeline.DemonLAST object
