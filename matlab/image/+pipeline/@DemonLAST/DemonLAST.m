@@ -1721,7 +1721,7 @@ classdef DemonLAST < Component
                 Args.MedianRange  = [20 160];
                 Args.RStdRange    = [1 3];
                 Args.StdRange     = [0 60];
-                Args.MaxNaN       = 10;
+                Args.MaxNaN       = 100;
             end
             
             PWD = pwd;
@@ -1775,7 +1775,7 @@ classdef DemonLAST < Component
                 Args.MedianRange  = [0.95 1.05];
                 Args.RStdRange    = [0.01 0.05];
                 Args.StdRange     = [0 1];
-                Args.MaxNaN       = 10;
+                Args.MaxNaN       = 1000;
             end
             
             PWD = pwd;
