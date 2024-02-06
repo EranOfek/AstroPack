@@ -1797,7 +1797,7 @@ classdef DemonLAST < Component
                 Info(Iai).CountNaN = sum(isnan(AI(Iai).Image(:)));
 
                 [Gx] = gradient(AI(Iai).Image);
-                NmaxGrad = abs(Gx(:))>Args.MaxAbsGrad;
+                NmaxGrad = sum(abs(Gx(:))>Args.MaxAbsGrad);
                 Info(Iai).NmaxGrad = NmaxGrad;
 
                 Info(Iai).FileName = AI(Iai).ImageData.FileName;
