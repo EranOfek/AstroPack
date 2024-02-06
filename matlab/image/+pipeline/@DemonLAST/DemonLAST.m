@@ -1777,7 +1777,7 @@ classdef DemonLAST < Component
                 Args.StdRange     = [0 1];
                 Args.MaxNaN       = 20000;
                 Args.MaxAbsGrad   = 0.05;
-                Args.MaxNmaxGrad  = 1000;
+                Args.MaxNmaxGrad  = 50000;
             end
             
             PWD = pwd;
