@@ -1717,7 +1717,7 @@ classdef DemonLAST < Component
             
             arguments
                 Obj
-                AI                = 'LAST*_dark_*.fits';
+                AI                = 'LAST*_dark_proc_Image*.fits';
                 Args.MedianRange  = [20 200];
                 Args.RStdRange    = [1 3];
                 Args.StdRange     = [0 60];
@@ -1771,7 +1771,7 @@ classdef DemonLAST < Component
             
             arguments
                 Obj
-                AI                = 'LAST*_twflat_*.fits';
+                AI                = 'LAST*_twflat_proc_Image*.fits';
                 Args.MedianRange  = [0.95 1.05];
                 Args.RStdRange    = [0.01 0.05];
                 Args.StdRange     = [0 1];
