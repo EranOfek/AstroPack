@@ -1721,6 +1721,7 @@ classdef DemonLAST < Component
                 Args.MedianRange  = [20 160];
                 Args.RStdRange    = [1 3];
                 Args.StdRange     = [0 60];
+                Args.MaxNaN       = 10;
             end
             
             PWD = pwd;
@@ -1737,11 +1738,13 @@ classdef DemonLAST < Component
                 Info(Iai).Median  = imProc.stat.median(AI(Iai));
                 Info(Iai).Std     = imProc.stat.std(AI(Iai));
                 Info(Iai).RStd    = imProc.stat.rstd(AI(Iai));
+                Info(Iai).CountNaN = sum(isnan(AI(Iai).Image(:)));
                 
                 Info(Iai).FileName = AI(Iai).ImageData.FileName;
                 if Info(Iai).Median>Args.MedianRange(1) && Info(Iai).Median<Args.MedianRange(2) && ...
                         Info(Iai).Std>Args.StdRange(1) && Info(Iai).Std<Args.StdRange(2) && ...
-                        Info(Iai).RStd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2)
+                        Info(Iai).RStd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2) && ...
+                        Info(Iai).CountNaN<Args.MaxNaN
                     Flag(Iai) = true;
                 end
                     
@@ -1772,6 +1775,7 @@ classdef DemonLAST < Component
                 Args.MedianRange  = [0.95 1.05];
                 Args.RStdRange    = [0.01 0.05];
                 Args.StdRange     = [0 1];
+                Args.MaxNaN       = 10;
             end
             
             PWD = pwd;
@@ -1788,11 +1792,13 @@ classdef DemonLAST < Component
                 Info(Iai).Median  = imProc.stat.median(AI(Iai));
                 Info(Iai).Std     = imProc.stat.std(AI(Iai));
                 Info(Iai).RStd    = imProc.stat.rstd(AI(Iai));
-                
+                Info(Iai).CountNaN = sum(isnan(AI(Iai).Image(:)));
+
                 Info(Iai).FileName = AI(Iai).ImageData.FileName;
                 if Info(Iai).Median>Args.MedianRange(1) && Info(Iai).Median<Args.MedianRange(2) && ...
                         Info(Iai).Std>Args.StdRange(1) && Info(Iai).Std<Args.StdRange(2) && ...
-                        Info(Iai).RStd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2)
+                        Info(Iai).RStd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2) && ...
+                        Info(Iai).CountNaN<Args.MaxNaN
                     Flag(Iai) = true;
                 end
                     
