@@ -25,9 +25,6 @@ classdef AstroDiff < AstroImage
         %SigmaN
         %SigmaR
 
-        %
-        TranCat AstroCatalog
-       
     end
     
     properties (Hidden)  % auxilary images
