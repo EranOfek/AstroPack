@@ -1124,7 +1124,7 @@ classdef DemonLAST < Component
                     Nd       = numel(DirDay);
 
                     for Id=1:1:Nd
-                        cd(DirDay(Idls ).name);
+                        cd(DirDay(Id).name);
                         if isfolder('raw')
                             cd ('raw');
                             
