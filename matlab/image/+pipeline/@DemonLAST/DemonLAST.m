@@ -1124,7 +1124,7 @@ classdef DemonLAST < Component
                     Nd       = numel(DirDay);
 
                     for Id=1:1:Nd
-                        cd(DirDay(Idls ).name);
+                        cd(DirDay(Id).name);
                         if isfolder('raw')
                             cd ('raw');
                             
@@ -1426,43 +1426,45 @@ classdef DemonLAST < Component
                         
                         %Obj = readFromHeader(, Input, DataProp
                         
-                        % FFU: check if bias/dark is good
+                        % check if bias/dark is good
+                        if Obj.checkMasterDark(CI.Bias)
                         
-                        % write file
-                        JD = CI.Bias.julday;
-                        FN_Master = FileNames;
-                        FN_Master.readFromHeader(CI.Bias);
-                        FN_Master.Type     = {'dark'};
-                        FN_Master.Level    = {'proc'};
-                        FN_Master.Product  = {'Image'};
-                        FN_Master.Version  = [1];
-                        FN_Master.FileType = {'fits'};    
-        
-                        % values for LAST dark images
-                        FN_Master.FieldID  = {''};
-                        FN_Master.Counter  = {''};
-                        FN_Master.CCDID    = {''};
-                        FN_Master.CropID   = {''};
-                        FN_Master.ProjName = FN_Dark.ProjName{1};
-        
-                        if ~isfolder(Obj.CalibPath)
-                            mkdir(Obj.CalibPath);
-                        end
-
-                        FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                        write1(CI.Bias, FileN{1}, 'Image');
-                        FN_Master.Product  = {'Mask'};
-                        FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                        write1(CI.Bias, FileN{1}, 'Mask');
-                        FN_Master.Product  = {'Var'};
-                        FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                        write1(CI.Bias, FileN{1}, 'Var');
-                        
-                        % keep in CI.Bias 
-                        Obj.CI.Bias = CI.Bias;
+                            % write file
+                            JD = CI.Bias.julday;
+                            FN_Master = FileNames;
+                            FN_Master.readFromHeader(CI.Bias);
+                            FN_Master.Type     = {'dark'};
+                            FN_Master.Level    = {'proc'};
+                            FN_Master.Product  = {'Image'};
+                            FN_Master.Version  = [1];
+                            FN_Master.FileType = {'fits'};    
+            
+                            % values for LAST dark images
+                            FN_Master.FieldID  = {''};
+                            FN_Master.Counter  = {''};
+                            FN_Master.CCDID    = {''};
+                            FN_Master.CropID   = {''};
+                            FN_Master.ProjName = FN_Dark.ProjName{1};
+            
+                            if ~isfolder(Obj.CalibPath)
+                                mkdir(Obj.CalibPath);
+                            end
     
-                        if Args.ClearVar
-                            Obj.CI.Bias.Var = [];
+                            FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                            write1(CI.Bias, FileN{1}, 'Image');
+                            FN_Master.Product  = {'Mask'};
+                            FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                            write1(CI.Bias, FileN{1}, 'Mask');
+                            FN_Master.Product  = {'Var'};
+                            FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                            write1(CI.Bias, FileN{1}, 'Var');
+                            
+                            % keep in CI.Bias 
+                            Obj.CI.Bias = CI.Bias;
+        
+                            if Args.ClearVar
+                                Obj.CI.Bias.Var = [];
+                            end
                         end
                         
                     end
@@ -1639,40 +1641,42 @@ classdef DemonLAST < Component
                         
                         CI.createFlat(AI, 'FlatArgs',Args.FlatArgs, 'Convert2single',true);
         
-                        % FFU: check if flat is good
-                        
-                        % write file
-                        JD = CI.Flat.julday;
-                        FN_Master = FileNames;
-                        FN_Master.readFromHeader(CI.Flat);
-                        FN_Master.Type     = {'twflat'};
-                        FN_Master.Level    = {'proc'};
-                        FN_Master.Product  = {'Image'};
-                        FN_Master.Version  = [1];
-                        FN_Master.FileType = {'fits'};    
-        
-                        % values for LAST dark images
-                        FN_Master.FieldID  = {''};
-                        FN_Master.Counter  = {''};
-                        FN_Master.CCDID    = {''};
-                        FN_Master.CropID   = {''};
-                        FN_Master.ProjName = FN_Flat.ProjName{1};
-        
-        
-                        FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                        write1(CI.Flat, FileN{1}, 'Image', 'Overwrite',Args.OverWrite);
-                        FN_Master.Product  = {'Mask'};
-                        FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                        write1(CI.Flat, FileN{1}, 'Mask', 'Overwrite',Args.OverWrite);
-                        FN_Master.Product  = {'Var'};
-                        FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                        write1(CI.Flat, FileN{1}, 'Var', 'Overwrite',Args.OverWrite);
-                        
-                        % keep in CI.Bias 
-                        Obj.CI.Flat = CI.Flat;
-                        
-                        if Args.ClearVar
-                            Obj.CI.Flat.Var = [];
+                        % check if flat is good
+                        if Obj.checkMasterFlat(CI.Flat)
+
+                            % write file
+                            JD = CI.Flat.julday;
+                            FN_Master = FileNames;
+                            FN_Master.readFromHeader(CI.Flat);
+                            FN_Master.Type     = {'twflat'};
+                            FN_Master.Level    = {'proc'};
+                            FN_Master.Product  = {'Image'};
+                            FN_Master.Version  = [1];
+                            FN_Master.FileType = {'fits'};    
+            
+                            % values for LAST dark images
+                            FN_Master.FieldID  = {''};
+                            FN_Master.Counter  = {''};
+                            FN_Master.CCDID    = {''};
+                            FN_Master.CropID   = {''};
+                            FN_Master.ProjName = FN_Flat.ProjName{1};
+            
+            
+                            FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                            write1(CI.Flat, FileN{1}, 'Image', 'Overwrite',Args.OverWrite);
+                            FN_Master.Product  = {'Mask'};
+                            FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                            write1(CI.Flat, FileN{1}, 'Mask', 'Overwrite',Args.OverWrite);
+                            FN_Master.Product  = {'Var'};
+                            FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                            write1(CI.Flat, FileN{1}, 'Var', 'Overwrite',Args.OverWrite);
+                            
+                            % keep in CI.Bias 
+                            Obj.CI.Flat = CI.Flat;
+                            
+                            if Args.ClearVar
+                                Obj.CI.Flat.Var = [];
+                            end
                         end
                     end
                 else
