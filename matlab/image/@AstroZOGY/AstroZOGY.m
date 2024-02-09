@@ -13,8 +13,8 @@ classdef AstroZOGY < AstroDiff
     end
     
     properties (Hidden)  % auxilary images
-        ZeroPadRowsFFT   = [];
-        ZeroPadColsFFT   = [];
+        %ZeroPadRowsFFT   = [];
+        %ZeroPadColsFFT   = [];
 
         %FFT
         R_hat
