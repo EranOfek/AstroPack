@@ -812,7 +812,7 @@ classdef AstroZOGY < AstroDiff
 
         end
 
-        function translient(Obj, Args)
+        function Obj=translient(Obj, Args)
             % Apply translient image subtraction to New and Ref in AstroFiff object.
             %   Using: imUtil.properSub.translient
             %   This function can be exceuted only after subtractionD was
