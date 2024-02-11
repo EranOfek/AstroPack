@@ -1550,6 +1550,46 @@ classdef catsHTM
         end
         
         
+        function createSlimCopy(CatName, OutputPath, OutputCatName, Cols, Type)
+            %
+            % Example:
+            % catsHTM.createSlimCopy('GAIADR3','/raid/eran/catsHTM/GAIA/DR3slim','GAIADR3slim',[1 2 3 6 8 10 18 19 27 29 31 35],@single)
+
+            arguments
+                CatName
+                OutputPath
+                OutputCatName
+                Cols
+                Type   = [];
+            end
+
+            cd(OutputPath);
+
+            FileName = sprintf('%s_htm.hdf5',CatName);
+            DataName = sprintf('%s_HTM',CatName);
+            %HTM = catsHTM.load_htm_ind(FileName);
+            Data = HDF5.load(FileName,DataName);
+
+            MaxLevel = max(Data(:,1));
+
+            IndFiles = find(Data(:,1)==MaxLevel);
+            Nf = numel(IndFiles);
+            for If=1:1:Nf
+                IndFiles(If)
+
+                [Cat,ColCell] = catsHTM.load_1htm(CatName,IndFiles(If));
+
+                Cat = Cat(:,Cols);
+                if ~isempty(Type)
+                    Cat = Type(Cat);
+                end
+                [FileName,DataName] = catsHTM.get_file_var_from_htmid(OutputCatName, IndFiles(If), 100);
+                catsHTM.save_cat(FileName, DataName, Cat, 2, 1000);
+
+            end
+
+        end
+
       
     end % Static
     
