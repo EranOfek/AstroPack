@@ -6,7 +6,8 @@ function [Result] = forcedPhot(Obj, Args)
     %       or without position refinment.
     %       The output is written either to an AstroCatalaog object or
     %       added to the AstroCatalog in the AstroImage.
-    % Input  : - An AstroImage object.
+    % Input  : - An object that inherist from AstroImage (e.g., AstroImage,
+    %            AstroZOGY).
     %            The AstroImage must iunclude: an header or a populated
     %            AstroWCS; and A populated AstroCatalog.
     %          * ...,key,val,...
@@ -157,7 +158,7 @@ function [Result] = forcedPhot(Obj, Args)
     %          R=imProc.sources.forcedPhot(AI,'Coo',Rc.Center);
     
     arguments
-        Obj AstroImage
+        Obj
         Args.Coo                     = zeros(0,2);
         Args.CooUnits                = 'deg';   % 'pix'|'deg'|'rad
         Args.Moving logical          = false;
