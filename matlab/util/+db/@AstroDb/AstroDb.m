@@ -103,7 +103,7 @@ classdef AstroDb < Component
                 Args.Password      = ''      % Password
                 Args.ReadConfig    = false;  % read config from a local config file or create an object with the given parameters                
             end
-            
+            C = Configuration; C.loadFile('~/.astropack/Passwords.yml'); % tell the PM where to look for passwords
             PM = PasswordsManager;
             try
                 Args.UserName = PM.search(Args.DatabaseName).User;
