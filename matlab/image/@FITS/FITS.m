@@ -182,7 +182,7 @@ classdef FITS < handle
 
                            HeadCell{Ikey,2}  = Value; %Card(KeyPos+1:min(LenCard,ComPos-1));
                            if (LenCard>UpdatedComPos)
-                               HeadCell{Ikey,3}  = Card(UpdatedComPos+2:end);
+                               HeadCell{Ikey,3}  = strtrim(Card(UpdatedComPos+1:end));
                            else
                                HeadCell{Ikey,3}  = '';
                            end
@@ -199,7 +199,7 @@ classdef FITS < handle
                        end
                        if (strcmpi(Card(1:7),'COMMENT'))
                            HeadCell{Ikey,1} = 'COMMENT';
-                           HeadCell{Ikey,2} = Card(KeyPos:end);
+                           HeadCell{Ikey,2} = Card(KeyPos+2:end);
                            HeadCell{Ikey,3} = '';
                        end
                    end
