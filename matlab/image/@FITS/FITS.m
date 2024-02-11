@@ -136,12 +136,28 @@ classdef FITS < handle
 
                        if (strcmpi(Card(KeyPos),'='))
                            HeadCell{Ikey,1}  = tools.string.spacedel(Card(1:KeyPos-1));
-                           % update comment position due to over flow
-                           Islash = strfind(Card(ComPos:end),'/');
-                           if (isempty(Islash))
+                           % Normally, the comment should start at column
+                           %  32. However, Value may be a long string, and
+                           %  the delimiting slash may be moved further.
+                           %  Moreover, the long string may contain itself
+                           %  a slash (e.g., in a path). In this case the 
+                           %  string starts with a quote, and we
+                           %  must first search for the closing quote.
+                           PosAp = strfind(Card(KeyPos+1:end),'''');
+                           % Update comment position due to over flow
+                           Islash = strfind(Card(1:end),'/');
+                           if (isempty(Islash)) && length(PosAp)<2
                                UpdatedComPos = ComPos;
                            else
-                               UpdatedComPos = ComPos + Islash(1)-1;
+                               if length(PosAp)>=2
+                                   if isempty(Islash)
+                                       UpdatedComPos = max(ComPos,KeyPos+1+PosAp(2));
+                                   else
+                                       UpdatedComPos = Islash(Islash>KeyPos+1+PosAp(2));
+                                   end
+                               else
+                                   UpdatedComPos = Islash(1);
+                               end
                            end
                            Value = Card(KeyPos+1:min(LenCard,UpdatedComPos-1));
                            PosAp = strfind(Value,'''');
@@ -157,7 +173,7 @@ classdef FITS < handle
                                end
                            else
                                if (length(PosAp)>=2)
-                                   % a string
+                                   % a string-am
                                    Value = strtrim(Value(PosAp(1)+1:PosAp(2)-1));
                                else
                                    Value = Card(PosAp(1)+10:end);
@@ -166,7 +182,7 @@ classdef FITS < handle
 
                            HeadCell{Ikey,2}  = Value; %Card(KeyPos+1:min(LenCard,ComPos-1));
                            if (LenCard>UpdatedComPos)
-                               HeadCell{Ikey,3}  = Card(UpdatedComPos+1:end);
+                               HeadCell{Ikey,3}  = Card(UpdatedComPos+2:end);
                            else
                                HeadCell{Ikey,3}  = '';
                            end
