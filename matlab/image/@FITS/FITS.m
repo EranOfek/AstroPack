@@ -180,7 +180,7 @@ classdef FITS < handle
                            else
                                if (length(PosAp)>=2)
                                    % a string-am
-                                   Value = strtrim(Value(PosAp(1)+1:PosAp(2)-1));
+                                   Value = Value(PosAp(1)+1:PosAp(2)-1);
                                else
                                    Value = Card(PosAp(1)+10:end);
                                end
