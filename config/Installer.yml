@@ -124,7 +124,8 @@ Items:
         # The following are cell arrays of entry per dataset
         DataName             : 'TestImagesAstroPack'
         SubDir               : 'TestImages/unitTest'
-        URL                  : ['http://euler1.weizmann.ac.il/archive/AstroPack/data/TestImages/unitTest/index.html']
+#        URL                  : ['http://euler1.weizmann.ac.il/archive/AstroPack/data/TestImages/unitTest/index.html']
+        URL                  : ['http://data.astropack.org/TestImages/unitTest/unitTest.tar']
         Size                 : 203
         SearchFile           : ''
         Description          : 'FITS test images for AstroPack unitTest'
