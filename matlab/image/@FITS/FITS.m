@@ -240,6 +240,19 @@ classdef FITS < handle
             %  either from blank lines in the header, comments with no key,
             %  or after continuing lines have been joined
             %  -- How, compactly?
+            emptyRecord=false(1,Nkey);
+            for i=1:Nkey
+                emptyRecord(i)=isempty(HeadCell{i,1}) & ...
+                               isempty(HeadCell{i,2}) & ...
+                               isempty(HeadCell{i,3});
+                % trim also string values here. We couldn't have done it
+                %  earlier, because we handled continuing strings, which may
+                %  have been split at space positions
+                if ischar(HeadCell{i,2})
+                    HeadCell{i,2}=strtrim(HeadCell{i,2});
+                end
+            end
+            HeadCell=HeadCell(~emptyRecord,:);
         end
         
         function [Image, HeadCell, Nhdu] = read1(FileName, HDUnum, Args)
