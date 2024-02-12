@@ -992,34 +992,6 @@ classdef DemonLAST < Component
             Obj.Logger.LogF.FileName = LogFileName;
 
         end
-
-        function Path=populateRefPath(Obj, Args)
-            % Get path for reference imags location on the LAST computers
-            % Input  : - A pipeline.DemonLAST object
-            %          * ...,key,val,...
-            %            'HostName' - HostName. If empty, get it from OS.
-            %                   Default is [].
-            %            'DefRefPath' - Reference path above the host name.
-            %                   Default is 'data/references'.
-            % Output : - Base path for reference images dir.
-            % Author : Eran Ofek (Oct 2023)
-            % Example: Path=D.populateRefPath
-            
-            arguments
-                Obj
-                Args.HostName     = [];
-                Args.DefRefPath   = 'data/references';
-            end
-            
-            if isempty(Args.HostName)
-                HostName = tools.os.get_computer;
-            else
-                HostName = Args.HostName;
-            end
-            
-            
-            Path = fullfile(filesep, HostName, Args.DefRefPath);
-        end
         
         function SpecialArgs=specialInstruction(Obj, JD, InArgs, Args)
             % Check for pipeline special instructions and modify arguments using new instructions
@@ -1163,7 +1135,34 @@ classdef DemonLAST < Component
     end
     
     methods % ref image utilities
-        
+         function Path=populateRefPath(Obj, Args)
+            % Get path for reference imags location on the LAST computers
+            % Input  : - A pipeline.DemonLAST object
+            %          * ...,key,val,...
+            %            'HostName' - HostName. If empty, get it from OS.
+            %                   Default is [].
+            %            'DefRefPath' - Reference path above the host name.
+            %                   Default is 'data/references'.
+            % Output : - Base path for reference images dir.
+            % Author : Eran Ofek (Oct 2023)
+            % Example: Path=D.populateRefPath
+            
+            arguments
+                Obj
+                Args.HostName     = [];
+                Args.DefRefPath   = 'data/references';
+            end
+            
+            if isempty(Args.HostName)
+                HostName = tools.os.get_computer;
+            else
+                HostName = Args.HostName;
+            end
+            
+            Path = fullfile(filesep, HostName, Args.DefRefPath);
+        end
+
+
         function [Path, File, AI] = getRefImage(Obj, Args)
             % Get reference images corresponding to some field
             % Input  : * ...,key,val,...
