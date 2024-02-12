@@ -134,7 +134,7 @@ classdef FITS < handle
                    LenCard = length(Card);
                    if (LenCard>=9)
 
-                       if (strcmpi(Card(KeyPos),'='))
+                       if strcmpi(Card(KeyPos),'=') || strcmpi(Card(1:8),'CONTINUE') 
                            HeadCell{Ikey,1}  = tools.string.spacedel(Card(1:KeyPos-1));
                            % Normally, the comment should start at column
                            %  32. However, Value may be a long string, and
@@ -159,7 +159,13 @@ classdef FITS < handle
                                    UpdatedComPos = Islash(1);
                                end
                            end
-                           Value = Card(KeyPos+1:min(LenCard,UpdatedComPos-1));
+                           if ~isempty(UpdatedComPos)
+                               Value = Card(KeyPos+1:min(LenCard,UpdatedComPos-1));
+                           else
+                               % long string and no comment (e.g.
+                               %  continuing)
+                               Value = Card(KeyPos+1:end);
+                           end
                            PosAp = strfind(Value,'''');
 
                            if (isempty(PosAp))
@@ -202,12 +208,38 @@ classdef FITS < handle
                            HeadCell{Ikey,2} = Card(KeyPos+2:end);
                            HeadCell{Ikey,3} = '';
                        end
+                       % HEASARCH (sic) continuation lines, append content
+                       %   to the previous record, and then empty the
+                       %   current one (which will be removed later)
+                       % I think this will work only for string values
+                       if (strcmpi(Card(1:8),'CONTINUE'))
+                           ValuePart = HeadCell{LastBegunKey,2};
+                           if strcmp(ValuePart(end),'&')
+                               ValuePart=ValuePart(1:end-1);
+                           end
+                           CommPart = HeadCell{LastBegunKey,3};
+                           if ~isempty(CommPart) && strcmp(CommPart(end),'&')
+                               CommPart=CommPart(1:end-1);
+                           end
+                           HeadCell{LastBegunKey,2} = strcat(ValuePart,HeadCell{Ikey,2});
+                           HeadCell{LastBegunKey,3} = strcat(CommPart,HeadCell{Ikey,3});
+                           HeadCell{Ikey,1} = [];
+                           HeadCell{Ikey,2} = [];
+                           HeadCell{Ikey,3} = [];
+                       else
+                           LastBegunKey = Ikey;
+                       end
+                       
                    end
                 end
 
             end
             matlab.io.fits.closeFile(Fptr);
-            
+
+            % remove HeadCell records which are all empty, which result
+            %  either from blank lines in the header, comments with no key,
+            %  or after continuing lines have been joined
+            %  -- How, compactly?
         end
         
         function [Image, HeadCell, Nhdu] = read1(FileName, HDUnum, Args)
