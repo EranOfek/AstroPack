@@ -634,7 +634,7 @@ classdef DemonLAST < Component
                 Mount
                 Camera
                 OutFile
-                Args.ColName   = 'x_SNName'
+                Args.ColName   = 'SNName'
                 Args.ColMount  = 'Mount';
                 Args.ColCamera = 'Camera';
                 Args.ColStart  = 'StartJD';
@@ -646,6 +646,8 @@ classdef DemonLAST < Component
 
             Flag = T.(Args.ColMount) == Mount & any(T.(Args.ColCamera) == Camera, 2);
             T    = T(Flag,:);
+            [~,Iu]    = unique(T.StartJD);
+            T         = T(Iu,:);
 
             FID = fopen(OutFile,'w');
             Nt = size(T,1);
@@ -660,9 +662,9 @@ classdef DemonLAST < Component
                 fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  %% %s\n', DateStart, Args.Parameter, 'all', Name);
                 fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  %% %s\n', DateEnd,   Args.Parameter, 'cat', Name);
             end
-
+            fclose(FID);
         end
-        fclose(FID);
+        
     end
 
     
