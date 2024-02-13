@@ -1148,6 +1148,75 @@ classdef DemonLAST < Component
 
     end
     
+    methods % go over files
+        function List=prepListOfProcVisits(Obj, Args)
+            % Prepare a list of all processed visits
+            % Input  : - A pipeline.DemonLAST object
+            %          * ...,key,val,...
+            %            see code
+            % Output : - A structure array with all proc visits.
+            % Author : Eran Ofek (Feb 2024)
+            
+            arguments
+                Obj
+                Args.FileTemp  = 'LAST*MergedMat*.hdf5';
+            end
+            
+           
+            PWD = pwd;
+            cd(Obj.BasePath);
+            
+            Ind = 0;
+            DirYear = io.files.dirDir('20*');
+            Ny      = numel(DirYear);
+            for Iy=1:1:Ny
+                cd(DirYear(Iy).name);
+                
+                DirMonth = io.files.dirDir();
+                Nm      = numel(DirMounth);
+                for Im=1:1:Nm
+                    cd(DirMounth(Iy).name);
+                    
+                    DirDay = io.files.dirDir();
+                    Nd = numel(DirDay);
+                    for Id=1:1:Nd
+                        cd(DirDay(Id).name);
+                        
+                        cd('proc');
+                        
+                        DirVisit = io.files.dirDir();
+                        Nv = numel(DirVisit);
+                        for Iv=1:1:Nv
+                            cd(DirVisit(Iv).name);
+                            Ind = Ind + 1;
+                            Files = dir(Args.FileTemp);
+                            FN = FileNames.generateFromFileName({Files.name});
+                            CropID = FN.CropID;
+                            JD     = FN.julday;
+                            List(Ind).FieldID = FN.FieldID{1};
+                            List(Ind).VistDir = DirVisit(Iv).name;
+                            List(Ind).Path    = fullfile(Obj.BasePath, DirYear(Iy).name, DirMounth(Im).name, DirDay(Id).name, 'proc', DirVisit(Iv).name,'','');
+                            
+                            List(Ind).AllFiles = {Files.name};
+                            List(Ind).CropID   = CropID;
+                            List(Ind).JD       = JD;
+                            
+                            cd ..
+                        end
+                        cd ..
+                    end
+                    cd ..
+                end
+                cd ..
+            end
+            
+            
+            cd(PWD);
+            
+        end
+        
+    end
+    
     methods % ref image utilities
          function Path=populateRefPath(Obj, Args)
             % Get path for reference imags location on the LAST computers
