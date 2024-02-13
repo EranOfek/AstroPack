@@ -640,14 +640,21 @@ classdef DemonLAST < Component
                 Args.ColStart  = 'StartJD';
                 Args.ColEnd    = 'EndJD';
                 Args.Parameter = 'SaveEpochProduct'
+                Args.AddName logical = false;
             end
             
             T = readtable(File);
 
+            T = sortrows(T, 'StartJD');
+        
             Flag = T.(Args.ColMount) == Mount & any(T.(Args.ColCamera) == Camera, 2);
             T    = T(Flag,:);
             [~,Iu]    = unique(T.StartJD);
             T         = T(Iu,:);
+
+            % remove overlapping times
+            FlagDup = T.StartJD(2:end) < T.EndJD(1:end-1);
+            T       = T(~FlagDup,:);
 
             FID = fopen(OutFile,'w');
             Nt = size(T,1);
@@ -659,8 +666,13 @@ classdef DemonLAST < Component
                 DateStart = celestial.time.jd2date(Start,'H');
                 DateEnd   = celestial.time.jd2date(End,'H');
             
-                fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  %% %s\n', DateStart, Args.Parameter, 'all', Name);
-                fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  %% %s\n', DateEnd,   Args.Parameter, 'cat', Name);
+                if Args.AddName
+                    fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  %% %s\n', DateStart, Args.Parameter, 'all', Name);
+                    fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  %% %s\n', DateEnd,   Args.Parameter, 'cat', Name);
+                else
+                    fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  \n', DateStart, Args.Parameter, 'all');
+                    fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  \n', DateEnd,   Args.Parameter, 'cat');
+                end
             end
             fclose(FID);
         end
