@@ -1085,6 +1085,7 @@ classdef MovingSource < Component
 
                 if Args.Plot
                     fprintf('File %s loaded\n',Obj(Iobj).FileName);
+                    fprintf('ID in file : %d \n',Obj(Iobj).IDinFile);
                     fprintf('ID for 1st stamp:\n')
                     FN = fieldnames(Obj(Iobj).ImageID(1));
                     Nfn = numel(FN);
