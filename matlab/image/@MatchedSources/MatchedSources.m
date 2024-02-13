@@ -1615,7 +1615,7 @@ classdef MatchedSources < Component
 
         end
             
-    
+        
     end
     
 
@@ -2822,9 +2822,12 @@ classdef MatchedSources < Component
             %            'MagField' - Field name containing the flux or
             %                   magnitude on which to calculate the periodogram.
             %                   Default is 'MAG_APER_3'.
+            %            'PowerSpecFun' - A function handle for calcualting
+            %                   the power spectrum.
+            %                   Default is @timeSeries.period.periodmulti_norm
             % Output : - A vector of frequencies.
             %          - A matrix of power spectra (freq. vs. star index).
-            %          
+            %            
             % Author : Eran Ofek (Jul 2023)
             % Example: [F, PS] = MS.period;
 
@@ -2832,6 +2835,7 @@ classdef MatchedSources < Component
                 Obj(1,1)
                 Freq      = [];
                 Args.MagField     = 'MAG_APER_3';
+                Args.PowerSpecFun = @timeSeries.period.periodmulti_norm;
             end
 
             T        = Obj.JD(:);
@@ -2868,10 +2872,67 @@ classdef MatchedSources < Component
                 FreqVec = (MinFreq:StepFreq:MaxFreq).';
             end
 
-            [FreqVec,PS] = timeSeries.period.periodmulti_norm(T, Obj.Data.(Args.MagField), FreqVec);
+            [FreqVec,PS] = Args.PowerSpecFun(T, Obj.Data.(Args.MagField), FreqVec);
 
         end
+        
+        function Flag=searchFlares(Obj, DataField, Args)
+            % Search flares using timeSeries.stat.searchFlares
+            % Input  : - A MatchedSources object.
+            %          - A Field name on which to execute the search.
+            %            Default is 'MAG_PSF'.
+            %          * ...,key,val,...
+            %            'MovMeanWin' - A vector containig list of the size of the
+            %                   top-hat filter that will be implemented.
+            %                   Default is [2 4 8].
+            %            'MadType' - Type for tools.math.stat.std_mad
+            %                   that is used to calculate the std of the time.
+            %                   If empty, use tools.math.stat.rstd.
+            %                   series. Default is [].
+            %            'ThresholdZ' - Threshold for detection (sigma).
+            %                   Default is 8.
+            %            'MinNotNaN' - For the 2nd search method the number of
+            %                   sucessive NaNs must be larger than this value.
+            %                   Default is 1 (i.e., 2 not NaNs are required).
+            %            'MaxNotNaN' - For the 2nd search method the number of
+            %                   sucessive NaNs must be samller than this value.
+            %                   Default is 11.
+            %
+            % Output : - A structure array (element per MatchedSources
+            %            element), with a vector of logicals (one per
+            %            source) indicating if a flare was found by one of
+            %            the methods.
+            %            The information is stired in the .Any field.
+            % Author : Eran Ofek (Feb 2024)
+            % Example: F=MS.searchFlares
 
+            arguments
+                Obj
+                DataField  = 'MAG_PSF';
+                
+                Args.MovMeanWin        = [2 4 8];
+                Args.MadType           = [];
+
+                Args.ThresholdZ        = 8;
+
+                Args.MinNotNaN         = 1;
+                Args.MaxNotNaN         = 11;
+
+            end
+            
+            Nobj = numel(Obj);
+            
+            for Iobj=1:1:Nobj
+                [Flag(Iobj).Any, ~, Flag(Iobj).Median, Flag(Iobj).Std] = timeSeries.stat.searchFlares(Obj(Iobj).Data.(DataField),...
+                                                                                 'DimEpoch',1,...
+                                                                                 'MovMeanWin',Args.MovMeanWin,...
+                                                                                 'MadType',Args.MadType,...
+                                                                                 'ThresholdZ',Args.ThresholdZ,...
+                                                                                 'MinNotNaN',Args.MinNotNaN,...
+                                                                                 'MaxNotNaN',Args.MaxNotNaN);
+            end
+            
+        end
     end
     
     methods % find sources
