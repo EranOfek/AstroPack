@@ -634,18 +634,27 @@ classdef DemonLAST < Component
                 Mount
                 Camera
                 OutFile
-                Args.ColName   = 'x_SNName'
+                Args.ColName   = 'SNName'
                 Args.ColMount  = 'Mount';
                 Args.ColCamera = 'Camera';
                 Args.ColStart  = 'StartJD';
                 Args.ColEnd    = 'EndJD';
                 Args.Parameter = 'SaveEpochProduct'
+                Args.AddName logical = false;
             end
             
             T = readtable(File);
 
+            T = sortrows(T, 'StartJD');
+        
             Flag = T.(Args.ColMount) == Mount & any(T.(Args.ColCamera) == Camera, 2);
             T    = T(Flag,:);
+            [~,Iu]    = unique(T.StartJD);
+            T         = T(Iu,:);
+
+            % remove overlapping times
+            FlagDup = T.StartJD(2:end) < T.EndJD(1:end-1);
+            T       = T(~FlagDup,:);
 
             FID = fopen(OutFile,'w');
             Nt = size(T,1);
@@ -657,12 +666,17 @@ classdef DemonLAST < Component
                 DateStart = celestial.time.jd2date(Start,'H');
                 DateEnd   = celestial.time.jd2date(End,'H');
             
-                fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  %% %s\n', DateStart, Args.Parameter, 'all', Name);
-                fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  %% %s\n', DateEnd,   Args.Parameter, 'cat', Name);
+                if Args.AddName
+                    fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  %% %s\n', DateStart, Args.Parameter, 'all', Name);
+                    fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  %% %s\n', DateEnd,   Args.Parameter, 'cat', Name);
+                else
+                    fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  \n', DateStart, Args.Parameter, 'all');
+                    fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  \n', DateEnd,   Args.Parameter, 'cat');
+                end
             end
-
+            fclose(FID);
         end
-        fclose(FID);
+        
     end
 
     
@@ -992,34 +1006,6 @@ classdef DemonLAST < Component
             Obj.Logger.LogF.FileName = LogFileName;
 
         end
-
-        function Path=populateRefPath(Obj, Args)
-            % Get path for reference imags location on the LAST computers
-            % Input  : - A pipeline.DemonLAST object
-            %          * ...,key,val,...
-            %            'HostName' - HostName. If empty, get it from OS.
-            %                   Default is [].
-            %            'DefRefPath' - Reference path above the host name.
-            %                   Default is 'data/references'.
-            % Output : - Base path for reference images dir.
-            % Author : Eran Ofek (Oct 2023)
-            % Example: Path=D.populateRefPath
-            
-            arguments
-                Obj
-                Args.HostName     = [];
-                Args.DefRefPath   = 'data/references';
-            end
-            
-            if isempty(Args.HostName)
-                HostName = tools.os.get_computer;
-            else
-                HostName = Args.HostName;
-            end
-            
-            
-            Path = fullfile(filesep, HostName, Args.DefRefPath);
-        end
         
         function SpecialArgs=specialInstruction(Obj, JD, InArgs, Args)
             % Check for pipeline special instructions and modify arguments using new instructions
@@ -1162,8 +1148,104 @@ classdef DemonLAST < Component
 
     end
     
-    methods % ref image utilities
+    methods % go over files
+        function List=prepListOfProcVisits(Obj, Args)
+            % Prepare a list of all processed visits
+            % Input  : - A pipeline.DemonLAST object
+            %          * ...,key,val,...
+            %            see code
+            % Output : - A structure array with all proc visits.
+            % Author : Eran Ofek (Feb 2024)
+            
+            arguments
+                Obj
+                Args.FileTemp  = 'LAST*MergedMat*.hdf5';
+            end
+            
+           
+            PWD = pwd;
+            cd(Obj.BasePath);
+            
+            Ind = 0;
+            DirYear = io.files.dirDir('20*');
+            Ny      = numel(DirYear);
+            for Iy=1:1:Ny
+                cd(DirYear(Iy).name);
+                
+                DirMonth = io.files.dirDir();
+                Nm      = numel(DirMounth);
+                for Im=1:1:Nm
+                    cd(DirMounth(Iy).name);
+                    
+                    DirDay = io.files.dirDir();
+                    Nd = numel(DirDay);
+                    for Id=1:1:Nd
+                        cd(DirDay(Id).name);
+                        
+                        cd('proc');
+                        
+                        DirVisit = io.files.dirDir();
+                        Nv = numel(DirVisit);
+                        for Iv=1:1:Nv
+                            cd(DirVisit(Iv).name);
+                            Ind = Ind + 1;
+                            Files = dir(Args.FileTemp);
+                            FN = FileNames.generateFromFileName({Files.name});
+                            CropID = FN.CropID;
+                            JD     = FN.julday;
+                            List(Ind).FieldID = FN.FieldID{1};
+                            List(Ind).VistDir = DirVisit(Iv).name;
+                            List(Ind).Path    = fullfile(Obj.BasePath, DirYear(Iy).name, DirMounth(Im).name, DirDay(Id).name, 'proc', DirVisit(Iv).name,'','');
+                            
+                            List(Ind).AllFiles = {Files.name};
+                            List(Ind).CropID   = CropID;
+                            List(Ind).JD       = JD;
+                            
+                            cd ..
+                        end
+                        cd ..
+                    end
+                    cd ..
+                end
+                cd ..
+            end
+            
+            
+            cd(PWD);
+            
+        end
         
+    end
+    
+    methods % ref image utilities
+         function Path=populateRefPath(Obj, Args)
+            % Get path for reference imags location on the LAST computers
+            % Input  : - A pipeline.DemonLAST object
+            %          * ...,key,val,...
+            %            'HostName' - HostName. If empty, get it from OS.
+            %                   Default is [].
+            %            'DefRefPath' - Reference path above the host name.
+            %                   Default is 'data/references'.
+            % Output : - Base path for reference images dir.
+            % Author : Eran Ofek (Oct 2023)
+            % Example: Path=D.populateRefPath
+            
+            arguments
+                Obj
+                Args.HostName     = [];
+                Args.DefRefPath   = 'data/references';
+            end
+            
+            if isempty(Args.HostName)
+                HostName = tools.os.get_computer;
+            else
+                HostName = Args.HostName;
+            end
+            
+            Path = fullfile(filesep, HostName, Args.DefRefPath);
+        end
+
+
         function [Path, File, AI] = getRefImage(Obj, Args)
             % Get reference images corresponding to some field
             % Input  : * ...,key,val,...

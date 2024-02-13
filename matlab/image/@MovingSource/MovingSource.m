@@ -53,6 +53,7 @@ classdef MovingSource < Component
         MergedCat
         KnownAst    = [];
         FileName    = '';
+        IDinFile    = [];
     end
 
     properties (Hidden, SetAccess = public)
@@ -410,6 +411,8 @@ classdef MovingSource < Component
                 end
                 
                 if isa(Tmp, 'MovingSource')
+                    Tmp.insertPropVal('FileName', FileName);
+                    Tmp.insertPropVal('IDinFile', num2cell(1:1:numel(Tmp)));
                     if If==1
                         Obj = Tmp;
                     else
@@ -418,10 +421,13 @@ classdef MovingSource < Component
                 elseif isa(Tmp, 'struct')
                     FieldsName = fieldnames(Tmp);
                     if numel(FieldsName)==1 && isa(Tmp.(FieldsName{1}), 'MovingSource')
+                        Tmp.(FieldsName{1}).insertPropVal('FileName', FileName);
+                        Tmp.(FieldsName{1}).insertPropVal('IDinFile', num2cell(1:1:numel( Tmp.(FieldsName{1})) ));
                         if If==1
                             Obj = Tmp.(FieldsName{1});
                         else
-                            Obj = [Obj(:); Tmp.(FieldsName{1})];
+                            
+                            Obj = [Obj(:); Tmp.(FieldsName{1})(:)];
                         end
                     else
                         % Assume an AstCrop object
@@ -609,6 +615,7 @@ classdef MovingSource < Component
     end
 
     methods  % utilities
+
         function Obj=popKnownAst(Obj)
             % Populate KnownAst in all elements of MovingSource object
             % Input  : - A MovingSource object.
@@ -1078,6 +1085,7 @@ classdef MovingSource < Component
 
                 if Args.Plot
                     fprintf('File %s loaded\n',Obj(Iobj).FileName);
+                    fprintf('ID in file : %d \n',Obj(Iobj).IDinFile);
                     fprintf('ID for 1st stamp:\n')
                     FN = fieldnames(Obj(Iobj).ImageID(1));
                     Nfn = numel(FN);
@@ -1390,9 +1398,14 @@ classdef MovingSource < Component
                                                                 
                                 AddHeader = false;
                                 Result(Iobj).Flag = true;
+                                Result(Iobj).FileName = Obj(Iobj).FileName;
+                                Result(Iobj).IDinFile = Obj(Iobj).IDinFile;
+
                             otherwise
                                 % skip
                                 Result(Iobj).Flag = false;
+                                Result(Iobj).FileName = Obj(Iobj).FileName;
+                                Result(Iobj).IDinFile = Obj(Iobj).IDinFile;
                         end
                     else
                         % Skip
