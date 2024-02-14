@@ -6,7 +6,8 @@ function Result = unitTest(Obj)
 
 	io.msgLog(LogLevel.Test, 'FITS.unitTest sarted');
 	
-	DataSampleDir = tools.os.getTestDataDir;
+% 	DataSampleDir = tools.os.getTestDataDir;
+    I = Installer; DataSampleDir = I.getDataDir('TestImagesAstroPack');
 	PWD = pwd;
 	cd(DataSampleDir);
           
@@ -62,7 +63,7 @@ function Result = unitTest(Obj)
 	
 	% read/write
 	A=rand(10,11);
-	File = 'tmp/tmpfile.fits';
+	File = fullfile(tempdir,'tmpfile.fits');
 	io.msgLog(LogLevel.Test, 'testing FITS write');
 	FITS.write(A,File,'Header',{'a',1,'';'b',2,''});
 	[B,H]=FITS.read1(File);  
@@ -73,7 +74,7 @@ function Result = unitTest(Obj)
 	
 	% write_keys
 	io.msgLog(LogLevel.Test, 'testing FITS write_keys');
-	File = 'tmp/tmpfile.fits';
+	File = fullfile(tempdir,'tmpfile.fits');
 	FITS.write(A,File,'Header',{'a',1,'';'b',2',''});
 	FITS.write_keys(File,{'try','A','comm';'try2',6,'what'});
 	delete(File);
@@ -93,7 +94,7 @@ function Result = test_writeTable()
     % unitTest for the FITS.writeTable()
     %WorkDir = tools.os.getTestWorkDir;
    
-    FileName = 'tmp/wrtable1a.fits';
+    FileName = fullfile(tempdir,'wrtable1a.fits');
     if isfile(FileName)
         delete(FileName);
     end

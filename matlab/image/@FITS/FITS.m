@@ -59,7 +59,13 @@ classdef FITS < handle
                 List = convertCharsToStrings(FileName);
             elseif ischar(FileName) || isstring(FileName)
                 % read into cell of files
-                List = io.files.filelist(FileName);
+                if ~isempty(FileName)
+                    List = io.files.filelist(FileName);
+                else
+                    % this happens when the constructor is called
+                    % recursively, like it happens below in line 86
+                    List={};
+                end
             else
                 error('Unknown FileName type');
             end
@@ -77,7 +83,7 @@ classdef FITS < handle
             
             for Ilist=1:1:Nlist
                 Ihdu            = min(Ilist,Nhdu);
-                Obj(Ilist).File = List{Ilist};
+                Obj(Ilist).File = List{Ilist}; % (recursive call)
                 Obj(Ilist).HDU  = ListHDU(Ihdu);
             end
             
@@ -198,21 +204,23 @@ classdef FITS < handle
 
                    % look for history and comment keywords
                    if numel(Card) > 6
-                       if (strcmpi(Card(1:7),'HISTORY'))
+                       if strcmpi(Card(1:7),'HISTORY')
                            HeadCell{Ikey,1} = 'HISTORY';
                            HeadCell{Ikey,2} = Card(KeyPos:end);
                            HeadCell{Ikey,3} = '';
                        end
-                       if (strcmpi(Card(1:7),'COMMENT'))
+                       if strcmpi(Card(1:7),'COMMENT')
                            HeadCell{Ikey,1} = 'COMMENT';
                            HeadCell{Ikey,2} = Card(KeyPos+2:end);
                            HeadCell{Ikey,3} = '';
                        end
+                   end
+                   if numel(Card) > 7
                        % HEASARCH (sic) continuation lines, append content
                        %   to the previous record, and then empty the
                        %   current one (which will be removed later)
                        % I think this will work only for string values
-                       if (strcmpi(Card(1:8),'CONTINUE'))
+                       if strcmpi(Card(1:8),'CONTINUE')
                            ValuePart = HeadCell{LastBegunKey,2};
                            if strcmp(ValuePart(end),'&')
                                ValuePart=ValuePart(1:end-1);
