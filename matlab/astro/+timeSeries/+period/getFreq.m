@@ -1,5 +1,5 @@
 function [FreqVec, Result] = getFreq(T, Args)
-    % Given times, get a frequency vector, over which it is recomended to search for periodicity
+    % Given times, get a frequency vector, over which it is recommended to search for periodicity
     % Input  : - A vector of times.
     %          * ...,key,val,... 
     %            'OverSampling' - Frequency over sampling. Default is 2.
