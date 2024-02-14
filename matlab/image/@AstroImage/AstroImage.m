@@ -1806,7 +1806,7 @@ classdef AstroImage < Component
                         %CCDSEC = eval(Obj(Iobj).HeaderData.getVal(CCDSEC));
                         CCDSECxy = sscanf(Obj(Iobj).HeaderData.getVal('CCDSEC'),'[ %d %d %d %d]');
                     end
-                    if isnumeric(CCDSEC)
+                    if isnumeric(CCDSEC) && ~isempty(CCDSEC)
                         if numel(CCDSEC)<4
                             CCDSECxy=[1, CCDSEC(1), 1 ,CCDSEC(2)];
                         else

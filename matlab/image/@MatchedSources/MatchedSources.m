@@ -1825,6 +1825,23 @@ classdef MatchedSources < Component
             
         end
         
+        function Result = countNotNanEpochs(Obj, Args)
+            % Count the number of not NaN epochs per source
+            % Input  : - A single element MatchedSources object.
+            %          * ...,key,val,...
+            %            'Field' - Field name on which to count.
+            %                   Default is 'MAG_PSF'.
+            % Output : - A vector of numbers of not NaN epochs per source.
+            % Author : Eran Ofek (Feb 2024)
+            
+            arguments
+                Obj(1,1)
+                Args.Field    = 'MAG_PSF';
+            end
+
+            Result = sum(~isnan(Obj.Data.(Args.Field)), 1);
+        end
+
     end
     
     methods  % statistics and functions
@@ -2876,7 +2893,7 @@ classdef MatchedSources < Component
 
         end
         
-        function Flag=searchFlares(Obj, DataField, Args)
+        function [Flag,FlagAll]=searchFlares(Obj, DataField, Args)
             % Search flares using timeSeries.stat.searchFlares
             % Input  : - A MatchedSources object.
             %          - A Field name on which to execute the search.
@@ -2903,6 +2920,7 @@ classdef MatchedSources < Component
             %            source) indicating if a flare was found by one of
             %            the methods.
             %            The information is stired in the .Any field.
+            %          - The second output from: timeSeries.stat.searchFlares
             % Author : Eran Ofek (Feb 2024)
             % Example: F=MS.searchFlares
 
@@ -2923,7 +2941,7 @@ classdef MatchedSources < Component
             Nobj = numel(Obj);
             
             for Iobj=1:1:Nobj
-                [Flag(Iobj).Any, ~, Flag(Iobj).Median, Flag(Iobj).Std] = timeSeries.stat.searchFlares(Obj(Iobj).Data.(DataField),...
+                [Flag(Iobj).Any, FlagAll(Iobj), Flag(Iobj).Median, Flag(Iobj).Std] = timeSeries.stat.searchFlares(Obj(Iobj).Data.(DataField),...
                                                                                  'DimEpoch',1,...
                                                                                  'MovMeanWin',Args.MovMeanWin,...
                                                                                  'MadType',Args.MadType,...

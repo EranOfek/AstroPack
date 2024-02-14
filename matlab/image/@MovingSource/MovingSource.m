@@ -374,6 +374,7 @@ classdef MovingSource < Component
             %                   to delete all the Stamps images excep the first
             %                   and last.
             %                   Default is true.
+            %            'Verbose' - Verbosity. Default is true.
             % Output : - A MovingSource object
             % Author : Eran Ofek (Jan 2024)
             % Example: MP = MovingSource.read()
@@ -386,6 +387,7 @@ classdef MovingSource < Component
                 Args.AstFileTemp   = '*merged_Asteroids*.mat';
                 Args.PopKA logical = false;
                 Args.KeepOnlyFirstAndLast logical  = true;
+                Args.Verbose logical = true;
             end
             
             PWD = pwd;
@@ -404,6 +406,9 @@ classdef MovingSource < Component
             Nf = numel(Files);
             for If=1:1:Nf
                 FileName = fullfile(Files(If).folder, Files(If).name);
+                if Args.Verbose
+                    fprintf('Reading File name : %s\n',FileName);
+                end
                 Tmp = io.files.load2(FileName);
                
                 if any(strcmp(fieldnames(Tmp), 'AstCrop'))

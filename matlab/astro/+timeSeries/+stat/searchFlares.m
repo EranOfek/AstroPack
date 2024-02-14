@@ -34,7 +34,8 @@ function [FlagAny,Flag,Median,Std] = searchFlares(Mat, Args)
     %          - Vector of median value for each source.
     %          - Vector of std value for each source.
     % Author : Eran Ofek (2024 Feb) 
-    % Example: Mat = randn(40,3); Mat(15:20,2)=6; Mat(1:10,3)=NaN; Mat(15:end,3) = NaN;
+    % Example: Mat = randn(40,4); Mat(15:20,2)=6; Mat(1:10,3)=NaN; Mat(15:end,3) = NaN;
+    %          Mat(:,4) = NaN; Mat(15,4) = 100; Mat(25,4)=100;
     %          F=timeSeries.stat.searchFlares(Mat)
 
     arguments
@@ -89,7 +90,11 @@ function [FlagAny,Flag,Median,Std] = searchFlares(Mat, Args)
     Flag.FlagN = false(Nsrc,1);
     for Isrc=1:1:Nsrc
         IndNN = find(IsNN(:,Isrc));
-        if numel(unique(diff(IndNN)==1))==1 && NumNN(Isrc)>Args.MinNotNaN && NumNN(Isrc)<Args.MaxNotNaN
+        % prepare list of consecutive detections
+        ConsNN = tools.find.findListsOfConsecutiveTrue(IsNN(:,Isrc));
+        % select only sources which have one event with length in the range
+        % of MinNotNaN to MaxNotNaN
+        if numel(ConsNN)==1 && numel(ConsNN{1})>Args.MinNotNaN && numel(ConsNN{1})<Args.MaxNotNaN
             % only one peak was found
             Flag.FlagN(Isrc) = true;
         end

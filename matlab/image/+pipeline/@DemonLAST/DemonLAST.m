@@ -1206,6 +1206,7 @@ classdef DemonLAST < Component
                             List(Ind).AllFiles = {Files.name};
                             List(Ind).CropID   = CropID;
                             List(Ind).JD       = JD;
+                            List(Ind).MinJD    = min(JD);
                             
                             cd ..
                         end
@@ -1221,8 +1222,21 @@ classdef DemonLAST < Component
             
         end
         
-        function List=searchConsecutiveVisitsOfField(Obj, Args)
-            %
+        function AllConsecutive=searchConsecutiveVisitsOfField(Obj, Args)
+            % Prepare a list of all fields observed consecutively 
+            %   Search recursively for all proc/visits directories in a dir
+            %   tree and return a list of all fields that were observed
+            %   consecutively.
+            % Input  : - A pipeline.DemonLAST object.
+            %          * ...,key,val,...
+            %            See Code.
+            % Example: A cell array of all consecutivly observed field.
+            %          Each cell element contains a structure array as
+            %          returned by prepListOfProcVisits but for the
+            %          consecutively observed field.
+            % Author : Eran Ofek (Feb 2024)
+            % Example: AllConsecutive=D.searchConsecutiveVisitsOfField
+            %          AllConsecutive=D.searchConsecutiveVisitsOfField('List',List);
 
             arguments
                 Obj
@@ -1231,31 +1245,41 @@ classdef DemonLAST < Component
             end
 
             if isempty(Args.List)
-                Args.List = Obj.prepListOfProcVisits();                
+                List = Obj.prepListOfProcVisits();
+            else
+                List = Args.List;
             end
 
             % sort List by time
-            AllJD  = [Args.List.JD].';
+            AllJD  = [List.MinJD].';
             [~,Is] = sort(AllJD);
-            Args.List = Args.List(Is);
+            Args.List = List(Is);
 
-            AllFields = {Args.List.FieldID};
+            AllFields = {List.FieldID};
             UniqueFields = unique(AllFields);
             Nuf          = numel(UniqueFields);
+            K = 0;
             for Iuf=1:1:Nuf
                 % for each unique field
                 % search all appearances
                 FlagF = strcmp(UniqueFields{Iuf}, AllFields);
                 IndF  = find(FlagF);
 
+                ListF = List(IndF);
+
                 DiffTime = [diff(AllJD(IndF)); Inf];
                 FlagConsecutive = DiffTime < Args.MaxTimeBetweenVisits;
-                
 
-
-
-
+                [ListConsecutive] = tools.find.findListsOfConsecutiveTrue(FlagConsecutive);
+                Ncons = numel(ListConsecutive);
+                for Icons=1:1:Ncons
+                    K = K + 1;
+                    AllConsecutive{K} = ListF(ListConsecutive{Icons});
+                end
+            end
+            
         end
+    
     end
     
     methods % ref image utilities
