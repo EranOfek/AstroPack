@@ -1156,10 +1156,12 @@ classdef DemonLAST < Component
             %            see code
             % Output : - A structure array with all proc visits.
             % Author : Eran Ofek (Feb 2024)
+            % Example: List=D.prepListOfProcVisits
             
             arguments
                 Obj
                 Args.FileTemp  = 'LAST*MergedMat*.hdf5';
+                Args.YearTemp  = '20*';
             end
             
            
@@ -1167,15 +1169,15 @@ classdef DemonLAST < Component
             cd(Obj.BasePath);
             
             Ind = 0;
-            DirYear = io.files.dirDir('20*');
+            DirYear = io.files.dirDir(Args.YearTemp);
             Ny      = numel(DirYear);
             for Iy=1:1:Ny
                 cd(DirYear(Iy).name);
                 
                 DirMonth = io.files.dirDir();
-                Nm      = numel(DirMounth);
+                Nm      = numel(DirMonth);
                 for Im=1:1:Nm
-                    cd(DirMounth(Iy).name);
+                    cd(DirMonth(Iy).name);
                     
                     DirDay = io.files.dirDir();
                     Nd = numel(DirDay);
@@ -1195,7 +1197,11 @@ classdef DemonLAST < Component
                             JD     = FN.julday;
                             List(Ind).FieldID = FN.FieldID{1};
                             List(Ind).VistDir = DirVisit(Iv).name;
-                            List(Ind).Path    = fullfile(Obj.BasePath, DirYear(Iy).name, DirMounth(Im).name, DirDay(Id).name, 'proc', DirVisit(Iv).name,'','');
+                            List(Ind).Year    = str2double(DirYear(Iy).name);
+                            List(Ind).Month   = str2double(DirMonth(Im).name);
+                            List(Ind).Day     = str2double(DirDay(Id).name);
+
+                            List(Ind).Path    = fullfile(Obj.BasePath, DirYear(Iy).name, DirMonth(Im).name, DirDay(Id).name, 'proc', DirVisit(Iv).name,'','');
                             
                             List(Ind).AllFiles = {Files.name};
                             List(Ind).CropID   = CropID;
@@ -1203,7 +1209,7 @@ classdef DemonLAST < Component
                             
                             cd ..
                         end
-                        cd ..
+                        cd ../..
                     end
                     cd ..
                 end
@@ -1215,6 +1221,41 @@ classdef DemonLAST < Component
             
         end
         
+        function List=searchConsecutiveVisitsOfField(Obj, Args)
+            %
+
+            arguments
+                Obj
+                Args.List  = [];
+                Args.MaxTimeBetweenVisits  = 500./86400;
+            end
+
+            if isempty(Args.List)
+                Args.List = Obj.prepListOfProcVisits();                
+            end
+
+            % sort List by time
+            AllJD  = [Args.List.JD].';
+            [~,Is] = sort(AllJD);
+            Args.List = Args.List(Is);
+
+            AllFields = {Args.List.FieldID};
+            UniqueFields = unique(AllFields);
+            Nuf          = numel(UniqueFields);
+            for Iuf=1:1:Nuf
+                % for each unique field
+                % search all appearances
+                FlagF = strcmp(UniqueFields{Iuf}, AllFields);
+                IndF  = find(FlagF);
+
+                DiffTime = [diff(AllJD(IndF)); Inf];
+                FlagConsecutive = DiffTime < Args.MaxTimeBetweenVisits;
+                
+
+
+
+
+        end
     end
     
     methods % ref image utilities
