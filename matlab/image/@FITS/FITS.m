@@ -123,7 +123,6 @@ classdef FITS < handle
                 HDUnum               = 1;
             end
                         
-            KeyPos = 9;
             ComPos = 32;
             
             Fptr = matlab.io.fits.openFile(FileName);
@@ -136,9 +135,17 @@ classdef FITS < handle
                 Nkey = matlab.io.fits.getHdrSpace(Fptr);
                 HeadCell = cell(Nkey,3);
                 for Ikey = 1:1:Nkey
+                   KeyPos = 9;
                    Card     = matlab.io.fits.readRecord(Fptr,Ikey);
                    LenCard = length(Card);
-                   if (LenCard>=9)
+                   if (LenCard>=KeyPos)
+
+                       % HEASARCH long keys
+                       if strcmpi(Card(1:8),'HIERARCH')
+                           Card=Card(10:end);
+                           KeyPos = strfind(Card,'=');
+                           KeyPos=KeyPos(1); % error if = is missing
+                       end
 
                        if strcmpi(Card(KeyPos),'=') || strcmpi(Card(1:8),'CONTINUE') 
                            HeadCell{Ikey,1}  = tools.string.spacedel(Card(1:KeyPos-1));
