@@ -12,6 +12,8 @@ classdef AstroDiff < AstroImage
         New AstroImage
         Ref AstroImage
         IsRegistered logical   = false;
+        ThresholdImage
+        ThresholdImage_IsSet logical = false;
         
         %
         Fn
@@ -22,8 +24,8 @@ classdef AstroDiff < AstroImage
         VarN
         VarR
 
-        %SigmaN
-        %SigmaR
+        SigmaN
+        SigmaR
 
     end
     
@@ -122,7 +124,7 @@ classdef AstroDiff < AstroImage
             % getter for Fn
 
             if isempty(Obj.Fn)
-                [Obj, Val, ~] = Obj.estimateFnFr;
+                [~, Val, ~] = Obj.estimateFnFr;
             else
                 Val = Obj.Fn;
             end
@@ -133,7 +135,7 @@ classdef AstroDiff < AstroImage
             % getter for Fr
 
             if isempty(Obj.Fr)
-                [Obj, ~, Val] = Obj.estimateFnFr;
+                [~, ~, Val] = Obj.estimateFnFr;
             else
                 Val = Obj.Fr;
             end
@@ -619,84 +621,247 @@ classdef AstroDiff < AstroImage
 
     methods % transients search
 
-        % findTransients
-        function findTransients(Obj, Args)
+        function findMeasureTransients(Obj,Args)
             %{
-            Search for positive and negative transients in S
-            Only look for local max/min in S above detection threshold
-            Input  : - An AstroDiff object in which the ... 
-                            TODO: fill out
+            Calls AD.findTransients, AD.cleanTransients, and
+            AD.measureTransients. Derives a catalog of transients by
+            thresholding the threshold image, cleans the catalog for bad
+            pixel effects and goodness of PSF fit, and derives additional
+            properties based on subtraction method.
+            Input  : - An AstroDiff object in which the threshold image is
+                        populated.
                      * ...,key,val,...
-                     - Args.Threshold ...
+                    'findTransients_Args' - Cell of arguments to be given
+                        to AD.findTransients. Default is the same as
+                        AD.findTransients.
+                    'cleanTransients_Args' - Cell of arguments to be given
+                        to AD.cleanTransients. Default is the same as
+                        AD.cleanTransients.
+                    'measureTransients_Args' - Cell of arguments to be given
+                        to AD.measureTransients. Default is the same as
+                        AD.measureTransients.
             Author : Ruslan Konno (Jan 2024)
-            Example: AD.findTransients
+            Example: AD.findMeasureTransients
             %}
+
             arguments
                 Obj
 
-                Args.Threshold = 5.0;
+                Args.findTransients_Args = {...
+                    'Threshold', 5,...
+                    'HalfSizePSF', 7,...
+                    'HalfSizeTS', 5,...
+                    'findLocalMaxArgs', {},...
+                    'BitCutHalfSize', 3,...
+                    'psfPhotCubeArgs', {}...
+                    };
+
+                Args.cleanTransients_Args = {...
+                    'filterChi2', true,...
+                    'Chi2dofLimits', [0.5 2],...
+                    'filterMag', true,...
+                    'MagLim', 21,...
+                    'filterBadPix_Hard', true,...
+                    'NewMask_BadHard', {'Saturated','NearEdge','FlatHighStd',...
+                    'Overlap','Edge','CR_DeltaHT','Interpolated','NaN'},...
+                    'RefMask_BadHard',{'Saturated','NearEdge','FlatHighStd',...
+                    'Overlap','Edge','CR_DeltaHT','Interpolated','NaN'},...
+                    'filterBadPix_Soft', true,...
+                    'NewMask_BadSoft',{'HighRN', 'DarkHighVal', ...
+                    'BiasFlaring', 'Hole', 'SrcNoiseDominated'},...
+                    'RefMask_BadSoft', {'HighRN', 'DarkHighVal', ...
+                    'BiasFlaring', 'Hole', 'SrcNoiseDominated'},...
+                    };
+                
+                Args.measureTransients_Args = {...
+                    'HalfSizeTS', 5,...
+                    'removeTranslients', true,...
+                    };
+            end
+
+            Nobj = numel(Obj);
+
+            for Iobj=1:1:Nobj
+                Obj(Iobj).findTransients(Args.findTransients_Args{:});
+                Obj(Iobj).cleanTransients(Args.cleanTransients_Args{:});
+                Obj(Iobj).measureTransients(Args.measureTransients_Args{:});
+            end
+        end
+
+        % findTransients
+        function findTransients(Obj, Args)
+            %{
+            Search for positive and negative transients by selecting local
+            minima and maxima with an absolute value above a set detection 
+            threshold. Results are saved as an AstroCatalog under
+            AD.CatData.
+            Input  : - An AstroDiff object in which the threshold image is
+                        populated.
+                     * ...,key,val,...
+                    'HalfSizePSF' - Half size of area on transients positions in 
+                        image. Actual size will be 1+2*HalfSizePSF. Used to cut out 
+                        an image area to perform PSF photometry on.
+                        Default is 7.
+                    'Threshold' - Threshold in units of std (=sqrt(Variance)). Search
+                        for local maxima only above this threshold. Default is 5.
+                    'findLocalMaxArgs' - Args passed into imUtil.sources.findLocalMax()
+                        when looking for local maxima.
+                        Default is {}.
+                    'BitCutHalfSize' - Half size of area on transients positions in 
+                        image bit masks. Actual size will be 1+2*BitCutHalfSize. Used
+                        to retrieve bit mask values around transient positions.
+                        Default is 3.
+                    'psfPhotCubeArgs' - Args passed into imUtil.sources.psfPhotCube when
+                        performing PSF photometry on AD, AD.New, and AD.Ref cut outs.
+                        Default is {}.
+            Author : Ruslan Konno (Jan 2024)
+            Example: AD.findTransients
+            %}
+
+            arguments
+                Obj
+
+                Args.Threshold             = 5;
+        
+                Args.HalfSizePSF           = 7;
+                Args.HalfSizeTS            = 5;
+                Args.findLocalMaxArgs cell = {};
+                Args.BitCutHalfSize        = 3;
+                Args.psfPhotCubeArgs cell  = {};
+        
             end
 
             Nobj = numel(Obj);
 
             for Iobj=Nobj:-1:1
-                Result(Iobj)=imProc.sources.findTransients(Obj(Iobj).New,...
-                    Obj(Iobj).Ref, Obj(Iobj), Obj(Iobj).S,...
-                    Obj(Iobj).Z2, Obj(Iobj).S2, [], [], ...
-                    'Threshold', Args.Threshold);  
-                Obj(Iobj).TranCat = Result(Iobj).TranTable;
+                % TODO: think a bit more on what to do when threshold image
+                % is not set - warning, error, empty catalog,...?
+                if ~Obj(Iobj).ThresholdImage_IsSet
+                    continue
+                end
+                Obj(Iobj).CatData = imProc.sub.findTransients(Obj(Iobj), ...
+                    'Threshold', Args.Threshold, ...
+                    'HalfSizePSF', Args.HalfSizePSF,...
+                    'findLocalMaxArgs', Args.findLocalMaxArgs,...
+                    'BitCutHalfSize', Args.BitCutHalfSize);
             end
         end
-        
-        
-        % measureTransients
-        % For each transient candidate measure properties.
-        %   Including, fit Pd PSF to D, return S, Zsig, mask, value in New,
-        %   Ref, nearby source in New, Ref
         
         % cleanTransients
         function cleanTransients(Obj, Args)
             %{
-            Select good transients using selection criteria
-                        TODO: fill out
-            Inout   : - An AstroDiff object in which the ... 
-                      - Args.filterTranslient ...
-                      - Args.filterBadPix_Hard ...
-                      - Args.filterBadPix_Soft ...
+            Clean transients candidates based on image quality and PSF fit
+            criteria. All filtered candidates are removed from AD.CatData.
+            Input  : - An AstroDiff object in which CatData is populated.
+                     * ...,key,val,...
+                'filterChi2'        - Bool on whether to remove transients candidates
+                    based on Chi2 per degrees of freedom criterium. Default is
+                    true.
+                'Chi2dofLimits'     - Limits on Chi2 per degrees of freedom. If
+                    'filterChi2' is true, all transients candidates outside these
+                    limits are removed. Default is [0.5 2].
+                'filterMag'         - Bool on whether to remove transients candidates
+                    based on magnitude. Deault is true.
+                'MagLim'            - Upper magnitude limit. If 'filterMag' is true,
+                    all transients candidates below this limit are removed. Default
+                    is 21.
+                'filterBadPix_Hard' - Bool on whether to remove transients
+                    candidates based on hard bit mask criteria. Default is true.
+                'NewMask_BadHard'   - Hard bit mask criteria for bad pixels in 
+                    AD.New image. Default is {'Saturated', 'NearEdge', 'FlatHighStd', 
+                    'Overlap','Edge','CR_DeltaHT', 'Interpolated','NaN'}.
+                'RefMask_BadHard'   - Hard bit mask criteria for bad pixels in 
+                    AD.Ref image. Default is {'Saturated', 'NearEdge', 'FlatHighStd', 
+                    'Overlap','Edge','CR_DeltaHT', 'Interpolated','NaN'}.
+                'filterBadPix_Soft' - Bool on whether to remove transients
+                    candidates based on soft bit mask criteria. Default is true.
+                'NewMask_BadSoft'   - Soft bit mask criteria for bad pixels in 
+                    AD.New Image. Default is {'HighRN', 'DarkHighVal',
+                    'BiasFlaring', 'Hole', 'SrcNoiseDominated'}.
+                'RefMask_BadSoft'   - Soft bit mask criteria for bad pixels in 
+                    AD.Ref image. Default is {'HighRN', 'DarkHighVal',
+                    'BiasFlaring', 'Hole', 'SrcNoiseDominated'}.
             Author  : Ruslan Konno (Jan 2024)
             Example : AD.cleanTransients
             %}
 
             arguments
                 Obj
+                
+                Args.filterChi2 logical = true;
+                Args.Chi2dofLimits         = [0.5 2];
 
-                Args.filterTranslient logical   = true;
+                Args.filterMag logical = true;
+                Args.MagLim = 21;
+
                 Args.filterBadPix_Hard logical  = true;
+                Args.NewMask_BadHard       = {'Saturated','NearEdge','FlatHighStd',...
+                    'Overlap','Edge','CR_DeltaHT','Interpolated','NaN'};
+                Args.RefMask_BadHard       = {'Saturated','NearEdge','FlatHighStd',...
+                    'Overlap','Edge','CR_DeltaHT','Interpolated','NaN'};
+                
                 Args.filterBadPix_Soft logical  = true;
+                Args.NewMask_BadSoft       = {'HighRN', 'DarkHighVal', ...
+                    'BiasFlaring', 'Hole', 'SrcNoiseDominated'};
+                Args.RefMask_BadSoft       = {'HighRN', 'DarkHighVal', ...
+                    'BiasFlaring', 'Hole', 'SrcNoiseDominated'};   
+        
             end
 
             Nobj = numel(Obj);
 
             for Iobj=1:1:Nobj
-                sizeCat = size(Obj(Iobj).TranCat.Catalog,1);
-                keep = true(sizeCat,1);
-                if Args.filterTranslient
-                    keep = keep & ...
-                        Obj(Iobj).TranCat.Table.Transient_Prefered;
-                end
-                if Args.filterBadPix_Hard
-                    keep = keep & ...
-                        ~Obj(Iobj).TranCat.Table.Bad_Pixel_Hard;
-                end
-                if Args.filterBadPix_Soft
-                    keep = keep & ...
-                        ~Obj(Iobj).TranCat.Table.Bad_Pixel_Soft;                    
-                end
-
-                Obj(Iobj).TranCat = Obj(Iobj).TranCat.selectRows(keep);
+                Obj(Iobj).CatData = imProc.sub.cleanTransients(Obj(Iobj),...
+                    'filterChi2',Args.filterChi2,...
+                    'Chi2dofLimits',Args.Chi2dofLimits,...
+                    'filterMag', Args.filterMag,...
+                    'MagLim', Args.MagLim,...
+                    'filterBadPix_Hard', Args.filterBadPix_Hard,...
+                    'NewMask_BadHard', Args.NewMask_BadHard,...
+                    'RefMask_BadHard', Args.RefMask_BadHard,...
+                    'filterBadPix_Soft', Args.filterBadPix_Soft,...
+                    'NewMask_BadSoft', Args.NewMask_BadSoft,...
+                    'RefMask_BadSoft', Args.RefMask_BadSoft);
             end
         end
         
+        % measureTransients
+        function measureTransients(Obj, Args)
+        %{ 
+        For each transient candidate measure further properties.
+        These depend on the subtraction process, so a function is applied 
+        that is determined by the object class.
+        Input   : - An AstroDiff object in which CatData is populated.
+                     * ...,key,val,...
+                  --- AstroZOGY ---
+                  'HalfSizeTS' - Half size of area on transients positions in 
+                    test statistic images S2 and Z2. Actual size will be  
+                    1+2*HalfSizeTS. Used to find peak S2 and Z2 values.
+                    Default is 5.
+                  'removeTranslients' - Bool on whether to remove
+                    transients candidates which score higher in Z2 than S2.
+                    Default is true.
+        Author  : Ruslan Konno (Jan 2024)
+        Example : AD.measureTransients
+        %}
+            arguments
+                Obj
+                
+                % AstroZOGY
+                Args.HalfSizeTS = 5;
+                Args.removeTranslients logical = true;
+            end
+            
+            Nobj = numel(Obj);
+
+            for Iobj=1:1:Nobj
+                Obj(Iobj).CatData = imProc.sub.measureTransients(Obj(Iobj),...
+                    'HalfSizeTS', Args.HalfSizeTS,...
+                    'removeTranslients', Args.removeTranslients);
+            end
+
+        end
+
         % fitDT
         % Fit a variability + motion model to the D_T image
 
