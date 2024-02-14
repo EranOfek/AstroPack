@@ -1805,9 +1805,14 @@ classdef AstroImage < Component
                         % get CCDSEC from header keyword
                         %CCDSEC = eval(Obj(Iobj).HeaderData.getVal(CCDSEC));
                         CCDSECxy = sscanf(Obj(Iobj).HeaderData.getVal('CCDSEC'),'[ %d %d %d %d]');
-                    
                     end
-                    
+                    if isnumeric(CCDSEC)
+                        if numel(CCDSEC)<4
+                            CCDSECxy=[1, CCDSEC(1), 1 ,CCDSEC(2)];
+                        else
+                            CCDSECxy=CCDSEC(1:4);
+                        end
+                    end
                     
                     [Result(Iobj).InImage, Result(Iobj).MinDist] = isSkyCooInImage(Obj(Iobj).WCS, Alpha, Delta, CCDSECxy, Units);
                 else
