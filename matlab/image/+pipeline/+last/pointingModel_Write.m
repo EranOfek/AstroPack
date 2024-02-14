@@ -106,8 +106,9 @@ function [Result] = pointingModel_Write(R1, Args)
 
     if Args.Plot
         figure(1);
-        scatter(M_HA, M_DEC, 40, DiffHA, 'filled');
-        colorbar
+        scatter(M_HA, M_DEC, 40, DiffHA.*cosd(M_DEC).*3600, 'filled');
+        Hc=colorbar;
+        Hc.Label.String = 'arcsec';
         title('DiffHA');
 
         box on;
@@ -115,8 +116,9 @@ function [Result] = pointingModel_Write(R1, Args)
         H = ylabel('Dec [deg]');
 
         figure(2);
-        scatter(M_HA, M_DEC, 40, DiffDec, 'filled');
-        colorbar
+        scatter(M_HA, M_DEC, 40, DiffDec.*3600, 'filled');
+        Hc=colorbar;
+        Hc.Label.String = 'arcsec';
         title('DiffDec')
         box on;
         H = xlabel('HA [deg]');

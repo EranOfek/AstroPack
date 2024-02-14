@@ -357,6 +357,34 @@ classdef Component < Base
             
             Result = true;
         end        
+    
+        function Obj = insertPropVal(Obj, PropName, Val)
+            % Insert a value in property for all elements of object.
+            % Input  : - self.
+            %          - Property name.
+            %          - Cell array of values (one per object
+            %            element). If not a cell then the same value will
+            %            be inserted to all elements of object.
+            % Output : - self.
+            % Author : Eran Ofek (Feb 2024)
+
+            if ~iscell(Val)
+                Val = {Val};
+            end
+
+            Nobj = numel(Obj);
+            if numel(Val)==1
+                for Iobj=1:1:Nobj
+                    Obj(Iobj).(PropName) = Val{1};
+                end
+            else
+                for Iobj=1:1:Nobj
+                    Obj(Iobj).(PropName) = Val{Iobj};
+                end
+            end
+
+        end
+    
     end
 
     %----------------------------------------------------------------------

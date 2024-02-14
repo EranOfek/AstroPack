@@ -220,7 +220,7 @@ classdef Configuration < handle
                 if isfield(Obj.Data, PropName)
                     io.msgLog(LogLevel.Debug, 'Property already exist: Data.%s', PropName);
                 else
-                    io.msgLog(LogLevel.Debug, 'Adding property: %s', PropName);
+%                     io.msgLog(LogLevel.Debug, 'Adding property: %s', PropName);
                 end
 
                 % Note: Yml is used below by eval()
@@ -601,7 +601,7 @@ classdef Configuration < handle
             % Input:   FileName - File name of YAML file to be loaded
             % Output:  struct with hierarchical data loaded from YAML file 
             % Example: MyStruct = Configuration.internal_loadYaml('conf.yml')
-            io.msgLog(LogLevel.Debug, 'loadYaml: Loading file: %s', FileName);
+%             io.msgLog(LogLevel.Debug, 'loadYaml: Loading file: %s', FileName);
             try
                 if ~isfile(FileName)
                     io.msgLog(LogLevel.Error, 'loadYaml: File not found: %s', FileName);
