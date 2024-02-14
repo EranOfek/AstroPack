@@ -6,7 +6,8 @@ function Result = unitTest(Obj)
 
 	io.msgLog(LogLevel.Test, 'FITS.unitTest sarted');
 	
-	DataSampleDir = tools.os.getTestDataDir;
+% 	DataSampleDir = tools.os.getTestDataDir;
+    I = Installer; DataSampleDir = I.getDataDir('TestImagesAstroPack');
 	PWD = pwd;
 	cd(DataSampleDir);
           
