@@ -293,7 +293,7 @@ classdef AstroZOGY < AstroDiff
                 Result(Iobj).MadD    = zeros(Nfr,1);
                 for Ifr=1:1:Nfr
 
-                    [D_hat, Pd_hat, Fd] = imUtil.properSub.subtractionD(Obj(Iobj).N_hat,...
+                    [D_hat_Fr, ~, Fd] = imUtil.properSub.subtractionD(Obj(Iobj).N_hat,...
                                                                                                Obj(Iobj).R_hat,...
                                                                                                Obj(Iobj).Pn_hat,...
                                                                                                Obj(Iobj).Pr_hat,...
@@ -307,7 +307,7 @@ classdef AstroZOGY < AstroDiff
                                                                                                'IsOutFFT',true,...
                                                                                                'CleanPd',Args.CleanPd);    
                     % calculate D
-                    D = ifft2(D_hat);
+                    D = ifft2(D_hat_Fr);
                     if Args.NormDbyFd
                         D = D./Fd;
                     end
@@ -634,9 +634,9 @@ classdef AstroZOGY < AstroDiff
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                S_hat           = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
+                S_hat_I           = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
                 if Args.PopS_hat
-                    Obj(Iobj).S_hat = S_hat;
+                    Obj(Iobj).S_hat = S_hat_I;
                 end
                 Obj(Iobj).S     = ifft2(Obj(Iobj).S_hat);
             
@@ -671,7 +671,8 @@ classdef AstroZOGY < AstroDiff
                     end
                     
                 end
-               
+                Obj(Iobj).ThresholdImage = Obj(Iobj).S;
+                Obj(Iobj).ThresholdImage_IsSet = true;
                 
             end
         end
@@ -920,13 +921,13 @@ classdef AstroZOGY < AstroDiff
         % Search for positive and negative transients in S
         %   Only look for local max/min in S above detection threshold
         
+        % cleanTransients
+        % Select good transients using selection criteria
+
         % measureTransients
         % For each transient candidate measure properties.
         %   Including, fit Pd PSF to D, return S, Zsig, mask, value in New,
         %   Ref, nearby source in New, Ref
-        
-        % cleanTransients
-        % Select good transients using selection criteria
         
         % fitDT
         % Fit a variability + motion model to the D_T image
