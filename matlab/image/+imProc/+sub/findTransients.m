@@ -7,12 +7,12 @@ function TranCat=findTransients(AD, Args)
     Input   : - An AstroDiff object in which the threshold image is
                 populated.
              * ...,key,val,...
-            'HalfSizePSF' - Half size of area on transients positions in 
-                image. Actual size will be 1+2*HalfSizePSF. Used to cut out 
-                an image area to perform PSF photometry on.
-                Default is 7.
-            'Threshold' - Threshold to be applied to the threshold image. Search
-            for local maxima only above this threshold. Default is 5.
+               'HalfSizePSF' - Half size of area on transients positions in 
+                        image. Actual size will be 1+2*HalfSizePSF. Used to cut out 
+                        an image area to perform PSF photometry on.
+                        Default is 7.
+               'Threshold' - Threshold to be applied to the threshold image. Search
+                        for local maxima only above this threshold. Default is 5.
             'findLocalMaxArgs' - Args passed into imUtil.sources.findLocalMax()
                 when looking for local maxima.
                 Default is {}.
@@ -25,8 +25,8 @@ function TranCat=findTransients(AD, Args)
                 Default is {}.
     Output  : - An AstroCatalog containing the found transients candidates
                 with the following columns;
-            .XPEAK - Image x-coordinate of the peak position.
-            .YPEAK - Image y-coordinate of the peak position.
+                .XPEAK - Image x-coordinate of the peak position.
+                .YPEAK - Image y-coordinate of the peak position.
             .RA - Sky RA-coordinate of the peak position. In deg.
             .Dec - Sky Dec-coordinate of the peak position. In deg.
             .StarJD - Start of exposure time bin. In JD.

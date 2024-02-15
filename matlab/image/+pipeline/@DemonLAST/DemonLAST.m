@@ -653,8 +653,8 @@ classdef DemonLAST < Component
             T         = T(Iu,:);
 
             % remove overlapping times
-            FlagDup = T.StartJD(2:end) < T.EndJD(1:end-1);
-            T       = T(~FlagDup,:);
+          %  FlagDup = T.StartJD(2:end) < T.EndJD(1:end-1);
+          %  T       = T(~FlagDup,:);
 
             FID = fopen(OutFile,'w');
             Nt = size(T,1);
