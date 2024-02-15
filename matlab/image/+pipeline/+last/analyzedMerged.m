@@ -68,7 +68,11 @@ function [Result] = analyzedMerged(Args)
         % for each group of visits
         for Igroup=1:Args.StepNvisit:Nvisit
             % group to analyze:
+            try
             Group = AllCons{Icons}(Igroup:Igroup+Args.Nvisit-1);
+            catch
+                'a'
+            end
             Ng    = numel(Group);
 
             % for each CropID
@@ -122,12 +126,14 @@ function [Result] = analyzedMerged(Args)
                     Flag.RMS    = StdMag(:)>( MeanMagMean(:) + Args.Nsigma.*MeanMagStd(:)) & Ndet(:)>Args.MinDetRMS;
     
                     % poly std
-    
-    
+                    ThresholdDeltaChi2 = chi2inv(normcdf(4,0,1),2);  % 4 sigma detection of slope
+                    ResPolyHP = lcUtil.fitPolyHyp(MS, 'PolyDeg',{0, (0:1:2)});
+                    Flag.Poly = ResPolyHP(2).DeltaChi2>ThresholdDeltaChi2;
+                
     
     
                     Flag.Interesting = Flag.GoodFlags(:) & ...
-                                      (Flag.Flares(:) | Flag.PS(:) | Flag.RMS(:));
+                                      (Flag.Flares(:) | Flag.PS(:) | Flag.RMS(:) | Flag.Poly(:));
                     
                     if sum(Flag.Interesting)>0
                         Ind = find(Flag.Interesting);
@@ -151,6 +157,7 @@ function [Result] = analyzedMerged(Args)
     
     
                             % external catalogs
+
     
                             % asteroids
                             [AstTable] = searchMinorPlanetsNearPosition(OrbEl, MeanJD, RA, Dec, 10, 'INPOP',INPOP, 'ConeSearch',true);
@@ -159,7 +166,8 @@ function [Result] = analyzedMerged(Args)
                                 %AstTable.Table
                             else
     
-                                [sum(Flag.Flares(:) & Flag.GoodFlags(:)),  sum(Flag.PS(:) & Flag.GoodFlags(:)), sum(Flag.RMS(:) & Flag.GoodFlags(:))]
+                                % Flares, PS, RMS, Poly
+                                [sum(Flag.Flares(:) & Flag.GoodFlags(:)),  sum(Flag.PS(:) & Flag.GoodFlags(:)), sum(Flag.RMS(:) & Flag.GoodFlags(:)), sum(Flag.Poly(:) & Flag.GoodFlags(:))]
                                 sum(Flag.Interesting)
                                 
                                 %plot(MS.Data.MAG_PSF(:,205)
