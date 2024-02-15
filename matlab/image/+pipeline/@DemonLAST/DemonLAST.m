@@ -2117,6 +2117,7 @@ classdef DemonLAST < Component
                 Args.DB_ImageBulk   logical = false; % whether to use bulk or direct injection method
                 Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};
+                Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
                 
                 Args.HostName          = []; 
 
@@ -2130,7 +2131,7 @@ classdef DemonLAST < Component
             end
             RAD = 180./pi;
 
-            
+            C = Configuration; C.loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
 
             % if isempty(getenv('SYSTEMD')) 
             %     % manual execuation
