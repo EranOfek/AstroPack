@@ -1158,7 +1158,36 @@ classdef MovingSource < Component
             end
 
         end
-    
+        
+        function Table=summary(Obj)
+            % Get summary for all the moving sources
+            %   Return a table with summary line per Moving source element.
+            % Input  : - self.
+            % Output : - A summary table.
+            % Author : Eran Ofek (Feb 2024)
+            % Example: MP.summary
+            
+            ColNames = {'JD','RA','Dec','PM_RA','PM_Dec','Mag','Mean_SN_3','TdistProb','FLGAS','MaergedCatMask','Designation'};
+            Ncol     = numel(ColNames);
+            Nobj = numel(Obj);
+            Summary = zeros(Nobj, Ncol)
+            Table = table
+            for Iobj=1:1:Nobj
+                Summary(Iobj,:) = [Obj(Iobj).JD, Obj(Iobj).RA, Obj(Iobj).Dec,...
+                                   Obj(Iobj).PM_RA, Obj(Iobj).PM_Dec,...
+                                   Obj(Iobj).Mag,...
+                                   Obj(Iobj).MergedCat.Table.Mean_SN_3,...
+                                   Obj(Iobj).MergedCat.Table.PM_TdistProb,...
+                                   Obj(Iobj).MergedCat.Table.FLAGS,...
+                                   Obj(Iobj).MergedCat.Table.MergedCatMask,...
+                                   Obj(Iobj).KnownAst.Table.Designation];
+                               
+            end
+            
+            
+        end
+        
+        
         function blink1(Obj, Args)
             % Display stamps along with sources, asteroid, and known minor planets positions and blink
             %   the images.
