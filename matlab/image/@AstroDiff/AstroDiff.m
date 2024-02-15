@@ -930,23 +930,23 @@ classdef AstroDiff < AstroImage
         
         % measureTransients
         function measureTransients(Obj, Args)
-        %{ 
-        For each transient candidate measure further properties.
-        These depend on the subtraction process, so a function is applied 
-        that is determined by the object class.
-        Input   : - An AstroDiff object in which CatData is populated.
-                     * ...,key,val,...
-                  --- AstroZOGY ---
-                  'HalfSizeTS' - Half size of area on transients positions in 
-                    test statistic images S2 and Z2. Actual size will be  
-                    1+2*HalfSizeTS. Used to find peak S2 and Z2 values.
-                    Default is 5.
-                  'removeTranslients' - Bool on whether to remove
-                    transients candidates which score higher in Z2 than S2.
-                    Default is true.
-        Author  : Ruslan Konno (Jan 2024)
-        Example : AD.measureTransients
-        %}
+            %{ 
+            For each transient candidate measure further properties.
+            These depend on the subtraction process, so a function is applied 
+            that is determined by the object class.
+            Input   : - An AstroDiff object in which CatData is populated.
+                         * ...,key,val,...
+                      --- AstroZOGY ---
+                      'HalfSizeTS' - Half size of area on transients positions in 
+                        test statistic images S2 and Z2. Actual size will be  
+                        1+2*HalfSizeTS. Used to find peak S2 and Z2 values.
+                        Default is 5.
+                      'removeTranslients' - Bool on whether to remove
+                        transients candidates which score higher in Z2 than S2.
+                        Default is true.
+            Author  : Ruslan Konno (Jan 2024)
+            Example : AD.measureTransients
+            %}
             arguments
                 Obj
                 
@@ -970,13 +970,90 @@ classdef AstroDiff < AstroImage
 
     end
     
-    methods % injection simulations
-        % injectArt
-        % Inject artificial sources to the New/Ref images
-        %   Will store original New/Ref images in the OrigImage property.
+    methods % catalog matching
 
+        % matchCats
+        function matchCats(Obj, Args)
+            %{
+            Match catalogs
+            %}
+            arguments
+                Obj
+
+                Args.matchGalaxyCatArgs = {'ColDistName', 'GalaxyDist',...
+                    'ColNmatchName','GalaxyMatches'};
+                Args.matchStarCatArgs = {'ColDistName', 'StarDist',...
+                    'ColNmatchName','StarMatches'};
+            end
+            
+            Obj.matchGalaxyCat(Args.matchGalaxyCatArgs{:});
+            Obj.matchStarCat(Args.matchStarCatArgs{:});
+
+        end
+        % Match catalog to solar system objects and add information to CatData
+
+        % matchSolarSystemCat
+        % Match catalog to solar system objects and add information to CatData
+
+        % matchRedshiftCat
+        % Match catalog to redshift catalogs and add information to CatData
+        
+        % matchGalaxyCat
+        function matchGalaxyCat(Obj, Args)
+            %{ 
+            Match catalog to galaxy catalogs and add information to CatData
+            %} 
+            arguments
+                Obj
+
+                Args.ColDistName = 'GalaxyDist';
+                Args.ColNmatchName = 'GalaxyMatches';
+            end
+            
+            Nobj = numel(Obj);
+
+            for Iobj=1:1:Nobj
+                sizeCat = size(Obj(Iobj).CatData.Catalog,1);
+                
+                % If transients catalog is empty, continue.
+                if sizeCat == 0
+                    continue
+                end                
+            
+                [Obj(Iobj).CatData, ~, ~, ~] = imProc.match.match_catsHTM(...
+                    Obj(Iobj).CatData, 'GLADE','ColDistName',Args.ColDistName,...
+                    'ColNmatchName',Args.ColNmatchName);
+            end
+        end
+        
+        % matchStarCat
+        function matchStarCat(Obj, Args)
+            %{ 
+            Match catalog to star/galaxy catalogs and add information to CatData
+            %}
+            arguments
+                Obj
+                
+                Args.ColDistName = 'StarDist';
+                Args.ColNMatchName = 'StarMatches';
+            end
+
+            Nobj = numel(Obj);
+
+            for Iobj=1:1:Nobj
+                sizeCat = size(Obj(Iobj).CatData.Catalog,1);
+                
+                % If transients catalog is empty, continue.
+                if sizeCat == 0
+                    continue
+                end   
+                
+                [Obj(Iobj).CatData, ~, ~, ~] = imProc.match.match_catsHTM(...
+                    Obj(Iobj).CatData, 'CRTS_per_var','ColDistName',...
+                    Args.ColDistName, 'ColNmatchName',Args.ColNMatchName);
+            end
+        end
     end
-
     
     methods % transients inspection and measurment
         % transientsCutouts
@@ -989,28 +1066,20 @@ classdef AstroDiff < AstroImage
         %       If so, then what should we do about the multiple diff and
         %       New images?]
 
-        % searchSolarSystem
-        % Match catalog to solar system objects and add information to CatData
-
-        % nearRedshift
-        % Match catalog to redshift catalogs and add information to CatData
-        
-        % nearGalaxy
-        % Match catalog to galaxy catalogs and add information to CatData
-        
-        % nearStar
-        % Match catalog to star/galaxy catalogs and add information to CatData
-        
-
     end
-
     
     methods % display
         % ds9
         % Display Ref, New, D, S, Z2 in ds9 and mark transients
         
     end    
-    
+
+    methods % injection simulations
+        % injectArt
+        % Inject artificial sources to the New/Ref images
+        %   Will store original New/Ref images in the OrigImage property.
+
+    end    
     
     methods (Static) % Unit-Test
         Result = unitTest()
