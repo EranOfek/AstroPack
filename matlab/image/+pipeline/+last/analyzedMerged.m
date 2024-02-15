@@ -66,13 +66,10 @@ function [Result] = analyzedMerged(Args)
         Nvisit = numel(AllCons{Icons});
 
         % for each group of visits
-        for Igroup=1:Args.StepNvisit:Nvisit
+        for Igroup=1:Args.StepNvisit:Nvisit-1
             % group to analyze:
-            try
             Group = AllCons{Icons}(Igroup:Igroup+Args.Nvisit-1);
-            catch
-                'a'
-            end
+          
             Ng    = numel(Group);
 
             % for each CropID
