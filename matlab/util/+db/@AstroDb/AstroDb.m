@@ -105,8 +105,8 @@ classdef AstroDb < Component
                 Args.ReloadConfig  = false;
                 Args.PWFile        = '~/.astropack/Passwords.yml';
             end
-            if Args.ReloadConfig
-                C = Configuration; C.loadFile(Args.PWFile); % tell the PM where to look for passwords
+            if Args.ReloadConfig                
+                Configuration.getSingleton().loadFile(Args.PWFile); % tell the PM where to look for passwords
             end
             PM = PasswordsManager;
             try
