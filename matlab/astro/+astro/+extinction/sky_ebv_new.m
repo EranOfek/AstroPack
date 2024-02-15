@@ -28,13 +28,16 @@ function Ebv = sky_ebv_new(RA, Dec, Args)
     RAD = 180/pi;
     
 %     DataFile = '~/matlab/data/+cats/+maps/GMK2023_2D_AV.txt';
-%     Data = readmatrix(DataFile);    
+%     Data = readmatrix(DataFile);  
+
     FN = 'GMK2023_2D_AV';    
     Data = cats.maps.(FN);
     L0 = Data(:,1);
     B0 = Data(:,2);
     AV0 = Data(:,5);
     AV = scatteredInterpolant(L0,B0,AV0,Args.InterpMethod); % a bit slow, should replace by a faster method 
+
+%     io.files.load1('Gontcharov24.mat');   % keeping AV in a .mat object is just a bit faster: 9.6 sec vs. 11.2 sec
 
     RA  = celestial.coo.convertdms(RA,'gH','r');
     Dec = celestial.coo.convertdms(Dec,'gD','r');
