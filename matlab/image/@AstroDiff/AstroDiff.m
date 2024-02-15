@@ -227,7 +227,110 @@ classdef AstroDiff < AstroImage
                 Obj(Iobj).Ref = imProc.image.replaceVal(Obj(Iobj).Ref, NaN, ValR, 'CreateNewObj',false, 'UseOutRange',false);
             end
            
-        end
+       end
+    
+       function Result=cutouts(Obj, Args)
+           % Create cutouts of images around coordinates.
+           %    Given an AstroZOGY/AstroDiff object, generate a new object
+           %    (the same class as the input class), populated with image
+           %    cutouts around selected coordinates.
+           % Input  : - An AstroDiff/AstroZOGY object.
+           %          * ...,key,val,...
+           %            'XY' - A matrix of [X, Y] coordinates. The cutouts will be
+           %                    generated around these positions.
+           %                    If empty, then use getXY on the AstroDiff.CatData
+           %                    AstroCatalog object.
+           %                    Default is [].
+           %            'HalfSize' - Half size of cutouts.
+           %                    Default is 25.
+           %            'CropNew' - Logical indicating if to populate the crop
+           %                    of the New image. Default is true.
+           %            'CropRef' - Logical indicating if to populate the crop
+           %                    of the Ref image. Default is true.
+           %            'CropSub' - Logical indicating if to populate the crop
+           %                    of the difference image. Default is true.
+           %            'CreateNewObj' - A logical indicating if to create
+           %                    a new object of the crop object.
+           %                    Default is true.
+           %            'CropProp' - A cell array of additional properties
+           %                    to populate and crop (will be done only if
+           %                    property exist).
+           %                    Default is {'Z2','S','Scorr'}.
+           % Output : - An AstroDiff/AstroZOGY object with element per
+           %            cutout.
+           % Author : Eran Ofek (Feb 2024)
+           % Example: ADc = AD.cutouts;
+          
+           arguments
+               Obj
+               Args.XY                     = [];
+               Args.HalfSize          = 25;
+               
+               Args.CropNew logical   = true;
+               Args.CropRef logical   = true;
+               Args.CropSub logical   = true;
+               
+               Args.CreateNewObj logical   = true;
+               
+               Args.CropProp               = {'Z2','S','Scorr'};
+           end
+           
+           NcropProp = numel(Args.CropProp);
+           
+           eval('Result = %s.empty',class(Obj));
+           %Result = % same as input Obj
+           
+           Nobj = numel(Obj);
+           IndC = 0;
+           for Iobj=1:1:Nobj
+               
+               if isempty(Args.XY)
+                   % get coordinates from AstroCatalog object
+                   XY = Obj(Iobj).CatData.getXY;                   
+               else
+                   XY = Args.XY;
+               end
+               
+               Nxy = size(XY, 1);
+               for Ixy=1:1:Nxy
+                   IndC = IndC + 1;
+                   Pos = [XY(Ixy,:), Args.HalfSize, Args.HalfSize];
+                   if Args.CropSub
+                        Result(IndC) = Obj(Iobj).crop(Pos,...
+                                                 'Type','center',...
+                                                 'UpdateCat',true,...
+                                                 'UpdateWCS',true,...
+                                                 'CreateNewObj',Args.CreateNewObj);
+                   end
+
+                   if Args.CropNew
+                       Result(IndC).New = Obj(Iobj).New.crop(Pos,...
+                                                             'Type','center',...
+                                                             'UpdateCat',true,...
+                                                             'UpdateWCS',true,...
+                                                             'CreateNewObj',Args.CreateNewObj);
+                   end
+                   
+                   if Args.CropRef
+                       Result(IndC).Ref = Obj(Iobj).Ref.crop(Pos,...
+                                                             'Type','center',...
+                                                             'UpdateCat',true,...
+                                                             'UpdateWCS',true,...
+                                                             'CreateNewObj',Args.CreateNewObj);
+                   end
+                   
+                   % Cut additional properties
+                   for Icp=1:1:NcropProp
+                       if isprop(Obj(Iobj), Args.CropProp{Icp})
+                           Result(IndC).(Args.CropProp{Icp}) = imUtil.cut.trim(Obj(Iobj).(Args.CropProp{Icp}), Pos, 'center');
+                       end
+                   end
+                   
+               end
+               
+           end
+       end
+       
     end
 
     methods % utilities  % search/load images
