@@ -916,31 +916,24 @@ classdef AstroZOGY < AstroDiff
 
     end
 
-    methods % transient candidates
-        % findTransients
-        % Search for positive and negative transients in S
-        %   Only look for local max/min in S above detection threshold
-        
-        % cleanTransients
-        % Select good transients using selection criteria
+    methods % catalog matching
 
-        % measureTransients
-        % For each transient candidate measure properties.
-        %   Including, fit Pd PSF to D, return S, Zsig, mask, value in New,
-        %   Ref, nearby source in New, Ref
+        % matchCats
+
+        % matchSolarSystemCat
+        % Match catalog to solar system objects and add information to CatData
+
+        % matchRedshiftCat
+        % Match catalog to redshift catalogs and add information to CatData
         
-        % fitDT
-        % Fit a variability + motion model to the D_T image
+        % matchGalaxyCat
+        % Match catalog to galaxy catalogs and add information to CatData
+
         
-    end
-    
-    methods % injection simulations
-        % injectArt
-        % Inject artificial sources to the New/Ref images
-        %   Will store original New/Ref images in the OrigImage property.
+        % matchStarCat
+        % Match catalog to star/galaxy catalogs and add information to CatData
 
     end
-
     
     methods % transients inspection and measurment
         % transientsCutouts
@@ -953,28 +946,20 @@ classdef AstroZOGY < AstroDiff
         %       If so, then what should we do about the multiple diff and
         %       New images?]
 
-        % searchSolarSystem
-        % Match catalog to solar system objects and add information to CatData
-
-        % nearRedshift
-        % Match catalog to redshift catalogs and add information to CatData
-        
-        % nearGalaxy
-        % Match catalog to galaxy catalogs and add information to CatData
-        
-        % nearStar
-        % Match catalog to star/galaxy catalogs and add information to CatData
-        
-
     end
 
-    
     methods % display
         % ds9
         % Display Ref, New, D, S, Z2 in ds9 and mark transients
         
     end    
-    
+
+    methods % injection simulations
+        % injectArt
+        % Inject artificial sources to the New/Ref images
+        %   Will store original New/Ref images in the OrigImage property.
+
+    end   
     
     methods (Static) % Unit-Test
         Result = unitTest()
