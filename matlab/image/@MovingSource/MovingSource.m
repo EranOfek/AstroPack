@@ -1066,6 +1066,40 @@ classdef MovingSource < Component
 
     end
 
+    methods % extended sources
+        % Fit PSF vs. extended PSF
+        function psfFitExtended(Obj, Args)
+            % Fit PSF and extended PSF to all stamps and search for extended sources
+            %
+            %
+            
+            arguments
+                Obj
+                Args.SersicPar              = [1 1 1];
+                Args.psfFirPhotArgs cell    = {};
+            end
+        
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Nstamp = numel(Obj(Iobj).Stamps);
+                for Istamp=1:1:Nstamp
+                    if ~isempty(Obj(Iobj).Stamps(Istamp).Image)
+                        [~, Result] = psfFitPhot(Obj(Iobj).Stamps(Istamp), Args.psfFirPhotArgs{:});
+                        
+                        PSF = Obj(Iobj).Stamps(Istamp).PSFData.getPSF();
+                        % extened PSF by convolving
+                        Extend = imUtil.kernel2.sersic(Args.SersicPar);
+                        ExtendedPSF = conv2(PSF, Extend, 'same');
+                        [~, ResultExt] = psfFitPhot(Obj(Iobj).Stamps(Istamp), Args.psfFirPhotArgs{:}, 'PSF',ExtendedPSF);
+                    end
+                end
+            end
+        end
+        
+        
+    end
+    
+    
     methods % display and plot
         function Info=dispInfo(Obj, Args)
             % Display moving source information on screen
