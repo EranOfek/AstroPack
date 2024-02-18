@@ -1177,7 +1177,7 @@ classdef DemonLAST < Component
                 DirMonth = io.files.dirDir();
                 Nm      = numel(DirMonth);
                 for Im=1:1:Nm
-                    cd(DirMonth(Iy).name);
+                    cd(DirMonth(Im).name);
                     
                     DirDay = io.files.dirDir();
                     Nd = numel(DirDay);
@@ -1189,6 +1189,7 @@ classdef DemonLAST < Component
                         DirVisit = io.files.dirDir();
                         Nv = numel(DirVisit);
                         for Iv=1:1:Nv
+                            %[Iy, Im, Id, Iv, Ind]
                             cd(DirVisit(Iv).name);
                             Ind = Ind + 1;
                             Files = dir(Args.FileTemp);
@@ -1268,7 +1269,7 @@ classdef DemonLAST < Component
                 ListF = List(IndF);
 
                 DiffTime = [diff(AllJD(IndF)); Inf];
-                FlagConsecutive = DiffTime < Args.MaxTimeBetweenVisits;
+                FlagConsecutive = abs(DiffTime) < Args.MaxTimeBetweenVisits;
 
                 [ListConsecutive] = tools.find.findListsOfConsecutiveTrue(FlagConsecutive);
                 Ncons = numel(ListConsecutive);
