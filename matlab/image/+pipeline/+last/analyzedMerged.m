@@ -117,6 +117,7 @@ function [Result] = analyzedMerged(Args)
                     MeanMag = median(MS.Data.(Args.MagField), 1, 'omitnan');
                     StdMag  = std(MS.Data.(Args.MagField), [], 1, 'omitnan');
                     B = timeSeries.bin.binning([MeanMag(:), StdMag(:)], Args.BinSize, [NaN NaN], {'MidBin', @mean, @tools.math.stat.rstd, @numel});
+                    
                     MeanMagMean = interp1(B(:,1), B(:,2), MeanMag(:), 'linear','extrap');
                     MeanMagStd  = interp1(B(:,1), B(:,3), MeanMag(:), 'linear','extrap');
                     Ndet        = MS.countNotNanEpochs('Field',Args.MagField);
