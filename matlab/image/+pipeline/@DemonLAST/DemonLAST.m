@@ -2354,7 +2354,7 @@ classdef DemonLAST < Component
                             tools.systemd.mex.notify_watchdog;
 
                             RunTime = etime(clock, Tstart);
-                            Msg{1} = sprintf('pipline.DemonLAST finish executing pipeline for group %d - start saving data / RunTime: %f', Igroup, RunTime);
+                            Msg{1} = sprintf('pipline.DemonLAST finished executing pipeline for group %d - start saving data / RunTime: %.1f', Igroup, RunTime);
                             Obj.writeLog(Msg, LogLevel.Info);
                             
                             %CoaddTransienst = imProc.cat.searchExternalCatOrphans(Coadd);
@@ -2371,6 +2371,10 @@ classdef DemonLAST < Component
                                                    'LevelPath','proc',...
                                                    'FindSubDir',true);
                             Obj.writeLog(Status, LogLevel.Info);
+                            
+                            RunTime = etime(clock, Tstart);
+                            Msg{1} = sprintf('pipline.DemonLAST finished saving PROC products group %d / RunTime: %.1f', Igroup, RunTime);
+                            Obj.writeLog(Msg, LogLevel.Info);
         
                             % the following call also update the Coadd.ImageData.FileName
                             [FN_Coadd,~,Status]=imProc.io.writeProduct(Coadd, FN_I, 'Product',UpArgs.SaveVisitProduct, 'WriteHeader',[true false true false],...
@@ -2378,13 +2382,17 @@ classdef DemonLAST < Component
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
                             Obj.writeLog(Status, LogLevel.Info);
+                                                        
+                            RunTime = etime(clock, Tstart);
+                            Msg{1} = sprintf('pipline.DemonLAST finished saving COADD products group %d / RunTime: %.1f', Igroup, RunTime);
+                            Obj.writeLog(Msg, LogLevel.Info);
 
                             [~,~,Status]=imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
                                                    'Save',UpArgs.SaveMergedCat,...
                                                    'Level','merged',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
-                            Obj.writeLog(Status, LogLevel.Info);
+                            Obj.writeLog(Status, LogLevel.Info);                            
 
                             [~,~,Status]=imProc.io.writeProduct(MatchedS, FN_I, 'Product',{'MergedMat'}, 'WriteHeader',[false],...
                                                    'Save',UpArgs.SaveMergedMat,...
@@ -2392,6 +2400,10 @@ classdef DemonLAST < Component
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
                             Obj.writeLog(Status, LogLevel.Info);
+                            
+                            RunTime = etime(clock, Tstart);
+                            Msg{1} = sprintf('pipline.DemonLAST finished saving Merged Cats and Matched sources for group %d / RunTime: %.1f', Igroup, RunTime);
+                            Obj.writeLog(Msg, LogLevel.Info);
 
                             if ~isempty(ResultAsteroids)
                                 SaveAst.MP = ResultAsteroids;
@@ -2414,6 +2426,10 @@ classdef DemonLAST < Component
                                                        'SubDir',FN_Proc.SubDir);
                                 Obj.writeLog(Status, LogLevel.Info);
                             end
+                            
+                            RunTime = etime(clock, Tstart);
+                            Msg{1} = sprintf('pipline.DemonLAST finished saving Asteroid data for group %d / RunTime: %.1f', Igroup, RunTime);
+                            Obj.writeLog(Msg, LogLevel.Info);
                             
                             % if CoaddTransienst.sizeCatalog>0
                             %     [~,~,Status]=imProc.io.writeProduct(CoaddTransienst, FN_I, 'Product',{'TransientsCat'}, 'WriteHeader',[false],...
