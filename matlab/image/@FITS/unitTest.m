@@ -225,7 +225,9 @@ function Result = test_long_header_strings()
         'ELEVEN',11,' still a number';...
         'PRAVDA',true,'logical, no? but here we could argue, forever, because comments are autoreferential';...
         'FOUR','a /very very/ but really a lot/ and again, and more/ and more and longer string',...
-        'a rhyme ''/'' with many slashes/ so it is also/ pretty long';...
+              'a rhyme ''/'' with many slashes/ so it is also/ pretty long';...
+        'SymKey','sys\\tem?\&^M^V                                                     loong(((',...
+                 'with \\6& $ #strange sym)bols(' ...
         });
 
     FITS.write(rand(3,3), FileName, 'Header', Header.Data);
@@ -234,7 +236,7 @@ function Result = test_long_header_strings()
 
     for i=1:size(Header.Data,1)
         Key=Header.Data{i,1};
-        Value=Header2{strcmp(Header2(:,1),Key),2};
+        Value=Header2{strcmpi(Header2(:,1),Key),2};
         if ~all(Value==Header.Data{i,2})
             error('value of %s not reread correctly',Key)
         end
@@ -242,4 +244,5 @@ function Result = test_long_header_strings()
 
     delete(FileName);
 end
+
 

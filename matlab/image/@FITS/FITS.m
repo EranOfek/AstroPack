@@ -236,8 +236,8 @@ classdef FITS < handle
                            if ~isempty(CommPart) && strcmp(CommPart(end),'&')
                                CommPart=CommPart(1:end-1);
                            end
-                           HeadCell{LastBegunKey,2} = strcat(ValuePart,HeadCell{Ikey,2});
-                           HeadCell{LastBegunKey,3} = strcat(CommPart,HeadCell{Ikey,3});
+                           HeadCell{LastBegunKey,2} = [ValuePart,HeadCell{Ikey,2}];
+                           HeadCell{LastBegunKey,3} = [CommPart,HeadCell{Ikey,3}];
                            HeadCell{Ikey,1} = [];
                            HeadCell{Ikey,2} = [];
                            HeadCell{Ikey,3} = [];
