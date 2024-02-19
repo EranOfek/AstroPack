@@ -2461,8 +2461,9 @@ classdef DemonLAST < Component
                                 % RAW, PROC, and COADD images
                                 if ~Args.DB_ImageBulk                                
                                     [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawImageListFinal);
-                                    Msg{1} = sprintf('Inserted images into LAST raw images table - success: %d', OK);
-                                    Obj.writeLog(Msg, LogLevel.Info);
+                                    RunTime = etime(clock, Tstart);
+                                    Msg{1} = sprintf('Inserted images into LAST raw images table - success: %d, RunTime %.1f', OK, RunTime);
+                                    Obj.writeLog(Msg, LogLevel.Info);                                     
                                     %
                                     HasImage = ~AllSI.isemptyImage; % use only AI's with Image properties filled
                                     ProcFileName = FN_Proc.genFull;
@@ -2471,13 +2472,15 @@ classdef DemonLAST < Component
                                     [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage),'Hash',0);  % w/o hash                                                                                                                                                
                                     ID_RawImage = repmat(ID_RawImage,1,24); ID_RawImage = ID_RawImage(:); % there are ~N*24 ProcImages, and only N RawImages
                                     OKupd = ADB.updateByTupleID(ID_ProcImage, 'raw_image_id', ID_RawImage, 'Table',Args.DB_Table_Proc);
-                                    Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
+                                    RunTime = etime(clock, Tstart);
+                                    Msg{1} = sprintf('Insert images to LAST proc images table - success: %d, RunTime %.1f', OKupd, RunTime);
                                     Obj.writeLog(Msg, LogLevel.Info);
                                     %
                                     HasImage = ~Coadd.isemptyImage; % use only AI's with Image properties filled
                                     CoaddFileName = FN_Coadd.genFull('LevelPath','proc');
                                     [ID_CoaddImage, OK] = ADB.insert(Coadd(HasImage), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImage),'Hash',0); % w/o hash
-                                    Msg{1} = sprintf('Insert images to LAST coadd images table - success: %d', OK);
+                                    RunTime = etime(clock, Tstart);                                    
+                                    Msg{1} = sprintf('Insert images to LAST coadd images table - success: %d, RunTime %.1f', OK, RunTime);
                                     Obj.writeLog(Msg, LogLevel.Info);                                    
                                 else % prepare CSV files for further injection into the DB                                                                          
                                     ADB.insert(RawHeader,'Type','bulkima', 'BulkFN',FN_I,    'BulkCatType','raw');
@@ -2486,7 +2489,8 @@ classdef DemonLAST < Component
                                     
                                     FN_I_DB = FN_I.copy; OK = 1; 
                                     Obj.writeStatus(FN_I_DB.genPath, 'Msg', 'ready-for-DB'); 
-                                    Msg{1} = sprintf('CSV files with image header data written to disk');
+                                    RunTime = etime(clock, Tstart);
+                                    Msg{1} = sprintf('CSV files with image header data written to disk, RunTime %.1f', RunTime);
                                     Obj.writeLog(Msg, LogLevel.Info);
                                 end                                
                                 % PROC and COADD catalogs 
@@ -2497,7 +2501,8 @@ classdef DemonLAST < Component
                                     ADB.insert(CoaddCat,'Type','bulkcat', 'BulkFN',FN_Coadd,'BulkCatType','coadd','BulkAI',Coadd(1));
                                     FN_CatProc = FN_Proc.copy;
                                     Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB'); 
-                                    Msg{1} = sprintf('CSV files with catalog data written to disk');
+                                    RunTime = etime(clock, Tstart);
+                                    Msg{1} = sprintf('CSV files with catalog data written to disk, RunTime %.1f', RunTime);                                    
                                     Obj.writeLog(Msg, LogLevel.Info);
                                 else                   % insert PROC and COADD catalog data into the appropriate DB tables
                                     ADB.insert(ProcCat, 'Table',Args.DB_Table_ProcCat, 'Type','cat');
