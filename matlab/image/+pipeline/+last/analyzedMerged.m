@@ -92,6 +92,8 @@ function [Result] = analyzedMerged(Args)
 
                 if numel(MS)==Args.Nvisit
                     MS  = MS.mergeByCoo(MS(1), 'SearchRadius',Args.SearchRadius, 'SearchRadiusUnits',Args.SearchRadiusUnits);
+                    MS.FileName = MS_FileNames;
+                    
                     Rzp = lcUtil.zp_meddiff(MS, 'MagField',Args.MagField', 'MagErrField',Args.MagErrField);
                     MS.applyZP(Rzp.FitZP);
                     Nobs = numel(MS.JD);
