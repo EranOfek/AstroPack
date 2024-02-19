@@ -32,7 +32,7 @@ function [Result] = analyzedMerged(Args)
         Args.searchFlaresArgs cell = {};
         Args.ThresholdPS           = 12;
         Args.BinSize               = 1;
-        Args.Nsigma                = 6;
+        Args.NsigmaRMS             = 4;
         Args.MinDetRMS             = 15;
         Args.SNField               = 'SN_3';
         Args.MinFlareSN            = 8;
@@ -78,6 +78,7 @@ function [Result] = analyzedMerged(Args)
 
                 Ic = Args.CropID(Icrop);
 
+                
                 for Ig=1:1:Ng
                     Icc = find(Group(Ig).CropID==Ic);
                     if ~isempty(Icc)
@@ -86,11 +87,14 @@ function [Result] = analyzedMerged(Args)
                     end
                 end
 
+                % get file names 
+                MS_FileNames = {MS.FileName};
+
                 if numel(MS)==Args.Nvisit
                     MS  = MS.mergeByCoo(MS(1), 'SearchRadius',Args.SearchRadius, 'SearchRadiusUnits',Args.SearchRadiusUnits);
                     Rzp = lcUtil.zp_meddiff(MS, 'MagField',Args.MagField', 'MagErrField',Args.MagErrField);
                     MS.applyZP(Rzp.FitZP);
-    
+                    Nobs = numel(MS.JD);
     
                     % Analyze the MS object
     
@@ -116,13 +120,42 @@ function [Result] = analyzedMerged(Args)
                     % rms
                     MeanMag = median(MS.Data.(Args.MagField), 1, 'omitnan');
                     StdMag  = std(MS.Data.(Args.MagField), [], 1, 'omitnan');
-                    B = timeSeries.bin.binning([MeanMag(:), StdMag(:)], Args.BinSize, [NaN NaN], {'MidBin', @mean, @tools.math.stat.rstd, @numel});
+                    Fn0 = StdMag>1e-10;
                     
-                    MeanMagMean = interp1(B(:,1), B(:,2), MeanMag(:), 'linear','extrap');
-                    MeanMagStd  = interp1(B(:,1), B(:,3), MeanMag(:), 'linear','extrap');
+
+                    B = timeSeries.bin.binningFast([MeanMag(Fn0).', StdMag(Fn0).'], Args.BinSize, [NaN NaN], {'MidBin', @median, @tools.math.stat.std_mad, @numel});
+                    % Remove points with less than 5 measurments
+                    B = B(B(:,4)>5,:);
+
+
+                    In0  = find(B(:,2)<1e-4,1,'first');
+                    if ~isempty(In0)
+                        try
+                        if In0==size(B,1)
+                            % 0 at faintestr mag
+                            B(In0,2) = B(In0-1,2);
+                        else
+                            B(1:In0,2) = B(In0+1,2);
+                        end
+                        catch ME
+                            'b'
+                        end
+                    end
+                    
+                    % adding a bright point
+                    B = [[B(1,1)-10, B(1, 2:end)]; B];
+
+                    Bstd = B(:,2)./sqrt(Nobs);
+
+                    StdThreshold = interp1(B(:,1), B(:,2)+Bstd.*Args.NsigmaRMS, MeanMag(:), 'linear','extrap');
+                    %MeanMagMean = interp1(B(:,1), B(:,2), MeanMag(:), 'linear','extrap');
+                    %MeanMagStd  = interp1(B(:,1), B(:,3), MeanMag(:), 'linear','extrap');
                     Ndet        = MS.countNotNanEpochs('Field',Args.MagField);
-                    Flag.RMS    = StdMag(:)>( MeanMagMean(:) + Args.Nsigma.*MeanMagStd(:)) & Ndet(:)>Args.MinDetRMS;
+                    %Flag.RMS    = StdMag(:)>( MeanMagMean(:) + Args.Nsigma.*MeanMagStd(:)) & Ndet(:)>Args.MinDetRMS;
+                    Flag.RMS    = StdMag(:)>StdThreshold & Ndet(:)>Args.MinDetRMS;
     
+%R=imUtil.calib.fit_rmsCurve(MeanMag, StdMag)
+
                     % poly std
                     ThresholdDeltaChi2 = chi2inv(normcdf(4,0,1),2);  % 4 sigma detection of slope
                     ResPolyHP = lcUtil.fitPolyHyp(MS, 'PolyDeg',{0, (0:1:2)});
@@ -165,7 +198,9 @@ function [Result] = analyzedMerged(Args)
                             else
     
                                 % Flares, PS, RMS, Poly
-                                [sum(Flag.Flares(:) & Flag.GoodFlags(:)),  sum(Flag.PS(:) & Flag.GoodFlags(:)), sum(Flag.RMS(:) & Flag.GoodFlags(:)), sum(Flag.Poly(:) & Flag.GoodFlags(:))]
+                                %[sum(Flag.Flares(:) & Flag.GoodFlags(:)),  sum(Flag.PS(:) & Flag.GoodFlags(:)), sum(Flag.RMS(:) & Flag.GoodFlags(:)), sum(Flag.Poly(:) & Flag.GoodFlags(:))]
+                                [sum(Flag.Flares(Ind1) & Flag.GoodFlags(Ind1)),  sum(Flag.PS(Ind1) & Flag.GoodFlags(Ind1)), sum(Flag.RMS(Ind1) & Flag.GoodFlags(Ind1)), sum(Flag.Poly(Ind1) & Flag.GoodFlags(Ind1))]
+
                                 sum(Flag.Interesting)
                                 
                                 %plot(MS.Data.MAG_PSF(:,205)
@@ -182,7 +217,10 @@ function [Result] = analyzedMerged(Args)
                                 cla;
                                 MS.plotRMS;
                                 hold on;
+                                plot(B(:,1),B(:,2),'b-');
+                                plot(B(:,1),B(:,2)+Bstd.*Args.NsigmaRMS,'b-');
                                 plot(MeanMag(Ind1), StdMag(Ind1),'ro')
+
         
                                 figure(2);
                                 cla;
