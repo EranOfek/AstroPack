@@ -63,7 +63,7 @@ function Result = unitTest(Obj)
 	
 	% read/write
 	A=rand(10,11);
-	File = 'tmp/tmpfile.fits';
+	File = fullfile(tempdir,'tmpfile.fits');
 	io.msgLog(LogLevel.Test, 'testing FITS write');
 	FITS.write(A,File,'Header',{'a',1,'';'b',2,''});
 	[B,H]=FITS.read1(File);  
@@ -74,13 +74,17 @@ function Result = unitTest(Obj)
 	
 	% write_keys
 	io.msgLog(LogLevel.Test, 'testing FITS write_keys');
-	File = 'tmp/tmpfile.fits';
+	File = fullfile(tempdir,'tmpfile.fits');
 	FITS.write(A,File,'Header',{'a',1,'';'b',2',''});
 	FITS.write_keys(File,{'try','A','comm';'try2',6,'what'});
 	delete(File);
 	
+    % write and reread long string values
+	io.msgLog(LogLevel.Test, 'testing FITS read_long_header_strings');
+    test_long_header_strings();
+
     % Test writeTable1()
-    test_writeTable();    
+    test_writeTable();
     
 	cd(PWD);	
 	io.msgStyle(LogLevel.Test, '@passed', 'FITS test passed')
@@ -94,7 +98,7 @@ function Result = test_writeTable()
     % unitTest for the FITS.writeTable()
     %WorkDir = tools.os.getTestWorkDir;
    
-    FileName = 'tmp/wrtable1a.fits';
+    FileName = fullfile(tempdir,'wrtable1a.fits');
     if isfile(FileName)
         delete(FileName);
     end
@@ -175,7 +179,7 @@ end
 function Result = test_writeHeader()
     % Test performance of writeHeader and other fits issues (under work)
     
-    FileName = 'tmp/writeheader.fits';
+    FileName = fullfile(tempdir,'writeheader.fits');
     
     NumKeys = 10;    
     for Iter=1:5
@@ -198,4 +202,47 @@ function Result = test_writeHeader()
     
     Result = true;
 end
+
+function Result = test_long_header_strings()
+% Test reading headers with continued cards and long string values
+
+    FileName = fullfile(tempdir,'longheader.fits');
+    if isfile(FileName)
+        delete(FileName);
+    end
+
+    Header=AstroHeader();
+    % add some normal and some exotic keys to the header
+    % TODO, in future add to FITS.readHeader1 also HIERARCH long keys
+    Header.insertKey({...
+        'ONE',1,'a number';...
+        'ALONGLONGNUMBER',2,'another number';...
+        'ALONGLONGSTRING','this may be more interesting','figure what';...
+        'THREE','a very very, but really a lot, and again, and more, and more and longer string',...
+        'even with a comment';...
+        'TWELVE','Like the previous, a very very, but really a lot, and again, and more, and more and longer string, but sooooo long that it goes on for several lines',...
+        'even with a comment';...
+        'ELEVEN',11,' still a number';...
+        'PRAVDA',true,'logical, no? but here we could argue, forever, because comments are autoreferential';...
+        'FOUR','a /very very/ but really a lot/ and again, and more/ and more and longer string',...
+              'a rhyme ''/'' with many slashes/ so it is also/ pretty long';...
+        'SymKey','sys\\tem?\&^M^V                                                     loong(((',...
+                 'with \\6& $ #strange sym)bols(' ...
+        });
+
+    FITS.write(rand(3,3), FileName, 'Header', Header.Data);
+
+    Header2 = FITS.readHeader1(FileName);
+
+    for i=1:size(Header.Data,1)
+        Key=Header.Data{i,1};
+        Value=Header2{strcmpi(Header2(:,1),Key),2};
+        if ~all(Value==Header.Data{i,2})
+            error('value of %s not reread correctly',Key)
+        end
+    end
+
+    delete(FileName);
+end
+
 
