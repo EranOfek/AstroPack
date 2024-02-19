@@ -2213,7 +2213,7 @@ classdef OrbitalEl < Base
             Result.W         = rand(N,1).*360;
             %Result.Incl      = rand(N,1).*180 - 90;
             Inc        = (-90:1:90).';
-            Result.Incl      = tools.math.stat.randgen([Inc, cosd(Inc)],1e6);
+            Result.Incl      = tools.math.stat.randgen([Inc, cosd(Inc)],N);
 
             Result.Eccen     = rand(N,1).*range(Args.RangeE) + min(Args.RangeE);
             Result.Epoch     = ones(N,1).*Args.Epoch;
