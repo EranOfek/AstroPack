@@ -59,7 +59,7 @@ classdef FileNames < Component
     
     properties (Hidden, Constant)
         ListType        = { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'focus', 'sci', 'wave', 'type' , 'log'};
-        ListLevel       = { 'raw', 'proc', 'stack', 'ref', 'coadd', 'merged', 'calib', 'junk'};
+        ListLevel       = { 'raw', 'proc', 'stack', 'ref', 'coadd', 'merged', 'calib', 'junk', 'proc.zogyD','coadd.zogyD'};
         ListProduct     = { 'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat', 'Asteroids','Pipeline', 'TransientsCat'};
     end
     
