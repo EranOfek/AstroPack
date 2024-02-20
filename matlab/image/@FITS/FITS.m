@@ -59,7 +59,13 @@ classdef FITS < handle
                 List = convertCharsToStrings(FileName);
             elseif ischar(FileName) || isstring(FileName)
                 % read into cell of files
-                List = io.files.filelist(FileName);
+                if ~isempty(FileName)
+                    List = io.files.filelist(FileName);
+                else
+                    % this happens when the constructor is called
+                    % recursively, like it happens below in line 86
+                    List={};
+                end
             else
                 error('Unknown FileName type');
             end
@@ -77,7 +83,7 @@ classdef FITS < handle
             
             for Ilist=1:1:Nlist
                 Ihdu            = min(Ilist,Nhdu);
-                Obj(Ilist).File = List{Ilist};
+                Obj(Ilist).File = List{Ilist}; % (recursive call)
                 Obj(Ilist).HDU  = ListHDU(Ihdu);
             end
             
@@ -117,7 +123,6 @@ classdef FITS < handle
                 HDUnum               = 1;
             end
                         
-            KeyPos = 9;
             ComPos = 32;
             
             Fptr = matlab.io.fits.openFile(FileName);
@@ -130,20 +135,50 @@ classdef FITS < handle
                 Nkey = matlab.io.fits.getHdrSpace(Fptr);
                 HeadCell = cell(Nkey,3);
                 for Ikey = 1:1:Nkey
+                   KeyPos = 9;
                    Card     = matlab.io.fits.readRecord(Fptr,Ikey);
                    LenCard = length(Card);
-                   if (LenCard>=9)
+                   if (LenCard>=KeyPos)
 
-                       if (strcmpi(Card(KeyPos),'='))
+                       % HEASARCH long keys
+                       if strcmpi(Card(1:8),'HIERARCH')
+                           Card=Card(10:end);
+                           KeyPos = strfind(Card,'=');
+                           KeyPos=KeyPos(1); % error if = is missing
+                       end
+
+                       if strcmpi(Card(KeyPos),'=') || strcmpi(Card(1:8),'CONTINUE') 
                            HeadCell{Ikey,1}  = tools.string.spacedel(Card(1:KeyPos-1));
-                           % update comment position due to over flow
-                           Islash = strfind(Card(ComPos:end),'/');
-                           if (isempty(Islash))
+                           % Normally, the comment should start at column
+                           %  32. However, Value may be a long string, and
+                           %  the delimiting slash may be moved further.
+                           %  Moreover, the long string may contain itself
+                           %  a slash (e.g., in a path). In this case the 
+                           %  string starts with a quote, and we
+                           %  must first search for the closing quote.
+                           PosAp = strfind(Card(KeyPos+1:end),'''');
+                           % Update comment position due to over flow
+                           Islash = strfind(Card(1:end),'/');
+                           if (isempty(Islash)) && length(PosAp)<2
                                UpdatedComPos = ComPos;
                            else
-                               UpdatedComPos = ComPos + Islash(1)-1;
+                               if length(PosAp)>=2
+                                   if isempty(Islash)
+                                       UpdatedComPos = max(ComPos,KeyPos+1+PosAp(2));
+                                   else
+                                       UpdatedComPos = Islash(Islash>KeyPos+1+PosAp(2));
+                                   end
+                               else
+                                   UpdatedComPos = Islash(1);
+                               end
                            end
-                           Value = Card(KeyPos+1:min(LenCard,UpdatedComPos-1));
+                           if ~isempty(UpdatedComPos)
+                               Value = Card(KeyPos+1:min(LenCard,UpdatedComPos-1));
+                           else
+                               % long string and no comment (e.g.
+                               %  continuing)
+                               Value = Card(KeyPos+1:end);
+                           end
                            PosAp = strfind(Value,'''');
 
                            if (isempty(PosAp))
@@ -157,8 +192,8 @@ classdef FITS < handle
                                end
                            else
                                if (length(PosAp)>=2)
-                                   % a string
-                                   Value = strtrim(Value(PosAp(1)+1:PosAp(2)-1));
+                                   % a string-am
+                                   Value = Value(PosAp(1)+1:PosAp(2)-1);
                                else
                                    Value = Card(PosAp(1)+10:end);
                                end
@@ -166,7 +201,7 @@ classdef FITS < handle
 
                            HeadCell{Ikey,2}  = Value; %Card(KeyPos+1:min(LenCard,ComPos-1));
                            if (LenCard>UpdatedComPos)
-                               HeadCell{Ikey,3}  = Card(UpdatedComPos+1:end);
+                               HeadCell{Ikey,3}  = strtrim(Card(UpdatedComPos+1:end));
                            else
                                HeadCell{Ikey,3}  = '';
                            end
@@ -176,22 +211,63 @@ classdef FITS < handle
 
                    % look for history and comment keywords
                    if numel(Card) > 6
-                       if (strcmpi(Card(1:7),'HISTORY'))
+                       if strcmpi(Card(1:7),'HISTORY')
                            HeadCell{Ikey,1} = 'HISTORY';
                            HeadCell{Ikey,2} = Card(KeyPos:end);
                            HeadCell{Ikey,3} = '';
                        end
-                       if (strcmpi(Card(1:7),'COMMENT'))
+                       if strcmpi(Card(1:7),'COMMENT')
                            HeadCell{Ikey,1} = 'COMMENT';
-                           HeadCell{Ikey,2} = Card(KeyPos:end);
+                           HeadCell{Ikey,2} = Card(KeyPos+2:end);
                            HeadCell{Ikey,3} = '';
                        end
+                   end
+                   if numel(Card) > 7
+                       % HEASARCH (sic) continuation lines, append content
+                       %   to the previous record, and then empty the
+                       %   current one (which will be removed later)
+                       % I think this will work only for string values
+                       if strcmpi(Card(1:8),'CONTINUE')
+                           ValuePart = HeadCell{LastBegunKey,2};
+                           if strcmp(ValuePart(end),'&')
+                               ValuePart=ValuePart(1:end-1);
+                           end
+                           CommPart = HeadCell{LastBegunKey,3};
+                           if ~isempty(CommPart) && strcmp(CommPart(end),'&')
+                               CommPart=CommPart(1:end-1);
+                           end
+                           HeadCell{LastBegunKey,2} = [ValuePart,HeadCell{Ikey,2}];
+                           HeadCell{LastBegunKey,3} = [CommPart,HeadCell{Ikey,3}];
+                           HeadCell{Ikey,1} = [];
+                           HeadCell{Ikey,2} = [];
+                           HeadCell{Ikey,3} = [];
+                       else
+                           LastBegunKey = Ikey;
+                       end
+                       
                    end
                 end
 
             end
             matlab.io.fits.closeFile(Fptr);
-            
+
+            % remove HeadCell records which are all empty, which result
+            %  either from blank lines in the header, comments with no key,
+            %  or after continuing lines have been joined
+            %  -- How, compactly?
+            emptyRecord=false(1,Nkey);
+            for i=1:Nkey
+                emptyRecord(i)=isempty(HeadCell{i,1}) & ...
+                               isempty(HeadCell{i,2}) & ...
+                               isempty(HeadCell{i,3});
+                % trim also string values here. We couldn't have done it
+                %  earlier, because we handled continuing strings, which may
+                %  have been split at space positions
+                if ischar(HeadCell{i,2})
+                    HeadCell{i,2}=strtrim(HeadCell{i,2});
+                end
+            end
+            HeadCell=HeadCell(~emptyRecord,:);
         end
         
         function [Image, HeadCell, Nhdu] = read1(FileName, HDUnum, Args)

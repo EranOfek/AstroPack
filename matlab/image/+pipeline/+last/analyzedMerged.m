@@ -26,17 +26,24 @@ function [Result] = analyzedMerged(Args)
 
         Args.MagField              = 'MAG_PSF';
         Args.MagErrField           = 'MAGERR_PSF'
+        Args.RAField               = 'RA';
+        Args.DecField              = 'Dec';
 
         Args.searchFlaresArgs cell = {};
         Args.ThresholdPS           = 12;
         Args.BinSize               = 1;
-        Args.Nsigma                = 6;
+        Args.NsigmaRMS             = 4;
         Args.MinDetRMS             = 15;
         Args.SNField               = 'SN_3';
         Args.MinFlareSN            = 8;
         Args.LimMagQuantile        = 0.99;
         Args.BadFlags              = {'Overlap','NearEdge','CR_DeltaHT','Saturated','NaN','Negative'};
     end
+
+    RAD = 180./pi;
+
+    OrbEl  = celestial.OrbitalEl.loadSolarSystem('merge');
+    INPOP  = celestial.INPOP.init;
 
     if isempty(Args.D)
         D = pipeline.DemonLAST;
@@ -59,9 +66,10 @@ function [Result] = analyzedMerged(Args)
         Nvisit = numel(AllCons{Icons});
 
         % for each group of visits
-        for Igroup=1:Args.StepNvisit:Nvisit
+        for Igroup=1:Args.StepNvisit:Nvisit-1
             % group to analyze:
             Group = AllCons{Icons}(Igroup:Igroup+Args.Nvisit-1);
+          
             Ng    = numel(Group);
 
             % for each CropID
@@ -70,91 +78,167 @@ function [Result] = analyzedMerged(Args)
 
                 Ic = Args.CropID(Icrop);
 
+                
                 for Ig=1:1:Ng
                     Icc = find(Group(Ig).CropID==Ic);
-                    cd(Group(Ig).Path);
-                    MS(Ig) = MatchedSources.read(Group(Ig).AllFiles{Icc});
+                    if ~isempty(Icc)
+                        cd(Group(Ig).Path);
+                        MS(Ig) = MatchedSources.read(Group(Ig).AllFiles{Icc});
+                    end
                 end
 
-                MS  = MS.mergeByCoo(MS(1), 'SearchRadius',Args.SearchRadius, 'SearchRadiusUnits',Args.SearchRadiusUnits);
-                Rzp = lcUtil.zp_meddiff(MS, 'MagField',Args.MagField', 'MagErrField',Args.MagErrField);
-                MS.applyZP(Rzp.FitZP);
+                % get file names 
+                MS_FileNames = {MS.FileName};
+
+                if numel(MS)==Args.Nvisit
+                    MS  = MS.mergeByCoo(MS(1), 'SearchRadius',Args.SearchRadius, 'SearchRadiusUnits',Args.SearchRadiusUnits);
+                    MS.FileName = MS_FileNames;
+                    
+                    Rzp = lcUtil.zp_meddiff(MS, 'MagField',Args.MagField', 'MagErrField',Args.MagErrField);
+                    MS.applyZP(Rzp.FitZP);
+                    Nobs = numel(MS.JD);
+    
+                    % Analyze the MS object
+    
+                    % flags
+                    [BadFlags] = searchFlags(MS, 'FlagsList',Args.BadFlags);
+                    Flag.GoodFlags = ~any(BadFlags, 1);
+    
+                    % search for flares
+                    [FlagFlares,FF] = searchFlares(MS, Args.MagField, Args.searchFlaresArgs{:});
+                    Flag.Flares = FlagFlares.Any;
+                    
+                    FlagMinSN = max(MS.Data.(Args.SNField),[],1)>Args.MinFlareSN;
+                    Flag.Flares = Flag.Flares(:) & FlagMinSN(:);
+    
+                    LimMagQuantile = quantile(MS.Data.(Args.MagField),0.99,2);
+    
+                    % periodicity
+                    FreqVec = timeSeries.period.getFreq(MS.JD, 'OverNyquist',0.4);
+                    [FreqVec, PS] = period(MS, FreqVec, 'MagField', Args.MagField);
+                    MaxPS = max(PS,[],1);
+                    Flag.PS = MaxPS>Args.ThresholdPS;
+    
+                    % rms
+                    MeanMag = median(MS.Data.(Args.MagField), 1, 'omitnan');
+                    StdMag  = std(MS.Data.(Args.MagField), [], 1, 'omitnan');
+                    Fn0 = StdMag>1e-10;
+                    
+
+                    B = timeSeries.bin.binningFast([MeanMag(Fn0).', StdMag(Fn0).'], Args.BinSize, [NaN NaN], {'MidBin', @median, @tools.math.stat.std_mad, @numel});
+                    % Remove points with less than 5 measurments
+                    B = B(B(:,4)>5,:);
 
 
-                % Analyze the MS object
-
-                % flags
-                [BadFlags] = searchFlags(MS, 'FlagsList',Args.BadFlags);
-                Flag.GoodFlags = ~any(BadFlags, 1);
-
-                % search for flares
-                [FlagFlares,FF] = searchFlares(MS, Args.MagField, Args.searchFlaresArgs{:});
-                Flag.Flares = FlagFlares.Any;
-                
-                FlagMinSN = max(MS.Data.(Args.SNField),[],1)>Args.MinFlareSN;
-                Flag.Flares = Flag.Flares(:) & FlagMinSN(:);
-
-                LimMagQuantile = quantile(MS.Data.(Args.MagField),0.99,2);
-
-                % periodicity
-                FreqVec = timeSeries.period.getFreq(MS.JD, 'OverNyquist',0.4);
-                [FreqVec, PS] = period(MS, FreqVec, 'MagField', Args.MagField);
-                MaxPS = max(PS,[],1);
-                Flag.PS = MaxPS>Args.ThresholdPS;
-
-                % rms
-                MeanMag = median(MS.Data.(Args.MagField), 1, 'omitnan');
-                StdMag  = std(MS.Data.(Args.MagField), [], 1, 'omitnan');
-                B = timeSeries.bin.binning([MeanMag(:), StdMag(:)], Args.BinSize, [NaN NaN], {'MidBin', @mean, @tools.math.stat.rstd, @numel});
-                MeanMagMean = interp1(B(:,1), B(:,2), MeanMag(:), 'linear','extrap');
-                MeanMagStd  = interp1(B(:,1), B(:,3), MeanMag(:), 'linear','extrap');
-                Ndet        = MS.countNotNanEpochs('Field',Args.MagField);
-                Flag.RMS    = StdMag(:)>( MeanMagMean(:) + Args.Nsigma.*MeanMagStd(:)) & Ndet(:)>Args.MinDetRMS;
-
-                % poly std
-
-
-                % asteroids
-                
-
-                % external catalogs
-
-
-
-                Flag.Interesting = Flag.GoodFlags(:) & ...
-                                  (Flag.Flares(:) | Flag.PS(:) | Flag.RMS(:));
-                
-                if sum(Flag.Interesting)>0
-                    [sum(Flag.Flares(:) & Flag.GoodFlags(:)),  sum(Flag.PS(:) & Flag.GoodFlags(:)), sum(Flag.RMS(:) & Flag.GoodFlags(:))]
-                    sum(Flag.Interesting)
-                    Ind = find(Flag.Interesting)
-                    %plot(MS.Data.MAG_PSF(:,205)
-
-                    Nvar = numel(Ind);
-                    for Ivar=1:1:Nvar
-                        Ind1 = Ind(Ivar);
-
-                        % Generate report
-                        figure(1)
-                        cla;
-                        MS.plotRMS;
-                        hold on;
-                        plot(MeanMag(Ind1), StdMag(Ind1),'ro')
-
-                        figure(2);
-                        cla;
-                        plot(FreqVec,PS(:,Ind1));
-
-                        figure(3);
-                        cla;
-                        plot(MS.JD(:), MS.Data.(Args.MagField)(:,Ind1), 'o','MarkerFaceColor','k');
-                        hold on;
-                        plot(MS.JD(:), LimMagQuantile, 'v')
-                        plot.invy
-
-                        'a'
+                    In0  = find(B(:,2)<1e-4,1,'first');
+                    if ~isempty(In0)
+                        try
+                        if In0==size(B,1)
+                            % 0 at faintestr mag
+                            B(In0,2) = B(In0-1,2);
+                        else
+                            B(1:In0,2) = B(In0+1,2);
+                        end
+                        catch ME
+                            'b'
+                        end
                     end
+                    
+                    % adding a bright point
+                    B = [[B(1,1)-10, B(1, 2:end)]; B];
 
+                    Bstd = B(:,2)./sqrt(Nobs);
+
+                    StdThreshold = interp1(B(:,1), B(:,2)+Bstd.*Args.NsigmaRMS, MeanMag(:), 'linear','extrap');
+                    %MeanMagMean = interp1(B(:,1), B(:,2), MeanMag(:), 'linear','extrap');
+                    %MeanMagStd  = interp1(B(:,1), B(:,3), MeanMag(:), 'linear','extrap');
+                    Ndet        = MS.countNotNanEpochs('Field',Args.MagField);
+                    %Flag.RMS    = StdMag(:)>( MeanMagMean(:) + Args.Nsigma.*MeanMagStd(:)) & Ndet(:)>Args.MinDetRMS;
+                    Flag.RMS    = StdMag(:)>StdThreshold & Ndet(:)>Args.MinDetRMS;
+    
+%R=imUtil.calib.fit_rmsCurve(MeanMag, StdMag)
+
+                    % poly std
+                    ThresholdDeltaChi2 = chi2inv(normcdf(4,0,1),2);  % 4 sigma detection of slope
+                    ResPolyHP = lcUtil.fitPolyHyp(MS, 'PolyDeg',{0, (0:1:2)});
+                    Flag.Poly = ResPolyHP(2).DeltaChi2>ThresholdDeltaChi2;
+                
+    
+    
+                    Flag.Interesting = Flag.GoodFlags(:) & ...
+                                      (Flag.Flares(:) | Flag.PS(:) | Flag.RMS(:) | Flag.Poly(:));
+                    
+                    if sum(Flag.Interesting)>0
+                        Ind = find(Flag.Interesting);
+    
+                        Nvar = numel(Ind);
+                        for Ivar=1:1:Nvar
+                            Ind1 = Ind(Ivar);
+    
+                            % Basic data
+                            VecRA  = MS.Data.(Args.RAField)(:,Ind1);
+                            VecDec = MS.Data.(Args.DecField)(:,Ind1);
+    
+                            RA  = median(VecRA,1,'omitnan');
+                            Dec = median(VecDec,1,'omitnan');
+                            Mag = median(MS.Data.(Args.MagField)(:,Ind1),1,'omitnan');
+                            MeanJD = median(MS.JD);
+    
+                            % Positional noise [deg]
+                            StdRA  = std(VecRA,[],1,'omitnan').*cosd(Dec);
+                            StdDec = std(VecDec,[],1,'omitnan');
+    
+    
+                            % external catalogs
+
+    
+                            % asteroids
+                            [AstTable] = searchMinorPlanetsNearPosition(OrbEl, MeanJD, RA, Dec, 10, 'INPOP',INPOP, 'ConeSearch',true);
+                            if AstTable.sizeCatalog>0 || any([StdRA.*3600, StdDec.*3600]>0.1)
+                                fprintf('Asteroid found or astrometric jitter\n');
+                                %AstTable.Table
+                            else
+    
+                                % Flares, PS, RMS, Poly
+                                %[sum(Flag.Flares(:) & Flag.GoodFlags(:)),  sum(Flag.PS(:) & Flag.GoodFlags(:)), sum(Flag.RMS(:) & Flag.GoodFlags(:)), sum(Flag.Poly(:) & Flag.GoodFlags(:))]
+                                [sum(Flag.Flares(Ind1) & Flag.GoodFlags(Ind1)),  sum(Flag.PS(Ind1) & Flag.GoodFlags(Ind1)), sum(Flag.RMS(Ind1) & Flag.GoodFlags(Ind1)), sum(Flag.Poly(Ind1) & Flag.GoodFlags(Ind1))]
+
+                                sum(Flag.Interesting)
+                                
+                                %plot(MS.Data.MAG_PSF(:,205)
+
+                                [URL]=VO.search.simbad_url(RA./RAD, Dec./RAD)
+                                web(URL.URL)
+                                
+                                [StdRA, StdDec].*3600
+                                
+                                
+    
+                                % Generate report
+                                figure(1)
+                                cla;
+                                MS.plotRMS;
+                                hold on;
+                                plot(B(:,1),B(:,2),'b-');
+                                plot(B(:,1),B(:,2)+Bstd.*Args.NsigmaRMS,'b-');
+                                plot(MeanMag(Ind1), StdMag(Ind1),'ro')
+
+        
+                                figure(2);
+                                cla;
+                                plot(FreqVec,PS(:,Ind1));
+        
+                                figure(3);
+                                cla;
+                                plot(MS.JD(:), MS.Data.(Args.MagField)(:,Ind1), 'o','MarkerFaceColor','k');
+                                hold on;
+                                plot(MS.JD(:), LimMagQuantile, 'v')
+                                plot.invy
+    
+                                'a'
+                            end
+                        end
+                    end
 
                     
                 end

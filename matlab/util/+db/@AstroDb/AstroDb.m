@@ -101,9 +101,13 @@ classdef AstroDb < Component
                 Args.DatabaseName  = 'lastdb'        % 'last_operational' at last0 node
                 Args.UserName      = ''      % User name
                 Args.Password      = ''      % Password
-                Args.ReadConfig    = false;  % read config from a local config file or create an object with the given parameters                
+                Args.ReadConfig    = false;  % read config from a local config file or create an object with the given parameters  
+                Args.ReloadConfig  = false;
+                Args.PWFile        = '~/.astropack/Passwords.yml';
             end
-            C = Configuration; C.loadFile('~/.astropack/Passwords.yml'); % tell the PM where to look for passwords
+            if Args.ReloadConfig                
+                Configuration.getSingleton().loadFile(Args.PWFile); % tell the PM where to look for passwords
+            end
             PM = PasswordsManager;
             try
                 Args.UserName = PM.search(Args.DatabaseName).User;

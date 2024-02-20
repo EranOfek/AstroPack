@@ -1066,6 +1066,40 @@ classdef MovingSource < Component
 
     end
 
+    methods % extended sources
+        % Fit PSF vs. extended PSF
+        function psfFitExtended(Obj, Args)
+            % Fit PSF and extended PSF to all stamps and search for extended sources
+            %
+            %
+            
+            arguments
+                Obj
+                Args.SersicPar              = [1 1 1];
+                Args.psfFirPhotArgs cell    = {};
+            end
+        
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Nstamp = numel(Obj(Iobj).Stamps);
+                for Istamp=1:1:Nstamp
+                    if ~isempty(Obj(Iobj).Stamps(Istamp).Image)
+                        [~, Result] = psfFitPhot(Obj(Iobj).Stamps(Istamp), Args.psfFirPhotArgs{:});
+                        
+                        PSF = Obj(Iobj).Stamps(Istamp).PSFData.getPSF();
+                        % extened PSF by convolving
+                        Extend = imUtil.kernel2.sersic(Args.SersicPar);
+                        ExtendedPSF = conv2(PSF, Extend, 'same');
+                        [~, ResultExt] = psfFitPhot(Obj(Iobj).Stamps(Istamp), Args.psfFirPhotArgs{:}, 'PSF',ExtendedPSF);
+                    end
+                end
+            end
+        end
+        
+        
+    end
+    
+    
     methods % display and plot
         function Info=dispInfo(Obj, Args)
             % Display moving source information on screen
@@ -1158,7 +1192,38 @@ classdef MovingSource < Component
             end
 
         end
-    
+        
+        function Table=summary(Obj)
+            % Get summary for all the moving sources
+            %   Return a table with summary line per Moving source element.
+            % Input  : - self.
+            % Output : - A summary table.
+            % Author : Eran Ofek (Feb 2024)
+            % Example: MP.summary
+            
+            ColNames = {'JD','RA','Dec','PM_RA','PM_Dec','Mag','Mean_SN_3','TdistProb','FLGAS','MaergedCatMask','Desig','DistMP','MagMP'};
+            Ncol     = numel(ColNames);
+            Nobj = numel(Obj);
+            Summary = cell(Nobj, Ncol);
+            
+            for Iobj=1:1:Nobj
+                Summary(Iobj,:) = {Obj(Iobj).JD, Obj(Iobj).RA, Obj(Iobj).Dec,...
+                                   Obj(Iobj).PM_RA, Obj(Iobj).PM_Dec,...
+                                   Obj(Iobj).Mag,...
+                                   Obj(Iobj).MergedCat.Table.Mean_SN_3,...
+                                   Obj(Iobj).MergedCat.Table.PM_TdistProb,...
+                                   Obj(Iobj).MergedCat.Table.FLAGS,...
+                                   Obj(Iobj).MergedCat.Table.MergedCatMask,...
+                                   Obj(Iobj).KnownAst.Table.Desig,...
+                                   Obj(Iobj).KnownAst.Table.Dist,...
+                                   Obj(Iobj).KnownAst.Table.Mag};
+                               
+            end
+            Table = cell2table(Summary);
+            Table.Properties.VariableNames = ColNames;
+        end
+        
+        
         function blink1(Obj, Args)
             % Display stamps along with sources, asteroid, and known minor planets positions and blink
             %   the images.

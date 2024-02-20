@@ -653,8 +653,8 @@ classdef DemonLAST < Component
             T         = T(Iu,:);
 
             % remove overlapping times
-            FlagDup = T.StartJD(2:end) < T.EndJD(1:end-1);
-            T       = T(~FlagDup,:);
+          %  FlagDup = T.StartJD(2:end) < T.EndJD(1:end-1);
+          %  T       = T(~FlagDup,:);
 
             FID = fopen(OutFile,'w');
             Nt = size(T,1);
@@ -1177,7 +1177,7 @@ classdef DemonLAST < Component
                 DirMonth = io.files.dirDir();
                 Nm      = numel(DirMonth);
                 for Im=1:1:Nm
-                    cd(DirMonth(Iy).name);
+                    cd(DirMonth(Im).name);
                     
                     DirDay = io.files.dirDir();
                     Nd = numel(DirDay);
@@ -1189,6 +1189,7 @@ classdef DemonLAST < Component
                         DirVisit = io.files.dirDir();
                         Nv = numel(DirVisit);
                         for Iv=1:1:Nv
+                            %[Iy, Im, Id, Iv, Ind]
                             cd(DirVisit(Iv).name);
                             Ind = Ind + 1;
                             Files = dir(Args.FileTemp);
@@ -1268,7 +1269,7 @@ classdef DemonLAST < Component
                 ListF = List(IndF);
 
                 DiffTime = [diff(AllJD(IndF)); Inf];
-                FlagConsecutive = DiffTime < Args.MaxTimeBetweenVisits;
+                FlagConsecutive = abs(DiffTime) < Args.MaxTimeBetweenVisits;
 
                 [ListConsecutive] = tools.find.findListsOfConsecutiveTrue(FlagConsecutive);
                 Ncons = numel(ListConsecutive);
@@ -2117,6 +2118,7 @@ classdef DemonLAST < Component
                 Args.DB_ImageBulk   logical = false; % whether to use bulk or direct injection method
                 Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};
+                Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
                 
                 Args.HostName          = []; 
 
@@ -2130,7 +2132,7 @@ classdef DemonLAST < Component
             end
             RAD = 180./pi;
 
-            
+            Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
 
             % if isempty(getenv('SYSTEMD')) 
             %     % manual execuation
@@ -2352,7 +2354,7 @@ classdef DemonLAST < Component
                             tools.systemd.mex.notify_watchdog;
 
                             RunTime = etime(clock, Tstart);
-                            Msg{1} = sprintf('pipline.DemonLAST finish executing pipeline for group %d - start saving data / RunTime: %f', Igroup, RunTime);
+                            Msg{1} = sprintf('pipline.DemonLAST finished executing pipeline for group %d - start saving data / RunTime: %.1f', Igroup, RunTime);
                             Obj.writeLog(Msg, LogLevel.Info);
                             
                             %CoaddTransienst = imProc.cat.searchExternalCatOrphans(Coadd);
@@ -2369,6 +2371,10 @@ classdef DemonLAST < Component
                                                    'LevelPath','proc',...
                                                    'FindSubDir',true);
                             Obj.writeLog(Status, LogLevel.Info);
+                            
+                            RunTime = etime(clock, Tstart);
+                            Msg{1} = sprintf('pipline.DemonLAST finished saving PROC products group %d / RunTime: %.1f', Igroup, RunTime);
+                            Obj.writeLog(Msg, LogLevel.Info);
         
                             % the following call also update the Coadd.ImageData.FileName
                             [FN_Coadd,~,Status]=imProc.io.writeProduct(Coadd, FN_I, 'Product',UpArgs.SaveVisitProduct, 'WriteHeader',[true false true false],...
@@ -2376,13 +2382,17 @@ classdef DemonLAST < Component
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
                             Obj.writeLog(Status, LogLevel.Info);
+                                                        
+                            RunTime = etime(clock, Tstart);
+                            Msg{1} = sprintf('pipline.DemonLAST finished saving COADD products group %d / RunTime: %.1f', Igroup, RunTime);
+                            Obj.writeLog(Msg, LogLevel.Info);
 
                             [~,~,Status]=imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
                                                    'Save',UpArgs.SaveMergedCat,...
                                                    'Level','merged',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
-                            Obj.writeLog(Status, LogLevel.Info);
+                            Obj.writeLog(Status, LogLevel.Info);                            
 
                             [~,~,Status]=imProc.io.writeProduct(MatchedS, FN_I, 'Product',{'MergedMat'}, 'WriteHeader',[false],...
                                                    'Save',UpArgs.SaveMergedMat,...
@@ -2390,6 +2400,10 @@ classdef DemonLAST < Component
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir);
                             Obj.writeLog(Status, LogLevel.Info);
+                            
+                            RunTime = etime(clock, Tstart);
+                            Msg{1} = sprintf('pipline.DemonLAST finished saving Merged Cats and Matched sources for group %d / RunTime: %.1f', Igroup, RunTime);
+                            Obj.writeLog(Msg, LogLevel.Info);
 
                             if ~isempty(ResultAsteroids)
                                 SaveAst.MP = ResultAsteroids;
@@ -2412,6 +2426,10 @@ classdef DemonLAST < Component
                                                        'SubDir',FN_Proc.SubDir);
                                 Obj.writeLog(Status, LogLevel.Info);
                             end
+                            
+                            RunTime = etime(clock, Tstart);
+                            Msg{1} = sprintf('pipline.DemonLAST finished saving Asteroid data for group %d / RunTime: %.1f', Igroup, RunTime);
+                            Obj.writeLog(Msg, LogLevel.Info);
                             
                             % if CoaddTransienst.sizeCatalog>0
                             %     [~,~,Status]=imProc.io.writeProduct(CoaddTransienst, FN_I, 'Product',{'TransientsCat'}, 'WriteHeader',[false],...
@@ -2443,8 +2461,9 @@ classdef DemonLAST < Component
                                 % RAW, PROC, and COADD images
                                 if ~Args.DB_ImageBulk                                
                                     [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawImageListFinal);
-                                    Msg{1} = sprintf('Inserted images into LAST raw images table - success: %d', OK);
-                                    Obj.writeLog(Msg, LogLevel.Info);
+                                    RunTime = etime(clock, Tstart);
+                                    Msg{1} = sprintf('Inserted images into LAST raw images table - success: %d, RunTime %.1f', OK, RunTime);
+                                    Obj.writeLog(Msg, LogLevel.Info);                                     
                                     %
                                     HasImage = ~AllSI.isemptyImage; % use only AI's with Image properties filled
                                     ProcFileName = FN_Proc.genFull;
@@ -2453,13 +2472,15 @@ classdef DemonLAST < Component
                                     [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage),'Hash',0);  % w/o hash                                                                                                                                                
                                     ID_RawImage = repmat(ID_RawImage,1,24); ID_RawImage = ID_RawImage(:); % there are ~N*24 ProcImages, and only N RawImages
                                     OKupd = ADB.updateByTupleID(ID_ProcImage, 'raw_image_id', ID_RawImage, 'Table',Args.DB_Table_Proc);
-                                    Msg{1} = sprintf('Insert images to LAST proc images table - success: %d', OK);
+                                    RunTime = etime(clock, Tstart);
+                                    Msg{1} = sprintf('Insert images to LAST proc images table - success: %d, RunTime %.1f', OKupd, RunTime);
                                     Obj.writeLog(Msg, LogLevel.Info);
                                     %
                                     HasImage = ~Coadd.isemptyImage; % use only AI's with Image properties filled
                                     CoaddFileName = FN_Coadd.genFull('LevelPath','proc');
                                     [ID_CoaddImage, OK] = ADB.insert(Coadd(HasImage), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImage),'Hash',0); % w/o hash
-                                    Msg{1} = sprintf('Insert images to LAST coadd images table - success: %d', OK);
+                                    RunTime = etime(clock, Tstart);                                    
+                                    Msg{1} = sprintf('Insert images to LAST coadd images table - success: %d, RunTime %.1f', OK, RunTime);
                                     Obj.writeLog(Msg, LogLevel.Info);                                    
                                 else % prepare CSV files for further injection into the DB                                                                          
                                     ADB.insert(RawHeader,'Type','bulkima', 'BulkFN',FN_I,    'BulkCatType','raw');
@@ -2468,7 +2489,8 @@ classdef DemonLAST < Component
                                     
                                     FN_I_DB = FN_I.copy; OK = 1; 
                                     Obj.writeStatus(FN_I_DB.genPath, 'Msg', 'ready-for-DB'); 
-                                    Msg{1} = sprintf('CSV files with image header data written to disk');
+                                    RunTime = etime(clock, Tstart);
+                                    Msg{1} = sprintf('CSV files with image header data written to disk, RunTime %.1f', RunTime);
                                     Obj.writeLog(Msg, LogLevel.Info);
                                 end                                
                                 % PROC and COADD catalogs 
@@ -2479,7 +2501,8 @@ classdef DemonLAST < Component
                                     ADB.insert(CoaddCat,'Type','bulkcat', 'BulkFN',FN_Coadd,'BulkCatType','coadd','BulkAI',Coadd(1));
                                     FN_CatProc = FN_Proc.copy;
                                     Obj.writeStatus(FN_CatProc.genPath, 'Msg', 'ready-for-DB'); 
-                                    Msg{1} = sprintf('CSV files with catalog data written to disk');
+                                    RunTime = etime(clock, Tstart);
+                                    Msg{1} = sprintf('CSV files with catalog data written to disk, RunTime %.1f', RunTime);                                    
                                     Obj.writeLog(Msg, LogLevel.Info);
                                 else                   % insert PROC and COADD catalog data into the appropriate DB tables
                                     ADB.insert(ProcCat, 'Table',Args.DB_Table_ProcCat, 'Type','cat');
