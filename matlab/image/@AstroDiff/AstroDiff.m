@@ -229,114 +229,6 @@ classdef AstroDiff < AstroImage
            
        end
     
-        function ADc = cutouts(Obj, Args)
-            % Create cutouts of images around coordinates.
-            %    Given an AstroZOGY/AstroDiff object, generate a new object
-            %    (the same class as the input class), populated with image
-            %    cutouts around selected coordinates.
-            % Input  : - An AstroDiff/AstroZOGY object.
-            %          * ...,key,val,...
-            %            'XY' - A matrix of [X, Y] coordinates. The cutouts will be
-            %                    generated around these positions.
-            %                    If empty, then use getXY on the AstroDiff.CatData
-            %                    AstroCatalog object.
-            %                    Default is [].
-            %            'HalfSize' - Half size of cutouts.
-            %                    Default is 25.
-            %            'CropNew' - Logical indicating if to populate the crop
-            %                    of the New image. Default is true.
-            %            'CropRef' - Logical indicating if to populate the crop
-            %                    of the Ref image. Default is true.
-            %            'CropSub' - Logical indicating if to populate the crop
-            %                    of the difference image. Default is true.
-            %            'CreateNewObj' - A logical indicating if to create
-            %                    a new object of the crop object.
-            %                    Default is true.
-            %            'CropProp' - A cell array of additional properties
-            %                    to populate and crop (will be done only if
-            %                    property exist).
-            %                    Default is {'Z2','S','Scorr'}.
-            % Output : - An AstroDiff/AstroZOGY object with element per
-            %            cutout.
-            % Author : Eran Ofek (Feb 2024)
-            % Example: ADc = AD.cutouts;
-            
-            arguments
-                Obj
-                Args.XY                = [];
-                Args.HalfSize          = 25;
-                
-                Args.CropNew logical   = true;
-                Args.CropRef logical   = true;
-                Args.CropSub logical   = true;
-                
-                Args.CreateNewObj logical   = true;
-                
-                Args.CropProp               = {'Z2','S','Scorr'};
-            end
-            
-            NcropProp = numel(Args.CropProp);
-
-            % Cast class of object to cutout objects
-            ADc = feval(class(Obj));
-
-            Nobj = numel(Obj);
-            IndC = 0;
-            for Iobj=Nobj:-1:1
-                
-                % Skip empty catalogs
-                sizeCat = size(Obj(Iobj).CatData.Catalog,1);
-                if sizeCat == 0
-                    continue;
-                end
-                
-                if isempty(Args.XY)
-                    % get coordinates from AstroCatalog object
-                    XY = Obj(Iobj).CatData.getXY;                   
-                else
-                    XY = Args.XY;
-                end
-                
-                Nxy = size(XY, 1);
-                for Ixy=1:1:Nxy
-                    IndC = IndC + 1;
-                    Pos = [XY(Ixy,:), Args.HalfSize, Args.HalfSize];
-                    if Args.CropSub
-                        ADc(IndC) = Obj(Iobj).crop(Pos,...
-                                         'Type','center',...
-                                         'UpdateCat',true,...
-                                         'UpdateWCS',true,...
-                                         'CreateNewObj',Args.CreateNewObj);
-                    end
-                    
-                    if Args.CropNew
-                        ADc(IndC).New = Obj(Iobj).New.crop(Pos,...
-                                                     'Type','center',...
-                                                     'UpdateCat',true,...
-                                                     'UpdateWCS',true,...
-                                                     'CreateNewObj',Args.CreateNewObj);
-                    end
-                    
-                    if Args.CropRef
-                        ADc(IndC).Ref = Obj(Iobj).Ref.crop(Pos,...
-                                                     'Type','center',...
-                                                     'UpdateCat',true,...
-                                                     'UpdateWCS',true,...
-                                                     'CreateNewObj',Args.CreateNewObj);
-                    end
-                    
-                    % Cut additional properties
-                    for Icp=1:1:NcropProp
-                        if isprop(Obj(Iobj), Args.CropProp{Icp})
-                            ADc(IndC).(Args.CropProp{Icp}) = ...
-                                imUtil.cut.trim(Obj(Iobj).(Args.CropProp{Icp}), Pos, 'center');
-                        end
-                    end
-                    
-                end
-                
-            end
-        end
             
     end
 
@@ -897,6 +789,25 @@ classdef AstroDiff < AstroImage
         % matchTransients2Cats
         function matchTransients2Cats(Obj, Args)
             %{
+            Matches transients candidates to external catalogs by calling
+              AD.matchMergedCat, AD.matchGalaxyCat, AD.matchStarCat, and
+              AD.matchSolarSystemCat.
+            Input  : - An AstroDiff object in which CatData is populated.
+                     * ...,key,val,...
+                       'matchMergedCatArgs' - Cell of arguments to be given
+                              to AD.matchMergedCat. Default is the same as
+                              AD.matchMergedCat.
+                       'matchGalaxyCatArgs' - Cell of arguments to be given
+                              to AD.matchGalaxyCat. Default is the same as
+                              AD.matchGalaxyCat.
+                       'matchStarCatArgs' - Cell of arguments to be given
+                              to AD.matchStarCat. Default is the same as
+                              AD.matchStarCat.
+                       'matchSolarSystemArgs' - Cell of arguments to be given
+                              to AD.matchSolarSystemCat. Default is the same as
+                              AD.matchSolarSystemCat.
+            Author : Ruslan Konno (Feb 2024)
+            Example: AD.matchTransients2Cats
             %}
             arguments
                 Obj
@@ -1099,7 +1010,17 @@ classdef AstroDiff < AstroImage
         % matchSolarSystemCat
         function matchSolarSystemCat(Obj, Args)
             %{
-            Match catalog to solar system objects and add information to CatData
+            Matches transients candidates to an external catalog for solar 
+              system objects, then adds information to CatData.
+            Input  : - An AstroDiff object in which CatData is populated.
+                     * ...,key,val,...
+                       'ColDistName' - Name of column with the angular 
+                              distance to the closest match. Default is
+                              'SolarDist.'
+                       'ColNmatchName' - Name of columns with number of 
+                              matches. Default is 'SolarMatches.'
+            Author : Ruslan Konno (Feb 2024)
+            Example: AD.matchSolarSystemCat
             %}
 
             arguments
@@ -1124,7 +1045,17 @@ classdef AstroDiff < AstroImage
 
         function matchMergedCat(Obj, Args)
             %{
-            Match catalog to merged catalog and add information to CatData
+            Matches transients candidates to an external merged catalog,
+              then adds information to CatData.
+            Input  : - An AstroDiff object in which CatData is populated.
+                     * ...,key,val,...
+                       'ColDistName' - Name of column with the angular 
+                              distance to the closest match. Default is
+                              'MergedDist.'
+                       'ColNmatchName' - Name of columns with number of 
+                              matches. Default is 'MergedMatches.'
+            Author : Ruslan Konno (Feb 2024)
+            Example: AD.matchMergedCat
             %}
 
             arguments
@@ -1154,9 +1085,20 @@ classdef AstroDiff < AstroImage
         
         % matchGalaxyCat
         function matchGalaxyCat(Obj, Args)
-            %{ 
-            Match catalog to galaxy catalogs and add information to CatData
-            %} 
+            %{
+            Matches transients candidates to an external catalog of galaxies,
+              then adds information to CatData.
+            Input  : - An AstroDiff object in which CatData is populated.
+                     * ...,key,val,...
+                       'ColDistName' - Name of column with the angular 
+                              distance to the closest match. Default is
+                              'GalaxyDist.'
+                       'ColNmatchName' - Name of columns with number of 
+                              matches. Default is 'GalaxyMatches.'
+            Author : Ruslan Konno (Feb 2024)
+            Example: AD.matchGalaxyCat
+            %}
+
             arguments
                 Obj
 
@@ -1182,9 +1124,20 @@ classdef AstroDiff < AstroImage
         
         % matchStarCat
         function matchStarCat(Obj, Args)
-            %{ 
-            Match catalog to star/galaxy catalogs and add information to CatData
+            %{
+            Matches transients candidates to an external catalog of stars,
+              then adds information to CatData.
+            Input  : - An AstroDiff object in which CatData is populated.
+                     * ...,key,val,...
+                       'ColDistName' - Name of column with the angular 
+                              distance to the closest match. Default is
+                              'StarDist.'
+                       'ColNmatchName' - Name of columns with number of 
+                              matches. Default is 'StarMatches.'
+            Author : Ruslan Konno (Feb 2024)
+            Example: AD.matchStarCat
             %}
+
             arguments
                 Obj
                 
@@ -1210,9 +1163,117 @@ classdef AstroDiff < AstroImage
     end
     
     methods % transients inspection and measurment
-        % transientsCutouts
-        % Generate an AstroDiff of cutouts around transients
 
+        % transientsCutouts
+        function ADc = transientsCutouts(Obj, Args)
+            % Create cutouts of images around coordinates.
+            %    Given an AstroZOGY/AstroDiff object, generate a new object
+            %    (the same class as the input class), populated with image
+            %    cutouts around selected coordinates.
+            % Input  : - An AstroDiff/AstroZOGY object.
+            %          * ...,key,val,...
+            %            'XY' - A matrix of [X, Y] coordinates. The cutouts will be
+            %                    generated around these positions.
+            %                    If empty, then use getXY on the AstroDiff.CatData
+            %                    AstroCatalog object.
+            %                    Default is [].
+            %            'HalfSize' - Half size of cutouts.
+            %                    Default is 25.
+            %            'CropNew' - Logical indicating if to populate the crop
+            %                    of the New image. Default is true.
+            %            'CropRef' - Logical indicating if to populate the crop
+            %                    of the Ref image. Default is true.
+            %            'CropSub' - Logical indicating if to populate the crop
+            %                    of the difference image. Default is true.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                    a new object of the crop object.
+            %                    Default is true.
+            %            'CropProp' - A cell array of additional properties
+            %                    to populate and crop (will be done only if
+            %                    property exist).
+            %                    Default is {'Z2','S','Scorr'}.
+            % Output : - An AstroDiff/AstroZOGY object with element per
+            %            cutout.
+            % Author : Eran Ofek (Feb 2024)
+            % Example: ADc = AD.cutouts;
+            
+            arguments
+                Obj
+                Args.XY                = [];
+                Args.HalfSize          = 25;
+                
+                Args.CropNew logical   = true;
+                Args.CropRef logical   = true;
+                Args.CropSub logical   = true;
+                
+                Args.CreateNewObj logical   = true;
+                
+                Args.CropProp               = {'Z2','S','Scorr'};
+            end
+            
+            NcropProp = numel(Args.CropProp);
+
+            % Cast class of object to cutout objects
+            ADc = feval(class(Obj));
+
+            Nobj = numel(Obj);
+            IndC = 0;
+            for Iobj=Nobj:-1:1
+                
+                % Skip empty catalogs
+                sizeCat = size(Obj(Iobj).CatData.Catalog,1);
+                if sizeCat == 0
+                    continue;
+                end
+                
+                if isempty(Args.XY)
+                    % get coordinates from AstroCatalog object
+                    XY = Obj(Iobj).CatData.getXY;                   
+                else
+                    XY = Args.XY;
+                end
+                
+                Nxy = size(XY, 1);
+                for Ixy=1:1:Nxy
+                    IndC = IndC + 1;
+                    Pos = [XY(Ixy,:), Args.HalfSize, Args.HalfSize];
+                    if Args.CropSub
+                        ADc(IndC) = Obj(Iobj).crop(Pos,...
+                                         'Type','center',...
+                                         'UpdateCat',true,...
+                                         'UpdateWCS',true,...
+                                         'CreateNewObj',Args.CreateNewObj);
+                    end
+                    
+                    if Args.CropNew
+                        ADc(IndC).New = Obj(Iobj).New.crop(Pos,...
+                                                     'Type','center',...
+                                                     'UpdateCat',true,...
+                                                     'UpdateWCS',true,...
+                                                     'CreateNewObj',Args.CreateNewObj);
+                    end
+                    
+                    if Args.CropRef
+                        ADc(IndC).Ref = Obj(Iobj).Ref.crop(Pos,...
+                                                     'Type','center',...
+                                                     'UpdateCat',true,...
+                                                     'UpdateWCS',true,...
+                                                     'CreateNewObj',Args.CreateNewObj);
+                    end
+                    
+                    % Cut additional properties
+                    for Icp=1:1:NcropProp
+                        if isprop(Obj(Iobj), Args.CropProp{Icp})
+                            ADc(IndC).(Args.CropProp{Icp}) = ...
+                                imUtil.cut.trim(Obj(Iobj).(Args.CropProp{Icp}), Pos, 'center');
+                        end
+                    end
+                    
+                end
+                
+            end
+        end
+        
         % mergeTransients
         % Given multiple AstroDiff objects, search for transients that have similar positions
         %   and merge them [The meaning of the merged prodict is not clear:
