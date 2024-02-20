@@ -6,67 +6,85 @@ function TranCat=findTransients(AD, Args)
     AD.CatData.
     Input   : - An AstroDiff object in which the threshold image is
                 populated.
-             * ...,key,val,...
-               'HalfSizePSF' - Half size of area on transients positions in 
-                        image. Actual size will be 1+2*HalfSizePSF. Used to cut out 
-                        an image area to perform PSF photometry on.
-                        Default is 7.
-               'Threshold' - Threshold to be applied to the threshold image. Search
-                        for local maxima only above this threshold. Default is 5.
-            'findLocalMaxArgs' - Args passed into imUtil.sources.findLocalMax()
-                when looking for local maxima.
-                Default is {}.
-            'BitCutHalfSize' - Half size of area on transients positions in 
-                image bit masks. Actual size will be 1+2*BitCutHalfSize. Used
-                to retrieve bit mask values around transient positions.
-                Default is 3.
-            'psfPhotCubeArgs' - Args passed into imUtil.sources.psfPhotCube when
-                performing PSF photometry on AD, AD.New, and AD.Ref cut outs.
-                Default is {}.
+              * ...,key,val,...
+                'Threshold' - Threshold to be applied to the threshold image. Search
+                       for local maxima only above this threshold. Default is 5.
+                'findLocalMaxArgs' - Args passed into imUtil.sources.findLocalMax()
+                       when looking for local maxima. Default is {}.
+                'includePsfFit' - Bool on whether to perform PSF photometry 
+                       on images AD, AD.New, and AD.Ref. Include results in catalog.
+                       Default is true.
+                'HalfSizePSF' - Half size of area on transients positions in 
+                       image. Actual size will be 1+2*HalfSizePSF. Used to cut out 
+                       an image area to perform PSF photometry on.
+                       Default is 7.
+                'psfPhotCubeArgs' - Args passed into imUtil.sources.psfPhotCube when
+                       performing PSF photometry on AD, AD.New, and AD.Ref cut outs.
+                       Default is {}.
+                'includeBitMaskVal' - Bool on whether to retrieve bit mask
+                       values from AD.New and AD.Ref, and add to catalog.
+                       Default is true.
+                'BitCutHalfSize' - Half size of area on transients positions in 
+                       image bit masks. Actual size will be 1+2*BitCutHalfSize. Used
+                       to retrieve bit mask values around transient positions.
+                       Default is 3.
+                'includeSkyCoord' - Bool on whether to retrieve sky
+                       coordinates from AD.New and add to catalog. Default
+                       is true.
+                'includeObsTime' - Bool on whether to retrieve observation
+                       times from AD.New and add to catalog. Default is true.
     Output  : - An AstroCatalog containing the found transients candidates
                 with the following columns;
                 .XPEAK - Image x-coordinate of the peak position.
                 .YPEAK - Image y-coordinate of the peak position.
-            .RA - Sky RA-coordinate of the peak position. In deg.
-            .Dec - Sky Dec-coordinate of the peak position. In deg.
-            .StarJD - Start of exposure time bin. In JD.
-            .MidJD - Center of exposure time bin. In JD.
-            .EndJD - End of exposure time bin. In JD.
-            .PSF_SNm - S/N for measurment in difference image, assuming 
-                gain=1 (Poisson errors).
-            .Chi2_D - Chi2 per degrees of freedom of PSF fit to difference
-                image.
-            .NewMaskVal - Array of bit mask values in new image around peak 
-                position within area defined by 'BitCutHalfSize.'
-            .RefMaskVal - Array of bit mask values in reference image around
-                peak position within area defined by 'BitCutHalfSize.'
-            .Score - Peak value of the threshold image.
-            .N_SNm - S/N for measurment in new image, assuming 
-                gain=1 (Poisson errors).
-            .N_Chi2dof - Chi2 per degrees of freedom of PSF fit to new
-                image.
-            .N_Flux - Flux on peak position in new image. In electrons.
-            .N_Mag - Magnitude on peak position in new image.
-            .R_SNm - S/N for measurment in reference image, assuming 
-                gain=1 (Poisson errors).
-            .R_Chi2dof - Chi2 per degrees of freedom of PSF fit to
-                reference image.
-            .R_Flux - Flux on peak position in reference image. In
-                electrons.
-            .R_Mag - Magnitude on peak position in reference image.
+                .RA - Sky RA-coordinate of the peak position. In deg.
+                .Dec - Sky Dec-coordinate of the peak position. In deg.
+                .StarJD - Start of exposure time bin. In JD.
+                .MidJD - Center of exposure time bin. In JD.
+                .EndJD - End of exposure time bin. In JD.
+                .PSF_SNm - S/N for measurment in difference image, assuming 
+                       gain=1 (Poisson errors).
+                .D_Chi2dof - Chi2 per degrees of freedom of PSF fit to difference
+                       image.
+                .NewMaskVal - Array of bit mask values in new image around peak 
+                       position within area defined by 'BitCutHalfSize.'
+                .RefMaskVal - Array of bit mask values in reference image around
+                       peak position within area defined by 'BitCutHalfSize.'
+                .Score - Peak value of the threshold image.
+                .N_SNm - S/N for measurment in new image, assuming 
+                       gain=1 (Poisson errors).
+                .N_Chi2dof - Chi2 per degrees of freedom of PSF fit to new
+                       image.
+                .N_Flux - Flux on peak position in new image. In electrons.
+                .N_Mag - Magnitude on peak position in new image.
+                .R_SNm - S/N for measurment in reference image, assuming 
+                       gain=1 (Poisson errors).
+                .R_Chi2dof - Chi2 per degrees of freedom of PSF fit to
+                       reference image.
+                .R_Flux - Flux on peak position in reference image. In
+                       electrons.
+                .R_Mag - Magnitude on peak position in reference image.
     Author  : Ruslan Konno (Jan 2024)
-    Example : imProc.sub.findTransients(AD)
+    Example : AD = AstroZOGY('LAST*.fits','LAST*1*.fits');
+              AD.subtractionD;
+              AD.subtractionS;
+              imProc.sub.findTransients(AD);
     %}
     arguments
         AD AstroDiff
 
-        Args.Threshold             = 5;
+        Args.Threshold                  = 5;
+        Args.findLocalMaxArgs cell      = {};
 
-        Args.HalfSizePSF           = 7;
-        Args.HalfSizeTS            = 5;
-        Args.findLocalMaxArgs cell = {};
-        Args.BitCutHalfSize        = 3;
-        Args.psfPhotCubeArgs cell  = {};
+        Args.includePsfFit logical      = true;
+        Args.HalfSizePSF                = 7;
+        Args.psfPhotCubeArgs cell       = {};
+
+        Args.includeBitMaskVal logical  = true;
+        Args.BitCutHalfSize             = 3;
+
+        Args.includeSkyCoord logical    = true;
+        Args.includeObsTime logical     = true;
     end
 
     Nobj = numel(AD);
@@ -88,86 +106,104 @@ function TranCat=findTransients(AD, Args)
         LocalMax = [PosLocalMax; NegLocalMax];
         Nsrc     = size(LocalMax,1);
 
-        % get Mask values within cutouts around pos/neg transients candidates
-        
-        NewMaskVal = AD(Iobj).New.MaskData.bitwise_cutouts(LocalMax(:,1:2), ...
-            'or', 'HalfSize',Args.BitCutHalfSize);
-        RefMaskVal = AD(Iobj).Ref.MaskData.bitwise_cutouts(LocalMax(:,1:2), ...
-            'or', 'HalfSize',Args.BitCutHalfSize);
-
-        % PSF fit all candidates in the D image
-        [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Image, LocalMax(:,1), LocalMax(:,2), Args.HalfSizePSF);
-        % Change the sign of negative sources
-        Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
-        Psf = imUtil.psf.full2stamp(AD(Iobj).PSFData.getPSF, 'StampHalfSize',Args.HalfSizePSF.*ones(1,2));
-        [ResultD, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', Psf, Args.psfPhotCubeArgs{:});
-    
-        % PSF fit all candidates in the New image
-        CutHalfSize = (size(AD(Iobj).New.PSFData.getPSF,1)-1).*0.5;
-        [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).New.Image, LocalMax(:,1), LocalMax(:,2), CutHalfSize);
-        % Change the sign of negative sources
-        Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
-        [ResultN, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', AD(Iobj).New.PSFData.getPSF, Args.psfPhotCubeArgs{:});
-    
-        % PSF fit all candidates in the Ref image
-        CutHalfSize = (size(AD(Iobj).Ref.PSFData.getPSF,1)-1).*0.5;
-        [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Ref.Image, LocalMax(:,1), LocalMax(:,2), CutHalfSize);
-        % Change the sign of negative sources
-        Cube = Cube.*reshape(-sign(LocalMax(:,3)), [1 1 Nsrc]);
-        [ResultR, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', AD(Iobj).Ref.PSFData.getPSF, Args.psfPhotCubeArgs{:});
-    
-        % Get chi2 per degrees of freedom of the PSF fit on the difference
-        % image.
-        Chi2dof = ResultD.Chi2./ResultD.Dof;
-
-        % Get RA/Dec coordinates in radians
-        [RA, Dec] = xy2sky(AD(Iobj).New.WCS, LocalMax(:,1), LocalMax(:,2));
-        RA = cast(RA,'double');
-        Dec = cast(Dec,'double');
-
-        % Get observation times from new image
-        [MidJD, ExpTime] = AD(Iobj).New.julday();
-
-        col_size = size(RA);
-        ExpTime_d = ExpTime/3600/24;
-        StartJD = MidJD-ExpTime_d/2;
-        EndJD = MidJD+ExpTime_d/2;
-
-        MidJD = MidJD*ones(col_size);
-        StartJD = StartJD*ones(col_size);
-        EndJD = EndJD*ones(col_size);
 
         % Construct AstroCatalog holding transints candidates
-        TranCat = AstroCatalog;
-       
-        TranCat.ColNames = {'XPEAK', 'YPEAK', 'RA', 'Dec',  ...
-            'StartJD', 'MidJD', 'EndJD',...
-            'PSF_SNm', 'Chi2_D', 'NewMaskVal', 'RefMaskVal',...
-            'Score', ...
-            'N_SNm', 'N_Chi2dof', 'N_Flux', 'N_Mag', ...
-            'R_SNm', 'R_Chi2dof', 'R_Flux', 'R_Mag',...
-            };
 
-        TranCat.Catalog  = table(LocalMax(:,1), LocalMax(:,2), RA, Dec, ...
-            StartJD, MidJD, EndJD,...
-            ResultD.SNm, Chi2dof,  NewMaskVal,  RefMaskVal, ...
-            LocalMax(:,3),...
-            ResultN.SNm, ResultN.Chi2./ResultN.Dof, ResultN.Flux, ResultN.Mag, ...
-            ResultR.SNm, ResultR.Chi2./ResultR.Dof, ResultR.Flux, ResultR.Mag... 
-            );
-
-        TranCat.ColUnits = {'','','deg','deg',...
-            'JD','JD','JD',...
-            '','','','',...
-            '',...
-            '','','e','mag',...
-            '','','e','mag',...
-            };
-
-
-        TranCat.Catalog.Properties.VariableNames = TranCat.ColNames;
-        TranCat.Catalog.Properties.VariableUnits = TranCat.ColUnits;
+        ColNames = {'XPEAK', 'YPEAK', 'Score'};
+        ColUnits = {'','',''};
         
+        TranCat(Iobj) = AstroCatalog({cast([LocalMax(:,1), LocalMax(:,2), LocalMax(:,3)],'double')},...
+            'ColNames', ColNames, 'ColUnits', ColUnits);
+
+        if Args.includePsfFit
+
+            % PSF fit all candidates in the D image
+            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Image, LocalMax(:,1), LocalMax(:,2), Args.HalfSizePSF);
+            % Change the sign of negative sources
+            Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
+            Psf = imUtil.psf.full2stamp(AD(Iobj).PSFData.getPSF, 'StampHalfSize',Args.HalfSizePSF.*ones(1,2));
+            [ResultD, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', Psf, Args.psfPhotCubeArgs{:});
+        
+            % PSF fit all candidates in the New image
+            CutHalfSize = (size(AD(Iobj).New.PSFData.getPSF,1)-1).*0.5;
+            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).New.Image, LocalMax(:,1), LocalMax(:,2), CutHalfSize);
+            % Change the sign of negative sources
+            Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
+            [ResultN, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', AD(Iobj).New.PSFData.getPSF, Args.psfPhotCubeArgs{:});
+        
+            % PSF fit all candidates in the Ref image
+            CutHalfSize = (size(AD(Iobj).Ref.PSFData.getPSF,1)-1).*0.5;
+            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Ref.Image, LocalMax(:,1), LocalMax(:,2), CutHalfSize);
+            % Change the sign of negative sources
+            Cube = Cube.*reshape(-sign(LocalMax(:,3)), [1 1 Nsrc]);
+            [ResultR, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', AD(Iobj).Ref.PSFData.getPSF, Args.psfPhotCubeArgs{:});
+        
+            % Get chi2 per degrees of freedom of the PSF fit on the difference
+            % image.
+            Chi2dof = ResultD.Chi2./ResultD.Dof;
+
+            % Insert results into catalog.
+            Data = cell2mat({ResultD.SNm, Chi2dof, ...
+                ResultN.SNm, ResultN.Chi2./ResultN.Dof, ResultN.Flux, ResultN.Mag,...
+                ResultR.SNm, ResultR.Chi2./ResultR.Dof, ResultR.Flux, ResultR.Mag});
+            Data = cast(Data, 'double');
+            TranCat(Iobj) = TranCat(Iobj).insertCol( Data, 'Score',...
+                {'PSF_SNm', 'D_Chi2dof', ...
+                'N_SNm', 'N_Chi2dof', 'N_Flux', 'N_Mag', ...
+                'R_SNm', 'R_Chi2dof', 'R_Flux', 'R_Mag'}, ...
+                {'','','','','e','mag','','','e','mag'}...
+                );
+
+        end
+
+        if Args.includeBitMaskVal
+            % get Mask values within cutouts around pos/neg transients candidates
+            NewMaskVal = AD(Iobj).New.MaskData.bitwise_cutouts(LocalMax(:,1:2), ...
+                'or', 'HalfSize',Args.BitCutHalfSize);
+            RefMaskVal = AD(Iobj).Ref.MaskData.bitwise_cutouts(LocalMax(:,1:2), ...
+                'or', 'HalfSize',Args.BitCutHalfSize);
+
+            NewMaskVal = cast(NewMaskVal, 'double');
+            RefMaskVal = cast(RefMaskVal, 'double');
+
+            % Insert results into catalog.
+            TranCat(Iobj) = TranCat(Iobj).insertCol( ...
+                cell2mat({NewMaskVal, RefMaskVal}), 'Score',...
+                {'NewMaskVal', 'RefMaskVal'}, {'',''});           
+        end
+
+        if Args.includeSkyCoord
+            % Get RA/Dec coordinates in radians
+            [RA, Dec] = xy2sky(AD(Iobj).New.WCS, LocalMax(:,1), LocalMax(:,2));
+            RA = cast(RA,'double');
+            Dec = cast(Dec,'double');
+
+            % Insert results into catalog.
+            TranCat(Iobj) = TranCat(Iobj).insertCol( ...
+                cell2mat({RA, Dec}), 'Score',...
+                {'RA', 'Dec'}, {'deg','deg'});              
+        end
+
+        if Args.includeObsTime
+
+            % Get observation times from new image
+            [MidJD, ExpTime] = AD(Iobj).New.julday();
+    
+            ColSize = size(LocalMax(:,3));
+            ExpTime_d = ExpTime/3600/24;
+            StartJD = MidJD-ExpTime_d/2;
+            EndJD = MidJD+ExpTime_d/2;
+    
+            MidJD = MidJD*ones(ColSize);
+            StartJD = StartJD*ones(ColSize);
+            EndJD = EndJD*ones(ColSize);
+
+            % Insert results into catalog.
+            TranCat(Iobj) = TranCat(Iobj).insertCol( ...
+                cell2mat({StartJD, MidJD, EndJD}), 'Score',...
+                {'StartJD', 'MidJD', 'EndJD'}, {'JD','JD','JD'});                  
+        end
+       
     end
 
 end
