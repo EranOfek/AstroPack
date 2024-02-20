@@ -229,108 +229,115 @@ classdef AstroDiff < AstroImage
            
        end
     
-       function Result=cutouts(Obj, Args)
-           % Create cutouts of images around coordinates.
-           %    Given an AstroZOGY/AstroDiff object, generate a new object
-           %    (the same class as the input class), populated with image
-           %    cutouts around selected coordinates.
-           % Input  : - An AstroDiff/AstroZOGY object.
-           %          * ...,key,val,...
-           %            'XY' - A matrix of [X, Y] coordinates. The cutouts will be
-           %                    generated around these positions.
-           %                    If empty, then use getXY on the AstroDiff.CatData
-           %                    AstroCatalog object.
-           %                    Default is [].
-           %            'HalfSize' - Half size of cutouts.
-           %                    Default is 25.
-           %            'CropNew' - Logical indicating if to populate the crop
-           %                    of the New image. Default is true.
-           %            'CropRef' - Logical indicating if to populate the crop
-           %                    of the Ref image. Default is true.
-           %            'CropSub' - Logical indicating if to populate the crop
-           %                    of the difference image. Default is true.
-           %            'CreateNewObj' - A logical indicating if to create
-           %                    a new object of the crop object.
-           %                    Default is true.
-           %            'CropProp' - A cell array of additional properties
-           %                    to populate and crop (will be done only if
-           %                    property exist).
-           %                    Default is {'Z2','S','Scorr'}.
-           % Output : - An AstroDiff/AstroZOGY object with element per
-           %            cutout.
-           % Author : Eran Ofek (Feb 2024)
-           % Example: ADc = AD.cutouts;
-          
-           arguments
-               Obj
-               Args.XY                     = [];
-               Args.HalfSize          = 25;
-               
-               Args.CropNew logical   = true;
-               Args.CropRef logical   = true;
-               Args.CropSub logical   = true;
-               
-               Args.CreateNewObj logical   = true;
-               
-               Args.CropProp               = {'Z2','S','Scorr'};
-           end
-           
-           NcropProp = numel(Args.CropProp);
-           
-           eval('Result = %s.empty',class(Obj));
-           %Result = % same as input Obj
-           
-           Nobj = numel(Obj);
-           IndC = 0;
-           for Iobj=1:1:Nobj
-               
-               if isempty(Args.XY)
-                   % get coordinates from AstroCatalog object
-                   XY = Obj(Iobj).CatData.getXY;                   
-               else
-                   XY = Args.XY;
-               end
-               
-               Nxy = size(XY, 1);
-               for Ixy=1:1:Nxy
-                   IndC = IndC + 1;
-                   Pos = [XY(Ixy,:), Args.HalfSize, Args.HalfSize];
-                   if Args.CropSub
-                        Result(IndC) = Obj(Iobj).crop(Pos,...
-                                                 'Type','center',...
-                                                 'UpdateCat',true,...
-                                                 'UpdateWCS',true,...
-                                                 'CreateNewObj',Args.CreateNewObj);
-                   end
+        function ADc = cutouts(Obj, Args)
+            % Create cutouts of images around coordinates.
+            %    Given an AstroZOGY/AstroDiff object, generate a new object
+            %    (the same class as the input class), populated with image
+            %    cutouts around selected coordinates.
+            % Input  : - An AstroDiff/AstroZOGY object.
+            %          * ...,key,val,...
+            %            'XY' - A matrix of [X, Y] coordinates. The cutouts will be
+            %                    generated around these positions.
+            %                    If empty, then use getXY on the AstroDiff.CatData
+            %                    AstroCatalog object.
+            %                    Default is [].
+            %            'HalfSize' - Half size of cutouts.
+            %                    Default is 25.
+            %            'CropNew' - Logical indicating if to populate the crop
+            %                    of the New image. Default is true.
+            %            'CropRef' - Logical indicating if to populate the crop
+            %                    of the Ref image. Default is true.
+            %            'CropSub' - Logical indicating if to populate the crop
+            %                    of the difference image. Default is true.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                    a new object of the crop object.
+            %                    Default is true.
+            %            'CropProp' - A cell array of additional properties
+            %                    to populate and crop (will be done only if
+            %                    property exist).
+            %                    Default is {'Z2','S','Scorr'}.
+            % Output : - An AstroDiff/AstroZOGY object with element per
+            %            cutout.
+            % Author : Eran Ofek (Feb 2024)
+            % Example: ADc = AD.cutouts;
+            
+            arguments
+                Obj
+                Args.XY                = [];
+                Args.HalfSize          = 25;
+                
+                Args.CropNew logical   = true;
+                Args.CropRef logical   = true;
+                Args.CropSub logical   = true;
+                
+                Args.CreateNewObj logical   = true;
+                
+                Args.CropProp               = {'Z2','S','Scorr'};
+            end
+            
+            NcropProp = numel(Args.CropProp);
 
-                   if Args.CropNew
-                       Result(IndC).New = Obj(Iobj).New.crop(Pos,...
-                                                             'Type','center',...
-                                                             'UpdateCat',true,...
-                                                             'UpdateWCS',true,...
-                                                             'CreateNewObj',Args.CreateNewObj);
-                   end
-                   
-                   if Args.CropRef
-                       Result(IndC).Ref = Obj(Iobj).Ref.crop(Pos,...
-                                                             'Type','center',...
-                                                             'UpdateCat',true,...
-                                                             'UpdateWCS',true,...
-                                                             'CreateNewObj',Args.CreateNewObj);
-                   end
-                   
-                   % Cut additional properties
-                   for Icp=1:1:NcropProp
-                       if isprop(Obj(Iobj), Args.CropProp{Icp})
-                           Result(IndC).(Args.CropProp{Icp}) = imUtil.cut.trim(Obj(Iobj).(Args.CropProp{Icp}), Pos, 'center');
-                       end
-                   end
-                   
-               end
-               
-           end
-       end
-       
+            % Cast class of object to cutout objects
+            ADc = feval(class(Obj));
+
+            Nobj = numel(Obj);
+            IndC = 0;
+            for Iobj=Nobj:-1:1
+                
+                % Skip empty catalogs
+                sizeCat = size(Obj(Iobj).CatData.Catalog,1);
+                if sizeCat == 0
+                    continue;
+                end
+                
+                if isempty(Args.XY)
+                    % get coordinates from AstroCatalog object
+                    XY = Obj(Iobj).CatData.getXY;                   
+                else
+                    XY = Args.XY;
+                end
+                
+                Nxy = size(XY, 1);
+                for Ixy=1:1:Nxy
+                    IndC = IndC + 1;
+                    Pos = [XY(Ixy,:), Args.HalfSize, Args.HalfSize];
+                    if Args.CropSub
+                        ADc(IndC) = Obj(Iobj).crop(Pos,...
+                                         'Type','center',...
+                                         'UpdateCat',true,...
+                                         'UpdateWCS',true,...
+                                         'CreateNewObj',Args.CreateNewObj);
+                    end
+                    
+                    if Args.CropNew
+                        ADc(IndC).New = Obj(Iobj).New.crop(Pos,...
+                                                     'Type','center',...
+                                                     'UpdateCat',true,...
+                                                     'UpdateWCS',true,...
+                                                     'CreateNewObj',Args.CreateNewObj);
+                    end
+                    
+                    if Args.CropRef
+                        ADc(IndC).Ref = Obj(Iobj).Ref.crop(Pos,...
+                                                     'Type','center',...
+                                                     'UpdateCat',true,...
+                                                     'UpdateWCS',true,...
+                                                     'CreateNewObj',Args.CreateNewObj);
+                    end
+                    
+                    % Cut additional properties
+                    for Icp=1:1:NcropProp
+                        if isprop(Obj(Iobj), Args.CropProp{Icp})
+                            ADc(IndC).(Args.CropProp{Icp}) = ...
+                                imUtil.cut.trim(Obj(Iobj).(Args.CropProp{Icp}), Pos, 'center');
+                        end
+                    end
+                    
+                end
+                
+            end
+        end
+            
     end
 
     methods % utilities  % search/load images
@@ -726,23 +733,27 @@ classdef AstroDiff < AstroImage
 
         function findMeasureTransients(Obj,Args)
             %{
-            Calls AD.findTransients, AD.cleanTransients, and
-            AD.measureTransients. Derives a catalog of transients by
-            thresholding the threshold image, cleans the catalog for bad
-            pixel effects and goodness of PSF fit, and derives additional
-            properties based on subtraction method.
+            Calls AD.findTransients, AD.matchTransients2Cats, AD.measureTransients, 
+              and AD.flagNonTransients. 1) Derives a catalog of transients by
+              thresholding the threshold image, 2) matches found transients 
+              to external catalogs, 3) derives additional properties based
+              on subtraction method, and 4) flags transients that are 
+              likely not real transients.
             Input  : - An AstroDiff object in which the threshold image is
                         populated.
                      * ...,key,val,...
-                    'findTransients_Args' - Cell of arguments to be given
-                        to AD.findTransients. Default is the same as
-                        AD.findTransients.
-                    'cleanTransients_Args' - Cell of arguments to be given
-                        to AD.cleanTransients. Default is the same as
-                        AD.cleanTransients.
-                    'measureTransients_Args' - Cell of arguments to be given
-                        to AD.measureTransients. Default is the same as
-                        AD.measureTransients.
+                       'findTransientsArgs' - Cell of arguments to be given
+                              to AD.findTransients. Default is the same as
+                              AD.findTransients.
+                       'matchTransients2CatsArgs' - Cell of arguments to be given
+                              to AD.matchTransients2Cats. Default is the same as
+                              AD.matchTransients2Cats.
+                       'measureTransientsArgs' - Cell of arguments to be given
+                              to AD.measureTransients. Default is the same as
+                              AD.measureTransients.
+                       'flagNonTransientsArgs' - Cell of arguments to be given
+                              to AD.flagNonTransients. Default is the same as
+                              AD.flagNonTransients.
             Author : Ruslan Konno (Jan 2024)
             Example: AD.findMeasureTransients
             %}
@@ -750,44 +761,55 @@ classdef AstroDiff < AstroImage
             arguments
                 Obj
 
-                Args.findTransients_Args = {...
+                Args.findTransientsArgs = {...
                     'Threshold', 5,...
-                    'HalfSizePSF', 7,...
-                    'HalfSizeTS', 5,...
                     'findLocalMaxArgs', {},...
-                    'BitCutHalfSize', 3,...
+                    'includePsfFit', true,...
+                    'HalfSizePSF', 7,...
                     'psfPhotCubeArgs', {}...
+                    'includeBitMaskVal', true,...
+                    'BitCutHalfSize', 3,...
+                    'includeSkyCoord', true,...
+                    'includeObsTime', true,...
                     };
 
-                Args.cleanTransients_Args = {...
-                    'filterChi2', true,...
+                Args.matchTransients2CatsArgs = {...
+                    'matchGalaxyCatArgs', {'ColDistName', 'GalaxyDist',...
+                    'ColNmatchName','GalaxyMatches'},...
+                    'matchStarCatArgs', {'ColDistName', 'StarDist',...
+                    'ColNmatchName','StarMatches'},...
+                    }
+
+                Args.measureTransientsArgs = {...
+                    'HalfSizeTS', 5,...
+                    };
+                
+                Args.flagNonTransientsArgs = {...
+                    'flagChi2', true,...
                     'Chi2dofLimits', [0.5 2],...
-                    'filterMag', true,...
+                    'flagMag', true,...
                     'MagLim', 21,...
-                    'filterBadPix_Hard', true,...
+                    'flagBadPix_Hard', true,...
                     'NewMask_BadHard', {'Saturated','NearEdge','FlatHighStd',...
                     'Overlap','Edge','CR_DeltaHT','Interpolated','NaN'},...
                     'RefMask_BadHard',{'Saturated','NearEdge','FlatHighStd',...
                     'Overlap','Edge','CR_DeltaHT','Interpolated','NaN'},...
-                    'filterBadPix_Soft', true,...
+                    'flagBadPix_Soft', true,...
                     'NewMask_BadSoft',{'HighRN', 'DarkHighVal', ...
                     'BiasFlaring', 'Hole', 'SrcNoiseDominated'},...
                     'RefMask_BadSoft', {'HighRN', 'DarkHighVal', ...
                     'BiasFlaring', 'Hole', 'SrcNoiseDominated'},...
                     };
                 
-                Args.measureTransients_Args = {...
-                    'HalfSizeTS', 5,...
-                    'removeTranslients', true,...
-                    };
             end
 
             Nobj = numel(Obj);
 
             for Iobj=1:1:Nobj
-                Obj(Iobj).findTransients(Args.findTransients_Args{:});
-                Obj(Iobj).cleanTransients(Args.cleanTransients_Args{:});
-                Obj(Iobj).measureTransients(Args.measureTransients_Args{:});
+                Obj(Iobj).findTransients(Args.findTransientsArgs{:});
+                Obj(Iobj).matchTransients2Cats(Args.matchTransients2CatsArgs{:});
+                Obj(Iobj).measureTransients(Args.measureTransientsArgs{:});
+                Obj(Iobj).flagNonTransients(Args.flagNonTransientsArgs{:});
             end
         end
 
@@ -795,28 +817,39 @@ classdef AstroDiff < AstroImage
         function findTransients(Obj, Args)
             %{
             Search for positive and negative transients by selecting local
-            minima and maxima with an absolute value above a set detection 
-            threshold. Results are saved as an AstroCatalog under
-            AD.CatData.
+              minima and maxima with an absolute value above a set detection 
+              threshold. Results are saved as an AstroCatalog under
+              AD.CatData.
             Input  : - An AstroDiff object in which the threshold image is
                         populated.
                      * ...,key,val,...
-                    'HalfSizePSF' - Half size of area on transients positions in 
-                        image. Actual size will be 1+2*HalfSizePSF. Used to cut out 
-                        an image area to perform PSF photometry on.
-                        Default is 7.
-                    'Threshold' - Threshold in units of std (=sqrt(Variance)). Search
-                        for local maxima only above this threshold. Default is 5.
-                    'findLocalMaxArgs' - Args passed into imUtil.sources.findLocalMax()
-                        when looking for local maxima.
-                        Default is {}.
-                    'BitCutHalfSize' - Half size of area on transients positions in 
-                        image bit masks. Actual size will be 1+2*BitCutHalfSize. Used
-                        to retrieve bit mask values around transient positions.
-                        Default is 3.
-                    'psfPhotCubeArgs' - Args passed into imUtil.sources.psfPhotCube when
-                        performing PSF photometry on AD, AD.New, and AD.Ref cut outs.
-                        Default is {}.
+                       'Threshold' - Threshold to be applied to the threshold image. 
+                              Search for local maxima only above this threshold. 
+                              Default is 5.
+                       'findLocalMaxArgs' - Args passed into imUtil.sources.findLocalMax()
+                              when looking for local maxima. Default is {}.
+                       'includePsfFit' - Bool on whether to perform PSF photometry 
+                              on images AD, AD.New, and AD.Ref. Include results in catalog.
+                              Default is true.
+                       'HalfSizePSF' - Half size of area on transients positions in 
+                              image. Actual size will be 1+2*HalfSizePSF. Used to cut out 
+                              an image area to perform PSF photometry on.
+                              Default is 7.
+                       'psfPhotCubeArgs' - Args passed into imUtil.sources.psfPhotCube when
+                              performing PSF photometry on AD, AD.New, and AD.Ref cut outs.
+                              Default is {}.
+                       'includeBitMaskVal' - Bool on whether to retrieve bit mask
+                              values from AD.New and AD.Ref, and add to catalog.
+                              Default is true.
+                       'BitCutHalfSize' - Half size of area on transients positions in 
+                              image bit masks. Actual size will be 1+2*BitCutHalfSize. Used
+                              to retrieve bit mask values around transient positions.
+                              Default is 3.
+                       'includeSkyCoord' - Bool on whether to retrieve sky
+                              coordinates from AD.New and add to catalog. 
+                              Default is true.
+                       'includeObsTime' - Bool on whether to retrieve observation
+                              times from AD.New and add to catalog. Default is true.
             Author : Ruslan Konno (Jan 2024)
             Example: AD.findTransients
             %}
@@ -824,13 +857,18 @@ classdef AstroDiff < AstroImage
             arguments
                 Obj
 
-                Args.Threshold             = 5;
+                Args.Threshold                  = 5;
+                Args.findLocalMaxArgs cell      = {};
         
-                Args.HalfSizePSF           = 7;
-                Args.HalfSizeTS            = 5;
-                Args.findLocalMaxArgs cell = {};
-                Args.BitCutHalfSize        = 3;
-                Args.psfPhotCubeArgs cell  = {};
+                Args.includePsfFit logical      = true;
+                Args.HalfSizePSF                = 7;
+                Args.psfPhotCubeArgs cell       = {};
+        
+                Args.includeBitMaskVal logical  = true;
+                Args.BitCutHalfSize             = 3;
+        
+                Args.includeSkyCoord logical    = true;
+                Args.includeObsTime logical     = true;                
         
             end
 
@@ -844,106 +882,56 @@ classdef AstroDiff < AstroImage
                 end
                 Obj(Iobj).CatData = imProc.sub.findTransients(Obj(Iobj), ...
                     'Threshold', Args.Threshold, ...
-                    'HalfSizePSF', Args.HalfSizePSF,...
                     'findLocalMaxArgs', Args.findLocalMaxArgs,...
-                    'BitCutHalfSize', Args.BitCutHalfSize);
+                    'includePsfFit',Args.includePsfFit,...
+                    'HalfSizePSF', Args.HalfSizePSF,...
+                    'psfPhotCubeArgs', Args.psfPhotCubeArgs,...
+                    'includeBitMaskVal', Args.includeBitMaskVal,...
+                    'BitCutHalfSize', Args.BitCutHalfSize,...
+                    'includeSkyCoord', Args.includeSkyCoord,...
+                    'includeObsTime', Args.includeObsTime...
+                    );
             end
         end
-        
-        % cleanTransients
-        function cleanTransients(Obj, Args)
-            %{
-            Clean transients candidates based on image quality and PSF fit
-            criteria. All filtered candidates are removed from AD.CatData.
-            Input  : - An AstroDiff object in which CatData is populated.
-                     * ...,key,val,...
-                'filterChi2'        - Bool on whether to remove transients candidates
-                    based on Chi2 per degrees of freedom criterium. Default is
-                    true.
-                'Chi2dofLimits'     - Limits on Chi2 per degrees of freedom. If
-                    'filterChi2' is true, all transients candidates outside these
-                    limits are removed. Default is [0.5 2].
-                'filterMag'         - Bool on whether to remove transients candidates
-                    based on magnitude. Deault is true.
-                'MagLim'            - Upper magnitude limit. If 'filterMag' is true,
-                    all transients candidates below this limit are removed. Default
-                    is 21.
-                'filterBadPix_Hard' - Bool on whether to remove transients
-                    candidates based on hard bit mask criteria. Default is true.
-                'NewMask_BadHard'   - Hard bit mask criteria for bad pixels in 
-                    AD.New image. Default is {'Saturated', 'NearEdge', 'FlatHighStd', 
-                    'Overlap','Edge','CR_DeltaHT', 'Interpolated','NaN'}.
-                'RefMask_BadHard'   - Hard bit mask criteria for bad pixels in 
-                    AD.Ref image. Default is {'Saturated', 'NearEdge', 'FlatHighStd', 
-                    'Overlap','Edge','CR_DeltaHT', 'Interpolated','NaN'}.
-                'filterBadPix_Soft' - Bool on whether to remove transients
-                    candidates based on soft bit mask criteria. Default is true.
-                'NewMask_BadSoft'   - Soft bit mask criteria for bad pixels in 
-                    AD.New Image. Default is {'HighRN', 'DarkHighVal',
-                    'BiasFlaring', 'Hole', 'SrcNoiseDominated'}.
-                'RefMask_BadSoft'   - Soft bit mask criteria for bad pixels in 
-                    AD.Ref image. Default is {'HighRN', 'DarkHighVal',
-                    'BiasFlaring', 'Hole', 'SrcNoiseDominated'}.
-            Author  : Ruslan Konno (Jan 2024)
-            Example : AD.cleanTransients
-            %}
 
+        % matchTransients2Cats
+        function matchTransients2Cats(Obj, Args)
+            %{
+            %}
             arguments
                 Obj
-                
-                Args.filterChi2 logical = true;
-                Args.Chi2dofLimits         = [0.5 2];
 
-                Args.filterMag logical = true;
-                Args.MagLim = 21;
+                Args.matchMergedCatArgs = {'ColDistName', 'MergedDist',...
+                    'ColNmatchName','MergedMatches'};
+                Args.matchGalaxyCatArgs = {'ColDistName', 'GalaxyDist',...
+                    'ColNmatchName','GalaxyMatches'};
+                Args.matchStarCatArgs = {'ColDistName', 'StarDist',...
+                    'ColNmatchName','StarMatches'};
 
-                Args.filterBadPix_Hard logical  = true;
-                Args.NewMask_BadHard       = {'Saturated','NearEdge','FlatHighStd',...
-                    'Overlap','Edge','CR_DeltaHT','Interpolated','NaN'};
-                Args.RefMask_BadHard       = {'Saturated','NearEdge','FlatHighStd',...
-                    'Overlap','Edge','CR_DeltaHT','Interpolated','NaN'};
-                
-                Args.filterBadPix_Soft logical  = true;
-                Args.NewMask_BadSoft       = {'HighRN', 'DarkHighVal', ...
-                    'BiasFlaring', 'Hole', 'SrcNoiseDominated'};
-                Args.RefMask_BadSoft       = {'HighRN', 'DarkHighVal', ...
-                    'BiasFlaring', 'Hole', 'SrcNoiseDominated'};   
-        
+                Args.matchSolarSystemCatArgs = {'ColDistName', 'SolarDist',...
+                    'ColNmatchName','SolarMatches'};
             end
+            
+            Obj.matchMergedCat(Args.matchMergedCatArgs{:});
+            Obj.matchGalaxyCat(Args.matchGalaxyCatArgs{:});
+            Obj.matchStarCat(Args.matchStarCatArgs{:});
 
-            Nobj = numel(Obj);
-
-            for Iobj=1:1:Nobj
-                Obj(Iobj).CatData = imProc.sub.cleanTransients(Obj(Iobj),...
-                    'filterChi2',Args.filterChi2,...
-                    'Chi2dofLimits',Args.Chi2dofLimits,...
-                    'filterMag', Args.filterMag,...
-                    'MagLim', Args.MagLim,...
-                    'filterBadPix_Hard', Args.filterBadPix_Hard,...
-                    'NewMask_BadHard', Args.NewMask_BadHard,...
-                    'RefMask_BadHard', Args.RefMask_BadHard,...
-                    'filterBadPix_Soft', Args.filterBadPix_Soft,...
-                    'NewMask_BadSoft', Args.NewMask_BadSoft,...
-                    'RefMask_BadSoft', Args.RefMask_BadSoft);
-            end
+            Obj.matchSolarSystemCat(Args.matchSolarSystemCatArgs{:});
         end
-        
+
         % measureTransients
         function measureTransients(Obj, Args)
             %{ 
             For each transient candidate measure further properties.
-            These depend on the subtraction process, so a function is applied 
-            that is determined by the object class.
+              These depend on the subtraction process, so a function is applied 
+              that is determined by the object class.
             Input   : - An AstroDiff object in which CatData is populated.
-                         * ...,key,val,...
-                      --- AstroZOGY ---
-                      'HalfSizeTS' - Half size of area on transients positions in 
-                        test statistic images S2 and Z2. Actual size will be  
-                        1+2*HalfSizeTS. Used to find peak S2 and Z2 values.
-                        Default is 5.
-                      'removeTranslients' - Bool on whether to remove
-                        transients candidates which score higher in Z2 than S2.
-                        Default is true.
+                      * ...,key,val,...
+                        --- AstroZOGY ---
+                        'HalfSizeTS' - Half size of area on transients positions in 
+                               test statistic images S2 and Z2. Actual size will be  
+                               1+2*HalfSizeTS. Used to find peak S2 and Z2 values.
+                               Default is 5.
             Author  : Ruslan Konno (Jan 2024)
             Example : AD.measureTransients
             %}
@@ -952,15 +940,151 @@ classdef AstroDiff < AstroImage
                 
                 % AstroZOGY
                 Args.HalfSizeTS = 5;
-                Args.removeTranslients logical = true;
             end
             
             Nobj = numel(Obj);
 
             for Iobj=1:1:Nobj
                 Obj(Iobj).CatData = imProc.sub.measureTransients(Obj(Iobj),...
-                    'HalfSizeTS', Args.HalfSizeTS,...
-                    'removeTranslients', Args.removeTranslients);
+                    'HalfSizeTS', Args.HalfSizeTS);
+            end
+
+        end
+
+        % flagNonTransients
+        function flagNonTransients(Obj, Args)
+            %{
+            Flag transients candidates that are likely not real transients.
+            Input  : - An AstroDiff object in which CatData is populated.
+                     * ...,key,val,...
+                       'flagChi2' - Bool on whether to flag transients candidates
+                              based on Chi2 per degrees of freedom criterium. 
+                              Default is true.
+                       'Chi2dofLimits' - Limits on Chi2 per degrees of freedom. If
+                              'filterChi2' is true, all transients candidates outside these
+                              limits are flagged. Default is [0.5 2].
+                       'flagMag' - Bool on whether to flag transients candidates
+                              based on magnitude. Deault is true.
+                       'MagLim' - Upper magnitude limit. If 'filterMag' is true,
+                              all transients candidates below this limit are flagged. 
+                              Default is 21.
+                       'flagBadPix_Hard' - Bool on whether to flag transients
+                              candidates based on hard bit mask criteria. 
+                              Default is true.
+                       'NewMask_BadHard' - Hard bit mask criteria for bad pixels in 
+                              AD.New image. Default is {'Saturated', 'NearEdge', 'FlatHighStd',
+                              'Overlap','Edge','CR_DeltaHT', 'Interpolated','NaN'}.
+                       'RefMask_BadHard' - Hard bit mask criteria for bad pixels in 
+                              AD.Ref image. Default is {'Saturated', 'NearEdge', 'FlatHighStd',
+                              'Overlap','Edge','CR_DeltaHT', 'Interpolated','NaN'}.
+                       'flagBadPix_Soft' - Bool on whether to flag transients
+                              candidates based on soft bit mask criteria. 
+                              Default is true.
+                       'NewMask_BadSoft' - Soft bit mask criteria for bad pixels in 
+                              AD.New Image. Default is {'HighRN', 'DarkHighVal',
+                              'BiasFlaring', 'Hole', 'SrcNoiseDominated'}.
+                       'RefMask_BadSoft' - Soft bit mask criteria for bad pixels in 
+                              AD.Ref image. Default is {'HighRN', 'DarkHighVal',
+                              'BiasFlaring', 'Hole', 'SrcNoiseDominated'}.
+                       'flagStarMatches' - Bool on whether to flag transients
+                               candidates that have matching star
+                               positions. Default is true.
+                       --- AstroZOGY ---
+                       'flagTranslients' - Bool on whether to flag transients 
+                              candidates which score higher in Z2 than S2.
+                              Default is true.
+            Author  : Ruslan Konno (Jan 2024)
+            Example : AD.flagNonTransients
+            %}
+
+            arguments
+                Obj
+                
+                Args.flagChi2 logical = true;
+                Args.Chi2dofLimits         = [0.5 2];
+
+                Args.flagMag logical = true;
+                Args.MagLim = 21;
+
+                Args.flagBadPix_Hard logical  = true;
+                Args.NewMask_BadHard       = {'Saturated','NearEdge','FlatHighStd',...
+                    'Overlap','Edge','CR_DeltaHT','Interpolated','NaN'};
+                Args.RefMask_BadHard       = {'Saturated','NearEdge','FlatHighStd',...
+                    'Overlap','Edge','CR_DeltaHT','Interpolated','NaN'};
+                
+                Args.flagBadPix_Soft logical  = true;
+                Args.NewMask_BadSoft       = {'HighRN', 'DarkHighVal', ...
+                    'BiasFlaring', 'Hole', 'SrcNoiseDominated'};
+                Args.RefMask_BadSoft       = {'HighRN', 'DarkHighVal', ...
+                    'BiasFlaring', 'Hole', 'SrcNoiseDominated'};
+
+                Args.flagStarMatches logical = true;
+
+                Args.flagTranslients logical = true;
+        
+            end
+
+            Nobj = numel(Obj);
+
+            for Iobj=1:1:Nobj
+                Obj(Iobj).CatData = imProc.sub.flagNonTransients(Obj(Iobj),...
+                    'flagChi2',Args.flagChi2,...
+                    'Chi2dofLimits',Args.Chi2dofLimits,...
+                    'flagMag', Args.flagMag,...
+                    'MagLim', Args.MagLim,...
+                    'flagBadPix_Hard', Args.flagBadPix_Hard,...
+                    'NewMask_BadHard', Args.NewMask_BadHard,...
+                    'RefMask_BadHard', Args.RefMask_BadHard,...
+                    'flagBadPix_Soft', Args.flagBadPix_Soft,...
+                    'NewMask_BadSoft', Args.NewMask_BadSoft,...
+                    'RefMask_BadSoft', Args.RefMask_BadSoft);
+            end
+        end
+        
+        function [TranCat, NonTranCat] = separateNonTransients(Obj)
+            %{
+            Separates transients from likely non-transients into two
+              AstroCat outputs.
+            Input  : - An AstroDiff object with a CatData that is set and
+                       flagged for likely non-transients.
+            Output : - TranCat (AstroCat holding transients only).
+                     - NonTranCat (AstroCat holding non-transients only).
+            Author : Ruslan Konno (Feb 2024)
+            Example: [TranCat, NonTranCat] = AD.separateNonTransients
+            %}
+
+            arguments
+                Obj
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=Nobj:-1:1
+                Transients = ~Obj(Iobj).CatData.getCol('LikelyNotTransient');
+                TranCat(Iobj) = Obj(Iobj).CatData.selectRows(Transients);
+                NonTranCat(Iobj) = Obj(Iobj).CatData.selectRows(~Transients);
+            end
+        end
+
+        function AD = removeNonTransients(Obj)
+            %{
+            Removes likely non-transients from CatData.
+            Input  : - An AstroDiff object with a CatData that is set and
+                       flagged for likely non-transients.
+            Output : - An AstroDiff copy of input AstroDiff but with likely
+                       non-transients removed from CatData.
+            Author : Ruslan Konno (Feb 2024)
+            Example: ADnew = AD.removeNonTransients
+            %}
+
+            arguments
+                Obj
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=Nobj:-1:1
+                Transients = ~Obj(Iobj).CatData.getCol('LikelyNotTransient');
+                AD(Iobj) = Obj(Iobj).copy();
+                AD(Iobj).CatData = Obj(Iobj).CatData.selectRows(Transients);
             end
 
         end
@@ -972,31 +1096,61 @@ classdef AstroDiff < AstroImage
     
     methods % catalog matching
 
-        % matchCats
-        function matchCats(Obj, Args)
+        % matchSolarSystemCat
+        function matchSolarSystemCat(Obj, Args)
             %{
-            Match catalogs
+            Match catalog to solar system objects and add information to CatData
             %}
+
             arguments
                 Obj
 
-                Args.matchGalaxyCatArgs = {'ColDistName', 'GalaxyDist',...
-                    'ColNmatchName','GalaxyMatches'};
-                Args.matchStarCatArgs = {'ColDistName', 'StarDist',...
-                    'ColNmatchName','StarMatches'};
+                Args.ColDistName = 'SolarDist';
+                Args.ColNmatchName = 'SolarMatches';
             end
-            
-            Obj.matchGalaxyCat(Args.matchGalaxyCatArgs{:});
-            Obj.matchStarCat(Args.matchStarCatArgs{:});
+
+            Nobj = numel(Obj);
+
+            for Iobj=1:1:Nobj
+                [~, ~, Obj(Iobj)] = imProc.match.match2solarSystem(...
+                    Obj(Iobj), 'InCooUnits', 'deg', ...
+                    'ColDistName', Args.ColDistName,...
+                    'ColNmatchName', Args.ColNmatchName);
+            end
 
         end
-        % Match catalog to solar system objects and add information to CatData
-
-        % matchSolarSystemCat
-        % Match catalog to solar system objects and add information to CatData
-
         % matchRedshiftCat
         % Match catalog to redshift catalogs and add information to CatData
+
+        function matchMergedCat(Obj, Args)
+            %{
+            Match catalog to merged catalog and add information to CatData
+            %}
+
+            arguments
+                Obj
+
+                Args.ColDistName = 'MergedDist';
+                Args.ColNmatchName = 'MergedMatches';
+            end         
+            
+            Nobj = numel(Obj);
+
+            for Iobj=1:1:Nobj
+                sizeCat = size(Obj(Iobj).CatData.Catalog,1);
+                
+                % If transients catalog is empty, continue.
+                if sizeCat == 0
+                    continue
+                end                
+                       
+                Obj(Iobj).CatData = imProc.match.match_catsHTMmerged(Obj(Iobj).CatData);
+                [Obj(Iobj).CatData, ~, ~, ~] = imProc.match.match_catsHTM(...
+                    Obj(Iobj).CatData, 'MergedCat','ColDistName',Args.ColDistName,...
+                    'ColNmatchName',Args.ColNmatchName);                
+            end
+
+        end
         
         % matchGalaxyCat
         function matchGalaxyCat(Obj, Args)
@@ -1049,7 +1203,7 @@ classdef AstroDiff < AstroImage
                 end   
                 
                 [Obj(Iobj).CatData, ~, ~, ~] = imProc.match.match_catsHTM(...
-                    Obj(Iobj).CatData, 'CRTS_per_var','ColDistName',...
+                    Obj(Iobj).CatData, 'GAIADR3','ColDistName',...
                     Args.ColDistName, 'ColNmatchName',Args.ColNMatchName);
             end
         end
