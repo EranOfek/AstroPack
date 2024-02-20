@@ -1,4 +1,4 @@
-function [Result] = reportMatchedSource(MS, Args)
+function [Result] = reportMatchedSource(MS, Ind1, Args)
     % One line description
     %     Optional detailed description
     % Input  : - 
@@ -11,13 +11,29 @@ function [Result] = reportMatchedSource(MS, Args)
     arguments
         MS MatchedSources
         Ind1                   = 1;
+        Args.FileName          = '/home/eran/report.html'
+        Args.FileType          = 'pdf';
         Args.CalcZP logical    = true;
+        Args.BinSize           = 1;
+        Args.NsigmaRMS         = 5;
         Args.FreqVec           = [];
         Args.PS                = [];
         Args.MagField          = 'MAG_PSF';
         Args.MagErrField       = 'MAGERR_PSF';
         Args.TimeUnitsLC       = 'min'; 
+        Args.RAField           = 'RA';
+        Args.DecField          = 'Dec';
     end
+
+    RAD = 180./pi;
+
+    switch Args.FileType
+        case 'html'
+            BreakLine = '<br>';
+        otherwise
+            BreakLine = ''; %'\\n';
+    end
+
 
     if Args.CalcZP
         Rzp = lcUtil.zp_meddiff(MS, 'MagField',Args.MagField', 'MagErrField',Args.MagErrField);
@@ -80,34 +96,37 @@ function [Result] = reportMatchedSource(MS, Args)
     PS1URL     = VO.PS1.navigator_link(RA./RAD, Dec./RAD);
     
     % start report
-    Report = Document("mydoc","html");
+    import mlreportgen.report.* 
+    import mlreportgen.dom.* 
+
+    R = Report(Args.FileName, Args.FileType);
     
-    TitleText = mlreportgen.dom.Text("Light curve variability report");
+    TitleText = mlreportgen.dom.Text(sprintf("Light curve variability report %s",BreakLine));
     TitleText.FontSize = "32pt";
     
-    add(Report, TitleText);
+    append(R, TitleText);
     
-    add(Report, sprintf("First MatchedSources file name : %s",MS.FileNames{1});
-    add(Report, sprintf("Src Id in MatchedSources: %d",Ind1));
-    add(Report, sprintf("RA  = %11.7f        %s",RA, celestial.coo.convertdms(RA,'d','SH')));
-    add(Report, sprintf("Dec = %11.7f        %s",Dec, celestial.coo.convertdms(Dec,'d','SD')));
-    add(Report, sprintf("RMS RA  = %6.3f arcsec", StdRA.*3600));
-    add(Report, sprintf("RMS Dec = %6.3f arcsec", StdDec.*3600));
-    add(Report, sprintf("Magnitude median    = %7.3f", median(MS.Data.(Args.MagField)(:,Ind1),1,'omitnan')));
-    add(Report, sprintf("Magnitude std       = %7.3f", std(MS.Data.(Args.MagField)(:,Ind1),[],1,'omitnan')));
+    add(R, sprintf("First MatchedSources file name : %s%s",MS.FileName{1}, BreakLine));
+    add(R, sprintf("Src Id in MatchedSources: %d%s",Ind1, BreakLine));
+    add(R, sprintf("RA  = %11.7f        %s",RA, celestial.coo.convertdms(RA,'d','SH')));
+    add(R, sprintf("Dec = %11.7f        %s",Dec, celestial.coo.convertdms(Dec,'d','SD')));
+    add(R, sprintf("RMS RA  = %6.3f arcsec", StdRA.*3600));
+    add(R, sprintf("RMS Dec = %6.3f arcsec", StdDec.*3600));
+    add(R, sprintf("Magnitude median    = %7.3f", median(MS.Data.(Args.MagField)(:,Ind1),1,'omitnan')));
+    add(R, sprintf("Magnitude std       = %7.3f", std(MS.Data.(Args.MagField)(:,Ind1),[],1,'omitnan')));
     
-    add(Report, sprintf("Magnitude poly-std  = %7.3f", NaN);
-    add(Report, sprintf("Magnitude poly-chi2 = %7.3f/%d", NaN, NaN);
+    add(R, sprintf("Magnitude poly-std  = %7.3f", NaN));
+    add(R, sprintf("Magnitude poly-chi2 = %7.3f/%d", NaN, NaN));
     
     % write external catalog info
     
     % URLs
-    add(Report, sprintf("SIMBAD : %s",SimbadURL.URL));
-    add(Report, sprintf("SDSS   : %s",SDSSURL{1}));
-    add(Report, sprintf("PS1    : %s",PS1URL{1}));
+    add(R, sprintf("<a href=""%s"">SIMBAD</a>",SimbadURL.URL));
+    add(R, sprintf("<a href=""%s"">SDSS</a>",SDSSURL{1}));
+    add(R, sprintf("<a href=""%s"">PS1</a>",PS1URL{1}));
     
      
-    %figure(1)
+    figure(1)
     cla;
     MS.plotRMS;
     hold on;
@@ -121,11 +140,11 @@ function [Result] = reportMatchedSource(MS, Args)
     H.FontSize = 16;
     H.Interpreter = 'latex';
     
-    add(Report, Figure);
+    add(R, Figure);
 
     
         
-    %figure(2);
+    figure(2);
     cla;
     plot(Args.FreqVec,Args.PS(:,Ind1));
     H = xlabel('Frequency [1/day]');
@@ -135,11 +154,11 @@ function [Result] = reportMatchedSource(MS, Args)
     H.FontSize = 16;
     H.Interpreter = 'latex';
     
-    add(Report, Figure);
+    add(R, Figure);
     
-    %figure(3);
+    figure(3);
     cla;
-    TimeVec = MS.JD(:) - min(MS.JD(:);
+    TimeVec = MS.JD(:) - min(MS.JD(:));
     TimeVec = convert.timeUnits('day', Args.TimeUnitsLC, TimeVec);
     plot(TimeVec, MS.Data.(Args.MagField)(:,Ind1), 'o','MarkerFaceColor','k');
     %hold on;
@@ -153,6 +172,9 @@ function [Result] = reportMatchedSource(MS, Args)
     H.FontSize = 16;
     H.Interpreter = 'latex';
     
-    add(Report, Figure);
+    add(R, Figure);
+
+    
+    rptview(R)
 
 end

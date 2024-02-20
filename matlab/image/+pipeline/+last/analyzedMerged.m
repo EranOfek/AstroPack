@@ -40,6 +40,9 @@ function [Result] = analyzedMerged(Args)
         Args.BadFlags              = {'Overlap','NearEdge','CR_DeltaHT','Saturated','NaN','Negative'};
     end
 
+
+
+
     RAD = 180./pi;
 
     OrbEl  = celestial.OrbitalEl.loadSolarSystem('merge');
@@ -159,10 +162,17 @@ function [Result] = analyzedMerged(Args)
 %R=imUtil.calib.fit_rmsCurve(MeanMag, StdMag)
 
                     % poly std
-                    ThresholdDeltaChi2 = chi2inv(normcdf(4,0,1),2);  % 4 sigma detection of slope
-                    ResPolyHP = lcUtil.fitPolyHyp(MS, 'PolyDeg',{0, (0:1:2)});
-                    Flag.Poly = ResPolyHP(2).DeltaChi2>ThresholdDeltaChi2;
-                
+                    ResPolyHP = lcUtil.fitPolyHyp(MS, 'PolyDeg',{0, (0:1), (0:1:2)});
+                    ThresholdDeltaChi2 = chi2inv(normcdf(6,0,1),2);  % 6 sigma detection of parabola
+                    Flag.Poly = ResPolyHP(3).DeltaChi2>ThresholdDeltaChi2;
+
+                    ThresholdDeltaChi2 = chi2inv(normcdf(5,0,1),2);  % 5 sigma detection of parabola
+                    Flag.Poly = Flag.Poly & ResPolyHP(2).DeltaChi2>ThresholdDeltaChi2;
+
+                    if sum(Flag.Poly(:) & Flag.GoodFlags(:))>10
+                        warning('Too many slope-variables - removing all')
+                        Flag.Poly = false(size(Flag.Poly));
+                    end
     
     
                     Flag.Interesting = Flag.GoodFlags(:) & ...
@@ -235,6 +245,8 @@ function [Result] = analyzedMerged(Args)
                                 plot(MS.JD(:), LimMagQuantile, 'v')
                                 plot.invy
     
+                                %lcUtil.reportMatchedSource(MS, Ind1, 'PS',PS, 'FreqVec',FreqVec)
+                                
                                 'a'
                             end
                         end
