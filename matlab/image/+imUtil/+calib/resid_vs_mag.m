@@ -75,7 +75,7 @@ Res.Mag              = Mag;
 Res.Resid            = Resid;
 
 switch lower(Args.BinMethod)
-    case 'fit'
+    case 'poly'
         % fit polynomial to resid vs. mag
         
         Par = polyfit(Mag, Resid, Args.PolyDeg);

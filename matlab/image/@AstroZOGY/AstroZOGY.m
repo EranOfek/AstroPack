@@ -929,7 +929,6 @@ classdef AstroZOGY < AstroDiff
         % matchGalaxyCat
         % Match catalog to galaxy catalogs and add information to CatData
 
-        
         % matchStarCat
         % Match catalog to star/galaxy catalogs and add information to CatData
 
