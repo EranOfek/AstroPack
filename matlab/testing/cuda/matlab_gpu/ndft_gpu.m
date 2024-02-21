@@ -1,5 +1,5 @@
 NN = 10 .^ (1:4);
-iters = 10;
+iters = 100;
 
 for iii = 1 : length(NN)
 
@@ -20,7 +20,7 @@ for iii = 1 : length(NN)
         % Transfer data to GPU
         t_gpu = gpuArray(t);
         m_gpu = gpuArray(m);
-        f_gpu = gpuArray(f);
+        f_gpu = gpuArray(f);  
         
         % Create a matrix on the GPU
         exp_matrix_gpu = m_gpu .* exp(-2 * pi * 1i * f_gpu.' * t_gpu);
@@ -32,6 +32,22 @@ for iii = 1 : length(NN)
         p_matlab_gpu = gather(p_gpu);
         
         time_gpu_no_sort = time_gpu_no_sort + toc(ttic);
+
+        clear t_gpu m_gpu f_gpu exp p_gpu p_matlab_gpu
+
+        % Transfer data to GPU
+        t_gpu = gpuArray(t);
+        m_gpu = gpuArray(m);
+        f_gpu = gpuArray(f);  
+        
+        % Create a matrix on the GPU
+        exp_matrix_gpu = m_gpu .* exp(-2 * pi * 1i * f_gpu.' * t_gpu);
+        
+        % Compute Fourier coefficients on the GPU
+        p_gpu = sum( exp_matrix_gpu, 2) / N;
+        
+        % Transfer the result back to the CPU if needed
+        p_matlab_gpu = gather(p_gpu);        
         
         
         %% Sort time vector and measurements
@@ -68,6 +84,16 @@ for iii = 1 : length(NN)
     % time_sort_avg           = time_sort/iters;
     % time_gpu_sort_avg       = time_gpu_sort/iters;
     fprintf("For N=%d, gpu time=%e \n",N,time_gpu_no_sort_avg);
+
+    if iii == 1
+        fileID = fopen('output_times.csv', 'w');
+        fprintf(fileID, 'N, time\n');
+        fclose(fileID);
+    end
+
+    fileID = fopen('output_times.csv', 'a');
+    fprintf(fileID, '%d, %e\n', N, time_gpu_no_sort_avg);
+    fclose(fileID);
 
     writematrix(p_matlab_gpu,strcat("ndft_matlab_gpu_output_",int2str(N),".csv"));
     clear t m f t_gpu m_gpu f_gpu exp_matrix_gpu p_gpu p_matlab_gpu;

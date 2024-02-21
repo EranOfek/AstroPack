@@ -1,5 +1,5 @@
 NN = 10 .^ (1:4);
-iters = 10;
+iters = 100;
 
 for iii = 1 : length(NN)
 
@@ -26,11 +26,26 @@ for iii = 1 : length(NN)
         p_matlab = sum(exp_matrix, 2) / N;
         
         time_matlab = time_matlab + toc(ttic);
+
+        clear exp_matrix p_matlab;
         
     end
 
+    exp_matrix = m .* exp(-2 * pi * 1i * f' .* t);
+    p_matlab = sum(exp_matrix, 2) / N;    
+
     time_matlab_avg         = time_matlab/iters; 
     fprintf("For N=%d, regular time=%e \n",N,time_matlab_avg);
+
+    if iii == 1
+        fileID = fopen('output_times.csv', 'w');
+        fprintf(fileID, 'N, time\n');
+        fclose(fileID);
+    end
+
+    fileID = fopen('output_times.csv', 'a');
+    fprintf(fileID, '%d, %e\n', N, time_matlab_avg);
+    fclose(fileID);    
 
     writematrix(p_matlab,strcat("ndft_matlab_cpu_output_",int2str(N),".csv"));
     clear t m f exp_matrix p_matlab;

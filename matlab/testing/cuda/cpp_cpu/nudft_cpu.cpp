@@ -14,7 +14,7 @@ using namespace std;
 int main() {
 
     int NN[4] = { 10, 100, 1000, 10000 };
-    int iters = 10;
+    int iters = 100;
 
     for (int iii = 0; iii < 4; ++iii) {
         double time_cpp = 0.0;
@@ -129,6 +129,30 @@ int main() {
 
         delete[] result_real;
         delete[] result_imag;
+
+    	
+	std::string tfilename = "output_times.csv";
+	
+	if (iii == 0) {
+    	
+        	std::ofstream outFile(tfilename);
+        	if (!outFile.is_open()) {
+            		std::cerr << "Error opening file for writing headers" << std::endl;
+            		return 1; // Return an error code
+        	}
+        	
+        	outFile << "N, time" << std::endl;
+
+	}
+
+    	std::ofstream outFile(tfilename, std::ios_base::app);
+    	if (!outFile.is_open()) {
+        	std::cerr << "Error opening file for appending values" << std::endl;
+        	return 1; // Return an error code
+    	}
+
+        outFile << N << ", " << std::scientific << std::setprecision(6) << time_cpp_avg << std::endl;
+
     }
 
     return 0;

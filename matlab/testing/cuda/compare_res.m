@@ -34,3 +34,28 @@ for i = 1:4
 end
 
 disp('All CSV files are the same across directories.');
+
+
+cc_times_file = strcat("cpp_cpu/output_times.csv");
+cg_times_file = strcat("cpp_gpu/output_times.csv");
+mc_times_file = strcat("matlab_cpu/output_times.csv");
+mg_times_file = strcat("matlab_gpu/output_times.csv");
+
+cc_times = readtable(cc_times_file);
+cg_times = readtable(cg_times_file);
+mc_times = readtable(mc_times_file);
+mg_times = readtable(mg_times_file);
+
+for j = 1:height(cc_times)
+    N = cc_times{j, "N"};
+    cc_time = cc_times{j, "time"};
+    cg_time = cg_times{j, "time"};
+    mc_time = mc_times{j, "time"};
+    mg_time = mg_times{j, "time"};
+
+    fprintf("For N=%d:\n",N);
+    fprintf("matlab gpu is %.2f%% the time of matlab cpu\n",(mg_time/mc_time)*100);
+    fprintf("cpp gpu is %.2f%% the time of cpp cpu\n",(cg_time/cc_time)*100);
+    fprintf("cpp gpu is %.2f%% the time of matlab gpu\n",(cg_time/mg_time)*100);
+    fprintf("\n");
+end
