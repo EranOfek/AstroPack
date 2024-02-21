@@ -2762,12 +2762,17 @@ classdef MatchedSources < Component
             %            .StdPar - par std for all sources.
             %            .InterpMeanStd - The interpolated binned/polyfitted
             %                   mean of the std for each source magnitude.
+            %            .InterpPredStd - The predicted noise in
+            %                   InterpMeanStd, calculated by dividing it by
+            %                   sqrt(Nep).
             %            .InterpStdStd - (avalable for 'binning' option)
             %                   The interpolated binned/polyfitted
             %                   rstd of the std for each source magnitude.
-            %            .Flag - (avalable for 'binning' option) A logical
+            %            .FlagVar - (avalable for 'binning' option) A logical
             %                   flag indicating if a source is a possible
             %                   variable.
+            %            .FlagPred - Flag indicating if the source is a
+            %                   possible variable, based on the InterpPredStd.
             % Author : Eran Ofek (Jan 2022)
             % Example: MS = MatchedSources;
             %          MS.addMatrix(rand(100,200).*10,'MAG')
@@ -2778,7 +2783,7 @@ classdef MatchedSources < Component
                 Args.MagField                  = 'MAG';
                 Args.ParField                  = 'MAG';
                 Args.Method                    = 'binning';
-                Args.BinSize                   = 0.5;
+                Args.BinSize                   = 1;
                 Args.InterpMethod              = 'linear';
                 Args.PolyDeg                   = 3;
                 Args.MeanFun function_handle   = @median;
@@ -2786,6 +2791,8 @@ classdef MatchedSources < Component
                 Args.StdFun function_handle    = @std;
                 Args.StdFunArgs cell           = {[],1,'omitnan'};
                 Args.Nsigma                    = 3;
+                
+                Args.MinNinBin                 = 5;
             end
             
             Nobj = numel(Obj);
@@ -2802,15 +2809,27 @@ classdef MatchedSources < Component
 
                 Result(Iobj).MeanMag = Args.MeanFun(Mag, Args.MeanFunArgs{:});
                 Result(Iobj).StdPar  = Args.StdFun(Par, Args.StdFunArgs{:});
+                
 
                 switch lower(Args.Method)
                     case 'binning'
-                        B = timeSeries.bin.binning([Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:)] ,Args.BinSize,[NaN NaN], {'MidBin',@numel, @median, @tools.math.stat.rstd});
+                        FlagN0 = Result(Iobj).StdPar>1e-10;
+                        
+                        B = timeSeries.bin.binning([Result(Iobj).MeanMag(FlagN0).', Result(Iobj).StdPar(FlagN0).'] ,Args.BinSize,[NaN NaN],...
+                                                   {'MidBin',@numel, @median, @tools.math.stat.rstd});
+                        % clear zero entries
+                        Fmin = B(:,2)>Args.MinNinBin;
+                        B    = B(Fmin,:);
+                        B    = [[B(1,1)-10, B(1,2:end)]; B; [B(end,1)+2, 0, 1, NaN]];
+                        
                         Result(Iobj).B = B;
                         %Result(Iobj).EstimatedStdPar = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
-                        Result(Iobj).InterpMeanStd = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
+                        Result(Iobj).InterpMeanStd  = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
+                        Result(Iobj).InterpPredStd = Result(Iobj).InterpMeanStd./sqrt(Mep);
+                        
                         Result(Iobj).InterpStdStd = interp1(B(:,1), B(:,4), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
-                        Result(Iobj).FlagVar      = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.Nsigma.*Result(Iobj).InterpStdStd(:));
+                        Result(Iobj).FlagVarStd   = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.Nsigma.*Result(Iobj).InterpStdStd(:));
+                        Result(Iobj).FlagVarPred  = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.Nsigma.*Result(Iobj).InterpPredStd(:));
                     case 'polyfit'
                         Par = polyfit(Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:), Args.PolyDeg);
                         Result(Iobj).InterpMeanStd = polyval(Par, Result(Iobj).MeanMag);
@@ -2822,7 +2841,7 @@ classdef MatchedSources < Component
         end
         
         
-        function [FreqVec, PS] = period(Obj, Freq, Args)
+        function [FreqVec, PS, FlagVar] = period(Obj, Freq, Args)
             % Periodogram for all sources in MatchedSources object.
             % Input  : - A single element MatchedSources object.
             %          - Frequncies in which to calculate periodogram.
@@ -2848,8 +2867,14 @@ classdef MatchedSources < Component
             %                   indicating on which column to calculate the power
             %                   spectrum. If empty, then use all sources.
             %                   Default is [].
+            %            'ThresholdPS' - Threshold for flagging the source
+            %                   as variable.
+            %                   Default is 12.
             % Output : - A vector of frequencies.
             %          - A matrix of power spectra (freq. vs. star index).
+            %          - A vector of logicals indicating if the power
+            %            spectrum, for each sources, peaks above the
+            %            threshold.
             %            
             % Author : Eran Ofek (Jul 2023)
             % Example: [F, PS] = MS.period;
@@ -2903,6 +2928,10 @@ classdef MatchedSources < Component
                 [FreqVec,PS] = Args.PowerSpecFun(T, Obj.Data.(Args.MagField), FreqVec);
             else
                 [FreqVec,PS] = Args.PowerSpecFun(T, Obj.Data.(Args.MagField)(:,Ind), FreqVec);
+            end
+            
+            if nargout>2
+                FlagVar = any(PS>Args.ThresholdPS, 1);
             end
         end
         
@@ -2974,7 +3003,97 @@ classdef MatchedSources < Component
             
         end
     
+        function [Result, FlagVar] = fitPolyHyp(Obj, Args)
+            % Hypothesis testing between fitting polynomials of various degrees to
+            %   a matrix of light curves in a MatchedSources object (with unknown errors).
+            %   Like timeSeries.fit.fitPolyHyp, but for a MatchedSources class.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,vals,...
+            %            'MagFieldNames' - A cell array of dictionary field names
+            %                   for the Magnitude matrix in the MatchedSources
+            %                   object.
+            %            'PolyDeg' - A cell array in wich each element contains all
+            %                   the degrees of the polynomial to fit.
+            %                   E.g., [0:1:2], is a full 2nd deg polynomial.
+            %                   The first cell corresponds to the null hypothesis.
+            %                   The Delta\chi2^2 is calculated relative to the null
+            %                   hypothesis. In addition, the error normalization is
+            %                   calculated such that the chi^2/dof of the null
+            %                   hypothesis will be 1 (with uniform errors).
+            %                   Default is {[0], [0:1:1], [0:1:2], [0:1:3], [0:1:4], [0:1:5]}.
+            %            'SubtractMeanT' - A logical indicating if to subtract the
+            %                   mean of the time vectors from all the times.
+            %                   Default is true.
+            %            'NormT' - A logical indicating if to normalize the times
+            %                   to unity (i.e., max of abs of times will be 1.
+            %                   Default is true.
+            %            'CalcProb' - Add a field to the output structure with the
+            %                   probability to reject the null hypothesis given the
+            %                   \Delta\chi^2. This may double the run time.
+            %                   Default is false.
+            %
+            %            'ThresholdChi2' - A vector of thresholds that will be
+            %                   used for variable candidate selection,
+            %                   using the criteria:
+            %                   Result(i).DeltaChi2>ThresholdChi2(i)
+            %                   Default is [Inf, 20, 25, 30, 35, 40].
+            %
+            % Output : - A structure array with parameters of the fit for each
+            %            tested polynomial (number of elements is like the number
+            %            of elements in PolyDeg).
+            %            .PolyDeg - Polynomial degrees in the fit.
+            %            .Npar - Number of free parameters in the fit.
+            %            .Par - The best fitted parameter for each LC. [Npar X Nsrc]
+            %            .Chi2 - chi^2 per source.
+            %            .Ndof - Number of degrees of freedom.
+            %            .ResidStd - Vector of std of residuals for each source.
+            %            .DeltaChi2 - A vector of \Delta\chi^2 per source.
+            %            .DeltaNdof - The difference in degrees of freedom between
+            %                   this hypotesis and the null hypothesis.
+            %            .ProbChi2 - (return only if ProbChi2=true). - The
+            %                   probability to reject the null hypothesis.
+            %          - A vector of logicals indicating if the
+            %                   source is a potential variable.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(rand(100,200),'FLUX')
+            %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
+            %          Result = fitPolyHyp(MS);
 
+            arguments
+                Obj(1,1) MatchedSources
+
+                Args.MagFieldNames               = AstroCatalog.DefNamesMag;
+                Args.PolyDeg cell                = {[0], [0:1:1], [0:1:2], [0:1:3], [0:1:4], [0:1:5]};
+                Args.SubtractMeanT(1,1) logical  = true;
+                Args.NormT(1,1) logical          = true;
+                Args.CalcProb(1,1) logical       = false;
+                
+                Args.ThresholdChi2               = [Inf, 20, 25, 30, 35, 40];
+            end
+
+            % get field name from dictionary
+            [FieldName] = getFieldNameDic(Obj, Args.MagFieldNames);
+
+            % get Mag matrix
+            Mag = getMatrix(Obj, FieldName);
+
+            % poly hypothesis testing
+            Result = timeSeries.fit.fitPolyHyp(Obj.JD, Mag, 'PolyDeg',Args.PolyDeg);
+
+            if nargout>1
+                Nr = numel(Result);
+                FlagVar = false(1, numel(Result(1).DeltaChi2));
+                for Ir=1:1:Nr
+                    FlagVar = FlagVar | Result(Ir).DeltaChi2>Args.ThresholdChi2(Ir);
+                end
+            end
+                    
+            
+        end
+
+        
+        
     end
     
     methods % find sources

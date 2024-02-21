@@ -104,7 +104,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %          - ResZP is a structure array with the ZP info, returned by
     %            lcUtil.zp_lsq
     %          - ResVar is a structure array with the variability info,
-    %            returned by lcUtil.fitPolyHyp
+    %            returned by MatchedSources/fitPolyHyp
     %          - FitMotion is a structure array with proper motion info,
     %            returned by lcUtil.fitMotion.
     % Author : Eran Ofek (Nov 2021)
@@ -203,9 +203,9 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
                 ResZP = [];
             end
 
-            % lcUtil.fitPolyHyp
+            % fitPolyHyp
             if Args.fitPolyHyp
-                [ResVar(Ifields).Result] = lcUtil.fitPolyHyp(MatchedS(Ifields), 'MagFieldNames',Args.MagCalibColName, 'PolyDeg',Args.PolyDeg, 'SubtractMeanT',true,'NormT',true);
+                [ResVar(Ifields).Result] = fitPolyHyp(MatchedS(Ifields), 'MagFieldNames',Args.MagCalibColName, 'PolyDeg',Args.PolyDeg, 'SubtractMeanT',true,'NormT',true);
             end
         end
     end    
