@@ -1165,7 +1165,7 @@ classdef AstroDiff < AstroImage
     methods % transients inspection and measurment
 
         % transientsCutouts
-        function ADc = transientsCutouts(Obj, Args)
+        function ADc = cutoutTransients(Obj, Args)
             % Create cutouts of images around coordinates.
             %    Given an AstroZOGY/AstroDiff object, generate a new object
             %    (the same class as the input class), populated with image
@@ -1195,7 +1195,7 @@ classdef AstroDiff < AstroImage
             % Output : - An AstroDiff/AstroZOGY object with element per
             %            cutout.
             % Author : Eran Ofek (Feb 2024)
-            % Example: ADc = AD.cutouts;
+            % Example: ADc = AD.cutoutTransients;
             
             arguments
                 Obj
