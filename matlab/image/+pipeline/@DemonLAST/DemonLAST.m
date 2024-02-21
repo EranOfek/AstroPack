@@ -2132,7 +2132,9 @@ classdef DemonLAST < Component
             end
             RAD = 180./pi;
 
-            Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+            if Args.Insert2DB
+                Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+            end       
 
             % if isempty(getenv('SYSTEMD')) 
             %     % manual execuation
