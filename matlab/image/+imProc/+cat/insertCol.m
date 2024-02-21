@@ -1,10 +1,21 @@
 function [Obj] = insertCol(Obj, Args)
     % Insert columns to an AstroCatalogs in AstroImage
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
+    % Input  : - An AstroImage or AstroCatalog object.
     %          * ...,key,val,... 
-    % Output : - 
+    %            'InsertJD' - A logical indicating if to insert a JD
+    %                   column. Default is true.
+    %            'ColNameJD' - A JD column name. Default is 'JD'.
+    %            'InsertId' - A logical indicating if to insert an Id taken
+    %                   from the obkect element index. Default is true.
+    %            'ColNameId' - A Id column name. Default is 'CropID'.
+    %            'Val' - A scalar or vector of values to insert in a
+    %                   column. Default is [].
+    %            'ColNameVal' - Column name for the 'Val' data.
+    %                   Default is ''.
+    %            'ColNameUnits' - Coluumn units for the 'Val' data.
+    %                   Default is ''.
+    % Output : - The input AstroImage/AstroCatalog updated with the new
+    %            columns.
     % Author : Eran Ofek (2024 Feb) 
     % Example: imProc.cat.insertCol(SI)
 
