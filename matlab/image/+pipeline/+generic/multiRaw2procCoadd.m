@@ -533,7 +533,9 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                                                              'AsteroidSearchRadius',Args.AsteroidSearchRadius);
        
                                                                                          
-    
+    % Add JD and CropID to Catalog
+    Coadd = imProc.cat.insertCol(Coadd);
+
     % find orphans / streaks
 %     [OrphansList,CleanOrphansList,Norphans] = lcUtil.findOrphansClean(MatchedS, 'BitDict',Coadd(1).MaskData.Dict, 'MaxNepochs',3);
 %     % fit objects that appears on a line in the same epoch - possible streaks

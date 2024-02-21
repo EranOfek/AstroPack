@@ -332,6 +332,9 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                    'CreateNewObj',false);
         %SI.cast('single');
 
+        % Add JD and CropID to Catalog
+        SI = imProc.cat.insertCol(SI);
+
         if any(SI.sizeCatalog < Args.MinNstar)
             [MinVal, MinInd] = min(SI.sizeCatalog);
             error('Sub-image: %d has only %d sources', MinInd, MinVal)
