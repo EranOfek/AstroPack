@@ -187,7 +187,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
         Istat  = 0;
         DirCreated = false;
         switch class(Obj)
-            case 'AstroImage'
+            case {'AstroImage','AstroZOGY'}
                 % AstroImage input
 
                 for Iprod=1:1:Nprod

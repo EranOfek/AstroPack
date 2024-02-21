@@ -2461,33 +2461,33 @@ classdef DemonLAST < Component
                                     ADB = db.AstroDb(Args.AstroDBArgs{:});
                                 end                                
                                 % RAW, PROC, and COADD images
+                                HasImageP = ~AllSI.isemptyImage; % use only AI's with Image properties filled
+                                ProcFileName = FN_Proc.genFull;
+                                HasImageC = ~Coadd.isemptyImage; % use only AI's with Image properties filled
+                                CoaddFileName = FN_Coadd.genFull('LevelPath','proc');
                                 if ~Args.DB_ImageBulk                                
                                     [ID_RawImage, OK] = ADB.insert(RawHeader, 'Table',Args.DB_Table_Raw, 'FileNames',RawImageListFinal);
                                     RunTime = etime(clock, Tstart);
                                     Msg{1} = sprintf('Inserted images into LAST raw images table - success: %d, RunTime %.1f', OK, RunTime);
                                     Obj.writeLog(Msg, LogLevel.Info);                                     
-                                    %
-                                    HasImage = ~AllSI.isemptyImage; % use only AI's with Image properties filled
-                                    ProcFileName = FN_Proc.genFull;
+                                    %                                    
 %                                     HasFile = cellfun(@(name) exist(name, 'file') == 2, ProcFileName); HasFile = reshape(HasFile,size(AllSI,1),size(AllSI,2));
-%                                     [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage.*HasFile), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage.*HasFile)); % w/hash;
-                                    [ID_ProcImage, OK] = ADB.insert(AllSI(HasImage), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImage),'Hash',0);  % w/o hash                                                                                                                                                
+%                                     [ID_ProcImage, OK] = ADB.insert(AllSI(HasImageP.*HasFile), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImageP.*HasFile)); % w/hash;
+                                    [ID_ProcImage, OK] = ADB.insert(AllSI(HasImageP), 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImageP),'Hash',0);  % w/o hash
                                     ID_RawImage = repmat(ID_RawImage,1,24); ID_RawImage = ID_RawImage(:); % there are ~N*24 ProcImages, and only N RawImages
                                     OKupd = ADB.updateByTupleID(ID_ProcImage, 'raw_image_id', ID_RawImage, 'Table',Args.DB_Table_Proc);
                                     RunTime = etime(clock, Tstart);
                                     Msg{1} = sprintf('Insert images to LAST proc images table - success: %d, RunTime %.1f', OKupd, RunTime);
                                     Obj.writeLog(Msg, LogLevel.Info);
-                                    %
-                                    HasImage = ~Coadd.isemptyImage; % use only AI's with Image properties filled
-                                    CoaddFileName = FN_Coadd.genFull('LevelPath','proc');
-                                    [ID_CoaddImage, OK] = ADB.insert(Coadd(HasImage), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImage),'Hash',0); % w/o hash
+                                    %                                    
+                                    [ID_CoaddImage, OK] = ADB.insert(Coadd(HasImageC), 'Table',Args.DB_Table_Coadd, 'FileNames',CoaddFileName(HasImageC),'Hash',0); % w/o hash
                                     RunTime = etime(clock, Tstart);                                    
                                     Msg{1} = sprintf('Insert images to LAST coadd images table - success: %d, RunTime %.1f', OK, RunTime);
                                     Obj.writeLog(Msg, LogLevel.Info);                                    
                                 else % prepare CSV files for further injection into the DB                                                                          
-                                    ADB.insert(RawHeader,'Type','bulkima', 'BulkFN',FN_I,    'BulkCatType','raw');
-                                    ADB.insert(AllSI,    'Type','bulkima', 'BulkFN',FN_Proc, 'BulkCatType','proc');       
-                                    ADB.insert(Coadd,    'Type','bulkima', 'BulkFN',FN_Coadd,'BulkCatType','coadd');                                                                               
+                                    ADB.insert(RawHeader,'Type','bulkima', 'BulkFN',FN_I,    'BulkCatType','raw',  'FileNames',RawImageListFinal);
+                                    ADB.insert(AllSI,    'Type','bulkima', 'BulkFN',FN_Proc, 'BulkCatType','proc', 'FileNames',ProcFileName(HasImageP));       
+                                    ADB.insert(Coadd,    'Type','bulkima', 'BulkFN',FN_Coadd,'BulkCatType','coadd','FileNames',CoaddFileName(HasImageC));                                                                               
                                     
                                     FN_I_DB = FN_I.copy; OK = 1; 
                                     Obj.writeStatus(FN_I_DB.genPath, 'Msg', 'ready-for-DB'); 
