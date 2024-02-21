@@ -2842,6 +2842,12 @@ classdef MatchedSources < Component
             %            'PowerSpecFun' - A function handle for calcualting
             %                   the power spectrum.
             %                   Default is @timeSeries.period.periodmulti_norm
+            %            'getFreqArgs' - A cell array of arguments to pass
+            %                   to timeSeries.period.getFreq
+            %            'Ind' - A vector of indices or logical flags
+            %                   indicating on which column to calculate the power
+            %                   spectrum. If empty, then use all sources.
+            %                   Default is [].
             % Output : - A vector of frequencies.
             %          - A matrix of power spectra (freq. vs. star index).
             %            
@@ -2853,44 +2859,51 @@ classdef MatchedSources < Component
                 Freq      = [];
                 Args.MagField     = 'MAG_APER_3';
                 Args.PowerSpecFun = @timeSeries.period.periodmulti_norm;
+                Args.getFreqArgs cell = {};
+                Args.Ind              = [];
             end
 
             T        = Obj.JD(:);
 
-            MinFreq  = 0;
-            MaxFreq  = [];
-            StepFreq = [];
-            FreqVec  = [];
-            switch numel(Freq)
-                case 0
-                    % auto choose
-                case 1
-                    % assume input is max frequency
-                    MaxFreq = Freq(1);
-                case 2
-                    StepFreq = Freq(1);
-                    MaxFreq  = Freq(2);
-                case 3
-                    MinFreq  = Freq(1);
-                    StepFreq = Freq(2);
-                    MaxFreq  = Freq(3);
-                otherwise
-                    FreqVec = Freq;
+            FreqVec = timeSeries.period.getFreq(T, Freq, Args.getFreqArgs{:});
+
+            % MinFreq  = 0;
+            % MaxFreq  = [];
+            % StepFreq = [];
+            % FreqVec  = [];
+            % switch numel(Freq)
+            %     case 0
+            %         % auto choose
+            %     case 1
+            %         % assume input is max frequency
+            %         MaxFreq = Freq(1);
+            %     case 2
+            %         StepFreq = Freq(1);
+            %         MaxFreq  = Freq(2);
+            %     case 3
+            %         MinFreq  = Freq(1);
+            %         StepFreq = Freq(2);
+            %         MaxFreq  = Freq(3);
+            %     otherwise
+            %         FreqVec = Freq;
+            % end
+            % 
+            % if isempty(FreqVec)
+            %     if isempty(MaxFreq)
+            %         MaxFreq  = 1./mean(diff(sort(T)));
+            %     end
+            %     if isempty(StepFreq)
+            %         StepFreq = 1./(2.*range(T));
+            %     end
+            % 
+            %     FreqVec = (MinFreq:StepFreq:MaxFreq).';
+            % end
+
+            if isempty(Args.Ind)
+                [FreqVec,PS] = Args.PowerSpecFun(T, Obj.Data.(Args.MagField), FreqVec);
+            else
+                [FreqVec,PS] = Args.PowerSpecFun(T, Obj.Data.(Args.MagField)(:,Ind), FreqVec);
             end
-
-            if isempty(FreqVec)
-                if isempty(MaxFreq)
-                    MaxFreq  = 1./mean(diff(sort(T)));
-                end
-                if isempty(StepFreq)
-                    StepFreq = 1./(2.*range(T));
-                end
-
-                FreqVec = (MinFreq:StepFreq:MaxFreq).';
-            end
-
-            [FreqVec,PS] = Args.PowerSpecFun(T, Obj.Data.(Args.MagField), FreqVec);
-
         end
         
         function [Flag,FlagAll]=searchFlares(Obj, DataField, Args)
@@ -2914,7 +2927,12 @@ classdef MatchedSources < Component
             %            'MaxNotNaN' - For the 2nd search method the number of
             %                   sucessive NaNs must be samller than this value.
             %                   Default is 11.
-            %
+            %            'LimMag' - Lim mag for images. If empty, then not used.
+            %            'MinMagRangeRel' - If LimMag is given then will calculate
+            %                   the range of star variability range and check if it
+            %                   is larger than this factor multiplied by the
+            %                   LimMag-min(mag).
+            %                   Default is 0.1.
             % Output : - A structure array (element per MatchedSources
             %            element), with a vector of logicals (one per
             %            source) indicating if a flare was found by one of
@@ -2936,6 +2954,8 @@ classdef MatchedSources < Component
                 Args.MinNotNaN         = 1;
                 Args.MaxNotNaN         = 11;
 
+                Args.LimMag            = [];
+                Args.MinMagRangeRel    = 0.1;
             end
             
             Nobj = numel(Obj);
@@ -2947,10 +2967,14 @@ classdef MatchedSources < Component
                                                                                  'MadType',Args.MadType,...
                                                                                  'ThresholdZ',Args.ThresholdZ,...
                                                                                  'MinNotNaN',Args.MinNotNaN,...
-                                                                                 'MaxNotNaN',Args.MaxNotNaN);
+                                                                                 'MaxNotNaN',Args.MaxNotNaN,...
+                                                                                 'LimMag',Args.LimMag,...
+                                                                                 'MinMagRangeRel',Args.MinMagRangeRel);
             end
             
         end
+    
+
     end
     
     methods % find sources

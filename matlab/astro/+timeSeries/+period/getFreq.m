@@ -1,6 +1,8 @@
-function [FreqVec, Result] = getFreq(T, Args)
+function [FreqVec, Result] = getFreq(T, Freq, Args)
     % Given times, get a frequency vector, over which it is recommended to search for periodicity
     % Input  : - A vector of times.
+    %          - Optional Frequency vector. If provided, then this will be
+    %            returned as an output. Default is [].
     %          * ...,key,val,... 
     %            'OverSampling' - Frequency over sampling. Default is 2.
     %            'OverNyquist' - Multiply the highest frequency by this
@@ -19,6 +21,7 @@ function [FreqVec, Result] = getFreq(T, Args)
 
     arguments
         T
+        Freq                    = [];
         Args.OverSampling       = 2;
         Args.OverNyquist        = 0.5;
         Args.StartWith0 logical = true;
@@ -26,20 +29,27 @@ function [FreqVec, Result] = getFreq(T, Args)
     end
 
 
-    TimeSpan = range(T);
-
-    Result.DeltaFreq = 1./(Args.OverSampling.*TimeSpan);
-
-    if Args.StartWith0
-        Result.MinFreq = 0;
-    else
-        Result.MinFreq = DeltaFreq;
-    end
-
-    TypicalDiff = Args.DiffFun(diff(sort(T)));
-
-    Result.MaxFreq = Args.OverNyquist./TypicalDiff;
+    if isempty(Freq)
+        TimeSpan = range(T);
     
-    FreqVec = (Result.MinFreq:Result.DeltaFreq:Result.MaxFreq).';
+        Result.DeltaFreq = 1./(Args.OverSampling.*TimeSpan);
+    
+        if Args.StartWith0
+            Result.MinFreq = 0;
+        else
+            Result.MinFreq = DeltaFreq;
+        end
+    
+        TypicalDiff = Args.DiffFun(diff(sort(T)));
+    
+        Result.MaxFreq = Args.OverNyquist./TypicalDiff;
+        
+        FreqVec = (Result.MinFreq:Result.DeltaFreq:Result.MaxFreq).';
+    else
+        % construct from FreqVec
+        FreqVec = Freq;
+        Result  = [];
+
+    end
     
 end
