@@ -26,6 +26,12 @@ function [FlagAny,Flag,Median,Std] = searchFlares(Mat, Args)
     %            'MaxNotNaN' - For the 2nd search method the number of
     %                   sucessive NaNs must be samller than this value.
     %                   Default is 11.
+    %            'LimMag' - Lim mag for images. If empty, then not used.
+    %            'MinMagRangeRel' - If LimMag is given then will calculate
+    %                   the range of star variability range and check if it
+    %                   is larger than this factor multiplied by the
+    %                   LimMag-min(mag).
+    %                   Default is 0.1.
     %
     % Output : - A vector of logical flag indictaing, for each source, if a
     %            flare was detected.
@@ -49,6 +55,8 @@ function [FlagAny,Flag,Median,Std] = searchFlares(Mat, Args)
         Args.MinNotNaN         = 1;
         Args.MaxNotNaN         = 11;
         
+        Args.LimMag            = [];
+        Args.MinMagRangeRel    = 0.1;
     end
 
     if Args.DimEpoch==2
@@ -98,7 +106,14 @@ function [FlagAny,Flag,Median,Std] = searchFlares(Mat, Args)
             % only one peak was found
             Flag.FlagN(Isrc) = true;
         end
+
     end
+    if ~isempty(Args.LimMag)
+        Range = max(Args.LimMag - min(Mat,[],1), 0.1);
+
+        Flag.N = Flag.N & Range.*Args.MinMagRangeRel>range(Mat, 1);
+    end
+
         
     FlagAny = any(Flag.FlagZ,2) | Flag.FlagN;
     
