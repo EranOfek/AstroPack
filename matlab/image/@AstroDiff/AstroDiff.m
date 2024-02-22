@@ -682,12 +682,17 @@ classdef AstroDiff < AstroImage
                     'flagMag', true,...
                     'MagLim', 21,...
                     'flagBadPix_Hard', true,...
-                    'NewMask_BadHard', {'Saturated','NearEdge','FlatHighStd',...
-                    'Overlap','Edge','CR_DeltaHT','Interpolated','NaN'},...
-                    'RefMask_BadHard',{'Saturated','NearEdge','FlatHighStd',...
-                    'Overlap','Edge','CR_DeltaHT','Interpolated','NaN'},...
+                    'NewMask_BadHard', {'Interpolated','NaN'},...
+                    'RefMask_BadHard', {'Interpolated','NaN'},...
+                    'flagBadPix_Medium', true,...
+                    'BadPixThresh_Medium', 50,...
+                    'NewMask_BadMedium', {'Saturated','NearEdge',...
+                    'FlatHighStd', 'Overlap','Edge','CR_DeltaHT'},...
+                    'RefMask_BadMedium', {'Saturated','NearEdge',...
+                    'FlatHighStd', 'Overlap','Edge','CR_DeltaHT'},...                    
                     'flagBadPix_Soft', true,...
-                    'NewMask_BadSoft',{'HighRN', 'DarkHighVal', ...
+                    'BadPixThresh_Soft', 10,...
+                    'NewMask_BadSoft', {'HighRN', 'DarkHighVal', ...
                     'BiasFlaring', 'Hole', 'SrcNoiseDominated'},...
                     'RefMask_BadSoft', {'HighRN', 'DarkHighVal', ...
                     'BiasFlaring', 'Hole', 'SrcNoiseDominated'},...
@@ -883,14 +888,27 @@ classdef AstroDiff < AstroImage
                               candidates based on hard bit mask criteria. 
                               Default is true.
                        'NewMask_BadHard' - Hard bit mask criteria for bad pixels in 
-                              AD.New image. Default is {'Saturated', 'NearEdge', 'FlatHighStd',
-                              'Overlap','Edge','CR_DeltaHT', 'Interpolated','NaN'}.
+                              AD.New image. Default is {'Interpolated','NaN'}.
                        'RefMask_BadHard' - Hard bit mask criteria for bad pixels in 
+                              AD.Ref image. Default is {'Interpolated','NaN'}.
+                       'flagBadPix_Medium' - Bool on whether to flag transients
+                              candidates based on medium bit mask criteria. 
+                              Default is true.
+                       'BadPixThresh_Medium' - Threshold score value below which
+                              a pixel containing a medium criterium is to be
+                              flagged. Default is 50.
+                       'NewMask_BadMedium' - Medium bit mask criteria for bad pixels in 
+                              AD.New image. Default is {'Saturated', 'NearEdge', 'FlatHighStd',
+                              'Overlap','Edge','CR_DeltaHT'}.
+                       'RefMask_BadHard' - Medium bit mask criteria for bad pixels in 
                               AD.Ref image. Default is {'Saturated', 'NearEdge', 'FlatHighStd',
-                              'Overlap','Edge','CR_DeltaHT', 'Interpolated','NaN'}.
+                              'Overlap','Edge','CR_DeltaHT'}.
                        'flagBadPix_Soft' - Bool on whether to flag transients
                               candidates based on soft bit mask criteria. 
                               Default is true.
+                       'BadPixThresh_Soft' - Threshold score value below which
+                              a pixel containing a soft criterium is to be
+                              flagged. Default is 10.
                        'NewMask_BadSoft' - Soft bit mask criteria for bad pixels in 
                               AD.New Image. Default is {'HighRN', 'DarkHighVal',
                               'BiasFlaring', 'Hole', 'SrcNoiseDominated'}.
@@ -912,25 +930,31 @@ classdef AstroDiff < AstroImage
                 Obj
                 
                 Args.flagChi2 logical = true;
-                Args.Chi2dofLimits         = [0.5 2];
-
+                Args.Chi2dofLimits = [0.5 2];
+                
                 Args.flagMag logical = true;
                 Args.MagLim = 21;
-
+                
                 Args.flagBadPix_Hard logical  = true;
-                Args.NewMask_BadHard       = {'Saturated','NearEdge','FlatHighStd',...
-                    'Overlap','Edge','CR_DeltaHT','Interpolated','NaN'};
-                Args.RefMask_BadHard       = {'Saturated','NearEdge','FlatHighStd',...
-                    'Overlap','Edge','CR_DeltaHT','Interpolated','NaN'};
+                Args.NewMask_BadHard       = {'Interpolated', 'NaN'};
+                Args.RefMask_BadHard       = {'Interpolated', 'NaN'};
+        
+                Args.flagBadPix_Medium logical = true;
+                Args.BadPixThresh_Medium = 50;
+                Args.NewMask_BadMedium       = {'Saturated','NearEdge','FlatHighStd',...
+                    'Overlap','Edge','CR_DeltaHT'};
+                Args.RefMask_BadMedium       = {'Saturated','NearEdge','FlatHighStd',...
+                    'Overlap','Edge','CR_DeltaHT'};
                 
                 Args.flagBadPix_Soft logical  = true;
+                Args.BadPixThresh_Soft = 10;
                 Args.NewMask_BadSoft       = {'HighRN', 'DarkHighVal', ...
                     'BiasFlaring', 'Hole', 'SrcNoiseDominated'};
                 Args.RefMask_BadSoft       = {'HighRN', 'DarkHighVal', ...
-                    'BiasFlaring', 'Hole', 'SrcNoiseDominated'};
-
+                    'BiasFlaring', 'Hole', 'SrcNoiseDominated'};      
+        
                 Args.flagStarMatches logical = true;
-
+        
                 Args.flagTranslients logical = true;
         
             end
@@ -976,11 +1000,16 @@ classdef AstroDiff < AstroImage
             end
         end
 
-        function AD = removeNonTransients(Obj)
+        function AD = removeNonTransients(Obj, Args)
             %{
             Removes likely non-transients from CatData.
             Input  : - An AstroDiff object with a CatData that is set and
                        flagged for likely non-transients.
+                     * ...,key,val,...
+                       'removeCol' - Column based on which to remove transients 
+                              candidates. Column values have to be logical,
+                              candidates where the value is true are
+                              removed. Default is 'LikelyNotTransient.'
             Output : - An AstroDiff copy of input AstroDiff but with likely
                        non-transients removed from CatData.
             Author : Ruslan Konno (Feb 2024)
@@ -989,11 +1018,13 @@ classdef AstroDiff < AstroImage
 
             arguments
                 Obj
+
+                Args.removeCol = 'LikelyNotTransient';
             end
 
             Nobj = numel(Obj);
             for Iobj=Nobj:-1:1
-                Transients = ~Obj(Iobj).CatData.getCol('LikelyNotTransient');
+                Transients = ~Obj(Iobj).CatData.getCol(Args.removeCol);
                 AD(Iobj) = Obj(Iobj).copy();
                 AD(Iobj).CatData = Obj(Iobj).CatData.selectRows(Transients);
             end
@@ -1285,7 +1316,87 @@ classdef AstroDiff < AstroImage
     
     methods % display
         % ds9
-        % Display Ref, New, D, S, Z2 in ds9 and mark transients
+
+        function displayTransients(Obj, Args)
+            %{
+            Display transients candidates in New, Ref, Diff and others 
+              using ds9.
+            Input:  - An AstroDiff object in which CatData is populated.
+                    * ...,key,val,...
+                      'removeBadPixel_Hard' - Remove pixels which fail hard
+                             bad pixel criteria for plotting. Default is
+                             true.
+                      'TranMarker' - Marker for possible transients
+                             candidates. Default is 'go'.
+                      'NonTranMarker' - Marker for transients candidates
+                             that are likely not real transients. Default
+                             is 'rs'.
+                      'OtherImages' - A cell indicating other images to
+                             shown in ds9. Images must be properties of
+                             Obj. Default is {}.
+            Author: - Ruslan Konno (Feb 2024)
+            Example:- AD.displayTransients
+            %}
+
+            arguments
+                Obj
+
+                Args.removeBadPixel_Hard logical = true;
+                Args.TranMarker = 'go';
+                Args.NonTranMarker = 'rs';
+                Args.OtherImages cell = {};
+
+            end
+
+            if Args.removeBadPixel_Hard
+                Objn = Obj.removeNonTransients('removeCol','BadPixel_Hard');
+            end
+
+            % Get transients and non-transients
+            [TranCat, NonTranCat] = Objn.separateNonTransients;
+
+            % Display New 
+            ds9(Obj.New,1); 
+            ds9.plot(TranCat.getXY, Args.TranMarker);
+            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+            % Display Ref
+            ds9(Obj.Ref,2); 
+            ds9.plot(TranCat.getXY, Args.TranMarker);
+            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+            % Display D
+            ds9(Obj,3);
+            ds9.plot(TranCat.getXY, Args.TranMarker);
+            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+
+            % Display others
+            Nimgs = 3;
+            Nother = numel(Args.OtherImages);
+            for Iother=1:1:Nother
+
+                % Skip if property does not exist
+                if ~isprop(Obj,Args.OtherImages{Iother})
+                    warning('Object does not have property %s', ...
+                        (Args.OtherImages{Iother}));
+                    continue
+                end
+
+                Nimgs = Nimgs + 1;
+                switch Args.OtherImages{Iother}
+                    case 'S'
+                        ds9(Obj.S,Nimgs);
+                        ds9.plot(TranCat.getXY, Args.TranMarker);
+                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);  
+                    case 'Z2'
+                        ds9(Obj.Z2,Nimgs);
+                        ds9.plot(TranCat.getXY, Args.TranMarker);
+                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker); 
+                end
+
+            end
+
+            % Tile ds9 based on number of images
+            ds9.tile([3 ceil(Nimgs/3)]);
+        end
         
     end    
 
