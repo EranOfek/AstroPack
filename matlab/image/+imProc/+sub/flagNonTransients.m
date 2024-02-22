@@ -18,14 +18,27 @@ function TranCat = flagNonTransients(Obj, Args)
                        candidates based on hard bit mask criteria. 
                        Default is true.
                 'NewMask_BadHard' - Hard bit mask criteria for bad pixels in 
-                       AD.New image. Default is {'Saturated', 'NearEdge', 'FlatHighStd', 
-                       'Overlap','Edge','CR_DeltaHT', 'Interpolated','NaN'}.
+                       AD.New image. Default is {'Interpolated','NaN'}.
                 'RefMask_BadHard' - Hard bit mask criteria for bad pixels in 
+                       AD.Ref image. Default is {'Interpolated','NaN'}.
+                'flagBadPix_Medium' - Bool on whether to flag transients
+                       candidates based on medium bit mask criteria. 
+                       Default is true.
+                'BadPixThresh_Medium' - Threshold score value below which
+                       a pixel containing a medium criterium is to be
+                       flagged. Default is 50.
+                'NewMask_BadMedium' - Medium bit mask criteria for bad pixels in 
+                       AD.New image. Default is {'Saturated', 'NearEdge', 'FlatHighStd', 
+                       'Overlap','Edge','CR_DeltaHT'}.
+                'RefMask_BadMedium' - Medium bit mask criteria for bad pixels in 
                        AD.Ref image. Default is {'Saturated', 'NearEdge', 'FlatHighStd', 
-                       'Overlap','Edge','CR_DeltaHT', 'Interpolated','NaN'}.
+                       'Overlap','Edge','CR_DeltaHT'}.
                 'flagBadPix_Soft' - Bool on whether to flag transients
                        candidates based on soft bit mask criteria. 
                        Default is true.
+                'BadPixThresh_Soft' - Threshold score value below which
+                       a pixel containing a soft criterium is to be
+                       flagged. Default is 10.
                 'NewMask_BadSoft' - Soft bit mask criteria for bad pixels in 
                        AD.New Image. Default is {'HighRN', 'DarkHighVal',
                        'BiasFlaring', 'Hole', 'SrcNoiseDominated'}.
@@ -59,11 +72,15 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.MagLim = 21;
         
         Args.flagBadPix_Hard logical  = true;
-        Args.BadPixThresh_Hard = 1000;
-        Args.NewMask_BadHard       = {'Saturated','NearEdge','FlatHighStd',...
-            'Overlap','Edge','CR_DeltaHT', 'Interpolated', 'NaN'};
-        Args.RefMask_BadHard       = {'Saturated','NearEdge','FlatHighStd',...
-            'Overlap','Edge','CR_DeltaHT', 'Interpolated', 'NaN'};
+        Args.NewMask_BadHard       = {'Interpolated', 'NaN'};
+        Args.RefMask_BadHard       = {'Interpolated', 'NaN'};
+
+        Args.flagBadPix_Medium logical = true;
+        Args.BadPixThresh_Medium = 50;
+        Args.NewMask_BadMedium       = {'Saturated','NearEdge','FlatHighStd',...
+            'Overlap','Edge','CR_DeltaHT'};
+        Args.RefMask_BadMedium       = {'Saturated','NearEdge','FlatHighStd',...
+            'Overlap','Edge','CR_DeltaHT'};
         
         Args.flagBadPix_Soft logical  = true;
         Args.BadPixThresh_Soft = 10;
@@ -142,13 +159,43 @@ function TranCat = flagNonTransients(Obj, Args)
                 BM_ref, 'UniformOutput', false));
             end
 
-            BadHardIdx = (abs(Cat.getCol('Score')) < Args.BadPixThresh_Hard) &...
-                          (FlagBadHard_New | FlagBadHard_Ref);
+            BadHardIdx = FlagBadHard_New | FlagBadHard_Ref;
 
             IsTransient = IsTransient & ~BadHardIdx;
             Obj(Iobj).CatData.insertCol(cast(BadHardIdx,'double'), ...
                 'Score', {'BadPixel_Hard'}, {''});
         end
+
+        % Hard bit mask criteria.
+        if Args.flagBadPix_Medium
+
+            % New bit mask criteria.
+            NBadMedium_New = numel(Args.NewMask_BadMedium);
+            FlagBadMedium_New = false(CatSize,1);
+    
+            for INewBad=1:1:NBadMedium_New
+                FlagBadMedium_New = FlagBadHard_New | ...
+                    cell2mat(cellfun(@(c) any(strcmp(c, Args.NewMask_BadMedium(INewBad))), ...
+                BM_new, 'UniformOutput', false));
+            end
+
+            % Reference bit mask criteria.
+            NBadMedium_Ref = numel(Args.RefMask_BadMedium);
+            FlagBadMedium_Ref = false(CatSize,1);
+    
+            for IRefBad=1:1:NBadMedium_Ref
+                FlagBadMedium_Ref = FlagBadMedium_Ref | ...
+                    cell2mat(cellfun(@(c)any(strcmp(c, Args.RefMask_BadMedium(IRefBad))), ...
+                BM_ref, 'UniformOutput', false));
+            end
+
+            BadMediumIdx = (abs(Cat.getCol('Score')) < Args.BadPixThresh_Medium) &...
+                          (FlagBadMedium_New | FlagBadMedium_Ref);
+
+            IsTransient = IsTransient & ~BadMediumIdx;
+            Obj(Iobj).CatData.insertCol(cast(BadMediumIdx,'double'), ...
+                'Score', {'BadPixel_Medium'}, {''});
+        end        
 
         % Soft bit mask criteria.
         if Args.flagBadPix_Soft
