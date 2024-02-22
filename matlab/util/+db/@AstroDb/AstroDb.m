@@ -440,6 +440,7 @@ classdef AstroDb < Component
             Q.addColumn(TN, 'nobs',         'single', 'default 0');
             Q.addColumn(TN, 'distmp',       'single', 'default 0');
             Q.addColumn(TN, 'jd',           'double', 'default 0', 'index', true);
+            Q.addColumn(TN, 'cropid',       'smallint', 'default 0', 'index', true);
             Q.addColumn(TN, 'exptime',      'single', 'default 0');
                         
             % Additional
@@ -673,14 +674,23 @@ classdef AstroDb < Component
                     FN = FN.updateIfNotEmpty('FileType',{'csv'});
                     if strcmpi(Args.BulkCatType,'raw')
                         HeaderFN = FN.genFull{1};
+                        if ~isempty(Args.FileNames)                            
+                            [Data.File] = Args.FileNames{:};
+                        end
                         Data.writeCSV(HeaderFN,'CleanHeaderValues',1);                        
                     elseif strcmpi(Args.BulkCatType,'proc')
                         HeaderFN = FN.genFull{1};
                         AH = [Data.HeaderData];
+                        if ~isempty(Args.FileNames)                            
+                            [AH.File] = Args.FileNames{:};
+                        end
                         AH.writeCSV(HeaderFN,'CleanHeaderValues',1);
                     elseif strcmpi(Args.BulkCatType,'coadd')
                         HeaderFN = FN.genFull('LevelPath','proc'); HeaderFN = HeaderFN{1};
                         AH = [Data.HeaderData];
+                        if ~isempty(Args.FileNames)                            
+                            [AH.File] = Args.FileNames{:};
+                        end
                         AH.writeCSV(HeaderFN,'CleanHeaderValues',1);
                     else
                         error('Incorrect image type in AstroDb.insert');

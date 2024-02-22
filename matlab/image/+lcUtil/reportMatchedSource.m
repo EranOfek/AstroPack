@@ -86,7 +86,7 @@ function [Result] = reportMatchedSource(MS, Ind1, Args)
     StdDec = std(VecDec,[],1,'omitnan');
 
     % poly std
-    ResPolyHP = lcUtil.fitPolyHyp(MS, 'PolyDeg',{0, (0:1:2)});
+    ResPolyHP = fitPolyHyp(MS, 'PolyDeg',{0, (0:1:2)});
     
     % external catalogs
 

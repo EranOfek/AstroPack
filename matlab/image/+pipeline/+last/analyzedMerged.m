@@ -103,10 +103,15 @@ function [Result] = analyzedMerged(Args)
     
                     % Analyze the MS object
     
+                    % Detections
+                    FlagDet = ~isnan(MS.Data.(Args.MagField));
+                    Ndet    = sum(FlagDet);
+                    
                     % flags
                     [BadFlags] = searchFlags(MS, 'FlagsList',Args.BadFlags);
-                    Flag.GoodFlags = ~any(BadFlags, 1);
-    
+                    % sources for which all the detections are good:
+                    Flag.GoodFlags = any(~BadFlags & FlagDet, 1);
+
                     % search for flares
                     [FlagFlares,FF] = searchFlares(MS, Args.MagField, Args.searchFlaresArgs{:});
                     Flag.Flares = FlagFlares.Any;
@@ -162,12 +167,13 @@ function [Result] = analyzedMerged(Args)
 %R=imUtil.calib.fit_rmsCurve(MeanMag, StdMag)
 
                     % poly std
-                    ResPolyHP = lcUtil.fitPolyHyp(MS, 'PolyDeg',{0, (0:1), (0:1:2)});
-                    ThresholdDeltaChi2 = chi2inv(normcdf(6,0,1),2);  % 6 sigma detection of parabola
-                    Flag.Poly = ResPolyHP(3).DeltaChi2>ThresholdDeltaChi2;
+                    [ResPolyHP, Flag.Poly] = fitPolyHyp(MS, 'PolyDeg',{0, (0:1), (0:1:2)}, 'ThresholdChi2',[Inf, chi2inv(normcdf([4 5 6],0,1),2)]);
+                    
+                    %ThresholdDeltaChi2 = chi2inv(normcdf(6,0,1),2);  % 6 sigma detection of parabola
+                    %Flag.Poly = ResPolyHP(3).DeltaChi2>ThresholdDeltaChi2;
 
-                    ThresholdDeltaChi2 = chi2inv(normcdf(5,0,1),2);  % 5 sigma detection of parabola
-                    Flag.Poly = Flag.Poly & ResPolyHP(2).DeltaChi2>ThresholdDeltaChi2;
+                    %ThresholdDeltaChi2 = chi2inv(normcdf(5,0,1),2);  % 5 sigma detection of parabola
+                    %Flag.Poly = Flag.Poly & ResPolyHP(2).DeltaChi2>ThresholdDeltaChi2;
 
                     if sum(Flag.Poly(:) & Flag.GoodFlags(:))>10
                         warning('Too many slope-variables - removing all')
