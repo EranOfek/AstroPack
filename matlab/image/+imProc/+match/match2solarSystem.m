@@ -305,6 +305,8 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
                         Tmp(IsnanTmp) = 1;   
                         Obj_DistCol = ResInd.Obj2_Dist(Tmp);
                         Obj_DistCol = convert.angular('rad', Args.SourcesColDistUnits, Obj_DistCol);
+                        % return the NaNs to asources with no counterparts
+                        Obj_DistCol(IsnanTmp) = NaN;
                     end
                     insertCol(Cat, Obj_DistCol, Args.SourcesColDistPos, Args.SourcesColDistName, Args.SourcesColDistUnits);
         

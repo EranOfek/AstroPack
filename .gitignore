@@ -22,3 +22,8 @@ matlab_2021_10_05_before_copyObject/
 
 # Files to exclude from ignore
 !README.md
+
+# Python folders
+__pycache__/
+.idea/
+

@@ -18,6 +18,9 @@ function [FlagAny,Flag,Median,Std] = searchFlares(Mat, Args)
     %                   that is used to calculate the std of the time.
     %                   If empty, use tools.math.stat.rstd.
     %                   series. Default is [].
+    %            'ScreenDeltaFun' - A logical indicating if to screen out
+    %                   events that are more consistent with a delta function
+    %                   flare. Default is true.
     %            'ThresholdZ' - Threshold for detection (sigma).
     %                   Default is 8.
     %            'MinNotNaN' - For the 2nd search method the number of
@@ -50,6 +53,8 @@ function [FlagAny,Flag,Median,Std] = searchFlares(Mat, Args)
         Args.MovMeanWin        = [2 4 8];
         Args.MadType           = [];
         
+        Args.ScreenDeltaFun logical  = true;
+
         Args.ThresholdZ        = 8;
         
         Args.MinNotNaN         = 1;
@@ -77,6 +82,8 @@ function [FlagAny,Flag,Median,Std] = searchFlares(Mat, Args)
         Std         = tools.math.stat.std_mad(Mat, Args.MadType, 1);
     end
     
+    % search for delta-function flares
+    FiltZ1       = max(abs(Mat - Median)./Std, [], 1);
     
     Flag.FlagZ  = false(Nsrc, Nfilt);
     for Ifilt=1:1:Nfilt
@@ -86,6 +93,9 @@ function [FlagAny,Flag,Median,Std] = searchFlares(Mat, Args)
     
         StdF        = Std./sqrt(Args.MovMeanWin(Ifilt));
         FiltZ       = abs(FilteredMag - Median)./StdF;
+        if Args.ScreenDeltaFun
+            FiltZ(FiltZ<FiltZ1) = NaN;
+        end
         MaxZ        = max(FiltZ,[],1);
     
         Flag.FlagZ(:,Ifilt)  = MaxZ>Args.ThresholdZ;
@@ -111,7 +121,7 @@ function [FlagAny,Flag,Median,Std] = searchFlares(Mat, Args)
     if ~isempty(Args.LimMag)
         Range = max(Args.LimMag - min(Mat,[],1), 0.1);
 
-        Flag.N = Flag.N & Range.*Args.MinMagRangeRel>range(Mat, 1);
+        Flag.FlagN = Flag.FlagN & (Range.*Args.MinMagRangeRel>range(Mat, 1)).';
     end
 
         
