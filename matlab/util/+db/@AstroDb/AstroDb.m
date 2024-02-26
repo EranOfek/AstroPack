@@ -670,10 +670,14 @@ classdef AstroDb < Component
                         error('Incorrect catalog type in AstroDb.insert');
                     end
                     CatFileName = tools.os.relPath2absPath(CatFileName);
-                    StKey = Args.BulkAI.getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
+%                     StKey = Args.BulkAI.getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
+%                     Data.writeLargeCSV(CatFileName,...
+%                         'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
+%                         'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUMB, StKey.JD, StKey.EXPTIME] );
+                    StKey = Args.BulkAI.getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','EXPTIME'});
                     Data.writeLargeCSV(CatFileName,...
-                        'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
-                        'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUMB, StKey.JD, StKey.EXPTIME] );
+                        'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'EXPTIME'}],...
+                        'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUMB, StKey.EXPTIME] );
                     
                 case 'bulkima' % bulk writing of RAW, PROC, and COADD image headers to a CSV file for further injection
                 % NB! this case is very LAST-specific!
