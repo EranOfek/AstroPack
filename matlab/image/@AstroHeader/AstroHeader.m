@@ -1845,7 +1845,17 @@ classdef AstroHeader < Component
         end
         
         function writeCSVforBulkInjection(Obj0,FileName,Args)
-            
+            % write an AstroHeader to a csv text file
+            % Input  : - An AstroHeader object or a vector of AH objects
+            %          - name of the file to write to
+            %        * ...,key,val,...
+            %        'Append'   - append to an existing CSV file (no need to
+            %        make a new file and write a line with column names
+            %        'Delimiter' - field delimiter
+            %        'Filter' - whether to remove the fields not present in the DB table
+            %        'FiltrList' - a cell array of the DB table fields to match
+            % Output : - a csv file
+            % Author : A. Krassilchtchikov (Feb 2024)
             arguments
                 Obj0
                 FileName             = 'astroheader.csv' % output file name
