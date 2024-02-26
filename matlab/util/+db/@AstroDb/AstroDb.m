@@ -449,8 +449,15 @@ classdef AstroDb < Component
                 
             Obj.msgLog(LogLevel.Info, 'addCommonCatalogColumns done');
             Result = true;
-        end
+       end
         
+       function Result = getListOfTableColumns(Obj, TN)
+           
+           TN1 = sprintf('table_name = ''%s''',TN);
+           Rec = Obj.Query.select('column_name','TableName','information_schema.columns','Where',TN1);
+           Result = {Rec.Data.column_name};
+           
+       end
     end
 
     methods % low level addImage and addCatalog functions             
@@ -672,26 +679,30 @@ classdef AstroDb < Component
                 % NB! this case is very LAST-specific!
                     FN = Args.BulkFN.copy;
                     FN = FN.updateIfNotEmpty('FileType',{'csv'});
+                    ColumnList = Obj.getListOfTableColumns(Table);
                     if strcmpi(Args.BulkCatType,'raw')
                         HeaderFN = FN.genFull{1};
                         if ~isempty(Args.FileNames)                            
                             [Data.File] = Args.FileNames{:};
                         end
-                        Data.writeCSV(HeaderFN,'CleanHeaderValues',1);                        
+%                         Data.writeCSV(HeaderFN,'CleanHeaderValues',1);  
+                        Data.writeCSVforBulkInjection(HeaderFN,'Filter',true,'FilterList',ColumnList);
                     elseif strcmpi(Args.BulkCatType,'proc')
                         HeaderFN = FN.genFull{1};
                         AH = [Data.HeaderData];
                         if ~isempty(Args.FileNames)                            
                             [AH.File] = Args.FileNames{:};
                         end
-                        AH.writeCSV(HeaderFN,'CleanHeaderValues',1);
+%                         AH.writeCSV(HeaderFN,'CleanHeaderValues',1);
+                        AH.writeCSVforBulkInjection(HeaderFN,'Filter',true,'FilterList',ColumnList);
                     elseif strcmpi(Args.BulkCatType,'coadd')
                         HeaderFN = FN.genFull('LevelPath','proc'); HeaderFN = HeaderFN{1};
                         AH = [Data.HeaderData];
                         if ~isempty(Args.FileNames)                            
                             [AH.File] = Args.FileNames{:};
                         end
-                        AH.writeCSV(HeaderFN,'CleanHeaderValues',1);
+%                         AH.writeCSV(HeaderFN,'CleanHeaderValues',1);
+                        AH.writeCSVforBulkInjection(HeaderFN,'Filter',true,'FilterList',ColumnList);
                     else
                         error('Incorrect image type in AstroDb.insert');
                     end                    

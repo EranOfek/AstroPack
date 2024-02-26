@@ -1844,6 +1844,45 @@ classdef AstroHeader < Component
             
         end
         
+        function writeCSVforBulkInjection(Obj0,FileName,Args)
+            
+            arguments
+                Obj0
+                FileName             = 'astroheader.csv' % output file name
+                Args.Append logical  = false % append or overwrite
+                Args.Delimiter       =  ',' % '\t' is tab
+                Args.Filter  logical = false
+                Args.FilterList      = {}
+            end
+           
+            
+            Obj = Obj0.copy;
+             
+            Nobj = length(Obj);
+            Keys = [Obj.Data];
+            Keys = reshape(Keys,[size(Keys,1),3,Nobj]);
+            
+            % clear out repeating keywords
+            [~,Ind,~] = unique(Keys(:,1,1),'stable');
+            Keys = Keys(Ind,:,:);
+            
+            % keep only the keywords from the FilterList 
+            if Args.Filter
+                Ind = ismember(Keys(:,1,1), upper(Args.FilterList'));
+                Keys = Keys(Ind,:,:);
+            end
+            
+            % if not appending, start with a line with keywords
+            if ~Args.Append
+                FirstLine = Keys(:,1,1)';            
+                writecell(FirstLine,FileName,'Delimiter',Args.Delimiter);
+            end
+            
+            Keys = squeeze(Keys(:,2,:));                                  
+            writecell(Keys',FileName,'Delimiter',Args.Delimiter,'WriteMode','append');
+
+        end
+        
         function Result = writeCSV(Obj0, FileName, Args)
             % write an AstroHeader to a csv text file
             % Input  : - An AstroHeader object or a vector of AH objects
