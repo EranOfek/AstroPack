@@ -6,6 +6,12 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
     %       Returns the lines from the AstroCatalog that are matched with
     %       minor planets, and add the angular distance of the match and
     %       the minor planet designation.
+    %       The code works in two iterations. In the 1st iteration, we
+    %       solve the positions of all the asteroids in the 'OrbEl'
+    %       argument based on the Kepler Equation. This search may be not
+    %       accurate, especially if the |epoch-JD|>100 days. For all the
+    %       asteroids found within the search radius + buffer, an exact
+    %       orbital integration is performed.
     % Input  : - An AstroCatalog, or AstroImage object (multi-elements supported).
     %            Note that unless 'CreateNewObj'=true, this ibject may be
     %            modified by the function.
