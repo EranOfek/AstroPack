@@ -789,9 +789,9 @@ classdef AstroSpec < Component
             else
                 File = strcat(DataDir,'/phoenix_mtl0_rescale2.mat');
             end
-            io.files.load1(File); % 'Wave','PhoenSpec','T','logg'
-            Flux = interpn(Wave, T, logg, PhoenSpec, Wave, Args.T, Args.logg);
-            Result = AstroSpec({[Wave, Flux]},{'Wave','Flux'},{'A','cgs/A'});
+            io.files.load1(File); % 'PhoenixWaveGrid','PhoenixSpec','PhoenixTGrid','PhoenixLoggGrid'
+            Flux = interpn(PhoenixWaveGrid, PhoenixTGrid, PhoenixLoggGrid, PhoenixSpec, PhoenixWaveGrid, Args.T, Args.logg);
+            Result = AstroSpec({[PhoenixWaveGrid, Flux]},{'Wave','Flux'},{'A','cgs/A'});
             
         end
         
