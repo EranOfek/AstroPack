@@ -70,7 +70,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                              % or an array of model spectra parameters: 
                                              % {'BB'} 3500 [Temperature (K)] -- blackbody
                                              % {'PL'} 2.   [Alpha -- power-law F ~ lambda^alpha]
-                                             % {'Pickles'} [6e3 4.6] -- table of Teff, K and log(g)  
+                                             % {'Pickles'} [6e3 4.6] -- table of Teff [K] and log(g)  
+                                             % {'Phoenix'} [6e3 4.6] -- table of Teff [K] and log(g)  
                                              % {'Tab'} table: NumSrc spectra, each spectral flux in a column
                                              % NB: the input spectral flux should be
                                              % in [erg cm(-2) s(-1) A(-1)] as seen near Earth (absorbed)!
@@ -113,6 +114,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.SaveRegionsBySourceMag logical = false;  % whether to write additional region files according to the input source magnitudes
         
         Args.PostModelingFindSources logical = false; % attempt for a post-modeling source search (in general, should be out of the modeling routing)         
+        
+        Args.PicklesDir = '~/matlab/data/spec/PicklesStellarSpec/';
+        Args.Phoenix    = '~/matlab/data/spec/Phoenix/phoenix_mtl0_rescale10.mat';
     end
     
     % input format correction
@@ -464,14 +468,22 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
                     case 'pickles' 
                         
-                        PicklesDir = '~/matlab/data/spec/PicklesStellarSpec/';
+%                         PicklesDir = '~/matlab/data/spec/PicklesStellarSpec/';
                         fprintf('%s','generating Pickles spectra for individual values of Teff and log(g) .. ');
                         for Isrc = 1:1:NumSrcCh
                             R = astro.stars.tlogg2picklesClass(Args.Spec(Isrc,1), Args.Spec(Isrc,2)); % Teff and log(g)
-                            PicklesFile = strcat(PicklesDir,'uk',lower(R.class),lower(R.lumclass),'.mat');
+                            PicklesFile = strcat(Args.PicklesDir,'uk',lower(R.class),lower(R.lumclass),'.mat');
                             SPick = io.files.load2(PicklesFile);
                             SpecIn(Isrc,:) = interp1( SPick(:,1), SPick(:,2), Wave, 'linear', 0 );
                         end
+                        
+                    case 'phoenix'
+                        
+                        fprintf('%s','generating Phoenix spectra for individual values of Teff and log(g) .. ');
+                        io.files.load1(Args.Phoenix);
+                        for Isrc = 1:1:NumSrcCh
+                            SpecIn(Isrc,:) = interpn(PhoenixWaveGrid, PhoenixTGrid, PhoenixLoggGrid, PhoenixSpec, Wave, Args.Spec(Isrc,1), Args.Spec(Isrc,2));
+                        end                        
                         
                     case 'tab'
 
@@ -777,7 +789,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         OutTxtName = sprintf('%s%s%s%s%s%s',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'_InCat.txt'); 
         fileID = fopen(OutTxtName,'w'); 
 %         fprintf(fileID,'%7.1f %7.1f %5.2f %.2d\n',Cat(:,(1:4))');
-        fprintf(fileID,'%7.1f %7.1f %5.2f %.2f %.2f %.2d %.4d %.4d\n',Cat');
+        fprintf(fileID,'# DetX DetY CPS InMag MagU CrudeSNR RA DEC\n');
+        fprintf(fileID,'%7.1f %7.1f %5.2f %.2f %.2f %.2f %.4f %.4f\n',Cat');
         fclose(fileID);
         
         % an accompanying region file: 
