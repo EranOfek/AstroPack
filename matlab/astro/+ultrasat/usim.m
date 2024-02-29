@@ -468,7 +468,6 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
                     case 'pickles' 
                         
-%                         PicklesDir = '~/matlab/data/spec/PicklesStellarSpec/';
                         fprintf('%s','generating Pickles spectra for individual values of Teff and log(g) .. ');
                         for Isrc = 1:1:NumSrcCh
                             R = astro.stars.tlogg2picklesClass(Args.Spec(Isrc,1), Args.Spec(Isrc,2)); % Teff and log(g)
