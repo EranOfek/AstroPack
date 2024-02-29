@@ -2485,9 +2485,9 @@ classdef DemonLAST < Component
                                     Msg{1} = sprintf('Insert images to LAST coadd images table - success: %d, RunTime %.1f', OK, RunTime);
                                     Obj.writeLog(Msg, LogLevel.Info);                                    
                                 else % prepare CSV files for further injection into the DB                                                                          
-                                    ADB.insert(RawHeader,'Type','bulkima', 'BulkFN',FN_I,    'BulkCatType','raw',  'FileNames',RawImageListFinal);
-                                    ADB.insert(AllSI,    'Type','bulkima', 'BulkFN',FN_Proc, 'BulkCatType','proc', 'FileNames',ProcFileName(HasImageP));       
-                                    ADB.insert(Coadd,    'Type','bulkima', 'BulkFN',FN_Coadd,'BulkCatType','coadd','FileNames',CoaddFileName(HasImageC));                                                                               
+                                    ADB.insert(RawHeader,'Type','bulkima', 'BulkFN',FN_I,    'BulkCatType','raw',  'Table',Args.DB_Table_Raw,  'FileNames',RawImageListFinal);
+                                    ADB.insert(AllSI,    'Type','bulkima', 'BulkFN',FN_Proc, 'BulkCatType','proc', 'Table',Args.DB_Table_Proc, 'FileNames',ProcFileName(HasImageP));       
+                                    ADB.insert(Coadd,    'Type','bulkima', 'BulkFN',FN_Coadd,'BulkCatType','coadd','Table',Args.DB_Table_Coadd,'FileNames',CoaddFileName(HasImageC));                                                                               
                                     
                                     FN_I_DB = FN_I.copy; OK = 1; 
                                     Obj.writeStatus(FN_I_DB.genPath, 'Msg', 'ready-for-DB'); 

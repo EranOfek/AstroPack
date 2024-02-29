@@ -2725,7 +2725,60 @@ classdef MatchedSources < Component
             
         end
         
-        
+        function [Obj,Result] = bestMag(Obj, Args)
+            % Add a MAG_BEST matrix containing the best from several magnitudes.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            'SelectFromMagCol' - A cell array of magnitude
+            %                   fields in the Data property.
+            %                   The code will select the magnitude with the
+            %                   lowest std out of this list.
+            %                   Default is {'MAG_PSF','MAG_APER_3'}
+            %            'MagBestColName' - Field name for the best
+            %                   magnitude. Default is 'MAG_BEST'.
+            %            'StdFun' - Function handle to use for the std of
+            %                   magnitude calculation.
+            %                   Default is @tools.math.stat.rstd
+            %            'StdFunArgs' - A cell array of additional
+            %                   arguments to the StdFun.
+            %                   Default is {1}.
+            % Output : - A MatchedSources object with the best mag field
+            %            added to the Data property.
+            % Author : Eran Ofek (Feb 2024)
+            % Example: MS.bestMag;
+
+            arguments
+                Obj
+                Args.SelectFromMagCol = {'MAG_PSF','MAG_APER_3'};
+                Args.MagBestColName   = 'MAG_BEST';
+                Args.StdFun           = @tools.math.stat.rstd;
+                Args.StdFunArgs cell  = {1};
+            end
+
+            Nsel = numel(Args.SelectFromMagCol);
+            Nobj = numel(Obj);
+
+            for Iobj=1:1:Nobj
+                StdMat = zeros(Nsel, Obj(Iobj).Nsrc);
+                for Isel=1:1:Nsel
+                    StdMat(Isel,:) = Args.StdFun(Obj(Iobj).Data.(Args.SelectFromMagCol{Isel}), Args.StdFunArgs{:});
+                end
+
+                [~,Result(Iobj).Imin] = min(StdMat,[],1);
+
+                Obj(Iobj).Data.(Args.MagBestColName) = Obj(Iobj).Data.(Args.SelectFromMagCol{1});
+                for Isrc=1:1:Obj(Iobj).Nsrc
+                    if Result(Iobj).Imin(Isrc)>1
+                        Obj(Iobj).Data.(Args.MagBestColName)(:,Isrc) = Obj(Iobj).Data.(Args.SelectFromMagCol{Result(Iobj).Imin(Isrc)})(:,Isrc);
+                    end
+                end
+
+            end
+
+
+
+        end
+
         function [Result] = rmsMag(Obj, Args)
             % Calculate rms of some parameter as a function of magnitude.
             %       The mean magnitude over epochs, of all sources is
@@ -2757,6 +2810,8 @@ classdef MatchedSources < Component
             %            'Nsigma' - For the 'binning' method. This indicate
             %                   the number of sigma above mean of the std in
             %                   which to flag a source as variable. 
+            %            'MinDetRmsVar' - Minimum number of data points to
+            %                   declare variability. Default is 5.
             % Output : - A structure array (element per object element).
             %            .MeanMag - mean mag for all sources.
             %            .StdPar - par std for all sources.
@@ -2773,6 +2828,7 @@ classdef MatchedSources < Component
             %                   variable.
             %            .FlagPred - Flag indicating if the source is a
             %                   possible variable, based on the InterpPredStd.
+            %            .Ndet - number of detections per source.
             % Author : Eran Ofek (Jan 2022)
             % Example: MS = MatchedSources;
             %          MS.addMatrix(rand(100,200).*10,'MAG')
@@ -2788,11 +2844,12 @@ classdef MatchedSources < Component
                 Args.PolyDeg                   = 3;
                 Args.MeanFun function_handle   = @median;
                 Args.MeanFunArgs cell          = {1, 'omitnan'}
-                Args.StdFun function_handle    = @std;
-                Args.StdFunArgs cell           = {[],1,'omitnan'};
+                Args.StdFun function_handle    = @tools.math.stat.std_outlier1; %@std;
+                Args.StdFunArgs cell           = {[],1}; %{[],1,'omitnan'};
                 Args.Nsigma                    = 3;
                 
                 Args.MinNinBin                 = 5;
+                Args.MinDetRmsVar              = 5;
             end
             
             Nobj = numel(Obj);
@@ -2810,6 +2867,7 @@ classdef MatchedSources < Component
                 Result(Iobj).MeanMag = Args.MeanFun(Mag, Args.MeanFunArgs{:});
                 Result(Iobj).StdPar  = Args.StdFun(Par, Args.StdFunArgs{:});
                 
+                Result(Iobj).Ndet    = sum(~isnan(Mag),1);
 
                 switch lower(Args.Method)
                     case 'binning'
@@ -2825,11 +2883,16 @@ classdef MatchedSources < Component
                         Result(Iobj).B = B;
                         %Result(Iobj).EstimatedStdPar = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
                         Result(Iobj).InterpMeanStd  = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
-                        Result(Iobj).InterpPredStd = Result(Iobj).InterpMeanStd./sqrt(Mep);
+                        Result(Iobj).InterpPredStd = Result(Iobj).InterpMeanStd./sqrt(Nep);
                         
                         Result(Iobj).InterpStdStd = interp1(B(:,1), B(:,4), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
-                        Result(Iobj).FlagVarStd   = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.Nsigma.*Result(Iobj).InterpStdStd(:));
-                        Result(Iobj).FlagVarPred  = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.Nsigma.*Result(Iobj).InterpPredStd(:));
+                        Result(Iobj).FlagVarStd   = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.Nsigma.*Result(Iobj).InterpStdStd(:)) & ...
+                                                    Result(Iobj).Ndet(:)>Args.MinDetRmsVar;
+                        Result(Iobj).FlagVarPred  = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.Nsigma.*Result(Iobj).InterpPredStd(:)) & ...
+                                                    Result(Iobj).Ndet(:)>Args.MinDetRmsVar;
+
+                        
+                        
                     case 'polyfit'
                         Par = polyfit(Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:), Args.PolyDeg);
                         Result(Iobj).InterpMeanStd = polyval(Par, Result(Iobj).MeanMag);
@@ -2886,6 +2949,7 @@ classdef MatchedSources < Component
                 Args.PowerSpecFun = @timeSeries.period.periodmulti_norm;
                 Args.getFreqArgs cell = {};
                 Args.Ind              = [];
+                Args.ThresholdPS      = 12;
             end
 
             T        = Obj.JD(:);
@@ -2948,8 +3012,11 @@ classdef MatchedSources < Component
             %                   that is used to calculate the std of the time.
             %                   If empty, use tools.math.stat.rstd.
             %                   series. Default is [].
+            %            'ScreenDeltaFun' - A logical indicating if to screen out
+            %                   events that are more consistent with a delta function
+            %                   flare. Default is true.
             %            'ThresholdZ' - Threshold for detection (sigma).
-            %                   Default is 8.
+            %                   Default is 10.
             %            'MinNotNaN' - For the 2nd search method the number of
             %                   sucessive NaNs must be larger than this value.
             %                   Default is 1 (i.e., 2 not NaNs are required).
@@ -2977,8 +3044,8 @@ classdef MatchedSources < Component
                 
                 Args.MovMeanWin        = [2 4 8];
                 Args.MadType           = [];
-
-                Args.ThresholdZ        = 8;
+                Args.ScreenDeltaFun logical  = true;
+                Args.ThresholdZ        = 10;
 
                 Args.MinNotNaN         = 1;
                 Args.MaxNotNaN         = 11;
@@ -2994,6 +3061,7 @@ classdef MatchedSources < Component
                                                                                  'DimEpoch',1,...
                                                                                  'MovMeanWin',Args.MovMeanWin,...
                                                                                  'MadType',Args.MadType,...
+                                                                                 'ScreenDeltaFun',Args.ScreenDeltaFun,...
                                                                                  'ThresholdZ',Args.ThresholdZ,...
                                                                                  'MinNotNaN',Args.MinNotNaN,...
                                                                                  'MaxNotNaN',Args.MaxNotNaN,...
