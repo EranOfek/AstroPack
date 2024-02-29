@@ -6,20 +6,19 @@ function TranCat = measureTransients(AD, Args)
     Input   : - An AstroDiff object in which CatData is populated.
               * ...,key,val,...
                 --- AstroZOGY ---
-                'HalfSizeTS' - Half size of area on transients positions in 
-                       test statistic images S2 and Z2. Actual size will be  
-                       1+2*HalfSizeTS. Used to find peak S2 and Z2 values.
-                       Default is 5.
+                'RadiusTS' - Radius of area on transients positions in 
+                       test statistic images S2 and Z2. Used to find peak 
+                       S2 and Z2 values. Default is 5.
     Output  : - An AstroCatalog with the derived properties added to it.
                 These properties may be the following;
                 --- AstroZOGY ---
                 .S2_TS - Peak value of the S2 test statistic within area
-                       defined by HalfSizeTS around transient position.
+                       defined by RadiusTS around transient position.
                 .S2_Sig - S2_TS converted to Gaussian significance.
                 .S2_AIC - S2_TS converted to a loglike value penalized for
                        degrees of freedom (TS-2*d.o.f).
                 .Z2_TS - Peak value of the Z2 test statistic within area
-                       defined by HalfSizeTS around transient position.
+                       defined by RadiusTS around transient position.
                 .Z2_Sig - Z2_TS converted to Gaussian significance.
                 .Z2_AIC - Z2_TS converted to a loglike value penalized for
                        degrees of freedom (TS-2*d.o.f).
@@ -37,7 +36,7 @@ function TranCat = measureTransients(AD, Args)
         AD AstroDiff
 
         % AstroZOGY
-        Args.HalfSizeTS = 5;
+        Args.RadiusTS = 5;
     end
     
     % Get object class and apply corresponding function.
@@ -46,7 +45,7 @@ function TranCat = measureTransients(AD, Args)
     switch ClassName
         case 'AstroZOGY'
             TranCat = measureTransientsAstroZOGY(AD, ...
-                'HalfSizeTS', Args.HalfSizeTS...
+                'RadiusTS', Args.RadiusTS...
                 );
         otherwise
             % TODO: probably give Warning and return empty cat instead
@@ -61,19 +60,18 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
       derived via AstroZOGY.
     Input   : - An AstroZOGY object in which CatData is populated.
               * ...,key,val,...
-                'HalfSizeTS' - Half size of area on transients positions in 
-                       test statistic images S2 and Z2. Actual size will be  
-                       1+2*HalfSizeTS. Used to find peak S2 and Z2 values.
-                       Default is 5.
+                'RadiusTS' - Radius of area on transients positions in 
+                       test statistic images S2 and Z2. Used to find peak 
+                       S2 and Z2 values. Default is 5.
     Output  : - An AstroCatalog with the derived properties added to it.
                 These properties are the following;
                 .S2_TS - Peak value of the S2 test statistic within area
-                       defined by HalfSizeTS around transient position.
+                       defined by RadiusTS around transient position.
                 .S2_Sig - S2_TS converted to Gaussian significance.
                 .S2_AIC - S2_TS converted to a loglike value penalized for
                        degrees of freedom (TS-2*d.o.f).
                 .Z2_TS - Peak value of the Z2 test statistic within area
-                       defined by HalfSizeTS around transient position.
+                       defined by RadiusTS around transient position.
                 .Z2_Sig - Z2_TS converted to Gaussian significance.
                 .Z2_AIC - Z2_TS converted to a loglike value penalized for
                        degrees of freedom (TS-2*d.o.f).
@@ -84,14 +82,14 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
     arguments
         AD AstroZOGY
 
-        Args.HalfSizeTS = 5;
+        Args.RadiusTS = 5;
     end
 
     % Get number of objects
     Nobj = numel(AD);
 
     % Get image (x,y) coordinates of transients candidates
-    XY = AD.CatData.getXY;
+    XY = AD.CatData.getXY('ColX', 'XPEAK', 'ColY', 'YPEAK');
 
     % reverse order to initiate Result array with proper size on first 
     % iteration
@@ -102,8 +100,8 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
         % If catalog is empty, add empty columns and continue.
         if CatSize == 0
             TranCat(Iobj) = AD(Iobj).CatData.insertCol([],'Score',...
-                {'S2_TS','S2_Sig','S2_AIC','Z2_TS','Z2_Sig','Z2_AIC','Translient'},...
-                {'','sig','','','sig','',''});
+                {'S2_TS','Z2_TS','S2_Sig','Z2_Sig','S2_AIC','Z2_AIC','Translient'},...
+                {'','','sig','sig','','',''});
             continue
         end
         
@@ -117,8 +115,8 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
             S2_Sig = nan(Nsrc,1);
             S2_AIC = nan(Nsrc,1);
         else
-            [S2_TS, S2_Sig, S2_AIC] = imUtil.properSub.processStatMap(AD(Iobj).S2, ...
-                XY(:,1), XY(:,2), 1, 'HalfSizeTS', Args.HalfSizeTS);
+            [S2_TS, S2_Sig, S2_AIC] = imUtil.properSub.findNearestPeakSig(AD(Iobj).S2, ...
+                XY(:,1), XY(:,2), 1, 'RadiusTS', Args.RadiusTS);
         end
 
         if isempty(AD(Iobj).Z2)
@@ -126,8 +124,8 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
             Z2_Sig = nan(Nsrc,1);
             Z2_AIC = nan(Nsrc,1);
         else
-            [Z2_TS, Z2_Sig, Z2_AIC] = imUtil.properSub.processStatMap(AD(Iobj).Z2, ...
-                XY(:,1), XY(:,2), 2, 'HalfSizeTS', Args.HalfSizeTS);
+            [Z2_TS, Z2_Sig, Z2_AIC] = imUtil.properSub.findNearestPeakSig(AD(Iobj).Z2, ...
+                XY(:,1), XY(:,2), 2, 'RadiusTS', Args.RadiusTS);
         end
 
         % See if translient model is preferred over transient model and set
@@ -137,10 +135,11 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
 
         % Insert derived properties into AD.CatData catalog
         TranCat(Iobj) = AD(Iobj).CatData.insertCol(...
-            cell2mat({S2_TS, S2_Sig, S2_AIC, Z2_TS, Z2_Sig, Z2_AIC, Translient}), ...
-            'Score',...
-            {'S2_TS','S2_Sig','S2_AIC','Z2_TS','Z2_Sig','Z2_AIC','Translient'}, ...
-            {'','sig','','','sig','',''});
+            cell2mat({cast(S2_TS,'double'), cast(Z2_TS,'double'), cast(S2_Sig,'double'), ...
+            cast(Z2_Sig,'double'), cast(S2_AIC,'double'), cast(Z2_AIC,'double'),...
+            Translient}), 'Score',...
+            {'S2_TS','Z2_TS','S2_Sig','Z2_Sig','S2_AIC','Z2_AIC','Translient'}, ...
+            {'','','sig','sig','','',''});
 
 
     end

@@ -21,6 +21,8 @@ function TranCat=findTransients(AD, Args)
                 'psfPhotCubeArgs' - Args passed into imUtil.sources.psfPhotCube when
                        performing PSF photometry on AD, AD.New, and AD.Ref cut outs.
                        Default is {}.
+                'include2ndMoment' - Bool whether to derive 2nd moments. 
+                       Default is true.
                 'includeBitMaskVal' - Bool on whether to retrieve bit mask
                        values from AD.New and AD.Ref, and add to catalog.
                        Default is true.
@@ -80,6 +82,8 @@ function TranCat=findTransients(AD, Args)
         Args.HalfSizePSF                = 7;
         Args.psfPhotCubeArgs cell       = {};
 
+        Args.include2ndMoment logical = true;
+
         Args.includeBitMaskVal logical  = true;
         Args.BitCutHalfSize             = 3;
 
@@ -121,7 +125,7 @@ function TranCat=findTransients(AD, Args)
             [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Image, LocalMax(:,1), LocalMax(:,2), Args.HalfSizePSF);
             % Change the sign of negative sources
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
-            Psf = imUtil.psf.full2stamp(AD(Iobj).PSFData.getPSF, 'StampHalfSize',Args.HalfSizePSF.*ones(1,2));
+            Psf = imUtil.psf.full2stamp(AD(Iobj).PSFData.getPSF, 'StampHalfSize',Args.HalfSizePSF.*ones(1,2), 'IsCorner',false);
             [ResultD, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', Psf, Args.psfPhotCubeArgs{:});
         
             % PSF fit all candidates in the New image
@@ -154,6 +158,20 @@ function TranCat=findTransients(AD, Args)
                 {'','','','','e','mag','','','e','mag'}...
                 );
 
+        end
+
+        if Args.include2ndMoment
+            % Get moments and aperture photometry
+            [M1, M2, Aper] = imUtil.image.moment2(AD(Iobj).New.Image, ...
+                LocalMax(:,1), LocalMax(:,2));
+            Data = cell2mat({cast(M1.X,'double'), cast(M1.Y,'double'), ...
+                cast(M2.X2,'double'), cast(M2.Y2,'double'),...
+                cast(Aper.AperPhot,'double'), cast(Aper.AperPhotErr,'double')});
+            TranCat(Iobj) = TranCat(Iobj).insertCol( Data, 'Score',...
+                {'X1', 'Y1', 'X2', 'Y2', 'AperPhot1', 'AperPhot2', 'AperPhot3',...
+                'AperPhotErr1', 'AperPhotErr2', 'AperPhotErr3'}, ...
+                {'','','','','e','e','e','e','e','e'}...
+                );
         end
 
         if Args.includeBitMaskVal

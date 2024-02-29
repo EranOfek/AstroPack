@@ -107,7 +107,7 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
     for Iobj=1:1:Nobj
         if isempty(Args.Coo) || isempty(Args.CatRadius)
             % get coordinates using boundingCircle
-            [CircX, CircY, CircR] = Obj(Iobj).boundingCircle('OutUnits','rad', 'CooType','sphere');
+            [CircX, CircY, CircR] = Result(Iobj).boundingCircle('OutUnits','rad', 'CooType','sphere');
             Args.Coo                 = [CircX, CircY];
             Args.CatRadius      = CircR;
             Args.CooUnits       = 'rad';
@@ -119,12 +119,12 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
         CatH(Iobj)  = catsHTM.cone_search(CatName, Args.Coo(Icoo,1), Args.Coo(Icoo,2), Args.CatRadius, 'RadiusUnits',Args.CatRadiusUnits, 'Con',Args.Con, 'OutType','astrocatalog');
 
         if Args.catsHTMisRef
-            ResInd = imProc.match.matchReturnIndices(Obj, CatH, 'CooType','sphere',...
+            ResInd = imProc.match.matchReturnIndices(Obj(Iobj), CatH(Iobj), 'CooType','sphere',...
                                                             'Radius',Args.Radius,...
                                                             'RadiusUnits',Args.RadiusUnits);
         else                                          
             % default!
-            ResInd = imProc.match.matchReturnIndices(CatH, Obj, 'CooType','sphere',...
+            ResInd = imProc.match.matchReturnIndices(CatH(Iobj), Obj(Iobj), 'CooType','sphere',...
                                                             'Radius',Args.Radius,...
                                                             'RadiusUnits',Args.RadiusUnits);
         end
