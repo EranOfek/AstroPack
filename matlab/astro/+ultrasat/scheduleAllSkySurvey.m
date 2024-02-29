@@ -95,6 +95,8 @@ function scheduleAllSkySurvey(Args)
         plotSchedule(Schedule, SrcTab);
     end 
     
+    fprintf('\n Schedule successfully built \n');
+    
     % 2. make a schedule with a direct method (day by day filling, no log
     % spreading of the extragalatic points)
     
