@@ -1,4 +1,4 @@
-function simImage = simulateOmegCen(Args)
+function simImage = simulateOmegaCen(Args)
     % simulate an ULTRASAT image from of the Omega Cen field from the input star catalog
     % 
     arguments
