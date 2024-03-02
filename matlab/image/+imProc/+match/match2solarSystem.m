@@ -259,6 +259,7 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
                 % No Asteroids in search radius - skip
                 SourcesWhichAreMP(Iobj)    = AstroCatalog;
                 SourcesWhichAreMP(Iobj).JD = Cat.JD;
+                
             else
     
                 % Match AstCat with Cat

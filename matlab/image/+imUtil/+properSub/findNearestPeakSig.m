@@ -1,4 +1,4 @@
-function [TS, Sig, AIC] = processStatMap(TSMap, XVec, YVec, DoF, Args)
+function [TS, Sig, AIC] = findNearestPeakSig(TSMap, XVec, YVec, DoF, Args)
     %{
     For a given set of (x,y) coordinates on a test static map, finds the
       peak values within a square centered on each pair of given coordinates.
@@ -13,9 +13,8 @@ function [TS, Sig, AIC] = processStatMap(TSMap, XVec, YVec, DoF, Args)
             - DoF (Degrees of freedom of the chi2 distribution attributed to
               the test statistic values).
             * ...,key,val,...
-              'HalfSizeTS' - Distance specifying the length of the search square in 
-                     which to search for the TS peak in. The side length of 
-                     the square equals to 2*HalfSizeTS+1. Default is 5.
+              'RadiusTS' - Distance specifying the radius in which to search 
+                     for the TS peak in. Default is 5.
     Output :- TS (Vector containing the TS peak values attributed to the (x,y) 
               query coordinates).
             - Sig (Vector containing the gaussian significance derived from 
@@ -34,7 +33,7 @@ function [TS, Sig, AIC] = processStatMap(TSMap, XVec, YVec, DoF, Args)
         YVec
         DoF
 
-        Args.HalfSizeTS = 5;
+        Args.RadiusTS = 5;
     end
 
     % check if TS map exists and is a matrix
@@ -54,26 +53,14 @@ function [TS, Sig, AIC] = processStatMap(TSMap, XVec, YVec, DoF, Args)
         return;
     end
 
-    % pad TS map with zeros to account for on-edge transient queries
-    TSMap = padarray(TSMap, [Args.HalfSizeTS, Args.HalfSizeTS]);
+    % make cutout cube around (X, Y) positions
+    [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(TSMap, XVec, YVec, ...
+        Args.RadiusTS);
 
-    % construct query indices relative to the search square center position
-    % account for zero padded matrix by adding dist
-    XRel = 0:Args.HalfSizeTS*2;
-    YRel = 0:Args.HalfSizeTS*2;
+    % get max values in cube
+    TSc = max(Cube, [], [1,2]);
+    TS = TSc(:);
 
-    % construct and fill TS vector
-    TS = zeros(NTrans,1);
-    for n=1:NTrans
-        % query all positions within search square centered on original 
-        % (x,y) coordinates
-        XQuery = XVec(n)+XRel;
-        YQuery = YVec(n)+YRel;
-        TS0 = TSMap(YQuery,XQuery);
-        % take only the maximum TS value within search square
-        TS(n) = max(TS0, [],'all');
-    end
-    
     % convert TS values to gaussian significance
     PVal = chi2cdf(TS, DoF, 'upper');
     Sig = -norminv(PVal);

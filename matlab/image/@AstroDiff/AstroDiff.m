@@ -625,21 +625,16 @@ classdef AstroDiff < AstroImage
 
         function findMeasureTransients(Obj,Args)
             %{
-            Calls AD.findTransients, AD.matchTransients2Cats, AD.measureTransients, 
-              and AD.flagNonTransients. 1) Derives a catalog of transients by
-              thresholding the threshold image, 2) matches found transients 
-              to external catalogs, 3) derives additional properties based
-              on subtraction method, and 4) flags transients that are 
-              likely not real transients.
+            Calls AD.findTransients, AD.measureTransients, and AD.flagNonTransients. 
+              1) Derives a catalog of transients by thresholding the threshold 
+              image, 2) derives additional properties based on subtraction 
+              method, and 3) flags transients that are likely not real transients.
             Input  : - An AstroDiff object in which the threshold image is
                         populated.
                      * ...,key,val,...
                        'findTransientsArgs' - Cell of arguments to be given
                               to AD.findTransients. Default is the same as
                               AD.findTransients.
-                       'matchTransients2CatsArgs' - Cell of arguments to be given
-                              to AD.matchTransients2Cats. Default is the same as
-                              AD.matchTransients2Cats.
                        'measureTransientsArgs' - Cell of arguments to be given
                               to AD.measureTransients. Default is the same as
                               AD.measureTransients.
@@ -659,28 +654,20 @@ classdef AstroDiff < AstroImage
                     'includePsfFit', true,...
                     'HalfSizePSF', 7,...
                     'psfPhotCubeArgs', {}...
+                    'include2ndMoment', true,...
                     'includeBitMaskVal', true,...
                     'BitCutHalfSize', 3,...
                     'includeSkyCoord', true,...
                     'includeObsTime', true,...
                     };
 
-                Args.matchTransients2CatsArgs = {...
-                    'matchGalaxyCatArgs', {'ColDistName', 'GalaxyDist',...
-                    'ColNmatchName','GalaxyMatches'},...
-                    'matchStarCatArgs', {'ColDistName', 'StarDist',...
-                    'ColNmatchName','StarMatches'},...
-                    }
-
                 Args.measureTransientsArgs = {...
-                    'HalfSizeTS', 5,...
+                    'RadiusTS', 5,...
                     };
                 
                 Args.flagNonTransientsArgs = {...
                     'flagChi2', true,...
                     'Chi2dofLimits', [0.5 2],...
-                    'flagMag', true,...
-                    'MagLim', 21,...
                     'flagBadPix_Hard', true,...
                     'NewMask_BadHard', {'Interpolated','NaN'},...
                     'RefMask_BadHard', {'Interpolated','NaN'},...
@@ -704,7 +691,6 @@ classdef AstroDiff < AstroImage
 
             for Iobj=1:1:Nobj
                 Obj(Iobj).findTransients(Args.findTransientsArgs{:});
-                Obj(Iobj).matchTransients2Cats(Args.matchTransients2CatsArgs{:});
                 Obj(Iobj).measureTransients(Args.measureTransientsArgs{:});
                 Obj(Iobj).flagNonTransients(Args.flagNonTransientsArgs{:});
             end
@@ -735,6 +721,8 @@ classdef AstroDiff < AstroImage
                        'psfPhotCubeArgs' - Args passed into imUtil.sources.psfPhotCube when
                               performing PSF photometry on AD, AD.New, and AD.Ref cut outs.
                               Default is {}.
+                       'include2ndMoment' - Bool whether to derive 2nd moments. 
+                              Default is true.
                        'includeBitMaskVal' - Bool on whether to retrieve bit mask
                               values from AD.New and AD.Ref, and add to catalog.
                               Default is true.
@@ -760,6 +748,8 @@ classdef AstroDiff < AstroImage
                 Args.includePsfFit logical      = true;
                 Args.HalfSizePSF                = 7;
                 Args.psfPhotCubeArgs cell       = {};
+
+                Args.include2nMoments logical = true;
         
                 Args.includeBitMaskVal logical  = true;
                 Args.BitCutHalfSize             = 3;
@@ -791,50 +781,6 @@ classdef AstroDiff < AstroImage
             end
         end
 
-        % matchTransients2Cats
-        function matchTransients2Cats(Obj, Args)
-            %{
-            Matches transients candidates to external catalogs by calling
-              AD.matchMergedCat, AD.matchGalaxyCat, AD.matchStarCat, and
-              AD.matchSolarSystemCat.
-            Input  : - An AstroDiff object in which CatData is populated.
-                     * ...,key,val,...
-                       'matchMergedCatArgs' - Cell of arguments to be given
-                              to AD.matchMergedCat. Default is the same as
-                              AD.matchMergedCat.
-                       'matchGalaxyCatArgs' - Cell of arguments to be given
-                              to AD.matchGalaxyCat. Default is the same as
-                              AD.matchGalaxyCat.
-                       'matchStarCatArgs' - Cell of arguments to be given
-                              to AD.matchStarCat. Default is the same as
-                              AD.matchStarCat.
-                       'matchSolarSystemArgs' - Cell of arguments to be given
-                              to AD.matchSolarSystemCat. Default is the same as
-                              AD.matchSolarSystemCat.
-            Author : Ruslan Konno (Feb 2024)
-            Example: AD.matchTransients2Cats
-            %}
-            arguments
-                Obj
-
-                Args.matchMergedCatArgs = {'ColDistName', 'MergedDist',...
-                    'ColNmatchName','MergedMatches'};
-                Args.matchGalaxyCatArgs = {'ColDistName', 'GalaxyDist',...
-                    'ColNmatchName','GalaxyMatches'};
-                Args.matchStarCatArgs = {'ColDistName', 'StarDist',...
-                    'ColNmatchName','StarMatches'};
-
-                Args.matchSolarSystemCatArgs = {'ColDistName', 'SolarDist',...
-                    'ColNmatchName','SolarMatches'};
-            end
-            
-            Obj.matchMergedCat(Args.matchMergedCatArgs{:});
-            Obj.matchGalaxyCat(Args.matchGalaxyCatArgs{:});
-            Obj.matchStarCat(Args.matchStarCatArgs{:});
-
-            Obj.matchSolarSystemCat(Args.matchSolarSystemCatArgs{:});
-        end
-
         % measureTransients
         function measureTransients(Obj, Args)
             %{ 
@@ -844,10 +790,9 @@ classdef AstroDiff < AstroImage
             Input   : - An AstroDiff object in which CatData is populated.
                       * ...,key,val,...
                         --- AstroZOGY ---
-                        'HalfSizeTS' - Half size of area on transients positions in 
-                               test statistic images S2 and Z2. Actual size will be  
-                               1+2*HalfSizeTS. Used to find peak S2 and Z2 values.
-                               Default is 5.
+                        'RadiusTS' - Radius of area on transients positions in 
+                               test statistic images S2 and Z2. Used to find peak 
+                               S2 and Z2 values. Default is 5.
             Author  : Ruslan Konno (Jan 2024)
             Example : AD.measureTransients
             %}
@@ -855,14 +800,14 @@ classdef AstroDiff < AstroImage
                 Obj
                 
                 % AstroZOGY
-                Args.HalfSizeTS = 5;
+                Args.RadiusTS = 5;
             end
             
             Nobj = numel(Obj);
 
             for Iobj=1:1:Nobj
                 Obj(Iobj).CatData = imProc.sub.measureTransients(Obj(Iobj),...
-                    'HalfSizeTS', Args.HalfSizeTS);
+                    'RadiusTS', Args.RadiusTS);
             end
 
         end
@@ -879,11 +824,18 @@ classdef AstroDiff < AstroImage
                        'Chi2dofLimits' - Limits on Chi2 per degrees of freedom. If
                               'filterChi2' is true, all transients candidates outside these
                               limits are flagged. Default is [0.5 2].
-                       'flagMag' - Bool on whether to flag transients candidates
-                              based on magnitude. Deault is true.
-                       'MagLim' - Upper magnitude limit. If 'filterMag' is true,
-                              all transients candidates below this limit are flagged. 
-                              Default is 21.
+                       'flagSrcNoiseDominated' - Bool on whether to flag
+                              transients candidates source dominated noise
+                              that do not pass a StN threshold value.
+                              Default is true.
+                       'SrcNoise_SNRThresh' - StN threshold to apply to
+                              source noise dominated candidates. Default is
+                              5.
+                       'flagSaturated' - Bool on whether to flag transients 
+                              candidates that are saturated. Default is true.
+                       'Saturated_SNRThresh' - StN threshold to apply to
+                              candidates that show saturation in new image but not
+                              in reference image. Default is 5.
                        'flagBadPix_Hard' - Bool on whether to flag transients
                               candidates based on hard bit mask criteria. 
                               Default is true.
@@ -908,7 +860,7 @@ classdef AstroDiff < AstroImage
                               Default is true.
                        'BadPixThresh_Soft' - Threshold score value below which
                               a pixel containing a soft criterium is to be
-                              flagged. Default is 10.
+                              flagged. Default is 15.
                        'NewMask_BadSoft' - Soft bit mask criteria for bad pixels in 
                               AD.New Image. Default is {'HighRN', 'DarkHighVal',
                               'BiasFlaring', 'Hole', 'SrcNoiseDominated'}.
@@ -918,6 +870,9 @@ classdef AstroDiff < AstroImage
                        'flagStarMatches' - Bool on whether to flag transients
                                candidates that have matching star
                                positions. Default is true.
+                       'flagMP' - Bool on whether to flag transients candidates
+                               that have matching minor planet postions. Default is
+                               ture.
                        --- AstroZOGY ---
                        'flagTranslients' - Bool on whether to flag transients 
                               candidates which score higher in Z2 than S2.
@@ -932,28 +887,33 @@ classdef AstroDiff < AstroImage
                 Args.flagChi2 logical = true;
                 Args.Chi2dofLimits = [0.5 2];
                 
-                Args.flagMag logical = true;
-                Args.MagLim = 21;
-                
+                Args.flagSrcNoiseDominated logical = true;
+                Args.SrcNoise_SNRThresh = 8.0;
+                Args.SrcNoise_ScoreThresh = 8.0;
+        
+                Args.flagSaturated logical = true;
+                Args.Saturated_SNRThresh = 5.0;
+        
                 Args.flagBadPix_Hard logical  = true;
                 Args.NewMask_BadHard       = {'Interpolated', 'NaN'};
                 Args.RefMask_BadHard       = {'Interpolated', 'NaN'};
         
                 Args.flagBadPix_Medium logical = true;
                 Args.BadPixThresh_Medium = 50;
-                Args.NewMask_BadMedium       = {'Saturated','NearEdge','FlatHighStd',...
-                    'Overlap','Edge','CR_DeltaHT'};
-                Args.RefMask_BadMedium       = {'Saturated','NearEdge','FlatHighStd',...
-                    'Overlap','Edge','CR_DeltaHT'};
+                Args.NewMask_BadMedium       = {'NearEdge','FlatHighStd',...
+                    'Overlap','Edge','CR_DeltaHT', 'DarkHighVal'};
+                Args.RefMask_BadMedium       = {'NearEdge','FlatHighStd',...
+                    'Overlap','Edge','CR_DeltaHT', 'DarkHighVal'};
                 
                 Args.flagBadPix_Soft logical  = true;
                 Args.BadPixThresh_Soft = 10;
-                Args.NewMask_BadSoft       = {'HighRN', 'DarkHighVal', ...
-                    'BiasFlaring', 'Hole', 'SrcNoiseDominated'};
-                Args.RefMask_BadSoft       = {'HighRN', 'DarkHighVal', ...
-                    'BiasFlaring', 'Hole', 'SrcNoiseDominated'};      
+                Args.NewMask_BadSoft       = {'HighRN', ...
+                    'BiasFlaring', 'Hole'};
+                Args.RefMask_BadSoft       = {'HighRN', ...
+                    'BiasFlaring', 'Hole'};
         
                 Args.flagStarMatches logical = true;
+                Args.flagMP logical = true;
         
                 Args.flagTranslients logical = true;
         
@@ -965,8 +925,6 @@ classdef AstroDiff < AstroImage
                 Obj(Iobj).CatData = imProc.sub.flagNonTransients(Obj(Iobj),...
                     'flagChi2',Args.flagChi2,...
                     'Chi2dofLimits',Args.Chi2dofLimits,...
-                    'flagMag', Args.flagMag,...
-                    'MagLim', Args.MagLim,...
                     'flagBadPix_Hard', Args.flagBadPix_Hard,...
                     'NewMask_BadHard', Args.NewMask_BadHard,...
                     'RefMask_BadHard', Args.RefMask_BadHard,...
@@ -976,16 +934,16 @@ classdef AstroDiff < AstroImage
             end
         end
         
-        function [TranCat, NonTranCat] = separateNonTransients(Obj)
+        function [TranCat, NonTranCat] = splitNonTransients(Obj)
             %{
-            Separates transients from likely non-transients into two
+            Split transients from likely non-transients into two
               AstroCat outputs.
             Input  : - An AstroDiff object with a CatData that is set and
                        flagged for likely non-transients.
             Output : - TranCat (AstroCat holding transients only).
                      - NonTranCat (AstroCat holding non-transients only).
             Author : Ruslan Konno (Feb 2024)
-            Example: [TranCat, NonTranCat] = AD.separateNonTransients
+            Example: [TranCat, NonTranCat] = AD.splitNonTransients
             %}
 
             arguments
@@ -1024,6 +982,9 @@ classdef AstroDiff < AstroImage
 
             Nobj = numel(Obj);
             for Iobj=Nobj:-1:1
+                if ~Obj(Iobj).CatData.isColumn(Args.removeCol)
+                    continue
+                end
                 Transients = ~Obj(Iobj).CatData.getCol(Args.removeCol);
                 AD(Iobj) = Obj(Iobj).copy();
                 AD(Iobj).CatData = Obj(Iobj).CatData.selectRows(Transients);
@@ -1035,164 +996,7 @@ classdef AstroDiff < AstroImage
         % Fit a variability + motion model to the D_T image
 
     end
-    
-    methods % catalog matching
-
-        % matchSolarSystemCat
-        function matchSolarSystemCat(Obj, Args)
-            %{
-            Matches transients candidates to an external catalog for solar 
-              system objects, then adds information to CatData.
-            Input  : - An AstroDiff object in which CatData is populated.
-                     * ...,key,val,...
-                       'ColDistName' - Name of column with the angular 
-                              distance to the closest match. Default is
-                              'SolarDist.'
-                       'ColNmatchName' - Name of columns with number of 
-                              matches. Default is 'SolarMatches.'
-            Author : Ruslan Konno (Feb 2024)
-            Example: AD.matchSolarSystemCat
-            %}
-
-            arguments
-                Obj
-
-                Args.ColDistName = 'SolarDist';
-                Args.ColNmatchName = 'SolarMatches';
-            end
-
-            Nobj = numel(Obj);
-
-            for Iobj=1:1:Nobj
-                [~, ~, Obj(Iobj)] = imProc.match.match2solarSystem(...
-                    Obj(Iobj), 'InCooUnits', 'deg', ...
-                    'ColDistName', Args.ColDistName,...
-                    'ColNmatchName', Args.ColNmatchName);
-            end
-
-        end
-        % matchRedshiftCat
-        % Match catalog to redshift catalogs and add information to CatData
-
-        function matchMergedCat(Obj, Args)
-            %{
-            Matches transients candidates to an external merged catalog,
-              then adds information to CatData.
-            Input  : - An AstroDiff object in which CatData is populated.
-                     * ...,key,val,...
-                       'ColDistName' - Name of column with the angular 
-                              distance to the closest match. Default is
-                              'MergedDist.'
-                       'ColNmatchName' - Name of columns with number of 
-                              matches. Default is 'MergedMatches.'
-            Author : Ruslan Konno (Feb 2024)
-            Example: AD.matchMergedCat
-            %}
-
-            arguments
-                Obj
-
-                Args.ColDistName = 'MergedDist';
-                Args.ColNmatchName = 'MergedMatches';
-            end         
-            
-            Nobj = numel(Obj);
-
-            for Iobj=1:1:Nobj
-                sizeCat = size(Obj(Iobj).CatData.Catalog,1);
-                
-                % If transients catalog is empty, continue.
-                if sizeCat == 0
-                    continue
-                end                
-                       
-                Obj(Iobj).CatData = imProc.match.match_catsHTMmerged(Obj(Iobj).CatData);
-                [Obj(Iobj).CatData, ~, ~, ~] = imProc.match.match_catsHTM(...
-                    Obj(Iobj).CatData, 'MergedCat','ColDistName',Args.ColDistName,...
-                    'ColNmatchName',Args.ColNmatchName);                
-            end
-
-        end
-        
-        % matchGalaxyCat
-        function matchGalaxyCat(Obj, Args)
-            %{
-            Matches transients candidates to an external catalog of galaxies,
-              then adds information to CatData.
-            Input  : - An AstroDiff object in which CatData is populated.
-                     * ...,key,val,...
-                       'ColDistName' - Name of column with the angular 
-                              distance to the closest match. Default is
-                              'GalaxyDist.'
-                       'ColNmatchName' - Name of columns with number of 
-                              matches. Default is 'GalaxyMatches.'
-            Author : Ruslan Konno (Feb 2024)
-            Example: AD.matchGalaxyCat
-            %}
-
-            arguments
-                Obj
-
-                Args.ColDistName = 'GalaxyDist';
-                Args.ColNmatchName = 'GalaxyMatches';
-            end
-            
-            Nobj = numel(Obj);
-
-            for Iobj=1:1:Nobj
-                sizeCat = size(Obj(Iobj).CatData.Catalog,1);
-                
-                % If transients catalog is empty, continue.
-                if sizeCat == 0
-                    continue
-                end                
-            
-                [Obj(Iobj).CatData, ~, ~, ~] = imProc.match.match_catsHTM(...
-                    Obj(Iobj).CatData, 'GLADE','ColDistName',Args.ColDistName,...
-                    'ColNmatchName',Args.ColNmatchName);
-            end
-        end
-        
-        % matchStarCat
-        function matchStarCat(Obj, Args)
-            %{
-            Matches transients candidates to an external catalog of stars,
-              then adds information to CatData.
-            Input  : - An AstroDiff object in which CatData is populated.
-                     * ...,key,val,...
-                       'ColDistName' - Name of column with the angular 
-                              distance to the closest match. Default is
-                              'StarDist.'
-                       'ColNmatchName' - Name of columns with number of 
-                              matches. Default is 'StarMatches.'
-            Author : Ruslan Konno (Feb 2024)
-            Example: AD.matchStarCat
-            %}
-
-            arguments
-                Obj
-                
-                Args.ColDistName = 'StarDist';
-                Args.ColNMatchName = 'StarMatches';
-            end
-
-            Nobj = numel(Obj);
-
-            for Iobj=1:1:Nobj
-                sizeCat = size(Obj(Iobj).CatData.Catalog,1);
-                
-                % If transients catalog is empty, continue.
-                if sizeCat == 0
-                    continue
-                end   
-                
-                [Obj(Iobj).CatData, ~, ~, ~] = imProc.match.match_catsHTM(...
-                    Obj(Iobj).CatData, 'GAIADR3','ColDistName',...
-                    Args.ColDistName, 'ColNmatchName',Args.ColNMatchName);
-            end
-        end
-    end
-    
+   
     methods % transients inspection and measurment
 
         % transientsCutouts
@@ -1239,7 +1043,7 @@ classdef AstroDiff < AstroImage
                 
                 Args.CreateNewObj logical   = true;
                 
-                Args.CropProp               = {'Z2','S','Scorr'};
+                Args.CropProp               = {'Z2','S','S2','Scorr'};
             end
             
             NcropProp = numel(Args.CropProp);
@@ -1313,7 +1117,11 @@ classdef AstroDiff < AstroImage
         %       New images?]
 
     end
-    
+
+    methods % diagnostics
+
+    end
+
     methods % display
         % ds9
 
@@ -1353,14 +1161,14 @@ classdef AstroDiff < AstroImage
             end
 
             % Get transients and non-transients
-            [TranCat, NonTranCat] = Objn.separateNonTransients;
+            [TranCat, NonTranCat] = Objn.splitNonTransients;
 
             % Display New 
-            ds9(Obj.New,1); 
+            ds9(Obj.Ref,1); 
             ds9.plot(TranCat.getXY, Args.TranMarker);
             ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
             % Display Ref
-            ds9(Obj.Ref,2); 
+            ds9(Obj.New,2); 
             ds9.plot(TranCat.getXY, Args.TranMarker);
             ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
             % Display D
@@ -1385,7 +1193,11 @@ classdef AstroDiff < AstroImage
                     case 'S'
                         ds9(Obj.S,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
-                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);  
+                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+                    case 'S2'
+                        ds9(Obj.S2,Nimgs);
+                        ds9.plot(TranCat.getXY, Args.TranMarker);
+                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
                     case 'Z2'
                         ds9(Obj.Z2,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
