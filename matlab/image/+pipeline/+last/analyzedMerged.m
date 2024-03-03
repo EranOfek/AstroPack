@@ -1,4 +1,4 @@
-function [Result] = analyzedMerged(Args)
+function [Cand] = analyzedMerged(Args)
     % One line description
     %     Optional detailed description
     % Input  : - 

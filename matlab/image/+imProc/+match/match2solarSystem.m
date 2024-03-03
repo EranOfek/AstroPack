@@ -260,6 +260,14 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
                 SourcesWhichAreMP(Iobj)    = AstroCatalog;
                 SourcesWhichAreMP(Iobj).JD = Cat.JD;
                 
+
+                % Fixing issue 410:
+                if nargout>2
+                    Nline = Cat.sizeCatalog;
+                    Obj_DistCol = nan(Nline,1);
+                    insertCol(Cat, Obj_DistCol, Args.SourcesColDistPos, Args.SourcesColDistName, Args.SourcesColDistUnits);
+                end
+
             else
     
                 % Match AstCat with Cat
