@@ -113,13 +113,15 @@ function [Result, ResInd, Matched] = unifiedSourcesCatalog(Obj, Args)
                                                                 
         IndCatNaN = isnan(ResMatch.Obj2_IndInObj1);
 
+        NcatPrev = Result.sizeCatalog;
         Result.Catalog = [Result.Catalog; Cat.Catalog(IndCatNaN, [ColIndX, ColIndY])];
         
         if nargout>1
             Ncat                      = size(Result.Catalog, 1);
             Nnan                      = sum(IndCatNaN);
-            Nunified                  = Ncat + Nnan;
-            ResInd(Iobj).IndInUnified = (Ncat+1:1:Nunified).';
+            %Nunified                  = Ncat + Nnan;
+            %ResInd(Iobj).IndInUnified = (Ncat+1:1:Nunified).';
+            ResInd(Iobj).IndInUnified = (NcatPrev+1:1:Ncat).';
             ResInd(Iobj).IndInObj     = find(IndCatNaN);
         end
     
@@ -147,7 +149,8 @@ function [Result, ResInd, Matched] = unifiedSourcesCatalog(Obj, Args)
                                                                 'CooType',Args.CooType);
             
             FFM = ~isnan(ResMatchInd.Obj1_IndInObj2);
-            Matched(Iobj).Catalog = nan(Nunified, Ncol);
+            %Matched(Iobj).Catalog = nan(Nunified, Ncol);
+            Matched(Iobj).Catalog = nan(Ncat, Ncol);
             Matched(Iobj).Catalog(FFM, :) = Cat.Catalog(ResMatchInd.Obj1_IndInObj2(FFM),:);
             Matched(Iobj).ColNames        = Cat.ColNames;
             Matched(Iobj).ColUnits        = Cat.ColUnits;
