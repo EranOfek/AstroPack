@@ -36,6 +36,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'SaveMatFile'    - whether to make an output .mat file with all the modelled structures
     %       'SaveRegionsBySourceMag' - whether to write additional region files according to the input source magnitudes
     %       'PostModelingFindSources' - do post modeling source search
+    %       'Args.PicklesDir' - a directory containing Pickles' stellar spectra
+    %       'Args.Phoenix' - an object containing Phoenix stellar spectra
     % Output : - an AstroImage object with filled Catalog property 
     %            (also a FITS image file output + ds9 region files, RAW file output)           
     %          - an array of per-object AstroPSFs
