@@ -17,6 +17,7 @@ function ULTRASAT_visibility_maps(Args)
     arguments
         Args.GridFile = '~/matlab/data/ULTRASAT/healpix_grid_nside_64_npix_49152_pixarea_0.839_deg.txt' 
         % 'healpix_grid_nside_32_npix_12288_pixarea_3.357_deg.txt'; 'healpix_grid_nside_64_npix_49152_pixarea_0.839_deg.txt';
+        % can be produced localy by > celestial.grid.make_healpix_grid(64)
         Args.AllSky   = '~/matlab/data/ULTRASAT/charged_particles_350_rep1.txt'; 
         Args.StartDate = '2027-01-01 00:00:00';
         Args.NumDays   = 1080; % [days]
