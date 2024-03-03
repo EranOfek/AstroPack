@@ -81,6 +81,7 @@ function [Result, ResInd, Matched] = unifiedSourcesCatalog(Obj, Args)
     Result  = AstroCatalog({[X, Y]}, 'ColNames',{ColNameX{1},ColNameY{1}}, 'ColUnits',{Xunit{1}, Yunit{1}});
     
     Nsrc = size(Result.Catalog,1);
+    Ncat = Nsrc; % needed for the corner case of Nobj=1 and nargout>2
     ResInd(Iobj).IndInUnified = (1:1:Nsrc).';
     ResInd(Iobj).IndInObj     = (1:1:Nsrc).';
     
