@@ -8,7 +8,7 @@ function [Alam, RA_grid, Dec_grid] = extinctionGrid(SkyGrid, Args)
     % Indeed, the pixel size of the dust maps used in astro.spec.sky_ebv is
     % 0.04 deg, and the total number of pixels is 4096^2 ~ 17 Mpix
     %
-    % Input: - a text file containing pairs of RA, Dec in [deg]
+    % Input: - a text file containing pairs of RA, Dec in [deg] or a vector of [RA, Dec] 
     %         * ...,key,val,...
     %         'CooType' - can be 'ec', 'g', or 'j2000.0'
     %         'Filter'  - can be an AstroFilter object, a single wavelength in [mum] or 'ULTRASAT'
@@ -28,9 +28,14 @@ function [Alam, RA_grid, Dec_grid] = extinctionGrid(SkyGrid, Args)
     
     RAD = 180./pi;
 
-    FN = tools.os.relPath2absPath(SkyGrid);
-    Grid = readtable(FN); 
-    RA_grid  = Grid.Var1; Dec_grid = Grid.Var2;
+    if isnumeric(SkyGrid)
+        RA_grid  = SkyGrid(:,1);
+        Dec_grid = SkyGrid(:,2);
+    else
+        FN = tools.os.relPath2absPath(SkyGrid);
+        Grid = readtable(FN);
+        RA_grid  = Grid.Var1; Dec_grid = Grid.Var2;
+    end
 
     % convert to galactic l, b (in radians):
     switch Args.CooType
