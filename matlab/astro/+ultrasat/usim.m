@@ -466,7 +466,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                             Alpha = Args.Spec( Range );
                         end
                         
-                        SpecIn = Wave .^ Alpha;                                     % erg s(-1) cm(-2) A(-1)   
+                        SpecIn = Wave .^ Alpha;                                      % erg s(-1) cm(-2) A(-1)   
 
                     case 'pickles' 
                         
