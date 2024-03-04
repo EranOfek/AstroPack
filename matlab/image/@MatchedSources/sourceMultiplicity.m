@@ -31,7 +31,7 @@ if nargout>1
     OrphanFlag=false(size(MS.Data.JD));
     for i=1:nplanes
         OrphanFlag(i,:)=~isnan(MS.Data.JD(i,:)) & ...
-                         all(isnan(MS.Data.JD([1:i-1,i+1:end],:)));
+                         all(isnan(MS.Data.JD([1:i-1,i+1:end],:)),1);
         NOrphans(i)=sum(OrphanFlag(i,:));
     end
 end
