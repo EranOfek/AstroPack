@@ -176,7 +176,7 @@ function ULTRASAT_visibility_maps(Args)
                 
     % save the MaxLen structure and the equatorial grid in a matlab object
     if Args.SaveMat
-        save('uninterruptedULTRASATvisibility.mat','MaxLen','Grid');
+        save('uninterruptedULTRASATvisibility.mat','MaxLen','Grid','Alam','Averaged_extinction');
     end
    
 end

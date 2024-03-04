@@ -8,7 +8,7 @@ function [Alam, RA_grid, Dec_grid] = extinctionGrid(SkyGrid, Args)
     % Indeed, the pixel size of the dust maps used in astro.spec.sky_ebv is
     % 0.04 deg, and the total number of pixels is 4096^2 ~ 17 Mpix
     %
-    % Input: - a text file containing pairs of RA, Dec in [deg]
+    % Input: - a text file containing pairs of RA, Dec in [deg] or a vector of [RA, Dec] 
     %         * ...,key,val,...
     %         'CooType' - can be 'ec', 'g', or 'j2000.0'
     %         'Filter'  - can be an AstroFilter object, a single wavelength in [mum] or 'ULTRASAT'
@@ -18,18 +18,24 @@ function [Alam, RA_grid, Dec_grid] = extinctionGrid(SkyGrid, Args)
     % Example: extinctionGrid('healpix215deg.txt','CooType','g','Filter',0.25);
     %          extinctionGrid('healpix215deg.txt','CooType','ec','Filter','ultrasat');
     arguments
-        SkyGrid       = '~/matlab/data/ULTRASAT/healpix0.003deg.txt'; % healpix0.2deg.txt
+        SkyGrid       = '~/matlab/data/ULTRASAT/healpix0.013deg.txt'; % healpix0.2deg.txt; healpix0.003deg.txt
         Args.CooType  = 'ec';       % can be 'ec', 'g', 'j2000.0'
         Args.Filter   = 'ULTRASAT'; % or wavelength in [mum]
         Args.Plot logical = false;
         Args.SaveMat logical = false;
+        Args.ExtMap = 'old';
     end
     
     RAD = 180./pi;
 
-    FN = tools.os.relPath2absPath(SkyGrid);
-    Grid = readtable(FN); 
-    RA_grid  = Grid.Var1; Dec_grid = Grid.Var2;
+    if isnumeric(SkyGrid)
+        RA_grid  = SkyGrid(:,1);
+        Dec_grid = SkyGrid(:,2);
+    else
+        FN = tools.os.relPath2absPath(SkyGrid);
+        Grid = readtable(FN);
+        RA_grid  = Grid.Var1; Dec_grid = Grid.Var2;
+    end
 
     % convert to galactic l, b (in radians):
     switch Args.CooType
@@ -44,7 +50,11 @@ function [Alam, RA_grid, Dec_grid] = extinctionGrid(SkyGrid, Args)
     end    
 
     % calculate E(B-V)
-    Ebv = astro.extinction.sky_ebv(gal_lon,gal_lat,'g');
+    if strcmp(Args.ExtMap,'old')
+        Ebv = astro.extinction.sky_ebv(gal_lon,gal_lat,'g'); % SFD 1998
+    else
+        Ebv = astro.extinction.sky_ebv_new(gal_lon,gal_lat,'CooType','g'); % Gontcharov et al. 2024 
+    end
 
     % calculate A_lam
     if strcmpi(Args.Filter,'ultrasat')
@@ -61,23 +71,21 @@ function [Alam, RA_grid, Dec_grid] = extinctionGrid(SkyGrid, Args)
     % plot E(B-V) and A_lam
     if Args.Plot
         figure(1); subplot(2,1,1)
-        RA0 = linspace(min(RA_grid),max(RA_grid),300);
-        Dec0 = linspace(min(Dec_grid),max(Dec_grid),300);
-        [lq, bq] = meshgrid(RA0, Dec0);
-        Ebv_gr = griddata(RA_grid, Dec_grid, Ebv, lq, bq);
-        imagesc(RA0, Dec0, log10(Ebv_gr)); colorbar;
-        xlabel 'RA, deg.'; ylabel 'Dec, deg.'
-        title 'lg(E_{B-V})'
+        plot.ungridded_image(RA_grid,Dec_grid,log10(Ebv)); caxis([-2.5, 1.5]);
+        xlabel 'RA, deg.'; ylabel 'Dec, deg.'; title 'lg(E_{B-V})'
         subplot(2,1,2)
-        Alam_gr = griddata(RA_grid, Dec_grid, Alam, lq, bq);
-        imagesc(RA0, Dec0, Alam_gr); caxis([0, 1]); colorbar;
+        plot.ungridded_image(RA_grid,Dec_grid,Alam); caxis([0, 1]);
         xlabel 'RA, deg.'; ylabel 'Dec, deg.'
         title 'A_{USat} (R1)'
     end
     
     % save a mat object with the sky grid and A_lam
     if Args.SaveMat
-        Fname = sprintf('extinction_grid_%s_%s.mat',Args.CooType,Args.Filter);
+        if strcmp(Args.ExtMap,'old')
+            Fname = sprintf('extinction_grid_%s_%s_AbsMapSFD98.mat',Args.CooType,Args.Filter); 
+        else
+            Fname = sprintf('extinction_grid_%s_%s_AbsMapGont24.mat',Args.CooType,Args.Filter);
+        end
         save(Fname,'Alam','RA_grid','Dec_grid');
     end
 end
