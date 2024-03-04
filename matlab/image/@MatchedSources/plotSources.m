@@ -52,7 +52,7 @@ function plotSources(MS,Args)
         scatter3(MS.Data.RA(:),MS.Data.Dec(:),JDi(:),MagSize(:),JDi(:),'filled')
     end
 
-    if Args.JoinSources && ~Args.OnlyOrphans
+    if Args.JoinSources && ~Args.OnlyOrphans && numel(JDi)>2
 
         % plot grey lines joining sources detected in all epochs, between first and
         % last detection
