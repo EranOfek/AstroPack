@@ -24,7 +24,7 @@ function [Result] = fitLinearProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
         Args.StdFunArgs cell         = {};
         Args.MeanFun                 = @median;
         Args.MeanFunArgs cell        = {1, 'omitnan'};
-        Args.SigmaClip               = [2.5 2.5]
+        Args.SigmaClip               = [3.0 3.0]
     end
 
     if numel(Args.SigmaClip)==1
@@ -71,15 +71,23 @@ function [Result] = fitLinearProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
         H1ra  = [Time, ones(Nepoch,1)];
         H1dec = H1ra;
 
+        Result.Nobs     = zeros(1,Nsrc);
+        Result.Ngood    = zeros(1,Nsrc);
+        Result.RA0      = nan(1,Nsrc);
+        Result.Dec0     = nan(1,Nsrc);
+        Result.MuRA     = nan(1,Nsrc);
+        Result.MuDec    = nan(1,Nsrc);
+        Result.SigmaRA  = nan(1,Nsrc);
+        Result.SigmaDec = nan(1,Nsrc);
 
 
         for Isrc=1:1:Nsrc
             % RA / H0
             FlagGood  = ~isnan(RA(:,Isrc)) & ~isnan(Dec(:,Isrc));
             Igood     = find(FlagGood);
-            Ngood     = numel(Igood);
+            Nobs     = numel(Igood);
 
-            if Ngood>Args.MinNObs
+            if Nobs>Args.MinNObs
 
                 Par0RA    = H0ra(Igood)\RA(Igood,Isrc);
                 Resid0RA  = RA(:,Isrc) - H0ra*Par0RA;
@@ -131,15 +139,22 @@ function [Result] = fitLinearProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
                 Mean1Dec = Args.MeanFun(Resid1Dec(Igood));
                 Ngood    = numel(Igood);
     
-                L = (-(RA - Par1RA(2)).*Par1RA(1) + Par1RA(1).^2)./Std1RA.^2  +  (-(Dec - Par1Dec(2)).*Par1Dec(1) + Par1Dec(1).^2)./Std1Dec.^2;
-    
-    
-                TotalPM  = Par1RA
-                Par1RA(1)./(Std1RA./sqrt(Ngood))
+                
+                Result.Nobs(Isrc)    = Nobs;
+                Result.Ngood(Isrc)   = Ngood;
+                Result.RA0(Isrc)     = Par1RA(2);
+                Result.Dec0(Isrc)    = Par1Dec(2);
+                Result.MuRA(Isrc)    = Par1RA(1).*cos(Dec0);
+                Result.MuDec(Isrc)   = Par1Dec(1);
+                Result.SigmaRA(Isrc)  = StdRA.*cos(Dec0);
+                Result.SigmaDec(Isrc) = StdDec;
             end
-
         end
+                
+        Result.LogL  = sum( (MuRA.^2.*Time.^2 + 2.*MuRA.*Time.*(RA0 - RA))./(2.*SigmaRA.^2) + ...
+                            (MuDec.^2.*Time.^2 + 2.*MuDec.*Time.*(Dec0 - Dec))./(2.*SigmaRA.^2), 1);
+        Result.Prob  = chi2cdf(2.*LogL, 2);
+           
     end
-
 
 end
