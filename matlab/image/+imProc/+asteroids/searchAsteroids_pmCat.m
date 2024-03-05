@@ -182,6 +182,10 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         Args.Nobs_TdistProb               = [10 0.98; 5 0.995; 3 0.9999]; %     ((PM_TdistProb > 0.995 & Nobs>5) | (PM_TdistProb>0.9999 & Nobs>3));   
         Args.MinStdSN                     = 0.4;   
         Args.H1_NoutlierLimit             = 2;  
+
+        Args.ColNameChi2Dof               = 'Mean_PSF_CHI2DOF';
+        Args.MaxChi2Dof                   = 3;
+        Args.SN_ForMaxChi2Dof             = 100;
         
         % linking
         Args.LinkingRadius                = 7;
@@ -238,7 +242,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
             Noutlier     = CatPM(Icat).getCol(Args.ColNameNoutlier);
             DecFlags     = CatPM(Icat).getCol(Args.ColNameFlags);
             InfoSN       = CatPM(Icat).getCol({Args.ColNameMeanSN, Args.ColNameStdSN});  % [Mean, Std]
-
+            PSF_Chi2Dif  = CatPM(Icat).getCol({Args.ColNameChi2Dof});  % [Mean]
 
             TotPM        = sqrt(sum(PM.^2, 2));  % total PM [deg/day]
             %ExpectedNobs = Nepochs .* TotPM.*Args.TimeSpan./(2.*Args.PM_Radius);
@@ -254,6 +258,8 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
                 Flags(Icat).Flags_HighSN  = ~findBit(Args.BitDict, DecFlags, Args.HighSNBitNames, 'Method','any');
                 Flags(Icat).Flags_HighSN  = Flags(Icat).Flags_HighSN | InfoSN(:,1)>Args.SN_HighSN;
             end
+
+            Flags(Icat).Flag_Chi2Dof = InfoSN(:,1)>Args.SN_ForMaxChi2Dof | (InfoSN(:,1)<Args.SN_ForMaxChi2Dof & PSF_Chi2Dif<Args.MaxChi2Dof);
 
             % Flag sources with large number of outliers in H1 (PM hypothesis)
             % This select good stars with small number of outliers
@@ -272,6 +278,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
                                  Flags(Icat).Tdist & ...
                                  Flags(Icat).Nobs & ...
                                  Flags(Icat).LowStdSN & ...
+                                 Flags(Icat).Flag_Chi2Dof & ...
                                  Flags(Icat).Flag_Outlier;
 
             % Number of asteroid candidates
