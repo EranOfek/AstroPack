@@ -38,7 +38,7 @@ function plotSources(MS,Args)
     %     Args.Selector=true(1,size(MS.Data.JD,2));
     % end
     
-    if isnumeric(Args.Selector)
+    if ~isempty(Args.Selector) && isnumeric(Args.Selector)
         s=false(1,size(MS.Data.JD,2));
         s(Args.Selector)=true;
         Args.Selector=s;
@@ -57,8 +57,13 @@ function plotSources(MS,Args)
     % find first and last epoch of appearance of each source
     JDe=[min(JDi,[],1,'omitnan'); max(JDi,[],1,'omitnan')];
     % beware of pathological JDe=NaN ! https://github.com/EranOfek/AstroPack/issues/408
-    q=find(all(~isnan(JDe)) & Args.Selector);
-    orphans=find(JDe(1,:)==JDe(2,:) & Args.Selector);
+    if ~isempty(Args.Selector)
+        q=find(all(~isnan(JDe)) & Args.Selector);
+        orphans=find(JDe(1,:)==JDe(2,:) & Args.Selector);
+    else
+        q=find(all(~isnan(JDe)));
+        orphans=find(JDe(1,:)==JDe(2,:));
+    end
 
     % plot balls of size inversely proportional to magnitude
     if Args.OnlyOrphans
