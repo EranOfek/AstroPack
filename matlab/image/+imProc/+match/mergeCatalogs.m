@@ -238,6 +238,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
             Cat      = zeros(MatchedS(Ifields).Nsrc, NumCol);
             if Args.FitPM
                 ColNames(1:NumColPM) = {'RA','Dec','Nobs', 'Noutlier', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_TdistProb', 'JD_PM'};
+                %ColNames(1:NumColPM) = {'RA','Dec','Nobs', 'Noutlier', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_LogL', 'JD_PM'};
                 ColUnits(1:NumColPM) = {'deg','deg','', '', 'deg','deg','tdeg/day','deg/day','','day'};
 
                 Cat(:,1)       = FitMotion(Ifields).RA.ParH1(1,:).';
