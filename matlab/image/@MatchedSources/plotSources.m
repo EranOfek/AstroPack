@@ -39,10 +39,12 @@ function plotSources(MS,Args)
     % end
     
     if ~isempty(Args.Selector) && isnumeric(Args.Selector)
-        s=false(1,size(MS.Data.JD,2));
+        s=false(1,MS.Nsrc);
         s(Args.Selector)=true;
         Args.Selector=s;
     end
+
+    DataSize=[MS.Nepoch,MS.Nsrc];
 
     % code JD incrementally according to order, i.e. epoch number
     JDvalues=unique(MS.Data.JD(~isnan(MS.Data.JD)));
@@ -67,11 +69,11 @@ function plotSources(MS,Args)
 
     % plot balls of size inversely proportional to magnitude
     if Args.OnlyOrphans
-        J=sub2ind(size(MS.Data.RA),JDe(1,orphans),orphans);
+        J=sub2ind(DataSize,JDe(1,orphans),orphans);
         scatter3(MS.Data.RA(J),MS.Data.Dec(J),JDi(J),MagSize(J),JDi(J),'filled')
     else
         if ~isempty(Args.Selector)
-            J=false(size(MS.Data.RA));
+            J=false(DataSize);
             J(:,Args.Selector)=true;
             scatter3(MS.Data.RA(J),MS.Data.Dec(J),JDi(J),MagSize(J),JDi(J),'filled')
         else
@@ -83,12 +85,12 @@ function plotSources(MS,Args)
 
         % plot grey lines joining sources detected in all epochs, between first and
         % last detection
-        RAe=NaN(2,size(MS.Data.RA,2));
+        RAe=NaN(2,MS.Nsrc);
         Dece=RAe;
         % pitfall - JDe points to the unique JD, but there may be several
         %  catalogs with the same JD, https://github.com/EranOfek/AstroPack/issues/409
-        si1=sub2ind(size(MS.Data.RA),JDe(1,q),q);
-        si2=sub2ind(size(MS.Data.RA),JDe(2,q),q);
+        si1=sub2ind(DataSize,JDe(1,q),q);
+        si2=sub2ind(DataSize,JDe(2,q),q);
         RAe(:,q)=[MS.Data.RA(si1); MS.Data.RA(si2)];
         Dece(:,q)=[MS.Data.Dec(si1); MS.Data.Dec(si2)];
 
