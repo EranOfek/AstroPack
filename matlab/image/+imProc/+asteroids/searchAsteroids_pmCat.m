@@ -197,6 +197,8 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         Args.ColNameMergedCat             = 'MergedCatMask';
         Args.RemoveByMergedCatFlags       = {'GAIA_DRE3','PGC','GLADE'};
         Args.BitDicMergedCat              = BitDictionary('BitMask.MergedCat.Default');
+
+        Args.LinkAst logical              = false;
     end
     
     Args.PM_Radius   = convert.angular(Args.PM_RadiusUnits, 'deg', Args.PM_Radius); % deg
@@ -273,6 +275,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
                                  Flags(Icat).Flag_Outlier;
 
             % Number of asteroid candidates
+            
             AstInd   = find(Flags(Icat).All);
             NastCand = numel(AstInd);
 
@@ -287,28 +290,31 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
             LinkedAstIndex       = 0;
             LinkedColumn         = nan(Nsrc, 1);  % nan - no PM | negative/unique(not necessely continous) - asteroid w/o links | >0 - asteroid with links
             LinkedColumn(AstInd) = -(1:1:numel(AstInd));
-            if NastCand>0
-                for Icand=1:1:NastCand
-                    Dist = celestial.coo.sphere_dist_fast(CandRA(Icand), CandDec(Icand), CandRA, CandDec);
-                    Dist(Icand) = NaN;
-
-                    FlagLink = Dist < LinkingRadiusRad;
-                    if sum(FlagLink)>1
-                        % found a match for asteroid 
-                        LinkedAstIndex = LinkedAstIndex + 1;
-
-                        % mark the linked sources as the same asteroid (same
-                        % index)
-                        LinkedColumn(AstInd(Icand))    = LinkedAstIndex;
-                        LinkedColumn(AstInd(FlagLink)) = LinkedAstIndex;
+            if Args.LinkAst
+                % FFU: there is a bug in this section -
+                % it doesn't find linked asteroids.
+                if NastCand>0
+                    for Icand=1:1:NastCand
+                        Dist = celestial.coo.sphere_dist_fast(CandRA(Icand), CandDec(Icand), CandRA, CandDec);
+                        Dist(Icand) = NaN;
+    
+                        FlagLink = Dist < LinkingRadiusRad;
+                        if sum(FlagLink)>1
+                            % found a match for asteroid 
+                            LinkedAstIndex = LinkedAstIndex + 1;
+    
+                            % mark the linked sources as the same asteroid (same
+                            % index)
+                            LinkedColumn(AstInd(Icand))    = LinkedAstIndex;
+                            LinkedColumn(AstInd(FlagLink)) = LinkedAstIndex;
+                        end
                     end
                 end
             end
-
             if Args.AddLinkingCol
                 CatPM(Icat).insertCol(LinkedColumn, Inf, Args.LinkingColName, '');
             end
-
+            
 
             % extract cutouts centered on asteroids candidates
             if ~isempty(Args.Images) 
@@ -340,7 +346,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
                         end
                         if StoreAsteroid
                             Icrop = Icrop + 1;
-                            
+                            %Icrop
                             AstCrop(Icrop).MergedCat             = CatPM(Icat).selectRows(Iast);
                             %AstCrop(Icrop).JD                    = Args.JD;
                             %AstCrop(Icrop).RA             = RA(Iast(1));   % [rad]

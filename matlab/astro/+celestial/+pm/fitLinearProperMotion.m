@@ -26,6 +26,7 @@ function [Result] = fitLinearProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
         Args.MeanFunArgs cell        = {1, 'omitnan'};
         Args.SigmaClip               = [3.0 3.0]
     end
+    RAD = 180./pi;
 
     if numel(Args.SigmaClip)==1
         Args.SigmaClip = repmat(Args.SigmaClip,1,2);
@@ -79,7 +80,8 @@ function [Result] = fitLinearProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
         Result.MuDec    = nan(1,Nsrc);
         Result.SigmaRA  = nan(1,Nsrc);
         Result.SigmaDec = nan(1,Nsrc);
-
+        Result.Chi2_H0  = nan(1,Nsrc);
+        Result.Chi2_H1  = nan(1,Nsrc);
 
         for Isrc=1:1:Nsrc
             % RA / H0
@@ -144,18 +146,23 @@ function [Result] = fitLinearProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
                 
                 Result.Nobs(Isrc)    = Nobs;
                 Result.Ngood(Isrc)   = Ngood;
-                Result.RA0(Isrc)     = Par1RA(2);
-                Result.Dec0(Isrc)    = Par1Dec(2);
-                Result.MuRA(Isrc)    = Par1RA(1).* cos(Par1Dec(2));  %cos(Dec0);
-                Result.MuDec(Isrc)   = Par1Dec(1);
-                Result.SigmaRA(Isrc)  = Std0RA.* cos(Par1Dec(2)); %cos(Dec0);
-                Result.SigmaDec(Isrc) = Std0Dec;
+                Result.RA0(Isrc)     = Par1RA(2).*RAD;
+                Result.Dec0(Isrc)    = Par1Dec(2).*RAD;
+                Result.MuRA(Isrc)    = Par1RA(1).* cos(Par1Dec(2)).*RAD;  %cos(Dec0);
+                Result.MuDec(Isrc)   = Par1Dec(1).*RAD;
+                Result.SigmaRA(Isrc)  = Std0RA.* cos(Par1Dec(2)).*RAD; %cos(Dec0);
+                Result.SigmaDec(Isrc) = Std0Dec.*RAD;
+                % no multiplication by cos(Dec) as it affect bot
+                % denominator and numerator
+                Result.Chi2_H0(Isrc)  = sum((Resid0RA./Std0RA).^2 + (Resid0Dec./Std0Dec).^2, 1, 'omitnan');
+                Result.Chi2_H1(Isrc)  = sum((Resid1RA./Std0RA).^2 + (Resid1Dec./Std0Dec).^2, 1, 'omitnan');
             end
         end
                 
-        Result.LogL  = -sum( (Result.MuRA.^2.*Time.^2 + 2.*Result.MuRA.*Time.*(Result.RA0 - RA))./(2.*Result.SigmaRA.^2) + ...
-                            (Result.MuDec.^2.*Time.^2 + 2.*Result.MuDec.*Time.*(Result.Dec0 - Dec))./(2.*Result.SigmaRA.^2), 1);
-        Result.Prob  = chi2cdf(2.*Result.LogL, 2);
+        % Result.LogL  = -sum( (Result.MuRA.^2.*Time.^2 + 2.*Result.MuRA.*Time.*(Result.RA0 - RA))./(2.*Result.SigmaRA.^2) + ...
+        %                     (Result.MuDec.^2.*Time.^2 + 2.*Result.MuDec.*Time.*(Result.Dec0 - Dec))./(2.*Result.SigmaRA.^2), 1, 'omitnan');
+        Result.DeltaChi2 = Result.Chi2_H0 - Result.Chi2_H1;
+        Result.Prob  = chi2cdf(Result.DeltaChi2, 2);
            
     end
 
