@@ -2829,6 +2829,11 @@ classdef MatchedSources < Component
             %            .FlagPred - Flag indicating if the source is a
             %                   possible variable, based on the InterpPredStd.
             %            .Ndet - number of detections per source.
+            %            .MinNpt - Minimum number of detections per source.
+            %                   Default is 10.
+            %            .MaxMeanRMS - Do not select variable stars where
+            %                   the predicted rms is larger than this value.
+            %                   Default is 0.2 mag.
             % Author : Eran Ofek (Jan 2022)
             % Example: MS = MatchedSources;
             %          MS.addMatrix(rand(100,200).*10,'MAG')
@@ -2850,6 +2855,9 @@ classdef MatchedSources < Component
                 
                 Args.MinNinBin                 = 5;
                 Args.MinDetRmsVar              = 5;
+
+                Args.MinNpt                    = 10;
+                Args.MaxMeanRMS                = 0.15;
             end
             
             Nobj = numel(Obj);
@@ -2871,7 +2879,7 @@ classdef MatchedSources < Component
 
                 switch lower(Args.Method)
                     case 'binning'
-                        FlagN0 = Result(Iobj).StdPar>1e-10;
+                        FlagN0 = Result(Iobj).StdPar>1e-10 & Result(Iobj).Ndet>Args.MinNpt;
                         
                         B = timeSeries.bin.binning([Result(Iobj).MeanMag(FlagN0).', Result(Iobj).StdPar(FlagN0).'] ,Args.BinSize,[NaN NaN],...
                                                    {'MidBin',@numel, @median, @tools.math.stat.rstd});
@@ -2887,9 +2895,9 @@ classdef MatchedSources < Component
                         
                         Result(Iobj).InterpStdStd = interp1(B(:,1), B(:,4), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
                         Result(Iobj).FlagVarStd   = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.Nsigma.*Result(Iobj).InterpStdStd(:)) & ...
-                                                    Result(Iobj).Ndet(:)>Args.MinDetRmsVar;
+                                                    Result(Iobj).Ndet(:)>Args.MinDetRmsVar & Result(Iobj).InterpMeanStd(:)<Args.MaxMeanRMS;
                         Result(Iobj).FlagVarPred  = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.Nsigma.*Result(Iobj).InterpPredStd(:)) & ...
-                                                    Result(Iobj).Ndet(:)>Args.MinDetRmsVar;
+                                                    Result(Iobj).Ndet(:)>Args.MinDetRmsVar & Result(Iobj).InterpMeanStd(:)<Args.MaxMeanRMS;
 
                         
                         
