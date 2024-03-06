@@ -1,4 +1,4 @@
-function ungridded_image(X, Y, Z, Args)
+function [Xlin, Ylin, Zgr] = ungridded_image(X, Y, Z, Args)
     % color plot an image of Z(X,Y) when X and Y do not form a regular grid
     % Input: - X (a vector of the first variable)
     %        - Y (a vector of the second variable)
