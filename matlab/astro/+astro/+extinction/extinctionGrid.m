@@ -51,9 +51,9 @@ function [Alam, RA_grid, Dec_grid] = extinctionGrid(SkyGrid, Args)
 
     % calculate E(B-V)
     if strcmp(Args.ExtMap,'old')
-        Ebv = astro.extinction.sky_ebv(gal_lon,gal_lat,'g'); % SFD 1998
+        Ebv = astro.extinction.sky_ebv(gal_lon,gal_lat,'g', 'Map', 'SFD98'); % SFD 1998
     else
-        Ebv = astro.extinction.sky_ebv_new(gal_lon,gal_lat,'CooType','g'); % Gontcharov et al. 2024 
+        Ebv = astro.extinction.sky_ebv(gal_lon,gal_lat,'g', 'Map', 'G24'); % Gontcharov et al. 2024 
     end
 
     % calculate A_lam

@@ -110,8 +110,11 @@ function ULTRASAT_visibility_maps(Args)
                 saveas(gcf, 'CombinedLimitsEcl.jpg');
 
     % account for the extinction limits 
-    
-    Alam = astro.extinction.extinctionGrid(Args.GridFile,'CooType','j2000.0','Filter','ultrasat');
+%     
+%     Alam = astro.extinction.extinctionGrid(Args.GridFile,'CooType','j2000.0','Filter','ultrasat','ExtMap','new','SaveMat',true);
+%     Averaged_extinction = celestial.grid.statSkyGrid('extinction_grid_j2000.0_ultrasat_AbsMapGont24.mat','SkyPos',[RA Dec])
+%     
+    Alam = astro.extinction.extinctionGrid(Args.GridFile,'CooType','j2000.0','Filter','ultrasat','ExtMap','old','SaveMat',false);
     
     Averaged_extinction = celestial.grid.statSkyGrid('SkyPos',[lambda beta]);
     
