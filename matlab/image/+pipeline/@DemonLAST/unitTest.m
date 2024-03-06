@@ -7,10 +7,10 @@ function Result = unitTest(Args)
 
     arguments
         Args.RestoreNew = true;  % copy the raw data back to new 
-        Args.Insert2DB  = false; % whether to perform the DB part
+        Args.Insert2DB  = true; %false; % whether to perform the DB part
         Args.AstroDBArgs cell  = {'Host','socsrv','DatabaseName','lastdb','Port',5432};
 %         Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};  % use this when running on a LAST node
-        Args.DB_ImageBulk   logical = false; % whether to use bulk or direct injection method
+        Args.DB_ImageBulk   logical = true; %alse; % whether to use bulk or direct injection method
         Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
         % for some test we'd need all the epoch products, but the output will weigh 12 Gb instead of 1 Gb! 
         Args.SaveEpochProduct = {'Image','Mask','Cat','PSF'}; % {[],[],'Cat',[]}; % {'Image','Mask','Cat','PSF'}; 
@@ -20,8 +20,9 @@ function Result = unitTest(Args)
     BaseDir = I.getDataDir('LASTpipelineUnitTest');
     BaseDir = tools.os.relPath2absPath(BaseDir);
     
-    CatsHTMdir = strcat(BaseDir,'/catsHTM/');
-    startup('AstroPack_CatsHTMPath',CatsHTMdir)
+    % Chen - I moved the folders to X:\chent\AstroPack\matlab\data\+cats - see email 06/03/2024
+    %CatsHTMdir = strcat(BaseDir,'/catsHTM/');
+    %startup('AstroPack_CatsHTMPath',CatsHTMdir)
     
     D = pipeline.DemonLAST;
     D.setPath(BaseDir);

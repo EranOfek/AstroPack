@@ -7,11 +7,15 @@ function VerString=getVersion(Args)
     % Example: VerString=tools.git.getVersion
 
     arguments
-        Args.Path                 = 'matlab/AstroPack';
+        Args.Path                 = getenv('ASTROPACK_PATH')  %'matlab/AstroPack';
         Args.AddBranch logical    = true;
         Args.AddTag logical       = true;
         Args.AddCommit logical    = true;
     end
+
+    % Chen !!!
+    VerString = '0:0';
+    return;
 
     PWD = pwd;
     
