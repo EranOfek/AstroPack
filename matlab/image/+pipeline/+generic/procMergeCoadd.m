@@ -81,6 +81,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
         Args.INPOP                            = [];
         Args.AsteroidSearchRadius             = 10;
     
+        Args.HostName                         = [];
     end
     SEC_DAY = 86400;
     
@@ -151,7 +152,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
     for Ifields=1:1:Nfields
         
-        io.msgLog(LogLevel.Info, 'procMergeCoadd: coadding field %d',Ifields);
+        io.msgLog(LogLevel.Info, '%s: procMergeCoadd: coadding field %d',Args.HostName,Ifields);
         
         if FlagGoodAstrometry(Ifields)
             ResultCoadd(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.(Args.ColX),1,1), 2, 'omitnan');
