@@ -2851,7 +2851,8 @@ classdef MatchedSources < Component
                 Args.MeanFunArgs cell          = {1, 'omitnan'}
                 Args.StdFun function_handle    = @tools.math.stat.std_outlier1; %@std;
                 Args.StdFunArgs cell           = {[],1}; %{[],1,'omitnan'};
-                Args.Nsigma                    = 3;
+                Args.NsigmaPred                = 7;
+                Args.NsigmaStd                 = 5;
                 
                 Args.MinNinBin                 = 5;
                 Args.MinDetRmsVar              = 5;
@@ -2894,9 +2895,11 @@ classdef MatchedSources < Component
                         Result(Iobj).InterpPredStd = Result(Iobj).InterpMeanStd./sqrt(Nep);
                         
                         Result(Iobj).InterpStdStd = interp1(B(:,1), B(:,4), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
-                        Result(Iobj).FlagVarStd   = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.Nsigma.*Result(Iobj).InterpStdStd(:)) & ...
+                        Result(Iobj).NsigmaStd    = (Result(Iobj).StdPar(:) - Result(Iobj).InterpMeanStd(:))./Result(Iobj).InterpStdStd(:);
+                        Result(Iobj).FlagVarStd   = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.NsigmaStd.*Result(Iobj).InterpStdStd(:)) & ...
                                                     Result(Iobj).Ndet(:)>Args.MinDetRmsVar & Result(Iobj).InterpMeanStd(:)<Args.MaxMeanRMS;
-                        Result(Iobj).FlagVarPred  = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.Nsigma.*Result(Iobj).InterpPredStd(:)) & ...
+                        Result(Iobj).NsigmaPred   = (Result(Iobj).StdPar(:) - Result(Iobj).InterpMeanStd(:))./Result(Iobj).InterpPredStd(:);
+                        Result(Iobj).FlagVarPred  = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.NsigmaPred.*Result(Iobj).InterpPredStd(:)) & ...
                                                     Result(Iobj).Ndet(:)>Args.MinDetRmsVar & Result(Iobj).InterpMeanStd(:)<Args.MaxMeanRMS;
 
                         
