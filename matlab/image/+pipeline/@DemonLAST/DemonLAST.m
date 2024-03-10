@@ -2551,7 +2551,7 @@ classdef DemonLAST < Component
                         Msg{1} = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd analyzed %d images starting at %s',numel(RawImageList), FN_Sci_Groups(Igroup).Time{1});
                         Msg{2} = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd run time [s]: %6.1f', RunTime);
                         Obj.writeLog(Msg, LogLevel.Info);  
-                        Msg{2} = ''; % need to clean it, otherwise it keeps being printed with the next group messages 
+                        Msg = {}; % need to clean it, otherwise it keeps being printed with the next group messages 
                         
                         % check if stop loop
                         if Args.StopButton && StopGUI()
