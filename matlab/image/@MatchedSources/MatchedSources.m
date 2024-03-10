@@ -1520,6 +1520,7 @@ classdef MatchedSources < Component
             % Output : - The MatchedSources object with the external
             %            catalog magnitude and color added.
             % Author : Eran Ofek (May 2023)
+            % Example: MS.addExtMagColor
 
             arguments
                 Obj
@@ -1565,6 +1566,10 @@ classdef MatchedSources < Component
                                         'RadiusUnits',Args.SearchUnits, 'OutType','astrocatalog');
 
                         EpochOut = convert.time(mean(Obj(Iobj).JD), 'JD','J');
+
+                        if EpochOut<0
+                            warning('It is possible that the JD doesnt contain actual JD');
+                        end
 
                         if Cat.sizeCatalog>0 && Args.ApplyPM
                             Cat = imProc.cat.applyProperMotion(Cat, Cat.Catalog(1,3), EpochOut,'EpochInUnits','J','EpochOutUnits','J','ApplyPlx',true);
