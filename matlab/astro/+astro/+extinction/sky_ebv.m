@@ -10,6 +10,7 @@ function Ebv = sky_ebv(RA,Dec,CooType,CorrectHigh, Args)
     %            using the Adams et al. (2013) correction (def. true)
     %          * ...,key,val,...
     %          'Map' - which extiction map to use: 'SFD98' (default) 'G24'(new)
+    %          'Recalibrate' - recalibrate SFD98 according to Shlafly and Finkbeiner (2011)
     %          'Rv' - R_V, default is Galactic 3.08
     %          'InterpMethod' - interolation method, default = 'nearest neighbor'
     % Output : - E(B-V) [mag].
@@ -21,13 +22,14 @@ function Ebv = sky_ebv(RA,Dec,CooType,CorrectHigh, Args)
         Dec
         CooType     = 'eq';
         CorrectHigh = true;
-        Args.Map    = 'SFD98'; % by default we use the classical map of Schlegel, Finkbeiner & Davis
+        Args.Map    = 'SFD98'; % by default we use the classical map of Schlegel, Finkbeiner & Davis 1998
+        Args.Recalibrate = true; % be default we apply recalibration of Shlafly and Finkbeiner (2011)
         Args.Rv     = 3.08;  
         Args.InterpMethod = 'nearest'; % interpolation method for the G24 map
     end
     
     if strcmpi(Args.Map,'SFD98')
-        Ebv = sky_ebv_Schlegel(RA,Dec,CooType,CorrectHigh);
+        Ebv = sky_ebv_Schlegel(RA,Dec,CooType,CorrectHigh,Args.Recalibrate);
     elseif strcmpi(Args.Map,'G24')
         Ebv = sky_ebv_Gontcharov(RA,Dec,'CooType',CooType,'CorrectHigh',CorrectHigh,'Rv',Args.Rv,'InterpMethod',Args.InterpMethod);
     else
@@ -36,7 +38,7 @@ function Ebv = sky_ebv(RA,Dec,CooType,CorrectHigh, Args)
     
 end
 
-function [Ebv,A]=sky_ebv_Schlegel(RA,Dec,CooType,CorrectHigh)
+function [Ebv,A]=sky_ebv_Schlegel(RA,Dec,CooType,CorrectHigh,Recalibrate)
 % Get Galactic extinction for a list of coordinates
 % Package: AstroUtil.spec
 %              Schlegel, Finkbeiner & Davis (1998) extinction maps.
@@ -52,6 +54,7 @@ function [Ebv,A]=sky_ebv_Schlegel(RA,Dec,CooType,CorrectHigh)
 %            I.e., at large E(B-V) values Schlegel et al. is probably
 %            overestimating the extinction.
 %            Default is true.
+%          - true|false recalibrate by 0.86 according to Shlafly and Finkbeiner (2011)
 % Output : - E(B-V) [mag].
 %            The E(B-V) is returned from the point in the map which is
 %            the nearest to the input coordinates.
@@ -83,9 +86,13 @@ FileNorth = 'SFD_dust_4096_ngp';
 if (nargin==2)
    CooType = 'eq';
    CorrectHigh = true;
+   Recalibrate = true;
 elseif (nargin==3)
    CorrectHigh = true;
+   Recalibrate = true;
 elseif (nargin==4)
+   Recalibrate = true;
+elseif (nargin==5)
    % do nothing
 else
    error('Illegal number of input arguments');
@@ -139,6 +146,11 @@ if (isempty(Ip)==0)
    for I=1:1:length(Ip)
       Ebv(Ip(I)) = Im(Y(Ip(I)),X(Ip(I)));
    end
+end
+
+% Recalibration according to Shlafly and Finkbeiner (2011)
+if (Recalibrate)
+    Ebv = Ebv .* 0.86;  
 end
 
 % The Eb-v is probably overestimated when >0.1 mag

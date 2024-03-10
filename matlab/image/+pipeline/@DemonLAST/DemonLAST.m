@@ -2131,6 +2131,10 @@ classdef DemonLAST < Component
                 %Args.RunAsService logical  = false;
             end
             RAD = 180./pi;
+            
+            if isempty(Args.HostName)
+                Args.HostName = tools.os.get_computer;            
+            end
 
             if Args.Insert2DB
                 Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
@@ -2164,7 +2168,6 @@ classdef DemonLAST < Component
                 end
 
             end
-
 
             ADB = [];  % AstroDB
 
@@ -2456,13 +2459,13 @@ classdef DemonLAST < Component
                             writeStatus(Obj, fileparts(RawImageListFinal{1}));
 
                             % Insert pipeline products to the DB
-                            if Args.Insert2DB                                
+                            if Args.Insert2DB 
                                 try                                    
-                                    Msg{1} = sprintf('pipline.DemonLAST started injecting data for group %d into the DB',Igroup);
+                                    Msg{1} = sprintf('pipline.DemonLAST started preparing DB data for group %d',Igroup);
                                     Obj.writeLog(Msg, LogLevel.Info);
-                                if isempty(ADB) % connect to DB                                    
-                                    ADB = db.AstroDb(Args.AstroDBArgs{:});
-                                end                                
+                                    if isempty(ADB) && ( ~Args.DB_ImageBulk || ~Args.DB_CatalogBulk) % connect to DB
+                                        ADB = db.AstroDb(Args.AstroDBArgs{:});
+                                    end
                                 % RAW, PROC, and COADD images
                                 HasImageP = ~AllSI.isemptyImage; % use only AI's with Image properties filled
                                 ProcFileName = FN_Proc.genFull;
@@ -2548,7 +2551,7 @@ classdef DemonLAST < Component
                         Msg{1} = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd analyzed %d images starting at %s',numel(RawImageList), FN_Sci_Groups(Igroup).Time{1});
                         Msg{2} = sprintf('pipeline.DemonLAST / pipeline.generic.multiRaw2procCoadd run time [s]: %6.1f', RunTime);
                         Obj.writeLog(Msg, LogLevel.Info);  
-                        Msg{2} = ''; % need to clean it, otherwise it keeps being printed with the next group messages 
+                        Msg = {}; % need to clean it, otherwise it keeps being printed with the next group messages 
                         
                         % check if stop loop
                         if Args.StopButton && StopGUI()
