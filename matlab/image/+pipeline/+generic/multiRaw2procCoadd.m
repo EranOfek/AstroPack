@@ -289,7 +289,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.INPOP                            = [];
         Args.AsteroidSearchRadius             = 10;
         
-
+        Args.HostName              = [];
     end
     
     if ~isempty(Args.SaveAll)
@@ -435,8 +435,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             
         end
        
-        io.msgLog(LogLevel.Info, 'multiRaw2procCoadd: image %d of %d processed: %s', ...
-                  Iim, Nim,AI(Iim).getStructKey('FILENAME').FILENAME);
+        io.msgLog(LogLevel.Info, '%s: multiRaw2procCoadd: image %d of %d processed: %s', ...
+                  Args.HostName, Iim, Nim,AI(Iim).getStructKey('FILENAME').FILENAME);
         
         if Iim==1
             % alocate AstroImage for all sub images
@@ -530,7 +530,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
                                                                                              'GeoPos',Args.GeoPos,...
                                                                                              'OrbEl',Args.OrbEl,...
                                                                                              'INPOP',Args.INPOP,...
-                                                                                             'AsteroidSearchRadius',Args.AsteroidSearchRadius);
+                                                                                             'AsteroidSearchRadius',Args.AsteroidSearchRadius,...
+                                                                                             'HostName',Args.HostName);
        
                                                                                          
     % Add JD and CropID to Catalog

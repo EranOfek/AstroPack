@@ -20,7 +20,7 @@ classdef DemonLAST < Component
         Node         = 1;
         DataDir      = 1;
         CamNumber    = [];
-        %HostName     = [];
+        HostName     = [];
 
         BasePath     = [];
    
@@ -963,6 +963,7 @@ classdef DemonLAST < Component
     
                 Nl = numel(Lines);
                 for Il=1:1:Nl
+                    Lines{Il} = {[Obj.HostName ': ' Lines{Il}]};
                     if Args.WriteDev
                         fprintf('%s\n', Lines{Il});
                     end
@@ -2029,7 +2030,7 @@ classdef DemonLAST < Component
                 end
                     
                 Obj.CI.Bias = AstroImage.readFileNamesObj(FN_Bias, 'AddProduct',Args.AddImages);
-                Obj.writeLog(sprintf('\nUsing dark: %s\n', char(FN_Bias.genFile)), LogLevel.Info);
+                Obj.writeLog(sprintf('Using dark: %s\n', char(FN_Bias.genFile)), LogLevel.Info);
                 %fprintf('\nUsing dark: %s\n', char(FN_Bias.genFile))
             end
 
@@ -2042,7 +2043,7 @@ classdef DemonLAST < Component
                     [~,~,FN_Flat] = FN_Flat.selectNearest2JD(Args.FlatNearJD);
                 end
                 Obj.CI.Flat = AstroImage.readFileNamesObj(FN_Flat, 'AddProduct',Args.AddImages);
-                Obj.writeLog(sprintf('\nUsing flat: %s\n', char(FN_Flat.genFile)), LogLevel.Info);
+                Obj.writeLog(sprintf('Using flat: %s\n', char(FN_Flat.genFile)), LogLevel.Info);
                 %fprintf('Using flat: %s\n\n', char(FN_Flat.genFile))
             end
 
@@ -2109,7 +2110,6 @@ classdef DemonLAST < Component
 
                 % DataBase
                 Args.Insert2DB         = true;              % Insert images data to LAST DB
-%                 Args.DB_InsertRaw      = false;
                 Args.DB_Table_Raw      = 'raw_images';
                 Args.DB_Table_Proc     = 'proc_images';
                 Args.DB_Table_Coadd    = 'coadd_images';
@@ -2227,6 +2227,8 @@ classdef DemonLAST < Component
                 % set Logger log file 
                 Obj.setLogFile('HostName',Args.HostName);
                 Obj.writeLog('******* pipeline.DemonLAST started ********', LogLevel.Info);
+                
+                Obj.HostName = Args.HostName;
 
                 if Args.RegenCalib
                     % prep Master dark and move to raw/ dir
@@ -2350,7 +2352,8 @@ classdef DemonLAST < Component
                                                                        'GeoPos',Args.GeoPos,...
                                                                        'OrbEl',Args.OrbEl,...
                                                                        'INPOP',Args.INPOP,...
-                                                                       'AsteroidSearchRadius',Args.AsteroidSearchRadius);
+                                                                       'AsteroidSearchRadius',Args.AsteroidSearchRadius,...
+                                                                       'HostName',Args.HostName);
 
                             % Notify watchdog that process is running 
                             tools.systemd.mex.notify_watchdog;
