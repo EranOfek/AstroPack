@@ -4,7 +4,7 @@ function prepGAIAspec(Args)
     % Author : Eran Ofek (Jul 2022)
    
     arguments
-        
+        % spectralo units W m−2 nm-1
         Args.URL = 'http://cdn.gea.esac.esa.int/Gaia/gdr3/Spectroscopy/xp_sampled_mean_spectrum/';
         Args.Wave = (336:2:1020).';
     end

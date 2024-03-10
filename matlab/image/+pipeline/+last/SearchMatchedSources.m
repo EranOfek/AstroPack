@@ -1,4 +1,6 @@
 % SearchMatchedSources
+%   A class for searching and inspecting variable stars in MatchedSources
+%   objects.
 
 
 classdef SearchMatchedSources < Component
@@ -24,6 +26,22 @@ classdef SearchMatchedSources < Component
     methods % prep/read consecutive MatchedSources files
         function populateAllConsecutive(Obj, List, Args)
             % populate the AllConsecutive property
+            %   Use pipeline.DemonLAST/searchConsecutiveVisitsOfField
+            %   to search recursively for all proc/visits directories in a dir
+            %   tree and return a list of all fields that were observed
+            %   consecutively.
+            % Input  : - self.
+            %          - Optional List created by
+            %            pipeline.DemonLAST/prepListOfProcVisits
+            %            If empty, then create.
+            %            Default is [].
+            %          * ...,key,val,...
+            %            See code.
+            % Ouput : - A SearchMatchedSources object in which the
+            %           AllConsecutive property is populated.
+            % Author : Eran Ofek (Mar 2024)
+            % Example: SMS = SearchMatchedSources;
+            %          SMS.populateAllConsecutive;
 
             arguments
                 Obj
@@ -44,7 +62,31 @@ classdef SearchMatchedSources < Component
         end
 
         function [Obj, LimMagQuantile]=prepConsecutive(Obj, Icons, Igroup, Icrop, Args)
-            % load one consecutive MatchedSources objects
+            % Load one consecutive MatchedSources objects
+            %   Given a SearchMatchedSources object in which the AllConsecutive
+            %   property is populated, load the MatchedSources files by
+            %   they index in the AllConsecutive.
+            %   The indices include:
+            %       Icons - The index of the AllConsecutive cell.
+            %       Igroup - The index of the group of length 'Nvisit'.
+            %       Icrop - CropID
+            % Input  : - self.
+            %          - (Icons) The index of the AllConsecutive cell.
+            %               Default is 1.
+            %          - (Igroup) The index of the group of length 'Nvisit'.
+            %               Default is 1.
+            %          - (Icrop) CropID. Default is 1.
+            %          * ...,key,val,...
+            %            See code.
+            % Output : - A SearchMatchedSources object in which the MS
+            %            property is populated with the merged (of length
+            %            Nvisit) MatchedSources object.
+            %          - Vector of estimated (based on quantile) lim. mag
+            %            in each epoch.
+            % Author : Eran Ofek (Mar 2024)
+            % Example: SMS = SearchMatchedSources;
+            %          SMS.populateAllConsecutive;
+            %          SMS.prepConsecutive;
 
             arguments
                 Obj
@@ -89,12 +131,13 @@ classdef SearchMatchedSources < Component
                     end % if ~isempty(IndCrop)
                 end % for Igroup=1:1:Ngroup
 
-                if numel(MSm)~=Args.Nvisit
+                if numel(MSm)~=Args.Nvisit || any(MSm.isemptyProperty('Nepoch'))
                     %Status = false;
                     Obj.MS = [];
                 else
                     MS_FileNames = {MSm.FileName};
                     Obj.MS  = MSm.mergeByCoo(MSm(1), 'SearchRadius',Args.SearchRadius, 'SearchRadiusUnits',Args.SearchRadiusUnits);
+                  
                     Obj.MS.FileName = MS_FileNames;
 
                     % add MAG_BEST
@@ -170,33 +213,49 @@ classdef SearchMatchedSources < Component
                             FlagComb = Flag.FlagGood(:) & (Flag.PS(:) | Flag.RMS(:) | Flag.Poly(:));
     
                             if any(FlagComb)
-                                Icand = Icand + 1;
-                                Cand(Icand).N_FlagComb = sum(FlagComb);
-                                Cand(Icand).IndCand    = find(FlagComb);
-                                Cand(Icand).Flag       = Flag;
+                                IndCand    = find(FlagComb);
+                                Ncand      = numel(IndCand);
 
-                                for I=1:1:Cand(Icand).N_FlagComb
-                                    IndSrc = Cand(Icand).IndCand(I);
+                                
 
-                                    [FlagGood, ResPhotAstCorr] = flagAstPhotCorr(Obj, IndSrc);
+                                for I=1:1:Ncand
+                                    IndSrc = IndCand(I);
+
+                                    [FlagGood, ResPhotAstCorr] = flagCorr(Obj, IndSrc);
 
                                     if FlagGood
 
+                                        RA  = median(Obj.MS.Data.(Args.RAField)(:,IndSrc), 1, 'omitnan');
+                                        Dec = median(Obj.MS.Data.(Args.DecField)(:,IndSrc), 1, 'omitnan');
+
+                                        Icand = Icand + 1;
+                                        Cand(Icand).IndSrc          = IndSrc;
+                                        Cand(Icand).NcandInSubImage = Ncand;
+                                        Cand(Icand).Flag        = Flag;
+                                        Cand(Icand).MS          = Obj.MS;
+                                        Cand(Icand).FlagGood    = Flag.FlagGood(IndSrc);
+                                        Cand(Icand).FlagPS      = Flag.PS(IndSrc);
+                                        Cand(Icand).FlagRMS     = Flag.RMS(IndSrc);
+                                        Cand(Icand).FlagPoly    = Flag.Poly(IndSrc);
+                                        Cand(Icand).MaxPS       = Summary.MaxPS(IndSrc);
+                                        Cand(Icand).MaxFreq     = Summary.MaxFreq(IndSrc);
+                                        Cand(Icand).RA          = RA;
+                                        Cand(Icand).Dec         = Dec;
+    
                                         if Args.Plot
                                             
                                             Obj.plotLC(IndSrc);
-                                            Obj.plotRMS(IndSrc);
+                                            Obj.plotRMS(IndSrc, 'NsigmaPredRMS',7);
                                             Obj.plotPS(IndSrc);
                                             
     
-                                            RA  = median(Obj.MS.Data.(Args.RAField)(:,IndSrc), 1, 'omitnan');
-                                            Dec = median(Obj.MS.Data.(Args.DecField)(:,IndSrc), 1, 'omitnan');
-    
-    
     
                                             [SimbadURL]=VO.search.simbad_url(RA./RAD, Dec./RAD)
-    
-                                            web(SimbadURL.URL)
+                                            SDSS_URL=VO.SDSS.navigator_link(RA./RAD, Dec./RAD);
+                                            PS1_URL=VO.PS1.navigator_link(RA./RAD,Dec./RAD);
+                                            AC=catsHTM.cone_search('GAIADR3',RA./RAD, Dec./RAD, 5,'OutType','AstroCatalog');
+
+                                            %web(SimbadURL.URL)
                                             'a'
                                         end
                                     end
@@ -230,7 +289,8 @@ classdef SearchMatchedSources < Component
 
                 Args.ThresholdPS           = 12;
 
-                Args.NsigmaRMS             = 5;
+                Args.NsigmaPredRMS         = 7;
+                Args.NsigmaStdRMS          = 5;
                 Args.MinDetRMS             = 15;
                 Args.MinNptRMS             = 10;
             end
@@ -246,15 +306,19 @@ classdef SearchMatchedSources < Component
             [FreqVec, PS, Flag.PS] = period(Obj.MS, FreqVec, 'MagField', Args.MagField, 'ThresholdPS',Args.ThresholdPS);
                     
             % rms
-            ResRMS   = Obj.MS.rmsMag('MagField',Args.MagField, 'MinDetRmsVar',Args.MinDetRMS, 'Nsigma',Args.NsigmaRMS, 'MinNpt',Args.MinNptRMS);
+            ResRMS   = Obj.MS.rmsMag('MagField',Args.MagField, 'MinDetRmsVar',Args.MinDetRMS, 'NsigmaPred',Args.NsigmaPredRMS, 'NsigmaStd',Args.NsigmaStdRMS, 'MinNpt',Args.MinNptRMS);
             Flag.RMS = ResRMS.FlagVarPred;
 
             % poly std
-            [ResPolyHP, Flag.Poly] = fitPolyHyp(Obj.MS, 'PolyDeg',{0, (0:1), (0:1:2)}, 'ThresholdChi2',[Inf, chi2inv(normcdf([4.5 5 6],0,1),2)]);
+            [ResPolyHP, Flag.Poly] = fitPolyHyp(Obj.MS, 'PolyDeg',{0, (0:1), (0:1:2)}, 'ThresholdChi2',[Inf, chi2inv(normcdf([5 6 7],0,1),2)]);
 
             Summary.FreqVec   = FreqVec;
             Summary.PS        = PS;
+            [MaxPS, MaxInd]   = max(PS,[],1);
+            Summary.MaxPS     = MaxPS;
+            Summary.MaxFreq   = FreqVec(MaxInd);
             Summary.ResPolyHP = ResPolyHP;
+            Summary.ResRMS    = ResRMS;
         end
 
 
@@ -273,6 +337,9 @@ classdef SearchMatchedSources < Component
                 Args.RAField               = 'RA';
                 Args.DecField              = 'Dec';
                 Args.MaxAstStd             = 0.5./3600;  % deg
+
+                Args.AperPhotPair          = {'MAG_APER_2','MAG_APER_3'};
+                Args.AperPhotPairQuantile  = [0.02 0.98];
             end
 
             % Detections
@@ -300,14 +367,21 @@ classdef SearchMatchedSources < Component
             StdDec = std(Obj.MS.Data.(Args.DecField), [],1,'omitnan');
             FlagInfo.NoAstJitter = ~(StdRA>Args.MaxAstStd | StdDec>Args.MaxAstStd);
    
+            % aperture photometry diff
+            DiffAper = median(Obj.MS.Data.(Args.AperPhotPair{1}) - Obj.MS.Data.(Args.AperPhotPair{2}), 1, 'omitmissing');
+            QR = quantile(DiffAper, Args.AperPhotPairQuantile);
+            FlagInfo.AperDiff = DiffAper>QR(1) & DiffAper<QR(2);
+
+
             % summarize all flags
-            FlagGood  = FlagInfo.Ndet(:) & FlagAll.NotNearEdge(:) & FlagInfo.NotOverlap(:) & FlagInfo.Chi2(:) & FlagInfo.NoAstJitter(:);
+            FlagGood  = FlagInfo.Ndet(:) & FlagAll.NotNearEdge(:) & FlagInfo.NotOverlap(:) & FlagInfo.Chi2(:) & FlagInfo.NoAstJitter(:) & FlagInfo.AperDiff(:);
 
 
         end
 
-        function [FlagGood, Res] = flagAstPhotCorr(Obj, IndSrc, Args)
-            % astrometry-photometry correltaions
+        function [FlagGood, Res] = flagCorr(Obj, IndSrc, Args)
+            % astrometry-photometry correltaions +
+            % chi2-phot correlations
 
             arguments
                 Obj
@@ -315,13 +389,23 @@ classdef SearchMatchedSources < Component
                 Args.MagField              = 'MAG_BEST';
                 Args.RAField               = 'RA';
                 Args.DecField              = 'Dec';
-                Args.ProbThresh            = 0.9;
+                Args.PosProbThresh         = 0.9;
+
+                Args.Chi2Field             = 'PSF_CHI2DOF';
+                Args.Chi2ProbThresh        = 0.99;
+
+                Args.BackField             = 'BACK_ANNULUS';
+                Args.BackProbThresh        = 0.99;
             end
 
-            [Res.C_RA, Res.Pc_RA]  = tools.math.stat.corrsim(Obj.MS.Data.(Args.MagField)(:,IndSrc), Obj.MS.Data.(Args.RAField)(:,IndSrc));
-            [Res.C_Dec,Res.Pc_Dec] = tools.math.stat.corrsim(Obj.MS.Data.(Args.MagField)(:,IndSrc), Obj.MS.Data.(Args.DecField)(:,IndSrc));
+            [Res.C_RA, Res.Pc_RA]    = tools.math.stat.corrsim(Obj.MS.Data.(Args.MagField)(:,IndSrc), Obj.MS.Data.(Args.RAField)(:,IndSrc));
+            [Res.C_Dec,Res.Pc_Dec]   = tools.math.stat.corrsim(Obj.MS.Data.(Args.MagField)(:,IndSrc), Obj.MS.Data.(Args.DecField)(:,IndSrc));
+            [Res.C_Chi2,Res.Pc_Chi2] = tools.math.stat.corrsim(Obj.MS.Data.(Args.MagField)(:,IndSrc), Obj.MS.Data.(Args.Chi2Field)(:,IndSrc));
+            [Res.C_Back,Res.Pc_Back] = tools.math.stat.corrsim(Obj.MS.Data.(Args.MagField)(:,IndSrc), Obj.MS.Data.(Args.BackField)(:,IndSrc));
 
-            if Res.Pc_RA>Args.ProbThresh || Res.Pc_Dec>Args.ProbThresh
+            if Res.Pc_RA>Args.PosProbThresh || Res.Pc_Dec>Args.PosProbThresh || Res.Pc_Chi2>Args.Chi2ProbThresh || Res.Pc_Back>Args.BackProbThresh || ...
+                Res.Pc_RA<(1-Args.PosProbThresh) || Res.Pc_Dec<(1-Args.PosProbThresh) || Res.Pc_Chi2<(1-Args.Chi2ProbThresh) || Res.Pc_Back<(1-Args.BackProbThresh)
+               
                 FlagGood = false;
             else
                 FlagGood = true;
@@ -346,12 +430,63 @@ classdef SearchMatchedSources < Component
     
     methods % plot
 
+
+        function plotVar(Obj, IndSrc, Args)
+            %
+
+            arguments
+                Obj
+                IndSrc
+                Args.MS                    = []; 
+
+                Args.RAField               = 'RA';
+                Args.DecField              = 'Dec';
+                Args.MagField              = 'MAG_BEST';
+                Args.UnitsTime             = 'day';
+                Args.DispUnitsTime         = 'min';
+                Args.SubT0 logical         = true;
+
+                Args.BD                    = BitDictionary;
+                Args.FlagsField            = 'FLAGS';
+                Args.DefaultSymbol         = {'ko','MarkerFaceColor','k'};
+                Args.ListFlags             = {'Saturated',{'b^'}; ...
+                                              'NaN',{'r>'}; ...
+                                              'Negative',{'rv'}; ...
+                                              'CR_DeltaHT',{'b<'}};
+
+            end
+            RAD = 180./pi;
+
+            if ~isempty(Args.MS)
+                Obj.MS = Args.MS;
+            end
+
+            Obj.plotLC(IndSrc)
+            Obj.plotRMS(IndSrc, 'NsigmaPredRMS',7);
+            Obj.plotPS(IndSrc);
+            
+            RA  = median(Obj.MS.Data.(Args.RAField)(:,IndSrc), 1, 'omitnan');
+            Dec = median(Obj.MS.Data.(Args.DecField)(:,IndSrc), 1, 'omitnan');
+
+
+
+            [SimbadURL]=VO.search.simbad_url(RA./RAD, Dec./RAD)
+            SDSS_URL=VO.SDSS.navigator_link(RA./RAD, Dec./RAD);
+            PS1_URL=VO.PS1.navigator_link(RA./RAD,Dec./RAD);
+            AC=catsHTM.cone_search('GAIADR3',RA./RAD, Dec./RAD, 5,'OutType','AstroCatalog');
+
+
+        end
+
+
         function plotLC(Obj, IndSrc, Args)
             %
 
             arguments
                 Obj
                 IndSrc
+                Args.MS                    = []; 
+
                 Args.FigN                  = 1;
                 Args.MagField              = 'MAG_BEST';
                 Args.UnitsTime             = 'day';
@@ -368,6 +503,9 @@ classdef SearchMatchedSources < Component
 
             end
 
+            if ~isempty(Args.MS)
+                Obj.MS = Args.MS;
+            end
             
             JD = Obj.MS.JD;
             if Args.SubT0
@@ -420,12 +558,12 @@ classdef SearchMatchedSources < Component
 
                 Args.MagField              = 'MAG_BEST';
                 
-                Args.NsigmaRMS             = 5;
+                Args.NsigmaPredRMS         = 5;
                 Args.MinDetRMS             = 15;
             end
 
             if isempty(Args.ResRMS)
-                ResRMS   = Obj.MS.rmsMag('MagField',Args.MagField, 'MinDetRmsVar',Args.MinDetRMS, 'Nsigma',Args.NsigmaRMS);
+                ResRMS   = Obj.MS.rmsMag('MagField',Args.MagField, 'MinDetRmsVar',Args.MinDetRMS, 'NsigmaPred',Args.NsigmaPredRMS);
             else
                 ResRMS = Args.ResRMS;
             end
@@ -437,7 +575,7 @@ classdef SearchMatchedSources < Component
             hold on
             [~,SI] = sort(ResRMS.MeanMag);
             semilogy(ResRMS.MeanMag(SI), ResRMS.InterpMeanStd(SI),'-')      
-            semilogy(ResRMS.MeanMag(SI), ResRMS.InterpMeanStd(SI)+ResRMS.InterpPredStd(SI).*Args.NsigmaRMS,'--')      
+            semilogy(ResRMS.MeanMag(SI), ResRMS.InterpMeanStd(SI)+ResRMS.InterpPredStd(SI).*Args.NsigmaPredRMS,'--')      
             plot(ResRMS.MeanMag(IndSrc), ResRMS.StdPar(IndSrc),'ro')
 
             H = xlabel('Magnitude');
