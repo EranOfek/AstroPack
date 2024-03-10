@@ -2131,6 +2131,10 @@ classdef DemonLAST < Component
                 %Args.RunAsService logical  = false;
             end
             RAD = 180./pi;
+            
+            if isempty(Args.HostName)
+                Args.HostName = tools.os.get_computer;            
+            end
 
             if Args.Insert2DB
                 Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
