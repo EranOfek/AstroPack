@@ -81,10 +81,15 @@ function [bwmask,lines]=maskTracks(AstroImg,Args)
         % the Hough transform only finds unbounded lines. To mask
         %  specifically only segments corresponding to high pixels along
         %  the found direction, we use houghlines
-        lines = houghlines(HighPix,T,R,P,'FillGap',FillGap,'MinLength',MinLength);
-        L1=vertcat(lines.point1);
-        L2=vertcat(lines.point2);
-        % plot([L1(:,1),L2(:,1)]',[L1(:,2),L2(:,2)]')
+        if ~isempty(P)
+            lines = houghlines(HighPix,T,R,P,'FillGap',FillGap,'MinLength',MinLength);
+            L1=vertcat(lines.point1);
+            L2=vertcat(lines.point2);
+            % plot([L1(:,1),L2(:,1)]',[L1(:,2),L2(:,2)]')
+        else
+            L1=[];
+            L2=[];
+        end
 
         % mask: draw all the pixellated lines and then dilate them
         % approximately as much as the PSF is wide
