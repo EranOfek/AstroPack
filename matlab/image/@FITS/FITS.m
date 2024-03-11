@@ -512,11 +512,15 @@ classdef FITS < handle
                 case 'table'
                    Out = table(Col.Data{:});
                    try
-                   Out.Properties.VariableNames = Col.Cell;
+                        Out.Properties.VariableNames = Col.Cell;
                    catch
                        'a'
                    end
-                   Out.Properties.VariableUnits = Col.Units;
+                   try
+                        Out.Properties.VariableUnits = Col.Units;
+                   catch
+                       'b'
+                   end
 
                 case {'astrocatalog', 'astrotable'}
                     Out = AstroCatalog;

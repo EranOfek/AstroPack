@@ -697,10 +697,11 @@ classdef ds9 < handle
                         [Bl{1:Nkey}] = deal(' ');
                         Images(Iim).Header = [Images(Iim).Header(:,1:2),  Bl];
                         FITS.write(Images(Iim).(ImageField),TmpName,'Header',Images(Iim).Header);
-                    elseif isa(Images,'AstroImage')
-                        % FFU - need to fix header?
+                    elseif isa(Images,'AstroImage')                        
                         FITS.write(Images(Iim).(Args.ImageField), TmpName, 'Header',Images(Iim).Header);
-                        
+                        % fix header
+                        FITS.delete_keys(TmpName, {'EXTVER','PCOUNT','GCOUNT','PSCALET1','PSCALET2',...
+                            'XTENSION','TTYPE1','TFORM1','TTYPE2','TFORM2','TTYPE3','TFORM3'}); 
                     elseif isa(Images,'ImageComponent')
                         % no header
                         FITS.write(Images(Iim).(Args.ImageField), TmpName);
