@@ -2,7 +2,7 @@
 %   A class for searching and inspecting variable stars in MatchedSources
 %   objects.
 %
-% Example: SMS = SearchMatchedSources;
+% Example: SMS = pipeline.last.SearchMatchedSources;
 %          SMS.populateAllConsecutive;
 %          % SMS.prepConsecutive(Icons, Igroup, Icrop)
 %          [Cand, Summary] = SMS.findVariableAll('Plot',false);
