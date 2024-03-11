@@ -2204,6 +2204,7 @@ classdef OrbitalEl < Base
                 Args.A        = 1;
                 Args.RangeE   = [0, 0.9];
                 Args.Epoch    = 2451545;
+                Args.RangeIncl = [-90, 90];
             end
             
             Result = celestial.OrbitalEl;
@@ -2212,8 +2213,13 @@ classdef OrbitalEl < Base
             Result.Node      = rand(N,1).*360;
             Result.W         = rand(N,1).*360;
             %Result.Incl      = rand(N,1).*180 - 90;
-            Inc        = (-90:1:90).';
-            Result.Incl      = tools.math.stat.randgen([Inc, cosd(Inc)],N);
+            % Inc        = (-90:1:90).';
+            if min(Args.RangeIncl) ~= max(Args.RangeIncl)
+                Inc         = (min(Args.RangeIncl):1:max(Args.RangeIncl)).';
+                Result.Incl      = tools.math.stat.randgen([Inc, cosd(Inc)],N);
+            else
+                Result.Incl = min(Args.RangeIncl);
+            end
 
             Result.Eccen     = rand(N,1).*range(Args.RangeE) + min(Args.RangeE);
             Result.Epoch     = ones(N,1).*Args.Epoch;
