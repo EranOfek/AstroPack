@@ -3,8 +3,10 @@ import numpy as np
 import healpy as hp
 
 nside = int(sys.argv[1])
-nested  = sys.argv[4]
-degrees = sys.argv[5]
+nested  = bool(int(sys.argv[4]))
+degrees = bool(int(sys.argv[5]))
+
+# print("Nested: ",nested, 'Degrees: ",degrees)
 
 try:
     RA  = float(sys.argv[2])
