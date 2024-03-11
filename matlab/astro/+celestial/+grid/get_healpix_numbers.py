@@ -3,12 +3,14 @@ import numpy as np
 import healpy as hp
 
 nside = int(sys.argv[1])
+nested  = sys.argv[4]
+degrees = sys.argv[5]
 
 try:
     RA  = float(sys.argv[2])
     Dec = float(sys.argv[3])
 
-    pixel_numbers = hp.pixelfunc.ang2pix(nside, RA, Dec, nest=False, lonlat=True)
+    pixel_numbers = hp.pixelfunc.ang2pix(nside, RA, Dec, nest=nested, lonlat=degrees)
 
 except ValueError:  # If the argument is not convertible to float, treat it as a filename
     filename = sys.argv[2]
@@ -17,9 +19,9 @@ except ValueError:  # If the argument is not convertible to float, treat it as a
         RA  = data[:, 0]
         Dec = data[:, 1]
 
-    pixel_numbers = hp.pixelfunc.ang2pix(nside, RA, Dec, nest=False, lonlat=True)
+    pixel_numbers = hp.pixelfunc.ang2pix(nside, RA, Dec, nest=nested, lonlat=degrees)
 
 # print("Nearest pixel numbers:", pixel_numbers)
 
 filename = f"healpix_nside_{nside}_pixelnumbers.txt"
-np.savetxt(filename, pixel_numbers,fmt='%d')
+np.savetxt(filename, np.array([pixel_numbers]),fmt='%d')
