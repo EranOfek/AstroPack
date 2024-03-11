@@ -1066,6 +1066,13 @@ classdef MovingSource < Component
 
     end
 
+    methods % asteroid merging
+        
+
+
+    end
+
+
     methods % extended sources
         % Fit PSF vs. extended PSF
         function psfFitExtended(Obj, Args)
