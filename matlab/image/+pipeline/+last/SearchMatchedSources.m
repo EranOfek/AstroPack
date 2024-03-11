@@ -1,6 +1,15 @@
 % SearchMatchedSources
 %   A class for searching and inspecting variable stars in MatchedSources
 %   objects.
+%
+% Example: SMS = SearchMatchedSources;
+%          SMS.populateAllConsecutive;
+%          % SMS.prepConsecutive(Icons, Igroup, Icrop)
+%          [Cand, Summary] = SMS.findVariableAll('Plot',false);
+%          FF=[C.FlagPS]; 
+%          FFI=find(FF);
+%          SMS.plotVar(C(FFI(1)))
+
 
 
 classdef SearchMatchedSources < Component
@@ -529,8 +538,16 @@ classdef SearchMatchedSources < Component
     methods % plot
 
 
-        function plotVar(Obj, IndSrc, Args)
+        function Result=plotVar(Obj, IndSrc, Args)
+            % Variability plot for a source in MatchedSources object.
+            % Input  : - A SearchMatchedSources object, including a
+            %            populatred MS.
+            %          - Source index in the MS.
+            %          * ...,key,val,...
+            %            See code for options.
             %
+            % Output : - A structure containing web links to source.
+            % Author : Eran Ofek (Mar 2024)
 
             arguments
                 Obj
@@ -555,6 +572,13 @@ classdef SearchMatchedSources < Component
             end
             RAD = 180./pi;
 
+            if isstruct(IndSrc)
+                Cand = IndSrc;
+                Args.MS = Cand.MS;
+                IndSrc = Cand.IndSrc;
+            end
+
+
             if ~isempty(Args.MS)
                 Obj.MS = Args.MS;
             end
@@ -568,10 +592,10 @@ classdef SearchMatchedSources < Component
 
 
 
-            [SimbadURL]=VO.search.simbad_url(RA./RAD, Dec./RAD)
-            SDSS_URL=VO.SDSS.navigator_link(RA./RAD, Dec./RAD);
-            PS1_URL=VO.PS1.navigator_link(RA./RAD,Dec./RAD);
-            AC=catsHTM.cone_search('GAIADR3',RA./RAD, Dec./RAD, 5,'OutType','AstroCatalog');
+            [Result.SimbadURL]=VO.search.simbad_url(RA./RAD, Dec./RAD);
+            Result.SDSS_URL=VO.SDSS.navigator_link(RA./RAD, Dec./RAD);
+            Result.PS1_URL=VO.PS1.navigator_link(RA./RAD,Dec./RAD);
+            %Result.AC=catsHTM.cone_search('GAIADR3',RA./RAD, Dec./RAD, 5,'OutType','AstroCatalog');
 
 
         end
