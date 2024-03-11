@@ -7,7 +7,7 @@ function get_healpix_numbers(NSide, RA, Dec, Args)
     %      'Python' - system command for the python3 executable
     %      'Nested' - 0 (ring structure) or 1 (nested structure)
     %      'Lonlat' - 1 (degrees) or 0 (radians)
-    % Output: - a text file containing the HEALPIX pixel numbers in a row
+    % Output: - a text file named "healpix_nside_{nside}_pixelnumbers.txt" containing the HEALPIX pixel numbers in a row
     % Author: A.M. Krassilchtchikov (Mar 2024)
     % Example: celestial.grid.get_healpix_numbers(2048, '~/ULTRASAT/SkyGrid/coords.txt')
     %          celestial.grid.get_healpix_numbers(2048, 10.,1)
