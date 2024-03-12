@@ -34,11 +34,11 @@ function [bwmask,lines]=maskTracks(AstroImg,Args)
     % Example:
     %
     %   AI=AstroImage();
-    %   AI.Image=20*imUtil.art.createSegments([650,700],...
-    %                    [322,233;98,0],[54,11;145,211],'width',0.5) + ...
-    %               rand(650,700);
+    %   AI.Image=2000*imUtil.art.createSegments([650,700],...
+    %               [322,233;98,0],[54,11;145,211],'width',0.5) + ...
+    %               100*rand(650,700);
     %   imProc.background.background(AI);
-    %   imProc.mask.maskTracks(AI);
+    %   imProc.mask.maskTracks(AI)
 
 
     arguments
@@ -69,7 +69,7 @@ function [bwmask,lines]=maskTracks(AstroImg,Args)
             FillGap=Args.FillGap;
         end
         HighPix = (AstroImg(k).Image - AstroImg(k).Back) > ...
-                   Args.VarLevel*sqrt(AstroImg(k).Var);
+                   Args.VarLevel*sqrt(abs(AstroImg(k).Var));
         [H,T,R] = hough(HighPix,...
             'Theta',-90:Args.ThetaResolution:90-Args.ThetaResolution,...
             'RhoResolution',Args.RhoResolution);
