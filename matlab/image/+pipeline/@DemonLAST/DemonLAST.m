@@ -2109,7 +2109,7 @@ classdef DemonLAST < Component
                 Args.SaveAsteroids     = true;
 
                 % DataBase
-                Args.Insert2DB         = false; %true;              % Insert images data to LAST DB
+                Args.Insert2DB         = true;              % Insert images data to LAST DB or prepare CSV dumps for further insertion
                 Args.DB_Table_Raw      = 'raw_images';
                 Args.DB_Table_Proc     = 'proc_images';
                 Args.DB_Table_Coadd    = 'coadd_images';
@@ -2463,7 +2463,7 @@ classdef DemonLAST < Component
                                 try                                    
                                     Msg{1} = sprintf('pipline.DemonLAST started preparing DB data for group %d',Igroup);
                                     Obj.writeLog(Msg, LogLevel.Info);
-                                    if isempty(ADB) && ( ~Args.DB_ImageBulk || ~Args.DB_CatalogBulk) % connect to DB
+                                    if isempty(ADB) % && ( ~Args.DB_ImageBulk || ~Args.DB_CatalogBulk) % connect to DB
                                         ADB = db.AstroDb(Args.AstroDBArgs{:});
                                     end
                                 % RAW, PROC, and COADD images
