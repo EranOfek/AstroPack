@@ -2109,7 +2109,7 @@ classdef DemonLAST < Component
                 Args.SaveAsteroids     = true;
 
                 % DataBase
-                Args.Insert2DB         = true;              % Insert images data to LAST DB
+                Args.Insert2DB         = false; %true;              % Insert images data to LAST DB
                 Args.DB_Table_Raw      = 'raw_images';
                 Args.DB_Table_Proc     = 'proc_images';
                 Args.DB_Table_Coadd    = 'coadd_images';
