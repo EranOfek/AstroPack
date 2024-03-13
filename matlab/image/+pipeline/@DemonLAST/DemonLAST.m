@@ -955,14 +955,14 @@ classdef DemonLAST < Component
 
                     % create new lock file
                     FID = fopen(LockFile, 'w');
-                    fprintf('%d',Pid);
+                    fprintf(FID,'%d',Pid);
                     fclose(FID);
                 end
 
             else
                 % no lock file - create
                 FID = fopen(LockFile, 'w');
-                fprintf('%d',Pid);
+                fprintf(FID,'%d',Pid);
                 fclose(FID);
             end
 
