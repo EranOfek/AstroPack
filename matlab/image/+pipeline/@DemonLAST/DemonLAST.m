@@ -922,7 +922,7 @@ classdef DemonLAST < Component
 
             arguments
                 Obj
-                Args.LockDir   = '/var/run/1000';
+                Args.LockDir   = '/var/run/1001';
                 Args.LockFileBase = 'pipeline';
                 
             end
@@ -2192,12 +2192,12 @@ classdef DemonLAST < Component
             RAD = 180./pi;
             
 
-            if Obj.lockFile
-                % all good to go
-            else
-                % lock fild found - abort
-                return;
-            end
+            % if Obj.lockFile
+            %     % all good to go
+            % else
+            %     % lock fild found - abort
+            %     return;
+            % end
 
 
             if isempty(Args.HostName)
