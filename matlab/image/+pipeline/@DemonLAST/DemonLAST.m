@@ -915,6 +915,65 @@ classdef DemonLAST < Component
 
         end
 
+
+        function ResultOK = lockFile(Obj, Args)
+            % Create, check and manage lock file for pipelines
+            % Author : Eran Ofek (Mar 2024)
+
+            arguments
+                Obj
+                Args.LockDir   = '/var/run/1001';
+                Args.LockFileBase = 'pipeline';
+                
+            end
+
+            ResultOK = true;
+
+            LockFile = sprintf('%s%s%s%d', Args.LockDir, filesep, Args.LockFileBase, Obj.DataDir);
+            Pid      = tools.os.getPid;
+            if isfile(LockFile)
+                % lock file exist
+                % read Pid from lock file
+                FID = fopen(LockFile);
+                LockPid = fscanf(FID,'%d');
+                fclose(FID);
+
+                % Check if LockPid exist in system
+                [~,OutStr] = system(sprintf('ps %d',LockPid));
+                if contains(OutStr,'matlab')
+                    % Pid exist
+                    ResultOK = false;
+
+                    Obj.setLogFile('HostName',Args.HostName);
+                    Msg = sprintf('Lock File exist: %s - clear an try again',LockFile);
+                    fprintf(Msg);
+                    Obj.writeLog(Msg);
+
+                else
+                    % Pid doesnt exist - delete LockFile
+                    delete(LockFile);
+
+                    % create new lock file
+                    FID = fopen(LockFile, 'w');
+                    fprintf(FID,'%d',Pid);
+                    fclose(FID);
+                end
+
+            else
+                % no lock file - create
+                FID = fopen(LockFile, 'w');
+                fprintf(FID,'%d',Pid);
+                fclose(FID);
+            end
+
+
+
+
+
+
+
+        end
+
         function writeLog(Obj, Msg, Level, Args)
             % write a log message to screen and log file
             % Input  : - A pipeline.DemonLAST object.
@@ -2109,7 +2168,7 @@ classdef DemonLAST < Component
                 Args.SaveAsteroids     = true;
 
                 % DataBase
-                Args.Insert2DB         = true;              % Insert images data to LAST DB
+                Args.Insert2DB         = false;              % Insert images data to LAST DB or prepare CSV dumps for further insertion
                 Args.DB_Table_Raw      = 'raw_images';
                 Args.DB_Table_Proc     = 'proc_images';
                 Args.DB_Table_Coadd    = 'coadd_images';
@@ -2132,6 +2191,15 @@ classdef DemonLAST < Component
             end
             RAD = 180./pi;
             
+
+            % if Obj.lockFile
+            %     % all good to go
+            % else
+            %     % lock fild found - abort
+            %     return;
+            % end
+
+
             if isempty(Args.HostName)
                 Args.HostName = tools.os.get_computer;            
             end
@@ -2463,7 +2531,7 @@ classdef DemonLAST < Component
                                 try                                    
                                     Msg{1} = sprintf('pipline.DemonLAST started preparing DB data for group %d',Igroup);
                                     Obj.writeLog(Msg, LogLevel.Info);
-                                    if isempty(ADB) && ( ~Args.DB_ImageBulk || ~Args.DB_CatalogBulk) % connect to DB
+                                    if isempty(ADB) % && ( ~Args.DB_ImageBulk || ~Args.DB_CatalogBulk) % connect to DB
                                         ADB = db.AstroDb(Args.AstroDBArgs{:});
                                     end
                                 % RAW, PROC, and COADD images
