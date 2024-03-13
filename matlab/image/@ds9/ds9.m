@@ -391,7 +391,7 @@ classdef ds9 < handle
         function Answer=frame(FrameNumber, GetNum)
             % Set ds9 frame
             % Package: @ds9
-            % Input  : - If not given than only get the current frame
+            % Input  : - If not given, then only get the current frame
             %            number. If numeric then set frame number.
             %            Alternatively, if a string than set to frame name.
             %            Possible names: 'first'|'prev'|'next'|'last'
@@ -2383,7 +2383,7 @@ classdef ds9 < handle
             % Input  : - Operation mode:
             %            If numeric than will return after the user clicked
             %            the specified number of times.
-            %            if 'q' than will return if the user clicked 'q'.
+            %            if 'q' then will return only when the user clicked 'q'.
             %            Default is 'q'.
             %          - Operation mode:
             %            'any'   - will return after any character or left click is
