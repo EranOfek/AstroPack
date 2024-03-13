@@ -187,7 +187,8 @@ classdef DS9analysis < handle
 
             if Args.Disp
                 for Iim=1:1:Nim
-                    ds9.disp(Obj.Images(Iim), Frames(Iim));
+                    FrameInd = Frames(Iim);
+                    ds9.disp(Obj.Images(FrameInd), FrameInd);
                     if ~isempty(Args.Zoom)
                         ds9.zoom(Args.Zoom);
                     end
