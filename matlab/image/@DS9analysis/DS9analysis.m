@@ -172,8 +172,6 @@ classdef DS9analysis < handle
             Nim = numel(AI);
             if isempty(Frames)
                 Frames = (1:1:Nim);
-            else
-                Frames = Args.Frames;
             end
            
             for Iim=1:1:Nim
