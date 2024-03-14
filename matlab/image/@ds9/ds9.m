@@ -428,7 +428,7 @@ classdef ds9 < handle
                 end
             end
     
-            if GetNum
+            if nargout>0 && GetNum 
                 Answer = sscanf(Answer,'%d');
             end
 

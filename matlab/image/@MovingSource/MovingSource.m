@@ -783,7 +783,7 @@ classdef MovingSource < Component
             % Input  : - A MovingSource object.
             %          * ...,key,val,...
             %            'Flags' - A cell array of FLAGS to select (or not)
-            %                   Default is {''NearEdge','Overlap'}.
+            %                   Default is {'NearEdge','Overlap'}.
             %            'ColFlags' - Column name containing the flags
             %                   information. Default is 'FLAGS'.
             %            'Method' - Select 'any' | 'all' flags.
@@ -795,7 +795,7 @@ classdef MovingSource < Component
             %            'BitDict' - BitDictionary object.
             %                   Default is BitDictionary.
             % Output : - Logical flags indicating, for each element, if the
-            %            flags were satisfied.
+            %            flags were not satisfied.
             %          - The selected elements of the MovingSource object.
             % Author : Eran Ofek (Jan 2024)
             % Example: [~,MP]=MP.selectByBitMask;
