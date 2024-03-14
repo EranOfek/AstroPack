@@ -1341,6 +1341,108 @@ classdef DemonLAST < Component
             
         end
     
+        function Result=findAllVisits(Obj, Args)
+            % Going over all processed image dir and return a catalog of visits
+            % Input  : - A pipeline.DemonLAST object in which the BasePath
+            %            is directed toward the directory to probe.
+            %          * ...,key,val,...
+            %            'YearPat' - Year pattern to scan. Default is '20*'.
+            %            'FilePat' - File pattern to scan.
+            %                   Default is 'LAST*_coadd_Image*.fits'
+            %            'ReadHead' - A logical indicating if to read image
+            %                   headers. If truem then will read the header
+            %                   keywords specified in 'KeysFromHead', else
+            %                   will use only the file name.
+            %                   Default is true.
+            %            'KeysFromHead' - A cell array of header keywords
+            %                   to read from images and store in output.
+            %                   Default is {'RA1','DEC1','RA2','DEC2','RA3','DEC3','RA4','DEC4', 'RAU1','DECU1','RAU2','DECU2','RAU3','DECU3','RAU4','DECU4', 'LIMMAG','BACKMAG','FWHM','MEDBCK','STDBCK','ORIGSEC','ORIGUSEC'}
+            %            'Result' - If not empty, then will concat the
+            %                   result to this structure array.
+            %                   Default is [].
+            % Output : - Astructure array. The number of elements is equal
+            %            to the number of visits found.
+            %            The following fields are available:
+            %            .FieldID - FieldID as read from image name.
+            %            .JD - JD as read from image name.
+            %            .BasePath - BasePath used.
+            %            .Keys - structure array of selected keyword
+            %                   headers (in 'KeysFromHead') for each one of
+            %                   the images in the visit.
+            % Author : Eran Ofek (Mar 2024)
+            % Example: D=pipeline.DemonLAST; D.BasePath='/marvin/LAST.01.01.01';
+            %          Res=D.findAllVisits;
+            %
+            %          % go over all dir tree
+            %          Res=[];for I=1:1:numel(DL), I, D.BasePath=fullfile(DL(1).folder,DL(1).name); Res=D.findAllVisits('Result',Res,'ReadHeader',0); end
+
+
+
+            arguments
+                Obj
+                Args.YearPat              = '20*';
+                Args.FilePat              = 'LAST*_coadd_Image*.fits';
+                Args.ReadHeader logical   = true;
+                Args.KeysFromHead         = {'RA1','DEC1','RA2','DEC2','RA3','DEC3','RA4','DEC4', 'RAU1','DECU1','RAU2','DECU2','RAU3','DECU3','RAU4','DECU4', 'LIMMAG','BACKMAG','FWHM','MEDBCK','STDBCK','ORIGSEC','ORIGUSEC'};
+                Args.Result               = [];
+            end
+
+            PWD = pwd;
+            cd(Obj.BasePath);
+
+            DirYear = io.files.dirDir(Args.YearPat);
+            Nyr     = numel(DirYear);
+
+            if isempty(Args.Result)
+                Ind      = 0;
+            else
+                Result   = Args.Result;
+                Ind      = numel(Result);
+            end
+            for Iyr=1:1:Nyr
+                cd(DirYear(Iyr).name);
+                DirMonth = io.files.dirDir();
+                Nm       = numel(DirMonth);
+                
+                for Im=1:1:Nm
+                    cd(DirMonth(Im).name);
+                    DirDay = io.files.dirDir();
+                    Nd     = numel(DirDay);
+                    for Id=1:1:Nd
+                        cd(DirDay(Id).name);
+                        cd('proc');
+                        DirVisit = io.files.dirDir();
+                        Nvisit   = numel(DirVisit);
+                        for Ivisit=1:1:Nvisit
+                            cd(DirVisit(Ivisit).name);
+
+                            Ind = Ind + 1;
+                            DirF = dir(Args.FilePat);
+                            
+                            Result(Ind).FieldID = FileNames.getValFromFileName(DirF(1).name, 'FieldID');
+                            Result(Ind).JD      = FileNames.getValFromFileName(DirF(1).name, 'JD');
+                            Result(Ind).BasePath = Obj.BasePath;
+
+                            if Args.ReadHeader
+                                Nfile = numel(DirF);
+                                
+                                Head = AstroHeader(Args.FilePat);
+                                Result(Ind).Keys = Head.getStructKey(Args.KeysFromHead);
+                                
+                            end
+                            cd ..
+                        end
+                        cd ../..
+                    end
+                    cd ..
+                end
+                cd ..
+            end
+                        
+            cd(PWD);
+    
+        end
+    
     end
     
     methods % ref image utilities
