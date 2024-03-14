@@ -165,7 +165,7 @@ function Result = background(Obj, Args)
             if Args.SubBack
                 % subtract background
                 subtractBack(Result(Iobj).(Args.ImageProp), Result(Iobj).(Args.BackProp).Image );
-                
+                Result(Iobj).BackSub = true;
             end
             
             % Add info to header
