@@ -409,42 +409,52 @@ classdef MovingSource < Component
                 if Args.Verbose
                     fprintf('Reading File name : %s\n',FileName);
                 end
-                Tmp = io.files.load2(FileName);
-               
-                if any(strcmp(fieldnames(Tmp), 'AstCrop'))
-                    Tmp = Tmp.AstCrop;
+                try 
+                    Tmp = io.files.load2(FileName);
+                catch ME
+                    % problem with loading file
+                    fprintf('Problem with loading file: %s',FileName);
+                    Tmp = [];
                 end
-                
-                if isa(Tmp, 'MovingSource')
-                    Tmp.insertPropVal('FileName', FileName);
-                    Tmp.insertPropVal('IDinFile', num2cell(1:1:numel(Tmp)));
-                    if If==1
-                        Obj = Tmp;
-                    else
-                        Obj = [Obj(:); Tmp];
-                    end
-                elseif isa(Tmp, 'struct')
-                    FieldsName = fieldnames(Tmp);
-                    if numel(FieldsName)==1 && isa(Tmp.(FieldsName{1}), 'MovingSource')
-                        Tmp.(FieldsName{1}).insertPropVal('FileName', FileName);
-                        Tmp.(FieldsName{1}).insertPropVal('IDinFile', num2cell(1:1:numel( Tmp.(FieldsName{1})) ));
-                        if If==1
-                            Obj = Tmp.(FieldsName{1});
-                        else
-                            
-                            Obj = [Obj(:); Tmp.(FieldsName{1})(:)];
-                        end
-                    else
-                        % Assume an AstCrop object
-                        Obj = MovingSource.astCrop2MovingSource(Tmp, 'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
-                                                         'FileName',FileName,...
-                                                         'ConcatObj',Obj,...
-                                                         'Id',[]);
-                    end
-                elseif isempty(Tmp)
-                    % do nothing
+               
+                if isempty(Tmp)
+                    % skip
                 else
-                    error('Unknown content format in file %s', FileName);
+
+                    if any(strcmp(fieldnames(Tmp), 'AstCrop'))
+                        Tmp = Tmp.AstCrop;
+                    end
+                    
+                    if isa(Tmp, 'MovingSource')
+                        Tmp.insertPropVal('FileName', FileName);
+                        Tmp.insertPropVal('IDinFile', num2cell(1:1:numel(Tmp)));
+                        if If==1
+                            Obj = Tmp;
+                        else
+                            Obj = [Obj(:); Tmp];
+                        end
+                    elseif isa(Tmp, 'struct')
+                        FieldsName = fieldnames(Tmp);
+                        if numel(FieldsName)==1 && isa(Tmp.(FieldsName{1}), 'MovingSource')
+                            Tmp.(FieldsName{1}).insertPropVal('FileName', FileName);
+                            Tmp.(FieldsName{1}).insertPropVal('IDinFile', num2cell(1:1:numel( Tmp.(FieldsName{1})) ));
+                            if If==1
+                                Obj = Tmp.(FieldsName{1});
+                            else
+                                
+                                Obj = [Obj(:); Tmp.(FieldsName{1})(:)];
+                            end
+                        else
+                            % Assume an AstCrop object
+                            Obj = MovingSource.astCrop2MovingSource(Tmp, 'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
+                                                             'FileName',FileName,...
+                                                             'ConcatObj',Obj,...
+                                                             'Id',[]);
+                        end
+                    
+                    else
+                        error('Unknown content format in file %s', FileName);
+                    end
                 end
                 
             end            
@@ -773,7 +783,7 @@ classdef MovingSource < Component
             % Input  : - A MovingSource object.
             %          * ...,key,val,...
             %            'Flags' - A cell array of FLAGS to select (or not)
-            %                   Default is {''NearEdge','Overlap'}.
+            %                   Default is {'NearEdge','Overlap'}.
             %            'ColFlags' - Column name containing the flags
             %                   information. Default is 'FLAGS'.
             %            'Method' - Select 'any' | 'all' flags.
@@ -785,7 +795,7 @@ classdef MovingSource < Component
             %            'BitDict' - BitDictionary object.
             %                   Default is BitDictionary.
             % Output : - Logical flags indicating, for each element, if the
-            %            flags were satisfied.
+            %            flags were not satisfied.
             %          - The selected elements of the MovingSource object.
             % Author : Eran Ofek (Jan 2024)
             % Example: [~,MP]=MP.selectByBitMask;

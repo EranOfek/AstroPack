@@ -172,8 +172,6 @@ classdef DS9analysis < handle
             Nim = numel(AI);
             if isempty(Frames)
                 Frames = (1:1:Nim);
-            else
-                Frames = Args.Frames;
             end
            
             for Iim=1:1:Nim
@@ -189,7 +187,8 @@ classdef DS9analysis < handle
 
             if Args.Disp
                 for Iim=1:1:Nim
-                    ds9.disp(Obj.Images(Iim), Frames(Iim));
+                    FrameInd = Frames(Iim);
+                    ds9.disp(Obj.Images(FrameInd), FrameInd);
                     if ~isempty(Args.Zoom)
                         ds9.zoom(Args.Zoom);
                     end
@@ -632,9 +631,12 @@ classdef DS9analysis < handle
             % Input  : - self.
             %          - If empty, then prompt the user to click the ds9
             %            window in a give position.
-            %            Alterantively, a vector of [RA, Dec] in decimal or
+            %            Alternatively, a vector of [RA, Dec] in decimal or
             %            radians.
             %            Or, a cell of sexagesimal coordinates {RA, Dec}.
+            %            If Coo is provided, and multiple frames are
+            %            displayed in ds9, Coo is assumed to refer to the
+            %            frame currently highlighted.
             %          - Mode: Number of cliked mouse points to select, or
             %            'q' for multiple points selection
             %            terminated by clicking 'q'.
@@ -666,17 +668,18 @@ classdef DS9analysis < handle
                 Args.OutUnits  = 'deg';
                 Args.Msg       = 'Select point in ds9 using mouse';
             end
-
-            Frame = ds9.frame;
-            Ind   = Frame; %Obj.MapInd(Frame);
-            AI    = Obj.getImage(Ind);
-
             
             Key = [];
             if isempty(Coo)
                 fprintf('%s\n',Args.Msg);
                 [X, Y, PixVal, Key] = ds9.getpos(1);
-            else
+            end
+            
+            Frame = ds9.frame;
+            Ind   = Frame; %Obj.MapInd(Frame);
+            AI    = Obj.getImage(Ind);
+
+            if ~isempty(Coo)
                 if iscell(Coo)
                     % assume Coo in sexagesimal coordinates
                     [X, Y] = AI.WCS.sky2xy(Coo{1}, Coo{2});
