@@ -409,42 +409,52 @@ classdef MovingSource < Component
                 if Args.Verbose
                     fprintf('Reading File name : %s\n',FileName);
                 end
-                Tmp = io.files.load2(FileName);
-               
-                if any(strcmp(fieldnames(Tmp), 'AstCrop'))
-                    Tmp = Tmp.AstCrop;
+                try 
+                    Tmp = io.files.load2(FileName);
+                catch ME
+                    % problem with loading file
+                    fprintf('Problem with loading file: %s',FileName);
+                    Tmp = [];
                 end
-                
-                if isa(Tmp, 'MovingSource')
-                    Tmp.insertPropVal('FileName', FileName);
-                    Tmp.insertPropVal('IDinFile', num2cell(1:1:numel(Tmp)));
-                    if If==1
-                        Obj = Tmp;
-                    else
-                        Obj = [Obj(:); Tmp];
-                    end
-                elseif isa(Tmp, 'struct')
-                    FieldsName = fieldnames(Tmp);
-                    if numel(FieldsName)==1 && isa(Tmp.(FieldsName{1}), 'MovingSource')
-                        Tmp.(FieldsName{1}).insertPropVal('FileName', FileName);
-                        Tmp.(FieldsName{1}).insertPropVal('IDinFile', num2cell(1:1:numel( Tmp.(FieldsName{1})) ));
-                        if If==1
-                            Obj = Tmp.(FieldsName{1});
-                        else
-                            
-                            Obj = [Obj(:); Tmp.(FieldsName{1})(:)];
-                        end
-                    else
-                        % Assume an AstCrop object
-                        Obj = MovingSource.astCrop2MovingSource(Tmp, 'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
-                                                         'FileName',FileName,...
-                                                         'ConcatObj',Obj,...
-                                                         'Id',[]);
-                    end
-                elseif isempty(Tmp)
-                    % do nothing
+               
+                if isempty(Tmp)
+                    % skip
                 else
-                    error('Unknown content format in file %s', FileName);
+
+                    if any(strcmp(fieldnames(Tmp), 'AstCrop'))
+                        Tmp = Tmp.AstCrop;
+                    end
+                    
+                    if isa(Tmp, 'MovingSource')
+                        Tmp.insertPropVal('FileName', FileName);
+                        Tmp.insertPropVal('IDinFile', num2cell(1:1:numel(Tmp)));
+                        if If==1
+                            Obj = Tmp;
+                        else
+                            Obj = [Obj(:); Tmp];
+                        end
+                    elseif isa(Tmp, 'struct')
+                        FieldsName = fieldnames(Tmp);
+                        if numel(FieldsName)==1 && isa(Tmp.(FieldsName{1}), 'MovingSource')
+                            Tmp.(FieldsName{1}).insertPropVal('FileName', FileName);
+                            Tmp.(FieldsName{1}).insertPropVal('IDinFile', num2cell(1:1:numel( Tmp.(FieldsName{1})) ));
+                            if If==1
+                                Obj = Tmp.(FieldsName{1});
+                            else
+                                
+                                Obj = [Obj(:); Tmp.(FieldsName{1})(:)];
+                            end
+                        else
+                            % Assume an AstCrop object
+                            Obj = MovingSource.astCrop2MovingSource(Tmp, 'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
+                                                             'FileName',FileName,...
+                                                             'ConcatObj',Obj,...
+                                                             'Id',[]);
+                        end
+                    
+                    else
+                        error('Unknown content format in file %s', FileName);
+                    end
                 end
                 
             end            
