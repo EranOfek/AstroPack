@@ -70,12 +70,7 @@ classdef DemonLAST < Component
         function Obj = DemonLAST(Args)
             % Constructor for DemonLAST
 
-            arguments
-                Args.BasePath    = [];
-            end
             
-            
-
         end
         
     end
@@ -1205,7 +1200,71 @@ classdef DemonLAST < Component
                 cd ..
             end
         end
+        
+        function removeUnderlineFromFileName(Obj, Args)
+            % Remove _ from file name and fix header
+            % Input  : - A pipeline.DemonLAST object
+            %          * ...,key,val,...
+            %            See code.
+            % Output : null
+            % Author : Eran Ofek (Mar 2024)
+            
+            arguments
+                Obj
+                Args.BasePath          = [];
+                Args.Nsplit            = 11;
+                Args.UnderLine         = '_';
+                Args.Modify logical    = false;
+            end
+            
+            PWD = pwd;
+            
+            cd(Obj.NewPath);
+            
+            List = io.files.filelist('LAST*.fits');
+            List = io.files.removeFilePath(List);
+            
+            Nlist = numel(List);
+            Count = 0;
+            for Ilist=1:1:Nlist
+                Tmp = split(List{Ilist}, Args.UnderLine);
+                if numel(Tmp)~=Args.Nsplit
+                    % file name problem
+                    if numel(Tmp)==(Args.Nsplit+1)
+                        
+                        Count = Count + 1;
+                        if Args.Modify
+                            FieldID = sprintf('%s%s', Tmp{4}, Tmp{5});
+                            TmpNew  = [Tmp(1:3), FieldID, Tmp(6:end)];
 
+                            NewFileName = join(TmpNew, Args.UnderLine);
+                            OldFileName = List{Ilist};
+
+                            % delete OBJECT key
+                            FITS.delete_keys(OldFileName,'OBJECT');
+                            % add OBJECT key
+                            FITS.write_keys(OldFileName, {'OBJECT',FieldID,''});
+
+                            % delete FILENAME
+                            FITS.delete_keys(OldFileName,'FILENAME');
+                            % add FILENAME key
+                            FITS.write_keys(OldFileName, {'FILENAME',NewFileName,''});
+
+                            % move file
+                            io.files.moveFiles(OldFileName, NewFileName);
+                        end
+                        
+                    else
+                        error('Unknown problem with file name %s',List{Ilist});
+                    end
+            
+                end
+            end
+            
+            cd(PWD);
+            
+        end
+        
     end
     
     methods % go over files
