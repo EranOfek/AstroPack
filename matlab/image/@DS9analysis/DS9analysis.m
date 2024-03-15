@@ -1003,6 +1003,8 @@ classdef DS9analysis < handle
             
         function [MaskName, MaskVal]=getMask(Obj, Coo, Args)
             % Get Mask bit values/names at user clicked/specified position
+            %   Caution: you have to click on the highlighted frame. The
+            %   function have no idea which frame is highlighted.
             % Input  : - self.
             %          - If empty, then prompt the user to click the ds9
             %            window in a give position.
@@ -1026,8 +1028,12 @@ classdef DS9analysis < handle
                 Args.CooUnits = 'deg';
             end
 
+            fprintf('CAUTION: Make sure that you click on the highlighted frame\n');
+
             [X, Y, Val, AI] = getXY(Obj, Coo, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
             
+            
+
             Xpix      = round(X);
             Ypix      = round(Y);
             if isempty(AI.Mask)
@@ -1041,6 +1047,8 @@ classdef DS9analysis < handle
 
         function [Back, Var, X, Y, AI] = getBack(Obj, Coo, Mode, Args)
             % Get Back/Var values at user clicked/specified position
+            %   Caution: you have to click on the highlighted frame. The
+            %   function have no idea which frame is highlighted.
             % Input  : - self.
             %          - If empty, then prompt the user to click the ds9
             %            window in a give position.
@@ -1070,6 +1078,8 @@ classdef DS9analysis < handle
                 Args.CooUnits = 'deg';
             end
 
+            fprintf('CAUTION: Make sure that you click on the highlighted frame\n');
+
             [X, Y, Val, AI] = getXY(Obj, Coo, Mode, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
             
             Xpix      = round(X);
@@ -1087,6 +1097,8 @@ classdef DS9analysis < handle
         
         function [Result,Dist,CatInd]=near(Obj, Coo, Radius, Args)
             % Get sources in AstroImage catalog within search radius from clicked/specified position.
+            %   Caution: you have to click on the highlighted frame. The
+            %   function have no idea which frame is highlighted.
             % Input  : - self.
             %          - If empty, then prompt the user to click the ds9
             %            window in a give position.
