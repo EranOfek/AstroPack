@@ -644,6 +644,16 @@ classdef MovingSource < Component
             end
         end
         
+        function Result=isKnownAstPopulated(Obj)
+            % Return true is KnownAst is populated
+            % Input  : - A MovingSource object.
+            % Output : - A vector of logicals. True if KnownAst property is
+            %            populated.
+            % Author : Eran Ofek (Mar 2024)
+                       
+            Result = ~Obj.isemptyProperty('KnownAst');
+        end
+          
         function [FlagComb, Flag]=nearStaticSrc(Obj, Args)
             % Check for static sources near the moving source
             %   Search a PGC galaxy or GAIA star near the moving source.
@@ -1078,7 +1088,90 @@ classdef MovingSource < Component
 
     methods % asteroid merging
         
+        
+        
+        function Result=findUniqueAsteroidsByNames(Obj)
+            % Return a list of unique asteroid names with their appearance in the MovingSource object.
+            % Input  : - A MovingSource object.
+            % Output : - A structure array with the following fields:
+            %            .IinInput - Index of the unique asteroid taken from the
+            %                   input MovingSource object.
+            %            .UniqueAstName - Unique asteroid name.
+            %            .Ind - A vector of indices in the input
+            %                   MovingSource object in which the asteroid
+            %                   name appear.
+            % Author : Eran Ofek (Mar 2024)
+            
+            SummaryTable = Obj.summary();
+            
+            AstNames       = SummaryTable.Desig;
+            [UniqueAstNames, IA] = unique(AstNames);
+            Nun            = numel(UniqueAstNames);
+            Result         = struct('IinInput',cell(Nun,1), 'UniqueAstName',cell(Nun,1), 'Ind',cell(Nun,1));
+            for Iun=1:1:Nun
+                Result(Iun).IinInput      = IA(Iun);
+                Result(Iun).UniqueAstName = UniqueAstNames{Iun};
+                Result(Iun).Ind           = find(strcmp(UniqueAstNames{Iun}, AstNames));
+            end
+               
+            
+        end
+        
+        function Result=calcPosCommonTime(Obj, JD0)
+            % Return a table of MovingSource position projected at a common time.
+            % Input  : - A MovingSource object.
+            %          - (JD0) The common JD at which the RA/Dec will be
+            %            projected. If empty, then use the JD in the 1st
+            %            element of the input MovingSource object.
+            % Output : - A table (line per source) with the following
+            %            columns:
+            %            'JD','RA','Dec','ProjRA','ProjDec','PM_RA','PM_Dec'
+            % Author : Eran Ofek (Mar 2024)
+            
+            
+            arguments
+                Obj
+                JD0     = [];
+            end
+            
+            if isemprt(Args.JD0)
+                JD0 = Obj(1).JD;
+            end
+            
+            Nobj         = numel(Obj);
+            
+            ConvFactor   = convert.angular(Obj(1).CooUnits, 'deg');
+            RA           = [Obj.RA].'.*ConvFactor;
+            Dec          = [Obj.Dec].'.*ConvFactor;
+            
+            if strcmp(Obj(1).PMUnits(1), 't')
+                IsAngularTime = true;
+                PMUnits = Obj(1).PMUnits(2:end);
+            else
+                IsAngularTime = false;
+                PMUnits = Obj(1).PMUnits;
+            end
+            
+            ConvFactor  = convert.proper_motion(PMUnits, 'deg/day');
+            PM_RA  = [Obj.PM_RA].'.*ConvFactor;
+            PM_Dec = [Obj.PM_Dec].'.*ConvFactor;
+            
+            AllJD  = [Obj.JD].';
+            
+            % Project RA, Dec to AllJD(Iobj)
+            DeltaJD  = AllJD - Args.JD0;
+            if IsAngularTime
+                ProjRA = RA + PM_RA.*DeltaJD;
+            else
+                ProjRA = RA + PM_RA.*DeltaJD./cosd(Dec);
+            end
+            ProjDec = Dec + PM_Dec.*DeltaJD;
 
+            Result = array2table([JD, RA, Dec, ProjRA, ProjDec, PM_RA, PM_Dec]);
+            Result.Properties.VariableNames = {'JD','RA','Dec','ProjRA','ProjDec','PM_RA','PM_Dec'};
+            Result.Properties.VariableUnits = {'day','deg','deg','deg','deg',Obj(1).PMUnits,Obj(1).PMUnits};
+            
+        end
 
     end
 
