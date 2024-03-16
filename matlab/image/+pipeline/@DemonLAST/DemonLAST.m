@@ -1508,11 +1508,15 @@ classdef DemonLAST < Component
             
             % reorganize in table
             Nr = numel(Result);
-            OutTable = zeros(Nr,7);
+            OutTable = zeros(Nr,14);
             for Ind=1:1:Nr
-                % 7 col                
-                OutTable(Ind,:) = [Result(Ind).Keys.MOUNTNUM, Result(Ind).Keys.CAMNUM, Result(Ind).FieldID, Result(Ind).JD,...
-                                  Result(Ind).Keys.FWHM, Result(Ind).Keys.LIMMAG, Result(Ind).Keys.BACKMAG];
+                % 14 col                
+                OutTable(Ind,:) = [Result(Ind).Keys.MOUNTNUM, Result(Ind).Keys.CAMNUM, Result(Ind).JD,...
+                                   Result(Ind).Keys.RA1, Result(Ind).Dec1, ...
+                                   Result(Ind).Keys.RA2, Result(Ind).Dec2, ...
+                                   Result(Ind).Keys.RA3, Result(Ind).Dec3, ...
+                                   Result(Ind).Keys.RA4, Result(Ind).Dec4, ...
+                                   Result(Ind).Keys.FWHM, Result(Ind).Keys.LIMMAG, Result(Ind).Keys.BACKMAG];
                 
             end
     
