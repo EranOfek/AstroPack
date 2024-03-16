@@ -1507,35 +1507,37 @@ classdef DemonLAST < Component
             cd(PWD);
             
             % reorganize in table
-            Nr = numel(Result);
-            OutTable = zeros(Nr,3+4.*2+3.*3+1);
-            for Ind=1:1:Nr
-                % 14 col                
-                IndIm = 10;
-                Airmass = Result(Ind).Keys(IndIm).AIRMASS;
-                MinFWHM = min([Result(Ind).Keys(:).FWHM].');
-                MaxFWHM = max([Result(Ind).Keys(:).FWHM].');
-                MedFWHM = median([Result(Ind).Keys(:).FWHM].',1,'omitnan');
-                
-                MinLimM = min([Result(Ind).Keys(:).LIMMAG].');
-                MaxLimM = max([Result(Ind).Keys(:).LIMMAG].');
-                MedLimM = median([Result(Ind).Keys(:).LIMMAG].',1,'omitnan');
-                
-                MinBack = min([Result(Ind).Keys(:).BACKMAG].');
-                MaxBack = max([Result(Ind).Keys(:).BACKMAG].');
-                MedBack = median([Result(Ind).Keys(:).BACKMAG].',1,'omitnan');
-                
-                OutTable(Ind,:) = [Result(Ind).Keys(IndIm).MOUNTNUM, Result(Ind).Keys(IndIm).CAMNUM, Result(Ind).JD,...
-                                   Result(Ind).Keys(IndIm).RA1, Result(Ind).Keys(IndIm).DEC1, ...
-                                   Result(Ind).Keys(IndIm).RA2, Result(Ind).Keys(IndIm).DEC2, ...
-                                   Result(Ind).Keys(IndIm).RA3, Result(Ind).Keys(IndIm).DEC3, ...
-                                   Result(Ind).Keys(IndIm).RA4, Result(Ind).Keys(IndIm).DEC4, ...
-                                   MinFWHM, MaxFWHM, MedFWHM,...
-                                   MinLimM, MaxLimM, MedLimM,...
-                                   MinBack, MaxBack, MedBack,...
-                                   Airmass];
-                                   
-                
+            if nargout>1
+                Nr = numel(Result);
+                OutTable = zeros(Nr,3+4.*2+3.*3+1);
+                for Ind=1:1:Nr
+                    % 14 col                
+                    IndIm = 10;
+                    Airmass = Result(Ind).Keys(IndIm).AIRMASS;
+                    MinFWHM = min([Result(Ind).Keys(:).FWHM].');
+                    MaxFWHM = max([Result(Ind).Keys(:).FWHM].');
+                    MedFWHM = median([Result(Ind).Keys(:).FWHM].',1,'omitnan');
+
+                    MinLimM = min([Result(Ind).Keys(:).LIMMAG].');
+                    MaxLimM = max([Result(Ind).Keys(:).LIMMAG].');
+                    MedLimM = median([Result(Ind).Keys(:).LIMMAG].',1,'omitnan');
+
+                    MinBack = min([Result(Ind).Keys(:).BACKMAG].');
+                    MaxBack = max([Result(Ind).Keys(:).BACKMAG].');
+                    MedBack = median([Result(Ind).Keys(:).BACKMAG].',1,'omitnan');
+
+                    OutTable(Ind,:) = [Result(Ind).Keys(IndIm).MOUNTNUM, Result(Ind).Keys(IndIm).CAMNUM, Result(Ind).JD,...
+                                       Result(Ind).Keys(IndIm).RA1, Result(Ind).Keys(IndIm).DEC1, ...
+                                       Result(Ind).Keys(IndIm).RA2, Result(Ind).Keys(IndIm).DEC2, ...
+                                       Result(Ind).Keys(IndIm).RA3, Result(Ind).Keys(IndIm).DEC3, ...
+                                       Result(Ind).Keys(IndIm).RA4, Result(Ind).Keys(IndIm).DEC4, ...
+                                       MinFWHM, MaxFWHM, MedFWHM,...
+                                       MinLimM, MaxLimM, MedLimM,...
+                                       MinBack, MaxBack, MedBack,...
+                                       Airmass];
+
+
+                end
             end
     
         end
