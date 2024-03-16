@@ -1433,7 +1433,7 @@ classdef DemonLAST < Component
             %          [Res,T]=D.findAllVisits;
             %
             %          % go over all dir tree
-            %          Res=[];for I=1:1:numel(DL), I, D.BasePath=fullfile(DL(1).folder,DL(1).name); Res=D.findAllVisits('Result',Res,'ReadHeader',0); end
+            %          Res=[];for I=1:1:numel(DL), I, D.BasePath=fullfile(DL(1).folder,DL(1).name); [Res,T]=D.findAllVisits('Result',Res,'ReadHeader',0); end
 
 
 
