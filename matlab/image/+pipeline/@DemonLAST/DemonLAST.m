@@ -1511,7 +1511,7 @@ classdef DemonLAST < Component
             OutTable = zeros(Nr,7);
             for Ind=1:1:Nr
                 % 7 col                
-                OutTable(Ir,:) = [Result(Ind).Keys.MOUNTNUM, Result(Ind).Keys.CAMNUM, Result(Ind).FieldID, Result(Ind).JD,...
+                OutTable(Ind,:) = [Result(Ind).Keys.MOUNTNUM, Result(Ind).Keys.CAMNUM, Result(Ind).FieldID, Result(Ind).JD,...
                                   Result(Ind).Keys.FWHM, Result(Ind).Keys.LIMMAG, Result(Ind).Keys.BACKMAG];
                 
             end
