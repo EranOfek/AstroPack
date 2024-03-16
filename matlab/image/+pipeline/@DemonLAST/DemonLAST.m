@@ -1400,7 +1400,7 @@ classdef DemonLAST < Component
             
         end
     
-        function Result=findAllVisits(Obj, Args)
+        function [Result,OutTable]=findAllVisits(Obj, Args)
             % Going over all processed image dir and return a catalog of visits
             % Input  : - A pipeline.DemonLAST object in which the BasePath
             %            is directed toward the directory to probe.
@@ -1443,7 +1443,7 @@ classdef DemonLAST < Component
                 Args.FilePat              = 'LAST*_coadd_Image*.fits';
                 Args.MinNfile             = 10;
                 Args.ReadHeader logical   = true;
-                Args.KeysFromHead         = {'RA1','DEC1','RA2','DEC2','RA3','DEC3','RA4','DEC4', 'RAU1','DECU1','RAU2','DECU2','RAU3','DECU3','RAU4','DECU4', 'LIMMAG','BACKMAG','FWHM','MEDBCK','STDBCK','ORIGSEC','ORIGUSEC'};
+                Args.KeysFromHead         = {'MOUNTNUM','CAMNUM','RA1','DEC1','RA2','DEC2','RA3','DEC3','RA4','DEC4', 'RAU1','DECU1','RAU2','DECU2','RAU3','DECU3','RAU4','DECU4', 'LIMMAG','BACKMAG','FWHM','MEDBCK','STDBCK','ORIGSEC','ORIGUSEC'};
                 Args.Result               = [];
             end
 
@@ -1491,7 +1491,7 @@ classdef DemonLAST < Component
 
                                     Head = AstroHeader(Args.FilePat);
                                     Result(Ind).Keys = Head.getStructKey(Args.KeysFromHead);
-
+                               
                                 end
                             end
                             cd ..
@@ -1504,6 +1504,14 @@ classdef DemonLAST < Component
             end
                         
             cd(PWD);
+            
+            % reorganize in table
+            Nr = numel(Result);
+            OutTable = zeros(Nr,7);
+            for Ind=1:1:Nr
+                % 7 col
+                OutTable(Ir,:) = [Result(Ind).Keys.MOUNTNUM, Result(Ind).Keys.CAMNUM, Result(Ind).FieldID, Result(Ind).JD, Result(Ind).FWHM, Result(Ind).LIMMAG, Result(Ind).BACKMAG];
+            end
     
         end
     
