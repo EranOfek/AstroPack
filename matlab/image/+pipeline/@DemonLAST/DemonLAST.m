@@ -1430,7 +1430,7 @@ classdef DemonLAST < Component
             %                   the images in the visit.
             % Author : Eran Ofek (Mar 2024)
             % Example: D=pipeline.DemonLAST; D.BasePath='/marvin/LAST.01.01.01';
-            %          Res=D.findAllVisits;
+            %          [Res,T]=D.findAllVisits;
             %
             %          % go over all dir tree
             %          Res=[];for I=1:1:numel(DL), I, D.BasePath=fullfile(DL(1).folder,DL(1).name); Res=D.findAllVisits('Result',Res,'ReadHeader',0); end
