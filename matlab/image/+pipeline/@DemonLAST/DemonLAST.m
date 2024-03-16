@@ -1441,6 +1441,7 @@ classdef DemonLAST < Component
                 Obj
                 Args.YearPat              = '20*';
                 Args.FilePat              = 'LAST*_coadd_Image*.fits';
+                Args.MinNfile             = 10;
                 Args.ReadHeader logical   = true;
                 Args.KeysFromHead         = {'RA1','DEC1','RA2','DEC2','RA3','DEC3','RA4','DEC4', 'RAU1','DECU1','RAU2','DECU2','RAU3','DECU3','RAU4','DECU4', 'LIMMAG','BACKMAG','FWHM','MEDBCK','STDBCK','ORIGSEC','ORIGUSEC'};
                 Args.Result               = [];
@@ -1475,24 +1476,23 @@ classdef DemonLAST < Component
                         for Ivisit=1:1:Nvisit
                             cd(DirVisit(Ivisit).name);
 
-                            Ind = Ind + 1;
                             DirF = dir(Args.FilePat);
-                            
-                            try
-                            Result(Ind).FieldID = FileNames.getValFromFileName(DirF(1).name, 'FieldID');
-                            catch
-                                pwd
-                                DirF
-                            end
-                            Result(Ind).JD      = FileNames.getValFromFileName(DirF(1).name, 'JD');
-                            Result(Ind).BasePath = Obj.BasePath;
+                            if numel(DirF)>Args.MinNfile
+                                Ind = Ind + 1;
 
-                            if Args.ReadHeader
-                                Nfile = numel(DirF);
-                                
-                                Head = AstroHeader(Args.FilePat);
-                                Result(Ind).Keys = Head.getStructKey(Args.KeysFromHead);
-                                
+
+                                Result(Ind).FieldID = FileNames.getValFromFileName(DirF(1).name, 'FieldID');
+                               
+                                Result(Ind).JD      = FileNames.getValFromFileName(DirF(1).name, 'JD');
+                                Result(Ind).BasePath = Obj.BasePath;
+
+                                if Args.ReadHeader
+                                    Nfile = numel(DirF);
+
+                                    Head = AstroHeader(Args.FilePat);
+                                    Result(Ind).Keys = Head.getStructKey(Args.KeysFromHead);
+
+                                end
                             end
                             cd ..
                         end
