@@ -1478,7 +1478,11 @@ classdef DemonLAST < Component
                             Ind = Ind + 1;
                             DirF = dir(Args.FilePat);
                             
+                            try
                             Result(Ind).FieldID = FileNames.getValFromFileName(DirF(1).name, 'FieldID');
+                            catch
+                                DirF(1)
+                            end
                             Result(Ind).JD      = FileNames.getValFromFileName(DirF(1).name, 'JD');
                             Result(Ind).BasePath = Obj.BasePath;
 
