@@ -1491,6 +1491,7 @@ classdef DemonLAST < Component
 
                                     Head = AstroHeader(Args.FilePat);
                                     Result(Ind).Keys = Head.getStructKey(Args.KeysFromHead);
+                                    
                                
                                 end
                             end
@@ -1509,8 +1510,10 @@ classdef DemonLAST < Component
             Nr = numel(Result);
             OutTable = zeros(Nr,7);
             for Ind=1:1:Nr
-                % 7 col
-                OutTable(Ir,:) = [Result(Ind).Keys.MOUNTNUM, Result(Ind).Keys.CAMNUM, Result(Ind).FieldID, Result(Ind).JD, Result(Ind).FWHM, Result(Ind).LIMMAG, Result(Ind).BACKMAG];
+                % 7 col                
+                OutTable(Ir,:) = [Result(Ind).Keys.MOUNTNUM, Result(Ind).Keys.CAMNUM, Result(Ind).FieldID, Result(Ind).JD,...
+                                  Result(Ind).Keys.FWHM, Result(Ind).Keys.LIMMAG, Result(Ind).Keys.BACKMAG];
+                
             end
     
         end
