@@ -1508,7 +1508,7 @@ classdef DemonLAST < Component
             
             % reorganize in table
             Nr = numel(Result);
-            OutTable = zeros(Nr,3+4.*2+3.*3);
+            OutTable = zeros(Nr,3+4.*2+3.*3+1);
             for Ind=1:1:Nr
                 % 14 col                
                 IndIm = 10;
