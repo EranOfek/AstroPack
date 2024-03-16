@@ -1443,7 +1443,7 @@ classdef DemonLAST < Component
                 Args.FilePat              = 'LAST*_coadd_Image*.fits';
                 Args.MinNfile             = 10;
                 Args.ReadHeader logical   = true;
-                Args.KeysFromHead         = {'MOUNTNUM','CAMNUM','RA1','DEC1','RA2','DEC2','RA3','DEC3','RA4','DEC4', 'RAU1','DECU1','RAU2','DECU2','RAU3','DECU3','RAU4','DECU4', 'LIMMAG','BACKMAG','FWHM','MEDBCK','STDBCK','ORIGSEC','ORIGUSEC'};
+                Args.KeysFromHead         = {'MOUNTNUM','CAMNUM','AIRMASS','RA1','DEC1','RA2','DEC2','RA3','DEC3','RA4','DEC4', 'RAU1','DECU1','RAU2','DECU2','RAU3','DECU3','RAU4','DECU4', 'LIMMAG','BACKMAG','FWHM','MEDBCK','STDBCK','ORIGSEC','ORIGUSEC'};
                 Args.Result               = [];
             end
 
@@ -1512,6 +1512,7 @@ classdef DemonLAST < Component
             for Ind=1:1:Nr
                 % 14 col                
                 IndIm = 10;
+                Airmass = Result(Ind).Keys(IndIm).AIRMASS;
                 MinFWHM = min([Result(Ind).Keys(:).FWHM].');
                 MaxFWHM = max([Result(Ind).Keys(:).FWHM].');
                 MedFWHM = median([Result(Ind).Keys(:).FWHM].',1,'omitnan');
@@ -1531,7 +1532,8 @@ classdef DemonLAST < Component
                                    Result(Ind).Keys(IndIm).RA4, Result(Ind).Keys(IndIm).DEC4, ...
                                    MinFWHM, MaxFWHM, MedFWHM,...
                                    MinLimM, MaxLimM, MedLimM,...
-                                   MinBack, MaxBack, MedBack];
+                                   MinBack, MaxBack, MedBack,...
+                                   Airmass];
                                    
                 
             end
