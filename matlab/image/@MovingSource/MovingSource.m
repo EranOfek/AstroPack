@@ -867,7 +867,6 @@ classdef MovingSource < Component
 
             arguments
                 Obj
-
                 
                 Args.MaxDist                  = 5;
                 Args.DistUnits                = 'arcsec';
