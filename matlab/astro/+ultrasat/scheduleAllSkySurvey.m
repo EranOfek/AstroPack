@@ -17,7 +17,7 @@ function scheduleAllSkySurvey(Args)
     % Author: A.M. Krassilchtchikov (Feb 2024)
     % Example: ultrasat.scheduleAllSkySurvey('StartDate','2027-01-01 00:00:00');
     arguments
-        Args.AllSkyGrid = '~/matlab/data/ULTRASAT/charged_particles_350_rep1.txt';
+        Args.AllSkyGrid = '~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_350_rep1.txt';
         Args.StartDate  = '2027-06-25 00:00:00'; % '2027-01-01 00:00:00';
         Args.NumDays        = 180;   % [days]
         Args.VisitsGal      =   2;   % number of visits for a Galactic field

@@ -56,7 +56,7 @@ function Result = uncoveredArea(Pol, Grid, R, Args)
         Pol      
         Grid 
         R    
-        Args.ControlGrid = '~/matlab/data/ULTRASAT/healpix0.013deg.txt' % 'healpix_grid_nside_512_npix_3145728_pixarea_0.013_deg.txt'; % healpix0.003deg.txt
+        Args.ControlGrid = '~/matlab/data/ULTRASAT/healpix_grid_nside_1024_npix_12582912_pixarea_0.003_deg.txt' % 'healpix_grid_nside_512_npix_3145728_pixarea_0.013_deg.txt'; 
     end
     
     RAD = 180/pi;

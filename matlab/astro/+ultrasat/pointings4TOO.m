@@ -21,7 +21,7 @@ function [Grid, GridOpt] = pointings4TOO(Pol, Args)
             45, 20; ...
             0, 40; ...
             20, 10];
-        Args.InitialGridFile = '~/matlab/data/ULTRASAT/charged_particles_350_rep1.txt'
+        Args.InitialGridFile = '~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_350_rep1.txt'
         Args.FOVradius       = 7; % deg NB: the radius should, in principle, match the grid 
         Args.RepairMC        = false;
     end
