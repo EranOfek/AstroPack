@@ -375,6 +375,10 @@ classdef MovingSource < Component
             %                   and last.
             %                   Default is true.
             %            'Verbose' - Verbosity. Default is true.
+            %            'MaxNdir' - Max. number of directories to load.
+            %                   Default is Inf.
+            %            'IndDirStart' - Index of first dir from which to
+            %                   load. Default is 1.
             % Output : - A MovingSource object
             % Author : Eran Ofek (Jan 2024)
             % Example: MP = MovingSource.read()
@@ -388,6 +392,9 @@ classdef MovingSource < Component
                 Args.PopKA logical = false;
                 Args.KeepOnlyFirstAndLast logical  = true;
                 Args.Verbose logical = true;
+
+                Args.MaxNdir         = Inf;
+                Args.IndDirStart     = 1;
             end
             
             PWD = pwd;
@@ -404,7 +411,8 @@ classdef MovingSource < Component
             
             Obj = [];
             Nf = numel(Files);
-            for If=1:1:Nf
+            Nf = min(Nf, Args.MaxNdir);
+            for If=Args.IndDirStart:1:Nf
                 FileName = fullfile(Files(If).folder, Files(If).name);
                 if Args.Verbose
                     fprintf('Reading File name : %s\n',FileName);
