@@ -1310,24 +1310,27 @@ classdef DemonLAST < Component
                         for Iv=1:1:Nv
                             %[Iy, Im, Id, Iv, Ind]
                             cd(DirVisit(Iv).name);
-                            Ind = Ind + 1;
+                            
                             Files = dir(Args.FileTemp);
                             FN = FileNames.generateFromFileName({Files.name});
-                            CropID = FN.CropID;
-                            JD     = FN.julday;
-                            List(Ind).FieldID = FN.FieldID{1};
-                            List(Ind).VistDir = DirVisit(Iv).name;
-                            List(Ind).Year    = str2double(DirYear(Iy).name);
-                            List(Ind).Month   = str2double(DirMonth(Im).name);
-                            List(Ind).Day     = str2double(DirDay(Id).name);
-
-                            List(Ind).Path    = fullfile(Obj.BasePath, DirYear(Iy).name, DirMonth(Im).name, DirDay(Id).name, 'proc', DirVisit(Iv).name,'','');
-                            
-                            List(Ind).AllFiles = {Files.name};
-                            List(Ind).CropID   = CropID;
-                            List(Ind).JD       = JD;
-                            List(Ind).MinJD    = min(JD);
-                            
+                            if FN.nfiles>0
+                                Ind = Ind + 1;
+                                CropID = FN.CropID;
+                                JD     = FN.julday;
+                                List(Ind).FieldID = FN.FieldID{1};
+                             
+                                List(Ind).VistDir = DirVisit(Iv).name;
+                                List(Ind).Year    = str2double(DirYear(Iy).name);
+                                List(Ind).Month   = str2double(DirMonth(Im).name);
+                                List(Ind).Day     = str2double(DirDay(Id).name);
+    
+                                List(Ind).Path    = fullfile(Obj.BasePath, DirYear(Iy).name, DirMonth(Im).name, DirDay(Id).name, 'proc', DirVisit(Iv).name,'','');
+                                
+                                List(Ind).AllFiles = {Files.name};
+                                List(Ind).CropID   = CropID;
+                                List(Ind).JD       = JD;
+                                List(Ind).MinJD    = min(JD);
+                            end
                             cd ..
                         end
                         cd ../..
