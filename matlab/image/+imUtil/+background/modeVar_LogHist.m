@@ -150,6 +150,9 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     end
     Mode  = Mode0 - Par(2)./(2.*Par(1));
     Var = -0.5./Par(1);
+    if Var<0
+        error('Unable to find Var (Var is negative) - need to debug: Mode=%f   Var=%f',Mode,Var);
+    end
     
 
     if isinf(Mode) || isnan(Mode)

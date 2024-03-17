@@ -5,7 +5,10 @@
 % Example: SMS = pipeline.last.SearchMatchedSources;
 %          SMS.populateAllConsecutive;
 %          % SMS.prepConsecutive(Icons, Igroup, Icrop)
+%
 %          [Cand, Summary] = SMS.findVariableAll('Plot',false);
+%          [Cand, Summary] = SMS.findVariableAll('Nvisit',9,'Nstep',3,'Plot',false);
+%
 %          FF=[C.FlagPS]; 
 %          FFI=find(FF);
 %          SMS.plotVar(C(FFI(1)))
@@ -104,6 +107,7 @@ classdef SearchMatchedSources < Component
                 Icrop          = 1;
 
                 Args.Nvisit    = 2;
+                Args.Nstep     = 1;
                 
                 Args.SearchRadius          = 3;
                 Args.SearchRadiusUnits     = 'arcsec';
@@ -124,7 +128,7 @@ classdef SearchMatchedSources < Component
             else
                 %Status = true;
 
-                IndGroup = (Igroup:1:Igroup+Args.Nvisit-1);
+                IndGroup = (Igroup:Args.Nstep:Igroup+Args.Nvisit-1);
                 Ngroup   = numel(IndGroup);
 
                 MSm = MatchedSources;
@@ -191,6 +195,8 @@ classdef SearchMatchedSources < Component
             %          * ...,key,val,...
             %            'Nvisit' - Number of sucessive visits to analyze.
             %                   Default is 2.
+            %            'Nstep' - Number of steps between lists.
+            %                   Default is 1.
             %            'Ncrop' - Number of sub images (crops).
             %                   Default is 24.
             %            'Plot' - Plot LCs of candidates.
@@ -210,6 +216,7 @@ classdef SearchMatchedSources < Component
             arguments
                 Obj
                 Args.Nvisit    = 2;
+                Args.Nstep     = 1;
                 Args.Ncrop     = 24;
                 
                 Args.SearchRadius          = 3;
@@ -229,6 +236,7 @@ classdef SearchMatchedSources < Component
 
             Ncons = numel(Obj.AllConsecutive);
             Icand = 0;
+            Cand  = [];
             for Icons=1:1:Ncons
                 Ng = numel(Obj.AllConsecutive{Icons});
                 for Ig=1:1:Ng
@@ -236,6 +244,7 @@ classdef SearchMatchedSources < Component
 
                     for Icrop=1:1:Args.Ncrop
                         [Obj, LimMagQuantile] = Obj.prepConsecutive(Icons, Ig, Icrop, 'Nvisit',Args.Nvisit,...
+                                                                                      'Nstep',Args.Nstep,...
                                                                                                   'SearchRadius',Args.SearchRadius,...
                                                                                                   'SearchRadiusUnits',Args.SearchRadiusUnits,...
                                                                                                   'MagField',Args.MagField,...
