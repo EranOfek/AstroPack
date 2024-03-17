@@ -409,42 +409,52 @@ classdef MovingSource < Component
                 if Args.Verbose
                     fprintf('Reading File name : %s\n',FileName);
                 end
-                Tmp = io.files.load2(FileName);
-               
-                if any(strcmp(fieldnames(Tmp), 'AstCrop'))
-                    Tmp = Tmp.AstCrop;
+                try 
+                    Tmp = io.files.load2(FileName);
+                catch ME
+                    % problem with loading file
+                    fprintf('Problem with loading file: %s',FileName);
+                    Tmp = [];
                 end
-                
-                if isa(Tmp, 'MovingSource')
-                    Tmp.insertPropVal('FileName', FileName);
-                    Tmp.insertPropVal('IDinFile', num2cell(1:1:numel(Tmp)));
-                    if If==1
-                        Obj = Tmp;
-                    else
-                        Obj = [Obj(:); Tmp];
-                    end
-                elseif isa(Tmp, 'struct')
-                    FieldsName = fieldnames(Tmp);
-                    if numel(FieldsName)==1 && isa(Tmp.(FieldsName{1}), 'MovingSource')
-                        Tmp.(FieldsName{1}).insertPropVal('FileName', FileName);
-                        Tmp.(FieldsName{1}).insertPropVal('IDinFile', num2cell(1:1:numel( Tmp.(FieldsName{1})) ));
-                        if If==1
-                            Obj = Tmp.(FieldsName{1});
-                        else
-                            
-                            Obj = [Obj(:); Tmp.(FieldsName{1})(:)];
-                        end
-                    else
-                        % Assume an AstCrop object
-                        Obj = MovingSource.astCrop2MovingSource(Tmp, 'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
-                                                         'FileName',FileName,...
-                                                         'ConcatObj',Obj,...
-                                                         'Id',[]);
-                    end
-                elseif isempty(Tmp)
-                    % do nothing
+               
+                if isempty(Tmp)
+                    % skip
                 else
-                    error('Unknown content format in file %s', FileName);
+
+                    if any(strcmp(fieldnames(Tmp), 'AstCrop'))
+                        Tmp = Tmp.AstCrop;
+                    end
+                    
+                    if isa(Tmp, 'MovingSource')
+                        Tmp.insertPropVal('FileName', FileName);
+                        Tmp.insertPropVal('IDinFile', num2cell(1:1:numel(Tmp)));
+                        if If==1
+                            Obj = Tmp;
+                        else
+                            Obj = [Obj(:); Tmp];
+                        end
+                    elseif isa(Tmp, 'struct')
+                        FieldsName = fieldnames(Tmp);
+                        if numel(FieldsName)==1 && isa(Tmp.(FieldsName{1}), 'MovingSource')
+                            Tmp.(FieldsName{1}).insertPropVal('FileName', FileName);
+                            Tmp.(FieldsName{1}).insertPropVal('IDinFile', num2cell(1:1:numel( Tmp.(FieldsName{1})) ));
+                            if If==1
+                                Obj = Tmp.(FieldsName{1});
+                            else
+                                
+                                Obj = [Obj(:); Tmp.(FieldsName{1})(:)];
+                            end
+                        else
+                            % Assume an AstCrop object
+                            Obj = MovingSource.astCrop2MovingSource(Tmp, 'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
+                                                             'FileName',FileName,...
+                                                             'ConcatObj',Obj,...
+                                                             'Id',[]);
+                        end
+                    
+                    else
+                        error('Unknown content format in file %s', FileName);
+                    end
                 end
                 
             end            
@@ -634,6 +644,16 @@ classdef MovingSource < Component
             end
         end
         
+        function Result=isKnownAstPopulated(Obj)
+            % Return true is KnownAst is populated
+            % Input  : - A MovingSource object.
+            % Output : - A vector of logicals. True if KnownAst property is
+            %            populated.
+            % Author : Eran Ofek (Mar 2024)
+                       
+            Result = ~Obj.isemptyProperty('KnownAst');
+        end
+          
         function [FlagComb, Flag]=nearStaticSrc(Obj, Args)
             % Check for static sources near the moving source
             %   Search a PGC galaxy or GAIA star near the moving source.
@@ -773,7 +793,7 @@ classdef MovingSource < Component
             % Input  : - A MovingSource object.
             %          * ...,key,val,...
             %            'Flags' - A cell array of FLAGS to select (or not)
-            %                   Default is {''NearEdge','Overlap'}.
+            %                   Default is {'NearEdge','Overlap'}.
             %            'ColFlags' - Column name containing the flags
             %                   information. Default is 'FLAGS'.
             %            'Method' - Select 'any' | 'all' flags.
@@ -785,7 +805,7 @@ classdef MovingSource < Component
             %            'BitDict' - BitDictionary object.
             %                   Default is BitDictionary.
             % Output : - Logical flags indicating, for each element, if the
-            %            flags were satisfied.
+            %            flags were not satisfied.
             %          - The selected elements of the MovingSource object.
             % Author : Eran Ofek (Jan 2024)
             % Example: [~,MP]=MP.selectByBitMask;
@@ -1068,7 +1088,90 @@ classdef MovingSource < Component
 
     methods % asteroid merging
         
+        
+        
+        function Result=findUniqueAsteroidsByNames(Obj)
+            % Return a list of unique asteroid names with their appearance in the MovingSource object.
+            % Input  : - A MovingSource object.
+            % Output : - A structure array with the following fields:
+            %            .IinInput - Index of the unique asteroid taken from the
+            %                   input MovingSource object.
+            %            .UniqueAstName - Unique asteroid name.
+            %            .Ind - A vector of indices in the input
+            %                   MovingSource object in which the asteroid
+            %                   name appear.
+            % Author : Eran Ofek (Mar 2024)
+            
+            SummaryTable = Obj.summary();
+            
+            AstNames       = SummaryTable.Desig;
+            [UniqueAstNames, IA] = unique(AstNames);
+            Nun            = numel(UniqueAstNames);
+            Result         = struct('IinInput',cell(Nun,1), 'UniqueAstName',cell(Nun,1), 'Ind',cell(Nun,1));
+            for Iun=1:1:Nun
+                Result(Iun).IinInput      = IA(Iun);
+                Result(Iun).UniqueAstName = UniqueAstNames{Iun};
+                Result(Iun).Ind           = find(strcmp(UniqueAstNames{Iun}, AstNames));
+            end
+               
+            
+        end
+        
+        function Result=calcPosCommonTime(Obj, JD0)
+            % Return a table of MovingSource position projected at a common time.
+            % Input  : - A MovingSource object.
+            %          - (JD0) The common JD at which the RA/Dec will be
+            %            projected. If empty, then use the JD in the 1st
+            %            element of the input MovingSource object.
+            % Output : - A table (line per source) with the following
+            %            columns:
+            %            'JD','RA','Dec','ProjRA','ProjDec','PM_RA','PM_Dec'
+            % Author : Eran Ofek (Mar 2024)
+            
+            
+            arguments
+                Obj
+                JD0     = [];
+            end
+            
+            if isemprt(Args.JD0)
+                JD0 = Obj(1).JD;
+            end
+            
+            Nobj         = numel(Obj);
+            
+            ConvFactor   = convert.angular(Obj(1).CooUnits, 'deg');
+            RA           = [Obj.RA].'.*ConvFactor;
+            Dec          = [Obj.Dec].'.*ConvFactor;
+            
+            if strcmp(Obj(1).PMUnits(1), 't')
+                IsAngularTime = true;
+                PMUnits = Obj(1).PMUnits(2:end);
+            else
+                IsAngularTime = false;
+                PMUnits = Obj(1).PMUnits;
+            end
+            
+            ConvFactor  = convert.proper_motion(PMUnits, 'deg/day');
+            PM_RA  = [Obj.PM_RA].'.*ConvFactor;
+            PM_Dec = [Obj.PM_Dec].'.*ConvFactor;
+            
+            AllJD  = [Obj.JD].';
+            
+            % Project RA, Dec to AllJD(Iobj)
+            DeltaJD  = AllJD - Args.JD0;
+            if IsAngularTime
+                ProjRA = RA + PM_RA.*DeltaJD;
+            else
+                ProjRA = RA + PM_RA.*DeltaJD./cosd(Dec);
+            end
+            ProjDec = Dec + PM_Dec.*DeltaJD;
 
+            Result = array2table([JD, RA, Dec, ProjRA, ProjDec, PM_RA, PM_Dec]);
+            Result.Properties.VariableNames = {'JD','RA','Dec','ProjRA','ProjDec','PM_RA','PM_Dec'};
+            Result.Properties.VariableUnits = {'day','deg','deg','deg','deg',Obj(1).PMUnits,Obj(1).PMUnits};
+            
+        end
 
     end
 

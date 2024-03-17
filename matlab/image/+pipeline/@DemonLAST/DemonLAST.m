@@ -70,12 +70,7 @@ classdef DemonLAST < Component
         function Obj = DemonLAST(Args)
             % Constructor for DemonLAST
 
-            arguments
-                Args.BasePath    = [];
-            end
             
-            
-
         end
         
     end
@@ -1205,7 +1200,71 @@ classdef DemonLAST < Component
                 cd ..
             end
         end
+        
+        function removeUnderlineFromFileName(Obj, Args)
+            % Remove _ from file name and fix header
+            % Input  : - A pipeline.DemonLAST object
+            %          * ...,key,val,...
+            %            See code.
+            % Output : null
+            % Author : Eran Ofek (Mar 2024)
+            
+            arguments
+                Obj
+                Args.BasePath          = [];
+                Args.Nsplit            = 11;
+                Args.UnderLine         = '_';
+                Args.Modify logical    = false;
+            end
+            
+            PWD = pwd;
+            
+            cd(Obj.NewPath);
+            
+            List = io.files.filelist('LAST*.fits');
+            List = io.files.removeFilePath(List);
+            
+            Nlist = numel(List);
+            Count = 0;
+            for Ilist=1:1:Nlist
+                Tmp = split(List{Ilist}, Args.UnderLine);
+                if numel(Tmp)~=Args.Nsplit
+                    % file name problem
+                    if numel(Tmp)==(Args.Nsplit+1)
+                        
+                        Count = Count + 1;
+                        if Args.Modify
+                            FieldID = sprintf('%s%s', Tmp{4}, Tmp{5});
+                            TmpNew  = [Tmp(1:3), FieldID, Tmp(6:end)];
 
+                            NewFileName = join(TmpNew, Args.UnderLine);
+                            OldFileName = List{Ilist};
+
+                            % delete OBJECT key
+                            FITS.delete_keys(OldFileName,'OBJECT');
+                            % add OBJECT key
+                            FITS.write_keys(OldFileName, {'OBJECT',FieldID,''});
+
+                            % delete FILENAME
+                            FITS.delete_keys(OldFileName,'FILENAME');
+                            % add FILENAME key
+                            FITS.write_keys(OldFileName, {'FILENAME',NewFileName,''});
+
+                            % move file
+                            io.files.moveFiles(OldFileName, NewFileName);
+                        end
+                        
+                    else
+                        error('Unknown problem with file name %s',List{Ilist});
+                    end
+            
+                end
+            end
+            
+            cd(PWD);
+            
+        end
+        
     end
     
     methods % go over files
@@ -1339,6 +1398,148 @@ classdef DemonLAST < Component
                 end
             end
             
+        end
+    
+        function [Result,OutTable]=findAllVisits(Obj, Args)
+            % Going over all processed image dir and return a catalog of visits
+            % Input  : - A pipeline.DemonLAST object in which the BasePath
+            %            is directed toward the directory to probe.
+            %          * ...,key,val,...
+            %            'YearPat' - Year pattern to scan. Default is '20*'.
+            %            'FilePat' - File pattern to scan.
+            %                   Default is 'LAST*_coadd_Image*.fits'
+            %            'ReadHead' - A logical indicating if to read image
+            %                   headers. If truem then will read the header
+            %                   keywords specified in 'KeysFromHead', else
+            %                   will use only the file name.
+            %                   Default is true.
+            %            'KeysFromHead' - A cell array of header keywords
+            %                   to read from images and store in output.
+            %                   Default is {'RA1','DEC1','RA2','DEC2','RA3','DEC3','RA4','DEC4', 'RAU1','DECU1','RAU2','DECU2','RAU3','DECU3','RAU4','DECU4', 'LIMMAG','BACKMAG','FWHM','MEDBCK','STDBCK','ORIGSEC','ORIGUSEC'}
+            %            'Result' - If not empty, then will concat the
+            %                   result to this structure array.
+            %                   Default is [].
+            % Output : - Astructure array. The number of elements is equal
+            %            to the number of visits found.
+            %            The following fields are available:
+            %            .FieldID - FieldID as read from image name.
+            %            .JD - JD as read from image name.
+            %            .BasePath - BasePath used.
+            %            .Keys - structure array of selected keyword
+            %                   headers (in 'KeysFromHead') for each one of
+            %                   the images in the visit.
+            % Author : Eran Ofek (Mar 2024)
+            % Example: D=pipeline.DemonLAST; D.BasePath='/marvin/LAST.01.01.01';
+            %          [Res,T]=D.findAllVisits;
+            %
+            %          % go over all dir tree
+            %          Res=[];for I=1:1:numel(DL), I, D.BasePath=fullfile(DL(1).folder,DL(1).name); [Res,T]=D.findAllVisits('Result',Res,'ReadHeader',0); end
+
+
+
+            arguments
+                Obj
+                Args.YearPat              = '20*';
+                Args.FilePat              = 'LAST*_coadd_Image*.fits';
+                Args.MinNfile             = 10;
+                Args.ReadHeader logical   = true;
+                Args.KeysFromHead         = {'MOUNTNUM','CAMNUM','AIRMASS','RA1','DEC1','RA2','DEC2','RA3','DEC3','RA4','DEC4', 'RAU1','DECU1','RAU2','DECU2','RAU3','DECU3','RAU4','DECU4', 'LIMMAG','BACKMAG','FWHM','MEDBCK','STDBCK','ORIGSEC','ORIGUSEC'};
+                Args.Result               = [];
+            end
+
+            PWD = pwd;
+            cd(Obj.BasePath);
+
+            DirYear = io.files.dirDir(Args.YearPat);
+            Nyr     = numel(DirYear);
+
+            if isempty(Args.Result)
+                Ind      = 0;
+            else
+                Result   = Args.Result;
+                Ind      = numel(Result);
+            end
+            for Iyr=1:1:Nyr
+                cd(DirYear(Iyr).name);
+                DirMonth = io.files.dirDir();
+                Nm       = numel(DirMonth);
+                
+                for Im=1:1:Nm
+                    cd(DirMonth(Im).name);
+                    DirDay = io.files.dirDir();
+                    Nd     = numel(DirDay);
+                    for Id=1:1:Nd
+                        cd(DirDay(Id).name);
+                        cd('proc');
+                        DirVisit = io.files.dirDir();
+                        Nvisit   = numel(DirVisit);
+                        for Ivisit=1:1:Nvisit
+                            cd(DirVisit(Ivisit).name);
+
+                            DirF = dir(Args.FilePat);
+                            if numel(DirF)>Args.MinNfile
+                                Ind = Ind + 1;
+
+
+                                Result(Ind).FieldID = FileNames.getValFromFileName(DirF(1).name, 'FieldID');
+                               
+                                Result(Ind).JD      = FileNames.getValFromFileName(DirF(1).name, 'JD');
+                                Result(Ind).BasePath = Obj.BasePath;
+
+                                if Args.ReadHeader
+                                    Nfile = numel(DirF);
+
+                                    Head = AstroHeader(Args.FilePat);
+                                    Result(Ind).Keys = Head.getStructKey(Args.KeysFromHead);
+                                    
+                               
+                                end
+                            end
+                            cd ..
+                        end
+                        cd ../..
+                    end
+                    cd ..
+                end
+                cd ..
+            end
+                        
+            cd(PWD);
+            
+            % reorganize in table
+            if nargout>1
+                Nr = numel(Result);
+                OutTable = zeros(Nr,3+4.*2+3.*3+1);
+                for Ind=1:1:Nr
+                    % 14 col                
+                    IndIm = 10;
+                    Airmass = Result(Ind).Keys(IndIm).AIRMASS;
+                    MinFWHM = min([Result(Ind).Keys(:).FWHM].');
+                    MaxFWHM = max([Result(Ind).Keys(:).FWHM].');
+                    MedFWHM = median([Result(Ind).Keys(:).FWHM].',1,'omitnan');
+
+                    MinLimM = min([Result(Ind).Keys(:).LIMMAG].');
+                    MaxLimM = max([Result(Ind).Keys(:).LIMMAG].');
+                    MedLimM = median([Result(Ind).Keys(:).LIMMAG].',1,'omitnan');
+
+                    MinBack = min([Result(Ind).Keys(:).BACKMAG].');
+                    MaxBack = max([Result(Ind).Keys(:).BACKMAG].');
+                    MedBack = median([Result(Ind).Keys(:).BACKMAG].',1,'omitnan');
+
+                    OutTable(Ind,:) = [Result(Ind).Keys(IndIm).MOUNTNUM, Result(Ind).Keys(IndIm).CAMNUM, Result(Ind).JD,...
+                                       Result(Ind).Keys(IndIm).RA1, Result(Ind).Keys(IndIm).DEC1, ...
+                                       Result(Ind).Keys(IndIm).RA2, Result(Ind).Keys(IndIm).DEC2, ...
+                                       Result(Ind).Keys(IndIm).RA3, Result(Ind).Keys(IndIm).DEC3, ...
+                                       Result(Ind).Keys(IndIm).RA4, Result(Ind).Keys(IndIm).DEC4, ...
+                                       MinFWHM, MaxFWHM, MedFWHM,...
+                                       MinLimM, MaxLimM, MedLimM,...
+                                       MinBack, MaxBack, MedBack,...
+                                       Airmass];
+
+
+                end
+            end
+    
         end
     
     end

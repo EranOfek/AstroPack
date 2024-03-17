@@ -408,7 +408,6 @@ classdef ds9 < handle
                 GetNum logical   = true;
             end
 
-
             if isempty(FrameNumber)
                 % get frame number
                 Answer = ds9.system('xpaget ds9 frame frameno');
@@ -428,7 +427,7 @@ classdef ds9 < handle
                 end
             end
     
-            if GetNum
+            if nargout>0 && GetNum 
                 Answer = sscanf(Answer,'%d');
             end
 
@@ -2432,7 +2431,7 @@ classdef ds9 < handle
             %            '<1>' for mouse left click.
             % Required: XPA - http://hea-www.harvard.edu/saord/xpa/
             % Tested : Matlab 7.0
-            %     By : Eran O. Ofek                    Feb 2007
+            %     By : Eran O. Ofek                    eb 2007
             %    URL : http://weizmann.ac.il/home/eofek/matlab/
             % Example: [X,Y,V]=ds9.getcoo(3);   % return the WCS RA/Dec position
             %          [X,Y,V,Key] = ds9.getcoo('q','key');

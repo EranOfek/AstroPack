@@ -1,7 +1,25 @@
-% Class for astronomical difference/subtraction images and transients data
+% Class to support astronomical difference/subtraction images and transients data
+%   The class is designed a low-level class, from which the actuall image
+%   subtraction class can hinerits.
+%   For example, the AstroZOGY class hinerits from AstroDiff.
+%
+% Methods:
+%   * replaceNaN - Replace NaN pixels in New and Ref with Back value or other value.
+%   * astrometryRefine - Refine the astrometry of the New and Ref images using imProc.astrometry.astrometryRefine
+%   * register - Register the New and Ref images in AstroDiff using their WCS.
+%   * estimateFnFr - Estimate Fn/Fr (flux matching) and return matching factors such that Fn=1
+%   * estimateBackVar - Estimate global background and variance of New and Ref images and populate the BackN, BackR, VarN, VarR properties.
+%   * findMeasureTransients - Find, measure and flag transients in subtraction images.
+%   * findTransients - Search for transients (positive and negative) in subtraction images.
+%   * measureTransients - For each transient candidate measure additional properties.
+%   * flagNonTransients - Flag transients candidates that are likely not real transients.
+%   * splitNonTransients - Split transients from likely non-transients into two AstroCat outputs.
+%   * removeNonTransients - Removes likely non-transients from CatData.
+%   * cutoutTransients - Create cutouts of images around coordinates and store in a new AstroDiff object.
+%   * displayTransients - Display transients candidates in New, Ref, Diff and others  using ds9.
 %
 %
-
+            
 classdef AstroDiff < AstroImage
     
     properties (Dependent)
@@ -625,6 +643,7 @@ classdef AstroDiff < AstroImage
 
         function findMeasureTransients(Obj,Args)
             %{
+            Find, measure and flag transients in subtraction images.
             Calls AD.findTransients, AD.measureTransients, and AD.flagNonTransients. 
               1) Derives a catalog of transients by thresholding the threshold 
               image, 2) derives additional properties based on subtraction 
@@ -699,7 +718,8 @@ classdef AstroDiff < AstroImage
         % findTransients
         function findTransients(Obj, Args)
             %{
-            Search for positive and negative transients by selecting local
+            Search for transients (positive and negative) in subtraction images.
+              Search for positive and negative transients by selecting local
               minima and maxima with an absolute value above a set detection 
               threshold. Results are saved as an AstroCatalog under
               AD.CatData.
@@ -784,7 +804,7 @@ classdef AstroDiff < AstroImage
         % measureTransients
         function measureTransients(Obj, Args)
             %{ 
-            For each transient candidate measure further properties.
+            For each transient candidate measure additional properties.
               These depend on the subtraction process, so a function is applied 
               that is determined by the object class.
             Input   : - An AstroDiff object in which CatData is populated.
@@ -936,8 +956,7 @@ classdef AstroDiff < AstroImage
         
         function [TranCat, NonTranCat] = splitNonTransients(Obj)
             %{
-            Split transients from likely non-transients into two
-              AstroCat outputs.
+            Split transients from likely non-transients into two AstroCat outputs.
             Input  : - An AstroDiff object with a CatData that is set and
                        flagged for likely non-transients.
             Output : - TranCat (AstroCat holding transients only).
@@ -1001,7 +1020,7 @@ classdef AstroDiff < AstroImage
 
         % transientsCutouts
         function ADc = cutoutTransients(Obj, Args)
-            % Create cutouts of images around coordinates.
+            % Create cutouts of images around coordinates and store in a new AstroDiff object.
             %    Given an AstroZOGY/AstroDiff object, generate a new object
             %    (the same class as the input class), populated with image
             %    cutouts around selected coordinates.
@@ -1127,8 +1146,7 @@ classdef AstroDiff < AstroImage
 
         function displayTransients(Obj, Args)
             %{
-            Display transients candidates in New, Ref, Diff and others 
-              using ds9.
+            Display transients candidates in New, Ref, Diff and others  using ds9.
             Input:  - An AstroDiff object in which CatData is populated.
                     * ...,key,val,...
                       'removeBadPixel_Hard' - Remove pixels which fail hard

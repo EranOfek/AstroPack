@@ -142,7 +142,11 @@ classdef AstroImage < Component
         PSFData(1,1) AstroPSF                %= AstroPSF;
         WCS(1,1) AstroWCS
         
+    end
+    
+    properties (Hidden)
         PropagateErr(1,1) logical          = false;
+        BackSub logical                    = false;
         
     end
     

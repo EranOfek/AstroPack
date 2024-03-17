@@ -1,4 +1,6 @@
 % Class for astronomical difference/subtraction images and transients data
+% using the ZOGY image subtraction method.
+%
 %
 %
 
