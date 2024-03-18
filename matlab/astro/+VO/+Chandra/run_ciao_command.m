@@ -23,7 +23,8 @@ InPar = inputParser;
 addOptional(InPar,'Dir',[]); 
 addOptional(InPar,'BasePath','/euler/eran/work/Chandra'); 
 %addOptional(InPar,'CIAO','unset PYTHONPATH; ciao412 -o');  % bash
-addOptional(InPar,'CIAO','unsetenv PYTHONPATH; ciao412 -o');  % bash
+%addOptional(InPar,'CIAO','unsetenv PYTHONPATH; ciao412 -o');  % bash
+addOptional(InPar,'CIAO','unsetenv PYTHONPATH; /home/eran/bin/ciao/ciao-4.16/bin/ciao.sh -o');  % bash
 addOptional(InPar,'Command','chandra_repro indir=./ outdir=./');
 parse(InPar,varargin{:});
 InPar = InPar.Results;
