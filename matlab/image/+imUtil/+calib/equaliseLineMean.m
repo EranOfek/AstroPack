@@ -49,22 +49,25 @@ function [Defects,EqImg]=equaliseLineMean(Img,Args)
     % a=img-imMin;
 
     % just disregard negative image values from the computation of the quantile
+    % Do computations with double values, cast to the original type at the
+    %  end
     a=double(Img);
-    a(Img(:)<0)=NaN;
+    b=a;
+    b(Img(:)<0)=NaN;
 
     % compute quantiles per line. Using a global quantile doesn't
     %  fully compensate images with large differences between lines
     if Args.StripeDim==2
-        ql=quantile(a',Args.Level); % vector of size nr
-        q2=a>repmat(ql',1,nc);
+        ql=quantile(b',Args.Level); % vector of size nr
+        q2=b>repmat(ql',1,nc);
     else
-        ql=quantile(a,Args.Level); % vector of size nr
-        q2=a>repmat(ql,nr,1);
+        ql=quantile(b,Args.Level); % vector of size nr
+        q2=b>repmat(ql,nr,1);
     end
-    a(q2)=NaN;
+    b(q2)=NaN;
 
-    LineMean=mean(a,Args.StripeDim,"omitmissing");
-    LineStd=std(a,1,Args.StripeDim,"omitmissing");
+    LineMean=mean(b,Args.StripeDim,"omitmissing");
+    LineStd=std(b,1,Args.StripeDim,"omitmissing");
     bkgMean=mean(LineMean);
     
     if Args.Plot
@@ -91,12 +94,12 @@ function [Defects,EqImg]=equaliseLineMean(Img,Args)
         end
     end
 
-    % image output    
+    % image output (cast like the original Img)
     if nargout>1
         if Args.StripeDim==2
-            EqImg=double(Img)-repmat(LineMean,1,nc)+bkgMean;
+            EqImg=cast(a-repmat(LineMean,1,nc)+bkgMean,'like',Img);
         else
-            EqImg=double(Img)-repmat(LineMean,nr,1)+bkgMean;
+            EqImg=cast(a-repmat(LineMean,nr,1)+bkgMean,'like',Img);
         end
     end
     
@@ -119,10 +122,10 @@ function [Defects,EqImg]=equaliseLineMean(Img,Args)
 
         % vignetting
         blackcorner=0.5*bkgMean;
-        Defects.vignetting= mean(a(1:10,1:10),'all')<blackcorner ||...
-                            mean(a(end-10:end,1:10),'all')<blackcorner || ...
-                            mean(a(1:10,end-10:end),'all')<blackcorner || ...
-                            mean(a(end-10:end,end-10:end),'all')<blackcorner;
+        Defects.vignetting= mean(b(1:10,1:10),'all')<blackcorner ||...
+                            mean(b(end-10:end,1:10),'all')<blackcorner || ...
+                            mean(b(1:10,end-10:end),'all')<blackcorner || ...
+                            mean(b(end-10:end,end-10:end),'all')<blackcorner;
 
         % negative original values
         Defects.negative= (imMin<0);
