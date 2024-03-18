@@ -375,9 +375,9 @@ classdef MovingSource < Component
             %                   and last.
             %                   Default is true.
             %            'Verbose' - Verbosity. Default is true.
-            %            'MaxNdir' - Max. number of directories to load.
+            %            'MaxNdir' - Index of last dir (visit) to load.
             %                   Default is Inf.
-            %            'IndDirStart' - Index of first dir from which to
+            %            'IndDirStart' - Index of first dir (visit) from which to
             %                   load. Default is 1.
             % Output : - A MovingSource object
             % Author : Eran Ofek (Jan 2024)
@@ -864,6 +864,13 @@ classdef MovingSource < Component
             %                   arguments to pass to the nearStaticSrc
             %                   method. Default is {}.
             %            'Verbose' - Vebosity. Default is true.
+            % Output : - Structure cotaining the following fields:
+            %            .Flag
+            %            .FlagKnownGoodCand
+            %            .FlagUnknownGoodCand
+            %            .FlagVariable
+            %            .FlagBadCand
+            %
 
             arguments
                 Obj
@@ -1398,6 +1405,16 @@ classdef MovingSource < Component
             Summary = cell(Nobj, Ncol);
             
             for Iobj=1:1:Nobj
+                if isempty(Obj(Iobj).KnownAst.Table)
+                    Desig   = NaN;
+                    Dist    = NaN;
+                    PredMag = NaN;
+                else
+                    Desig   = Obj(Iobj).KnownAst.Table.Desig;
+                    Dist    = Obj(Iobj).KnownAst.Table.Dist;
+                    PredMag = Obj(Iobj).KnownAst.Table.Mag;
+                end
+
                 Summary(Iobj,:) = {Obj(Iobj).JD, Obj(Iobj).RA, Obj(Iobj).Dec,...
                                    Obj(Iobj).PM_RA, Obj(Iobj).PM_Dec,...
                                    Obj(Iobj).Mag,...
@@ -1405,10 +1422,11 @@ classdef MovingSource < Component
                                    Obj(Iobj).MergedCat.Table.PM_TdistProb,...
                                    Obj(Iobj).MergedCat.Table.FLAGS,...
                                    Obj(Iobj).MergedCat.Table.MergedCatMask,...
-                                   Obj(Iobj).KnownAst.Table.Desig,...
-                                   Obj(Iobj).KnownAst.Table.Dist,...
-                                   Obj(Iobj).KnownAst.Table.Mag};
-                               
+                                   Desig,...
+                                   Dist,...
+                                   PredMag};
+                
+                                               
             end
             Table = cell2table(Summary);
             Table.Properties.VariableNames = ColNames;
