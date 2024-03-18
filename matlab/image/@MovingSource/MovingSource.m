@@ -375,6 +375,10 @@ classdef MovingSource < Component
             %                   and last.
             %                   Default is true.
             %            'Verbose' - Verbosity. Default is true.
+            %            'MaxNdir' - Max. number of directories to load.
+            %                   Default is Inf.
+            %            'IndDirStart' - Index of first dir from which to
+            %                   load. Default is 1.
             % Output : - A MovingSource object
             % Author : Eran Ofek (Jan 2024)
             % Example: MP = MovingSource.read()
@@ -388,6 +392,9 @@ classdef MovingSource < Component
                 Args.PopKA logical = false;
                 Args.KeepOnlyFirstAndLast logical  = true;
                 Args.Verbose logical = true;
+
+                Args.MaxNdir         = Inf;
+                Args.IndDirStart     = 1;
             end
             
             PWD = pwd;
@@ -404,7 +411,8 @@ classdef MovingSource < Component
             
             Obj = [];
             Nf = numel(Files);
-            for If=1:1:Nf
+            Nf = min(Nf, Args.MaxNdir);
+            for If=Args.IndDirStart:1:Nf
                 FileName = fullfile(Files(If).folder, Files(If).name);
                 if Args.Verbose
                     fprintf('Reading File name : %s\n',FileName);
@@ -835,6 +843,76 @@ classdef MovingSource < Component
             end
                             
         end
+
+
+        function Result=selectGoodCand(Obj, Args)
+            % Select good asteroid candidates and classify to types
+            %   of good, bad, variable, known and unknown asteroids.
+            % Input  : - A MovingSource object.
+            %          * ...,key,val,...
+            %            'MaxDist' - Max. dist to known asteroid
+            %                   association. Default is 5.
+            %            'DistUnits' - MaxDist units.
+            %                   Default is 'arcsec'.
+            %            'MaxMagDiff' - max. mag. difference between
+            %                   measured and predicted mag., in order 
+            %                   to declare good and not variable asteroid.
+            %            'selectByBitMaskArgs' - A cell array of additional
+            %                   arguments to pass to the selectByBitMask
+            %                   method. Default is {}.
+            %            'nearStaticSrcArgs' - A cell array of additional
+            %                   arguments to pass to the nearStaticSrc
+            %                   method. Default is {}.
+            %            'Verbose' - Vebosity. Default is true.
+
+            arguments
+                Obj
+                
+                Args.MaxDist                  = 5;
+                Args.DistUnits                = 'arcsec';
+                Args.MaxMagDiff               = 1.5;
+
+                Args.selectByBitMaskArgs cell = {};
+                Args.nearStaticSrcArgs cell   = {};
+
+                Args.Verbose logical          = true;
+            end
+
+            MaxDist = convert.angular(Args.DistUnits, 'arcsec', Args.MaxDist);
+
+            IsPop = isKnownAstPopulated(Obj);
+            if ~all(IsPop)
+                if Args.Verbose
+                    fprintf('Populate known asteroids\n\');
+                end
+                Obj.popKnownAst;
+            end
+
+            % Asteroids with good flags
+            [Flag.Bit]    = Obj.selectByBitMask(Args.selectByBitMaskArgs{:}); 
+
+            [Dist, Mag]   = Obj.nearestKnownAst();
+            MeasuredMag   = [Obj.Mag].';
+
+            % Knonw asteroid found within Args.MaxDist
+            Flag.IsKApos  = Dist<MaxDist;
+            % Known asteroid mag. similar to measured mag., within Args.MaxMagDiff
+            Flag.IsKAmag  = abs(Mag(:) - MeasuredMag)<Args.MaxMagDiff;
+
+            [Flag.NearSrc] = Obj.nearStaticSrc(Args.nearStaticSrcArgs{:});
+
+            Result.Flag         = Flag;
+
+            Result.FlagKnownGoodCand   = Flag.Bit & Flag.IsKApos & Flag.IsKAmag & Flag.NearSrc;
+            Result.FlagUnknownGoodCand = Flag.Bit & ~Flag.IsKApos & Flag.NearSrc;
+            Result.FlagVariable        = Flag.Bit & Flag.IsKApos & ~Flag.IsKAmag & Flag.NearSrc;
+            Result.FlagBadCand         = ~Result.FlagKnownGoodCand & ~Result.FlagVariable;
+
+        end
+
+    end
+
+    methods % catalog untilities
     
         function Result=selectMovingFromStamps(Obj, Args)
             % Create a catalog of the moving source position as a function of time
@@ -893,6 +971,9 @@ classdef MovingSource < Component
             
         end
         
+    end
+
+    methods % reports
         function ReportMPC=reportMPC(Obj, Args)
             % Generate MPC report for MovingSource object
             %   Generate an MPC report for all elements of a MovingSource object
