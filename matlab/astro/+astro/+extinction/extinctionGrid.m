@@ -18,15 +18,16 @@ function [Alam, RA_grid, Dec_grid] = extinctionGrid(SkyGrid, Args)
     % Example: extinctionGrid('healpix215deg.txt','CooType','g','Filter',0.25);
     %          extinctionGrid('healpix215deg.txt','CooType','ec','Filter','ultrasat');
     arguments
-        SkyGrid       = '~/matlab/data/ULTRASAT/healpix0.013deg.txt'; % healpix0.2deg.txt; healpix0.003deg.txt
+        SkyGrid       = '~/matlab/data/ULTRASAT/healpix_grid_nside_512_npix_3145728_pixarea_0.013_deg.txt'; 
         Args.CooType  = 'ec';       % can be 'ec', 'g', 'j2000.0'
         Args.Filter   = 'ULTRASAT'; % or wavelength in [mum]
         Args.Plot logical = false;
         Args.SaveMat logical = false;
-        Args.ExtMap = 'old';
+        Args.ExtMap = 'SFD98';       
     end
     
-    RAD = 180./pi;
+    RAD  = 180./pi;
+    Tiny = 1e-7;
 
     if isnumeric(SkyGrid)
         RA_grid  = SkyGrid(:,1);
@@ -50,11 +51,18 @@ function [Alam, RA_grid, Dec_grid] = extinctionGrid(SkyGrid, Args)
     end    
 
     % calculate E(B-V)
-    if strcmp(Args.ExtMap,'old')
+    if strcmpi(Args.ExtMap,'sfd98')
         Ebv = astro.extinction.sky_ebv(gal_lon,gal_lat,'g', 'Map', 'SFD98'); % SFD 1998
+    elseif strcmpi(Args.ExtMap,'g24')
+        Ebv = astro.extinction.sky_ebv(gal_lon,gal_lat,'g', 'Map', 'G24');   % Gontcharov et al. 2024 
+    elseif strcmpi(Args.ExtMap,'csfd23')        
+        Ebv = astro.extinction.sky_ebv(gal_lon,gal_lat,'g', 'Map', 'CSFD23'); % Chiang 2023 
     else
-        Ebv = astro.extinction.sky_ebv(gal_lon,gal_lat,'g', 'Map', 'G24'); % Gontcharov et al. 2024 
+        error('Unknown extinction map');
     end
+    
+    % treating small or negative E(B-V) [some of the maps contain such artifacts]
+    Ebv(Ebv<=0) = Tiny;
 
     % calculate A_lam
     if strcmpi(Args.Filter,'ultrasat')

@@ -9,7 +9,7 @@ function Ebv = sky_ebv(RA,Dec,CooType,CorrectHigh, Args)
     %          - true|false Correct Schlegel et al. E(B-V) when >0.1,
     %            using the Adams et al. (2013) correction (def. true)
     %          * ...,key,val,...
-    %          'Map' - which extiction map to use: 'SFD98' (default) 'G24'(new)
+    %          'Map' - which extiction map to use: 'SFD98' (default) 'CSFD23' (Chang et al. 2023) 'G24'(Gontcharov et al. 2024)
     %          'Recalibrate' - recalibrate SFD98 according to Shlafly and Finkbeiner (2011)
     %          'Rv' - R_V, default is Galactic 3.08
     %          'InterpMethod' - interolation method, default = 'nearest neighbor'
@@ -22,7 +22,7 @@ function Ebv = sky_ebv(RA,Dec,CooType,CorrectHigh, Args)
         Dec
         CooType     = 'eq';
         CorrectHigh = true;
-        Args.Map    = 'SFD98'; % by default we use the classical map of Schlegel, Finkbeiner & Davis 1998
+        Args.Map    = 'SFD98';   % by default we use the classical map of Schlegel, Finkbeiner & Davis 1998
         Args.Recalibrate = true; % be default we apply recalibration of Shlafly and Finkbeiner (2011)
         Args.Rv     = 3.08;  
         Args.InterpMethod = 'nearest'; % interpolation method for the G24 map
@@ -31,7 +31,9 @@ function Ebv = sky_ebv(RA,Dec,CooType,CorrectHigh, Args)
     if strcmpi(Args.Map,'SFD98')
         Ebv = sky_ebv_Schlegel(RA,Dec,CooType,CorrectHigh,Args.Recalibrate);
     elseif strcmpi(Args.Map,'G24')
-        Ebv = sky_ebv_Gontcharov(RA,Dec,'CooType',CooType,'CorrectHigh',CorrectHigh,'Rv',Args.Rv,'InterpMethod',Args.InterpMethod);
+        Ebv = sky_ebv_Gontcharov(RA,Dec,'CooType',CooType,'CorrectHigh',CorrectHigh,'Rv',Args.Rv,'InterpMethod',Args.InterpMethod, 'Recalibrate', Args.Recalibrate);
+    elseif strcmpi(Args.Map,'CSFD23')
+        Ebv = sky_ebv_CSFD(RA,Dec, 'CooType', CooType, 'Recalibrate', Args.Recalibrate);
     else
         error('Illegal input map type\n');
     end
@@ -200,6 +202,7 @@ function Ebv = sky_ebv_Gontcharov(RA, Dec, Args)
         Args.CorrectHigh = true;
         Args.Rv = 3.08;
         Args.InterpMethod = 'nearest';
+        Args.Recalibrate  = true;
     end
     
     RAD = 180/pi;
@@ -248,9 +251,63 @@ function Ebv = sky_ebv_Gontcharov(RA, Dec, Args)
     % this map is for |B| > 13 only, so if |B| < 13 deg, replace the values by those of SFD98:
     Ind = abs(B) < 13; 
     if sum(Ind) > 0
-        Ebv(Ind) = sky_ebv_Schlegel(Lon(Ind),Lat(Ind),'g');    
+        Ebv(Ind) = sky_ebv_Schlegel(Lon(Ind),Lat(Ind),'g',Args.CorrectHigh,Args.Recalibrate);    
     end
     
+end
+
+function Ebv = sky_ebv_CSFD(RA,Dec,Args)
+    
+    arguments
+        RA           = pi;   % some placeholder values
+        Dec          = pi/2; 
+        Args.CooType = 'eq'; 
+%         Args.Map     = '~/matlab/data/+cats/+maps/csfd_ebv.fits';
+        Args.Map     = '~/matlab/data/+cats/+maps/CSFD_map_healpix2048linear.mat';
+        Args.Recalibrate = true; 
+    end
+    
+%     error('The Tab indexing (Row, Column) is still erroneous here!');
+    
+    RAD = 180/pi;
+     
+    switch Args.CooType
+     case 'eq'
+        % convert Equatorial to Galactic        
+        [Lon, Lat] = celestial.coo.convert_coo(RA,Dec,'J2000.0','g');
+     case 'g'
+        % do nothing - already in Galactic
+        Lon = RA; Lat = Dec;
+     case 'ec'
+        % convert Ecliptic to Galactic
+        [Lon, Lat] = elestial.coo.convert_coo(RA,Dec,'e','g'); 
+     otherwise
+        error('Unknown CooType Option');
+    end
+    
+    L = Lon .* RAD;    % Galactic longitude in [deg]
+    B = Lat .* RAD;    % Galactic latitude  in [deg]
+        
+    if size(L,1) > 1
+        writematrix([L B],'temparray.txt','Delimiter',' ');
+        celestial.grid.get_healpix_numbers(2048, 'temparray.txt', 'Nested', 0);
+    else
+        celestial.grid.get_healpix_numbers(2048, L, B, 'Nested', 0);
+    end
+    
+    Tab = io.files.load1(Args.Map);
+    
+    PixNum = dlmread('healpix_nside_2048_pixelnumbers.txt', ' ', 0, 0); 
+    Ebv = Tab(PixNum+1);
+    
+    % Recalibration according to Shlafly and Finkbeiner (2011)
+    if (Args.Recalibrate)
+        Ebv = Ebv .* 0.86;
+    end
+    
+    delete('temparray.txt');
+    delete('healpix_nside_2048_pixelnumbers.txt');
+
 end
 
 
