@@ -1557,31 +1557,52 @@ classdef DemonLAST < Component
     
         end
     
-        function prepReferencesFromSingleBestDepthImage(Obj, Table, Args)
+        function prepReferencesFromSingleBestDepthImage(Obj, Table, ResultFind, Args)
             %
+            % Example: D.prepReferencesFromSingleBestDepthImage(OutTable, ResultFind);
 
             arguments
                 Obj
                 Table
+                ResultFind
            
                 Args.MinJD   = celestial.time.julday([1 3 2024]);
                 Args.RefDir  = '/raid/eran/references';
+                Args.Ncam    = 4;
             end
 
             F = Table.JD>Args.MinJD;
             Table = Table(F,:);
-            
-            FieldIndex = str2double(Table.FieldID);
+            ResultFind = ResultFind(F);
 
+            
+            Table.FieldID=str2double(Table.FieldID);
+            
             UniqueFI = unique(Table.FieldID);
             Nufi     = numel(UniqueFI);
             for Iufi=1:1:Nufi
-                Isel = find(Table.FieldID==UniqueFI(Iufi));
-                [~,Ibset] = max(Table.MedLimM(Isel));
-                Iref = Isel(Ibest);
+                % for each camera
+                for Icam=1:1:Args.Ncam
 
-                % copy the specific images to the reference images dir
-                
+
+                    Isel = find(Table.FieldID==UniqueFI(Iufi) & Table.CamNum==Icam);
+                    [~,Ibest] = max(Table.MedLimM(Isel));
+                    Iref = Isel(Ibest);
+    
+                    if ~isempty(Iref)
+                        % copy the specific images to the reference images dir
+                        OriginPath = fullfile(ResultFind(Iref).BasePath, ResultFind(Iref).Year, ResultFind(Iref).Month, ResultFind(Iref).Day, 'proc', ResultFind(Iref).Visit);
+                        DestPath   = fullfile(Args.RefDir, ResultFind(Iref).FieldID);
+                  
+                        tools.os.cdmkdir(DestPath);
+    
+                        cd(OriginPath);
+                        system(sprintf('cp LAST*_coadd_Image_1.fits %s%s.',DestPath,filesep));
+                        system(sprintf('cp LAST*_coadd_Mask_1.fits %s%s.',DestPath,filesep));
+                        system(sprintf('cp LAST*_coadd_PSF_1.fits %s%s.',DestPath,filesep));
+                        system(sprintf('cp LAST*_coadd_Cat_1.fits %s%s.',DestPath,filesep));
+                    end
+                end
             end
 
 
