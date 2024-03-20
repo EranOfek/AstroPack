@@ -1266,31 +1266,98 @@ classdef MovingSource < Component
 
     methods % extended sources
         % Fit PSF vs. extended PSF
-        function psfFitExtended(Obj, Args)
+        function Result=psfFitExtended(Obj, Args)
             % Fit PSF and extended PSF to all stamps and search for extended sources
-            %
-            %
+            %   The function fit, for each stamp, its PSF as well as the
+            %   PSF convolved with some extended (Sersic) profiles.
+            %   The function uses the chi^2 of the fits to determine if the
+            %   source is likely extended or consistent with a point
+            %   source.
+            % Input  : - A MovingSource object.
+            %          * ...,key,val,...
+            %            'SersicPar' - A 3 column matrix of Sersic
+            %                   parameters for the sersic profiles that
+            %                   will be convolved with the PSF.
+            %                   Default is [1 1 1; 2 1 1; 3 1 1].
+            %            'psfFirPhotArgs' - A cell array of additional
+            %                   arguments to pass to imProc.sources.psfFitPhot
+            %                   Default is {}.
+            %            'FitRadius' - PSF fit radius. Default is 3 pix.
+            %            'ThreshProb' - Threshold probability for the false
+            %                   alarm that the object is extended.
+            %                   Assuming \chi^2 statistics.
+            %                   Default is 0.01.
+            % Output : - A structure array with element per MovingSource
+            %            element. Fields are:
+            %            .Stamp - A structure array with element per stamp,
+            %                   and the following fields:
+            %               .DistSrcCenter - A vector of distance (pix) of
+            %                   source from image center.
+            %               .Istamp - Index of stamp.
+            %               .Chi2 - An array of \chi^2. Line per source.
+            %                   Columns for [actual PSF, extended PSFs...]
+            %               .DeltaChi2 - Max \Delta\chi^2.
+            %               .MinInd - Index of minimum chi^2 [1 is the
+            %                   original PSF...]
+            %               .ExtendedFAP - False alaram probability for
+            %                   being an extended object.
+            %            .MeanDeltaChi2 - Mean of \Delta\chi^2 per source.
+            %            .MedDeltaChi2 - Median of \Delta\chi^2 per source.
+            %            .FracExtended - Fraction of events in which the
+            %            .ExtendedFAP is smaller then the 'ThreshProb'
+            %                   argument.
+            % Author : Eran Ofek (Mar 2024)
+            % Example: RR=MP.psfFitExtended
             
             arguments
                 Obj
-                Args.SersicPar              = [1 1 1];
+                Args.SersicPar              = [1 1 1; 2 1 1; 3 1 1];
                 Args.psfFirPhotArgs cell    = {};
+                Args.FitRadius              = 3;
+                Args.ThreshProb             = 0.01;
             end
         
+            Nextend = size(Args.SersicPar,1);
+            FitDof  = ceil(pi.*Args.FitRadius.^2);
+
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 Nstamp = numel(Obj(Iobj).Stamps);
+                IndStamp = 0;
                 for Istamp=1:1:Nstamp
                     if ~isempty(Obj(Iobj).Stamps(Istamp).Image)
-                        [~, Result] = psfFitPhot(Obj(Iobj).Stamps(Istamp), Args.psfFirPhotArgs{:});
+                        Obj(Iobj).Stamps(Istamp) = imProc.background.background(Obj(Iobj).Stamps(Istamp));
+                        [~, ResultPSF] = imProc.sources.psfFitPhot(Obj(Iobj).Stamps(Istamp), Args.psfFirPhotArgs{:}, 'FitRadius',Args.FitRadius);
                         
                         PSF = Obj(Iobj).Stamps(Istamp).PSFData.getPSF();
                         % extened PSF by convolving
                         Extend = imUtil.kernel2.sersic(Args.SersicPar);
-                        ExtendedPSF = conv2(PSF, Extend, 'same');
-                        [~, ResultExt] = psfFitPhot(Obj(Iobj).Stamps(Istamp), Args.psfFirPhotArgs{:}, 'PSF',ExtendedPSF);
-                    end
-                end
+                        for Iextend=1:1:Nextend
+                            ExtendedPSF = conv2(PSF, Extend(:,:,Iextend), 'same');
+                            [~, ResultExt(Iextend)] = imProc.sources.psfFitPhot(Obj(Iobj).Stamps(Istamp), Args.psfFirPhotArgs{:}, 'PSF',ExtendedPSF, 'FitRadius',Args.FitRadius);
+                        end
+
+                        IndStamp = IndStamp + 1;
+
+                        % stamp image size
+                        [NY, NX] = Obj(Iobj).Stamps(Istamp).sizeImage;
+                        [X, Y] = Obj(Iobj).Stamps(Istamp).CatData.getXY();
+                        Result(Iobj).Stamp(IndStamp).DistSrcCenter = sqrt((X-NX.*0.5).^2 + (Y-NY.*0.5).^2);
+
+                        Result(Iobj).Stamp(IndStamp).Istamp = Istamp;
+                        Result(Iobj).Stamp(IndStamp).Chi2 = [ResultPSF.Chi2, [ResultExt(:).Chi2]];
+                        [MinChi2, MinInd] = min(Result(Iobj).Stamp(IndStamp).Chi2,[],2);
+                        Result(Iobj).Stamp(IndStamp).DeltaChi2 = Result(Iobj).Stamp(IndStamp).Chi2(:,1)-MinChi2;
+                        Result(Iobj).Stamp(IndStamp).MinInd    = MinInd;
+                        Result(Iobj).Stamp(IndStamp).ExtendedFAP = 1-chi2cdf(Result(Iobj).Stamp(IndStamp).DeltaChi2, FitDof);
+                        
+                        %Result(Iobj).Stamp(IndStamp).
+                    end % if ~isempty(Obj(Iobj).Stamps(Istamp).Image)
+                end % for Istamp=1:1:Nstamp
+                Result(Iobj).MeanDeltaChi2 = mean([Result(Iobj).Stamp(:).DeltaChi2],2);
+                Result(Iobj).MedDeltaChi2  = median([Result(Iobj).Stamp(:).DeltaChi2],2);
+                Result(Iobj).FracExtended  = sum([Result(Iobj).Stamp(:).ExtendedFAP]<Args.ThreshProb, 2)./IndStamp;
+
             end
         end
         

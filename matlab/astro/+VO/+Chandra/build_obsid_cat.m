@@ -41,7 +41,7 @@ DefV.AO       = 'ao01';
 DefV.GetInfo  = true;
 DefV.Verbose  = true;
 DefV.OutType  = 'AstCat';
-DefV.SaveDir  = '~/matlab/data/+cats/+X/';
+DefV.SaveDir  = '~/matlab/data/+cats/+Xn/';
 DefV.SaveName = 'ChandraObs_%s.mat';  % with AO
 DefV.ArchiveURL = 'https://cxc.cfa.harvard.edu/cdaftp/science/';
 

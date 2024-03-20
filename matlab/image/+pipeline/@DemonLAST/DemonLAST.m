@@ -1437,7 +1437,7 @@ classdef DemonLAST < Component
             %          [Res,T]=D.findAllVisits;
             %
             %          % go over all dir tree
-            %          Res=[];for I=1:1:numel(DL), I, D.BasePath=fullfile(DL(1).folder,DL(1).name); [Res,T]=D.findAllVisits('Result',Res,'ReadHeader',0); end
+            %          Res=[];for I=1:1:numel(DL), I, D.BasePath=fullfile(DL(I).folder,DL(I).name); [Res,T]=D.findAllVisits('Result',Res,'ReadHeader',0); end
 
 
 
@@ -1545,7 +1545,7 @@ classdef DemonLAST < Component
                                        MinLimM, MaxLimM, MedLimM,...
                                        MinBack, MaxBack, MedBack,...
                                        Airmass];
-                    FieldT(Ind) = string(Res(Ind).FieldID);
+                    FieldT(Ind) = string(Result(Ind).FieldID);
 
                 end
                 OutTable=[array2table(OutTable), table(FieldT)];
