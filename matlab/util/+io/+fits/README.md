@@ -1,3 +1,5 @@
+# FITS format info
+
 
 2880 bytes data block
 
@@ -35,3 +37,4 @@ logical T or F in Byte 30
 integer - right justified in bytes 11 to 30
 
 real -  right justified in bytes 11 to 30
+

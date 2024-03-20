@@ -1,3 +1,6 @@
+// Author : Chen Tishler (March 2024)
+// Example: io.fits.mex.fastWriteFITS('myfile.fits', [10 100], Header)
+
 #include "mex.h"
 #include <cstdio>
 #include <cstring>
@@ -5,12 +8,12 @@
 #include <algorithm>
 //#include "matrix.h" // For mxGetClassID, etc.
 
-const size_t card_size = 80;    // Each FITS header card is 80 bytes
+const size_t cardSize = 80;     // Each FITS header card is 80 bytes
 const size_t blockSize = 2880;  // FITS headers are allocated in blocks of 2880 bytes
 
 //===========================================================================
 
-char* allocHeaderBuffer(size_t numCards, size_t& allocatedSize, bool init=false) 
+char* allocHeaderBuffer(size_t numCards, size_t& allocatedSize, bool init=true) 
 {
     // Calculate the total size needed for the given number of cards
     size_t totalSize = numCards * cardSize;
@@ -21,7 +24,7 @@ char* allocHeaderBuffer(size_t numCards, size_t& allocatedSize, bool init=false)
     }
 
     // Allocate the buffer
-    char* buffer = mxMalloc(totalSize);
+    char* buffer = (char*)mxMalloc(totalSize);
 
     // Initialize the buffer with spaces as per FITS standard
     if (init)
@@ -52,12 +55,27 @@ void printValue(mxArray* valueElement, char* value, size_t valueSize)
         snprintf(value, valueSize, "'%s'", tempStr);
         mxFree(tempStr);
     } 
+    else if (mxIsLogical(valueElement)) {
+        // Handle logical values
+        mxLogical val = *mxGetLogicals(valueElement);
+        snprintf(value, valueSize, "%s", val ? "T" : "F");
+    }    
     else if (mxIsNumeric(valueElement)) {
         // Handling floating-point and integer types
-        if (mxIsDouble(valueElement) || mxIsSingle(valueElement)) {
+        if (mxIsSingle(valueElement)) {
             double val = mxGetScalar(valueElement);
-            snprintf(value, valueSize, "%g", val);
+            if (floorf(val) == val) 
+                snprintf(value, valueSize, "%.0f.", val);
+            else
+                snprintf(value, valueSize, "%g", val);
         } 
+        else if (mxIsDouble(valueElement)) {            
+            double val = mxGetScalar(valueElement);
+            if (floor(val) == val) 
+                snprintf(value, valueSize, "%.0f.", val);
+             else
+                 snprintf(value, valueSize, "%g", val);
+        }         
         else if (mxIsClass(valueElement, "int8") || mxIsClass(valueElement, "uint8") ||
                  mxIsClass(valueElement, "int16") || mxIsClass(valueElement, "uint16") ||
                  mxIsClass(valueElement, "int32") || mxIsClass(valueElement, "uint32") ||
@@ -68,11 +86,6 @@ void printValue(mxArray* valueElement, char* value, size_t valueSize)
             snprintf(value, valueSize, "%lld", val);
         }
     } 
-    else if (mxIsLogical(valueElement)) {
-        // Handle logical values
-        mxLogical val = *mxGetLogicals(valueElement);
-        snprintf(value, valueSize, "%s", val ? "T" : "F");
-    }
     else {
         // In case the value type is not supported or is unrecognized
         strncpy(value, "UNKNOWN", valueSize);
@@ -105,10 +118,15 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
         mxArray* commentElement = mxGetCell(cellArray, row + 2 * numRows);
         if (commentElement != nullptr && mxIsChar(commentElement)) {
             mxGetString(commentElement, comment, sizeof(comment));
+
+            // Construct card string
+            snprintf(card, sizeof(card), "%-8s= %20s / %s", key, value, comment);            
         }
 
         // Construct card string
-        snprintf(card, sizeof(card), "%-8s= %-20s / %s", key, value, comment);
+        else {
+            snprintf(card, sizeof(card), "%-8s= %20s", key, value);
+        }
 
         // Add the card to the buffer
         addCard(headerBuffer, bufferPos, card);
@@ -124,8 +142,10 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
 int determineBitpix(mxClassID classID) 
 {
     switch (classID) {
+        case mxINT16_CLASS:    
         case mxUINT16_CLASS:
             return 16;
+        case mxINT32_CLASS:            
         case mxUINT32_CLASS:
             return 32;
         case mxSINGLE_CLASS:
@@ -148,27 +168,30 @@ void writeInitialHeader(char* headerBuffer, size_t& bufferPos, const mxArray* im
 
     // BITPIX
     int bitpix = determineBitpix(mxGetClassID(imgMatrix));
-    snprintf(card, sizeof(card), "BITPIX  =                   %d / number of bits per data pixel", bitpix);
+    snprintf(card, sizeof(card), "BITPIX  = %20d / number of bits per data pixel", bitpix);
     addCard(headerBuffer, bufferPos, card);
 
     // NAXIS
     const mwSize* dims = mxGetDimensions(imgMatrix);
     size_t nDims = mxGetNumberOfDimensions(imgMatrix);
-    snprintf(card, sizeof(card), "NAXIS   =                    %lu / number of data axes", nDims);
+    snprintf(card, sizeof(card), "NAXIS   = %20d / number of data axes", (int)nDims);
     addCard(headerBuffer, bufferPos, card);
 
     // NAXIS1 and NAXIS2, assuming 2D image data
     if (nDims >= 1) { // NAXIS1
-        snprintf(card, sizeof(card), "NAXIS1  =           %10lu / length of data axis 1", dims[0]);
+        snprintf(card, sizeof(card), "NAXIS1  = %20d / length of data axis 1", (int)dims[0]);
         addCard(headerBuffer, bufferPos, card);
     }
     if (nDims >= 2) { // NAXIS2
-        snprintf(card, sizeof(card), "NAXIS2  =           %10lu / length of data axis 2", dims[1]);
+        snprintf(card, sizeof(card), "NAXIS2  = %20d / length of data axis 2", (int)dims[1]);
         addCard(headerBuffer, bufferPos, card);
     }
 
     // EXTEND (optional, you can decide based on your requirements)
     addCard(headerBuffer, bufferPos, "EXTEND  =                    T / FITS dataset may contain extensions");
+
+    addCard(headerBuffer, bufferPos, "COMMENT   FITS (Flexible Image Transport System) format is defined in 'Astronomy");
+    addCard(headerBuffer, bufferPos, "COMMENT   and Astrophysics', volume 376, page 359; bibcode: 2001A&A...376..359H");
 }
 
 //===========================================================================
@@ -181,52 +204,44 @@ bool isSystemLittleEndian()
     return testValuePtr[0] == 0x1;
 }
 
-
-// Utility function to convert data from native endian to big endian in place
-template<typename T>
-void convertToBigEndian(T* data, size_t numElements) {
-    uint8_t* bytePtr;
-    for (size_t i = 0; i < numElements; ++i) {
-        bytePtr = reinterpret_cast<uint8_t*>(data + i);
-        std::reverse(bytePtr, bytePtr + sizeof(T));
-    }
-}
-
-
-// Helper functions for swapping bytes.
-inline uint16_t swapBytes(std::uint16_t val) 
+// Helper functions for swapping bytes
+inline uint16_t swapBytes16(std::uint16_t val) 
 {
     return (val << 8) | (val >> 8);
 }
 
-inline uint32_t swapBytes(std::uint32_t val) 
+inline uint32_t swapBytes32(std::uint32_t val) 
 {
     return (val << 24) | ((val << 8) & 0x00FF0000) | ((val >> 8) & 0x0000FF00) | (val >> 24);
 }
 
-inline float swapBytes(float val) {
+inline float swapBytesFloat(float val) 
+{
     std::uint32_t temp = *reinterpret_cast<std::uint32_t*>(&val);
-    temp = swapBytes(temp);
+    temp = swapBytes32(temp);
     return *reinterpret_cast<float*>(&temp); // Ensure we return a float here
 }
 
 
-void convertInt16BufferToEndian(uint16_t* buffer, size_t numElements) {
+void convertInt16BufferToEndian(uint16_t* buffer, size_t numElements) 
+{
     for (size_t i = 0; i < numElements; ++i) {
-        buffer[i] = swapBytes(buffer[i]);
+        buffer[i] = swapBytes16(buffer[i]);
     }
 }
 
-void convertInt32BufferToEndian(uint32_t* buffer, size_t numElements) {
+void convertInt32BufferToEndian(uint32_t* buffer, size_t numElements) 
+{
     for (size_t i = 0; i < numElements; ++i) {
-        buffer[i] = swapBytes(buffer[i]);
+        buffer[i] = swapBytes32(buffer[i]);
     }
 }
 
-void convertFloatBufferToEndian(float* buffer, size_t numElements) {
+void convertFloatBufferToEndian(float* buffer, size_t numElements) 
+{
     for (size_t i = 0; i < numElements; ++i) {
         // Direct use of swapBytes(float) function as described
-        buffer[i] = swapBytes(buffer[i]);
+        buffer[i] = swapBytesFloat(buffer[i]);
     }
 }
 
@@ -242,9 +257,11 @@ void writeImageData(FILE* fp, const mxArray* imgMatrix)
     size_t dataSize;
     switch (classID) {
         case mxINT16_CLASS:
+        case mxUINT16_CLASS:            
             dataSize = sizeof(int16_t);
             break;
         case mxINT32_CLASS:
+        case mxUINT32_CLASS:            
             dataSize = sizeof(int32_t);
             break;
         case mxSINGLE_CLASS:
@@ -264,10 +281,12 @@ void writeImageData(FILE* fp, const mxArray* imgMatrix)
         // Convert the data to big-endian format
         switch (classID) {
             case mxINT16_CLASS:
-                convertInt16BufferToEndian(static_cast<int16_t*>(tempBuffer), numElements);
+            case mxUINT16_CLASS:                
+                convertInt16BufferToEndian(static_cast<uint16_t*>(tempBuffer), numElements);
                 break;
             case mxINT32_CLASS:
-                convertInt32BufferToEndian(static_cast<int32_t*>(tempBuffer), numElements);
+            case mxUINT32_CLASS:                
+                convertInt32BufferToEndian(static_cast<uint32_t*>(tempBuffer), numElements);
                 break;
             case mxSINGLE_CLASS:
                 convertFloatBufferToEndian(static_cast<float*>(tempBuffer), numElements);
@@ -284,6 +303,24 @@ void writeImageData(FILE* fp, const mxArray* imgMatrix)
         // System is big-endian, write data directly
         fwrite(dataPtr, dataSize, numElements, fp);
     }
+
+    // Calculate the total size of the written data
+    size_t totalDataSize = dataSize * numElements;
+
+    // Calculate the required padding to make the size a multiple of 2880
+    size_t paddingSize = (2880 - (totalDataSize % 2880)) % 2880;    
+    if (paddingSize > 0) {
+
+        // Allocate a buffer for padding and initialize it with zeros
+        char* paddingBuffer = new char[paddingSize];
+        memset(paddingBuffer, 0, paddingSize);
+
+        // Write the padding to the file
+        fwrite(paddingBuffer, 1, paddingSize, fp);
+
+        // Clean up
+        delete[] paddingBuffer;
+    }    
 }
 
 //===========================================================================
@@ -328,7 +365,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     size_t allocatedSize;
     size_t bufferPos = 0;
     size_t numRows = mxGetM(headerArray); 
-    headerBuffer = allocHeaderBuffer(12 + numRows, allocatedSize);
+    headerBuffer = allocHeaderBuffer(9 + numRows, allocatedSize);
   
     // Write initial part of the FITS header based on matrix type and size
     // SIMPLE, BITPIX, NAXIS, NAXIS1, NAXIS2, and EXTEND cards
@@ -338,7 +375,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     fillHeaderBufferFromCellArray(headerBuffer, bufferPos, headerArray);
     
     // Write the header buffer to the file
-    fwrite(headerBuffer, 1, bufferPos, fp);
+    fwrite(headerBuffer, 1, allocatedSize, fp);
     
     writeImageData(fp, imgMatrix);
     
@@ -347,5 +384,5 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     mxFree(filename);
     mxFree(headerBuffer);
     
-    mexPrintf("FITS file '%s' created successfully.\n", filename);
+    //mexPrintf("FITS file '%s' created successfully.\n", filename);
 }

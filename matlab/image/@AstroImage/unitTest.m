@@ -4,6 +4,40 @@ function Result = unitTest()
 
     %io.msgStyle(LogLevel.Test, '@start', 'AstroImage test started')
 
+
+    % @Chen 20/03/2024
+    LastFileName = 'C:\Ultrasat\LAST\LAST.01.08.04_20230125.192423.674_clear_143+41_010_001_001_sci_raw_Image_1.fits';
+    AI = AstroImage(LastFileName);
+
+    filename = 'temp_fits_last0.fits';
+    iterations = 10;
+    tic;
+    for i = 1:iterations
+        if isfile(filename)
+            delete(filename)
+        end
+        AI.write1(filename);
+    end
+    elapsedTime = toc;
+
+    % Calculate and display the average writing time
+    averageTime = elapsedTime / iterations;
+    fprintf('Average write time over %d iterations: %f seconds\n', iterations, averageTime);
+
+    filename = 'temp_fits_last1.fits';
+    iterations = 10;
+    tic;
+    for i = 1:iterations
+        io.fits.fastWriteFITS(filename, AI.Image, AI.Header(9:end, :));
+    end
+    elapsedTime = toc;
+
+    % Calculate and display the average writing time
+    averageTime = elapsedTime / iterations;
+    fprintf('Average write time over %d iterations: %f seconds\n', iterations, averageTime);
+
+    return;
+
     DataSampleDir = tools.os.getTestDataDir;
     PWD = pwd;
     cd(DataSampleDir);
