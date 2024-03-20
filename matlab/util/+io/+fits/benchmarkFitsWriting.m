@@ -2,7 +2,7 @@ function benchmarkFitsWriting(Obj)
     % Benchmark the writing of a FITS file with specific requirements
     %
 
-    iterations = 4000; 
+    iterations = 1; 
     width = 1700;
     height = 1700;
 
@@ -16,7 +16,7 @@ function benchmarkFitsWriting(Obj)
     %imageData = single(rand([height, width]));
 
     % Number of header fields
-    numFields = 200;
+    numFields = 0;  %200;
     
     % Initialize the cell array for header fields
     headerFields = cell(numFields, 1);
