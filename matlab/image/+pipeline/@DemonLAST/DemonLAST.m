@@ -1403,7 +1403,7 @@ classdef DemonLAST < Component
             
         end
     
-        function [Result,OutTable]=findAllVisits(Obj, Args)
+        function [Result,OutTable, FieldT]=findAllVisits(Obj, Args)
             % Going over all processed image dir and return a catalog of visits
             % Input  : - A pipeline.DemonLAST object in which the BasePath
             %            is directed toward the directory to probe.
@@ -1431,12 +1431,13 @@ classdef DemonLAST < Component
             %            .Keys - structure array of selected keyword
             %                   headers (in 'KeysFromHead') for each one of
             %                   the images in the visit.
+            %          - Table with entry per visit.
             % Author : Eran Ofek (Mar 2024)
             % Example: D=pipeline.DemonLAST; D.BasePath='/marvin/LAST.01.01.01';
             %          [Res,T]=D.findAllVisits;
             %
             %          % go over all dir tree
-            %          Res=[];for I=1:1:numel(DL), I, D.BasePath=fullfile(DL(1).folder,DL(1).name); [Res,T]=D.findAllVisits('Result',Res,'ReadHeader',0); end
+            %          Res=[];for I=1:1:numel(DL), I, D.BasePath=fullfile(DL(I).folder,DL(I).name); [Res,T]=D.findAllVisits('Result',Res,'ReadHeader',0); end
 
 
 
@@ -1488,6 +1489,11 @@ classdef DemonLAST < Component
                                
                                 Result(Ind).JD      = FileNames.getValFromFileName(DirF(1).name, 'JD');
                                 Result(Ind).BasePath = Obj.BasePath;
+                                Result(Ind).Year     = DirYear(Iyr).name;
+                                Result(Ind).Month    = DirMonth(Im).name;
+                                Result(Ind).Day      = DirDay(Id).name;
+                                Result(Ind).Visit    = DirVisit(Ivisit).name;
+
 
                                 if Args.ReadHeader
                                     Nfile = numel(DirF);
@@ -1513,6 +1519,7 @@ classdef DemonLAST < Component
             if nargout>1
                 Nr = numel(Result);
                 OutTable = zeros(Nr,3+4.*2+3.*3+1);
+                FieldT   = strings(Nr,1);
                 for Ind=1:1:Nr
                     % 14 col                
                     IndIm = 10;
@@ -1538,13 +1545,69 @@ classdef DemonLAST < Component
                                        MinLimM, MaxLimM, MedLimM,...
                                        MinBack, MaxBack, MedBack,...
                                        Airmass];
-
+                    FieldT(Ind) = string(Result(Ind).FieldID);
 
                 end
+                OutTable=[array2table(OutTable), table(FieldT)];
+                OutTable.Properties.VariableNames = {'MountNum','CamNum','JD','RA1','Dec1','RA2','Dec2','RA3','Dec3','RA4','Dec4','MinFWHM','MaxFWHM','MedFWHM','MinLimM','MaxLimM','MedLimM','MinBack','MaxBack','MedBack','Airmass','FieldID'};
+
+
+
             end
     
         end
     
+        function prepReferencesFromSingleBestDepthImage(Obj, Table, ResultFind, Args)
+            %
+            % Example: D.prepReferencesFromSingleBestDepthImage(OutTable, ResultFind);
+
+            arguments
+                Obj
+                Table
+                ResultFind
+           
+                Args.MinJD   = celestial.time.julday([1 3 2024]);
+                Args.RefDir  = '/raid/eran/references';
+                Args.Ncam    = 4;
+            end
+
+            F = Table.JD>Args.MinJD;
+            Table = Table(F,:);
+            ResultFind = ResultFind(F);
+
+            
+            Table.FieldID=str2double(Table.FieldID);
+            
+            UniqueFI = unique(Table.FieldID);
+            Nufi     = numel(UniqueFI);
+            for Iufi=1:1:Nufi
+                % for each camera
+                for Icam=1:1:Args.Ncam
+
+
+                    Isel = find(Table.FieldID==UniqueFI(Iufi) & Table.CamNum==Icam);
+                    [~,Ibest] = max(Table.MedLimM(Isel));
+                    Iref = Isel(Ibest);
+    
+                    if ~isempty(Iref)
+                        % copy the specific images to the reference images dir
+                        OriginPath = fullfile(ResultFind(Iref).BasePath, ResultFind(Iref).Year, ResultFind(Iref).Month, ResultFind(Iref).Day, 'proc', ResultFind(Iref).Visit);
+                        DestPath   = fullfile(Args.RefDir, ResultFind(Iref).FieldID);
+                  
+                        tools.os.cdmkdir(DestPath);
+    
+                        cd(OriginPath);
+                        system(sprintf('cp LAST*_coadd_Image_1.fits %s%s.',DestPath,filesep));
+                        system(sprintf('cp LAST*_coadd_Mask_1.fits %s%s.',DestPath,filesep));
+                        system(sprintf('cp LAST*_coadd_PSF_1.fits %s%s.',DestPath,filesep));
+                        system(sprintf('cp LAST*_coadd_Cat_1.fits %s%s.',DestPath,filesep));
+                    end
+                end
+            end
+
+
+
+        end
     end
     
     methods % ref image utilities

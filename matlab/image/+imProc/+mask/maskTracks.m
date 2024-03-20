@@ -1,4 +1,4 @@
-function [bwmask,lines]=maskTracks(AstroImg,Args)
+function [bwmask,segXY]=maskTracks(AstroImg,Args)
     % Detect satellite/airplane tracks as lines in the image with the Matlab
     %   stock Hough transform, and update the image mask.
     %   This function may give as false positive: bad lines/columns, blooming
@@ -24,11 +24,13 @@ function [bwmask,lines]=maskTracks(AstroImg,Args)
     %                      distance[default max(size(AstroImg.Image))/20 pixels]
     %            'MaxLines' - maximal number of Hough lines to consider [default 5]
     %            'MaskedTrackWidth' - width in pmask.
-    %                              mask. If not provided, computed by imUtil.psf.pseudoFWHM
+    %                         If not provided, computed by imUtil.psf.pseudoFWHM
     %
-    % Output: - An AstroImage in which the MaskData property is updated for each image of the input array
+    % Output: - the MaskData property is updated for in place in each AstroImage
+    %           of the input array
     %         - The last of the masks is also returned as optional output, for
     %           debugging
+    %         - extremes of the detected lines, in a structure
     % Author : Enrico Segre (Aug 2023)
     %
     % Example:
@@ -54,8 +56,11 @@ function [bwmask,lines]=maskTracks(AstroImg,Args)
         Args.MaskedTrackWidth      = [];
     end
 
+    nImg=numel(AstroImg);
+    segXY=struct('X',cell(1,nImg),'Y',cell(1,nImg));
+
     % for each AstroImage, find the streaks with the Hough transform
-    for k=1:numel(AstroImg)
+    for k=1:nImg
         % give default, image-size dependent values to all arguments whih
         %  are undefined
         if isempty(Args.MinLineLength)
@@ -85,6 +90,8 @@ function [bwmask,lines]=maskTracks(AstroImg,Args)
             lines = houghlines(HighPix,T,R,P,'FillGap',FillGap,'MinLength',MinLength);
             L1=vertcat(lines.point1);
             L2=vertcat(lines.point2);
+            segXY(k).X=[L1(:,1),L2(:,1)]';
+            segXY(k).Y=[L1(:,2),L2(:,2)]';            
             % plot([L1(:,1),L2(:,1)]',[L1(:,2),L2(:,2)]')
         else
             L1=[];

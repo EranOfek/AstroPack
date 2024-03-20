@@ -3,8 +3,6 @@ function K=sersic(Par,SizeXY,PosXY)
 % Package: +imUtil.kernel2
 % Input  : - A matrix with three columns containing the Sersic parameters
 %            [EffectiveRadius, n, k].
-
-
 %           (Sigma) A one column or three column matrix.
 %            One row per Gaussian template (in the output cube).
 %            The columns are: (SigmaX, [SigmaY, Rho]]).
