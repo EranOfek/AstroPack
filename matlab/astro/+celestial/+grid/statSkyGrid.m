@@ -28,7 +28,7 @@ function Stat = statSkyGrid(GridData, StatGridFile, Args)
     %          xlabel 'RA_{ec}, deg'; ylabel 'Dec_{ec}, deg'; title 'A_{USat} averaged over R = 7 deg' 
     arguments
         GridData  = '~/matlab/data/ULTRASAT/extinction_grid_ec_ULTRASAT.mat';
-        StatGridFile = '~/matlab/data/ULTRASAT/healpix0.2deg.txt';
+        StatGridFile = '~/matlab/data/ULTRASAT/healpix_grid_nside_128_npix_196608_pixarea_0.21_deg.txt';
         Args.SkyPos  = [120 7]; % deg
         Args.Rad     = 7;       % deg
         Args.StatFunc = @mean;  % or any other function with vector output
