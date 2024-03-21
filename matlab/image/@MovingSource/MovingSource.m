@@ -1209,11 +1209,15 @@ classdef MovingSource < Component
             %                   MovingSource object in which the asteroid
             %                   name appear.
             % Author : Eran Ofek (Mar 2024)
+            % Example: R=MP.findUniqueAsteroidsByNames
             
             SummaryTable = Obj.summary();
             
             AstNames       = SummaryTable.Desig;
             [UniqueAstNames, IA] = unique(AstNames);
+            Fne            = ~isempty(UniqueAstNames);
+            UniqueAstNames = UniqueAstNames(Fne);
+
             Nun            = numel(UniqueAstNames);
             Result         = struct('IinInput',cell(Nun,1), 'UniqueAstName',cell(Nun,1), 'Ind',cell(Nun,1));
             for Iun=1:1:Nun
@@ -1225,7 +1229,7 @@ classdef MovingSource < Component
             
         end
         
-        function Result=calcPosCommonTime(Obj, JD0)
+        function [Result,Common,UniqueFlag]=calcPosCommonTime(Obj, JD0, Args)
             % Return a table of MovingSource position projected at a common time.
             % Input  : - A MovingSource object.
             %          - (JD0) The common JD at which the RA/Dec will be
@@ -1234,15 +1238,29 @@ classdef MovingSource < Component
             % Output : - A table (line per source) with the following
             %            columns:
             %            'JD','RA','Dec','ProjRA','ProjDec','PM_RA','PM_Dec'
+            %          - Structure array, eith element per MovingSource
+            %            element and the following fields:
+            %            .Flag - A vectof of flags pointing to possible
+            %                   common sources.
+            %          - A vector of logical flags indicating if the input
+            %            MovingSource entry is identified as the first unique
+            %            apperance of an asteroid.
+            %
             % Author : Eran Ofek (Mar 2024)
+            % Example: [R,C,U]=MP.calcPosCommonTime
             
             
             arguments
                 Obj
-                JD0     = [];
+                JD0                    = [];
+                Args.RadiusCommon      = 10;
+                Args.RadiusCommonUnits = 'arcsec';
             end
-            
-            if isemprt(Args.JD0)
+            RAD = 180./pi;
+
+            RadiusCommonRad = convert.angular(Args.RadiusCommonUnits, 'rad', Args.RadiusCommon);  % [rad]
+
+            if isempty(JD0)
                 JD0 = Obj(1).JD;
             end
             
@@ -1267,7 +1285,7 @@ classdef MovingSource < Component
             AllJD  = [Obj.JD].';
             
             % Project RA, Dec to AllJD(Iobj)
-            DeltaJD  = AllJD - Args.JD0;
+            DeltaJD  = AllJD - JD0;
             if IsAngularTime
                 ProjRA = RA + PM_RA.*DeltaJD;
             else
@@ -1275,10 +1293,31 @@ classdef MovingSource < Component
             end
             ProjDec = Dec + PM_Dec.*DeltaJD;
 
-            Result = array2table([JD, RA, Dec, ProjRA, ProjDec, PM_RA, PM_Dec]);
+            Result = array2table([AllJD, RA, Dec, ProjRA, ProjDec, PM_RA, PM_Dec]);
             Result.Properties.VariableNames = {'JD','RA','Dec','ProjRA','ProjDec','PM_RA','PM_Dec'};
             Result.Properties.VariableUnits = {'day','deg','deg','deg','deg',Obj(1).PMUnits,Obj(1).PMUnits};
             
+            % Build list of common candidates
+            ConvFactor = convert.angular(Obj(1).CooUnits, 'rad');
+            VecRA      = Result.RA.*ConvFactor;
+            VecDec     = Result.Dec.*ConvFactor;
+            % Matrix of all dist combinations
+            DistMat    = celestial.coo.sphere_dist_fast(VecRA, VecDec, VecRA.', VecDec.');
+            % populated the diagonal with NaNs
+            DistMat    = diag(nan(Nobj,1)) + DistMat;
+            % 1<NaN return false, so the diagonal is not selected
+            FlagMat = DistMat<RadiusCommonRad;
+            Common  = struct('Flag',cell(Nobj,1));
+            UniqueFlag = true(Nobj,1);
+            for Iobj=1:1:Nobj
+                Common(Iobj).Flag = FlagMat(:,Iobj);
+                if any(Common(Iobj).Flag)
+                    IndRem = find(Common(Iobj).Flag);
+                    IndRem = IndRem(IndRem>Iobj);
+                    UniqueFlag(IndRem) = false;
+                end
+            end
+
         end
 
     end

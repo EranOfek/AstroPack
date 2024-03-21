@@ -1571,13 +1571,13 @@ classdef DemonLAST < Component
                 Args.Ncam    = 4;
             end
 
-            F = Table.JD>Args.MinJD;
+            Table.FieldID=str2double(Table.FieldID);
+            
+            F = Table.JD>Args.MinJD & ~isnan(Table.FieldID);
+            
             Table = Table(F,:);
             ResultFind = ResultFind(F);
 
-            
-            Table.FieldID=str2double(Table.FieldID);
-            
             UniqueFI = unique(Table.FieldID);
             Nufi     = numel(UniqueFI);
             for Iufi=1:1:Nufi
