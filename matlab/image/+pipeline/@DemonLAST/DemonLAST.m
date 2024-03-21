@@ -1556,7 +1556,7 @@ classdef DemonLAST < Component
             end
     
         end
-    
+        
         function prepReferencesFromSingleBestDepthImage(Obj, Table, ResultFind, Args)
             %
             % Example: D.prepReferencesFromSingleBestDepthImage(OutTable, ResultFind);

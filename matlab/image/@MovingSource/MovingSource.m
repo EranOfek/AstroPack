@@ -863,14 +863,26 @@ classdef MovingSource < Component
             %            'nearStaticSrcArgs' - A cell array of additional
             %                   arguments to pass to the nearStaticSrc
             %                   method. Default is {}.
+            %            'MaxDistExtended' - Max dist [pix] for selection
+            %                   of extended objects. Default is 5.
+            %            'ThreshExtendedFAP' - Threshold fraction of
+            %                   'ExtendedFAP' in psfFitExtended in order to
+            %                   declare the source is extended.
             %            'Verbose' - Vebosity. Default is true.
             % Output : - Structure cotaining the following fields:
-            %            .Flag
+            %            .Flag - Structure of Flags details, including:
+            %                   .Bit 
+            %                   .IsKApos
+            %                   .IsKAmag
+            %                   .NearSrc
             %            .FlagKnownGoodCand
             %            .FlagUnknownGoodCand
             %            .FlagVariable
             %            .FlagBadCand
+            %            .FlagExtended 
             %
+            % Author : Eran Ofek (Mar 2024)
+            % Example: RR=MP.selectGoodCand
 
             arguments
                 Obj
@@ -881,6 +893,9 @@ classdef MovingSource < Component
 
                 Args.selectByBitMaskArgs cell = {};
                 Args.nearStaticSrcArgs cell   = {};
+                Args.psfFitExtended cell      = {};
+                Args.MaxDistExtended          = 5;   % [pix]
+                Args.ThreshExtendedFAP        = 0.3;
 
                 Args.Verbose logical          = true;
             end
@@ -910,10 +925,15 @@ classdef MovingSource < Component
 
             Result.Flag         = Flag;
 
+            % search extended sources
+            ResultExt = Obj.psfFitExtended(Args.psfFitExtended{:});
+            
+            Result.Extended = [ResultExt.FracExtended].'>Args.ThreshExtendedFAP;
+
             Result.FlagKnownGoodCand   = Flag.Bit & Flag.IsKApos & Flag.IsKAmag & Flag.NearSrc;
             Result.FlagUnknownGoodCand = Flag.Bit & ~Flag.IsKApos & Flag.NearSrc;
             Result.FlagVariable        = Flag.Bit & Flag.IsKApos & ~Flag.IsKAmag & Flag.NearSrc;
-            Result.FlagBadCand         = ~Result.FlagKnownGoodCand & ~Result.FlagVariable;
+            Result.FlagBadCand         = ~Result.FlagKnownGoodCand & ~Result.FlagUnknownGoodCand & ~Result.FlagVariable;
 
         end
 
@@ -1287,6 +1307,9 @@ classdef MovingSource < Component
             %                   alarm that the object is extended.
             %                   Assuming \chi^2 statistics.
             %                   Default is 0.01.
+            %            'MinDistPix' - Max. distance of source from stamp
+            %                   center. If there is no source within this
+            %                   distance then no source will be selected.
             % Output : - A structure array with element per MovingSource
             %            element. Fields are:
             %            .Stamp - A structure array with element per stamp,
@@ -1294,6 +1317,8 @@ classdef MovingSource < Component
             %               .DistSrcCenter - A vector of distance (pix) of
             %                   source from image center.
             %               .Istamp - Index of stamp.
+            %               .Imin - Index of source with min. dist. from
+            %                   stamp center.
             %               .Chi2 - An array of \chi^2. Line per source.
             %                   Columns for [actual PSF, extended PSFs...]
             %               .DeltaChi2 - Max \Delta\chi^2.
@@ -1301,11 +1326,12 @@ classdef MovingSource < Component
             %                   original PSF...]
             %               .ExtendedFAP - False alaram probability for
             %                   being an extended object.
+            %            .MeanDist - Vector of Mean over DistSrcCenter.
+            %            .Imin - Index of source selected (in MeanDist).
             %            .MeanDeltaChi2 - Mean of \Delta\chi^2 per source.
             %            .MedDeltaChi2 - Median of \Delta\chi^2 per source.
             %            .FracExtended - Fraction of events in which the
-            %            .ExtendedFAP is smaller then the 'ThreshProb'
-            %                   argument.
+            %
             % Author : Eran Ofek (Mar 2024)
             % Example: RR=MP.psfFitExtended
             
@@ -1315,6 +1341,7 @@ classdef MovingSource < Component
                 Args.psfFirPhotArgs cell    = {};
                 Args.FitRadius              = 3;
                 Args.ThreshProb             = 0.01;
+                Args.MaxDistPix             = 5;
             end
         
             Nextend = size(Args.SersicPar,1);
@@ -1325,8 +1352,9 @@ classdef MovingSource < Component
                 Nstamp = numel(Obj(Iobj).Stamps);
                 IndStamp = 0;
                 for Istamp=1:1:Nstamp
+                    %[Iobj, Istamp]
                     if ~isempty(Obj(Iobj).Stamps(Istamp).Image)
-                        Obj(Iobj).Stamps(Istamp) = imProc.background.background(Obj(Iobj).Stamps(Istamp));
+                        Obj(Iobj).Stamps(Istamp) = imProc.background.background(Obj(Iobj).Stamps(Istamp), 'SubSizeXY',[]);
                         [~, ResultPSF] = imProc.sources.psfFitPhot(Obj(Iobj).Stamps(Istamp), Args.psfFirPhotArgs{:}, 'FitRadius',Args.FitRadius);
                         
                         PSF = Obj(Iobj).Stamps(Istamp).PSFData.getPSF();
@@ -1342,18 +1370,33 @@ classdef MovingSource < Component
                         % stamp image size
                         [NY, NX] = Obj(Iobj).Stamps(Istamp).sizeImage;
                         [X, Y] = Obj(Iobj).Stamps(Istamp).CatData.getXY();
-                        Result(Iobj).Stamp(IndStamp).DistSrcCenter = sqrt((X-NX.*0.5).^2 + (Y-NY.*0.5).^2);
-
-                        Result(Iobj).Stamp(IndStamp).Istamp = Istamp;
-                        Result(Iobj).Stamp(IndStamp).Chi2 = [ResultPSF.Chi2, [ResultExt(:).Chi2]];
-                        [MinChi2, MinInd] = min(Result(Iobj).Stamp(IndStamp).Chi2,[],2);
-                        Result(Iobj).Stamp(IndStamp).DeltaChi2 = Result(Iobj).Stamp(IndStamp).Chi2(:,1)-MinChi2;
-                        Result(Iobj).Stamp(IndStamp).MinInd    = MinInd;
-                        Result(Iobj).Stamp(IndStamp).ExtendedFAP = 1-chi2cdf(Result(Iobj).Stamp(IndStamp).DeltaChi2, FitDof);
+                        DistAll = sqrt((X-NX.*0.5).^2 + (Y-NY.*0.5).^2);
+                        [DistMin,Imin] = min(DistAll);
+                        Result(Iobj).Stamp(IndStamp).DistSrcCenter = DistMin;
+                        Result(Iobj).Stamp(IndStamp).Imin          = Imin;
+                        Result(Iobj).Stamp(IndStamp).Istamp        = Istamp;
+                        Result(Iobj).Stamp(IndStamp).Chi2          = [ResultPSF.Chi2, [ResultExt(:).Chi2]];
                         
+                        if DistMin<Args.MaxDistPix
+                            % nearest to center selected
+                                                  
+                            [MinChi2, MinInd]                          = min(Result(Iobj).Stamp(IndStamp).Chi2(Imin,:),[],2);
+                            
+                            Result(Iobj).Stamp(IndStamp).DeltaChi2     = Result(Iobj).Stamp(IndStamp).Chi2(Imin,1)-MinChi2;
+                            Result(Iobj).Stamp(IndStamp).MinChi2Ind    = MinInd;
+                            Result(Iobj).Stamp(IndStamp).ExtendedFAP   = 1-chi2cdf(Result(Iobj).Stamp(IndStamp).DeltaChi2, FitDof);
+                        else
+                            Result(Iobj).Stamp(IndStamp).DeltaChi2   = NaN;
+                            Result(Iobj).Stamp(IndStamp).MinChi2Ind  = NaN;
+                            Result(Iobj).Stamp(IndStamp).ExtendedFAP = NaN;
+                        end
+
                         %Result(Iobj).Stamp(IndStamp).
                     end % if ~isempty(Obj(Iobj).Stamps(Istamp).Image)
                 end % for Istamp=1:1:Nstamp
+                Result(Iobj).MeanDist      = mean([Result(Iobj).Stamp(:).DistSrcCenter],2);
+                [Result(Iobj).MinDist, Result(Iobj).Imin] = min(Result(Iobj).MeanDist);
+
                 Result(Iobj).MeanDeltaChi2 = mean([Result(Iobj).Stamp(:).DeltaChi2],2);
                 Result(Iobj).MedDeltaChi2  = median([Result(Iobj).Stamp(:).DeltaChi2],2);
                 Result(Iobj).FracExtended  = sum([Result(Iobj).Stamp(:).ExtendedFAP]<Args.ThreshProb, 2)./IndStamp;
