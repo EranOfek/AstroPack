@@ -1,3 +1,12 @@
+# FITS
+
+## cfitsio
+
+https://github.com/HEASARC/cfitsio
+
+
+
+##  format info - Eran 2023
 
 2880 bytes data block
 
@@ -35,3 +44,4 @@ logical T or F in Byte 30
 integer - right justified in bytes 11 to 30
 
 real -  right justified in bytes 11 to 30
+
