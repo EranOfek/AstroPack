@@ -1,4 +1,4 @@
-function benchmarkFitsWriting_matlab(Obj)
+function test_cfitsio_WriteTable(Obj)
     % Benchmark the writing of a FITS file with specific requirements
     %
 

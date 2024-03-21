@@ -1074,11 +1074,6 @@ classdef FITS < handle
                 Args.SanifyPath logical       = true;
             end
             
-            % @Chen 20/03/2024
-            %io.fits.mex.mex_fast_write_fits(FileName, Image, Args.Header.Data);
-            %Result = true;
-            %return;
-
             HeaderField = HEAD.HeaderField;
             
             % Set FITS DataType
