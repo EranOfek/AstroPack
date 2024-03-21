@@ -328,7 +328,10 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     end
 
     cd(Args.OutDir)
-    StitchedImage.write1(CPSOutputName); % write the image and header to a FITS file
+%     StitchedImage.write1(CPSOutputName); % write the image and header to a FITS file
+    FITS.write(StitchedImage.Image, CPSOutputName, 'Header',StitchedImage.HeaderData.Data,...
+                    'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);
+
     
     cprintf('hyper','Mosaic constructed, see the output AstroImage and FITS image file.\n');    
     fprintf('%s\n',CPSOutputName(2:end));
