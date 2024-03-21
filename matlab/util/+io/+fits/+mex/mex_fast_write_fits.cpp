@@ -6,7 +6,8 @@
 #include <cstring>
 #include <cmath>
 #include <algorithm>
-//#include "matrix.h" // For mxGetClassID, etc.
+#include <cstdint>
+
 
 const size_t cardSize = 80;     // Each FITS header card is 80 bytes
 const size_t blockSize = 2880;  // FITS headers are allocated in blocks of 2880 bytes
@@ -280,7 +281,27 @@ void convertFloatBufferToEndian(float* buffer, size_t numElements)
 
 //===========================================================================
 
+// Transpose and change endian
+template<typename T, typename SwapFunction>
+void* reorderMatConvert(const T* dataPtr, size_t rows, size_t cols, SwapFunction swapFunc) 
+{
+    size_t numElements = rows * cols;
+    T* tempBuffer = static_cast<T*>(mxMalloc(numElements * sizeof(T)));
 
+    // Reorder data from column-major to row-major and convert to big-endian
+    for (size_t col = 0; col < cols; ++col) {
+        for (size_t row = 0; row < rows; ++row) {
+            size_t srcIndex = col * rows + row; // MATLAB's column-major index
+            size_t dstIndex = row * cols + col; // Desired row-major index
+            tempBuffer[dstIndex] = swapFunc(dataPtr[srcIndex]);
+        }
+    }
+    
+    return tempBuffer;
+}
+
+
+// Transpose - Unused (testing only)
 template<typename T>
 void* reorderMat(const T* dataPtr, size_t rows, size_t cols) 
 {
@@ -300,25 +321,7 @@ void* reorderMat(const T* dataPtr, size_t rows, size_t cols)
 }
 
 
-// Function to reorder and convert data to big-endian format
-template<typename T, typename SwapFunction>
-void* reorderMatConvert(const T* dataPtr, size_t rows, size_t cols, SwapFunction swapFunc) 
-{
-    size_t numElements = rows * cols;
-    T* tempBuffer = static_cast<T*>(mxMalloc(numElements * sizeof(T)));
-
-    // Reorder data from column-major to row-major and convert to big-endian
-    for (size_t col = 0; col < cols; ++col) {
-        for (size_t row = 0; row < rows; ++row) {
-            size_t srcIndex = col * rows + row; // MATLAB's column-major index
-            size_t dstIndex = row * cols + col; // Desired row-major index
-            tempBuffer[dstIndex] = swapFunc(dataPtr[srcIndex]);
-        }
-    }
-    
-    return tempBuffer;
-}
-
+// Change endian - Unused (testing only)
 template<typename T, typename SwapFunction>
 void* Convert(const T* dataPtr, size_t rows, size_t cols, SwapFunction swapFunc) 
 {
@@ -333,7 +336,7 @@ void* Convert(const T* dataPtr, size_t rows, size_t cols, SwapFunction swapFunc)
     return tempBuffer;
 }
 
-
+//===========================================================================
 
 void writeImageData(FILE* fp, const mxArray* imgMatrix) 
 {

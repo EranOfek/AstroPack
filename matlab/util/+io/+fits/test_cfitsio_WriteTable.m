@@ -1,73 +1,47 @@
-function test_cfitsio_WriteTable(Obj)
-    % Benchmark the writing of a FITS file with specific requirements
-    %
+function test_cfitsio_WriteTable()
 
-    iterations = 1; 
-    width = 1700;
-    height = 1700;
-
-    % Generate a matrix with a running index that wraps at 32000
-    imageData = reshape(mod(int16(0:(height*width-1)), 32000) + 1, [height, width]);
-    %imageData = reshape(single(1:height*width), [height, width]);
-
-    % Create image data
-    %imageData = int16(zeros([height, width]));
-    %imageData = int16(rand([height, width]));
-    %imageData = single(rand([height, width]));
-
-    % Number of header fields
-    numFields = 200;
+    % Define the name of the FITS file to create
+    fitsFileName = 'mixed_data_table.fits';
     
-    % Prepare cell array with header fields
-    headerFields = cell(numFields, 3);
-    for n = 1:numFields
-        headerFields{n, 1} = sprintf('FLD%03d', n);
-        headerFields{n, 2} = sqrt(single(n));
-        headerFields{n, 3} = [];  %sprintf('%s', '');
-    end
-
-    averageTime = 0;
-    tic;
-    for i = 1:iterations
-        filename = 'temp_fits_file_matlab.fits';
-        if isfile(filename)
-            delete(filename)
-        end
-        createAndWriteFits(filename, width, height, imageData, headerFields);
-    end       
-    elapsedTime = toc;
-    averageTime = averageTime + elapsedTime;
-
-    % Calculate and display the average writing time
-    averageTime = averageTime / iterations;
-    fprintf('Average write time over %d iterations: %f seconds\n', iterations, averageTime);
-end
-
-
-function createAndWriteFits(filename, width, height, imageData, headerFields)
-    % Create and write a FITS file with a specific header and data size
-    import matlab.io.*
-
-    % Define data size and dimensions
-    numKeys = size(headerFields, 1);
-
-    % Create a new FITS file
-    fptr = fits.createFile(filename);
-
-    % Create primary array (image)
-    fits.createImg(fptr,'short', [height width]);
-    %fits.createImg(fptr,'single',[height width]);
-    
-    for i = 1:numKeys
-        key = headerFields{i, 1};
-        value = headerFields{i, 2};
-        fits.writeKey(fptr, key, value);
+    % Check if the file already exists and delete it to avoid errors
+    if exist(fitsFileName, 'file') == 2
+        delete(fitsFileName);
     end
     
-    % Write the image data
-    fits.writeImg(fptr, imageData);
+    % Define data for 10 rows with various types using running numbers
+    % Integer column (int32)
+    intCol = (1:10)'; % Running index from 1 to 10
+    % Float column (single) - Increasing by 1.5 for each row
+    floatCol = single((1.5:1.5:15)');
+    % Double precision column - Increasing by 2.5 for each row
+    doubleCol = (2.5:2.5:25)';
+    % Logical column (using int16 to represent boolean values, 0 or 1)
+    % Alternating 0 and 1 for simplicity
+    logicalCol = int16(mod(1:10, 2)'); % This will create a pattern of 1, 0, 1, 0, ...
+    % String column (character array, fixed length strings are easier to handle)
+    % Create strings that are easily identifiable
+    stringCol = repmat(' ', 10, 10); % Initialize with spaces
+    for i = 1:10
+        stringCol(i, :) = sprintf('Str%07d', i);
+    end
+    
+    % Create a FITS file and add a binary table extension
+    fits.createFile(fitsFileName);
+    fits.createTbl(fitsFileName, 'binary', {'IntCol', 'FloatCol', 'DoubleCol', 'LogicalCol', 'StringCol'}, ...
+                   {'1J', '1E', '1D', '1L', '10A'}, 'Mixed Data Table');
+    
+    % Write the columns
+    fits.writeCol(fitsFileName, 1, 1, intCol);
+    fits.writeCol(fitsFileName, 2, 1, floatCol);
+    fits.writeCol(fitsFileName, 3, 1, doubleCol);
+    fits.writeCol(fitsFileName, 4, 1, logicalCol);
+    fits.writeCol(fitsFileName, 5, 1, stringCol, 'T'); % The 'T' flag indicates text
+    
+    % Close the FITS file
+    fits.closeFile(fitsFileName);
+    
+    % Display a success message
+    fprintf('Mixed data table successfully written to %s\n', fitsFileName);
 
-    % Close the file
-    fits.closeFile(fptr);
 end
 

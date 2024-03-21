@@ -5,6 +5,22 @@
 https://github.com/HEASARC/cfitsio
 
 
+## FITS Table file structure
+
+
+File size: 14400 (= 5 * 2880)
+
+Offset	Hex			Data
+------	----		-------
+0		0x00000		Main header
+2880	0x0b470		Table header
+5760	0x01680		Table data
+8640	0x021c0		Image header
+11520	0x02d00		Image data
+
+
+
+
 
 ##  format info - Eran 2023
 

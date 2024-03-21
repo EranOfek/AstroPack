@@ -6,13 +6,13 @@ function Result = unitTest()
 
 
     % @Chen 20/03/2024
-    %LastFileName = 'C:\Ultrasat\LAST\LAST.01.08.04_20230125.192423.674_clear_143+41_010_001_001_sci_raw_Image_1.fits';
+    LastFileName = 'C:\Ultrasat\LAST\LAST.01.08.04_20230125.192423.674_clear_143+41_010_001_001_sci_raw_Image_1.fits';
 
-    LastFileName = 'C:\Ultrasat\LAST\LAST.01.08.03_20230616.223255.489_clear_346+79_020_001_024_sci_proc_Image_1.fits';
+    %LastFileName = 'C:\Ultrasat\LAST\LAST.01.08.03_20230616.223255.489_clear_346+79_020_001_024_sci_proc_Image_1.fits';
     AI = AstroImage(LastFileName);
 
     filename = 'temp_fits_last0.fits';
-    iterations = 100;
+    iterations = 10;
     tic;
     for i = 1:iterations
         if isfile(filename)
@@ -24,10 +24,10 @@ function Result = unitTest()
 
     % Calculate and display the average writing time
     averageTime = elapsedTime / iterations;
-    fprintf('FIT: Average write time over %d iterations: %f seconds\n', iterations, averageTime);
+    fprintf('write1: Average write time over %d iterations: %f seconds\n', iterations, averageTime);
 
     filename = 'temp_fits_last1.fits';
-    iterations = 100;
+    iterations = 10;
     tic;
     for i = 1:iterations
         io.fits.fastWriteFITS(filename, AI.Image, AI.Header(9:end, :));
