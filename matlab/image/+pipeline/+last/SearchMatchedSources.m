@@ -182,7 +182,7 @@ classdef SearchMatchedSources < Component
     end
 
 
-    methods
+    methods % variable stars search and utilities
         function [Cand, Summary] = findVariableAll(Obj, Args)
             % Go over all files in the AllConsecutive property and search for variable sources.
             %   The function works by making the following calls:
@@ -542,6 +542,36 @@ classdef SearchMatchedSources < Component
             Obj.MS.Data.(Args.MagField)(BadFlags) = NaN;
         end
 
+    end
+    
+    methods % orphans
+        function searchOrphans(Obj, Args)
+            %
+            
+            arguments
+                Obj
+                Args.MinNdet        = 3;
+                Args.ThreshDiffSN   = 0;
+                Args.FieldSN        = 'SN_2';
+                Args.MinSN          = 8;
+                Args.BadFlags       = {'CR_DeltaHT','NaN','NearEdge'};
+                
+            end
+            
+            % populate SrcData
+            
+            % Search for sources with <=Args.MinNdet detections
+            
+            % Remove delta functions based on SN_1-SN_2>Args.ThreshDiffSN
+            
+            % Select sources with SN>Args.MinSN
+            
+            % clean bad flags in Args.BadFlags
+            
+            % Return a list of orphans
+            
+        end
+        
     end
     
     methods % plot
