@@ -1231,10 +1231,23 @@ classdef MovingSource < Component
         
         function [Result,Common,UniqueFlag]=calcPosCommonTime(Obj, JD0, Args)
             % Return a table of MovingSource position projected at a common time.
+            %   For each source, its position is projected to some common
+            %   time origin. Sources which have common origin + their
+            %   observations were taken within a 'MaxTimeDiff' time window
+            %   are decalred as common sources.
             % Input  : - A MovingSource object.
             %          - (JD0) The common JD at which the RA/Dec will be
             %            projected. If empty, then use the JD in the 1st
             %            element of the input MovingSource object.
+            %          * ...,key,val,...
+            %            'RadiusCommon' - Max. radius between the projected
+            %                   positions in order to declare a common source.
+            %                   Default is 10.
+            %            'RadiusCommonUnits' - RadiusCommon units.
+            %                   Default is 'arcsec'.
+            %            'MaxTimeDiff' - Max. time difference [day] between the
+            %                   observations in order to declare a common source.
+            %                   Default is 3./1440.
             % Output : - A table (line per source) with the following
             %            columns:
             %            'JD','RA','Dec','ProjRA','ProjDec','PM_RA','PM_Dec'
@@ -1255,6 +1268,7 @@ classdef MovingSource < Component
                 JD0                    = [];
                 Args.RadiusCommon      = 10;
                 Args.RadiusCommonUnits = 'arcsec';
+                Args.MaxTimeDiff       = 3./1440;
             end
             RAD = 180./pi;
 
@@ -1305,8 +1319,11 @@ classdef MovingSource < Component
             DistMat    = celestial.coo.sphere_dist_fast(VecRA, VecDec, VecRA.', VecDec.');
             % populated the diagonal with NaNs
             DistMat    = diag(nan(Nobj,1)) + DistMat;
+            MatDeltaJD = AllJD(:) - AllJD(:).';
             % 1<NaN return false, so the diagonal is not selected
-            FlagMat = DistMat<RadiusCommonRad;
+            % select sources with common positions take at similar epochs
+            FlagMat = DistMat<RadiusCommonRad &  abs(MatDeltaJD)<Args.MaxTimeDiff;
+            
             Common  = struct('Flag',cell(Nobj,1));
             UniqueFlag = true(Nobj,1);
             for Iobj=1:1:Nobj
