@@ -557,6 +557,7 @@ classdef SearchMatchedSources < Component
             %            element, and the following fields:
             %            .Ind - Vector of indices of orphan candidates.
             %            .Norphan - Number of orphans.
+            %            .JD - Vector of mean JD per orphan.
             %            .RA - Vector of mean RA per orphan.
             %            .Dec - Vector of mean Dec per orphan.
             %            .SN - Vector of mean SN per orphan.
@@ -610,12 +611,14 @@ classdef SearchMatchedSources < Component
                 if Args.OnlyConsecutive
                     % flag indicating if detections of source are consecutive
                     Fcons    = false(1, Obj.MS(Iobj).Nsrc);
+                    MeanJD   = nan(1, Obj.MS(Iobj).Nsrc);
                     for Icand=1:1:Ncand
                         % check that detections are consecutive
                         [ConsList] = tools.find.findListsOfConsecutiveTrue(Fcand(:,Indet(Icand)));
                         if numel(ConsList)==1
                             % all detections are consecutive
                             Fcons(Indet(Icand)) = true;
+                            MeanJD(Indet(Icand)) = Args.MeanFun(Obj.MS(Iobj).JD(ConsList{1}), Args.MeanFunArgs{:});
                         %else
                             % non consecutive detections
                         end
@@ -629,6 +632,9 @@ classdef SearchMatchedSources < Component
                 % Return a list of orphans
                 Result(Iobj).Ind     = find(Fcons);
                 Result(Iobj).Norphan = numel(Result(Iobj).Ind);
+                
+                % mean orphan JD
+                Result(Iobj).JD      = MeanJD(Result(Iobj).Ind);
                 
                 % mean Orphan position
                 Result(Iobj).RA      = Obj.MS(Iobj).SrcData.(Args.FieldRA)(Result(Iobj).Ind);
