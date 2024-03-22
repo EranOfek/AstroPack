@@ -557,6 +557,7 @@ classdef SearchMatchedSources < Component
             %            element, and the following fields:
             %            .Ind - Vector of indices of orphan candidates.
             %            .Norphan - Number of orphans.
+            %            .Ndet - Vector of number of detections.
             %            .JD - Vector of mean JD per orphan.
             %            .RA - Vector of mean RA per orphan.
             %            .Dec - Vector of mean Dec per orphan.
@@ -632,6 +633,7 @@ classdef SearchMatchedSources < Component
                 % Return a list of orphans
                 Result(Iobj).Ind     = find(Fcons);
                 Result(Iobj).Norphan = numel(Result(Iobj).Ind);
+                Result(Iobj).Ndet    = Ndet(Result(Iobj).Ind);
                 
                 % mean orphan JD
                 Result(Iobj).JD      = MeanJD(Result(Iobj).Ind);
