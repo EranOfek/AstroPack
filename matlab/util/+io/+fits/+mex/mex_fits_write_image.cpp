@@ -13,7 +13,7 @@
 #include <cstdint>
 
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat"
+#pragma GCC diagnostic ignored "-Wformat-truncation"
 #pragma GCC diagnostic ignored "-Wformat-extra-args"
 
 const size_t cardSize = 80;     // Each FITS header card is 80 bytes
