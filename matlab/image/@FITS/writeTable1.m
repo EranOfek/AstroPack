@@ -54,6 +54,7 @@ function Result = writeTable1(Table, FileName, Args)
         Args.ColUnits       = [];
         Args.HeaderHDUnum   = [];
         Args.Header         = {};
+        Args.UseMex         = false;
     end
     
     % sanify the file name so that it contain the absolute path
@@ -148,6 +149,14 @@ function Result = writeTable1(Table, FileName, Args)
             Args.HeaderHDUnum = Args.HDUnum + 1;
         end
         
+        % Use mex function to append the image header, file must be close
+        if Args.UseMex
+            matlab.io.fits.closeFile(Fptr);
+            Result = (sign(Fptr) == 1);
+            io.fits.mex.mex_fits_table_write_image_header(Header, FileName);
+            return;
+        end
+
         matlab.io.fits.movAbsHDU(Fptr, Args.HeaderHDUnum);
 
         % create empty Image

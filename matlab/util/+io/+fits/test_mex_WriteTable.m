@@ -1,10 +1,9 @@
-function test_cfitsio_WriteTable()
-    % Test writing FITS table with additional image header
-
-    import matlab.io.*    
+function test_mex_WriteTable()
+    import matlab.io.*
+    
     
     % Define the name of the FITS file to create
-    FileName = 'temp_fits_table_2.fits';    
+    FileName = 'temp_fits_mex_table_1.fits';
     
     % Delete the file if it already exists to start fresh
     if exist(FileName, 'file')
@@ -28,28 +27,22 @@ function test_cfitsio_WriteTable()
     fits.writeCol(fptr, 1, 1, Col1);
     fits.writeCol(fptr, 2, 1, Col2);
     fits.writeCol(fptr, 3, 1, Col3);
-        
-    % Create an empty image
-    Img = true;
-    numFields = 300;
-    if Img
-        ImageSize = [0, 0]; % An empty image
-        Image = [0];
-        fits.createImg(fptr, 'single', size(Image));  %ImageSize);
-        fits.writeImg(fptr, Image);
-        
-        % Add header cards with specific names and values
-        %fits.writeKey(fptr, 'NAXES', 2, '');
-        %fits.writeKey(fptr, 'NAXIS1', 1, '');
-        %fits.writeKey(fptr, 'NAXIS2', 1, '');
-        for n=1:numFields
-            fits.writeKey(fptr, sprintf('FLD%03d', n), n);  %'Comment'
-        end
-    end
-        
+    
     % Close the FITS file
     fits.closeFile(fptr);
-    
+
+    % Prepare cell array with header fields
+    numFields = 300;
+    headerFields = cell(numFields, 3);
+    for n = 1:numFields
+        headerFields{n, 1} = sprintf('FLD%03d', n);
+        headerFields{n, 2} = n;  %sqrt(1.0/single(n));
+        headerFields{n, 3} = [];  %Comment';
+    end
+
+    io.fits.mex.mex_fits_table_write_image_header(headerFields, FileName);
+
     % Display a completion message
     disp('FITS file with binary table and header has been created.');
 end
+
