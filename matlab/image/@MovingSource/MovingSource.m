@@ -863,14 +863,26 @@ classdef MovingSource < Component
             %            'nearStaticSrcArgs' - A cell array of additional
             %                   arguments to pass to the nearStaticSrc
             %                   method. Default is {}.
+            %            'MaxDistExtended' - Max dist [pix] for selection
+            %                   of extended objects. Default is 5.
+            %            'ThreshExtendedFAP' - Threshold fraction of
+            %                   'ExtendedFAP' in psfFitExtended in order to
+            %                   declare the source is extended.
             %            'Verbose' - Vebosity. Default is true.
             % Output : - Structure cotaining the following fields:
-            %            .Flag
+            %            .Flag - Structure of Flags details, including:
+            %                   .Bit 
+            %                   .IsKApos
+            %                   .IsKAmag
+            %                   .NearSrc
             %            .FlagKnownGoodCand
             %            .FlagUnknownGoodCand
             %            .FlagVariable
             %            .FlagBadCand
+            %            .FlagExtended 
             %
+            % Author : Eran Ofek (Mar 2024)
+            % Example: RR=MP.selectGoodCand
 
             arguments
                 Obj
@@ -881,6 +893,9 @@ classdef MovingSource < Component
 
                 Args.selectByBitMaskArgs cell = {};
                 Args.nearStaticSrcArgs cell   = {};
+                Args.psfFitExtended cell      = {};
+                Args.MaxDistExtended          = 5;   % [pix]
+                Args.ThreshExtendedFAP        = 0.3;
 
                 Args.Verbose logical          = true;
             end
@@ -910,10 +925,15 @@ classdef MovingSource < Component
 
             Result.Flag         = Flag;
 
+            % search extended sources
+            ResultExt = Obj.psfFitExtended(Args.psfFitExtended{:});
+            
+            Result.Extended = [ResultExt.FracExtended].'>Args.ThreshExtendedFAP;
+
             Result.FlagKnownGoodCand   = Flag.Bit & Flag.IsKApos & Flag.IsKAmag & Flag.NearSrc;
             Result.FlagUnknownGoodCand = Flag.Bit & ~Flag.IsKApos & Flag.NearSrc;
             Result.FlagVariable        = Flag.Bit & Flag.IsKApos & ~Flag.IsKAmag & Flag.NearSrc;
-            Result.FlagBadCand         = ~Result.FlagKnownGoodCand & ~Result.FlagVariable;
+            Result.FlagBadCand         = ~Result.FlagKnownGoodCand & ~Result.FlagUnknownGoodCand & ~Result.FlagVariable;
 
         end
 
@@ -1189,11 +1209,15 @@ classdef MovingSource < Component
             %                   MovingSource object in which the asteroid
             %                   name appear.
             % Author : Eran Ofek (Mar 2024)
+            % Example: R=MP.findUniqueAsteroidsByNames
             
             SummaryTable = Obj.summary();
             
             AstNames       = SummaryTable.Desig;
             [UniqueAstNames, IA] = unique(AstNames);
+            Fne            = ~isempty(UniqueAstNames);
+            UniqueAstNames = UniqueAstNames(Fne);
+
             Nun            = numel(UniqueAstNames);
             Result         = struct('IinInput',cell(Nun,1), 'UniqueAstName',cell(Nun,1), 'Ind',cell(Nun,1));
             for Iun=1:1:Nun
@@ -1205,24 +1229,52 @@ classdef MovingSource < Component
             
         end
         
-        function Result=calcPosCommonTime(Obj, JD0)
+        function [Result,Common,UniqueFlag]=calcPosCommonTime(Obj, JD0, Args)
             % Return a table of MovingSource position projected at a common time.
+            %   For each source, its position is projected to some common
+            %   time origin. Sources which have common origin + their
+            %   observations were taken within a 'MaxTimeDiff' time window
+            %   are decalred as common sources.
             % Input  : - A MovingSource object.
             %          - (JD0) The common JD at which the RA/Dec will be
             %            projected. If empty, then use the JD in the 1st
             %            element of the input MovingSource object.
+            %          * ...,key,val,...
+            %            'RadiusCommon' - Max. radius between the projected
+            %                   positions in order to declare a common source.
+            %                   Default is 10.
+            %            'RadiusCommonUnits' - RadiusCommon units.
+            %                   Default is 'arcsec'.
+            %            'MaxTimeDiff' - Max. time difference [day] between the
+            %                   observations in order to declare a common source.
+            %                   Default is 3./1440.
             % Output : - A table (line per source) with the following
             %            columns:
             %            'JD','RA','Dec','ProjRA','ProjDec','PM_RA','PM_Dec'
+            %          - Structure array, eith element per MovingSource
+            %            element and the following fields:
+            %            .Flag - A vectof of flags pointing to possible
+            %                   common sources.
+            %          - A vector of logical flags indicating if the input
+            %            MovingSource entry is identified as the first unique
+            %            apperance of an asteroid.
+            %
             % Author : Eran Ofek (Mar 2024)
+            % Example: [R,C,U]=MP.calcPosCommonTime
             
             
             arguments
                 Obj
-                JD0     = [];
+                JD0                    = [];
+                Args.RadiusCommon      = 10;
+                Args.RadiusCommonUnits = 'arcsec';
+                Args.MaxTimeDiff       = 3./1440;
             end
-            
-            if isemprt(Args.JD0)
+            RAD = 180./pi;
+
+            RadiusCommonRad = convert.angular(Args.RadiusCommonUnits, 'rad', Args.RadiusCommon);  % [rad]
+
+            if isempty(JD0)
                 JD0 = Obj(1).JD;
             end
             
@@ -1247,7 +1299,7 @@ classdef MovingSource < Component
             AllJD  = [Obj.JD].';
             
             % Project RA, Dec to AllJD(Iobj)
-            DeltaJD  = AllJD - Args.JD0;
+            DeltaJD  = AllJD - JD0;
             if IsAngularTime
                 ProjRA = RA + PM_RA.*DeltaJD;
             else
@@ -1255,10 +1307,34 @@ classdef MovingSource < Component
             end
             ProjDec = Dec + PM_Dec.*DeltaJD;
 
-            Result = array2table([JD, RA, Dec, ProjRA, ProjDec, PM_RA, PM_Dec]);
+            Result = array2table([AllJD, RA, Dec, ProjRA, ProjDec, PM_RA, PM_Dec]);
             Result.Properties.VariableNames = {'JD','RA','Dec','ProjRA','ProjDec','PM_RA','PM_Dec'};
             Result.Properties.VariableUnits = {'day','deg','deg','deg','deg',Obj(1).PMUnits,Obj(1).PMUnits};
             
+            % Build list of common candidates
+            ConvFactor = convert.angular(Obj(1).CooUnits, 'rad');
+            VecRA      = Result.RA.*ConvFactor;
+            VecDec     = Result.Dec.*ConvFactor;
+            % Matrix of all dist combinations
+            DistMat    = celestial.coo.sphere_dist_fast(VecRA, VecDec, VecRA.', VecDec.');
+            % populated the diagonal with NaNs
+            DistMat    = diag(nan(Nobj,1)) + DistMat;
+            MatDeltaJD = AllJD(:) - AllJD(:).';
+            % 1<NaN return false, so the diagonal is not selected
+            % select sources with common positions take at similar epochs
+            FlagMat = DistMat<RadiusCommonRad &  abs(MatDeltaJD)<Args.MaxTimeDiff;
+            
+            Common  = struct('Flag',cell(Nobj,1));
+            UniqueFlag = true(Nobj,1);
+            for Iobj=1:1:Nobj
+                Common(Iobj).Flag = FlagMat(:,Iobj);
+                if any(Common(Iobj).Flag)
+                    IndRem = find(Common(Iobj).Flag);
+                    IndRem = IndRem(IndRem>Iobj);
+                    UniqueFlag(IndRem) = false;
+                end
+            end
+
         end
 
     end
@@ -1287,6 +1363,9 @@ classdef MovingSource < Component
             %                   alarm that the object is extended.
             %                   Assuming \chi^2 statistics.
             %                   Default is 0.01.
+            %            'MinDistPix' - Max. distance of source from stamp
+            %                   center. If there is no source within this
+            %                   distance then no source will be selected.
             % Output : - A structure array with element per MovingSource
             %            element. Fields are:
             %            .Stamp - A structure array with element per stamp,
@@ -1294,6 +1373,8 @@ classdef MovingSource < Component
             %               .DistSrcCenter - A vector of distance (pix) of
             %                   source from image center.
             %               .Istamp - Index of stamp.
+            %               .Imin - Index of source with min. dist. from
+            %                   stamp center.
             %               .Chi2 - An array of \chi^2. Line per source.
             %                   Columns for [actual PSF, extended PSFs...]
             %               .DeltaChi2 - Max \Delta\chi^2.
@@ -1301,11 +1382,12 @@ classdef MovingSource < Component
             %                   original PSF...]
             %               .ExtendedFAP - False alaram probability for
             %                   being an extended object.
+            %            .MeanDist - Vector of Mean over DistSrcCenter.
+            %            .Imin - Index of source selected (in MeanDist).
             %            .MeanDeltaChi2 - Mean of \Delta\chi^2 per source.
             %            .MedDeltaChi2 - Median of \Delta\chi^2 per source.
             %            .FracExtended - Fraction of events in which the
-            %            .ExtendedFAP is smaller then the 'ThreshProb'
-            %                   argument.
+            %
             % Author : Eran Ofek (Mar 2024)
             % Example: RR=MP.psfFitExtended
             
@@ -1315,6 +1397,7 @@ classdef MovingSource < Component
                 Args.psfFirPhotArgs cell    = {};
                 Args.FitRadius              = 3;
                 Args.ThreshProb             = 0.01;
+                Args.MaxDistPix             = 5;
             end
         
             Nextend = size(Args.SersicPar,1);
@@ -1325,8 +1408,9 @@ classdef MovingSource < Component
                 Nstamp = numel(Obj(Iobj).Stamps);
                 IndStamp = 0;
                 for Istamp=1:1:Nstamp
+                    %[Iobj, Istamp]
                     if ~isempty(Obj(Iobj).Stamps(Istamp).Image)
-                        Obj(Iobj).Stamps(Istamp) = imProc.background.background(Obj(Iobj).Stamps(Istamp));
+                        Obj(Iobj).Stamps(Istamp) = imProc.background.background(Obj(Iobj).Stamps(Istamp), 'SubSizeXY',[]);
                         [~, ResultPSF] = imProc.sources.psfFitPhot(Obj(Iobj).Stamps(Istamp), Args.psfFirPhotArgs{:}, 'FitRadius',Args.FitRadius);
                         
                         PSF = Obj(Iobj).Stamps(Istamp).PSFData.getPSF();
@@ -1342,18 +1426,33 @@ classdef MovingSource < Component
                         % stamp image size
                         [NY, NX] = Obj(Iobj).Stamps(Istamp).sizeImage;
                         [X, Y] = Obj(Iobj).Stamps(Istamp).CatData.getXY();
-                        Result(Iobj).Stamp(IndStamp).DistSrcCenter = sqrt((X-NX.*0.5).^2 + (Y-NY.*0.5).^2);
-
-                        Result(Iobj).Stamp(IndStamp).Istamp = Istamp;
-                        Result(Iobj).Stamp(IndStamp).Chi2 = [ResultPSF.Chi2, [ResultExt(:).Chi2]];
-                        [MinChi2, MinInd] = min(Result(Iobj).Stamp(IndStamp).Chi2,[],2);
-                        Result(Iobj).Stamp(IndStamp).DeltaChi2 = Result(Iobj).Stamp(IndStamp).Chi2(:,1)-MinChi2;
-                        Result(Iobj).Stamp(IndStamp).MinInd    = MinInd;
-                        Result(Iobj).Stamp(IndStamp).ExtendedFAP = 1-chi2cdf(Result(Iobj).Stamp(IndStamp).DeltaChi2, FitDof);
+                        DistAll = sqrt((X-NX.*0.5).^2 + (Y-NY.*0.5).^2);
+                        [DistMin,Imin] = min(DistAll);
+                        Result(Iobj).Stamp(IndStamp).DistSrcCenter = DistMin;
+                        Result(Iobj).Stamp(IndStamp).Imin          = Imin;
+                        Result(Iobj).Stamp(IndStamp).Istamp        = Istamp;
+                        Result(Iobj).Stamp(IndStamp).Chi2          = [ResultPSF.Chi2, [ResultExt(:).Chi2]];
                         
+                        if DistMin<Args.MaxDistPix
+                            % nearest to center selected
+                                                  
+                            [MinChi2, MinInd]                          = min(Result(Iobj).Stamp(IndStamp).Chi2(Imin,:),[],2);
+                            
+                            Result(Iobj).Stamp(IndStamp).DeltaChi2     = Result(Iobj).Stamp(IndStamp).Chi2(Imin,1)-MinChi2;
+                            Result(Iobj).Stamp(IndStamp).MinChi2Ind    = MinInd;
+                            Result(Iobj).Stamp(IndStamp).ExtendedFAP   = 1-chi2cdf(Result(Iobj).Stamp(IndStamp).DeltaChi2, FitDof);
+                        else
+                            Result(Iobj).Stamp(IndStamp).DeltaChi2   = NaN;
+                            Result(Iobj).Stamp(IndStamp).MinChi2Ind  = NaN;
+                            Result(Iobj).Stamp(IndStamp).ExtendedFAP = NaN;
+                        end
+
                         %Result(Iobj).Stamp(IndStamp).
                     end % if ~isempty(Obj(Iobj).Stamps(Istamp).Image)
                 end % for Istamp=1:1:Nstamp
+                Result(Iobj).MeanDist      = mean([Result(Iobj).Stamp(:).DistSrcCenter],2);
+                [Result(Iobj).MinDist, Result(Iobj).Imin] = min(Result(Iobj).MeanDist);
+
                 Result(Iobj).MeanDeltaChi2 = mean([Result(Iobj).Stamp(:).DeltaChi2],2);
                 Result(Iobj).MedDeltaChi2  = median([Result(Iobj).Stamp(:).DeltaChi2],2);
                 Result(Iobj).FracExtended  = sum([Result(Iobj).Stamp(:).ExtendedFAP]<Args.ThreshProb, 2)./IndStamp;

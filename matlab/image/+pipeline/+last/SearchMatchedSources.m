@@ -182,7 +182,7 @@ classdef SearchMatchedSources < Component
     end
 
 
-    methods
+    methods % variable stars search and utilities
         function [Cand, Summary] = findVariableAll(Obj, Args)
             % Go over all files in the AllConsecutive property and search for variable sources.
             %   The function works by making the following calls:
@@ -542,6 +542,119 @@ classdef SearchMatchedSources < Component
             Obj.MS.Data.(Args.MagField)(BadFlags) = NaN;
         end
 
+    end
+    
+    methods % orphans
+        function Result=searchOrphans(Obj, Args)
+            % Search orphans in MatchedSources object
+            %   Orphans are defined as sources with <=MinNdet good detections
+            %   possibly consecutive.
+            %   For such sources some mean properties are returned.
+            % Input  : - An pipeline.last.SearchMatchedSources object.
+            %          * ...,key,val,...
+            %            See code.
+            % Output : - A structure array, with element per MatchedSources
+            %            element, and the following fields:
+            %            .Ind - Vector of indices of orphan candidates.
+            %            .Norphan - Number of orphans.
+            %            .Ndet - Vector of number of detections.
+            %            .JD - Vector of mean JD per orphan.
+            %            .RA - Vector of mean RA per orphan.
+            %            .Dec - Vector of mean Dec per orphan.
+            %            .SN - Vector of mean SN per orphan.
+            %            .Mag - Vector of mean Mag per orphan.
+            % Author : Eran Ofek (Mar 2024)
+            
+            arguments
+                Obj
+                Args.MinNdet        = 3;
+                Args.ThreshDiffSN   = 0;
+                Args.FieldSN        = 'SN_2';
+                Args.FieldDeltaSN   = {'SN_1','SN_2'};
+                Args.MinSN          = 8;
+                Args.BadFlags       = {'CR_DeltaHT','NaN','NearEdge'};                
+                Args.OnlyConsectutive logical  = true;
+                
+                Args.MeanFun        = @median;
+                Args.MeanFunArgs    = {'all','omitnan'};
+                Args.FieldRA        = 'RA';
+                Args.FieldDec       = 'Dec';
+                Args.FieldMag       = 'MAG_PSF';
+            end
+            
+            % populate SrcData
+            Obj.addSrcData('MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
+            
+            Nobj = numel(Obj.MS);
+            for Iobj=1:1:Nobj
+                % clean bad flags in Args.BadFlags
+                Fbadf = searchFlags(Obj.MS(Iobj), 'FlagsList',Args.BadFlags);
+                
+                % Remove delta functions based on SN_2-SN_1>Args.ThreshDiffSN
+                DeltaSN  = Obj.MS(Iobj).Data.(Args.FieldDeltaSN{2}) - Obj.MS(Iobj).Data.(Args.FieldDeltaSN{1});
+                Fdeltasn = DeltaSN>Args.ThreshDiffSN;
+                
+                % Select sources with SN>Args.MinSN
+                SN       = Obj.MS(Iobj).Data.(Args.FieldSN);
+                Fsn      = SN>Args.MinSN;
+                
+                % Select sources with detections
+                Fdet     = ~isnan(Obj.MS(Iobj).Data.(Args.FieldSN);
+                
+                % Search for sources with <=Args.MinNdet detections
+                Fcand    = ~Fbadf & Fdeltasn & Fsn & Fdet;
+                Ndet     = sum(Fcand, 1);
+                
+                Fndet    = Ndet<=Args.MinNdet; 
+                Indet    = find(Fndet);
+                Ncand    = numel(Indet);
+                                
+                if Args.OnlyConsecutive
+                    % flag indicating if detections of source are consecutive
+                    Fcons    = false(1, Obj.MS(Iobj).Nsrc);
+                    MeanJD   = nan(1, Obj.MS(Iobj).Nsrc);
+                    for Icand=1:1:Ncand
+                        % check that detections are consecutive
+                        [ConsList] = tools.find.findListsOfConsecutiveTrue(Fcand(:,Indet(Icand)));
+                        if numel(ConsList)==1
+                            % all detections are consecutive
+                            Fcons(Indet(Icand)) = true;
+                            MeanJD(Indet(Icand)) = Args.MeanFun(Obj.MS(Iobj).JD(ConsList{1}), Args.MeanFunArgs{:});
+                        %else
+                            % non consecutive detections
+                        end
+                    end
+                else
+                    % flag indicating if detections of source are consecutive
+                    % Ignore consecutive, so setting to Fndet
+                    Fcons    = Fndet;
+                end
+                
+                % Return a list of orphans
+                Result(Iobj).Ind     = find(Fcons);
+                Result(Iobj).Norphan = numel(Result(Iobj).Ind);
+                Result(Iobj).Ndet    = Ndet(Result(Iobj).Ind);
+                
+                % mean orphan JD
+                Result(Iobj).JD      = MeanJD(Result(Iobj).Ind);
+                
+                % mean Orphan position
+                Result(Iobj).RA      = Obj.MS(Iobj).SrcData.(Args.FieldRA)(Result(Iobj).Ind);
+                Result(Iobj).Dec     = Obj.MS(Iobj).SrcData.(Args.FieldDec)(Result(Iobj).Ind);
+                
+                % mean Orphan SN
+                Result(Iobj).SN      = Obj.MS(Iobj).SrcData.(Args.FieldSN)(Result(Iobj).Ind);
+                
+                % mean Orphan Mag
+                Result(Iobj).Mag     = Obj.MS(Iobj).SrcData.(Args.FieldMag)(Result(Iobj).Ind);
+                
+                % Orphan PM (if Ndet>1)
+                
+                
+            end
+            
+        end
+        
     end
     
     methods % plot
