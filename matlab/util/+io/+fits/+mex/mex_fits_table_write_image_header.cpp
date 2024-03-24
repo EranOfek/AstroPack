@@ -3,6 +3,9 @@
 //
 // Example: io.fits.mex.mex_fits_table_write_image_header(Header, 'myfile.fits')
 // Example: headerBuffer = io.fits.mex.mex_fits_table_write_image_header(Header)
+//
+// mex util/+io/+fits/+mex/mex_fits_table_write_image_header.cpp
+//
 
 #include "mex.h"
 #include <cstdio>
@@ -66,7 +69,7 @@ void printValue(mxArray* valueElement, char* value, size_t valueSize)
             // Cast to the largest possible integer and print. 
             // This simplistic approach may need refinement for exact data type representation.
             int64_t val = static_cast<int64_t>(mxGetScalar(valueElement));
-            snprintf(value, valueSize, "%lld", val);
+            snprintf(value, valueSize, "%lld", (long long int)val);
         }
     } 
     else {
@@ -103,8 +106,11 @@ void fillHeaderBufferFromCellArray(mxChar* headerBuffer, size_t& bufferPos, cons
         if (commentElement != nullptr && mxIsChar(commentElement)) {
             mxGetString(commentElement, comment, sizeof(comment));
 
+            size_t maxCommentSize = sizeof(card) - 34; // Adjust based on key, value, and fixed characters
+            snprintf(card, sizeof(card), "%-8.8s= %20.20s / %.*s", key, value, (int)maxCommentSize, comment);
+
             // Construct card string
-            snprintf(card, sizeof(card), "%-8s= %20s / %s", key, value, comment);            
+            //snprintf(card, sizeof(card), "%-8s= %20s / %s", key, value, comment);            
         }
 
         // Construct card string
@@ -137,7 +143,9 @@ void fillHeaderBufferFromCellArray(mxChar* headerBuffer, size_t& bufferPos, cons
                 addCard(headerBuffer, bufferPos, card);
             }
             #endif
-            snprintf(card, sizeof(card), "%-8s= %20s", key, value);
+
+            snprintf(card, sizeof(card), "%-8.8s= %20.20s", key, value);
+            //snprintf(card, sizeof(card), "%-8s= %20s", key, value);
         }
 
         // Add the card to the buffer
