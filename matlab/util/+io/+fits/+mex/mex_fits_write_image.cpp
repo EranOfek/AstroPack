@@ -1,5 +1,6 @@
+// Write header and image to FITS file, simple implementation without using cfitsio!
 // Author : Chen Tishler (March 2024)
-// Example: io.fits.mex.fastWriteFITS('myfile.fits', [10 100], Header)
+// Example: io.fits.mex.mex_fits_write_image('myfile.fits', [10 100], Header)
 
 #include "mex.h"
 #include <cstdio>
@@ -185,7 +186,7 @@ int determineBitpix(mxClassID classID)
         case mxSINGLE_CLASS:
             return -32;
         default:
-            mexErrMsgIdAndTxt("MATLAB:createFitsFile:unsupportedType",
+            mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:unsupportedType",
                               "Unsupported matrix type for FITS file.");
             return 0; // This line is never reached
     }
@@ -255,7 +256,6 @@ inline float swapBytesFloat(float val)
     temp = swapBytes32(temp);
     return *reinterpret_cast<float*>(&temp); // Ensure we return a float here
 }
-
 
 void convertInt16BufferToEndian(uint16_t* buffer, size_t numElements) 
 {
@@ -376,7 +376,7 @@ void writeImageData(FILE* fp, const mxArray* imgMatrix)
                 tempBuffer = reorderMat(static_cast<float*>(dataPtr), rows, cols);
             break;
         default:
-            mexErrMsgIdAndTxt("MATLAB:writeImageData:unsupportedType", "Unsupported matrix type for FITS file.");
+            mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:unsupportedType", "Unsupported matrix type for FITS file.");
             return;
     }
 
@@ -405,20 +405,20 @@ void writeImageData(FILE* fp, const mxArray* imgMatrix)
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) 
 {
     if (nrhs != 3) {
-        mexErrMsgIdAndTxt("MATLAB:createFitsFile:invalidNumInputs",
+        mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:invalidNumInputs",
                           "Three inputs required: filename, image matrix, header cell array.");
         return;
     }
     if (!mxIsChar(prhs[0])) {
-        mexErrMsgIdAndTxt("MATLAB:createFitsFile:inputNotString", "First input must be a filename string.");
+        mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:inputNotString", "First input must be a filename string.");
         return;
     }
     if (!mxIsNumeric(prhs[1])) {
-        mexErrMsgIdAndTxt("MATLAB:createFitsFile:inputNotNumeric", "Second input must be a numeric matrix.");
+        mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:inputNotNumeric", "Second input must be a numeric matrix.");
         return;
     }
     if (!mxIsCell(prhs[2])) {
-        mexErrMsgIdAndTxt("MATLAB:createFitsFile:inputNotCell", "Third input must be a cell array of header fields.");
+        mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:inputNotCell", "Third input must be a cell array of header fields.");
         return;
     }
     
@@ -430,7 +430,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     FILE* fp = fopen(filename, "wb");
     if (!fp) {
         mxFree(filename);
-        mexErrMsgIdAndTxt("MATLAB:createFitsFile:fileOpenFailed", "Could not open the file for writing.");
+        mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:fileOpenFailed", "Could not open the file for writing.");
         return;
     }
     
@@ -457,6 +457,4 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     fclose(fp);
     mxFree(filename);
     mxFree(headerBuffer);
-    
-    //mexPrintf("FITS file '%s' created successfully.\n", filename);
 }

@@ -21,6 +21,16 @@ Offset	Hex			Data
 
 
 
+    imageHeaderSize = numCards * 80;
+    if (imageHeaderSize % 2880 != 0) 
+        imageHeaderSize = ((imageHeaderSize / 2880) + 1) * 2880;  
+
+    // Additional block for the empty image data
+    allocatedSize = imageHeaderSize + 2880;
+
+
+
+
 
 ##  format info - Eran 2023
 

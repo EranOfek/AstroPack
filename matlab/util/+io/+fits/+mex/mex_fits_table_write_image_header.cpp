@@ -1,5 +1,8 @@
+//
 // Author : Chen Tishler (March 2024)
-// Example: io.fits.mex.fastWriteFITS('myfile.fits', [10 100], Header)
+//
+// Example: io.fits.mex.mex_fits_table_write_image_header(Header, 'myfile.fits')
+// Example: headerBuffer = io.fits.mex.mex_fits_table_write_image_header(Header)
 
 #include "mex.h"
 #include <cstdio>
@@ -12,7 +15,6 @@
 const size_t cardSize = 80;     // Each FITS header card is 80 bytes
 const size_t blockSize = 2880;  // FITS headers are allocated in blocks of 2880 bytes
 
-//===========================================================================
 
 inline void addCard(mxChar* headerBuffer, size_t& bufferPos, const char* card)
 {
@@ -23,7 +25,6 @@ inline void addCard(mxChar* headerBuffer, size_t& bufferPos, const char* card)
     bufferPos += cardSize; 
 }
 
-//===========================================================================
 
 void printValue(mxArray* valueElement, char* value, size_t valueSize) 
 {
@@ -147,51 +148,39 @@ void fillHeaderBufferFromCellArray(mxChar* headerBuffer, size_t& bufferPos, cons
     addCard(headerBuffer, bufferPos, "END                                                                             ");
 }
 
-//===========================================================================
-//
-//===========================================================================
 
 // Main MEX function
-void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) 
+mxArray* createFitsImageHeaderFromCellArray(const mxArray* headerArray, bool imageData, mwSize& allocatedSize)
 {
-    if (nrhs != 1) {
-        mexErrMsgIdAndTxt("MATLAB:createFitsFile:invalidNumInputs",
-                          "One input required: header cell array.");
-        return;
-    }
-    if (!mxIsCell(prhs[0])) {
-        mexErrMsgIdAndTxt("MATLAB:createFitsFile:inputNotCell", "First input must be a cell array of header fields.");
-        return;
-    }
-    
-    const mxArray* headerArray = prhs[0];
-      
     // Allocate a large enough buffer for the FITS header
     size_t bufferPos = 0;
     size_t numRows = mxGetM(headerArray); 
-    size_t numCards = 9 + numRows;
+    size_t numCards = 8 + numRows;
 
     // Calculate the total size needed for the given number of cards
-    size_t totalSize = numCards * cardSize;
+    size_t imageHeaderSize = numCards * cardSize;
 
     // Calculate the total size needed to make it a multiple of 2880 bytes
-    if (totalSize % blockSize != 0) {
-        totalSize = ((totalSize / blockSize) + 1) * blockSize;
+    if (imageHeaderSize % blockSize != 0) {
+        imageHeaderSize = ((imageHeaderSize / blockSize) + 1) * blockSize;
     }
 
     // Additional block for the empty image data
-    mwSize allocatedSize = totalSize + blockSize;
+    allocatedSize = imageHeaderSize;
+    if (imageData)
+        allocatedSize += blockSize;
 
-    plhs[0] = mxCreateCharArray(1, &allocatedSize);
+    mxArray* outputBuffer = mxCreateCharArray(1, &allocatedSize);
     
     // Get a pointer to the output array
-    mxChar *headerBuffer = mxGetChars(plhs[0]);
+    mxChar *headerBuffer = mxGetChars(outputBuffer);
 
     // Initialize the buffer with spaces as per FITS standard    
-    memset(headerBuffer, ' ', totalSize);
+    memset(headerBuffer, ' ', imageHeaderSize);
 
     // Initialize the image buffer
-    memset(headerBuffer + totalSize, 0, blockSize);
+    if (imageData)
+        memset(headerBuffer + imageHeaderSize, 0, blockSize);
 
     // Add required fields
     addCard(headerBuffer, bufferPos, "XTENSION= 'IMAGE   '           / IMAGE extension");
@@ -201,10 +190,76 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     addCard(headerBuffer, bufferPos, "NAXIS2  =                    1 / length of data axis 2");
     addCard(headerBuffer, bufferPos, "PCOUNT  =                    0 / required keyword; must = 0");
     addCard(headerBuffer, bufferPos, "GCOUNT  =                    1 / required keyword; must = 1");
-    addCard(headerBuffer, bufferPos, "EXTEND  =                    T / FITS dataset may contain extensions");
-    addCard(headerBuffer, bufferPos, "COMMENT FITS (Flexible Image Transport System) format is defined in 'Astronomy");
-    addCard(headerBuffer, bufferPos, "COMMENT and Astrophysics', volume 376, page 359; bibcode: 2001A&A...376..359H");
+    //addCard(headerBuffer, bufferPos, "EXTEND  =                    T / FITS dataset may contain extensions");
+    //addCard(headerBuffer, bufferPos, "COMMENT FITS (Flexible Image Transport System) format is defined in 'Astronomy");
+    //addCard(headerBuffer, bufferPos, "COMMENT and Astrophysics', volume 376, page 359; bibcode: 2001A&A...376..359H");
    
     // Append user-provided header fields
     fillHeaderBufferFromCellArray(headerBuffer, bufferPos, headerArray);
+
+    return outputBuffer;
+}
+
+//===========================================================================
+
+// Main MEX function
+void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) 
+{
+    if (nrhs < 1) {
+        mexErrMsgIdAndTxt("MATLAB:mex_fits_table_write_image_header:invalidNumInputs",
+                          "One or two input required: header cell array [file name].");
+        return;
+    }
+    if (!mxIsCell(prhs[0])) {
+        mexErrMsgIdAndTxt("MATLAB:mex_fits_table_write_image_header:inputNotCell", "First input must be a cell array of header fields.");
+        return;
+    }
+    
+    char* filename = NULL;
+    if (nrhs > 1) {
+        if (!mxIsChar(prhs[1])) {
+            mexErrMsgIdAndTxt("MATLAB:mex_fits_table_write_image_header:inputNotString", "Second input must be a filename string.");
+            return;
+        }
+        filename = mxArrayToString(prhs[1]);
+    }
+    else {
+        if (nlhs != 1) {
+            mexErrMsgIdAndTxt("MATLAB:mex_fits_table_write_image_header:outputRequired", "Second input must be a filename string.");
+            return;
+        }
+    }
+
+    // Create buffer with image
+    const mxArray* headerArray = prhs[0];
+    mwSize allocatedSize;
+    mxArray* outputBuffer = createFitsImageHeaderFromCellArray(headerArray, true, allocatedSize);
+    //mexPrintf("allocatedSize: %lld\n", allocatedSize);
+
+    // Filename is specified, append header at the end of the file (file must be closed)
+    if (filename) {
+
+        mexPrintf("fopen: %s\n", filename);
+        FILE* fp = fopen(filename, "ab");
+        if (!fp) {
+            mxFree(filename);
+            mxFree(outputBuffer);
+            mexErrMsgIdAndTxt("MATLAB:mex_fits_table_write_image_header:fileOpenFailed", "Could not open the file for writing (append).");
+            return;
+        }
+	        
+        // Write the header buffer to the file
+        void* dataPtr = mxGetChars(outputBuffer);        
+        fwrite(dataPtr, 1, allocatedSize, fp);
+        fclose(fp);
+        
+        // Free allocated buffer and filename
+        mxDestroyArray(outputBuffer);
+        mxFree(filename);
+    }
+
+    // Return the allocated buffer, caller will do whatever she likes with it
+    else {
+        plhs[0] = outputBuffer;
+    }
 }
