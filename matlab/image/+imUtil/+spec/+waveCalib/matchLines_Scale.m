@@ -19,19 +19,27 @@ function [Result] = matchLines_Scale(ObsLines, RefLines, Args)
         fprintf('Simulation mode');
         
         Nl         = 45;
-        Noverlap   = 45; %25;
-        Nnoise     = 0; %10;
+        Noverlap   = 25;
+        Nnoise     = 10;
         ObsLines   = rand(Nl,1).*3000 + 3000;
         NoiseLines = rand(Nnoise,1).*3000 + 3000;
         
         Ir       = randi(Nl, Noverlap,1);
-        RefLines = [ObsLines(Ir); NoiseLines].*1.1 + 500;
+        RefLines = [ObsLines(Ir); NoiseLines].*1.04 + 500;
         
     end
-        
+    
+    % sort lines
+    ObsLines = sort(ObsLines);
+    RefLines = sort(RefLines);
+    
     % make column vectors
     ObsLines = ObsLines(:);
     RefLines = RefLines(:);
+    
+    DiffObsRef = ObsLines - RefLines.';
+    
+    hist(DiffObsRef(:),100)
     
     DiffObs  = ObsLines - ObsLines.';
     DiffRef  = RefLines - RefLines.';

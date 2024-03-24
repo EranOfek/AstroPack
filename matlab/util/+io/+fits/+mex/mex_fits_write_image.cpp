@@ -1,12 +1,20 @@
+// Write header and image to FITS file, simple implementation without using cfitsio!
 // Author : Chen Tishler (March 2024)
-// Example: io.fits.mex.fastWriteFITS('myfile.fits', [10 100], Header)
+// Example: io.fits.mex.mex_fits_write_image('myfile.fits', [10 100], Header)
+// 
+// mex util/+io/+fits/+mex/mex_fits_write_image.cpp
+//
 
 #include "mex.h"
 #include <cstdio>
 #include <cstring>
 #include <cmath>
 #include <algorithm>
-//#include "matrix.h" // For mxGetClassID, etc.
+#include <cstdint>
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+#pragma GCC diagnostic ignored "-Wformat-extra-args"
 
 const size_t cardSize = 80;     // Each FITS header card is 80 bytes
 const size_t blockSize = 2880;  // FITS headers are allocated in blocks of 2880 bytes
@@ -47,12 +55,14 @@ inline void addCard(char* headerBuffer, size_t& bufferPos, const char* card)
 
 //===========================================================================
 
-void printValue(mxArray* valueElement, char* value, size_t valueSize) 
+void printValue(mxArray* valueElement, char* value, size_t valueSize, bool& isChar) 
 {
     const size_t maxStringLength = 67; // Max length for continued strings/values
 
+    isChar = false;
     if (mxIsChar(valueElement)) {
         // Add single quotes for string values
+        isChar = true;
         char* tempStr = mxArrayToString(valueElement);
         if (strlen(tempStr) > maxStringLength)
             tempStr[maxStringLength] = '\0';
@@ -87,7 +97,7 @@ void printValue(mxArray* valueElement, char* value, size_t valueSize)
             // Cast to the largest possible integer and print. 
             // This simplistic approach may need refinement for exact data type representation.
             int64_t val = static_cast<int64_t>(mxGetScalar(valueElement));
-            snprintf(value, valueSize, "%lld", val);
+            snprintf(value, valueSize, "%lld", (long long int)val);
         }
     } 
     else {
@@ -115,17 +125,20 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
 
         // Extract and Format Value using printValue
         mxArray* valueElement = mxGetCell(cellArray, row + numRows);
+        bool isChar = false;
         if (valueElement != nullptr) {
-            printValue(valueElement, value, sizeof(value));
+            printValue(valueElement, value, sizeof(value), isChar);
         }
 
         // Extract Comment
         mxArray* commentElement = mxGetCell(cellArray, row + 2 * numRows);
         if (commentElement != nullptr && mxIsChar(commentElement)) {
             mxGetString(commentElement, comment, sizeof(comment));
+            size_t maxCommentSize = sizeof(card) - 34; // Adjust based on key, value, and fixed characters
+            snprintf(card, sizeof(card), "%-8.8s= %20s / %.*s", key, value, (int)maxCommentSize, comment);
 
             // Construct card string
-            snprintf(card, sizeof(card), "%-8s= %20s / %s", key, value, comment);            
+            //snprintf(card, sizeof(card), "%-8s= %20s / %s", key, value, comment);            
         }
 
         // Construct card string
@@ -158,7 +171,8 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
                 addCard(headerBuffer, bufferPos, card);
             }
             #endif
-            snprintf(card, sizeof(card), "%-8s= %20s", key, value);
+
+            snprintf(card, sizeof(card), "%-8.8s= %20s", key, value);
         }
 
         // Add the card to the buffer
@@ -184,7 +198,7 @@ int determineBitpix(mxClassID classID)
         case mxSINGLE_CLASS:
             return -32;
         default:
-            mexErrMsgIdAndTxt("MATLAB:createFitsFile:unsupportedType",
+            mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:unsupportedType",
                               "Unsupported matrix type for FITS file.");
             return 0; // This line is never reached
     }
@@ -255,7 +269,6 @@ inline float swapBytesFloat(float val)
     return *reinterpret_cast<float*>(&temp); // Ensure we return a float here
 }
 
-
 void convertInt16BufferToEndian(uint16_t* buffer, size_t numElements) 
 {
     for (size_t i = 0; i < numElements; ++i) {
@@ -280,7 +293,27 @@ void convertFloatBufferToEndian(float* buffer, size_t numElements)
 
 //===========================================================================
 
+// Transpose and change endian
+template<typename T, typename SwapFunction>
+void* reorderMatConvert(const T* dataPtr, size_t rows, size_t cols, SwapFunction swapFunc) 
+{
+    size_t numElements = rows * cols;
+    T* tempBuffer = static_cast<T*>(mxMalloc(numElements * sizeof(T)));
 
+    // Reorder data from column-major to row-major and convert to big-endian
+    for (size_t col = 0; col < cols; ++col) {
+        for (size_t row = 0; row < rows; ++row) {
+            size_t srcIndex = col * rows + row; // MATLAB's column-major index
+            size_t dstIndex = row * cols + col; // Desired row-major index
+            tempBuffer[dstIndex] = swapFunc(dataPtr[srcIndex]);
+        }
+    }
+    
+    return tempBuffer;
+}
+
+
+// Transpose - Unused (testing only)
 template<typename T>
 void* reorderMat(const T* dataPtr, size_t rows, size_t cols) 
 {
@@ -300,25 +333,7 @@ void* reorderMat(const T* dataPtr, size_t rows, size_t cols)
 }
 
 
-// Function to reorder and convert data to big-endian format
-template<typename T, typename SwapFunction>
-void* reorderMatConvert(const T* dataPtr, size_t rows, size_t cols, SwapFunction swapFunc) 
-{
-    size_t numElements = rows * cols;
-    T* tempBuffer = static_cast<T*>(mxMalloc(numElements * sizeof(T)));
-
-    // Reorder data from column-major to row-major and convert to big-endian
-    for (size_t col = 0; col < cols; ++col) {
-        for (size_t row = 0; row < rows; ++row) {
-            size_t srcIndex = col * rows + row; // MATLAB's column-major index
-            size_t dstIndex = row * cols + col; // Desired row-major index
-            tempBuffer[dstIndex] = swapFunc(dataPtr[srcIndex]);
-        }
-    }
-    
-    return tempBuffer;
-}
-
+// Change endian - Unused (testing only)
 template<typename T, typename SwapFunction>
 void* Convert(const T* dataPtr, size_t rows, size_t cols, SwapFunction swapFunc) 
 {
@@ -333,7 +348,7 @@ void* Convert(const T* dataPtr, size_t rows, size_t cols, SwapFunction swapFunc)
     return tempBuffer;
 }
 
-
+//===========================================================================
 
 void writeImageData(FILE* fp, const mxArray* imgMatrix) 
 {
@@ -373,7 +388,7 @@ void writeImageData(FILE* fp, const mxArray* imgMatrix)
                 tempBuffer = reorderMat(static_cast<float*>(dataPtr), rows, cols);
             break;
         default:
-            mexErrMsgIdAndTxt("MATLAB:writeImageData:unsupportedType", "Unsupported matrix type for FITS file.");
+            mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:unsupportedType", "Unsupported matrix type for FITS file.");
             return;
     }
 
@@ -402,20 +417,20 @@ void writeImageData(FILE* fp, const mxArray* imgMatrix)
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) 
 {
     if (nrhs != 3) {
-        mexErrMsgIdAndTxt("MATLAB:createFitsFile:invalidNumInputs",
+        mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:invalidNumInputs",
                           "Three inputs required: filename, image matrix, header cell array.");
         return;
     }
     if (!mxIsChar(prhs[0])) {
-        mexErrMsgIdAndTxt("MATLAB:createFitsFile:inputNotString", "First input must be a filename string.");
+        mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:inputNotString", "First input must be a filename string.");
         return;
     }
     if (!mxIsNumeric(prhs[1])) {
-        mexErrMsgIdAndTxt("MATLAB:createFitsFile:inputNotNumeric", "Second input must be a numeric matrix.");
+        mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:inputNotNumeric", "Second input must be a numeric matrix.");
         return;
     }
     if (!mxIsCell(prhs[2])) {
-        mexErrMsgIdAndTxt("MATLAB:createFitsFile:inputNotCell", "Third input must be a cell array of header fields.");
+        mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:inputNotCell", "Third input must be a cell array of header fields.");
         return;
     }
     
@@ -427,7 +442,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     FILE* fp = fopen(filename, "wb");
     if (!fp) {
         mxFree(filename);
-        mexErrMsgIdAndTxt("MATLAB:createFitsFile:fileOpenFailed", "Could not open the file for writing.");
+        mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:fileOpenFailed", "Could not open the file for writing.");
         return;
     }
     
@@ -454,6 +469,4 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     fclose(fp);
     mxFree(filename);
     mxFree(headerBuffer);
-    
-    //mexPrintf("FITS file '%s' created successfully.\n", filename);
 }

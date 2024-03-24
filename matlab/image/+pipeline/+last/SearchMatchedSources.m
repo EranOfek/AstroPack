@@ -563,7 +563,13 @@ classdef SearchMatchedSources < Component
             %            .Dec - Vector of mean Dec per orphan.
             %            .SN - Vector of mean SN per orphan.
             %            .Mag - Vector of mean Mag per orphan.
+            %            .DistGAIA -
+            %            .N_GAIA - 
+            %            .Bp - 
+            %            .Rp - 
+            % 
             % Author : Eran Ofek (Mar 2024)
+            % Example: RR=SMS.searchOrphans
             
             arguments
                 Obj
@@ -573,19 +579,28 @@ classdef SearchMatchedSources < Component
                 Args.FieldDeltaSN   = {'SN_1','SN_2'};
                 Args.MinSN          = 8;
                 Args.BadFlags       = {'CR_DeltaHT','NaN','NearEdge'};                
-                Args.OnlyConsectutive logical  = true;
+                Args.OnlyConsecutive logical  = true;
                 
                 Args.MeanFun        = @median;
-                Args.MeanFunArgs    = {'all','omitnan'};
+                Args.MeanFunArgs    = {'omitnan'};
                 Args.FieldRA        = 'RA';
                 Args.FieldDec       = 'Dec';
                 Args.FieldMag       = 'MAG_PSF';
+                
+                Args.MatchCatName   = 'GAIADR3';
+                Args.matchcatsHTMArgs cell = {};
+                Args.MagCols        = {'phot_bp_mean_mag','phot_rp_mean_mag'}
             end
+            RAD = 180./pi;
             
             % populate SrcData
-            Obj.addSrcData('MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
+            Obj.MS.addSrcData('MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
             
             Nobj = numel(Obj.MS);
+            Result = struct('Ind',cell(Nobj,1), 'Norphan',cell(Nobj,1), 'Ndet',cell(Nobj,1),...
+                            'JD',cell(Nobj,1), 'RA',cell(Nobj,1), 'Dec',cell(Nobj,1),...
+                            'SN',cell(Nobj,1), 'Mag',cell(Nobj,1),...
+                            'DistGAIA',cell(Nobj,1), 'N_GAIA',cell(Nobj,1), 'Bp',cell(Nobj,1), 'Rp',cell(Nobj,1));
             for Iobj=1:1:Nobj
                 % clean bad flags in Args.BadFlags
                 Fbadf = searchFlags(Obj.MS(Iobj), 'FlagsList',Args.BadFlags);
@@ -599,7 +614,7 @@ classdef SearchMatchedSources < Component
                 Fsn      = SN>Args.MinSN;
                 
                 % Select sources with detections
-                Fdet     = ~isnan(Obj.MS(Iobj).Data.(Args.FieldSN);
+                Fdet     = ~isnan(Obj.MS(Iobj).Data.(Args.FieldSN));
                 
                 % Search for sources with <=Args.MinNdet detections
                 Fcand    = ~Fbadf & Fdeltasn & Fsn & Fdet;
@@ -638,18 +653,35 @@ classdef SearchMatchedSources < Component
                 % mean orphan JD
                 Result(Iobj).JD      = MeanJD(Result(Iobj).Ind);
                 
-                % mean Orphan position
-                Result(Iobj).RA      = Obj.MS(Iobj).SrcData.(Args.FieldRA)(Result(Iobj).Ind);
-                Result(Iobj).Dec     = Obj.MS(Iobj).SrcData.(Args.FieldDec)(Result(Iobj).Ind);
                 
-                % mean Orphan SN
-                Result(Iobj).SN      = Obj.MS(Iobj).SrcData.(Args.FieldSN)(Result(Iobj).Ind);
-                
-                % mean Orphan Mag
-                Result(Iobj).Mag     = Obj.MS(Iobj).SrcData.(Args.FieldMag)(Result(Iobj).Ind);
-                
-                % Orphan PM (if Ndet>1)
-                
+                if Result(Iobj).Norphan>0
+                    % mean Orphan position
+                    Result(Iobj).RA      = Obj.MS(Iobj).SrcData.(Args.FieldRA)(Result(Iobj).Ind);
+                    Result(Iobj).Dec     = Obj.MS(Iobj).SrcData.(Args.FieldDec)(Result(Iobj).Ind);
+
+                    % mean Orphan SN
+                    Result(Iobj).SN      = Obj.MS(Iobj).SrcData.(Args.FieldSN)(Result(Iobj).Ind);
+
+                    % mean Orphan Mag
+                    Result(Iobj).Mag     = Obj.MS(Iobj).SrcData.(Args.FieldMag)(Result(Iobj).Ind);
+
+                    % Orphan PM (if Ndet>1)
+                    
+                    % Match to GAIA
+                    TmpAC = AstroCatalog({[Result(Iobj).RA(:), Result(Iobj).Dec(:)]./RAD}, 'ColNames',{'RA','Dec'}); %, 'ColUnits',{'deg','deg'});
+                    [ResM, SelObj, ResInd, CatH] = imProc.match.match_catsHTM(TmpAC, Args.MatchCatName, Args.matchcatsHTMArgs{:});
+                    Dist = ResM.getCol('Dist');
+                    Nmatch = ResM.getCol('Nmatch');
+
+                    CatH = CatH.selectRows(ResInd.Obj2_IndInObj1);
+                    Mags = CatH.getCol(Args.MagCols);
+
+                    Result(Iobj).DistGAIA = Dist(:).';
+                    Result(Iobj).N_GAIA   = Nmatch(:).';
+                    Result(Iobj).Bp       = Mags(:,1).';
+                    Result(Iobj).Rp       = Mags(:,2).';
+                    
+                end
                 
             end
             
