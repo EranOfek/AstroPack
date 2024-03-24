@@ -2459,6 +2459,8 @@ classdef AstroImage < Component
         function Result = funBinaryProp(Obj1, Obj2, Operator, Args)
             % Apply binary function on a single property of AstroImage
             %       without error propagation.
+            %       Note that Mask image will be propagated only if the
+            %       Mask of the 1st operand is not empty.
             % Input  : - 1st operand - An AstroImage object.
             %          - 2nd operand - An AstroImage object or a
             %            cell array of matrices, or an array of numbers.
