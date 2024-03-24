@@ -52,7 +52,8 @@ function [Result, SelObj] = insertCol_matchIndices(Obj, ResInd, Args)
         % Obj, but with extra columns indicating if there is a match in CatH
         if Args.AddColDist
             DistData     = convert.angular('rad', Args.ColDistUnits, ResInd(Iobj).Obj2_Dist); %(FlagNN));
-            Result(Iobj) = insertCol(Result(Iobj), ResInd(Iobj).Obj2_Dist, Args.ColDistPos, Args.ColDistName, Args.ColDistUnits);
+            %Result(Iobj) = insertCol(Result(Iobj), ResInd(Iobj).Obj2_Dist, Args.ColDistPos, Args.ColDistName, Args.ColDistUnits);
+            Result(Iobj) = insertCol(Result(Iobj), DistData, Args.ColDistPos, Args.ColDistName, Args.ColDistUnits);
         end
         if Args.AddColNmatch
             Result(Iobj) = insertCol(Result(Iobj), ResInd(Iobj).Obj2_NmatchObj1 , Args.ColNmatchPos, Args.ColNmatchName, '');
