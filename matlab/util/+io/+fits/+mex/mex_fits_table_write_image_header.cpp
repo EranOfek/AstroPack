@@ -14,6 +14,9 @@
 #include <algorithm>
 #include <cstdint>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat"
+#pragma GCC diagnostic ignored "-Wformat-extra-args"
 
 const size_t cardSize = 80;     // Each FITS header card is 80 bytes
 const size_t blockSize = 2880;  // FITS headers are allocated in blocks of 2880 bytes
@@ -29,12 +32,14 @@ inline void addCard(mxChar* headerBuffer, size_t& bufferPos, const char* card)
 }
 
 
-void printValue(mxArray* valueElement, char* value, size_t valueSize) 
+void printValue(mxArray* valueElement, char* value, size_t valueSize, bool& isChar) 
 {
     const size_t maxStringLength = 67; // Max length for continued strings/values
 
+    isChar = false;
     if (mxIsChar(valueElement)) {
         // Add single quotes for string values
+        isChar = true;
         char* tempStr = mxArrayToString(valueElement);
         if (strlen(tempStr) > maxStringLength)
             tempStr[maxStringLength] = '\0';
@@ -97,8 +102,9 @@ void fillHeaderBufferFromCellArray(mxChar* headerBuffer, size_t& bufferPos, cons
 
         // Extract and Format Value using printValue
         mxArray* valueElement = mxGetCell(cellArray, row + numRows);
+        bool isChar = false;
         if (valueElement != nullptr) {
-            printValue(valueElement, value, sizeof(value));
+            printValue(valueElement, value, sizeof(value), isChar);
         }
 
         // Extract Comment
@@ -144,8 +150,7 @@ void fillHeaderBufferFromCellArray(mxChar* headerBuffer, size_t& bufferPos, cons
             }
             #endif
 
-            snprintf(card, sizeof(card), "%-8.8s= %20.20s", key, value);
-            //snprintf(card, sizeof(card), "%-8s= %20s", key, value);
+            snprintf(card, sizeof(card), "%-8.8s= %20s", key, value);
         }
 
         // Add the card to the buffer
