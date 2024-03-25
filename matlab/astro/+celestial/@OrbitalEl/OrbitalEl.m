@@ -1040,6 +1040,9 @@ classdef OrbitalEl < Base
             %            If empty, then ignore.
             %            Default is [].
             %          * ...,key,val,...
+            %            'S_B' - Column vector of Sun barycentric position.
+            %                   If empty, then assume [0 0 0]'.
+            %                   Default is [].
             %            'OutType' - Output type:
             %                   'mat' - A matrix output.
             %                   'AstroCatalog' - An AstroCatalog object.
@@ -1078,6 +1081,8 @@ classdef OrbitalEl < Base
                 AllE_H
                 AllE_dotH                  = [];
                 
+                Args.S_B                   = []; % if provided then use it to calculate heliocentric R instead of barycentric R
+
                 Args.OutType               = 'AstroCatalog'; % 'mat'|'astrocatalog'|'table'
                                 
                 Args.Aberration logical    = false;
@@ -1085,6 +1090,8 @@ classdef OrbitalEl < Base
                 Args.IncludeMag logical    = true;
                 Args.IncludeAngles logical = true;
                 Args.IncludeDesignation logical = true;
+
+                %Args.TreatInaccurateDist logical  = true;
             end
             
             if Args.OutUnitsDeg
@@ -1096,7 +1103,11 @@ classdef OrbitalEl < Base
             % Topocentric distance
             Delta = sqrt(sum(AllU.^2, 1));
 
-            R     = sqrt(sum(AllU_B.^2, 1));
+            if isempty(Args.S_B)
+                R     = sqrt(sum(AllU_B.^2, 1));
+            else
+                R     = sqrt(sum((AllU_B-Args.S_B).^2, 1));
+            end
 
             
             % U2 is already in equatorial caretesian coordinates
@@ -1110,6 +1121,10 @@ classdef OrbitalEl < Base
             % calculate angles
             if Args.IncludeAngles
                 R_obs_sun = sqrt(sum(AllE_H.^2, 1));  % Sun-Earth distance
+                % if Args.TreatInaccurateDist
+                %     Flag = (R_obs_sun+Delta)<R;
+                %     R_obs_sun
+
                 [Ang_SOT, Ang_STO, Ang_TSO] = celestial.SolarSys.anglesFromDistances(R_obs_sun, R, Delta, Args.OutUnitsDeg);
                 
                 Cat = [Cat, Ang_SOT(:), Ang_STO(:), Ang_TSO(:)];

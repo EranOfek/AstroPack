@@ -3,7 +3,7 @@ function [Result] = findListsOfConsecutiveTrue(Vector)
     % found in the vector
     % Input  : - A vector of logicals. If not logicals, then the vector
     %            will be cast into logicals.
-    % Output : - A cella array in which each element contains a vector of
+    % Output : - A cell array in which each element contains a vector of
     %            indices of one consecutive list of true.
     % Author : Eran Ofek (2024 Feb) 
     % Example: V=[1 1 1 1 0 1 1 1 1 1 ];

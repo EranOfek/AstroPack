@@ -375,6 +375,10 @@ classdef MovingSource < Component
             %                   and last.
             %                   Default is true.
             %            'Verbose' - Verbosity. Default is true.
+            %            'MaxNdir' - Index of last dir (visit) to load.
+            %                   Default is Inf.
+            %            'IndDirStart' - Index of first dir (visit) from which to
+            %                   load. Default is 1.
             % Output : - A MovingSource object
             % Author : Eran Ofek (Jan 2024)
             % Example: MP = MovingSource.read()
@@ -388,6 +392,9 @@ classdef MovingSource < Component
                 Args.PopKA logical = false;
                 Args.KeepOnlyFirstAndLast logical  = true;
                 Args.Verbose logical = true;
+
+                Args.MaxNdir         = Inf;
+                Args.IndDirStart     = 1;
             end
             
             PWD = pwd;
@@ -404,47 +411,58 @@ classdef MovingSource < Component
             
             Obj = [];
             Nf = numel(Files);
-            for If=1:1:Nf
+            Nf = min(Nf, Args.MaxNdir);
+            for If=Args.IndDirStart:1:Nf
                 FileName = fullfile(Files(If).folder, Files(If).name);
                 if Args.Verbose
                     fprintf('Reading File name : %s\n',FileName);
                 end
-                Tmp = io.files.load2(FileName);
-               
-                if any(strcmp(fieldnames(Tmp), 'AstCrop'))
-                    Tmp = Tmp.AstCrop;
+                try 
+                    Tmp = io.files.load2(FileName);
+                catch ME
+                    % problem with loading file
+                    fprintf('Problem with loading file: %s',FileName);
+                    Tmp = [];
                 end
-                
-                if isa(Tmp, 'MovingSource')
-                    Tmp.insertPropVal('FileName', FileName);
-                    Tmp.insertPropVal('IDinFile', num2cell(1:1:numel(Tmp)));
-                    if If==1
-                        Obj = Tmp;
-                    else
-                        Obj = [Obj(:); Tmp];
-                    end
-                elseif isa(Tmp, 'struct')
-                    FieldsName = fieldnames(Tmp);
-                    if numel(FieldsName)==1 && isa(Tmp.(FieldsName{1}), 'MovingSource')
-                        Tmp.(FieldsName{1}).insertPropVal('FileName', FileName);
-                        Tmp.(FieldsName{1}).insertPropVal('IDinFile', num2cell(1:1:numel( Tmp.(FieldsName{1})) ));
-                        if If==1
-                            Obj = Tmp.(FieldsName{1});
-                        else
-                            
-                            Obj = [Obj(:); Tmp.(FieldsName{1})(:)];
-                        end
-                    else
-                        % Assume an AstCrop object
-                        Obj = MovingSource.astCrop2MovingSource(Tmp, 'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
-                                                         'FileName',FileName,...
-                                                         'ConcatObj',Obj,...
-                                                         'Id',[]);
-                    end
-                elseif isempty(Tmp)
-                    % do nothing
+               
+                if isempty(Tmp)
+                    % skip
                 else
-                    error('Unknown content format in file %s', FileName);
+
+                    if any(strcmp(fieldnames(Tmp), 'AstCrop'))
+                        Tmp = Tmp.AstCrop;
+                    end
+                    
+                    if isa(Tmp, 'MovingSource')
+                        Tmp.insertPropVal('FileName', FileName);
+                        Tmp.insertPropVal('IDinFile', num2cell(1:1:numel(Tmp)));
+                        if If==1
+                            Obj = Tmp;
+                        else
+                            Obj = [Obj(:); Tmp];
+                        end
+                    elseif isa(Tmp, 'struct')
+                        FieldsName = fieldnames(Tmp);
+                        if numel(FieldsName)==1 && isa(Tmp.(FieldsName{1}), 'MovingSource')
+                            Tmp.(FieldsName{1}).insertPropVal('FileName', FileName);
+                            Tmp.(FieldsName{1}).insertPropVal('IDinFile', num2cell(1:1:numel( Tmp.(FieldsName{1})) ));
+                            if If==1
+                                Obj = Tmp.(FieldsName{1});
+                            else
+                                
+                                Obj = [Obj(:); Tmp.(FieldsName{1})(:)];
+                            end
+                        else
+                            % Assume an AstCrop object
+                            Obj = MovingSource.astCrop2MovingSource(Tmp, 'KeepOnlyFirstAndLast',Args.KeepOnlyFirstAndLast,...
+                                                             'FileName',FileName,...
+                                                             'ConcatObj',Obj,...
+                                                             'Id',[]);
+                        end
+                    
+                    else
+                        error('Unknown content format in file %s', FileName);
+                    end
                 end
                 
             end            
@@ -634,6 +652,16 @@ classdef MovingSource < Component
             end
         end
         
+        function Result=isKnownAstPopulated(Obj)
+            % Return true is KnownAst is populated
+            % Input  : - A MovingSource object.
+            % Output : - A vector of logicals. True if KnownAst property is
+            %            populated.
+            % Author : Eran Ofek (Mar 2024)
+                       
+            Result = ~Obj.isemptyProperty('KnownAst');
+        end
+          
         function [FlagComb, Flag]=nearStaticSrc(Obj, Args)
             % Check for static sources near the moving source
             %   Search a PGC galaxy or GAIA star near the moving source.
@@ -773,7 +801,7 @@ classdef MovingSource < Component
             % Input  : - A MovingSource object.
             %          * ...,key,val,...
             %            'Flags' - A cell array of FLAGS to select (or not)
-            %                   Default is {''NearEdge','Overlap'}.
+            %                   Default is {'NearEdge','Overlap'}.
             %            'ColFlags' - Column name containing the flags
             %                   information. Default is 'FLAGS'.
             %            'Method' - Select 'any' | 'all' flags.
@@ -785,7 +813,7 @@ classdef MovingSource < Component
             %            'BitDict' - BitDictionary object.
             %                   Default is BitDictionary.
             % Output : - Logical flags indicating, for each element, if the
-            %            flags were satisfied.
+            %            flags were not satisfied.
             %          - The selected elements of the MovingSource object.
             % Author : Eran Ofek (Jan 2024)
             % Example: [~,MP]=MP.selectByBitMask;
@@ -815,6 +843,103 @@ classdef MovingSource < Component
             end
                             
         end
+
+
+        function Result=selectGoodCand(Obj, Args)
+            % Select good asteroid candidates and classify to types
+            %   of good, bad, variable, known and unknown asteroids.
+            % Input  : - A MovingSource object.
+            %          * ...,key,val,...
+            %            'MaxDist' - Max. dist to known asteroid
+            %                   association. Default is 5.
+            %            'DistUnits' - MaxDist units.
+            %                   Default is 'arcsec'.
+            %            'MaxMagDiff' - max. mag. difference between
+            %                   measured and predicted mag., in order 
+            %                   to declare good and not variable asteroid.
+            %            'selectByBitMaskArgs' - A cell array of additional
+            %                   arguments to pass to the selectByBitMask
+            %                   method. Default is {}.
+            %            'nearStaticSrcArgs' - A cell array of additional
+            %                   arguments to pass to the nearStaticSrc
+            %                   method. Default is {}.
+            %            'MaxDistExtended' - Max dist [pix] for selection
+            %                   of extended objects. Default is 5.
+            %            'ThreshExtendedFAP' - Threshold fraction of
+            %                   'ExtendedFAP' in psfFitExtended in order to
+            %                   declare the source is extended.
+            %            'Verbose' - Vebosity. Default is true.
+            % Output : - Structure cotaining the following fields:
+            %            .Flag - Structure of Flags details, including:
+            %                   .Bit 
+            %                   .IsKApos
+            %                   .IsKAmag
+            %                   .NearSrc
+            %            .FlagKnownGoodCand
+            %            .FlagUnknownGoodCand
+            %            .FlagVariable
+            %            .FlagBadCand
+            %            .FlagExtended 
+            %
+            % Author : Eran Ofek (Mar 2024)
+            % Example: RR=MP.selectGoodCand
+
+            arguments
+                Obj
+                
+                Args.MaxDist                  = 5;
+                Args.DistUnits                = 'arcsec';
+                Args.MaxMagDiff               = 1.5;
+
+                Args.selectByBitMaskArgs cell = {};
+                Args.nearStaticSrcArgs cell   = {};
+                Args.psfFitExtended cell      = {};
+                Args.MaxDistExtended          = 5;   % [pix]
+                Args.ThreshExtendedFAP        = 0.3;
+
+                Args.Verbose logical          = true;
+            end
+
+            MaxDist = convert.angular(Args.DistUnits, 'arcsec', Args.MaxDist);
+
+            IsPop = isKnownAstPopulated(Obj);
+            if ~all(IsPop)
+                if Args.Verbose
+                    fprintf('Populate known asteroids\n\');
+                end
+                Obj.popKnownAst;
+            end
+
+            % Asteroids with good flags
+            [Flag.Bit]    = Obj.selectByBitMask(Args.selectByBitMaskArgs{:}); 
+
+            [Dist, Mag]   = Obj.nearestKnownAst();
+            MeasuredMag   = [Obj.Mag].';
+
+            % Knonw asteroid found within Args.MaxDist
+            Flag.IsKApos  = Dist<MaxDist;
+            % Known asteroid mag. similar to measured mag., within Args.MaxMagDiff
+            Flag.IsKAmag  = abs(Mag(:) - MeasuredMag)<Args.MaxMagDiff;
+
+            [Flag.NearSrc] = Obj.nearStaticSrc(Args.nearStaticSrcArgs{:});
+
+            Result.Flag         = Flag;
+
+            % search extended sources
+            ResultExt = Obj.psfFitExtended(Args.psfFitExtended{:});
+            
+            Result.Extended = [ResultExt.FracExtended].'>Args.ThreshExtendedFAP;
+
+            Result.FlagKnownGoodCand   = Flag.Bit & Flag.IsKApos & Flag.IsKAmag & Flag.NearSrc;
+            Result.FlagUnknownGoodCand = Flag.Bit & ~Flag.IsKApos & Flag.NearSrc;
+            Result.FlagVariable        = Flag.Bit & Flag.IsKApos & ~Flag.IsKAmag & Flag.NearSrc;
+            Result.FlagBadCand         = ~Result.FlagKnownGoodCand & ~Result.FlagUnknownGoodCand & ~Result.FlagVariable;
+
+        end
+
+    end
+
+    methods % catalog untilities
     
         function Result=selectMovingFromStamps(Obj, Args)
             % Create a catalog of the moving source position as a function of time
@@ -873,6 +998,9 @@ classdef MovingSource < Component
             
         end
         
+    end
+
+    methods % reports
         function ReportMPC=reportMPC(Obj, Args)
             % Generate MPC report for MovingSource object
             %   Generate an MPC report for all elements of a MovingSource object
@@ -1068,38 +1196,267 @@ classdef MovingSource < Component
 
     methods % asteroid merging
         
+        
+        
+        function Result=findUniqueAsteroidsByNames(Obj)
+            % Return a list of unique asteroid names with their appearance in the MovingSource object.
+            % Input  : - A MovingSource object.
+            % Output : - A structure array with the following fields:
+            %            .IinInput - Index of the unique asteroid taken from the
+            %                   input MovingSource object.
+            %            .UniqueAstName - Unique asteroid name.
+            %            .Ind - A vector of indices in the input
+            %                   MovingSource object in which the asteroid
+            %                   name appear.
+            % Author : Eran Ofek (Mar 2024)
+            % Example: R=MP.findUniqueAsteroidsByNames
+            
+            SummaryTable = Obj.summary();
+            
+            AstNames       = SummaryTable.Desig;
+            [UniqueAstNames, IA] = unique(AstNames);
+            Fne            = ~isempty(UniqueAstNames);
+            UniqueAstNames = UniqueAstNames(Fne);
 
+            Nun            = numel(UniqueAstNames);
+            Result         = struct('IinInput',cell(Nun,1), 'UniqueAstName',cell(Nun,1), 'Ind',cell(Nun,1));
+            for Iun=1:1:Nun
+                Result(Iun).IinInput      = IA(Iun);
+                Result(Iun).UniqueAstName = UniqueAstNames{Iun};
+                Result(Iun).Ind           = find(strcmp(UniqueAstNames{Iun}, AstNames));
+            end
+               
+            
+        end
+        
+        function [Result,Common,UniqueFlag]=calcPosCommonTime(Obj, JD0, Args)
+            % Return a table of MovingSource position projected at a common time.
+            %   For each source, its position is projected to some common
+            %   time origin. Sources which have common origin + their
+            %   observations were taken within a 'MaxTimeDiff' time window
+            %   are decalred as common sources.
+            % Input  : - A MovingSource object.
+            %          - (JD0) The common JD at which the RA/Dec will be
+            %            projected. If empty, then use the JD in the 1st
+            %            element of the input MovingSource object.
+            %          * ...,key,val,...
+            %            'RadiusCommon' - Max. radius between the projected
+            %                   positions in order to declare a common source.
+            %                   Default is 10.
+            %            'RadiusCommonUnits' - RadiusCommon units.
+            %                   Default is 'arcsec'.
+            %            'MaxTimeDiff' - Max. time difference [day] between the
+            %                   observations in order to declare a common source.
+            %                   Default is 3./1440.
+            % Output : - A table (line per source) with the following
+            %            columns:
+            %            'JD','RA','Dec','ProjRA','ProjDec','PM_RA','PM_Dec'
+            %          - Structure array, eith element per MovingSource
+            %            element and the following fields:
+            %            .Flag - A vectof of flags pointing to possible
+            %                   common sources.
+            %          - A vector of logical flags indicating if the input
+            %            MovingSource entry is identified as the first unique
+            %            apperance of an asteroid.
+            %
+            % Author : Eran Ofek (Mar 2024)
+            % Example: [R,C,U]=MP.calcPosCommonTime
+            
+            
+            arguments
+                Obj
+                JD0                    = [];
+                Args.RadiusCommon      = 10;
+                Args.RadiusCommonUnits = 'arcsec';
+                Args.MaxTimeDiff       = 3./1440;
+            end
+            RAD = 180./pi;
+
+            RadiusCommonRad = convert.angular(Args.RadiusCommonUnits, 'rad', Args.RadiusCommon);  % [rad]
+
+            if isempty(JD0)
+                JD0 = Obj(1).JD;
+            end
+            
+            Nobj         = numel(Obj);
+            
+            ConvFactor   = convert.angular(Obj(1).CooUnits, 'deg');
+            RA           = [Obj.RA].'.*ConvFactor;
+            Dec          = [Obj.Dec].'.*ConvFactor;
+            
+            if strcmp(Obj(1).PMUnits(1), 't')
+                IsAngularTime = true;
+                PMUnits = Obj(1).PMUnits(2:end);
+            else
+                IsAngularTime = false;
+                PMUnits = Obj(1).PMUnits;
+            end
+            
+            ConvFactor  = convert.proper_motion(PMUnits, 'deg/day');
+            PM_RA  = [Obj.PM_RA].'.*ConvFactor;
+            PM_Dec = [Obj.PM_Dec].'.*ConvFactor;
+            
+            AllJD  = [Obj.JD].';
+            
+            % Project RA, Dec to AllJD(Iobj)
+            DeltaJD  = AllJD - JD0;
+            if IsAngularTime
+                ProjRA = RA + PM_RA.*DeltaJD;
+            else
+                ProjRA = RA + PM_RA.*DeltaJD./cosd(Dec);
+            end
+            ProjDec = Dec + PM_Dec.*DeltaJD;
+
+            Result = array2table([AllJD, RA, Dec, ProjRA, ProjDec, PM_RA, PM_Dec]);
+            Result.Properties.VariableNames = {'JD','RA','Dec','ProjRA','ProjDec','PM_RA','PM_Dec'};
+            Result.Properties.VariableUnits = {'day','deg','deg','deg','deg',Obj(1).PMUnits,Obj(1).PMUnits};
+            
+            % Build list of common candidates
+            ConvFactor = convert.angular(Obj(1).CooUnits, 'rad');
+            VecRA      = Result.RA.*ConvFactor;
+            VecDec     = Result.Dec.*ConvFactor;
+            % Matrix of all dist combinations
+            DistMat    = celestial.coo.sphere_dist_fast(VecRA, VecDec, VecRA.', VecDec.');
+            % populated the diagonal with NaNs
+            DistMat    = diag(nan(Nobj,1)) + DistMat;
+            MatDeltaJD = AllJD(:) - AllJD(:).';
+            % 1<NaN return false, so the diagonal is not selected
+            % select sources with common positions take at similar epochs
+            FlagMat = DistMat<RadiusCommonRad &  abs(MatDeltaJD)<Args.MaxTimeDiff;
+            
+            Common  = struct('Flag',cell(Nobj,1));
+            UniqueFlag = true(Nobj,1);
+            for Iobj=1:1:Nobj
+                Common(Iobj).Flag = FlagMat(:,Iobj);
+                if any(Common(Iobj).Flag)
+                    IndRem = find(Common(Iobj).Flag);
+                    IndRem = IndRem(IndRem>Iobj);
+                    UniqueFlag(IndRem) = false;
+                end
+            end
+
+        end
 
     end
 
 
     methods % extended sources
         % Fit PSF vs. extended PSF
-        function psfFitExtended(Obj, Args)
+        function Result=psfFitExtended(Obj, Args)
             % Fit PSF and extended PSF to all stamps and search for extended sources
+            %   The function fit, for each stamp, its PSF as well as the
+            %   PSF convolved with some extended (Sersic) profiles.
+            %   The function uses the chi^2 of the fits to determine if the
+            %   source is likely extended or consistent with a point
+            %   source.
+            % Input  : - A MovingSource object.
+            %          * ...,key,val,...
+            %            'SersicPar' - A 3 column matrix of Sersic
+            %                   parameters for the sersic profiles that
+            %                   will be convolved with the PSF.
+            %                   Default is [1 1 1; 2 1 1; 3 1 1].
+            %            'psfFirPhotArgs' - A cell array of additional
+            %                   arguments to pass to imProc.sources.psfFitPhot
+            %                   Default is {}.
+            %            'FitRadius' - PSF fit radius. Default is 3 pix.
+            %            'ThreshProb' - Threshold probability for the false
+            %                   alarm that the object is extended.
+            %                   Assuming \chi^2 statistics.
+            %                   Default is 0.01.
+            %            'MinDistPix' - Max. distance of source from stamp
+            %                   center. If there is no source within this
+            %                   distance then no source will be selected.
+            % Output : - A structure array with element per MovingSource
+            %            element. Fields are:
+            %            .Stamp - A structure array with element per stamp,
+            %                   and the following fields:
+            %               .DistSrcCenter - A vector of distance (pix) of
+            %                   source from image center.
+            %               .Istamp - Index of stamp.
+            %               .Imin - Index of source with min. dist. from
+            %                   stamp center.
+            %               .Chi2 - An array of \chi^2. Line per source.
+            %                   Columns for [actual PSF, extended PSFs...]
+            %               .DeltaChi2 - Max \Delta\chi^2.
+            %               .MinInd - Index of minimum chi^2 [1 is the
+            %                   original PSF...]
+            %               .ExtendedFAP - False alaram probability for
+            %                   being an extended object.
+            %            .MeanDist - Vector of Mean over DistSrcCenter.
+            %            .Imin - Index of source selected (in MeanDist).
+            %            .MeanDeltaChi2 - Mean of \Delta\chi^2 per source.
+            %            .MedDeltaChi2 - Median of \Delta\chi^2 per source.
+            %            .FracExtended - Fraction of events in which the
             %
-            %
+            % Author : Eran Ofek (Mar 2024)
+            % Example: RR=MP.psfFitExtended
             
             arguments
                 Obj
-                Args.SersicPar              = [1 1 1];
+                Args.SersicPar              = [1 1 1; 2 1 1; 3 1 1];
                 Args.psfFirPhotArgs cell    = {};
+                Args.FitRadius              = 3;
+                Args.ThreshProb             = 0.01;
+                Args.MaxDistPix             = 5;
             end
         
+            Nextend = size(Args.SersicPar,1);
+            FitDof  = ceil(pi.*Args.FitRadius.^2);
+
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 Nstamp = numel(Obj(Iobj).Stamps);
+                IndStamp = 0;
                 for Istamp=1:1:Nstamp
+                    %[Iobj, Istamp]
                     if ~isempty(Obj(Iobj).Stamps(Istamp).Image)
-                        [~, Result] = psfFitPhot(Obj(Iobj).Stamps(Istamp), Args.psfFirPhotArgs{:});
+                        Obj(Iobj).Stamps(Istamp) = imProc.background.background(Obj(Iobj).Stamps(Istamp), 'SubSizeXY',[]);
+                        [~, ResultPSF] = imProc.sources.psfFitPhot(Obj(Iobj).Stamps(Istamp), Args.psfFirPhotArgs{:}, 'FitRadius',Args.FitRadius);
                         
                         PSF = Obj(Iobj).Stamps(Istamp).PSFData.getPSF();
                         % extened PSF by convolving
                         Extend = imUtil.kernel2.sersic(Args.SersicPar);
-                        ExtendedPSF = conv2(PSF, Extend, 'same');
-                        [~, ResultExt] = psfFitPhot(Obj(Iobj).Stamps(Istamp), Args.psfFirPhotArgs{:}, 'PSF',ExtendedPSF);
-                    end
-                end
+                        for Iextend=1:1:Nextend
+                            ExtendedPSF = conv2(PSF, Extend(:,:,Iextend), 'same');
+                            [~, ResultExt(Iextend)] = imProc.sources.psfFitPhot(Obj(Iobj).Stamps(Istamp), Args.psfFirPhotArgs{:}, 'PSF',ExtendedPSF, 'FitRadius',Args.FitRadius);
+                        end
+
+                        IndStamp = IndStamp + 1;
+
+                        % stamp image size
+                        [NY, NX] = Obj(Iobj).Stamps(Istamp).sizeImage;
+                        [X, Y] = Obj(Iobj).Stamps(Istamp).CatData.getXY();
+                        DistAll = sqrt((X-NX.*0.5).^2 + (Y-NY.*0.5).^2);
+                        [DistMin,Imin] = min(DistAll);
+                        Result(Iobj).Stamp(IndStamp).DistSrcCenter = DistMin;
+                        Result(Iobj).Stamp(IndStamp).Imin          = Imin;
+                        Result(Iobj).Stamp(IndStamp).Istamp        = Istamp;
+                        Result(Iobj).Stamp(IndStamp).Chi2          = [ResultPSF.Chi2, [ResultExt(:).Chi2]];
+                        
+                        if DistMin<Args.MaxDistPix
+                            % nearest to center selected
+                                                  
+                            [MinChi2, MinInd]                          = min(Result(Iobj).Stamp(IndStamp).Chi2(Imin,:),[],2);
+                            
+                            Result(Iobj).Stamp(IndStamp).DeltaChi2     = Result(Iobj).Stamp(IndStamp).Chi2(Imin,1)-MinChi2;
+                            Result(Iobj).Stamp(IndStamp).MinChi2Ind    = MinInd;
+                            Result(Iobj).Stamp(IndStamp).ExtendedFAP   = 1-chi2cdf(Result(Iobj).Stamp(IndStamp).DeltaChi2, FitDof);
+                        else
+                            Result(Iobj).Stamp(IndStamp).DeltaChi2   = NaN;
+                            Result(Iobj).Stamp(IndStamp).MinChi2Ind  = NaN;
+                            Result(Iobj).Stamp(IndStamp).ExtendedFAP = NaN;
+                        end
+
+                        %Result(Iobj).Stamp(IndStamp).
+                    end % if ~isempty(Obj(Iobj).Stamps(Istamp).Image)
+                end % for Istamp=1:1:Nstamp
+                Result(Iobj).MeanDist      = mean([Result(Iobj).Stamp(:).DistSrcCenter],2);
+                [Result(Iobj).MinDist, Result(Iobj).Imin] = min(Result(Iobj).MeanDist);
+
+                Result(Iobj).MeanDeltaChi2 = mean([Result(Iobj).Stamp(:).DeltaChi2],2);
+                Result(Iobj).MedDeltaChi2  = median([Result(Iobj).Stamp(:).DeltaChi2],2);
+                Result(Iobj).FracExtended  = sum([Result(Iobj).Stamp(:).ExtendedFAP]<Args.ThreshProb, 2)./IndStamp;
+
             end
         end
         
@@ -1214,6 +1571,16 @@ classdef MovingSource < Component
             Summary = cell(Nobj, Ncol);
             
             for Iobj=1:1:Nobj
+                if isempty(Obj(Iobj).KnownAst.Table)
+                    Desig   = NaN;
+                    Dist    = NaN;
+                    PredMag = NaN;
+                else
+                    Desig   = Obj(Iobj).KnownAst.Table.Desig;
+                    Dist    = Obj(Iobj).KnownAst.Table.Dist;
+                    PredMag = Obj(Iobj).KnownAst.Table.Mag;
+                end
+
                 Summary(Iobj,:) = {Obj(Iobj).JD, Obj(Iobj).RA, Obj(Iobj).Dec,...
                                    Obj(Iobj).PM_RA, Obj(Iobj).PM_Dec,...
                                    Obj(Iobj).Mag,...
@@ -1221,10 +1588,11 @@ classdef MovingSource < Component
                                    Obj(Iobj).MergedCat.Table.PM_TdistProb,...
                                    Obj(Iobj).MergedCat.Table.FLAGS,...
                                    Obj(Iobj).MergedCat.Table.MergedCatMask,...
-                                   Obj(Iobj).KnownAst.Table.Desig,...
-                                   Obj(Iobj).KnownAst.Table.Dist,...
-                                   Obj(Iobj).KnownAst.Table.Mag};
-                               
+                                   Desig,...
+                                   Dist,...
+                                   PredMag};
+                
+                                               
             end
             Table = cell2table(Summary);
             Table.Properties.VariableNames = ColNames;

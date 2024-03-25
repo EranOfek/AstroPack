@@ -1,5 +1,5 @@
 function A_3=extinction(Ebv,Family,Filter,R, Args)
-    % Given the E_{B-V} and th wavelength or filter name calculate the extinction in magnitudes
+    % Given the E_{B-V} and the wavelength or filter name calculate the extinction in magnitudes
     % Input: - E(B-V)
     %        - filter family
     %        - filter
@@ -15,7 +15,7 @@ function A_3=extinction(Ebv,Family,Filter,R, Args)
     arguments
         Ebv
         Family  
-        Filter
+        Filter      = [];
         R           = 3.08;
         Args.Model = 'CCM89'; % 'F99'
     end

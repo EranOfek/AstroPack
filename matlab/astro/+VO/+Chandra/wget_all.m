@@ -17,6 +17,8 @@ arguments
     Istart   = [];
     Iend     = [];
     Args.wget_obsidArgs cell = {};
+
+    Args.SkipIfExist logical  = true;
 end
 
 
@@ -33,13 +35,21 @@ end
 % 4287
 for Iid=Istart:1:Iend
     ObsID = Cat.Cat.ObsID(Iid);
+    AO    = Cat.Cat.AO{Iid};
+    CatCh = Cat.Cat.Cat{Iid};
     
-    fprintf('---------------------------------\n');
-    fprintf('wget ObsID=%d  (dir %d out of %d)\n',ObsID,Iid,Nid);
-    fprintf('---------------------------------\n');
-    
-    VO.Chandra.wget_obsid(ObsID, Args.wget_obsidArgs{:});
-    
-    pause(1);
+    % check if dir exist
+    if Args.SkipIfExist && isfolder(fullfile(AO, CatCh, sprintf('%d',ObsID)))
+        % skip
+    else
+
+        fprintf('---------------------------------\n');
+        fprintf('wget ObsID=%d  (dir %d out of %d)\n',ObsID,Iid,Nid);
+        fprintf('---------------------------------\n');
+        
+        VO.Chandra.wget_obsid(ObsID, Args.wget_obsidArgs{:});
+        
+        pause(1);
+    end
     
 end

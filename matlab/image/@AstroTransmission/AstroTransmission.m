@@ -752,6 +752,19 @@ classdef AstroTransmission < Component
             end
         end
         
+        function Result = trapz(Obj)
+            % Trapezoidal integration of the filters
+            % Input  : - AstroTransmission object.
+            % Output : - Array of integrals.
+            % Author : Eran Ofek (Mar 2024)
+           
+            Nobj = numel(Obj);
+            Result = zeros(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = trapz(Obj(Iobj).Wave, Obj(Iobj).Tran);
+            end
+            
+        end
         
         function [Result, Wave] = convert2matrix(Obj, NewWave)
             % Generate a matrix of response functions from a set of AstroTransmission filters

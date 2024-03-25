@@ -70,12 +70,7 @@ classdef DemonLAST < Component
         function Obj = DemonLAST(Args)
             % Constructor for DemonLAST
 
-            arguments
-                Args.BasePath    = [];
-            end
             
-            
-
         end
         
     end
@@ -915,6 +910,65 @@ classdef DemonLAST < Component
 
         end
 
+
+        function ResultOK = lockFile(Obj, Args)
+            % Create, check and manage lock file for pipelines
+            % Author : Eran Ofek (Mar 2024)
+
+            arguments
+                Obj
+                Args.LockDir   = '/var/run/1001';
+                Args.LockFileBase = 'pipeline';
+                
+            end
+
+            ResultOK = true;
+
+            LockFile = sprintf('%s%s%s%d', Args.LockDir, filesep, Args.LockFileBase, Obj.DataDir);
+            Pid      = tools.os.getPid;
+            if isfile(LockFile)
+                % lock file exist
+                % read Pid from lock file
+                FID = fopen(LockFile);
+                LockPid = fscanf(FID,'%d');
+                fclose(FID);
+
+                % Check if LockPid exist in system
+                [~,OutStr] = system(sprintf('ps %d',LockPid));
+                if contains(OutStr,'matlab')
+                    % Pid exist
+                    ResultOK = false;
+
+                    Obj.setLogFile('HostName',Args.HostName);
+                    Msg = sprintf('Lock File exist: %s - clear an try again',LockFile);
+                    fprintf(Msg);
+                    Obj.writeLog(Msg);
+
+                else
+                    % Pid doesnt exist - delete LockFile
+                    delete(LockFile);
+
+                    % create new lock file
+                    FID = fopen(LockFile, 'w');
+                    fprintf(FID,'%d',Pid);
+                    fclose(FID);
+                end
+
+            else
+                % no lock file - create
+                FID = fopen(LockFile, 'w');
+                fprintf(FID,'%d',Pid);
+                fclose(FID);
+            end
+
+
+
+
+
+
+
+        end
+
         function writeLog(Obj, Msg, Level, Args)
             % write a log message to screen and log file
             % Input  : - A pipeline.DemonLAST object.
@@ -1146,7 +1200,71 @@ classdef DemonLAST < Component
                 cd ..
             end
         end
+        
+        function removeUnderlineFromFileName(Obj, Args)
+            % Remove _ from file name and fix header
+            % Input  : - A pipeline.DemonLAST object
+            %          * ...,key,val,...
+            %            See code.
+            % Output : null
+            % Author : Eran Ofek (Mar 2024)
+            
+            arguments
+                Obj
+                Args.BasePath          = [];
+                Args.Nsplit            = 11;
+                Args.UnderLine         = '_';
+                Args.Modify logical    = false;
+            end
+            
+            PWD = pwd;
+            
+            cd(Obj.NewPath);
+            
+            List = io.files.filelist('LAST*.fits');
+            List = io.files.removeFilePath(List);
+            
+            Nlist = numel(List);
+            Count = 0;
+            for Ilist=1:1:Nlist
+                Tmp = split(List{Ilist}, Args.UnderLine);
+                if numel(Tmp)~=Args.Nsplit
+                    % file name problem
+                    if numel(Tmp)==(Args.Nsplit+1)
+                        
+                        Count = Count + 1;
+                        if Args.Modify
+                            FieldID = sprintf('%s%s', Tmp{4}, Tmp{5});
+                            TmpNew  = [Tmp(1:3), FieldID, Tmp(6:end)];
 
+                            NewFileName = join(TmpNew, Args.UnderLine);
+                            OldFileName = List{Ilist};
+
+                            % delete OBJECT key
+                            FITS.delete_keys(OldFileName,'OBJECT');
+                            % add OBJECT key
+                            FITS.write_keys(OldFileName, {'OBJECT',FieldID,''});
+
+                            % delete FILENAME
+                            FITS.delete_keys(OldFileName,'FILENAME');
+                            % add FILENAME key
+                            FITS.write_keys(OldFileName, {'FILENAME',NewFileName,''});
+
+                            % move file
+                            io.files.moveFiles(OldFileName, NewFileName);
+                        end
+                        
+                    else
+                        error('Unknown problem with file name %s',List{Ilist});
+                    end
+            
+                end
+            end
+            
+            cd(PWD);
+            
+        end
+        
     end
     
     methods % go over files
@@ -1192,24 +1310,27 @@ classdef DemonLAST < Component
                         for Iv=1:1:Nv
                             %[Iy, Im, Id, Iv, Ind]
                             cd(DirVisit(Iv).name);
-                            Ind = Ind + 1;
+                            
                             Files = dir(Args.FileTemp);
                             FN = FileNames.generateFromFileName({Files.name});
-                            CropID = FN.CropID;
-                            JD     = FN.julday;
-                            List(Ind).FieldID = FN.FieldID{1};
-                            List(Ind).VistDir = DirVisit(Iv).name;
-                            List(Ind).Year    = str2double(DirYear(Iy).name);
-                            List(Ind).Month   = str2double(DirMonth(Im).name);
-                            List(Ind).Day     = str2double(DirDay(Id).name);
-
-                            List(Ind).Path    = fullfile(Obj.BasePath, DirYear(Iy).name, DirMonth(Im).name, DirDay(Id).name, 'proc', DirVisit(Iv).name,'','');
-                            
-                            List(Ind).AllFiles = {Files.name};
-                            List(Ind).CropID   = CropID;
-                            List(Ind).JD       = JD;
-                            List(Ind).MinJD    = min(JD);
-                            
+                            if FN.nfiles>0
+                                Ind = Ind + 1;
+                                CropID = FN.CropID;
+                                JD     = FN.julday;
+                                List(Ind).FieldID = FN.FieldID{1};
+                             
+                                List(Ind).VistDir = DirVisit(Iv).name;
+                                List(Ind).Year    = str2double(DirYear(Iy).name);
+                                List(Ind).Month   = str2double(DirMonth(Im).name);
+                                List(Ind).Day     = str2double(DirDay(Id).name);
+    
+                                List(Ind).Path    = fullfile(Obj.BasePath, DirYear(Iy).name, DirMonth(Im).name, DirDay(Id).name, 'proc', DirVisit(Iv).name,'','');
+                                
+                                List(Ind).AllFiles = {Files.name};
+                                List(Ind).CropID   = CropID;
+                                List(Ind).JD       = JD;
+                                List(Ind).MinJD    = min(JD);
+                            end
                             cd ..
                         end
                         cd ../..
@@ -1282,6 +1403,211 @@ classdef DemonLAST < Component
             
         end
     
+        function [Result,OutTable, FieldT]=findAllVisits(Obj, Args)
+            % Going over all processed image dir and return a catalog of visits
+            % Input  : - A pipeline.DemonLAST object in which the BasePath
+            %            is directed toward the directory to probe.
+            %          * ...,key,val,...
+            %            'YearPat' - Year pattern to scan. Default is '20*'.
+            %            'FilePat' - File pattern to scan.
+            %                   Default is 'LAST*_coadd_Image*.fits'
+            %            'ReadHead' - A logical indicating if to read image
+            %                   headers. If truem then will read the header
+            %                   keywords specified in 'KeysFromHead', else
+            %                   will use only the file name.
+            %                   Default is true.
+            %            'KeysFromHead' - A cell array of header keywords
+            %                   to read from images and store in output.
+            %                   Default is {'RA1','DEC1','RA2','DEC2','RA3','DEC3','RA4','DEC4', 'RAU1','DECU1','RAU2','DECU2','RAU3','DECU3','RAU4','DECU4', 'LIMMAG','BACKMAG','FWHM','MEDBCK','STDBCK','ORIGSEC','ORIGUSEC'}
+            %            'Result' - If not empty, then will concat the
+            %                   result to this structure array.
+            %                   Default is [].
+            % Output : - Astructure array. The number of elements is equal
+            %            to the number of visits found.
+            %            The following fields are available:
+            %            .FieldID - FieldID as read from image name.
+            %            .JD - JD as read from image name.
+            %            .BasePath - BasePath used.
+            %            .Keys - structure array of selected keyword
+            %                   headers (in 'KeysFromHead') for each one of
+            %                   the images in the visit.
+            %          - Table with entry per visit.
+            % Author : Eran Ofek (Mar 2024)
+            % Example: D=pipeline.DemonLAST; D.BasePath='/marvin/LAST.01.01.01';
+            %          [Res,T]=D.findAllVisits;
+            %
+            %          % go over all dir tree
+            %          Res=[];for I=1:1:numel(DL), I, D.BasePath=fullfile(DL(I).folder,DL(I).name); [Res,T]=D.findAllVisits('Result',Res,'ReadHeader',0); end
+
+
+
+            arguments
+                Obj
+                Args.YearPat              = '20*';
+                Args.FilePat              = 'LAST*_coadd_Image*.fits';
+                Args.MinNfile             = 10;
+                Args.ReadHeader logical   = true;
+                Args.KeysFromHead         = {'MOUNTNUM','CAMNUM','AIRMASS','RA1','DEC1','RA2','DEC2','RA3','DEC3','RA4','DEC4', 'RAU1','DECU1','RAU2','DECU2','RAU3','DECU3','RAU4','DECU4', 'LIMMAG','BACKMAG','FWHM','MEDBCK','STDBCK','ORIGSEC','ORIGUSEC'};
+                Args.Result               = [];
+            end
+
+            PWD = pwd;
+            cd(Obj.BasePath);
+
+            DirYear = io.files.dirDir(Args.YearPat);
+            Nyr     = numel(DirYear);
+
+            if isempty(Args.Result)
+                Ind      = 0;
+            else
+                Result   = Args.Result;
+                Ind      = numel(Result);
+            end
+            for Iyr=1:1:Nyr
+                cd(DirYear(Iyr).name);
+                DirMonth = io.files.dirDir();
+                Nm       = numel(DirMonth);
+                
+                for Im=1:1:Nm
+                    cd(DirMonth(Im).name);
+                    DirDay = io.files.dirDir();
+                    Nd     = numel(DirDay);
+                    for Id=1:1:Nd
+                        cd(DirDay(Id).name);
+                        cd('proc');
+                        DirVisit = io.files.dirDir();
+                        Nvisit   = numel(DirVisit);
+                        for Ivisit=1:1:Nvisit
+                            cd(DirVisit(Ivisit).name);
+
+                            DirF = dir(Args.FilePat);
+                            if numel(DirF)>Args.MinNfile
+                                Ind = Ind + 1;
+
+
+                                Result(Ind).FieldID = FileNames.getValFromFileName(DirF(1).name, 'FieldID');
+                               
+                                Result(Ind).JD      = FileNames.getValFromFileName(DirF(1).name, 'JD');
+                                Result(Ind).BasePath = Obj.BasePath;
+                                Result(Ind).Year     = DirYear(Iyr).name;
+                                Result(Ind).Month    = DirMonth(Im).name;
+                                Result(Ind).Day      = DirDay(Id).name;
+                                Result(Ind).Visit    = DirVisit(Ivisit).name;
+
+
+                                if Args.ReadHeader
+                                    Nfile = numel(DirF);
+
+                                    Head = AstroHeader(Args.FilePat);
+                                    Result(Ind).Keys = Head.getStructKey(Args.KeysFromHead);
+                                    
+                               
+                                end
+                            end
+                            cd ..
+                        end
+                        cd ../..
+                    end
+                    cd ..
+                end
+                cd ..
+            end
+                        
+            cd(PWD);
+            
+            % reorganize in table
+            if nargout>1
+                Nr = numel(Result);
+                OutTable = zeros(Nr,3+4.*2+3.*3+1);
+                FieldT   = strings(Nr,1);
+                for Ind=1:1:Nr
+                    % 14 col                
+                    IndIm = 10;
+                    Airmass = Result(Ind).Keys(IndIm).AIRMASS;
+                    MinFWHM = min([Result(Ind).Keys(:).FWHM].');
+                    MaxFWHM = max([Result(Ind).Keys(:).FWHM].');
+                    MedFWHM = median([Result(Ind).Keys(:).FWHM].',1,'omitnan');
+
+                    MinLimM = min([Result(Ind).Keys(:).LIMMAG].');
+                    MaxLimM = max([Result(Ind).Keys(:).LIMMAG].');
+                    MedLimM = median([Result(Ind).Keys(:).LIMMAG].',1,'omitnan');
+
+                    MinBack = min([Result(Ind).Keys(:).BACKMAG].');
+                    MaxBack = max([Result(Ind).Keys(:).BACKMAG].');
+                    MedBack = median([Result(Ind).Keys(:).BACKMAG].',1,'omitnan');
+
+                    OutTable(Ind,:) = [Result(Ind).Keys(IndIm).MOUNTNUM, Result(Ind).Keys(IndIm).CAMNUM, Result(Ind).JD,...
+                                       Result(Ind).Keys(IndIm).RA1, Result(Ind).Keys(IndIm).DEC1, ...
+                                       Result(Ind).Keys(IndIm).RA2, Result(Ind).Keys(IndIm).DEC2, ...
+                                       Result(Ind).Keys(IndIm).RA3, Result(Ind).Keys(IndIm).DEC3, ...
+                                       Result(Ind).Keys(IndIm).RA4, Result(Ind).Keys(IndIm).DEC4, ...
+                                       MinFWHM, MaxFWHM, MedFWHM,...
+                                       MinLimM, MaxLimM, MedLimM,...
+                                       MinBack, MaxBack, MedBack,...
+                                       Airmass];
+                    FieldT(Ind) = string(Result(Ind).FieldID);
+
+                end
+                OutTable=[array2table(OutTable), table(FieldT)];
+                OutTable.Properties.VariableNames = {'MountNum','CamNum','JD','RA1','Dec1','RA2','Dec2','RA3','Dec3','RA4','Dec4','MinFWHM','MaxFWHM','MedFWHM','MinLimM','MaxLimM','MedLimM','MinBack','MaxBack','MedBack','Airmass','FieldID'};
+
+
+
+            end
+    
+        end
+        
+        function prepReferencesFromSingleBestDepthImage(Obj, Table, ResultFind, Args)
+            %
+            % Example: D.prepReferencesFromSingleBestDepthImage(OutTable, ResultFind);
+
+            arguments
+                Obj
+                Table
+                ResultFind
+           
+                Args.MinJD   = celestial.time.julday([1 3 2024]);
+                Args.RefDir  = '/raid/eran/references';
+                Args.Ncam    = 4;
+            end
+
+            Table.FieldID=str2double(Table.FieldID);
+            
+            F = Table.JD>Args.MinJD & ~isnan(Table.FieldID);
+            
+            Table = Table(F,:);
+            ResultFind = ResultFind(F);
+
+            UniqueFI = unique(Table.FieldID);
+            Nufi     = numel(UniqueFI);
+            for Iufi=1:1:Nufi
+                % for each camera
+                for Icam=1:1:Args.Ncam
+
+
+                    Isel = find(Table.FieldID==UniqueFI(Iufi) & Table.CamNum==Icam);
+                    [~,Ibest] = max(Table.MedLimM(Isel));
+                    Iref = Isel(Ibest);
+    
+                    if ~isempty(Iref)
+                        % copy the specific images to the reference images dir
+                        OriginPath = fullfile(ResultFind(Iref).BasePath, ResultFind(Iref).Year, ResultFind(Iref).Month, ResultFind(Iref).Day, 'proc', ResultFind(Iref).Visit);
+                        DestPath   = fullfile(Args.RefDir, ResultFind(Iref).FieldID);
+                  
+                        tools.os.cdmkdir(DestPath);
+    
+                        cd(OriginPath);
+                        system(sprintf('cp LAST*_coadd_Image_1.fits %s%s.',DestPath,filesep));
+                        system(sprintf('cp LAST*_coadd_Mask_1.fits %s%s.',DestPath,filesep));
+                        system(sprintf('cp LAST*_coadd_PSF_1.fits %s%s.',DestPath,filesep));
+                        system(sprintf('cp LAST*_coadd_Cat_1.fits %s%s.',DestPath,filesep));
+                    end
+                end
+            end
+
+
+
+        end
     end
     
     methods % ref image utilities
@@ -2109,7 +2435,7 @@ classdef DemonLAST < Component
                 Args.SaveAsteroids     = true;
 
                 % DataBase
-                Args.Insert2DB         = true;              % Insert images data to LAST DB
+                Args.Insert2DB         = false;              % Insert images data to LAST DB or prepare CSV dumps for further insertion
                 Args.DB_Table_Raw      = 'raw_images';
                 Args.DB_Table_Proc     = 'proc_images';
                 Args.DB_Table_Coadd    = 'coadd_images';
@@ -2132,6 +2458,15 @@ classdef DemonLAST < Component
             end
             RAD = 180./pi;
             
+
+            % if Obj.lockFile
+            %     % all good to go
+            % else
+            %     % lock fild found - abort
+            %     return;
+            % end
+
+
             if isempty(Args.HostName)
                 Args.HostName = tools.os.get_computer;            
             end
@@ -2463,7 +2798,7 @@ classdef DemonLAST < Component
                                 try                                    
                                     Msg{1} = sprintf('pipline.DemonLAST started preparing DB data for group %d',Igroup);
                                     Obj.writeLog(Msg, LogLevel.Info);
-                                    if isempty(ADB) && ( ~Args.DB_ImageBulk || ~Args.DB_CatalogBulk) % connect to DB
+                                    if isempty(ADB) % && ( ~Args.DB_ImageBulk || ~Args.DB_CatalogBulk) % connect to DB
                                         ADB = db.AstroDb(Args.AstroDBArgs{:});
                                     end
                                 % RAW, PROC, and COADD images

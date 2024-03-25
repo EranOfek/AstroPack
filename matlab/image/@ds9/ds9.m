@@ -391,7 +391,7 @@ classdef ds9 < handle
         function Answer=frame(FrameNumber, GetNum)
             % Set ds9 frame
             % Package: @ds9
-            % Input  : - If not given than only get the current frame
+            % Input  : - If not given, then only get the current frame
             %            number. If numeric then set frame number.
             %            Alternatively, if a string than set to frame name.
             %            Possible names: 'first'|'prev'|'next'|'last'
@@ -407,7 +407,6 @@ classdef ds9 < handle
                 FrameNumber = [];
                 GetNum logical   = true;
             end
-
 
             if isempty(FrameNumber)
                 % get frame number
@@ -428,7 +427,7 @@ classdef ds9 < handle
                 end
             end
     
-            if GetNum
+            if nargout>0 && GetNum 
                 Answer = sscanf(Answer,'%d');
             end
 
@@ -2383,7 +2382,7 @@ classdef ds9 < handle
             % Input  : - Operation mode:
             %            If numeric than will return after the user clicked
             %            the specified number of times.
-            %            if 'q' than will return if the user clicked 'q'.
+            %            if 'q' then will return only when the user clicked 'q'.
             %            Default is 'q'.
             %          - Operation mode:
             %            'any'   - will return after any character or left click is
@@ -2432,7 +2431,7 @@ classdef ds9 < handle
             %            '<1>' for mouse left click.
             % Required: XPA - http://hea-www.harvard.edu/saord/xpa/
             % Tested : Matlab 7.0
-            %     By : Eran O. Ofek                    Feb 2007
+            %     By : Eran O. Ofek                    eb 2007
             %    URL : http://weizmann.ac.il/home/eofek/matlab/
             % Example: [X,Y,V]=ds9.getcoo(3);   % return the WCS RA/Dec position
             %          [X,Y,V,Key] = ds9.getcoo('q','key');

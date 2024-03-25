@@ -28,6 +28,7 @@ function Cat=build_obsid_cat(varargin)
 %     By : Eran O. Ofek                    Jan 2015
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: Cat=VO.Chandra.build_obsid_cat('ao','ao10');
+%          for II=1:1:25, tic;Cat=VO.Chandra.build_obsid_cat('collect',false,'AO',sprintf('ao%02d',II));toc, II, end
 %          % after you have the catalogs for all AO, you can collect them
 %          % into a single catalog
 %          Cat=VO.Chandra.build_obsid_cat('collect',true);
@@ -41,7 +42,7 @@ DefV.AO       = 'ao01';
 DefV.GetInfo  = true;
 DefV.Verbose  = true;
 DefV.OutType  = 'AstCat';
-DefV.SaveDir  = '~/matlab/data/+cats/+X/';
+DefV.SaveDir  = '~/matlab/data/+cats/+Xn/';
 DefV.SaveName = 'ChandraObs_%s.mat';  % with AO
 DefV.ArchiveURL = 'https://cxc.cfa.harvard.edu/cdaftp/science/';
 
