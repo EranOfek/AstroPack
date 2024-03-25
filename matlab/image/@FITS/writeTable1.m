@@ -152,8 +152,8 @@ function Result = writeTable1(Table, FileName, Args)
         % Use mex function to append the image header, file must be close
         if Args.UseMex
             matlab.io.fits.closeFile(Fptr);
-            Result = (sign(Fptr) == 1);
-            io.fits.mex.mex_fits_table_write_image_header(Header, FileName);
+            Result = (sign(Fptr) == 1);       
+            io.fits.mex.mex_fits_table_write_image_header(Header.Header, FileName);
             return;
         end
 

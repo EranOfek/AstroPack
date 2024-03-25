@@ -19,6 +19,7 @@ function writeSimpleFITS(Image, FileName, Args)
     %                   Default is 'NOCOMPRESS'. Only effective if
     %                   UseMatlabIo=true.
     %            'SanifyPath ' - whether to get a true full path (may appear time-consuming)
+    %            'UseMex'      - whether to employ a fast MeX function
     % Output : null
     % Author : Eran Ofek (Jan 2022), Enrico Segre (Feb 2023)
     % Example: io.fits.writeSimpleFITS(AI.Image, 'try.fits','Header',AI.HeaderData.Data);
@@ -31,6 +32,7 @@ function writeSimpleFITS(Image, FileName, Args)
         Args.UseMatlabIo              = true;
         Args.CompressType    char     = 'NOCOMPRESS';
         Args.SanifyPath logical       = true;
+        Args.UseMex     logical       = false;
     end
 
     % sanify the file name so that it contains the absolute path
@@ -67,7 +69,11 @@ function writeSimpleFITS(Image, FileName, Args)
        % create minimal default FITS header
        Args.Header = io.fits.defaultHeader(Args.DataType, size(Image));
    end
-   if ~Args.UseMatlabIo
+   if Args.UseMex
+       Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BITPIX',{BitPix});
+       Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BZERO',{bzero});
+       io.fits.fitsWriteImage(FileName, Image, Args.Header);
+   elseif ~Args.UseMatlabIo
        Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BITPIX',{BitPix});
        Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BZERO',{bzero});
        % using fwrite:
