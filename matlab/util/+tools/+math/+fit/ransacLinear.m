@@ -48,7 +48,7 @@ function Result = ransacLinear(Data, Args)
         SimInd = zeros(Args.NptFit, Args.Ntrial);
         Itrial = 0;
         Found  = false;
-        while Itrial<Args.Ntrial || ~Found
+        while Itrial<Args.Ntrial && ~Found
             Itrial = Itrial + 1;
             % generate NptFit unique times indices
             Ind = randperm(Ndata, Args.NptFit);
