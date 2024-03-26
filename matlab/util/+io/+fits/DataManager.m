@@ -32,9 +32,9 @@ classdef DataManager < handle
         function scanAndRelease(Obj)
             % Scans all DataKeepers and releases expired ones
             fprintf('scanAndRelease: %d\n', length(Obj.DataKeepers));
-            now = datetime('now');
+            Now = datetime('now');
             for i = length(Obj.DataKeepers):-1:1
-                if Obj.DataKeepers{i}.checkExpired(now)
+                if Obj.DataKeepers{i}.checkExpired(Now)
                     %disp(['Releasing data that started at ', char(Obj.DataKeepers{i}.StartTime)]);
                     Obj.DataKeepers(i) = []; % Remove from the list
                 end
@@ -54,6 +54,8 @@ classdef DataManager < handle
 
 
         function init()
+            % CURRENTLY UNUSED 
+            
             % Initialize the DataManager instance
             dataManager = DataManager.getSingleton();
 
@@ -74,7 +76,6 @@ classdef DataManager < handle
             stop(t); % Stop the timer
             delete(t); % Delete the timer object
         end
-
     end
 
 end
