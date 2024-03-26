@@ -7,10 +7,12 @@ function fitsWriteImageThread(fitsFileName, imageMatrix, headerCellArray)
     % Author : Chen Tishler (March 2024)
     % Example: io.fits.fitsWriteImage('myfile.fits', [10 100], Header)
 
-    dataKeeper = io.fits.DataKeeper(imageMatrix, headerCellArray, 5); % 5 seconds until data can be released
+    % Allocate flag matrix, it will be set by the thread to 0x12345678 upon completion
+    flagData = zeros(1, 2, 'uint32');
+    dataKeeper = io.fits.DataKeeper(imageMatrix, headerCellArray, flagData, 30);
 
     % Add the DataKeeper to the DataManager   
     io.fits.DataManager.getSingleton().addDataKeeper(dataKeeper);
 
-    io.fits.mex.mex_fits_write_image_thread(fitsFileName, imageMatrix, headerCellArray);
+    io.fits.mex.mex_fits_write_image_thread(fitsFileName, imageMatrix, headerCellArray, flagData);
 end

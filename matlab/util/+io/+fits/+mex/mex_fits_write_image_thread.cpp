@@ -64,11 +64,13 @@ void printValue(mxArray* valueElement, char* value, size_t valueSize, bool& isCh
     if (mxIsChar(valueElement)) {
         // Add single quotes for string values
         isChar = true;
-        char* tempStr = mxArrayToString(valueElement);
+        char tempStr[256];
+        mxGetString(valueElement, tempStr, sizeof(tempStr));
+        //char* tempStr = mxArrayToString(valueElement);
         if (strlen(tempStr) > maxStringLength)
             tempStr[maxStringLength] = '\0';
         snprintf(value, valueSize, "'%s'", tempStr);
-        mxFree(tempStr);
+        //mxFree(tempStr);
     } 
     else if (mxIsLogical(valueElement)) {
         // Handle logical values
@@ -414,7 +416,7 @@ void writeImageData(FILE* fp, const mxArray* imgMatrix, void* tempBuffer)
 
 // Main MEX function
 void mexFunction_worker(char* filename, const mxArray* imgMatrix, const mxArray* headerArray, char* headerBuffer, 
-                        size_t allocatedSize, void* tempBuffer)
+                        size_t allocatedSize, void* tempBuffer, uint32_t* flagData)
 {   
     // Open the file
     FILE* fp = fopen(filename, "wb");
@@ -424,9 +426,8 @@ void mexFunction_worker(char* filename, const mxArray* imgMatrix, const mxArray*
         return;
     }
     
-    //fclose(fp);
-    //return;
-    
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+   
     //
     size_t bufferPos = 0;
   
@@ -439,9 +440,9 @@ void mexFunction_worker(char* filename, const mxArray* imgMatrix, const mxArray*
     
     // Write the header buffer to the file
     fwrite(headerBuffer, 1, allocatedSize, fp);
-    
+
     writeImageData(fp, imgMatrix, tempBuffer);
-    
+
     // Close the file
     fclose(fp);
 
@@ -452,6 +453,9 @@ void mexFunction_worker(char* filename, const mxArray* imgMatrix, const mxArray*
     free(filename);
     free(headerBuffer);
     free(tempBuffer);
+
+    flagData[0] = 0x12345678;
+    flagData[1] = 0x12345678;
 }
 
 //===========================================================================
@@ -459,7 +463,7 @@ void mexFunction_worker(char* filename, const mxArray* imgMatrix, const mxArray*
 // Main MEX function
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) 
 {
-    if (nrhs != 3) {
+    if (nrhs != 4) {
         mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:invalidNumInputs",
                           "Three inputs required: filename, image matrix, header cell array.");
         return;
@@ -476,6 +480,14 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:inputNotCell", "Third input must be a cell array of header fields.");
         return;
     }
+
+    //
+    if (!mxIsNumeric(prhs[3])) {
+        mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:inputNotNumeric", "Second input must be a numeric matrix.");
+        return;
+    }    
+    const mxArray* flagArray = prhs[3];
+    uint32_t* flagData = (uint32_t*) mxGetData(flagArray);
 
     //mexPrintf("mex thread start\n");    
     
@@ -516,7 +528,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     //mexPrintf("mex: filename: %s\n", filename);
    
     // Start the worker thread
-    std::thread worker(mexFunction_worker, filename, imgMatrix, headerArray, headerBuffer, allocatedSize, tempBuffer);
+    std::thread worker(mexFunction_worker, filename, imgMatrix, headerArray, headerBuffer, allocatedSize, tempBuffer, flagData);
 
     //mexFunction_worker(filename, imgMatrix, headerArray, headerBuffer, allocatedSize, tempBuffer);
 
