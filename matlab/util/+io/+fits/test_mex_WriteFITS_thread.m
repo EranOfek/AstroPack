@@ -1,7 +1,7 @@
 function test_mex_WriteFITS_thread()
     % Test & benchmark writing FITS image using MATLAB fits functions
 
-    iterations = 1; 
+    iterations = 10; 
     width = 17000;
     height = 17000;
     
@@ -23,9 +23,10 @@ function test_mex_WriteFITS_thread()
     averageTime = 0;
     tic;
     for i = 1:iterations
-        filename = 'temp_fits_file_mex17aabc.fits';
+        filename = sprintf('temp_fits_file_mex_thread_%03d.fits', i);
 		%io.fits.mex.mex_fits_write_image(filename, imageData, headerFields);
-        io.fits.mex.mex_fits_write_image_thread(filename, imageData, headerFields);
+        %io.fits.mex.mex_fits_write_image_thread(filename, imageData, headerFields);
+        io.fits.fitsWriteImageThread(filename, imageData, headerFields)   
     end       
     elapsedTime = toc;
     averageTime = averageTime + elapsedTime;
@@ -35,10 +36,14 @@ function test_mex_WriteFITS_thread()
     fprintf('Average write time over %d iterations: %f seconds\n', iterations, averageTime);
     
     fprintf('pause...\n');
-    pause(10);
-    fprintf('%d, %d\n', numel(imageData), numel(headerFields));
-    imageData = [];
-    headerFields = [];
+    for i=1:10
+        pause(1);
+        io.fits.DataManager.getSingleton().scanAndRelease();
+    end
+
+    %fprintf('%d, %d\n', numel(imageData), numel(headerFields));
+    %imageData = [];
+    %headerFields = [];        
     disp('done.')
 
 end

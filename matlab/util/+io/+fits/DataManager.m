@@ -35,8 +35,8 @@ classdef DataManager < handle
     methods(Static)
         function Obj = getSingleton()
             persistent dataManager;
-            if ~isempty(dataManager)
-                dataManager = DataManager();
+            if isempty(dataManager)
+                dataManager = io.fits.DataManager();
             end
             Obj = dataManager;
         end

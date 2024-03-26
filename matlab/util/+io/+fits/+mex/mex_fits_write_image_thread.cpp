@@ -419,8 +419,8 @@ void mexFunction_worker(char* filename, const mxArray* imgMatrix, const mxArray*
     // Open the file
     FILE* fp = fopen(filename, "wb");
     if (!fp) {
-        mxFree(filename);
-        mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:fileOpenFailed", "Could not open the file for writing.");
+        //mxFree(filename);
+        //mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:fileOpenFailed", "Could not open the file for writing.");
         return;
     }
     
@@ -448,6 +448,10 @@ void mexFunction_worker(char* filename, const mxArray* imgMatrix, const mxArray*
     // @Todo - Need to check that it is thread-safe
     //mxFree(filename);
     //mxFree(headerBuffer);
+
+    free(filename);
+    free(headerBuffer);
+    free(tempBuffer);
 }
 
 //===========================================================================
@@ -473,9 +477,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         return;
     }
 
-    mexPrintf("mex thread start\n");    
+    //mexPrintf("mex thread start\n");    
     
-    char* filename = mxArrayToString(prhs[0]);
+    char* _filename = mxArrayToString(prhs[0]);
+    char* filename = strdup(_filename);
+    //char filename[256];
+    //strcpy(filename, _filename);
     const mxArray* imgMatrix = prhs[1];
     const mxArray* headerArray = prhs[2];
     
@@ -505,18 +512,21 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:unsupportedType", "Unsupported matrix type for FITS file.");
             return;
     }
+
+    //mexPrintf("mex: filename: %s\n", filename);
    
     // Start the worker thread
-    //std::thread worker(mexFunction_worker, filename, imgMatrix, headerArray, headerBuffer, allocatedSize, tempBuffer);
+    std::thread worker(mexFunction_worker, filename, imgMatrix, headerArray, headerBuffer, allocatedSize, tempBuffer);
 
-    mexFunction_worker(filename, imgMatrix, headerArray, headerBuffer, allocatedSize, tempBuffer);
+    //mexFunction_worker(filename, imgMatrix, headerArray, headerBuffer, allocatedSize, tempBuffer);
 
     // Immediately detach the thread to allow it to run independently
-    //worker.detach();
+    worker.detach();
 
     //mexPrintf("The worker thread has been started and detached.\n");    
 
-    mexPrintf("mex returned\n");    
+    //std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    //mexPrintf("mex returned\n");    
     
 }
 
