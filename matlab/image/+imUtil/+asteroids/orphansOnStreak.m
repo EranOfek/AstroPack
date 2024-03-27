@@ -30,6 +30,8 @@ function [Result] = orphansOnStreak(JD, X, Y, Args)
     %                   smaller than this value then they will be included
     %                   in the selected line fit.
     %                   Default is 2.
+    %            'UseSrc' - A vector of logicals of sources to use.
+    %                   If empty, use all.
     % Output : - A structure containing the following fields:
     %            .StreakInd - A Vector with the same length as the input X
     %                   vector. The value of each element indicate to which
@@ -52,11 +54,17 @@ function [Result] = orphansOnStreak(JD, X, Y, Args)
         Args.NptFit            = 4;
         Args.MinRMS            = 0.5;
         Args.ThresholdDist     = 2;
+        Args.UseSrc            = [];
     end
 
     X  = X(:);
     Y  = Y(:);
     Nx = numel(X);
+    if isempty(Args.UseSrc)
+        Args.UseSrc = repmat(true, Nx, 1);
+    else
+        Args.UseSrc = Args.UseSrc(:);
+    end
 
     if isempty(JD)
         JD = ones(Nx,1);
@@ -93,7 +101,7 @@ function [Result] = orphansOnStreak(JD, X, Y, Args)
     StreakCounter = 0;
     for Iel=1:1:Nel
         % indicess of all epochs in unique group
-        IndInEpoch = find(UnVal(IndEpochLine(Iel))==JD);
+        IndInEpoch = find(UnVal(IndEpochLine(Iel))==JD & Args.UseSrc);
 
         % all points in the same epoch - so just fit a linear model:
         ResFit = tools.math.fit.ransacLinear([X(IndInEpoch), Y(IndInEpoch)],...
