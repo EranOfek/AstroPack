@@ -903,34 +903,19 @@ classdef AstroDiff < AstroImage
 
             arguments
                 Obj
-                
+                    
                 Args.flagChi2 logical = true;
                 Args.Chi2dofLimits = [0.5 2];
                 
-                Args.flagSrcNoiseDominated logical = true;
-                Args.SrcNoise_SNRThresh = 8.0;
-                Args.SrcNoise_ScoreThresh = 8.0;
-        
                 Args.flagSaturated logical = true;
-                Args.Saturated_SNRThresh = 5.0;
         
                 Args.flagBadPix_Hard logical  = true;
-                Args.NewMask_BadHard       = {'Interpolated', 'NaN'};
-                Args.RefMask_BadHard       = {'Interpolated', 'NaN'};
+                Args.BadPix_Hard       = {'Interpolated', 'NaN', 'FlatHighStd',...
+                    'DarkHighVal'};
         
-                Args.flagBadPix_Medium logical = true;
-                Args.BadPixThresh_Medium = 50;
-                Args.NewMask_BadMedium       = {'NearEdge','FlatHighStd',...
-                    'Overlap','Edge','CR_DeltaHT', 'DarkHighVal'};
-                Args.RefMask_BadMedium       = {'NearEdge','FlatHighStd',...
-                    'Overlap','Edge','CR_DeltaHT', 'DarkHighVal'};
-                
                 Args.flagBadPix_Soft logical  = true;
-                Args.BadPixThresh_Soft = 10;
-                Args.NewMask_BadSoft       = {'HighRN', ...
-                    'BiasFlaring', 'Hole'};
-                Args.RefMask_BadSoft       = {'HighRN', ...
-                    'BiasFlaring', 'Hole'};
+                Args.BadPix_Soft       = {{'HighRN', 5.6}, {'Edge', 8}, {'NearEdge', 8},...
+                    {'SrcNoiseDominated', 12.0}};
         
                 Args.flagStarMatches logical = true;
                 Args.flagMP logical = true;
@@ -945,12 +930,11 @@ classdef AstroDiff < AstroImage
                 Obj(Iobj).CatData = imProc.sub.flagNonTransients(Obj(Iobj),...
                     'flagChi2',Args.flagChi2,...
                     'Chi2dofLimits',Args.Chi2dofLimits,...
+                    'flagSaturated', Args.flagSaturated,...
                     'flagBadPix_Hard', Args.flagBadPix_Hard,...
-                    'NewMask_BadHard', Args.NewMask_BadHard,...
-                    'RefMask_BadHard', Args.RefMask_BadHard,...
+                    'BadPix_Hard', Args.BadPix_Hard,...
                     'flagBadPix_Soft', Args.flagBadPix_Soft,...
-                    'NewMask_BadSoft', Args.NewMask_BadSoft,...
-                    'RefMask_BadSoft', Args.RefMask_BadSoft);
+                    'BadPix_Soft', Args.BadPix_Soft);
             end
         end
         
@@ -1181,11 +1165,11 @@ classdef AstroDiff < AstroImage
             % Get transients and non-transients
             [TranCat, NonTranCat] = Objn.splitNonTransients;
 
-            % Display New 
+            % Display Ref
             ds9(Obj.Ref,1); 
             ds9.plot(TranCat.getXY, Args.TranMarker);
             ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
-            % Display Ref
+            % Display New
             ds9(Obj.New,2); 
             ds9.plot(TranCat.getXY, Args.TranMarker);
             ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
@@ -1200,11 +1184,11 @@ classdef AstroDiff < AstroImage
             for Iother=1:1:Nother
 
                 % Skip if property does not exist
-                if ~isprop(Obj,Args.OtherImages{Iother})
-                    warning('Object does not have property %s', ...
-                        (Args.OtherImages{Iother}));
-                    continue
-                end
+                %if ~isprop(Obj,Args.OtherImages{Iother})
+                %    warning('Object does not have property %s', ...
+                %        (Args.OtherImages{Iother}));
+                %    continue
+                %end
 
                 Nimgs = Nimgs + 1;
                 switch Args.OtherImages{Iother}
@@ -1220,6 +1204,14 @@ classdef AstroDiff < AstroImage
                         ds9(Obj.Z2,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
                         ds9.plot(NonTranCat.getXY, Args.NonTranMarker); 
+                    case 'NewMask'
+                        ds9(Obj.New.Mask,Nimgs);
+                        ds9.plot(TranCat.getXY, Args.TranMarker);
+                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker); 
+                    case 'RefMask'
+                        ds9(Obj.Ref.Mask,Nimgs);
+                        ds9.plot(TranCat.getXY, Args.TranMarker);
+                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);                         
                 end
 
             end

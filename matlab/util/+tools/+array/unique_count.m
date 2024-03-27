@@ -9,7 +9,7 @@ function [UnVal,Count]=unique_count(Vec)
 % Tested : Matlab R2014a
 %     By : Eran O. Ofek                    Jan 2015
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [UnVal,Count]=Util.array.unique_count(Vec)
+% Example: [UnVal,Count]=tools.array.unique_count(Vec)
 % Reliable: 2
 %--------------------------------------------------------------------------
 

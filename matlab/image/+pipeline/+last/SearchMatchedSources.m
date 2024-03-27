@@ -570,6 +570,13 @@ classdef SearchMatchedSources < Component
             % 
             % Author : Eran Ofek (Mar 2024)
             % Example: RR=SMS.searchOrphans
+            %
+            %          SMS=pipeline.last.SearchMatchedSources;
+            %          SMS.populateAllConsecutive;         
+            %          SMS.prepConsecutive(1,1,4,'Nvisit',1)
+            %          RR=SMS.searchOrphans;
+            %          %Phenomena: sat- lines on a single epoch...
+
             
             arguments
                 Obj
@@ -590,103 +597,19 @@ classdef SearchMatchedSources < Component
                 Args.MatchCatName   = 'GAIADR3';
                 Args.matchcatsHTMArgs cell = {};
                 Args.MagCols        = {'phot_bp_mean_mag','phot_rp_mean_mag'}
+
+                Args.DetStreak logical        = true;
+                Args.orphansOnStreakArgs cell = {};
+                Args.StreakNonGAIA logical    = true;  % search streaks only for non-GAIA stars
             end
-            RAD = 180./pi;
             
-            % populate SrcData
-            Obj.MS.addSrcData('MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
             
-            Nobj = numel(Obj.MS);
-            Result = struct('Ind',cell(Nobj,1), 'Norphan',cell(Nobj,1), 'Ndet',cell(Nobj,1),...
-                            'JD',cell(Nobj,1), 'RA',cell(Nobj,1), 'Dec',cell(Nobj,1),...
-                            'SN',cell(Nobj,1), 'Mag',cell(Nobj,1),...
-                            'DistGAIA',cell(Nobj,1), 'N_GAIA',cell(Nobj,1), 'Bp',cell(Nobj,1), 'Rp',cell(Nobj,1));
-            for Iobj=1:1:Nobj
-                % clean bad flags in Args.BadFlags
-                Fbadf = searchFlags(Obj.MS(Iobj), 'FlagsList',Args.BadFlags);
-                
-                % Remove delta functions based on SN_2-SN_1>Args.ThreshDiffSN
-                DeltaSN  = Obj.MS(Iobj).Data.(Args.FieldDeltaSN{2}) - Obj.MS(Iobj).Data.(Args.FieldDeltaSN{1});
-                Fdeltasn = DeltaSN>Args.ThreshDiffSN;
-                
-                % Select sources with SN>Args.MinSN
-                SN       = Obj.MS(Iobj).Data.(Args.FieldSN);
-                Fsn      = SN>Args.MinSN;
-                
-                % Select sources with detections
-                Fdet     = ~isnan(Obj.MS(Iobj).Data.(Args.FieldSN));
-                
-                % Search for sources with <=Args.MinNdet detections
-                Fcand    = ~Fbadf & Fdeltasn & Fsn & Fdet;
-                Ndet     = sum(Fcand, 1);
-                
-                Fndet    = Ndet<=Args.MinNdet; 
-                Indet    = find(Fndet);
-                Ncand    = numel(Indet);
-                                
-                if Args.OnlyConsecutive
-                    % flag indicating if detections of source are consecutive
-                    Fcons    = false(1, Obj.MS(Iobj).Nsrc);
-                    MeanJD   = nan(1, Obj.MS(Iobj).Nsrc);
-                    for Icand=1:1:Ncand
-                        % check that detections are consecutive
-                        [ConsList] = tools.find.findListsOfConsecutiveTrue(Fcand(:,Indet(Icand)));
-                        if numel(ConsList)==1
-                            % all detections are consecutive
-                            Fcons(Indet(Icand)) = true;
-                            MeanJD(Indet(Icand)) = Args.MeanFun(Obj.MS(Iobj).JD(ConsList{1}), Args.MeanFunArgs{:});
-                        %else
-                            % non consecutive detections
-                        end
-                    end
-                else
-                    % flag indicating if detections of source are consecutive
-                    % Ignore consecutive, so setting to Fndet
-                    Fcons    = Fndet;
-                end
-                
-                % Return a list of orphans
-                Result(Iobj).Ind     = find(Fcons);
-                Result(Iobj).Norphan = numel(Result(Iobj).Ind);
-                Result(Iobj).Ndet    = Ndet(Result(Iobj).Ind);
-                
-                % mean orphan JD
-                Result(Iobj).JD      = MeanJD(Result(Iobj).Ind);
-                
-                
-                if Result(Iobj).Norphan>0
-                    % mean Orphan position
-                    Result(Iobj).RA      = Obj.MS(Iobj).SrcData.(Args.FieldRA)(Result(Iobj).Ind);
-                    Result(Iobj).Dec     = Obj.MS(Iobj).SrcData.(Args.FieldDec)(Result(Iobj).Ind);
-
-                    % mean Orphan SN
-                    Result(Iobj).SN      = Obj.MS(Iobj).SrcData.(Args.FieldSN)(Result(Iobj).Ind);
-
-                    % mean Orphan Mag
-                    Result(Iobj).Mag     = Obj.MS(Iobj).SrcData.(Args.FieldMag)(Result(Iobj).Ind);
-
-                    % Orphan PM (if Ndet>1)
-                    
-                    % Match to GAIA
-                    TmpAC = AstroCatalog({[Result(Iobj).RA(:), Result(Iobj).Dec(:)]./RAD}, 'ColNames',{'RA','Dec'}); %, 'ColUnits',{'deg','deg'});
-                    [ResM, SelObj, ResInd, CatH] = imProc.match.match_catsHTM(TmpAC, Args.MatchCatName, Args.matchcatsHTMArgs{:});
-                    Dist = ResM.getCol('Dist');
-                    Nmatch = ResM.getCol('Nmatch');
-
-                    CatH = CatH.selectRows(ResInd.Obj2_IndInObj1);
-                    Mags = CatH.getCol(Args.MagCols);
-
-                    Result(Iobj).DistGAIA = Dist(:).';
-                    Result(Iobj).N_GAIA   = Nmatch(:).';
-                    Result(Iobj).Bp       = Mags(:,1).';
-                    Result(Iobj).Rp       = Mags(:,2).';
-                    
-                end
-                
-            end
+            CellArgs  = namedargs2cell(Args);
+            Result    = Obj.MS.searchOrphans(CellArgs{:});
             
         end
-        
+       
+
     end
     
     methods % plot
