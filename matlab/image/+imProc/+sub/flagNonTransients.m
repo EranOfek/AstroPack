@@ -78,30 +78,16 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagChi2 logical = true;
         Args.Chi2dofLimits = [0.5 2];
         
-        Args.flagSrcNoiseDominated logical = true;
-        Args.SrcNoise_SNRThresh = 8.0;
-        Args.SrcNoise_ScoreThresh = 8.0;
-
         Args.flagSaturated logical = true;
-        Args.Saturated_SNRThresh = 5.0;
+        Args.Saturated_SNRThresh = 0.0;
 
         Args.flagBadPix_Hard logical  = true;
-        Args.NewMask_BadHard       = {'Interpolated', 'NaN'};
-        Args.RefMask_BadHard       = {'Interpolated', 'NaN'};
+        Args.BadPix_Hard       = {'Interpolated', 'NaN', 'FlatHighStd',...
+            'DarkHighVal'};
 
-        Args.flagBadPix_Medium logical = true;
-        Args.BadPixThresh_Medium = 50;
-        Args.NewMask_BadMedium       = {'NearEdge','FlatHighStd',...
-            'Overlap','Edge','CR_DeltaHT', 'DarkHighVal'};
-        Args.RefMask_BadMedium       = {'NearEdge','FlatHighStd',...
-            'Overlap','Edge','CR_DeltaHT', 'DarkHighVal'};
-        
         Args.flagBadPix_Soft logical  = true;
-        Args.BadPixThresh_Soft = 10;
-        Args.NewMask_BadSoft       = {'HighRN', ...
-            'BiasFlaring', 'Hole'};
-        Args.RefMask_BadSoft       = {'HighRN', ...
-            'BiasFlaring', 'Hole'};
+        Args.BadPix_Soft       = {{'HighRN', 5.6}, {'Edge', 8}, {'NearEdge', 8},...
+            {'SrcNoiseDominated', 12.0}};
 
         Args.flagStarMatches logical = true;
         Args.flagMP logical = true;
@@ -130,33 +116,11 @@ function TranCat = flagNonTransients(Obj, Args)
         end
     
         % Apply bit mask critera.
-        if (Args.flagBadPix_Hard || Args.flagBadPix_Medium || ...
-                Args.flagBadPix_Soft || Args.flagSrcNoiseDominated) &&...
-                Cat.isColumn('NewMaskVal')
+        if (Args.flagBadPix_Hard || Args.flagBadPix_Soft || ...
+                Args.flagSrcNoiseDominated) && Cat.isColumn('NewMaskVal')
             BD = BitDictionary('BitMask.Image.Default');
             BM_new = BD.bitdec2name(Cat.getCol('NewMaskVal'));
             BM_ref = BD.bitdec2name(Cat.getCol('RefMaskVal'));
-        end
-
-        % Apply StN threshold criteria for source noise dominated
-        % candidates.
-        if Args.flagSrcNoiseDominated && Cat.isColumn('NewMaskVal') && ...
-                Cat.isColumn('PSF_SNm')
-
-            FlagSrcNoiseDom_New = cell2mat(cellfun(@(c) any(strcmp(c, ...
-                'SrcNoiseDominated')), BM_new, 'UniformOutput', false));
-
-            FlagSrcNoiseDom_Ref = cell2mat(cellfun(@(c) any(strcmp(c, ...
-                'SrcNoiseDominated')), BM_ref, 'UniformOutput', false));
-            
-            FlagSrcNoiseDom = FlagSrcNoiseDom_New | FlagSrcNoiseDom_Ref;
-
-            PassesSrcNoise = ~FlagSrcNoiseDom | (FlagSrcNoiseDom & ...
-                (abs(Cat.getCol('PSF_SNm')) > Args.SrcNoise_SNRThresh) & ...
-                abs(Cat.getCol('Score')) > Args.SrcNoise_ScoreThresh);
-
-            IsTransient = IsTransient & PassesSrcNoise;
-
         end
 
         % Apply StN threshold criteria for saturated candidates.
@@ -172,11 +136,11 @@ function TranCat = flagNonTransients(Obj, Args)
             % Check if candidates are saturated in New and Ref, flag these.
             SaturatedInBoth = FlagSrcNoiseDom_New & FlagSrcNoiseDom_Ref;
             % Check if candidates are saturated in New but not Ref, flag
-            % these of StN is below threshold.
+            % these if StN is below threshold.
             SaturatedOnlyInNew = FlagSrcNoiseDom_New & ~FlagSrcNoiseDom_Ref;
 
-            PassesSaturated = ~SaturatedInBoth | (SaturatedOnlyInNew &...
-                abs(Cat.getCol('PSF_SNm')) > Args.Saturated_SNRThresh);
+            PassesSaturated = ~SaturatedInBoth | SaturatedOnlyInNew;% &...
+                %abs(Cat.getCol('PSF_SNm')) > Args.Saturated_SNRThresh);
 
             IsTransient = IsTransient & PassesSaturated;
 
@@ -185,23 +149,19 @@ function TranCat = flagNonTransients(Obj, Args)
         % Hard bit mask criteria.
         if Args.flagBadPix_Hard && Cat.isColumn('NewMaskVal')
 
-            % New bit mask criteria.
-            NBadHard_New = numel(Args.NewMask_BadHard);
-            FlagBadHard_New = false(CatSize,1);
-    
-            for INewBad=1:1:NBadHard_New
-                FlagBadHard_New = FlagBadHard_New | ...
-                    cell2mat(cellfun(@(c) any(strcmp(c, Args.NewMask_BadHard(INewBad))), ...
-                BM_new, 'UniformOutput', false));
-            end
+            NBadHard = numel(Args.BadPix_Hard);
 
-            % Reference bit mask criteria.
-            NBadHard_Ref = numel(Args.RefMask_BadHard);
+            % New bit mask values.
+            FlagBadHard_New = false(CatSize,1);
+            % Reference bit mask value.
             FlagBadHard_Ref = false(CatSize,1);
     
-            for IRefBad=1:1:NBadHard_Ref
+            for IBad=1:1:NBadHard
+                FlagBadHard_New = FlagBadHard_New | ...
+                    cell2mat(cellfun(@(c) any(strcmp(c, Args.BadPix_Hard(IBad))), ...
+                BM_new, 'UniformOutput', false));
                 FlagBadHard_Ref = FlagBadHard_Ref | ...
-                    cell2mat(cellfun(@(c)any(strcmp(c, Args.RefMask_BadHard(IRefBad))), ...
+                    cell2mat(cellfun(@(c)any(strcmp(c, Args.BadPix_Hard(IBad))), ...
                 BM_ref, 'UniformOutput', false));
             end
 
@@ -212,62 +172,30 @@ function TranCat = flagNonTransients(Obj, Args)
                 'Score', {'BadPixel_Hard'}, {''});
         end
 
-        % Hard bit mask criteria.
-        if Args.flagBadPix_Medium && Cat.isColumn('NewMaskVal') 
-
-            % New bit mask criteria.
-            NBadMedium_New = numel(Args.NewMask_BadMedium);
-            FlagBadMedium_New = false(CatSize,1);
-    
-            for INewBad=1:1:NBadMedium_New
-                FlagBadMedium_New = FlagBadMedium_New | ...
-                    cell2mat(cellfun(@(c) any(strcmp(c, Args.NewMask_BadMedium(INewBad))), ...
-                BM_new, 'UniformOutput', false));
-            end
-
-            % Reference bit mask criteria.
-            NBadMedium_Ref = numel(Args.RefMask_BadMedium);
-            FlagBadMedium_Ref = false(CatSize,1);
-    
-            for IRefBad=1:1:NBadMedium_Ref
-                FlagBadMedium_Ref = FlagBadMedium_Ref | ...
-                    cell2mat(cellfun(@(c)any(strcmp(c, Args.RefMask_BadMedium(IRefBad))), ...
-                BM_ref, 'UniformOutput', false));
-            end
-
-            BadMediumIdx = (abs(Cat.getCol('Score')) < Args.BadPixThresh_Medium) &...
-                          (FlagBadMedium_New | FlagBadMedium_Ref);
-
-            IsTransient = IsTransient & ~BadMediumIdx;
-            Obj(Iobj).CatData.insertCol(cast(BadMediumIdx,'double'), ...
-                'Score', {'BadPixel_Medium'}, {''});
-        end        
-
         % Soft bit mask criteria.
         if Args.flagBadPix_Soft && Cat.isColumn('NewMaskVal')
 
-            % New bit mask criteria.
-            NBadSoft_New = numel(Args.NewMask_BadSoft);
+            NBadSoft = numel(Args.BadPix_Soft);
+            % New bit mask values.
             FlagBadSoft_New = false(CatSize,1);
-    
-            for INewBad=1:1:NBadSoft_New
-                FlagBadSoft_New = FlagBadSoft_New | ...
-                    cell2mat(cellfun(@(c)any(strcmp(c, Args.NewMask_BadSoft(INewBad))), ...
-                BM_new, 'UniformOutput', false));
-            end
-
-            % Reference bit mask criteria.
-            NBadSoft_Ref = numel(Args.RefMask_BadSoft);
+            % Reference bit mask values.
             FlagBadSoft_Ref = false(CatSize,1);
     
-            for IRefBad=1:1:NBadSoft_Ref
+            for IBad=1:1:NBadSoft
+                IBadPix_Soft = Args.BadPix_Soft{IBad};
+
+                FlagBadSoft_New = FlagBadSoft_New | ...
+                    (cell2mat(cellfun(@(c)any(strcmp(c, IBadPix_Soft{1})), ...
+                BM_new, 'UniformOutput', false)) & ...
+                abs(Cat.getCol('Score')) < IBadPix_Soft{2});
+
                 FlagBadSoft_Ref = FlagBadSoft_Ref | ...
-                    cell2mat(cellfun(@(c)any(strcmp(c, Args.RefMask_BadSoft(IRefBad))), ...
-                BM_ref, 'UniformOutput', false));
+                    (cell2mat(cellfun(@(c)any(strcmp(c, IBadPix_Soft{1})), ...
+                BM_ref, 'UniformOutput', false)) & ...
+                abs(Cat.getCol('Score')) < IBadPix_Soft{2});
             end
 
-            BadSoftIdx = (abs(Cat.getCol('Score')) < Args.BadPixThresh_Soft) &...
-                          (FlagBadSoft_New | FlagBadSoft_Ref);
+            BadSoftIdx = (FlagBadSoft_New | FlagBadSoft_Ref);
 
             IsTransient = IsTransient & ~BadSoftIdx;
             Obj(Iobj).CatData.insertCol(cast(BadSoftIdx,'double'), ...
@@ -279,8 +207,8 @@ function TranCat = flagNonTransients(Obj, Args)
             IsTransient = IsTransient & (Cat.getCol('StarMatches') < 1);
         end
 
-        if Args.flagMP && Cat.isColumn('DistMP')
-            IsTransient = IsTransient & isnan(Cat.getCol('DistMP'));
+        if Args.flagMP && Cat.isColumn('SolarDist')
+            IsTransient = IsTransient & isnan(Cat.getCol('SolarDist'));
         end
         
         if Args.flagTranslients && Cat.isColumn('Translient')

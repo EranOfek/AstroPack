@@ -570,6 +570,13 @@ classdef SearchMatchedSources < Component
             % 
             % Author : Eran Ofek (Mar 2024)
             % Example: RR=SMS.searchOrphans
+            %
+            %          SMS=pipeline.last.SearchMatchedSources;
+            %          SMS.populateAllConsecutive;         
+            %          SMS.prepConsecutive(1,1,4,'Nvisit',1)
+            %          RR=SMS.searchOrphans;
+            %          %Phenomena: sat- lines on a single epoch...
+
             
             arguments
                 Obj
@@ -687,6 +694,9 @@ classdef SearchMatchedSources < Component
             
         end
         
+        
+
+
     end
     
     methods % plot
