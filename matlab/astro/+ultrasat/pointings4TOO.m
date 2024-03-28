@@ -75,9 +75,8 @@ function [Grid, GridOpt] = pointings4TOO(Pol, Args)
     for Ip = 1:Np
         if celestial.search.isPointInsidePolygon(Grid0(Ip,1), Grid0(Ip,2), Pol)
             Grid(Ip,:) = Grid0(Ip,:);
-            [Lon,Lat]=celestial.coo.celestial_circ(Grid0(Ip,1)/RAD,Grid0(Ip,2)/RAD,Args.FOVradius/RAD,300);
-            Lon(Lon<0) = Lon(Lon<0)+2*pi;
-            plotm(Lat,Lon,'.','Color','blue')
+%             plot.skyCircles(Grid0(Ip,1),Grid0(Ip,2),'Rad',Args.FOVradius,'PlotOnMap',true,'Color','blue');
+            plot.skyEllipses(Grid0(Ip,1),Grid0(Ip,2),Args.FOVradius,0.,'PlotOnMap',true,'Color','blue');
             fprintf('%d %.2f %.2f\n',Ip, Grid0(Ip,1), Grid0(Ip,2))
         end
     end

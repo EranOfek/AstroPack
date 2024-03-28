@@ -9,6 +9,7 @@ function skyEllipses(RA, Dec, SemiMajor, Excentr, Angle, Args)
     %        'AngleUnits' - 'degrees' or 'radians'
     %        'NumPoints' - number of dots in each circle
     %        'Color' - color of the plotted circles
+    %        'PlotOnMap' - whether to plot with plotm instead of plot
     % Output: - ellipses drawn on the current figure
     % Author: A.M. Krassilchtchikov (Mar 2024)
     % Example: plot.skyEllipses(256, 14, 10, 0.5);
@@ -23,6 +24,7 @@ function skyEllipses(RA, Dec, SemiMajor, Excentr, Angle, Args)
         Args.AngleUnits = 'degrees'
         Args.NumPoints  = 300
         Args.Color      = 'black'
+        Args.PlotOnMap = false
     end
     
     RAD = 180/pi;
@@ -44,11 +46,19 @@ function skyEllipses(RA, Dec, SemiMajor, Excentr, Angle, Args)
     for i = 1:N            
         [Lat,Lon] = ellipse1(Dec(i), RA(i), [Semi(i) Exc(i)], Ang(i),[],[],Args.AngleUnits,Args.NumPoints); 
         if strcmpi(Args.AngleUnits,'degrees')            
-            Lon(Lon<0) = Lon(Lon<0)+360;
-            plot(Lon, Lat,'.','Color',Args.Color)
+            Lon(Lon<0) = Lon(Lon<0)+360;            
+            if Args.PlotOnMap
+                plotm(Lat/RAD,Lon/RAD,'.','Color',Args.Color)
+            else
+                plot(Lon,Lat,'.','Color',Args.Color)
+            end
         else            
-            Lon(Lon<0) = Lon(Lon<0)+2*pi;
-            plot(Lon*RAD, Lat*RAD,'.','Color',Args.Color)
-        end       
+            Lon(Lon<0) = Lon(Lon<0)+2*pi; 
+            if Args.PlotOnMap
+                plotm(Lat,Lon,'.','Color',Args.Color)
+            else                
+                plot(Lon*RAD,Lat*RAD,'.','Color',Args.Color)
+            end
+        end           
     end    
 end
