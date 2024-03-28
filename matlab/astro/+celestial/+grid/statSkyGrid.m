@@ -23,7 +23,7 @@ function Stat = statSkyGrid(GridData, StatGridFile, Args)
     % Example: RA = 0:5:360;
     %          Dec = -90:5:90;
     %          [XX, YY] = meshgrid(RA, Dec); Coo = [XX(:) YY(:)];
-    %          Res = statSkyGrid('SkyPos',Coo);
+    %          Res = celestial.grid.statSkyGrid('SkyPos',Coo);
     %          imagesc(RA,Dec,Res.mean'); caxis([0,1]); colorbar; 
     %          xlabel 'RA_{ec}, deg'; ylabel 'Dec_{ec}, deg'; title 'A_{USat} averaged over R = 7 deg' 
     arguments
@@ -31,7 +31,7 @@ function Stat = statSkyGrid(GridData, StatGridFile, Args)
         StatGridFile = '~/matlab/data/ULTRASAT/healpix_grid_nside_128_npix_196608_pixarea_0.21_deg.txt';
         Args.SkyPos  = [120 7]; % deg
         Args.Rad     = 7;       % deg
-        Args.StatFunc = @mean;  % or any other function with vector output
+        Args.StatFunc = @mean;  % or any other function with vector output, e.g. @var, @max 
         Args.Plot logical = false;
         Args.Save logical = false;
         Args.InterpMethod = 'nearest';
