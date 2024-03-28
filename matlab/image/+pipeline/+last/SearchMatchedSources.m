@@ -545,7 +545,7 @@ classdef SearchMatchedSources < Component
     end
     
     methods % orphans
-        function Result=searchOrphans(Obj, Args)
+        function Result=searchOrphansMS(Obj, Args)
             % Search orphans in MatchedSources object
             %   Orphans are defined as sources with <=MinNdet good detections
             %   possibly consecutive.
@@ -574,8 +574,8 @@ classdef SearchMatchedSources < Component
             %          SMS=pipeline.last.SearchMatchedSources;
             %          SMS.populateAllConsecutive;         
             %          SMS.prepConsecutive(1,1,4,'Nvisit',1)
-            %          RR=SMS.searchOrphans;
-            %          %Phenomena: sat- lines on a single epoch...
+            %          RR=SMS.searchOrphansMS;
+            %          
 
             
             arguments
@@ -609,6 +609,37 @@ classdef SearchMatchedSources < Component
             
         end
        
+
+        function searchOrphans(Obj, Args)
+            %
+            % Example: SMS=pipeline.last.SearchMatchedSources
+            %          SMS.populateAllConsecutive
+            %          SMS.searchOrphans
+
+
+
+            for Icons=1:1:Ncons
+                Ng = numel(Obj.AllConsecutive{Icons});
+                for Ig=1:1:Ng
+                    [Icons, Ncons, Ig, Ng]
+
+                    for Icrop=1:1:Args.Ncrop
+                        [Obj, LimMagQuantile] = Obj.prepConsecutive(Icons, Ig, Icrop, 'Nvisit',Args.Nvisit,...
+                                                                                      'Nstep',Args.Nstep,...
+                                                                                                  'SearchRadius',Args.SearchRadius,...
+                                                                                                  'SearchRadiusUnits',Args.SearchRadiusUnits,...
+                                                                                                  'MagField',Args.MagField,...
+                                                                                                  'MagErrField',Args.MagErrField,...
+                                                                                                  'LimMagQuantile',Args.LimMagQuantile);
+                        if ~isempty(Obj.MS)
+                            %
+                            ResOrphan = Obj.searchOrphansMS;
+                        end
+                    end
+                end
+            end
+        end
+
 
     end
     
