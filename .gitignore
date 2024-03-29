@@ -5,6 +5,7 @@ matlab/startup/startup.m
 **/_unused/*
 **/_temp/*
 **/temp/*
+**/mexa64/*
 **/_bkp/*
 **/_backup/*
 
