@@ -63,6 +63,10 @@ function [Grid, GridOpt] = pointings4TOO(Pol, Args)
 %     % Check if the point is inside the polygon
 %     isPointInsidePolygon(p(1), p(2), Pol)
 
+    % another option for the sky region (Dec, RA, SemiMaj, Exc):
+    [Lat,Lon] = ellipse1(20., 40., [25 0.95], 60.,[],[],'degrees',100); 
+    Pol = [Lon Lat];
+
     Grid0 = readmatrix(Args.InitialGridFile);
     Np   = length(Grid0);
     Grid = zeros(Np,2);
@@ -75,8 +79,8 @@ function [Grid, GridOpt] = pointings4TOO(Pol, Args)
     for Ip = 1:Np
         if celestial.search.isPointInsidePolygon(Grid0(Ip,1), Grid0(Ip,2), Pol)
             Grid(Ip,:) = Grid0(Ip,:);
-%             plot.skyCircles(Grid0(Ip,1),Grid0(Ip,2),'Rad',Args.FOVradius,'PlotOnMap',true,'Color','blue');
-            plot.skyEllipses(Grid0(Ip,1),Grid0(Ip,2),Args.FOVradius,0.,'PlotOnMap',true,'Color','blue');
+            plot.skyCircles(Grid0(Ip,1),Grid0(Ip,2),'Rad',Args.FOVradius,'PlotOnMap',true,'Color','blue');
+%             plot.skyEllipses(Grid0(Ip,1),Grid0(Ip,2),Args.FOVradius,0.,'PlotOnMap',true,'Color','blue');
             fprintf('%d %.2f %.2f\n',Ip, Grid0(Ip,1), Grid0(Ip,2))
         end
     end
@@ -86,6 +90,7 @@ function [Grid, GridOpt] = pointings4TOO(Pol, Args)
     
     [Cost0,~,Uncov] = ultrasat.costTOO(Pol,Grid);    
     GridOpt = Grid;
+    fprintf('Uncovered fraction: %.2f\n',Uncov);
     
     if Args.RepairMC        
         
