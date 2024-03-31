@@ -10,6 +10,8 @@ function writeCSVforBulkInjection(AH,FileName,Args)
     %        'FiltrList' - a cell array of the DB table fields to match
     % Output : - a csv file
     % Author : A. Krassilchtchikov (Feb 2024)
+    % Example: ColumnList = Obj.getListOfTableColumns(Table); % Obj is of db.AstroDb, Table is the name of a particular DB table
+    %          imProc.header.writeCSVforBulkInjection(AH, HeaderFileName,'Filter',true,'FilterList',ColumnList);
     arguments
         AH
         FileName             = 'astroheader.csv' % output file name
@@ -19,10 +21,10 @@ function writeCSVforBulkInjection(AH,FileName,Args)
         Args.FilterList      = {}
     end
 
-    Obj = AH.copy;
+    AH1 = AH.copy;
 
-    Nobj = length(Obj);
-    Keys = [Obj.Data];
+    Nobj = length(AH1);
+    Keys = [AH1.Data];
     Keys = reshape(Keys,[size(Keys,1),3,Nobj]);
 
     % clear out repeating keywords
