@@ -2,6 +2,12 @@ function [Grid, GridOpt] = pointings4TOO(Pol, Args)
     % construct ULTRASAT pointings to fill a given sky polygon
     % NB: this is a first version taking the pointings from the best
     % all-sky grid and selecting those whose center fall into the polygon
+    % -- We need to add to the list of pointings also the order of
+    % observations (start from the center and go in a spiral?)
+    % -- Do we wish a pointing centered on the geometrical center of the
+    % region or any coverage is OK? If the region contains zones of
+    % different probability, how do we add this as "weight" for the
+    % coverage? Just split into probablity bins and cover separately? 
     % Input: - a sky polygon as a a vector of [RA, Dec]
     %          * ...,key,val,...
     %          'InitialGridFile' - an  all-sky grid to build the initial set of pointings
@@ -115,7 +121,7 @@ function [Grid, GridOpt] = pointings4TOO(Pol, Args)
         fprintf('Best Cost: %.1f, Uncovered fraction: %.3f\n', CostOpt, Uncov);        
     end
     
-    % a couple more optimization facilities that did not appear efficient:
+    % some more optimization facilities that did not appear efficient:
     
 %     options = optimoptions(@fminunc, 'Algorithm', 'quasi-newton', 'Display', 'iter');
 %     optimizedCircleCenters = fminunc(@costTOO, Grid, options);
