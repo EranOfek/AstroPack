@@ -1,16 +1,15 @@
 
-classdef DataKeeper < handle
+classdef DataKeeper
     properties
-        Num         % Serial number, mostly for debugging
-        Data        % Data as cell array or struct
-        FlagMat     % Flag matrix, allocated by caller as zeros(1, 2, 'uint32')
-        FlagVal     %
-        StartTime   % 
+        Num         %
+        Data        %
+        Flag        %
+        StartTime   %
         Duration    % Duration in seconds after which the data can be released
     end
     
     methods
-        function Obj = DataKeeper(data, flagMat, flagVal, duration)
+        function Obj = DataKeeper(imageData, headerData, flag, duration)
             % Constructor
             persistent Counter;
             if isempty(Counter)
@@ -19,9 +18,8 @@ classdef DataKeeper < handle
 
             Counter = Counter + 1;
             Obj.Num = Counter;
-            Obj.Data = data;
-            Obj.FlagMat = flagMat;
-            Obj.FlagVal = flagVal;
+            Obj.Data = {imageData, headerData};
+            Obj.Flag = flag;
             Obj.StartTime = datetime('now');
             Obj.Duration = duration;
         end
@@ -31,7 +29,7 @@ classdef DataKeeper < handle
             % Check if the data is past its expiration time
 
             % Check flag set by the thread upon completion
-            if Obj.FlagMat(1) == Obj.FlagVal
+            if Obj.Flag(1) == 0x12345678
                 %fprintf('Done: %d\n', obj.Num);
                 isExpired = true;
             else
