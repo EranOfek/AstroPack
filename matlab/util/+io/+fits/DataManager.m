@@ -3,6 +3,7 @@ classdef DataManager < handle
     properties
         DataKeepers % A cell array of DataKeeper instances
         LastScanTime
+        LastFinishTime
     end
     
 
@@ -10,6 +11,7 @@ classdef DataManager < handle
         function Obj = DataManager()
             % Constructor
             Obj.LastScanTime = tic;
+            Obj.LastFinishTime = 0;
         end
 
 
@@ -19,6 +21,9 @@ classdef DataManager < handle
             else
                 Obj.DataKeepers{end+1} = dataKeeper;
             end
+
+            %
+            Obj.LastFinishTime = 0;
 
             % Scan and release every 1 second
             t = toc(Obj.LastScanTime);
@@ -31,7 +36,11 @@ classdef DataManager < handle
 
         function scanAndRelease(Obj)
             % Scans all DataKeepers and releases expired ones
-            fprintf('scanAndRelease: %d\n', length(Obj.DataKeepers));
+            len = length(Obj.DataKeepers);
+            if len > 0
+                fprintf('scanAndRelease: %d\n', length(Obj.DataKeepers));
+            end
+
             Now = datetime('now');
             for i = length(Obj.DataKeepers):-1:1
                 if Obj.DataKeepers{i}.checkExpired(Now)
@@ -39,6 +48,16 @@ classdef DataManager < handle
                     Obj.DataKeepers(i) = []; % Remove from the list
                 end
             end
+
+            %if len ~= length(Obj.DataKeepers)
+            %    fprintf('scanAndRelease: %d\n', length(Obj.DataKeepers));
+            %end
+
+            if (len > 0) && isempty(Obj.DataKeepers)
+                Obj.LastFinishTime = datetime('now');
+                fprintf('Finished: %s \n', Obj.LastFinishTime);
+            end
+            
         end
     end
 

@@ -120,9 +120,6 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
         char card[cardSize + 1] = {'\0'}; // Initialize card buffer, +1 for null-termination
         char key[80], value[80], comment[256] = {'\0'}; // Initialize comment with null-termination
 
-        //char card[cardSize + 1] = {'\0'}; // Initialize card buffer, +1 for null-termination
-        //char key[80], value[80], comment[256] = {'\0'}; // Initialize comment with null-termination
-
         // Extract Key
         mxArray* keyElement = mxGetCell(cellArray, row);
         if (keyElement != nullptr && mxIsChar(keyElement)) {
@@ -142,7 +139,6 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
             mxGetString(commentElement, comment, sizeof(comment));
             size_t maxCommentSize = sizeof(card) - 34; // Adjust based on key, value, and fixed characters
             snprintf(card, sizeof(card), "%-8.8s= %20s / %.*s", key, value, (int)maxCommentSize, comment);
-
 
             // Construct card string
             //snprintf(card, sizeof(card), "%-8s= %20s / %s", key, value, comment);            
@@ -213,7 +209,7 @@ int determineBitpix(mxClassID classID)
 
 
 // Function to write the initial part of the FITS header
-void writeInitialHeader(char* headerBuffer, size_t& bufferPos, mxClassID classID, size_t rows, size_t cols) 
+void writeInitialHeader(char* headerBuffer, size_t& bufferPos, const mxArray* imgMatrix) 
 {
     char card[cardSize + 1]; // +1 for null-termination
 
@@ -221,19 +217,25 @@ void writeInitialHeader(char* headerBuffer, size_t& bufferPos, mxClassID classID
     addCard(headerBuffer, bufferPos, "SIMPLE  =                    T / file does conform to FITS standard");
 
     // BITPIX
-    int bitpix = determineBitpix(classID);
+    int bitpix = determineBitpix(mxGetClassID(imgMatrix));
     snprintf(card, sizeof(card), "BITPIX  = %20d / number of bits per data pixel", bitpix);
     addCard(headerBuffer, bufferPos, card);
 
     // NAXIS
-    snprintf(card, sizeof(card), "NAXIS   = %20d / number of data axes", (int)2);
+    const mwSize* dims = mxGetDimensions(imgMatrix);
+    size_t nDims = mxGetNumberOfDimensions(imgMatrix);
+    snprintf(card, sizeof(card), "NAXIS   = %20d / number of data axes", (int)nDims);
     addCard(headerBuffer, bufferPos, card);
 
     // NAXIS1 and NAXIS2, assuming 2D image data
-    snprintf(card, sizeof(card), "NAXIS1  = %20d / length of data axis 1", (int)cols);
-    addCard(headerBuffer, bufferPos, card);
-    snprintf(card, sizeof(card), "NAXIS2  = %20d / length of data axis 2", (int)rows);
-    addCard(headerBuffer, bufferPos, card);
+    if (nDims >= 1) { // NAXIS1
+        snprintf(card, sizeof(card), "NAXIS1  = %20d / length of data axis 1", (int)dims[1]);
+        addCard(headerBuffer, bufferPos, card);
+    }
+    if (nDims >= 2) { // NAXIS2
+        snprintf(card, sizeof(card), "NAXIS2  = %20d / length of data axis 2", (int)dims[0]);
+        addCard(headerBuffer, bufferPos, card);
+    }
 
     // EXTEND (optional, you can decide based on your requirements)
     addCard(headerBuffer, bufferPos, "EXTEND  =                    T / FITS dataset may contain extensions");
@@ -351,9 +353,14 @@ void* Convert(const T* dataPtr, size_t rows, size_t cols, SwapFunction swapFunc)
 
 //===========================================================================
 
-void writeImageData(FILE* fp, void* dataPtr, mxClassID classID, size_t rows, size_t cols, void* tempBuffer)
+void writeImageData(FILE* fp, const mxArray* imgMatrix, void* tempBuffer)
 {
+    mxClassID classID = mxGetClassID(imgMatrix);
+    const mwSize* dims = mxGetDimensions(imgMatrix);
+    size_t rows = dims[0];
+    size_t cols = dims[1];
     size_t elSize;
+    void* dataPtr = mxGetData(imgMatrix);
     
     // Allocate buffer and reorder data based on the data type    
     switch (classID) {
@@ -404,12 +411,12 @@ void writeImageData(FILE* fp, void* dataPtr, mxClassID classID, size_t rows, siz
 }
 
 //===========================================================================
-//                              mexFunction_worker
+//
 //===========================================================================
 
 // Main MEX function
-void mexFunction_worker(char* filename, void* dataPtr, mxClassID classID, size_t rows, size_t cols,                    
-    mxArray* headerArray, char* headerBuffer, size_t allocatedSize, void* tempBuffer, uint32_t* flagData)
+void mexFunction_worker(char* filename, const mxArray* imgMatrix, const mxArray* headerArray, char* headerBuffer, 
+                        size_t allocatedSize, void* tempBuffer, uint32_t* flagData)
 {   
     // Open the file
     FILE* fp = fopen(filename, "wb");
@@ -419,33 +426,34 @@ void mexFunction_worker(char* filename, void* dataPtr, mxClassID classID, size_t
         return;
     }
     
-    //std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
    
     //
-    //size_t bufferPos = 0;
+    size_t bufferPos = 0;
   
     // Write initial part of the FITS header based on matrix type and size
     // SIMPLE, BITPIX, NAXIS, NAXIS1, NAXIS2, and EXTEND cards
-    //writeInitialHeader(headerBuffer, bufferPos, classID, rows, cols);   
+    writeInitialHeader(headerBuffer, bufferPos, imgMatrix);   
     
     // Append user-provided header fields
-    //fillHeaderBufferFromCellArray(headerBuffer, bufferPos, headerArray);
+    fillHeaderBufferFromCellArray(headerBuffer, bufferPos, headerArray);
     
     // Write the header buffer to the file
     fwrite(headerBuffer, 1, allocatedSize, fp);
 
-    // Write image data
-    writeImageData(fp, dataPtr, classID, rows, cols, tempBuffer);
+    writeImageData(fp, imgMatrix, tempBuffer);
 
     // Close the file
     fclose(fp);
 
+    // @Todo - Need to check that it is thread-safe
+    //mxFree(filename);
+    //mxFree(headerBuffer);
+
     free(filename);
     free(headerBuffer);
     free(tempBuffer);
-    //mxDestroyArray(headerArray);
 
-    // Set completion flag
     flagData[0] = 0x12345678;
     flagData[1] = 0x12345678;
 }
@@ -487,9 +495,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     char* filename = strdup(_filename);
     //char filename[256];
     //strcpy(filename, _filename);
-    const mxArray* imgMatrix = prhs[1];    
-    //mxArray* headerArray = mxDuplicateArray(prhs[2]);
-    mxArray* headerArray = (mxArray*)(prhs[2]);
+    const mxArray* imgMatrix = prhs[1];
+    const mxArray* headerArray = prhs[2];
     
     size_t numRows = mxGetM(headerArray); 
     size_t allocatedSize;
@@ -500,10 +507,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     const mwSize* dims = mxGetDimensions(imgMatrix);
     size_t rows = dims[0];
     size_t cols = dims[1];
+    void *tempBuffer;
     size_t numElements = rows * cols;
-    void* dataPtr = mxGetData(imgMatrix);
     mxClassID classID = mxGetClassID(imgMatrix);
-    void *tempBuffer;        
     switch (classID) {
         case mxINT16_CLASS:
         case mxUINT16_CLASS:
@@ -521,30 +527,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
     //mexPrintf("mex: filename: %s\n", filename);
    
-
-
-    //
-    size_t bufferPos = 0;
-  
-    // Write initial part of the FITS header based on matrix type and size
-    // SIMPLE, BITPIX, NAXIS, NAXIS1, NAXIS2, and EXTEND cards
-    writeInitialHeader(headerBuffer, bufferPos, classID, rows, cols);   
-    
-    // Append user-provided header fields
-    fillHeaderBufferFromCellArray(headerBuffer, bufferPos, headerArray);
-
-
     // Start the worker thread
-    std::thread worker(mexFunction_worker, filename, dataPtr, classID, rows, cols,  
-                       headerArray, headerBuffer, allocatedSize, tempBuffer, flagData);
-         
+    std::thread worker(mexFunction_worker, filename, imgMatrix, headerArray, headerBuffer, allocatedSize, tempBuffer, flagData);
+
+    //mexFunction_worker(filename, imgMatrix, headerArray, headerBuffer, allocatedSize, tempBuffer);
+
     // Immediately detach the thread to allow it to run independently
     worker.detach();
-
-    //std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-    //mexFunction_worker(filename, dataPtr, classID, rows, cols,  
-    //                   headerArray, headerBuffer, allocatedSize, tempBuffer, flagData);
 
     //mexPrintf("The worker thread has been started and detached.\n");    
 
@@ -552,3 +541,4 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     //mexPrintf("mex returned\n");    
     
 }
+

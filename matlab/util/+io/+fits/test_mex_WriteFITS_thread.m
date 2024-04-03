@@ -1,8 +1,12 @@
 function test_mex_WriteFITS_thread()
     for i=1:100
+        Now = datetime('now');
+        fprintf('Starting: %s\n', Now);
         do_test_mex_WriteFITS_thread(i)
-        pause(5);
-        %io.fits.DataManager.getSingleton().scanAndRelease();
+        for t=1:5
+            pause(1);
+            io.fits.DataManager.getSingleton().scanAndRelease();
+        end
     end
 
     %fprintf('%d, %d\n', numel(imageData), numel(headerFields));
@@ -19,6 +23,7 @@ function test_mex_WriteFITS_thread()
 
     disp('done.')        
 end
+
 
 function do_test_mex_WriteFITS_thread(xx)
     % Test & benchmark writing FITS image using MATLAB fits functions
@@ -57,8 +62,13 @@ function do_test_mex_WriteFITS_thread(xx)
     % Calculate and display the average writing time
     averageTime = averageTime / iterations;
     fprintf('Average write time over %d iterations: %f seconds\n', iterations, averageTime);
-    pause(1);
-    io.fits.DataManager.getSingleton().scanAndRelease();
+
+    % @TODO: When removing pause, it crashes, probably because data is
+    % being freed when exiting this function, so manybe DataKeeper does not
+    % work as expected!
+
+    %pause(2);
+    %io.fits.DataManager.getSingleton().scanAndRelease();
     
     %fprintf('pause...\n');
     %for i=1:1
