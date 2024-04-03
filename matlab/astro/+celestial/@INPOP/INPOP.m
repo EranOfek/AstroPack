@@ -81,7 +81,7 @@ classdef INPOP < Base
 %                                        @celestial.INPOP.chebyshevFun14,...
 %                                        @celestial.INPOP.chebyshevFun15};
         LatestVersion     = 'inpop21a';
-        Location          = ''; %~/matlab/data/SolarSystem/INPOP/';
+        Location          = ''; %'~/matlab/data/SolarSystem/INPOP/'; 
         RangeShort        = [2414105.00, 2488985.00];
         ColTstart         = 1;
         ColTend           = 2;

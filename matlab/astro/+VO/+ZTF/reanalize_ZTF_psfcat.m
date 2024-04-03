@@ -1,11 +1,11 @@
-function [ObjCat, OnlyMP, AstrometricCat, Skip, Path] = reanalize_ZTF_psfcat(File, Args)
+function [ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_psfcat(File, Args)
     % Given ZTF psfcatapply  photometric ZP, astrometry and match to known asteroids
     % Input  : - FITS table name.
     %          * ...,key,val,...
     %            see code for options
     % Output : - AstroCatalog with updated information.
     %          - AstroCatalog of only minor planets.
-    %          - A structure array with skipped files.
+    %          - A structure array with Status of reduction.
     %          - Path.
     % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem('merge');
     %          INPOP = celestial.INPOP; INPOP.populateAll;
@@ -20,7 +20,12 @@ function [ObjCat, OnlyMP, AstrometricCat, Skip, Path] = reanalize_ZTF_psfcat(Fil
         Args.AstrometricCat    = 'GAIADR3'
         Args.OrbEl             = [];
         Args.INPOP             = [];
-        Args.GeoPos            = [];       % [Lon (rad), Lat (rad), Height (m)].         
+        Args.GeoPos            = [];       % [Lon (rad), Lat (rad), Height (m)]. 
+
+        Args.WriteProd logical = true;
+        Args.FieldID           = [];
+        Args.CCDID             = [];
+
     end
     RAD = 180./pi;
 
@@ -94,23 +99,76 @@ function [ObjCat, OnlyMP, AstrometricCat, Skip, Path] = reanalize_ZTF_psfcat(Fil
                                                               'SignZP',-1,...
                                                               'MagColName2update','mag');
     
+    Status.File = File;
+    Status.Path = Args.Path;
+    Status.AstNgood    = ResAstrometry.ResFit.Ngood;
+    Status.AstAssymRMS = ResAstrometry.ResFit.AssymRMS;
+
     if ZP.Nsrc<5
         % skip file
-        Skip.File = File;
-        Skip.Path = Args.Path;
-        Skip.ZP   = ZP;
+        
+        Status.ZP   = NaN;
         OnlyMP    = [];
         AstCat    = [];
 
     else
-        Skip = [];
+        Status.ZP = ZP;
         % Asteroids search
-        [OnlyMP, AstCat, ~] = imProc.match.match2solarSystem(ObjCat, 'JD',JD, 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',1, 'INPOP',Args.INPOP);
+        [OnlyMP, AstCat, ~] = imProc.match.match2solarSystem(ObjCat, 'JD',JD, 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',3, 'INPOP',Args.INPOP);
+        % add JD to OnlyMP
+        Nast = OnlyMP.sizeCatalog;
+        if Nast>0
+            OnlyMP.insertCol(repmat(OnlyMP.JD, Nast,1), Inf, 'JD', 'day');
+        end
+    
 
+        ObjCat.UserData.ZP     = ZP;
+        ObjCat.UserData.Astrom = ResAstrometry.ResFit;
+    
+    
+        if Args.WriteProd
+            FilterList = {'zg','zr','zi'};
+    
+            % write data products
+            FN = FileNames;
+            FN.ProjName = 'ZTF';
+            FN.Level    = 'proc';
+            FN.Product  = 'Cat';
+            FN.FieldID  = {Args.FieldID};
+            FN.CCDID    = Args.CCDID;
+            Att     = split(File,'_');
+            FN.Filter  = Att{4};
+            FN.CropID  = Att{7}(2);
+            FN.Counter = 0;
+            FN.Time    = ObjCat.JD;
+            FN.FullPath = Args.Path;
+    
+    
+            % add band information to OnlyMP
+            FilterInd = find(strcmp(FilterList, FN.Filter{1}));
+            Nast = OnlyMP.sizeCatalog;
+    
+            FieldNumber = str2double(Args.FieldID);
+            CCDN        = str2double(Args.CCDID);
+    
+            insertCol(OnlyMP, FilterInd.*ones(Nast,1), Inf, 'Filter');
+            insertCol(OnlyMP, FieldNumber.*ones(Nast,1), Inf, 'FieldID');
+            insertCol(OnlyMP, CCDN.*ones(Nast,1), Inf, 'CCDID');
+            
+    
+            Nsrc = ObjCat.sizeCatalog;
+            ObjCat.insertCol(ObjCat.UserData.ZP.ZP.*ones(Nsrc,1), Inf, 'ZP','mag');
+            ObjCat.insertCol(ObjCat.UserData.ZP.MedC.*ones(Nsrc,1), Inf, 'MedC','mag');
+            ObjCat.insertCol(ObjCat.UserData.ZP.Par(2).*ones(Nsrc,1), Inf, 'ColorT','mag/mag');
+            ObjCat.insertCol(ObjCat.UserData.ZP.RMS.*ones(Nsrc,1), Inf, 'PhotRMS','mag');
+            ObjCat.insertCol(ObjCat.UserData.Astrom.AssymRMS_mag.*ones(Nsrc,1).*3600, Inf, 'AstromRMS','arcsec');
+            ObjCat.insertCol(ObjCat.JD.*ones(Nsrc,1), Inf, 'JD','day');
+
+    
+            imProc.io.writeProduct(ObjCat, FN, 'GetHeaderJD',false, 'AI_CropID_FromHeader',false, 'AI_Counter_FromHeader',false, 'FullPath',pwd);
+    
+        end
     end
-
-    ObjCat.UserData.ZP     = ZP;
-    ObjCat.UserData.Astrom = ResAstrometry.ResFit;
 
 
     if ~isempty(Args.Path)
