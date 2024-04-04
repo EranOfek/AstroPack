@@ -44,8 +44,7 @@ function Result = psfPhot(Cube, Args)
         % select stamps around Xinit, Yint
         [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Cube, Args.Xinit, Args.Yinit, RadiusPSF);
     end
-    
-    
+        
     % Calculate the coordinates of PSF centers
     [Ny, Nx, Nim] = size(Cube);
     Xcenter = (Nx+1).*0.5;
@@ -127,6 +126,7 @@ function Result = psfPhot(Cube, Args)
     NotConverged = true;
     StdBack = Std;
     Flux0   = zeros(Nim,1);
+    ConvFlag= zeros(Nim,1); % individual convergence flag 
     
     X1 = zeros(Nim,1);
     Y1 = zeros(Nim,1);
@@ -160,16 +160,21 @@ function Result = psfPhot(Cube, Args)
                                                                            'MaxStep_RadiusRangeUnits',Args.MaxStep_RadiusRangeUnits,...
                                                                            'GridPointsX',Args.GridPointsX,...
                                                                            'GridPointsY',Args.GridPointsY,...
-                                                                           'H',H); 
+                                                                           'H',H,...
+                                                                           'Regularize',true,...
+                                                                           'Limit',1.0,...
+                                                                           'ConvFlag',ConvFlag);
         %
         RadiusRange = RadiusRange./2;
         
+        ConvFlag = ((X1 - X1prev).^2 + (Y1 - Y1prev).^2)<ConvThresh.^2;
+        
          subr = 10:20; % subrange to show
-         [X1(subr), Y1(subr), sqrt(((X1(subr) - X1prev(subr)).^2 + (Y1(subr) - Y1prev(subr)).^2)), ...
-          ((X1(subr) - X1prev(subr)).^2 + (Y1(subr) - Y1prev(subr)).^2)<ConvThresh(subr).^2, Flux0(subr)/1e3, MinChi2(subr)./Dof(subr)]
+         [X1(subr), Y1(subr), sqrt(((X1(subr) - X1prev(subr)).^2 + (Y1(subr) - Y1prev(subr)).^2)), ConvFlag(subr),...
+           Flux0(subr)/1e3, MinChi2(subr)./Dof(subr)]
          Ind % deb
 %         
-        if all( ((X1 - X1prev).^2 + (Y1 - Y1prev).^2)<ConvThresh.^2)
+        if all( ConvFlag )
             NotConverged = false;
         end
         
