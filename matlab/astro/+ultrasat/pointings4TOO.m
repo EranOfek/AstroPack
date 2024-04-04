@@ -69,6 +69,16 @@ function [Grid, GridOpt] = pointings4TOO(Pol, Args)
 %     % Check if the point is inside the polygon
 %     isPointInsidePolygon(p(1), p(2), Pol)
 
+    % the input is a set of healpix of various resolution (nside) and
+    % probability
+    % 0. select a subset above a given threshold
+    % 1. from the subset make a homogeneous grid of healpix of the maximal nside
+    % 2. from the AlSS grid select all the pointings so that the distance to
+    % any of the healpix is < R = 7 deg
+    % 3. make a polygon from the healpix subset (?) and estimate the uncovered
+    % fraction
+    % 4. draw the polygon and the pointings as circles of R 
+
     % another option for the sky region (Dec, RA, SemiMaj, Exc):
     [Lat,Lon] = ellipse1(20., 40., [25 0.95], 60.,[],[],'degrees',100); 
     Pol = [Lon Lat];

@@ -1,5 +1,5 @@
 function get_healpix_numbers(NSide, RA, Dec, Args)
-    % get the healpix pixel numbers (indices) for a given sky position and map resolution
+    % get the healpix pixel numbers (indices) for given sky positions and map resolution
     % Input: - Npix parameter of the HEALPix algorythm (effective map resolution)
     %        - an array of RA [deg] OR a filename with RA Dec in two columns
     %        - an array of Dec [deg] (may skip it if RA is a filename)
