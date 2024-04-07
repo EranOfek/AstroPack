@@ -1163,11 +1163,13 @@ classdef FITS < handle
                 Args.CompressType  char       = 'NOCOMPRESS';
                 Args.SanifyPath logical       = true;
                 Args.UseMex     logical       = false;
+                Args.MexThread  logical       = true;
             end
             
             io.fits.writeSimpleFITS(Image, FileName, 'Header',Args.Header,...
                                      'DataType',Args.DataType,'UseMatlabIo',true,...
-                                     'CompressType',Args.CompressType,'SanifyPath',Args.SanifyPath,'UseMex',Args.UseMex);
+                                     'CompressType',Args.CompressType,'SanifyPath',Args.SanifyPath,...
+                                     'UseMex',Args.UseMex,'MexThread',Args.MexThread);
             
         end
         

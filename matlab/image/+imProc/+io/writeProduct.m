@@ -112,8 +112,10 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
         Args.WriteEmpty logical     = false;
         Args.Write1mat logical      = false;
         Args.SanifyPath logical     = false; % true can be time-consuming
+        
+        Args.UseMex     logical     = true; % low-level writing of FITS images is much faster
+        Args.MexThread  logical     = true; % pass writing files to another thread and go on processing
     end
-
     
     if Args.Save
 
@@ -212,7 +214,8 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                                              'WriteHeader',WriteHeader(Iprod),...
                                              'MkDir',~DirCreated,...
                                              'OverWrite',Args.OverWrite,...
-                                             'SanifyPath',Args.SanifyPath);
+                                             'SanifyPath',Args.SanifyPath,...
+                                             'UseMex',Args.UseMex,'MexThread',Args.MexThread);
 
                                 DirCreated = true;
                                 % Update FileName in Obj

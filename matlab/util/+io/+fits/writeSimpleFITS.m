@@ -33,6 +33,7 @@ function writeSimpleFITS(Image, FileName, Args)
         Args.CompressType    char     = 'NOCOMPRESS';
         Args.SanifyPath logical       = true;
         Args.UseMex     logical       = false;
+        Args.MexThread  logical       = true;
     end
 
     % sanify the file name so that it contains the absolute path
@@ -72,7 +73,11 @@ function writeSimpleFITS(Image, FileName, Args)
    if Args.UseMex
        Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BITPIX',{BitPix});
        Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BZERO',{bzero});
-       io.fits.fitsWriteImage(FileName, Image, Args.Header);
+       if Args.MexThread
+           io.fits.fitsWriteImageThread(FileName, Image, Args.Header);
+       else
+           io.fits.fitsWriteImage(FileName, Image, Args.Header);
+       end       
    elseif ~Args.UseMatlabIo
        Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BITPIX',{BitPix});
        Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BZERO',{bzero});

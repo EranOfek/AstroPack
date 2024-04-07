@@ -1196,6 +1196,8 @@ classdef AstroImage < Component
                 Args.MkDir logical            = false;
                 Args.Status                   = [];
                 Args.SanifyPath               = true; 
+                Args.UseMex     logical       = false;
+                Args.MexThread  logical       = true;
             end
             
             if Args.WriteHeader
@@ -1232,7 +1234,7 @@ classdef AstroImage < Component
                                 if Args.IsSimpleFITS                                    
                                     FITS.writeSimpleFITS(Obj.(DataProp), Name, 'Header',HeaderDataToWrite,...
                                                                      'SanifyPath',Args.SanifyPath,...
-                                                                     'UseMex',true); %,...
+                                                                     'UseMex',Args.UseMex,'MexThread',Args.MexThread); %,...
                                                                %    'DataType',class(Obj.(DataProp)));
                                 else                                    
                                     FITS.write(Obj.(DataProp), Name, 'Header',HeaderDataToWrite,...
@@ -1252,7 +1254,7 @@ classdef AstroImage < Component
                                                                    'Append',Args.Append,...
                                                                    'OverWrite',Args.OverWrite,...
                                                                    'WriteTime',Args.WriteTime,...
-                                                                   'UseMex',true);
+                                                                   'UseMex',Args.UseMex);
                             end
                         otherwise
                             % FFU

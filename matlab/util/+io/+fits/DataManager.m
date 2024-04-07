@@ -37,9 +37,9 @@ classdef DataManager < handle
         function scanAndRelease(Obj)
             % Scans all DataKeepers and releases expired ones
             len = length(Obj.DataKeepers);
-            if len > 0
-                fprintf('scanAndRelease: %d\n', length(Obj.DataKeepers));
-            end
+%             if len > 0
+%                 fprintf('scanAndRelease: %d\n', length(Obj.DataKeepers));
+%             end
 
             Now = datetime('now');
             for i = length(Obj.DataKeepers):-1:1
