@@ -17,7 +17,7 @@ function [Grid, GridOpt] = pointings4TOO(Pol, Args)
     %        -  an improved list of pointing centers (if a repair algorithm is invoked)
     % Author: A.M. Krassilchtchikov (Jan 2024)
     % Example: Grid = pointings4TOO(Polygon, 'RepairMC', true);
-    arguments
+    arguments            
         Pol = [  0,  0;  ... % RA, Dec
             45,-30;
             90,  0;  ...
@@ -26,12 +26,36 @@ function [Grid, GridOpt] = pointings4TOO(Pol, Args)
             50, 40; ...
             45, 20; ...
             0, 40; ...
-            20, 10];
+            20, 10];       
+        Args.AlertMap        = 'alert1.csv'
         Args.InitialGridFile = '~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_350_rep1.txt'
         Args.FOVradius       = 7; % deg NB: the radius should, in principle, match the grid 
         Args.RepairMC        = false;
+        
+        Args.ProbLevel       = 0.1; % 0.6 % probability level
     end
-
+    
+    NsideRad = [2, 27.585653017957394; ... % radius of healpix in deg
+                4, 14.5722306700779; ...
+                8,  7.47282699728271; ...
+               16,  3.7823672156460226; ...
+               32,  1.902601860011511; ...
+               64,  0.9541480607387777; ...
+              128,  0.47778497003680387; ...
+              256,  0.23907012000928965; ...
+              512,  0.11957945660469947; ...
+             1024,  0.059800825955419704; ...
+             2048,  0.02990318720521464; ...
+             4096,  0.014952287136343813; ...
+             8192,  0.007476316948721642; ...
+            16384,  0.00373820181913693; ...
+            32768,  0.0018691117457205135; ...
+            65536,  0.0009345585818920722; ...
+           131072,  0.00046727996820400576; ...
+           262144,  0.00023364015341454294; ...
+           524288,  0.00011682011904060968; ...
+          1048576,  5.841007009601502e-05];
+    
     RAD = 180/pi;
 
 %     Pol = [0,-49;  ... % RA, Dec
@@ -78,36 +102,71 @@ function [Grid, GridOpt] = pointings4TOO(Pol, Args)
     % 3. make a polygon from the healpix subset (?) and estimate the uncovered
     % fraction
     % 4. draw the polygon and the pointings as circles of R 
-
-    % another option for the sky region (Dec, RA, SemiMaj, Exc):
-    [Lat,Lon] = ellipse1(20., 40., [25 0.95], 60.,[],[],'degrees',100); 
-    Pol = [Lon Lat];
-
+    
+    % NB: if the healpix size is small (e.g., Nside > 512, Rpix <= 0.1 deg),
+    % there is not need to consider it, we just need to calculate the
+    % distance of the pointings' centers from the healpix above certain
+    % radius 
+    
     Grid0 = readmatrix(Args.InitialGridFile);
     Np   = length(Grid0);
     Grid = zeros(Np,2);
 
     figure(1); clf
     axesm('MapProjection', 'aitoff', 'AngleUnits', 'radians', 'LabelUnits', 'radians', 'Grid', 'on');
-    % plotm(pol(:,2)./RAD,pol(:,1)./RAD,'-','Color','red')
-    fillm(Pol(:,2)./RAD,Pol(:,1)./RAD,'w')
-
+    
+    % read from a file: nside, ipix, RA, Dec     
+    R = readtable(Args.AlertMap);     
+    
+    Ind0 = find(R.PROBDENSITY>100*Args.ProbLevel);  % R.PROBDENSITY is in percent!  
+    Uniq = R.UNIQ(Ind0,:);
+    RA   = R.RA(Ind0,:);
+    Dec  = R.DEC(Ind0,:);
+       
+%     
+%     Nside = 2.^floor(log(Uniq/4)/(2*log(2)));
+%     Ind  = log(Nside)/log(2)-1; 
+%     
+    Ind  = floor(log(Uniq/4)/(2*log(2)))-1;    
+    PixRad = NsideRad(Ind(:,1),2)/RAD;
+    
+%     plot.skyCircles(RA,Dec,'Rad',PixRad,'PlotOnMap',true,'Color','black','NumPoints',10);
+    plotm(Dec./RAD,RA./RAD,'*') % plot the healpix pixels 
+    
     for Ip = 1:Np
-        if celestial.search.isPointInsidePolygon(Grid0(Ip,1), Grid0(Ip,2), Pol)
+        Rd = celestial.coo.sphere_dist_fast(Grid0(Ip,1)/RAD,Grid0(Ip,2)/RAD,RA./RAD,Dec./RAD);
+        if any(Rd < PixRad + Args.FOVradius/RAD) 
             Grid(Ip,:) = Grid0(Ip,:);
             plot.skyCircles(Grid0(Ip,1),Grid0(Ip,2),'Rad',Args.FOVradius,'PlotOnMap',true,'Color','blue');
-%             plot.skyEllipses(Grid0(Ip,1),Grid0(Ip,2),Args.FOVradius,0.,'PlotOnMap',true,'Color','blue');
             fprintf('%d %.2f %.2f\n',Ip, Grid0(Ip,1), Grid0(Ip,2))
         end
+    end
+
+    if false % turned off 
+        % another option for the sky region (Dec, RA, SemiMaj, Exc):
+        [Lat,Lon] = ellipse1(20., 40., [25 0.95], 60.,[],[],'degrees',100); 
+        Pol = [Lon Lat];
+
+        % plotm(pol(:,2)./RAD,pol(:,1)./RAD,'-','Color','red')
+        fillm(Pol(:,2)./RAD,Pol(:,1)./RAD,'w')
+
+        for Ip = 1:Np
+            if celestial.search.isPointInsidePolygon(Grid0(Ip,1), Grid0(Ip,2), Pol)
+                Grid(Ip,:) = Grid0(Ip,:);
+                plot.skyCircles(Grid0(Ip,1),Grid0(Ip,2),'Rad',Args.FOVradius,'PlotOnMap',true,'Color','blue');
+    %             plot.skyEllipses(Grid0(Ip,1),Grid0(Ip,2),Args.FOVradius,0.,'PlotOnMap',true,'Color','blue');
+                fprintf('%d %.2f %.2f\n',Ip, Grid0(Ip,1), Grid0(Ip,2))
+            end
+        end
+        
+        [Cost0,~,Uncov] = ultrasat.costTOO(Pol,Grid);
+        GridOpt = Grid;
+        fprintf('Uncovered fraction: %.2f\n',Uncov);        
     end
     
     Grid = Grid( abs(Grid(:,1))>0 | abs(Grid(:,2))>0, :);
     Ng   = size(Grid,1);
-    
-    [Cost0,~,Uncov] = ultrasat.costTOO(Pol,Grid);    
-    GridOpt = Grid;
-    fprintf('Uncovered fraction: %.2f\n',Uncov);
-    
+           
     if Args.RepairMC        
         
         fprintf('Initial Cost: %.1f, Uncovered fraction: %.3f\n', Cost0, Uncov);
