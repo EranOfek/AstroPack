@@ -71,6 +71,8 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
     %            'Write1mat' - A logical. If saving mat file save only one
     %                   file (true), or file per element (false).
     %                   Default is false.
+    %             'SanifyPath' - A logical. true can be time-consuming
+    %             'WriteMethodImages' - can be 'Standard', 'Mex', or 'ThreadedMex'
     % Output : - A FileNames object for the written files
     %            (Product='Image').
     %          - Used SubDir.
@@ -113,8 +115,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
         Args.Write1mat logical      = false;
         Args.SanifyPath logical     = false; % true can be time-consuming
         
-        Args.UseMex     logical     = true; % low-level writing of FITS images is much faster
-        Args.MexThread  logical     = true; % pass writing files to another thread and go on processing
+        Args.WriteMethodImages      = 'Standard'; % can be 'Standard', 'Mex', or 'ThreadedMex'
     end
     
     if Args.Save
@@ -215,7 +216,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                                              'MkDir',~DirCreated,...
                                              'OverWrite',Args.OverWrite,...
                                              'SanifyPath',Args.SanifyPath,...
-                                             'UseMex',Args.UseMex,'MexThread',Args.MexThread);
+                                             'WriteMethod',Args.WriteMethodImages);
 
                                 DirCreated = true;
                                 % Update FileName in Obj

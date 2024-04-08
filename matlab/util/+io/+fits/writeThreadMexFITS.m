@@ -1,11 +1,11 @@
-function fitsWriteImageThread(fitsFileName, imageMatrix, headerCellArray)   
+function writeThreadMexFITS(fitsFileName, imageMatrix, headerCellArray)   
     % Write FITS file using mex function, without cfitsio
     % Input  : - File name
     %          - Image
     %          - A 3 column header cell array (Key, Value, Comment)
     % Output : -
     % Author : Chen Tishler (March 2024)
-    % Example: io.fits.fitsWriteImage('myfile.fits', [10 100], Header)
+    % Example: io.fits.writeThreadMexFITS('myfile.fits', [10 100], Header)
 
     % Allocate flag matrix, it will be set by the thread to 0x12345678 upon completion
     data = struct;

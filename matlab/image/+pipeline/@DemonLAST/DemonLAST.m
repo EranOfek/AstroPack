@@ -2433,6 +2433,7 @@ classdef DemonLAST < Component
                 Args.SaveMergedCat     = true;
                 Args.SaveMergedMat     = true;
                 Args.SaveAsteroids     = true;
+                Args.WriteMethodImages = 'ThreadedMex'; % can be 'Standard', 'Mex', 'ThreadedMex'
 
                 % DataBase
                 Args.Insert2DB         = false;              % Insert images data to LAST DB or prepare CSV dumps for further insertion
@@ -2453,7 +2454,7 @@ classdef DemonLAST < Component
                 Args.OrbEl                            = [];
                 Args.INPOP                            = [];
                 Args.AsteroidSearchRadius             = 10;
-
+                                
                 %Args.RunAsService logical  = false;
             end
             RAD = 180./pi;
@@ -2712,7 +2713,8 @@ classdef DemonLAST < Component
                             [FN_Proc,~,Status] = imProc.io.writeProduct(AllSI, FN_I, 'Product',UpArgs.SaveEpochProduct, 'WriteHeader',[true false true false],...
                                                    'Level','proc',...
                                                    'LevelPath','proc',...
-                                                   'FindSubDir',true);
+                                                   'FindSubDir',true,...
+                                                   'WriteMethodImages',Args.WriteMethodImages);
                             Obj.writeLog(Status, LogLevel.Info);
                             
                             RunTime = etime(clock, Tstart);
@@ -2723,7 +2725,8 @@ classdef DemonLAST < Component
                             [FN_Coadd,~,Status]=imProc.io.writeProduct(Coadd, FN_I, 'Product',UpArgs.SaveVisitProduct, 'WriteHeader',[true false true false],...
                                                    'Level','coadd',...
                                                    'LevelPath','proc',...
-                                                   'SubDir',FN_Proc.SubDir);
+                                                   'SubDir',FN_Proc.SubDir,...
+                                                   'WriteMethodImages',Args.WriteMethodImages);
                             Obj.writeLog(Status, LogLevel.Info);
                                                         
                             RunTime = etime(clock, Tstart);
