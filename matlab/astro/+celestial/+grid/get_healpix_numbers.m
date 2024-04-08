@@ -30,10 +30,10 @@ function get_healpix_numbers(NSide, RA, Dec, Args)
     Degrees = sprintf('%d',Args.Lonlat);
     
     if isnumeric(RA)
-        RA  = sprintf('%f',RA);
-        Dec = sprintf('%f',Dec);
+        RA  = sprintf('%f ',RA);
+        Dec = sprintf('%f ',Dec);
     else
-        Dec = sprintf('%f',Dec);
+        Dec = sprintf('%f ',Dec);
     end
     
     try

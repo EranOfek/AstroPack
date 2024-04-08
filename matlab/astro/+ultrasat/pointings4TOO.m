@@ -32,7 +32,7 @@ function [Grid, GridOpt] = pointings4TOO(Pol, Args)
         Args.FOVradius       = 7; % deg NB: the radius should, in principle, match the grid 
         Args.RepairMC        = false;
         
-        Args.ProbLevel       = 0.1; % 0.6 % probability level
+        Args.ProbLevel       = 0.9; % 0.6 % probability level
     end
     
     NsideRad = [2, 27.585653017957394; ... % radius of healpix in deg
@@ -122,9 +122,21 @@ function [Grid, GridOpt] = pointings4TOO(Pol, Args)
     Uniq = R.UNIQ(Ind0,:);
     RA   = R.RA(Ind0,:);
     Dec  = R.DEC(Ind0,:);
-       
-%     
-%     Nside = 2.^floor(log(Uniq/4)/(2*log(2)));
+            
+    Nside = 2.^floor(log(Uniq/4)/(2*log(2)));
+    Ipix  = Uniq - 4 * Nside.^2;
+    IpixFile = 'Ipix.txt';
+    writematrix(Ipix,IpixFile);
+        
+%     python3 ~/matlab/AstroPack/matlab/astro/+celestial/+grid/healpix2coo.py 1024 Ipix.txt 1 1
+%     Script ='~/matlab/AstroPack/matlab/astro/+celestial/+grid/healpix2coo.py';
+%     system(['python3' ' ' Script ' ' Nside(1) ' ' IpixFile ' ' 1 ' ' 1]);
+
+    Coo = readmatrix('healpix_nside_1024_coo.txt');
+    RA = Coo(:,1); Dec = Coo(:,2);
+%
+%     writematrix([RA Dec],'coords.txt','Delimiter'," ")
+%     celestial.grid.get_healpix_numbers(Nside(1),'coords.txt',1,'Nested',1);
 %     Ind  = log(Nside)/log(2)-1; 
 %     
     Ind  = floor(log(Uniq/4)/(2*log(2)))-1;    
