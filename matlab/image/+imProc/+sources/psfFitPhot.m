@@ -94,6 +94,8 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
 
         Args.ColSN                   = 'SN_3';  % if empty don't use
         
+        Args.MaxIter                 = 20;
+        
         Args.Method                  = 'old'; 
     end
     
@@ -184,8 +186,10 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                                                                     'Back',0,...
                                                                     'FitRadius',Args.FitRadius,...
                                                                     'ZP',Args.ZP,...
+                                                                    'SN',SN,...
                                                                     'backgroundCubeArgs',Args.backgroundCubeArgs,...
-                                                                    Args.psfPhotCubeArgs{:});
+                                                                    'MaxIter',Args.MaxIter,...
+                                                                     Args.psfPhotCubeArgs{:});
                     
                 case 'new'
                     
@@ -206,6 +210,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                                                             'FitRadius', Args.HalfSize,... % 3, Args.HalfSize,... %test
                                                             'RadiusRange', 0.5,... % test % 0.2, 0.5, 1.0
                                                             'backgroundCubeArgs',Args.backgroundCubeArgs,...
+                                                            'MaxIter',Args.MaxIter,...
                                                             Args.psfPhotCubeArgs{:}); 
 
                 otherwise

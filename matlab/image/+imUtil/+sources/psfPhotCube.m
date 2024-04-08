@@ -104,6 +104,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Args.MaxIter    = 8;
 
         Args.SN         = [];
+        Args.UseSNR     = false;
         
         Args.UseSourceNoise = 'last'; %'off';
         Args.ZP         = 25; 
@@ -158,10 +159,10 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     end    
     
     % adaptive conversion threshold 
-    if isempty(Args.SN)
+    if isempty(Args.SN) || ~Args.UseSNR  
         ConvThresh = Args.ConvThresh;
     else
-        ConvThresh = 0.1./Args.SN;
+        ConvThresh = max(0.5./Args.SN, Args.ConvThresh); % 0.1./Args.SN
     end
 
     WeightedPSF = sum(Args.PSF.^2, [1 2]); % for flux estimation
@@ -238,8 +239,10 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         %     OutDebug(Ind).F = AppFlux;
         % end
         
+%         fprintf('StepX: %s, StepY %s \n',StepX,StepY);
+        
         % stoping criteria
-        ConvergeFlag = abs(StepX)<ConvThresh & abs(StepY)<ConvThresh;
+        ConvergeFlag = abs(StepX')<ConvThresh & abs(StepY')<ConvThresh;
         if all(ConvergeFlag)
             NotConverged = false;
         end
@@ -259,6 +262,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     else
         Result.Dof  = Dof;
     end
+    
+    fprintf('Iterations: %d of %d, Converged %d of %d\n',Ind, Args.MaxIter,sum(ConvergeFlag),length(ConvergeFlag));
     
     Result.Flux = squeeze(Flux);
     % SNm can be negaive if source is negative
