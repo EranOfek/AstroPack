@@ -1196,7 +1196,7 @@ classdef AstroImage < Component
                 Args.MkDir logical            = false;
                 Args.Status                   = [];
                 Args.SanifyPath               = true; 
-                Args.UseMex     logical       = false;
+                Args.FastHeader logical       = false;
                 Args.WriteMethod              = 'Standard';
             end
             
@@ -1254,7 +1254,7 @@ classdef AstroImage < Component
                                                                    'Append',Args.Append,...
                                                                    'OverWrite',Args.OverWrite,...
                                                                    'WriteTime',Args.WriteTime,...
-                                                                   'UseMex',Args.UseMex);
+                                                                   'FastHeader',Args.FastHeader);
                             end
                         otherwise
                             % FFU

@@ -54,7 +54,7 @@ function Result = writeTable1(Table, FileName, Args)
         Args.ColUnits       = [];
         Args.HeaderHDUnum   = [];
         Args.Header         = {};
-        Args.UseMex         = false;
+        Args.FastHeader     = false; % whether to employ a fast mex function to add a header
     end
     
     % sanify the file name so that it contain the absolute path
@@ -149,8 +149,8 @@ function Result = writeTable1(Table, FileName, Args)
             Args.HeaderHDUnum = Args.HDUnum + 1;
         end
         
-        % Use mex function to append the image header, file must be close
-        if Args.UseMex
+        % Use mex function to append the image header, file must be closed
+        if Args.FastHeader
             matlab.io.fits.closeFile(Fptr);
             Result = (sign(Fptr) == 1);       
             io.fits.mex.mex_fits_table_write_image_header(Header.Header, FileName);

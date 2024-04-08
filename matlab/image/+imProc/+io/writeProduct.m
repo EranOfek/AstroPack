@@ -73,6 +73,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
     %                   Default is false.
     %             'SanifyPath' - A logical. true can be time-consuming
     %             'WriteMethodImages' - can be 'Standard', 'Mex', or 'ThreadedMex'
+    %             'FastHeader' - whether to use a fast mex function to add a header to a FITS file
     % Output : - A FileNames object for the written files
     %            (Product='Image').
     %          - Used SubDir.
@@ -116,6 +117,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
         Args.SanifyPath logical     = false; % true can be time-consuming
         
         Args.WriteMethodImages      = 'Standard'; % can be 'Standard', 'Mex', or 'ThreadedMex'
+        Args.FastHeader             = false;      % whether to use a fast mex function to add a header to a FITS file
     end
     
     if Args.Save
@@ -216,7 +218,8 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                                              'MkDir',~DirCreated,...
                                              'OverWrite',Args.OverWrite,...
                                              'SanifyPath',Args.SanifyPath,...
-                                             'WriteMethod',Args.WriteMethodImages);
+                                             'WriteMethod',Args.WriteMethodImages,...
+                                             'FastHeader',Args.FastHeader);
 
                                 DirCreated = true;
                                 % Update FileName in Obj
