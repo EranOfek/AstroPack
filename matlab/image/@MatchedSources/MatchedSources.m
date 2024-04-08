@@ -3339,7 +3339,7 @@ classdef MatchedSources < Component
                         UseSrc    = [];
                     end
                     
-                    ResStreak = imUtil.asteroids.orphansOnStreak(Result.JD, Result.RA, Result.Dec, Args.orphansOnStreakArgs{:}, 'UseSrc');
+                    ResStreak = imUtil.asteroids.orphansOnStreak(Result.JD, Result.RA, Result.Dec, Args.orphansOnStreakArgs{:}, 'UseSrc',UseSrc);
                     
                     Result(Iobj).StreakInd = ResStreak.StreakInd(:).';
                     Result(Iobj).StreakFit = ResStreak.ResFit;

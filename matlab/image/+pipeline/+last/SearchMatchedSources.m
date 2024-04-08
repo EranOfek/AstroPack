@@ -616,8 +616,26 @@ classdef SearchMatchedSources < Component
             %          SMS.populateAllConsecutive
             %          SMS.searchOrphans
 
+            arguments
+                Obj
+                Args.Ncrop              = 24;
+                Args.Nvisit             = 1;
+                Args.Nstep              = 1;
+                Args.SearchRadius       = 3;
+                Args.SearchRadiusUnits  = 'arcsec';
+                Args.MagField           = 'MAG_PSF';
+                Args.MagErrField        = 'MAGERR_PSF';
+                Args.LimMagQuantile     = 0.99;
 
+                Args.CooUnits           = 'deg';
+                % we are looking for fast moving asteroids
+                % with ang. speed of ~5"/60s ~ 2 deg/day
+                % error on velocity is about 20%
+                % error on position ~10"
+                Args.HalfRangeVec       = [10./3600, 10./3600, 2.*0.2, 2.*0.2];
+            end
 
+            Ncons = numel(Obj.AllConsecutive);
             for Icons=1:1:Ncons
                 Ng = numel(Obj.AllConsecutive{Icons});
                 for Ig=1:1:Ng
@@ -633,7 +651,36 @@ classdef SearchMatchedSources < Component
                                                                                                   'LimMagQuantile',Args.LimMagQuantile);
                         if ~isempty(Obj.MS)
                             %
+                            Icrop
+
                             ResOrphan = Obj.searchOrphansMS;
+
+                            % Convert RA and Dec Dec to X/Y gnomonic
+                            % projection
+                            % assume input is spherical coordinates
+                            % get mean RA/Dec
+                            JD  = [ResOrphan.JD].';
+                            RA  = [ResOrphan.RA].';
+                            Dec = [ResOrphan.Dec].';
+                
+                            [Lon0, Lat0] = celestial.coo.funOnCosDir(RA, Dec, @mean, 'FunArgs',{1,'omitnan'}, 'InUnits',Args.CooUnits, 'OutUnits','rad');
+                            Conv  = convert.angular(Args.CooUnits, 'rad');
+                            RA    = RA.*Conv;
+                            Dec   = Dec.*Conv;
+
+                            % project coordinates on plane
+                            Scale  = convert.angular('rad', 'deg');
+                            [X, Y] = celestial.proj.pr_gnomonic(RA, Dec, Scale, [Lon0, Lat0]);
+                            % X/Y is the projected position in units of
+                            % deg.
+
+
+                            Cand = imUtil.asteroids.pairsMotionMatchKDTree(JD, X, Y, "HalfRangeVec",Args.HalfRangeVec);
+
+                            if ~isempty(Cand)
+                                'a'
+                            end
+
                         end
                     end
                 end
