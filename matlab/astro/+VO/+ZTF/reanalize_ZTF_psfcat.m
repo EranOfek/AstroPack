@@ -1,5 +1,5 @@
 function [ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_psfcat(File, Args)
-    % Given ZTF psfcatapply  photometric ZP, astrometry and match to known asteroids
+    % Given ZTF psfcat apply  photometric ZP, astrometry and match to known asteroids
     % Input  : - FITS table name.
     %          * ...,key,val,...
     %            see code for options
