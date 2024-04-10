@@ -73,6 +73,7 @@ function [Result] = orphansOnStreak(JD, X, Y, Args)
     end
 
     Result.StreakInd = zeros(Nx,1);
+    
 
     switch lower(Args.CooUnits)
         case 'pix'
@@ -114,7 +115,12 @@ function [Result] = orphansOnStreak(JD, X, Y, Args)
             StreakCounter = StreakCounter + 1;
             Result.StreakInd(IndInEpoch(ResFit.FlagGoodPt)) = StreakCounter;
             Result.ResFit(StreakCounter) = ResFit;
+        
         end
+    end
+    if StreakCounter==0
+        % if no streaks populate with empty.
+        Result.ResFit = [];
     end
 
 end
