@@ -89,6 +89,8 @@ function TranCat=findTransients(AD, Args)
 
         Args.includeSkyCoord logical    = true;
         Args.includeObsTime logical     = true;
+
+        Args.includeGaborMag logical = true;
     end
 
     Nobj = numel(AD);
@@ -110,7 +112,9 @@ function TranCat=findTransients(AD, Args)
         LocalMax = [PosLocalMax; NegLocalMax];
         Nsrc     = size(LocalMax,1);
 
-
+        [M1, M2, Aper] = imUtil.image.moment2(AD(Iobj).New.Image, ...
+            LocalMax(:,1), LocalMax(:,2));
+        
         % Construct AstroCatalog holding transints candidates
 
         ColNames = {'XPEAK', 'YPEAK', 'Score'};
@@ -119,10 +123,15 @@ function TranCat=findTransients(AD, Args)
         TranCat(Iobj) = AstroCatalog({cast([LocalMax(:,1), LocalMax(:,2), LocalMax(:,3)],'double')},...
             'ColNames', ColNames, 'ColUnits', ColUnits);
 
+        % Skip if no candidates found
+        if Nsrc < 1
+            continue
+        end
+
         if Args.includePsfFit
 
             % PSF fit all candidates in the D image
-            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Image, LocalMax(:,1), LocalMax(:,2), Args.HalfSizePSF);
+            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Image, M1.X, M1.Y, Args.HalfSizePSF);
             % Change the sign of negative sources
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
             Psf = imUtil.psf.full2stamp(AD(Iobj).PSFData.getPSF, 'StampHalfSize',Args.HalfSizePSF.*ones(1,2), 'IsCorner',false);
@@ -130,14 +139,14 @@ function TranCat=findTransients(AD, Args)
         
             % PSF fit all candidates in the New image
             CutHalfSize = (size(AD(Iobj).New.PSFData.getPSF,1)-1).*0.5;
-            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).New.Image, LocalMax(:,1), LocalMax(:,2), CutHalfSize);
+            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).New.Image, M1.X, M1.Y, CutHalfSize);
             % Change the sign of negative sources
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
             [ResultN, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', AD(Iobj).New.PSFData.getPSF, Args.psfPhotCubeArgs{:});
         
             % PSF fit all candidates in the Ref image
             CutHalfSize = (size(AD(Iobj).Ref.PSFData.getPSF,1)-1).*0.5;
-            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Ref.Image, LocalMax(:,1), LocalMax(:,2), CutHalfSize);
+            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Ref.Image, M1.X, M1.Y, CutHalfSize);
             % Change the sign of negative sources
             Cube = Cube.*reshape(-sign(LocalMax(:,3)), [1 1 Nsrc]);
             [ResultR, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', AD(Iobj).Ref.PSFData.getPSF, Args.psfPhotCubeArgs{:});
@@ -147,23 +156,21 @@ function TranCat=findTransients(AD, Args)
             Chi2dof = ResultD.Chi2./ResultD.Dof;
 
             % Insert results into catalog.
-            Data = cell2mat({ResultD.SNm, Chi2dof, ...
+            Data = cell2mat({ResultD.SNm, Chi2dof, ResultD.Flux,...
                 ResultN.SNm, ResultN.Chi2./ResultN.Dof, ResultN.Flux, ResultN.Mag,...
                 ResultR.SNm, ResultR.Chi2./ResultR.Dof, ResultR.Flux, ResultR.Mag});
             Data = cast(Data, 'double');
             TranCat(Iobj) = TranCat(Iobj).insertCol( Data, 'Score',...
-                {'PSF_SNm', 'D_Chi2dof', ...
+                {'PSF_SNm', 'D_Chi2dof', 'D_Flux',...
                 'N_SNm', 'N_Chi2dof', 'N_Flux', 'N_Mag', ...
                 'R_SNm', 'R_Chi2dof', 'R_Flux', 'R_Mag'}, ...
-                {'','','','','e','mag','','','e','mag'}...
+                {'','','e','','','e','mag','','','e','mag'}...
                 );
 
         end
 
         if Args.include2ndMoment
             % Get moments and aperture photometry
-            [M1, M2, Aper] = imUtil.image.moment2(AD(Iobj).New.Image, ...
-                LocalMax(:,1), LocalMax(:,2));
             Data = cell2mat({cast(M1.X,'double'), cast(M1.Y,'double'), ...
                 cast(M2.X2,'double'), cast(M2.Y2,'double'),...
                 cast(Aper.AperPhot,'double'), cast(Aper.AperPhotErr,'double')});
@@ -219,7 +226,15 @@ function TranCat=findTransients(AD, Args)
             % Insert results into catalog.
             TranCat(Iobj) = TranCat(Iobj).insertCol( ...
                 cell2mat({StartJD, MidJD, EndJD}), 'Score',...
-                {'StartJD', 'MidJD', 'EndJD'}, {'JD','JD','JD'});                  
+                {'StartJD', 'MidJD', 'EndJD'}, {'JD','JD','JD'});
+        end
+
+        if Args.includeGaborMag && ~isempty(AD(Iobj).GaborSN)
+            XY = TranCat.getXY('ColX','XPEAK','ColY','YPEAK');
+            Size = size(AD(Iobj).GaborSN);
+            GaborSN = AD(Iobj).GaborSN(sub2ind(Size,XY(:,2),XY(:,1)));
+            TranCat(Iobj) = TranCat(Iobj).insertCol(cast(GaborSN,'double'), ...
+                'Score', {'GaborSN'}, {''});
         end
        
     end
