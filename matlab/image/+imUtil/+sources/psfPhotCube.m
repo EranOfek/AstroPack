@@ -166,7 +166,9 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         ConvThresh = Args.ConvThresh;
     else
         ConvThresh = max(0.5./Args.SN, Args.ConvThresh); 
-        SmallStep  = min(Args.SmallStep.*0.2.*Args.SN, 0.5*Args.MaxStep); 
+%         SmallStep  = min(Args.SmallStep.*0.2.*Args.SN, 0.5*Args.MaxStep);
+%         Args.FloorStep = 1e-3;
+        SmallStep  = max(Args.SmallStep./Args.SN, 1e-3); 
     end
 
     WeightedPSF = sum(Args.PSF.^2, [1 2]); % for flux estimation
