@@ -1153,7 +1153,7 @@ classdef FITS < handle
             %             'WriteMethod' - 'Standard', 'Mex', 'ThreadedMex'
             %
             % Output : null
-            % Author : Eran Ofek (Jan 2022)
+            % Author : Eran Ofek (Jan 2022), A.M. Krassilchtchikov (Apr 2024)
             % Example: FITS.writeSimpleFITS(AI.Image, 'try.fits','Header',AI.HeaderData.Data);
 
             arguments
@@ -1162,8 +1162,8 @@ classdef FITS < handle
                 Args.Header cell              = {};
                 Args.DataType                 = [];
                 Args.CompressType  char       = 'NOCOMPRESS';
-                Args.SanifyPath logical       = true;
-                Args.WriteMethod              = 'Standard';                
+                Args.SanifyPath logical       = true;                
+                Args.WriteMethodImages        = 'Simple';    % can be 'Simple', 'Mex', or 'ThreadedMex'
             end
             
             % sanify the file name so that it contains the absolute path
@@ -1200,8 +1200,8 @@ classdef FITS < handle
             Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BITPIX',{BitPix});
             Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BZERO',{bzero});
             
-            switch lower(Args.WriteMethod)
-                case 'standard'
+            switch lower(Args.WriteMethodImages)
+                case 'simple'
                     io.fits.writeSimpleFITS(Image, FileName, 'Header',Args.Header,...
                         'DataType',NewDataType,'UseMatlabIo',true,...
                         'CompressType',Args.CompressType,'SanifyPath',Args.SanifyPath,...
@@ -1211,7 +1211,7 @@ classdef FITS < handle
                 case 'threadedmex'
                     io.fits.writeThreadMexFITS(FileName, Image, Args.Header);
                 otherwise
-                    error('WriteMethod not supported');
+                    error('Requested WriteMethod is not supported');
             end
                     
         end

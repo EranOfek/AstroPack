@@ -31,6 +31,8 @@ function Result = psfPhot(Cube, Args)
         Args.ConvThresh = 1e-4;
         
         Args.ZP         = 25; 
+        
+        Args.Verbous logical = false;
     end
     
     if isempty(Args.PSF)

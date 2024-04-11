@@ -94,7 +94,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
 
         Args.ColSN                   = 'SN_3';  % if empty don't use
         
-        Args.MaxIter                 = 20;
+        Args.MaxIter                 = 8;
         
         Args.Method                  = 'old'; 
     end

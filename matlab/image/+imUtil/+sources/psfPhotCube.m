@@ -98,7 +98,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Args.Xinit      = [];
         Args.Yinit      = [];
         
-        Args.SmallStep  = 0.01; %3e-3; %3e-3; %1e-3;
+        Args.SmallStep  = 0.1; %3e-3; %3e-3; %1e-3;
         Args.MaxStep    = 0.15;
         Args.ConvThresh = 1e-3;
         Args.MaxIter    = 8;
@@ -108,6 +108,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         
         Args.UseSourceNoise = 'last'; %'off';
         Args.ZP         = 25; 
+        
+        Args.Verbous logical = false;
     end
     
     % warning('BUG: convergence is not very good - need a better algorithm')
@@ -274,7 +276,9 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Result.Dof  = Dof;
     end
     
-    fprintf('Iterations: %d of %d, Converged %d of %d\n',Ind, Args.MaxIter,sum(ConvergeFlag),length(ConvergeFlag));
+    if Args.Verbous
+        fprintf('Iterations: %d of %d, Converged %d of %d\n',Ind, Args.MaxIter,sum(ConvergeFlag),length(ConvergeFlag));
+    end
     
     Result.Flux = squeeze(Flux);
     % SNm can be negaive if source is negative
