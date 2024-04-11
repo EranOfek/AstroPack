@@ -24,7 +24,7 @@ function [TS, Sig, AIC] = findNearestPeakSig(TSMap, XVec, YVec, DoF, Args)
     Author : Ruslan Konno (Feb 2024)
     Example: DoF = 1; TSMap = chi2rnd(DoF,100,100);
              XVec = randi(100,10,1); YVec = randi(100,10,1);
-             [TS, Sig, AIC] = imUtil.properSub.processStatMap(TSMap, XVec, YVec, DoF);
+             [TS, Sig, AIC] = imUtil.properSub.findNearestPeakSig(TSMap, XVec, YVec, DoF);
     %}
 
     arguments

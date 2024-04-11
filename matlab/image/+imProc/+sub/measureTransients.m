@@ -97,11 +97,9 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
     
         CatSize = size(AD(Iobj).CatData.Catalog,1);
         
-        % If catalog is empty, add empty columns and continue.
-        if CatSize == 0
-            TranCat(Iobj) = AD(Iobj).CatData.insertCol([],'Score',...
-                {'S2_TS','Z2_TS','S2_Sig','Z2_Sig','S2_AIC','Z2_AIC','Translient'},...
-                {'','','sig','sig','','',''});
+        % If catalog is empty, continue.
+        if CatSize < 1
+            TranCat = AD(Iobj).CatData.Catalog;
             continue
         end
         
@@ -128,18 +126,13 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
                 XY(:,1), XY(:,2), 2, 'RadiusTS', Args.RadiusTS);
         end
 
-        % See if translient model is preferred over transient model and set
-        % bool value, true if translient preferred, false if transient
-        % preferred.
-        Translient = double(S2_AIC < Z2_AIC);
-
         % Insert derived properties into AD.CatData catalog
         TranCat(Iobj) = AD(Iobj).CatData.insertCol(...
             cell2mat({cast(S2_TS,'double'), cast(Z2_TS,'double'), cast(S2_Sig,'double'), ...
             cast(Z2_Sig,'double'), cast(S2_AIC,'double'), cast(Z2_AIC,'double'),...
-            Translient}), 'Score',...
-            {'S2_TS','Z2_TS','S2_Sig','Z2_Sig','S2_AIC','Z2_AIC','Translient'}, ...
-            {'','','sig','sig','','',''});
+            }), 'Score',...
+            {'S2_TS','Z2_TS','S2_Sig','Z2_Sig','S2_AIC','Z2_AIC'}, ...
+            {'','','sig','sig','',''});
 
 
     end

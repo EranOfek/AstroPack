@@ -45,6 +45,8 @@ classdef AstroDiff < AstroImage
         SigmaN
         SigmaR
 
+        % Gabor SN of difference image
+        GaborSN       
     end
     
     properties (Hidden)  % auxilary images
@@ -58,6 +60,7 @@ classdef AstroDiff < AstroImage
         Nbs
         % Back subtracted Ref
         Rbs
+        
     end
     properties
         % For artificial sources
@@ -136,6 +139,16 @@ classdef AstroDiff < AstroImage
             % getter for Mbs - Return background subtracted New image
     
             Val = Obj.New.Image - Obj.BackN;
+        end
+
+        function Val=get.GaborSN(Obj)
+            % getter for GaborSN
+
+            if isempty(Obj.GaborSN)
+                [Obj] = Obj.matchfilterGabor;
+            end
+            Val = Obj.GaborSN;
+        
         end
 
         function Val=get.Fn(Obj)
@@ -247,6 +260,66 @@ classdef AstroDiff < AstroImage
            
        end
     
+       function Obj=matchfilterGabor(Obj, Args)
+           %{
+           Create a Gabor filter and apply to the difference image.
+             The Gabor filter is used to identify sinusoidal patterns
+             in the image, e.g., ringing artifacts.
+           Input:  - An AstroDiff object in which CatData is populated.
+                * ...,key,val,...
+                  'Phase' - Phase offsets of sinusoid, given as an array in rad. 
+                         Default is [0].
+                  'SigX' - Standard deviation of the Gaussian envelope in x.
+                         Default is 1.
+                  'SigY' - Standard deviation of the Gaussian envelope in y.
+                         Default is 1.
+                  'Theta' - Rotation angle of Gaussian envelope. 
+                         Default is 0 rad.
+                  'Method' - Method to choose Gabor score image. Default is
+                         'max.'
+           Author: - Ruslan Konno (March 2024)
+           Example:- AD.matchfilterGabor
+           %}
+            
+            arguments
+               Obj
+            
+               Args.Phase = [0];
+               Args.SigX = 1;
+               Args.SigY = 1;
+               Args.Theta = 0;
+               Args.Method = 'max';
+            end
+
+            Nobj = numel(Obj);
+            
+            for Iobj=1:1:Nobj
+                [GaborBank, Kx, Ky]= imUtil.filter.gaborFromPSF(Obj(Iobj).PSF,...
+                    'Phase',Args.Phase,"SigX",Args.SigX,'SigY', Args.SigY,...
+                    'Theta',Args.Theta);
+
+                switch lower(Args.Method)
+                    case 'lowest_wavelength'
+                        Mins = min((Kx-0),(Ky-0));
+                        LowestWavelengthIdx = find(Mins == min(Mins));
+                        [GaborSNc,~,~,~,~]=imUtil.filter.filter2_sn(...
+                            Obj(Iobj).Image,Obj(Iobj).Back,Obj(Iobj).Var,...
+                            GaborBank(LowestWavelengthIdx));
+                        Obj(Iobj).GaborSN = abs(GaborSNc);
+                    case 'max'
+                        [GaborSNm,~,~,~,~]=imUtil.filter.filter2_snBank(...
+                            Obj(Iobj).Image,Obj(Iobj).Back,Obj(Iobj).Var,...
+                            GaborBank);
+                        GaborSNm = abs(GaborSNm);
+                        GaborSNm = max(GaborSNm, [], 3);                       
+                        Obj(Iobj).GaborSN = abs(GaborSNm);
+                    otherwise
+                        Obj(Iobj).GaborSN = nan(size(Obj(Iobj).Image));
+                end
+
+            end
+
+       end
             
     end
 
@@ -766,10 +839,10 @@ classdef AstroDiff < AstroImage
                 Args.findLocalMaxArgs cell      = {};
         
                 Args.includePsfFit logical      = true;
-                Args.HalfSizePSF                = 7;
+                Args.HalfSizePSF                = 5;
                 Args.psfPhotCubeArgs cell       = {};
 
-                Args.include2nMoments logical = true;
+                Args.include2ndMoments logical = true;
         
                 Args.includeBitMaskVal logical  = true;
                 Args.BitCutHalfSize             = 3;
@@ -839,64 +912,50 @@ classdef AstroDiff < AstroImage
             Input  : - An AstroDiff object in which CatData is populated.
                      * ...,key,val,...
                        'flagChi2' - Bool on whether to flag transients candidates
-                              based on Chi2 per degrees of freedom criterium. 
+                              based on how well the PSF fits to a stamp on the transient.
+                              The goodness value is a Chi2 per degrees of freedom.
                               Default is true.
                        'Chi2dofLimits' - Limits on Chi2 per degrees of freedom. If
                               'filterChi2' is true, all transients candidates outside these
-                              limits are flagged. Default is [0.5 2].
-                       'flagSrcNoiseDominated' - Bool on whether to flag
-                              transients candidates source dominated noise
-                              that do not pass a StN threshold value.
-                              Default is true.
-                       'SrcNoise_SNRThresh' - StN threshold to apply to
-                              source noise dominated candidates. Default is
-                              5.
+                              limits are flagged. Default is [0.07 5.87].
                        'flagSaturated' - Bool on whether to flag transients 
-                              candidates that are saturated. Default is true.
-                       'Saturated_SNRThresh' - StN threshold to apply to
-                              candidates that show saturation in new image but not
-                              in reference image. Default is 5.
+                              candidates that are saturated in both reference and 
+                              new images. Default is true.
                        'flagBadPix_Hard' - Bool on whether to flag transients
                               candidates based on hard bit mask criteria. 
                               Default is true.
-                       'NewMask_BadHard' - Hard bit mask criteria for bad pixels in 
-                              AD.New image. Default is {'Interpolated','NaN'}.
-                       'RefMask_BadHard' - Hard bit mask criteria for bad pixels in 
-                              AD.Ref image. Default is {'Interpolated','NaN'}.
-                       'flagBadPix_Medium' - Bool on whether to flag transients
-                              candidates based on medium bit mask criteria. 
-                              Default is true.
-                       'BadPixThresh_Medium' - Threshold score value below which
-                              a pixel containing a medium criterium is to be
-                              flagged. Default is 50.
-                       'NewMask_BadMedium' - Medium bit mask criteria for bad pixels in 
-                              AD.New image. Default is {'Saturated', 'NearEdge', 'FlatHighStd',
-                              'Overlap','Edge','CR_DeltaHT'}.
-                       'RefMask_BadHard' - Medium bit mask criteria for bad pixels in 
-                              AD.Ref image. Default is {'Saturated', 'NearEdge', 'FlatHighStd',
-                              'Overlap','Edge','CR_DeltaHT'}.
+                       'BadPix_Hard' - Hard bit mask criteria for bad pixels.  
+                              Default is {'Interpolated', 'NaN', 'FlatHighStd',
+                              'DarkHighVal'}.
                        'flagBadPix_Soft' - Bool on whether to flag transients
                               candidates based on soft bit mask criteria. 
                               Default is true.
-                       'BadPixThresh_Soft' - Threshold score value below which
-                              a pixel containing a soft criterium is to be
-                              flagged. Default is 15.
-                       'NewMask_BadSoft' - Soft bit mask criteria for bad pixels in 
-                              AD.New Image. Default is {'HighRN', 'DarkHighVal',
-                              'BiasFlaring', 'Hole', 'SrcNoiseDominated'}.
-                       'RefMask_BadSoft' - Soft bit mask criteria for bad pixels in 
-                              AD.Ref image. Default is {'HighRN', 'DarkHighVal',
-                              'BiasFlaring', 'Hole', 'SrcNoiseDominated'}.
+                       'BadPix_Soft' - Soft bit mask criteria for bad pixels and 
+                              their score threshold values. Transients candidates
+                              that contain soft bad pixels are only flagged as 
+                              non-transients if their score values are below the 
+                              respective thresholds. Default is {{'HighRN', 5.6}, 
+                              {'Edge', 8}, {'NearEdge', 8}, {'SrcNoiseDominated',
+                              12.0}}.
                        'flagStarMatches' - Bool on whether to flag transients
-                               candidates that have matching star
-                               positions. Default is true.
+                              candidates that have matching star positions.
+                              Default is true.
                        'flagMP' - Bool on whether to flag transients candidates
-                               that have matching minor planet postions. Default is
-                               ture.
+                              that have matching minor planet postions. Default is
+                              true.
+                       'flagRinging' - Bool on whether to flag transients
+                              candidates that may be caused by ringing artifacts.
+                              Default is true.
+                       'GaborSNRatioThreshold' - Threshold value on GaborSN
+                              used to flag transients candidates for ringing.
+                              Default is 1.
                        --- AstroZOGY ---
                        'flagTranslients' - Bool on whether to flag transients 
                               candidates which score higher in Z2 than S2.
                               Default is true.
+                       'S2toZ2RatioThresh' - Threshold value for the S2 to Z2
+                              ratio below which to classify a transients candidate
+                              as a transLient. Default value is 0.66.
             Author  : Ruslan Konno (Jan 2024)
             Example : AD.flagNonTransients
             %}
@@ -905,7 +964,7 @@ classdef AstroDiff < AstroImage
                 Obj
                     
                 Args.flagChi2 logical = true;
-                Args.Chi2dofLimits = [0.5 2];
+                Args.Chi2dofLimits = [0.07 5.87];
                 
                 Args.flagSaturated logical = true;
         
@@ -920,7 +979,12 @@ classdef AstroDiff < AstroImage
                 Args.flagStarMatches logical = true;
                 Args.flagMP logical = true;
         
+                Args.flagRinging logical = true;
+                Args.GaborSNRatioThreshold = 0.66;
+        
+                % --- AstroZOGY ---
                 Args.flagTranslients logical = true;
+                Args.S2toZ2RatioThresh = 0.66;
         
             end
 
@@ -934,7 +998,12 @@ classdef AstroDiff < AstroImage
                     'flagBadPix_Hard', Args.flagBadPix_Hard,...
                     'BadPix_Hard', Args.BadPix_Hard,...
                     'flagBadPix_Soft', Args.flagBadPix_Soft,...
-                    'BadPix_Soft', Args.BadPix_Soft);
+                    'BadPix_Soft', Args.BadPix_Soft, ...
+                    'flagStarMatches', Args.flagStarMatches, ...
+                    'flagMP', Args.flagMP, ...
+                    'flagRinging', Args.flagRinging, ...
+                    'GaborSNRatioThreshold', Args.GaborSNRatioThreshold, ...
+                    'flagTranslients', Args.flagTranslients);
             end
         end
         
@@ -985,7 +1054,14 @@ classdef AstroDiff < AstroImage
 
             Nobj = numel(Obj);
             for Iobj=Nobj:-1:1
+                CatSize = size(Obj(Iobj).CatData.Catalog);
+                if CatSize < 1
+                    AD(Iobj) = Obj(Iobj).copy();
+                    continue
+                end
+                
                 if ~Obj(Iobj).CatData.isColumn(Args.removeCol)
+                    AD(Iobj) = Obj(Iobj).copy();
                     continue
                 end
                 Transients = ~Obj(Iobj).CatData.getCol(Args.removeCol);
@@ -1046,7 +1122,7 @@ classdef AstroDiff < AstroImage
                 
                 Args.CreateNewObj logical   = true;
                 
-                Args.CropProp               = {'Z2','S','S2','Scorr'};
+                Args.CropProp               = {'Z2','S','S2','Scorr','GaborSN'};
             end
             
             NcropProp = numel(Args.CropProp);
@@ -1212,6 +1288,10 @@ classdef AstroDiff < AstroImage
                         ds9(Obj.Ref.Mask,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
                         ds9.plot(NonTranCat.getXY, Args.NonTranMarker);                         
+                    case 'Gabor'
+                        ds9(Obj.GaborSN,Nimgs);
+                        ds9.plot(TranCat.getXY, Args.TranMarker);
+                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker); 
                 end
 
             end

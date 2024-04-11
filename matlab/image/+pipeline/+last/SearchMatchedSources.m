@@ -675,7 +675,10 @@ classdef SearchMatchedSources < Component
                             % deg.
 
 
-                            Cand = imUtil.asteroids.pairsMotionMatchKDTree(JD, X, Y, "HalfRangeVec",Args.HalfRangeVec);
+                            Nsrc = numel(X);
+                            % make sure that Nsrc is not too large
+
+                            Cand = imUtil.asteroids.pairsMotionMatchKDTree(JD, X, Y, "HalfRangeVec",Args.HalfRangeVec, "MinNpairs",5);
 
                             if ~isempty(Cand)
                                 'a'

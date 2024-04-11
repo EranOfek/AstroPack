@@ -449,6 +449,11 @@ classdef AstroZOGY < AstroDiff
             %                   keywords from Ref.
             %                   Default is {'EXPTIME','REF_EXPT';
             %                               'JD','REF_JD'}
+            %            'OverwriteFr' - A bool on whether to perform the
+            %                   subtraction with a custom Fr value. Default
+            %                   is false.
+            %            'OverwriteFrVal' - Value of custom Fr to be used
+            %                   in case OverwriteFr is true. Default is 1.
             %
             % Output : - An AstroDiff object with the populated
             %            D in the Image property.
@@ -484,6 +489,9 @@ classdef AstroZOGY < AstroDiff
                 Args.CreateNewHeader           = true;
                 Args.AddHeaderInfo             = true;
                 Args.HeadKeysFromRef           = {'EXPTIME','REF_EXPT'; 'JD','REF_JD'};
+
+                Args.OverwriteFr logical = false;
+                Args.OverwriteFrVal = NaN;
                 
             end
 
@@ -501,6 +509,10 @@ classdef AstroZOGY < AstroDiff
                     Obj(Iobj).register;
                 end
 
+                FrVal = Obj(Iobj).Fr;
+                if Args.OverwriteFr
+                    FrVal = Args.OverwriteFr;
+                end
 
                 [Obj(Iobj).D_hat, Obj(Iobj).Pd_hat, Obj(Iobj).Fd, Obj(Iobj).F_S,...
                                   Obj(Iobj).D_den_hat, Obj(Iobj).D_num_hat, Obj(Iobj).D_denSqrt_hat,...
@@ -511,7 +523,7 @@ classdef AstroZOGY < AstroDiff
                                                                                                sqrt(Obj(Iobj).VarN),...
                                                                                                sqrt(Obj(Iobj).VarR),...
                                                                                                Obj(Iobj).Fn,...
-                                                                                               Obj(Iobj).Fr,...
+                                                                                               FrVal,...
                                                                                                'AbsFun',Args.AbsFun,...
                                                                                                'Eps',Args.Eps,...
                                                                                                'IsFFT',true,...
@@ -845,6 +857,11 @@ classdef AstroZOGY < AstroDiff
             %                   'chi2_mean' - Using Z^ mean.
             %                   'chi2_variance' - Using Z^2 variance.
             %                   Default is 'none'.
+            %            'OverwriteFr' - A bool on whether to perform the
+            %                   subtraction with a custom Fr value. Default
+            %                   is false.
+            %            'OverwriteFrVal' - Value of custom Fr to be used
+            %                   in case OverwriteFr is true. Default is 1.            
             %
             % Author : Eran Ofek (Jan 2024)
             % Example: AD.translient
@@ -857,8 +874,12 @@ classdef AstroZOGY < AstroDiff
 
                 Args.Eps              = 0;
                 Args.SetToNaN         = [];
-                Args.NormZ2 logical   = true;  % analytical normalization
+                Args.NormZ2 logical   = false;  % analytical normalization
                 Args.NormZsigma       = 'none'; %'chi_median'
+                Args.NormMethod       = 'empirical';
+
+                Args.OverwriteFr logical = false;
+                Args.OverwriteFrVal = 1;
             end
 
             if Args.ReplaceNaN
@@ -873,19 +894,24 @@ classdef AstroZOGY < AstroDiff
                     Obj(Iobj).register;
                 end
 
+                FrVal = Obj(Iobj).Fr;
+                if Args.OverwriteFr
+                    FrVal = Args.OverwriteFr;
+                end               
+
                 [Obj(Iobj).Z2, Obj(Iobj).Zvec_hat,Norm] = imUtil.properSub.translient(Obj(Iobj).N_hat, Obj(Iobj).R_hat,...
                                                          Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat,...
                                                          sqrt(Obj(Iobj).VarN),...
                                                          sqrt(Obj(Iobj).VarR),...
                                                          'Fn',Obj(Iobj).Fn,...
-                                                         'Fr',Obj(Iobj).Fr,...
+                                                         'Fr',FrVal,...
                                                          'IsImFFT',true,...
                                                          'IsPsfFFT',true,...
                                                          'ShiftIm',false,...
                                                          'ShiftPsf',false,...
                                                          'Eps',Args.Eps,...
                                                          'SetToNaN',[],...
-                                                         'NormMethod','none');
+                                                         'NormMethod',Args.NormMethod);
                 if Args.NormZ2
                     % analytical normalization
                     Obj(Iobj).Z2 = Obj(Iobj).Z2./Norm; 
@@ -899,7 +925,7 @@ classdef AstroZOGY < AstroDiff
                         case 'chi2'
                             % Nomalize using S^2
                             Obj(Iobj).Z2sigma = imUtil.image.normalize(Obj(Iobj).Z2, 'PreDef',Args.NormMethod,...
-                                                                      'K',1,...
+                                                                      'K',2,...
                                                                       'IfChi2_Sq',true,...
                                                                       'Fun2Prob',@chi2cdf,...
                                                                       'Prob2Sig',true);
