@@ -262,6 +262,10 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
             NotConverged = false;
         end
         
+        if Args.Verbous && Ind > 1
+            fprintf('Iterations: %d of %d, Converged %d of %d\n',Ind, Args.MaxIter,sum(ConvergeFlag),length(ConvergeFlag));
+        end
+        
     end
     % final fit and return flux
     if AdditionalIter
@@ -278,9 +282,9 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Result.Dof  = Dof;
     end
     
-    if Args.Verbous
-        fprintf('Iterations: %d of %d, Converged %d of %d\n',Ind, Args.MaxIter,sum(ConvergeFlag),length(ConvergeFlag));
-    end
+%     if Args.Verbous
+%         fprintf('Iterations: %d of %d, Converged %d of %d\n',Ind, Args.MaxIter,sum(ConvergeFlag),length(ConvergeFlag));
+%     end
     
     Result.Flux = squeeze(Flux);
     % SNm can be negaive if source is negative
