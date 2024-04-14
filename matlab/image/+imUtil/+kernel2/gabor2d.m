@@ -64,12 +64,26 @@ function Gabor2d = gabor2d(Sigma,SizeXY,Wavelength,Args)
         u0 = Wavelength(:,2);
     end
 
+    if size(v0, 1) < 2
+        v0 = v0 * ones(Nfilter,1);
+    end
+    if size(u0, 1) < 2
+        u0 = u0 * ones(Nfilter,1);
+    end
+
     if size(Sigma,2) < 2
         SigX = Sigma(:,1);
         SigY = Sigma(:,1);
     else
         SigX = Sigma(:,1);
         SigY = Sigma(:,2);
+    end
+
+    if size(SigX, 1) < 2
+        SigX = SigX * ones(Nfilter,1);
+    end
+    if size(SigY, 1) < 2
+        SigY = SigY * ones(Nfilter,1);
     end
 
     if sizeTheta < 2
@@ -109,12 +123,12 @@ function Gabor2d = gabor2d(Sigma,SizeXY,Wavelength,Args)
     
     for Ifilter=1:1:Nfilter
         % Rotation for Gaussian envelope
-        Xxp = Xx*cos((Ifilter))  - Yy*sin(Theta(Ifilter));
-        Yyp = Xx*sin((Ifilter))  + Yy*cos(Theta(Ifilter));
+        Xxp = Xx*cos(Theta(Ifilter))  - Yy*sin(Theta(Ifilter));
+        Yyp = Xx*sin(Theta(Ifilter))  + Yy*cos(Theta(Ifilter));
 
         % Gaussian envelope
         hGaussian = exp( -1/2*( Xxp.^2./SigX(Ifilter).^2 + ...
-            Yyp.^2./SigY(Ifilter).^2))/(2*pi*SigX(Ifilter)*SigY(Ifilter));
+            Yyp.^2./SigY(Ifilter).^2))./(2.*pi.*SigX(Ifilter).*SigY(Ifilter));
         % Sinusoid
         hGaborEven = hGaussian.*cos(2*pi.*(Xx ./ u0(Ifilter) + ...
             Yy ./ v0(Ifilter))+Phase(Ifilter));
