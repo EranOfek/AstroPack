@@ -16,7 +16,7 @@ function [GaborBank, Kx, Ky]=gaborFromPSF(PSF, Args)
             - Ky (Wavelengths of local minima in y-direction).
     Author : Ruslan Konno (Apr 2024)
     Example: PSF = fspecial('gaussian', [25 25], 1);
-             GaborBank = gaborFromPSF(PSF);
+             GaborBank = imUtil.filter.gaborFromPSF(PSF);
     %}
 
     arguments
@@ -43,23 +43,14 @@ function [GaborBank, Kx, Ky]=gaborFromPSF(PSF, Args)
     N = sizeTF(1);
     M = sizeTF(2);
 
-    Nfreq = numel(Kx);
-    Nphase = numel(Args.Phase);
-    Nfilters = Nfreq*Nphase;
-    GaborBank = zeros(sizeTF(1), sizeTF(2), Nfilters);
-
     % Get Gabor filter for each combination 
     % of wavelength pairs and phase offsets
 
-    j = 0;
-    for Iphase=1:Nphase
-        for Ifreg=1:Nfreq
-            j = j + 1;
-            Gabor = imUtil.filter.gabor2d(N,M,Kx(Ifreg),Ky(Ifreg),...
-                'SigX',Args.SigX,'SigY',Args.SigY,...
-                'Phase',Args.Phase(Iphase), 'Theta', Args.Theta);
-            GaborBank(:,:,j) = Gabor;
-        end
-    end
+    Sigma = [Args.SigX, Args.SigY];
+    SizeXY = [N, M];
+
+    GaborBank = imUtil.kernel2.gabor2d(Sigma, SizeXY, [Kx, Ky], ...
+        'Phase', Args.Phase, 'Theta',Args.Theta);
+
  
 end
