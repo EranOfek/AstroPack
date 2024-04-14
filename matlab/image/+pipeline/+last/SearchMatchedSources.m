@@ -633,6 +633,7 @@ classdef SearchMatchedSources < Component
                 % error on velocity is about 20%
                 % error on position ~10"
                 Args.HalfRangeVec       = [10./3600, 10./3600, 2.*0.2, 2.*0.2];
+                Args.MinNpairs          = 5;
             end
 
             Ncons = numel(Obj.AllConsecutive);
@@ -655,13 +656,18 @@ classdef SearchMatchedSources < Component
 
                             ResOrphan = Obj.searchOrphansMS;
 
+                            % Rempve streaks from orphan list
+                            % indices if non-streaks
+                            IndNS = ResOrphan.StreakInd==0;
+
                             % Convert RA and Dec Dec to X/Y gnomonic
                             % projection
                             % assume input is spherical coordinates
                             % get mean RA/Dec
-                            JD  = [ResOrphan.JD].';
-                            RA  = [ResOrphan.RA].';
-                            Dec = [ResOrphan.Dec].';
+                            
+                            JD  = [ResOrphan.JD(IndNS)].';
+                            RA  = [ResOrphan.RA(IndNS)].';
+                            Dec = [ResOrphan.Dec(IndNS)].';
                 
                             [Lon0, Lat0] = celestial.coo.funOnCosDir(RA, Dec, @mean, 'FunArgs',{1,'omitnan'}, 'InUnits',Args.CooUnits, 'OutUnits','rad');
                             Conv  = convert.angular(Args.CooUnits, 'rad');
@@ -678,10 +684,13 @@ classdef SearchMatchedSources < Component
                             Nsrc = numel(X);
                             % make sure that Nsrc is not too large
 
-                            Cand = imUtil.asteroids.pairsMotionMatchKDTree(JD, X, Y, "HalfRangeVec",Args.HalfRangeVec, "MinNpairs",5);
-
-                            if ~isempty(Cand)
-                                'a'
+                            if Nsrc>Args.MinNpairs
+                           
+                                Cand = imUtil.asteroids.pairsMotionMatchKDTree(JD, X, Y, "HalfRangeVec",Args.HalfRangeVec, "MinNpairs",Args.MinNpairs);
+                            
+                                if ~isempty(Cand)
+                                    'a'
+                                end
                             end
 
                         end

@@ -81,10 +81,14 @@ function [Result] = reanalizeFieldCam_ZTF_psfcat(Args)
             [If Nf]
             % re use of the AstrometricCat
             tic;
-            [UpdatedCat, OnlyMP(If), AstrometricCat, Status(If), Path] = VO.ZTF.reanalize_ZTF_psfcat(Files(If).name, 'Path',[], 'OrbEl',Args.OrbEl, 'INPOP',Args.INPOP, 'GeoPos',Args.GeoPos,...
+            try
+                [UpdatedCat, OnlyMP(If), AstrometricCat, Status(If), Path] = VO.ZTF.reanalize_ZTF_psfcat(Files(If).name, 'Path',[], 'OrbEl',Args.OrbEl, 'INPOP',Args.INPOP, 'GeoPos',Args.GeoPos,...
                                                                         'WriteProd',true,...
                                                                         'FieldID',Args.FieldID,...
                                                                         'CCDID',Args.CCDID);
+            catch
+                'Failed'
+            end
             RunTime = toc;
             if Args.Verbose
                 %[Idir1, Idir2, If, Nf]
