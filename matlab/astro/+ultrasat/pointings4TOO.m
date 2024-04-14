@@ -122,29 +122,33 @@ function [Grid, GridOpt] = pointings4TOO(Pol, Args)
     Uniq = R.UNIQ(Ind0,:);
     RA   = R.RA(Ind0,:);
     Dec  = R.DEC(Ind0,:);
-            
-    Nside = 2.^floor(log(Uniq/4)/(2*log(2)));
-    Ipix  = Uniq - 4 * Nside.^2;
-    IpixFile = 'Ipix.txt';
-    writematrix(Ipix,IpixFile);
-        
-%     python3 ~/matlab/AstroPack/matlab/astro/+celestial/+grid/healpix2coo.py 1024 Ipix.txt 1 1
-%     Script ='~/matlab/AstroPack/matlab/astro/+celestial/+grid/healpix2coo.py';
-%     system(['python3' ' ' Script ' ' Nside(1) ' ' IpixFile ' ' 1 ' ' 1]);
-
-    Coo = readmatrix('healpix_nside_1024_coo.txt');
-    RA = Coo(:,1); Dec = Coo(:,2);
-%
-%     writematrix([RA Dec],'coords.txt','Delimiter'," ")
-%     celestial.grid.get_healpix_numbers(Nside(1),'coords.txt',1,'Nested',1);
-%     Ind  = log(Nside)/log(2)-1; 
 %     
+%     % this is a coordinate check
+%     % now it seems that the coordinates in the input csv files are OK
+%             
+%     Nside = 2.^floor(log(Uniq/4)/(2*log(2)));
+%     Ipix  = Uniq - 4 * Nside.^2;
+%     IpixFile = 'Ipix.txt';
+%     writematrix(Ipix,IpixFile);
+%         
+% %     python3 ~/matlab/AstroPack/matlab/astro/+celestial/+grid/healpix2coo.py 1024 Ipix.txt 1 1
+% %     Script ='~/matlab/AstroPack/matlab/astro/+celestial/+grid/healpix2coo.py';
+% %     system(['python3' ' ' Script ' ' Nside(1) ' ' IpixFile ' ' 1 ' ' 1]);
+% 
+%     Coo = readmatrix('healpix_nside_1024_coo.txt');
+%     RA = Coo(:,1); Dec = Coo(:,2);
+% %
+% %     writematrix([RA Dec],'coords.txt','Delimiter'," ")
+% %     celestial.grid.get_healpix_numbers(Nside(1),'coords.txt',1,'Nested',1);
+% %     Ind  = log(Nside)/log(2)-1; 
+% %     
     Ind  = floor(log(Uniq/4)/(2*log(2)))-1;    
     PixRad = NsideRad(Ind(:,1),2)/RAD;
     
 %     plot.skyCircles(RA,Dec,'Rad',PixRad,'PlotOnMap',true,'Color','black','NumPoints',10);
     plotm(Dec./RAD,RA./RAD,'*') % plot the healpix pixels 
-    
+        
+    % find all the 7-deg grid pixels intersecting with the alert pixels 
     for Ip = 1:Np
         Rd = celestial.coo.sphere_dist_fast(Grid0(Ip,1)/RAD,Grid0(Ip,2)/RAD,RA./RAD,Dec./RAD);
         if any(Rd < PixRad + Args.FOVradius/RAD) 

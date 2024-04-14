@@ -100,6 +100,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         
         Args.SmallStep  = 0.1; %3e-3; %3e-3; %1e-3;
         Args.MaxStep    = 0.15;
+        Args.FloorStep  = 1e-3;
         Args.ConvThresh = 1e-3;
         Args.MaxIter    = 8;
 
@@ -166,9 +167,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         ConvThresh = Args.ConvThresh;
     else
         ConvThresh = max(0.5./Args.SN, Args.ConvThresh); 
-%         SmallStep  = min(Args.SmallStep.*0.2.*Args.SN, 0.5*Args.MaxStep);
-%         Args.FloorStep = 1e-3;
-        SmallStep  = max(Args.SmallStep./Args.SN, 1e-3); 
+        SmallStep  = max(Args.SmallStep./Args.SN, Args.FloorStep); 
     end
 
     WeightedPSF = sum(Args.PSF.^2, [1 2]); % for flux estimation
@@ -262,8 +261,11 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
             NotConverged = false;
         end
         
-        if Args.Verbous && Ind > 1
-            fprintf('Iterations: %d of %d, Converged %d of %d\n',Ind, Args.MaxIter,sum(ConvergeFlag),length(ConvergeFlag));
+        if Args.Verbous && Ind > 1 
+%             fprintf('Iterations: %d of %d, Converged %d of %d\n',Ind, Args.MaxIter,sum(ConvergeFlag),length(ConvergeFlag));                        
+            N5_10(Ind) = sum(ConvergeFlag(Args.SN<10)); N10_100(Ind) = sum(ConvergeFlag(Args.SN>10)); 
+            N5(Ind) = numel(ConvergeFlag(Args.SN<10)); N10(Ind) = numel(ConvergeFlag(Args.SN>10));
+            fprintf('Iter: %2.0d of %d, SNR < 10: %d of %d, SNR >10: %d of %d \n',Ind, Args.MaxIter,N5_10(Ind),N5(Ind),N10_100(Ind),N10(Ind));
         end
         
     end
@@ -281,11 +283,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     else
         Result.Dof  = Dof;
     end
-    
-%     if Args.Verbous
-%         fprintf('Iterations: %d of %d, Converged %d of %d\n',Ind, Args.MaxIter,sum(ConvergeFlag),length(ConvergeFlag));
-%     end
-    
+        
     Result.Flux = squeeze(Flux);
     % SNm can be negaive if source is negative
     Result.SNm  = sign(Result.Flux).*abs(Result.Flux)./sqrt(abs(Result.Flux) + (squeeze(StdBack)).^2);  % S/N for measurments
@@ -315,11 +313,11 @@ end
 function [StepX,StepY,AppFlux]  = gradDescentPSF(Cube, Std, PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2,H,SmallStep,MaxStep)
 % Return the next gradient Descent step for the PSF's position fitting.
 
-        [Chi2,AppFlux]     = internalCalcChi2(Cube, Std, PSF, DX,                   DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
+        [Chi2,AppFlux] = internalCalcChi2(Cube, Std, PSF, DX,         DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
         Chi2_Dx  = internalCalcChi2(Cube, Std, PSF, DX+SmallStep',    DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
         Chi2_Dx2 = internalCalcChi2(Cube, Std, PSF, DX+SmallStep'.*2, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2);
                 
-        %ParX     = polyfit(VecD, [Chi2, Chi2_Dx, Chi2_Dx2], 2);
+        %ParX     = polyfit(VecD, [Chi2, Chi2_Dx, Chi2_Dx2], 2); 
         Nim = size(H,3);
         if Nim == 1
             ParX     = H\[Chi2.'; Chi2_Dx.'; Chi2_Dx2.'];
@@ -330,7 +328,7 @@ function [StepX,StepY,AppFlux]  = gradDescentPSF(Cube, Std, PSF, DX, DY, Weighte
             end
         end
         
-        %Chi2     = internalCalcChi2(Cube, Std, Args.PSF, DX, DY,                  WeightedPSF);
+        %Chi2     = internalCalcChi2(Cube, Std, Args.PSF, DX, DY,         WeightedPSF);
         Chi2_Dy  = internalCalcChi2(Cube, Std, PSF, DX, DY+SmallStep',   WeightedPSF, VecXrel, VecYrel, FitRadius2);
         Chi2_Dy2 = internalCalcChi2(Cube, Std, PSF, DX, DY+SmallStep'.*2,WeightedPSF, VecXrel, VecYrel, FitRadius2);
         
@@ -357,22 +355,15 @@ function [StepX,StepY,AppFlux]  = gradDescentPSF(Cube, Std, PSF, DX, DY, Weighte
         StepX    = sign(StepX).*min(abs(StepX), MaxStep);
         StepY    = sign(StepY).*min(abs(StepY), MaxStep);
 
-
-
-
-
 end
 
 function [Chi2,WeightedFlux, ShiftedPSF, Dof] = internalCalcChi2(Cube, Std, PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2)
     % Return Chi2 for specific PSF and Cube
     % shift PSF
     
-    
-    
     FluxMethod = 'wsumall'; %'medall';
     
-    % Shifting PSF is safer, because of the fft on a smooth function is
-    % more reliable.
+    % Shifting PSF is safer, because of the fft on a smooth function is more reliable.
     ShiftedPSF = imUtil.trans.shift_fft(PSF, DX, DY);
     
     switch FluxMethod
