@@ -16,7 +16,7 @@ function [GaborBank, Kx, Ky]=gaborFromPSF(PSF, Args)
             - Ky (Wavelengths of local minima in y-direction).
     Author : Ruslan Konno (Apr 2024)
     Example: PSF = fspecial('gaussian', [25 25], 1);
-             GaborBank = gaborFromPSF(PSF);
+             GaborBank = imUtil.filter.gaborFromPSF(PSF);
     %}
 
     arguments

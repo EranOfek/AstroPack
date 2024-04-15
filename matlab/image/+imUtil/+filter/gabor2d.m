@@ -14,7 +14,7 @@ function Gabor2d = gabor2d(N,M,kn,km,Args)
               'Theta' - Rotation angle of Gaussian envelope. Default is 0 rad.
     Output :- Gabor2d (Matrix containing Gabor filter).
     Author : Ruslan Konno (Apr 2024)
-    Example: Gabor2d = gabor2d(11,11,2,2);
+    Example: Gabor2d = imUtil.filter.gabor2d(11,11,2,2);
     %}
 
     arguments

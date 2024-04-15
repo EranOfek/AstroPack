@@ -256,16 +256,14 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
 %         fprintf('StepX: %s, StepY %s \n',StepX,StepY);
         
         % stoping criteria
-        ConvergeFlag = abs(StepX')<ConvThresh & abs(StepY')<ConvThresh;
-        if all(ConvergeFlag)
+        ConvergeFlag(Ind,:) = abs(StepX')<ConvThresh & abs(StepY')<ConvThresh;
+        if all(ConvergeFlag(Ind,:))
             NotConverged = false;
         end
         
-        if Args.Verbous && Ind > 1 
-%             fprintf('Iterations: %d of %d, Converged %d of %d\n',Ind, Args.MaxIter,sum(ConvergeFlag),length(ConvergeFlag));                        
-            N5_10(Ind) = sum(ConvergeFlag(Args.SN<10)); N10_100(Ind) = sum(ConvergeFlag(Args.SN>10)); 
-            N5(Ind) = numel(ConvergeFlag(Args.SN<10)); N10(Ind) = numel(ConvergeFlag(Args.SN>10));
-            fprintf('Iter: %2.0d of %d, SNR < 10: %d of %d, SNR >10: %d of %d \n',Ind, Args.MaxIter,N5_10(Ind),N5(Ind),N10_100(Ind),N10(Ind));
+        if Args.Verbous && Ind > 1                                       
+            fprintf('Iter: %2.0d of %d, SNR < 10: %d of %d, SNR >10: %d of %d \n',...
+                Ind, Args.MaxIter,sum(ConvergeFlag(Ind,Args.SN<10)),numel(Args.SN(Args.SN<10)),sum(ConvergeFlag(Ind,Args.SN>10)),numel(Args.SN(Args.SN>10)));
         end
         
     end
