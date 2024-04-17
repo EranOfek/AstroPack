@@ -100,7 +100,7 @@ function [Result,AISub] = psfFitPhotIter(AI,Args)
             continue;
         end
         % psf photometry. The use of SN_1 isn't robust.
-        [AISub] = imProc.sources.psfFitPhot(AISub, 'PSF',PSF, 'ColSN',Args.ColSN, 'HalfSize',floor(numel(PSF(:,1))/2), Args.psfFitPhotArgs{:});
+        [AISub] = imProc.sources.psfFitPhot(AISub, 'PSF',AISub.PSF, 'ColSN',Args.ColSN, 'HalfSize',floor(numel(AISub.PSF(:,1))/2), Args.psfFitPhotArgs{:});
         if ~isempty(Args.ColNameIter) % Add iter number to the catalog.
             AISub.CatData.insertCol((Iiter).*ones(numel(AISub.CatData.Catalog(:,1)),2) ,Inf,{Args.ColNameIter},{''});
         end
