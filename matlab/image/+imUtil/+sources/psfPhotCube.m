@@ -75,6 +75,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     %                   converged.
     %            .Niter - Number of iterations used.
     %            .Mag   - Magnitude (luptitude).
+    %            .ShiftedPSF - Shifted PSF stamps
     %          - The input cube, after subtracting the fitted PSF from each
     %            stamp. If the background is provided, then it is returned
     %            to the stamps.
@@ -262,6 +263,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     Result.Ycenter = Ycenter;
     Result.ConvergeFlag = ConvergeFlag;
     Result.Niter   = Ind;
+    Result.ShiftedPSF = ShiftedPSF;
     
     if nargout>1
         % subtract best fit PSFs from cube
