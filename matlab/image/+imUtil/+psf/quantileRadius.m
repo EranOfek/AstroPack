@@ -49,7 +49,9 @@ function [Rad, Stamp, Var] = quantileRadius (PSFin, Args)
         CutY = (SizeY+1)/2-Rad:(SizeY+1)/2+Rad;
     end    
     Stamp = PSF(CutX,CutY);
-    if ~isempty(Args.Variance)
+    if isempty(Args.Variance)
+        Var = [];
+    else
         Var = Args.Variance(CutX,CutY);
     end
 end
