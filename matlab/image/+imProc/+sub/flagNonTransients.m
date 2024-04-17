@@ -27,7 +27,7 @@ function TranCat = flagNonTransients(Obj, Args)
                        that contain soft bad pixels are only flagged as 
                        non-transients if their score values are below the 
                        respective thresholds. Default is {{'HighRN', 5.6}, 
-                       {'Edge', 8}, {'NearEdge', 8}, {'SrcNoiseDominated',
+                       {'NearEdge', 12.0}, {'SrcNoiseDominated',
                        12.0}}.
                 'flagStarMatches' - Bool on whether to flag transients
                        candidates that have matching star positions.
@@ -40,14 +40,17 @@ function TranCat = flagNonTransients(Obj, Args)
                        Default is true.
                 'GaborSNRatioThreshold' - Threshold value on GaborSN
                        used to flag transients candidates for ringing.
-                       Default is 1.
+                       Default is 1.00.
                 --- AstroZOGY ---
                 'flagTranslients' - Bool on whether to flag transients 
                        candidates which score higher in Z2 than S2.
                        Default is true.
                 'S2toZ2RatioThresh' - Threshold value for the S2 to Z2
                        ratio below which to classify a transients candidate
-                       as a transLient. Default value is 0.66.
+                       as a transLient. Default value is 1.00.
+                'flagScorr' - Bool on whether to flag candidates based on 
+                       source noise corrected S statistic. Default is true.
+                'ScorrThreshold' - Threshold value for Scorr. Default is 5.0.
     Output  : - An AstroCatalog which is equal to the input catalog of AD 
                 but with additional columns.
     Author  : Ruslan Konno (Jan 2024)
@@ -62,7 +65,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Obj AstroDiff
 
         Args.flagChi2 logical = true;
-        Args.Chi2dofLimits = [0.07 5.87];
+        Args.Chi2dofLimits = [0.5 2.0];%[0.07 5.87]
         
         Args.flagSaturated logical = true;
 
@@ -71,19 +74,21 @@ function TranCat = flagNonTransients(Obj, Args)
             'DarkHighVal'};
 
         Args.flagBadPix_Soft logical  = true;
-        Args.BadPix_Soft       = {{'HighRN', 5.6}, {'Edge', 8}, {'NearEdge', 8},...
-            {'SrcNoiseDominated', 12.0}};
+        Args.BadPix_Soft       = {{'HighRN', 20.0}, {'NearEdge', 20.0},...
+            {'SrcNoiseDominated', 12.0}, {'CoaddLessImages', 12.0}};
 
         Args.flagStarMatches logical = true;
         Args.flagMP logical = true;
 
         Args.flagRinging logical = true;
-        Args.GaborSNRatioThreshold = 0.66;
+        Args.GaborSNRatioThreshold = 1.00;%0.36
 
         % --- AstroZOGY ---
-        Args.flagTranslients logical = true;
-        Args.S2toZ2RatioThresh = 0.66;
+        Args.flagScorr logical = true;
+        Args.ScorrThreshold = 5.0;
 
+        Args.flagTranslients logical = true;
+        Args.S2toZ2RatioThresh = 1.00;%0.66
     end
 
     Nobj = numel(Obj);
@@ -108,7 +113,7 @@ function TranCat = flagNonTransients(Obj, Args)
             GoodChi2dof = (Cat.getCol('D_Chi2dof') > Args.Chi2dofLimits(1)) &...
                 (Cat.getCol('D_Chi2dof') < Args.Chi2dofLimits(2));
             Obj(Iobj).CatData.insertCol(cast(~GoodChi2dof,'double'), ...
-                'Score', {'Chi2dof_Flag'}, {''});
+                'Score', {'NotPSFLike'}, {''});
             IsTransient = IsTransient & GoodChi2dof;
         end
     
@@ -138,9 +143,11 @@ function TranCat = flagNonTransients(Obj, Args)
 
             PassesSaturated = ~SaturatedInBoth | SaturatedOnlyInNew;
 
+            Obj(Iobj).CatData.insertCol(cast(SaturatedInBoth,'double'), ...
+                'Score', {'Saturated'}, {''});
             IsTransient = IsTransient & PassesSaturated;
 
-        end       
+        end
 
         % Hard bit mask criteria.
         if Args.flagBadPix_Hard && Cat.isColumn('NewMaskVal')
@@ -207,16 +214,6 @@ function TranCat = flagNonTransients(Obj, Args)
             IsTransient = IsTransient & isnan(Cat.getCol('SolarDist'));
         end
         
-        if Args.flagTranslients && Cat.isColumn('S2_AIC') && Cat.isColumn('Z2_AIC')
-            S2_AIC = Cat.getCol('S2_AIC');
-            Z2_AIC = Cat.getCol('Z2_AIC');
-            S2toZ2Ratio = S2_AIC./Z2_AIC;
-            IsTranslient = ~(S2toZ2Ratio > Args.S2toZ2RatioThresh);
-            Obj(Iobj).CatData.insertCol(cast(IsTranslient,'double'), ...
-                'Score', {'Translient'}, {''});            
-            IsTransient = IsTransient & ~IsTranslient;
-        end
-
         if Args.flagRinging && Cat.isColumn('GaborSN')
             GaborSN = Cat.getCol('GaborSN');
             Score = Cat.getCol('Score');
@@ -228,6 +225,25 @@ function TranCat = flagNonTransients(Obj, Args)
 
             Obj(Iobj).CatData.insertCol(cast(IsRinging,'double'), ...
                 'Score', {'IsRinging'}, {''});
+        end
+
+        if Args.flagScorr && Cat.isColumn('Scorr')
+            Scorr = Cat.getCol('Scorr');
+
+            ScorrBelowThresh = (abs(Scorr) < Args.ScorrThreshold);
+            Obj(Iobj).CatData.insertCol(cast(ScorrBelowThresh,'double'), ...
+                'Score', {'ScorrBelowThresh'}, {''});
+            IsTransient = IsTransient & ~ScorrBelowThresh;
+        end
+
+        if Args.flagTranslients && Cat.isColumn('S2_AIC') && Cat.isColumn('Z2_AIC')
+            S2_AIC = Cat.getCol('S2_AIC');
+            Z2_AIC = Cat.getCol('Z2_AIC');
+            S2toZ2Ratio = S2_AIC./Z2_AIC;
+            IsTranslient = ~(S2toZ2Ratio > Args.S2toZ2RatioThresh);
+            Obj(Iobj).CatData.insertCol(cast(IsTranslient,'double'), ...
+                'Score', {'Translient'}, {''});
+            IsTransient = IsTransient & ~IsTranslient;
         end
 
         % Sub-select passing candidates only.

@@ -22,6 +22,8 @@ function TranCat=findTransients(AD, Args)
                        performing PSF photometry on AD, AD.New, and AD.Ref cut outs.
                        Default is {}.
                 'include2ndMoment' - Bool whether to derive 2nd moments. 
+                       Default is true. 
+                'includeAperturePhot' - Bool whether to add aperture photometry results. 
                        Default is true.
                 'includeBitMaskVal' - Bool on whether to retrieve bit mask
                        values from AD.New and AD.Ref, and add to catalog.
@@ -82,6 +84,7 @@ function TranCat=findTransients(AD, Args)
         Args.HalfSizePSF                = 7;
         Args.psfPhotCubeArgs cell       = {};
 
+        Args.includeAperturePhot logical = true;
         Args.include2ndMoment logical = true;
 
         Args.includeBitMaskVal logical  = true;
@@ -90,7 +93,7 @@ function TranCat=findTransients(AD, Args)
         Args.includeSkyCoord logical    = true;
         Args.includeObsTime logical     = true;
 
-        Args.includeGaborMag logical = true;
+        Args.includeGaborSN logical = true;
     end
 
     Nobj = numel(AD);
@@ -169,16 +172,23 @@ function TranCat=findTransients(AD, Args)
 
         end
 
-        if Args.include2ndMoment
-            % Get moments and aperture photometry
-            Data = cell2mat({cast(M1.X,'double'), cast(M1.Y,'double'), ...
-                cast(M2.X2,'double'), cast(M2.Y2,'double'),...
-                cast(Aper.AperPhot,'double'), cast(Aper.AperPhotErr,'double')});
+        if Args.includeAperturePhot
+            % Get aperture photometry
+            Data = cell2mat({cast(Aper.AperPhot,'double'), ...
+                cast(Aper.AperPhotErr,'double'), cast(Aper.AnnulusBack,'double')});
             TranCat(Iobj) = TranCat(Iobj).insertCol( Data, 'Score',...
-                {'X1', 'Y1', 'X2', 'Y2', 'AperPhot1', 'AperPhot2', 'AperPhot3',...
-                'AperPhotErr1', 'AperPhotErr2', 'AperPhotErr3'}, ...
-                {'','','','','e','e','e','e','e','e'}...
+                {'AperPhot1', 'AperPhot2', 'AperPhot3',...
+                'AperPhotErr1', 'AperPhotErr2', 'AperPhotErr3', 'AnnulusBack'}, ...
+                {'e','e','e','e','e','e','e'}...
                 );
+        end
+
+        if Args.include2ndMoment
+            % Get moments
+            Data = cell2mat({cast(M1.X,'double'), cast(M1.Y,'double'), ...
+                cast(M2.X2,'double'), cast(M2.Y2,'double')});
+            TranCat(Iobj) = TranCat(Iobj).insertCol( Data, 'Score',...
+                {'X1', 'Y1', 'X2', 'Y2'}, {'','','',''});
         end
 
         if Args.includeBitMaskVal
@@ -229,7 +239,7 @@ function TranCat=findTransients(AD, Args)
                 {'StartJD', 'MidJD', 'EndJD'}, {'JD','JD','JD'});
         end
 
-        if Args.includeGaborMag && ~isempty(AD(Iobj).GaborSN)
+        if Args.includeGaborSN && ~isempty(AD(Iobj).GaborSN)
             XY = TranCat.getXY('ColX','XPEAK','ColY','YPEAK');
             Size = size(AD(Iobj).GaborSN);
             GaborSN = AD(Iobj).GaborSN(sub2ind(Size,XY(:,2),XY(:,1)));
