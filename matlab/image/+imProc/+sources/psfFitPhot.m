@@ -191,15 +191,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                                                                     'MaxIter',Args.MaxIter,...
                                                                      Args.psfPhotCubeArgs{:});
                     
-                case 'new'
-                    
-                    % experimental
-                    
-%                     [Ny, Nx, Nim] = size(Cube);
-%                     M = reshape(Cube,Nx*Ny,Nim);
-%                     [U,S,V] = svd(M');
-                    
-                                        
+                case 'new'                                                            
                     Result                = imUtil.psf.psfPhot(Cube, 'PSF',PSF,...
                                                             'Std',Std,...
                                                             'Back',0,...
@@ -225,7 +217,8 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
             Result.X = Result.RoundX + Result.DX;
             Result.Y = Result.RoundY + Result.DY;
             Result.MagErr = 1.086./abs(Result.SNm);     % mag err always positive
-            
+            Res.Flux = Result.Flux; 
+            Res.ShiftedPSF = Result.ShiftedPSF;            
             
             % second iteration - need to round X/Y???
             %Image = imUtil.cut.cutouts2image(Cube, Obj(Iobj).Image, X, Y)
