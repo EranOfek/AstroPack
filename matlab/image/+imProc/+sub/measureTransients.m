@@ -103,6 +103,15 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
             continue
         end
         
+        % Get Scorr value 
+
+        if ~isempty(AD(Iobj).Scorr)
+            Indices = sub2ind(size(AD(Iobj).Scorr), XY(:,1),XY(:,2));
+            Scorr = AD(Iobj).Scorr(Indices);
+        else
+            Scorr = nan(Nsrc,1);
+        end
+
         % find and save peak TS and corresponding gaussian significance for
         % S2 and Z2 statistics
 
@@ -128,11 +137,11 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
 
         % Insert derived properties into AD.CatData catalog
         TranCat(Iobj) = AD(Iobj).CatData.insertCol(...
-            cell2mat({cast(S2_TS,'double'), cast(Z2_TS,'double'), cast(S2_Sig,'double'), ...
-            cast(Z2_Sig,'double'), cast(S2_AIC,'double'), cast(Z2_AIC,'double'),...
-            }), 'Score',...
-            {'S2_TS','Z2_TS','S2_Sig','Z2_Sig','S2_AIC','Z2_AIC'}, ...
-            {'','','sig','sig','',''});
+            cell2mat({cast(Scorr,'double'), cast(S2_TS,'double'), cast(Z2_TS,'double'), ...
+            cast(S2_Sig,'double'), cast(Z2_Sig,'double'), cast(S2_AIC,'double'), ...
+            cast(Z2_AIC,'double')}), 'Score',...
+            {'Scorr','S2_TS','Z2_TS','S2_Sig','Z2_Sig','S2_AIC','Z2_AIC'}, ...
+            {'sig','','','sig','sig','',''});
 
 
     end

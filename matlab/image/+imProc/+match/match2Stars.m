@@ -51,7 +51,6 @@ function match2Stars(Obj, Args)
             ACObj = [Obj(:).CatData];
         case 'AstroCatalog'
             ACObj = Obj;
-            disp('hello2');
         otherwise
             warning('Object class not supported.')
     end
@@ -92,7 +91,8 @@ function match2Stars(Obj, Args)
                 continue
             end
 
-            % Perform a finer search, a star's brightness and excess noise
+            % Perform a finer search, 
+            % considering a star's brightness and excess noise
             CatGAIA = catsHTM.cone_search(Args.StarCatName, ...
                 RA(Itran), Dec(Itran), Args.SearchRadius, ...
                 'RadiusUnits',Args.SearchRadiusUnits, 'OutType','AstroCatalog');
@@ -100,7 +100,7 @@ function match2Stars(Obj, Args)
             
             % TODO: Consider (more) properly effective radius due to
             % saturation
-            DistThresholdPerStar = max(20-CatGAIA.Table.(Args.ColMagGAIA), ...
+            DistThresholdPerStar = max(20.0-CatGAIA.Table.(Args.ColMagGAIA), ...
                 3+CatGAIA.Table.(Args.ColAstExcessNoiseGAIA));
     
             % Flag as match if catalog entry within a star's distance
