@@ -82,7 +82,7 @@ function [Image, ResultingImage] = injectStamps(XY, PSF, Flux, Args)
                 PSFfunpars = ceil( Args.PSFfunpars .* M / 15); 
             end
             SupressedEdges = Args.PSFfun( PSFfunpars, size(PSF{Isrc}) ) .* PSF{Isrc};
-            PSF{Isrc} = SupressedEdges ./ sum(SupressedEdges,'all');
+            PSF{Isrc} = SupressedEdges ./ sum(SupressedEdges,'all');    % normalize 
         end
     end
             
