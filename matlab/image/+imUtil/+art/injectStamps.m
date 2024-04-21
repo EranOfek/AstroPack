@@ -117,9 +117,7 @@ function [Image, ResultingImage] = injectStamps(XY, PSF, Flux, Args)
         %
         Image(X1:X2,Y1:Y2) = Image(X1:X2,Y1:Y2) + Flux(Isrc) .* PSF{Isrc}(X11:X21,Y11:Y21);                
     end
-    
-%     Image = Image'; % needed to match with the AstroImage format? 
-    
+       
     % add background
     if ~isempty(Args.Back)
         if numel(Args.Back) < 2 || ( (SizeBackIm(1) == SizeX) &&  (SizeBackIm(2) == SizeY) )
