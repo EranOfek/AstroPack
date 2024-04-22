@@ -2460,6 +2460,7 @@ classdef DemonLAST < Component
             end
             RAD = 180./pi;
             
+%             Args = tools.code.updateParFromConfig(Args); % test of the future config file parametrization              
 
             % if Obj.lockFile
             %     % all good to go
