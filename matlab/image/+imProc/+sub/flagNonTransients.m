@@ -9,7 +9,7 @@ function TranCat = flagNonTransients(Obj, Args)
                        Default is true.
                 'Chi2dofLimits' - Limits on Chi2 per degrees of freedom. If
                        'filterChi2' is true, all transients candidates outside these
-                       limits are flagged. Default is [0.07 5.87].
+                       limits are flagged. Default is [0.5 2.0].
                 'flagSaturated' - Bool on whether to flag transients 
                        candidates that are saturated in both reference and 
                        new images. Default is true.
@@ -17,8 +17,8 @@ function TranCat = flagNonTransients(Obj, Args)
                        candidates based on hard bit mask criteria. 
                        Default is true.
                 'BadPix_Hard' - Hard bit mask criteria for bad pixels.  
-                       Default is {'Interpolated', 'NaN', 'FlatHighStd',
-                       'DarkHighVal'}.
+                       Default is {'Interpolated', 'NaN', 'NearEdge',
+                       'Overlap', 'CoaddLessImages', 'Hole', 'CR_DeltaHT'}.
                 'flagBadPix_Soft' - Bool on whether to flag transients
                        candidates based on soft bit mask criteria. 
                        Default is true.
@@ -26,9 +26,9 @@ function TranCat = flagNonTransients(Obj, Args)
                        their score threshold values. Transients candidates
                        that contain soft bad pixels are only flagged as 
                        non-transients if their score values are below the 
-                       respective thresholds. Default is {{'HighRN', 5.6}, 
-                       {'NearEdge', 12.0}, {'SrcNoiseDominated',
-                       12.0}}.
+                       respective thresholds. Default is Default is {{'HighRN', 7.0},
+                       {'SrcNoiseDominated', 10.0}, {'FlatHighStd',7.0}, 
+                       {'DarkHighVal', 7.0}}.
                 'flagStarMatches' - Bool on whether to flag transients
                        candidates that have matching star positions.
                        Default is true.
@@ -70,12 +70,12 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagSaturated logical = true;
 
         Args.flagBadPix_Hard logical  = true;
-        Args.BadPix_Hard       = {'Interpolated', 'NaN', 'FlatHighStd',...
-            'DarkHighVal'};
+        Args.BadPix_Hard       = {'Interpolated', 'NaN', 'NearEdge',...
+            'Overlap', 'CoaddLessImages', 'Hole', 'CR_DeltaHT'};
 
         Args.flagBadPix_Soft logical  = true;
-        Args.BadPix_Soft       = {{'HighRN', 20.0}, {'NearEdge', 20.0},...
-            {'SrcNoiseDominated', 12.0}, {'CoaddLessImages', 12.0}};
+        Args.BadPix_Soft       = {{'HighRN', 7.0}, {'SrcNoiseDominated', 10.0}, ...
+            {'FlatHighStd',7.0}, {'DarkHighVal', 7.0}};
 
         Args.flagStarMatches logical = true;
         Args.flagMP logical = true;
