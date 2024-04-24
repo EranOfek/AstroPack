@@ -252,7 +252,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     // Filename is specified, append header at the end of the file (file must be closed)
     if (filename) {
 
-        mexPrintf("fopen: %s\n", filename);
+        // mexPrintf("fopen: %s\n", filename);
         FILE* fp = fopen(filename, "ab");
         if (!fp) {
             mxFree(filename);

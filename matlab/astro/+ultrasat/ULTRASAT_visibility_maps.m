@@ -18,7 +18,7 @@ function ULTRASAT_visibility_maps(Args)
         Args.GridFile = '~/matlab/data/ULTRASAT/healpix_grid_nside_64_npix_49152_pixarea_0.839_deg.txt' 
         % 'healpix_grid_nside_32_npix_12288_pixarea_3.357_deg.txt'; 'healpix_grid_nside_64_npix_49152_pixarea_0.839_deg.txt';
         % can be produced localy by > celestial.grid.make_healpix_grid(64)
-        Args.AllSky   = '~/matlab/data/ULTRASAT/charged_particles_350_rep1.txt'; 
+        Args.AllSky   = '~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_350_rep1.txt'; 
         Args.StartDate = '2027-01-01 00:00:00';
         Args.NumDays   = 1080; % [days]
         Args.TimeBin   = 0.01; % [days] 0.01 day = 864 s ~ 3 x 300 s  
@@ -114,7 +114,7 @@ function ULTRASAT_visibility_maps(Args)
 %     Alam = astro.extinction.extinctionGrid(Args.GridFile,'CooType','j2000.0','Filter','ultrasat','ExtMap','new','SaveMat',true);
 %     Averaged_extinction = celestial.grid.statSkyGrid('extinction_grid_j2000.0_ultrasat_AbsMapGont24.mat','SkyPos',[RA Dec])
 %     
-    Alam = astro.extinction.extinctionGrid(Args.GridFile,'CooType','j2000.0','Filter','ultrasat','ExtMap','old','SaveMat',false);
+    Alam = astro.extinction.extinctionGrid(Args.GridFile,'CooType','j2000.0','Filter','ultrasat','ExtMap','SFD98','SaveMat',false);
     
     Averaged_extinction = celestial.grid.statSkyGrid('SkyPos',[lambda beta]);
     

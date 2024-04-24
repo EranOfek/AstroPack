@@ -12,7 +12,6 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
     %          * ...,key,val,...
     %            'Save' - A logical indicating if to save data products.
     %                   Default is true.
-    %            'IsSimpleFITS' - Default is true.
     %            'Type' - FileNames type. If empty, then use the
     %                   Type provided in the FileNames object.
     %                   Default is [].
@@ -71,6 +70,9 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
     %            'Write1mat' - A logical. If saving mat file save only one
     %                   file (true), or file per element (false).
     %                   Default is false.
+    %             'SanifyPath' - A logical. true can be time-consuming
+    %             'WriteMethodImages' - can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
+    %             'WriteMethodTables' - can be 'Standard' or 'MexHeader'  
     % Output : - A FileNames object for the written files
     %            (Product='Image').
     %          - Used SubDir.
@@ -81,7 +83,6 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
         Obj
         FNin FileNames
         Args.Save logical           = true;
-        Args.IsSimpleFITS logical   = true;
         Args.Type                   = [];
         Args.Level                  = [];
         Args.LevelPath              = [];
@@ -112,8 +113,10 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
         Args.WriteEmpty logical     = false;
         Args.Write1mat logical      = false;
         Args.SanifyPath logical     = false; % true can be time-consuming
+        
+        Args.WriteMethodImages      = 'Simple';    % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
+        Args.WriteMethodTables      = 'Standard';  % can be 'Standard' or 'MexHeader'     
     end
-
     
     if Args.Save
 
@@ -208,11 +211,12 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                                 OutFileNames1  = FN1.genFull('Product',Args.Product{Iprod}, 'LevelPath',Args.LevelPath);
                                 Obj(Iobj).write1(OutFileNames1{1}, Args.Product{Iprod},...
                                              'FileType',FN1.FileType{1},...
-                                             'IsSimpleFITS',Args.IsSimpleFITS,...
                                              'WriteHeader',WriteHeader(Iprod),...
                                              'MkDir',~DirCreated,...
                                              'OverWrite',Args.OverWrite,...
-                                             'SanifyPath',Args.SanifyPath);
+                                             'SanifyPath',Args.SanifyPath,...
+                                             'WriteMethodImages',Args.WriteMethodImages,...
+                                             'WriteMethodTables',Args.WriteMethodTables);
 
                                 DirCreated = true;
                                 % Update FileName in Obj
@@ -235,7 +239,8 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                         FN1 = FN.reorderEntries(Iobj, 'CreateNewObj',true);
                         OutFileNames1  = FN1.genFull('Product',Args.Product{1}, 'LevelPath',Args.LevelPath);
                         Obj(Iobj).write1(OutFileNames1{1},...
-                                     'FileType',FN1.FileType{1});
+                                     'FileType',FN1.FileType{1},...
+                                     'WriteMethodTables',Args.WriteMethodTables);
                     else
                         Istat = Istat + 1;
                         Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', OutFileNames{Iobj}, 'CatData');

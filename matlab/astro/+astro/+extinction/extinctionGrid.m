@@ -51,11 +51,11 @@ function [Alam, RA_grid, Dec_grid] = extinctionGrid(SkyGrid, Args)
     end    
 
     % calculate E(B-V)
-    if strcmpi(Args.ExtMap,'sfd98')
+    if strcmpi(Args.ExtMap,'SFD98')
         Ebv = astro.extinction.sky_ebv(gal_lon,gal_lat,'g', 'Map', 'SFD98'); % SFD 1998
-    elseif strcmpi(Args.ExtMap,'g24')
+    elseif strcmpi(Args.ExtMap,'G24')
         Ebv = astro.extinction.sky_ebv(gal_lon,gal_lat,'g', 'Map', 'G24');   % Gontcharov et al. 2024 
-    elseif strcmpi(Args.ExtMap,'csfd23')        
+    elseif strcmpi(Args.ExtMap,'CSFD23')        
         Ebv = astro.extinction.sky_ebv(gal_lon,gal_lat,'g', 'Map', 'CSFD23'); % Chiang 2023 
     else
         error('Unknown extinction map');

@@ -689,24 +689,24 @@ classdef AstroDb < Component
                         if ~isempty(Args.FileNames)                            
                             [Data.File] = Args.FileNames{:};
                         end
-%                         Data.writeCSV(HeaderFN,'CleanHeaderValues',1);  
-                        Data.writeCSVforBulkInjection(HeaderFN,'Filter',true,'FilterList',ColumnList);
+%                         Data.writeCSVforBulkInjection(HeaderFN,'Filter',true,'FilterList',ColumnList);
+                        imProc.header.writeCSVforBulkInjection(Data, HeaderFN,'Filter',true,'FilterList',ColumnList);
                     elseif strcmpi(Args.BulkCatType,'proc')
                         HeaderFN = FN.genFull{1};
                         AH = [Data.HeaderData];
                         if ~isempty(Args.FileNames)                            
                             [AH.File] = Args.FileNames{:};
                         end
-%                         AH.writeCSV(HeaderFN,'CleanHeaderValues',1);
-                        AH.writeCSVforBulkInjection(HeaderFN,'Filter',true,'FilterList',ColumnList);
+%                         AH.writeCSVforBulkInjection(HeaderFN,'Filter',true,'FilterList',ColumnList);
+                        imProc.header.writeCSVforBulkInjection(AH, HeaderFN,'Filter',true,'FilterList',ColumnList);
                     elseif strcmpi(Args.BulkCatType,'coadd')
                         HeaderFN = FN.genFull('LevelPath','proc'); HeaderFN = HeaderFN{1};
                         AH = [Data.HeaderData];
                         if ~isempty(Args.FileNames)                            
                             [AH.File] = Args.FileNames{:};
                         end
-%                         AH.writeCSV(HeaderFN,'CleanHeaderValues',1);
-                        AH.writeCSVforBulkInjection(HeaderFN,'Filter',true,'FilterList',ColumnList);
+%                         AH.writeCSVforBulkInjection(HeaderFN,'Filter',true,'FilterList',ColumnList);
+                        imProc.header.writeCSVforBulkInjection(AH, HeaderFN,'Filter',true,'FilterList',ColumnList);
                     else
                         error('Incorrect image type in AstroDb.insert');
                     end                    

@@ -2317,7 +2317,7 @@ classdef FileNames < Component
 %             %                   Fun(Object, Name, Field, WriteFunArgs{:})
 %             %            'WriteFunArgs' - Cell array of arguments to pass
 %             %                   to the WriteFun.
-%             %                   Default is {'IsSimpleFITS',true,
+%             %                   Default is {'WriteMethodImages','Simple',
 %             %                   'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false}.
 %             %            'Product' - For a non AstroImage object. This is
 %             %                   the data type that will be written.
@@ -2334,7 +2334,7 @@ classdef FileNames < Component
 %                 Args.Save
 %                 Args.SaveFields                = {'Image','Mask','Cat'};
 %                 Args.WriteFun function_handle  = @write1;
-%                 Args.WriteFunArgs cell         = {'IsSimpleFITS',true, 'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
+%                 Args.WriteFunArgs cell         = {'WriteMethodImages','Simple','FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
 %                 Args.Product                   = 'Asteroids';   %'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat', 'Asteroids'
 %                 Args.Level                     = []; % override Level
 %                 Args.FileType                  = []; % override FileType

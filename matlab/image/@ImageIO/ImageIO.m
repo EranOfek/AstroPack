@@ -287,9 +287,8 @@ classdef ImageIO < Component
             %            'ColUnits' - A cell arrat of table units names.
             %            'CCDSEC' - CCDSEC to save. If empty, save full
             %                   image. Default is [].
-            %            'IsSimpleFITS' - A logical indicating if to use
-            %                   io.fits.writeSimpleFITS (faster).
-            %                   Default is false.
+            %            'WriteMethodImages' - write method, def. 'Full', if 'Simple', 'Mex', or 'ThreadedMex'
+            %            uses io.fits.writeSimpleFITS, io.fits.writeMexFITS or io.fits.writeThreadMexFITS (fastest).
             %            'Append' - Append image as a multi extension to an
             %                      existing FITS file. Default is false.
             %            'OverWrite'- Overwrite an existing image. Default
@@ -314,9 +313,8 @@ classdef ImageIO < Component
                 Args.IsTable(1,1) logical     = false;
                 Args.ColNames cell            = {};
                 Args.ColUnits cell            = {};
-                Args.CCDSEC                   = [];      % only for 2D images
-                
-                Args.IsSimpleFITS logical     = false;
+                Args.CCDSEC                   = [];      % only for 2D images                
+                Args.WriteMethodImages        = 'Full';  % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
                 Args.Append(1,1) logical      = false;
                 Args.OverWrite(1,1) logical   = false;
                 Args.WriteTime(1,1) logical   = false;
@@ -385,15 +383,16 @@ classdef ImageIO < Component
                         
                     else
                         % write FITS image
-                        if Args.IsSimpleFITS
-                            FITS.writeSimpleFITS(Data, FileName, 'Header', Header,...
-                                                   'DataType',DataType);
-                        else
+                        if strcmpi(Args.WriteMethodImages,'full') 
                             FITS.write(Data, FileName, 'Header', Header,...
                                                    'DataType',DataType,...
                                                    'Append',Args.Append,...
                                                    'OverWrite',Args.OverWrite,...
-                                                   'WriteTime',Args.WriteTime);
+                                                   'WriteTime',Args.WriteTime);                            
+                        else
+                            FITS.writeSimpleFITS(Data, FileName, 'Header', Header,...
+                                                   'DataType',DataType,...
+                                                   'WriteMethodImages',Args.WriteMethodImages);
                         end
                     end
                         
@@ -501,8 +500,8 @@ classdef ImageIO < Component
             %            'WriteHeader' - Write header.
             %                   Relevant only for AstroImage input.
             %                   Default is true.
-            %            'IsSimpleFITS' - Write using simpleFITS.
-            %                   Default is true.
+            %            'WriteMethodImages' - write method, can be 'Full', if 'Simple', 'Mex', or 'ThreadedMex'
+            %            uses io.fits.writeSimpleFITS, io.fits.writeMexFITS or io.fits.writeThreadMexFITS (fastest).
             %            'DataType' - cast to data type. Default is [].
             %            'ImageFileType' - Default is 'fits'.
             %            'MatchedFileType' - Default is 'hdf5'.
@@ -515,10 +514,9 @@ classdef ImageIO < Component
                 ObjFN
                 DataProp                   = 'Image';
                 Args.HDU                   = 1;
-                Args.WriteHeader logical   = true;
-                Args.IsSimpleFITS logical  = true;
+                Args.WriteHeader logical   = true;                
                 Args.DataType              = [];
-                
+                Args.WriteMethodImages     = 'Simple';  % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
                 Args.ImageFileType         = 'fits';
                 Args.MatchedFileType       = 'hdf5';
             end
@@ -566,7 +564,7 @@ classdef ImageIO < Component
                         end
                         ImageIO.write1(ObjIn(Iobj).(DataProp), Files{Iobj},'HDU',Args.HDU,...
                                                                            'FileType',Args.ImageFileType,...
-                                                                           'IsSimpleFITS',Args.IsSimpleFITS,...
+                                                                           'WriteMethodImages',Args.WriteMethodImages,...
                                                                            'IsTable',IsTable,...
                                                                            'DataType',Args.DataType,...
                                                                            'Header',Header);

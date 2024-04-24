@@ -1166,8 +1166,6 @@ classdef AstroImage < Component
             %          - Data property to write. Default is 'Image'.
             %          * ...,key,val,...
             %            'FileType' - Default is 'fits'.
-            %            'IsSimpleFITS' - If true, use FITS.writeSimpleFITS
-            %                       Default is false.
             %            'WriteHeader' - Default is true.
             %            'Append' - Append in a new HDU.
             %                   Default is false.
@@ -1188,7 +1186,6 @@ classdef AstroImage < Component
                 Name
                 DataProp                      = 'Image';
                 Args.FileType                 = 'fits';
-                Args.IsSimpleFITS logical     = false;
                 Args.WriteHeader logical      = true;
                 Args.Append logical           = false;
                 Args.OverWrite logical        = false;
@@ -1196,6 +1193,9 @@ classdef AstroImage < Component
                 Args.MkDir logical            = false;
                 Args.Status                   = [];
                 Args.SanifyPath               = true; 
+                Args.FastHeader logical       = false;                
+                Args.WriteMethodImages        = 'Simple';    % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
+                Args.WriteMethodTables        = 'Standard';  % can be 'Standard' or 'MexHeader'
             end
             
             if Args.WriteHeader
@@ -1229,17 +1229,18 @@ classdef AstroImage < Component
                                 Istat = Istat + 1;
                                 Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', Name, DataProp);
                             else
-                                if Args.IsSimpleFITS
-                                    FITS.writeSimpleFITS(Obj.(DataProp), Name, 'Header',HeaderDataToWrite,...
-                                                                     'SanifyPath',Args.SanifyPath); %,...
-                                                               %    'DataType',class(Obj.(DataProp)));
-                                else
+                                if strcmpi(Args.WriteMethodImages,'full')  
                                     FITS.write(Obj.(DataProp), Name, 'Header',HeaderDataToWrite,...
                                                                    'DataType',class(Obj.(DataProp)),...
                                                                    'Append',Args.Append,...
                                                                    'OverWrite',Args.OverWrite,...
                                                                    'SanifyPath',Args.SanifyPath,...
-                                                                   'WriteTime',Args.WriteTime);
+                                                                   'WriteTime',Args.WriteTime);                                    
+                                else                                    
+                                    FITS.writeSimpleFITS(Obj.(DataProp), Name, 'Header',HeaderDataToWrite,...
+                                                                   'SanifyPath',Args.SanifyPath,...
+                                                                   'WriteMethodImages',Args.WriteMethodImages); %,...
+                                                               %    'DataType',class(Obj.(DataProp)));
                                 end
                             end
                         case {'Cat','CatData'}
@@ -1250,7 +1251,8 @@ classdef AstroImage < Component
                                 FITS.writeTable1(Obj.CatData, Name, 'Header',HeaderData,...
                                                                    'Append',Args.Append,...
                                                                    'OverWrite',Args.OverWrite,...
-                                                                   'WriteTime',Args.WriteTime);
+                                                                   'WriteTime',Args.WriteTime,...
+                                                                   'WriteMethodTables',Args.WriteMethodTables);
                             end
                         otherwise
                             % FFU

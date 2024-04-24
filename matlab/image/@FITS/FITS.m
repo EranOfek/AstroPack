@@ -1150,9 +1150,10 @@ classdef FITS < handle
             %                 integer images, but PLIO works only for
             %                 positive integer values.
             %             'SanifyPath' - whether to sanify the file path (may appear slow)
+            %             'WriteMethod' - 'Standard', 'Mex', 'ThreadedMex'
             %
             % Output : null
-            % Author : Eran Ofek (Jan 2022)
+            % Author : Eran Ofek (Jan 2022), A.M. Krassilchtchikov (Apr 2024)
             % Example: FITS.writeSimpleFITS(AI.Image, 'try.fits','Header',AI.HeaderData.Data);
 
             arguments
@@ -1161,13 +1162,58 @@ classdef FITS < handle
                 Args.Header cell              = {};
                 Args.DataType                 = [];
                 Args.CompressType  char       = 'NOCOMPRESS';
-                Args.SanifyPath logical       = true;
+                Args.SanifyPath logical       = true;                
+                Args.WriteMethodImages        = 'Simple';    % can be 'Simple', 'Mex', or 'ThreadedMex'
             end
             
-            io.fits.writeSimpleFITS(Image, FileName, 'Header',Args.Header,...
-                                     'DataType',Args.DataType,'UseMatlabIo',true,...
-                                     'CompressType',Args.CompressType,'SanifyPath',Args.SanifyPath);
+            % sanify the file name so that it contains the absolute path
+            if Args.SanifyPath
+                FileName = tools.os.relPath2absPath(FileName);
+            end
             
+            if isempty(Args.DataType)
+                Args.DataType = class(Image);
+            end
+            
+            % if the class is unsigned, we must write Image-bzero as signed, and change the required class
+            switch Args.DataType
+                case 'int8'
+                    NewDataType='uint8';
+                case 'uint16'
+                    NewDataType='int16';
+                case 'uint32'
+                    NewDataType='int32';
+                otherwise
+                    NewDataType=Args.DataType;
+            end
+            [BitPix,bzero]  = io.fits.dataType2bitpix(Args.DataType);
+            % shift the image if unsigned
+            if ~strcmp(NewDataType,Args.DataType)
+                Image=reshape(typecast(bitxor(Image(:),cast(bzero,Args.DataType)),...
+                    NewDataType),size(Image));
+            end            
+            
+            if isempty(Args.Header) % create a minimal default FITS header                
+                Args.Header = io.fits.defaultHeader(Args.DataType, size(Image));
+            end
+            
+            Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BITPIX',{BitPix});
+            Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BZERO',{bzero});
+            
+            switch lower(Args.WriteMethodImages)
+                case 'simple'
+                    io.fits.writeSimpleFITS(Image, FileName, 'Header',Args.Header,...
+                        'DataType',NewDataType,'UseMatlabIo',true,...
+                        'CompressType',Args.CompressType,'SanifyPath',Args.SanifyPath,...
+                        'CalledFromClass',true,'NewDataType',NewDataType,'Bzero',bzero);
+                case 'mex'
+                    io.fits.writeMexFITS(FileName, Image, Args.Header);
+                case 'threadedmex'
+                    io.fits.writeThreadMexFITS(FileName, Image, Args.Header);
+                otherwise
+                    error('Requested WriteMethod is not supported');
+            end
+                    
         end
         
         function DataType = getDataType(ArgDataType)

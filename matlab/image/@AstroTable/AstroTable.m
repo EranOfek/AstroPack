@@ -2030,6 +2030,7 @@ classdef AstroTable < Component
             %                       is false.
             %            'WriteTime'- Add creation time to image header.
             %                       Default is false.
+            %            'WriteMethodTables' - can be 'Standard' or 'MexHeader'
             % Output : null
             % Author : Eran Ofek (Jan 2022)
             % Example: 
@@ -2043,6 +2044,7 @@ classdef AstroTable < Component
                 Args.Append logical           = false;
                 Args.OverWrite logical        = false;
                 Args.WriteTime logical        = false;
+                Args.WriteMethodTables        = 'Standard';  % can be 'Standard' or 'MexHeader'
             end
             
             FITS.writeTable1(Obj, FileName, 'Header',Args.Header,...
@@ -2051,8 +2053,8 @@ classdef AstroTable < Component
                                                'HDU',Args.HDU,...
                                                'Append',Args.Append,...
                                                'OverWrite',Args.OverWrite,...
-                                               'WriteTime',Args.WriteTime);
-                                                                                
+                                               'WriteTime',Args.WriteTime,...
+                                               'WriteMethodTables',Args.WriteMethodTables);                                                                                
         end
         
         function Result = toTable(Obj)

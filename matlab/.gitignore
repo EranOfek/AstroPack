@@ -12,3 +12,7 @@
 **/.idea/
 
 zfits/*
+
+# mex executables
+
+**/*.mexa64

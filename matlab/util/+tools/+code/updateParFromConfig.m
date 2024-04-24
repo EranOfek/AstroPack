@@ -22,12 +22,17 @@ function Result = updateParFromConfig(FuncArgs, ConfName)
     % read the configuration from the object
     Conf = GlobalConf.Config.Data.(ConfName);
     
+    % a patch: do not know how to make an empty {} in YAML
+    if isempty(Conf.multiRaw2procCoaddArgs)
+        Conf.multiRaw2procCoaddArgs = {};
+    end
+    
     % get common field names and replace these fields from Conf
     CommonFields = intersect(fieldnames(FuncArgs), fieldnames(Conf));
     
     for Ifield = 1:numel(CommonFields)
         FuncArgs.(CommonFields{Ifield}) = Conf.(CommonFields{Ifield});
-    end
+    end      
     
     % save the result
     Result = FuncArgs;    

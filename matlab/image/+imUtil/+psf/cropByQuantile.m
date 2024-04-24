@@ -16,6 +16,7 @@ function [Stamp, Var] = cropByQuantile(PSF, Quantile, Args)
         Args.Normalize = true;
         Args.Variance  = [];
     end
+    Var = [];
     if isempty(PSF) % do nothing
         Stamp = PSF;
         return

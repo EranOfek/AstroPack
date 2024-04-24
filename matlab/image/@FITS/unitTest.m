@@ -4,7 +4,7 @@ function Result = unitTest(Obj)
     % https://heasarc.gsfc.nasa.gov/docs/software/ftools/fv/
 
 
-	io.msgLog(LogLevel.Test, 'FITS.unitTest sarted');
+	io.msgLog(LogLevel.Test, 'FITS.unitTest started');
 	
 % 	DataSampleDir = tools.os.getTestDataDir;
     I = Installer; DataSampleDir = I.getDataDir('TestImagesAstroPack');

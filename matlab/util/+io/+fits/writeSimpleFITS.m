@@ -19,6 +19,9 @@ function writeSimpleFITS(Image, FileName, Args)
     %                   Default is 'NOCOMPRESS'. Only effective if
     %                   UseMatlabIo=true.
     %            'SanifyPath ' - whether to get a true full path (may appear time-consuming)
+    %            'CalledFromClass' - tells if the preparation works has been already done in the caller routine(s)
+    %            'NewDataType' - can be input from the caller if CalledFromClass = true
+    %            'Bzero' - can be input from the caller if CalledFromClass = true     
     % Output : null
     % Author : Eran Ofek (Jan 2022), Enrico Segre (Feb 2023)
     % Example: io.fits.writeSimpleFITS(AI.Image, 'try.fits','Header',AI.HeaderData.Data);
@@ -30,53 +33,65 @@ function writeSimpleFITS(Image, FileName, Args)
         Args.DataType                 = [];
         Args.UseMatlabIo              = true;
         Args.CompressType    char     = 'NOCOMPRESS';
-        Args.SanifyPath logical       = true;
-    end
-
-    % sanify the file name so that it contains the absolute path
-    if Args.SanifyPath
-        FileName = tools.os.relPath2absPath(FileName);
+        Args.SanifyPath logical       = true;    
+        Args.CalledFromClass logical  = false;
+        Args.NewDataType              = [];
+        Args.Bzero                    = [];
     end
     
-    if isempty(Args.DataType)
-        Args.DataType = class(Image);
+    % 1. preparation
+           
+    if ~Args.CalledFromClass % if called from FITS.writeSimpleFITS, all this has been already done        
+        % sanify the file name so that it contains the absolute path
+        if Args.SanifyPath
+            FileName = tools.os.relPath2absPath(FileName);
+        end        
+        
+        % if the class is unsigned, we must write Image-bzero as signed, and change the required class.
+        if isempty(Args.DataType)
+            Args.DataType = class(Image);
+        end
+        switch Args.DataType
+            case 'int8'
+                NewDataType='uint8';
+            case 'uint16'
+                NewDataType='int16';
+            case 'uint32'
+                NewDataType='int32';
+            otherwise
+                NewDataType=Args.DataType;
+        end
+        [BitPix,bzero]  = io.fits.dataType2bitpix(Args.DataType);
+        
+        % shift the image if unsigned
+        if ~strcmp(NewDataType,Args.DataType)
+            Image=reshape(typecast(bitxor(Image(:),cast(bzero,Args.DataType)),...
+                NewDataType),size(Image));
+        end
+        
+        % prepare header and update the BITPIX and BZERO key vals if needed
+        % (or, should we keep them in some particular case?)
+        if isempty(Args.Header)
+            % create minimal default FITS header
+            Args.Header = io.fits.defaultHeader(Args.DataType, size(Image));
+        end        
+        Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BITPIX',{BitPix});
+        Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BZERO',{bzero}); 
+    else % get the values from the caller, e.g. FITS.writeSimpleFITS
+        NewDataType = Args.NewDataType;
+        bzero       = Args.Bzero;
     end
-
-    % if the class is unsigned, we must write Image-bzero as signed, and
-    % change the required class.
-    switch Args.DataType
-        case 'int8'
-            NewDataType='uint8';
-        case 'uint16'
-            NewDataType='int16';
-        case 'uint32'
-            NewDataType='int32';
-        otherwise
-            NewDataType=Args.DataType;
-    end
-    [BitPix,bzero]  = io.fits.dataType2bitpix(Args.DataType);
-    % shift the image if unsigned
-    if ~strcmp(NewDataType,Args.DataType)
-        Image=reshape(typecast(bitxor(Image(:),cast(bzero,Args.DataType)),...
-                      NewDataType),size(Image));
-    end
-
-   % prepare header and update the BITPIX and BZERO key vals if needed
-   % (or, should we keep them in some particular case?)
-   if isempty(Args.Header)
-       % create minimal default FITS header
-       Args.Header = io.fits.defaultHeader(Args.DataType, size(Image));
-   end
-   if ~Args.UseMatlabIo
-       Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BITPIX',{BitPix});
-       Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BZERO',{bzero});
-       % using fwrite:
-       HeaderStr = io.fits.generateHeaderBlocks(Args.Header);
-       FID = fopen(FileName,'w');
-       fprintf(FID,'%s',HeaderStr);
-       io.fits.writeImageData(FID, Image, NewDataType);
-       fclose(FID);
-   else
+   
+    % 2. writing
+    
+    if ~Args.UseMatlabIo
+        % using fwrite:
+        HeaderStr = io.fits.generateHeaderBlocks(Args.Header);
+        FID = fopen(FileName,'w');
+        fprintf(FID,'%s',HeaderStr);
+        io.fits.writeImageData(FID, Image, NewDataType);
+        fclose(FID);
+    else
         % using matlab.io.fits:
         
         % delete existing FileName if exist
@@ -89,20 +104,20 @@ function writeSimpleFITS(Image, FileName, Args)
         
         % set eventual compression (and error out if unrecognized)
         matlab.io.fits.setCompressionType(Fptr,upper(Args.CompressType))
-
+        
         % create Image
         matlab.io.fits.createImg(Fptr, NewDataType, size(Image));
-
+        
         Header = FITS.prepareHeader(Args.Header, HEAD.HeaderField, 'WriteTime', true);
         FITS.writeHeader(Fptr, Header, HEAD.HeaderField);
-
-
+        
+        
         % write Image %% datatype conversion overflow if FITS.writeHeader before???
         matlab.io.fits.writeImg(Fptr, Image); %,Fpixels);
         
         % change BZERO post-facto
         matlab.io.fits.writeKey(Fptr,'BZERO',bzero);
-
+        
         % Close FITS file
         matlab.io.fits.closeFile(Fptr);
     end

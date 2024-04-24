@@ -1,5 +1,5 @@
 function get_healpix_numbers(NSide, RA, Dec, Args)
-    % make a grid of HEALPix positions covering the whole sky
+    % get the healpix pixel numbers (indices) for given sky positions and map resolution
     % Input: - Npix parameter of the HEALPix algorythm (effective map resolution)
     %        - an array of RA [deg] OR a filename with RA Dec in two columns
     %        - an array of Dec [deg] (may skip it if RA is a filename)
@@ -30,10 +30,10 @@ function get_healpix_numbers(NSide, RA, Dec, Args)
     Degrees = sprintf('%d',Args.Lonlat);
     
     if isnumeric(RA)
-        RA  = sprintf('%f',RA);
-        Dec = sprintf('%f',Dec);
+        RA  = sprintf('%f ',RA);
+        Dec = sprintf('%f ',Dec);
     else
-        Dec = sprintf('%f',Dec);
+        Dec = sprintf('%f ',Dec);
     end
     
     try

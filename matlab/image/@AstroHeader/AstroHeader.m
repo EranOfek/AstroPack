@@ -1863,8 +1863,7 @@ classdef AstroHeader < Component
                 Args.Delimiter       =  ',' % '\t' is tab
                 Args.Filter  logical = false
                 Args.FilterList      = {}
-            end
-           
+            end           
             
             Obj = Obj0.copy;
              
