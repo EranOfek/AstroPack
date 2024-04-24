@@ -325,6 +325,25 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
                     end
                     insertCol(Cat, Obj_DistCol, Args.SourcesColDistPos, Args.SourcesColDistName, Args.SourcesColDistUnits);
         
+                    % Adding Mag column to object:
+                    % Args.AddMag2Obj = true;
+                    % Args.ObjColMag  = 'MagMP';
+                    % if Args.AddMag2Obj
+                    %     Tmp=ResInd.Obj1_IndInObj2;
+                    %     IsnanTmp = isnan(Tmp);
+                    %     if all(IsnanTmp)
+                    %         % no asteroid - add nan column
+                    %         Obj_MagCol = nan(size(ResInd.Obj1_FlagNearest));
+                    %     else
+                    %         Tmp(IsnanTmp) = 1;   
+                    %         ObjMagCol = selectRows(Obj, Args.ColMag, Tmp);
+                    % 
+                    %         % return the NaNs to asources with no counterparts
+                    %         Obj_MagCol(IsnanTmp) = NaN;
+                    %     end
+                    % end
+
+
                     % return the Cat into the original input object
                     if isa(Obj, 'AstroImage')
                         Obj(Iobj).CatData = Cat;
