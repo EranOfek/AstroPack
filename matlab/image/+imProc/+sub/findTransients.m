@@ -39,6 +39,8 @@ function TranCat=findTransients(AD, Args)
                        times from AD.New and add to catalog. Default is true.
     Output  : - An AstroCatalog containing the found transients candidates
                 with the following columns;
+                TODO: Update this once sure about the final catalog
+                columns.
                 .XPEAK - Image x-coordinate of the peak position.
                 .YPEAK - Image y-coordinate of the peak position.
                 .RA - Sky RA-coordinate of the peak position. In deg.
@@ -94,6 +96,7 @@ function TranCat=findTransients(AD, Args)
         Args.includeObsTime logical     = true;
 
         Args.includeGaborSN logical = true;
+    
     end
 
     Nobj = numel(AD);
@@ -233,10 +236,16 @@ function TranCat=findTransients(AD, Args)
             StartJD = StartJD*ones(ColSize);
             EndJD = EndJD*ones(ColSize);
 
+            % Get observation time from ref image
+            [MidJD_ref, ~] = AD(Iobj).Ref.julday();
+            MidJD_ref = MidJD_ref*ones(ColSize);
+
             % Insert results into catalog.
             TranCat(Iobj) = TranCat(Iobj).insertCol( ...
-                cell2mat({StartJD, MidJD, EndJD}), 'Score',...
-                {'StartJD', 'MidJD', 'EndJD'}, {'JD','JD','JD'});
+                cell2mat({StartJD, MidJD, EndJD, MidJD_ref}), 'Score',...
+                {'StartJD', 'MidJD', 'EndJD', 'MidJD_ref'}, ...
+                {'JD','JD','JD', 'JD'});
+            
         end
 
         if Args.includeGaborSN && ~isempty(AD(Iobj).GaborSN)
