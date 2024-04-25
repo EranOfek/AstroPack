@@ -65,7 +65,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Obj AstroDiff
 
         Args.flagChi2 logical = true;
-        Args.Chi2dofLimits = [0.5 2.0];%[0.07 5.87]
+        Args.Chi2dofLimits = [0.1 2.0];%[0.07 5.87]
         
         Args.flagSaturated logical = true;
 
