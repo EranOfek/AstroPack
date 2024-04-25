@@ -589,7 +589,7 @@ classdef AstroDiff < AstroImage
                     % no normalization
                 else
                     % Normalize by Fn value.
-                    Fr = Args.Fn .* Fr./Fn;   
+                    Fr = Args.Fn .* Fr./Fn;
                     Fn = Args.Fn;
                 end
                         
@@ -734,6 +734,7 @@ classdef AstroDiff < AstroImage
 
         function findMeasureTransients(Obj,Args)
             %{
+            % TODO: very outdates, update or remove once ready
             Find, measure and flag transients in subtraction images.
             Calls AD.findTransients, AD.measureTransients, and AD.flagNonTransients. 
               1) Derives a catalog of transients by thresholding the threshold 
@@ -984,7 +985,7 @@ classdef AstroDiff < AstroImage
                 Obj
 
                 Args.flagChi2 logical = true;
-                Args.Chi2dofLimits = [0.5 2.0];%[0.07 5.87]
+                Args.Chi2dofLimits = [0.1 2.0];%[0.07 5.87]
 
                 Args.flagSaturated logical = true;
 
@@ -1307,6 +1308,10 @@ classdef AstroDiff < AstroImage
                         ds9(Obj.S,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
                         ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+                    case 'Scorr'
+                        ds9(Obj.Scorr,Nimgs);
+                        ds9.plot(TranCat.getXY, Args.TranMarker);
+                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);                        
                     case 'S2'
                         ds9(Obj.S2,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
@@ -1321,6 +1326,14 @@ classdef AstroDiff < AstroImage
                         ds9.plot(NonTranCat.getXY, Args.NonTranMarker); 
                     case 'RefMask'
                         ds9(Obj.Ref.Mask,Nimgs);
+                        ds9.plot(TranCat.getXY, Args.TranMarker);
+                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);                         
+                    case 'NewBack'
+                        ds9(Obj.New.Back,Nimgs);
+                        ds9.plot(TranCat.getXY, Args.TranMarker);
+                        ds9.plot(NonTranCat.getXY, Args.NonTranMarker);                         
+                    case 'RefBack'
+                        ds9(Obj.Ref.Back,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
                         ds9.plot(NonTranCat.getXY, Args.NonTranMarker);                         
                     case 'Gabor'
