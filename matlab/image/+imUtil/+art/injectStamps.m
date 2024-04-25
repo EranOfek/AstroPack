@@ -24,7 +24,7 @@ function [Image, ResultingImage] = injectStamps(XY, PSF, Flux, Args)
     arguments
         XY
         PSF
-        Flux
+        Flux                   = 1;
         
         Args.SizeX             = [];   
         Args.SizeY             = [];
@@ -32,7 +32,7 @@ function [Image, ResultingImage] = injectStamps(XY, PSF, Flux, Args)
         Args.PositivePSF logical = false;
         Args.PSFfun            = @imUtil.kernel2.cosbell;
         Args.PSFfunpars        = [4 6];   % should be different for different telescopes! 
-        Args.AddNoise logical  = true;
+        Args.AddNoise logical  = false;
                 
         Args.InputImage        = [];
         Args.Subtract logical  = false;
