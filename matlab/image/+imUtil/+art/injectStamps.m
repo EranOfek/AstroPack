@@ -33,7 +33,6 @@ function [Image, ResultingImage] = injectStamps(XY, PSF, Flux, Args)
         Args.PSFfun            = @imUtil.kernel2.cosbell;
         Args.PSFfunpars        = [4 6];   % should be different for different telescopes! 
         Args.AddNoise logical  = false;
-                
         Args.InputImage        = [];
         Args.Subtract logical  = false;
     end
