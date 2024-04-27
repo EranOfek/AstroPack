@@ -5,7 +5,11 @@ function match2Stars(Obj, Args)
     Input  : - An AstroCatalog or AstroImage/AstroZOGY with an AstroCatalog
                property.
              * ...,key,val,...
-               'GAIACatName' - Name of the GAIA catalog. Default is 'GAIADR3'.
+               'StarCat' - An AstroCatalog containing the catalog of stars.
+                      If given, will be used for catalog matching. If not,
+                      will calculate a catalog for each object. Deault is
+                      [].
+               'StarCatName' - Name of the GAIA catalog. Default is 'GAIADR3'.
                'ColNMatchName' - Name of appended column with number of matches. 
                       Default is 'StarMatches'.
                'ColDistName' - Name of appended column with the distance 
@@ -32,6 +36,8 @@ function match2Stars(Obj, Args)
     arguments
         Obj
 
+        Args.StarCat = [];
+
         Args.StarCatName = 'GAIADR3';
         Args.ColNmatchName = 'StarMatches';
         Args.ColDistName = 'StarDist';
@@ -51,7 +57,6 @@ function match2Stars(Obj, Args)
             ACObj = [Obj(:).CatData];
         case 'AstroCatalog'
             ACObj = Obj;
-            disp('hello2');
         otherwise
             warning('Object class not supported.')
     end
@@ -59,6 +64,16 @@ function match2Stars(Obj, Args)
 
     Nobj = numel(ACObj);
 
+
+    % TODO: Consider (more) properly effective radius due to
+    % saturation
+    % Perform a finer search,
+    % considering a star's brightness and excess noise
+    if ~isempty(Args.StarCat)
+        StarCat = Args.StarCat;
+        DistThresholdPerStar = max(20.0-StarCat.Table.(Args.ColMagGAIA), ...
+            3+StarCat.Table.(Args.ColAstExcessNoiseGAIA));
+    end
     for Iobj=1:1:Nobj
 
         CatSize = size(ACObj(Iobj).Catalog,1);
@@ -85,30 +100,37 @@ function match2Stars(Obj, Args)
         RA = RADec(:,1);
         Dec = RADec(:,2);
 
+        if isempty(Args.StarCat)
+            
+            % Get catalog for whole image.
+
+            MidRA = median(RA);
+            MidDec = median(Dec);
+            MaxDist = max(celestial.coo.sphere_dist(RA, Dec,...
+                MidRA*ones(CatSize,1), MidDec*ones(CatSize,1)));
+            MaxDistAngle = AstroAngle(MaxDist, 'rad');
+            SearchRadius = MaxDistAngle.convert(Args.SearchRadiusUnits)...
+                + Args.SearchRadius;
+
+            StarCat = catsHTM.cone_search(Args.StarCatName, ...
+                MidRA, MidDec, SearchRadius, 'Con', {{Args.ColGalaxyCandidateGAIA, @(x) ~(x)}},...
+                'RadiusUnits',Args.SearchRadiusUnits, 'OutType','AstroCatalog');
+            DistThresholdPerStar = max(20.0-StarCat.Table.(Args.ColMagGAIA), ...
+                3+StarCat.Table.(Args.ColAstExcessNoiseGAIA));
+        end
+
         for Itran = 1:1:CatSize
 
             % Skip entries with no matches
             if Matches(Itran) < 1
                 continue
             end
-
-            % Perform a finer search, a star's brightness and excess noise
-            CatGAIA = catsHTM.cone_search(Args.StarCatName, ...
-                RA(Itran), Dec(Itran), Args.SearchRadius, ...
-                'RadiusUnits',Args.SearchRadiusUnits, 'OutType','AstroCatalog');
-            Dist    = CatGAIA.sphere_dist(RA(Itran), Dec(Itran), 'rad', 'arcsec');
             
-            % TODO: Consider (more) properly effective radius due to
-            % saturation
-            DistThresholdPerStar = max(20-CatGAIA.Table.(Args.ColMagGAIA), ...
-                3+CatGAIA.Table.(Args.ColAstExcessNoiseGAIA));
-    
+            Dist    = StarCat.sphere_dist(RA(Itran), Dec(Itran), 'rad', 'arcsec');
+   
             % Flag as match if catalog entry within a star's distance
-            % threshold, the star is brighter than the set magnitude
-            % threshold and the star is not a galaxy candidate
-            FlagM   = (CatGAIA.Table.(Args.ColMagGAIA)<Args.MaxMagGAIA) &...
-                Dist<DistThresholdPerStar & ...
-                ~CatGAIA.Table.(Args.ColGalaxyCandidateGAIA);
+            % threshold.
+            FlagM   = Dist<DistThresholdPerStar;
     
             % Update match results with the results of the finer search
             Matches(Itran) = sum(FlagM);

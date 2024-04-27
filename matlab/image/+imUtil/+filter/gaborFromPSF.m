@@ -31,7 +31,7 @@ function [GaborBank, Kx, Ky]=gaborFromPSF(PSF, Args)
     % Get frequency magnitude from PSF
     PSF_hat = ifftshift(PSF);
     PSF_hat = fft2(PSF_hat);
-    K_hat = real(PSF_hat);
+    K_hat = abs(real(PSF_hat));
 
     % Find local frequency minima 
     % and corresponding frequencies (here as wavelengths)

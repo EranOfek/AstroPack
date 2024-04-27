@@ -16,6 +16,9 @@ function Result = unitTest(Args)
         Args.SaveEpochProduct = {'Image','Mask','Cat','PSF'}; % {[],[],'Cat',[]}; % {'Image','Mask','Cat','PSF'}; 
     end
     
+%     Args = tools.code.updateParFromConfig(Args,'LASTpipeline_def');
+    Args = tools.code.updateParFromConfig(Args);
+    
     I = Installer;
     BaseDir = I.getDataDir('LASTpipelineUnitTest');
     BaseDir = tools.os.relPath2absPath(BaseDir);

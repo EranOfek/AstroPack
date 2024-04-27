@@ -30,7 +30,7 @@ function Gabor2d = gabor2d(Sigma,SizeXY,Wavelength,Args)
         Sigma = 1;
         SizeXY = [15 15];
 
-        Wavelength = 2;
+        Wavelength = [2 2];
 
         Args.Phase = 0;
         Args.Theta = 0;

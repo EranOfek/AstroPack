@@ -117,6 +117,16 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
     %            'SourcesColDistUnits' - The units of the ang. dist. added
     %                   to the input AstroCatalog object. 
     %                   Default is 'arcsec'.
+    %
+    %            'AddMag2Obj' - A logical indicating if to add to the
+    %                   original input AstroCatalog object also a column
+    %                   (named ObjColMag) containing the asteroid
+    %                   magnitude.
+    %                   Default is false.
+    %            'ObjColMag' - The name of the asteroid magnitude column
+    %                   name that will be added to the input AstroCatalog object.
+    %                   Default is 'MagMP'.
+    %
     % Output : - An AstroCatalog object containing only the sources in the
     %            input AstroCatalog that are matched with minor planets.
     %            Possibly adding ang. dist, Nmatch, and minor planet
@@ -190,6 +200,8 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
         Args.SourcesColDistName             = 'DistMP';
         Args.SourcesColDistUnits            = 'arcsec';
         
+        Args.AddMag2Obj                     = false;
+        Args.ObjColMag                      = 'MagMP';
 
 
     end
@@ -325,6 +337,26 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
                     end
                     insertCol(Cat, Obj_DistCol, Args.SourcesColDistPos, Args.SourcesColDistName, Args.SourcesColDistUnits);
         
+                    %Adding Mag column to object:
+                    if Args.AddMag2Obj
+                        Tmp=ResInd.Obj1_IndInObj2;
+                        IsnanTmp = isnan(Tmp);
+                        Obj_MagCol = nan(size(ResInd.Obj1_FlagNearest));
+                        if all(IsnanTmp)
+                            % no asteroid - add nan column
+                            Obj_MagCol = nan(size(ResInd.Obj1_FlagNearest));
+                        else
+                            Tmp(IsnanTmp) = 1;   
+                            
+                            MagInd  = find(~isnan(ResInd.Obj2_IndInObj1));
+                            MagPred = AstCat.getCol(Args.ColMag, false, false, 'SelectRows',MagInd);
+                            Obj_MagCol(ResInd.Obj2_IndInObj1(MagInd)) = MagPred;
+                            
+                            Cat.insertCol(Obj_MagCol, Inf, {Args.ObjColMag}, {'mag'});
+                        end
+                    end
+
+
                     % return the Cat into the original input object
                     if isa(Obj, 'AstroImage')
                         Obj(Iobj).CatData = Cat;
