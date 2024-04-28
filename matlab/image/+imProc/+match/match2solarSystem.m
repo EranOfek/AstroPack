@@ -352,8 +352,8 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
                             MagPred = AstCat.getCol(Args.ColMag, false, false, 'SelectRows',MagInd);
                             Obj_MagCol(ResInd.Obj2_IndInObj1(MagInd)) = MagPred;
                             
-                            Cat.insertCol(Obj_MagCol, Inf, {Args.ObjColMag}, {'mag'});
                         end
+                        Cat.insertCol(Obj_MagCol, Inf, {Args.ObjColMag}, {'mag'});
                     end
 
 
