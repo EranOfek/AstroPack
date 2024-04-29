@@ -1,5 +1,5 @@
 function [C4] = stdBias_c4(N)
-    % Return the c4 bias in std due to finte sample size
+    % Return the c4 bias in the expecteny value of the std due to finte sample size
     % Input  : - Sample size.
     % Output : - 
     % Author : Eran Ofek (2024 Apr) 
