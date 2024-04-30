@@ -1,7 +1,7 @@
 function [Image, ResultingImage] = injectStamps(XY, PSF, Flux, Args)
     % Construct an image from object stamps + background 
     %     Optionally subtract the constructed image with another one or add to it
-    %     !!! NB: currently the algorithm works for odd M only
+    %     !!! NB: currently the algorithm works for odd PSF sizes (M) only !!! 
     % Input  : - an array of XY positions of the PSF's central pixels
     %          - a cube of PSF stamps (M x M x N objects), a cell array of PSF stamps (for the case the PSF size varies), 
     %            or juts one PSF stamp (M x M) 
@@ -81,7 +81,7 @@ function [Image, ResultingImage] = injectStamps(XY, PSF, Flux, Args)
         ImSize(2) = max(XY(:,2)) + (MaxM-1)/2;        
     end        
     
-    Image = repmat(0,ImSize);  %#ok<*REPMAT>
+    Image = repmat(0,ImSize);  
     
     % eliminate negative PSF edges (may be not needed when a realistic bkg is provided?)  
     if Args.PositivePSF
@@ -98,7 +98,7 @@ function [Image, ResultingImage] = injectStamps(XY, PSF, Flux, Args)
         end
     end
             
-    % construct a new artificial image      
+    % construct a new (artificial) image      
     for Isrc = 1:Nim
         % determine the region to be filled in the image
         if iscell(PSF) % individual PSF size
