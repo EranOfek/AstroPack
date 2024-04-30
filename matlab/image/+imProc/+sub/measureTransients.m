@@ -106,7 +106,7 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
         % Get Scorr value 
 
         if ~isempty(AD(Iobj).Scorr)
-            Indices = sub2ind(size(AD(Iobj).Scorr), XY(:,1),XY(:,2));
+            Indices = sub2ind(size(AD(Iobj).Scorr), XY(:,2),XY(:,1));
             Scorr = AD(Iobj).Scorr(Indices);
         else
             Scorr = nan(Nsrc,1);
