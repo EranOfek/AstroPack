@@ -18,7 +18,7 @@ function Result = updateMatrixInplace(A, B, x1_A, y1_A, x1_B, y1_B, width_B, hei
 
     % MEX implementation
     % Call function according to input data type
-    C = lower(class(Mat));
+    C = lower(class(A));
     switch C
         case {'single'}
             tools.array.mex.mex_update_matrix_inplace_single(A, B, x1_A, int32(x1_A), int32(y1_A), int32(x1_B), int32(y1_B), int32(width_B), int32(height_B))
