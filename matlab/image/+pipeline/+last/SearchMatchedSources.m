@@ -290,9 +290,7 @@ classdef SearchMatchedSources < Component
                                             Obj.plotLC(IndSrc);
                                             Obj.plotRMS(IndSrc, 'NsigmaPredRMS',7);
                                             Obj.plotPS(IndSrc);
-                                            
-    
-    
+      
                                             [SimbadURL]=VO.search.simbad_url(RA./RAD, Dec./RAD)
                                             SDSS_URL=VO.SDSS.navigator_link(RA./RAD, Dec./RAD);
                                             PS1_URL=VO.PS1.navigator_link(RA./RAD,Dec./RAD);
@@ -372,6 +370,15 @@ classdef SearchMatchedSources < Component
             % rms
             ResRMS   = Obj.MS.rmsMag('MagField',Args.MagField, 'MinDetRmsVar',Args.MinDetRMS, 'NsigmaPred',Args.NsigmaPredRMS, 'NsigmaStd',Args.NsigmaStdRMS, 'MinNpt',Args.MinNptRMS);
             Flag.RMS = ResRMS.FlagVarPred;
+
+
+            % std filter
+            % FilterBox = true(5,1);
+            % IsNaN   = isnan(Obj.MS.Data.MAG_BEST);
+            % IsNaN   = imdilate(IsNaN, FilterBox);
+            % StdFilt = stdfilt(Obj.MS.Data.MAG_BEST, FilterBox);
+            % StdFilt(IsNaN) = NaN;
+            % StdVec  = std(Obj.MS.Data.MAG_BEST,[],1, 'omitnan');
 
             % poly std
             [ResPolyHP, Flag.Poly] = fitPolyHyp(Obj.MS, 'PolyDeg',{0, (0:1), (0:1:2)}, 'ThresholdChi2',[Inf, chi2inv(normcdf([5 6 7],0,1),2)]);

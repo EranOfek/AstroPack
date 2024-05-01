@@ -182,7 +182,7 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = j2000_toApparent(RA, Dec, JD, A
     % IGNORE
     U1 = U0;
     
-    % apply abberation of light
+    % apply aberration of light
     % note velocity should be E_dotH (so this is an approximation)
     if Args.ApplyAberration
         Delta = sqrt(sum(U1.^2, 1));
@@ -244,14 +244,18 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = j2000_toApparent(RA, Dec, JD, A
         % astrophysical
 
         if isnumeric(Args.InterpHA)
-            Aux.HA_AppDist  = Aux.HA_App + Args.InterpHA;
+            Aux.HA_App  = Aux.HA_AppDist + Args.InterpHA;
+        elseif isa(Args.InterpHA,'scatteredinterpolant') && ~isempty(Args.InterpHA.Points)
+            Aux.HA_App  = Aux.HA_AppDist  + Args.InterpHA(Aux.HA_AppDist, Aux.Dec_AppDist);
         else
-            Aux.HA_AppDist  = Aux.HA_App  + Args.InterpHA(Aux.HA_App, Aux.Dec_App);
+            Aux.HA_App  = Aux.HA_AppDist;
         end
         if isnumeric(Args.InterpDec)
-            Aux.Dec_AppDist = Aux.Dec_App + Args.InterpDec;
+            Aux.Dec_App = Aux.Dec_AppDist + Args.InterpDec;
+        elseif isa(Args.InterpDec,'scatteredinterpolant') && ~isempty(Args.InterpDec.Points)
+            Aux.Dec_App = Aux.Dec_AppDist + Args.InterpDec(Aux.HA_AppDist, Aux.Dec_AppDist);
         else
-            Aux.Dec_AppDist = Aux.Dec_App + Args.InterpDec(Aux.HA_App, Aux.Dec_App);
+            Aux.Dec_App  = Aux.Dec_AppDist;
         end
 
         % convert HA to RA
