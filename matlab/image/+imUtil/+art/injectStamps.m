@@ -130,8 +130,15 @@ function [Image, ResultingImage] = injectStamps(XY, PSF, Flux, Args)
         %
         if iscell(PSF)
             Image(X1:X2,Y1:Y2) = Image(X1:X2,Y1:Y2) + Flux(Isrc) .* PSF{Isrc}(X11:X21,Y11:Y21);
+%             tools.array.updateMatrixInplace(Image, Flux(Isrc).*PSF{Isrc}, X1, Y1, X11, Y11, X21-X11+1, Y21-Y11+1);
         else
             Image(X1:X2,Y1:Y2) = Image(X1:X2,Y1:Y2) + Flux(Isrc) .* PSF(X11:X21,Y11:Y21,Isrc); 
+             % this is slow, need to be replaced by a mex-function:
+%              try
+%                  tools.array.updateMatrixInplace(Image, Flux(Isrc).*PSF(:,:,Isrc), X1, Y1, X11, Y11, X21-X11+1, Y21-Y11+1);
+%              catch
+%                  X1;
+%              end
         end
     end
        
