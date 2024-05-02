@@ -1,5 +1,5 @@
 function [Z,V,Prob] = topHatStd(X, Args)
-    % A moving mean/medain filter normalized to the global mean and by the local std.
+    % A moving mean/median filter normalized to the global mean and by the local std.
     %   Calculate a top hat mean filter of the form:
     %   Z=(local_mean - global_mean)/(local_std/sqrt(local_size))
     %   The Z parameter should follow a student-t distribution.
