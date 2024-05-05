@@ -1140,6 +1140,9 @@ classdef DemonLAST < Component
             % Input  : - see code for options
             % Output : null
             % Author : Eran Ofek (Feb 2024)
+            % Example: D=pipeline.DemonLAST;
+            %          D.DataDir = 1 % 2
+            %          D.moveRaw2New_AndDeleteProc
 
             arguments
                 Obj
