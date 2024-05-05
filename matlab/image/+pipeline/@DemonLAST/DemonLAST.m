@@ -1148,7 +1148,8 @@ classdef DemonLAST < Component
                 Obj
                 Args.YearList  = {'2023','2024'};
                 
-                Args.DateRange = [];  % [D M Y; D M Y]
+                Args.StartJD       = -Inf;           % refers only to Science observations: JD, or [D M Y]
+                Args.EndJD         = Inf; 
 
                 Args.DeleteFocus logical   = true;
                 Args.DeleteProc logical    = true;
@@ -1156,6 +1157,14 @@ classdef DemonLAST < Component
             end
 
             cd(Obj.BasePath);
+            
+            if numel(Args.StartJD)>1
+                Args.StartJD = celestial.time.julday(Args.StartJD);
+            end
+            if numel(Args.EndJD)>1
+                Args.EndJD = celestial.time.julday(Args.EndJD);
+            end
+
 
             Nyear = numel(Args.YearList);
             for Iy=1:1:Nyear
@@ -1172,14 +1181,23 @@ classdef DemonLAST < Component
                     for Id=1:1:Nd
                         cd(DirDay(Id).name);
 
-
-                        if ~isempty(Args.DateRange)
+                        %Simone: loop to check daterange and unpack .fz
+                        %files before moving
+                        if ~isempty(Args.StartJD)
                             % Check if date is in allowed range (in
                             % DateRange)
-
-                            %Execute = true; false
+                            FN_JD  = celestial.time.julday([str2num(DirDay(Id).name) str2num(DirMonth(Im).name) str2num(Args.YearList{Iy})]);
+                            
+                            FlagJD = FN_JD>Args.StartJD & FN_JD<Args.EndJD;
+                            %disp([FlagJD Args.StartJD Args.EndJD FN_JD])
+                            if FlagJD
+      
+                                Execute = true; 
+                            else
+                                Execute = false;
+                            end
                         else
-                            Execute = true;
+                            Execute = false;
                         end
 
                         if isfolder('raw') && Execute
@@ -1190,6 +1208,14 @@ classdef DemonLAST < Component
                             end
                             
                             % funpack images...
+                            CompFiles = dir('*.fz');
+                            for k = 1:length(CompFiles)
+                                baseFileName = CompFiles(k).name;
+
+                                system(append('funpack ',baseFileName))
+
+                            end
+                            
 
                             % move raw to new
                             !mv LAST*.fits ../../../../new/.
