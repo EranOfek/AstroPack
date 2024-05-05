@@ -2828,6 +2828,7 @@ classdef MatchedSources < Component
             %            .InterpStdStd - (avalable for 'binning' option)
             %                   The interpolated binned/polyfitted
             %                   rstd of the std for each source magnitude.
+            %            .NsigmaStd - Number of sigmas above/below mean.
             %            .FlagVar - (avalable for 'binning' option) A logical
             %                   flag indicating if a source is a possible
             %                   variable.
@@ -2971,38 +2972,6 @@ classdef MatchedSources < Component
             T        = Obj.JD(:);
 
             FreqVec = timeSeries.period.getFreq(T, Freq, Args.getFreqArgs{:});
-
-            % MinFreq  = 0;
-            % MaxFreq  = [];
-            % StepFreq = [];
-            % FreqVec  = [];
-            % switch numel(Freq)
-            %     case 0
-            %         % auto choose
-            %     case 1
-            %         % assume input is max frequency
-            %         MaxFreq = Freq(1);
-            %     case 2
-            %         StepFreq = Freq(1);
-            %         MaxFreq  = Freq(2);
-            %     case 3
-            %         MinFreq  = Freq(1);
-            %         StepFreq = Freq(2);
-            %         MaxFreq  = Freq(3);
-            %     otherwise
-            %         FreqVec = Freq;
-            % end
-            % 
-            % if isempty(FreqVec)
-            %     if isempty(MaxFreq)
-            %         MaxFreq  = 1./mean(diff(sort(T)));
-            %     end
-            %     if isempty(StepFreq)
-            %         StepFreq = 1./(2.*range(T));
-            %     end
-            % 
-            %     FreqVec = (MinFreq:StepFreq:MaxFreq).';
-            % end
 
             if isempty(Args.Ind)
                 [FreqVec,PS] = Args.PowerSpecFun(T, Obj.Data.(Args.MagField), FreqVec);

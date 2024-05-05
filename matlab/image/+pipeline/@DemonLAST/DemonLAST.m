@@ -1173,6 +1173,8 @@ classdef DemonLAST < Component
                                 delete('LAST*focus*.fits');
                             end
                             
+                            % funpack images...
+
                             % move raw to new
                             !mv LAST*.fits ../../../../new/.
 
@@ -2424,8 +2426,8 @@ classdef DemonLAST < Component
                 Args.TempRawFocus    = '*_focus_raw_*.fits';
 
                 Args.MinNumIMageVisit  = 5;
-                Args.PauseDay          = 60;
-                Args.PauseNight        = 10;
+                Args.PauseDay          = 100;
+                Args.PauseNight        = 30;
 
                 % Save data products
                 Args.SaveEpochProduct  = {[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat','PSF'};,  % 'all'
@@ -2614,7 +2616,7 @@ classdef DemonLAST < Component
                 
                 MaxNfiles = max(FN_Sci_Groups.nfiles);
                 if MaxNfiles<=Args.MinNumIMageVisit
-                    Msg{1} = 'Waiting for more images to analyze';
+                    Msg{1} = sprintf('Waiting for more images to analyze (Found %d images)',MaxNfiles);
                     Obj.writeLog(Msg, LogLevel.Info);
     
                     SunInfo = celestial.SolarSys.get_sun;

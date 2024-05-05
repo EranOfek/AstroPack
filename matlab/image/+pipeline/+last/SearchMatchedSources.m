@@ -287,14 +287,33 @@ classdef SearchMatchedSources < Component
     
                                         if Args.Plot
                                             
-                                            Obj.plotLC(IndSrc);
-                                            Obj.plotRMS(IndSrc, 'NsigmaPredRMS',7);
-                                            Obj.plotPS(IndSrc);
+                                            FigLC  = Obj.plotLC(IndSrc);
+                                            FigRMS = Obj.plotRMS(IndSrc, 'NsigmaPredRMS',7);
+                                            [FigPS, FigPh] = Obj.plotPS(IndSrc);
       
                                             [SimbadURL]=VO.search.simbad_url(RA./RAD, Dec./RAD)
                                             SDSS_URL=VO.SDSS.navigator_link(RA./RAD, Dec./RAD);
                                             PS1_URL=VO.PS1.navigator_link(RA./RAD,Dec./RAD);
-                                            AC=catsHTM.cone_search('GAIADR3',RA./RAD, Dec./RAD, 5,'OutType','AstroCatalog');
+                                            AC=catsHTM.cone_search('GAIADR3',RA./RAD, Dec./RAD, 3,'OutType','AstroCatalog');
+
+
+                                            AbsMag = AC.Table.phot_bp_mean_mag - (5.*log10(1000./AC.Table.Plx)-5);
+                                            Color  = AC.Table.phot_bp_mean_mag - AC.Table.phot_rp_mean_mag;
+                                            fprintf('AbsMag: %5.2f    Color: %5.2f\n', AbsMag,Color);
+
+
+                                            % Args.Report = true;
+                                            % if Args.Report
+                                            %     import mlreportgen.report.* 
+                                            %     import mlreportgen.dom.* 
+                                            %     rpt = Report('Variables','html'); 
+                                            %     tp = TitlePage; 
+                                            %     tp.Title = 'Variables'; 
+                                            %     tp.Subtitle = 'Columns, Rows, Diagonals: All Equal Sums'; 
+                                            %     tp.Author = 'Albrecht Durer'; 
+                                            %     append(rpt,tp); 
+                                            % 
+                                            % end
 
                                             %web(SimbadURL.URL)
                                             'a'
@@ -351,10 +370,11 @@ classdef SearchMatchedSources < Component
 
                 Args.ThresholdPS           = 12;
 
-                Args.NsigmaPredRMS         = 7;
-                Args.NsigmaStdRMS          = 5;
+                Args.NsigmaPredRMS         = 10;
+                Args.NsigmaStdRMS          = 7;
                 Args.MinDetRMS             = 15;
                 Args.MinNptRMS             = 10;
+                Args.MinRMS4poly           = 5;
             end
 
             % set to NaN photometry with bad flags
@@ -382,6 +402,9 @@ classdef SearchMatchedSources < Component
 
             % poly std
             [ResPolyHP, Flag.Poly] = fitPolyHyp(Obj.MS, 'PolyDeg',{0, (0:1), (0:1:2)}, 'ThresholdChi2',[Inf, chi2inv(normcdf([5 6 7],0,1),2)]);
+            Flag.Poly = Flag.Poly(:);
+            Flag.Poly(ResRMS.NsigmaStd<Args.MinRMS4poly & Flag.Poly) = false;
+            
 
             Summary.FreqVec   = FreqVec;
             Summary.PS        = PS;
@@ -775,7 +798,7 @@ classdef SearchMatchedSources < Component
         end
 
 
-        function plotLC(Obj, IndSrc, Args)
+        function Fig=plotLC(Obj, IndSrc, Args)
             %
 
             arguments
@@ -809,7 +832,7 @@ classdef SearchMatchedSources < Component
             end
             Time = convert.timeUnits(Args.UnitsTime, Args.DispUnitsTime, JD);
 
-            figure(Args.FigN);
+            Fig=figure(Args.FigN);
             cla;
 
             Nflag = size(Args.ListFlags,1);
@@ -843,7 +866,7 @@ classdef SearchMatchedSources < Component
 
         end
 
-        function plotRMS(Obj, IndSrc, Args)
+        function Fig=plotRMS(Obj, IndSrc, Args)
             %
 
             arguments
@@ -864,7 +887,7 @@ classdef SearchMatchedSources < Component
                 ResRMS = Args.ResRMS;
             end
 
-            figure(Args.FigN)
+            Fig=figure(Args.FigN)
             cla;
             %MS.plotRMS;
             semilogy(ResRMS.MeanMag, ResRMS.StdPar,'.')    
@@ -883,17 +906,21 @@ classdef SearchMatchedSources < Component
 
         end
     
-        function [FreqVec, PS]=plotPS(Obj, IndSrc, Args)
+        function [FigPS, FigPh, FreqVec, PS]=plotPS(Obj, IndSrc, Args)
             %
 
             arguments
                 Obj
                 IndSrc
                 Args.FigN      = 3;
+                Args.PhaseFigN = 4;
                 Args.FreqVec   = [];
                 Args.PS        = [];
 
                 Args.MagField              = 'MAG_BEST';
+                
+                Args.PlotPhase logical     = true;
+                Args.PlotFreq              = [];
             end
 
             if isempty(Args.FreqVec) && isempty(Args.PS)
@@ -906,7 +933,7 @@ classdef SearchMatchedSources < Component
                 PS      = Args.PS;
             end
 
-            figure(Args.FigN);
+            FigPS=figure(Args.FigN);
             cla;
             plot(FreqVec,PS);
             H = xlabel('Frequency [1/day]');
@@ -915,6 +942,36 @@ classdef SearchMatchedSources < Component
             H = ylabel('Power');
             H.FontSize = 18;
             H.Interpreter = 'latex';
+
+            
+            %
+            FigPh = [];
+            if Args.PlotPhase
+                FigPh=figure(Args.PhaseFigN);
+
+                if isempty(Args.PlotFreq)
+                    [~,IndMaxPS] = max(PS);
+                    Period       = 1./FreqVec(IndMaxPS);
+                else
+                    Period       = 1./Args.PlotFreq;
+                end
+                FF = timeSeries.fold.folding([Obj.MS.JD, Obj.MS.Data.MAG_BEST(:,IndSrc)], Period);
+                B  = timeSeries.bin.binning(FF, 0.1, [0 1],{'MidBin',@median,@std,@numel});
+                plot(FF(:,1),FF(:,2),'.');
+                hold on
+                plot.invy;
+                errorbar(B(:,1), B(:,2), B(:,3)./sqrt(B(:,4)), 'o');
+                hold off;
+                H = xlabel(sprintf('Phase [P=%8.4f]',Period));
+                H.FontSize = 18;
+                H.Interpreter = 'latex';
+                H = ylabel('Mag');
+                H.FontSize = 18;
+                H.Interpreter = 'latex';
+
+            end
+
+
         end
             
     end

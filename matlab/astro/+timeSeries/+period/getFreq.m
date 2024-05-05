@@ -11,6 +11,7 @@ function [FreqVec, Result] = getFreq(T, Freq, Args)
     %                   is 0. Default is true.
     %            'DiffFun' - Function handle to use for calculating the
     %                   mean diff. Default is @median.
+    %            'MaxFreq' - Maximum Freuency. Default is [].
     % Output : - A vector of frequencies.
     %          - A structure with the following fields:
     %            .MinFreq
@@ -26,6 +27,7 @@ function [FreqVec, Result] = getFreq(T, Freq, Args)
         Args.OverNyquist        = 0.5;
         Args.StartWith0 logical = true;
         Args.DiffFun            = @median;
+        Args.MaxFreq            = [];
     end
 
 
@@ -42,7 +44,11 @@ function [FreqVec, Result] = getFreq(T, Freq, Args)
     
         TypicalDiff = Args.DiffFun(diff(sort(T)));
     
-        Result.MaxFreq = Args.OverNyquist./TypicalDiff;
+        if ~isempty(Args.MaxFreq)
+            Result.MaxFreq = Args.MaxFreq;
+        else
+            Result.MaxFreq = Args.OverNyquist./TypicalDiff;
+        end
         
         FreqVec = (Result.MinFreq:Result.DeltaFreq:Result.MaxFreq).';
     else
