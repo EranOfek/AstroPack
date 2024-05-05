@@ -287,10 +287,18 @@ classdef SearchMatchedSources < Component
     
                                         if Args.Plot
                                             
+                                            if Icand==1
+                                                Fig = figure;
+                                            else
+                                                clf;
+                                            end
                                             FigLC  = Obj.plotLC(IndSrc);
                                             FigRMS = Obj.plotRMS(IndSrc, 'NsigmaPredRMS',7);
+                                            H = gca;
+                                            H.YLim(1) = 1e-3;
                                             [FigPS, FigPh] = Obj.plotPS(IndSrc);
-      
+                                            drawnow;
+
                                             [SimbadURL]=VO.search.simbad_url(RA./RAD, Dec./RAD)
                                             SDSS_URL=VO.SDSS.navigator_link(RA./RAD, Dec./RAD);
                                             PS1_URL=VO.PS1.navigator_link(RA./RAD,Dec./RAD);
@@ -302,18 +310,42 @@ classdef SearchMatchedSources < Component
                                             fprintf('AbsMag: %5.2f    Color: %5.2f\n', AbsMag,Color);
 
 
-                                            % Args.Report = true;
-                                            % if Args.Report
-                                            %     import mlreportgen.report.* 
-                                            %     import mlreportgen.dom.* 
-                                            %     rpt = Report('Variables','html'); 
-                                            %     tp = TitlePage; 
-                                            %     tp.Title = 'Variables'; 
-                                            %     tp.Subtitle = 'Columns, Rows, Diagonals: All Equal Sums'; 
-                                            %     tp.Author = 'Albrecht Durer'; 
-                                            %     append(rpt,tp); 
-                                            % 
-                                            % end
+                                            Args.Report = true;
+                                            if Args.Report
+                                                if Icand==1
+                                                    import mlreportgen.report.* 
+                                                    import mlreportgen.dom.* 
+                                                    rpt = Report('/home/eran/Variables','html'); 
+                                                    tp = TitlePage; 
+                                                    tp.Title = 'Variables'; 
+                                                    tp.Subtitle = '';
+                                                    tp.Author = 'SearchMatchedSources/findVariableAll'; 
+                                                    
+                                                    append(rpt,tp); 
+                                                    append(rpt,TableOfContents); 
+    
+                                                    ch1 = Chapter; 
+                                                    ch1.Title = 'Variable candidates'; 
+                                                end
+                                                %---
+                                                sec1 = Section; 
+                                                sec1.Title = sprintf('LAST J%s%s',celestial.coo.convertdms(RA,'d','SH'), celestial.coo.convertdms(Dec,'d','SD'));
+
+                                                para = Text(sprintf('RA=%10.6f Dec=%10.6f\n Lim Mag: %5.1f\n MeanMag=%6.3f   StdMag=%6.3f\n AbsMag=%6.2f   Color=%6.2f\n',...
+                                                    RA, Dec,...
+                                                    median(LimMagQuantile,1,'omitnan'),...
+                                                    mean(Obj.MS.Data.(Args.MagField)(:,IndSrc), 1, 'omitnan'),...
+                                                    std(Obj.MS.Data.(Args.MagField)(:,IndSrc), [], 1, 'omitnan'),...
+                                                    AbsMag, Color)); 
+                                                append(sec1,para) 
+
+                                                fig = Figure(gcf);
+                                                fig.Snapshot.Height  = '7in'; 
+                                                fig.Snapshot.Width   = '9.5in'; 
+                                                fig.Snapshot.Caption = sprintf('');
+                                                append(sec1,fig); 
+                                                append(ch1, sec1);
+                                            end
 
                                             %web(SimbadURL.URL)
                                             'a'
@@ -327,6 +359,14 @@ classdef SearchMatchedSources < Component
                         end
                     end
                 end
+            end
+
+            if Args.Report
+               
+                append(rpt, ch1);
+                
+                close(rpt)
+                rptview(rpt)
             end
 
 
@@ -798,6 +838,7 @@ classdef SearchMatchedSources < Component
         end
 
 
+       
         function Fig=plotLC(Obj, IndSrc, Args)
             %
 
@@ -806,6 +847,7 @@ classdef SearchMatchedSources < Component
                 IndSrc
                 Args.MS                    = []; 
 
+                Args.SubPlot logical       = true;
                 Args.FigN                  = 1;
                 Args.MagField              = 'MAG_BEST';
                 Args.UnitsTime             = 'day';
@@ -832,8 +874,16 @@ classdef SearchMatchedSources < Component
             end
             Time = convert.timeUnits(Args.UnitsTime, Args.DispUnitsTime, JD);
 
-            Fig=figure(Args.FigN);
-            cla;
+            if Args.SubPlot
+                subplot(2,2, Args.FigN);
+                Fig = Args.FigN;
+                cla;
+                box on;
+            else
+                Fig=figure(Args.FigN);
+                cla;
+                box on;
+            end
 
             Nflag = size(Args.ListFlags,1);
             FlagPlot = false(Obj.MS.Nepoch, Nflag);
@@ -872,6 +922,8 @@ classdef SearchMatchedSources < Component
             arguments
                 Obj
                 IndSrc
+
+                Args.SubPlot logical  = true;
                 Args.FigN    = 2;
                 Args.ResRMS  = [];
 
@@ -887,8 +939,16 @@ classdef SearchMatchedSources < Component
                 ResRMS = Args.ResRMS;
             end
 
-            Fig=figure(Args.FigN)
-            cla;
+            if Args.SubPlot
+                subplot(2,2, Args.FigN);
+                Fig = Args.FigN;
+                cla;
+                box on;
+            else
+                Fig=figure(Args.FigN)
+                cla;
+                box on;
+            end
             %MS.plotRMS;
             semilogy(ResRMS.MeanMag, ResRMS.StdPar,'.')    
             hold on
@@ -912,6 +972,8 @@ classdef SearchMatchedSources < Component
             arguments
                 Obj
                 IndSrc
+
+                Args.SubPlot logical   = true;
                 Args.FigN      = 3;
                 Args.PhaseFigN = 4;
                 Args.FreqVec   = [];
@@ -933,8 +995,16 @@ classdef SearchMatchedSources < Component
                 PS      = Args.PS;
             end
 
-            FigPS=figure(Args.FigN);
-            cla;
+            if Args.SubPlot
+                subplot(2,2, Args.FigN)
+                FigPS = Args.FigN;
+                cla;
+                box on;
+            else
+                FigPS=figure(Args.FigN);
+                cla;
+                box on;
+            end
             plot(FreqVec,PS);
             H = xlabel('Frequency [1/day]');
             H.FontSize = 18;
@@ -947,7 +1017,17 @@ classdef SearchMatchedSources < Component
             %
             FigPh = [];
             if Args.PlotPhase
-                FigPh=figure(Args.PhaseFigN);
+
+                if Args.SubPlot
+                    subplot(2,2, Args.PhaseFigN);
+                    FigPh = Args.PhaseFigN;
+                    cla
+                    box on;
+                else
+                    FigPh=figure(Args.PhaseFigN);
+                    cla
+                    box on;
+                end
 
                 if isempty(Args.PlotFreq)
                     [~,IndMaxPS] = max(PS);
