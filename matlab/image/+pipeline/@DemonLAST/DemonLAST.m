@@ -1148,6 +1148,8 @@ classdef DemonLAST < Component
                 Obj
                 Args.YearList  = {'2023','2024'};
                 
+                Args.DateRange = [];  % [D M Y; D M Y]
+
                 Args.DeleteFocus logical   = true;
                 Args.DeleteProc logical    = true;
                 Args.DeleteRawDir logical  = true;
@@ -1169,7 +1171,18 @@ classdef DemonLAST < Component
 
                     for Id=1:1:Nd
                         cd(DirDay(Id).name);
-                        if isfolder('raw')
+
+
+                        if ~isempty(Args.DateRange)
+                            % Check if date is in allowed range (in
+                            % DateRange)
+
+                            %Execute = true; false
+                        else
+                            Execute = true;
+                        end
+
+                        if isfolder('raw') && Execute
                             cd ('raw');
                             
                             if Args.DeleteFocus
