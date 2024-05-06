@@ -1209,13 +1209,14 @@ classdef DemonLAST < Component
                             
                             % funpack images...
                             CompFiles = dir('*.fz');
-                            for k = 1:length(CompFiles)
-                                baseFileName = CompFiles(k).name;
+                            if ~isempty(CompFiles)
+                                for k = 1:length(CompFiles)
+                                    baseFileName = CompFiles(k).name;
 
-                                system(append('funpack ',baseFileName))
+                                    system(append('funpack ',baseFileName))
 
+                                end
                             end
-                            
 
                             % move raw to new
                             !mv LAST*.fits ../../../../new/.
