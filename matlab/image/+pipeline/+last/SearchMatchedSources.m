@@ -183,7 +183,7 @@ classdef SearchMatchedSources < Component
 
 
     methods % variable stars search and utilities
-        function [Cand, Summary] = findVariableAll(Obj, Args)
+        function [Cand, Summary, Rpt] = findVariableAll(Obj, Args)
             % Go over all files in the AllConsecutive property and search for variable sources.
             %   The function works by making the following calls:
             %   prepConsecutive
@@ -219,6 +219,7 @@ classdef SearchMatchedSources < Component
                 Args.Nstep     = 1;
                 Args.Ncrop     = 24;
                 
+                Args.MinDet                = 70;
                 Args.SearchRadius          = 3;
                 Args.SearchRadiusUnits     = 'arcsec';
 
@@ -253,7 +254,7 @@ classdef SearchMatchedSources < Component
                         if ~isempty(Obj.MS)
                             %
                             [Flag, FlagInfo, Summary] = findVariableMS(Obj);
-                            FlagComb = Flag.FlagGood(:) & (Flag.PS(:) | Flag.RMS(:) | Flag.Poly(:));
+                            FlagComb = FlagInfo.N(:)>Args.MinDet & Flag.FlagGood(:) & (Flag.PS(:) | Flag.RMS(:) | Flag.Poly(:));
     
                             if any(FlagComb)
                                 IndCand    = find(FlagComb);
@@ -287,11 +288,11 @@ classdef SearchMatchedSources < Component
     
                                         if Args.Plot
                                             
-                                            if Icand==1
-                                                Fig = figure;
-                                            else
-                                                clf;
-                                            end
+                                            % if Icand==1
+                                            %     Fig = figure;
+                                            % else
+                                            %     clf;
+                                            % end
                                             FigLC  = Obj.plotLC(IndSrc);
                                             FigRMS = Obj.plotRMS(IndSrc, 'NsigmaPredRMS',7);
                                             H = gca;
@@ -315,14 +316,14 @@ classdef SearchMatchedSources < Component
                                                 if Icand==1
                                                     import mlreportgen.report.* 
                                                     import mlreportgen.dom.* 
-                                                    rpt = Report('/home/eran/Variables','html'); 
+                                                    Rpt = Report('/home/eran/Variables','pdf'); 
                                                     tp = TitlePage; 
                                                     tp.Title = 'Variables'; 
                                                     tp.Subtitle = '';
                                                     tp.Author = 'SearchMatchedSources/findVariableAll'; 
                                                     
-                                                    append(rpt,tp); 
-                                                    append(rpt,TableOfContents); 
+                                                    append(Rpt,tp); 
+                                                    append(Rpt,TableOfContents); 
     
                                                     ch1 = Chapter; 
                                                     ch1.Title = 'Variable candidates'; 
@@ -340,15 +341,24 @@ classdef SearchMatchedSources < Component
                                                 append(sec1,para) 
 
                                                 fig = Figure(gcf);
-                                                fig.Snapshot.Height  = '7in'; 
-                                                fig.Snapshot.Width   = '9.5in'; 
+                                                fig.Snapshot.Height  = '6in'; 
+                                                fig.Snapshot.Width   = '7.5in'; 
                                                 fig.Snapshot.Caption = sprintf('');
                                                 append(sec1,fig); 
                                                 append(ch1, sec1);
+
+                                                close;  % close figure
                                             end
 
                                             %web(SimbadURL.URL)
                                             'a'
+                                            
+                                            % if Icand==300
+                                            %     append(Rpt, ch1);
+                                            % 
+                                            %     close(Rpt)
+                                            %     return;
+                                            % end
                                         end
                                     end
                                     
@@ -362,11 +372,11 @@ classdef SearchMatchedSources < Component
             end
 
             if Args.Report
-               
-                append(rpt, ch1);
+                append(Rpt, ch1);
                 
-                close(rpt)
-                rptview(rpt)
+                close(Rpt)
+                
+                %rptview(Rpt)
             end
 
 
@@ -501,6 +511,7 @@ classdef SearchMatchedSources < Component
             FlagDet = ~isnan(Obj.MS.Data.(Args.MagField));
             Ndet    = sum(FlagDet, 1);
 
+            FlagInfo.N    = Ndet;
             FlagInfo.Ndet = Ndet>=Args.MinNdet;
             
             % remove near edge - even one
@@ -1042,7 +1053,7 @@ classdef SearchMatchedSources < Component
                 plot.invy;
                 errorbar(B(:,1), B(:,2), B(:,3)./sqrt(B(:,4)), 'o');
                 hold off;
-                H = xlabel(sprintf('Phase [P=%8.4f]',Period));
+                H = xlabel(sprintf('Phase [P=%8.4f]',Period.*1440));  % [min]
                 H.FontSize = 18;
                 H.Interpreter = 'latex';
                 H = ylabel('Mag');

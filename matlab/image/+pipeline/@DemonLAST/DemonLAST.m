@@ -1382,7 +1382,7 @@ classdef DemonLAST < Component
             arguments
                 Obj
                 Args.List  = [];
-                Args.MaxTimeBetweenVisits  = 500./86400;
+                Args.MaxTimeBetweenVisits  = 440./86400;
             end
 
             if isempty(Args.List)
