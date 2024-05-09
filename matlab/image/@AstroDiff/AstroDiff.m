@@ -77,8 +77,6 @@ classdef AstroDiff < AstroImage
                               'BACK_ANNULUS', 'STD_ANNULUS', ...
                               'FLUX_APER', 'FLUXERR_APER',...
                               'MAG_APER', 'MAGERR_APER'};
-        
-        
     end
 
 
@@ -276,7 +274,7 @@ classdef AstroDiff < AstroImage
                   'Theta' - Rotation angle of Gaussian envelope. 
                          Default is 0 rad.
                   'Method' - Method to choose Gabor score image. Default is
-                         'max.'
+                         'fixed.'
            Author: - Ruslan Konno (March 2024)
            Example:- AD.matchfilterGabor
            %}
@@ -288,7 +286,7 @@ classdef AstroDiff < AstroImage
                Args.SigX = 1;
                Args.SigY = 1;
                Args.Theta = 0;
-               Args.Method = 'max';
+               Args.Method = 'fixed';
                Args.Fixed_u0 = 2;
                Args.Fixed_v0 = 2;
             end
@@ -938,7 +936,7 @@ classdef AstroDiff < AstroImage
                               Default is true.
                        'Chi2dofLimits' - Limits on Chi2 per degrees of freedom. If
                               'filterChi2' is true, all transients candidates outside these
-                              limits are flagged. Default is [0.5 2.0].
+                              limits are flagged. Default is [0.1 1.5].
                        'flagSaturated' - Bool on whether to flag transients 
                               candidates that are saturated in both reference and 
                               new images. Default is true.
@@ -947,7 +945,7 @@ classdef AstroDiff < AstroImage
                               Default is true.
                        'BadPix_Hard' - Hard bit mask criteria for bad pixels.  
                               Default is {'Interpolated', 'NaN', 'NearEdge',
-                              'Overlap', 'CoaddLessImages', 'Hole', 'CR_DeltaHT'}.
+                              'CoaddLessImages', 'Hole', 'CR_DeltaHT'}.
                        'flagBadPix_Soft' - Bool on whether to flag transients
                               candidates based on soft bit mask criteria. 
                               Default is true.
@@ -955,9 +953,16 @@ classdef AstroDiff < AstroImage
                               their score threshold values. Transients candidates
                               that contain soft bad pixels are only flagged as 
                               non-transients if their score values are below the 
-                              respective thresholds. Default is {{'HighRN', 7.0},
-                              {'SrcNoiseDominated', 10.0}, {'FlatHighStd',7.0}, 
-                              {'DarkHighVal', 7.0}}.
+                              respective thresholds. Default is Default is {{'HighRN', 6.0},
+                              {'SrcNoiseDominated', 7.0}, {'FlatHighStd',7.0}, 
+                              {'DarkHighVal', 13.0}}.
+                       'flagSNR' - Bool on whether to flag transients candidates
+                              based the signal-to-noise ratio in the subtraction
+                              image. Default is true.
+                       'SNRThreshold' - Threshold for the signal-to-noise ratio
+                              filter. Default is 5.0.
+                       'SNRCol' - Name of the column holding the signal-to-noise
+                              ratio values. Default is 'PSF_SNm'.
                        'flagStarMatches' - Bool on whether to flag transients
                               candidates that have matching star positions.
                               Default is true.
@@ -970,6 +975,26 @@ classdef AstroDiff < AstroImage
                        'GaborSNRatioThreshold' - Threshold value on GaborSN
                               used to flag transients candidates for ringing.
                               Default is 1.00.
+                       'flagDensity' - Bool on whether to flag transients that are
+                              too close to each other, i.e., that have too many
+                              neighbors. Default is true.
+                       'NeighborDistanceThreshold' - Distance threshold below
+                              which a close transient counts as a neighbor.
+                              Default is 100.
+                       'NeighborNumThreshold' - Threshold for the number of
+                              neighbors at which to filter the transients
+                              candidate. Default is 2.
+                       'ExcludedNeighbors' - Flags for which not to count nearby
+                              transients candidates as neighbors. Values are
+                              names of columns in the candidate catalog, this is
+                              meant to see if the candidates fail any other
+                              filters. Default is ["BadPixel_Hard","StarMatches"].
+                       'flagPeakDist' - Bool on whether to flag transients for
+                              which the peak pixel coordinates deviates too far
+                              from the peak sub-pixel coordinates. Default is
+                              true.
+                       'PeakDistThreshold' - Threshold distance for the pixel to
+                              sub-pixel peak distance filter. Default is 1.5.
                        --- AstroZOGY ---
                        'flagTranslients' - Bool on whether to flag transients 
                               candidates which score higher in Z2 than S2.
@@ -977,6 +1002,9 @@ classdef AstroDiff < AstroImage
                        'S2toZ2RatioThresh' - Threshold value for the S2 to Z2
                               ratio below which to classify a transients candidate
                               as a transLient. Default value is 1.00.
+                       'flagScorr' - Bool on whether to flag candidates based on 
+                              source noise corrected S statistic. Default is true.
+                       'ScorrThreshold' - Threshold value for Scorr. Default is 5.0.
             Author  : Ruslan Konno (Jan 2024)
             Example : AD.flagNonTransients
             %}
@@ -985,32 +1013,42 @@ classdef AstroDiff < AstroImage
                 Obj
 
                 Args.flagChi2 logical = true;
-                Args.Chi2dofLimits = [0.1 2.0];%[0.07 5.87]
-
+                Args.Chi2dofLimits = [0.1 1.5];
+                
                 Args.flagSaturated logical = true;
-
+        
                 Args.flagBadPix_Hard logical  = true;
-                Args.BadPix_Hard       = {'Interpolated', 'NaN', ...
-                    'NearEdge', 'Overlap', 'CoaddLessImages', 'Hole', ...
-                    'CR_DeltaHT'};
-
+                Args.BadPix_Hard       = {'Interpolated', 'NaN', 'NearEdge',...
+                    'CoaddLessImages', 'Hole', 'CR_DeltaHT', 'Negative'};
+        
                 Args.flagBadPix_Soft logical  = true;
-                Args.BadPix_Soft       = {{'HighRN', 7.0},...
-                    {'SrcNoiseDominated', 10.0}, {'FlatHighStd',7.0}, ...
-                    {'DarkHighVal', 7.0}};
-
+                Args.BadPix_Soft       = {{'HighRN', 6.0}, {'SrcNoiseDominated', 7.0}, ...
+                    {'FlatHighStd',7.0}, {'DarkHighVal', 13.0}};
+        
+                Args.flagSNR logical = true;
+                Args.SNRThreshold = 5.0;
+                Args.SNRCol = 'PSF_SNm';
+        
                 Args.flagStarMatches logical = true;
                 Args.flagMP logical = true;
-
+        
                 Args.flagRinging logical = true;
-                Args.GaborSNRatioThreshold = 1.00;%0.36
-
+                Args.GaborSNRatioThreshold = 1.00;
+        
+                Args.flagDensity logical = true;
+                Args.NeighborDistanceThreshold = 100;
+                Args.NeighborNumThreshold = 2;
+                Args.ExcludedNeigbhors = ["BadPixel_Hard","StarMatches"];
+        
+                Args.flagPeakDist logical = true;
+                Args.PeakDistThreshold = 1.5;
+        
                 % --- AstroZOGY ---
                 Args.flagScorr logical = true;
-                Args.ScorrThreshold = 5.00;
-
+                Args.ScorrThreshold = 5.0;
+        
                 Args.flagTranslients logical = true;
-                Args.S2toZ2RatioThresh = 1.00;%0.66
+                Args.S2toZ2RatioThresh = 1.00;
         
             end
 
@@ -1027,8 +1065,17 @@ classdef AstroDiff < AstroImage
                     'BadPix_Soft', Args.BadPix_Soft, ...
                     'flagStarMatches', Args.flagStarMatches, ...
                     'flagMP', Args.flagMP, ...
+                    'flagSNR', Args.flagSNR,...
+                    'SNRThreshold', Args.SNRThreshold,...
+                    'SNRCol', Args.SNRCol,...
                     'flagRinging', Args.flagRinging, ...
                     'GaborSNRatioThreshold', Args.GaborSNRatioThreshold, ...
+                    'flagDensity', Args.flagDensity,...
+                    'NeighborDistanceThreshold', Args.NeighborDistanceThreshold,...
+                    'NeighborNumThreshold', Args.NeighborNumThreshold,...
+                    'ExcludedNeigbhors', Args.ExcludedNeigbhors, ...
+                    'flagPeakDist', Args.flagPeakDist,...
+                    'PeakDistThreshold', Args.PeakDistThreshold,...
                     'flagScorr', Args.flagScorr, ...
                     'ScorrThreshold', Args.ScorrThreshold,...
                     'flagTranslients', Args.flagTranslients,...
