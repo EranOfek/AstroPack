@@ -434,7 +434,7 @@ classdef SearchMatchedSources < Component
             [Flag.FlagGood, FlagInfo]=flagByQuality(Obj, 'MagField',Args.MagField, 'MaxChi2Dof',Args.MaxChi2Dof, 'MinNdet',Args.MinNdet, 'MaxOverlapFrac',Args.MaxOverlapFrac);
            
             % periodicity
-            FreqVec = timeSeries.period.getFreq(Obj.MS.JD, 'OverNyquist',0.4);
+            FreqVec = timeSeries.period.getFreq(Obj.MS.JD, 'OverNyquist',0.4, 'MaxFreq',2000);
             [FreqVec, PS, Flag.PS] = period(Obj.MS, FreqVec, 'MagField', Args.MagField, 'ThresholdPS',Args.ThresholdPS);
                     
             % rms
