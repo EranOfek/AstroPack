@@ -254,8 +254,13 @@ classdef SearchMatchedSources < Component
                         if ~isempty(Obj.MS)
                             %
                             [Flag, FlagInfo, Summary] = findVariableMS(Obj);
-                            FlagComb = FlagInfo.N(:)>Args.MinDet & Flag.FlagGood(:) & (Flag.PS(:) | Flag.RMS(:) | Flag.Poly(:));
+
+                            FlagComb = FlagInfo.N(:)>Args.MinDet & Flag.FlagGood(:) & (Flag.PS(:) | Flag.RMS(:) | Flag.Poly(:) | Flag.RunMeanFilt(:));
     
+                            if any(Flag.RunMeanFilt)
+                                'a'
+                            end
+
                             if any(FlagComb)
                                 IndCand    = find(FlagComb);
                                 Ncand      = numel(IndCand);
@@ -454,7 +459,10 @@ classdef SearchMatchedSources < Component
             [ResPolyHP, Flag.Poly] = fitPolyHyp(Obj.MS, 'PolyDeg',{0, (0:1), (0:1:2)}, 'ThresholdChi2',[Inf, chi2inv(normcdf([5 6 7],0,1),2)]);
             Flag.Poly = Flag.Poly(:);
             Flag.Poly(ResRMS.NsigmaStd<Args.MinRMS4poly & Flag.Poly) = false;
-            
+
+            % running mean filter
+            RMFilt = timeSeries.filter.runMeanFilter(Obj.MS.Data.(Args.MagField));
+            Flag.RunMeanFilt = any(RMFilt.FlagCand, 1);
 
             Summary.FreqVec   = FreqVec;
             Summary.PS        = PS;
