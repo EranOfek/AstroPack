@@ -1641,7 +1641,7 @@ classdef catsHTM
     
     % search
     methods (Static)
-        function [Cat,ColCell,ColUnits]=cone_search(CatName,RA,Dec,Radius,Args)
+        function [Cat,ColCell,ColUnits,D]=cone_search(CatName,RA,Dec,Radius,Args)
             % Cone earch on local HDF5/HTM catalog
             % Package: @catsHTM
             % Description: Perform a cone search around RA/Dec on a local catalog in
@@ -1694,6 +1694,9 @@ classdef catsHTM
             %                            Default is 'mat'.
             % Output : - Catalog of source within cone.
             %          - Cell array of column names.
+            %          - Cell array of column units.
+            %          - Vector of angular distance between search position
+            %            and each source [radians].
             % License: GNU general public license version 3
             %     By : Eran O. Ofek                    Dec 2017
             %    URL : http://weizmann.ac.il/home/eofek/matlab/
@@ -1808,6 +1811,8 @@ classdef catsHTM
             if (Args.OnlyCone && ~isempty(Cat))
                 D = celestial.coo.sphere_dist_fast(RA,Dec,Cat(:,Args.ColRA),Cat(:,Args.ColDec));
                 Cat = Cat(D<Radius,:);
+            else
+                D = [];
             end
 
 
@@ -1845,8 +1850,6 @@ classdef catsHTM
             
         end
 
-        
-  
         
         
         function CatM=sources_match(CatName,Cat,Args)
