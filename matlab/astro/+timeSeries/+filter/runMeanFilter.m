@@ -111,7 +111,10 @@ function [Result] = runMeanFilter(M, Args)
     % count the number of valid points in each window
     ResidM1 = ResidM;
     ResidM1(~isnan(ResidM)) = 1;
-    MoveC  = Args.MoveFun(ResidM1, Args.WinSize, 1, "omitmissing", "Endpoints",Args.EndPoint);
+    MoveC = conv2(ResidM1, ones(Args.WinSize,1), 'same');
+    MoveC(1,:) = NaN; % remove first epoch (which is wrong)
+
+    %MoveC  = Args.MoveFun(ResidM1, Args.WinSize, 1, "omitmissing", "Endpoints",Args.EndPoint);
     StdM   = Args.StdFun(ResidM);
 
     Z      = sqrt(Args.WinSize).*MoveM./StdM;
@@ -120,7 +123,7 @@ function [Result] = runMeanFilter(M, Args)
     Z1     = ResidM./StdM;
 
     Result.Z            = Z;
-    Result.FlagCand     = abs(Z)>Args.Threshold & abs(Z-Z1) > 1 & MoveC==Args.WinSize;
+    Result.FlagCand     = abs(Z)>Args.Threshold & MoveC==Args.WinSize & sign(Z1)==sign(Z) & abs(Z./Z1)>1;
     Result.NumberNotNan = NumberNotNan;
     %Result.Par          = Par;
     

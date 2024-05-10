@@ -257,10 +257,6 @@ classdef SearchMatchedSources < Component
 
                             FlagComb = FlagInfo.N(:)>Args.MinDet & Flag.FlagGood(:) & (Flag.PS(:) | Flag.RMS(:) | Flag.Poly(:) | Flag.RunMeanFilt(:));
     
-                            if any(Flag.RunMeanFilt)
-                                'a'
-                            end
-
                             if any(FlagComb)
                                 IndCand    = find(FlagComb);
                                 Ncand      = numel(IndCand);
@@ -356,7 +352,9 @@ classdef SearchMatchedSources < Component
                                             end
 
                                             %web(SimbadURL.URL)
+                                            if Flag.RunMeanFilt(IndSrc)
                                             'a'
+                                            end
                                             
                                             % if Icand==300
                                             %     append(Rpt, ch1);
