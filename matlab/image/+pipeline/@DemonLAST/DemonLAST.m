@@ -1134,7 +1134,9 @@ classdef DemonLAST < Component
             end
 
         end
+    end
 
+    methods % cleanup utilities
         function moveRaw2New_AndDeleteProc(Obj, Args)
             % Move raw images back to new/ dir and delete the proc/ dir
             % Input  : - see code for options

@@ -210,7 +210,7 @@ classdef SearchMatchedSources < Component
             % Author : Eran Ofek (Mar 2024)
             % Example: SMS = SearchMatchedSources;
             %          SMS.populateAllConsecutive;
-            %          [Cand, Summary] = SMS.findVariableAll('Nvisit',3,'Plot',true);
+            %          [Cand, Summary, Rpt] = SMS.findVariableAll('Nvisit',3,'Plot',true);
 
 
             arguments
@@ -219,7 +219,7 @@ classdef SearchMatchedSources < Component
                 Args.Nstep     = 1;
                 Args.Ncrop     = 24;
                 
-                Args.MinDet                = 70;
+                Args.MinDet                = 185;
                 Args.SearchRadius          = 3;
                 Args.SearchRadiusUnits     = 'arcsec';
 
@@ -330,8 +330,13 @@ classdef SearchMatchedSources < Component
                                                     ch1.Title = 'Variable candidates'; 
                                                 end
                                                 %---
+                                                
                                                 sec1 = Section; 
-                                                sec1.Title = sprintf('LAST J%s%s',celestial.coo.convertdms(RA,'d','SH'), celestial.coo.convertdms(Dec,'d','SD'));
+                                                %br = PageBreak();
+                                                %append(sec1,br);
+
+                                                FlagsType = sprintf('%d %d %d %d', Flag.PS(IndSrc),  Flag.RMS(IndSrc), Flag.Poly(IndSrc), Flag.RunMeanFilt(IndSrc));
+                                                sec1.Title = sprintf('LAST J%s%s - %s',celestial.coo.convertdms(RA,'d','SH'), celestial.coo.convertdms(Dec,'d','SD'), FlagsType);
 
                                                 para = Text(sprintf('RA=%10.6f Dec=%10.6f\n Lim Mag: %5.1f\n MeanMag=%6.3f   StdMag=%6.3f\n AbsMag=%6.2f   Color=%6.2f\n',...
                                                     RA, Dec,...
@@ -348,7 +353,9 @@ classdef SearchMatchedSources < Component
                                                 append(sec1,fig); 
                                                 append(ch1, sec1);
 
-                                                close;  % close figure
+                                                %clf;  % close figure
+                                                close;
+
                                             end
 
                                             %web(SimbadURL.URL)
@@ -873,7 +880,7 @@ classdef SearchMatchedSources < Component
 
                 Args.BD                    = BitDictionary;
                 Args.FlagsField            = 'FLAGS';
-                Args.DefaultSymbol         = {'ko','MarkerFaceColor','k'};
+                Args.DefaultSymbol         = {'ko','MarkerFaceColor','k','MarkerSize',4};
                 Args.ListFlags             = {'Saturated',{'b^'}; ...
                                               'NaN',{'r>'}; ...
                                               'Negative',{'rv'}; ...
