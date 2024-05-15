@@ -244,18 +244,18 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = j2000_toApparent(RA, Dec, JD, A
         % astrophysical
 
         if isnumeric(Args.InterpHA)
-            Aux.HA_App  = Aux.HA_AppDist + Args.InterpHA;
+            Aux.HA_AppDist  = Aux.HA_App + Args.InterpHA;
         elseif isa(Args.InterpHA,'scatteredinterpolant') && ~isempty(Args.InterpHA.Points)
-            Aux.HA_App  = Aux.HA_AppDist  + Args.InterpHA(Aux.HA_AppDist, Aux.Dec_AppDist);
+            Aux.HA_AppDist  = Aux.HA_App  + Args.InterpHA(Aux.HA_App, Aux.Dec_App);
         else
-            Aux.HA_App  = Aux.HA_AppDist;
+            Aux.HA_AppDist  = Aux.HA_App;
         end
         if isnumeric(Args.InterpDec)
-            Aux.Dec_App = Aux.Dec_AppDist + Args.InterpDec;
+            Aux.Dec_AppDist = Aux.Dec_App + Args.InterpDec;
         elseif isa(Args.InterpDec,'scatteredinterpolant') && ~isempty(Args.InterpDec.Points)
-            Aux.Dec_App = Aux.Dec_AppDist + Args.InterpDec(Aux.HA_AppDist, Aux.Dec_AppDist);
+            Aux.Dec_AppDist = Aux.Dec_App + Args.InterpDec(Aux.HA_App, Aux.Dec_App);
         else
-            Aux.Dec_App  = Aux.Dec_AppDist;
+            Aux.Dec_AppDist  = Aux.Dec_App;
         end
 
         % convert HA to RA
