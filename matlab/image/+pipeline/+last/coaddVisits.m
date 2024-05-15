@@ -26,7 +26,11 @@ function [CI, AI] = coaddVisits(In, Args)
     %          - An AstroImage array of registered images.
     %            Different Columns for different CropID.
     % Author : Eran Ofek (2024 May) 
-    % Example: CI=pipeline.last.coaddVisits(In);
+    % Example: D=pipeline.DemonLAST; D.BasePath='/marvin/LAST.01.10.01';
+    %          [Res,T,FT]=D.findAllVisits;
+    %          F=strcmp(T.FieldID,"1441");
+    %
+    %          CI=pipeline.last.coaddVisits(T(F,:),'CropID',10);
     %          
 
     arguments
