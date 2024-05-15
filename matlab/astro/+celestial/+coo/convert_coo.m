@@ -45,145 +45,152 @@ if (nargin<6)
     end
 end
 
-switch lower(InCooType)
-    case 'tdate'
-        InCooType = sprintf('t%8.3f',convert.time(JD,'JD','J'));
-end
-switch lower(OutCooType)
-    case 'tdate'
-        OutCooType = sprintf('t%8.3f',convert.time(JD,'JD','J'));
-end
 
-
-LenInType  = length(InCooType);
-LenOutType = length(OutCooType);
-
-if ischar(InCooType)
-   if (LenInType>1)
-      InEquinox  = str2double(InCooType(2:LenInType));
-      InEquinoxJD = 2451545.5 + 365.25.*(InEquinox - 2000);
-      InCooType  = InCooType(1);
-   end
+if isempty(Long)
+    OutLong = [];
+    OutLat  = [];
+    TotRot  = [];
 else
-    error('InCooType must be a string');
-end
 
-if ischar(OutCooType)
-   if (LenOutType>1)
-      OutEquinox = str2double(OutCooType(2:LenOutType));
-      OutEquinoxJD = 2451545.5 + 365.25.*(OutEquinox - 2000);
-      OutCooType  = OutCooType(1);
-   end
-else
-    error('OutCooType must be a string');
-end
-
-
-
-
-
-RotM1 = diag([1 1 1]);
-
-% calculate the first rotation matrix
-switch lower(InCooType)
-    case {'t','j'}
-        if (InEquinox~=2000.0)
-            % precess coordinates to J2000.0
-            switch lower(InCooType)
-                case {'j'}
-                    % mean equinox ...
-                    RotM1 = celestial.coo.rotm_coo('p',InEquinoxJD);
-                case {'t'}
-                    % true equinox ...
-                    RotM1 = celestial.coo.rotm_coo('pd',InEquinoxJD);
-                otherwise
-                    error('Illegal InCooType');
+    switch lower(InCooType)
+        case 'tdate'
+            InCooType = sprintf('t%8.3f',convert.time(JD,'JD','J'));
+    end
+    switch lower(OutCooType)
+        case 'tdate'
+            OutCooType = sprintf('t%8.3f',convert.time(JD,'JD','J'));
+    end
+    
+    
+    LenInType  = length(InCooType);
+    LenOutType = length(OutCooType);
+    
+    if ischar(InCooType)
+       if (LenInType>1)
+          InEquinox  = str2double(InCooType(2:LenInType));
+          InEquinoxJD = 2451545.5 + 365.25.*(InEquinox - 2000);
+          InCooType  = InCooType(1);
+       end
+    else
+        error('InCooType must be a string');
+    end
+    
+    if ischar(OutCooType)
+       if (LenOutType>1)
+          OutEquinox = str2double(OutCooType(2:LenOutType));
+          OutEquinoxJD = 2451545.5 + 365.25.*(OutEquinox - 2000);
+          OutCooType  = OutCooType(1);
+       end
+    else
+        error('OutCooType must be a string');
+    end
+    
+    
+    
+    
+    
+    RotM1 = diag([1 1 1]);
+    
+    % calculate the first rotation matrix
+    switch lower(InCooType)
+        case {'t','j'}
+            if (InEquinox~=2000.0)
+                % precess coordinates to J2000.0
+                switch lower(InCooType)
+                    case {'j'}
+                        % mean equinox ...
+                        RotM1 = celestial.coo.rotm_coo('p',InEquinoxJD);
+                    case {'t'}
+                        % true equinox ...
+                        RotM1 = celestial.coo.rotm_coo('pd',InEquinoxJD);
+                    otherwise
+                        error('Illegal InCooType');
+                end
             end
-        end
-    case {'g'}
-        % convert to Equatorial J2000.0
-        RotM1 = celestial.coo.rotm_coo('G',2451545.5);
-    case {'s'}
-        % convert to Equatorial J2000.0
-        RotM1 = celestial.coo.rotm_coo('G',2451545.5)*rotm_coo('SGg');
-    case {'c'}
-        % convert to Equatorial
-        error('not implemented')
-    case {'e'}
-        % convert to Equatorial J2000.0
-        RotM1 = celestial.coo.rotm_coo('E',2451545.5);
-    case {'h','a'}
-        % convert to J2000
-        if isempty(ObsCoo)
-            error('when converting to/from AzAlt ObsCoo must be provided');
-        end
-        EqCoo = celestial.coo.horiz_coo([Long(:), Lat(:)],JD,ObsCoo,'e');
-        Long  = EqCoo(:,1);
-        Lat   = EqCoo(:,2);
-    otherwise
-        error('Unknown input coordinaytes type');
+        case {'g'}
+            % convert to Equatorial J2000.0
+            RotM1 = celestial.coo.rotm_coo('G',2451545.5);
+        case {'s'}
+            % convert to Equatorial J2000.0
+            RotM1 = celestial.coo.rotm_coo('G',2451545.5)*rotm_coo('SGg');
+        case {'c'}
+            % convert to Equatorial
+            error('not implemented')
+        case {'e'}
+            % convert to Equatorial J2000.0
+            RotM1 = celestial.coo.rotm_coo('E',2451545.5);
+        case {'h','a'}
+            % convert to J2000
+            if isempty(ObsCoo)
+                error('when converting to/from AzAlt ObsCoo must be provided');
+            end
+            EqCoo = celestial.coo.horiz_coo([Long(:), Lat(:)],JD,ObsCoo,'e');
+            Long  = EqCoo(:,1);
+            Lat   = EqCoo(:,2);
+        otherwise
+            error('Unknown input coordinaytes type');
+    end
+    
+    RotM2 = diag([1 1 1]);
+    % calculate the second rotation matrix
+    switch lower(OutCooType)
+        case {'j','t'}
+            if (OutEquinox~=2000.0)
+                % precess coordinates from J2000.0
+                switch lower(OutCooType)
+                    case {'j'}   
+                        % mean equinox ...
+                        RotM2 = celestial.coo.rotm_coo('P',OutEquinoxJD);
+                    case {'t'}   
+                        % true equinox ...
+                        RotM2 = celestial.coo.rotm_coo('Pd',OutEquinoxJD);
+                    otherwise
+                        error('Illegal OutCooType');
+                end           
+            end
+        case {'g'}
+            % convert to galactic
+            RotM2 = celestial.coo.rotm_coo('g',2451545.5);
+         case {'s'}
+            % convert to Super galactic
+            RotM2 = celestial.coo.rotm_coo('gSG')*rotm_coo('g',2451545.5);
+         case {'c'}
+            % convert to CMB dipole
+            error('not implemented')
+         case {'e'}
+            % convert to ecliptic
+            RotM2 = celestial.coo.rotm_coo('e',2451545.5);
+         case {'h','a'}
+            % convert to horizontal
+            if isempty(ObsCoo)
+                error('when converting to/from AzAlt ObsCoo must be provided');
+            end
+            EqCoo = celestial.coo.horiz_coo([Long(:), Lat(:)],JD,ObsCoo(1:2),'h');
+            Long  = EqCoo(:,1);
+            Lat   = EqCoo(:,2);
+         otherwise
+            error('Unknown output coordinaytes type');
+    end
+    
+    % convert coordinates to direction cosines
+    SizeLong = size(Long);
+    SizeLat  = size(Lat);
+    [CX,CY,CZ] = celestial.coo.coo2cosined(Long(:),Lat(:));
+    InCosDir = [CX(:), CY(:), CZ(:)];
+    
+    
+    % rotate coordinates
+    TotRot = RotM2*RotM1;
+    OutCosDir = TotRot*[InCosDir.'];
+    
+    % convert coordinates from direction cosines
+    [OutLong,OutLat] = celestial.coo.cosined2coo(OutCosDir(1,:),OutCosDir(2,:),OutCosDir(3,:));
+    
+    F0 = OutLong(:,1)<0;
+    OutLong(F0) = 2.*pi + OutLong(F0);
+    
+    OutLong = reshape(OutLong,SizeLong);
+    OutLat  = reshape(OutLat,SizeLat);
+    
 end
-
-RotM2 = diag([1 1 1]);
-% calculate the second rotation matrix
-switch lower(OutCooType)
-    case {'j','t'}
-        if (OutEquinox~=2000.0)
-            % precess coordinates from J2000.0
-            switch lower(OutCooType)
-                case {'j'}   
-                    % mean equinox ...
-                    RotM2 = celestial.coo.rotm_coo('P',OutEquinoxJD);
-                case {'t'}   
-                    % true equinox ...
-                    RotM2 = celestial.coo.rotm_coo('Pd',OutEquinoxJD);
-                otherwise
-                    error('Illegal OutCooType');
-            end           
-        end
-    case {'g'}
-        % convert to galactic
-        RotM2 = celestial.coo.rotm_coo('g',2451545.5);
-     case {'s'}
-        % convert to Super galactic
-        RotM2 = celestial.coo.rotm_coo('gSG')*rotm_coo('g',2451545.5);
-     case {'c'}
-        % convert to CMB dipole
-        error('not implemented')
-     case {'e'}
-        % convert to ecliptic
-        RotM2 = celestial.coo.rotm_coo('e',2451545.5);
-     case {'h','a'}
-        % convert to horizontal
-        if isempty(ObsCoo)
-            error('when converting to/from AzAlt ObsCoo must be provided');
-        end
-        EqCoo = celestial.coo.horiz_coo([Long(:), Lat(:)],JD,ObsCoo(1:2),'h');
-        Long  = EqCoo(:,1);
-        Lat   = EqCoo(:,2);
-     otherwise
-        error('Unknown output coordinaytes type');
-end
-
-% convert coordinates to direction cosines
-SizeLong = size(Long);
-SizeLat  = size(Lat);
-[CX,CY,CZ] = celestial.coo.coo2cosined(Long(:),Lat(:));
-InCosDir = [CX(:), CY(:), CZ(:)];
-
-
-% rotate coordinates
-TotRot = RotM2*RotM1;
-OutCosDir = TotRot*[InCosDir.'];
-
-% convert coordinates from direction cosines
-[OutLong,OutLat] = celestial.coo.cosined2coo(OutCosDir(1,:),OutCosDir(2,:),OutCosDir(3,:));
-
-F0 = OutLong(:,1)<0;
-OutLong(F0) = 2.*pi + OutLong(F0);
-
-OutLong = reshape(OutLong,SizeLong);
-OutLat  = reshape(OutLat,SizeLat);
-
-
 

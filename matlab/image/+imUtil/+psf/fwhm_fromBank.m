@@ -117,7 +117,14 @@ switch lower(InPar.Method)
         SigmaVec = [0.1; InPar.SigmaVec(:)];  % add a sharp object (always first) to bank of templates
         
         if isempty(InPar.Background) || isempty(InPar.Variance)
-            [InPar.Background, InPar.Variance] =  imUtil.background.modeVar_LogHist(Image);
+            Med1 = median(Image,"all","omitmissing");
+            
+            F1   = Image>(Med1 - 10.*sqrt(Med1)) & Image<(Med1 + 5.*sqrt(Med1));
+            Med2 = median(Image(F1), "all", "omitmissing");
+            InPar.Background  = Med2;
+            InPar.Variance    = var(Image(F1), [], "all", "omitmissing");
+
+            %[InPar.Background, InPar.Variance] =  imUtil.background.modeVar_LogHist(Image);
         end
         
         Cont = true;

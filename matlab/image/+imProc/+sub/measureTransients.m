@@ -83,6 +83,14 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
         AD AstroZOGY
 
         Args.RadiusTS = 5;
+        Args.UseFWHM logical = true;
+        Args.MultipleFWHM = 2;
+    end
+
+    if Args.UseFWHM
+        Args.RadiusTS = AD.PSFData.fwhm * Args.MultipleFWHM;
+        Args.RadiusTS = floor(Args.RadiusTS);
+        Args.RadiusTs = Args.RadiusTS + mod(Args.RadiusTS+1,2);
     end
 
     % Get number of objects
@@ -133,6 +141,13 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
         else
             [Z2_TS, Z2_Sig, Z2_AIC] = imUtil.properSub.findNearestPeakSig(AD(Iobj).Z2, ...
                 XY(:,1), XY(:,2), 2, 'RadiusTS', Args.RadiusTS);
+        end
+
+        % Change Gabor stat to near max value
+        if ~isempty(AD(Iobj).GaborSN)
+            [Gabor_max, ~, ~] = imUtil.properSub.findNearestPeakSig(AD(Iobj).GaborSN, ...
+                XY(:,1), XY(:,2), 2, 'RadiusTS', Args.RadiusTS);
+            AD(Iobj).CatData.replaceCol(Gabor_max,'GaborSN');
         end
 
         % Insert derived properties into AD.CatData catalog

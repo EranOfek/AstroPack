@@ -1134,23 +1134,39 @@ classdef DemonLAST < Component
             end
 
         end
+    end
 
+    methods % cleanup utilities
         function moveRaw2New_AndDeleteProc(Obj, Args)
             % Move raw images back to new/ dir and delete the proc/ dir
             % Input  : - see code for options
             % Output : null
             % Author : Eran Ofek (Feb 2024)
+            % Example: D=pipeline.DemonLAST;
+            %          D.DataDir = 1 % 2
+            %          D.moveRaw2New_AndDeleteProc
 
             arguments
                 Obj
                 Args.YearList  = {'2023','2024'};
                 
+                Args.StartJD       = -Inf;           % refers only to Science observations: JD, or [D M Y]
+                Args.EndJD         = Inf; 
+
                 Args.DeleteFocus logical   = true;
                 Args.DeleteProc logical    = true;
                 Args.DeleteRawDir logical  = true;
             end
 
             cd(Obj.BasePath);
+            
+            if numel(Args.StartJD)>1
+                Args.StartJD = celestial.time.julday(Args.StartJD);
+            end
+            if numel(Args.EndJD)>1
+                Args.EndJD = celestial.time.julday(Args.EndJD);
+            end
+
 
             Nyear = numel(Args.YearList);
             for Iy=1:1:Nyear
@@ -1166,13 +1182,44 @@ classdef DemonLAST < Component
 
                     for Id=1:1:Nd
                         cd(DirDay(Id).name);
-                        if isfolder('raw')
+
+                        %Simone: loop to check daterange and unpack .fz
+                        %files before moving
+                        if ~isempty(Args.StartJD)
+                            % Check if date is in allowed range (in
+                            % DateRange)
+                            FN_JD  = celestial.time.julday([str2num(DirDay(Id).name) str2num(DirMonth(Im).name) str2num(Args.YearList{Iy})]);
+                            
+                            FlagJD = FN_JD>Args.StartJD & FN_JD<Args.EndJD;
+                            %disp([FlagJD Args.StartJD Args.EndJD FN_JD])
+                            if FlagJD
+      
+                                Execute = true; 
+                            else
+                                Execute = false;
+                            end
+                        else
+                            Execute = false;
+                        end
+
+                        if isfolder('raw') && Execute
                             cd ('raw');
                             
                             if Args.DeleteFocus
                                 delete('LAST*focus*.fits');
                             end
                             
+                            % funpack images...
+                            CompFiles = dir('*.fz');
+                            if ~isempty(CompFiles)
+                                for k = 1:length(CompFiles)
+                                    baseFileName = CompFiles(k).name;
+
+                                    system(append('funpack ',baseFileName))
+
+                                end
+                            end
+
                             % move raw to new
                             !mv LAST*.fits ../../../../new/.
 
@@ -1364,7 +1411,7 @@ classdef DemonLAST < Component
             arguments
                 Obj
                 Args.List  = [];
-                Args.MaxTimeBetweenVisits  = 500./86400;
+                Args.MaxTimeBetweenVisits  = 440./86400;
             end
 
             if isempty(Args.List)
@@ -2424,8 +2471,8 @@ classdef DemonLAST < Component
                 Args.TempRawFocus    = '*_focus_raw_*.fits';
 
                 Args.MinNumIMageVisit  = 5;
-                Args.PauseDay          = 60;
-                Args.PauseNight        = 10;
+                Args.PauseDay          = 100;
+                Args.PauseNight        = 30;
 
                 % Save data products
                 Args.SaveEpochProduct  = {[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat','PSF'};,  % 'all'
@@ -2614,7 +2661,7 @@ classdef DemonLAST < Component
                 
                 MaxNfiles = max(FN_Sci_Groups.nfiles);
                 if MaxNfiles<=Args.MinNumIMageVisit
-                    Msg{1} = 'Waiting for more images to analyze';
+                    Msg{1} = sprintf('Waiting for more images to analyze (Found %d images)',MaxNfiles);
                     Obj.writeLog(Msg, LogLevel.Info);
     
                     SunInfo = celestial.SolarSys.get_sun;

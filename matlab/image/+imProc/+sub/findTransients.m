@@ -96,7 +96,7 @@ function TranCat=findTransients(AD, Args)
         Args.includeObsTime logical     = true;
 
         Args.includeGaborSN logical = true;
-    
+
     end
 
     Nobj = numel(AD);
@@ -255,6 +255,7 @@ function TranCat=findTransients(AD, Args)
             TranCat(Iobj) = TranCat(Iobj).insertCol(cast(GaborSN,'double'), ...
                 'Score', {'GaborSN'}, {''});
         end
+
        
     end
 

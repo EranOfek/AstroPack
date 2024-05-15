@@ -14,8 +14,8 @@ function match2Stars(Obj, Args)
                       Default is 'StarMatches'.
                'ColDistName' - Name of appended column with the distance 
                       to the nearest match. Default is 'StarDist'.
-               'ColMagGAIA' - Name of column holding the magnitude in GAIA 
-                      catalog, magnitude will be used as reference. 
+               'ColBpMagGAIA' - Name of column holding the blue magnitude in 
+                      GAIA catalog, magnitude will be used as reference. 
                       Default is 'phot_bp_mean_mag'.
                'ColAstExcessNoiseGAIA' - Name of column holding the astrometric 
                       excess noise in GAIA catalog. 
@@ -42,13 +42,20 @@ function match2Stars(Obj, Args)
         Args.ColNmatchName = 'StarMatches';
         Args.ColDistName = 'StarDist';
 
-        Args.ColMagGAIA  = 'phot_bp_mean_mag';
+        Args.ColBpMagGAIA  = 'phot_bp_mean_mag';
+        Args.ColRpMagGAIA  = 'phot_rp_mean_mag';
         Args.ColAstExcessNoiseGAIA = 'astrometric_excess_noise';
         Args.ColGalaxyCandidateGAIA = 'in_galaxy_candidates';
 
         Args.MaxMagGAIA  = 21;
-        Args.SearchRadius = 10;
+        Args.SearchRadius = 250;
         Args.SearchRadiusUnits = 'arcsec';
+
+        Args.UseSpecialBright logical  = false;
+        Args.BpBrightParams = [2964.12, 1.03, 131.03];
+        Args.BpBrightTresh = 5.8;
+        Args.RpBrightParams = [1882.92, 1.13, 51.47];
+        Args.RpBrightTresh = 5.8;
     end
 
     % Make sure process is run on AstroCatalog object
@@ -71,8 +78,21 @@ function match2Stars(Obj, Args)
     % considering a star's brightness and excess noise
     if ~isempty(Args.StarCat)
         StarCat = Args.StarCat;
-        DistThresholdPerStar = max(20.0-StarCat.Table.(Args.ColMagGAIA), ...
+        BpMags = StarCat.Table.(Args.ColBpMagGAIA);
+        RpMags = StarCat.Table.(Args.ColRpMagGAIA);
+        DistThresholdPerStar = max(1.5*(20.0-BpMags), ...
             3+StarCat.Table.(Args.ColAstExcessNoiseGAIA));
+
+        if Args.UseSpecialBright
+            DistThresholdPerStar(BpMags < Args.BpBrightTresh) = ...
+                max(1.5*(Args.BpBrightParams(1).*exp(-Args.BpBrightParams(2).*...
+                BpMags(BpMags<Args.BpBrightTresh))+Args.BpBrightParams(3)),...
+                DistThresholdPerStar(BpMags < Args.BpBrightTresh));
+            DistThresholdPerStar(RpMags < Args.RpBrightTresh) = ...
+                max(1.5*(Args.RpBrightParams(1).*exp(-Args.RpBrightParams(2).*...
+                RpMags(RpMags<Args.RpBrightTresh))+Args.RpBrightParams(3)),...
+                DistThresholdPerStar(RpMags < Args.RpBrightTresh));
+        end
     end
     for Iobj=1:1:Nobj
 
@@ -115,8 +135,21 @@ function match2Stars(Obj, Args)
             StarCat = catsHTM.cone_search(Args.StarCatName, ...
                 MidRA, MidDec, SearchRadius, 'Con', {{Args.ColGalaxyCandidateGAIA, @(x) ~(x)}},...
                 'RadiusUnits',Args.SearchRadiusUnits, 'OutType','AstroCatalog');
-            DistThresholdPerStar = max(20.0-StarCat.Table.(Args.ColMagGAIA), ...
+
+            DistThresholdPerStar = max(1.5*(20.0-StarCat.Table.(Args.ColBpMagGAIA)), ...
                 3+StarCat.Table.(Args.ColAstExcessNoiseGAIA));
+
+            if Args.UseSpecialBright
+                DistThresholdPerStar(BpMags < Args.BpBrightTresh) = ...
+                    max(1.5*(Args.BpBrightParams(1).*exp(-Args.BpBrightParams(2).*...
+                    BpMags(BpMags<Args.BpBrightTresh))+Args.BpBrightParams(3)),...
+                    DistThresholdPerStar(BpMags < Args.BpBrightTresh));
+                DistThresholdPerStar(RpMags < Args.RpBrightTresh) = ...
+                    max(1.5*(Args.RpBrightParams(1).*exp(-Args.RpBrightParams(2).*...
+                    RpMags(RpMags<Args.RpBrightTresh))+Args.RpBrightParams(3)),...
+                    DistThresholdPerStar(RpMags < Args.RpBrightTresh));
+            end
+
         end
 
         for Itran = 1:1:CatSize
