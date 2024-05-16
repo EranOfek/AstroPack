@@ -1479,9 +1479,10 @@ classdef DemonLAST < Component
             %                   headers (in 'KeysFromHead') for each one of
             %                   the images in the visit.
             %          - Table with entry per visit.
+            %          - Field names list.
             % Author : Eran Ofek (Mar 2024)
             % Example: D=pipeline.DemonLAST; D.BasePath='/marvin/LAST.01.01.01';
-            %          [Res,T]=D.findAllVisits;
+            %          [Res,T,FT]=D.findAllVisits;
             %
             %          % go over all dir tree
             %          Res=[];for I=1:1:numel(DL), I, D.BasePath=fullfile(DL(I).folder,DL(I).name); [Res,T]=D.findAllVisits('Result',Res,'ReadHeader',0); end
@@ -1565,8 +1566,9 @@ classdef DemonLAST < Component
             % reorganize in table
             if nargout>1
                 Nr = numel(Result);
-                OutTable = zeros(Nr,3+4.*2+3.*3+1);
+                OutTable = zeros(Nr,3+4.*2+3.*3+1 + 3);
                 FieldT   = strings(Nr,1);
+                VisitT   = strings(Nr,1);
                 for Ind=1:1:Nr
                     % 14 col                
                     IndIm = 10;
@@ -1591,12 +1593,14 @@ classdef DemonLAST < Component
                                        MinFWHM, MaxFWHM, MedFWHM,...
                                        MinLimM, MaxLimM, MedLimM,...
                                        MinBack, MaxBack, MedBack,...
-                                       Airmass];
+                                       Airmass,...
+                                       str2double(Result(Ind).Year), str2double(Result(Ind).Month), str2double(Result(Ind).Day)];
                     FieldT(Ind) = string(Result(Ind).FieldID);
+                    VisitT(Ind) = string(Result(Ind).Visit);
 
                 end
-                OutTable=[array2table(OutTable), table(FieldT)];
-                OutTable.Properties.VariableNames = {'MountNum','CamNum','JD','RA1','Dec1','RA2','Dec2','RA3','Dec3','RA4','Dec4','MinFWHM','MaxFWHM','MedFWHM','MinLimM','MaxLimM','MedLimM','MinBack','MaxBack','MedBack','Airmass','FieldID'};
+                OutTable=[array2table(OutTable), table(VisitT), table(FieldT)];
+                OutTable.Properties.VariableNames = {'MountNum','CamNum','JD','RA1','Dec1','RA2','Dec2','RA3','Dec3','RA4','Dec4','MinFWHM','MaxFWHM','MedFWHM','MinLimM','MaxLimM','MedLimM','MinBack','MaxBack','MedBack','Airmass','Year','Month','Day','Visit','FieldID'};
 
 
 
