@@ -1546,7 +1546,13 @@ classdef DemonLAST < Component
                                 if Args.ReadHeader
                                     Nfile = numel(DirF);
 
-                                    Head = AstroHeader(Args.FilePat);
+                                    try
+                                        Head = AstroHeader(Args.FilePat);
+                                    catch ME
+                                        pwd
+                                        Args.FilePat
+                                    end
+
                                     Result(Ind).Keys = Head.getStructKey(Args.KeysFromHead);
                                     
                                
