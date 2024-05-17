@@ -1257,7 +1257,7 @@ classdef DemonLAST < Component
             arguments
                 Obj
                 Args.BasePath          = [];
-                Args.Nsplit            = 11;
+                Args.Nsplit            = 10;
                 Args.UnderLine         = '_';
                 Args.Modify logical    = false;
             end
@@ -1273,14 +1273,14 @@ classdef DemonLAST < Component
             Count = 0;
             for Ilist=1:1:Nlist
                 Tmp = split(List{Ilist}, Args.UnderLine);
-                if numel(Tmp)~=Args.Nsplit
+                if (numel(Tmp)-1)~=Args.Nsplit
                     % file name problem
-                    if numel(Tmp)==(Args.Nsplit+1)
+                    if (numel(Tmp)-1)==(Args.Nsplit+1)
                         
                         Count = Count + 1;
                         if Args.Modify
                             FieldID = sprintf('%s%s', Tmp{4}, Tmp{5});
-                            TmpNew  = [Tmp(1:3), FieldID, Tmp(6:end)];
+                            TmpNew  = [Tmp(1:3); FieldID; Tmp(6:end)];
 
                             NewFileName = join(TmpNew, Args.UnderLine);
                             OldFileName = List{Ilist};
@@ -1291,10 +1291,11 @@ classdef DemonLAST < Component
                             FITS.write_keys(OldFileName, {'OBJECT',FieldID,''});
 
                             % delete FILENAME
-                            FITS.delete_keys(OldFileName,'FILENAME');
-                            % add FILENAME key
-                            FITS.write_keys(OldFileName, {'FILENAME',NewFileName,''});
-
+                            try
+                                FITS.delete_keys(OldFileName,'FILENAME');
+                                % add FILENAME key
+                                FITS.write_keys(OldFileName, {'FILENAME',NewFileName,''});
+                            end
                             % move file
                             io.files.moveFiles(OldFileName, NewFileName);
                         end
