@@ -183,7 +183,7 @@ classdef SearchMatchedSources < Component
 
 
     methods % variable stars search and utilities
-        function [Cand, Summary] = findVariableAll(Obj, Args)
+        function [Cand, Summary, Rpt] = findVariableAll(Obj, Args)
             % Go over all files in the AllConsecutive property and search for variable sources.
             %   The function works by making the following calls:
             %   prepConsecutive
@@ -210,7 +210,7 @@ classdef SearchMatchedSources < Component
             % Author : Eran Ofek (Mar 2024)
             % Example: SMS = SearchMatchedSources;
             %          SMS.populateAllConsecutive;
-            %          [Cand, Summary] = SMS.findVariableAll('Nvisit',3,'Plot',true);
+            %          [Cand, Summary, Rpt] = SMS.findVariableAll('Nvisit',3,'Plot',true);
 
 
             arguments
@@ -219,6 +219,7 @@ classdef SearchMatchedSources < Component
                 Args.Nstep     = 1;
                 Args.Ncrop     = 24;
                 
+                Args.MinDet                = 85;
                 Args.SearchRadius          = 3;
                 Args.SearchRadiusUnits     = 'arcsec';
 
@@ -252,106 +253,131 @@ classdef SearchMatchedSources < Component
                                                                                                   'LimMagQuantile',Args.LimMagQuantile);
                         if ~isempty(Obj.MS)
                             %
-                            [Flag, FlagInfo, Summary] = findVariableMS(Obj);
-                            FlagComb = Flag.FlagGood(:) & (Flag.PS(:) | Flag.RMS(:) | Flag.Poly(:));
+                            if (median(diff(Obj.MS.JD)).*86400)>18 && max(diff(Obj.MS.JD))<30
+
+                                %
+                                [Flag, FlagInfo, Summary] = findVariableMS(Obj);
     
-                            if any(FlagComb)
-                                IndCand    = find(FlagComb);
-                                Ncand      = numel(IndCand);
-
-                                
-
-                                for I=1:1:Ncand
-                                    IndSrc = IndCand(I);
-
-                                    [FlagGood, ResPhotAstCorr] = flagCorr(Obj, IndSrc);
-
-                                    if FlagGood
-
-                                        RA  = median(Obj.MS.Data.(Args.RAField)(:,IndSrc), 1, 'omitnan');
-                                        Dec = median(Obj.MS.Data.(Args.DecField)(:,IndSrc), 1, 'omitnan');
-
-                                        Icand = Icand + 1;
-                                        Cand(Icand).IndSrc          = IndSrc;
-                                        Cand(Icand).NcandInSubImage = Ncand;
-                                        Cand(Icand).Flag        = Flag;
-                                        Cand(Icand).MS          = Obj.MS;
-                                        Cand(Icand).FlagGood    = Flag.FlagGood(IndSrc);
-                                        Cand(Icand).FlagPS      = Flag.PS(IndSrc);
-                                        Cand(Icand).FlagRMS     = Flag.RMS(IndSrc);
-                                        Cand(Icand).FlagPoly    = Flag.Poly(IndSrc);
-                                        Cand(Icand).MaxPS       = Summary.MaxPS(IndSrc);
-                                        Cand(Icand).MaxFreq     = Summary.MaxFreq(IndSrc);
-                                        Cand(Icand).RA          = RA;
-                                        Cand(Icand).Dec         = Dec;
+                                FlagComb = FlagInfo.N(:)>Args.MinDet & Flag.FlagGood(:) & (Flag.PS(:) | Flag.RMS(:) | Flag.Poly(:) | Flag.RunMeanFilt(:));
+        
+                                if any(FlagComb)
+                                    IndCand    = find(FlagComb);
+                                    Ncand      = numel(IndCand);
     
-                                        if Args.Plot
-                                            
-                                            if Icand==1
-                                                Fig = figure;
-                                            else
-                                                clf;
-                                            end
-                                            FigLC  = Obj.plotLC(IndSrc);
-                                            FigRMS = Obj.plotRMS(IndSrc, 'NsigmaPredRMS',7);
-                                            H = gca;
-                                            H.YLim(1) = 1e-3;
-                                            [FigPS, FigPh] = Obj.plotPS(IndSrc);
-                                            drawnow;
-
-                                            [SimbadURL]=VO.search.simbad_url(RA./RAD, Dec./RAD)
-                                            SDSS_URL=VO.SDSS.navigator_link(RA./RAD, Dec./RAD);
-                                            PS1_URL=VO.PS1.navigator_link(RA./RAD,Dec./RAD);
-                                            AC=catsHTM.cone_search('GAIADR3',RA./RAD, Dec./RAD, 3,'OutType','AstroCatalog');
-
-
-                                            AbsMag = AC.Table.phot_bp_mean_mag - (5.*log10(1000./AC.Table.Plx)-5);
-                                            Color  = AC.Table.phot_bp_mean_mag - AC.Table.phot_rp_mean_mag;
-                                            fprintf('AbsMag: %5.2f    Color: %5.2f\n', AbsMag,Color);
-
-
-                                            Args.Report = true;
-                                            if Args.Report
-                                                if Icand==1
-                                                    import mlreportgen.report.* 
-                                                    import mlreportgen.dom.* 
-                                                    rpt = Report('/home/eran/Variables','html'); 
-                                                    tp = TitlePage; 
-                                                    tp.Title = 'Variables'; 
-                                                    tp.Subtitle = '';
-                                                    tp.Author = 'SearchMatchedSources/findVariableAll'; 
-                                                    
-                                                    append(rpt,tp); 
-                                                    append(rpt,TableOfContents); 
+                                    
     
-                                                    ch1 = Chapter; 
-                                                    ch1.Title = 'Variable candidates'; 
+                                    for I=1:1:Ncand
+                                        IndSrc = IndCand(I);
+    
+                                        [FlagGood, ResPhotAstCorr] = flagCorr(Obj, IndSrc);
+    
+                                        if FlagGood
+    
+                                            RA  = median(Obj.MS.Data.(Args.RAField)(:,IndSrc), 1, 'omitnan');
+                                            Dec = median(Obj.MS.Data.(Args.DecField)(:,IndSrc), 1, 'omitnan');
+    
+                                            Icand = Icand + 1;
+                                            Cand(Icand).IndSrc          = IndSrc;
+                                            Cand(Icand).NcandInSubImage = Ncand;
+                                            Cand(Icand).Flag        = Flag;
+                                            Cand(Icand).MS          = Obj.MS;
+                                            Cand(Icand).FlagGood    = Flag.FlagGood(IndSrc);
+                                            Cand(Icand).FlagPS      = Flag.PS(IndSrc);
+                                            Cand(Icand).FlagRMS     = Flag.RMS(IndSrc);
+                                            Cand(Icand).FlagPoly    = Flag.Poly(IndSrc);
+                                            Cand(Icand).MaxPS       = Summary.MaxPS(IndSrc);
+                                            Cand(Icand).MaxFreq     = Summary.MaxFreq(IndSrc);
+                                            Cand(Icand).RA          = RA;
+                                            Cand(Icand).Dec         = Dec;
+        
+                                            if Args.Plot
+                                                
+                                                % if Icand==1
+                                                %     Fig = figure;
+                                                % else
+                                                %     clf;
+                                                % end
+                                                FigLC  = Obj.plotLC(IndSrc);
+                                                FigRMS = Obj.plotRMS(IndSrc, 'NsigmaPredRMS',7);
+                                                H = gca;
+                                                H.YLim(1) = 1e-3;
+                                                [FigPS, FigPh] = Obj.plotPS(IndSrc);
+                                                drawnow;
+    
+                                                [SimbadURL]=VO.search.simbad_url(RA./RAD, Dec./RAD)
+                                                SDSS_URL=VO.SDSS.navigator_link(RA./RAD, Dec./RAD);
+                                                PS1_URL=VO.PS1.navigator_link(RA./RAD,Dec./RAD);
+                                                AC=catsHTM.cone_search('GAIADR3',RA./RAD, Dec./RAD, 3,'OutType','AstroCatalog');
+    
+    
+                                                AbsMag = AC.Table.phot_bp_mean_mag - (5.*log10(1000./AC.Table.Plx)-5);
+                                                Color  = AC.Table.phot_bp_mean_mag - AC.Table.phot_rp_mean_mag;
+                                                fprintf('AbsMag: %5.2f    Color: %5.2f\n', AbsMag,Color);
+    
+                                                if AbsMag>8
+                                                    'a'
                                                 end
-                                                %---
-                                                sec1 = Section; 
-                                                sec1.Title = sprintf('LAST J%s%s',celestial.coo.convertdms(RA,'d','SH'), celestial.coo.convertdms(Dec,'d','SD'));
-
-                                                para = Text(sprintf('RA=%10.6f Dec=%10.6f\n Lim Mag: %5.1f\n MeanMag=%6.3f   StdMag=%6.3f\n AbsMag=%6.2f   Color=%6.2f\n',...
-                                                    RA, Dec,...
-                                                    median(LimMagQuantile,1,'omitnan'),...
-                                                    mean(Obj.MS.Data.(Args.MagField)(:,IndSrc), 1, 'omitnan'),...
-                                                    std(Obj.MS.Data.(Args.MagField)(:,IndSrc), [], 1, 'omitnan'),...
-                                                    AbsMag, Color)); 
-                                                append(sec1,para) 
-
-                                                fig = Figure(gcf);
-                                                fig.Snapshot.Height  = '7in'; 
-                                                fig.Snapshot.Width   = '9.5in'; 
-                                                fig.Snapshot.Caption = sprintf('');
-                                                append(sec1,fig); 
-                                                append(ch1, sec1);
+    
+                                                Args.Report = true;
+                                                if Args.Report
+                                                    if Icand==1
+                                                        import mlreportgen.report.* 
+                                                        import mlreportgen.dom.* 
+                                                        Rpt = Report('/home/eran/Variables','pdf'); 
+                                                        tp = TitlePage; 
+                                                        tp.Title = 'Variables'; 
+                                                        tp.Subtitle = '';
+                                                        tp.Author = 'SearchMatchedSources/findVariableAll'; 
+                                                        
+                                                        append(Rpt,tp); 
+                                                        append(Rpt,TableOfContents); 
+        
+                                                        ch1 = Chapter; 
+                                                        ch1.Title = 'Variable candidates'; 
+                                                    end
+                                                    %---
+                                                    
+                                                    sec1 = Section; 
+                                                    %br = PageBreak();
+                                                    %append(sec1,br);
+    
+                                                    FlagsType = sprintf('%d %d %d %d', Flag.PS(IndSrc),  Flag.RMS(IndSrc), Flag.Poly(IndSrc), Flag.RunMeanFilt(IndSrc));
+                                                    sec1.Title = sprintf('LAST J%s%s - %s',celestial.coo.convertdms(RA,'d','SH'), celestial.coo.convertdms(Dec,'d','SD'), FlagsType);
+    
+                                                    para = Text(sprintf('RA=%10.6f Dec=%10.6f\n Lim Mag: %5.1f\n MeanMag=%6.3f   StdMag=%6.3f\n AbsMag=%6.2f   Color=%6.2f\n',...
+                                                        RA, Dec,...
+                                                        median(LimMagQuantile,1,'omitnan'),...
+                                                        mean(Obj.MS.Data.(Args.MagField)(:,IndSrc), 1, 'omitnan'),...
+                                                        std(Obj.MS.Data.(Args.MagField)(:,IndSrc), [], 1, 'omitnan'),...
+                                                        AbsMag, Color)); 
+                                                    append(sec1,para) 
+    
+                                                    fig = Figure(gcf);
+                                                    fig.Snapshot.Height  = '6in'; 
+                                                    fig.Snapshot.Width   = '7.5in'; 
+                                                    fig.Snapshot.Caption = sprintf('');
+                                                    append(sec1,fig); 
+                                                    append(ch1, sec1);
+    
+                                                    %clf;  % close figure
+                                                    close;
+    
+                                                end
+    
+                                                %web(SimbadURL.URL)
+                                                if Flag.RunMeanFilt(IndSrc)
+                                                'a'
+                                                end
+                                                
+                                                % if Icand==300
+                                                %     append(Rpt, ch1);
+                                                % 
+                                                %     close(Rpt)
+                                                %     return;
+                                                % end
                                             end
-
-                                            %web(SimbadURL.URL)
-                                            'a'
                                         end
                                     end
-                                    
                                 end
                                 
 
@@ -362,11 +388,11 @@ classdef SearchMatchedSources < Component
             end
 
             if Args.Report
-               
-                append(rpt, ch1);
+                append(Rpt, ch1);
                 
-                close(rpt)
-                rptview(rpt)
+                close(Rpt)
+                
+                %rptview(Rpt)
             end
 
 
@@ -424,7 +450,7 @@ classdef SearchMatchedSources < Component
             [Flag.FlagGood, FlagInfo]=flagByQuality(Obj, 'MagField',Args.MagField, 'MaxChi2Dof',Args.MaxChi2Dof, 'MinNdet',Args.MinNdet, 'MaxOverlapFrac',Args.MaxOverlapFrac);
            
             % periodicity
-            FreqVec = timeSeries.period.getFreq(Obj.MS.JD, 'OverNyquist',0.4);
+            FreqVec = timeSeries.period.getFreq(Obj.MS.JD, 'OverNyquist',0.4, 'MaxFreq',2000);
             [FreqVec, PS, Flag.PS] = period(Obj.MS, FreqVec, 'MagField', Args.MagField, 'ThresholdPS',Args.ThresholdPS);
                     
             % rms
@@ -444,7 +470,10 @@ classdef SearchMatchedSources < Component
             [ResPolyHP, Flag.Poly] = fitPolyHyp(Obj.MS, 'PolyDeg',{0, (0:1), (0:1:2)}, 'ThresholdChi2',[Inf, chi2inv(normcdf([5 6 7],0,1),2)]);
             Flag.Poly = Flag.Poly(:);
             Flag.Poly(ResRMS.NsigmaStd<Args.MinRMS4poly & Flag.Poly) = false;
-            
+
+            % running mean filter
+            RMFilt = timeSeries.filter.runMeanFilter(Obj.MS.Data.(Args.MagField));
+            Flag.RunMeanFilt = any(RMFilt.FlagCand, 1);
 
             Summary.FreqVec   = FreqVec;
             Summary.PS        = PS;
@@ -501,6 +530,7 @@ classdef SearchMatchedSources < Component
             FlagDet = ~isnan(Obj.MS.Data.(Args.MagField));
             Ndet    = sum(FlagDet, 1);
 
+            FlagInfo.N    = Ndet;
             FlagInfo.Ndet = Ndet>=Args.MinNdet;
             
             % remove near edge - even one
@@ -856,7 +886,7 @@ classdef SearchMatchedSources < Component
 
                 Args.BD                    = BitDictionary;
                 Args.FlagsField            = 'FLAGS';
-                Args.DefaultSymbol         = {'ko','MarkerFaceColor','k'};
+                Args.DefaultSymbol         = {'ko','MarkerFaceColor','k','MarkerSize',4};
                 Args.ListFlags             = {'Saturated',{'b^'}; ...
                                               'NaN',{'r>'}; ...
                                               'Negative',{'rv'}; ...
@@ -1042,7 +1072,7 @@ classdef SearchMatchedSources < Component
                 plot.invy;
                 errorbar(B(:,1), B(:,2), B(:,3)./sqrt(B(:,4)), 'o');
                 hold off;
-                H = xlabel(sprintf('Phase [P=%8.4f]',Period));
+                H = xlabel(sprintf('Phase [P=%8.4f]',Period.*1440));  % [min]
                 H.FontSize = 18;
                 H.Interpreter = 'latex';
                 H = ylabel('Mag');

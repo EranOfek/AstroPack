@@ -61,9 +61,9 @@ function [Result] = reanalizeFieldCam_ZTF_psfcat(Args)
 
     if isfile('Status.mat')
         % skip
-        fprintf('Skip %s',Args.Path);
+        fprintf('Skip %s\n',Args.Path);
     else
-        fprintf('Working on %s',Args.Path);
+        fprintf('Working on %s\n',Args.Path);
 
         Files = dir(Args.FileTemp);
     
@@ -83,6 +83,7 @@ function [Result] = reanalizeFieldCam_ZTF_psfcat(Args)
             for If=1:1:Nf
                 % 
                 [If Nf]
+                
                 % re use of the AstrometricCat
                 tic;
                 try
