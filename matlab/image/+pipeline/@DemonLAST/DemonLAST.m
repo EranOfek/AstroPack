@@ -1580,6 +1580,9 @@ classdef DemonLAST < Component
                     % 14 col                
                     IndIm = 10;
                     Airmass = Result(Ind).Keys(IndIm).AIRMASS;
+                    if isempty(Airmass)
+                        Airmass = NaN;
+                    end
                     MinFWHM = min([Result(Ind).Keys(:).FWHM].');
                     MaxFWHM = max([Result(Ind).Keys(:).FWHM].');
                     MedFWHM = median([Result(Ind).Keys(:).FWHM].',1,'omitnan');
