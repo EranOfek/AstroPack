@@ -66,8 +66,8 @@ function [Defects,EqImg]=equaliseLineMean(Img,Args)
     end
     b(q2)=NaN;
 
-    LineMean=mean(b,Args.StripeDim,"omitmissing");
-    LineStd=std(b,1,Args.StripeDim,"omitmissing");
+    LineMean=mean(b,Args.StripeDim,"omitnan");
+    LineStd=std(b,1,Args.StripeDim,"omitnan");
     bkgMean=mean(LineMean);
     
     if Args.Plot
