@@ -83,6 +83,9 @@ function [Result] = reanalizeFieldCam_ZTF_psfcat(Args)
             for If=1:1:Nf
                 % 
                 [If Nf]
+                if If==5007
+                    'a'
+                end
                 
                 % re use of the AstrometricCat
                 tic;
