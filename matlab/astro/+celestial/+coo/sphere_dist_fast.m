@@ -85,7 +85,7 @@ if (nargout>1)
     Ang    = atan2(real(SinPA),real(CosPA));
     %PA(PA<0) = 2.*pi + PA(PA<0);
 
-    I     = find(Ang<0);
+    I     = Ang<0;
     Ang(I) = 2.*pi + Ang(I);
 
     if nargout>2
