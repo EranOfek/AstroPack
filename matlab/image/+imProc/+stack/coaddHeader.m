@@ -20,6 +20,10 @@ function [Result] = coaddHeader(Obj, Args)
     %              'UpdateImagePathKeys' - A logical indicating if to
     %                   add the LEVEL, SUBLEVEL and CROPID keywords to
     %                   header. Default is true.
+    %              'StackMethod' - Char array of stack method to write in
+    %                   the header. Default is ''.
+    %              'CoaddN' - An optional image indicating the number of
+    %                   images used in each pixel. Default is NaN.
     %              'KeyExpTime' - EXPTIME header keyword name.
     %                   Default is 'EXPTIME'.
     % Output : - An AstroHeader for the coadd image.
@@ -33,11 +37,13 @@ function [Result] = coaddHeader(Obj, Args)
         Args.UpdateTimes(1,1) logical               = true;
         Args.SumExpTime(1,1) logical                = true;
         Args.UpdateImagePathKeys logical            = true;
-        
+        Args.StackMethod                            = '';
+        Args.CoaddN                                 = NaN;
+
         Args.KeyExpTime                             = 'EXPTIME';
     end
     
-    
+    Nim    = numel(Obj);
     Result = AstroHeader;
     
     % FFU: update header
@@ -67,14 +73,13 @@ function [Result] = coaddHeader(Obj, Args)
         VecExpTime = [StKey.(Args.KeyExpTime)].';
         
         VecJD      = julday(Obj);
-                
         InfoCell = {'IMTYPE',Type,'';...
                     'FILTER',Filter,'';...
                     'NCOADD',Nim,'Number of coadded images';...
                     'COADDOP',Args.StackMethod,'Coaddition method';...
-                    'AVNCOADD',mean(CoaddN,'all'),'Mean number of coadded images per pixel';...
-                    'MINCOADD',min(CoaddN,[],'all'),'Minimum number of coadded images per pixel';...
-                    'MIDJD',sum(MidJD.*VecExpTime)/sum(VecExpTime),'Weighted Mean time of observations';...
+                    'AVNCOADD',mean(Args.CoaddN,'all'),'Mean number of coadded images per pixel';...
+                    'MINCOADD',min(Args.CoaddN,[],'all'),'Minimum number of coadded images per pixel';...
+                    'MIDJD',sum(VecJD.*VecExpTime)/sum(VecExpTime),'Weighted Mean time of observations';...
                     'MINJD',min(VecJD),'MIDJD of first coadded observation';...
                     'MAXJD',max(VecJD),'MIDJD of last coadded observation'};
                

@@ -1636,7 +1636,7 @@ classdef OrbitalEl < Base
             %          
             %          % full example to the most common epoch
             %          OrbEl = celestial.OrbitalEl.loadSolarSystem;
-            %          E=merge(OrbEl,'MinEpoch',2451545.5,'MaxEccen',0.9999);
+            %          E=merge(OrbEl,'MinEpoch',celestial.time.julday([1 1 2014]),'MaxEccen',0.9999);
             %          IN = celestial.INPOP;
             %          IN.populateTables('all','TimeSpan',[min(E.Epoch)-100, max(E.Epoch)+100])
             %          IN.populateTables('Sun','FileData','vel');

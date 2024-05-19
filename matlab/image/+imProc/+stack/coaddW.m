@@ -28,6 +28,7 @@ function [Result] = coaddW(Obj, Args)
     %                   If char array, then this is an header keyword
     %                   containing the ZP key haeder name. The ZP key will
     %                   be used to calculate the flux matching vector.
+    %                   Default is 'PH_ZP'.
     %            'StackMethod' - Stack method:
     %                   'wmean'
     %                   'sigmaclip'
@@ -82,9 +83,9 @@ function [Result] = coaddW(Obj, Args)
         Args.DataPropIn char                        = 'Data';
 
         Args.SubBack logical                        = true;
-        Args.BackArgs                               = {};
-        Args.FluxMatch                              = 'ZP';     % [] - no, vector of numbres or header key name of ZP [mag]
-        Args.StackMethod                            = 'wmean';
+        Args.BackArgs                               = {'SubSizeXY',[]};
+        Args.FluxMatch                              = 'PH_ZP';     % [] - no, vector of numbres or header key name of ZP [mag]
+        Args.StackMethod                            = 'wsigmaclip';
         Args.StackArgs cell                         = {};
         Args.AddCoaddN logical                      = false;
         Args.AddMask logical                        = true;
@@ -154,12 +155,12 @@ function [Result] = coaddW(Obj, Args)
             CoaddN        = sum(~isnan(ImageCube),3);
 
         case 'sigmaclip'
-            [Coadd, CoaddVar, ~, CoaddN] = imUtil.image.mean_sigclip(ImageCube, Args.IndexDim, Args.StackArgs{:});
+            [Coadd, CoaddVar, ~, CoaddN] = imUtil.image.mean_sigclip(ImageCube, IndexDim, Args.StackArgs{:});
             % e.g., {'MeanFun',@nanamean, 'StdFun','rstd','Nsigma',[5
             % 5],'MaxIter',3}
 
         case 'wsigmaclip'
-            [Coadd, ~, ~, CoaddN] = imUtil.image.wmean_sigclip(ImageCube,Args.VarCube, Args.IndexDim, Args.StackArgs{:});
+            [Coadd, ~, ~, CoaddN] = imUtil.image.wmean_sigclip(ImageCube,Args.VarCube, IndexDim, Args.StackArgs{:});
              % e.g., {'MeanFun',@nanamean, 'StdFun','rstd','Nsigma',[5
              % 5],'MaxIter',3}
 
@@ -223,6 +224,8 @@ function [Result] = coaddW(Obj, Args)
                                                       'UpdateTimes',Args.UpdateTimes,...
                                                       'SumExpTime',Args.SumExpTime,...
                                                       'UpdateImagePathKeys',Args.UpdateImagePathKeys,...
+                                                      'StackMethod',Args.StackMethod,...
+                                                      'CoaddN',CoaddN,...
                                                       'KeyExpTime',Args.KeyExpTime);
                                                   
 end
