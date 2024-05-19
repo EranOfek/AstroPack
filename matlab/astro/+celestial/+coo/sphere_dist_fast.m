@@ -68,15 +68,13 @@ function [Dist,Ang,PA]=sphere_dist_fast(RA_1,Dec_1,RA_2,Dec_2)
 
 
 %Dist = acos(sin(Dec_1).*sin(Dec_2) + sqrt(1-sin(Dec_1).^2).*sqrt(1-sin(Dec_2).^2).*cos(RA_1-RA_2));  % this is more accurate
-Dist = acos(sin(Dec_1).*sin(Dec_2) + cos(Dec_1).*cos(Dec_2).*cos(RA_1-RA_2));  % this is more accurate
 
+%Dist = acos(sin(Dec_1).*sin(Dec_2) + cos(Dec_1).*cos(Dec_2).*cos(RA_1-RA_2));  % this is more accurate
+%Dist = real(Dist);
+
+% haversine formulae - faster and nore stable
+Dist = 2.*asin( sqrt(sin(0.5.*(Dec_2-Dec_1)).^2 + cos(Dec_1).*cos(Dec_2).*sin(0.5.*(RA_2-RA_1)).^2 ));
 Dist = real(Dist);
-% haversine formulae
-%Dist = acos(1 - ( (1-cos(Dec_2 - Dec_1)) + cos(Dec_1).*cos(Dec_2) .* (1-cos(RA_2 - RA_1)) ));
-
-
-
-
 
 
 if (nargout>1)
@@ -87,7 +85,7 @@ if (nargout>1)
     Ang    = atan2(real(SinPA),real(CosPA));
     %PA(PA<0) = 2.*pi + PA(PA<0);
 
-    I     = find(Ang<0);
+    I     = Ang<0;
     Ang(I) = 2.*pi + Ang(I);
 
     if nargout>2

@@ -30,7 +30,7 @@ function [VN, Mu, Sigma] = vonNeumannStat(X, Dim, Norm)
         
     % unbiased case
     N  = size(X,1);
-    VN = sum(N.*(X(1:end-1,:) - X(2:end,:)).^2, 1, 'omitmissing')./sum( (N-1).*(X - mean(X,1,'omitnan')).^2, 1, 'omitmissing');
+    VN = sum(N.*(X(1:end-1,:) - X(2:end,:)).^2, 1, 'omitnan')./sum( (N-1).*(X - mean(X,1,'omitnan')).^2, 1, 'omitnan');
     
     Mu    = 2.*N./(N-1);
     Sigma = sqrt( 4.*N.^2.*(N-2)./( (N+1).*(N-1).^3 ) ); 

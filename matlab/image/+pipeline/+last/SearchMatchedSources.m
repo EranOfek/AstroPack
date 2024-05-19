@@ -553,7 +553,7 @@ classdef SearchMatchedSources < Component
             FlagInfo.NoAstJitter = ~(StdRA>Args.MaxAstStd | StdDec>Args.MaxAstStd);
    
             % aperture photometry diff
-            DiffAper = median(Obj.MS.Data.(Args.AperPhotPair{1}) - Obj.MS.Data.(Args.AperPhotPair{2}), 1, 'omitmissing');
+            DiffAper = median(Obj.MS.Data.(Args.AperPhotPair{1}) - Obj.MS.Data.(Args.AperPhotPair{2}), 1, 'omitnan');
             QR = quantile(DiffAper, Args.AperPhotPairQuantile);
             FlagInfo.AperDiff = DiffAper>QR(1) & DiffAper<QR(2);
 

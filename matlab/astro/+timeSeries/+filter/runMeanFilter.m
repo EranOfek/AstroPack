@@ -106,7 +106,7 @@ function [Result] = runMeanFilter(M, Args)
 
     ResidM = ResidM - Mean;
 
-    MoveM  = Args.MoveFun(ResidM, Args.WinSize, 1, "omitmissing", "Endpoints",Args.EndPoint);
+    MoveM  = Args.MoveFun(ResidM, Args.WinSize, 1, "omitnan", "Endpoints",Args.EndPoint);
 
     % count the number of valid points in each window
     ResidM1 = ResidM;
