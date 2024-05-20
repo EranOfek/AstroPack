@@ -353,6 +353,7 @@ classdef OrbitalEl < Base
             %            This is always a new copy.
             % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem;
             %          O = merge(OrbEl);
+            %          E=merge(OrbEl,'MinEpoch',celestial.time.julday([1 1 2015]),'MaxEccen',0.99,'MaxH',26)
             
             arguments
                 Obj
