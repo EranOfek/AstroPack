@@ -106,16 +106,14 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Args.MaxIter    = 8;
 
         Args.SN         = [];
-        Args.UseSNR     = false;
+        Args.UseSNR     = true; % false;
         
         Args.UseSourceNoise = 'last'; %'off';
         Args.ZP         = 25; 
         
         Args.Verbous logical = false;
     end
-       
-    % warning('BUG: convergence is not very good - need a better algorithm')
-    
+         
     [Ny, Nx, Nim] = size(Cube);
     
     ConvergeFlag = zeros(Args.MaxIter,Nim);
