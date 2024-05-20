@@ -1062,8 +1062,8 @@ classdef MovingSource < Component
                 Result           = Obj(Iobj).selectMovingFromStamps;
                 VecJD            = Result.getCol('JD');
                 [VecRA, VecDec]  = Result.getLonLat('deg');
-                Mag              = Result.getCol(Args.ColMag);
-                MedMag           = median(Mag, 1, 'omitnan');
+                VecMag              = Result.getCol(Args.ColMag);
+                MedMag           = median(VecMag, 1, 'omitnan');
                 FlagNN = ~isnan(VecRA);
                 NN     = sum(FlagNN);
                 
@@ -1071,7 +1071,7 @@ classdef MovingSource < Component
                 switch Args.ReportType
                     case 'AllDetections'
                         % [JD, RA, Dec, Mag, Filter, AstIndex]
-                        ReportTable  = [JD(FlagNN), VecRA(FlagNN), VecDec(FlagNN), nan(NN,1),  AstIndex.*ones(NN,1)];
+                        ReportTable  = [VecJD(FlagNN), VecRA(FlagNN), VecDec(FlagNN), VecMag(FlagNN), nan(NN,1),  AstIndex.*ones(NN,1)];
                         CooUnits     = 'deg';
                         
                     case 'FittedDetection'
