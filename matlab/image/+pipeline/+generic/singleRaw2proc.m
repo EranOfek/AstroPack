@@ -158,11 +158,11 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.AddPSF logical                   = false;
         Args.constructPSFArgs cell            = {}; % can be, e.g. {'CropByQuantile',true,'Quantile',0.999}; 
         Args.PsfPhot logical                  = false;
+        Args.psfFitPhotArgs cell              = {};         
         
         Args.SaveFileName                     = [];  % full path or ImagePath object
         Args.CreateNewObj logical             = false;
-                
-       
+                              
     end
     
     % Get Image
@@ -359,7 +359,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
 
             if Args.PsfPhot
                 % PSF photometry
-                [SI, ResPSF] = imProc.sources.psfFitPhot(SI, 'CreateNewObj',false);                                   
+                [SI, ResPSF] = imProc.sources.psfFitPhot(SI, 'CreateNewObj',false,'ZP',Args.ZP,Args.psfFitPhotArgs{:});                                   
             end
 
         end
