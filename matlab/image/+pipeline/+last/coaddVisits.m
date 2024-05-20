@@ -83,6 +83,7 @@ function [CI, AI] = coaddVisits(In, Args)
     for Icrop=1:1:Ncrop
         AI(:,Icrop) = imProc.transIm.interp2wcs(AI(:,Icrop),AI(1,Icrop));
         CI(Icrop)   = imProc.stack.coadd(AI(:,Icrop), 'StackMethod',Args.StackMethod, 'StackArgs',Args.StackArgs);
+        %CI(Icrop)   = imProc.stack.coaddW(AI(:,Icrop), 'StackMethod',Args.StackMethod, 'StackArgs',Args.StackArgs);
     end
 
 end
