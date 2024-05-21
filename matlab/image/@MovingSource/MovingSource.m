@@ -1001,7 +1001,7 @@ classdef MovingSource < Component
     end
 
     methods % reports
-        function ReportMPC=reportMPC(Obj, Args)
+        function [ReportMPC,ReportInfo,ReportList]=reportMPC(Obj, Args)
             % Generate MPC report for MovingSource object
             %   Generate an MPC report for all elements of a MovingSource object
             % Input  : - A MovingSource object.
@@ -1024,6 +1024,17 @@ classdef MovingSource < Component
             %                   concat this report.
             %                   Default is ''.
             % Output : - Char array of MPC report.
+            %          - Struct of report info.
+            %            'ReportColNames' - Cell array of strings. Each
+            %                   string corresponds to a column header name 
+            %                   for each column in a report table.
+            %            'CooUnitsList' - Cell array of strings. Each
+            %                   string corresponds to the units used for RA
+            %                   and Dec for each object in the report list.
+            %          - Cell array of float arrays. Each float array
+            %                   corresponds to one object and contains the 
+            %                   values enumerated in 'ReportColNames'. Each 
+            %                   row corresponds to a detection.
             % Author : Eran Ofek (Jan 2024)
             % Example: MP.reportMPC
             
@@ -1058,6 +1069,10 @@ classdef MovingSource < Component
             AstIndex = Args.StartAstIndex;
             Nobj = numel(Obj);
             ReportMPC = Args.ReportMPC;
+            ReportList = cell(Nobj,1);
+            ReportColNames = {'JD','RA','Dec','Mag','Filter','AstIndex'};
+            ReportInfo.ReportColNames = ReportColNames;
+            ReportInfo.CooUnitsList = cell(Nobj,1);
             for Iobj=1:1:Nobj
                 Result           = Obj(Iobj).selectMovingFromStamps;
                 VecJD            = Result.getCol('JD');
@@ -1123,8 +1138,9 @@ classdef MovingSource < Component
                                                                                   Args.generateReportMPCArgs{:})];
                 end                                                          
                 AddHeader = false;
+                ReportList{Iobj} = sortrows(ReportTable, [6 1]);
+                ReportInfo.CooUnitsList{Iobj} = CooUnits;
             end
-
             
         end
         
