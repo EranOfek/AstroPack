@@ -2068,7 +2068,7 @@ classdef OrbitalEl < Base
     end
     
     methods (Static)   % upload orbital elenments
-        function Result = loadSolarSystem(Type, Desig)
+        function Result = loadSolarSystem(Type, Desig, Args)
             % Load the JPL Solar System orbital elements from local disk
             %   To install the orbital elements use the Installer class.
             % Input  : - Type: [] - read all | 'num' | 'unnum' | 'comet' |
@@ -2079,6 +2079,8 @@ classdef OrbitalEl < Base
             %            Default is [].
             %          - Minor planets designation (string) or number.
             %            If empty, return all. Default is [].
+            %          * ...,key,name,...
+            %            'MergedFile' - Default is 'MergedEpoch_2460400.mat'
             % Output : - OrbitalEl object.
             %            Number of elements equal to the number of files
             %            read, and in each elements there may be multiple
@@ -2092,6 +2094,7 @@ classdef OrbitalEl < Base
             arguments
                 Type     = [];   % [] - read all | 'num' | 'unnum' | 'comet'
                 Desig    = [];   % [] - read all
+                Args.MergedFile = '/MergedEpoch_2460400.mat';
             end
             MJD0 = 2400000.5;
             
@@ -2191,7 +2194,7 @@ classdef OrbitalEl < Base
                         % load the merged common epoch orbital elements
                         % file
                         I = Installer; 
-                        DataFile = strcat(I.getDataDir(I.Items.MinorPlanetsCT),'/MergedEpoch_2460200.mat');
+                        DataFile = strcat(I.getDataDir(I.Items.MinorPlanetsCT),Args.MergedFile);
                         Result = io.files.load2(DataFile);
 
                     otherwise
