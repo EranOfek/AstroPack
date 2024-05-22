@@ -88,14 +88,14 @@ else
     for I=1:1:Nlat
         %Dist  = celestial.coo.sphere_dist_fast(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat));
 
-        DiffLong = (Long(I) - Cat(Ilow(I):Ihigh(I),Col.Lon).*cos(Lat(I)));
-        if any(DiffLong<Radius) || any(abs(DiffLong)>(2.*pi-Radius))
+        %DiffLong = (Long(I) - Cat(Ilow(I):Ihigh(I),Col.Lon).*cos(Lat(I)));
+        %if any(DiffLong<Radius) || any(abs(DiffLong)>(2.*pi-Radius))
             Dist  = DistFun(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat), Args.DistFunArgs{:});
             FlagDist = Dist <= Radius;
-        else
-            Dist  = nan(size(DiffLong));
-            FlagDist = false(size(Dist));
-        end
+        %else
+        %    Dist  = nan(size(DiffLong));
+        %    FlagDist = false(size(Dist));
+        %end
         
         IndI  = Ilow(I)-1+find(FlagDist);
         DistI = Dist(FlagDist);

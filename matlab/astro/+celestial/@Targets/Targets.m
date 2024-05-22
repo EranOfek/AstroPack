@@ -752,8 +752,7 @@ classdef Targets < Component
             %            indicating if the target is visible.
             %          - Structure of specific flags.
             % Author : Eran Ofek (Jan 2022)
-            % Example: T=celestial.Targets;
-            %          T.generateTargetList('last');
+            % Example: T=celestial.Targets.generateTargetList('last');
             %          [FlagAll, Flag] = isVisible(T)
             
             arguments
