@@ -87,6 +87,12 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %            'unifiedSourcesCatalogArgs' - A cell array of additional
     %                   arguments to pass to MatchedSources/unifiedCatalogsIntoMatched
     %                   Default is {}.
+    %            'MergedMatchMergedCat' - A logical indicating if to add
+    %                   search for counterparts in MergedCat and to add a column
+    %                   with the bit mask containing information on possible
+    %                   counterparts. The search is performed using: 
+    %                   imProc.match.match_catsHTMmerged
+    %                   Default is false.
     % Output : - MergedCat is an array of AstroCatalog (one per
     %            field/column in the input Astrocatalog). Each AstroCatalog
     %            contains the merged catalog with all the sources and their
@@ -148,7 +154,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
 
         Args.unifiedSourcesCatalogArgs cell     = {};
        
-        Args.MergedMatchMergedCat logical       = true;
+        Args.MergedMatchMergedCat logical       = false;
     end
     
     % find all unique sources

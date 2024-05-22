@@ -215,7 +215,7 @@ classdef SearchMatchedSources < Component
 
             arguments
                 Obj
-                Args.Nvisit    = 2;
+                Args.Nvisit    = 5;
                 Args.Nstep     = 1;
                 Args.Ncrop     = 24;
                 
@@ -231,6 +231,7 @@ classdef SearchMatchedSources < Component
                 Args.DecField              = 'Dec';
 
                 Args.Plot logical          = true;
+                Args.Report                = true;
             end
 
             RAD = 180./pi;
@@ -244,7 +245,7 @@ classdef SearchMatchedSources < Component
                     [Icons, Ncons, Ig, Ng]
 
                     for Icrop=1:1:Args.Ncrop
-                        [Obj, LimMagQuantile] = Obj.prepConsecutive(Icons, Ig, Icrop, 'Nvisit',Args.Nvisit,...
+                        [Obj] = Obj.prepConsecutive(Icons, Ig, Icrop, 'Nvisit',Args.Nvisit,...
                                                                                       'Nstep',Args.Nstep,...
                                                                                                   'SearchRadius',Args.SearchRadius,...
                                                                                                   'SearchRadiusUnits',Args.SearchRadiusUnits,...
@@ -314,11 +315,9 @@ classdef SearchMatchedSources < Component
                                                 Color  = AC.Table.phot_bp_mean_mag - AC.Table.phot_rp_mean_mag;
                                                 fprintf('AbsMag: %5.2f    Color: %5.2f\n', AbsMag,Color);
     
-                                                if AbsMag>8
-                                                    'a'
-                                                end
+                                                
     
-                                                Args.Report = true;
+                                                
                                                 if Args.Report
                                                     if Icand==1
                                                         import mlreportgen.report.* 
