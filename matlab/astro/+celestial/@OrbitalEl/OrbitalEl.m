@@ -2080,7 +2080,8 @@ classdef OrbitalEl < Base
             %          - Minor planets designation (string) or number.
             %            If empty, return all. Default is [].
             %          * ...,key,name,...
-            %            'MergedFile' - Default is 'MergedEpoch_2460400.mat'
+            %            'MergedFile' - Default is
+            %            {'/MergedEpoch_2460400.mat','/MergedEpoch_2460200.mat'}
             % Output : - OrbitalEl object.
             %            Number of elements equal to the number of files
             %            read, and in each elements there may be multiple
@@ -2094,7 +2095,7 @@ classdef OrbitalEl < Base
             arguments
                 Type     = [];   % [] - read all | 'num' | 'unnum' | 'comet'
                 Desig    = [];   % [] - read all
-                Args.MergedFile = '/MergedEpoch_2460400.mat';
+                Args.MergedFile = {'/MergedEpoch_2460400.mat','/MergedEpoch_2460200.mat'};
             end
             MJD0 = 2400000.5;
             
@@ -2194,8 +2195,20 @@ classdef OrbitalEl < Base
                         % load the merged common epoch orbital elements
                         % file
                         I = Installer; 
-                        DataFile = strcat(I.getDataDir(I.Items.MinorPlanetsCT),Args.MergedFile);
-                        Result = io.files.load2(DataFile);
+                        Nfile = numel(Args.MergedFile);
+                        TryLoading = true;
+                        Ifile = 0;
+                        while TryLoading 
+                            Ifile = Ifile + 1;
+                            try
+                                DataFile = strcat(I.getDataDir(I.Items.MinorPlanetsCT),Args.MergedFile{Ifile});
+                                Result   = io.files.load2(DataFile);
+                                TryLoading = false;
+                            catch
+                                warning('File %s does not exit - trying next file',Args.MergedFile{Ifile});
+                            end
+                        end
+                        
 
                     otherwise
                         error('Unknown Type option');
