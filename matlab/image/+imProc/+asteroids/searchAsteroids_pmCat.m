@@ -342,12 +342,16 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
                         if isempty(Args.RemoveByMergedCatFlags)
                             StoreAsteroid = true;
                         else
-                            BitDec = CatPM(Icat).getCol(Args.ColNameMergedCat);
-
-                            if Args.BitDicMergedCat.findBit(BitDec(Iast), Args.RemoveByMergedCatFlags, 'Method','any')
-                                % skip
-                                StoreAsteroid = false;
-                            else             
+                            if all(CatPM.isColumn(Args.ColNameMergedCat))
+                                BitDec = CatPM(Icat).getCol(Args.ColNameMergedCat);
+    
+                                if Args.BitDicMergedCat.findBit(BitDec(Iast), Args.RemoveByMergedCatFlags, 'Method','any')
+                                    % skip
+                                    StoreAsteroid = false;
+                                else             
+                                    StoreAsteroid = true;
+                                end
+                            else
                                 StoreAsteroid = true;
                             end
                         end

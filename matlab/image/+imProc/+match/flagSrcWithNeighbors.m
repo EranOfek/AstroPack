@@ -50,7 +50,8 @@ function [Flag, Obj] = flagSrcWithNeighbors(Obj, Args)
     
         switch lower(Args.CooType)
             case 'sphere'
-                DistFun = @celestial.coo.sphere_dist_fast;
+                DistFun     = @celestial.coo.sphere_dist_fast;
+                DistFunArgs = {};
                 [ColInd1] = colnameDict2ind(Obj(Iobj), Args.ColNamesRA);
                 [ColInd2] = colnameDict2ind(Obj(Iobj), Args.ColNamesDec);
                 if ~Obj(Iobj).IsSorted
@@ -62,7 +63,8 @@ function [Flag, Obj] = flagSrcWithNeighbors(Obj, Args)
 
                 RadiusRad = convert.angular(Args.RadiusUnits, 'rad', Args.Radius);
             case 'pix'
-                DistFun = @tools.math.geometry.plane_dist;
+                DistFun     = @tools.math.geometry.plane_dist;
+                DistFunArgs = {};
                 [ColInd1] = colnameDict2ind(Obj(Iobj), Args.ColNamesX);
                 [ColInd2] = colnameDict2ind(Obj(Iobj), Args.ColNamesY);
                 if ~Obj(Iobj).IsSorted
@@ -85,7 +87,7 @@ function [Flag, Obj] = flagSrcWithNeighbors(Obj, Args)
             Coo         = Coo(IndSort,:);
         end
         [IndTable] = VO.search.search_sortedlat_multi(Coo,...
-                                                      Coo(:,1), Coo(:,2), RadiusRad, [], DistFun);
+                                                      Coo(:,1), Coo(:,2), RadiusRad, [], DistFun, 'DistFunArgs',DistFunArgs);
 
         % flag the sources with neighboors
         Flag = [IndTable.Nmatch]>1;

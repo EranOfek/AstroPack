@@ -139,8 +139,9 @@ classdef SearchMatchedSources < Component
                     if ~isempty(IndCrop)
                         cd(SingleFile.Path);
     
-                      
-                        MSm(Igroup) = MatchedSources.read(SingleFile.AllFiles{IndCrop});
+                        try
+                            MSm(Igroup) = MatchedSources.read(SingleFile.AllFiles{IndCrop});
+                        end
                     end % if ~isempty(IndCrop)
                 end % for Igroup=1:1:Ngroup
 

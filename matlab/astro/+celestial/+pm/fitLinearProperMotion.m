@@ -1,4 +1,4 @@
-function [Result] = fitLinearProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
+function [Result, Igood] = fitLinearProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
     % One line description
     %     Optional detailed description
     % Input  : - 
@@ -6,7 +6,7 @@ function [Result] = fitLinearProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
     %          * ...,key,val,... 
     % Output : - 
     % Author : Eran Ofek (2024 Mar) 
-    % Example: 
+    % Example: celestial.pm.fitLinearProperMotion
 
     arguments
         Time

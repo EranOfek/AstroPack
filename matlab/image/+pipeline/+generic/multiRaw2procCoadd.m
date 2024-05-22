@@ -251,7 +251,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         % Match against external catalog: 'MergedCat
         Args.CoaddMatchMergedCat logical      = true;  
-        Args.MergedMatchMergedCat logical     = true;  
+        Args.MergedMatchMergedCat logical     = false;  
         
         Args.mergeCatalogsArgs cell           = {};
         
