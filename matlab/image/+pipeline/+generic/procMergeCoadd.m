@@ -27,7 +27,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
     arguments
         AllSI
         Args.mergeCatalogsArgs cell           = {};
-        Args.MergedMatchMergedCat logical     = true;
+        Args.MergedMatchMergedCat logical     = false;
         Args.CoaddMatchMergedCat logical      = true;
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
         Args.backgroundArgs cell              = {};

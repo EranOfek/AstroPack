@@ -2081,7 +2081,7 @@ classdef OrbitalEl < Base
             %            If empty, return all. Default is [].
             %          * ...,key,name,...
             %            'MergedFile' - Default is
-            %            {'/MergedEpoch_2460400.mat','/MergedEpoch_2460200.mat'}
+            %            {'MergedEpoch_2460400.mat','MergedEpoch_2460200.mat'}
             % Output : - OrbitalEl object.
             %            Number of elements equal to the number of files
             %            read, and in each elements there may be multiple
@@ -2095,7 +2095,7 @@ classdef OrbitalEl < Base
             arguments
                 Type     = [];   % [] - read all | 'num' | 'unnum' | 'comet'
                 Desig    = [];   % [] - read all
-                Args.MergedFile = {'/MergedEpoch_2460400.mat','/MergedEpoch_2460200.mat'};
+                Args.MergedFile = {'MergedEpoch_2460400.mat','MergedEpoch_2460200.mat'};
             end
             MJD0 = 2400000.5;
             
@@ -2201,7 +2201,7 @@ classdef OrbitalEl < Base
                         while TryLoading 
                             Ifile = Ifile + 1;
                             try
-                                DataFile = strcat(I.getDataDir(I.Items.MinorPlanetsCT),Args.MergedFile{Ifile});
+                                DataFile = strcat(I.getDataDir(I.Items.MinorPlanetsCT),filesep,Args.MergedFile{Ifile});
                                 Result   = io.files.load2(DataFile);
                                 TryLoading = false;
                             catch

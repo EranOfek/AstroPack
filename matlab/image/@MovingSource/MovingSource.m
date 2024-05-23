@@ -1101,20 +1101,30 @@ classdef MovingSource < Component
                         JD3 = max(VecJD);
                         JD2 = 0.5.*(JD1 + JD3);
 
-                        if Args.PM_IsArcTime || strcmp(Obj(Iobj).PMUnits, 'tdeg/deg')
-                            CC = 1;
-                        else
-                            CC = 1./cos(convert.angular(Obj(Iobj).CooUnits, 'rad', Obj(Iobj).Dec));
-                        end
-                        
-                        % Note PM_RA is in time units rather than angular units
-                        % so no cos(Dec) correction is needed
-                        RA1  = Obj(Iobj).RA + Obj(Iobj).PM_RA.*(JD1-JDm).*CC;
-                        RA2  = Obj(Iobj).RA + Obj(Iobj).PM_RA.*(JD2-JDm).*CC;
-                        RA3  = Obj(Iobj).RA + Obj(Iobj).PM_RA.*(JD3-JDm).*CC;
-                        Dec1 = Obj(Iobj).Dec + Obj(Iobj).PM_Dec.*(JD1-JDm);
-                        Dec2 = Obj(Iobj).Dec + Obj(Iobj).PM_Dec.*(JD2-JDm);
-                        Dec3 = Obj(Iobj).Dec + Obj(Iobj).PM_Dec.*(JD3-JDm);
+                        [Result, Igood] = celestial.pm.fitLinearProperMotion(VecJD(FlagNN), VecRA(FlagNN), VecDec(FlagNN));
+                        CC    = 1;
+                        RA1   = Result.RA0 + Result.MuRA.*(JD1-JDm).*CC;
+                        RA2   = Result.RA0 + Result.MuRA.*(JD2-JDm).*CC;
+                        RA3   = Result.RA0 + Result.MuRA.*(JD3-JDm).*CC;
+                        Dec1  = Result.Dec0 + Result.MuDec.*(JD1-JDm);
+                        Dec2  = Result.Dec0 + Result.MuDec.*(JD2-JDm);
+                        Dec3  = Result.Dec0 + Result.MuDec.*(JD3-JDm);
+
+
+                        % if Args.PM_IsArcTime || strcmp(Obj(Iobj).PMUnits, 'tdeg/deg')
+                        %     CC = 1;
+                        % else
+                        %     CC = 1./cos(convert.angular(Obj(Iobj).CooUnits, 'rad', Obj(Iobj).Dec));
+                        % end
+                        % 
+                        % % Note PM_RA is in time units rather than angular units
+                        % % so no cos(Dec) correction is needed
+                        % RA1  = Obj(Iobj).RA + Obj(Iobj).PM_RA.*(JD1-JDm).*CC;
+                        % RA2  = Obj(Iobj).RA + Obj(Iobj).PM_RA.*(JD2-JDm).*CC;
+                        % RA3  = Obj(Iobj).RA + Obj(Iobj).PM_RA.*(JD3-JDm).*CC;
+                        % Dec1 = Obj(Iobj).Dec + Obj(Iobj).PM_Dec.*(JD1-JDm);
+                        % Dec2 = Obj(Iobj).Dec + Obj(Iobj).PM_Dec.*(JD2-JDm);
+                        % Dec3 = Obj(Iobj).Dec + Obj(Iobj).PM_Dec.*(JD3-JDm);
                         
                         
                         % [JD, RA, Dec, Mag, Filter, AstIndex]

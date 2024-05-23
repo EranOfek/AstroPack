@@ -46,7 +46,8 @@ arguments
     Lat
     Radius
     FlagUnique                   = [];
-    DistFun function_handle      = @celestial.coo.sphere_dist_fast;
+    DistFun function_handle      = @celestial.coo.sphere_dist_fast; % @celestial.coo.sphere_dist_fast_threshDist; %@celestial.coo.sphere_dist_fast;
+    Args.DistFunArgs cell        = {}; %{4.8481e-5};   % 10 [arcsec] in radians
     Args.UseMex logical          = false;
 end
 
@@ -94,7 +95,7 @@ FlagFound    = false(Nlat,1);
 
 for I=1:1:Nlat
     %Dist  = celestial.coo.sphere_dist_fast(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat));
-    Dist  = DistFun(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat));
+    Dist  = DistFun(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat), Args.DistFunArgs{:});
     FlagDist = Dist <= Radius;
     Ind(I).Ind    = Ilow(I)-1+find(FlagDist);
     %Ind(I).Ind    = Ilow(I)-1+find(Dist <= Radius);

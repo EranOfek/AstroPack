@@ -69,6 +69,8 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         Args.ColRefY                     = [];
         Args.CreateNewObj(1,1) logical   = false; % for the sorted version of Obj1
         
+        Args.SphereDistFun               = @celestial.coo.sphere_dist_fast; %@celestial.coo.sphere_dist_fast_threshDist; %Thresh;
+        Args.SphereDistFunArgs           = {}; %{4.8481e-5};
     end    
 
     if Args.CreateNewObj
@@ -126,23 +128,25 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
 
         switch lower(CommonCooType{Imax})
             case 'sphere'
-                DistFun = @celestial.coo.sphere_dist_fast; %Thresh; 
-                
+                %DistFun = @celestial.coo.sphere_dist_fast; %Thresh; 
+                DistFun = Args.SphereDistFun; %@celestial.coo.sphere_dist_fast_threshDist; %Thresh;
+                DistFunArgs = Args.SphereDistFunArgs; % {4.8481e-5};
+
                 Coo1    = double(getLonLat(Cat1, 'rad'));
                 Coo2    = double(getLonLat(Cat2, 'rad'));
 
                 RadiusRad = convert.angular(Args.RadiusUnits, 'rad', Args.Radius);
                 %DistFunArgs{1} = RadiusRad;
-                DistFunArgs = {}; %{RadiusRad};
+                
                 ConvertDist = true;
             case 'pix'
                 DistFun = @tools.math.geometry.plane_dist;
-                %DistFunArgs = {};
+                DistFunArgs = {};
                 Coo1    = double(getXY(Cat1));
                 Coo2    = double(getXY(Cat2));
 
                 RadiusRad = Args.Radius;
-                DistFunArgs = {};
+                %DistFunArgs = {};
                 ConvertDist = false;
             otherwise
                 error('Unknown CooType option');
@@ -150,7 +154,7 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
 
         % match
         [IndTable, CatFlagNearest, CatFlagAll, IndInObj2] = VO.search.search_sortedlat_multiNearest(Coo1,...
-                                                    Coo2(:,1), Coo2(:,2), RadiusRad, DistFun, DistFunArgs);
+                                                    Coo2(:,1), Coo2(:,2), RadiusRad, DistFun, 'DistFunArgs',DistFunArgs);
 
         % Columns of IndTable:
         % For each source in Obj2:

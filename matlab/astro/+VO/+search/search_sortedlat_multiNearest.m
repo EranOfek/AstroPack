@@ -1,4 +1,4 @@
-function [IndTable,CatFlagNearest,CatFlagAll,IndInRef]=search_sortedlat_multiNearest(Cat,Long,Lat,Radius,DistFun, DistFunArgs, Args)
+function [IndTable,CatFlagNearest,CatFlagAll,IndInRef]=search_sortedlat_multiNearest(Cat,Long,Lat,Radius,DistFun, Args)
 % Search a single long/lat in a catalog sorted by latitude
 % Package: VO.search
 % Description: A low level function for a single cone search
@@ -10,9 +10,9 @@ function [IndTable,CatFlagNearest,CatFlagAll,IndInRef]=search_sortedlat_multiNea
 %          - Radius [radians] to search.
 %          - A function handle for calculating distances Fun(X1,Y1,X2,Y2).
 %            Default is @celestial.coo.sphere_dist_fast.
-%          - A cell array of additional arguments to pass to the DistFun
-%            (after the 4th position).
 %          * ...,key,val,...
+%            'DistFunArgs' - A cell array of additional arguments to pass to the DistFun
+%                   (after the 4th position).
 %            'UseMex' - A logical indicating if to use the binarySearch mex
 %                   program instead of tools.find.mfind_bin
 %                   Default is true.
@@ -39,7 +39,7 @@ arguments
     Lat
     Radius
     DistFun function_handle      = @celestial.coo.sphere_dist_fast;
-    DistFunArgs cell             = {};
+    Args.DistFunArgs cell        = {};
     Args.UseMex logical          = false;
 end
 
@@ -87,8 +87,15 @@ else
     
     for I=1:1:Nlat
         %Dist  = celestial.coo.sphere_dist_fast(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat));
-        Dist  = DistFun(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat), DistFunArgs{:});
-        FlagDist = Dist <= Radius;
+
+        %DiffLong = (Long(I) - Cat(Ilow(I):Ihigh(I),Col.Lon).*cos(Lat(I)));
+        %if any(DiffLong<Radius) || any(abs(DiffLong)>(2.*pi-Radius))
+            Dist  = DistFun(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat), Args.DistFunArgs{:});
+            FlagDist = Dist <= Radius;
+        %else
+        %    Dist  = nan(size(DiffLong));
+        %    FlagDist = false(size(Dist));
+        %end
         
         IndI  = Ilow(I)-1+find(FlagDist);
         DistI = Dist(FlagDist);
