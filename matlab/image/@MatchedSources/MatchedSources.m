@@ -3145,7 +3145,52 @@ classdef MatchedSources < Component
             
         end
 
-        
+        function [Result] = corrFields(Obj, Args)
+            %
+            % Example: R=MS.corrFields;
+
+            arguments
+                Obj
+                Args.Field1   = {'MAG_PSF'};
+                Args.Field2   = {'RA'};
+
+                Args.CorrType = 'Pearson';
+                Args.CorrRows = 'pairwise';
+                Args.CorrTail = 'both';
+
+                Args.DiagonalNaN logical = true;
+            end
+
+            if ischar(Args.Field1)
+                Args.Field1 = {Args.Field1};
+            end
+            if ischar(Args.Field2)
+                Args.Field2 = {Args.Field2};
+            end
+
+            Nf1 = numel(Args.Field1);
+            Nf2 = numel(Args.Field2);
+            Nf  = max(Nf1, Nf2);
+
+            Nobj = numel(Obj);
+
+            for Iobj=1:1:Nobj
+                for If=1:1:Nf
+                    If1  = min(If, Nf1);
+                    If2  = min(If, Nf2);
+
+                    [Result(Iobj).Corr, Result(Iobj).PVal] = corr(Obj(Iobj).Data.(Args.Field1{If1}), Obj(Iobj).Data.(Args.Field2{If2}), 'type',Args.CorrType, 'rows',Args.CorrRows, 'tail',Args.CorrTail);
+
+                    if Args.DiagonalNaN
+                        Nsrc    = size(Result(Iobj).Corr,1);
+                        DiagNaN = diag(nan(Nsrc,1));
+                        Result(Iobj).Corr = Result(Iobj).Corr + DiagNaN;
+                        Result(Iobj).PVal = Result(Iobj).PVal + DiagNaN;
+                    end
+                end
+            end
+
+        end
         
     end
     
