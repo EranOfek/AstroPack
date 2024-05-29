@@ -1,0 +1,86 @@
+function [Cube, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
+    % Create a cube / cell array of optionally rescaled and shifted, fluxed PSF stamps
+    %     This is a low-level function to be used for source injection into
+    %     an astronomical image or source removal therefrom 
+    % Input  : - a cube or cell array of PSF stamps or a single PSF stamp
+    %          - a 2-column (X, Y) table of injection positions
+    %          - a vector of source flux values or a single value for all the sources
+    %          * ...,key,val,... 
+    %          'Scale' - individual PSF scaling factors (1 scalar, 2 scalars, 1 vector, 
+    %                    a 2-column matrix of scaling factors), do not rescale if Scale = 0 (default) 
+    %          'Recenter' - true (shift the stamps according to X1Y1) or 
+    %                       false (just round the X1Y1 values to XY and do not shift the PSF) 
+    %          'PositivePSF' - logical, whether to improve the PSF wings (edges)
+    %          'FunEdge'     - a handle of a 2D function used to impove the edges 
+    %          'FunEdgePars' - parameters of 'FunEdge'
+    % Output : - a cube / cell array of shifted, rescaled and fluxed PSF stamps
+    %          - a 2-column (X, Y) table of whole pixel injection positions
+    % Author : A.M. Krassilchtchikov (2024 May) 
+    % Example: for i = 1:10; P(:,:,i) = imUtil.kernel2.gauss([6 6 0],[24 24]) + 1e-2*rand(24,24); end
+    %          X1Y1 = 100.*rand(10,2); Flux = 100.*rand(10,1);
+    %          [Cube, XY] = imUtil.art.createSourceCube(P, X1Y1, Flux, 'Recenter', false, 'Oversample', 3, 'PositivePSF', true);
+    arguments
+        PSF
+        X1Y1
+        Flux
+        Args.Oversample          = 0;
+        Args.Recenter    logical = true;
+        Args.PositivePSF logical = false;
+        Args.FunEdge             = @imUtil.kernel2.cosbell;
+        Args.FunEdgePars         = [4 6];
+    end
+        
+    Nsrc = size(X1Y1,1);           % the number of input sources
+    
+    % whole pixel coordinates and shifts 
+    XY      = max(round(X1Y1), 1); % the rounding should not produce 0
+    XYshift = X1Y1 - XY;
+    
+    % check the number of input flux values 
+    if numel(Flux) == 1 
+        Flux = repmat(Flux, 1, Nsrc)'; 
+    elseif numel(Flux) ~= Nsrc 
+        error ('The size of the source flux vector does not match that of the coordinate matrix');
+    end
+    
+    % check the size and type of PSF stamps
+    if numel(PSF) == 1
+        PSF = repmat(PSF, [1 1 Nsrc]);
+    elseif iscell(PSF)
+        if numel(PSF) ~= Nsrc
+            error ('The size of the PSF array does not match that of the coordinate matrix');
+        end
+    else 
+        if size(PSF,3) ~= Nsrc
+           error ('The size of the PSF stack does not match that of the coordinate matrix');
+        end 
+    end        
+    
+    % shift and resample the PSF stamps 
+    if Args.Recenter || all(Args.Oversample > 0)
+        PSF = imUtil.psf.shift_resample(PSF,XYshift,Args.Oversample,'ForceOdd',true,'Recenter',Args.Recenter,'Renorm',true); 
+    end        
+    
+    % eliminate negative PSF edges 
+    if Args.PositivePSF
+        if iscell(PSF)
+            M = cellfun(@size, PSF, 'UniformOutput', false);
+            for Isrc = 1:Nsrc
+                EdgeFunPars = ceil( Args.FunEdgePars .* M{Isrc}(1) / 15);    % empiric, should somehow depend on M
+                SupressedEdges = Args.FunEdge( EdgeFunPars, size(PSF{Isrc}) ) .* PSF{Isrc};
+                PSF{Isrc} = SupressedEdges ./ sum(SupressedEdges,'all');     % renormalize
+            end
+        else
+            [M,~,~] = size(PSF); 
+            for Isrc = 1:Nsrc
+                EdgeFunPars = ceil( Args.FunEdgePars .* M / 15);             % empiric, should somehow depend on M
+                SupressedEdges = Args.FunEdge( EdgeFunPars, [M M] ) .* PSF(:,:,Isrc);
+                PSF(:,:,Isrc) = SupressedEdges ./ sum(SupressedEdges,'all'); % renormalize
+            end
+        end
+    end
+    
+    % make fluxed cubes    
+    Cube = reshape(Flux, 1, 1, Nsrc) .* PSF;
+
+end
