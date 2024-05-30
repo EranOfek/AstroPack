@@ -1,13 +1,13 @@
-function [Cube, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
+function [CubePSF, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
     % Create a cube / cell array of optionally rescaled and shifted, fluxed PSF stamps
     %     This is a low-level function to be used for source injection into
     %     an astronomical image or source removal therefrom 
-    % Input  : - a cube or cell array of PSF stamps or a single PSF stamp
+    % Input  : - a cube or a cell array of PSF stamps or a single PSF stamp
     %          - a 2-column (X, Y) table of injection positions
     %          - a vector of source flux values or a single value for all the sources
     %          * ...,key,val,... 
-    %          'Scale' - individual PSF scaling factors (1 scalar, 2 scalars, 1 vector, 
-    %                    a 2-column matrix of scaling factors), do not rescale if Scale = 0 (default) 
+    %          'Oversample' - individual PSF scaling factors (1 scalar, 2 scalars, 1 vector, 
+    %                    a 2-column matrix of scaling factors), do not rescale if Oversample = 0 (default) 
     %          'Recenter' - true (shift the stamps according to X1Y1) or 
     %                       false (just round the X1Y1 values to XY and do not shift the PSF) 
     %          'PositivePSF' - logical, whether to improve the PSF wings (edges)
@@ -16,9 +16,13 @@ function [Cube, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
     % Output : - a cube / cell array of shifted, rescaled and fluxed PSF stamps
     %          - a 2-column (X, Y) table of whole pixel injection positions
     % Author : A.M. Krassilchtchikov (2024 May) 
-    % Example: for i = 1:10; P(:,:,i) = imUtil.kernel2.gauss([6 6 0],[24 24]) + 1e-2*rand(24,24); end
+    % Example: for i = 1:10; P(:,:,i) = imUtil.kernel2.gauss([4 4 0],[24 24]) + 1e-2*rand(24,24); end
     %          X1Y1 = 100.*rand(10,2); Flux = 100.*rand(10,1);
-    %          [Cube, XY] = imUtil.art.createSourceCube(P, X1Y1, Flux, 'Recenter', false, 'Oversample', 3, 'PositivePSF', true);
+    %          [CubePSF, XY] = imUtil.art.createSourceCube(P, X1Y1, Flux, 'Recenter', false, 'Oversample', 3, 'PositivePSF', true);
+    %
+    %          for i = 1:3; P{i} = imUtil.kernel2.gauss([4 4 0],[21+3*i 21+3*i]) + 1e-2*rand(21+3*i,21+3*i); end
+    %          X1Y1 = 100.*rand(3,2); Flux = 100.*rand(3,1);
+    %          [CubePSF, XY] = imUtil.art.createSourceCube(P, X1Y1, Flux, 'Recenter', false, 'Oversample', 3, 'PositivePSF', true);
     arguments
         PSF
         X1Y1
@@ -32,7 +36,7 @@ function [Cube, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
         
     Nsrc = size(X1Y1,1);           % the number of input sources
     
-    % whole pixel coordinates and shifts 
+    % whole pixel coordinates and subpixel shifts 
     XY      = max(round(X1Y1), 1); % the rounding should not produce 0
     XYshift = X1Y1 - XY;
     
@@ -56,7 +60,7 @@ function [Cube, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
         end 
     end        
     
-    % shift and resample the PSF stamps 
+    % shift and resample the PSF stamps, forcing odd-sized and normalized stamps  
     if Args.Recenter || all(Args.Oversample > 0)
         PSF = imUtil.psf.shift_resample(PSF,XYshift,Args.Oversample,'ForceOdd',true,'Recenter',Args.Recenter,'Renorm',true); 
     end        
@@ -80,7 +84,13 @@ function [Cube, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
         end
     end
     
-    % make fluxed cubes    
-    Cube = reshape(Flux, 1, 1, Nsrc) .* PSF;
-
+    % make fluxed PSF cubes  
+    if iscell(PSF)
+        CubePSF = cell(Nsrc,1);
+        for Ipsf = 1:Nsrc
+            CubePSF{Ipsf} = Flux(Ipsf) .* PSF{Ipsf};
+        end
+    else
+        CubePSF = reshape(Flux, 1, 1, Nsrc) .* PSF;
+    end
 end

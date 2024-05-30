@@ -153,7 +153,7 @@ function [Image, ResultingImage] = injectStamps(XY, PSF, Flux, Args)
     
     % add noise
     if Args.AddNoise
-        normrnd( Image, sqrt(Image), ImSize(1), ImSize(2) ); 
+        Image = normrnd( Image, sqrt(Image), ImSize(1), ImSize(2) ); 
     end
     
     % if requested, subtract the new image from the InputImage or add to it
