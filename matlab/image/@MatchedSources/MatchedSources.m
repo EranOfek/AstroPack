@@ -3145,20 +3145,94 @@ classdef MatchedSources < Component
             
         end
 
-        function [Result] = corrFields(Obj, Args)
-            %
+        function [Result] = corrFields(Obj, Isrc, Args)
+            % Calculate the correlation between two Data fields of each source.
+            %   The correlation can be calculated between all sources, or
+            %   between two properties of the same source.
+            % Input  : - A single element MatchedSources object.
+            %          - An optional src column index. If empty, then will
+            %            calculate correlations for all sources.
+            %            If Isrc is given, then 'type' will be
+            %            automatically switched to 'indiv'.
+            %            Default is [].
+            %          * ...,key,val,...
+            %            'Type' - One of the following:
+            %                   'all' - Calculate the corr. coef. between
+            %                       all pairs of sources (returns a matrix
+            %                       of correlations and P values).
+            %                   'pairs' - For each source, calculate the corr. coef.
+            %                       between the Field1 and Field2 of the
+            %                       source.
+            %                       (returns a vector
+            %                       of correlations and P values).
+            %                   'pairs_sim' - Same as 'pairs', but using the
+            %                       tools.math.stat.corrsim.
+            %                       In this case the PVal output contains
+            %                       the false alarm rate and not the P
+            %                       value.
+            %                   'indiv' - Same as 'pairs_sim', but for a
+            %                       single source which column index is
+            %                       provided in the second input argument.
+            %                       In this case the PVal output contains
+            %                       the false alarm rate and not the P
+            %                       value.
+            %                   Default is 'pairs'.
+            %            'Field1' - A cell array containing a list of fields in
+            %                   the Data property. This is the first field
+            %                   that will be correlated against the second
+            %                   field. Default is {'MAG_PSF'}.
+            %            'Field2' - Like 'Field1', but for the second
+            %                   field. Default is {'RA'}.
+            %            'CorrType' - 'Pearson'|'Kendall'|'Speartman'.
+            %                   Default is Pearson'
+            %            'CorrRows' - Ccorr argument 'rows'.
+            %                   Default is 'pairwise'.
+            %            'CorrTail' - corr argument 'tail'.
+            %                   Default is 'both'.
+            %            'Nsim' - If tools.math.stat.corrsim is used, then
+            %                   this is the number of bootstrap simulations.
+            %                   Default is 1000.
+            %            'DiagonalNaN' - Logical indicating if to set the
+            %                   diagonal to NaN. Default is false.
+            %                   This should be used when 'type'='all' and Field1 and Field2
+            %                   are the same.
+            % Output : - A structure array with element per field for which
+            %            the correlation was calculated.
+            %            The number of elements is
+            %            max(numel(Field1),numel(Field2)).
+            %            With the following fields:
+            %            .Corr - Matrix of size [Nsrc, Nsrc] with the
+            %                   correlation
+            %            .PVal - P value (for 'all'|'pairs'), or the
+            %                   probability to get larger correlation then
+            %                   the measured correlation (using bootstrap)
+            %                   for ther 'pairs_sim'|'indiv' options.
+            %            .Nnn - Number of not NaN values in the two columns
+            %                   used for calculating the correlation.
+            % Author : Eran Ofek (May 2024)
             % Example: R=MS.corrFields;
+            %          R=MS.corrFields('type','all','Field1','MAG_PSF','Field2','MAG_PSF','DiagonalNaN',true);
+            %          R=MS.corrFields('type','pairs_sim');
+            %          R=MS.corrFields(1);
+
 
             arguments
-                Obj
+                Obj(1,1)
+                Isrc          = [];
+                Args.Type     = 'pairs';
                 Args.Field1   = {'MAG_PSF'};
                 Args.Field2   = {'RA'};
 
                 Args.CorrType = 'Pearson';
                 Args.CorrRows = 'pairwise';
                 Args.CorrTail = 'both';
+                Args.Nsim     = 1000;
 
-                Args.DiagonalNaN logical = true;
+                Args.DiagonalNaN logical = false;
+            end
+
+            if ~isempty(Isrc)
+                Args.Type = 'indiv';
             end
 
             if ischar(Args.Field1)
@@ -3172,23 +3246,71 @@ classdef MatchedSources < Component
             Nf2 = numel(Args.Field2);
             Nf  = max(Nf1, Nf2);
 
-            Nobj = numel(Obj);
+            %Nobj = numel(Obj);
+            Iobj = 1;
 
-            for Iobj=1:1:Nobj
-                for If=1:1:Nf
-                    If1  = min(If, Nf1);
-                    If2  = min(If, Nf2);
+            for If=1:1:Nf
+                If1  = min(If, Nf1);
+                If2  = min(If, Nf2);
+                
+                Nsrc    = Obj(Iobj).Nsrc;
 
-                    [Result(Iobj).Corr, Result(Iobj).PVal] = corr(Obj(Iobj).Data.(Args.Field1{If1}), Obj(Iobj).Data.(Args.Field2{If2}), 'type',Args.CorrType, 'rows',Args.CorrRows, 'tail',Args.CorrTail);
+                switch lower(Args.Type)
+                    case 'all'
+                        [Result(If).Corr, Result(Iobj).PVal] = corr(Obj(Iobj).Data.(Args.Field1{If1}), Obj(Iobj).Data.(Args.Field2{If2}), 'type',Args.CorrType, 'rows',Args.CorrRows, 'tail',Args.CorrTail);
+        
+                        % count not NaN
+                        Result(If).Nnn = sum(~isnan(Obj(Iobj).Data.(Args.Field1{If1})) & ~isnan(Obj(Iobj).Data.(Args.Field2{If2})), 1);
+                    case 'pairs'
 
-                    if Args.DiagonalNaN
-                        Nsrc    = size(Result(Iobj).Corr,1);
-                        DiagNaN = diag(nan(Nsrc,1));
-                        Result(Iobj).Corr = Result(Iobj).Corr + DiagNaN;
-                        Result(Iobj).PVal = Result(Iobj).PVal + DiagNaN;
-                    end
+                        Result(If).Corr = nan(1, Nsrc);
+                        Result(If).PVal = nan(1, Nsrc);
+                        for Isrc=1:1:Nsrc
+                            [Result(If).Corr(Isrc), Result(Iobj).PVal(Isrc)] = corr(Obj(Iobj).Data.(Args.Field1{If1})(:,Isrc), Obj(Iobj).Data.(Args.Field2{If2})(:,Isrc), 'type',Args.CorrType, 'rows',Args.CorrRows, 'tail',Args.CorrTail);
+                        end
+
+                        % count not NaN
+                        Result(If).Nnn = sum(~isnan(Obj(Iobj).Data.(Args.Field1{If1})) & ~isnan(Obj(Iobj).Data.(Args.Field2{If2})), 1);
+
+                    case 'pairs_sim'
+                        Result(If).Corr = nan(1, Nsrc);
+                        Result(If).PVal = nan(1, Nsrc);
+                        for Isrc=1:1:Nsrc
+                            [Result(If).Corr(Isrc), Result(Iobj).PVal(Isrc)] = tools.math.stat.corrsim(Obj(Iobj).Data.(Args.Field1{If1})(:,Isrc),...
+                                                                                                       Obj(Iobj).Data.(Args.Field2{If2})(:,Isrc),...
+                                                                                                       Args.Nsim,...
+                                                                                                       'y',...
+                                                                                                       'type',Args.CorrType);
+                        end
+
+                        % count not NaN
+                        Result(If).Nnn = sum(~isnan(Obj(Iobj).Data.(Args.Field1{If1})) & ~isnan(Obj(Iobj).Data.(Args.Field2{If2})), 1);
+
+                    case 'indiv'
+                        [Result(If).Corr(Isrc), Result(Iobj).PVal(Isrc)] = tools.math.stat.corrsim(Obj(Iobj).Data.(Args.Field1{If1})(:,Isrc),...
+                                                                                                       Obj(Iobj).Data.(Args.Field2{If2})(:,Isrc),...
+                                                                                                       Args.Nsim,...
+                                                                                                       'y',...
+                                                                                                       'type',Args.CorrType);
+                        
+
+                        % count not NaN
+                        Result(If).Nnn = sum(~isnan(Obj(Iobj).Data.(Args.Field1{If1})(:,Isrc)) & ~isnan(Obj(Iobj).Data.(Args.Field2{If2})(:,Isrc)), 1);
+
+                    otherwise
+                        error('Unknown Type option');
+                end
+
+
+                if Args.DiagonalNaN
+                    Nsrc    = size(Result(If).Corr,1);
+                    DiagNaN = diag(nan(Nsrc,1));
+                    Result(If).Corr = Result(If).Corr + DiagNaN;
+                    Result(If).PVal = Result(If).PVal + DiagNaN;
+
                 end
             end
+            
 
         end
         
