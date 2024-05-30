@@ -83,16 +83,12 @@ function Image = directInjectSources (Image0, Cat, Scaling, PSF)
 
                 end
 
-            otherwise
-            
-                fprintf('Summation method not defined!\n');
-            
+            otherwise            
+                fprintf('Summation method not defined!\n');            
         end
                 
     end
 
-    % scale down to the original pixel size:
-    
+    % scale down to the original pixel size:    
     Image = imresize(Im, 1./Scaling, 'bilinear');
-
 end

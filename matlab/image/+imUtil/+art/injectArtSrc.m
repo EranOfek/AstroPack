@@ -41,7 +41,7 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
 
     % create an impty image of the given size
 
-    Image0 = zeros(SizeX, SizeY);
+    Image0 = repmat(0, SizeX, SizeY);
 
     % get the number of sources and produce a source "catalog" array
 
