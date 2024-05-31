@@ -2435,6 +2435,34 @@ classdef MatchedSources < Component
 
         end
 
+        function Obj=setBadPhotToNan(Obj, Args)
+            % set to NaN photometry with bad flags
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            'BadFlags' - A cell array of flags that if
+            %                   present, then photometry will be replaced with
+            %                   NaN. Default is {'Overlap','NearEdge','CR_DeltaHT','Saturated','NaN','Negative'}
+            %            'MagField' - Magnitude field to set to NaN.
+            %                   Default is 'MAG_BEST'.
+            % Output : - A MatchedSources object, in which the mag.
+            %            field in the Data property is modified.
+            % Author : Eran Ofek (May 2024)
+            % Example: MS.setBadPhotToNan;
+
+            arguments
+                Obj
+                Args.BadFlags              = {'Overlap','NearEdge','CR_DeltaHT','Saturated','NaN','Negative'};
+                Args.MagField              = 'MAG_BEST';
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                [BadFlags] = searchFlags(Obj(Iobj), 'FlagsList',Args.BadFlags);
+                Obj(Iobj).Data.(Args.MagField)(BadFlags) = NaN;
+            end
+        end
+
+        
         function [Result]=lsqRelPhot(Obj, Args)
             % Perform relative photometry calibration using the linear least square method.
             %   This function solves the following linear problem:
@@ -3056,6 +3084,89 @@ classdef MatchedSources < Component
             
         end
     
+        function [RMFilt, Flag] = runMeanFilter(Obj, Args)
+            % Apply a running mean top-hat filter to data and normalize results by std.
+            %   Will also check that the significance of the filiter with the specified width 
+            %   is larger than that of a filter with width=1.
+            %   Using: timeSeries.filter.runMeanFilter
+            % Input  : - An MatchedSources object.
+            %            The time series are assumed to be equally spaced, but they
+            %            may contains NaNs.
+            %          * ...,key,val,... 
+            %            'MagField' - Field in the Data property that
+            %                   contains the Mag information.
+            %                   Default is 'MAG_BEST'.
+            %            'Dim' - Dimension of the time axis. Default is 1.
+            %            'PolyFit' - A vector of polynomial orders to fit and
+            %                   subtract from data prior to filtering.
+            %                   If empty, then skip this step.
+            %                   Default is [0 1].
+            %            'MeanFun' - Fuction handle to calcute the mean of the time
+            %                   series. This mean will be stubtracted from the ti
+            %                   series prior to filtering.
+            %                   Default is @median.
+            %            'MeanFunArgs' - A cell array of additional arguments to
+            %                   pass to the MeanFun. Default is {1, "omitnan"}.
+            %            'MoveFun' - Moving average function (e.g., @movmedian).
+            %                   Default is @movmean.
+            %            'WinSize' - Moving avergae window size.
+            %                   Default is 2.
+            %            'EndPoint' - Endpoints parameter for the MoveFun.
+            %                   Default is "fill".
+            %            'StdFun' - Std function.
+            %                   Default is @tools.math.stat.rstd.
+            %            'Threshold' - Threshold for flares detection.
+            %                   Default is 8.
+            %
+            % Output : - A structure array (element per MatchedSources element)
+            %            with the following fields:
+            %            .Z - Filter data divided by Std.
+            %            .FlagCand - A vector (element per source; i.e., columns of
+            %                   the input), indicating if the source have a flare
+            %                   or dip above threshold.
+            %                   A flare/dip is chosen if its above threshold and
+            %                   the number of valid data points within the window
+            %                   are equal to the window size, and the Z of the
+            %                   flare/dip is higher by one compared to the Z1.
+            %                   Z1 is the original data divided by the StD (i.e.,
+            %                   unfiltered data).
+            %            .NumberNotNaN - A vector (element per source) indicating
+            %                   the number of not NaN entries per source.
+            %          - A structure array (element per MatchedSources element)
+            %            with the following fields:
+            %            .RunMeanFilt - A vector of flags indicating if a
+            %                   flare or eclipse where found using the running
+            %                   mean filter.
+            % Author : Eran Ofek (2024 May) 
+            % Example: [R,F] = MS.runMeanFilter;
+
+            arguments
+                Obj
+                Args.MagField          = 'MAG_BEST';
+                Args.Dim               = 1;
+                Args.PolyFit           = [0 1];
+        
+                Args.MeanFun           = @median;
+                Args.MeanFunArgs       = {1, "omitnan"};
+        
+                Args.MoveFun           = @movmean; % @movmedian;
+                Args.WinSize           = 2;
+                Args.EndPoint          = "fill";
+        
+                Args.StdFun            = @tools.math.stat.rstd;
+        
+                Args.Threshold         = 8;
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                RMFilt(Iobj) = timeSeries.filter.runMeanFilter(Obj.Data.(Args.MagField));
+
+                Flag(Iobj).RunMeanFilt = any(RMFilt(Iobj).FlagCand, 1);
+            end
+        end
+
+
         function [Result, FlagVar] = fitPolyHyp(Obj, Args)
             % Hypothesis testing between fitting polynomials of various degrees to
             %   a matrix of light curves in a MatchedSources object (with unknown errors).
@@ -3145,20 +3256,94 @@ classdef MatchedSources < Component
             
         end
 
-        function [Result] = corrFields(Obj, Args)
-            %
+        function [Result] = corrFields(Obj, Isrc, Args)
+            % Calculate the correlation between two Data fields of each source.
+            %   The correlation can be calculated between all sources, or
+            %   between two properties of the same source.
+            % Input  : - A single element MatchedSources object.
+            %          - An optional src column index. If empty, then will
+            %            calculate correlations for all sources.
+            %            If Isrc is given, then 'type' will be
+            %            automatically switched to 'indiv'.
+            %            Default is [].
+            %          * ...,key,val,...
+            %            'Type' - One of the following:
+            %                   'all' - Calculate the corr. coef. between
+            %                       all pairs of sources (returns a matrix
+            %                       of correlations and P values).
+            %                   'pairs' - For each source, calculate the corr. coef.
+            %                       between the Field1 and Field2 of the
+            %                       source.
+            %                       (returns a vector
+            %                       of correlations and P values).
+            %                   'pairs_sim' - Same as 'pairs', but using the
+            %                       tools.math.stat.corrsim.
+            %                       In this case the PVal output contains
+            %                       the false alarm rate and not the P
+            %                       value.
+            %                   'indiv' - Same as 'pairs_sim', but for a
+            %                       single source which column index is
+            %                       provided in the second input argument.
+            %                       In this case the PVal output contains
+            %                       the false alarm rate and not the P
+            %                       value.
+            %                   Default is 'pairs'.
+            %            'Field1' - A cell array containing a list of fields in
+            %                   the Data property. This is the first field
+            %                   that will be correlated against the second
+            %                   field. Default is {'MAG_PSF'}.
+            %            'Field2' - Like 'Field1', but for the second
+            %                   field. Default is {'RA'}.
+            %            'CorrType' - 'Pearson'|'Kendall'|'Speartman'.
+            %                   Default is Pearson'
+            %            'CorrRows' - Ccorr argument 'rows'.
+            %                   Default is 'pairwise'.
+            %            'CorrTail' - corr argument 'tail'.
+            %                   Default is 'both'.
+            %            'Nsim' - If tools.math.stat.corrsim is used, then
+            %                   this is the number of bootstrap simulations.
+            %                   Default is 1000.
+            %            'DiagonalNaN' - Logical indicating if to set the
+            %                   diagonal to NaN. Default is false.
+            %                   This should be used when 'type'='all' and Field1 and Field2
+            %                   are the same.
+            % Output : - A structure array with element per field for which
+            %            the correlation was calculated.
+            %            The number of elements is
+            %            max(numel(Field1),numel(Field2)).
+            %            With the following fields:
+            %            .Corr - Matrix of size [Nsrc, Nsrc] with the
+            %                   correlation
+            %            .PVal - P value (for 'all'|'pairs'), or the
+            %                   probability to get larger correlation then
+            %                   the measured correlation (using bootstrap)
+            %                   for ther 'pairs_sim'|'indiv' options.
+            %            .Nnn - Number of not NaN values in the two columns
+            %                   used for calculating the correlation.
+            % Author : Eran Ofek (May 2024)
             % Example: R=MS.corrFields;
+            %          R=MS.corrFields('type','all','Field1','MAG_PSF','Field2','MAG_PSF','DiagonalNaN',true);
+            %          R=MS.corrFields('type','pairs_sim');
+            %          R=MS.corrFields(1);
+
 
             arguments
-                Obj
+                Obj(1,1)
+                Isrc          = [];
+                Args.Type     = 'pairs';
                 Args.Field1   = {'MAG_PSF'};
                 Args.Field2   = {'RA'};
 
                 Args.CorrType = 'Pearson';
                 Args.CorrRows = 'pairwise';
                 Args.CorrTail = 'both';
+                Args.Nsim     = 1000;
 
-                Args.DiagonalNaN logical = true;
+                Args.DiagonalNaN logical = false;
+            end
+
+            if ~isempty(Isrc)
+                Args.Type = 'indiv';
             end
 
             if ischar(Args.Field1)
@@ -3172,26 +3357,75 @@ classdef MatchedSources < Component
             Nf2 = numel(Args.Field2);
             Nf  = max(Nf1, Nf2);
 
-            Nobj = numel(Obj);
+            %Nobj = numel(Obj);
+            Iobj = 1;
 
-            for Iobj=1:1:Nobj
-                for If=1:1:Nf
-                    If1  = min(If, Nf1);
-                    If2  = min(If, Nf2);
+            for If=1:1:Nf
+                If1  = min(If, Nf1);
+                If2  = min(If, Nf2);
+                
+                Nsrc    = Obj(Iobj).Nsrc;
 
-                    [Result(Iobj).Corr, Result(Iobj).PVal] = corr(Obj(Iobj).Data.(Args.Field1{If1}), Obj(Iobj).Data.(Args.Field2{If2}), 'type',Args.CorrType, 'rows',Args.CorrRows, 'tail',Args.CorrTail);
+                switch lower(Args.Type)
+                    case 'all'
+                        [Result(If).Corr, Result(Iobj).PVal] = corr(Obj(Iobj).Data.(Args.Field1{If1}), Obj(Iobj).Data.(Args.Field2{If2}), 'type',Args.CorrType, 'rows',Args.CorrRows, 'tail',Args.CorrTail);
+        
+                        % count not NaN
+                        Result(If).Nnn = sum(~isnan(Obj(Iobj).Data.(Args.Field1{If1})) & ~isnan(Obj(Iobj).Data.(Args.Field2{If2})), 1);
+                    case 'pairs'
 
-                    if Args.DiagonalNaN
-                        Nsrc    = size(Result(Iobj).Corr,1);
-                        DiagNaN = diag(nan(Nsrc,1));
-                        Result(Iobj).Corr = Result(Iobj).Corr + DiagNaN;
-                        Result(Iobj).PVal = Result(Iobj).PVal + DiagNaN;
-                    end
+                        Result(If).Corr = nan(1, Nsrc);
+                        Result(If).PVal = nan(1, Nsrc);
+                        for Isrc=1:1:Nsrc
+                            [Result(If).Corr(Isrc), Result(Iobj).PVal(Isrc)] = corr(Obj(Iobj).Data.(Args.Field1{If1})(:,Isrc), Obj(Iobj).Data.(Args.Field2{If2})(:,Isrc), 'type',Args.CorrType, 'rows',Args.CorrRows, 'tail',Args.CorrTail);
+                        end
+
+                        % count not NaN
+                        Result(If).Nnn = sum(~isnan(Obj(Iobj).Data.(Args.Field1{If1})) & ~isnan(Obj(Iobj).Data.(Args.Field2{If2})), 1);
+
+                    case 'pairs_sim'
+                        Result(If).Corr = nan(1, Nsrc);
+                        Result(If).PVal = nan(1, Nsrc);
+                        for Isrc=1:1:Nsrc
+                            [Result(If).Corr(Isrc), Result(Iobj).PVal(Isrc)] = tools.math.stat.corrsim(Obj(Iobj).Data.(Args.Field1{If1})(:,Isrc),...
+                                                                                                       Obj(Iobj).Data.(Args.Field2{If2})(:,Isrc),...
+                                                                                                       Args.Nsim,...
+                                                                                                       'y',...
+                                                                                                       'type',Args.CorrType);
+                        end
+
+                        % count not NaN
+                        Result(If).Nnn = sum(~isnan(Obj(Iobj).Data.(Args.Field1{If1})) & ~isnan(Obj(Iobj).Data.(Args.Field2{If2})), 1);
+
+                    case 'indiv'
+                        [Result(If).Corr(Isrc), Result(Iobj).PVal(Isrc)] = tools.math.stat.corrsim(Obj(Iobj).Data.(Args.Field1{If1})(:,Isrc),...
+                                                                                                       Obj(Iobj).Data.(Args.Field2{If2})(:,Isrc),...
+                                                                                                       Args.Nsim,...
+                                                                                                       'y',...
+                                                                                                       'type',Args.CorrType);
+                        
+
+                        % count not NaN
+                        Result(If).Nnn = sum(~isnan(Obj(Iobj).Data.(Args.Field1{If1})(:,Isrc)) & ~isnan(Obj(Iobj).Data.(Args.Field2{If2})(:,Isrc)), 1);
+
+                    otherwise
+                        error('Unknown Type option');
+                end
+
+
+                if Args.DiagonalNaN
+                    Nsrc    = size(Result(If).Corr,1);
+                    DiagNaN = diag(nan(Nsrc,1));
+                    Result(If).Corr = Result(If).Corr + DiagNaN;
+                    Result(If).PVal = Result(If).PVal + DiagNaN;
+
                 end
             end
+            
 
         end
-        
+       
+
     end
     
     methods % find sources
