@@ -2435,6 +2435,34 @@ classdef MatchedSources < Component
 
         end
 
+        function Obj=setBadPhotToNan(Obj, Args)
+            % set to NaN photometry with bad flags
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            'BadFlags' - A cell array of flags that if
+            %                   present, then photometry will be replaced with
+            %                   NaN. Default is {'Overlap','NearEdge','CR_DeltaHT','Saturated','NaN','Negative'}
+            %            'MagField' - Magnitude field to set to NaN.
+            %                   Default is 'MAG_BEST'.
+            % Output : - A MatchedSources object, in which the mag.
+            %            field in the Data property is modified.
+            % Author : Eran Ofek (May 2024)
+            % Example: MS.setBadPhotToNan;
+
+            arguments
+                Obj
+                Args.BadFlags              = {'Overlap','NearEdge','CR_DeltaHT','Saturated','NaN','Negative'};
+                Args.MagField              = 'MAG_BEST';
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                [BadFlags] = searchFlags(Obj(Iobj), 'FlagsList',Args.BadFlags);
+                Obj(Iobj).Data.(Args.MagField)(BadFlags) = NaN;
+            end
+        end
+
+        
         function [Result]=lsqRelPhot(Obj, Args)
             % Perform relative photometry calibration using the linear least square method.
             %   This function solves the following linear problem:
@@ -3056,6 +3084,89 @@ classdef MatchedSources < Component
             
         end
     
+        function [RMFilt, Flag] = runMeanFilter(Obj, Args)
+            % Apply a running mean top-hat filter to data and normalize results by std.
+            %   Will also check that the significance of the filiter with the specified width 
+            %   is larger than that of a filter with width=1.
+            %   Using: timeSeries.filter.runMeanFilter
+            % Input  : - An MatchedSources object.
+            %            The time series are assumed to be equally spaced, but they
+            %            may contains NaNs.
+            %          * ...,key,val,... 
+            %            'MagField' - Field in the Data property that
+            %                   contains the Mag information.
+            %                   Default is 'MAG_BEST'.
+            %            'Dim' - Dimension of the time axis. Default is 1.
+            %            'PolyFit' - A vector of polynomial orders to fit and
+            %                   subtract from data prior to filtering.
+            %                   If empty, then skip this step.
+            %                   Default is [0 1].
+            %            'MeanFun' - Fuction handle to calcute the mean of the time
+            %                   series. This mean will be stubtracted from the ti
+            %                   series prior to filtering.
+            %                   Default is @median.
+            %            'MeanFunArgs' - A cell array of additional arguments to
+            %                   pass to the MeanFun. Default is {1, "omitnan"}.
+            %            'MoveFun' - Moving average function (e.g., @movmedian).
+            %                   Default is @movmean.
+            %            'WinSize' - Moving avergae window size.
+            %                   Default is 2.
+            %            'EndPoint' - Endpoints parameter for the MoveFun.
+            %                   Default is "fill".
+            %            'StdFun' - Std function.
+            %                   Default is @tools.math.stat.rstd.
+            %            'Threshold' - Threshold for flares detection.
+            %                   Default is 8.
+            %
+            % Output : - A structure array (element per MatchedSources element)
+            %            with the following fields:
+            %            .Z - Filter data divided by Std.
+            %            .FlagCand - A vector (element per source; i.e., columns of
+            %                   the input), indicating if the source have a flare
+            %                   or dip above threshold.
+            %                   A flare/dip is chosen if its above threshold and
+            %                   the number of valid data points within the window
+            %                   are equal to the window size, and the Z of the
+            %                   flare/dip is higher by one compared to the Z1.
+            %                   Z1 is the original data divided by the StD (i.e.,
+            %                   unfiltered data).
+            %            .NumberNotNaN - A vector (element per source) indicating
+            %                   the number of not NaN entries per source.
+            %          - A structure array (element per MatchedSources element)
+            %            with the following fields:
+            %            .RunMeanFilt - A vector of flags indicating if a
+            %                   flare or eclipse where found using the running
+            %                   mean filter.
+            % Author : Eran Ofek (2024 May) 
+            % Example: [R,F] = MS.runMeanFilter;
+
+            arguments
+                Obj
+                Args.MagField          = 'MAG_BEST';
+                Args.Dim               = 1;
+                Args.PolyFit           = [0 1];
+        
+                Args.MeanFun           = @median;
+                Args.MeanFunArgs       = {1, "omitnan"};
+        
+                Args.MoveFun           = @movmean; % @movmedian;
+                Args.WinSize           = 2;
+                Args.EndPoint          = "fill";
+        
+                Args.StdFun            = @tools.math.stat.rstd;
+        
+                Args.Threshold         = 8;
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                RMFilt(Iobj) = timeSeries.filter.runMeanFilter(Obj.Data.(Args.MagField));
+
+                Flag(Iobj).RunMeanFilt = any(RMFilt(Iobj).FlagCand, 1);
+            end
+        end
+
+
         function [Result, FlagVar] = fitPolyHyp(Obj, Args)
             % Hypothesis testing between fitting polynomials of various degrees to
             %   a matrix of light curves in a MatchedSources object (with unknown errors).
@@ -3313,7 +3424,8 @@ classdef MatchedSources < Component
             
 
         end
-        
+       
+
     end
     
     methods % find sources
