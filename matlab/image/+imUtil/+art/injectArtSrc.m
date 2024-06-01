@@ -21,9 +21,7 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     % Author : A. Krassilchtchikov et al. (Feb 2023)
     % Example: [Image, JPSF] = imUtil.art.injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF,...
     %                                        'PSFScaling',5,'RotatePSF',-90,'Jitter',1);
-
-    arguments
-        
+    arguments        
         X
         Y
         CPS
@@ -35,8 +33,7 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
         Args.Jitter         =    0;       % PSF blurring due to the S/C jitter
         Args.Method         =   'direct'; % injection method
                                           % 'direct' or 'FFTShift'
-        Args.MeasurePSF     =    0;       % measure PSF flux containment and pseudo-FWHM
-        
+        Args.MeasurePSF     =    0;       % measure PSF flux containment and pseudo-FWHM        
     end
 
     % create an impty image of the given size
