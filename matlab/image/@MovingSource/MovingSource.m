@@ -1001,7 +1001,7 @@ classdef MovingSource < Component
     end
 
     methods % reports
-        function [ReportMPC,ReportInfo,ReportList]=reportMPC(Obj, Args)
+        function [ReportMPC,ReportInfo,ReportList,IusedList]=reportMPC(Obj, Args)
             % Generate MPC report for MovingSource object
             %   Generate an MPC report for all elements of a MovingSource object
             % Input  : - A MovingSource object.
@@ -1070,6 +1070,7 @@ classdef MovingSource < Component
             Nobj = numel(Obj);
             ReportMPC = Args.ReportMPC;
             ReportList = cell(Nobj,1);
+            IusedList = cell(Nobj,1);
             ReportColNames = {'JD','RA','Dec','Mag','Filter','AstIndex'};
             ReportInfo.ReportColNames = ReportColNames;
             ReportInfo.CooUnitsList = cell(Nobj,1);
@@ -1086,11 +1087,13 @@ classdef MovingSource < Component
                 switch Args.ReportType
                     case 'AllDetections'
                         % [JD, RA, Dec, Mag, Filter, AstIndex]
+                        Iused = 1:numel(VecRA(FlagNN));
                         ReportTable  = [VecJD(FlagNN), VecRA(FlagNN), VecDec(FlagNN), VecMag(FlagNN), nan(NN,1),  AstIndex.*ones(NN,1)];
                         CooUnits     = 'deg';
                         
                     case 'FittedDetection'
                         % [JD, RA, Dec, Mag, Filter, AstIndex]
+                        Iused = 1:numel(Obj(Iobj).RA);
                         ReportTable = [Obj(Iobj).JD, Obj(Iobj).RA, Obj(Iobj).Dec, Obj(Iobj).Mag, NaN, AstIndex];
                         CooUnits = Obj(Iobj).CooUnits;
                         
@@ -1101,7 +1104,9 @@ classdef MovingSource < Component
                         JD3 = max(VecJD);
                         JD2 = 0.5.*(JD1 + JD3);
 
-                        [Result, Igood] = celestial.pm.fitLinearProperMotion(VecJD(FlagNN), VecRA(FlagNN), VecDec(FlagNN));
+                        Result = celestial.pm.fitLinearProperMotion(VecJD(FlagNN), VecRA(FlagNN), VecDec(FlagNN));
+                        Iused = Result.IgoodList{1};
+                        
                         CC    = 1;
                         RA1   = Result.RA0 + Result.MuRA.*(JD1-JDm).*CC;
                         RA2   = Result.RA0 + Result.MuRA.*(JD2-JDm).*CC;
@@ -1132,7 +1137,7 @@ classdef MovingSource < Component
                         CooUnits = Obj(Iobj).CooUnits;
                         
                     otherwise
-                        error('Unknown RepotyType option');
+                        error('Unknown ReportType option');
                 end
                 
                 if Args.DefaultObsName
@@ -1149,6 +1154,7 @@ classdef MovingSource < Component
                 end                                                          
                 AddHeader = false;
                 ReportList{Iobj} = sortrows(ReportTable, [6 1]);
+                IusedList{Iobj} = Iused;
                 ReportInfo.CooUnitsList{Iobj} = CooUnits;
             end
             
