@@ -1,13 +1,14 @@
 function [CubePSF, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
-    % Create a cube / cell array of optionally rescaled and shifted, fluxed PSF stamps
+    % Build a cube / cell array of fluxed PSF stamps, optionally rescaled, rotated, and shifted to whole pixel positions
     %     This is a low-level function to be used for source injection into
     %     an astronomical image or source removal therefrom 
     % Input  : - a cube or a cell array of PSF stamps or a single PSF stamp
     %          - a 2-column (X, Y) table of injection positions
     %          - a vector of source flux values or a single value for all the sources
     %          * ...,key,val,... 
-    %          'Oversample' - individual PSF scaling factors (1 scalar, 2 scalars, 1 vector, 
+    %          'Oversample' - PSF scaling factor(s) (1 scalar, 2 scalars, 1 vector, 
     %                    a 2-column matrix of scaling factors), do not rescale if Oversample = 0 (default) 
+    %          'RotAngle' - PSF rotation angle(s): a scalar or a vector  
     %          'Recenter' - true (shift the stamps according to X1Y1) or 
     %                       false (just round the X1Y1 values to XY and do not shift the PSF) 
     %          'PositivePSF' - logical, whether to improve the PSF wings (edges)
@@ -28,6 +29,7 @@ function [CubePSF, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
         X1Y1
         Flux
         Args.Oversample          = 0;
+        Args.RotAngle            = [];
         Args.Recenter    logical = true;
         Args.PositivePSF logical = false;
         Args.FunEdge             = @imUtil.kernel2.cosbell;
@@ -62,7 +64,8 @@ function [CubePSF, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
     
     % shift and resample the PSF stamps, forcing odd-sized and normalized stamps  
     if Args.Recenter || all(Args.Oversample > 0)
-        PSF = imUtil.psf.shift_resample(PSF,XYshift,Args.Oversample,'ForceOdd',true,'Recenter',Args.Recenter,'Renorm',true); 
+        PSF = imUtil.psf.shift_resample_rotate(PSF,XYshift,Args.Oversample,Args.RotAngle,...
+                                    'ForceOdd',true,'Recenter',Args.Recenter,'Renorm',true); 
     end        
     
     % eliminate negative PSF edges 

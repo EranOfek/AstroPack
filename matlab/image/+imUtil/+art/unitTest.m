@@ -3,9 +3,11 @@ function Result = unitTest()
     % Example: imUtil.art.unitTest
     io.msgLog(LogLevel.Test, 'imUtil.art.unitTest test started');
     
-    % create an artificial sky image from object coordinates and PSFs
-    Nsrc = 1000; Nx = 2000; Ny = Nx; MaxSrcFlux = 1000;
+    %%% create an artificial sky image from object coordinates and PSFs
     
+    % set the number of sources, the image size and the flux range 
+    Nsrc = 1000; Nx = 2000; Ny = Nx; MaxSrcFlux = 1000;
+    % define the source fluxes and their PSfs
     Flux = MaxSrcFlux .* rand(Nsrc,1);
     X1Y1 = Nx.* rand(Nsrc,2);
     for i = 1:Nsrc; PSF(:,:,i) = imUtil.kernel2.gauss([4 4 0],[24 24]) + 1e-2*rand(24,24); end

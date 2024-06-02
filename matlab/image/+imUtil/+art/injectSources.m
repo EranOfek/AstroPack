@@ -2,7 +2,7 @@ function Image = injectSources(Image, SrcPSF, XY, Args)
     % Inject odd-sized fluxed source images (PSFs) into whole pixel positions of an image  
     %     NB: first one needs to prepare fluxed and shifted source PSFs with imUtil.art.createSourceCube   
     % Input  : - an image matrix  
-    %          - a prepared cube of fluxed source PSFs  
+    %          - a prepared cube or cell array of fluxed source PSFs whose scaling fits to that of the Image  
     %          - a prepared list of whole pixel positions   
     %          * ...,key,val,... 
     %          'Size' - [X Y] a forced size of the resulting image [employed only if any(size(Image) < 2)]    

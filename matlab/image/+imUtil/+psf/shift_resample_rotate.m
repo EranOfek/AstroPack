@@ -1,10 +1,11 @@
-function PSF = shift_resample(PSF, Shift, Oversample, Args)
-    % Resample a PSF stack / cell array downto Oversampling = 1, make it odd-sized, and shift
+function PSF = shift_resample_rotate(PSF, Shift, Oversample, RotAngle, Args)
+    % Resample a PSF stack / cell array downto Oversampling = 1, make it odd-sized, rotate and shift
     %     NB: after all the operations, some small negative values may appear at the borders
     %         one may need to employ imUtil.psf.suppressEdges 
     % Input  : - a PSF stack or a cell-array of PSFs 
     %          - an array of subpixel shifts
-    %          - a vector or an array of oversampling factors
+    %          - a vector of oversampling factors
+    %          - a vector of rotation angles 
     %          * ...,key,val,... 
     %         'Recenter' - whether to fftshift the PSFs on the subpixel size 
     %         'Renorm'   - whether to renormalize the stamps
@@ -19,12 +20,34 @@ function PSF = shift_resample(PSF, Shift, Oversample, Args)
         PSF
         Shift                  = [0 0];
         Oversample             = 0;
+        RotAngle               = [];      % [deg] counterclockwise
         Args.Recenter logical  = true;
         Args.Renorm   logical  = true;        
         Args.ForceOdd logical  = false;
     end
+    %  
+    if ~iscell(PSF)
+        NumPsf = size(PSF,3);
+    else
+        NumPsf = numel(PSF);
+    end   
     %
-    if ~iscell(PSF) % if all the PSFs are of the same dimensions 
+    if ~isempty(RotAngle) && numel(RotAngle) < NumPsf 
+        RotAngle = repmat(RotAngle(1),1,NumPsf);
+    end
+    %
+    if ~iscell(PSF) % if the PSFs are in an 3D array (hence they are of the same dimensions)        
+        % rotate      
+        if any( abs(RotAngle) > 1 & abs(RotAngle-360) > 1 ) 
+            M = size(PSF,1);
+            M1 = ceil(M * abs(cosd(RotAngle)) + M * abs(sind(RotAngle)) ); % the sizes of rotated images
+            MaxSize = max(M1); RotPSF  = repmat(0,MaxSize,MaxSize,NumPsf);
+            for Isrc = 1:1:NumPsf
+                X1   = ceil(MaxSize/2-M1(Isrc)/2)+1; % the position of the lower left corner 
+                RotPSF(X1:X1+M1(Isrc)-1,X1:X1+M1(Isrc)-1,Isrc) = imrotate(PSF(:,:,Isrc), RotAngle(Isrc), 'bilinear', 'loose');                      
+            end
+            PSF = RotPSF; 
+        end
         % rescale, but do not normalize as of yet
         % NB: will work only with Oversample = scalar or a 2-element vector,
         % i.e. the same oversampling factors for all the PSFs
@@ -38,18 +61,20 @@ function PSF = shift_resample(PSF, Shift, Oversample, Args)
                 PSF = imUtil.trans.shift_fft(PSF, 0.5, 0.5);
             end
         end        
-        % shift
+        % shift (usually, on subpixel scales) 
         if Args.Recenter
             PSF = imUtil.trans.shift_fft(PSF, Shift(:,1), Shift(:,2));
         end        
         % normalize
         if Args.Renorm
             PSF = imUtil.psf.normPSF(PSF);
-        end 
-       
+        end        
     else % if the PSF stack is a cell array, we are do work one by one
-
-        for Ipsf = 1:numel(PSF)
+        for Ipsf = 1:NumPsf
+            % rotate
+            if any( abs(RotAngle) > 1 & abs(RotAngle-360) > 1 )               
+                PSF{Ipsf} = imrotate(PSF{Ipsf}, RotAngle{Ipsf}, 'bilinear', 'loose');
+            end
             % rescale
             if all(Oversample > 0)
                 PSF{Ipsf} = imUtil.psf.oversampling(PSF{Ipsf}, Oversample, 1,'ReNorm',false,'InterpMethod','bilinear');

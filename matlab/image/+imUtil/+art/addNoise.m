@@ -9,21 +9,26 @@ function Image = addNoise(Image, NoiseModel, Args)
     % Output : - 
     % Author : A.M. Krassilchtchikov (2024 May) 
     % Example: Image = imUtil.art.addNoise(Image,'normal');
-
+    % 
     arguments
         Image
         NoiseModel             = 'normal'
-        Args.NoisePar          = [];      % currently nor used      
+        Args.NormPar           = [];      % e.g., scaling of image variance       
     end
     %
     ImSize = size(Image);
     
     switch lower(NoiseModel)
         case 'normal'
-            Image = normrnd( Image, sqrt(Image), ImSize(1), ImSize(2) ); 
+            if isempty(Args.NormPar)
+                Var = Image;
+            else
+                Var = Args.NoisePar .* Image;
+            end
+            Image = normrnd( Image, sqrt(Var), ImSize(1), ImSize(2) ); 
         case 'poisson'
             Image = poissrnd(Image, ImSize(1), ImSize(2)); 
         otherwise
-            error('Unknown noise model requested')
+            error('Unsupported noise model requested')
     end
 end
