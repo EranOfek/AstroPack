@@ -1,4 +1,4 @@
-function [Result, Igood] = fitLinearProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
+function [Result] = fitLinearProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
     % One line description
     %     Optional detailed description
     % Input  : - 
@@ -74,6 +74,7 @@ function [Result, Igood] = fitLinearProperMotion(Time, RA, Dec, ErrRA, ErrDec, A
 
         Result.Nobs     = zeros(1,Nsrc);
         Result.Ngood    = zeros(1,Nsrc);
+        Result.IgoodList = cell(1,Nsrc);
         Result.RA0      = nan(1,Nsrc);
         Result.Dec0     = nan(1,Nsrc);
         Result.MuRA     = nan(1,Nsrc);
@@ -87,6 +88,7 @@ function [Result, Igood] = fitLinearProperMotion(Time, RA, Dec, ErrRA, ErrDec, A
             % RA / H0
             FlagGood  = ~isnan(RA(:,Isrc)) & ~isnan(Dec(:,Isrc));
             Igood     = find(FlagGood);
+            Result.IgoodList{Isrc} = Igood;
             Nobs     = numel(Igood);
 
             if Nobs>Args.MinNObs
@@ -143,8 +145,8 @@ function [Result, Igood] = fitLinearProperMotion(Time, RA, Dec, ErrRA, ErrDec, A
                 Mean1Dec = Args.MeanFun(Resid1Dec(Igood));
                 Ngood    = numel(Igood);
     
-                
                 Result.Nobs(Isrc)    = Nobs;
+                Result.IgoodList{Isrc} = Igood;
                 Result.Ngood(Isrc)   = Ngood;
                 Result.RA0(Isrc)     = Par1RA(2).*RAD;
                 Result.Dec0(Isrc)    = Par1Dec(2).*RAD;
