@@ -2,8 +2,8 @@ function Result = oversampling(PSF, OriginalOversampling, NewOversampling, Args)
         % resample an array of PSF stamps to a different pixel scale 
         % NOTE: resampling changes the sum of pixels, so usually we need to renormalize afterwards 
         % Input: - PSF stamp (X, Y)
-        %        - the orginal oversampling of the stamp 
-        %        - the new oversampling of the stamp  
+        %        - the orginal oversampling of the stamp (1 or 2 values)
+        %        - the new oversampling of the stamp (1 or 2 values) 
         %        * ...,key,val,...
         %        'InterpMethod' - interpolation method to use for resampling
         %        'ReNorm'       - whether to renormalize the PSF stamp

@@ -2,16 +2,16 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
     % Resample a PSF stack / cell array downto Oversampling = 1, make it odd-sized, rotate and shift
     %     NB: after all the operations, some small negative values may appear at the borders
     %         one may need to employ imUtil.psf.suppressEdges 
-    % Input  : - a PSF stack or a cell-array of PSFs 
-    %          - an array of subpixel shifts
+    % Input  : - a 3D PSF array with the source index in the 3rd dimension or a cell-array of 2D PSFs 
+    %          - an 2-column array of XY subpixel shifts
     %          - a vector of oversampling factors
-    %          - a vector of rotation angles 
+    %          - a vector of rotation angles [deg]
     %          * ...,key,val,... 
-    %         'Recenter' - whether to fftshift the PSFs on the subpixel size 
-    %         'Renorm'   - whether to renormalize the stamps
-    %         'ForceOdd' - whether to make the even-sized stamps odd-sized
-    %         
-    % Output : - a stack or cell array of resampled and shifted PSFs
+    %         'Recenter' - true/false whether to fftshift the PSFs on the subpixel size 
+    %         'RecenterMethod' - 'fft' or 'nearest'; usually 'nearest' goes with Oversmapling > 1
+    %         'Renorm'   - true/false whether to renormalize the stamps
+    %         'ForceOdd' - false/true whether to make the even-sized stamps odd-sized
+    % Output : - a stack or a cell array of resampled and shifted PSFs
     % Author : A.M. Krassilchtchikov (2024 May)
     % Example:  for i = 1:4; P(:,:,i) = imUtil.kernel2.gauss([2 2 0],[12 12]) + 1e-2*rand(12,12); end
     %           Shift = rand(4,2); Oversample = 3; 
@@ -22,6 +22,7 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
         Oversample             = 0;
         RotAngle               = [];      % [deg] counterclockwise
         Args.Recenter logical  = true;
+        Args.RecenterMethod    = 'fft';
         Args.Renorm   logical  = true;        
         Args.ForceOdd logical  = false;
     end
@@ -51,7 +52,31 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
         % rescale, but do not normalize as of yet
         % NB: will work only with Oversample = scalar or a 2-element vector,
         % i.e. the same oversampling factors for all the PSFs
-        if all(Oversample > 0)
+        if all(Oversample > 0) 
+            if numel(Oversample) < 2
+                Oversample(2) = Oversample(1);
+            end
+            if Args.Recenter && strcmpi(Args.RecenterMethod,'nearest') 
+                % need to check the following block and, probably, make it faster and more compact                 
+                ShiftX = round(Shift(:,1) * Oversample(1)); % to the scale of the oversampled PSF 
+                ShiftY = round(Shift(:,2) * Oversample(2));
+                ShiftedPSF = repmat(0,size(PSF)); 
+                for Ipsf = 1:NumPsf
+                    if ShiftX(Ipsf) > 0
+                        ShiftedPSF(:, ShiftX(Ipsf)+1:end, Ipsf) = PSF(:, 1:end-ShiftX(Ipsf), Ipsf);
+                    else
+                        ShiftedPSF(:, 1:end+ShiftX(Ipsf), Ipsf) = PSF(:, -ShiftX(Ipsf)+1:end, Ipsf);
+                    end
+                    if ShiftY(Ipsf) > 0
+                        ShiftedPSF(ShiftY(Ipsf)+1:end, :, Ipsf) = ShiftedPSF(1:end-ShiftY(Ipsf), :, Ipsf);
+                        ShiftedPSF(1:ShiftY(Ipsf), :, Ipsf) = 0;
+                    else
+                        ShiftedPSF(1:end+ShiftY(Ipsf), :, Ipsf) = ShiftedPSF(-ShiftY(Ipsf)+1:end, :, Ipsf);
+                        ShiftedPSF(end+ShiftY(Ipsf)+1:end, :, Ipsf) = 0;
+                    end
+                end
+                PSF = ShiftedPSF; 
+            end
             PSF = imUtil.psf.oversampling(PSF, Oversample, 1,'ReNorm',false,'InterpMethod','bilinear');
         end        
         % force odd size (currently for square stamps only!)
@@ -61,8 +86,8 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
                 PSF = imUtil.trans.shift_fft(PSF, 0.5, 0.5);
             end
         end        
-        % shift (usually, on subpixel scales) 
-        if Args.Recenter
+        % fft shift (usually, on subpixel scales) 
+        if Args.Recenter && strcmpi(Args.RecenterMethod,'fft') 
             PSF = imUtil.trans.shift_fft(PSF, Shift(:,1), Shift(:,2));
         end        
         % normalize
@@ -87,7 +112,7 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
                 end
             end
             % shift
-            if Args.Recenter
+            if Args.Recenter && strcmpi(Args.RecenterMethod,'fft') 
                 if numel(Shift) == 2 
                     ShiftX = Shift(1); ShiftY = Shift(2); 
                 else
