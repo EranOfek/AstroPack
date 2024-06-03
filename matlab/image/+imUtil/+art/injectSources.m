@@ -19,12 +19,16 @@ function Image = injectSources(Image, SrcPSF, XY, Args)
     arguments
         Image
         SrcPSF
-        XY
+        XY              = [];
         Args.Size       = []; 
         Args.Subtract   = false;
         Args.Oversample = [];
         Args.Method     = [];
-    end   
+    end 
+    % check if imUtil.art.createSourceCube has been used to produce the whole-pixel coordinates of the PSFs  
+%     if isempty(XY)
+%         
+%     end
     % if requested, call the old function of Noam Segev:
     if strcmpi(Args.Method,'ns') 
         Flux = repmat(1.0,1,size(SrcPSF,3));   
