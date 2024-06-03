@@ -1315,6 +1315,38 @@ classdef DemonLAST < Component
         
     end
     
+    methods (Static)  % find all files
+        function Result=findAllVisitsDir(Args)
+            % Get all proc visits directories under some base path
+            % Input  : * ...,key,val,...
+            %            'BasePath' - Default is '/marvin/LAST.01.01.01'
+            %            'YearPat' - Year pattern to scan. Default is '20*'.
+            %            'MinNfile' - Min. number of images in visit.
+            %                   Default is 10.
+            % Output : - A strings array of dir names.
+            % Author : Eran Ofek (Jun 2025)
+            % Example: S=pipeline.DemonLAST.findAllVisitsDir;
+
+            arguments
+                Args.BasePath             = '/marvin/LAST.01.01.01';
+                Args.YearPat              = '20*';
+                Args.MinNfile             = 10;
+            end
+
+            D = pipeline.DemonLAST;
+            D.BasePath = Args.BasePath;
+            
+            [St] = D.findAllVisits('YearPat',Args.YearPat, 'MinNfile',Args.MinNfile, 'ReadHeader',false);
+            
+            Nst = numel(St);
+            Result = strings(1,Nst);
+            for Ist=1:1:Nst
+                Result{Ist} = fullfile(St(Ist).BasePath, St(Ist).Year, St(Ist).Month, St(Ist).Day, 'proc', St(Ist).Visit);
+            end
+
+        end
+    end
+
     methods % go over files
         function List=prepListOfProcVisits(Obj, Args)
             % Prepare a list of all processed visits
@@ -1464,6 +1496,8 @@ classdef DemonLAST < Component
             %                   keywords specified in 'KeysFromHead', else
             %                   will use only the file name.
             %                   Default is true.
+            %            'MinNfile' - Min. number of images in visit.
+            %                   Default is 10.
             %            'KeysFromHead' - A cell array of header keywords
             %                   to read from images and store in output.
             %                   Default is {'RA1','DEC1','RA2','DEC2','RA3','DEC3','RA4','DEC4', 'RAU1','DECU1','RAU2','DECU2','RAU3','DECU3','RAU4','DECU4', 'LIMMAG','BACKMAG','FWHM','MEDBCK','STDBCK','ORIGSEC','ORIGUSEC'}
@@ -1543,6 +1577,7 @@ classdef DemonLAST < Component
                                 Result(Ind).Day      = DirDay(Id).name;
                                 Result(Ind).Visit    = DirVisit(Ivisit).name;
 
+                                %AllDir{Ind} = fullfile(Result(Ind).BasePath,Result(Ind).Year, Result(Ind).Month, Result(Ind).Day, 'proc', Result(Ind).Visit);
 
                                 if Args.ReadHeader
                                     Nfile = numel(DirF);

@@ -123,7 +123,10 @@ function [Result] = runMeanFilter(M, Args)
     Z1     = ResidM./StdM;
 
     Result.Z            = Z;
-    Result.FlagCand     = abs(Z)>Args.Threshold & MoveC==Args.WinSize & sign(Z1)==sign(Z) & abs(Z./Z1)>1;
+   
+    FlagZ1 = abs(Z)>abs(Z1) & abs(Z)>abs( padarray(Z1(1:end-1,:), 1, 'pre')) & abs(Z)>abs( padarray(Z1(2:end,:), 1, 'post'));
+
+    Result.FlagCand     = abs(Z)>Args.Threshold & MoveC==Args.WinSize & sign(Z1)==sign(Z) & FlagZ1; %max(abs(Z),[],1)>max(abs(Z1),[],1);  %  abs(Z./Z1)>1;
     Result.NumberNotNan = NumberNotNan;
     %Result.Par          = Par;
     

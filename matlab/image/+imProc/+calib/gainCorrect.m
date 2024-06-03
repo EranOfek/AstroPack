@@ -57,14 +57,14 @@ function Result = gainCorrect(Obj, Gain, Args)
             GainVal = getVal(Obj(Iobj).HeaderData, Gain, Args.getValArgs{:});
         end
         if isnan(GainVal)
-            Gain = Args.DefaultGain; 
+            GainVal = Args.DefaultGain; 
         else
-            Gain = GainVal;
+            GainVal = GainVal;
         end
         
         % divide image by gain
         for Iprop=1:1:Nprop
-            Result(Iobj).(Args.DataProp{Iprop}) = Result(Iobj).(Args.DataProp{Iprop}).*Gain;
+            Result(Iobj).(Args.DataProp{Iprop}) = Result(Iobj).(Args.DataProp{Iprop}).*GainVal;
         end
         
         % update header keywords
@@ -75,7 +75,7 @@ function Result = gainCorrect(Obj, Gain, Args)
         end
         
         % write old GAIN value
-        Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, Args.OrigGainKey, Gain, Args.replaceValArgs{:});
+        Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, Args.OrigGainKey, GainVal, Args.replaceValArgs{:});
                
         % Set the DataType of the AstroImage to electrons
         Result(Iobj).DataType = AstroDataType.Electrons;
