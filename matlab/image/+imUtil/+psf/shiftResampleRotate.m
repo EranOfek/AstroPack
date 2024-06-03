@@ -1,4 +1,4 @@
-function PSF = shift_resample_rotate(PSF, Shift, Oversample, RotAngle, Args)
+function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
     % Resample a PSF stack / cell array downto Oversampling = 1, make it odd-sized, rotate and shift
     %     NB: after all the operations, some small negative values may appear at the borders
     %         one may need to employ imUtil.psf.suppressEdges 
@@ -15,7 +15,7 @@ function PSF = shift_resample_rotate(PSF, Shift, Oversample, RotAngle, Args)
     % Author : A.M. Krassilchtchikov (2024 May)
     % Example:  for i = 1:4; P(:,:,i) = imUtil.kernel2.gauss([2 2 0],[12 12]) + 1e-2*rand(12,12); end
     %           Shift = rand(4,2); Oversample = 3; 
-    %           imUtil.psf.shift_resample(P, Shift, Oversample, 'ForceOdd', true);
+    %           imUtil.psf.shiftResampleRotate(P, Shift, Oversample, 'ForceOdd', true);
     arguments
         PSF
         Shift                  = [0 0];

@@ -64,7 +64,7 @@ function [CubePSF, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
     
     % shift and resample the PSF stamps, forcing odd-sized and normalized stamps  
     if Args.Recenter || all(Args.Oversample > 0)
-        PSF = imUtil.psf.shift_resample_rotate(PSF,XYshift,Args.Oversample,Args.RotAngle,...
+        PSF = imUtil.psf.shiftResampleRotate(PSF,XYshift,Args.Oversample,Args.RotAngle,...
                                     'ForceOdd',true,'Recenter',Args.Recenter,'Renorm',true); 
     end        
     
