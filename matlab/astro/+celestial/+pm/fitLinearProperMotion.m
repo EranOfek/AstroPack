@@ -116,7 +116,7 @@ function [Result] = fitLinearProperMotion(Time, RA, Dec, ErrRA, ErrDec, Args)
                     Z1RA  = (Resid1RA - Mean1RA)./Std1RA;
                     Z1Dec = (Resid1Dec - Mean1Dec)./Std1Dec;
     
-                    FlagGood = Z1RA>Args.SigmaClip(1) & Z1Dec<Args.SigmaClip(2) & Z1Dec>Args.SigmaClip(1) & Z1Dec<Args.SigmaClip(2) & ...
+                    FlagGood = Z1RA>Args.SigmaClip(1) & Z1RA<Args.SigmaClip(2) & Z1Dec>Args.SigmaClip(1) & Z1Dec<Args.SigmaClip(2) & ...
                                ~isnan(RA(:,Isrc)) & ~isnan(Dec(:,Isrc));
                     Igood    = find(FlagGood);
                     Ngood    = numel(Igood);
