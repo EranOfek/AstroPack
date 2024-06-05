@@ -26,7 +26,7 @@
 
 const size_t cardSize           = 80;       // Each FITS header card is 80 bytes
 const size_t blockSize          = 2880;     // FITS headers are allocated in blocks of 2880 bytes
-const size_t maxStringLength    = 67;       // Max length for continued strings/values
+const size_t maxStringLength    = 68;       // Max length for continued strings/values
 const size_t maxCommentSize     = 80 - 34;  // Max length of comment in line that contains KEY = VALUE
 const size_t maxCommentLineSize = 80 - 8;   // Max length of text in line that starts with COMMENT
 
