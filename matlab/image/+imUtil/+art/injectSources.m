@@ -17,8 +17,8 @@ function Image = injectSources(Image, SrcPSF, XY, Args)
     %          Image = rand(100);
     %          ImageSrc = imUtil.art.injectSources(Image,CubePSF,XY);
     arguments
-        Image
-        SrcPSF
+        Image           
+        SrcPSF          
         XY              = [];
         Args.Size       = []; 
         Args.Subtract   = false;
@@ -36,7 +36,7 @@ function Image = injectSources(Image, SrcPSF, XY, Args)
         Image = injectSources_NS(Image,Cat,SrcPSF,Args);
         return
     end
-    % if the PSF is not to scale, call the old directInjectSources function:
+    % if the PSF is yet not to scale, call the old directInjectSources function:
     if ~isempty(Args.Oversample)
         Flux = repmat(1.0,1,size(SrcPSF,3));   
         Cat = [XY(:,1) XY(:,2) Flux'];

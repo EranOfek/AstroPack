@@ -2529,7 +2529,7 @@ classdef DemonLAST < Component
                 Args.SaveMergedCat     = true;
                 Args.SaveMergedMat     = true;
                 Args.SaveAsteroids     = true;
-                Args.WriteMethodImages = 'Simple'; % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
+                Args.WriteMethodImages = 'Simple';     % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
                 Args.WriteMethodTables = 'Standard';   % can be 'Standard' or 'MexHeader'  
 
                 % DataBase
