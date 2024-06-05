@@ -1,6 +1,8 @@
 // Write header and image to FITS file, simple implementation without using cfitsio!
 // Author : Chen Tishler (March 2024)
+// Updated: 05/06/2024
 // Example: io.fits.mex.mex_fits_write_image('myfile.fits', [10 100], Header)
+//
 // 
 // mex util/+io/+fits/+mex/mex_fits_write_image.cpp
 //
@@ -16,11 +18,24 @@
 #pragma GCC diagnostic ignored "-Wformat-truncation"
 #pragma GCC diagnostic ignored "-Wformat-extra-args"
 
-const size_t cardSize = 80;     // Each FITS header card is 80 bytes
-const size_t blockSize = 2880;  // FITS headers are allocated in blocks of 2880 bytes
+//===========================================================================
+
+const size_t cardSize           = 80;       // Each FITS header card is 80 bytes
+const size_t blockSize          = 2880;     // FITS headers are allocated in blocks of 2880 bytes
+const size_t maxStringLength    = 67;       // Max length for continued strings/values
+const size_t maxCommentSize     = 80 - 34;  // Max length of comment in line that contains KEY = VALUE
+const size_t maxCommentLineSize = 80 - 8;   // Max length of text in line that starts with COMMENT
+
+// Keys added by our mex code, we ignore them is also specified by the caller 
+// to avoid duplicates in the FITS header
+const char* omitted_keys_list[] = {"NAXIS", "NAXIS1", "NAXIS2", "BITPIX", 0};
+
+// Global to be accessed from addCard
+size_t _allocatedSize = 0;
 
 //===========================================================================
 
+// Allocate buffer using mxMalloc for entire FITS header (one or multiple blocks)
 char* allocHeaderBuffer(size_t numCards, size_t& allocatedSize, bool init=true) 
 {
     // Calculate the total size needed for the given number of cards
@@ -44,30 +59,47 @@ char* allocHeaderBuffer(size_t numCards, size_t& allocatedSize, bool init=true)
 }
 
 
-inline void addCard(char* headerBuffer, size_t& bufferPos, const char* card)
+inline void addCard(char* headerBuffer, size_t& bufferPos, const char* card, size_t allocatedSize = 0)
 {
-    // Copy card into buffer
-    strncpy(headerBuffer + bufferPos, card, strlen(card)); 
+    // Use global if not specified by caller
+    if (allocatedSize == 0)
+        allocatedSize = _allocatedSize;
 
-    // Move to the next card position
-    bufferPos += cardSize; 
+    // Make sure that we still have space in the buffer
+    if (bufferPos < allocatedSize-cardSize) {
+        // Copy card into buffer and move to the next card position
+        strncpy(headerBuffer + bufferPos, card, strlen(card)); 
+        bufferPos += cardSize; 
+    }
+    else {
+        mexPrintf("addCard: out of buffer: %s\n", card);
+    }
+}
+
+
+// Check if a given string is in the list
+bool isInList(const char* str, const char* list[]) 
+{
+    for (int i = 0; list[i] != 0; ++i) {
+        if (strcmp(str, list[i]) == 0) {
+            return true;
+        }
+    }
+    return false; 
 }
 
 //===========================================================================
 
-void printValue(mxArray* valueElement, char* value, size_t valueSize, bool& isChar) 
+// Print formatted String/Logical/Single/Double/Int8,16,32,64 to string
+void printValue(char* key, mxArray* valueElement, char* value, size_t valueSize) 
 {
-    const size_t maxStringLength = 67; // Max length for continued strings/values
-
-    isChar = false;
     if (mxIsChar(valueElement)) {
         // Add single quotes for string values
-        isChar = true;
-        char* tempStr = mxArrayToString(valueElement);
-        if (strlen(tempStr) > maxStringLength)
+        char tempStr[2048];
+        mxGetString(valueElement, tempStr, sizeof(tempStr));
+       if (strlen(tempStr) > maxStringLength)
             tempStr[maxStringLength] = '\0';
         snprintf(value, valueSize, "'%s'", tempStr);
-        mxFree(tempStr);
     } 
     else if (mxIsLogical(valueElement)) {
         // Handle logical values
@@ -107,76 +139,116 @@ void printValue(mxArray* valueElement, char* value, size_t valueSize, bool& isCh
     }
 }
 
+//===========================================================================    
 
+// Fill FITS header buffer with all key/value/comment entries in cellArray
 void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const mxArray* cellArray) 
 {
-    const size_t maxStringLength = 67; // Max length for continued strings/values
     size_t numRows = mxGetM(cellArray); // Number of rows in the cell array
 
     for (size_t row = 0; row < numRows; ++row) {
-        char card[cardSize + 1] = {'\0'}; // Initialize card buffer, +1 for null-termination
-        char key[80], value[80], comment[256] = {'\0'}; // Initialize comment with null-termination
+        char card[cardSize + 1] = {'\0'}; 
+        char key[80] = {'\0'}, value[80] = {'\0'}, comment[256] = {'\0'}; 
 
-        // Extract Key
+        // Extract key
         mxArray* keyElement = mxGetCell(cellArray, row);
         if (keyElement != nullptr && mxIsChar(keyElement)) {
             mxGetString(keyElement, key, sizeof(key));
         }
 
-        // Extract and Format Value using printValue
+        // Get value
         mxArray* valueElement = mxGetCell(cellArray, row + numRows);
-        bool isChar = false;
-        if (valueElement != nullptr) {
-            printValue(valueElement, value, sizeof(value), isChar);
-        }
-
-        // Extract Comment
+        
+        // Extract comment
         mxArray* commentElement = mxGetCell(cellArray, row + 2 * numRows);
         if (commentElement != nullptr && mxIsChar(commentElement)) {
             mxGetString(commentElement, comment, sizeof(comment));
-            size_t maxCommentSize = sizeof(card) - 34; // Adjust based on key, value, and fixed characters
-            snprintf(card, sizeof(card), "%-8.8s= %20s / %.*s", key, value, (int)maxCommentSize, comment);
-
-            // Construct card string
-            //snprintf(card, sizeof(card), "%-8s= %20s / %s", key, value, comment);            
         }
 
-        // Construct card string
-        else {
-            #ifdef NEVER
-            size_t totalLength = strlen(value);
-            size_t numSegments = (size_t)ceil(static_cast<double>(totalLength) / maxStringLength);
-            char tempValue[80];
+        // Skip this item if its not key/value or comment
+        if (keyElement == nullptr && commentElement == nullptr)
+            continue;
 
-            mexPrintf("long string: %d - %s\n", totalLength, value);
-            mexPrintf("numSegments: %d\n", (int)numSegments);
+        //mexPrintf("key: %-8s  - comment: %s\n", key, comment);
+        
+        // Key = Value
+        if (key[0] && (valueElement != nullptr)) {
 
-            for (size_t i = 0; i < numSegments; ++i) {
-                // Copy a segment of the string
-                if (i < numSegments - 1) { // Not the last segment
-                    strncpy(tempValue, value + i * maxStringLength, maxStringLength);
-                    tempValue[maxStringLength] = '\0'; // Null-terminate
-                    if (i == 0) {
-                        // First segment with key or COMMENT
-                        snprintf(card, sizeof(card), "%-8s= '%s&'", key, tempValue);
-                    } else {
-                        // Subsequent segments with CONTINUE
-                        snprintf(card, sizeof(card), "CONTINUE  '%s&'", tempValue);
-                    }
-                } else { // Last segment
-                    strcpy(tempValue, value + i * maxStringLength); // Copy the rest of the string
-                    // Handle last segment differently, don't add '&'
-                    snprintf(card, sizeof(card), "CONTINUE  '%s'", tempValue);
+            // Skip the omitted keys, they already appear in the fixed header we write
+            if (isInList(key, omitted_keys_list))
+                continue;
+
+            // Value is string, add single quotes for string values
+            if (mxIsChar(valueElement)) {            
+                char* tempStr = mxArrayToString(valueElement);
+                size_t totalLength = strlen(tempStr);
+
+                // Short string with comment
+                if ((totalLength <= 19) & comment[0]) {
+                    sprintf(value, "'%s'", tempStr);
+                    comment[maxCommentSize] = 0;
+                    snprintf(card, sizeof(card), "%-8.8s= %20s / %s", key, value, comment);
+                    addCard(headerBuffer, bufferPos, card);
                 }
+
+                // String that fits in one line, ignore the comment
+                else if (totalLength <= 67) {
+                    sprintf(value, "'%s'", tempStr);
+                    snprintf(card, sizeof(card), "%-8.8s= %20s", key, value);
+                    addCard(headerBuffer, bufferPos, card);
+                }
+
+                // Long string in multiple lines with '&' and CONTINUE, ignore the comment
+                else {
+                    int numSegments = (int)((totalLength-1) / maxStringLength) + 1;
+                    //mexPrintf("totalLength: %d, segments: %d\n", (int)totalLength, (int)numSegments);
+                    for (int i = 0; i < numSegments; ++i) {
+                        if (i < numSegments - 1) {
+                            strncpy(value, tempStr + i * maxStringLength, maxStringLength);
+                            value[maxStringLength] = '\0';
+                            if (i == 0) {
+                                snprintf(card, sizeof(card), "%-8s= '%s&'", key, value);
+                            } else {
+                                snprintf(card, sizeof(card), "CONTINUE '%s&'", value);
+                            }
+                        }
+                        else {
+                            strcpy(value, tempStr + i * maxStringLength);
+                            snprintf(card, sizeof(card), "CONTINUE '%s'", value);
+                        }
+                        addCard(headerBuffer, bufferPos, card);
+                    }
+                }
+
+                mxFree(tempStr);
+            }
+
+            // Non-string value with/out comment
+            else {
+                printValue(key, valueElement, value, sizeof(value));                
+                if (comment[0]) {
+                    comment[maxCommentSize] = 0;
+                    snprintf(card, sizeof(card), "%-8.8s= %20s / %s", key, value, comment);
+                }
+                else {
+                    snprintf(card, sizeof(card), "%-8.8s= %20s", key, value);
+                }
+
+                // Add the card to the buffer
+                addCard(headerBuffer, bufferPos, card);                
+            }
+        }
+
+        // Comment only, one or more lines
+        else if (comment[0]) {
+            size_t totalLength = strlen(comment);
+            int numSegments = (int)((totalLength-1) / maxCommentLineSize) + 1;  
+            for (int i = 0; i < numSegments; ++i) {
+                strcat(card, "COMMENT ");
+                strncpy(card + 8, comment + i * maxCommentLineSize, maxCommentLineSize);
                 addCard(headerBuffer, bufferPos, card);
             }
-            #endif
-
-            snprintf(card, sizeof(card), "%-8.8s= %20s", key, value);
         }
-
-        // Add the card to the buffer
-        addCard(headerBuffer, bufferPos, card);
     }
 
     // Ensure to add an "END" card to mark the end of the header
@@ -185,7 +257,7 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
 
 //===========================================================================
 
-// Function to determine BITPIX based on the mxArray's data type
+// Determine BITPIX based on the mxArray's data type
 int determineBitpix(mxClassID classID) 
 {
     switch (classID) {
@@ -205,7 +277,7 @@ int determineBitpix(mxClassID classID)
 }
 
 
-// Function to write the initial part of the FITS header
+// Write the initial part of the FITS header
 void writeInitialHeader(char* headerBuffer, size_t& bufferPos, const mxArray* imgMatrix) 
 {
     char card[cardSize + 1]; // +1 for null-termination
@@ -241,17 +313,18 @@ void writeInitialHeader(char* headerBuffer, size_t& bufferPos, const mxArray* im
     addCard(headerBuffer, bufferPos, "COMMENT   and Astrophysics', volume 376, page 359; bibcode: 2001A&A...376..359H");
 }
 
-//===========================================================================
+//=========================================================================
+//                  Helper functions for swapping bytes
+//=========================================================================
 
 // Check if the system is little-endian
-bool isSystemLittleEndian() 
+inline bool isSystemLittleEndian() 
 {
     uint16_t testValue = 0x1;
     uint8_t* testValuePtr = reinterpret_cast<uint8_t*>(&testValue);
     return testValuePtr[0] == 0x1;
 }
 
-// Helper functions for swapping bytes
 inline uint16_t swapBytes16(std::uint16_t val) 
 {
     return (val << 8) | (val >> 8);
@@ -445,13 +518,18 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         mexErrMsgIdAndTxt("MATLAB:mex_fits_write_image:fileOpenFailed", "Could not open the file for writing.");
         return;
     }
-    
+
     // Allocate a large enough buffer for the FITS header
     char* headerBuffer;
-    size_t allocatedSize;
     size_t bufferPos = 0;
     size_t numRows = mxGetM(headerArray); 
-    headerBuffer = allocHeaderBuffer(9 + numRows, allocatedSize);
+    size_t allocatedSize;
+
+    // Allocate more than needed because long multi-line string and long-comments
+    // may need more space than we can calculate. On writing we will write
+    // only the used size (in multiples of 2880)
+    headerBuffer = allocHeaderBuffer(9 + 2*numRows, allocatedSize);
+	_allocatedSize = allocatedSize;
   
     // Write initial part of the FITS header based on matrix type and size
     // SIMPLE, BITPIX, NAXIS, NAXIS1, NAXIS2, and EXTEND cards
@@ -460,12 +538,19 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     // Append user-provided header fields
     fillHeaderBufferFromCellArray(headerBuffer, bufferPos, headerArray);
     
-    // Write the header buffer to the file
-    fwrite(headerBuffer, 1, allocatedSize, fp);
+    // Calculate the actual size used by data, in multiples of blockSize (2880)
+    size_t bytesToWrite = bufferPos;
+    if (bytesToWrite % blockSize != 0) {
+        bytesToWrite = ((bytesToWrite / blockSize) + 1) * blockSize;
+    }
+
+    // Write the header buffer to the file    
+    fwrite(headerBuffer, 1, bytesToWrite, fp);
     
+    // Write image data with endian change if required
     writeImageData(fp, imgMatrix);
     
-    // Close the file
+    // Close the file and free memory
     fclose(fp);
     mxFree(filename);
     mxFree(headerBuffer);
