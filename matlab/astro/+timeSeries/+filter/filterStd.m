@@ -11,8 +11,7 @@ function [StdX] = filterStd(X, HalfSize, Args)
     %                   Default is 1.
     % Output : - The filtered time series.
     % Author : Eran Ofek (2023 Dec) 
-    % Example: AS=AstroSpec.getSkyArcsSpecLines;
-    %          Data = AS(1).Flux;
+    % Example: SX=timeSeries.filter.filterStd(randn(100,1),[2 20]);
     %          
     arguments
         X
@@ -45,7 +44,7 @@ function [StdX] = filterStd(X, HalfSize, Args)
     
     XX = (X - MeanFiltX).^2;
     VarFiltX  = ifft(fft(XX, [], 1) .* conj(fft(Filter, Nx, 1)));
-    StdX      = sqrt(VarFiltX);
+    StdX      = real(sqrt(VarFiltX));
     
     
 end
