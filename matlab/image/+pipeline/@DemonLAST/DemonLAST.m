@@ -2529,8 +2529,8 @@ classdef DemonLAST < Component
                 Args.SaveMergedCat     = true;
                 Args.SaveMergedMat     = true;
                 Args.SaveAsteroids     = true;
-                Args.WriteMethodImages = 'Simple';     % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
-                Args.WriteMethodTables = 'Standard';   % can be 'Standard' or 'MexHeader'  
+                Args.WriteMethodImages = 'ThreadedMex';     % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
+                Args.WriteMethodTables = 'MexHeader';   % can be 'Standard' or 'MexHeader'  
 
                 % DataBase
                 Args.Insert2DB         = false;              % Insert images data to LAST DB or prepare CSV dumps for further insertion
