@@ -478,6 +478,97 @@ classdef MatchedSources < Component
         end
     end
     
+    methods (Static)   % readAndAnalyze
+        function Result=readAndAnalyze(Args)
+            % Read MatchedSources files from a list an execute an analysis function.
+            %   Can be used to run a user defined function on a large
+            %   number of MatchedSources files.
+            % Input  : - * ...,key,val,...
+            %              'Fun' - Function handle to execute.
+            %                   The function is executed on a single
+            %                   MatchedSources object and return some data,
+            %                   and a modified version of the
+            %                   MatchedSources object.
+            %                   Default is [].
+            %              'FunArgs' - A cell array of arguments to pass to
+            %                   the user function. Default is {}.
+            %              'DirList' - A cell array or a strings array of
+            %                   dir list containing visit names on which to
+            %                   execute the function on each MatchedSources
+            %                   object in the dir.
+            %                   Alternatively, this can be a function
+            %                   handle that generates a strings array.
+            %                   Default is @pipeline.DemonLAST.findAllvisitDir
+            %              'DirListArgs' - A cell array of arguments to
+            %                   pass to the DirList function. Default is {}.
+            %              'FilePat' - File pattern to search and load in
+            %                   the visit dirs. 
+            %                   Default is 'LAST*_sci_merged_MergedMat_*.hdf5'
+            % Output : - A structure array, with element per MatchedSources
+            %            file. The following fields are available:
+            %            .Ivisit - Index of visit.   
+            %            .Ifile - Index of file in visit.
+            %            .FileName - File name.
+            %            .Folder - Folder name.
+            %            .JD - Mean JD.
+            %            .Nepoch - Number of epochs in visit.
+            %            .Nsrc - Number of sources in file.
+            %            .Out - Output of the user defined function.
+            % Author : Eran Ofek (Jun 2024)
+            % Example:S=pipeline.DemonLAST.findAllVisitsDir;
+            %         R=MatchedSources.readAndAnalyze('DirList',S(1:10));
+            %         R=MatchedSources.readAndAnalyze('Fun',@lcUtil.searchVarCoherent);
+
+            arguments
+                Args.Fun              = [];
+                Args.FunArgs cell     = {};
+                Args.DirList          = @pipeline.DemonLAST.findAllVisitsDir;  % or cell of dirs
+                Args.DirListArgs cell = {};
+                Args.FilePat          = 'LAST*_sci_merged_MergedMat_*.hdf5';
+            end
+
+            if isa(Args.DirList, 'function_handle')
+                DirList = Args.DirList(Args.DirListArgs{:});
+            else
+                DirList = Args.DirList;
+            end
+
+            PWD = pwd;
+            Ndl = numel(DirList);
+            Ind = 0;
+            for Idl=1:1:Ndl
+                cd(DirList{Idl});
+
+                Files = dir(Args.FilePat);
+                Nfiles = numel(Files);
+                for Ifiles=1:1:Nfiles
+                    MS = MatchedSources.read(Files(Ifiles).name);
+
+                    Ind = Ind + 1;
+                    Result(Ind).Ivisit   = Idl;
+                    Result(Ind).Ifile    = Ifiles;
+                    Result(Ind).FileName = Files(Ifiles).name;
+                    Result(Ind).Folder   = Files(Ifiles).folder;
+                    Result(Ind).JD       = mean(MS.JD,"all", "omitnan");
+                    Result(Ind).Nepoch   = MS.Nepoch;
+                    Result(Ind).Nsrc     = MS.Nsrc;
+
+                    if ~isempty(Args.Fun)
+                        [Result(Ind).Out, MS] = Args.Fun(MS, Args.FunArgs{:});
+                    end
+                    'a'
+                end
+
+
+            end
+
+            cd(PWD);
+
+        end
+
+    end
+
+
     methods (Static)  % design matrix
         function H=designMatrixCalib(Nep, Nsrc, Args)
             % Generate the design matrix for relative photometric calibration
@@ -2435,7 +2526,7 @@ classdef MatchedSources < Component
 
         end
 
-        function Obj=setBadPhotToNan(Obj, Args)
+        function Result=setBadPhotToNan(Obj, Args)
             % set to NaN photometry with bad flags
             % Input  : - A MatchedSources object.
             %          * ...,key,val,...
@@ -2444,6 +2535,8 @@ classdef MatchedSources < Component
             %                   NaN. Default is {'Overlap','NearEdge','CR_DeltaHT','Saturated','NaN','Negative'}
             %            'MagField' - Magnitude field to set to NaN.
             %                   Default is 'MAG_BEST'.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object copy. Default is false.
             % Output : - A MatchedSources object, in which the mag.
             %            field in the Data property is modified.
             % Author : Eran Ofek (May 2024)
@@ -2453,12 +2546,19 @@ classdef MatchedSources < Component
                 Obj
                 Args.BadFlags              = {'Overlap','NearEdge','CR_DeltaHT','Saturated','NaN','Negative'};
                 Args.MagField              = 'MAG_BEST';
+                Args.CreateNewObj logical  = false;
             end
 
-            Nobj = numel(Obj);
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
+            Nobj = numel(Result);
             for Iobj=1:1:Nobj
-                [BadFlags] = searchFlags(Obj(Iobj), 'FlagsList',Args.BadFlags);
-                Obj(Iobj).Data.(Args.MagField)(BadFlags) = NaN;
+                [BadFlags] = searchFlags(Result(Iobj), 'FlagsList',Args.BadFlags);
+                Result(Iobj).Data.(Args.MagField)(BadFlags) = NaN;
             end
         end
 
