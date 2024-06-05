@@ -4,7 +4,8 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
     %         one may need to employ imUtil.psf.suppressEdges 
     % Input  : - a 3D PSF array with the source index in the 3rd dimension or a cell-array of 2D PSFs 
     %          - an 2-column array of XY subpixel shifts
-    %          - a vector of oversampling factors
+    %          - a vector of oversampling factors (e.g. Oversample = 3 means 
+    %            that the PSF grid is 3 times finer than that of the detector)
     %          - a vector of rotation angles [deg]
     %          * ...,key,val,... 
     %         'Recenter' - true/false whether to fftshift the PSFs on the subpixel size 
@@ -34,7 +35,7 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
     end   
     %
     if ~isempty(RotAngle) && numel(RotAngle) < NumPsf 
-        RotAngle = repmat(RotAngle(1),1,NumPsf);
+        RotAngle = repmat(RotAngle(1),1,NumPsf); 
     end
     %
     if ~iscell(PSF) % if the PSFs are in an 3D array (hence they are of the same dimensions)        
