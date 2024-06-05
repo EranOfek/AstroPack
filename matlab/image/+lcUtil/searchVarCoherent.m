@@ -42,9 +42,11 @@ function [Result, MS] = searchVarCoherent(Obj, Args)
         Args.FieldSN             = 'SN_3'
 
         Args.MinCorr                = 3./sqrt(14-3);
-        Args.runMeanFilterArgs cell = {'Threshold',8};
+        Args.runMeanFilterArgs cell = {'Threshold',6, 'StdFun','OutWin'};
+        Args.runMeanFilterWinSize   = [2 3 4 5];
     end
 
+    Nfilt = numel(Args.runMeanFilterWinSize);
 
     Nobj = numel(Obj);
 
@@ -95,8 +97,15 @@ function [Result, MS] = searchVarCoherent(Obj, Args)
             Result.MaxFreq = FreqVec(MaxI).';
     
             % flares and transits
-            ResFilt = timeSeries.filter.runMeanFilter(MSn.Data.(Args.FieldMag), Args.runMeanFilterArgs{:});
-            Result.FlagRunMean = any(ResFilt.FlagCand, 1);
+            for Ifilt=1:1:Nfilt
+
+                ResFilt = timeSeries.filter.runMeanFilter(MSn.Data.(Args.FieldMag), Args.runMeanFilterArgs{:}, 'WinSize',Args.runMeanFilterWinSize(Ifilt));
+                if Ifilt==1
+                    Result.FlagRunMean = any(ResFilt.FlagCand, 1);
+                else
+                    Result.FlagRunMean = Result.FlagRunMean | any(ResFilt.FlagCand, 1);
+                end
+            end
     
             % correlations
             ResCorr = MSn.corrFields([], 'Field1',Args.FieldMag, 'Field2',Args.FieldRA, 'Type','pairs');

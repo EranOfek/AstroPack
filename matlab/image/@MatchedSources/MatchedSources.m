@@ -555,8 +555,43 @@ classdef MatchedSources < Component
 
                     if ~isempty(Args.Fun)
                         [Result(Ind).Out, MS] = Args.Fun(MS, Args.FunArgs{:});
+
+                        if isfield(Result(Ind).Out, 'FlagRunMean') && sum(Result(Ind).Out.FlagRunMean)>0
+
+                            II  = find(Result(Ind).Out.FlagRunMean);
+                            RA  = Result(Ind).Out.MeanRA(II(1));
+                            Dec = Result(Ind).Out.MeanDec(II(1));
+                            RAD = 180./pi;
+                            AC  = catsHTM.cone_search('GAIADR3',RA./RAD, Dec./RAD, 3, 'OutType','AstroCatalog');
+                            WD  = catsHTM.cone_search('WDEDR3',RA./RAD, Dec./RAD, 3, 'OutType','AstroCatalog');
+                            Mag = AC.Table.phot_bp_mean_mag;
+                            Color = AC.Table.phot_bp_mean_mag- AC.Table.phot_rp_mean_mag;
+                            Plx   = AC.Table.Plx;
+                            Plx(Plx<0) = 0.01;
+                            AbsMag = 5.*log10(1000./Plx) - 5;
+                            WD.sizeCatalog
+                            
+                            fprintf('%15.5f  %10.5f %10.5f\n',[Result(Ind).JD, RA, Dec]);
+                            [Mag, AbsMag, Color]
+                            Result(Ind).FileName
+
+                            %Result.LC = MS.
+                            MS.plotLC(II(1));
+                            drawnow;
+
+                            Result(Ind).UserData.RA     = RA;
+                            Result(Ind).UserData.Dec    = Dec;
+                            Result(Ind).UserData.N_WD   = WD.sizeCatalog;
+                            Result(Ind).UserData.Mag    = Mag;
+                            Result(Ind).UserData.AbsMag = AbsMag;
+                            Result(Ind).UserData.Color  = Color;
+                            Result(Ind).UserData.LC     = [MS.JD, MS.Data.MAG_BEST(:,II(1))];
+
+
+                            'a'
+                        end
                     end
-                    'a'
+                   
                 end
 
 

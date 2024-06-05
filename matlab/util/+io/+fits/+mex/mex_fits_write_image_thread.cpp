@@ -22,7 +22,7 @@
 
 const size_t cardSize           = 80;       // Each FITS header card is 80 bytes
 const size_t blockSize          = 2880;     // FITS headers are allocated in blocks of 2880 bytes
-const size_t maxStringLength    = 67;       // Max length for continued strings/values
+const size_t maxStringLength    = 68;       // Max length for continued strings/values
 const size_t maxCommentSize     = 80 - 34;  // Max length of comment in line that contains KEY = VALUE
 const size_t maxCommentLineSize = 80 - 8;   // Max length of text in line that starts with COMMENT
 
@@ -178,6 +178,10 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
         // Key = Value
         if (key[0] && (valueElement != nullptr)) {
 
+            // Skip the omitted keys, they already appear in the fixed header we write
+            if (isInList(key, omitted_keys_list))
+                continue;
+            
             // Value is string, add single quotes for string values
             if (mxIsChar(valueElement)) {            
                 char* tempStr = mxArrayToString(valueElement);
