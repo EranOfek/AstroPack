@@ -293,7 +293,7 @@ mxArray* createFitsImageHeaderFromCellArray(const mxArray* headerArray, bool ima
     if (imageData)
         bytesToWrite += blockSize;
 
-    mexPrintf("bufferPos: %d, headerBytesToWrite: %d, bytesToWrite: %d\n", (int)bufferPos, (int)headerBytesToWrite, (int)bytesToWrite);
+    //mexPrintf("bufferPos: %d, headerBytesToWrite: %d, bytesToWrite: %d\n", (int)bufferPos, (int)headerBytesToWrite, (int)bytesToWrite);
 
     mxArray* outputBuffer = mxCreateCharArray(1, &bytesToWrite);
     mxChar *outputData = mxGetChars(outputBuffer);
