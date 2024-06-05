@@ -11,6 +11,7 @@ function [CubePSF, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
     %          'RotAngle' - PSF rotation angle(s): a scalar or a vector  
     %          'Recenter' - true (shift the stamps according to X1Y1) or 
     %                       false (just round the X1Y1 values to XY and do not shift the PSF) 
+    %          'RecenterMethod' - 'fft' or 'nearest'; usually 'nearest' goes with Oversmapling > 1
     %          'PositivePSF' - logical, whether to improve the PSF wings (edges)
     %          'FunEdge'     - a handle of a 2D function used to impove the edges 
     %          'FunEdgePars' - parameters of 'FunEdge'
@@ -31,6 +32,7 @@ function [CubePSF, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
         Args.Oversample          = 0;
         Args.RotAngle            = [];
         Args.Recenter    logical = true;
+        Args.RecenterMethod      = '';  % fft or 
         Args.PositivePSF logical = false;
         Args.FunEdge             = @imUtil.kernel2.cosbell;
         Args.FunEdgePars         = [4 6];
@@ -65,7 +67,7 @@ function [CubePSF, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
     % shift and resample the PSF stamps, forcing odd-sized and normalized stamps  
     if Args.Recenter || all(Args.Oversample > 0)
         PSF = imUtil.psf.shiftResampleRotate(PSF,XYshift,Args.Oversample,Args.RotAngle,...
-                                    'ForceOdd',true,'Recenter',Args.Recenter,'Renorm',true); 
+            'ForceOdd',true,'Recenter',Args.Recenter,'RecenterMethod',Args.RecenterMethod,'Renorm',true);
     end        
     
     % eliminate negative PSF edges 

@@ -7,15 +7,17 @@ function Result = unitTest()
     
     % set the number of sources, the image size and the flux range 
     Nsrc = 1000; Nx = 2000; Ny = Nx; MaxSrcFlux = 1000;
-    % define the source fluxes and their PSfs
+    % define the source fluxes and their PSFs
     Flux = MaxSrcFlux .* rand(Nsrc,1);
     X1Y1 = Nx.* rand(Nsrc,2);
+    Oversample = 3;
     for i = 1:Nsrc; PSF(:,:,i) = imUtil.kernel2.gauss([4 4 0],[24 24]) + 1e-2*rand(24,24); end
     
     % create a list of shifted and resampled fluxed PSF stamps
-    [CubePSF, XY] = imUtil.art.createSourceCube(PSF, X1Y1, Flux, 'Recenter', true, 'Oversample', 3, 'PositivePSF', true);
+    [CubePSF, XY] = imUtil.art.createSourceCube(PSF, X1Y1, Flux, 'Recenter', true, ...
+        'RecenterMethod','fft','Oversample', Oversample, 'PositivePSF', true);
     
-    % create an empty image with some small noise
+    % create an empty image with some small noise (relative to MaxSrcFlux) 
     Image0 = rand(Nx,Ny);
     
     % fill the image with sources

@@ -10,7 +10,7 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
     %          * ...,key,val,... 
     %         'Recenter' - true/false whether to fftshift the PSFs on the subpixel size 
     %         'RecenterMethod' - 'fft' or 'nearest'; usually 'nearest' goes with Oversmapling > 1
-    %         'Renorm'   - true/false whether to renormalize the stamps
+    %         'Renorm'   - true/false whether to renormalize the stamps 
     %         'ForceOdd' - false/true whether to make the even-sized stamps odd-sized
     % Output : - a stack or a cell array of resampled and shifted PSFs
     % Author : A.M. Krassilchtchikov (2024 May)
@@ -23,7 +23,7 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
         Oversample             = 0;
         RotAngle               = [];      % [deg] counterclockwise
         Args.Recenter logical  = true;
-        Args.RecenterMethod    = 'fft';
+        Args.RecenterMethod    = 'fft';   % fft or nearest
         Args.Renorm   logical  = true;        
         Args.ForceOdd logical  = false;
     end
