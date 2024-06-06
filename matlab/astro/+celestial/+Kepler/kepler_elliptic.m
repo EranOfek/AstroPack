@@ -10,6 +10,8 @@ function [Nu,R,E,Vel,M]=kepler_elliptic(T,Q,Ecc,K,Tol)
 %            Gaussian gravitational constant (default is days).
 %            If the Gaussian gravitational constant is NaN, then assumes
 %            this is the mean anomaly.
+%            T is usually a column vector, but other form can be used for
+%            more complicated output.
 %          - Periastron distance (q) in units specified by chosen
 %            Gaussian gravitational constant (default is au).
 %            The periastron distance is related to the semi major
