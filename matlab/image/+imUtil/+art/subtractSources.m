@@ -17,5 +17,5 @@ function Image = subtractSources(Image, SrcPSF, XY, Args)
         Args.Size  = [];         
     end
     %
-    Image = imUtil.art.injectSources(Image,SrcPSF,XY,'Subtract',true,'Size',Args.Size);
+    Image = imUtil.art.addSources(Image,SrcPSF,XY,'Subtract',true,'Size',Args.Size);
 end

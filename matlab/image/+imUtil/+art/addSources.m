@@ -1,4 +1,4 @@
-function Image = injectSources(Image, SrcPSF, XY, Args)
+function Image = addSources(Image, SrcPSF, XY, Args)
     % Inject odd-sized fluxed source images (PSFs) into whole pixel positions of an image  
     %     NB: first one needs to prepare fluxed and shifted source PSFs with imUtil.art.createSourceCube   
     % Input  : - an image matrix  
@@ -15,7 +15,7 @@ function Image = injectSources(Image, SrcPSF, XY, Args)
     %          X1Y1 = 100.*rand(10,2); Flux = 100.*rand(10,1);
     %          [CubePSF, XY] = imUtil.art.createSourceCube(P, X1Y1, Flux, 'Oversample', 3, 'PositivePSF', true);
     %          Image = rand(100);
-    %          ImageSrc = imUtil.art.injectSources(Image,CubePSF,XY);
+    %          ImageSrc = imUtil.art.addSources(Image,CubePSF,XY);
     arguments
         Image           
         SrcPSF          

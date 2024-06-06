@@ -21,7 +21,7 @@ function Result = unitTest()
     Image0 = rand(Nx,Ny);
     
     % fill the image with sources
-    ImageSrc = imUtil.art.injectSources(Image0,CubePSF,XY,'Oversample',[],'Subtract',false);
+    ImageSrc = imUtil.art.addSources(Image0,CubePSF,XY,'Oversample',[],'Subtract',false);
     
     % add background with some spatial variations
     Back = 0.05 .* MaxSrcFlux + rand(Nx,Ny);    
@@ -44,7 +44,7 @@ function Result = unitTest()
     [CubePSF, XY] = imUtil.art.createSourceCube(Res.ShiftedPSF, X1Y1, Res.Flux, 'Recenter', false);
     
     Image0 = repmat(0,size(AI.Image));
-    ImageSrc = imUtil.art.injectSources(Image0,CubePSF,XY,'Oversample',[],'Subtract',false);
+    ImageSrc = imUtil.art.addSources(Image0,CubePSF,XY,'Oversample',[],'Subtract',false);
     ImageSrcBack = imUtil.art.addBackground(ImageSrc, AI.Back, 'Subtract', false);
     DiffImage    = AI.Image - ImageSrcBack;
     DiffImageMasked = DiffImage .* (AI.Mask == 0);
@@ -58,7 +58,7 @@ function Result = unitTest()
     
     X1Y1 = [Res2.Y Res2.X];
     [CubePSF, XY] = imUtil.art.createSourceCube(Res2.ShiftedPSF, X1Y1, Res2.Flux, 'Recenter', false);
-    ImageSrc2 = imUtil.art.injectSources(Image0,CubePSF,XY,'Oversample',[],'Subtract',false);
+    ImageSrc2 = imUtil.art.addSources(Image0,CubePSF,XY,'Oversample',[],'Subtract',false);
     ImageSrcBack2 = imUtil.art.addBackground(ImageSrc2, AI2.Back, 'Subtract', false);
     DiffImage2    = AI2.Image - ImageSrcBack2;
     DiffImageMasked2 = DiffImage2 .* (AI2.Mask == 0);

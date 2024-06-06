@@ -33,7 +33,7 @@ function [Result,AISub] = psfFitPhotIter(AI,Args)
     %                   pass to imProc.sources.psfFitPhot.
     %                   Default is {}.
     %             'injectSourcesArgs' - A cell array of additional args to
-    %                   pass to imUtil.art.injectSources.
+    %                   pass to imUtil.art.injectSources_NS.
     %                   Default is {}.
     %             'backgroundArgs' - A cell array of additional args to
     %                   pass to imProc.background.background.
@@ -46,7 +46,7 @@ function [Result,AISub] = psfFitPhotIter(AI,Args)
     % Author  :  Noam Segev (Jun 2023)
     % Example :  
     %            PSF = imUtil.kernel2.gauss; Cat = [rand(10,2)*1000,rand(10,1)*1e5];
-    %            S = imUtil.art.injectSources(poissrnd(500,1000,1000),Cat,PSF);
+    %            S = imUtil.art.injectSources_NS(poissrnd(500,1000,1000),Cat,PSF);
     %            AI = AstroImage({S});AI.PSFData = AstroPSF(PSF);
     %            [Result,AISub] = imProc.sources.psfFitPhotIter(AI);
     
@@ -106,7 +106,7 @@ function [Result,AISub] = psfFitPhotIter(AI,Args)
         end
         SrcCat = AISub.CatData.getCol({'X','Y','FLUX_PSF'});
         flagnan = ~any(isnan(SrcCat),2);
-        S = imUtil.art.injectSources([Imsz1,Imsz2] ,SrcCat(flagnan,:),AISub.PSF,Args.injectSourcesArgs{:});
+        S = imUtil.art.injectSources_NS([Imsz1,Imsz2] ,SrcCat(flagnan,:),AISub.PSF,Args.injectSourcesArgs{:});
         AISub = AISub- S;
         Cat(Iiter)= AISub.astroImage2AstroCatalog;
         AISub.CatData=AstroCatalog;

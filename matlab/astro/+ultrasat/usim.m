@@ -972,11 +972,11 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
                 error('The size of RotPSF is even, while imUtil.art.injectSources accepts odd size only! Exiting..');
             end
     
-            Image = imUtil.art.injectSources(Image0,Cat,JPSF); 
+            Image = imUtil.art.injectSources_NS(Image0,Cat,JPSF); 
 
         case 'direct'                  
 %             ImageOld = directInjectSources(Image0,Cat,Args.PSFScaling,JPSF);
-            Image = imUtil.art.injectSources(Image0,JPSF.*reshape(CPS,1,1,NumSrc),...
+            Image = imUtil.art.addSources(Image0,JPSF.*reshape(CPS,1,1,NumSrc),...
                            [X Y],'Oversample',Args.PSFScaling);
     
         otherwise        
