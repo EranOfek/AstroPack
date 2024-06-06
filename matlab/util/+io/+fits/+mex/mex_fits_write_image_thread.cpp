@@ -178,6 +178,10 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
         // Key = Value
         if (key[0] && (valueElement != nullptr)) {
 
+            // Skip the omitted keys, they already appear in the fixed header we write
+            if (isInList(key, omitted_keys_list))
+                continue;
+            
             // Value is string, add single quotes for string values
             if (mxIsChar(valueElement)) {            
                 char* tempStr = mxArrayToString(valueElement);
