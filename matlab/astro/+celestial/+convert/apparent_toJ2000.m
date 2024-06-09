@@ -83,14 +83,14 @@ function [OutRA, OutDec, Alt, Refraction, Aux] = apparent_toJ2000(RA, Dec, JD, A
 
         if isnumeric(Args.InterpHA)
             Aux.HA_App  = Aux.HA_AppDist - Args.InterpHA;
-        elseif (isa(Args.InterpHA, 'struct') || isa(Args.InterpHA,'scatteredInterpolant')) && ~isempty(Args.InterpHA.Points)
+        elseif isa(Args.InterpHA,'scatteredInterpolant') && ~isempty(Args.InterpHA.Points)
             Aux.HA_App  = Aux.HA_AppDist  - Args.InterpHA(Aux.HA_AppDist, Aux.Dec_AppDist);
         else
             Aux.HA_App  = Aux.HA_AppDist;
         end
         if isnumeric(Args.InterpDec)
             Aux.Dec_App = Aux.Dec_AppDist - Args.InterpDec;
-        elseif (isa(Args.InterpDec, 'struct') || isa(Args.InterpDec,'scatteredInterpolant')) && ~isempty(Args.InterpDec.Points)
+        elseif isa(Args.InterpDec,'scatteredInterpolant') && ~isempty(Args.InterpDec.Points)
             Aux.Dec_App = Aux.Dec_AppDist - Args.InterpDec(Aux.HA_AppDist, Aux.Dec_AppDist);
         else
             Aux.Dec_App  = Aux.Dec_AppDist;
