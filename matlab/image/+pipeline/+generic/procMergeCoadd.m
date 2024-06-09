@@ -27,7 +27,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
     arguments
         AllSI
         Args.mergeCatalogsArgs cell           = {};
-        Args.MergedMatchMergedCat logical     = false;
+        Args.MergedMatchMergedCat logical     = true; % false;  % issue 454
         Args.CoaddMatchMergedCat logical      = true;
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
         Args.backgroundArgs cell              = {};
@@ -52,7 +52,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
         Args.interp2affineArgs cell           = {};
         Args.interp2wcsArgs cell              = {};
 
-        Args.CoaddLessFrac                    = 0.6; % if number of imagesx in pix is below this frac, than open the CoaddLessImages bit - empty - ignore
+        Args.CoaddLessFrac                    = 0.6; % if number of images in pix is below this frac, than open the CoaddLessImages bit - empty - ignore
         Args.BitName_CoaddLess                = 'CoaddLessImages';
         
         %Args.RemoveHighBackImages logical     = true;   % remove images which background differ from median back by 'HighBackNsigma' sigma
