@@ -1,7 +1,7 @@
 function Result = unitTest()
     % imUtil.art.unitTest
     % Example: imUtil.art.unitTest
-    io.msgLog(LogLevel.Test, 'imUtil.art.unitTest test started');
+    io.msgLog(LogLevel.Test, 'imUtil.art.unitTest started');
     
     %%% create an artificial sky image from object coordinates and PSFs
     
@@ -35,35 +35,87 @@ function Result = unitTest()
     %%% build an image from a source list measured from some real data 
     %%% and compare it with the original one
     
-    AI = AstroImage('~/matlab/data/TestImages/unitTest/LAST_subimage.fits');
-    AI = imProc.sources.findMeasureSources(AI,'Threshold', 5);
-    AI = imProc.psf.populatePSF(AI);
+    % high-latitude (tenuous) field:
+    fprintf('LAST subimage from a high-latitude field 346+79:\n');
+    tic;
+    AI1(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_346+79_crop10.fits');    
+    Res1(1) = FitRestoreSubtract(AI1, 'VarMethod', 'LogHist', 'Threshold', 5);
+    
+    for It = 2:10
+        AI1(It)  = AstroImage({Res1(It-1).Diff});
+        Res1(It) = FitRestoreSubtract(AI1(It), 'PSF', Res1(1).PSF, 'VarMethod', 'LogHist', 'Threshold', 5, 'Iteration',It);
+    end
+    
+    toc; tic;
+    % low-latitude (dense) field:
+    fprintf('LAST subimage from a low-latitude field 275-16:\n');
+    AI2(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_275-16_crop22.fits');
+    Res2(1) = FitRestoreSubtract(AI2(1),'VarMethod','LogHist');
+        
+    for It = 2:10
+        AI2(It)  = AstroImage({Res2(It-1).Diff});
+        Res2(It) = FitRestoreSubtract(AI2(It), 'PSF', Res2(1).PSF, 'VarMethod', 'LogHist', 'Threshold', 5, 'Iteration',It);
+    end
+    
+    toc;
+    io.msgLog(LogLevel.Test, 'imUtil.art.unitTest passed');
+    Result = true;
+end
+
+%%% internal functions
+
+function Result = FitRestoreSubtract(AI, Args)
+
+    arguments
+       AI
+       Args.PSF       = [];
+       Args.Threshold = 5;
+       Args.VarMethod = 'LogHist';
+       Args.SubtractBack = false;
+       Args.Iteration = 1;
+    end
+    % find sources
+    if strcmpi(Args.VarMethod,'loghist')
+        AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold);
+    elseif strcmpi(Args.VarMethod,'median')
+        AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold,'BackPar',...
+        {'BackFun',@median,'BackFunPar',{'all'},'VarFun',@imUtil.background.rvar,'SubSizeXY','full'});     
+    else
+        error('not supported VarMethod ');
+    end
+    fprintf('New objects at iter. %d: %d\n',Args.Iteration,height(AI.Table));
+    % if a PSF is given, do not change it 
+    if isempty(Args.PSF)
+        AI = imProc.psf.populatePSF(AI,'CropByQuantile',false);
+        Result.PSF = AI.PSF;
+    else
+        AI.PSF = Args.PSF;
+        Result.PSF = Args.PSF;
+    end
+    % make PSF photometry
     [AI, Res] = imProc.sources.psfFitPhot(AI);  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter 
     X1Y1 = [Res.Y Res.X]; % note the order! 
-    
+    % construct and inject sources
     [CubePSF, XY] = imUtil.art.createSourceCube(Res.ShiftedPSF, X1Y1, Res.Flux, 'Recenter', false);
-    
+    % 
     Image0 = repmat(0,size(AI.Image));
     ImageSrc = imUtil.art.addSources(Image0,CubePSF,XY,'Oversample',[],'Subtract',false);
-    ImageSrcBack = imUtil.art.addBackground(ImageSrc, AI.Back, 'Subtract', false);
-    DiffImage    = AI.Image - ImageSrcBack;
-    DiffImageMasked = DiffImage .* (AI.Mask == 0);
-    
-    % trying another iteration with the difference image    
-    AI2 = AstroImage({DiffImageMasked});
-    AI2 = imProc.sources.findMeasureSources(AI2,'Threshold', 3,'BackPar',...
-        {'BackFun',@median,'BackFunPar',{'all'},'VarFun',@imUtil.background.rvar,'SubSizeXY','full'}); 
-    AI2 = imProc.psf.populatePSF(AI2);
-    [AI2, Res2] = imProc.sources.psfFitPhot(AI2); 
-    
-    X1Y1 = [Res2.Y Res2.X];
-    [CubePSF, XY] = imUtil.art.createSourceCube(Res2.ShiftedPSF, X1Y1, Res2.Flux, 'Recenter', false);
-    ImageSrc2 = imUtil.art.addSources(Image0,CubePSF,XY,'Oversample',[],'Subtract',false);
-    ImageSrcBack2 = imUtil.art.addBackground(ImageSrc2, AI2.Back, 'Subtract', false);
-    DiffImage2    = AI2.Image - ImageSrcBack2;
-    DiffImageMasked2 = DiffImage2 .* (AI2.Mask == 0);
-    
-    io.msgLog(LogLevel.Test, 'imUtil.art.unitTest test passed');
-    Result = true;
+    ImageSrcBack = imUtil.art.addBackground(ImageSrc, AI.Back, 'Subtract', false);    
+    % make a difference image    
+    if Args.SubtractBack % do we ever need to remove the background before the next iteration? 
+        DiffImage    = AI.Image - ImageSrcBack; 
+    else
+        DiffImage    = AI.Image - ImageSrc;
+    end
+    % exclude pixels with Mask > 0
+    DiffImageMasked = DiffImage .* (AI.Mask == 0);            
+    % exclude pixels with reconstructed source PSFs 
+    DiffImageMaskedPSF = DiffImageMasked .* (ImageSrc == 0); 
+    % 
+    Result.Src     = ImageSrc;
+    Result.SrcBack = ImageSrcBack;
+    Result.Diff    = DiffImage;
+    Result.DiffMask= DiffImageMasked;
+    Result.DiffPSF = DiffImageMaskedPSF;
 end
 
