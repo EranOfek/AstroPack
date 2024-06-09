@@ -568,7 +568,7 @@ classdef MatchedSources < Component
                             Color = AC.Table.phot_bp_mean_mag- AC.Table.phot_rp_mean_mag;
                             Plx   = AC.Table.Plx;
                             Plx(Plx<0) = 0.01;
-                            AbsMag = 5.*log10(1000./Plx) - 5;
+                            AbsMag = Mag - (5.*log10(1000./Plx) - 5);
                             WD.sizeCatalog
                             
                             fprintf('%15.5f  %10.5f %10.5f\n',[Result(Ind).JD, RA, Dec]);
