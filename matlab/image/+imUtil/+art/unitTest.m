@@ -40,22 +40,30 @@ function Result = unitTest()
     tic;
     AI1(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_346+79_crop10.fits');    
     Res1(1) = FitRestoreSubtract(AI1, 'VarMethod', 'LogHist', 'Threshold', 5);
+    AC1(1)   = Res1(1).Cat;
     
     for It = 2:10
         AI1(It)  = AstroImage({Res1(It-1).Diff});
         Res1(It) = FitRestoreSubtract(AI1(It), 'PSF', Res1(1).PSF, 'VarMethod', 'LogHist', 'Threshold', 5, 'Iteration',It);
+        AC1(It) = Res1(It).Cat;
     end
     
+    AI1(1).CatData = merge(AC1); % NB: AC1(1).Table is not updated 
+        
     toc; tic;
     % low-latitude (dense) field:
     fprintf('LAST subimage from a low-latitude field 275-16:\n');
     AI2(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_275-16_crop22.fits');
     Res2(1) = FitRestoreSubtract(AI2(1),'VarMethod','LogHist');
+    AC2(1)   = Res2(1).Cat;
         
     for It = 2:10
         AI2(It)  = AstroImage({Res2(It-1).Diff});
         Res2(It) = FitRestoreSubtract(AI2(It), 'PSF', Res2(1).PSF, 'VarMethod', 'LogHist', 'Threshold', 5, 'Iteration',It);
+        AC2(It) = Res2(It).Cat;
     end
+    
+    AI2(1).CatData = merge(AC2); % NB: AC2(1).Table is not updated 
     
     toc;
     io.msgLog(LogLevel.Test, 'imUtil.art.unitTest passed');
@@ -112,6 +120,7 @@ function Result = FitRestoreSubtract(AI, Args)
     % exclude pixels with reconstructed source PSFs 
     DiffImageMaskedPSF = DiffImageMasked .* (ImageSrc == 0); 
     % 
+    Result.Cat     = AI.CatData;
     Result.Src     = ImageSrc;
     Result.SrcBack = ImageSrcBack;
     Result.Diff    = DiffImage;
