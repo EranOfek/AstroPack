@@ -13,14 +13,14 @@ function Image = addNoise(Image, NoiseModel, Args)
     arguments
         Image
         NoiseModel             = 'normal'
-        Args.NormPar           = [];      % e.g., scaling of image variance       
+        Args.NoisePar          = [];      % e.g., scaling of image variance       
     end
     %
     ImSize = size(Image);
     
     switch lower(NoiseModel)
         case 'normal'
-            if isempty(Args.NormPar)
+            if isempty(Args.NoisePar)
                 Var = Image;
             else
                 Var = Args.NoisePar .* Image;
