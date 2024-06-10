@@ -11,7 +11,7 @@ function [Beta] = altLimit(l,H1,H2,R)
     % Example: [Beta] = tools.math.geometry.altLimit(l,H1,H2,R)
 
     arguments
-        l   = 135; %185;  % 135
+        l   = 135+205; %185;  % 135
         H1  = 120; %165; %120;
         H2  = 220; %346; %250; %346; %120;
         R   = 58; %50; %65; %50;
