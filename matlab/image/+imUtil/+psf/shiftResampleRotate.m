@@ -53,7 +53,7 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
         % rescale, but do not normalize as of yet
         % NB: will work only with Oversample = scalar or a 2-element vector,
         % i.e. the same oversampling factors for all the PSFs
-        if all(Oversample > 0) 
+        if ~isempty(Oversample) && all(Oversample > 0) 
             if numel(Oversample) < 2
                 Oversample(2) = Oversample(1);
             end

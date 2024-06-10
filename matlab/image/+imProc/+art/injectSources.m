@@ -1,21 +1,22 @@
 function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Args)
     % Inject/subtract source images at given pixel positions of an AstroImage
     %     AI can be a stack of objects
-    % Input  : - a stack of AstroImages
+    % Input  : - a stack of AstroImages or make a new one if does not exist
     %          - a 2-column matrix of exact (sub)pixel positions or an AstroCatalog  
     %          - a vector of source fluxes or 1 flux value for all the sources
     %          - a cube or a cell array of PSF stamps or a single PSF stamp
     %          * ...,key,val,... 
     %        'Subtract' - false (def.) - add sources, true - subtract sources
-    %        'CreateNewObj' - false (def.) - operate on the same AI
+    %        'CreateNewObj' - false (def.) - operate on the same AI 
     %        'UpdateHeader' - add to the header information on the number of injected sources 
+    %        'UpdateCat' - merge the injected catalog with the existing one
     % Output : - the AstroImage stack with added or subtracted source stamps  
     %          - A catalog of injected sources 
     % Author : A.M. Krassilchtchikov (2024 Jun) 
-    % Example: 
+    % Example: [AI, InjectedCat] = imProc.art.injectSources(AI0, Cat, PSF, Flux, 'PositivePSF', true)
     %
     arguments
-        AI
+        AI0
         Cat
         PSF
         Flux
@@ -38,7 +39,12 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Args)
         Args.AddNoise                 = false;
         Args.NoiseModel               = [];
         Args.NoisePar                 = [];
-    end     
+    end  
+    % make an empty AstroImage object if it does not exist
+    if ~strcmpi(class(AI0),'astroimage')
+        warning('The input object is not AstroImage, using an empty one instead \n');
+        AI0 = AstroImage();
+    end
     % new object
     if Args.CreateNewObj
         AI = AI0.copy;
@@ -63,13 +69,13 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Args)
         'RotAngle', Args.RotAngle, 'PositivePSF', Args.PositivePSF);
     % loop over input AI objects
     for Iobj = 1:numel(AI)
-        % do the injection/subtraction and merge catalogs
+        % do the injection/subtraction and merge catalogs, if requested
         if ~Args.Subtract
             AI(Iobj).Image = imUtil.art.addSources(AI(Iobj).Image,CubePSF,XY);
             if Args.UpdateCat
               AC(1) = AI(Iobj).CatData;
               AC(2) = InjectedCat;
-              AI(Iobj).CatData = merge(AC);
+              AI(Iobj).CatData = merge(AC); 
             end
         else
             AI(Iobj).Image = imUtil.art.subtractSources(AI(Iobj).Image,CubePSF,XY);
@@ -82,9 +88,9 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Args)
         if Args.AddNoise
             AI(Iobj).Image = imUtil.art.addNoise(AI(Iobj).Image,Args.NoiseModel,'NoisePar',Args.NoisePar);
         end
+        % update the headers
         if Args.UpdateHeader
-            % which keyword shall we use? HISTORY? 
+            % AI(Iobj).Header: which keyword shall we use? HISTORY? 
         end
-    end    
-    
+    end        
 end

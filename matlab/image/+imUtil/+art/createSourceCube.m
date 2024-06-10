@@ -52,7 +52,7 @@ function [CubePSF, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
     end
     
     % check the size and type of PSF stamps
-    if numel(PSF) == 1
+    if ismatrix(PSF) 
         PSF = repmat(PSF, [1 1 Nsrc]);
     elseif iscell(PSF)
         if numel(PSF) ~= Nsrc
