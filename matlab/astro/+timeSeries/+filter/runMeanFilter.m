@@ -46,6 +46,8 @@ function [Result] = runMeanFilter(M, Args)
     %                   flare/dip is higher by one compared to the Z1.
     %                   Z1 is the original data divided by the StD (i.e.,
     %                   unfiltered data).
+    %            .FlagZ - Like FlagCand, but NaN for non-candidate and
+    %                   number of sigmas for candidates.
     %            .NumberNotNaN - A vector (element per source) indicating
     %                   the number of not NaN entries per source.
     %
@@ -146,6 +148,8 @@ function [Result] = runMeanFilter(M, Args)
     FlagZ1 = abs(Z)>abs(Z1) & abs(Z)>abs( padarray(Z1(1:end-1,:), 1, 'pre')) & abs(Z)>abs( padarray(Z1(2:end,:), 1, 'post'));
 
     Result.FlagCand     = abs(Z)>Args.Threshold & MoveC==Args.WinSize & sign(Z1)==sign(Z) & FlagZ1; %max(abs(Z),[],1)>max(abs(Z1),[],1);  %  abs(Z./Z1)>1;
+    Result.FlagZ        = nan(size(Z));
+    Result.FlagZ(Result.FlagCand)        = Z(Result.FlagCand);
     Result.NumberNotNan = NumberNotNan;
     %Result.Par          = Par;
     
