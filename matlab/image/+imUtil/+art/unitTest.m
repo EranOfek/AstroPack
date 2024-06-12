@@ -39,15 +39,16 @@ function Result = unitTest()
     fprintf('LAST subimage from a high-latitude field 346+79:\n');   
     AI1(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_346+79_crop10.fits');    
     Res1(1) = FitRestoreSubtract(AI1, 'VarMethod', 'LogHist', 'Threshold', 30, ...
-        'RemoveMasked', false, 'RemovePSFCore', false); % , ...
-%         'BackPar',{'SubSizeXY','full'}); 
+        'RemoveMasked', false, 'RemovePSFCore', false, ...
+        'BackPar',{'SubSizeXY','full'}); 
     AC1(1)  = Res1(1).Cat;        
     
     for It = 2:5
         AI1(It)  = AstroImage({Res1(It-1).Diff}); AI1(It).Back = AI1(It-1).Back; AI1(It).Var = AI1(It-1).Var;
         Res1(It) = FitRestoreSubtract(AI1(It), 'PSF', Res1(1).PSF, 'ReCalcBack', true, ...
             'VarMethod', 'LogHist', 'Threshold', 5, 'Iteration',It, ...
-            'RemoveMasked', false, 'RemovePSFCore', false);
+            'RemoveMasked', false, 'RemovePSFCore', false, ...
+            'BackPar',{'SubSizeXY','full'});
         AC1(It) = Res1(It).Cat;        
     end
     
@@ -58,15 +59,16 @@ function Result = unitTest()
     fprintf('LAST subimage from a low-latitude field 275-16:\n');    
     AI2(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_275-16_crop22.fits');
     Res2(1) = FitRestoreSubtract(AI2(1),'VarMethod','LogHist','Threshold', 30, ...
-        'RemoveMasked', false, 'RemovePSFCore', false); % ,...
-%         'BackPar',{'SubSizeXY','full'});
+        'RemoveMasked', false, 'RemovePSFCore', false,...
+        'BackPar',{'SubSizeXY','full'});
     AC2(1)  = Res2(1).Cat;     
         
     for It = 2:5
         AI2(It)  = AstroImage({Res2(It-1).Diff}); AI2(It).Back = AI2(It-1).Back; AI2(It).Var = AI2(It-1).Var;
         Res2(It) = FitRestoreSubtract(AI2(It), 'PSF', Res2(1).PSF, 'ReCalcBack', true, ...
             'VarMethod', 'LogHist', 'Threshold', 5, 'Iteration',It, ...
-            'RemoveMasked', false, 'RemovePSFCore', false);
+            'RemoveMasked', false, 'RemovePSFCore', false,...
+            'BackPar',{'SubSizeXY','full'});
         AC2(It) = Res2(It).Cat;        
     end
     
