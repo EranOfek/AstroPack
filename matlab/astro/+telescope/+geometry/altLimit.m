@@ -6,9 +6,9 @@ function [Beta] = altLimit(l,H1,H2,R)
     %          - Height of obstraction/wall.
     %          - Radius (distance) from center of motion and telescope edge
     %            perpendicular to optical axis.
-    % Output : - Alt limit for obstraction [rad].
+    % Output : - Alt limit for obstraction [deg].
     % Author : Eran Ofek (2024 Jun) 
-    % Example: [Beta] = tools.math.geometry.altLimit(l,H1,H2,R)
+    % Example: [Beta] = telescope.geometry.altLimit(l,H1,H2,R)
 
     arguments
         l   = 135+205; %185;  % 135
@@ -17,10 +17,11 @@ function [Beta] = altLimit(l,H1,H2,R)
         R   = 58; %50; %65; %50;
     end
 
+    RAD = 180./pi;
     Phi = atan((H2-H1)./l);
     lt  = l./cos(Phi);
     Alpha = asin(R./lt);
     Beta = Phi + Alpha;
-
+    Beta = Beta.*RAD;
 
 end

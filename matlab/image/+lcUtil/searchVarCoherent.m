@@ -40,10 +40,16 @@ function [Result, MS] = searchVarCoherent(Obj, Args)
         Args.FieldDec            = 'Dec';
         Args.FieldChi2           = 'PSF_CHI2DOF';
         Args.FieldSN             = 'SN_3'
+        Args.FieldMag1           = 'MAG_PSF';
+        Args.FieldMag2           = 'MAG_APER_3';
 
-        Args.MinCorr                = 3./sqrt(14-3);
-        Args.runMeanFilterArgs cell = {'Threshold',6, 'StdFun','OutWin'};
+        Args.MinCorr                 = 3./sqrt(14-3);
+        Args.runMeanFilterArgs cell  = {'Threshold',6, 'StdFun','OutWin'};
+        Args.runMeanFilterArgs1 cell = {'Threshold',4, 'StdFun','OutWin'};
+        Args.runMeanFilterArgs2 cell = {'Threshold',4, 'StdFun','OutWin'};
         Args.runMeanFilterWinSize   = [2 3 4 5];
+
+        Args.MinMag1Ma2Corr         = -0.5; % PSF vs. APER_3 corr is larger than this value
     end
 
     Nfilt = numel(Args.runMeanFilterWinSize);
@@ -80,6 +86,7 @@ function [Result, MS] = searchVarCoherent(Obj, Args)
             
             % General stat
             MSn.addSrcData;
+            Result.MeanJD   = mean(MS.JD);
             Result.MeanRA   = MSn.SrcData.(Args.FieldRA);
             Result.MeanDec  = MSn.SrcData.(Args.FieldDec);
             Result.StdRA    = std(MSn.Data.(Args.FieldRA), [], 1, 'omitnan').*cosd(Result.MeanDec);
@@ -100,10 +107,17 @@ function [Result, MS] = searchVarCoherent(Obj, Args)
             for Ifilt=1:1:Nfilt
 
                 ResFilt = timeSeries.filter.runMeanFilter(MSn.Data.(Args.FieldMag), Args.runMeanFilterArgs{:}, 'WinSize',Args.runMeanFilterWinSize(Ifilt));
+                ResFilt1 = timeSeries.filter.runMeanFilter(MSn.Data.(Args.FieldMag1), Args.runMeanFilterArgs1{:}, 'WinSize',Args.runMeanFilterWinSize(Ifilt));
+                ResFilt2 = timeSeries.filter.runMeanFilter(MSn.Data.(Args.FieldMag2), Args.runMeanFilterArgs2{:}, 'WinSize',Args.runMeanFilterWinSize(Ifilt));
+
+                FlagCand = ResFilt.FlagCand & ResFilt1.FlagCand & ResFilt2.FlagCand;
+
                 if Ifilt==1
-                    Result.FlagRunMean = any(ResFilt.FlagCand, 1);
+                    Result.FlagRunMean = any(FlagCand, 1);
+                    Result.FlagZ       = max(abs(ResFilt.FlagZ), [], 1);
                 else
-                    Result.FlagRunMean = Result.FlagRunMean | any(ResFilt.FlagCand, 1);
+                    Result.FlagRunMean = Result.FlagRunMean | any(FlagCand, 1);
+                    Result.FlagZ       = max(Result.FlagZ, max(abs(ResFilt.FlagZ), [], 1));
                 end
             end
     
@@ -122,7 +136,13 @@ function [Result, MS] = searchVarCoherent(Obj, Args)
     
             ResCorr = MSn.corrFields([], 'Field1',Args.FieldMag, 'Field2',Args.FieldMag, 'Type','all', 'DiagonalNaN',true);
             Result.NcorrAboveTh = sum(triu(ResCorr.Corr>Args.MinCorr, 1), 1);
-    
+
+            ResCorr = MSn.corrFields([], 'Field1',Args.FieldMag1, 'Field2',Args.FieldMag2, 'Type','pairs');
+            Result.CorrMag1Mag2   = ResCorr.Corr;
+            Result.CorrPvMag1Mag2 = ResCorr.PVal;
+
+            Result.FlagCorrGood   = Result.CorrMag1Mag2>Args.MinMag1Ma2Corr;
+
             %Result.CorrMagMag   = ResCorr.Corr;
             %Result.CorrPvMagMag = ResCorr.PVal;
         end
