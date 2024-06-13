@@ -44,7 +44,8 @@ function Result = unitTest()
     AC1(1)  = Res1(1).Cat;        
     
     for It = 2:5
-        AI1(It)  = AstroImage({Res1(It-1).Diff}); AI1(It).Back = AI1(It-1).Back; AI1(It).Var = AI1(It-1).Var;
+        AI1(It)  = AstroImage({Res1(It-1).Diff}); 
+        AI1(It).Back = AI1(It-1).Back; AI1(It).Var = AI1(It-1).Var; AI1(It).CatData.JD = AI1(1).CatData.JD;
         Res1(It) = FitRestoreSubtract(AI1(It), 'PSF', Res1(1).PSF, 'ReCalcBack', true, ...
             'VarMethod', 'LogHist', 'Threshold', 5, 'Iteration',It, ...
             'RemoveMasked', false, 'RemovePSFCore', false, ...
@@ -65,7 +66,8 @@ function Result = unitTest()
         
     for It = 2:5
         Thresh = 5; % 50/It^1.4;
-        AI2(It)  = AstroImage({Res2(It-1).Diff}); AI2(It).Back = AI2(It-1).Back; AI2(It).Var = AI2(It-1).Var;
+        AI2(It)  = AstroImage({Res2(It-1).Diff}); 
+        AI2(It).Back = AI2(It-1).Back; AI2(It).Var = AI2(It-1).Var; AI2(It).CatData.JD = AI2(1).CatData.JD;        
         Res2(It) = FitRestoreSubtract(AI2(It), 'PSF', Res2(1).PSF, 'ReCalcBack', true, ...
             'VarMethod', 'LogHist', 'Threshold', Thresh, 'Iteration',It, ...
             'RemoveMasked', false, 'RemovePSFCore', false,...
@@ -104,28 +106,27 @@ function Result = FitRestoreSubtract(AI, Args)
        Args.Iteration   = 1;
        Args.PSF         = [];
        
+       Args.VarMethod   = 'LogHist';
+       
        Args.Threshold   = 5;
        
        Args.PSFFunPar   = {[0.1; 1.0; 1.5]}; % {[0.1; 1.0; 3.0; 5.0]};
+       Args.CropPSF     = false;
        
-       Args.VarMethod   = 'LogHist';   
        Args.ReCalcBack  = true;
        
        Args.BackPar     = {'SubSizeXY',[128 128]}; % {'SubSizeXY',[]})
        
        Args.RemoveMasked  = false;  % seem like 'true' does not influence much ? 
-       Args.RemovePSFCore = false;
+       Args.RemovePSFCore = false;  % not decided on it yet
     end
-    % find sources, measure background
-    if strcmpi(Args.VarMethod,'loghist')
-        AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold,'ReCalcBack',Args.ReCalcBack,...
-              'PsfFunPar',Args.PSFFunPar,'BackPar',Args.BackPar); 
-    elseif strcmpi(Args.VarMethod,'median')
-        AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold,'ReCalcBack',Args.ReCalcBack,...
-            'BackPar',{'BackFun',@median,'BackFunPar',{'all'},'VarFun',@imUtil.background.rvar,'SubSizeXY','full'});     
-    else
-        error('not supported VarMethod ');
-    end
+    % measure background and variance
+    imProc.background.background(AI, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
+    
+    % find sources without background recalculation
+    AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold,'ReCalcBack',false,'PsfFunPar',Args.PSFFunPar); 
+%             'BackPar',{'BackFun',@median,'BackFunPar',{'all'},'VarFun',@imUtil.background.rvar,'SubSizeXY','full'});     
+    %
     NumSrc = height(AI.Table);
     fprintf('Iter. %d: bkg = %.0f, var = %.0f, Nobj: %d\n',...
         Args.Iteration,mean(AI.Back,'all'),mean(AI.Var,'all'),NumSrc);
@@ -133,7 +134,7 @@ function Result = FitRestoreSubtract(AI, Args)
     AI.CatData = insertCol(AI.CatData, repmat(Args.Iteration,1,NumSrc)', Inf, 'ITER', {''});
     % if a PSF is given, do not change it 
     if isempty(Args.PSF)
-        AI = imProc.psf.populatePSF(AI,'CropByQuantile',false);
+        AI = imProc.psf.populatePSF(AI,'CropByQuantile',Args.CropPSF);
         Result.PSF = AI.PSF;
     else
         AI.PSF = Args.PSF;
@@ -144,7 +145,7 @@ function Result = FitRestoreSubtract(AI, Args)
     % construct and inject sources
     [CubePSF, XY] = imUtil.art.createSourceCube(Res.ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, 'Recenter', false);
     ImageSrc = imUtil.art.addSources(repmat(0,size(AI.Image)),CubePSF,XY,'Oversample',[],'Subtract',false);
-    ImageSrcBack = imUtil.art.addBackground(ImageSrc, AI.Back, 'Subtract', false);    
+%     ImageSrcBack = imUtil.art.addBackground(ImageSrc, AI.Back, 'Subtract', false);    % just for testing, do not use it further 
     % make a difference image    
     DiffImage    = AI.Image - ImageSrc;    
     % set pixels with Mask > 0 to the background values
@@ -155,13 +156,13 @@ function Result = FitRestoreSubtract(AI, Args)
     % exclude pixels with reconstructed source PSFs 
     if Args.RemovePSFCore
         Ind = ImageSrc > 0;
-        DiffImage(Ind) = AI.Back(Ind); % need to be tested and improved to operate only on a 3x3 pixel core 
+        DiffImage(Ind) = AI.Back(Ind); % need to be tested and improved to operate only on a 3x3 (5x5?) pixel core 
     end
     % 
     Result.NSrc    = NumSrc;
     Result.Cat     = AI.CatData;
     Result.Src     = ImageSrc;
-    Result.SrcBack = ImageSrcBack;
+%     Result.SrcBack = ImageSrcBack; % just for testing, do not use it further 
     Result.Diff    = DiffImage;    
 end
 
