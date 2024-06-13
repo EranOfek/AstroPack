@@ -149,10 +149,20 @@ function Result = writeTable1(Table, FileName, Args)
             Args.HeaderHDUnum = Args.HDUnum + 1;
         end
         
-        % Use mex function to append the image header, file must be closed
+        % Use mex function to append the image header to a catalog file, file must be closed
         if strcmpi(Args.WriteMethodTables,'mexheader')
             matlab.io.fits.closeFile(Fptr);
-            Result = (sign(Fptr) == 1);       
+            Result = (sign(Fptr) == 1);
+            % need to cast BITPIX and NAXIS to integer in order
+            % io.fits.mex.mex_fits_table_write_image_header not to write
+            % them as real ?
+%             Ind0 = find(strcmp(Header.Header(:,1),'BITPIX'));            
+%             Ind1 = find(strcmp(Header.Header(:,1),'NAXIS1'));
+%             Ind2 = find(strcmp(Header.Header(:,1),'NAXIS2'));
+%             Header.Header{Ind0,2} = int8(Header.Header{Ind0,2});            
+%             Header.Header{Ind1,2} = uint16(Header.Header{Ind1,2});
+%             Header.Header{Ind2,2} = uint16(Header.Header{Ind2,2});
+            %
             io.fits.mex.mex_fits_table_write_image_header(Header.Header, FileName);
             return;
         end

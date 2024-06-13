@@ -17,7 +17,7 @@ function Result = unitTest(Args)
     end
     
 %     Args = tools.code.updateParFromConfig(Args,'LASTpipeline_def');
-    Args = tools.code.updateParFromConfig(Args);
+%     Args = tools.code.updateParFromConfig(Args);
     
     I = Installer;
     BaseDir = I.getDataDir('LASTpipelineUnitTest');

@@ -651,7 +651,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             RotAngle_ch = RotAngle;
         end
         
-        [Image_ch, PSF_ch] = imUtil.art.injectArtSrc (CatX_ch, CatY_ch, CatFlux_ch, ImageSizeX, ImageSizeY,...
+        % NB: injectArtSrc has been moved into this file from
+        % imUtil.art.injectArtSrc for the time being, but 
+        % this need to be rewritten with the new tools from imUtil.art
+
+        [Image_ch, PSF_ch] = injectArtSrc (CatX_ch, CatY_ch, CatFlux_ch, ImageSizeX, ImageSizeY,...
                                  WPSF, 'PSFScaling', Args.ImRes, 'RotatePSF', RotAngle_ch,...
                                  'Jitter', 1, 'Method', Args.Inj, 'MeasurePSF', 0); 
 
@@ -848,5 +852,213 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         OutRegName  = sprintf('%s%s%s%s',Args.OutDir,'/SimImage_tile',Args.Tile,'detected.reg');
         DS9_new.regionWrite([Summ5(:,1) Summ5(:,2)],'FileName',OutRegName,'Color','red','Marker','o','Size',1,'Width',4);     
     end
+end
+
+%%%%%
+%%%%% internal functions (to be replaced by ones from the core AstroPack set)
+%%%%%
+
+function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
+    % Make an artificial image with rotated and jitter-blurred source PSFs injected to the catalog positions     
+    % Package: imUtil.art
+    % Description: Make an artificial image with rotated and jitter-blurred source PSFs injected to the catalog positions
+    % Input:   - X, Y, CPS      : pixel coordinates and countrates of the sources
+    %          - SizeX, SizeY   : pixel sizes of the image containing the source PSFs
+    %          - PSF            : either a single 2D PSF for all the object or 
+    %                             a 3D array of individual PSFs
+    %          * ...,key,val,...
+    %          'PSFScaling'     - Image pixel size / PSF pixel size ratio
+    %          'RotatePSF'      - PSF rotation angle, either a single value
+    %                             for all the sources or a vector of angles
+    %          'Jitter'         - apply PSF blurring due to the S/C jitter  
+    %          'Method'         - source injection method, either 'direct' or 'PSFshift'
+    %          'MeasurePSF'     - whether to measure PSF flux containment and pseudo-FWHM (diagnostics)
+    %          
+    % Output : - Image: a 2D array containing the resulting source image 
+    %          - JPSF:  a 2+1 D array of rotated and jittered source PSFs
+    %            
+    % Tested : Matlab R2020b
+    % Author : A. Krassilchtchikov et al. (Feb 2023)
+    % Example: [Image, JPSF] = imUtil.art.injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF,...
+    %                                        'PSFScaling',5,'RotatePSF',-90,'Jitter',1);
+    arguments        
+        X
+        Y
+        CPS
+        SizeX
+        SizeY
+        PSF 
+        Args.PSFScaling     =    1;       % Image/PSF pixel size ratio
+        Args.RotatePSF      =    0;       % PSF stamp rotation angle
+        Args.Jitter         =    0;       % PSF blurring due to the S/C jitter
+        Args.Method         =   'direct'; % injection method
+                                          % 'direct' or 'FFTShift'
+        Args.MeasurePSF     =    0;       % measure PSF flux containment and pseudo-FWHM        
+    end
+    % create an impty image of the given size
+    Image0 = repmat(0, SizeX, SizeY);
+
+    % get the number of sources and produce a source "catalog" array
+    NumSrc = size(CPS,1);    
+    Cat = [X Y CPS];
+
+    % consistency checks
+    if size(X,1) ~= size(Y,1) || size(X,1) ~= NumSrc
+        error('Input sizes inconsistent in injectArtSrc, exiting..');
+    end
+
+    % rotate the PSFs (if needed)  
+    %
+    % the rotation does not conserve the flux, thus also need to renormalize
+    % NB: the actual size of rotated PSF stamp depends on the particular rotation angle,
+    % varying between Nx x Ny and sqrt(2) * Nx x sqrt(2) * Ny
+    if size(Args.RotatePSF,1) == NumSrc % an individual angle for each source
+        for Isrc = 1:1:NumSrc
+            RotPSF(:,:,Isrc) = imrotate(PSF(:,:,Isrc), Args.RotatePSF(Isrc), 'bilinear', 'loose'); 
+            RotPSF(:,:,Isrc) = RotPSF(:,:,Isrc) / sum ( RotPSF(:,:,Isrc), 'all' ); % rescale
+        end
+    elseif abs( Args.RotatePSF ) < 1 || abs( Args.RotatePSF - 360) < 1 % do nothing for small angles
+        RotPSF = PSF;
+    else                                % rotate all the PSFs by the same angle
+        for Isrc = 1:1:NumSrc
+            RotPSF(:,:,Isrc) = imrotate(PSF(:,:,Isrc), Args.RotatePSF(1), 'bilinear', 'loose'); 
+            RotPSF(:,:,Isrc) = RotPSF(:,:,Isrc) / sum ( RotPSF(:,:,Isrc), 'all' ); % rescale
+        end
+    end
+                
+    % apply PSF blurring due to the S/C jitter (ULTRASAT jitter parameters employed here)    
+    if Args.Jitter
+        JPSF = ultrasat.jitter(RotPSF, Cat, 'Exposure', 300, 'SigmaX0', 2., 'SigmaY0', 2.,...
+                               'Rotation', 10, 'Scaling', Args.PSFScaling);    
+    else
+        JPSF = RotPSF;
+    end
+    
+    % test PSF size, containment width and pseudoFWHM width (if requested)    
+    if Args.MeasurePSF == 1
+
+        StampSize  = size(JPSF);   
+        fprintf('%s%4.1f%s\n','Final PSF stamp size ', StampSize / Args.PSFScaling , ' image pixels');
+    
+        ContWidth  = zeros(NumSrc,1);  % radius of the encircled flux PSF region
+        PseudoFWHM = zeros(NumSrc,1);  % pseudo FWHM of the PSFs (see imUtil.psf.pseudoFWHM for the particular algorithm)
+
+        for Isrc = 1:1:NumSrc
+
+            ContWidth(Isrc) = imUtil.psf.quantileRadius('PSF',JPSF(:,:,Isrc),'Level',0.5);
+
+            [ widthX, widthY ] = ... 
+                        imUtil.psf.pseudoFWHM('PSF',JPSF(:,:,Isrc),'Level',0.5);
+
+            PseudoFWHM(Isrc) = sqrt ( widthX^2 + widthY^2 );
+
+        end
+
+        ContWidth   = ContWidth  / Args.PSFScaling ;  % convert to image pixel size    
+        PseudoFWHM  = PseudoFWHM / Args.PSFScaling ;  % convert to image pixel size
+
+        % some visual tests
+        figure(2); plot(sqrt(X.^2+Y.^2).*5.44./3600, ContWidth * 5.44,'*'); % 5.44 arcsec pixel size for ULTRASAT
+        xlabel('Radius, deg'); ylabel('50% encirclement radius, arcsec')
+    
+        figure(3); plot(sqrt(X.^2+Y.^2).*5.44./3600, PseudoFWHM * 5.44,'*'); 
+        xlabel('Radius, deg'); ylabel('pseudoFWHM, arcsec')    
+    end
+
+    % PSF injection: inject all the rotated source PSFs into the blank image 
+    switch lower(Args.Method)        
+        case 'fftshift'                   
+            if rem( size(JPSF,1) , 2) == 0 
+                error('The size of RotPSF is even, while imUtil.art.injectSources accepts odd size only! Exiting..');
+            end
+    
+            Image = imUtil.art.injectSources_NS(Image0,Cat,JPSF); 
+
+        case 'direct'                  
+%             ImageOld = directInjectSources(Image0,Cat,Args.PSFScaling,JPSF);
+            Image = imUtil.art.addSources(Image0,JPSF.*reshape(CPS,1,1,NumSrc),...
+                           [X Y],'Oversample',Args.PSFScaling);
+    
+        otherwise        
+            error('Injection method not defined! Exiting..');        
+    end
+end
+
+function Image = directInjectSources (Image0, Cat, Scaling, PSF)
+    % Inject sources to catalog positions with PSFs scaled by the Scaling factor 
+    % Package: imUtil.art
+    % Description: Inject sources to catalog positions with PSFs scaled by the Scaling factor 
+    % Input:   - Image0: a 2D array containing the initial image 
+    %          - Cat: an 3-column table: X, Y, full band flux normalization
+    %          - Scaling: a scaling factor, typically > 1
+    %          - PSF: a 2+1 D array of source PSFs
+    %          NB: the PSF stamp for all the sources is the same
+    % Output : - Image: a 2D array containing the resulting image
+    %            
+    % Tested : Matlab R2020b
+    % Author : A. Krassilchtchikov et al. (Feb 2023)
+    % Example: Image1 = imUtil.art.directInjectSources (Image0,Cat,Scaling,PSF)
+
+    % image summation methods:     
+     Method = 'Regular'; % 'Pad'     : summ full matrices
+                         % 'Regular' : add the PSF stamp values in cycles
+        
+    % rescale the initial image to the PSF scale:    
+    Im = imresize(Image0, Scaling, 'bilinear');
+    SizeImX = size(Im,1);
+    SizeImY = size(Im,2);
+        
+    % add the source PSFs
+    SizeX  = size(PSF,1);
+    SizeY  = size(PSF,2);
+    NumSrc = size(PSF,3); 
+    
+%     Src    = zeros( SizeX, SizeY );
+    
+    for Isrc = 1:1:NumSrc        
+        % rescale the source coordinates        
+        Xcenter = Scaling * Cat(Isrc,1);
+        Ycenter = Scaling * Cat(Isrc,2);
+        
+        % define the stamp borders in the rescaled image        
+        Xleft   = max( floor( Xcenter - SizeX/2. ), 1);
+        Yleft   = max( floor( Ycenter - SizeY/2. ), 1);
+        Xright  = min( Xleft + SizeX, SizeImX);
+        Yright  = min( Yleft + SizeY, SizeImY);
+        SzX     = Xright-Xleft;
+        SzY     = Yright-Yleft;
+        
+        switch lower(Method)            
+            case 'pad'                
+                % pad the stamp with zeros upto the full image size and add the images
+        
+                PadXL   = max(Xleft-1, 0);
+                PadXR   = max(SizeImX-Xright+1, 0);
+                PadYL   = max(Yleft-1, 0);
+                PadYR   = max(SizeImY-Yright+1, 0);  
+
+                Src = PSF(:,:,Isrc) .* Cat(Isrc,3);
+
+                Src = padarray(Src,[PadXL 0],'pre'); 
+                Src = padarray(Src,[PadXR 0],'post'); 
+                Src = padarray(Src,[0 PadYL],'pre'); 
+                Src = padarray(Src,[0 PadYR],'post');
+
+                Im = Im + Src .* Scaling^2;  
+                % NB! "imresize" scales the sum of the counts as Scale^2, so we need to scale the added signal
+            case 'regular'            
+                for iX = 1:1:SzX
+                    for iY = 1:1:SzY
+                        Im( Xleft+iX-1, Yleft+iY-1 ) = Im( Xleft+iX-1, Yleft+iY-1) + ...
+                            PSF(iX, iY, Isrc) .* Cat(Isrc,3) .* Scaling^2; 
+                        % NB! "imresize" scales the sum of the counts as Scale^2, so we need to scale the added signal
+                    end
+                end
+            otherwise            
+                fprintf('Summation method not defined!\n');            
+        end                
+    end
+    % scale down to the original pixel size:    
+    Image = imresize(Im, 1./Scaling, 'bilinear');
 end
 
