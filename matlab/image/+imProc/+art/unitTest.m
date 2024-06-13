@@ -12,7 +12,12 @@ function Result = unitTest()
     Cat  = 1700.*rand(Nsrc,2);
     Flux = 10.*mean(AI0.Back,'all').*rand(Nsrc,1);
     
-    [AI, InjectedCat] = imProc.art.injectSources(AI0, Cat, PSF, Flux, 'PositivePSF', true);        
+    fprintf('Original sources: %d\n',height(AI0.CatData.Catalog))
+    
+    [AI, InjectedCat] = imProc.art.injectSources(AI0, Cat, PSF, Flux, 'PositivePSF', true);     
+    
+    fprintf('Added sources: %d\n',height(InjectedCat.Catalog))
+    fprintf('Total sources: %d\n',height(AI.CatData.Catalog))
     
     %
     io.msgLog(LogLevel.Test, 'imUtil.art.unitTest passed');
