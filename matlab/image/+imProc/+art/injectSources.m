@@ -1,7 +1,7 @@
 function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Args)
     % Inject/subtract source images at given pixel positions of an AstroImage
     %     AI can be a stack of objects
-    % Input  : - a stack of AstroImages or make a new one if does not exist
+    % Input  : - a stack of AstroImages or make a new one 
     %          - a 2-column matrix of exact (sub)pixel positions or an AstroCatalog  
     %          - a vector of source fluxes or 1 flux value for all the sources
     %          - a cube or a cell array of PSF stamps or a single PSF stamp
@@ -58,7 +58,7 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Args)
         if numel(Flux) < Nsrc
             Flux = repmat(Flux,1,Nsrc);
         end
-        InjectedCat = AstroCatalog({[X1Y1(:,1) X1Y1(:,2) Flux]},'ColNames',{'X','Y','Flux'});
+        InjectedCat = AstroCatalog({[X1Y1(:,1) X1Y1(:,2) Flux]},'ColNames',{'X1','Y1','FLUX_APER_3'});
     elseif strcmpi(class(Cat),'astrocatalog')        
         InjectedCat = Cat;
 %         Nsrc = height(Cat.Table);
@@ -75,7 +75,7 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Args)
             if Args.UpdateCat
               AC(1) = AI(Iobj).CatData;
               AC(2) = InjectedCat;
-              AI(Iobj).CatData = merge(AC); 
+              AI(Iobj).CatData = merge(AC,AC(2).ColNames); 
             end
         else
             AI(Iobj).Image = imUtil.art.subtractSources(AI(Iobj).Image,CubePSF,XY);

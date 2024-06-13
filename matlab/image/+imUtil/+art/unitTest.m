@@ -48,7 +48,7 @@ function Result = unitTest()
         Res1(It) = FitRestoreSubtract(AI1(It), 'PSF', Res1(1).PSF, 'ReCalcBack', true, ...
             'VarMethod', 'LogHist', 'Threshold', 5, 'Iteration',It, ...
             'RemoveMasked', false, 'RemovePSFCore', false, ...
-            'BackPar',{'SubSizeXY','full'});
+            'BackPar',{'SubSizeXY',[128 128]});
         AC1(It) = Res1(It).Cat;        
     end
     
@@ -64,11 +64,12 @@ function Result = unitTest()
     AC2(1)  = Res2(1).Cat;     
         
     for It = 2:5
+        Thresh = 5; % 50/It^1.4;
         AI2(It)  = AstroImage({Res2(It-1).Diff}); AI2(It).Back = AI2(It-1).Back; AI2(It).Var = AI2(It-1).Var;
         Res2(It) = FitRestoreSubtract(AI2(It), 'PSF', Res2(1).PSF, 'ReCalcBack', true, ...
-            'VarMethod', 'LogHist', 'Threshold', 5, 'Iteration',It, ...
+            'VarMethod', 'LogHist', 'Threshold', Thresh, 'Iteration',It, ...
             'RemoveMasked', false, 'RemovePSFCore', false,...
-            'BackPar',{'SubSizeXY','full'});
+            'BackPar',{'SubSizeXY',[128 128]});
         AC2(It) = Res2(It).Cat;        
     end
     
@@ -76,6 +77,7 @@ function Result = unitTest()
     
     toc;
     
+    ds9(AI1(1).Image,1)
     ds9(Res1(1).Diff,2)
     ds9(Res1(5).Diff,3)
     ds9(AI2(1).Image,4)
@@ -84,6 +86,13 @@ function Result = unitTest()
     %
     io.msgLog(LogLevel.Test, 'imUtil.art.unitTest passed');
     Result = true;
+    
+%     DS9_new.regionWrite([AI2(1).CatData.Catalog(:,3) AI2(1).CatData.Catalog(:,4)],'FileName','~/LAST_275_16.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+%     
+%     S = readtable('~/LAST_275_16_sextractor.cat','FileType','text','NumHeaderLines',14);
+%     DS9_new.regionWrite([S.Var2 S.Var3],'FileName','~/LAST_275_16_sextractor.reg','Color','blue','Marker','b','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+
+
 end
 
 %%% internal functions
