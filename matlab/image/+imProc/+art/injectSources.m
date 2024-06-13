@@ -7,11 +7,21 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Args)
     %          - a cube or a cell array of PSF stamps or a single PSF stamp
     %          * ...,key,val,... 
     %        'Subtract' - false (def.) - add sources, true - subtract sources
-    %        'CreateNewObj' - false (def.) - operate on the same AI 
+    %        'CreateNewObj' - false (def.) operate on the same AI or make a copy         
     %        'UpdateHeader' - add to the header information on the number of injected sources 
     %        'UpdateCat' - merge the injected catalog with the existing one
-    % Output : - the AstroImage stack with added or subtracted source stamps  
-    %          - A catalog of injected sources 
+    %        'Oversample'- oversampling of the input PSF stamps (2 means the PSF is 2 times finer than the image pixel) 
+    %        'RotAngle'  - rotation angle(s) of the input PSF stamps [deg]
+    %        'Recenter'  - true (def.) whether to fft-shift the source PSF according to their subpixel positions
+    %        'PositivePSF'   - false (def.) whether to improve PSF wings (see imUtil.art.createSourceCube)
+    %        'AddBackground' - false (def.) whether to add background to the image 
+    %        'SubtractBackground' - false (def.) if true, subtract background instead of adding it 
+    %        'Back'     - single value or an background image
+    %        'AddNoise' - false (def.) whether to add noise to the resulting source + background image
+    %        'NoiseModel' - see imUtil.art.addNoise
+    %        'NoisePar' - see imUtil.art.addNoise
+    % Output : - the AstroImage stack with added or subtracted source stamps and merged catalogs 
+    %          - a catalog of injected sources 
     % Author : A.M. Krassilchtchikov (2024 Jun) 
     % Example: [AI, InjectedCat] = imProc.art.injectSources(AI0, Cat, PSF, Flux, 'PositivePSF', true)
     %
@@ -91,6 +101,7 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Args)
         % update the headers
         if Args.UpdateHeader
             % AI(Iobj).Header: which keyword shall we use? HISTORY? 
+            % add HISTORY to AstroHeader dictionary? 
         end
     end        
 end
