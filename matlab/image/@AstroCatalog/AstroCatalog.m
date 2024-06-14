@@ -490,6 +490,9 @@ classdef AstroCatalog < AstroTable
         
         function [varargout] = getLonLat(Obj, Units, Args)
             % Get Lon/Lat columns from AstroCatalog.
+            %   Units are obtained from the AstroCatalog Units.
+            %   If input units are not provided in the AstroCatalog then assumes
+            %   the units are deg.
             % Input - A single element AstroCatalog object.
             %       - Units of output Lon/Lat columns.
             %         Default is 'deg'.
@@ -528,10 +531,14 @@ classdef AstroCatalog < AstroTable
 
                 LonUnits = LonUnits{1};
                 LatUnits = LatUnits{1};
-                if ~isempty(LonUnits)
+                if isempty(LonUnits)
+                    Lon = convert.angular('deg', Units, Lon);
+                else
                     Lon = convert.angular(LonUnits, Units, Lon);
                 end
-                if ~isempty(LatUnits)
+                if isempty(LatUnits)
+                    Lat = convert.angular('deg', Units, Lat);
+                else
                     Lat = convert.angular(LatUnits, Units, Lat);
                 end
             end
