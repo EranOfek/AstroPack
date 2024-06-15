@@ -68,7 +68,8 @@ function Result = unitTest()
         Thresh = 5; % 50/It^1.4;
         AI2(It)  = AstroImage({Res2(It-1).Diff}); 
         AI2(It).Back = AI2(It-1).Back; AI2(It).Var = AI2(It-1).Var; AI2(It).CatData.JD = AI2(1).CatData.JD;        
-        Res2(It) = FitRestoreSubtract(AI2(It), 'PSF', Res2(1).PSF, 'ReCalcBack', true, ...
+%         Res2(It) = FitRestoreSubtract(AI2(It), 'PSF', Res2(1).PSF, 'ReCalcBack', true, ...
+        Res2(It) = FitRestoreSubtract(AI2(It), 'PSF', [], 'ReCalcBack', true, ...
             'VarMethod', 'LogHist', 'Threshold', Thresh, 'Iteration',It, ...
             'RemoveMasked', false, 'RemovePSFCore', false,...
             'BackPar',{'SubSizeXY',[128 128]});
@@ -79,21 +80,24 @@ function Result = unitTest()
     
     toc;
     
-    ds9(AI1(1).Image,1)
+%     ds9(AI1(1).Image,1)
     ds9(Res1(1).Diff,2)
     ds9(Res1(5).Diff,3)
-    ds9(AI2(1).Image,4)
+%     ds9(AI2(1).Image,4)
     ds9(Res2(1).Diff,5)
     ds9(Res2(5).Diff,6)
     %
     io.msgLog(LogLevel.Test, 'imUtil.art.unitTest passed');
     Result = true;
     
-%     DS9_new.regionWrite([AI2(1).CatData.Catalog(:,3) AI2(1).CatData.Catalog(:,4)],'FileName','~/LAST_275_16.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
-%     
+    DS9_new.regionWrite([AI1(1).CatData.Catalog(:,3) AI1(1).CatData.Catalog(:,4)],'FileName','~/LAST_346+79.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AC1(1).Catalog(:,3) AC1(1).Catalog(:,4)],'FileName','~/LAST_346+79_it1.reg','Color','blue','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AC1(2).Catalog(:,3) AC1(2).Catalog(:,4)],'FileName','~/LAST_346+79_it2.reg','Color','red','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    
+    DS9_new.regionWrite([AI2(1).CatData.Catalog(:,3) AI2(1).CatData.Catalog(:,4)],'FileName','~/LAST_275_16.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    
 %     S = readtable('~/LAST_275_16_sextractor.cat','FileType','text','NumHeaderLines',14);
 %     DS9_new.regionWrite([S.Var2 S.Var3],'FileName','~/LAST_275_16_sextractor.reg','Color','blue','Marker','b','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
-
 
 end
 
@@ -123,7 +127,10 @@ function Result = FitRestoreSubtract(AI, Args)
     % measure background and variance
     imProc.background.background(AI, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
     
-    % find sources without background recalculation
+%     Ind = AI.Var > 1.3 .* AI.Back;
+%     AI.Var = AI.Var .* (1-Ind) + AI.Back .* Ind; % experimental
+    
+    % find sources (without background recalculation)
     AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold,'ReCalcBack',false,'PsfFunPar',Args.PSFFunPar); 
 %             'BackPar',{'BackFun',@median,'BackFunPar',{'all'},'VarFun',@imUtil.background.rvar,'SubSizeXY','full'});     
     %
