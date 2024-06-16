@@ -35,10 +35,10 @@ function Result = unitTest()
     %%% build an image from a source list measured from some real data 
     %%% and compare it with the original one
     tic;
-    % high-latitude (tenuous) field:  
+    % a high-latitude (tenuous) field:  
     fprintf('LAST subimage from a high-latitude field 346+79:\n');   
     AI1(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_346+79_crop10.fits');    
-    Res1(1) = FitRestoreSubtract(AI1, 'VarMethod', 'LogHist', 'Threshold', 30, ...
+    Res1(1) = FitRestoreSubtract(AI1(1), 'VarMethod', 'LogHist', 'Threshold', 30, ...
         'RemoveMasked', false, 'RemovePSFCore', false, ...
         'BackPar',{'SubSizeXY','full'}); 
     AC1(1)  = Res1(1).Cat;        
@@ -46,8 +46,8 @@ function Result = unitTest()
     for It = 2:5
         AI1(It)  = AstroImage({Res1(It-1).Diff}); 
         AI1(It).Back = AI1(It-1).Back; AI1(It).Var = AI1(It-1).Var; AI1(It).CatData.JD = AI1(1).CatData.JD;
-        Res1(It) = FitRestoreSubtract(AI1(It), 'PSF', Res1(1).PSF, 'ReCalcBack', true, ...
-            'VarMethod', 'LogHist', 'Threshold', 5, 'Iteration',It, ...
+        Res1(It) = FitRestoreSubtract(AI1(It), 'PSF', Res1(It-1).PSF, 'ReCalcPSF', false, ...
+            'ReCalcBack', true, 'VarMethod', 'LogHist', 'Threshold', 5, 'Iteration',It, ...
             'RemoveMasked', false, 'RemovePSFCore', false, ...
             'BackPar',{'SubSizeXY',[128 128]});
         AC1(It) = Res1(It).Cat;        
@@ -56,7 +56,7 @@ function Result = unitTest()
     AI1(1).CatData = merge(AC1); % NB: AC1(1).Table is not updated 
         
     toc; tic;
-    % low-latitude (dense) field:
+    % a low-latitude (dense) field:
     fprintf('LAST subimage from a low-latitude field 275-16:\n');    
     AI2(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_275-16_crop22.fits');
     Res2(1) = FitRestoreSubtract(AI2(1),'VarMethod','LogHist','Threshold', 30, ...
@@ -68,8 +68,8 @@ function Result = unitTest()
         Thresh = 5; % 50/It^1.4;
         AI2(It)  = AstroImage({Res2(It-1).Diff}); 
         AI2(It).Back = AI2(It-1).Back; AI2(It).Var = AI2(It-1).Var; AI2(It).CatData.JD = AI2(1).CatData.JD;        
-%         Res2(It) = FitRestoreSubtract(AI2(It), 'PSF', Res2(1).PSF, 'ReCalcBack', true, ...
-        Res2(It) = FitRestoreSubtract(AI2(It), 'PSF', [], 'ReCalcBack', true, ...
+        Res2(It) = FitRestoreSubtract(AI2(It), 'PSF', Res2(It-1).PSF, 'ReCalcPSF', true, ...
+            'ReCalcBack', true, ...
             'VarMethod', 'LogHist', 'Threshold', Thresh, 'Iteration',It, ...
             'RemoveMasked', false, 'RemovePSFCore', false,...
             'BackPar',{'SubSizeXY',[128 128]});
@@ -95,7 +95,9 @@ function Result = unitTest()
     DS9_new.regionWrite([AC1(2).Catalog(:,3) AC1(2).Catalog(:,4)],'FileName','~/LAST_346+79_it2.reg','Color','red','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
     
     DS9_new.regionWrite([AI2(1).CatData.Catalog(:,3) AI2(1).CatData.Catalog(:,4)],'FileName','~/LAST_275_16.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
-    
+    DS9_new.regionWrite([AC2(1).Catalog(:,3) AC2(1).Catalog(:,4)],'FileName','~/LAST_275_16_it1.reg','Color','blue','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AC2(2).Catalog(:,3) AC2(2).Catalog(:,4)],'FileName','~/LAST_275_16_it2.reg','Color','red','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+ 
 %     S = readtable('~/LAST_275_16_sextractor.cat','FileType','text','NumHeaderLines',14);
 %     DS9_new.regionWrite([S.Var2 S.Var3],'FileName','~/LAST_275_16_sextractor.reg','Color','blue','Marker','b','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
 
@@ -112,9 +114,12 @@ function Result = FitRestoreSubtract(AI, Args)
        
        Args.VarMethod   = 'LogHist';
        
+       Args.MomRadius   = 4; % recommended MomRadius = 1.7 * FWHM ~ 3.8
+       
        Args.Threshold   = 5;
        
-       Args.PSFFunPar   = {[0.1; 1.0; 1.5]}; % {[0.1; 1.0; 3.0; 5.0]};
+       Args.PSFFunPar   = {[0.1; 1.0; 1.5]}; % {[0.1; 1.0; 1.5; 2.6; 5]} 
+       Args.ReCalcPSF   = false;
        Args.CropPSF     = false;
        
        Args.ReCalcBack  = true;
@@ -131,7 +136,8 @@ function Result = FitRestoreSubtract(AI, Args)
 %     AI.Var = AI.Var .* (1-Ind) + AI.Back .* Ind; % experimental
     
     % find sources (without background recalculation)
-    AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold,'ReCalcBack',false,'PsfFunPar',Args.PSFFunPar); 
+    AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold,'ReCalcBack',false,...
+        'MomPar',{'MomRadius',Args.MomRadius},'PsfFunPar',Args.PSFFunPar); 
 %             'BackPar',{'BackFun',@median,'BackFunPar',{'all'},'VarFun',@imUtil.background.rvar,'SubSizeXY','full'});     
     %
     NumSrc = height(AI.Table);
@@ -139,14 +145,18 @@ function Result = FitRestoreSubtract(AI, Args)
         Args.Iteration,mean(AI.Back,'all'),mean(AI.Var,'all'),NumSrc);
     % insert a column with iteration number into the catalog
     AI.CatData = insertCol(AI.CatData, repmat(Args.Iteration,1,NumSrc)', Inf, 'ITER', {''});
-    % if a PSF is given, do not change it 
-    if isempty(Args.PSF)
+    % measure the PSF or use the previous one (from Args.PSF) 
+    if isempty(Args.PSF) || Args.ReCalcPSF
         AI = imProc.psf.populatePSF(AI,'CropByQuantile',Args.CropPSF);
-        Result.PSF = AI.PSF;
+        if isempty(AI.PSF) % if no PSF was measured, use the input PSF
+            AI.PSF = Args.PSF;
+        end      
     else
-        AI.PSF = Args.PSF;
-        Result.PSF = Args.PSF;
+        AI.PSF = Args.PSF;        
     end
+    % find sources once more with the measured PSF?
+    AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold,'ReCalcBack',false,...
+        'MomPar',{'MomRadius',Args.MomRadius},'Psf',AI.PSF,'FlagCR',false); 
     % make PSF photometry
     [AI, Res] = imProc.sources.psfFitPhot(AI);  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter     
     % construct and inject sources
@@ -167,9 +177,10 @@ function Result = FitRestoreSubtract(AI, Args)
     end
     % 
     Result.NSrc    = NumSrc;
+    Result.PSF     = AI.PSF;
     Result.Cat     = AI.CatData;
     Result.Src     = ImageSrc;
-%     Result.SrcBack = ImageSrcBack; % just for testing, do not use it further 
+%     Result.SrcBack = ImageSrcBack; % just for testing, we do not use it further 
     Result.Diff    = DiffImage;    
 end
 
