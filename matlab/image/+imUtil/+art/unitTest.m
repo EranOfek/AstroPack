@@ -6,12 +6,20 @@ function Result = unitTest()
     %%% create an artificial sky image from object coordinates and PSFs
     
     % set the number of sources, the image size and the flux range 
-    Nsrc = 1000; Nx = 2000; Ny = Nx; MaxSrcFlux = 1000;
+    Nsrc = 20000; Nx = 1700; Ny = Nx; MaxFlux = 10000;
     % define the source fluxes and their PSFs
-    Flux = MaxSrcFlux .* rand(Nsrc,1);
+    Flux = repmat(0,1,Nsrc);
+    Mag  = repmat(0,1,Nsrc);
+    MinMag = 6; MaxMag = 22; MagZP = 25;
+    for Isrc = 1:Nsrc
+        Mag(Isrc)  = max(MinMag,MaxMag*(Isrc/Nsrc).^0.2);
+        Flux(Isrc) = 10.^(0.4.*(MagZP-Mag(Isrc))); 
+    end
+    Flux = Flux .* (MaxFlux/max(Flux,[],'all')); % check data type conversion! 
+    
     X1Y1 = Nx.* rand(Nsrc,2);
-    Oversample = 3;
-    for i = 1:Nsrc; PSF(:,:,i) = imUtil.kernel2.gauss([4 4 0],[24 24]) + 1e-2*rand(24,24); end
+    Oversample = 1;
+    for i = 1:Nsrc; PSF(:,:,i) = imUtil.kernel2.gauss([2 2 0],[25 25]) + 1e-2*rand(25,25); end
     
     % create a list of shifted and resampled fluxed PSF stamps
     [CubePSF, XY] = imUtil.art.createSourceCube(PSF, X1Y1, Flux, 'Recenter', true, ...
@@ -24,7 +32,7 @@ function Result = unitTest()
     ImageSrc = imUtil.art.addSources(Image0,CubePSF,XY,'Oversample',[],'Subtract',false);
     
     % add background with some spatial variations
-    Back = 0.05 .* MaxSrcFlux + rand(Nx,Ny);    
+    Back = 0.02 .* MaxFlux .* (1 + 0.1*rand(Nx,Ny));    
     ImageSrcBack = imUtil.art.addBackground(ImageSrc, Back, 'Subtract', false);
     
     % add noise
@@ -133,8 +141,8 @@ function Result = FitRestoreSubtract(AI, Args)
     % measure background and variance
     imProc.background.background(AI, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
     
-    Ind = AI.Var > 1.3 .* AI.Back;
-    AI.Var = AI.Var .* (1-Ind) + AI.Back .* Ind; % experimental
+%     Ind = AI.Var > 1.3 .* AI.Back;
+%     AI.Var = AI.Var .* (1-Ind) + AI.Back .* Ind; % experimental
     
     % find sources (without background recalculation)
     AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold,'ReCalcBack',false,...
