@@ -54,6 +54,7 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
             Method = 'ode45';
         end
         
+        %Method = 'rknmex';
         switch Method
             case 'ode45'
                 InitialValues = [X0;V0];
@@ -74,6 +75,12 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
 
                  X = X(end,:).';
                  V = V(end,:).';
+%             case 'rknmex'
+%                 [Times, X, V] = RKN_multithreaded(@(T,XVmat) odeSecondOrder(T,XVmat,Nobj,Args.INPOP, Args.TimeScale),...
+%                                                         [JD(1), JD(2)], X0, V0, Opts);
+% 
+%                  X = X(end,:).';
+%                  V = V(end,:).';
             case 'ode15s'
                 InitialValues = [X0;V0];
                 
