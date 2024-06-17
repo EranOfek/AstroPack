@@ -908,8 +908,8 @@ classdef Tran2D < Base
                 switch lower(Args.FitMethod)
                     case 'lscov'
                         %warning('off')
-                        [ParX,ErrParX] = lscov(Hx(FlagSrc,:), Xind(FlagSrc), InvVar(FlagSrc), Args.FitMethod);
-                        [ParY,ErrParY] = lscov(Hy(FlagSrc,:), Yind(FlagSrc), InvVar(FlagSrc), Args.FitMethod);
+                        [ParX,ErrParX] = lscov(Hx(FlagSrc,:), Xind(FlagSrc), InvVar(FlagSrc)); %, Args.FitMethod);
+                        [ParY,ErrParY] = lscov(Hy(FlagSrc,:), Yind(FlagSrc), InvVar(FlagSrc)); %, Args.FitMethod);
                         %warning('on')
                     case '\'
                         ParX = Hx(FlagSrc,:)\Xind(FlagSrc);
