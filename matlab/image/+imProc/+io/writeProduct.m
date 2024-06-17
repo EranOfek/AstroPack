@@ -61,6 +61,9 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
     %                   CropID. Default is 'CROPID'.
     %            'KeyCounter' - Header keyword containing the
     %                   Counter. Default is 'COUNTER'.
+    %            'AddSubDirKey' - A logical indicating if to update the
+    %                   SubDir keyword in header. Default is false.
+    %            'SubDirKey' - SubDir Header keyword. Default is 'SUBDIR'.
     %            'BasePath' - Like 'Type', but for 'BasePath'.
     %                   Default is [].
     %            'FullPath' - Like 'Type', but for 'FullPath'.
@@ -107,6 +110,9 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
 
         Args.KeyCropID                 = 'CROPID';
         Args.KeyCounter                = 'COUNTER';
+
+        Args.AddSubDirKey logical      = false;
+        Args.SubDirKey                 = 'SUBDIR';
 
         Args.BasePath               = [];
         Args.FullPath               = [];
@@ -183,6 +189,10 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
             SubDir = FN.SubDir;
         end
 
+        
+        if Args.AddSubDirKey && isa(Obj, 'AstroImage')
+            Obj.setKeyVal(Args.SubDirKey, SubDir)
+        end
 
         % loop for writing the products
         
