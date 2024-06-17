@@ -54,12 +54,13 @@ function Result = unitTest()
 
     %%% build an image from a source list measured from some real data 
     %%% and compare it with the original one
+    Thresh = [30 10 5 5 5];
     tic;
     % a high-latitude (tenuous) field:  
     fprintf('LAST subimage from a high-latitude field 346+79:\n');   
     AI1(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_346+79_crop10.fits');  
     
-    Res1(1) = FitRestoreSubtract(AI1(1), 'VarMethod', 'LogHist', 'Threshold', 30, 'MomRadius', 4,...
+    Res1(1) = FitRestoreSubtract(AI1(1), 'VarMethod', 'LogHist', 'Threshold', Thresh(1), 'MomRadius', 4,...
         'RemoveMasked', false, 'RemovePSFCore', false, ...
         'BackPar',{'SubSizeXY',[128 128]}); % {'SubSizeXY','full'}
     AC1(1)    = Res1(1).Cat;
@@ -71,7 +72,7 @@ function Result = unitTest()
         Res1(It) = FitRestoreSubtract(AI1(It), 'PSF', Res1(It-1).PSF, 'ReCalcPSF', false, ...
             'ReCalcBack', true, 'VarMethod', 'LogHist', ...
             'PreviousVar', SrcImage1,...
-            'Threshold', 5, 'MomRadius', 6, 'Iteration',It, ...
+            'Threshold', Thresh(It), 'MomRadius', 6, 'Iteration',It, ...
             'RemoveMasked', false, 'RemovePSFCore', false, ...
             'BackPar',{'SubSizeXY',[128 128]});
         AC1(It)  = Res1(It).Cat;        
@@ -84,20 +85,19 @@ function Result = unitTest()
     % a low-latitude (dense) field:
     fprintf('LAST subimage from a low-latitude field 275-16:\n');    
     AI2(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_275-16_crop22.fits');
-    Res2(1) = FitRestoreSubtract(AI2(1),'VarMethod','LogHist','Threshold', 30, 'MomRadius', 4,...
+    Res2(1) = FitRestoreSubtract(AI2(1),'VarMethod','LogHist','Threshold', Thresh(1), 'MomRadius', 4,...
         'RemoveMasked', false, 'RemovePSFCore', false,...
         'BackPar',{'SubSizeXY',[128 128]}); % {'SubSizeXY','full'}
     AC2(1)    = Res2(1).Cat; 
     SrcImage2 = Res2(1).Src;
         
-    for It = 2:5
-        Thresh = 5; % 50/It^1.4;
+    for It = 2:5        
         AI2(It)  = AstroImage({Res2(It-1).Diff}); 
         AI2(It).Back = AI2(It-1).Back; AI2(It).Var = AI2(It-1).Var; AI2(It).CatData.JD = AI2(1).CatData.JD;        
         Res2(It) = FitRestoreSubtract(AI2(It), 'PSF', Res2(It-1).PSF, 'ReCalcPSF', true, ...
             'ReCalcBack', true, 'VarMethod', 'LogHist', ...
             'PreviousVar', SrcImage2,...
-            'Threshold', Thresh, 'MomRadius', 6,'Iteration',It, ...
+            'Threshold', Thresh(It), 'MomRadius', 6,'Iteration',It, ...
             'RemoveMasked', false, 'RemovePSFCore', false,...
             'BackPar',{'SubSizeXY',[128 128]});
         AC2(It) = Res2(It).Cat; 
@@ -109,15 +109,12 @@ function Result = unitTest()
     toc;
     
 %     ds9(AI1(1).Image,1)
-    ds9(Res1(1).Diff,2)
-    ds9(Res1(5).Diff,3)
+%     ds9(Res1(1).Diff,2)
+%     ds9(Res1(5).Diff,3)
 %     ds9(AI2(1).Image,4)
-    ds9(Res2(1).Diff,5)
-    ds9(Res2(5).Diff,6)
-    %
-    io.msgLog(LogLevel.Test, 'imUtil.art.unitTest passed');
-    Result = true;
-    
+%     ds9(Res2(1).Diff,5)
+%     ds9(Res2(5).Diff,6)
+       
     DS9_new.regionWrite([AI1(1).CatData.Catalog(:,29) AI1(1).CatData.Catalog(:,30)],'FileName','~/LAST_346+79_lastit.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
     DS9_new.regionWrite([AC1(1).Catalog(:,29) AC1(1).Catalog(:,30)],'FileName','~/LAST_346+79_it1.reg','Color','blue','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
     DS9_new.regionWrite([AC1(2).Catalog(:,29) AC1(2).Catalog(:,30)],'FileName','~/LAST_346+79_it2.reg','Color','red','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
@@ -131,6 +128,8 @@ function Result = unitTest()
 %      S = readtable('~/LAST_275_16_sextractor_v2.cat','FileType','text','NumHeaderLines',14);
 %      DS9_new.regionWrite([S.Var2 S.Var3],'FileName','~/LAST_275_16_sextractor_v2.reg','Color','yellow','Marker','b','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
 
+    io.msgLog(LogLevel.Test, 'imUtil.art.unitTest passed');
+    Result = true;
 end
 
 %%% internal functions
@@ -164,15 +163,11 @@ function Result = FitRestoreSubtract(AI, Args)
     imProc.background.background(AI, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
     
 %     Result.Var = AI.Var;            % save the measured local variance for the next iteration(s) 
-    if ~isempty(Args.PreviousVar)   % add the variance form the local sources from the previous iteration(s)
+    if ~isempty(Args.PreviousVar)   % add the variance from the local sources from the previous iteration(s)
         AI.Var = AI.Var + Args.PreviousVar;
-%         AI.Var = Args.PreviousVar;
 %         AI.Var = max(AI.Var,Args.PreviousVar);
     end
-    
-%     Ind = AI.Var > 1.3 .* AI.Back;
-%     AI.Var = AI.Var .* (1-Ind) + AI.Back .* Ind; % experimental
-    
+        
     % find sources (without background recalculation)
     AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold,'ReCalcBack',false,...
         'MomPar',{'MomRadius',Args.MomRadius},'PsfFunPar',Args.PSFFunPar); 
@@ -181,7 +176,7 @@ function Result = FitRestoreSubtract(AI, Args)
     NumSrc = height(AI.Table);
     fprintf('Iter. %d: bkg = %.0f, var = %.0f, Nobj: %d\n',...
         Args.Iteration,mean(AI.Back,'all'),mean(AI.Var,'all'),NumSrc);
-    % insert a column with iteration number into the catalog
+    % insert a column with iteration number into the source catalog
     AI.CatData = insertCol(AI.CatData, repmat(Args.Iteration,1,NumSrc)', Inf, 'ITER', {''});
     % measure the PSF or use the previous one (from Args.PSF) 
     if isempty(Args.PSF) || Args.ReCalcPSF
@@ -195,7 +190,14 @@ function Result = FitRestoreSubtract(AI, Args)
     % find sources once more with the measured PSF instead of a gaussian? 
 %     AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold,'ReCalcBack',false,...
 %         'MomPar',{'MomRadius',Args.MomRadius},'Psf',AI.PSF,'FlagCR',false); 
-%   % make PSF photometry
+    % model the PSF with an analytical function and replace the stamp
+    [AI.PSFData, BestFit,FitRes] = AI.PSFData.fitFunPSF('ReplaceStamp',false); 
+    if FitRes{1}.ExitFlag == 1
+        AI.PSF = BestFit{1};
+    else
+        fprintf('PSF fitting did not converge normally\n');
+    end
+    % make PSF photometry
     [AI, Res] = imProc.sources.psfFitPhot(AI);  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter     
     % construct and inject sources
     [CubePSF, XY] = imUtil.art.createSourceCube(Res.ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, 'Recenter', false,'PositivePSF',true);
