@@ -392,8 +392,8 @@ classdef AstroPSF < Component
     
     methods % fitting
         
-        function [Result,FitRes] = fitFunPSF(Obj, Args)
-            % Fit a composite function to a PSF stamp and replace it.
+        function [Result,BestFit,FitRes] = fitFunPSF(Obj, Args)
+            % Fit a composite function to a PSF stamp and optionally replace it
             %   The fitted function is any combination of imUtil.kernel2 like
             %   functions. The function center is not fitted, and the free
             %   parameters are the normalization of each function, followed by the
@@ -443,8 +443,9 @@ classdef AstroPSF < Component
                 Args.LB        = [];
                 Args.UB        = [];
                 Args.CreateNewObj logical = false;
+                Args.ReplaceStamp = false;
             end
-       
+            %
             if Args.CreateNewObj
                 Result = Obj.copy;
             else
@@ -454,14 +455,18 @@ classdef AstroPSF < Component
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 P = Obj(Iobj).getPSF('PsfArgs',Args.PsfArgs);
-                [FitRes(Iobj), Result(Iobj).DataPSF] = imUtil.psf.fitFunPSF(P, 'Funs',Args.Funs,...
+                P = double(P); % this is a requirement of lsqcurvefit
+                [FitRes{Iobj}, BestFit{Iobj}] = imUtil.psf.fitFunPSF(P, 'Funs',Args.Funs,...
                                             'Par0',Args.Par0,...
                                             'Norm0',Args.Norm0,...
                                             'PosXY',Args.PosXY,...
                                             'LB',Args.LB,...
                                             'UB',Args.UB);
-                % as the resulting stamp is 2D, additional dimensions do not exist any more:
-                Result(Iobj).DimVals = cellfun(@(x) [0], Result(Iobj).DimVals, 'UniformOutput', false);
+                if Args.ReplaceStamp
+                    Result(Iobj).DataPSF = BestFit(Iobj);
+                 % as the resulting stamp is 2D, additional dimensions do not exist any more:
+                    Result(Iobj).DimVals = cellfun(@(x) [0], Result(Iobj).DimVals, 'UniformOutput', false);
+                end
             end
         end
         
