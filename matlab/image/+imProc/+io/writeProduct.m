@@ -191,7 +191,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
 
         
         if Args.AddSubDirKey && isa(Obj, 'AstroImage')
-            Obj.setKeyVal(Args.SubDirKey, SubDir)
+            Obj.setKeyVal(Args.SubDirKey, SubDir);
         end
 
         % loop for writing the products
