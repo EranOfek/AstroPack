@@ -2510,7 +2510,7 @@ classdef DemonLAST < Component
                 Args.NightJD       = [];             % Reduce single night (from -0.5 to 0.5 from date) - set StopWhenDone to true.
 
                 Args.StopWhenDone logical = false;   % If true, then will not look for new images (i.e., images that were created after the function started)
-                Args.RegenCalib logical = false;     % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
+                Args.RegenCalib logical   = true; %false;     % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
                 Args.ReloadCalibTimeDiff   = 0.7;
                 
                 Args.DeleteSciDayTime logical = false;   % Delete 'sci' images taken during day time.
