@@ -116,6 +116,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagPeakDist logical = true;
         Args.PeakDistThreshold = 1.5;
+        Args.PeakDistThresholdGal = 1.5;
 
         % --- AstroZOGY ---
         Args.flagScorr logical = true;
@@ -246,7 +247,14 @@ function TranCat = flagNonTransients(Obj, Args)
 
         if Args.flagStarMatches && Cat.isColumn('StarMatches')
             StarMatches = (Cat.getCol('StarMatches') > 0.0);
-            IsTransient = IsTransient & ~StarMatches;
+            IsStar = StarMatches;
+            if Cat.isColumn('GalaxyMatches')
+                StarDist = Cat.getCol('StarDist');
+                GalaxyDist = Cat.getCol('GalaxyDist');
+                GalaxyCloser = GalaxyDist < 1.3*StarDist;
+                IsStar = IsStar & ~ GalaxyCloser;
+            end
+            IsTransient = IsTransient & ~IsStar;
         end
 
         if Args.flagMP && Cat.isColumn('DistMP_new')
@@ -314,6 +322,10 @@ function TranCat = flagNonTransients(Obj, Args)
 
             PeakDist = sqrt((XY(:,1)-XY1(:,1)).^2+(XY(:,2)-XY1(:,2)).^2);
             PeakTooFar = PeakDist > Args.PeakDistThreshold;
+            if Cat.isColumn('GalaxyMatches')
+                IsInGalaxy = Cat.getCol('GalaxyMatches') > 0;
+                PeakTooFar(IsInGalaxy) = PeakDist(IsInGalaxy)  > Args.PeakDistThresholdGal;
+            end
             Obj(Iobj).CatData.insertCol(cast(PeakTooFar,'double'), ...
                 'Score', {'PeakTooFar'}, {''});
             IsTransient = IsTransient & ~PeakTooFar;
@@ -338,7 +350,7 @@ function TranCat = flagNonTransients(Obj, Args)
             IgnoreTranslientCol = false(CatSize,1);
             if Args.ignoreTranslient_NothingInRef && Cat.isColumn('R_SNm')
                 R_SNm = Cat.getCol('R_SNm');
-                IgnoreTranslientCol = abs(R_SNm) < Args.TranslientRefSNThresh;
+                IgnoreTranslientCol = R_SNm < Args.TranslientRefSNThresh;
             end
             IsTranslient = (Z2_AIC > S2_AIC) & ~IgnoreTranslientCol;
             Obj(Iobj).CatData.insertCol(cast(IsTranslient,'double'), ...
