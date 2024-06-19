@@ -437,11 +437,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             
         end
        
-        % check image quality
-        AllFWHM = AllSI.getStructKey('FWHM');
-        if median([AllFWHM.FWHM])>Args.MaxFWHM
-            error('Median FWHM in proc images is larger than threshold (%f)',median([AllFWHM.FWHM]));
-        end
+        
 
         io.msgLog(LogLevel.Info, '%s: multiRaw2procCoadd: image %d of %d processed: %s', ...
                   Args.HostName, Iim, Nim,AI(Iim).getStructKey('FILENAME').FILENAME);
@@ -469,6 +465,12 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     end
     %clear AI;
     %clear SI;
+
+    % check image quality
+    AllFWHM = AllSI.getStructKey('FWHM');
+    if median([AllFWHM.FWHM])>Args.MaxFWHM
+        error('Median FWHM in proc images is larger than threshold (%f)',median([AllFWHM.FWHM]));
+    end
 
     % delete Back and Var before coaddition
     AllSI.deleteProp(Args.DeletePropAfterSrcFinding);
