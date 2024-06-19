@@ -50,6 +50,7 @@ function [Result, BestFitPSF]=fitFunPSF(PSF, Args)
         Args.PosXY     = [];
         Args.LB        = [];
         Args.UB        = [];
+        Args.LsqOptions = optimoptions('lsqcurvefit');
     end
     
     SizeXY = fliplr(size(PSF));
@@ -67,10 +68,9 @@ function [Result, BestFitPSF]=fitFunPSF(PSF, Args)
     X0 = [];
     for IfunP=1:1:Nfun
         X0 = [X0, [Args.Norm0(IfunP), Args.Par0{IfunP}]];
-    end
-    Options = optimoptions('lsqcurvefit');
-    Options.Display = 'off';
-    [Result.Par, Result.ResNorm, Result.Resid, Result.ExitFlag, Result.Output, ~, Result.J] = lsqcurvefit(@FittedFun, X0, [], PSF, Args.LB, Args.UB, Options);
+    end    
+    Args.LsqOptions.Display = 'off';
+    [Result.Par, Result.ResNorm, Result.Resid, Result.ExitFlag, Result.Output, ~, Result.J] = lsqcurvefit(@FittedFun, X0, [], PSF, Args.LB, Args.UB, Args.LsqOptions);
     BestFitPSF = FittedFun(Result.Par, []);
     Result.Resid      = -Result.Resid;
     
