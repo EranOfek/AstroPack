@@ -2519,7 +2519,7 @@ classdef DemonLAST < Component
                 Args.FocusTreatment  = 'move';           % 'move'|'keep'|'delete' 
                 Args.TempRawFocus    = '*_focus_raw_*.fits';
 
-                Args.MinNumIMageVisit  = 5;
+                Args.MinNumImageVisit  = 5;
                 Args.PauseDay          = 100;
                 Args.PauseNight        = 30;
 
@@ -2708,8 +2708,38 @@ classdef DemonLAST < Component
                 FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
                 Ngroup = numel(FN_Sci_Groups);
                 
+                
+
+                % check if need to wait for additional images
+                if numel(FN_Sci_Groups)==1
+                    % Only one potential visit was found - check if need to
+                    % wait
+                    Nfiles1    = FN_Sci_Groups.nfiles;
+
+                    % wait for 20 s X number of images needed to finish the
+                    % visit:
+                    pause((1+Args.MaxInGroup - Nfiles1).*20); % Note: assuming 20s exposures
+
+                    % look for new images
+                    FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci, 'FullPath',false);
+                    [FN_Sci] = selectBy(FN_Sci, 'Product', 'Image', 'CreateNewObj',false);
+                    [FN_Sci] = selectBy(FN_Sci, 'Type', {'sci','science'}, 'CreateNewObj',false);
+                    [FN_Sci] = selectBy(FN_Sci, 'Level', 'raw', 'CreateNewObj',false);
+
+
+                    % select observations by date
+                    FN_JD  = FN_Sci.julday;
+                    FlagJD = FN_JD>Args.StartJD & FN_JD<Args.EndJD;
+                    FN_Sci = reorderEntries(FN_Sci, FlagJD);
+
+                    [~, FN_Sci_Groups] = FN_Sci.groupByCounter('MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
+                    FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
+                    Ngroup = numel(FN_Sci_Groups);
+
+                end
+
                 MaxNfiles = max(FN_Sci_Groups.nfiles);
-                if MaxNfiles<=Args.MinNumIMageVisit
+                if MaxNfiles<=Args.MinNumImageVisit
                     Msg{1} = sprintf('Waiting for more images to analyze (Found %d images)',MaxNfiles);
                     Obj.writeLog(Msg, LogLevel.Info);
     
@@ -2737,7 +2767,7 @@ classdef DemonLAST < Component
                     tools.systemd.mex.notify_watchdog;
 
                     % for each visit
-                    if FN_Sci_Groups(Igroup).nfiles>Args.MinNumIMageVisit
+                    if FN_Sci_Groups(Igroup).nfiles>Args.MinNumImageVisit
 
 
                         % set Logger log file 
