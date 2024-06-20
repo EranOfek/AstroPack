@@ -154,7 +154,7 @@ function TranCat=findTransients(AD, Args)
             CutHalfSize = (size(AD(Iobj).Ref.PSFData.getPSF,1)-1).*0.5;
             [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Ref.Image, M1.X, M1.Y, CutHalfSize);
             % Change the sign of negative sources
-            Cube = Cube.*reshape(-sign(LocalMax(:,3)), [1 1 Nsrc]);
+            Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
             [ResultR, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', AD(Iobj).Ref.PSFData.getPSF, Args.psfPhotCubeArgs{:});
         
             % Get chi2 per degrees of freedom of the PSF fit on the difference

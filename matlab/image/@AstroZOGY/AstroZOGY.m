@@ -784,9 +784,6 @@ classdef AstroZOGY < AstroDiff
                 Args.AbsFun                 = @(x) abs(x);
             end
 
-
-
-
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
 
@@ -795,20 +792,21 @@ classdef AstroZOGY < AstroDiff
                     NcoaddNew      = Args.NcoaddNew;
                 else
                     % assumne Args.Ncoadd is a keyword name
-                    NcoadNew = Obj(Iobj).New.HeaderData.getVal(Args.NcoaddNew);
-                    if isnan(NcoadNew)
+                    NcoaddNew = Obj(Iobj).New.HeaderData.getVal(Args.NcoaddNew);
+                    if isnan(NcoaddNew)
                         NcoaddNew = 1;
                     end
                     if isempty(NcoaddNew)
                         NcoaddNew = 1;
                     end
                 end
+
                 if isnumeric(Args.NcoaddRef)
                     NcoaddRef      = Args.NcoaddRef;
                 else
                     % assumne Args.Ncoadd is a keyword name
-                    NcoadRef = Obj(Iobj).New.HeaderData.getVal(Args.NcoaddRef);
-                    if isnan(NcoadRef)
+                    NcoaddRef = Obj(Iobj).New.HeaderData.getVal(Args.NcoaddRef);
+                    if isnan(NcoaddRef)
                         NcoaddRef = 1;
                     end
                     if isempty(NcoaddRef)
@@ -816,10 +814,8 @@ classdef AstroZOGY < AstroDiff
                     end
                 end
 
-
                 RN_New = Args.RN_New;
                 RN_Ref = Args.RN_Ref;
-
 
                 [Kn_hat, Kr_hat, Kn, Kr] = knkr(Obj(Iobj), 'AbsFun',Args.AbsFun, 'Norm',Args.NormKnKr);
 
@@ -868,8 +864,6 @@ classdef AstroZOGY < AstroDiff
                     otherwise
                         error('Unknown NormMethod option');
                 end      
-
-
 
             end
 

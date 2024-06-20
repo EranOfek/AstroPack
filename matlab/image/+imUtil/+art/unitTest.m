@@ -187,16 +187,20 @@ function Result = FitRestoreSubtract(AI, Args)
     else
         AI.PSF = Args.PSF;        
     end
-    % find sources once more with the measured PSF instead of a gaussian? 
-%     AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold,'ReCalcBack',false,...
-%         'MomPar',{'MomRadius',Args.MomRadius},'Psf',AI.PSF,'FlagCR',false); 
     % model the PSF with an analytical function and replace the stamp
-    [AI.PSFData, BestFit,FitRes] = AI.PSFData.fitFunPSF('ReplaceStamp',false); 
-    if FitRes{1}.ExitFlag == 1
+    OPTIONS = optimoptions('lsqcurvefit','Algorithm','levenberg-marquardt');
+    [AI.PSFData, BestFit,FitRes] = AI.PSFData.fitFunPSF('ReplaceStamp',false,...
+        'Funs',{@imUtil.kernel2.gauss ,@imUtil.kernel2.gauss}, 'Par0',{[2 2 0],[1 1 0]}, 'Norm0',[1 1],...
+        'LsqOptions',OPTIONS);
+    if FitRes{1}.ExitFlag == 1 || FitRes{1}.ResNorm < 1e-4 
+        fprintf(['PSF fitting:' repmat('%.2f ', 1, 8) '\n'], FitRes{1}.Par); % testing
         AI.PSF = BestFit{1};
     else
-        fprintf('PSF fitting did not converge normally\n');
+        fprintf('PSF fitting did not converge normally, the stamp is not renewed.\n');
     end
+        % find sources once more with the measured PSF instead of a gaussian? 
+%     AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold,'ReCalcBack',false,...
+%         'MomPar',{'MomRadius',Args.MomRadius},'Psf',AI.PSF,'FlagCR',false); 
     % make PSF photometry
     [AI, Res] = imProc.sources.psfFitPhot(AI);  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter     
     % construct and inject sources

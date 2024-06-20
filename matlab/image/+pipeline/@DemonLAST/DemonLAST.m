@@ -2510,7 +2510,7 @@ classdef DemonLAST < Component
                 Args.NightJD       = [];             % Reduce single night (from -0.5 to 0.5 from date) - set StopWhenDone to true.
 
                 Args.StopWhenDone logical = false;   % If true, then will not look for new images (i.e., images that were created after the function started)
-                Args.RegenCalib logical = false;     % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
+                Args.RegenCalib logical   = true; %false;     % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
                 Args.ReloadCalibTimeDiff   = 0.7;
                 
                 Args.DeleteSciDayTime logical = false;   % Delete 'sci' images taken during day time.
@@ -2519,7 +2519,7 @@ classdef DemonLAST < Component
                 Args.FocusTreatment  = 'move';           % 'move'|'keep'|'delete' 
                 Args.TempRawFocus    = '*_focus_raw_*.fits';
 
-                Args.MinNumIMageVisit  = 5;
+                Args.MinNumImageVisit  = 5;
                 Args.PauseDay          = 100;
                 Args.PauseNight        = 30;
 
@@ -2708,8 +2708,38 @@ classdef DemonLAST < Component
                 FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
                 Ngroup = numel(FN_Sci_Groups);
                 
+                
+
+                % check if need to wait for additional images
+                if numel(FN_Sci_Groups)==1
+                    % Only one potential visit was found - check if need to
+                    % wait
+                    Nfiles1    = FN_Sci_Groups.nfiles;
+
+                    % wait for 20 s X number of images needed to finish the
+                    % visit:
+                    pause((1+Args.MaxInGroup - Nfiles1).*20); % Note: assuming 20s exposures
+
+                    % look for new images
+                    FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci, 'FullPath',false);
+                    [FN_Sci] = selectBy(FN_Sci, 'Product', 'Image', 'CreateNewObj',false);
+                    [FN_Sci] = selectBy(FN_Sci, 'Type', {'sci','science'}, 'CreateNewObj',false);
+                    [FN_Sci] = selectBy(FN_Sci, 'Level', 'raw', 'CreateNewObj',false);
+
+
+                    % select observations by date
+                    FN_JD  = FN_Sci.julday;
+                    FlagJD = FN_JD>Args.StartJD & FN_JD<Args.EndJD;
+                    FN_Sci = reorderEntries(FN_Sci, FlagJD);
+
+                    [~, FN_Sci_Groups] = FN_Sci.groupByCounter('MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
+                    FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
+                    Ngroup = numel(FN_Sci_Groups);
+
+                end
+
                 MaxNfiles = max(FN_Sci_Groups.nfiles);
-                if MaxNfiles<=Args.MinNumIMageVisit
+                if MaxNfiles<=Args.MinNumImageVisit
                     Msg{1} = sprintf('Waiting for more images to analyze (Found %d images)',MaxNfiles);
                     Obj.writeLog(Msg, LogLevel.Info);
     
@@ -2737,7 +2767,7 @@ classdef DemonLAST < Component
                     tools.systemd.mex.notify_watchdog;
 
                     % for each visit
-                    if FN_Sci_Groups(Igroup).nfiles>Args.MinNumIMageVisit
+                    if FN_Sci_Groups(Igroup).nfiles>Args.MinNumImageVisit
 
 
                         % set Logger log file 
@@ -2858,15 +2888,23 @@ classdef DemonLAST < Component
                             Obj.writeLog(Msg, LogLevel.Info);
 
                             if ~isempty(ResultAsteroids)
-                                SaveAst.MP = ResultAsteroids;
-                                [~,~,Status]=imProc.io.writeProduct(SaveAst, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
-                                                   'Save',UpArgs.SaveAsteroids,...
-                                                   'Level','merged',...
-                                                   'LevelPath','proc',...
-                                                   'SubDir',FN_Proc.SubDir,...
-                                                   'WriteMethodImages',Args.WriteMethodImages,...
-                                                   'WriteMethodTables',Args.WriteMethodTables);
-                                Obj.writeLog(Status, LogLevel.Info);
+                                if numel(ResultAsteroids)>200
+                                    % number of asteroids is too large -
+                                    % probably a problem - skip
+                                    clear ResultAsteroids;
+                                    Status = sprintf('ResultAsteroids contains %d asteroid candidates - likely a problem (not saved)',numel(ResultAsteroids));
+                                    Obj.writeLog(Status, LogLevel.Info);
+                                else
+                                    SaveAst.MP = ResultAsteroids;
+                                    [~,~,Status]=imProc.io.writeProduct(SaveAst, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
+                                                       'Save',UpArgs.SaveAsteroids,...
+                                                       'Level','merged',...
+                                                       'LevelPath','proc',...
+                                                       'SubDir',FN_Proc.SubDir,...
+                                                       'WriteMethodImages',Args.WriteMethodImages,...
+                                                       'WriteMethodTables',Args.WriteMethodTables);
+                                    Obj.writeLog(Status, LogLevel.Info);
+                                end
                             end
 
                             % Known Matched asteroids

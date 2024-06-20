@@ -444,6 +444,7 @@ classdef AstroPSF < Component
                 Args.UB        = [];
                 Args.CreateNewObj logical = false;
                 Args.ReplaceStamp = false;
+                Args.LsqOptions = optimoptions('lsqcurvefit');                
             end
             %
             if Args.CreateNewObj
@@ -461,7 +462,8 @@ classdef AstroPSF < Component
                                             'Norm0',Args.Norm0,...
                                             'PosXY',Args.PosXY,...
                                             'LB',Args.LB,...
-                                            'UB',Args.UB);
+                                            'UB',Args.UB,...
+                                            'LsqOptions', Args.LsqOptions);
                 if Args.ReplaceStamp
                     Result(Iobj).DataPSF = BestFit(Iobj);
                  % as the resulting stamp is 2D, additional dimensions do not exist any more:
