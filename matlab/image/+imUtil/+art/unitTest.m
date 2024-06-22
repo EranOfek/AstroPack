@@ -58,7 +58,8 @@ function Result = unitTest()
     tic;
     % a high-latitude (tenuous) field:  
     fprintf('LAST subimage from a high-latitude field 346+79:\n');   
-    AI1(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_346+79_crop10.fits');  
+%     AI1(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_346+79_crop10.fits');  
+    AI1(1)  = AstroImage('~/s10.fits');  
     
     Res1(1) = FitRestoreSubtract(AI1(1), 'VarMethod', 'LogHist', 'Threshold', Thresh(1), 'MomRadius', 4,...
         'RemoveMasked', false, 'RemovePSFCore', false, ...
