@@ -21,6 +21,6 @@ function [SN] = sn_det_psf(Flux, Back, Sigma, Args)
         Args.RN                = 0;
     end
     
-    SN = Flux.*Args.Texp./sqrt(4.*pi.*Sigma.^2 .* (Back.* Args.Texp + Args.RN));
+    SN = Flux.*Args.Texp./sqrt(4.*pi.*Sigma.^2 .* (Back.* Args.Texp + Args.RN.^2));
     
 end
