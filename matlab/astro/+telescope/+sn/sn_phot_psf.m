@@ -1,5 +1,5 @@
 function [SN,SNrad]=sn_phot_psf(S,Sigma,B,R,Radius)
-% Calculate photometry S/N of a Gaussian PSF
+% Calculate photometry S/N (for measurments; source noise included) of a Gaussian PSF
 % Description: Calculate the S/N (signal-to-noise ratio) for a point
 %              source with a symmetric Gaussian profile for PSF (optimal)
 %              photometry.
@@ -19,7 +19,7 @@ function [SN,SNrad]=sn_phot_psf(S,Sigma,B,R,Radius)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-if (nargin==4),
+if (nargin==4)
     Radius = 20;
 end
 

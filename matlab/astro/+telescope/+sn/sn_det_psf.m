@@ -1,32 +1,26 @@
-function [SN,SNrad]=sn_det_psf(S,Sigma,B,R,Radius)
-% Calculate S/N for detection of a Gaussian PSF
-% Package: telescope.sn
-% Description: Calculate the S/N (signal-to-noise ratio) for a point
-%              source with a symmetric Gaussian profile for PSF (optimal)
-%              detection.
-%              Note this is different than PSF photometry (see
-%              sn_psf_phot.m).
-% Input  : - Source signal [electrons].
-%          - Sigma of PSF [pixels].
-%          - Background [e/pix].
-%          - Readout noise [e].
-%          - PSF radius [pix]. Default is 20.
-% Output : - Theoretical S/N of PSF photometry (with radius
-%            from 0 to infinity).
-%          - S/N of PSF photometry with PSF truncated at Radius.
-% License: GNU general public license version 3
-% Tested : Matlab R2014a
-%     By : Eran O. Ofek                    Aug 2015
-%    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: SN=telescope.sn.sn_det_psf(1000,1,500,10)
-% Reliable: 2
-%--------------------------------------------------------------------------
+function [SN] = sn_det_psf(Flux, Back, Sigma, Args)
+    % Calculate S/N for detection of a Gaussian PSF
+    %     Using Equation 1 in Ofek & Ben-Ami (2020).
+    % Input  : - Flux from sources (either [e or e/s].
+    %          - Background per pixel (either e or e/s].
+    %          - Sigma of Gaussian PSF. Default is 1.
+    %            Sigma = FWHM/2.35.
+    %          * ...,key,val,... 
+    %            'Texp' - Exposure time. Default is 1.
+    %            'RN' - Readout noise [e]. Default is 0.
+    % Output : - S/N for detection of a Gaussian PSF assuming optimal
+    %            matched filtering detection.
+    % Author : Eran Ofek (2024 Jun) 
+    % Example: telescope.sn.sn_det_psf(500, 100, 1.5)
 
-if (nargin==4),
-    Radius = 20;
+    arguments
+        Flux
+        Back
+        Sigma                  = 1;
+        Args.Texp              = 1;
+        Args.RN                = 0;
+    end
+    
+    SN = Flux.*Args.Texp./sqrt(4.*pi.*Sigma.^2 .* (Back.* Args.Texp + Args.RN));
+    
 end
-
-
-SN = sqrt(S.^2./(4.*pi.*(B+R.^2).*Sigma.^2));
-
-SNrad = sqrt(S.^2.*(1 - exp(-(Radius./Sigma).^2))./(4.*pi.*(B+R.^2).*Sigma.^2));
