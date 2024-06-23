@@ -28,6 +28,8 @@ classdef AstroZOGY < AstroDiff
         Pd_hat
         S_hat
         
+        DSDFn
+
         D_den_hat
         D_num_hat
         D_denSqrt_hat
@@ -176,7 +178,19 @@ classdef AstroZOGY < AstroDiff
 
         end
 
+        function Val=get.DSDFn(Obj)
+            % getter for dS/dFn (for Fr=1)
 
+            if isempty(Obj.DSDFn)
+                % DSDFn is not available - calculate
+                Obj.DSDF = imUtil.properSub.dSdF(Obj.N_hat, Obj.R_hat, Obj.Pn_hat, Obj.Pr_hat, Obj.VarN, Obj.VarR, Obj.Fr, 'IsOutFFT',false);
+            else
+                % DSDFn is already available - use as is
+            end
+            Val = Obj.DSDFn;
+            
+
+        end
     end
     
     methods % read/write
