@@ -44,8 +44,8 @@ function [DSDFn] = dSdF(N_hat, R_hat, Pn_hat, Pr_hat, VarN, VarR, Fr, Args)
 
     Pn2 = Args.AbsFun(Pn_hat).^2;
     Pr2 = Args.AbsFun(Pr_hat).^2;
-    ConjPr = conj(Pr);
-    ConjPn = conj(Pn);
+    ConjPr = conj(Pr_hat);
+    ConjPn = conj(Pn_hat);
 
     DSDFn_numN = 2.* Fr.* VarR .* ConjPn .* Pr2 .* N_hat;
     DSDFn_numR = - ConjPr .*(VarR.* Pn2 - VarN.* Fr.^2.* Pr2).*R_hat;
