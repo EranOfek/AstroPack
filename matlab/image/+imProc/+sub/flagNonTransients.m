@@ -96,9 +96,9 @@ function TranCat = flagNonTransients(Obj, Args)
             'Hole', 'CR_DeltaHT', 'Negative'};
 
         Args.flagBadPix_Soft logical  = true;
-        Args.BadPix_Soft       = {{'HighRN', 6.0, 13.0}, {'SrcNoiseDominated', 6.0, 13.0}, ...
-            {'FlatHighStd',6.0, 13.0}, {'DarkHighVal', 6.0, 13.0},...
-            {'CoaddLessImages', 6.0, 13.0}};
+        Args.BadPix_Soft       = {{'HighRN', 6.0, 14.0}, {'SrcNoiseDominated', 6.0, 14.0}, ...
+            {'FlatHighStd',6.0, 14.0}, {'DarkHighVal', 6.0, 14.0},...
+            {'CoaddLessImages', 6.0, 14.0}};
 
         Args.flagSNR logical = true;
         Args.SNRThreshold = 5.0;
@@ -125,6 +125,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagTranslients logical = true;
         Args.ignoreTranslient_NothingInRef = true;
         Args.TranslientRefSNThresh = 5.0;
+        Args.ignoreTranslient_GalaxyNuclear = true;
+        Args.TranslientGalaxyDistThresh = 3.0;
         
     end
 
@@ -251,8 +253,14 @@ function TranCat = flagNonTransients(Obj, Args)
             if Cat.isColumn('GalaxyMatches')
                 StarDist = Cat.getCol('StarDist');
                 GalaxyDist = Cat.getCol('GalaxyDist');
-                GalaxyCloser = GalaxyDist < 1.3*StarDist;
-                IsStar = IsStar & ~ GalaxyCloser;
+                ExcludeGalaxy = GalaxyDist < 1.3*StarDist;
+
+                if Cat.isColumn('R_SNm')
+                    R_SNm = Cat.getCol('R_SNm');
+                    Low_R_SNm = R_SNm < 5.0;
+                    ExcludeGalaxy = ExcludeGalaxy & Low_R_SNm;
+                end
+            IsStar = IsStar & ~ ExcludeGalaxy;
             end
             IsTransient = IsTransient & ~IsStar;
         end
@@ -350,8 +358,15 @@ function TranCat = flagNonTransients(Obj, Args)
             IgnoreTranslientCol = false(CatSize,1);
             if Args.ignoreTranslient_NothingInRef && Cat.isColumn('R_SNm')
                 R_SNm = Cat.getCol('R_SNm');
-                IgnoreTranslientCol = R_SNm < Args.TranslientRefSNThresh;
+                IgnoreTranslientCol = IgnoreTranslientCol | ...
+                    (R_SNm < Args.TranslientRefSNThresh);
             end
+            if Args.ignoreTranslient_GalaxyNuclear && Cat.isColumn('GalaxyDist')
+                GalaxyDist = Cat.getCol('GalaxyDist');
+                IgnoreTranslientCol = IgnoreTranslientCol | ...
+                    GalaxyDist < Args.TranslientGalaxyDistThresh;
+            end            
+        
             IsTranslient = (Z2_AIC > S2_AIC) & ~IgnoreTranslientCol;
             Obj(Iobj).CatData.insertCol(cast(IsTranslient,'double'), ...
                 'Score', {'Translient'}, {''});

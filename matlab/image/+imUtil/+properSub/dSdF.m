@@ -1,4 +1,4 @@
-function [DSDFn] = dSdF(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fr, Args)
+function [DSDFn] = dSdF(N_hat, R_hat, Pn_hat, Pr_hat, VarN, VarR, Fr, Args)
     % Calculate the dS/dFn (Fr=1) derivative for ZOGY subtraction.
     % Input  : - N_hat (Fourier Transform of new image).
     %            N, R, Pn, Pr can be either matrices or cubes in which the
@@ -45,8 +45,15 @@ function [DSDFn] = dSdF(N_hat, R_hat, Pn_hat, Pr_hat, SigmaN, SigmaR, Fr, Args)
     Pn2 = Args.AbsFun(Pn_hat).^2;
     Pr2 = Args.AbsFun(Pr_hat).^2;
     ConjPr = conj(Pr);
+    ConjPn = conj(Pn);
 
-    DSDFn = Pn2 .* (2.*Fr.*VarR .* Pr2 .* conj(Pn) .* N_hat + Pn2.*ConjPr .*(-VarR.*R_hat + VarR.*Fr.^2.*R_hat))./((VarN.*Fr.^2.*Pr2 + VarR.*Pn2 + Args.Eps).^2);
+    DSDFn_numN = 2.* Fr.* VarR .* ConjPn .* Pr2 .* N_hat;
+    DSDFn_numR = - ConjPr .*(VarR.* Pn2 - VarN.* Fr.^2.* Pr2).*R_hat;
+    DSDFn_num = DSDFn_numN + DSDFn_numR;
+
+    DSDFn_denum = ((VarR.* Pn2 + VarN.* Fr.^2.* Pr2 + Args.Eps).^2);
+
+    DSDFn = Pn2 .* DSDFn_num ./ DSDFn_denum;
 
     if ~Args.IsOutFFT
         DSDFn = ifft2(DSDFn);
