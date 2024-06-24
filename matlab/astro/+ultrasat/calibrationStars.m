@@ -3,7 +3,7 @@ function CalStars = calibrationStars(Args)
     % for the low-candence and high-cadence fields of ULTRASAT 
 
     arguments
-        Args.DataDir = '~/ULTRASAT/Calib/';
+        Args.DataDir = '~/ULTRASAT/CalibStellarLibs/';
         Args.Cat     = 'STISngsl10';           % 'STISngsl10' or 'Starlib23';
     end
 

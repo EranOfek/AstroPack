@@ -83,8 +83,10 @@ function Result = unitTest()
         
     toc; tic;
     % a low-latitude (dense) field:
-    fprintf('LAST subimage from a low-latitude field 275-16:\n');    
-    AI2(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_275-16_crop22.fits');
+%     fprintf('LAST subimage from a low-latitude field 275-16:\n');    
+%     AI2(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_275-16_crop22.fits');
+    fprintf('LAST subimage from a low-latitude field 303+41:\n');
+    AI2(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST.01.10.01_20230626.233722.753_clear_303+41_000_001_017_sci_coadd_Image_1.fits');
     Res2(1) = FitRestoreSubtract(AI2(1),'VarMethod','LogHist','Threshold', Thresh(1), 'MomRadius', 4,...
         'RemoveMasked', false, 'RemovePSFCore', false,...
         'BackPar',{'SubSizeXY',[128 128]}); % {'SubSizeXY','full'}
@@ -111,7 +113,7 @@ function Result = unitTest()
 %     ds9(AI1(1),1)
 %     ds9(Res1(1).Diff,2)
 %     ds9(Res1(5).Diff,3)
-%     ds9(AI2(1),4)
+%     ds9(AI2(1),4) 
 %     ds9(Res2(1).Diff,5)
 %     ds9(Res2(5).Diff,6)
        
@@ -120,10 +122,10 @@ function Result = unitTest()
     DS9_new.regionWrite([AC1(2).Catalog(:,29) AC1(2).Catalog(:,30)],'FileName','~/LAST_346+79_it2.reg','Color','red','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
     DS9_new.regionWrite([AC1(3).Catalog(:,29) AC1(3).Catalog(:,30)],'FileName','~/LAST_346+79_it3.reg','Color','green','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
     
-    DS9_new.regionWrite([AI2(1).CatData.Catalog(:,29) AI2(1).CatData.Catalog(:,30)],'FileName','~/LAST_275_16_lastit.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
-    DS9_new.regionWrite([AC2(1).Catalog(:,29) AC2(1).Catalog(:,30)],'FileName','~/LAST_275_16_it1.reg','Color','blue','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
-    DS9_new.regionWrite([AC2(2).Catalog(:,29) AC2(2).Catalog(:,30)],'FileName','~/LAST_275_16_it2.reg','Color','red','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
-    DS9_new.regionWrite([AC2(3).Catalog(:,29) AC2(3).Catalog(:,30)],'FileName','~/LAST_275_16_it3.reg','Color','green','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AI2(1).CatData.Catalog(:,29) AI2(1).CatData.Catalog(:,30)],'FileName','~/LAST_303+41_lastit.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AC2(1).Catalog(:,29) AC2(1).Catalog(:,30)],'FileName','~/LAST_303+41_it1.reg','Color','blue','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AC2(2).Catalog(:,29) AC2(2).Catalog(:,30)],'FileName','~/LAST_303+41_it2.reg','Color','red','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AC2(3).Catalog(:,29) AC2(3).Catalog(:,30)],'FileName','~/LAST_303+41_it3.reg','Color','green','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
 
 %      S = readtable('~/LAST_275_16_sextractor_v2.cat','FileType','text','NumHeaderLines',14);
 %      DS9_new.regionWrite([S.Var2 S.Var3],'FileName','~/LAST_275_16_sextractor_v2.reg','Color','yellow','Marker','b','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
