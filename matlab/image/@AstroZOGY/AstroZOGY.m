@@ -183,7 +183,7 @@ classdef AstroZOGY < AstroDiff
 
             if isempty(Obj.DSDFn)
                 % DSDFn is not available - calculate
-                Obj.DSDF = imUtil.properSub.dSdF(Obj.N_hat, Obj.R_hat, Obj.Pn_hat, Obj.Pr_hat, Obj.VarN, Obj.VarR, Obj.Fr, 'IsOutFFT',false);
+                Obj.DSDFn = imUtil.properSub.dSdF(Obj.N_hat, Obj.R_hat, Obj.Pn_hat, Obj.Pr_hat, Obj.VarN, Obj.VarR, Obj.Fr, 'IsOutFFT',false);
             else
                 % DSDFn is already available - use as is
             end
