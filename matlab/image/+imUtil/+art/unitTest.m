@@ -204,7 +204,14 @@ function Result = FitRestoreSubtract(AI, Args)
 %     AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold,'ReCalcBack',false,...
 %         'MomPar',{'MomRadius',Args.MomRadius},'Psf',AI.PSF,'FlagCR',false); 
     % make PSF photometry
-    [AI, Res] = imProc.sources.psfFitPhot(AI);  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter     
+    [AI, Res] = imProc.sources.psfFitPhot(AI);  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter   
+    % model the shifted PSFs?
+%     [R, P] = imUtil.psf.fitFunPSF(double(Res.ShiftedPSF(:,:,1)), 'Funs',{@imUtil.kernel2.gauss ,@imUtil.kernel2.gauss}, 'Par0',{[2 2 0],[1 1 0]}, 'Norm0',[1 1], 'LsqOptions',OPTIONS);
+%     sqrt(R.ResNorm) % rms error ~ 8% ! 
+    % null the negative values in the shifted PSF and renorm (?)
+%     Res.ShiftedPSF = Res.ShiftedPSF .* (Res.ShiftedPSF > 0);
+%     sum(Res.ShiftedPSF,'all')./size(Res.ShiftedPSF,3) % ~ 1.0015 (average excess flux)!
+%     Res.ShiftedPSF = Res.ShiftedPSF./sum(Res.ShiftedPSF,[1 2]); % normalization
     % construct and inject sources
     [CubePSF, XY] = imUtil.art.createSourceCube(Res.ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, 'Recenter', false,'PositivePSF',true);
     ImageSrc = imUtil.art.addSources(repmat(0,size(AI.Image)),CubePSF,XY,'Oversample',[],'Subtract',false);
