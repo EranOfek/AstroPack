@@ -17,7 +17,7 @@ function Flag=isempty_cell(Cell, UseMex)
 
     arguments
         Cell              	% Input cell array
-        UseMex = false;     % True: Use MEX implementation, False: Use MATLAB implementaion
+        UseMex = true;     % True: Use MEX implementation, False: Use MATLAB implementaion
     end
 
         % MATLAB implementation
