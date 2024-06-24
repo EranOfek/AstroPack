@@ -1,4 +1,4 @@
-function S = injectSources(Image,Cat,PSFin,Args)
+function S = injectSources_NS(Image,Cat,PSFin,Args)
     % Inject artificial sources into an image.
     %   The function build the sources image with user provided PSF and catalogs.
     %   The function does not treat nans. Make sure that non of the inputs 

@@ -972,9 +972,6 @@ classdef AstroDiff < AstroImage
                        'flagRinging' - Bool on whether to flag transients
                               candidates that may be caused by ringing artifacts.
                               Default is true.
-                       'GaborSNRatioThreshold' - Threshold value on GaborSN
-                              used to flag transients candidates for ringing.
-                              Default is 1.00.
                        'flagDensity' - Bool on whether to flag transients that are
                               too close to each other, i.e., that have too many
                               neighbors. Default is true.
@@ -999,9 +996,6 @@ classdef AstroDiff < AstroImage
                        'flagTranslients' - Bool on whether to flag transients 
                               candidates which score higher in Z2 than S2.
                               Default is true.
-                       'S2toZ2RatioThresh' - Threshold value for the S2 to Z2
-                              ratio below which to classify a transients candidate
-                              as a transLient. Default value is 1.00.
                        'flagScorr' - Bool on whether to flag candidates based on 
                               source noise corrected S statistic. Default is true.
                        'ScorrThreshold' - Threshold value for Scorr. Default is 5.0.
@@ -1019,11 +1013,12 @@ classdef AstroDiff < AstroImage
         
                 Args.flagBadPix_Hard logical  = true;
                 Args.BadPix_Hard       = {'Interpolated', 'NaN', 'NearEdge',...
-                    'CoaddLessImages', 'Hole', 'CR_DeltaHT', 'Negative'};
+                    'Hole', 'CR_DeltaHT', 'Negative'};
         
                 Args.flagBadPix_Soft logical  = true;
-                Args.BadPix_Soft       = {{'HighRN', 6.0}, {'SrcNoiseDominated', 7.0}, ...
-                    {'FlatHighStd',7.0}, {'DarkHighVal', 13.0}};
+                Args.BadPix_Soft       = {{'HighRN', 6.0, 13.0}, {'SrcNoiseDominated', 6.0, 13.0}, ...
+                    {'FlatHighStd',6.0, 13.0}, {'DarkHighVal', 6.0, 13.0},...
+                    {'CoaddLessImages', 6.0, 13.0}};
         
                 Args.flagSNR logical = true;
                 Args.SNRThreshold = 5.0;
@@ -1033,7 +1028,6 @@ classdef AstroDiff < AstroImage
                 Args.flagMP logical = true;
         
                 Args.flagRinging logical = true;
-                Args.GaborSNRatioThreshold = 1.00;
         
                 Args.flagDensity logical = true;
                 Args.NeighborDistanceThreshold = 100;
@@ -1048,7 +1042,6 @@ classdef AstroDiff < AstroImage
                 Args.ScorrThreshold = 5.0;
         
                 Args.flagTranslients logical = true;
-                Args.S2toZ2RatioThresh = 1.00;
         
             end
 
@@ -1069,7 +1062,6 @@ classdef AstroDiff < AstroImage
                     'SNRThreshold', Args.SNRThreshold,...
                     'SNRCol', Args.SNRCol,...
                     'flagRinging', Args.flagRinging, ...
-                    'GaborSNRatioThreshold', Args.GaborSNRatioThreshold, ...
                     'flagDensity', Args.flagDensity,...
                     'NeighborDistanceThreshold', Args.NeighborDistanceThreshold,...
                     'NeighborNumThreshold', Args.NeighborNumThreshold,...
@@ -1078,8 +1070,7 @@ classdef AstroDiff < AstroImage
                     'PeakDistThreshold', Args.PeakDistThreshold,...
                     'flagScorr', Args.flagScorr, ...
                     'ScorrThreshold', Args.ScorrThreshold,...
-                    'flagTranslients', Args.flagTranslients,...
-                    'S2toZ2RatioThresh', Args.S2toZ2RatioThresh...
+                    'flagTranslients', Args.flagTranslients...
                     );
             end
         end

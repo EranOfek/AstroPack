@@ -1315,6 +1315,38 @@ classdef DemonLAST < Component
         
     end
     
+    methods (Static)  % find all files
+        function Result=findAllVisitsDir(Args)
+            % Get all proc visits directories under some base path
+            % Input  : * ...,key,val,...
+            %            'BasePath' - Default is '/marvin/LAST.01.01.01'
+            %            'YearPat' - Year pattern to scan. Default is '20*'.
+            %            'MinNfile' - Min. number of images in visit.
+            %                   Default is 10.
+            % Output : - A strings array of dir names.
+            % Author : Eran Ofek (Jun 2025)
+            % Example: S=pipeline.DemonLAST.findAllVisitsDir;
+
+            arguments
+                Args.BasePath             = '/marvin/LAST.01.01.01';
+                Args.YearPat              = '20*';
+                Args.MinNfile             = 10;
+            end
+
+            D = pipeline.DemonLAST;
+            D.BasePath = Args.BasePath;
+            
+            [St] = D.findAllVisits('YearPat',Args.YearPat, 'MinNfile',Args.MinNfile, 'ReadHeader',false);
+            
+            Nst = numel(St);
+            Result = strings(1,Nst);
+            for Ist=1:1:Nst
+                Result{Ist} = fullfile(St(Ist).BasePath, St(Ist).Year, St(Ist).Month, St(Ist).Day, 'proc', St(Ist).Visit);
+            end
+
+        end
+    end
+
     methods % go over files
         function List=prepListOfProcVisits(Obj, Args)
             % Prepare a list of all processed visits
@@ -1464,6 +1496,8 @@ classdef DemonLAST < Component
             %                   keywords specified in 'KeysFromHead', else
             %                   will use only the file name.
             %                   Default is true.
+            %            'MinNfile' - Min. number of images in visit.
+            %                   Default is 10.
             %            'KeysFromHead' - A cell array of header keywords
             %                   to read from images and store in output.
             %                   Default is {'RA1','DEC1','RA2','DEC2','RA3','DEC3','RA4','DEC4', 'RAU1','DECU1','RAU2','DECU2','RAU3','DECU3','RAU4','DECU4', 'LIMMAG','BACKMAG','FWHM','MEDBCK','STDBCK','ORIGSEC','ORIGUSEC'}
@@ -1543,6 +1577,7 @@ classdef DemonLAST < Component
                                 Result(Ind).Day      = DirDay(Id).name;
                                 Result(Ind).Visit    = DirVisit(Ivisit).name;
 
+                                %AllDir{Ind} = fullfile(Result(Ind).BasePath,Result(Ind).Year, Result(Ind).Month, Result(Ind).Day, 'proc', Result(Ind).Visit);
 
                                 if Args.ReadHeader
                                     Nfile = numel(DirF);
@@ -2475,7 +2510,7 @@ classdef DemonLAST < Component
                 Args.NightJD       = [];             % Reduce single night (from -0.5 to 0.5 from date) - set StopWhenDone to true.
 
                 Args.StopWhenDone logical = false;   % If true, then will not look for new images (i.e., images that were created after the function started)
-                Args.RegenCalib logical = false;     % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
+                Args.RegenCalib logical   = true; %false;     % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
                 Args.ReloadCalibTimeDiff   = 0.7;
                 
                 Args.DeleteSciDayTime logical = false;   % Delete 'sci' images taken during day time.
@@ -2484,7 +2519,7 @@ classdef DemonLAST < Component
                 Args.FocusTreatment  = 'move';           % 'move'|'keep'|'delete' 
                 Args.TempRawFocus    = '*_focus_raw_*.fits';
 
-                Args.MinNumIMageVisit  = 5;
+                Args.MinNumImageVisit  = 5;
                 Args.PauseDay          = 100;
                 Args.PauseNight        = 30;
 
@@ -2494,8 +2529,8 @@ classdef DemonLAST < Component
                 Args.SaveMergedCat     = true;
                 Args.SaveMergedMat     = true;
                 Args.SaveAsteroids     = true;
-                Args.WriteMethodImages = 'Simple'; % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
-                Args.WriteMethodTables = 'Standard';   % can be 'Standard' or 'MexHeader'  
+                Args.WriteMethodImages = 'ThreadedMex';     % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
+                Args.WriteMethodTables = 'MexHeader';       % can be 'Standard' or 'MexHeader'  
 
                 % DataBase
                 Args.Insert2DB         = false;              % Insert images data to LAST DB or prepare CSV dumps for further insertion
@@ -2673,8 +2708,38 @@ classdef DemonLAST < Component
                 FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
                 Ngroup = numel(FN_Sci_Groups);
                 
+                
+
+                % check if need to wait for additional images
+                if numel(FN_Sci_Groups)==1
+                    % Only one potential visit was found - check if need to
+                    % wait
+                    Nfiles1    = FN_Sci_Groups.nfiles;
+
+                    % wait for 20 s X number of images needed to finish the
+                    % visit:
+                    pause((1+Args.MaxInGroup - Nfiles1).*20); % Note: assuming 20s exposures
+
+                    % look for new images
+                    FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci, 'FullPath',false);
+                    [FN_Sci] = selectBy(FN_Sci, 'Product', 'Image', 'CreateNewObj',false);
+                    [FN_Sci] = selectBy(FN_Sci, 'Type', {'sci','science'}, 'CreateNewObj',false);
+                    [FN_Sci] = selectBy(FN_Sci, 'Level', 'raw', 'CreateNewObj',false);
+
+
+                    % select observations by date
+                    FN_JD  = FN_Sci.julday;
+                    FlagJD = FN_JD>Args.StartJD & FN_JD<Args.EndJD;
+                    FN_Sci = reorderEntries(FN_Sci, FlagJD);
+
+                    [~, FN_Sci_Groups] = FN_Sci.groupByCounter('MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
+                    FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
+                    Ngroup = numel(FN_Sci_Groups);
+
+                end
+
                 MaxNfiles = max(FN_Sci_Groups.nfiles);
-                if MaxNfiles<=Args.MinNumIMageVisit
+                if MaxNfiles<=Args.MinNumImageVisit
                     Msg{1} = sprintf('Waiting for more images to analyze (Found %d images)',MaxNfiles);
                     Obj.writeLog(Msg, LogLevel.Info);
     
@@ -2702,7 +2767,7 @@ classdef DemonLAST < Component
                     tools.systemd.mex.notify_watchdog;
 
                     % for each visit
-                    if FN_Sci_Groups(Igroup).nfiles>Args.MinNumIMageVisit
+                    if FN_Sci_Groups(Igroup).nfiles>Args.MinNumImageVisit
 
 
                         % set Logger log file 
@@ -2777,6 +2842,7 @@ classdef DemonLAST < Component
                                                    'Level','proc',...
                                                    'LevelPath','proc',...
                                                    'FindSubDir',true,...
+                                                   'AddSubDirKey',true,...
                                                    'WriteMethodImages',Args.WriteMethodImages,...
                                                    'WriteMethodTables',Args.WriteMethodTables);
                             Obj.writeLog(Status, LogLevel.Info);
@@ -2790,6 +2856,7 @@ classdef DemonLAST < Component
                                                    'Level','coadd',...
                                                    'LevelPath','proc',...
                                                    'SubDir',FN_Proc.SubDir,...
+                                                   'AddSubDirKey',true,...
                                                    'WriteMethodImages',Args.WriteMethodImages,...
                                                    'WriteMethodTables',Args.WriteMethodTables);
                             Obj.writeLog(Status, LogLevel.Info);
@@ -2821,15 +2888,23 @@ classdef DemonLAST < Component
                             Obj.writeLog(Msg, LogLevel.Info);
 
                             if ~isempty(ResultAsteroids)
-                                SaveAst.MP = ResultAsteroids;
-                                [~,~,Status]=imProc.io.writeProduct(SaveAst, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
-                                                   'Save',UpArgs.SaveAsteroids,...
-                                                   'Level','merged',...
-                                                   'LevelPath','proc',...
-                                                   'SubDir',FN_Proc.SubDir,...
-                                                   'WriteMethodImages',Args.WriteMethodImages,...
-                                                   'WriteMethodTables',Args.WriteMethodTables);
-                                Obj.writeLog(Status, LogLevel.Info);
+                                if numel(ResultAsteroids)>200
+                                    % number of asteroids is too large -
+                                    % probably a problem - skip
+                                    clear ResultAsteroids;
+                                    Status = sprintf('ResultAsteroids contains %d asteroid candidates - likely a problem (not saved)',numel(ResultAsteroids));
+                                    Obj.writeLog(Status, LogLevel.Info);
+                                else
+                                    SaveAst.MP = ResultAsteroids;
+                                    [~,~,Status]=imProc.io.writeProduct(SaveAst, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
+                                                       'Save',UpArgs.SaveAsteroids,...
+                                                       'Level','merged',...
+                                                       'LevelPath','proc',...
+                                                       'SubDir',FN_Proc.SubDir,...
+                                                       'WriteMethodImages',Args.WriteMethodImages,...
+                                                       'WriteMethodTables',Args.WriteMethodTables);
+                                    Obj.writeLog(Status, LogLevel.Info);
+                                end
                             end
 
                             % Known Matched asteroids

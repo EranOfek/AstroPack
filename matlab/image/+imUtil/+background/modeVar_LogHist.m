@@ -54,7 +54,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
 
         Args.EdgesFactor               = 0.5;
         Args.OverSampling              = 0.3;
-        Args.LogNhistFromPeak          = 2;
+        Args.LogNhistFromPeak          = 1.8; %2;  % assymetric [left, right]
 
         Args.MinNbin1                  = 7;   % minimum number of bins in the 1st log iteration
         
@@ -126,6 +126,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     
 
     %Ind   = Nhist(:)>1 & BinCenter(:)<Mode0.*1.3;
+    
     Ind       = Nhist>(MaxNhist - Args.LogNhistFromPeak);
     Nhist = Nhist(Ind);
     BinCenter = BinCenter(Ind);
@@ -144,7 +145,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     else
         % slower
         Par   = polyfit(BinCenter-Mode0, Nhist,2);
-        % X=[100:1:250]';  H = [(X-Mode0).^2, (X-Mode0), ones(numel(X),1)];
+        % X=[100:1:350]';  H = [(X-Mode0).^2, (X-Mode0), ones(numel(X),1)];
         % plot(BinCenter, Nhist,'o'); hold on; plot(X,polyval(Par,X) )
         
     end

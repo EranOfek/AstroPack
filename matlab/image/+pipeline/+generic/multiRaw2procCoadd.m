@@ -251,7 +251,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         
         % Match against external catalog: 'MergedCat
         Args.CoaddMatchMergedCat logical      = true;  
-        Args.MergedMatchMergedCat logical     = false;  
+        Args.MergedMatchMergedCat logical     = true; %false;  % issue 454
         
         Args.mergeCatalogsArgs cell           = {};
         
@@ -290,6 +290,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.AsteroidSearchRadius             = 10;
         
         Args.HostName              = [];
+
+        Args.MaxFWHM               = 5;  % max of median(FWHM) - if larger stop processing
     end
     
     if ~isempty(Args.SaveAll)
@@ -435,6 +437,8 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
             
         end
        
+        
+
         io.msgLog(LogLevel.Info, '%s: multiRaw2procCoadd: image %d of %d processed: %s', ...
                   Args.HostName, Iim, Nim,AI(Iim).getStructKey('FILENAME').FILENAME);
         
@@ -461,6 +465,12 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     end
     %clear AI;
     %clear SI;
+
+    % check image quality
+    AllFWHM = AllSI.getStructKey('FWHM');
+    if median([AllFWHM.FWHM])>Args.MaxFWHM
+        error('Median FWHM in proc images is larger than threshold (%f)',median([AllFWHM.FWHM]));
+    end
 
     % delete Back and Var before coaddition
     AllSI.deleteProp(Args.DeletePropAfterSrcFinding);

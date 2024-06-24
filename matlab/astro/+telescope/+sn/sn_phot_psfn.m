@@ -1,5 +1,5 @@
 function SN=sn_phot_psfn(Flux,PSF,Variance)
-% Calculate photometry S/N of a numerical PSF
+% Calculate photometry S/N  (for measurments; source noise included) of a numerical PSF
 % Description: Calculate the S/N (signal-to-noise ratio) for a numerical
 %              PSF (optimal) photometry.
 % Input  : - Flux normalization.

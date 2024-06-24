@@ -45,9 +45,6 @@ function TranCat = flagNonTransients(Obj, Args)
                 'flagRinging' - Bool on whether to flag transients
                        candidates that may be caused by ringing artifacts.
                        Default is true.
-                'GaborSNRatioThreshold' - Threshold value on GaborSN
-                       used to flag transients candidates for ringing.
-                       Default is 1.00.
                 'flagDensity' - Bool on whether to flag transients that are
                        too close to each other, i.e., that have too many
                        neighbors. Default is true.
@@ -72,9 +69,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 'flagTranslients' - Bool on whether to flag transients 
                        candidates which score higher in Z2 than S2.
                        Default is true.
-                'S2toZ2RatioThresh' - Threshold value for the S2 to Z2
-                       ratio below which to classify a transients candidate
-                       as a transLient. Default value is 1.00.
+                'ignoreTranslient_NothingInRef' - 
                 'flagScorr' - Bool on whether to flag candidates based on 
                        source noise corrected S statistic. Default is true.
                 'ScorrThreshold' - Threshold value for Scorr. Default is 5.0.
@@ -98,11 +93,12 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagBadPix_Hard logical  = true;
         Args.BadPix_Hard       = {'Interpolated', 'NaN', 'NearEdge',...
-            'CoaddLessImages', 'Hole', 'CR_DeltaHT', 'Negative'};
+            'Hole', 'CR_DeltaHT', 'Negative'};
 
         Args.flagBadPix_Soft logical  = true;
-        Args.BadPix_Soft       = {{'HighRN', 6.0}, {'SrcNoiseDominated', 7.0}, ...
-            {'FlatHighStd',7.0}, {'DarkHighVal', 13.0}};
+        Args.BadPix_Soft       = {{'HighRN', 6.0, 14.0}, {'SrcNoiseDominated', 6.0, 14.0}, ...
+            {'FlatHighStd',6.0, 14.0}, {'DarkHighVal', 6.0, 14.0},...
+            {'CoaddLessImages', 6.0, 14.0}};
 
         Args.flagSNR logical = true;
         Args.SNRThreshold = 5.0;
@@ -112,7 +108,6 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagMP logical = true;
 
         Args.flagRinging logical = true;
-        Args.GaborSNRatioThreshold = 1.00;
 
         Args.flagDensity logical = true;
         Args.NeighborDistanceThreshold = 100;
@@ -121,13 +116,18 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagPeakDist logical = true;
         Args.PeakDistThreshold = 1.5;
+        Args.PeakDistThresholdGal = 1.5;
 
         % --- AstroZOGY ---
         Args.flagScorr logical = true;
         Args.ScorrThreshold = 5.0;
 
         Args.flagTranslients logical = true;
-        Args.S2toZ2RatioThresh = 1.00;
+        Args.ignoreTranslient_NothingInRef = true;
+        Args.TranslientRefSNThresh = 5.0;
+        Args.ignoreTranslient_GalaxyNuclear = true;
+        Args.TranslientGalaxyDistThresh = 3.0;
+        
     end
 
     Nobj = numel(Obj);
@@ -229,12 +229,14 @@ function TranCat = flagNonTransients(Obj, Args)
                 FlagBadSoft_New = FlagBadSoft_New | ...
                     (cell2mat(cellfun(@(c)any(strcmp(c, IBadPix_Soft{1})), ...
                 BM_new, 'UniformOutput', false)) & ...
-                abs(Cat.getCol('Score')) < IBadPix_Soft{2});
+                abs(Cat.getCol('Score')) < IBadPix_Soft{2} & ...
+                abs(Cat.getCol('PSF_SNm')) < IBadPix_Soft{3});
 
                 FlagBadSoft_Ref = FlagBadSoft_Ref | ...
                     (cell2mat(cellfun(@(c)any(strcmp(c, IBadPix_Soft{1})), ...
                 BM_ref, 'UniformOutput', false)) & ...
-                abs(Cat.getCol('Score')) < IBadPix_Soft{2});
+                abs(Cat.getCol('Score')) < IBadPix_Soft{2} & ...
+                abs(Cat.getCol('PSF_SNm')) < IBadPix_Soft{3});
             end
 
             BadSoftIdx = (FlagBadSoft_New | FlagBadSoft_Ref);
@@ -247,7 +249,20 @@ function TranCat = flagNonTransients(Obj, Args)
 
         if Args.flagStarMatches && Cat.isColumn('StarMatches')
             StarMatches = (Cat.getCol('StarMatches') > 0.0);
-            IsTransient = IsTransient & ~StarMatches;
+            IsStar = StarMatches;
+            if Cat.isColumn('GalaxyMatches')
+                StarDist = Cat.getCol('StarDist');
+                GalaxyDist = Cat.getCol('GalaxyDist');
+                ExcludeGalaxy = GalaxyDist < 1.3*StarDist;
+
+                if Cat.isColumn('R_SNm')
+                    R_SNm = Cat.getCol('R_SNm');
+                    Low_R_SNm = R_SNm < 5.0;
+                    ExcludeGalaxy = ExcludeGalaxy & Low_R_SNm;
+                end
+            IsStar = IsStar & ~ ExcludeGalaxy;
+            end
+            IsTransient = IsTransient & ~IsStar;
         end
 
         if Args.flagMP && Cat.isColumn('DistMP_new')
@@ -259,9 +274,7 @@ function TranCat = flagNonTransients(Obj, Args)
             GaborSN = Cat.getCol('GaborSN');
             Score = Cat.getCol('Score');
 
-            ScoreToGaborRatio = abs(Score./GaborSN);
-
-            IsRinging =  Args.GaborSNRatioThreshold > ScoreToGaborRatio;
+            IsRinging =  GaborSN > Score;
             IsTransient = IsTransient & ~IsRinging;
 
             Obj(Iobj).CatData.insertCol(cast(IsRinging,'double'), ...
@@ -271,7 +284,7 @@ function TranCat = flagNonTransients(Obj, Args)
         if Args.flagSNR && Cat.isColumn(Args.SNRCol)
             SNR = Cat.getCol(Args.SNRCol);
 
-            SNRBelowThresh = (abs(SNR) < Args.SNRThreshold);
+            SNRBelowThresh = (SNR < Args.SNRThreshold);
             Obj(Iobj).CatData.insertCol(cast(SNRBelowThresh,'double'), ...
                 'Score', {'SNRBelowThresh'}, {''});
             IsTransient = IsTransient & ~SNRBelowThresh;
@@ -317,6 +330,10 @@ function TranCat = flagNonTransients(Obj, Args)
 
             PeakDist = sqrt((XY(:,1)-XY1(:,1)).^2+(XY(:,2)-XY1(:,2)).^2);
             PeakTooFar = PeakDist > Args.PeakDistThreshold;
+            if Cat.isColumn('GalaxyMatches')
+                IsInGalaxy = Cat.getCol('GalaxyMatches') > 0;
+                PeakTooFar(IsInGalaxy) = PeakDist(IsInGalaxy)  > Args.PeakDistThresholdGal;
+            end
             Obj(Iobj).CatData.insertCol(cast(PeakTooFar,'double'), ...
                 'Score', {'PeakTooFar'}, {''});
             IsTransient = IsTransient & ~PeakTooFar;
@@ -337,8 +354,20 @@ function TranCat = flagNonTransients(Obj, Args)
         if Args.flagTranslients && Cat.isColumn('S2_AIC') && Cat.isColumn('Z2_AIC')
             S2_AIC = Cat.getCol('S2_AIC');
             Z2_AIC = Cat.getCol('Z2_AIC');
-            S2toZ2Ratio = S2_AIC./Z2_AIC;
-            IsTranslient = ~(S2toZ2Ratio > Args.S2toZ2RatioThresh);
+
+            IgnoreTranslientCol = false(CatSize,1);
+            if Args.ignoreTranslient_NothingInRef && Cat.isColumn('R_SNm')
+                R_SNm = Cat.getCol('R_SNm');
+                IgnoreTranslientCol = IgnoreTranslientCol | ...
+                    (R_SNm < Args.TranslientRefSNThresh);
+            end
+            if Args.ignoreTranslient_GalaxyNuclear && Cat.isColumn('GalaxyDist')
+                GalaxyDist = Cat.getCol('GalaxyDist');
+                IgnoreTranslientCol = IgnoreTranslientCol | ...
+                    GalaxyDist < Args.TranslientGalaxyDistThresh;
+            end            
+        
+            IsTranslient = (Z2_AIC > S2_AIC) & ~IgnoreTranslientCol;
             Obj(Iobj).CatData.insertCol(cast(IsTranslient,'double'), ...
                 'Score', {'Translient'}, {''});
             IsTransient = IsTransient & ~IsTranslient;

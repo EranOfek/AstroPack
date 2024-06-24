@@ -54,7 +54,7 @@ function do_test_mex_WriteFITS_thread(xx)
         %filename = sprintf('zfits\\temp_fits_file_mex_thread_%04d.fits', i);
 		%io.fits.mex.mex_fits_write_image(filename, imageData, headerFields);
         %io.fits.mex.mex_fits_write_image_thread(filename, imageData, headerFields);
-        io.fits.fitsWriteImageThread(filename, imageData, headerFields)   
+        io.fits.writeThreadMexFITS(filename, imageData, headerFields)   
     end       
     elapsedTime = toc;
     averageTime = averageTime + elapsedTime;

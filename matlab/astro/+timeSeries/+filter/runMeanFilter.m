@@ -24,7 +24,14 @@ function [Result] = runMeanFilter(M, Args)
     %            'EndPoint' - Endpoints parameter for the MoveFun.
     %                   Default is "fill".
     %            'StdFun' - Std function.
-    %                   Default is @tools.math.stat.rstd.
+    %                   Either a function handle, or the option: 'OutWin'.
+    %                   E.g., @tools.math.stat.rstd.
+    %                   'OutWin' - will calculate the std based on all the
+    %                   points outside the window.
+    %                   Default is 'OutWin'.
+    %            'OutWinExtra' - In case that the StdFun is 'OutWin', this
+    %                   is the extra size of the inner gap above the window half
+    %                   size. Default is 3.
     %            'Threshold' - Threshold for flares detection.
     %                   Default is 8.
     %
@@ -39,6 +46,8 @@ function [Result] = runMeanFilter(M, Args)
     %                   flare/dip is higher by one compared to the Z1.
     %                   Z1 is the original data divided by the StD (i.e.,
     %                   unfiltered data).
+    %            .FlagZ - Like FlagCand, but NaN for non-candidate and
+    %                   number of sigmas for candidates.
     %            .NumberNotNaN - A vector (element per source) indicating
     %                   the number of not NaN entries per source.
     %
@@ -59,7 +68,8 @@ function [Result] = runMeanFilter(M, Args)
         Args.WinSize           = 2;
         Args.EndPoint          = "fill";
 
-        Args.StdFun            = @tools.math.stat.rstd;
+        Args.StdFun            = 'OutWin'; %@tools.math.stat.rstd;
+        Args.OutWinExtra       = 3;
 
         Args.Threshold         = 8;
 
@@ -85,7 +95,7 @@ function [Result] = runMeanFilter(M, Args)
         T           = (1:1:Nep).';
         T           = (T - mean(T))./max(T);
     
-        % fit a polynomial to eachy column of M
+        % fit a polynomial to each column of M
         H = T.^Args.PolyFit;
         Npar = size(H,2);
         % fit each column seperatly and remove NaN
@@ -115,7 +125,18 @@ function [Result] = runMeanFilter(M, Args)
     MoveC(1,:) = NaN; % remove first epoch (which is wrong)
 
     %MoveC  = Args.MoveFun(ResidM1, Args.WinSize, 1, "omitmissing", "Endpoints",Args.EndPoint);
-    StdM   = Args.StdFun(ResidM);
+    if ischar(Args.StdFun)
+        switch lower(Args.StdFun)
+            case 'outwin'
+                [Nep, ~] = size(ResidM);
+                StdM        = timeSeries.filter.filterStd(ResidM,[Args.OutWinExtra+ceil(Args.WinSize.*0.5) Nep], 'Dim',1);
+            otherwise
+                error('Unknown StdFun option');
+        end
+    else
+        StdM   = Args.StdFun(ResidM);
+    end
+    
 
     Z      = sqrt(Args.WinSize).*MoveM./StdM;
 
@@ -123,7 +144,12 @@ function [Result] = runMeanFilter(M, Args)
     Z1     = ResidM./StdM;
 
     Result.Z            = Z;
-    Result.FlagCand     = abs(Z)>Args.Threshold & MoveC==Args.WinSize & sign(Z1)==sign(Z) & abs(Z./Z1)>1;
+   
+    FlagZ1 = abs(Z)>abs(Z1) & abs(Z)>abs( padarray(Z1(1:end-1,:), 1, 'pre')) & abs(Z)>abs( padarray(Z1(2:end,:), 1, 'post'));
+
+    Result.FlagCand     = abs(Z)>Args.Threshold & MoveC==Args.WinSize & sign(Z1)==sign(Z) & FlagZ1; %max(abs(Z),[],1)>max(abs(Z1),[],1);  %  abs(Z./Z1)>1;
+    Result.FlagZ        = nan(size(Z));
+    Result.FlagZ(Result.FlagCand)        = Z(Result.FlagCand);
     Result.NumberNotNan = NumberNotNan;
     %Result.Par          = Par;
     

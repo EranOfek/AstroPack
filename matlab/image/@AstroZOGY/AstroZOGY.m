@@ -28,6 +28,8 @@ classdef AstroZOGY < AstroDiff
         Pd_hat
         S_hat
         
+        DSDFn
+
         D_den_hat
         D_num_hat
         D_denSqrt_hat
@@ -176,7 +178,19 @@ classdef AstroZOGY < AstroDiff
 
         end
 
+        function Val=get.DSDFn(Obj)
+            % getter for dS/dFn (for Fr=1)
 
+            if isempty(Obj.DSDFn)
+                % DSDFn is not available - calculate
+                Obj.DSDFn = imUtil.properSub.dSdF(Obj.N_hat, Obj.R_hat, Obj.Pn_hat, Obj.Pr_hat, Obj.VarN, Obj.VarR, Obj.Fr, 'IsOutFFT',false);
+            else
+                % DSDFn is already available - use as is
+            end
+            Val = Obj.DSDFn;
+            
+
+        end
     end
     
     methods % read/write
@@ -731,10 +745,22 @@ classdef AstroZOGY < AstroDiff
             %                   include source noise. Default is true.
             %            'IncludeAstromNoise' - A logical indicating if to
             %                   include astrometric noise. Default is false.
+            %            'NcoaddNew' - Number of images from which the New
+            %                   image is compose (assuming the mean
+            %                   operator was used).
+            %                   This can be a scalar, or a characater array
+            %                   with the header keyword name containing the
+            %                   number of images (if key not available then
+            %                   will be set to 1).
+            %                   Default is 'NCOADD'.
+            %            'NcoaddRef' - Like 'NcoaddNew' but for the Ref
+            %                   image. Default is 'NCOADD'.
             %            'RN_New' - Readout noise [e] of the New image.
-            %                   Default is 2.7./sqrt(20).
+            %                       If this is a coadd, tghen use the RN of
+            %                       a single image.
+            %                   Default is 2.7
             %            'RN_New' - Readout noise [e] of the Ref image.
-            %                   Default is 2.7./sqrt(20).
+            %                   Default is 2.7
             %            'SigmaAstNew' - sigma of the single axis
             %                   astrometric noise of the New image [pix].
             %                   Default is 0.1.
@@ -757,8 +783,10 @@ classdef AstroZOGY < AstroDiff
                 Args.IncludeSourceNoise logical    = true;
                 Args.IncludeAstromNoise logical    = false;
                 
-                Args.RN_New   = 2.7./sqrt(20);  % Read noise in electrons
-                Args.RN_Ref   = 2.7./sqrt(20);    % Read noise in electrons
+                Args.NcoaddNew   = 'NCOADD';
+                Args.NcoaddRef   = 'NCOADD';
+                Args.RN_New      = 2.7;  % Read noise in electrons [single image]
+                Args.RN_Ref      = 2.7;  % Read noise in electrons [single image]
 
                 Args.SigmaAstNew = 0.1;   % astrometric noise in pixels.
                 Args.SigmaAstRef = 0.1;   % astrometric noise in pixels.
@@ -770,9 +798,39 @@ classdef AstroZOGY < AstroDiff
                 Args.AbsFun                 = @(x) abs(x);
             end
 
-
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
+
+                % Read Ncoadd
+                if isnumeric(Args.NcoaddNew)
+                    NcoaddNew      = Args.NcoaddNew;
+                else
+                    % assumne Args.Ncoadd is a keyword name
+                    NcoaddNew = Obj(Iobj).New.HeaderData.getVal(Args.NcoaddNew);
+                    if isnan(NcoaddNew)
+                        NcoaddNew = 1;
+                    end
+                    if isempty(NcoaddNew)
+                        NcoaddNew = 1;
+                    end
+                end
+
+                if isnumeric(Args.NcoaddRef)
+                    NcoaddRef      = Args.NcoaddRef;
+                else
+                    % assumne Args.Ncoadd is a keyword name
+                    NcoaddRef = Obj(Iobj).New.HeaderData.getVal(Args.NcoaddRef);
+                    if isnan(NcoaddRef)
+                        NcoaddRef = 1;
+                    end
+                    if isempty(NcoaddRef)
+                        NcoaddRef = 1;
+                    end
+                end
+
+                RN_New = Args.RN_New;
+                RN_Ref = Args.RN_Ref;
+
                 [Kn_hat, Kr_hat, Kn, Kr] = knkr(Obj(Iobj), 'AbsFun',Args.AbsFun, 'Norm',Args.NormKnKr);
 
                 % New and Ref should contain the images including
@@ -781,8 +839,8 @@ classdef AstroZOGY < AstroDiff
 
                 if Args.IncludeSourceNoise
                     % including background
-                    VN = Obj(Iobj).New.Image + Args.RN_New.^2;
-                    VR = Obj(Iobj).Ref.Image + Args.RN_Ref.^2;
+                    VN = NcoaddNew.*(Obj(Iobj).New.Image + RN_New.^2);
+                    VR = NcoaddRef.*(Obj(Iobj).Ref.Image + RN_Ref.^2);
 
                     [Vsrc]      = imUtil.properSub.sourceNoise(VN, VR, Kn, Kr);
                 else
@@ -820,8 +878,6 @@ classdef AstroZOGY < AstroDiff
                     otherwise
                         error('Unknown NormMethod option');
                 end      
-
-
 
             end
 
