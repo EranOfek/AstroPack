@@ -54,6 +54,9 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
     %                   to pass to imUtil.sources.psfPhotCube.
     %                   Default is {}.
     %            'ZP' - ZP for magnitude calculations. Default is 25.
+    %            'FindSrc' - A logical indicating if to search for sources if
+    %                   catalog is empty. Default is false.
+    %            'Method' - Default is 'old'.
     % Output : - The input AstroImage object, where the following column
     %            names were optionally added to the AStroCatalog:
     %            {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'MAGERR_PSF', 'PSF_CHI2DOF','SN'}
@@ -96,6 +99,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
         
         Args.MaxIter                 = 8;
         
+        Args.FindSrc logical         = false;
         Args.Method                  = 'old'; 
     end
     
@@ -138,7 +142,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                 % get X/Y ccordinates from catalog
                 
                 XY = getXY(Obj(Iobj).CatData, 'ColX',Args.ColX, 'ColY', Args.ColY);
-                if isempty(XY)
+                if isempty(XY) && Args.FindSrc
                     % find sources
                     [Src] = imUtil.sources.findSources(Obj(Iobj).Image,...
                                                             'BackIm',Obj(Iobj).Back,...
