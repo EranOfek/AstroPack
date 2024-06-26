@@ -96,7 +96,8 @@ function TranCat=findTransients(AD, Args)
         Args.includeObsTime logical     = true;
 
         Args.includeGaborSN logical = true;
-
+    
+        Args.includePVdist logical = true;
     end
 
     Nobj = numel(AD);
@@ -120,7 +121,7 @@ function TranCat=findTransients(AD, Args)
 
         [M1, M2, Aper] = imUtil.image.moment2(AD(Iobj).New.Image, ...
             LocalMax(:,1), LocalMax(:,2));
-        
+
         % Construct AstroCatalog holding transints candidates
 
         ColNames = {'XPEAK', 'YPEAK', 'Score'};
@@ -137,11 +138,12 @@ function TranCat=findTransients(AD, Args)
         if Args.includePsfFit
 
             % PSF fit all candidates in the D image
-            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Image, M1.X, M1.Y, Args.HalfSizePSF);
+            PSFSize = floor(size(AD(Iobj).PSFData.getPSF,2)/2);
+            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Image, M1.X, M1.Y, PSFSize);
             % Change the sign of negative sources
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
-            Psf = imUtil.psf.full2stamp(AD(Iobj).PSFData.getPSF, 'StampHalfSize',Args.HalfSizePSF.*ones(1,2), 'IsCorner',false);
-            [ResultD, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', Psf, Args.psfPhotCubeArgs{:});
+            %Psf = imUtil.psf.full2stamp(AD(Iobj).PSFData.getPSF, 'StampHalfSize',Args.HalfSizePSF.*ones(1,2), 'IsCorner',false);
+            [ResultD, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', AD(Iobj).PSFData.getPSF, Args.psfPhotCubeArgs{:});
         
             % PSF fit all candidates in the New image
             CutHalfSize = (size(AD(Iobj).New.PSFData.getPSF,1)-1).*0.5;
@@ -149,7 +151,7 @@ function TranCat=findTransients(AD, Args)
             % Change the sign of negative sources
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
             [ResultN, ~] = imUtil.sources.psfPhotCube(Cube, 'PSF', AD(Iobj).New.PSFData.getPSF, Args.psfPhotCubeArgs{:});
-        
+            
             % PSF fit all candidates in the Ref image
             CutHalfSize = (size(AD(Iobj).Ref.PSFData.getPSF,1)-1).*0.5;
             [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Ref.Image, M1.X, M1.Y, CutHalfSize);
@@ -219,7 +221,7 @@ function TranCat=findTransients(AD, Args)
             % Insert results into catalog.
             TranCat(Iobj) = TranCat(Iobj).insertCol( ...
                 cell2mat({RA, Dec}), 'Score',...
-                {'RA', 'Dec'}, {'deg','deg'});              
+                {'RA', 'Dec'}, {'deg','deg'});
         end
 
         if Args.includeObsTime
@@ -256,6 +258,22 @@ function TranCat=findTransients(AD, Args)
                 'Score', {'GaborSN'}, {''});
         end
 
+        if Args.includePVdist
+
+            Score =  TranCat.getCol('Score');
+            XY =  TranCat.getXY('ColX','XPEAK','ColY','YPEAK');
+
+            Ntran = size(TranCat.Table,1);
+
+            for Itran = Ntran:-1:1
+                Dists = sqrt((XY(Itran,1) - XY(:,1)).^2+(XY(Itran,2) - XY(:,2)).^2);
+                SignFlip = ~(sign(Score(Itran)) == sign(Score));
+                MinDists(Itran,1) = min(Dists(SignFlip));
+            end
+
+            TranCat(Iobj) = TranCat(Iobj).insertCol(cast(MinDists,'double'), ...
+                'Score', {'PVDist'}, {''});
+        end
        
     end
 

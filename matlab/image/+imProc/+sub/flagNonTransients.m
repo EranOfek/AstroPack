@@ -88,6 +88,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagChi2 logical = true;
         Args.Chi2dofLimits = [0.1 1.5];
+        Args.MinNRChi2dof = 0.1;
         
         Args.flagSaturated logical = true;
 
@@ -116,15 +117,22 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagPeakDist logical = true;
         Args.PeakDistThreshold = 1.5;
-        Args.PeakDistThresholdGal = 1.5;
+        Args.PeakDistThresholdGal = 2.0;
 
+        Args.flagLimitingMag logical = true;
+        Args.LimitingMagOverwrite logical = false;
+        Args.LimitingMagOverwriteVal = 20.5;
+
+        Args.flagPeakValley logical = true;
+        Args.PVDistThresh = 10;
+        
         % --- AstroZOGY ---
         Args.flagScorr logical = true;
         Args.ScorrThreshold = 5.0;
 
         Args.flagTranslients logical = true;
+        Args.TranslientCorrectionParam = 20;
         Args.ignoreTranslient_NothingInRef = true;
-        Args.TranslientRefSNThresh = 5.0;
         Args.ignoreTranslient_GalaxyNuclear = true;
         Args.TranslientGalaxyDistThresh = 3.0;
         
@@ -149,8 +157,14 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Apply Chi2 per degrees of freedom criterium.
         if Args.flagChi2 && Cat.isColumn('D_Chi2dof')
-            GoodChi2dof = (Cat.getCol('D_Chi2dof') > Args.Chi2dofLimits(1)) &...
-                (Cat.getCol('D_Chi2dof') < Args.Chi2dofLimits(2));
+            DChi2 = Cat.getCol('D_Chi2dof');
+            NChi2 = Cat.getCol('N_Chi2dof');
+            RChi2 = Cat.getCol('R_Chi2dof');
+            GoodChi2dofD = (DChi2 > Args.Chi2dofLimits(1)) &...
+                (DChi2 < Args.Chi2dofLimits(2));
+            GoodChi2dofNR = (NChi2 > Args.MinNRChi2dof) |...
+                (RChi2 > Args.MinNRChi2dof);
+            GoodChi2dof = GoodChi2dofD & GoodChi2dofNR;
             Obj(Iobj).CatData.insertCol(cast(~GoodChi2dof,'double'), ...
                 'Score', {'NotPSFLike'}, {''});
             IsTransient = IsTransient & GoodChi2dof;
@@ -274,7 +288,7 @@ function TranCat = flagNonTransients(Obj, Args)
             GaborSN = Cat.getCol('GaborSN');
             Score = Cat.getCol('Score');
 
-            IsRinging =  GaborSN > Score;
+            IsRinging =  GaborSN > abs(Score);
             IsTransient = IsTransient & ~IsRinging;
 
             Obj(Iobj).CatData.insertCol(cast(IsRinging,'double'), ...
@@ -339,6 +353,34 @@ function TranCat = flagNonTransients(Obj, Args)
             IsTransient = IsTransient & ~PeakTooFar;
 
         end
+
+        if Args.flagLimitingMag
+            N_Mag = Cat.getCol('N_Mag');
+            R_Mag = Cat.getCol('R_Mag');
+            
+            LimitingMagVal_N = Args.LimitingMagOverwriteVal;
+            LimitingMagVal_R = Args.LimitingMagOverwriteVal;
+
+            if ~Args.LimitingMagOverwrite
+                LimitingMagVal_N = Obj(Iobj).New.HeaderData.getVal('LIMMAG');
+                LimitingMagVal_R = Obj(Iobj).Ref.HeaderData.getVal('LIMMAG');
+            end
+
+            MagBelowLimit = (N_Mag > LimitingMagVal_N) & (R_Mag > LimitingMagVal_R);
+            Obj(Iobj).CatData.insertCol(cast(MagBelowLimit,'double'), ...
+                'Score', {'BelowLimMag'}, {''});
+            IsTransient = IsTransient & ~MagBelowLimit;
+            
+        end
+
+        if Args.flagPeakValley && Cat.isColumn('PVDist')
+            PVDist = Cat.getCol('PVDist');
+            PeakValley = PVDist < Args.PVDistThresh;
+            Obj(Iobj).CatData.insertCol(cast(PeakValley,'double'), ...
+                'Score', {'PeakValley'}, {''});
+            IsTransient = IsTransient & ~PeakValley;
+
+        end
                 
         % ----- AstroZOGY -----
 
@@ -356,10 +398,11 @@ function TranCat = flagNonTransients(Obj, Args)
             Z2_AIC = Cat.getCol('Z2_AIC');
 
             IgnoreTranslientCol = false(CatSize,1);
-            if Args.ignoreTranslient_NothingInRef && Cat.isColumn('R_SNm')
-                R_SNm = Cat.getCol('R_SNm');
+            if Args.ignoreTranslient_NothingInRef
+                LimitingMagVal_R = Obj(Iobj).Ref.HeaderData.getVal('LIMMAG');
+                R_Mag = Cat.getCol('R_Mag');
                 IgnoreTranslientCol = IgnoreTranslientCol | ...
-                    (R_SNm < Args.TranslientRefSNThresh);
+                    (R_Mag > LimitingMagVal_R);
             end
             if Args.ignoreTranslient_GalaxyNuclear && Cat.isColumn('GalaxyDist')
                 GalaxyDist = Cat.getCol('GalaxyDist');
@@ -367,6 +410,7 @@ function TranCat = flagNonTransients(Obj, Args)
                     GalaxyDist < Args.TranslientGalaxyDistThresh;
             end            
         
+            Z2_AIC = Z2_AIC - Args.TranslientCorrectionParam;
             IsTranslient = (Z2_AIC > S2_AIC) & ~IgnoreTranslientCol;
             Obj(Iobj).CatData.insertCol(cast(IsTranslient,'double'), ...
                 'Score', {'Translient'}, {''});
