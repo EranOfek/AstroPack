@@ -12,7 +12,7 @@
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
     // Check for proper number of arguments
-    if (nrhs != 1) {
+    if (nrhs != 2) {
         mexErrMsgIdAndTxt("MyToolbox:isEmptyCellArray:nrhs", "One input required.");
     }
     if (nlhs != 1) {
@@ -27,18 +27,31 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     // Get the input cell array
     const mxArray *cellArray = prhs[0];
     mwSize numCells = mxGetNumberOfElements(cellArray);
-    
+    bool useOpenMP = *((int*)mxGetData(prhs[1]));    
+
     // Create the output logical array
     plhs[0] = mxCreateLogicalMatrix(1, numCells);
     mxLogical *outArray = mxGetLogicals(plhs[0]);
     
     // Iterate through each cell and check if it's empty
-    for (mwSize i = 0; i < numCells; ++i) {
-        const mxArray *cellElement = mxGetCell(cellArray, i);
-        if (cellElement == nullptr || mxIsEmpty(cellElement)) {
-            outArray[i] = true;
-        } else {
-            outArray[i] = false;
+    if (useOpenMP) {
+        #pragma omp parallel for
+        for (mwSize i = 0; i < numCells; ++i) {
+            const mxArray *cellElement = mxGetCell(cellArray, i);
+            if (cellElement == nullptr || mxIsEmpty(cellElement)) {
+                outArray[i] = true;
+            } else {
+                outArray[i] = false;
+            }
+        }
+    } else {
+        for (mwSize i = 0; i < numCells; ++i) {
+            const mxArray *cellElement = mxGetCell(cellArray, i);
+            if (cellElement == nullptr || mxIsEmpty(cellElement)) {
+                outArray[i] = true;
+            } else {
+                outArray[i] = false;
+            }
         }
     }
 }

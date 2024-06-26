@@ -905,7 +905,11 @@ classdef AstroTable < Component
                         Result.Properties.VariableUnits = Obj.ColUnits(ColInd);
                     end
                 else
-                    Result = Obj.Catalog(:,ColInd);
+                    if isempty(Obj.Catalog)
+                        Result = zeros(0, numel(ColInd));
+                    else
+                        Result = Obj.Catalog(:,ColInd);
+                    end
                 end
             end
             if nargout>1
@@ -1020,7 +1024,7 @@ classdef AstroTable < Component
             %          - Array, cell array, table, or another AstroTable
             %            object to insert.
             %          - Either number, or column name before which to insert
-            %            the new columns.
+            %            the new columns. Default is Inf.
             %          - Cell array of new column names. Default is {}.
             %            If empty, then use default names.
             %          - Cell array of new column units. Default is {}.
@@ -1031,62 +1035,64 @@ classdef AstroTable < Component
             arguments
                 Obj
                 Data
-                Pos
+                Pos                                   = Inf;
                 NewColNames                           = {};
                 NewColUnits                           = {};
             end
             
-            if ~iscell(NewColNames) && ~isstring(NewColNames)
-                NewColNames = {NewColNames};
-            end
-            if ~iscell(NewColUnits) && ~isstring(NewColUnits)
-                NewColUnits = {NewColUnits};
-            end
-           
-            % delete before insertion
-            Obj = deleteCol(Obj, NewColNames);
-            
-            Nobj = numel(Obj);
-            if isa(Data,'AstroTable')
-                Nobj2 = numel(Data);
-                for Iobj=1:1:Nobj
-                    if isempty(Obj(Iobj).ColUnits)
-                        Ncol = numel(Obj(Iobj).ColNames);
-                        [Obj(Iobj).ColUnits{1:Ncol}] = deal('');
-                    end
-                    Iobj2             = min(Nobj,Nobj2);
-                    ColInd            = colname2ind(Obj(Iobj), Pos);
-                    Obj(Iobj).Catalog = AstroTable.insertColumn(Obj(Iobj).Catalog, Data(Iobj2).Catalog, ColInd);
-                    if isempty(NewColNames)
-                        % attempt to copy ColNames from Data
-                        Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames, Data(Iobj2).ColNames, ColInd);
-                        Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits, Data(Iobj2).ColUnits, ColInd);
-                    else
-                        Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames, NewColNames, ColInd);
-                        Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits, NewColUnits, ColInd);
-                    end
-                    
+            if ~isempty(Data)
+                if ~iscell(NewColNames) && ~isstring(NewColNames)
+                    NewColNames = {NewColNames};
                 end
-            else
-                if isempty(NewColNames)
-                    NewColNames = AstroTable.defaultColNames(size(Data,2));
-                    
+                if ~iscell(NewColUnits) && ~isstring(NewColUnits)
+                    NewColUnits = {NewColUnits};
                 end
-                if isempty(NewColUnits)
-                    NcolInsert = size(Data,2);
-                    [NewColUnits{1:NcolInsert}] = deal('');
-                end
+               
+                % delete before insertion
+                Obj = deleteCol(Obj, NewColNames);
                 
-                for Iobj=1:1:Nobj
-                    if isempty(Obj(Iobj).ColUnits)
-                        Ncol = numel(Obj(Iobj).ColNames);
-                        [Obj(Iobj).ColUnits{1:Ncol}] = deal('');
+                Nobj = numel(Obj);
+                if isa(Data,'AstroTable')
+                    Nobj2 = numel(Data);
+                    for Iobj=1:1:Nobj
+                        if isempty(Obj(Iobj).ColUnits)
+                            Ncol = numel(Obj(Iobj).ColNames);
+                            [Obj(Iobj).ColUnits{1:Ncol}] = deal('');
+                        end
+                        Iobj2             = min(Nobj,Nobj2);
+                        ColInd            = colname2ind(Obj(Iobj), Pos);
+                        Obj(Iobj).Catalog = AstroTable.insertColumn(Obj(Iobj).Catalog, Data(Iobj2).Catalog, ColInd);
+                        if isempty(NewColNames)
+                            % attempt to copy ColNames from Data
+                            Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames, Data(Iobj2).ColNames, ColInd);
+                            Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits, Data(Iobj2).ColUnits, ColInd);
+                        else
+                            Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames, NewColNames, ColInd);
+                            Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits, NewColUnits, ColInd);
+                        end
+                        
                     end
-                    ColInd            = colname2ind(Obj(Iobj), Pos);
-                    Obj(Iobj).Catalog = AstroTable.insertColumn(Obj(Iobj).Catalog, Data, ColInd);
-                   
-                    Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames(:).', NewColNames, ColInd);
-                    Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits(:).', NewColUnits, ColInd);
+                else
+                    if isempty(NewColNames)
+                        NewColNames = AstroTable.defaultColNames(size(Data,2));
+                        
+                    end
+                    if isempty(NewColUnits)
+                        NcolInsert = size(Data,2);
+                        [NewColUnits{1:NcolInsert}] = deal('');
+                    end
+                    
+                    for Iobj=1:1:Nobj
+                        if isempty(Obj(Iobj).ColUnits)
+                            Ncol = numel(Obj(Iobj).ColNames);
+                            [Obj(Iobj).ColUnits{1:Ncol}] = deal('');
+                        end
+                        ColInd            = colname2ind(Obj(Iobj), Pos);
+                        Obj(Iobj).Catalog = AstroTable.insertColumn(Obj(Iobj).Catalog, Data, ColInd);
+                       
+                        Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames(:).', NewColNames, ColInd);
+                        Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits(:).', NewColUnits, ColInd);
+                    end
                 end
             end
         end

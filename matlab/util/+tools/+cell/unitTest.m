@@ -26,6 +26,7 @@ function Result = test_isempty_cell()
 
     MatlabTimeTotal = 0;
     MexTimeTotal = 0;
+    MexMPTimeTotal = 0;
 
     for iter=1:iters
         t = tic;
@@ -34,17 +35,24 @@ function Result = test_isempty_cell()
         MatlabTimeTotal = MatlabTimeTotal + MatlabTime;
     
         t = tic;
-        mex_res = tools.cell.isempty_cell(Cell,true);
+        mex_res = tools.cell.isempty_cell(Cell,true,false);
         MexTime = toc(t);
         MexTimeTotal = MexTimeTotal + MexTime;
 
+        t = tic;
+        mexmp_res = tools.cell.isempty_cell(Cell,true,true);
+        MexMPTime = toc(t);
+        MexMPTimeTotal = MexMPTimeTotal + MexMPTime;
+
         assert(isequal(matlab_res, mex_res));
+        assert(isequal(mexmp_res, mex_res));
     end
     
     MatlabTime = MatlabTimeTotal / iters;
     MexTime = MexTimeTotal / iters;
+    MexMPTime = MexMPTimeTotal / iters;
 
-    % fprintf('Matlab: %.6f s, Mex: %.6f s \n', MatlabTime, MexTime);
+    % fprintf('Matlab: %.6f s, Mex: %.6f s, Mex MP: %.6f s  \n', MatlabTime, MexTime, MexMPTime);
 
     io.msgStyle(LogLevel.Test, '@passed', 'tools.cell.isempty_cell passed')
     Result = true;

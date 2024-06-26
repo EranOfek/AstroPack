@@ -1,10 +1,12 @@
-function Flag=isempty_cell(Cell, UseMex)
+function Flag=isempty_cell(Cell, UseMex, UseMP)
 % Check if each cell element is empty.
 % Package: Util.cell
 % Description: Given a cell array, return a matrix of flags indicating
 %              if each one of the cells is empty.
 % Input  : - Cell array.
 %          - (UseMex) A logical indicating if to use mex version.
+%            Default is true.
+%          - (UseMP) A logical indicating if to use open MP.
 %            Default is true.
 % Output : - Matrix of flags indicating if each one of the cells is
 %            empty. 1 if empty, and 0 if not empty.
@@ -17,7 +19,8 @@ function Flag=isempty_cell(Cell, UseMex)
 
     arguments
         Cell              	% Input cell array
-        UseMex = false;     % True: Use MEX implementation, False: Use MATLAB implementaion
+        UseMex = true;     % True: Use MEX implementation, False: Use MATLAB implementaion
+        UseMP logical    = true;      	% True: Use threading with OpenMP multi-threading library        
     end
 
         % MATLAB implementation
@@ -27,7 +30,7 @@ function Flag=isempty_cell(Cell, UseMex)
     end
     
         % MEX implementation
-    Flag = tools.cell.mex.mex_isempty_cell(Cell);
+    Flag = tools.cell.mex.mex_isempty_cell(Cell, UseMP);
 end
 
     
