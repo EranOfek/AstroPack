@@ -17,7 +17,7 @@ function [Ind,FlagUnique,FlagFound]=search_sortedlat_multi(Cat,Long,Lat,Radius,F
 %          * ...,key,val,...
 %            'UseMex' - A logical indicating if to use the binarySearch mex
 %                   program instead of tools.find.mfind_bin
-%                   Default is true.
+%                   Default is false.
 % Output : - A strucure array in which the number of elements equal to the
 %            number of searched coordinates (Lat), and with the following
 %            fields:
@@ -47,7 +47,7 @@ arguments
     Radius
     FlagUnique                   = [];
     DistFun function_handle      = @celestial.coo.sphere_dist_fast; % @celestial.coo.sphere_dist_fast_threshDist; %@celestial.coo.sphere_dist_fast;
-    Args.DistFunArgs cell        = {}; %{4.8481e-5};   % 10 [arcsec] in radians
+    Args.DistFunArgs cell        = {};  %{4.8481e-5};   % 10 [arcsec] in radians
     Args.UseMex logical          = false;
 end
 

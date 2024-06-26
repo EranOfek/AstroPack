@@ -13,7 +13,7 @@ function Flag=isempty_cell(Cell, UseMex, UseMP)
 % Tested : Matlab 7.0
 %     By : Eran O. Ofek                    Apr 2007
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: Flag=Util.cell.isempty_cell({1, [], 'a'})
+% Example: Flag=tools.cell.isempty_cell({1, [], 'a'})
 % Reliable: 2
 %--------------------------------------------------------------------------
 

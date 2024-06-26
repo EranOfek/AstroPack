@@ -38,8 +38,8 @@ arguments
     Long
     Lat
     Radius
-    DistFun function_handle      = @celestial.coo.sphere_dist_fast;
-    Args.DistFunArgs cell        = {};
+    DistFun function_handle      = @celestial.coo.sphere_dist_fast; %@celestial.coo.sphere_dist_fast_threshDist; %@celestial.coo.sphere_dist_fast;
+    Args.DistFunArgs cell        = {}; %{4.8481e-5}; %{};
     Args.UseMex logical          = false;
 end
 
