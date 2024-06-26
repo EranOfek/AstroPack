@@ -30,6 +30,14 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
     % Author : Amir Sharon (April 2022)
     % Example: [X,V] = celestial.SolarSys.orbitIntegration([2451545 2451546],[1 1 1]',[0.001 0.001 0.001]')
     %          [X,V] = celestial.SolarSys.orbitIntegration([2451545 2451546],[1 2; 1 1; 1 3],[0.001 0.001; 0.001 0.001; -0.001 0.001])
+    %
+    %          Ts = 2460000;
+    %          Te = 2463000;
+    %          IN = celestial.INPOP.init;
+    %          [T,~,U] = celestial.SolarSys.getJPL_ephem('299;','EPHEM_TYPE','VECTORS','TimeScale','TT','StartTime',Ts,'StopTime',Te,'StepSize',100);
+    %          XJ  = celestial.INPOP.ecliptic_2eqJ2000([T.X.'; T.Y.'; T.Z.']);
+    %          VJ  = celestial.INPOP.ecliptic_2eqJ2000([T.VX.'; T.VY.'; T.VZ.']);
+    %          [X,V] = celestial.SolarSys.orbitIntegration([Ts Te],XJ(:,1), VJ(:,1), 'INPOP',IN);
 
     arguments
         JD
@@ -53,7 +61,7 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
         else
             Method = 'ode45';
         end
-        
+        %Method = 'ode45';
         %Method = 'rknmex';
         switch Method
             case 'ode45'
@@ -75,12 +83,12 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
 
                  X = X(end,:).';
                  V = V(end,:).';
-%             case 'rknmex'
-%                 [Times, X, V] = RKN_multithreaded(@(T,XVmat) odeSecondOrder(T,XVmat,Nobj,Args.INPOP, Args.TimeScale),...
-%                                                         [JD(1), JD(2)], X0, V0, Opts);
-% 
-%                  X = X(end,:).';
-%                  V = V(end,:).';
+            case 'rknmex'
+                [Times, X, V] = RKN_multithreaded(@(T,XVmat) odeSecondOrder(T,XVmat,Nobj,Args.INPOP, Args.TimeScale),...
+                                                        [JD(1), JD(2)], X0, V0, Opts);
+
+                 X = X(end,:).';
+                 V = V(end,:).';
             case 'ode15s'
                 InitialValues = [X0;V0];
                 
