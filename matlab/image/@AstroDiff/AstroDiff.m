@@ -1008,6 +1008,7 @@ classdef AstroDiff < AstroImage
 
                 Args.flagChi2 logical = true;
                 Args.Chi2dofLimits = [0.1 1.5];
+                Args.MinNRChi2dof = 0.1;
                 
                 Args.flagSaturated logical = true;
         
@@ -1040,8 +1041,12 @@ classdef AstroDiff < AstroImage
                 % --- AstroZOGY ---
                 Args.flagScorr logical = true;
                 Args.ScorrThreshold = 5.0;
-        
+                
                 Args.flagTranslients logical = true;
+                Args.TranslientCorrectionParam = 20;
+                Args.ignoreTranslient_NothingInRef = true;
+                Args.ignoreTranslient_GalaxyNuclear = true;
+                Args.TranslientGalaxyDistThresh = 3.0;
         
             end
 
@@ -1070,7 +1075,11 @@ classdef AstroDiff < AstroImage
                     'PeakDistThreshold', Args.PeakDistThreshold,...
                     'flagScorr', Args.flagScorr, ...
                     'ScorrThreshold', Args.ScorrThreshold,...
-                    'flagTranslients', Args.flagTranslients...
+                    'flagTranslients', Args.flagTranslients,...
+                    'TranslientCorrectionParam', Args.TranslientCorrectionParam,...
+                    'ignoreTranslient_NothingInRef', Args.ignoreTranslient_NothingInRef,...
+                    'ignoreTranslient_GalaxyNuclear', Args.ignoreTranslient_GalaxyNuclear,...
+                    'TranslientGalaxyDistThresh', Args.TranslientGalaxyDistThresh...                   
                     );
             end
         end
