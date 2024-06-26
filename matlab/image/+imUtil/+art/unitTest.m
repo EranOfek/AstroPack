@@ -206,7 +206,8 @@ function Result = FitRestoreSubtract(AI, Args)
     % make PSF photometry
     [AI, Res] = imProc.sources.psfFitPhot(AI);  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter   
     % model the shifted PSFs?
-%     [R, P] = imUtil.psf.fitFunPSF(double(Res.ShiftedPSF(:,:,1)), 'Funs',{@imUtil.kernel2.gauss ,@imUtil.kernel2.gauss}, 'Par0',{[2 2 0],[1 1 0]}, 'Norm0',[1 1], 'LsqOptions',OPTIONS);
+%     [R, P] = imUtil.psf.fitFunPSF(double(Res.ShiftedPSF(:,:,1)), 'Funs',{@imUtil.kernel2.gauss ,@imUtil.kernel2.gauss}, ...
+%         'Par0',{[2 2 0],[1 1 0]}, 'Norm0',[1 1], 'LsqOptions',OPTIONS); % add PosXY?         % 
 %     sqrt(R.ResNorm) % rms error ~ 8% ! 
     % null the negative values in the shifted PSF and renorm (?)
 %     Res.ShiftedPSF = Res.ShiftedPSF .* (Res.ShiftedPSF > 0);
