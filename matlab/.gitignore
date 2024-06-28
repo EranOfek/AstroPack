@@ -15,4 +15,4 @@ zfits/*
 
 # mex executables
 
-**/*.mexa64
+# **/*.mexa64
