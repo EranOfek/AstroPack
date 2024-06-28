@@ -74,6 +74,7 @@ function [Dist,Ang,PA]=sphere_dist_fast(RA_1,Dec_1,RA_2,Dec_2)
 
 % haversine formulae - faster and nore stable
 Dist = 2.*asin( sqrt(sin(0.5.*(Dec_2-Dec_1)).^2 + cos(Dec_1).*cos(Dec_2).*sin(0.5.*(RA_2-RA_1)).^2 ));
+
 Dist = real(Dist);
 
 

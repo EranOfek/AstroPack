@@ -24,6 +24,12 @@ function [Dist, Ang, PA] = sphere_dist_fast_threshDist(RA1, Dec1, RA2, Dec2, Thr
 
     N = numel(Dec2);
     Flag       = find(abs(Dec2-Dec1)<Thresh);
+    
+    % Trying to speed up - no sucess
+    %dRA = RA1 - RA2;
+    %AbsDRA = abs(dRA);
+    %Flag       = find(abs(Dec2-Dec1)<Thresh & (AbsDRA<(Thresh./cos(Dec1)) | AbsDRA>pi) );
+    
     Dist       = nan(N,1);
     Dist(Flag) = celestial.coo.sphere_dist_fast(RA1,Dec1, RA2(Flag),Dec2(Flag));
     
