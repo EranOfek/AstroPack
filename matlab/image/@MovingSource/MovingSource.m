@@ -361,7 +361,8 @@ classdef MovingSource < Component
             % Input  : - Either a a mat file name containing a MovingSource
             %            object, or a structure with a single field containing a
             %            MovingSource object, or an old format AstCrop
-            %            structure.
+            %            structure. Alternatively, a struct array (output
+            %            of dir) with folder and name fields per file.
             %            If empty, then will recursivly look for all mat file with
             %            specific template and upload them.
             %          * ...,key,val,...
@@ -405,6 +406,8 @@ classdef MovingSource < Component
             elseif ischar(InFile) || isstring(InFile)
                 Files(1).folder = pwd;
                 Files(1).name   = InFile;
+            elseif isstruct(InFile)
+                Files = InFile;
             else
                 error('Unkonwn InFile option');
             end
