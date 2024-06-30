@@ -51,6 +51,7 @@ classdef AstroPSF < Component
         DataVar           = [];    % variance 
         Scale             = [1 1]; % pixel oversampling in X and Y (may be different) 
         FunPSF            = [];    % PSF-generating function, e.g., Map = Fun(Data, X,Y, Color, Flux)
+        FunPars           = {};    % PSF functions parameters
         DimName cell      = {'Wave', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'}; % the standard set of dimensions, but may be changed 
                             % NB: if the names here are changed, the dimension names a user provides to getPSF need to be changed accordingly 
         DimVals cell      = repmat({0}, 1, 5); % ADD x/y values with oversampling...  axes according to DimName
@@ -217,8 +218,7 @@ classdef AstroPSF < Component
             % the requested positions according to the Args.InterpMethod method(s)
             %
             % Input : - An AstroPSF object (or a matrix of objects) 
-            %         * ...,key,val,...
-            %         'FunPSF' - a PSF-generating function handle
+            %         * ...,key,val,...            
             %         'StampSize' - An option to pad the PSF stamp [I, J]. 
             %         'fftpshift' - if padding is requested, whether to perform fft shift: 
             %                       'none' (default),'fftshift','ifftshift'
@@ -226,7 +226,8 @@ classdef AstroPSF < Component
             %                       a cell array of values (or value vectors) corresponding 
             %                       to each of the dimensions of PSF.DataPSF 
             %                       NB: the dynamic dimension names are stored in the DimName cell array
-            %         'FunArgs'   - optinal arguments to pass to FunPSF
+            %         'FunPSF'    - a PSF-generating function handle 
+            %         'FunPars'   - optinal arguments to pass to FunPSF
             %         'InterpMethod' - interpolation method (may be a cell array with different methods for each dimension)
             %         'Oversampling' - resample the output stamp to this value (if not empty) 
             %         'ReNorm'       - whether to renormalize the output PSF stamp
@@ -238,11 +239,11 @@ classdef AstroPSF < Component
             arguments
                 %                 Obj(1,1)
                 Obj
-                Args.FunPSF         = [];
                 Args.StampSize      = [];     % if Args.StampSize > size(Result), pad the stamp with 0s
                 Args.fftshift       = 'none'; % perform fftshift when padding ('none','fftshift','ifftshift')
                 Args.PsfArgs        = {};    % Example: {'Wave', 2800, 'PosX', [2 3]'}
-                Args.FunArgs        = {};
+                Args.FunPSF         = [];
+                Args.FunPars        = {};
                 Args.InterpMethod   = [];
                 Args.Oversampling   = [];
                 Args.ReNorm logical = true;
@@ -304,8 +305,8 @@ classdef AstroPSF < Component
                             Result = Int{Ndim+1};
                         end
                     end
-                else % pass the PSF cube to the FunPSF function
-                    Result = Args.FunPSF(Obj(IObj).DataPSF, Args.FunArgs{:});
+                else % generate a stamp with the FunPSF function
+                    Result = Args.FunPSF(Args.FunPars{:});
                 end                
                 % resample the output PSF stamp 
                 if ~isempty(Args.Oversampling)
