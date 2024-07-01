@@ -1446,7 +1446,7 @@ classdef MovingSource < Component
                     %[Iobj, Istamp]
                     if ~isempty(Obj(Iobj).Stamps(Istamp).Image)
                         Obj(Iobj).Stamps(Istamp) = imProc.background.background(Obj(Iobj).Stamps(Istamp), 'SubSizeXY',[]);
-                        [Iobj, Istamp]
+                        %[Iobj, Istamp]
                         [~, ResultPSF] = imProc.sources.psfFitPhot(Obj(Iobj).Stamps(Istamp), Args.psfFirPhotArgs{:}, 'FitRadius',Args.FitRadius);
                         
                         PSF = Obj(Iobj).Stamps(Istamp).PSFData.getPSF();

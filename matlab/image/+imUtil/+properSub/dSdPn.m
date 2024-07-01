@@ -43,24 +43,54 @@ function [DSDPn] = dSdPn(N_hat, R_hat, Pn_hat, Pr_hat, VarN, VarR, Args)
     end
 
     if isempty(N_hat)
-        Pr_hat = fft2(imUtil.kernel2.gauss(1.5));
-        Pn_hat = fft2(imUtil.kernel2.gauss(2));
+        Pr     = imUtil.kernel2.gauss(1.5);
+        Pn     = imUtil.kernel2.gauss(2);
+        Pr_hat = fft2(Pr);
+        Pn_hat = fft2(Pn);
         Back   = 100;
         R      = poissrnd(Back.*ones(size(Pr_hat)));
         N      = poissrnd(Back.*ones(size(Pn_hat)));
         R_hat  = fft2(R);
-        N_hat  = fft2(N+imUtil.kernel2.gauss(1.5));
+        N_hat  = fft2(N); %+imUtil.kernel2.gauss(1.5));
         VarN   = Back;
         VarR   = Back;
+        Fn     = 1;
+        Fr     = 1;
         Args.IsOutFFT = false;
-        [S] = imUtil.properSub.subtractionS(N_hat, R_hat, Pn_hat, Pr_hat, sqrt(VarN), sqrt(VarR), 1, 1, 'IsOutFFT',false);
+        
     end
+
+
+    Pn     = imUtil.kernel2.gauss(2);
+    Pn_hat = fft2(Pn);
+    [S] = imUtil.properSub.subtractionS(N_hat, R_hat, Pn_hat, Pr_hat, sqrt(VarN), sqrt(VarR), 1, 1, 'IsOutFFT',false);
+    S   = S./std(S,[],'all');
+
+    Pn  = Pn.*1.001;
+    Pn_hat = fft2(Pn);
+    [S1] = imUtil.properSub.subtractionS(N_hat, R_hat, Pn_hat, Pr_hat, sqrt(VarN), sqrt(VarR), 1, 1, 'IsOutFFT',false);
+    S1   = S1./std(S1,[],'all');
+
+    S1-S
+
+
+    error('NOT CORRECT');
 
     AbsPn2 = Args.AbsFun(Pn_hat).^2;
     AbsPr2 = Args.AbsFun(Pr_hat).^2;
     RealPn = real(Pn_hat);
 
+    % THIS IS NOT CORRECT
+    % propagate the derivative of fft
     DSDPn = (AbsPr2.*(N_hat.*VarN.*AbsPr2 + N_hat.*VarR.*AbsPn2 - 2.*N_hat.*VarR.*RealPn.*conj(Pn_hat) - 2.*R_hat.*VarN.*RealPn.*conj(Pr_hat)))./(VarN.*AbsPr2 + VarR.*AbsPn2 + Args.Eps).^2;
+
+    %if Args.Rel2S
+    %FD = 1./sqrt(VarN + VarR);
+        S_hat = (Fn.*Fr.^2.*conj(Pn_hat)*abs(Pr_hat).^2.*N_hat - Fr.*Fn.^2.*conj(Pr_hat)*abs(Pn_hat).^2.*R_hat)./(Fn.^2.*VarR*abs(Pn_hat).^2 + Fr.^2.*VarN.*abs(Pr_hat).^2);
+
+        S = real(ifft2(S_hat));
+        std(S,[],'all')
+    %end
 
     if ~Args.IsOutFFT
         DSDPn = ifft2(DSDPn);
