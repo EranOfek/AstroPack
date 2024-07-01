@@ -265,10 +265,14 @@ function TranCat=findTransients(AD, Args)
 
             Ntran = size(TranCat.Table,1);
 
-            for Itran = Ntran:-1:1
-                Dists = sqrt((XY(Itran,1) - XY(:,1)).^2+(XY(Itran,2) - XY(:,2)).^2);
-                SignFlip = ~(sign(Score(Itran)) == sign(Score));
-                MinDists(Itran,1) = min(Dists(SignFlip));
+            if min(sign(Score)) == max(sign(Score))
+                MinDists = NaN(Ntran,1);
+            else
+                for Itran = Ntran:-1:1
+                    Dists = sqrt((XY(Itran,1) - XY(:,1)).^2+(XY(Itran,2) - XY(:,2)).^2);
+                    SignFlip = ~(sign(Score(Itran)) == sign(Score));
+                    MinDists(Itran,1) = min(Dists(SignFlip));   
+                end
             end
 
             TranCat(Iobj) = TranCat(Iobj).insertCol(cast(MinDists,'double'), ...
