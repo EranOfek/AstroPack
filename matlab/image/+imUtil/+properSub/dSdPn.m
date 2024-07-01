@@ -1,5 +1,7 @@
 function [DSDPn] = dSdPn(N_hat, R_hat, Pn_hat, Pr_hat, VarN, VarR, Args)
     % Calculate the dS/dP_n (Fn=Fr=1) derivative for ZOGY subtraction.
+    %   The calculation corresponds to S_hat variations in response to
+    %   Pn_hat variations.
     % Input  : - N_hat (Fourier Transform of new image).
     %            N, R, Pn, Pr can be either matrices or cubes in which the
     %            image index is in the 3rd dimension (see example).
@@ -21,7 +23,8 @@ function [DSDPn] = dSdPn(N_hat, R_hat, Pn_hat, Pr_hat, VarN, VarR, Args)
     %            'IsOutFFT' - A logical indicating if the output S, D and Pd
     %                   are ffted (true) or in regular space (false).
     %                   Default is true.
-    % Output : - dS/dP_n
+    % Output : - dS/dP_n - Be careful this is unnormalized.
+    %            Normalization the same as S is needed.
     % Author : Eran Ofek (2024 Jul) 
     % Example: DS=imUtil.properSub.dSdPn; 
 

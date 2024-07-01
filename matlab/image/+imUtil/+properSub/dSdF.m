@@ -22,7 +22,8 @@ function [DSDFn] = dSdF(N_hat, R_hat, Pn_hat, Pr_hat, VarN, VarR, Fr, Args)
     %            'IsOutFFT' - A logical indicating if the output S, D and Pd
     %                   are ffted (true) or in regular space (false).
     %                   Default is true.
-    % Output : - dS/dFn (for Fr=1).
+    % Output : - dS/dFn (for Fr=1). Be careful this is unnormalized.
+    %            Normalization the same as S is needed.
     % Author : Eran Ofek (2024 Jun) 
     % Example: 
 
