@@ -54,6 +54,7 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
     if JD(1)~=JD(2)
         Nobj = size(X0,2);
         
+        % BUG : NOT UPDATED!
         Opts = odeset('RelTol',Args.RelTol, 'AbsTol',Args.AbsTol);
 
         if size(X0,2)==1
@@ -64,6 +65,7 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
         %Method = 'ode45';
         %Method = 'rknmex';
         %Method = 'rkn1210'
+        %Method = 'rkn86';
         switch Method
             case 'ode45'
                 InitialValues = [X0;V0];
@@ -81,6 +83,12 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
 
                 [Times, X, V] = tools.math.ode.rkn1210(@(T,XVmat) odeSecondOrder(T,XVmat,Nobj,Args.INPOP, Args.TimeScale),...
                                                         [JD(1), JD(2)], X0, V0, Opts);
+
+                % Here we have a problem:
+                % In cases in which the force is large (distance is small)
+                % this function fails, but ode45 works well.
+                % Need to modify rkn1210 such that it will return NaN in
+                % finte time and in these cases ode45 will be used.
 
                  X = X(end,:).';
                  V = V(end,:).';
@@ -143,6 +151,6 @@ function DXDt = odeSecondOrder(T,XVmat,Nobj, ObjINPOP, TimeScale)
     else
         DXDt(1:3,:) = ObjINPOP.forceAll(T, XVmat(1:3,:), 'IsEclipticOut',false, 'OutUnits','au', 'TimeScale',TimeScale);
     end
-    
+    %DXDt
 
 end

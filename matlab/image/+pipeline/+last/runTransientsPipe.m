@@ -36,8 +36,8 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         Args.SavePath = VisitPath;
         Args.Product = {'Image','Mask','Cat','PSF'};
         Args.WriteHeader = [true, false, true, false];
-        Args.AddMeta = true;
-        Args.SameTelOnly = true;
+        Args.AddMeta logical = true;
+        Args.SameTelOnly logical = true;
     end
 
     % Find New image coadds and load

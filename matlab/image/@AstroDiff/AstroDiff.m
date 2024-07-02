@@ -930,6 +930,8 @@ classdef AstroDiff < AstroImage
             Flag transients candidates that are likely not real transients.
             Input  : - An AstroDiff object in which CatData is populated.
                      * ...,key,val,...
+                       'flagValleys' - Bool on whether to flag negative
+                               candidates. Default is true.
                        'flagChi2' - Bool on whether to flag transients candidates
                               based on how well the PSF fits to a stamp on the transient.
                               The goodness value is a Chi2 per degrees of freedom.
@@ -937,6 +939,10 @@ classdef AstroDiff < AstroImage
                        'Chi2dofLimits' - Limits on Chi2 per degrees of freedom. If
                               'filterChi2' is true, all transients candidates outside these
                               limits are flagged. Default is [0.1 1.5].
+                       'MinNRChi2dof' - Lower limit on Chi2 per degrees of freedom
+                              for New and Ref images. Condition requires that in
+                              at least one of the images, the source is not
+                              overfitted. Only one image, New or Ref, has to pass.
                        'flagSaturated' - Bool on whether to flag transients 
                               candidates that are saturated in both reference and 
                               new images. Default is true.
@@ -961,8 +967,6 @@ classdef AstroDiff < AstroImage
                               image. Default is true.
                        'SNRThreshold' - Threshold for the signal-to-noise ratio
                               filter. Default is 5.0.
-                       'SNRCol' - Name of the column holding the signal-to-noise
-                              ratio values. Default is 'PSF_SNm'.
                        'flagStarMatches' - Bool on whether to flag transients
                               candidates that have matching star positions.
                               Default is true.
@@ -992,10 +996,37 @@ classdef AstroDiff < AstroImage
                               true.
                        'PeakDistThreshold' - Threshold distance for the pixel to
                               sub-pixel peak distance filter. Default is 1.5.
+                       'PeakDistThresholdGal' - Threshold distance for the pixel to
+                              sub-pixel peak distance filter if cnadidate has a 
+                              galaxy match. Default is 2.0.
+                       'flagLimitingMag' - Bool on whether to flag candidates that
+                              are above the limiting magnitude. Candidate is
+                              filteres if it is above limiting magnitude in New
+                              and Ref. Default is true.
+                       'LimitingMagOverwriteVal' - Static magnitude value to use 
+                              as the limiting magnitude. If NaN, magnitude instead
+                              is read from the image header. Default is NaN.
+                       'flagPeakValley' - Bool on whether to flag candidates that
+                              are peaks (valleys) and are too close to valleys 
+                              (peaks). A peak is a candidate with a positive
+                              signal and a valley is a candidate with a negative
+                              signal. Default is true.
+                       'PVDistThresh' - Distance threshold in pixels between 
+                              peaks and valleys below which to flag candidates. 
+                              Default is 10.
                        --- AstroZOGY ---
                        'flagTranslients' - Bool on whether to flag transients 
                               candidates which score higher in Z2 than S2.
                               Default is true.
+                       'ignoreTranslient_NothingInRef' - Do not flag candidates
+                              for translient if source is not detected in the
+                              reference image. Default is true.
+                       'ignoreTranslient_GalaxyNuclear' - Do not flag candidates
+                              for translient if source is matched to a galaxy and 
+                              close to the nucleus. Default is true.
+                       'TranslientGalaxyDistThresh' - Threshold distance from galaxy
+                              below which not to apply transient flagging.
+                              Default is 3.0.
                        'flagScorr' - Bool on whether to flag candidates based on 
                               source noise corrected S statistic. Default is true.
                        'ScorrThreshold' - Threshold value for Scorr. Default is 5.0.
@@ -1005,6 +1036,8 @@ classdef AstroDiff < AstroImage
 
             arguments
                 Obj
+
+                Args.flagValleys logical = true;
 
                 Args.flagChi2 logical = true;
                 Args.Chi2dofLimits = [0.1 1.5];
@@ -1023,7 +1056,6 @@ classdef AstroDiff < AstroImage
         
                 Args.flagSNR logical = true;
                 Args.SNRThreshold = 5.0;
-                Args.SNRCol = 'PSF_SNm';
         
                 Args.flagStarMatches logical = true;
                 Args.flagMP logical = true;
@@ -1037,7 +1069,14 @@ classdef AstroDiff < AstroImage
         
                 Args.flagPeakDist logical = true;
                 Args.PeakDistThreshold = 1.5;
-        
+                Args.PeakDistThresholdGal = 2.0;
+    
+                Args.flagLimitingMag logical = true;
+                Args.LimitingMagOverwriteVal = NaN;
+
+                Args.flagPeakValley logical = true;
+                Args.PVDistThresh = 10;
+                
                 % --- AstroZOGY ---
                 Args.flagScorr logical = true;
                 Args.ScorrThreshold = 5.0;
@@ -1054,8 +1093,10 @@ classdef AstroDiff < AstroImage
 
             for Iobj=1:1:Nobj
                 Obj(Iobj).CatData = imProc.sub.flagNonTransients(Obj(Iobj),...
+                    'flagValleys', Args.flagValleys,...
                     'flagChi2',Args.flagChi2,...
                     'Chi2dofLimits',Args.Chi2dofLimits,...
+                    'MinNRChi2dof',Args.MinNRChi2dof,...
                     'flagSaturated', Args.flagSaturated,...
                     'flagBadPix_Hard', Args.flagBadPix_Hard,...
                     'BadPix_Hard', Args.BadPix_Hard,...
@@ -1065,7 +1106,6 @@ classdef AstroDiff < AstroImage
                     'flagMP', Args.flagMP, ...
                     'flagSNR', Args.flagSNR,...
                     'SNRThreshold', Args.SNRThreshold,...
-                    'SNRCol', Args.SNRCol,...
                     'flagRinging', Args.flagRinging, ...
                     'flagDensity', Args.flagDensity,...
                     'NeighborDistanceThreshold', Args.NeighborDistanceThreshold,...
@@ -1073,6 +1113,11 @@ classdef AstroDiff < AstroImage
                     'ExcludedNeigbhors', Args.ExcludedNeigbhors, ...
                     'flagPeakDist', Args.flagPeakDist,...
                     'PeakDistThreshold', Args.PeakDistThreshold,...
+                    'PeakDistThresholdGal', Args.PeakDistThresholdGal,...
+                    'flagLimitingMag', Args.flagLimitingMag,...
+                    'LimitingMagOverwriteVal', Args.LimitingMagOverwriteVal,...
+                    'flagPeakValley', Args.flagPeakValley,...
+                    'PVDistThresh',  Args.PVDistThresh,...
                     'flagScorr', Args.flagScorr, ...
                     'ScorrThreshold', Args.ScorrThreshold,...
                     'flagTranslients', Args.flagTranslients,...

@@ -3,6 +3,8 @@ function TranCat = flagNonTransients(Obj, Args)
     Flag transients candidates that are likely not real transients. 
     Input   : - An AstroDiff object in which CatData is populated.
               * ...,key,val,...
+                'flagValleys' - Bool on whether to flag negative
+                       candidates. Default is true.
                 'flagChi2' - Bool on whether to flag transients candidates
                        based on how well the PSF fits to a stamp on the transient.
                        The goodness value is a Chi2 per degrees of freedom.
@@ -10,6 +12,11 @@ function TranCat = flagNonTransients(Obj, Args)
                 'Chi2dofLimits' - Limits on Chi2 per degrees of freedom. If
                        'filterChi2' is true, all transients candidates outside these
                        limits are flagged. Default is [0.1 1.5].
+                'MinNRChi2dof' - Lower limit on Chi2 per degrees of freedom
+                       for New and Ref images. Condition requires that in
+                       at least one of the images, the source is not
+                       overfitted. Only one image, New or Ref, has to pass.
+                       Default is 0.1.
                 'flagSaturated' - Bool on whether to flag transients 
                        candidates that are saturated in both reference and 
                        new images. Default is true.
@@ -34,8 +41,6 @@ function TranCat = flagNonTransients(Obj, Args)
                        image. Default is true.
                 'SNRThreshold' - Threshold for the signal-to-noise ratio
                        filter. Default is 5.0.
-                'SNRCol' - Name of the column holding the signal-to-noise
-                       ratio values. Default is 'PSF_SNm'.
                 'flagStarMatches' - Bool on whether to flag transients
                        candidates that have matching star positions.
                        Default is true.
@@ -65,11 +70,37 @@ function TranCat = flagNonTransients(Obj, Args)
                        true.
                 'PeakDistThreshold' - Threshold distance for the pixel to
                        sub-pixel peak distance filter. Default is 1.5.
+                'PeakDistThresholdGal' - Threshold distance for the pixel to
+                       sub-pixel peak distance filter if cnadidate has a 
+                       galaxy match. Default is 2.0.
+                'flagLimitingMag' - Bool on whether to flag candidates that
+                       are above the limiting magnitude. Candidate is
+                       filteres if it is above limiting magnitude in New
+                       and Ref. Default is true.
+                'LimitingMagOverwriteVal' - Static magnitude value to use 
+                       as the limiting magnitude. If NaN, magnitude instead
+                       is read from the image header. Default is NaN.
+                'flagPeakValley' - Bool on whether to flag candidates that
+                       are peaks (valleys) and are too close to valleys 
+                       (peaks). A peak is a candidate with a positive
+                       signal and a valley is a candidate with a negative
+                       signal. Default is true.
+                'PVDistThresh' - Distance threshold in pixels between 
+                       peaks and valleys below which to flag candidates. 
+                       Default is 10.
                 --- AstroZOGY ---
                 'flagTranslients' - Bool on whether to flag transients 
                        candidates which score higher in Z2 than S2.
                        Default is true.
-                'ignoreTranslient_NothingInRef' - 
+                'ignoreTranslient_NothingInRef' - Do not flag candidates
+                       for translient if source is not detected in the
+                       reference image. Default is true.
+                'ignoreTranslient_GalaxyNuclear' - Do not flag candidates
+                       for translient if source is matched to a galaxy and 
+                       close to the nucleus. Default is true.
+                'TranslientGalaxyDistThresh' - Threshold distance from galaxy
+                       below which not to apply transient flagging.
+                       Default is 3.0.
                 'flagScorr' - Bool on whether to flag candidates based on 
                        source noise corrected S statistic. Default is true.
                 'ScorrThreshold' - Threshold value for Scorr. Default is 5.0.
@@ -85,6 +116,8 @@ function TranCat = flagNonTransients(Obj, Args)
 
     arguments
         Obj AstroDiff
+    
+        Args.flagValleys logical = true;
 
         Args.flagChi2 logical = true;
         Args.Chi2dofLimits = [0.1 1.5];
@@ -103,7 +136,6 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagSNR logical = true;
         Args.SNRThreshold = 5.0;
-        Args.SNRCol = 'PSF_SNm';
 
         Args.flagStarMatches logical = true;
         Args.flagMP logical = true;
@@ -120,8 +152,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.PeakDistThresholdGal = 2.0;
 
         Args.flagLimitingMag logical = true;
-        Args.LimitingMagOverwrite logical = false;
-        Args.LimitingMagOverwriteVal = 20.5;
+        Args.LimitingMagOverwriteVal = NaN;
 
         Args.flagPeakValley logical = true;
         Args.PVDistThresh = 10;
@@ -148,62 +179,69 @@ function TranCat = flagNonTransients(Obj, Args)
         % negated for rows with rejected candidates.
         CatSize = size(Cat.Catalog,1);
 
+        % Skip empty catalogs
         if CatSize < 1
             TranCat = Cat;
             continue
         end
 
+        % Initialize transients bool
         IsTransient = true(CatSize,1);
+
+        % Flag negative candidates
+        if Args.flagValleys
+            Score = Cat.getCol('Score');
+
+            IsTransient = IsTransient & ~(Score < 0.0);
+        end
 
         % Apply Chi2 per degrees of freedom criterium.
         if Args.flagChi2 && Cat.isColumn('D_Chi2dof')
             DChi2 = Cat.getCol('D_Chi2dof');
-            NChi2 = Cat.getCol('N_Chi2dof');
-            RChi2 = Cat.getCol('R_Chi2dof');
             GoodChi2dofD = (DChi2 > Args.Chi2dofLimits(1)) &...
                 (DChi2 < Args.Chi2dofLimits(2));
-            GoodChi2dofNR = (NChi2 > Args.MinNRChi2dof) |...
-                (RChi2 > Args.MinNRChi2dof);
-            GoodChi2dof = GoodChi2dofD & GoodChi2dofNR;
+            GoodChi2dof = GoodChi2dofD;
+
+            % Demand also that in at least New or Ref, 
+            % the candidate is not overfitted
+            if Cat.isColumn('N_Chi2dof') && Cat.isColumn('R_Chi2dof')
+                NChi2 = Cat.getCol('N_Chi2dof');
+                RChi2 = Cat.getCol('R_Chi2dof');
+                GoodChi2dofNR = (NChi2 > Args.MinNRChi2dof) |...
+                    (RChi2 > Args.MinNRChi2dof);
+                GoodChi2dof = GoodChi2dofD & GoodChi2dofNR;            
+            end
+
             Obj(Iobj).CatData.insertCol(cast(~GoodChi2dof,'double'), ...
                 'Score', {'NotPSFLike'}, {''});
             IsTransient = IsTransient & GoodChi2dof;
         end
     
         % Apply bit mask critera.
-        if (Args.flagBadPix_Hard || Args.flagBadPix_Soft || ...
-                Args.flagSaturated) && Cat.isColumn('NewMaskVal')
+        if (Args.flagBadPix_Hard || Args.flagBadPix_Soft || Args.flagSaturated) && ...
+                (Cat.isColumn('NewMaskVal') && Cat.isColumn('RefMaskVal'))
             BD = BitDictionary('BitMask.Image.Default');
-            BM_new = BD.bitdec2name(Cat.getCol('NewMaskVal'));
-            BM_ref = BD.bitdec2name(Cat.getCol('RefMaskVal'));
+            BM_new = Cat.getCol('NewMaskVal');
+            BM_ref = Cat.getCol('RefMaskVal');
         end
 
-        % Apply StN threshold criteria for saturated candidates.
-        if Args.flagSaturated && Cat.isColumn('NewMaskVal') && ...
-                Cat.isColumn('PSF_SNm')
+        % Apply criterium for saturated candidates.
+        if Args.flagSaturated && exist('BD','var')
 
-            FlagSrcNoiseDom_New = cell2mat(cellfun(@(c) any(strcmp(c, ...
-                'Saturated')), BM_new, 'UniformOutput', false));
-
-            FlagSrcNoiseDom_Ref = cell2mat(cellfun(@(c) any(strcmp(c, ...
-                'Saturated')), BM_ref, 'UniformOutput', false));
+            FlagSrcNoiseDom_New = BD.findBit(BM_new,'Saturated');
+            FlagSrcNoiseDom_Ref = BD.findBit(BM_ref,'Saturated');
             
             % Check if candidates are saturated in New and Ref, flag these.
             SaturatedInBoth = FlagSrcNoiseDom_New & FlagSrcNoiseDom_Ref;
-            % Check if candidates are saturated in New but not Ref, flag
-            % these if StN is below threshold.
-            SaturatedOnlyInNew = FlagSrcNoiseDom_New & ~FlagSrcNoiseDom_Ref;
-
-            PassesSaturated = ~SaturatedInBoth | SaturatedOnlyInNew;
 
             Obj(Iobj).CatData.insertCol(cast(SaturatedInBoth,'double'), ...
                 'Score', {'Saturated'}, {''});
-            IsTransient = IsTransient & PassesSaturated;
+            IsTransient = IsTransient & ~SaturatedInBoth;
 
         end
 
-        % Hard bit mask criteria.
-        if Args.flagBadPix_Hard && Cat.isColumn('NewMaskVal')
+        % Apply hard bit mask criteria.
+        if Args.flagBadPix_Hard && exist('BD','var')
 
             NBadHard = numel(Args.BadPix_Hard);
 
@@ -214,11 +252,9 @@ function TranCat = flagNonTransients(Obj, Args)
     
             for IBad=1:1:NBadHard
                 FlagBadHard_New = FlagBadHard_New | ...
-                    cell2mat(cellfun(@(c) any(strcmp(c, Args.BadPix_Hard(IBad))), ...
-                BM_new, 'UniformOutput', false));
+                    BD.findBit(BM_new, Args.BadPix_Hard(IBad));
                 FlagBadHard_Ref = FlagBadHard_Ref | ...
-                    cell2mat(cellfun(@(c)any(strcmp(c, Args.BadPix_Hard(IBad))), ...
-                BM_ref, 'UniformOutput', false));
+                    BD.findBit(BM_ref, Args.BadPix_Hard(IBad));
             end
 
             BadHardIdx = FlagBadHard_New | FlagBadHard_Ref;
@@ -228,10 +264,11 @@ function TranCat = flagNonTransients(Obj, Args)
                 'Score', {'BadPixel_Hard'}, {''});
         end
 
-        % Soft bit mask criteria.
-        if Args.flagBadPix_Soft && Cat.isColumn('NewMaskVal')
+        % Apply soft bit mask criteria.
+        if Args.flagBadPix_Soft && exist('BD','var') && Cat.isColumn('PSF_SNm')
 
             NBadSoft = numel(Args.BadPix_Soft);
+
             % New bit mask values.
             FlagBadSoft_New = false(CatSize,1);
             % Reference bit mask values.
@@ -241,14 +278,12 @@ function TranCat = flagNonTransients(Obj, Args)
                 IBadPix_Soft = Args.BadPix_Soft{IBad};
 
                 FlagBadSoft_New = FlagBadSoft_New | ...
-                    (cell2mat(cellfun(@(c)any(strcmp(c, IBadPix_Soft{1})), ...
-                BM_new, 'UniformOutput', false)) & ...
+                    (BD.findBit(BM_new, IBadPix_Soft{1}) & ...
                 abs(Cat.getCol('Score')) < IBadPix_Soft{2} & ...
                 abs(Cat.getCol('PSF_SNm')) < IBadPix_Soft{3});
 
                 FlagBadSoft_Ref = FlagBadSoft_Ref | ...
-                    (cell2mat(cellfun(@(c)any(strcmp(c, IBadPix_Soft{1})), ...
-                BM_ref, 'UniformOutput', false)) & ...
+                    (BD.findBit(BM_ref, IBadPix_Soft{1})& ...
                 abs(Cat.getCol('Score')) < IBadPix_Soft{2} & ...
                 abs(Cat.getCol('PSF_SNm')) < IBadPix_Soft{3});
             end
@@ -261,10 +296,12 @@ function TranCat = flagNonTransients(Obj, Args)
 
         end
 
+        % Flag stars as non-transients
         if Args.flagStarMatches && Cat.isColumn('StarMatches')
-            StarMatches = (Cat.getCol('StarMatches') > 0.0);
-            IsStar = StarMatches;
-            if Cat.isColumn('GalaxyMatches')
+            IsStar = (Cat.getCol('StarMatches') > 0.0);
+
+            % Relax flagging for galaxy-star confusion
+            if Cat.isColumn('StarDist') && Cat.isColumn('GalaxyDist')
                 StarDist = Cat.getCol('StarDist');
                 GalaxyDist = Cat.getCol('GalaxyDist');
                 ExcludeGalaxy = GalaxyDist < 1.3*StarDist;
@@ -279,11 +316,13 @@ function TranCat = flagNonTransients(Obj, Args)
             IsTransient = IsTransient & ~IsStar;
         end
 
-        if Args.flagMP && Cat.isColumn('DistMP_new')
+        % Flag minor planets as non-transients
+        if Args.flagMP && Cat.isColumn('DistMP_new') && Cat.isColumn('DistMP_ref')
             IsTransient = IsTransient & isnan(Cat.getCol('DistMP_new'));
             IsTransient = IsTransient & isnan(Cat.getCol('DistMP_ref'));
         end
         
+        % Apply ringing criterium
         if Args.flagRinging && Cat.isColumn('GaborSN')
             GaborSN = Cat.getCol('GaborSN');
             Score = Cat.getCol('Score');
@@ -295,15 +334,18 @@ function TranCat = flagNonTransients(Obj, Args)
                 'Score', {'IsRinging'}, {''});
         end
 
-        if Args.flagSNR && Cat.isColumn(Args.SNRCol)
-            SNR = Cat.getCol(Args.SNRCol);
+        % Apply signal to noise criterium
+        if Args.flagSNR && Cat.isColumn('PSF_SNm')
 
+            SNR = Cat.getCol('PSF_SNm');
             SNRBelowThresh = (SNR < Args.SNRThreshold);
+
             Obj(Iobj).CatData.insertCol(cast(SNRBelowThresh,'double'), ...
                 'Score', {'SNRBelowThresh'}, {''});
             IsTransient = IsTransient & ~SNRBelowThresh;
         end
 
+        % Apply density criterium
         if Args.flagDensity
 
             XY = Cat.getXY;
@@ -361,7 +403,7 @@ function TranCat = flagNonTransients(Obj, Args)
             LimitingMagVal_N = Args.LimitingMagOverwriteVal;
             LimitingMagVal_R = Args.LimitingMagOverwriteVal;
 
-            if ~Args.LimitingMagOverwrite
+            if isnan(Args.LimitingMagOverwriteVal)
                 LimitingMagVal_N = Obj(Iobj).New.HeaderData.getVal('LIMMAG');
                 LimitingMagVal_R = Obj(Iobj).Ref.HeaderData.getVal('LIMMAG');
             end
