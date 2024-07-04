@@ -2904,9 +2904,9 @@ classdef DemonLAST < Component
                                 if numel(ResultAsteroids)>200
                                     % number of asteroids is too large -
                                     % probably a problem - skip
-                                    clear ResultAsteroids;
                                     Status = sprintf('ResultAsteroids contains %d asteroid candidates - likely a problem (not saved)',numel(ResultAsteroids));
                                     Obj.writeLog(Status, LogLevel.Info);
+                                    clear ResultAsteroids;
                                 else
                                     SaveAst.MP = ResultAsteroids;
                                     [~,~,Status]=imProc.io.writeProduct(SaveAst, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
