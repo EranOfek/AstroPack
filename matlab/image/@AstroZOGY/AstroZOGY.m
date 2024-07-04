@@ -28,6 +28,9 @@ classdef AstroZOGY < AstroDiff
         Pd_hat
         S_hat
         
+        S_delta   % S for delta function response
+        S_ext     % S for extended PSF response
+        
         DSDFn
 
         D_den_hat
@@ -642,6 +645,19 @@ classdef AstroZOGY < AstroDiff
             %            'PopSflux' - Populate Sflux (i.e., S prior to
             %                   normalization).
             %                   Default is true.
+            %            'PosS_delta' - Populate the S_delta property
+            %                   (i.e., the statistics for delta function).
+            %                   Default is false.
+            %            'PosS_ext' - - Populate the S_ext property
+            %                   (i.e., the statistics for extended PSF).
+            %                   Default is false.
+            %            'ExtendedFun' - function handle for generating the
+            %                   extending function (for S_ext calculation).
+            %                   Of the form: Stamp = F(pars, sizeXY)
+            %                   Default is @imUtil.kernel2.gauss
+            %            'ExtendedFunArgs' - Parameters to pass to the
+            %                   ExtendedFun.
+            %                   Default is 0.5.
             %
             % Output : - An AstroDiff object in which S and optional S_hat
             %            are normalize.
@@ -658,11 +674,29 @@ classdef AstroZOGY < AstroDiff
                 Args.PopS2 logical           = true;
                 Args.PopSflux logical        = true;
                 
+                Args.PopS_delta logical      = false;
+                Args.PopS_ext logical        = false;
+                
+                Args.ExtendedFun function_handle = @imUtil.kernel2.gauss;
+                Args.ExtendedFunArgs             = [0.5];
             end
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 S_hat_I           = Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
+                
+                if Args.PopS_delta
+                    Obj(Iobj).S_delta = ifft2(Obj(Iobj).D_hat);
+                end
+                if Args.PopS_ext
+                    PSF         = Obj(Iobj).PSFData.getPSF;
+                    ExtendedFun = Args.ExtendedFun(Args.ExtendedFunArgs, size(PSF));
+                    ExtPSF      = conv2(PSF, ExtendedFun, 'same');
+                    FullExtPSF  = imUtil.psf.padShift(ExtPSF, size(Obj(Iobj).Image));
+                    
+                    Obj(Iobj).S_ext = ifft2(Obj(Iobj).D_hat.*conj(fft2(FullExtPSF)));
+                end
+                
                 if Args.PopS_hat
                     Obj(Iobj).S_hat = S_hat_I;
                 end
@@ -681,6 +715,19 @@ classdef AstroZOGY < AstroDiff
                                                                       'K',1,...
                                                                       'Fun2Prob',[],...
                                                                       'Prob2Sig',false);
+                            if Args.PopS_delta
+                                Obj(Iobj).S_delta = imUtil.image.normalize(Obj(Iobj).S_delta, 'PreDef',Args.NormMethod,...
+                                                                      'K',1,...
+                                                                      'Fun2Prob',[],...
+                                                                      'Prob2Sig',false);
+                            end
+                            if Args.PosS_ext
+                                Obj(Iobj).S_ext = imUtil.image.normalize(Obj(Iobj).S_ext, 'PreDef',Args.NormMethod,...
+                                                                      'K',1,...
+                                                                      'Fun2Prob',[],...
+                                                                      'Prob2Sig',false);
+                            end
+                                
                         case 'chi2'
                             % Nomalize using S^2
                             Obj(Iobj).S = imUtil.image.normalize(Obj(Iobj).S, 'PreDef',Args.NormMethod,...
@@ -688,6 +735,21 @@ classdef AstroZOGY < AstroDiff
                                                                       'IfChi2_Sq',true,...
                                                                       'Fun2Prob',@chi2cdf,...
                                                                       'Prob2Sig',true);
+                            if Args.PopS_delta                  
+                                Obj(Iobj).S_delta = imUtil.image.normalize(Obj(Iobj).S_delta, 'PreDef',Args.NormMethod,...
+                                                                      'K',1,...
+                                                                      'IfChi2_Sq',true,...
+                                                                      'Fun2Prob',@chi2cdf,...
+                                                                      'Prob2Sig',true);
+                            end
+                            if Args.PopS_ext                  
+                                Obj(Iobj).S_ext = imUtil.image.normalize(Obj(Iobj).S_ext, 'PreDef',Args.NormMethod,...
+                                                                      'K',1,...
+                                                                      'IfChi2_Sq',true,...
+                                                                      'Fun2Prob',@chi2cdf,...
+                                                                      'Prob2Sig',true);
+                            end
+                            
                         case 'none'
                             % do nothing
                         otherwise
