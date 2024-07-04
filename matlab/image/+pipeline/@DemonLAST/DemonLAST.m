@@ -2665,6 +2665,11 @@ classdef DemonLAST < Component
                 GUI_Text = sprintf('Abort : Pipeline');
                 [StopGUI, Hstop]  = tools.gui.stopButton('Msg',GUI_Text);
             end
+            
+            % set Logger log file 
+            Obj.setLogFile('HostName',Args.HostName);
+            Obj.writeLog('******* pipeline.DemonLAST started ********', LogLevel.Info);
+                
 
             JDlastCalib = 0;
             Cont = true;
@@ -2672,9 +2677,6 @@ classdef DemonLAST < Component
                 % Notify watchdog that process is running 
                 tools.systemd.mex.notify_watchdog;
 
-                % set Logger log file 
-                Obj.setLogFile('HostName',Args.HostName);
-                Obj.writeLog('******* pipeline.DemonLAST started ********', LogLevel.Info);
                 
                 Obj.HostName = Args.HostName;
 
