@@ -53,7 +53,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
         Args.UseSlash logical          = true;
 
         Args.EdgesFactor               = 0.5;
-        Args.OverSampling              = 0.3;
+        Args.OverSampling              = 0.1;
         Args.LogNhistFromPeak          = 1.8; %2;  % assymetric [left, right]
 
         Args.MinNbin1                  = 7;   % minimum number of bins in the 1st log iteration

@@ -1657,6 +1657,7 @@ classdef FileNames < Component
             I2       = [I1(2:end); N];
             Ngr      = numel(I1);
             K = 0;
+            Groups = [];
             for Igr=1:1:Ngr
                 Ind = (I1(Igr):I2(Igr));
                 if numel(Ind)>=Args.MinInGroup
@@ -1671,9 +1672,13 @@ classdef FileNames < Component
             Ngr = numel(Groups);
 
             if nargout>1
-                Result = FileNames(Ngr);
-                for Igr=1:1:Ngr
-                    Result(Igr) = Obj.reorderEntries(Groups(Igr).Ind, 'CreateNewObj',true);
+                if isempty(Groups)
+                    Result = [];
+                else
+                    Result = FileNames(Ngr);
+                    for Igr=1:1:Ngr
+                        Result(Igr) = Obj.reorderEntries(Groups(Igr).Ind, 'CreateNewObj',true);
+                    end
                 end
             end
 

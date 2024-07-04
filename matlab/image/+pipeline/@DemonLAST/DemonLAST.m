@@ -1981,63 +1981,68 @@ classdef DemonLAST < Component
                     [~, FN_Dark_Groups] = groupByCounter(FN_Dark, 'MinInGroup',Args.MinInGroup);
                     
                     Ngr = numel(FN_Dark_Groups);
-                    for Igr=1:1:Ngr
-                        DarkList = FN_Dark_Groups(Igr).genFull([]);
-                    
-                    
-                        % prepare master bias
-                        CI = CalibImages;
-                        
-                        CI.createBias(DarkList, 'BiasArgs',Args.BiasArgs, 'Convert2single',true);
-        
-                        % save processed bias images in raw/ dir
-                        
-                        %readFromHeader(FN_Dark_Groups(Igr), CI.Bias)
-                        
-                        
-                        %Obj = readFromHeader(, Input, DataProp
-                        
-                        % check if bias/dark is good
-                        if Obj.checkMasterDark(CI.Bias)
-                        
-                            % write file
-                            JD = CI.Bias.julday;
-                            FN_Master = FileNames;
-                            FN_Master.readFromHeader(CI.Bias);
-                            FN_Master.Type     = {'dark'};
-                            FN_Master.Level    = {'proc'};
-                            FN_Master.Product  = {'Image'};
-                            FN_Master.Version  = [1];
-                            FN_Master.FileType = {'fits'};    
-            
-                            % values for LAST dark images
-                            FN_Master.FieldID  = {''};
-                            FN_Master.Counter  = {''};
-                            FN_Master.CCDID    = {''};
-                            FN_Master.CropID   = {''};
-                            FN_Master.ProjName = FN_Dark.ProjName{1};
-            
-                            if ~isfolder(Obj.CalibPath)
-                                mkdir(Obj.CalibPath);
+                    if Ngr>0
+                        for Igr=1:1:Ngr
+                            DarkList = FN_Dark_Groups(Igr).genFull([]);
+
+
+                            % prepare master bias
+                            CI = CalibImages;
+
+                            CI.createBias(DarkList, 'BiasArgs',Args.BiasArgs, 'Convert2single',true);
+
+                            % save processed bias images in raw/ dir
+
+                            %readFromHeader(FN_Dark_Groups(Igr), CI.Bias)
+
+
+                            %Obj = readFromHeader(, Input, DataProp
+
+                            % check if bias/dark is good
+                            if Obj.checkMasterDark(CI.Bias)
+
+                                % write file
+                                JD = CI.Bias.julday;
+                                FN_Master = FileNames;
+                                FN_Master.readFromHeader(CI.Bias);
+                                FN_Master.Type     = {'dark'};
+                                FN_Master.Level    = {'proc'};
+                                FN_Master.Product  = {'Image'};
+                                FN_Master.Version  = [1];
+                                FN_Master.FileType = {'fits'};    
+
+                                % values for LAST dark images
+                                FN_Master.FieldID  = {''};
+                                FN_Master.Counter  = {''};
+                                FN_Master.CCDID    = {''};
+                                FN_Master.CropID   = {''};
+                                FN_Master.ProjName = FN_Dark.ProjName{1};
+
+                                if ~isfolder(Obj.CalibPath)
+                                    mkdir(Obj.CalibPath);
+                                end
+
+                                FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                                write1(CI.Bias, FileN{1}, 'Image');
+                                FN_Master.Product  = {'Mask'};
+                                FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                                write1(CI.Bias, FileN{1}, 'Mask');
+                                FN_Master.Product  = {'Var'};
+                                FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                                write1(CI.Bias, FileN{1}, 'Var');
+
+                                % keep in CI.Bias 
+                                Obj.CI.Bias = CI.Bias;
+
+                                if Args.ClearVar
+                                    Obj.CI.Bias.Var = [];
+                                end
                             end
-    
-                            FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                            write1(CI.Bias, FileN{1}, 'Image');
-                            FN_Master.Product  = {'Mask'};
-                            FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                            write1(CI.Bias, FileN{1}, 'Mask');
-                            FN_Master.Product  = {'Var'};
-                            FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                            write1(CI.Bias, FileN{1}, 'Var');
-                            
-                            % keep in CI.Bias 
-                            Obj.CI.Bias = CI.Bias;
-        
-                            if Args.ClearVar
-                                Obj.CI.Bias.Var = [];
-                            end
+
                         end
-                        
+                    else
+                        % read master image from disk
+                        Obj = Obj.loadCalib('ReadProduct',{'Bias'});
                     end
                 else
                     % read master image from disk
@@ -2193,63 +2198,69 @@ classdef DemonLAST < Component
                     [~, FN_Flat_Groups] = groupByTimeGaps(FN_Flat, 'MinInGroup',Args.MinInGroup);
                     
                     Ngr = numel(FN_Flat_Groups);
-                    for Igr=1:1:Ngr
-                        FlatList = FN_Flat_Groups(Igr).genFull([]);
-                    
-                    
-                        % prepare master flat
-                        
-                        % read the images
-                        AI = AstroImage(FlatList);
-    
-                        % subtract bias/dark
-                        if Args.Convert2single
-                            AI.cast('single');
-                        end
-                        AI = imProc.dark.debias(AI, Obj.CI.Bias, Args.debiasArgs{:});
-    
-                        CI = CalibImages;
-                        
-                        CI.createFlat(AI, 'FlatArgs',Args.FlatArgs, 'Convert2single',true);
-        
-                        % check if flat is good
-                        if Obj.checkMasterFlat(CI.Flat)
+                    if Ngr>0
+                        for Igr=1:1:Ngr
+                            FlatList = FN_Flat_Groups(Igr).genFull([]);
 
-                            % write file
-                            JD = CI.Flat.julday;
-                            FN_Master = FileNames;
-                            FN_Master.readFromHeader(CI.Flat);
-                            FN_Master.Type     = {'twflat'};
-                            FN_Master.Level    = {'proc'};
-                            FN_Master.Product  = {'Image'};
-                            FN_Master.Version  = [1];
-                            FN_Master.FileType = {'fits'};    
-            
-                            % values for LAST dark images
-                            FN_Master.FieldID  = {''};
-                            FN_Master.Counter  = {''};
-                            FN_Master.CCDID    = {''};
-                            FN_Master.CropID   = {''};
-                            FN_Master.ProjName = FN_Flat.ProjName{1};
-            
-            
-                            FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                            write1(CI.Flat, FileN{1}, 'Image', 'Overwrite',Args.OverWrite);
-                            FN_Master.Product  = {'Mask'};
-                            FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                            write1(CI.Flat, FileN{1}, 'Mask', 'Overwrite',Args.OverWrite);
-                            FN_Master.Product  = {'Var'};
-                            FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                            write1(CI.Flat, FileN{1}, 'Var', 'Overwrite',Args.OverWrite);
-                            
-                            % keep in CI.Bias 
-                            Obj.CI.Flat = CI.Flat;
-                            
-                            if Args.ClearVar
-                                Obj.CI.Flat.Var = [];
+
+                            % prepare master flat
+
+                            % read the images
+                            AI = AstroImage(FlatList);
+
+                            % subtract bias/dark
+                            if Args.Convert2single
+                                AI.cast('single');
+                            end
+                            AI = imProc.dark.debias(AI, Obj.CI.Bias, Args.debiasArgs{:});
+
+                            CI = CalibImages;
+
+                            CI.createFlat(AI, 'FlatArgs',Args.FlatArgs, 'Convert2single',true);
+
+                            % check if flat is good
+                            if Obj.checkMasterFlat(CI.Flat)
+
+                                % write file
+                                JD = CI.Flat.julday;
+                                FN_Master = FileNames;
+                                FN_Master.readFromHeader(CI.Flat);
+                                FN_Master.Type     = {'twflat'};
+                                FN_Master.Level    = {'proc'};
+                                FN_Master.Product  = {'Image'};
+                                FN_Master.Version  = [1];
+                                FN_Master.FileType = {'fits'};    
+
+                                % values for LAST dark images
+                                FN_Master.FieldID  = {''};
+                                FN_Master.Counter  = {''};
+                                FN_Master.CCDID    = {''};
+                                FN_Master.CropID   = {''};
+                                FN_Master.ProjName = FN_Flat.ProjName{1};
+
+
+                                FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                                write1(CI.Flat, FileN{1}, 'Image', 'Overwrite',Args.OverWrite);
+                                FN_Master.Product  = {'Mask'};
+                                FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                                write1(CI.Flat, FileN{1}, 'Mask', 'Overwrite',Args.OverWrite);
+                                FN_Master.Product  = {'Var'};
+                                FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
+                                write1(CI.Flat, FileN{1}, 'Var', 'Overwrite',Args.OverWrite);
+
+                                % keep in CI.Bias 
+                                Obj.CI.Flat = CI.Flat;
+
+                                if Args.ClearVar
+                                    Obj.CI.Flat.Var = [];
+                                end
                             end
                         end
+                    else
+                        % read master image from disk
+                        Obj = Obj.loadCalib('ReadProduct',{'Flat'});
                     end
+                    
                 else
                     % read master image from disk
                     Obj = Obj.loadCalib('ReadProduct',{'Flat'});
@@ -2654,6 +2665,11 @@ classdef DemonLAST < Component
                 GUI_Text = sprintf('Abort : Pipeline');
                 [StopGUI, Hstop]  = tools.gui.stopButton('Msg',GUI_Text);
             end
+            
+            % set Logger log file 
+            Obj.setLogFile('HostName',Args.HostName);
+            Obj.writeLog('******* pipeline.DemonLAST started ********', LogLevel.Info);
+                
 
             JDlastCalib = 0;
             Cont = true;
@@ -2661,9 +2677,6 @@ classdef DemonLAST < Component
                 % Notify watchdog that process is running 
                 tools.systemd.mex.notify_watchdog;
 
-                % set Logger log file 
-                Obj.setLogFile('HostName',Args.HostName);
-                Obj.writeLog('******* pipeline.DemonLAST started ********', LogLevel.Info);
                 
                 Obj.HostName = Args.HostName;
 
@@ -2891,9 +2904,9 @@ classdef DemonLAST < Component
                                 if numel(ResultAsteroids)>200
                                     % number of asteroids is too large -
                                     % probably a problem - skip
-                                    clear ResultAsteroids;
                                     Status = sprintf('ResultAsteroids contains %d asteroid candidates - likely a problem (not saved)',numel(ResultAsteroids));
                                     Obj.writeLog(Status, LogLevel.Info);
+                                    clear ResultAsteroids;
                                 else
                                     SaveAst.MP = ResultAsteroids;
                                     [~,~,Status]=imProc.io.writeProduct(SaveAst, FN_I, 'Product',{'Asteroids'}, 'WriteHeader',[false],...
