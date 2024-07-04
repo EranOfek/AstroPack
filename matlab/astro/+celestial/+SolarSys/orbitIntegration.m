@@ -64,7 +64,8 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
         end
         %Method = 'ode45';
         %Method = 'rknmex';
-        %Method = 'rkn1210'
+        %Method = 'rkn1210';
+        %Method = 'rkn1210vec';
         %Method = 'rkn86';
         switch Method
             case 'ode45'
@@ -79,6 +80,22 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
                                                        JD(1), JD(2), X0, V0, Args.RelTol);
                 X = X(end,:).';
                 V = V(end,:).';
+             case 'rkn1210vec'
+
+                [Times, X, V] = tools.math.ode.rkn1210(@(T,XVmat) odeSecondOrderVec(T,XVmat,Nobj,Args.INPOP, Args.TimeScale),...
+                                                        [JD(1), JD(2)], X0, V0, Opts);
+
+                % Here we have a problem:
+                % In cases in which the force is large (distance is small)
+                % this function fails, but ode45 works well.
+                % Need to modify rkn1210 such that it will return NaN in
+                % finte time and in these cases ode45 will be used.
+
+                X = X(end,:).';
+                V = V(end,:).';
+                X = reshape(X,[],Nobj);
+                V = reshape(V,[],Nobj);  
+                 
             case 'rkn1210'
 
                 [Times, X, V] = tools.math.ode.rkn1210(@(T,XVmat) odeSecondOrder(T,XVmat,Nobj,Args.INPOP, Args.TimeScale),...
@@ -120,6 +137,7 @@ end
 
 
 
+
 function DXVDt = odeDirectVectorized(T,XVmat,Nobj, ObjINPOP, TimeScale)
     % DXVDt - elements 1:3 contains:
     %           \dot{X} = V
@@ -142,6 +160,23 @@ function DXVDt = odeDirectVectorized(T,XVmat,Nobj, ObjINPOP, TimeScale)
     DXVDt = DXVDt(:);
 end
 
+function DXDt = odeSecondOrderVec(T,XVmat,Nobj, ObjINPOP, TimeScale)
+    %
+    
+    XVmat = reshape(XVmat, [], Nobj);
+    DXDt = zeros(size(XVmat));
+    X = XVmat(1:3, :);
+    
+    % Second derivatives calcualtion
+    if isempty(ObjINPOP)
+        DXDt(1:3, :) = celestial.SolarSys.ple_force(X,T,'EqJ2000',true);
+    else
+        DXDt(1:3, :) = ObjINPOP.forceAll(T,X,'IsEclipticOut',false,'OutUnits','au','TimeScale',TimeScale);
+    end
+    
+    DXDt = DXDt(:);
+    
+end
 
 function DXDt = odeSecondOrder(T,XVmat,Nobj, ObjINPOP, TimeScale)
     %
