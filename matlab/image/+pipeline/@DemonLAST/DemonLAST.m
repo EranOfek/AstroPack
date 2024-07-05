@@ -2669,16 +2669,14 @@ classdef DemonLAST < Component
             % set Logger log file 
             Obj.setLogFile('HostName',Args.HostName);
             Obj.writeLog('******* pipeline.DemonLAST started ********', LogLevel.Info);
-                
+            Obj.HostName = Args.HostName;
 
             JDlastCalib = 0;
             Cont = true;
             while Cont
                 % Notify watchdog that process is running 
                 tools.systemd.mex.notify_watchdog;
-
-                
-                Obj.HostName = Args.HostName;
+   
 
                 if Args.RegenCalib
                     % prep Master dark and move to raw/ dir
@@ -2717,11 +2715,18 @@ classdef DemonLAST < Component
                 FlagJD = FN_JD>Args.StartJD & FN_JD<Args.EndJD;
                 FN_Sci = reorderEntries(FN_Sci, FlagJD);
 
+                % group images by counter
                 [~, FN_Sci_Groups] = FN_Sci.groupByCounter('MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
+
+                % sort groups by JD (be default last observed group is
+                % first)
                 FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
+
+                % number of groups
                 Ngroup = numel(FN_Sci_Groups);
                 
-                
+                % select group for analysis
+           
 
                 % check if need to wait for additional images
                 if numel(FN_Sci_Groups)==1
