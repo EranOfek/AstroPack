@@ -2508,7 +2508,7 @@ classdef DemonLAST < Component
                 Args.CamNumber     = [];             % Camera number: 1|2|3|4
                 Args.TempRawSci    = '*_sci_raw_*.fits';   % file name template to search
                 Args.NewSubDir     = 'new';          % new sub dir
-                Args.MinInGroup    = 5;              % min. number of images in visit/group to analyze.
+                Args.MinInGroup    = 10;              % min. number of images in visit/group to analyze.
                 Args.MaxInGroup    = 20;             % max. number of images in visit/group to analyze.
                 Args.SortDirection = 'descend';      % 'ascend'|'descend' - analyze last image first
                 Args.AbortFileName = '~/abortPipe';  % if this file exit, then abort.
@@ -2530,7 +2530,7 @@ classdef DemonLAST < Component
                 Args.FocusTreatment  = 'move';           % 'move'|'keep'|'delete' 
                 Args.TempRawFocus    = '*_focus_raw_*.fits';
 
-                Args.MinNumImageVisit  = 5;
+                Args.MinNumImageVisit  = 10;
                 Args.PauseDay          = 100;
                 Args.PauseNight        = 30;
 
@@ -2733,25 +2733,27 @@ classdef DemonLAST < Component
                     % wait
                     Nfiles1    = FN_Sci_Groups.nfiles;
 
-                    % wait for 20 s X number of images needed to finish the
-                    % visit:
-                    pause((1+Args.MaxInGroup - Nfiles1).*20); % Note: assuming 20s exposures
+                    if Nfiles1<Args.MaxInGroup
+                        % wait for 20 s X number of images needed to finish the
+                        % visit:
+                        pause((1+Args.MaxInGroup - Nfiles1).*20); % Note: assuming 20s exposures
 
-                    % look for new images
-                    FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci, 'FullPath',false);
-                    [FN_Sci] = selectBy(FN_Sci, 'Product', 'Image', 'CreateNewObj',false);
-                    [FN_Sci] = selectBy(FN_Sci, 'Type', {'sci','science'}, 'CreateNewObj',false);
-                    [FN_Sci] = selectBy(FN_Sci, 'Level', 'raw', 'CreateNewObj',false);
+                        % look for new images
+                        FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci, 'FullPath',false);
+                        [FN_Sci] = selectBy(FN_Sci, 'Product', 'Image', 'CreateNewObj',false);
+                        [FN_Sci] = selectBy(FN_Sci, 'Type', {'sci','science'}, 'CreateNewObj',false);
+                        [FN_Sci] = selectBy(FN_Sci, 'Level', 'raw', 'CreateNewObj',false);
 
 
-                    % select observations by date
-                    FN_JD  = FN_Sci.julday;
-                    FlagJD = FN_JD>Args.StartJD & FN_JD<Args.EndJD;
-                    FN_Sci = reorderEntries(FN_Sci, FlagJD);
+                        % select observations by date
+                        FN_JD  = FN_Sci.julday;
+                        FlagJD = FN_JD>Args.StartJD & FN_JD<Args.EndJD;
+                        FN_Sci = reorderEntries(FN_Sci, FlagJD);
 
-                    [~, FN_Sci_Groups] = FN_Sci.groupByCounter('MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
-                    FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
-                    Ngroup = numel(FN_Sci_Groups);
+                        [~, FN_Sci_Groups] = FN_Sci.groupByCounter('MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
+                        FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
+                        Ngroup = numel(FN_Sci_Groups);
+                    end
 
                     StartGroup = 1;
                 else
