@@ -2726,10 +2726,9 @@ classdef DemonLAST < Component
                 Ngroup = numel(FN_Sci_Groups);
                 
                 % select group for analysis
-           
-
+               
                 % check if need to wait for additional images
-                if numel(FN_Sci_Groups)==1
+                if Ngroup==1
                     % Only one potential visit was found - check if need to
                     % wait
                     Nfiles1    = FN_Sci_Groups.nfiles;
@@ -2754,8 +2753,12 @@ classdef DemonLAST < Component
                     FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
                     Ngroup = numel(FN_Sci_Groups);
 
+                    StartGroup = 1;
+                else
+                    StartGroup = 2;
                 end
 
+                % consider removing this block
                 MaxNfiles = max(FN_Sci_Groups.nfiles);
                 if MaxNfiles<=Args.MinNumImageVisit
                     Msg{1} = sprintf('Waiting for more images to analyze (Found %d images)',MaxNfiles);
@@ -2780,7 +2783,7 @@ classdef DemonLAST < Component
                 end
                 
 
-                for Igroup=1:1:Ngroup
+                for Igroup=StartGroup:1:Ngroup
                     % Notify watchdog that process is running 
                     tools.systemd.mex.notify_watchdog;
 
