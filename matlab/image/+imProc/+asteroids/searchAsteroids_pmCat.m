@@ -203,6 +203,8 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         Args.BitDicMergedCat              = BitDictionary('BitMask.MergedCat.Default');
 
         Args.LinkAst logical              = false;
+        
+        Args.MaxNumAst  = 10;
     end
     
     Args.PM_Radius   = convert.angular(Args.PM_RadiusUnits, 'deg', Args.PM_Radius); % deg
@@ -285,14 +287,24 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
             
             AstInd   = find(Flags(Icat).All);
             NastCand = numel(AstInd);
+            
+            if NastCand>Args.MaxNumAst
+                % select only top /best asteroids according to Tdist
+                % Note that the other criteria still applies so the number
+                % of selected asteroids may be smaller than Args.MaxNumAst
+                Nsrc = sum(~isnan(PM_TdistProb));
+                Flags(Icat).All = Flags(Icat).All & PM_TdistProb>quantile(PM_TdistProb, (Nsrc - Args.MaxNumAst)./Nsrc);
+                AstInd   = find(Flags(Icat).All);
+                NastCand = numel(AstInd);
+            end
 
             % Linking objects
             % Since PM epoch is the same for all objects
             % this involves only comparing the position of sources
             [RA, Dec] = CatPM(Icat).getLonLat('rad', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec); % [rad]
             % select only the asteroid candidates
-            CandRA  = RA(Flags(Icat).All);
-            CandDec = Dec(Flags(Icat).All);
+            CandRA  = RA(AstInd);
+            CandDec = Dec(AstInd);
 
             LinkedAstIndex       = 0;
             LinkedColumn         = nan(Nsrc, 1);  % nan - no PM | negative/unique(not necessely continous) - asteroid w/o links | >0 - asteroid with links
