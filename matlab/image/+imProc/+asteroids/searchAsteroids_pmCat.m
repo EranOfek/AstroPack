@@ -292,7 +292,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
                 % select only top /best asteroids according to Tdist
                 % Note that the other criteria still applies so the number
                 % of selected asteroids may be smaller than Args.MaxNumAst
-                Nsrc = sum(~isnan(PM_TdistProb));
+                Nsrc = numel(PM_TdistProb);
                 Flags(Icat).All = Flags(Icat).All & PM_TdistProb>quantile(PM_TdistProb, (Nsrc - Args.MaxNumAst)./Nsrc);
                 AstInd   = find(Flags(Icat).All);
                 NastCand = numel(AstInd);
