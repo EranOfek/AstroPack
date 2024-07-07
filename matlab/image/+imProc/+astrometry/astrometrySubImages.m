@@ -154,6 +154,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
             if ResultFit(Iim).Nsolutions==0
                 % astrometry failed - try another sub image
                 % switch order in SI
+                % and also set FilterCat to false
                 SItemp = SI;
 
                 SI(1) = SItemp(2);
@@ -178,7 +179,8 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
                                                                                                      'RefRangeMag',Args.RefRangeMag,...
                                                                                                      'SearchRadius',Args.SearchRadius,...
                                                                                                      'FilterSigma',Args.FilterSigma,...
-                                                                                                     Args.astrometryCoreArgs{:});
+                                                                                                     Args.astrometryCoreArgs{:},...
+                                                                                                     'FilterCat',false);
             end
 
                                                                                                  

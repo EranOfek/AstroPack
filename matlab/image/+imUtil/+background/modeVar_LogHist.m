@@ -58,6 +58,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
 
         Args.MinNbin1                  = 7;   % minimum number of bins in the 1st log iteration
         
+        Args.VarSqrtFactor             = 1.2;   % if Var/Mode is failed - estimate Var from Mode0*VarSqrtFactor
     end
     
     %OrigArray = Array;
@@ -127,7 +128,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
 
     %Ind   = Nhist(:)>1 & BinCenter(:)<Mode0.*1.3;
     
-    Ind       = Nhist>(MaxNhist - Args.LogNhistFromPeak);
+    Ind       = Nhist>(MaxNhist - Args.LogNhistFromPeak); % & BinCenter.'<(Mode0.*1.3);
     Nhist = Nhist(Ind);
     BinCenter = BinCenter(Ind);
     
@@ -152,7 +153,12 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     Mode  = Mode0 - Par(2)./(2.*Par(1));
     Var = -0.5./Par(1);
     if Var<0
-        error('Unable to find Var (Var is negative) - need to debug: Mode=%f   Var=%f',Mode,Var);
+        % use Mode from hsitogram
+        Mode = Mode0;
+        % For variance, assume Poisson noise
+        Var  = Mode.*Args.VarSqrtFactor;
+
+        %error('Unable to find Var (Var is negative) - need to debug: Mode=%f   Var=%f',Mode,Var);
     end
     
 

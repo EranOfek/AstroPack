@@ -126,6 +126,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %                   Default is true.
     %            'KeyRA' - RA header keyword to update. Default is 'RA'.
     %            'KeyDec' - Dec header keyword to update. Default is 'DEC'.
+    %            'FilterCat' - Filter stars in catalog according to stellar
+    %                   density. Default is true.
     % Output : - A structure array of results.
     %            Element per input catalog.
     %            Available fields are:
@@ -232,6 +234,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.UpdateHeaderCoo logical      = true;
         Args.KeyRA                        = 'RA';
         Args.KeyDec                       = 'DEC';
+
+        Args.FilterCat logical            = true;
     end
     RAD         = 180./pi;
     ARCSEC_DEG  = 3600;
@@ -364,7 +368,9 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
 %         FlagSN = SN>100;
 %         Cat.Catalog = Cat.Catalog(FlagSN,:);
         
-        [FilteredCat, FilteredProjAstCat] = imProc.cat.filterForAstrometry(FilteredCat, ProjAstCat,...
+
+        if Args.FilterCat
+            [FilteredCat, FilteredProjAstCat] = imProc.cat.filterForAstrometry(FilteredCat, ProjAstCat,...
                                                                                     'ColCatX',Args.CatColNamesX,...
                                                                                     'ColCatY',Args.CatColNamesY,...
                                                                                     'ColCatMag',Args.CatColNamesMag,...
@@ -374,6 +380,9 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                                                                                     'CreateNewObj',false,...
                                                                                     Args.argsFilterForAstrometry{:});
 
+        else
+            FilteredProjAstCat = ProjAstCat;
+        end
 
         % The Ref catalog is projected around some center that should coincide
         % with the center of Cat.
