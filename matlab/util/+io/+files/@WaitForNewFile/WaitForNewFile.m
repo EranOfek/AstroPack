@@ -1,5 +1,5 @@
 % io.files.WaitForNewFile class
-%       Wait for new files in linux OS
+% A class for fast recursive search of files with some criteria, including files created after some reference file.
 %       
 %
 % Examples:
