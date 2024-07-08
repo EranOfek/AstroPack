@@ -144,7 +144,7 @@ classdef MatchedSources < Component
     
     methods (Static) % static read
         function Obj = read(FileName, Args)
-            % read mat file or HDF5 file containing MatchedSources
+            % OBSOLETE - read mat file or HDF5 file containing MatchedSources
             %   Each dataset in the hdf5 file will be read into a matrix
             %   with the same name in the Data property.
             % Input  : - A file name.
