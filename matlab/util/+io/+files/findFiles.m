@@ -1,5 +1,5 @@
 function [F] = findFiles(Template, Args)
-    % Find files using various criteria
+    % Find files using various criteria (UNIX only).
     %   Criterai including:
     %   File were not modified in the past Args.NotModified minutes
     %   Were created after the TouchFile
