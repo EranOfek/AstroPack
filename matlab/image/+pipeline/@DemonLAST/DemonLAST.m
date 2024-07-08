@@ -2793,7 +2793,7 @@ classdef DemonLAST < Component
                     tools.systemd.mex.notify_watchdog;
 
                     % for each visit
-                    if FN_Sci_Groups(Igroup).nfiles>Args.MinNumImageVisit
+                    if FN_Sci_Groups(Igroup).nfiles>=Args.MinNumImageVisit
 
 
                         % set Logger log file 
