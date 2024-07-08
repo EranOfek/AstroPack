@@ -2254,12 +2254,15 @@ classdef DemonLAST < Component
                                 if Args.ClearVar
                                     Obj.CI.Flat.Var = [];
                                 end
-                            end
+                            end % if Obj.checkMasterFlat(CI.Flat)
+                        end % for Igr=1:1:Ngr
+                        if isempty(FN_Master)
+                            Obj = Obj.loadCalib('ReadProduct',{'Flat'});
                         end
                     else
                         % read master image from disk
                         Obj = Obj.loadCalib('ReadProduct',{'Flat'});
-                    end
+                    end % if Ngr>0
                     
                 else
                     % read master image from disk
@@ -2361,7 +2364,7 @@ classdef DemonLAST < Component
                 Args.MedianRange  = [0.95 1.05];
                 Args.RStdRange    = [0.01 0.05];
                 Args.StdRange     = [0 1];
-                Args.MaxNaN       = 20000;
+                Args.MaxNaN       = 40000;
                 Args.MaxAbsGrad   = 0.05;
                 Args.MaxNmaxGrad  = 50000;
             end
@@ -2790,7 +2793,7 @@ classdef DemonLAST < Component
                     tools.systemd.mex.notify_watchdog;
 
                     % for each visit
-                    if FN_Sci_Groups(Igroup).nfiles>Args.MinNumImageVisit
+                    if FN_Sci_Groups(Igroup).nfiles>=Args.MinNumImageVisit
 
 
                         % set Logger log file 
