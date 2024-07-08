@@ -1,6 +1,5 @@
 function [Result] = getTimeStamp(Time)
     % Get time stamp for now.
-    %     Optional detailed description
     % Input  : - datenum time. Default is now.
     % Output : - ISO time stamp.
     % Author : Eran Ofek (2024 Jul) 
