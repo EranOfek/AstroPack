@@ -1065,7 +1065,7 @@ classdef AstroDiff < AstroImage
                 Args.flagDensity logical = true;
                 Args.NeighborDistanceThreshold = 100;
                 Args.NeighborNumThreshold = 2;
-                Args.ExcludedNeigbhors = ["BadPixel_Hard","StarMatches"];
+                Args.ExcludedNeigbhors = ["BadPixel_Hard","STAR_N"];
         
                 Args.flagPeakDist logical = true;
                 Args.PeakDistThreshold = 1.5;
@@ -1084,7 +1084,7 @@ classdef AstroDiff < AstroImage
                 Args.flagTranslients logical = true;
                 Args.TranslientCorrectionParam = 20;
                 Args.ignoreTranslient_NothingInRef = true;
-                Args.ignoreTranslient_GalaxyNuclear = true;
+                Args.ignoreTranslient_GalaxyNuclear = false;
                 Args.TranslientGalaxyDistThresh = 1.0;
         
             end
@@ -1146,7 +1146,8 @@ classdef AstroDiff < AstroImage
 
             Nobj = numel(Obj);
             for Iobj=Nobj:-1:1
-                Transients = ~Obj(Iobj).CatData.getCol('LikelyNotTransient');
+                Flags = Obj(Iobj).CatData.getCol('FLAGS_TRANSIENT');
+                Transients = (Flags < 1.0);
                 TranCat(Iobj) = Obj(Iobj).CatData.selectRows(Transients);
                 NonTranCat(Iobj) = Obj(Iobj).CatData.selectRows(~Transients);
             end
@@ -1171,12 +1172,12 @@ classdef AstroDiff < AstroImage
             arguments
                 Obj
 
-                Args.removeCol = 'LikelyNotTransient';
+                Args.removeCol = 'FLAGS_TRANSIENT';
             end
 
             Nobj = numel(Obj);
             for Iobj=Nobj:-1:1
-                CatSize = size(Obj(Iobj).CatData.Catalog);
+                CatSize = size(Obj(Iobj).CatData.Catalog,1);
                 if CatSize < 1
                     AD(Iobj) = Obj(Iobj).copy();
                     continue
@@ -1186,7 +1187,12 @@ classdef AstroDiff < AstroImage
                     AD(Iobj) = Obj(Iobj).copy();
                     continue
                 end
-                Transients = ~Obj(Iobj).CatData.getCol(Args.removeCol);
+                if strcmp(Args.removeCol, 'FLAGS_TRANSIENT')
+                    Flags = Obj(Iobj).CatData.getCol('FLAGS_TRANSIENT');
+                    Transients = (Flags < 1.0);
+                else
+                    Transients = ~Obj(Iobj).CatData.getCol(Args.removeCol);
+                end
                 AD(Iobj) = Obj(Iobj).copy();
                 AD(Iobj).CatData = Obj(Iobj).CatData.selectRows(Transients);
             end
@@ -1361,7 +1367,11 @@ classdef AstroDiff < AstroImage
             end
 
             if Args.removeBadPixel_Hard
-                Objn = Obj.removeNonTransients('removeCol','BadPixel_Hard');
+                BD_TF = BitDictionary('BitMask.TransientsFilter.Default');
+                Flags = Obj.CatData.getCol('FLAGS_TRANSIENT');
+                BadPixelHard = BD_TF.findBit(Flags, 'BadPixelHard');
+                Objn = Obj.copy();
+                Objn.CatData = Objn.CatData.selectRows(~BadPixelHard);                
             else
                 Objn = Obj.copy();
             end
