@@ -576,7 +576,7 @@ classdef AstroDiff < AstroImage
                     Fr = Args.RefZP;
                 end
 
-                % convert to flx units
+                % convert to flux units
                 if Args.IsMagZP
                     % Note that there should be no "-" sign here
                     Fn     = 10.^(0.4.*Fn);
@@ -1085,7 +1085,7 @@ classdef AstroDiff < AstroImage
                 Args.TranslientCorrectionParam = 20;
                 Args.ignoreTranslient_NothingInRef = true;
                 Args.ignoreTranslient_GalaxyNuclear = true;
-                Args.TranslientGalaxyDistThresh = 3.0;
+                Args.TranslientGalaxyDistThresh = 1.0;
         
             end
 

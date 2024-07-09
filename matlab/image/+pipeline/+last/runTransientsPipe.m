@@ -25,7 +25,7 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
               - AstroDiff cutouts around each single transients candidate 
                 which passes the flagging criteria.
     Author  : Ruslan Konno (Jun 2024)
-    Example : VisitPath = '/path/to/visit_dir'
+    Example : VisitPath = '/path/to/visit/dir'
               [AD, ADc] = runTransientsPipe(VisitPath)
     %}
 

@@ -165,7 +165,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.TranslientCorrectionParam = 20;
         Args.ignoreTranslient_NothingInRef = true;
         Args.ignoreTranslient_GalaxyNuclear = true;
-        Args.TranslientGalaxyDistThresh = 3.0;
+        Args.TranslientGalaxyDistThresh = 1.0;
         
     end
 
