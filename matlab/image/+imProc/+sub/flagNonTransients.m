@@ -306,8 +306,8 @@ function TranCat = flagNonTransients(Obj, Args)
                 GalaxyDist = Cat.getCol('GAL_DIST');
                 ExcludeGalaxy = GalaxyDist < 1.3*StarDist;
 
-                if Cat.isColumn('R_SNm')
-                    R_SNm = Cat.getCol('R_SNm');
+                if Cat.isColumn('R_PSF_SNm')
+                    R_SNm = Cat.getCol('R_PSF_SNm');
                     Low_R_SNm = R_SNm < 5.0;
                     ExcludeGalaxy = ExcludeGalaxy & Low_R_SNm;
                 end
