@@ -19,7 +19,7 @@ function Result=writeMsg(Msg, Args)
 
     
     TimeStamp = tools.timeStamp.getTimeStamp(Args.Time);
-    Result = sprintf(FID,'%s %s\n',TimeStamp, Msg);
+    Result = sprintf('%s %s\n',TimeStamp, Msg);
     
     if ~isempty(Args.FileName)
         if isnumeric(Args.FileName)
