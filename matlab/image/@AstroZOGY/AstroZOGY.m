@@ -32,6 +32,7 @@ classdef AstroZOGY < AstroDiff
         S_ext     % S for extended PSF response
         
         DSDFn
+        DScorrDFn
 
         D_den_hat
         D_num_hat
@@ -186,14 +187,15 @@ classdef AstroZOGY < AstroDiff
 
             if isempty(Obj.DSDFn)
                 % DSDFn is not available - calculate
-                Obj.DSDFn = imUtil.properSub.dSdF(Obj.N_hat, Obj.R_hat, Obj.Pn_hat, Obj.Pr_hat, Obj.VarN, Obj.VarR, Obj.Fr, 'IsOutFFT',false);
+                Obj.DSDFn = imUtil.properSub.dSdF(Obj.N_hat, Obj.R_hat, ...
+                    Obj.Pn_hat, Obj.Pr_hat, Obj.VarN, Obj.VarR, ...
+                    Obj.Fr, 'IsOutFFT',false);
             else
                 % DSDFn is already available - use as is
             end
             Val = Obj.DSDFn;
-            
-
         end
+
     end
     
     methods % read/write
@@ -721,7 +723,7 @@ classdef AstroZOGY < AstroDiff
                                                                       'Fun2Prob',[],...
                                                                       'Prob2Sig',false);
                             end
-                            if Args.PosS_ext
+                            if Args.PopS_ext
                                 Obj(Iobj).S_ext = imUtil.image.normalize(Obj(Iobj).S_ext, 'PreDef',Args.NormMethod,...
                                                                       'K',1,...
                                                                       'Fun2Prob',[],...
@@ -921,6 +923,14 @@ classdef AstroZOGY < AstroDiff
 
                 Obj(Iobj).Scorr = Obj(Iobj).Sflux./sqrt(Vsrc + Vast);
 
+                
+                if Args.IncludeSourceNoise
+                    Obj(Iobj).DScorrDFn = imUtil.properSub.dScorrdF(Obj(Iobj).Sflux, ...
+                        Obj(Iobj).N_hat, Obj(Iobj).R_hat, Obj(Iobj).Pn_hat, Obj(Iobj).Pr_hat, ...
+                        Obj(Iobj).VarN, Obj(Iobj).VarR, Obj(Iobj).D_den_hat, ...
+                        VN, VR, Obj(Iobj).Fr);
+                end
+                
 
                 switch lower(Args.NormMethod(1:4))
                     case 'norm'
@@ -928,6 +938,12 @@ classdef AstroZOGY < AstroDiff
                                                                   'K',1,...
                                                                   'Fun2Prob',[],...
                                                                   'Prob2Sig',false);
+                        if Args.IncludeSourceNoise
+
+                            Obj(Iobj).DScorrDFn = imUtil.image.normalize( ...
+                                Obj(Iobj).DScorrDFn, 'PreDef',Args.NormMethod,...
+                                'K',1, 'Fun2Prob',[], 'Prob2Sig',false);
+                        end
                     case 'chi2'
                         % Nomalize using S^2
                         Obj(Iobj).Scorr = imUtil.image.normalize(Obj(Iobj).Scorr, 'PreDef',Args.NormMethod,...
