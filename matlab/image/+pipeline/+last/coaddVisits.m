@@ -63,7 +63,7 @@ function [CI, AI] = coaddVisits(In, Args)
 
     else
         List = In;
-        N    = numel(N);
+        N    = numel(List);
     end
 
     Ncrop = numel(Args.CropID);
@@ -79,11 +79,23 @@ function [CI, AI] = coaddVisits(In, Args)
         end
     end
 
+    % need background and variance due to a bug in coadd:
+    %AI = imProc.background.background(AI);
+
     % register and coadd
     for Icrop=1:1:Ncrop
         AI(:,Icrop) = imProc.transIm.interp2wcs(AI(:,Icrop),AI(1,Icrop));
+        %AI(:,Icrop) = imProc.transIm.interp2wcs(AI(:,Icrop),AI(1,Icrop), 'DataProp',{'Image','Back','Var','Mask'});
+
         CI(Icrop)   = imProc.stack.coadd(AI(:,Icrop), 'StackMethod',Args.StackMethod, 'StackArgs',Args.StackArgs);
         %CI(Icrop)   = imProc.stack.coaddW(AI(:,Icrop), 'StackMethod',Args.StackMethod, 'StackArgs',Args.StackArgs);
     end
 
+    if 1==0
+    CI=imProc.background.background(CI);                             
+    CI=imProc.sources.findMeasureSources(CI);
+    CI=imProc.astrometry.addCoordinates2catalog(CI,'OutUnits','deg');
+    CI=imProc.calib.photometricZP(CI);
+    end
+    
 end
