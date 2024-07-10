@@ -40,8 +40,8 @@ function match2Galaxies(Obj, Args)
         Args.RadiusPGC = 60;
         Args.RadiusPGCUnits = 'arcsec';
 
-        Args.ColNmatchName = 'GalaxyMatches';
-        Args.ColDistName = 'GalaxyDist';
+        Args.ColNmatchName = 'GAL_N';
+        Args.ColDistName = 'GAL_DIST';
 
         Args.MergeCols logical = true;
 
