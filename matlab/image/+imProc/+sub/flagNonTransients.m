@@ -328,8 +328,8 @@ function TranCat = flagNonTransients(Obj, Args)
         end
         
         % Apply ringing criterium
-        if Args.flagRinging && Cat.isColumn('GABOR_SN')
-            GaborSN = Cat.getCol('GABOR_SN');
+        if Args.flagRinging && Cat.isColumn('SN_GABOR')
+            GaborSN = Cat.getCol('SN_GABOR');
             Score = Cat.getCol('SCORE');
 
             IsRinging =  GaborSN > abs(Score);

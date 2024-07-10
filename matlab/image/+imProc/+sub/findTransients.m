@@ -279,7 +279,7 @@ function TranCat=findTransients(AD, Args)
             Size = size(AD(Iobj).GaborSN);
             GaborSN = AD(Iobj).GaborSN(sub2ind(Size,XY(:,2),XY(:,1)));
             TranCat(Iobj) = TranCat(Iobj).insertCol(cast(GaborSN,'double'), ...
-                'SCORE', {'GABOR_SN'}, {''});
+                'SCORE', {'SN_GABOR'}, {''});
         end
 
         if Args.includePVdist

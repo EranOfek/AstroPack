@@ -147,7 +147,7 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
         if ~isempty(AD(Iobj).GaborSN)
             [Gabor_max, ~, ~] = imUtil.properSub.findNearestPeakSig(AD(Iobj).GaborSN, ...
                 XY(:,1), XY(:,2), 2, 'RadiusTS', Args.RadiusTS);
-            AD(Iobj).CatData.replaceCol(Gabor_max,'GABOR_SN');
+            AD(Iobj).CatData.replaceCol(Gabor_max,'SN_GABOR');
         end
 
         % Insert derived properties into AD.CatData catalog
