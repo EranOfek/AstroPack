@@ -181,6 +181,9 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
     Nim = numel(ImObj);
 
     [ImageCube, BackCube, VarCube, MaskCube] = imProc.image.images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',IndexDim, 'DataProp',DataProp, 'DataPropIn',Args.DataPropIn, 'Cube',Args.Cube);
+
+    %DataProp                      = {'ImageData'};
+    %[ImageCube] = imProc.image.images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',IndexDim, 'DataProp',DataProp, 'DataPropIn',Args.DataPropIn, 'Cube',Args.Cube);
     
     if isa(ImageCube, 'ImageComponent')
         IsIC = true;

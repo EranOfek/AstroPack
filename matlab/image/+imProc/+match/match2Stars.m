@@ -47,8 +47,8 @@ function match2Stars(Obj, Args)
         Args.StarCat = [];
 
         Args.StarCatName = 'GAIADR3';
-        Args.ColNmatchName = 'StarMatches';
-        Args.ColDistName = 'StarDist';
+        Args.ColNmatchName = 'STAR_N';
+        Args.ColDistName = 'STAR_DIST';
 
         Args.ColBpMagGAIA  = 'phot_bp_mean_mag';
         Args.ColRpMagGAIA  = 'phot_rp_mean_mag';

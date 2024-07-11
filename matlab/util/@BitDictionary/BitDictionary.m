@@ -61,7 +61,7 @@ classdef BitDictionary < Component
                 end
                 
                 Options  = [8 16 32 64];
-                Obj.Nbit = Options(find(ceil(Nfn./Options)==1,1,'first'));
+                Obj.Nbit = Options(find(ceil(Nfn./Options)==1,1,'first'));  
                 switch Obj.Nbit
                     case 8
                         Obj.Class = @uint8;

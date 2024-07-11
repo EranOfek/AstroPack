@@ -1656,6 +1656,7 @@ classdef DemonLAST < Component
         function prepReferencesFromSingleBestDepthImage(Obj, Table, ResultFind, Args)
             %
             % Example: D.prepReferencesFromSingleBestDepthImage(OutTable, ResultFind);
+            %          D.prepReferencesFromSingleBestDepthImage(T, Res);
 
             arguments
                 Obj
@@ -1667,9 +1668,14 @@ classdef DemonLAST < Component
                 Args.Ncam    = 4;
             end
 
+            cd(Args.RefDir);
+            DirF = io.files.dirDir();
+            ExistingFI = str2double({DirF.name});
+
             Table.FieldID=str2double(Table.FieldID);
             
-            F = Table.JD>Args.MinJD & ~isnan(Table.FieldID);
+            F = Table.JD>Args.MinJD & ~isnan(Table.FieldID) & ...
+                (Table.JD<celestial.time.julday([30 5 2024]) | Table.JD>celestial.time.julday([10 6 2024]));
             
             Table = Table(F,:);
             ResultFind = ResultFind(F);
@@ -1678,25 +1684,30 @@ classdef DemonLAST < Component
             Nufi     = numel(UniqueFI);
             for Iufi=1:1:Nufi
                 % for each camera
-                for Icam=1:1:Args.Ncam
 
+                if ~any(UniqueFI(Iufi)==ExistingFI)
 
-                    Isel = find(Table.FieldID==UniqueFI(Iufi) & Table.CamNum==Icam);
-                    [~,Ibest] = max(Table.MedLimM(Isel));
-                    Iref = Isel(Ibest);
+                    for Icam=1:1:Args.Ncam
     
-                    if ~isempty(Iref)
-                        % copy the specific images to the reference images dir
-                        OriginPath = fullfile(ResultFind(Iref).BasePath, ResultFind(Iref).Year, ResultFind(Iref).Month, ResultFind(Iref).Day, 'proc', ResultFind(Iref).Visit);
-                        DestPath   = fullfile(Args.RefDir, ResultFind(Iref).FieldID);
-                  
-                        tools.os.cdmkdir(DestPath);
     
-                        cd(OriginPath);
-                        system(sprintf('cp LAST*_coadd_Image_1.fits %s%s.',DestPath,filesep));
-                        system(sprintf('cp LAST*_coadd_Mask_1.fits %s%s.',DestPath,filesep));
-                        system(sprintf('cp LAST*_coadd_PSF_1.fits %s%s.',DestPath,filesep));
-                        system(sprintf('cp LAST*_coadd_Cat_1.fits %s%s.',DestPath,filesep));
+                        Isel = find(Table.FieldID==UniqueFI(Iufi) & Table.CamNum==Icam);
+                        [~,Ibest] = max(Table.MedLimM(Isel));
+                        Iref = Isel(Ibest);
+        
+                        if ~isempty(Iref)
+                            % copy the specific images to the reference images dir
+                            OriginPath = fullfile(ResultFind(Iref).BasePath, ResultFind(Iref).Year, ResultFind(Iref).Month, ResultFind(Iref).Day, 'proc', ResultFind(Iref).Visit);
+                            DestPath   = fullfile(Args.RefDir, ResultFind(Iref).FieldID);
+                      
+                            tools.os.cdmkdir(DestPath);
+                            
+        
+                            cd(OriginPath);
+                            system(sprintf('cp LAST*_coadd_Image_1.fits %s%s.',DestPath,filesep));
+                            system(sprintf('cp LAST*_coadd_Mask_1.fits %s%s.',DestPath,filesep));
+                            system(sprintf('cp LAST*_coadd_PSF_1.fits %s%s.',DestPath,filesep));
+                            system(sprintf('cp LAST*_coadd_Cat_1.fits %s%s.',DestPath,filesep));
+                        end
                     end
                 end
             end
@@ -2836,6 +2847,7 @@ classdef DemonLAST < Component
 
 
                             % Instead of AI, it used to be: RawImageList
+                            tic;
                             [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
                                                                        Args.multiRaw2procCoaddArgs{:},...
                                                                        'SubDir',NaN,...
@@ -2847,6 +2859,7 @@ classdef DemonLAST < Component
                                                                        'INPOP',Args.INPOP,...
                                                                        'AsteroidSearchRadius',Args.AsteroidSearchRadius,...
                                                                        'HostName',Args.HostName);
+                            toc
 
                             % Notify watchdog that process is running 
                             tools.systemd.mex.notify_watchdog;
