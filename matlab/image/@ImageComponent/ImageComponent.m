@@ -799,7 +799,9 @@ classdef ImageComponent < Component
                     % DimIndex = 1
                     
                     for Iobj=1:1:Nobj
-                        Cube(:,:,Iobj) = Obj(Iobj).(Args.DataPropIn);
+                        if ~isempty(Obj(Iobj).(Args.DataPropIn))
+                            Cube(:,:,Iobj) = Obj(Iobj).(Args.DataPropIn);
+                        end
                     end
                     Cube = permute(Cube,[3 1 2]);
 

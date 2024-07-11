@@ -145,7 +145,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagDensity logical = true;
         Args.NeighborDistanceThreshold = 100;
         Args.NeighborNumThreshold = 2;
-        Args.ExcludedNeigbhors = ["BadPixel_Hard","StarMatches"];
+        Args.ExcludedNeigbhors = ["BadPixel_Hard","STAR_N"];
 
         Args.flagPeakDist logical = true;
         Args.PeakDistThreshold = 1.5;
@@ -164,12 +164,15 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagTranslients logical = true;
         Args.TranslientCorrectionParam = 20;
         Args.ignoreTranslient_NothingInRef = true;
-        Args.ignoreTranslient_GalaxyNuclear = true;
-        Args.TranslientGalaxyDistThresh = 3.0;
+        Args.ignoreTranslient_GalaxyNuclear = false;
+        Args.TranslientGalaxyDistThresh = 1.0;
         
     end
 
     Nobj = numel(Obj);
+
+    % Get transients filter bit dictionary
+    BD_TF = BitDictionary('BitMask.TransientsFilter.Default');
 
     for Iobj=Nobj:-1:1
         Cat = Obj(Iobj).CatData;
@@ -186,43 +189,45 @@ function TranCat = flagNonTransients(Obj, Args)
         end
 
         % Initialize transients bool
+        TF_Flags = zeros(CatSize,1);
         IsTransient = true(CatSize,1);
 
         % Flag negative candidates
         if Args.flagValleys
-            Score = Cat.getCol('Score');
+            Score = Cat.getCol('SCORE');
 
             IsTransient = IsTransient & ~(Score < 0.0);
+            ValleyFlagged = (Score < 0.0);
+            TF_Flags = TF_Flags + ValleyFlagged.*2.^BD_TF.name2bit('Negative');
         end
 
         % Apply Chi2 per degrees of freedom criterium.
-        if Args.flagChi2 && Cat.isColumn('D_Chi2dof')
-            DChi2 = Cat.getCol('D_Chi2dof');
+        if Args.flagChi2 && Cat.isColumn('CHI2DOF')
+            DChi2 = Cat.getCol('CHI2DOF');
             GoodChi2dofD = (DChi2 > Args.Chi2dofLimits(1)) &...
                 (DChi2 < Args.Chi2dofLimits(2));
             GoodChi2dof = GoodChi2dofD;
 
             % Demand also that in at least New or Ref, 
             % the candidate is not overfitted
-            if Cat.isColumn('N_Chi2dof') && Cat.isColumn('R_Chi2dof')
-                NChi2 = Cat.getCol('N_Chi2dof');
-                RChi2 = Cat.getCol('R_Chi2dof');
+            if Cat.isColumn('N_CHI2DOF') && Cat.isColumn('R_CHI2DOF')
+                NChi2 = Cat.getCol('N_CHI2DOF');
+                RChi2 = Cat.getCol('R_CHI2DOF');
                 GoodChi2dofNR = (NChi2 > Args.MinNRChi2dof) |...
                     (RChi2 > Args.MinNRChi2dof);
                 GoodChi2dof = GoodChi2dofD & GoodChi2dofNR;            
             end
 
-            Obj(Iobj).CatData.insertCol(cast(~GoodChi2dof,'double'), ...
-                'Score', {'NotPSFLike'}, {''});
-            IsTransient = IsTransient & GoodChi2dof;
+            Chi2dofFlagged = ~GoodChi2dof;
+            TF_Flags = TF_Flags + Chi2dofFlagged.*2.^BD_TF.name2bit('PSFChi2');
         end
     
         % Apply bit mask critera.
         if (Args.flagBadPix_Hard || Args.flagBadPix_Soft || Args.flagSaturated) && ...
-                (Cat.isColumn('NewMaskVal') && Cat.isColumn('RefMaskVal'))
+                (Cat.isColumn('N_FLAGS') && Cat.isColumn('R_FLAGS'))
             BD = BitDictionary('BitMask.Image.Default');
-            BM_new = Cat.getCol('NewMaskVal');
-            BM_ref = Cat.getCol('RefMaskVal');
+            BM_new = Cat.getCol('N_FLAGS');
+            BM_ref = Cat.getCol('R_FLAGS');
         end
 
         % Apply criterium for saturated candidates.
@@ -234,10 +239,8 @@ function TranCat = flagNonTransients(Obj, Args)
             % Check if candidates are saturated in New and Ref, flag these.
             SaturatedInBoth = FlagSrcNoiseDom_New & FlagSrcNoiseDom_Ref;
 
-            Obj(Iobj).CatData.insertCol(cast(SaturatedInBoth,'double'), ...
-                'Score', {'Saturated'}, {''});
-            IsTransient = IsTransient & ~SaturatedInBoth;
-
+            SaturationFlagged = SaturatedInBoth;
+            TF_Flags = TF_Flags + SaturationFlagged.*2.^BD_TF.name2bit('Saturated');
         end
 
         % Apply hard bit mask criteria.
@@ -259,9 +262,8 @@ function TranCat = flagNonTransients(Obj, Args)
 
             BadHardIdx = FlagBadHard_New | FlagBadHard_Ref;
 
-            IsTransient = IsTransient & ~BadHardIdx;
-            Obj(Iobj).CatData.insertCol(cast(BadHardIdx,'double'), ...
-                'Score', {'BadPixel_Hard'}, {''});
+            BadHardFlagged = BadHardIdx;
+            TF_Flags = TF_Flags + BadHardFlagged.*2.^BD_TF.name2bit('BadPixelHard');
         end
 
         % Apply soft bit mask criteria.
@@ -279,59 +281,61 @@ function TranCat = flagNonTransients(Obj, Args)
 
                 FlagBadSoft_New = FlagBadSoft_New | ...
                     (BD.findBit(BM_new, IBadPix_Soft{1}) & ...
-                abs(Cat.getCol('Score')) < IBadPix_Soft{2} & ...
+                abs(Cat.getCol('SCORE')) < IBadPix_Soft{2} & ...
                 abs(Cat.getCol('PSF_SNm')) < IBadPix_Soft{3});
 
                 FlagBadSoft_Ref = FlagBadSoft_Ref | ...
                     (BD.findBit(BM_ref, IBadPix_Soft{1})& ...
-                abs(Cat.getCol('Score')) < IBadPix_Soft{2} & ...
+                abs(Cat.getCol('SCORE')) < IBadPix_Soft{2} & ...
                 abs(Cat.getCol('PSF_SNm')) < IBadPix_Soft{3});
             end
 
             BadSoftIdx = (FlagBadSoft_New | FlagBadSoft_Ref);
 
-            IsTransient = IsTransient & ~BadSoftIdx;
-            Obj(Iobj).CatData.insertCol(cast(BadSoftIdx,'double'), ...
-                'Score', {'BadPixel_Soft'}, {''});
-
+            BadSoftFlagged = BadSoftIdx;
+            TF_Flags = TF_Flags + BadSoftFlagged.*2.^BD_TF.name2bit('BadPixelSoft');
         end
 
         % Flag stars as non-transients
-        if Args.flagStarMatches && Cat.isColumn('StarMatches')
-            IsStar = (Cat.getCol('StarMatches') > 0.0);
+        if Args.flagStarMatches && Cat.isColumn('STAR_N')
+            IsStar = (Cat.getCol('STAR_N') > 0.0);
 
             % Relax flagging for galaxy-star confusion
-            if Cat.isColumn('StarDist') && Cat.isColumn('GalaxyDist')
-                StarDist = Cat.getCol('StarDist');
-                GalaxyDist = Cat.getCol('GalaxyDist');
+            if Cat.isColumn('STAR_DIST') && Cat.isColumn('GAL_DIST')
+                StarDist = Cat.getCol('STAR_DIST');
+                GalaxyDist = Cat.getCol('GAL_DIST');
                 ExcludeGalaxy = GalaxyDist < 1.3*StarDist;
 
-                if Cat.isColumn('R_SNm')
-                    R_SNm = Cat.getCol('R_SNm');
+                if Cat.isColumn('R_PSF_SNm')
+                    R_SNm = Cat.getCol('R_PSF_SNm');
                     Low_R_SNm = R_SNm < 5.0;
                     ExcludeGalaxy = ExcludeGalaxy & Low_R_SNm;
                 end
             IsStar = IsStar & ~ ExcludeGalaxy;
             end
-            IsTransient = IsTransient & ~IsStar;
+
+            StarFlagged = IsStar;
+            TF_Flags = TF_Flags + StarFlagged.*2.^BD_TF.name2bit('StarMatch');
         end
 
         % Flag minor planets as non-transients
-        if Args.flagMP && Cat.isColumn('DistMP_new') && Cat.isColumn('DistMP_ref')
-            IsTransient = IsTransient & isnan(Cat.getCol('DistMP_new'));
-            IsTransient = IsTransient & isnan(Cat.getCol('DistMP_ref'));
+        if Args.flagMP && Cat.isColumn('N_DistMP') && Cat.isColumn('R_DistMP')
+
+            MPFlagged = ~isnan(Cat.getCol('N_DistMP')) | ...
+                                        ~isnan(Cat.getCol('R_DistMP'));
+
+            TF_Flags = TF_Flags + MPFlagged.*2.^BD_TF.name2bit('MPMatch');
         end
         
         % Apply ringing criterium
-        if Args.flagRinging && Cat.isColumn('GaborSN')
-            GaborSN = Cat.getCol('GaborSN');
-            Score = Cat.getCol('Score');
+        if Args.flagRinging && Cat.isColumn('SN_GABOR')
+            GaborSN = Cat.getCol('SN_GABOR');
+            Score = Cat.getCol('SCORE');
 
             IsRinging =  GaborSN > abs(Score);
-            IsTransient = IsTransient & ~IsRinging;
 
-            Obj(Iobj).CatData.insertCol(cast(IsRinging,'double'), ...
-                'Score', {'IsRinging'}, {''});
+            RingingFlagged = IsRinging;
+            TF_Flags = TF_Flags + RingingFlagged.*2.^BD_TF.name2bit('Ringing');
         end
 
         % Apply signal to noise criterium
@@ -340,9 +344,8 @@ function TranCat = flagNonTransients(Obj, Args)
             SNR = Cat.getCol('PSF_SNm');
             SNRBelowThresh = (SNR < Args.SNRThreshold);
 
-            Obj(Iobj).CatData.insertCol(cast(SNRBelowThresh,'double'), ...
-                'Score', {'SNRBelowThresh'}, {''});
-            IsTransient = IsTransient & ~SNRBelowThresh;
+            SNRFlagged = SNRBelowThresh;
+            TF_Flags = TF_Flags + SNRFlagged.*2.^BD_TF.name2bit('SNR');
         end
 
         % Apply density criterium
@@ -373,32 +376,31 @@ function TranCat = flagNonTransients(Obj, Args)
 
             Nneighbors = transpose(Nneighbors);
             Cat(Iobj) = Cat(Iobj).insertCol(cast(Nneighbors,'double'), ...
-                'Score', {'Neighbors'}, {''});
+                'SCORE', {'N_NEIGH'}, {''});
             Overdensity = (Nneighbors >= Args.NeighborNumThreshold);
-            Obj(Iobj).CatData.insertCol(cast(Overdensity,'double'), ...
-                'Score', {'Overdensity'}, {''});
-            IsTransient = IsTransient & ~Overdensity;
+
+            OverdensityFlagged = Overdensity;
+            TF_Flags = TF_Flags + OverdensityFlagged.*2.^BD_TF.name2bit('Overdensity');
+            
         end
 
-        if Args.flagPeakDist && (Cat.isColumn('X1') && Cat.isColumn('Y1')) 
-            XY = Cat.getXY('ColX','XPEAK','ColY','YPEAK');
-            XY1 = Cat.getXY('ColX','X1','ColY','Y1');
+        if Args.flagPeakDist && Cat.isColumn('PEAK_DIST') 
 
-            PeakDist = sqrt((XY(:,1)-XY1(:,1)).^2+(XY(:,2)-XY1(:,2)).^2);
+            PeakDist = Cat.getCol('PEAK_DIST');
             PeakTooFar = PeakDist > Args.PeakDistThreshold;
-            if Cat.isColumn('GalaxyMatches')
-                IsInGalaxy = Cat.getCol('GalaxyMatches') > 0;
+            if Cat.isColumn('GAL_N')
+                IsInGalaxy = Cat.getCol('GAL_N') > 0;
                 PeakTooFar(IsInGalaxy) = PeakDist(IsInGalaxy)  > Args.PeakDistThresholdGal;
             end
-            Obj(Iobj).CatData.insertCol(cast(PeakTooFar,'double'), ...
-                'Score', {'PeakTooFar'}, {''});
-            IsTransient = IsTransient & ~PeakTooFar;
+
+            PeakFlagged = PeakTooFar;
+            TF_Flags = TF_Flags + PeakFlagged.*2.^BD_TF.name2bit('PeakDist');
 
         end
 
         if Args.flagLimitingMag
-            N_Mag = Cat.getCol('N_Mag');
-            R_Mag = Cat.getCol('R_Mag');
+            N_Mag = Cat.getCol('N_MAG_PSF');
+            R_Mag = Cat.getCol('R_MAG_PSF');
             
             LimitingMagVal_N = Args.LimitingMagOverwriteVal;
             LimitingMagVal_R = Args.LimitingMagOverwriteVal;
@@ -409,30 +411,31 @@ function TranCat = flagNonTransients(Obj, Args)
             end
 
             MagBelowLimit = (N_Mag > LimitingMagVal_N) & (R_Mag > LimitingMagVal_R);
-            Obj(Iobj).CatData.insertCol(cast(MagBelowLimit,'double'), ...
-                'Score', {'BelowLimMag'}, {''});
-            IsTransient = IsTransient & ~MagBelowLimit;
+
+            LimMagFlagged = MagBelowLimit;
+            TF_Flags = TF_Flags + LimMagFlagged.*2.^BD_TF.name2bit('LIMMAG');
             
         end
 
         if Args.flagPeakValley && Cat.isColumn('PVDist')
             PVDist = Cat.getCol('PVDist');
             PeakValley = PVDist < Args.PVDistThresh;
-            Obj(Iobj).CatData.insertCol(cast(PeakValley,'double'), ...
-                'Score', {'PeakValley'}, {''});
-            IsTransient = IsTransient & ~PeakValley;
+
+            PVFlagged = PeakValley;
+            TF_Flags = TF_Flags + PVFlagged.*2.^BD_TF.name2bit('PVDist');
 
         end
                 
         % ----- AstroZOGY -----
 
-        if Args.flagScorr && Cat.isColumn('Scorr')
-            Scorr = Cat.getCol('Scorr');
+        if Args.flagScorr && Cat.isColumn('S_CORR')
+            Scorr = Cat.getCol('S_CORR');
 
             ScorrBelowThresh = (abs(Scorr) < Args.ScorrThreshold);
-            Obj(Iobj).CatData.insertCol(cast(ScorrBelowThresh,'double'), ...
-                'Score', {'ScorrBelowThresh'}, {''});
-            IsTransient = IsTransient & ~ScorrBelowThresh;
+
+            ScorrFlagged = ScorrBelowThresh;
+            TF_Flags = TF_Flags + ScorrFlagged.*2.^BD_TF.name2bit('Scorr');
+
         end
 
         if Args.flagTranslients && Cat.isColumn('S2_AIC') && Cat.isColumn('Z2_AIC')
@@ -442,27 +445,28 @@ function TranCat = flagNonTransients(Obj, Args)
             IgnoreTranslientCol = false(CatSize,1);
             if Args.ignoreTranslient_NothingInRef
                 LimitingMagVal_R = Obj(Iobj).Ref.HeaderData.getVal('LIMMAG');
-                R_Mag = Cat.getCol('R_Mag');
+                R_Mag = Cat.getCol('R_MAG_PSF');
                 IgnoreTranslientCol = IgnoreTranslientCol | ...
                     (R_Mag > LimitingMagVal_R);
             end
-            if Args.ignoreTranslient_GalaxyNuclear && Cat.isColumn('GalaxyDist')
-                GalaxyDist = Cat.getCol('GalaxyDist');
+            if Args.ignoreTranslient_GalaxyNuclear && Cat.isColumn('GAL_DIST')
+                GalaxyDist = Cat.getCol('GAL_DIST');
                 IgnoreTranslientCol = IgnoreTranslientCol | ...
                     GalaxyDist < Args.TranslientGalaxyDistThresh;
             end            
         
             Z2_AIC = Z2_AIC - Args.TranslientCorrectionParam;
             IsTranslient = (Z2_AIC > S2_AIC) & ~IgnoreTranslientCol;
-            Obj(Iobj).CatData.insertCol(cast(IsTranslient,'double'), ...
-                'Score', {'Translient'}, {''});
-            IsTransient = IsTransient & ~IsTranslient;
+
+            TranslientFlagged = IsTranslient;
+            TF_Flags = TF_Flags + TranslientFlagged.*2.^BD_TF.name2bit('Translient');
+
         end
 
-        % Sub-select passing candidates only.
+        % Safe flags as bit value.
         TranCat(Iobj) = Obj(Iobj).CatData.insertCol(...
-            cast(~IsTransient,'double'), 'Score', ...
-            {'LikelyNotTransient'}, {''});
+            cast(TF_Flags, 'double'), 'SCORE', ...
+            {'FLAGS_TRANSIENT'}, {''});
     end
   
 end
