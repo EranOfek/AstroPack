@@ -5,6 +5,12 @@
 
 
 % Examples:
+%
+%   S = celestial.Scheduler;
+%   S.generateRegularGrid;
+%   S.insertColList('Priority',1)
+
+
 % This command will generate a list of 3 targets at some RA/Dec
 % the rest of the parameters will be taken from a default (see function
 % help)
@@ -21,6 +27,7 @@
 %
 % write a celestial.Targets as mat file
 % T.write('FileName.mat');
+% S.insertColList('Priority',1)
 %
 % Coordinate conversiona and information
 % (in all cases default time is now):
@@ -52,8 +59,10 @@
 
 
 classdef Scheduler < Component
+    
     properties 
         ListName 
+        JD
         List AstroCatalog
         % units deg/days
         Defaults       = struct('MinAlt',15, 'MaxAlt',90, 'MaxHA',120,...
@@ -74,15 +83,42 @@ classdef Scheduler < Component
 
         % boost priority to ecliptic/galactic latitude
 
-
+        UseRealTime logical = true;
     end
     
     properties
-       
         
         GeoPos                     = [35.041201 30.053014 415];  %
        
         FileName                   = [];
+    end
+    
+    properties (Dependent, Hidden)
+        RA
+        Dec
+    
+        EclLon
+        EclLat
+        GalLon
+        GalLat
+        Az
+        Alt
+        AirMass
+        ParAng
+        GalExt
+        SunAz
+        SunAlt
+        MoonAz
+        MoonAlt
+        MoonPhase
+    end
+        
+        
+    
+    
+    properties (Hidden)
+        ColRA  = 'RA';
+        ColDec = 'Dec';
     end
     
     methods % constructor
@@ -122,9 +158,117 @@ classdef Scheduler < Component
     end
     
     methods % setters/getters
+        function Val=get.JD(Obj)
+            % Getter for JD property
+            
+            if Obj.UseRealTime
+                Val = celestial.time.julday;
+            else
+                Val = Obj.JD;
+            end
+        end
+        
+        
+        function Val=get.RA(Obj)
+            % getter for RA Dependent property
+            
+            if isempty(Obj.List) || Obj.List.sizeCatalog==0
+                error('Catalog is empty');
+            end
+            ColInd = Obj.List.colname2ind(Obj.ColRA);
+            if isnan(ColInd)
+                error('can not find %s column in List',Obj.ColRA);
+            end
+            Val = Obj.List.Catalog(:,ColInd);
+        end
+        
+        function Val=get.Dec(Obj)
+            % getter for Dec Dependent property
+            
+            if isempty(Obj.List) || Obj.List.sizeCatalog==0
+                error('Catalog is empty');
+            end
+            ColInd = Obj.List.colname2ind(Obj.ColDec);
+            if isnan(ColInd)
+                error('can not find %s column in List',Obj.ColDec);
+            end
+            Val = Obj.List.Catalog(:,ColInd);
+        end
+        
+        function Val=get.EclLon(Obj)
+            % getter for EclLon Dependent property
+           
+            OutCoo = celestial.coo.coco([Obj.RA, Obj.Dec],'j2000.0','e','d','d');
+            Val    = OutCoo(:,1);
+        end
+        
+        function Val=get.EclLat(Obj)
+            % getter for EclLat Dependent property
+           
+            OutCoo = celestial.coo.coco([Obj.RA, Obj.Dec],'j2000.0','e','d','d');
+            Val    = OutCoo(:,2);
+        end
+        
+        function Val=get.GalLon(Obj)
+            % getter for GalLon Dependent property
+           
+            OutCoo = celestial.coo.coco([Obj.RA, Obj.Dec],'j2000.0','g','d','d');
+            Val    = OutCoo(:,1);
+        end
+        
+        function Val=get.GalLat(Obj)
+            % getter for GalLat Dependent property
+           
+            OutCoo = celestial.coo.coco([Obj.RA, Obj.Dec],'j2000.0','g','d','d');
+            Val    = OutCoo(:,2);
+        end
        
+        function Val=get.Az(Obj)
+            % getter for Az Dependent property
+           
+            [Az, ~, ~, ~] = celestial.coo.radec2azalt(Obj.JD, Obj.RA,Obj.Dec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg');
+            Val = Az;
+        end
+        
+        function Val=get.Alt(Obj)
+            % getter for Alt Dependent property
+           
+            [~, Alt, ~, ~] = celestial.coo.radec2azalt(Obj.JD, Obj.RA,Obj.Dec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg');
+            Val = Alt;
+        end
+        
+        function Val=get.AirMass(Obj)
+            % getter for AirMass Dependent property
+           
+            [~, ~, AM, ~] = celestial.coo.radec2azalt(Obj.JD, Obj.RA,Obj.Dec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg');
+            Val = AM;
+        end
+        
+        function Val=get.ParAng(Obj)
+            % getter for ParAng Dependent property
+           
+            [~, ~, ~, ParAng] = celestial.coo.radec2azalt(Obj.JD, Obj.RA,Obj.Dec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg');
+            Val = ParAng;
+        end
+        
+      %  GalExt
+      %  SunAz
+      %  SunAlt
+      %  MoonAz
+      %  MoonAlt
+      %  MoonPhase
     end
 
+    methods % getter for coordinates and positions
+        function sphere_dist(Obj, RA, Dec)
+            %
+            
+        end
+        
+        
+        
+    end
+    
     methods % load lists and tables
         function Obj=injectDefaultColumns(Obj)
             % Inject or replace the column in List with the default values
@@ -151,7 +295,7 @@ classdef Scheduler < Component
 
         end
 
-        function generateRegularGrid(Obj, Args)
+        function Obj=generateRegularGrid(Obj, Args)
             % Generate a regular grid of targets using tile_the_sky
             % Input  : - Self.
             %            'ListName' - List Name to insert to object
@@ -186,7 +330,7 @@ classdef Scheduler < Component
             Dec = TileList(:,2).*RAD;
 
             Tbl = [RA, Dec];
-            Obj.List = AstroCatalog({[RA, Dec]}, 'ColNames',{'RA','Dec'});
+            Obj.List = AstroCatalog({[RA, Dec]}, 'ColNames',{Obj.ColRA,Obj.ColDec});
             Obj = Obj.injectDefaultColumns;
             Obj.ListName = Args.ListName;
 
