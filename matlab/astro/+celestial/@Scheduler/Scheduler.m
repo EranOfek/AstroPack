@@ -51,61 +51,37 @@
 % T.updateCounter(Ind);
 
 
-classdef Targets < Component
-    properties (Dependent)
-        RA
-        Dec
-        Index
-        TargetName
-        MaxNobs
-        LastJD
-        GlobalCounter
-        NightCounter
-        Priority              % baseline priority
-        NperVisit
-        ExpTime
+classdef Scheduler < Component
+    properties 
+        ListName 
+        List AstroCatalog
+        % units deg/days
+        Defaults       = struct('MinAlt',15, 'MaxAlt',90, 'MaxHA',120,...
+                                'Nexp',20, 'ExpTime',20,...
+                                'Priority', 0.1,...
+                                'NightCounter',0, 'GlobalCounter',0, 'MaxCounter',Inf,...
+                                'LastJD',0,...
+                                'CadenceMethod', 1,...
+                                'StartJD',0, 'StopJD',Inf,...
+                                'MaxSunAlt',-11.5,...
+                                'MinMoonDist',-1,...
+                                'MinVisibility',2./24);
+
+        CadenceMethodMap = {"cycleAllNonZero"}
+        %CadenceArgs      = 
+        AltConstraints  = [0 15; 90 15; 180 15; 270 15; 360 15];
+        MoonConstraints = [0 0; 0.1 1; 0.2 1; 0.3 1; 0.4 2; 0.5 3; 0.6 5;0.7 10;0.8 15; 0.9 30; 1.0 30];
+
+        % boost priority to ecliptic/galactic latitude
+
+
     end
     
     properties
-        Data table   % with columns: Index, TargetName, RA, Dec, DeltaRA, DeltaDec, ExpTime, NperVisit, MaxNobs, LastJD, GlobalCounter, NightCounter
-        
-        %Index
-        %TargetName cell
-        %IsSolarSystem logical      = false;
-        %IsTOO logical              = false;
-        %IsManual logical           = false;
-        
-        %DeltaRA                   
-        %DeltaDec
-        %ExpTime
-        %NperVisit
-        %Filter
-        
-        CadenceMethod                           % 'periodic' | 'continues' | 'west2east'
-        
-        PriorityArgs               = struct('InterNightCadence',40./1440,...
-                                            'CadenceFun',@celestial.scheduling.fermiexp,...  
-                                            'CadeneFunArgs',{1.4, 1, 0.03, 1, 0.5},...
-                                            'DeadTime',30);  %t0,Decay,Soft,BaseW,ExtraW)
-                                                    
-        %LastJD
-        %GlobalCounter              = 0;
-        %NightCounter               = 0;
-        
-        GeoPos                     = [35.041201 30.053014 400];  %
        
-        VisibilityArgs             = struct('DecRange',[-90 90],...
-                                            'EclipticRange',[-90 90],...
-                                            'GalacticRange',[-90 90],...
-                                            'AltLimit',30,...
-                                            'AMLimit',2,...
-                                            'AzAltLimit',[0 30; 90 30; 180 30; 270 30; 360 30],...
-                                            'HALimit',120,...
-                                            'MinNightlyVisibility',2./24,...
-                                            'SunAltLimit',-11.5,...
-                                            'MoonDistLimit',[0 0; 0.1 1; 0.2 1; 0.3 1; 0.4 2; 0.5 3; 0.6 5;0.7 10;0.8 15; 0.9 30; 1.0 30]);
-                                        
-
+        
+        GeoPos                     = [35.041201 30.053014 415];  %
+       
         FileName                   = [];
     end
     
@@ -146,54 +122,84 @@ classdef Targets < Component
     end
     
     methods % setters/getters
-        function Result = get.RA(Obj)
-            % getter for RA
-            Result = Obj.Data.RA;
-        end
-        function Result = get.Dec(Obj)
-            % getter for Dec
-            Result = Obj.Data.Dec;
-        end
-        function Result = get.Index(Obj)
-            % getter for Index
-            Result = Obj.Data.Index;
-        end
-        function Result = get.TargetName(Obj)
-            % getter for TargetName
-            Result = Obj.Data.TargetName;
-        end
-        function Result = get.MaxNobs(Obj)
-            % getter for MaxNobs
-            Result = Obj.Data.MaxNobs;
-        end
-        function Result = get.LastJD(Obj)
-            % getter for LastJD
-            Result = Obj.Data.LastJD;
-        end
-        function Result = get.GlobalCounter(Obj)
-            % getter for GlobalCounter
-            Result = Obj.Data.GlobalCounter;
-        end
-        function Result = get.NightCounter(Obj)
-            % getter for GlobalCounter
-            Result = Obj.Data.NightCounter;
-        end
-        function Result = get.Priority(Obj)
-            % getter for Priority
-            Result = Obj.Data.Priority;
-        end 
-        function Result = get.ExpTime(Obj)
-            % getter for ExpTime
-            Result = Obj.Data.ExpTime;
-        end 
-        function Result = get.NperVisit(Obj)
-            % getter for NperVisit
-            Result = Obj.Data.NperVisit;
-        end 
+       
     end
+
+    methods % load lists and tables
+        function Obj=injectDefaultColumns(Obj)
+            % Inject or replace the column in List with the default values
+            % in the Defaults property.
+            % Input  : - self.
+            % Output : - Object with updated List property.
+            % Author : Eran Ofek (Jul 2024)
+            % Example: injectDefaultColumns(S);
+
+            arguments
+                Obj
+               
+            end
+
+            Nsrc = Obj.List.sizeCatalog;
+            DefFN = fieldnames(Obj.Defaults);
+            Ndef  = numel(DefFN);
+            for Idef=1:1:Ndef
+               
+                NewData = repmat(Obj.Defaults.(DefFN{Idef}), Nsrc, 1);
+                Obj.List = replaceCol(Obj.List, NewData, DefFN{Idef}, Inf, '');
+            end
+
+
+        end
+
+        function generateRegularGrid(Obj, Args)
+            % Generate a regular grid of targets using tile_the_sky
+            % Input  : - Self.
+            %            'ListName' - List Name to insert to object
+            %                   property ListName.
+            %                   Default is 'LAST'.
+            %            'N_LonLat' - Number of fields along lon/lat.
+            %                   Default is [56 42] (for LAST).
+            %            'InjectDefaults' - Logical indicating if to
+            %                   insert/replace all the columns indicated in the
+            %                   Defaults property with their default values.
+            %                   Default is true.
+            % Output : - Updated object (with updated List).
+            % Author : Eran Ofek (Jul 2024)
+            % Example: S = celestial.Scheduler;
+            %          S.generateRegularGrid;
+
+            arguments
+                Obj
+                Args.ListName            = 'LAST';
+                Args.N_LonLat   = [88 30] %[85 28];  %[56 42];
+
+                %Args.DefaultArgs cell = {};
+                
+                Args.InjectDefaults logical = true;
+            end
+
+
+            RAD = 180./pi;
+
+            [TileList,TileArea] = celestial.grid.tile_the_sky(Args.N_LonLat(1), Args.N_LonLat(2));
+            RA  = TileList(:,1).*RAD;
+            Dec = TileList(:,2).*RAD;
+
+            Tbl = [RA, Dec];
+            Obj.List = AstroCatalog({[RA, Dec]}, 'ColNames',{'RA','Dec'});
+            Obj = Obj.injectDefaultColumns;
+            Obj.ListName = Args.ListName;
+
+        end                
+    end
+
+    methods % write lists and tables
+
+    end
+
     
     methods  % setters to Data table
-        function Obj = setTableProp(Obj, Prop, Val, Index)
+        function Obj = insertColList(Obj, ColName, Val, Index)
             % set Data table column for specific entries
             % Input  : - celestial.Targets object.
             %          - Table column name to set (e.g., 'LastJD').
@@ -204,32 +210,67 @@ classdef Targets < Component
             %            Default is [].
             % Output : - celestial.Targets in which the Data table is
             %            updated.
-            % Author : Eran Ofek (Mar 2023)
+            % Author : Eran Ofek (Jul 2024)
+            % Example: S = celestial.Scheduler;
+            %          S.generateRegularGrid;
+            %          S.insertColList('Priority',1)
            
             arguments
                 Obj
-                Prop
+                ColName
                 Val
-                Index = [];
+                Index    = [];
             end
             
-            if isempty(Index)
-                Nline = size(Obj.Data,1);
-                if numel(Val)==1
-                    Val = Val.*ones(Nline,1);
-                    Index = true(Nline,1);
+            if nargin<3
+                error('ColName and Val must be provided');
+            end
+
+            Nsrc = Obj.List.sizeCatalog;
+
+            
+            ColInd = colname2ind(Obj.List, ColName);
+            if isnan(ColInd) && isempty(Index)
+                if isempty(Index)
+                    if numel(Val)==1
+                        Val = repmat(Val, Nsrc, 1);
+                    end
+                    Obj.List.insertCol(Val, Inf, ColName, '');
                 else
-                    Index = true(Nline,1);
+                    error('For column insertion index must be empty');
                 end
+            else
+                if isempty(Index)
+                    Index = (1:1:Nsrc).';
+                end
+
+                Obj.List.Catalog(Index, ColInd) = Val;
             end
-            
-            Obj.Data.(Prop)(Index) = Val;
             
         end
         
     end
     
     
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+
     methods (Static) % generate lists
         function Obj = createList(Args)
             % Create a Targets object with data specified by user
