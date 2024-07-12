@@ -96,6 +96,8 @@ classdef Scheduler < Component
     properties (Dependent, Hidden)
         RA
         Dec
+        LST
+        HA
     
         EclLon
         EclLat
@@ -195,6 +197,25 @@ classdef Scheduler < Component
             Val = Obj.List.Catalog(:,ColInd);
         end
         
+        function Val=get.LST(Obj)
+            % Getter for LST - Return LST [deg]
+            
+            RAD = 180./pi;
+            Val     = celestial.time.lst(Obj.JD, Obj.GeoPos(1)./RAD, 'a').*360;  % [deg]
+        end
+        
+        function Val=get.HA(Obj)
+            % Getter for HA [deg] (-180 to 180 deg range)
+        
+            Val       = Obj.LST - Obj.RA;
+           
+            Val       = mod(Val,360);
+            I180      = find(Val>180);
+            Val(I180) = Val(I180) - 360;
+           
+        end
+            
+        
         function Val=get.EclLon(Obj)
             % getter for EclLon Dependent property
            
@@ -251,21 +272,203 @@ classdef Scheduler < Component
             Val = ParAng;
         end
         
-      %  GalExt
-      %  SunAz
-      %  SunAlt
-      %  MoonAz
-      %  MoonAlt
-      %  MoonPhase
-    end
-
-    methods % getter for coordinates and positions
-        function sphere_dist(Obj, RA, Dec)
-            %
+        function Val=get.GalExt(Obj)
+            % Getter for dependent property GalExt (return E(B-V) [mag]
             
+            RAD = 180./pi;
+            Val = astro.extinction.sky_ebv(Obj.RA./RAD, Obj.Dec./RAD,'eq');
         end
         
         
+    end
+
+    methods % getter for coordinates and positions
+        function [SunAz, SunAlt, DSunAz, DSunAlt, SunRA, SunDec, EqOfTime]=sun(Obj, JD)
+            % Return Sun position and Az/Alt derivatives
+            % Input  : - Self.
+            %          - Optional JD, if not given or empty, then use
+            %            object JD.
+            % Output : - Sun Az (equinox of date) [deg].
+            %          - Sun Alt [deg].
+            %          - dSunAz/dt [deg/s]
+            %          - dSunAlt/dt [deg/s]
+            %          - Sun RA (equinox of date) [deg].
+            %          - Sun Dec [deg].
+            %          - Equation of time [days].
+            % Author : Eran Ofek (Jul 2024)
+            % Example: [SunAz, SunAlt, DSunAz, DSunAlt, SunRA, SunDec, EqOfTime]=S.sun;
+            
+            arguments
+                Obj
+                JD    = [];
+            end
+            RAD     = 180./pi;
+            SEC_DAY = 86400;
+            
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+            JD = JD + [0; 1./SEC_DAY];
+            
+            
+            [SunRA,SunDec,~,~,EqOfTime]=celestial.SolarSys.suncoo(JD, 'a');
+            EqOfTime = EqOfTime./1440;
+                        
+            [SunAz, SunAlt] = celestial.coo.radec2azalt(JD, SunRA, SunDec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','rad', 'OutUnits','deg');
+            
+            DSunAz  = SunAz(2) - SunAz(1);
+            DSunAlt = SunAlt(2) - SunAlt(1);
+            SunAz   = SunAz(1);
+            SunAlt  = SunAlt(1);
+            
+            SunRA  = SunRA(1).*RAD;
+            SunDec = SunDec(1).*RAD;
+
+        end
+        
+        function Dist=sphere_dist(Obj, RA, Dec)
+            % Angular distance to a given position
+            % Input  : - Self.
+            %          - J2000 RA [H M S] or [deg] or sexagesimal.
+            %          - J2000 Dec [Sign D M S] or [deg] or sexagesimal.
+            % Output : Ang. distance to all targets [deg].
+            % Author : Eran Ofek (Jul 2024)
+            % Example: S.sphere_dist(100,20)
+            %          S.sphere_dist([12 0 0],[-1 20 0 0])
+            %          S.sphere_dist('06:00:00','+57:00:00');
+            
+            
+            RAD = 180./pi;
+            
+            if ~isnumeric(RA)
+                RA = celestial.coo.convertdms(RA, 'SH', 'r');
+            else
+                if numel(RA)>1
+                    RA = celestial.coo.convertdms(RA, 'H', 'r');
+                else
+                    RA = RA./RAD;
+                end
+            end
+            if ~isnumeric(Dec)
+                Dec = celestial.coo.convertdms(Dec, 'SD', 'r');
+            else
+                if numel(Dec)>1
+                    Dec = celestial.coo.convertdms(Dec, 'D', 'r');
+                else
+                    Dec = Dec./RAD;
+                end
+            end
+            
+            Dist = celestial.coo.sphere_dist_fast(RA, Dec, Obj.RA./RAD, Obj.Dec./RAD);
+            Dist = Dist.*RAD;
+            
+        end
+        
+        function [MoonRA, MoonDec]=moonEqCoo(Obj, JD)
+            % Return Moon RA/Dec
+            % Input  : - Self.
+            %          - JD. If empty, or not given, then use object JD.
+            %            Default is [].
+            % Output : - Moon RA (J2000) [deg].
+            %          - Moon Dec (J2000) [deg].
+            % Author : Eran Ofek (Jul 2024)
+            % Example: S.moonEqCoo
+            
+            arguments
+                Obj
+                JD       = [];
+            end
+            RAD     = 180./pi;
+            SEC_DAY = 86400;
+            
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+                        
+            [MoonRA, MoonDec] = celestial.SolarSys.mooncool(JD, Obj.GeoPos(1:2), 'b');
+            MoonRA  = MoonRA.*RAD;
+            MoonDec = MoonDec.*RAD;
+        end
+        
+        function [MoonAz, MoonAlt]=moonAzAlt(Obj, JD)
+            % Return Moon Az/Alt
+            % Input  : - Self.
+            %          - JD. If empty use object JD.
+            %            Default is empty.
+            % Output : - Approximate Moon Az [deg]. (not precessed to eq.
+            %            of date).
+            %          - Approximate Moon Alt [deg].
+            % Author : Eran Ofek (Jul 2024)
+            % Example: [MoonRA, MoonDec] = S.moonAzAlt;
+            
+            arguments
+                Obj
+                JD   = [];
+            end
+            RAD     = 180./pi;
+            SEC_DAY = 86400;
+            
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+        
+            [MoonRA, MoonDec] = moonEqCoo(Obj, JD);
+            [MoonAz, MoonAlt] = celestial.coo.radec2azalt(JD, MoonRA, MoonDec, 'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg');
+            
+        end
+        
+        function [MoonIllum, MoonPhase]=moonIllum(Obj, JD)
+            % Return Moon phase and illumination fraction
+            % Input  : - Self.
+            %          - JD. If empty use object JD.
+            %            Default is empty.
+            % Output : - Moon illuminated fraction.
+            %          - Moon pahse angle [deg].
+            % Author : Eran Ofek (Jul 2024)
+            % Example: [MoonRA, MoonDec] = S.moonIllum;
+            
+            arguments
+                Obj
+                JD   = [];
+            end
+            RAD     = 180./pi;
+            
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+            
+            % Moon phase/illumination
+            [MoonIllum, MoonPhase] = celestial.SolarSys.moon_illum(JD);
+            MoonPhase = MoonPhase.*RAD;
+            
+        end
+            
+        function MoonDist=moonDist(Obj, JD)
+            % Calculate Moon distance for all targets 
+            % Input  : - Self.
+            %          - JD. If empty use object JD.
+            %            Default is [].
+            % Output : - Vector angular distance between Moon and all
+            %            targets.
+            % Author : Eran Ofek (Jul 2024)
+            % Example: DistMoon = S.moonDist;
+            
+            arguments
+                Obj
+                JD   = [];
+            end
+            RAD     = 180./pi;
+            
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+            
+            [MoonRA, MoonDec] = moonEqCoo(Obj, JD);
+            
+            MoonDist = celestial.coo.sphere_dist_fast(MoonRA./RAD, MoonDec./RAD, Obj.RA./RAD, Obj.Dec./RAD);
+            MoonDist = MoonDist.*RAD;
+                        
+        end
         
     end
     
@@ -652,41 +855,8 @@ classdef Scheduler < Component
 
 
     methods % coordinates
-        function [Lon, Lat] = ecliptic(Obj)
-            % Return ecliptic coordinates for targets.
-            % Input  : - A Targets object.
-            % Output : - Ecliptic longitude [deg].
-            %          - Ecliptic latitude [deg].
-            % AUthor : Eran Ofek (Jan 2022)
-            % Example: T=celestial.Targets;
-            %          T.generateTargetList('last');
-            %          [Lon, Lat] = T.ecliptic;
-            
-            RAD = 180./pi;
-            
-            [Lon, Lat] = celestial.coo.convert_coo(Obj.RA./RAD, Obj.Dec./RAD, 'J2000.0', 'e');
-            Lon        = Lon.*RAD;
-            Lat        = Lat.*RAD;
-            
-        end
+       
         
-        function [Lon, Lat] = galactic(Obj)
-            % Return galactic coordinates for targets.
-            % Input  : - A Targets object.
-            % Output : - Galactic longitude [deg].
-            %          - Galactic latitude [deg].
-            % AUthor : Eran Ofek (Jan 2022)
-            % Example: T=celestial.Targets;
-            %          T.generateTargetList('last');
-            %          [Lon, Lat] = T.galactic;
-            
-            RAD = 180./pi;
-            
-            [Lon, Lat] = celestial.coo.convert_coo(Obj.RA./RAD, Obj.Dec./RAD, 'J2000.0', 'g');
-            Lon        = Lon.*RAD;
-            Lat        = Lat.*RAD;
-            
-        end
         
         function [Flag] = cooInField(Obj, RA, Dec, Args)
             % Search for fields that contains a list of coordinates
@@ -732,35 +902,8 @@ classdef Scheduler < Component
     end
     
     methods % visibility
-        function [Sun] = sunCoo(Obj, JD)
-            % Return Sun RA/Dec and geometric Az/Alt
-            % Input  : - Targets object.
-            %          - JD. Default is current UTC time.
-            % Output : - A structure with Sun:
-            %            .RA [deg]
-            %            .Dec [deg]
-            %            .Az [deg]
-            %            .Alt [deg]
-            % Author : Eran Ofek (Jan 2022)
-            % Example: T.generateTargetList('last');
-            %          [Sun] = T.sunCoo
-            
-            arguments
-                Obj
-                JD       = celestial.time.julday;
-            end
-            
-            RAD = 180./pi;
-            
-            [RA, Dec,R,SL,EquationTime] = celestial.SolarSys.suncoo(JD, 'a');
-            Sun.RA  = RA.*RAD;
-            Sun.Dec = Dec.*RAD;
-            LST     = celestial.time.lst(JD, Obj.GeoPos(1)./RAD, 'a').*360;  % [deg]
-            HA      = LST - Sun.RA;
-            [Az,Alt]= celestial.coo.hadec2azalt(HA./RAD, Sun.Dec./RAD, Obj.GeoPos(2)./RAD);
-            Sun.Az  = Az.*RAD;
-            Sun.Alt = Alt.*RAD;
-        end
+       
+        
         
         function Moon = moonCoo(Obj, JD)
             % Return Moon phase/RA/Dec and geometric Az/Alt
@@ -799,33 +942,7 @@ classdef Scheduler < Component
             
         end
         
-        function [MoonDist, Moon] = moonDist(Obj, JD)
-            % Calculate Moon distance for all targets 
-            % Input  : - Targets Sunobject.
-            %          - JD. Default is current UTC time.
-            % Output : - Vector of Moon distance [deg] per target.
-            %          - A structure with Moon:
-            %            .RA [deg]
-            %            .Dec [deg]
-            %            .Az [deg]
-            %            .Alt [deg]
-            %            .Illum  - illumination fraction.
-            %            .Phase [deg]
-            % Author : Eran Ofek (Jan 2022)
-            % Example: T.generateTargetList('last');
-            %          [MD, Moon] = T.moonDist
-            arguments
-                Obj
-                JD                 = celestial.time.julday;
-            end
-            RAD = 180./pi;
-            
-            Moon = moonCoo(Obj, JD);
-            
-            MoonDist = celestial.coo.sphere_dist_fast(Obj.RA./RAD, Obj.Dec./RAD, Moon.RA./RAD, Moon.Dec./RAD);
-            MoonDist = MoonDist.*RAD;
-            
-        end
+        
         
         function [Az, Alt, dAz, dAlt] = azalt(Obj, JD)
             % get Az/Alt for target
