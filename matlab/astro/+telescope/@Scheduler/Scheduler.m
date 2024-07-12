@@ -145,6 +145,7 @@ classdef Scheduler < Component
     properties (Hidden)
         ColRA  = 'RA';
         ColDec = 'Dec';
+        ColFieldName = 'FieldName';
     end
     
     methods % constructor
@@ -716,6 +717,8 @@ classdef Scheduler < Component
             RAD = 180./pi;
 
             [TileList,TileArea] = celestial.grid.tile_the_sky(Args.N_LonLat(1), Args.N_LonLat(2));
+            Nsrc = size(TileList,1);
+            
             RA  = TileList(:,1).*RAD;
             Dec = TileList(:,2).*RAD;
 
@@ -723,8 +726,44 @@ classdef Scheduler < Component
             Obj.List = AstroCatalog({[RA, Dec]}, 'ColNames',{Obj.ColRA,Obj.ColDec});
             Obj = Obj.injectDefaultColumns;
             Obj.ListName = Args.ListName;
+            
+            FieldName = string(num2cell((1:1:Nsrc).'));
+            Obj.List.Catalog = [table(FieldName), array2table(Obj.List.Catalog)];
+            ColNames         = ['FieldName', Obj.List.ColNames];
+            Obj.List.ColNames = ColNames;            
 
-        end                
+        end
+        
+        function Obj=loadAndConcat(Obj, AddFileName, Args)
+            % Load a mat file containing a telescope.Scheduler object and concat to current object.
+            % Input  : - Self.
+            %          - FileName containing the object to concat.
+            %          * ...,key,val,...
+            %            'ErrorIfNotExist' - Default is false.
+            % Output : - An updated object.
+            % Author : Eran Ofek (Jul 2024)
+            
+            arguments
+                Obj
+                AddFileName = [];
+                Args.ErrorIfNotExist logical   = false;
+            end
+            
+            if isfile(AddFileName)
+                Tmp = io.files.load2(AddFileName);
+                if isa(Tmp, 'telescope.Scheduler')
+                    Obj.List.Catalog = [Obj.List.Catalog; Tmp.List.Catalog];
+                else
+                    error('FileName have unsupported type');
+                end
+            else
+                if Args.ErrorIfNotExist
+                    error('AddFileName %s does not exist',AddFileName);
+                end
+                    
+            end            
+            
+        end
     end
 
     methods % write lists and tables
@@ -1051,7 +1090,36 @@ classdef Scheduler < Component
     end
 
 
-
+    methods % counters
+        function Obj=increaseCounter(Obj, Ind, CountersName)
+            % Increase Global/Night counters for target
+            % Input  : - Self.
+            %          - Target index, or FieldName.
+            %          - Cell array of colun names containing counters to
+            %            increase.
+            %            Default is {'GlobalCounter', 'NightCounter'}.
+            % Output : - Updated object.
+            % Author : Eran Ofek (Jul 2024)
+            % Example: S.increaseCounter("1")
+            
+            arguments
+                Obj
+                Ind
+                CountersName = {'GlobalCounter', 'NightCounter'};
+            end
+                        
+            if ~isnumeric(Ind)
+                Ind = strcmp(Obj.List.Catalog.(Obj.ColFieldName), Ind);
+            end
+            
+            Nc = numel(CountersName);
+            for Ic=1:1:Nc
+                Obj.List.Catalog.(CountersName{Ic})(Ind) = Obj.List.Catalog.(CountersName{Ic})(Ind) + 1;
+            end
+            
+        end
+        
+    end
 
 
 
@@ -1065,239 +1133,6 @@ classdef Scheduler < Component
 
 
 
-
-    methods (Static) % generate lists
-        function Obj = createList(Args)
-            % Create a Targets object with data specified by user
-            % Input  : * ...,key,val,...
-            %            'RA' - Mandatory vector of RA [deg].
-            %            'Dec' - Mandaotory vector of Dec [deg].
-            %            'Index' - If empty, use serial numbers.
-            %                   Default is [].
-            %            'TargetName' - If empty, use celestial.Targets.radec2name
-            %                   to generate names, or simple indices. Default is [].
-            %            'TargetNameOpt' - Indicating on how to generate
-            %                   TargetName:
-            %                   'Name' - use celestial.Targets.radec2name
-            %                   'Index' - Use indices.
-            %                   Default is 'Index'.
-            %            'DeltaRA' - Default is 0.
-            %            'DeltaDec' - Default is 0.
-            %            'ExpTime' - Default is 20.
-            %            'NperVisit' - Default is 20.
-            %            'MaxNobs' - Default is Inf.
-            %            'LastJD' - Default is 0.
-            %            'GlobalCounter' - Default is 0.
-            %            'NightCounter' - Default is 0.
-            %            'Priority' - Default is 1.
-            % Output : - A populated celestial.Targets object.
-            % Author : Eran Ofek (Mar 2023)
-            % Example: T=celestial.Targets.createList('RA',[1;2],'Dec',[1;2])
-
-            arguments
-                Args.RA            = [];
-                Args.Dec           = [];
-                Args.Index         = [];
-                Args.TargetName    = [];
-                Args.TargetNameOpt = 'Index';  % 'Index'|'Name'
-                Args.DeltaRA       = 0;
-                Args.DeltaDec      = 0;
-                Args.ExpTime       = 20;
-                Args.NperVisit     = 20;
-                Args.MaxNobs       = Inf;
-                Args.LastJD        = 0;
-                Args.GlobalCounter = 0;
-                Args.NightCounter  = 0;
-                Args.Priority      = 1;
-            end
-                
-            % Index, TargetName, RA, Dec, DeltaRA, DeltaDec, ExpTime, NperVisit, MaxNobs, LastJD, GlobalCounter, NightCounter
-
-            if isempty(Args.RA) || isempty(Args.Dec)
-                error('RA and Dec must be supplied');
-            end
-            
-            Ntarget = numel(Args.RA);
-            FN      = fieldnames(Args);
-            Nf      = numel(FN);
-
-            CellData = cell(1,Nf);
-            for If=1:1:Nf
-                switch FN{If}
-                    case 'Index'
-                        if isempty(Args.(FN{If}))
-                            Args.(FN{If}) = (1:1:Ntarget).';
-                        end
-                    case 'TargetName'
-                        if isempty(Args.(FN{If}))
-                            switch lower(Args.TargetNameOpt)
-                                case 'name'
-                                    Args.(FN{If}) = string(celestial.Targets.radec2name(Args.RA, Args.Dec));
-                                case 'index'
-                                    Args.(FN{If}) = string(num2cell(Args.Index));
-                                otherwise
-                                    error('Unknown TargetNameOpt');
-                            end
-                        end
-                    otherwise
-                        Args.(FN{If}) = Args.(FN{If}).*ones(Ntarget,1);
-                end
-                CellData{If} = Args.(FN{If});
-               
-            end
-            Obj      = celestial.Targets;
-            Obj.Data = table(CellData{:},'VariableNames',FN);
-
-        end
-
-        function Obj = generateTargetList(Obj, List, Args)
-            % Generate a Targets object with target list, including LAST default.
-            % Input  : - A Targets object.
-            %          - Either a table with [RA(deg), Dec(deg), [Name]]
-            %            or a character array.
-            %            ['last'] - Default LAST target list.
-            %          * ...,key,val,...
-            %            'N_LonLat' - Number of fields along lon/lat.
-            %                   Default is [56 42] (for LAST).
-            %            'Priority' - Vector of priority.
-            %                   Default is 1.
-            % Output : - A populated Targets object.
-            % Author : Eran Ofek (Jan 2022)
-            % Example: T = celestial.Targets.generateTargetList('last')
-            
-            arguments
-                Obj
-                List            = 'last';
-                Args.N_LonLat   = [88 30] %[85 28];  %[56 42];
-                Args.Priority   = 1;
-                Args.ExpTime    = 20;
-                Args.NperVisit  = 20;
-                Args.MaxNobs    = Inf;
-            end
-                
-            RAD = 180./pi;
-            
-            Obj = celestial.Targets;
-            if ischar(List)
-                % pre defined list
-                
-                switch lower(List)
-                    case 'last'
-                        Obj.VisibilityArgs.DecRange        = [-90 90];
-                        
-                        [TileList,TileArea] = celestial.grid.tile_the_sky(Args.N_LonLat(1), Args.N_LonLat(2));
-                        RA  = TileList(:,1).*RAD;
-                        Dec = TileList(:,2).*RAD;
-
-                        Ntarget = numel(RA);
-                        
-                        % Index, Name, RA(deg), Dec(deg), DeltaRA, DeltaDec, ExpTime, NperVisit, MaxNobs, LastJD, GlobalCounter, NightCounter
-                        Obj = celestial.Targets.createList('RA',TileList(:,1).*RAD, 'Dec',TileList(:,2).*RAD, 'ExpTime',Args.ExpTime,'NperVisit',Args.NperVisit,'MaxNobs',Args.MaxNobs,'Priority',Args.Priority);
-                        
-                    otherwise
-                        error('Unknown List name');
-                end
-            else
-                % List is table of [RA(deg), Dec(deg), [Name]]
-               
-                Obj.RA  = table2array(List(:,1));
-                Obj.Dec = table2array(List(:,2));
-                Ntarget = numel(Obj.RA);
-                        
-                Obj.Index = (1:1:Ntarget).';
-                
-                if size(List,2)>2
-                    % name is in 3rd column
-                    Obj.TargetName = List(:,3);
-                else
-                    % default names
-                    Obj.TargetName = celestial.Targets.radec2name(Obj.RA, Obj.Dec);
-                end
-                
-            end
-        end
-        
-    end
-
-    methods % read/write
-        
-        
-        function writeFile(Obj, FileName)
-            % save the Targets object in a txt file.
-            % Input  : - A Targets object.
-            %          - File name.
-            % Author : Eran Ofek (Feb 2022)
-            % Example: T=celestial.Targets;
-            %          T.generateTargetList('last');
-            %          T.writeFile('LAST_Fields.txt')
-           
-            arguments
-                Obj
-                FileName
-            end
-            
-            N = numel(Obj.RA);
-            VecN = (1:1:N).';
-            FID = fopen(FileName,'w');
-            %fprintf(FID, 'RA    Dec    Index   TargetName DeltaRA    DeltaDec   ExpTime    NperVisit  MaxNobs    LastJD GlobalCounter  NightCounter   Priority\n');
-            fprintf(FID, '%9.5f %9.5f    %6d    \n', [Obj.RA(:), Obj.Dec(:), VecN(:)].');
-            fclose(FID);
-            
-        end
-        
-
-        
-        
-            
-    end
-
-    methods (Static)
-        function Result=readTargetList(Table)
-            % Generate an Targets object from a table/file.
-            % Input  : - A table object, or a file name to upload into a
-            %            table object using the readtable command.
-            %            The table must contains the Targets properties you
-            %            want to load (e.g., 'RA','Dec',...).
-            % Output : - A celestial.Targets object with the populated
-            %            fields.
-            % Author : Eran Ofek (Mar 2023)
-
-            arguments
-                Table
-                
-            end
-
-            if istable(Table)
-                % already Table
-            elseif isa(Table,'AstroCatalog')
-                error('AstroCatalog not yet supported');
-            else
-                % assume file input
-                % attemp to read using readtable
-                Table = io.files.readtable1(Table);
-            end
-
-            Cols  = Table.Properties.VariableNames;
-            Ncols = numel(Cols);
-
-            Result = celestial.Targets;
-            for Icol=1:1:Ncols
-                if isprop(Result, Cols{Icol})
-                    Result.Data.(Cols{Icol}) = Table.(Cols{Icol});
-                end
-            end
-
-
-        end
-    end
-
-
-    methods % coordinates
-       
-        
-        
-        
-    end
     
     methods % visibility
        
@@ -1451,210 +1286,7 @@ classdef Scheduler < Component
     
     methods % weights and priority
 
-        function [Obj, P, Ind]=cadence_highest_setting(Obj, JD)
-            % observe the highest field that has crossed the Meridian (= is
-            % setting), fields near pole don't have to be setting
-            % implemented by Nora in May 2023
-                    
-            SEC_DAY = 86400;
             
-            TimeOnTarget = (Obj.NperVisit+1).*Obj.ExpTime/SEC_DAY; % days
-            [FlagAllVisible, ~] = isVisible(Obj, JD,'MinVisibilityTime',TimeOnTarget);
-            FlagObserve = (Obj.GlobalCounter<Obj.MaxNobs) & FlagAllVisible;
-            
-            [~,Alt] = Obj.azalt(JD);
-            P = Alt/90+1;
-            [HA, LST]=Obj.ha(JD);
-            FlagSetting = (HA>0) | (Obj.Dec>75); % fields with Dec>75 don't have to be setting
-            
-            P = P.*FlagObserve.*FlagSetting;
-            [~,Ind] = max(P);
-            
-        end
-            
-        
-          function [Obj, P, Ind]=cadence_highest(Obj, JD)
-            % observe the highest field
-            % Author: Nora Strotjohann (January 2023)
-                    
-            SEC_DAY = 86400;
-            
-            TimeOnTarget = (Obj.NperVisit+1).*Obj.ExpTime/SEC_DAY; % days
-            [FlagAllVisible, ~] = isVisible(Obj, JD,'MinVisibilityTime',TimeOnTarget);
-            FlagObserve = (Obj.GlobalCounter<Obj.MaxNobs) & FlagAllVisible;
-            
-            [~,Alt] = Obj.azalt(JD);
-            P = Alt/90+1;
-            [HA, ~]=Obj.ha(JD);
-            
-            P = P.*FlagObserve;
-            [~,Ind] = max(P);
-            
-          end
-        
-      
-        function [Obj, P, Ind]=cadence_predefined(Obj, JD)
-            % observed according to predefined priority (order in
-            % list if no priority given). Switch to next target
-            % when MaxNobs reached.
-            % implemented by Nora in May 2023
-                    
-            SEC_DAY = 86400;
-            
-            TimeOnTarget = (Obj.NperVisit+1).*Obj.ExpTime/SEC_DAY; % days
-            [FlagAllVisible, ~] = isVisible(Obj, JD,'MinVisibilityTime',TimeOnTarget);
-            FlagObserve = (Obj.GlobalCounter<Obj.MaxNobs) & FlagAllVisible;
-                    
-            P = Obj.Priority.*FlagObserve;
-            [~,Ind] = max(P);
-            
-        end
-        
-            
-        function [Obj, P, Ind]=cadence_cycle(Obj, JD)
-            % observed according to predefined priority (order in
-            % list if no priority given). Switch to next target
-            % when NperVisit reached.
-            % implemented by Nora in July 2023
-                    
-            SEC_DAY = 86400;
-            
-            TimeOnTarget = (Obj.NperVisit+1).*Obj.ExpTime/SEC_DAY; % days
-            [FlagAllVisible, ~] = isVisible(Obj, JD,'MinVisibilityTime',TimeOnTarget);
-            FlagObserve = (Obj.GlobalCounter<Obj.MaxNobs) & FlagAllVisible;
-            %NVisits = Obj.GlobalCounter./Obj.NperVisit;
-            %MinVisits = min(NVisits(FlagObserve));
-            [MaxLastJD,IndPrevious] = max(Obj.LastJD);
-            if MaxLastJD==0
-                IndPrevious=length(Obj.Index);
-                %fprintf('\nFirst obs.\n')
-            %else
-            %    fprintf('\nLast observed', IndPrevious)
-            end
-            newInd = linspace(length(Obj.Index)-1,0,length(Obj.Index)).';
-            
-            P = (mod(newInd+IndPrevious,length(Obj.Index))+1).*FlagObserve;
-            [~,Ind] = max(P);
-            
-        end
-            
-            
-        function [Obj, P, Ind]=cadence_fields_cont(Obj, JD)
-            % Implement "fields_cont" cadence
-            %   Given a list of selected fields - observe each field
-            %   continously for X hours during Y night
-            % Input  : - A celestial.Targets object.
-            %          - JD.
-            % Output : - The updated celestial.Targets object.
-            %          - Priority for all targets.
-            %          - Index of target with highest priority.
-            % Author : Eran Ofek (Jan 2023)
-            
-            SEC_DAY = 86400;
-
-            
-            MaxNnight = 1;
-            Nfind = 1;
-            DeadTime  = Obj.PriorityArgs.DeadTime;  % [s]
-            UsePriority = true;
-
-            TimeOnTarget = Obj.ExpTime.*Obj.NperVisit + DeadTime;
-
-
-            Priority         = Obj.Priority;
-
-
-            GlobalCounter    = Obj.GlobalCounter;
-            NightCounter     = Obj.NightCounter;
-            [VisibilityTime] = leftVisibilityTime(Obj, JD);
-            FlagVisible      = VisibilityTime.*SEC_DAY > TimeOnTarget;
-
-            FlagObserve      = GlobalCounter<Obj.MaxNobs & ...
-                               NightCounter<MaxNnight & ...
-                               Priority>0 & ...
-                               FlagVisible;
-
-            UniquePriority   = sort(unique(Priority),'descend');
-            Nup              = numel(UniquePriority);
-            MinI             = NaN;
-            for Iup=1:1:Nup
-                %
-                Flag = FlagObserve & Priority==UniquePriority(Iup);
-
-                if sum(Flag)>0
-                    VisibilityTimeP = VisibilityTime;
-
-                    VisibilityTimeP(VisibilityTimeP==0) = NaN;
-                    VisibilityTimeP(~Flag)      = NaN;
-
-                    [~,MinI] = min(VisibilityTimeP);
-                    if ~isnan(MinI)
-                        break;
-                    end
-                end
-            end
-
-            % MinI contains the found target index
-            Ind = MinI;
-            P   = Priority;
-            P(Ind) = P(Ind) + 1;
-
-            
-            
-        end
-        
-        function [Obj, P, Ind]=cadence_west2east(Obj, JD)
-            % Implement the "west2east" cadence.
-            %   priortize targets by the left visibility time,
-            %   where the highest priority target is the one with the
-            %   shortest visibility time above the Obj.MinNightlyVisibility
-            % Input  : - A celestial.Targets object.
-            %          - JD.
-            % Output : - The updated celestial.Targets object.
-            %          - Priority for all targets.
-            %          - Index of target with highest priority.
-            % Author : Eran Ofek (Jan 2023)
-            
-            VisibilityTime = leftVisibilityTime(Obj, JD);
-            % for all above min visibility time, sort by lowest to
-            % highest
-            Npr = 200;
-            Obj.Priority = zeros(Ntarget,1);
-            Obj.Priority(VisibilityTime > Obj.VisibilityArgs.MinNightlyVisibility) = 1;
-
-            VisibilityTime(Obj.GlobalCounter > Obj.MaxNobs) = 0;
-
-            [~,SI] = sort(VisibilityTime);
-            Iv     = find(VisibilityTime > Obj.VisibilityArgs.MinNightlyVisibility, Npr, 'first');
-            Nv     = numel(Iv);
-            Obj.Priority(SI(Iv)) = 2 - ((1:1:Nv)' - 1)./(Npr+1);
-
-            Obj.Priority(Obj.GlobalCounter > Obj.MaxNobs) = 0;
-
-            P = Obj.Priority;
-            [~,Ind] = max(P);
-        end
-        
-        function [Obj, P, Ind]=cadence_transients_survey(Obj, JD)
-            %
-            
-            arguments
-                Obj
-                JD    = celestial.time.julday;
-            end
-            
-            % Calculate visibility time left for all targets
-            VisibilityTime = leftVisibilityTime(Obj, JD);
-            
-            % for NightCounter==0: calc priority using daily cadence
-            % for NightCounter>0: calc priority using nightly cadence
-            
-            
-            
-            % Select all sources that are curretly visible
-            % and are visible
-            
-        end
                             
         
         function [Obj, P, Ind] = calcPriority(Obj, JD, CadenceMethod)
@@ -1770,36 +1402,6 @@ classdef Scheduler < Component
     end
     
     methods % targets selection
-        
-        % OBSOLETE?
-        function Ind = selectTarget(Obj, JD, Args)
-            % Return the indices of visible targets sorted by priority highest to lowest.
-            % Input  : - A Target object.
-            %          - JD. Default is current UTC time.
-            %          * ...,key,val,...
-            %            'isVisibleArgs' - A cell array of additional
-            %                   arguments to pass to isVisible.
-            %                   Default is {}.
-            % Output : - Indices of visible targets, sorted by priority,
-            %            highest to lowest.
-            % Author : Eran Ofek (Mar 2022)
-            % Example: Ind = selectTarget(T);
-            
-            arguments
-                Obj
-                JD                        = [];
-                Args.isVisibleArgs cell   = {};
-            end
-            
-            if isempty(JD)
-                JD     = celestial.time.julday;
-            end
-            
-            Ind = find(Obj.isVisible(JD,Args.isVisibleArgs{:}));
-            [~,SI] = sort(Obj.Priority(Ind), 'descend');
-            Ind = Ind(SI);
-            
-        end
         
         
         
