@@ -9,9 +9,25 @@
 %   S = telescope.Scheduler;
 %   S.generateRegularGrid;
 %   S.insertColList('Priority',1)
-
-
-
+%   
+%   % some getters
+%   S.RA
+%   S.Dec
+%   S.TotalExpTime
+%   S.LST
+%   S.Alt
+%   S.EclLat
+%   S.GalLat
+%   S.GalExt
+%   ...
+%   S.moonDist
+%   S.sun
+%   S.sphere_dist(1,1)
+%   ...
+%
+%   S.isVisible
+%   S.leftVisibilityTime
+%
 
 % This command will generate a list of 3 targets at some RA/Dec
 % the rest of the parameters will be taken from a default (see function
@@ -75,10 +91,12 @@ classdef Scheduler < Component
                                 'CadenceMethod', 1,...
                                 'StartJD',0, 'StopJD',Inf,...
                                 'MinMoonDist',-1,...
-                                'MinVisibility',2./24);
+                                'MinVisibility',2./24,...
+                                'Cadence',1, 'NightCadence',1./24);
 
         MaxSunAlt         = -11.5;
-        CadenceMethodMap  = {"cycleAllNonZero"}
+        MinSunDist        = 30;
+        CadenceMethodMap  = {"continous", "periodic", "cycleAllNonZero"}
         %CadenceArgs      = 
         AltConstraints  = [0 15; 90 15; 180 15; 270 15; 360 15];
         MoonConstraints = [0 0; 0.1 1; 0.2 1; 0.3 1; 0.4 2; 0.5 3; 0.6 5;0.7 10;0.8 15; 0.9 30; 1.0 30];
@@ -95,12 +113,16 @@ classdef Scheduler < Component
         FileName                   = [];
     end
     
-    properties (Dependent, Hidden)
+    properties (Hidden)
         RA
         Dec
+        TotalExpTime
+    
+    end
+    
+    properties (Dependent, Hidden)
         LST
         HA
-    
         EclLon
         EclLat
         GalLon
@@ -162,6 +184,28 @@ classdef Scheduler < Component
     end
     
     methods % setters/getters
+        function set.List(Obj,Tbl)
+            % Setter for List
+           
+            Obj.List = Tbl;
+            
+            if Obj.List.isColumn(Obj.ColRA)
+                Obj.RA   = Obj.List.getCol(Obj.ColRA);
+            end
+            if Obj.List.isColumn(Obj.ColDec)
+                Obj.Dec  = Obj.List.getCol(Obj.ColDec);
+            end
+            if Obj.List.isColumn('ExpTime') && Obj.List.isColumn('Nexp')
+                Val = Obj.List.getCol('ExpTime').*Obj.List.getCol('Nexp');
+                
+                if numel(unique(Val))==1
+                    Obj.TotalExpTime = Val(1);
+                else
+                    Obj.TotalExpTime = Val;
+                end
+            end
+        end
+        
         function Val=get.JD(Obj)
             % Getter for JD property
             
@@ -172,38 +216,43 @@ classdef Scheduler < Component
             end
         end
         
-        
         function Val=get.RA(Obj)
             % getter for RA Dependent property
             
-            if isempty(Obj.List) || Obj.List.sizeCatalog==0
-                error('Catalog is empty');
+            if isempty(Obj.RA)
+                if isempty(Obj.List) || Obj.List.sizeCatalog==0
+                    error('Catalog is empty');
+                end
+                ColInd = Obj.List.colname2ind(Obj.ColRA);
+                if isnan(ColInd)
+                    error('can not find %s column in List',Obj.ColRA);
+                end
+                Obj.RA = Obj.List.Catalog(:,ColInd);
             end
-            ColInd = Obj.List.colname2ind(Obj.ColRA);
-            if isnan(ColInd)
-                error('can not find %s column in List',Obj.ColRA);
-            end
-            Val = Obj.List.Catalog(:,ColInd);
+            Val = Obj.RA;
         end
         
         function Val=get.Dec(Obj)
             % getter for Dec Dependent property
             
-            if isempty(Obj.List) || Obj.List.sizeCatalog==0
-                error('Catalog is empty');
+            if isempty(Obj.Dec)
+                if isempty(Obj.List) || Obj.List.sizeCatalog==0
+                    error('Catalog is empty');
+                end
+                ColInd = Obj.List.colname2ind(Obj.ColDec);
+                if isnan(ColInd)
+                    error('can not find %s column in List',Obj.ColDec);
+                end
+                Obj.Dec = Obj.List.Catalog(:,ColInd);
             end
-            ColInd = Obj.List.colname2ind(Obj.ColDec);
-            if isnan(ColInd)
-                error('can not find %s column in List',Obj.ColDec);
-            end
-            Val = Obj.List.Catalog(:,ColInd);
+            Val = Obj.Dec;
         end
         
         function Val=get.LST(Obj)
             % Getter for LST - Return LST [deg]
             
             RAD = 180./pi;
-            Val     = celestial.time.lst(Obj.JD, Obj.GeoPos(1)./RAD, 'a').*360;  % [deg]
+            Val     = celestial.time.lst(Obj.JD, Obj.GeoPos(1)./RAD, 'm').*360;  % [deg]
         end
         
         function Val=get.HA(Obj)
@@ -217,7 +266,7 @@ classdef Scheduler < Component
            
         end
             
-        
+            
         function Val=get.EclLon(Obj)
             % getter for EclLon Dependent property
            
@@ -249,28 +298,28 @@ classdef Scheduler < Component
         function Val=get.Az(Obj)
             % getter for Az Dependent property
            
-            [Az, ~, ~, ~] = celestial.coo.radec2azalt(Obj.JD, Obj.RA,Obj.Dec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg');
+            [Az, ~, ~, ~] = celestial.coo.radec2azalt(Obj.JD, Obj.RA,Obj.Dec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg','LSTType','m');
             Val = Az;
         end
         
         function Val=get.Alt(Obj)
             % getter for Alt Dependent property
            
-            [~, Alt, ~, ~] = celestial.coo.radec2azalt(Obj.JD, Obj.RA,Obj.Dec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg');
+            [~, Alt, ~, ~] = celestial.coo.radec2azalt(Obj.JD, Obj.RA,Obj.Dec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg','LSTType','m');
             Val = Alt;
         end
         
         function Val=get.AirMass(Obj)
             % getter for AirMass Dependent property
            
-            [~, ~, AM, ~] = celestial.coo.radec2azalt(Obj.JD, Obj.RA,Obj.Dec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg');
+            [~, ~, AM, ~] = celestial.coo.radec2azalt(Obj.JD, Obj.RA,Obj.Dec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg','LSTType','m');
             Val = AM;
         end
         
         function Val=get.ParAng(Obj)
             % getter for ParAng Dependent property
            
-            [~, ~, ~, ParAng] = celestial.coo.radec2azalt(Obj.JD, Obj.RA,Obj.Dec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg');
+            [~, ~, ~, ParAng] = celestial.coo.radec2azalt(Obj.JD, Obj.RA,Obj.Dec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg','LSTType','m');
             Val = ParAng;
         end
         
@@ -319,6 +368,56 @@ classdef Scheduler < Component
     
     
     methods % getter for coordinates and positions
+        function varargout = azalt(Obj, JD)
+            % Return targets Az/Alt/AirMass/ParAng
+            % Input  : - Self.
+            %          - JD. If empty, use object JD. Default is [].
+            % Output : - Az [deg].
+            %          - Alt [deg].
+            %          - AirMass.
+            %          - Paralactic Angle [deg].
+            % Author : Eran Ofek (Jul 2024)
+            % Example: S.azalt
+            
+            arguments
+                Obj
+                JD   = [];
+            end
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+            
+            [varargout{1:nargout}] = celestial.coo.radec2azalt(JD, Obj.RA, Obj.Dec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg','LSTType','m');
+            %[Az, Alt, AirMass, ParAng] = celestial.coo.radec2azalt(JD, Obj.RA, Obj.Dec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg','LSTType','m');
+            
+        end
+        
+        function [HA, LST] = halst(Obj, JD)
+            % Return targets HA, LST
+            % Input  : - Self.
+            %          - JD. If empty, use object JD. Default is [].
+            % Output : - HA [deg].
+            %          - LST [deg].
+            % Author : Eran Ofek (Jul 2024)
+            % Example: S.halst
+            
+            arguments
+                Obj
+                JD   = [];
+            end
+            RAD = 180./pi;
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+            
+            LST = celestial.time.lst(JD, Obj.GeoPos(1)./RAD, 'm').*360;
+            HA       = LST - Obj.RA;
+            HA       = mod(HA,360);
+            I180     = find(HA>180);
+            HA(I180) = HA(I180) - 360;
+           
+        end
+            
         function [SunAz, SunAlt, DSunAz, DSunAlt, SunRA, SunDec, EqOfTime]=sun(Obj, JD)
             % Return Sun position and Az/Alt derivatives
             % Input  : - Self.
@@ -344,21 +443,25 @@ classdef Scheduler < Component
             if isempty(JD)
                 JD = Obj.JD;
             end
-            JD = JD + [0; 1./SEC_DAY];
+            JD1 = JD + 1./SEC_DAY;
             
             
             [SunRA,SunDec,~,~,EqOfTime]=celestial.SolarSys.suncoo(JD, 'a');
-            EqOfTime = EqOfTime./1440;
-                        
-            [SunAz, SunAlt] = celestial.coo.radec2azalt(JD, SunRA, SunDec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','rad', 'OutUnits','deg');
+            [SunAz, SunAlt] = celestial.coo.radec2azalt(JD, SunRA, SunDec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','rad', 'OutUnits','deg','LSTType','m');
             
-            DSunAz  = SunAz(2) - SunAz(1);
-            DSunAlt = SunAlt(2) - SunAlt(1);
-            SunAz   = SunAz(1);
-            SunAlt  = SunAlt(1);
-            
-            SunRA  = SunRA(1).*RAD;
-            SunDec = SunDec(1).*RAD;
+            if nargout>2
+                [SunRA1,SunDec1,~,~,~]=celestial.SolarSys.suncoo(JD1, 'a');
+
+                EqOfTime = EqOfTime./1440;
+
+                [SunAz1, SunAlt1] = celestial.coo.radec2azalt(JD1, SunRA, SunDec,'GeoCoo',Obj.GeoPos(1:2), 'InUnits','rad', 'OutUnits','deg','LSTType','m');
+
+                DSunAz  = SunAz1 - SunAz;
+                DSunAlt = SunAlt1 - SunAlt;
+
+                SunRA  = SunRA.*RAD;
+                SunDec = SunDec.*RAD;
+            end
 
         end
         
@@ -432,7 +535,7 @@ classdef Scheduler < Component
             end
         
             [MoonRA, MoonDec] = moonEqCoo(Obj, JD);
-            [MoonAz, MoonAlt] = celestial.coo.radec2azalt(JD, MoonRA, MoonDec, 'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg');
+            [MoonAz, MoonAlt] = celestial.coo.radec2azalt(JD, MoonRA, MoonDec, 'GeoCoo',Obj.GeoPos(1:2), 'InUnits','deg','OutUnits','deg','LSTType','m');
             
         end
         
@@ -489,6 +592,33 @@ classdef Scheduler < Component
                         
         end
         
+        function SunDist=sunDist(Obj, JD)
+            % Calculate Sun distance for all targets 
+            % Input  : - Self.
+            %          - JD. If empty use object JD.
+            %            Default is [].
+            % Output : - Vector angular distance between Moon and all
+            %            targets.
+            % Author : Eran Ofek (Jul 2024)
+            % Example: SunMoon = S.sunDist;
+            
+            arguments
+                Obj
+                JD   = [];
+            end
+            RAD     = 180./pi;
+            
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+            
+            [~,~,~,~,SunRA, SunDec] = sun(Obj, JD);
+                       
+            SunDist = celestial.coo.sphere_dist_fast(SunRA./RAD, SunDec./RAD, Obj.RA./RAD, Obj.Dec./RAD);
+            SunDist = SunDist.*RAD;
+                        
+        end
+         
         function [FlagCoo] = cooInField(Obj, RA, Dec, Args)
             % Search for fields that contains a list of coordinates
             % Input  : - A celestial.targets object.
@@ -680,9 +810,195 @@ classdef Scheduler < Component
     
     
     methods % visibility
-        function [FlagAll, Flag]=isVisible(Obj, JD, Args)
-            % Check if targets are visible given all their specified criteria
+        function [Flag, Alt, AltLimit]=checkAltConstraints(Obj, JD)
+            % Check Alt of targets agains the AltConstraints property.
+            % Input  : - Self..
+            %          - JD. If empty, use object JD. Default is [].
+            % Output : - A vector of logical flags (per target) indicating
+            %            if each target is above the Alt limit in the
+            %            AltConstraints property.
+            %          - A vector of the Alt of each source.
+            %          - A vector of the AltLimit for each source, ad
+            %            interpolated from the AltConstraints property.
+            % Author : Eran Ofek (Jul 2024)
+            % Example: S.checkAltConstraints
             
+            arguments
+                Obj
+                JD    = [];
+            end
+            
+            [Az, Alt] = Obj.azalt(JD);
+            
+            AltLimit = interp1(Obj.AltConstraints(:,1), Obj.AltConstraints(:,2), Az);
+            Flag     = Alt>AltLimit;
+            
+        end
+        
+        function [Flag,MoonIllum,MoonAlt,MinMoonDist]=checkMoonConstraints(Obj, JD)
+            % Check Moon distance of targets against the MoonConstraints property (distance/illumination).
+            % Input  : - Self.
+            %          - JD. If empty, use object JD. Default is [].
+            % Output : - A vector of logical flags (per target) indicating
+            %            if each target distance from the Moon is larger then
+            %            the minium distance interpolated from the
+            %            MoonConstraints property (distance as a function
+            %            of illumination).
+            %          - Moon illuminated fraction.
+            %          - Moon Alt [deg].
+            %          - Vector of min Moon distance per target, as
+            %            interpolated from the MoonConstraints property.
+            % Author : Eran Ofek (Jul 2024)
+            % Example: S.checkMoonConstraints
+           
+            arguments
+                Obj
+                JD   = [];
+            end
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+            
+            MoonDist    = Obj.moonDist(JD);
+            [~,MoonAlt] = Obj.moonAzAlt(JD);
+            MoonIllum   = Obj.moonIllum(JD);
+            
+            MinMoonDist = interp1(Obj.MoonConstraints(:,1), Obj.MoonConstraints(:,2), abs(MoonIllum));
+            
+            Flag        = MoonDist>MinMoonDist | MoonAlt<0;
+            
+        end
+        
+        function [Flag]=applyColumnConstraints(Obj, ColName, ColVal, JD)
+            % Apply for each column in List, its appropriate constraints
+            % Input  : - self.
+            %          - Column name.
+            %          - Column vector of values. If empty, then extract
+            %            from List using ColName. Default is [].
+            % Output : - A vector of logicals indicatins (per target)
+            %            indicating if the target passes the criterion specified in
+            %            the column.
+            % Author : Eran Ofek (Jul 2024)
+            % Example: S.applyColumnConstraints('MaxHA')
+            
+            arguments
+                Obj
+                ColName
+                ColVal    = [];
+                JD        = [];
+            end
+            SEC_DAY = 86400;
+            
+            if isempty(ColVal)
+                ColVal = Obj.List.getCol(ColName);
+            end
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+            
+            JD1 = JD + Obj.TotalExpTime./SEC_DAY;  % predicted end of visit
+            
+            switch ColName
+                case 'MinAlt'
+                    [~,Alt] = Obj.azalt(JD);
+                    [~,Alt1] = Obj.azalt(JD1);
+                    Flag = Alt>ColVal & Alt1>ColVal;
+                case 'MaxAlt'
+                    [~,Alt] = Obj.azalt(JD);
+                    Flag = Alt<=ColVal;
+                case 'MaxHA'
+                    [HA] = Obj.halst(JD);
+                    [HA1] = Obj.halst(JD1);
+                    
+                    Flag = abs(HA)<ColVal & abs(HA1)<ColVal;
+                case 'MaxCounter'
+                    GlobalCounter = Obj.List.getCol('GlobalCounter');
+                    if isnan(GlobalCounter)
+                        error('GlobalCounter is missing');
+                    end
+                    Flag = ColVal>GlobalCounter;
+                case 'MinMoonDist'
+                    Flag = Obj.moonDist(JD)>ColVal;
+                case 'StartJD'
+                    Flag = JD>ColVal;
+                case 'StopJD'
+                    Flag = JD<ColVal;
+                case 'MinVisibility'
+                    LeftTime = Obj.leftVisibilityTime(JD);
+                    NightCounter = Obj.List.getCol('NightCounter');
+                    if isnan(NightCounter)
+                        error('NightCounter is not available');
+                    end
+                    Flag     = LeftTime>ColVal | NightCounter>0;
+                    
+                otherwise
+                    % skip
+                    Flag = true(Obj.List.sizeCatalog, 1);
+            end
+                    
+            
+        end
+        
+        function [Flag, FlagsIn, Summary]=isVisible(Obj, JD, Args)
+            % Check if targets are visible given all their specified criteria
+            % Input  : - Self.
+            % Output : - A vector of flags (one per target) indicating if
+            %            the targets are visible according to all criteria.
+            %          - Structure containing vector of flags for each used
+            %            constraint.
+            %          - A structure with some summary of information.
+            % Author : Eran Ofek (Jul 2024)
+            % Example: S.isVisible
+            
+            arguments
+                Obj
+                JD    = [];
+                Args.SkipMinVisibility logical  = false;
+            end
+            %RAD     = 180./pi;
+            SEC_DAY  = 86400;
+            
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+            
+            JD1 = JD + Obj.TotalExpTime./SEC_DAY;
+            
+            % check Sun altitude
+            [~,Summary.SunAlt]= Obj.sun(JD);
+            [~,SunAlt1]= Obj.sun(JD1);
+            FlagsIn.SunAlt    = Summary.SunAlt<Obj.MaxSunAlt & SunAlt1<Obj.MaxSunAlt;
+            
+            % check Sun distance
+            Summary.SunDist   = Obj.sunDist(JD);
+            SunDist1          = Obj.sunDist(JD1);
+            FlagsIn.SunDist   = Summary.SunDist>Obj.MinSunDist & SunDist1>Obj.MinSunDist;
+            
+            % AltConstraints
+            [FlagsIn.Alt, Summary.Alt] = Obj.checkAltConstraints(JD);
+            [FAlt1]                    = Obj.checkAltConstraints(JD1);
+            FlagsIn.Alt                = FlagsIn.Alt & FAlt1;
+            
+            % MoonConstraints
+            [FlagsIn.Moon, Summary.MoonIllum]= Obj.checkMoonConstraints(JD);
+            
+            % go over all columns in List
+            [~,Ncol] = Obj.List.sizeCatalog;
+            for Icol=1:1:Ncol
+                ColName = Obj.List.ColNames{Icol};
+                if ~(Args.SkipMinVisibility && strcmp(ColName, 'MinVisibility'))
+                    FlagsIn.(ColName) = Obj.applyColumnConstraints(ColName, [], JD);
+                end
+            end
+            
+            % Merge all flags
+            FN   = fieldnames(FlagsIn);
+            Nfn  = numel(FN);
+            Nsrc = Obj.List.sizeCatalog; 
+            Flag = true(Nsrc,1);
+            for Ifn=1:1:Nfn
+                Flag = Flag & FlagsIn.(FN{Ifn});
+            end
             
             
         end
@@ -701,7 +1017,7 @@ classdef Scheduler < Component
             
             arguments
                 Obj
-                JD       = [];
+                JD             = [];
                 Args.TimeRes   = 2./1440;   % time resolution [day]
             end
             RAD     = 180./pi;
@@ -710,18 +1026,18 @@ classdef Scheduler < Component
                 JD = Obj.JD;
             end
             
-            [SunSetJD, IsRise] = celestial.Targets.nextSunHorizon(JD, Obj.GeoPos, 'AltThreshold', Obj.MaxSunAlt);
+            [SunCrossingTime, NextIsRise] = telescope.Scheduler.nextSunHorizon(JD, Obj.GeoPos, 'AltThreshold', Obj.MaxSunAlt);
             
             Ntarget = Obj.List.sizeCatalog;
             
-            if IsRise
-                VecJD = (JD:Args.TimeRes:SunSetJD).';
+            if NextIsRise
+                VecJD = (JD:Args.TimeRes:SunCrossingTime).';
                 
                 Njd   = numel(VecJD);
                 VisibilityCounter = zeros(Ntarget,1);
                 VisibilityStatus  = true(Ntarget,1);  % become false after source is not visible for the first time
                 for Ijd=1:1:Njd
-                    [FlagAll] = isVisible(Obj, VecJD(Ijd), 'CheckVisibility',false);
+                    [FlagAll] = isVisible(Obj, VecJD(Ijd), 'SkipMinVisibility',true);
                     VisibilityStatus  = VisibilityStatus & FlagAll;
                     VisibilityCounter = VisibilityCounter + FlagAll.*VisibilityStatus;
                 end
@@ -991,7 +1307,7 @@ classdef Scheduler < Component
                 
         
         
-        function [FlagAll, Flag] = isVisible(Obj, JD, Args)
+        function [FlagAll, Flag] = isVisible111(Obj, JD, Args)
             % Check if Target is visible according to all selection criteria
             %       Selection criteria include:
             %       In Dec range
@@ -1535,6 +1851,12 @@ classdef Scheduler < Component
         end
     end
     
+    
+    
+    
+    
+    
+    
     methods (Static)  % static utilities
         function TargetName = radec2name(RA,Dec, Fun)
             % given RA/Dec [deg] generate names in cell array %03d+%02d
@@ -1565,45 +1887,7 @@ classdef Scheduler < Component
                 end
             end
         end
-        
-        function [Alt, Az, dAlt, dAz] = sunAlt(JD, GeoPos)
-            % Return Sun geometric Alt and Az [no refraction] (Static)
-            % Input  : - Vector of JD
-            %          - Geo pos [Lon, Lat] in deg.
-            % Output : - Sun Alt [deg].
-            %          - Sun Az [deg]
-            %          - Sun dAlt/dt [deg/sec]
-            %          - Sun dAz/dt [deg/sec]
-            % Author : Eran Ofek (Jan 2022)
-            % Example: [Alt, Az] = celestial.Targets.sunAlt(2451545, [1 1])
-            
-            RAD = 180./pi;
-            
-            [RA, Dec] = celestial.SolarSys.suncoo(JD, 'a');
-            RA  = RA.*RAD;
-            Dec = Dec.*RAD;
-            LST     = celestial.time.lst(JD, GeoPos(1)./RAD, 'a').*360;  % [deg]
-            HA      = LST - RA;
-            [Az,Alt]= celestial.coo.hadec2azalt(HA./RAD, Dec./RAD, GeoPos(2)./RAD);
-            Az  = Az.*RAD;
-            Alt = Alt.*RAD;
-            
-            if nargout>2
-                JD1 = JD + 1./86400;
-                [RA, Dec] = celestial.SolarSys.suncoo(JD1, 'a');
-                RA  = RA.*RAD;
-                Dec = Dec.*RAD;
-                LST     = celestial.time.lst(JD1, GeoPos(1)./RAD, 'a').*360;  % [deg]
-                HA      = LST - RA;
-                [Az1,Alt1] = celestial.coo.hadec2azalt(HA./RAD, Dec./RAD, GeoPos(2)./RAD);
-                Az1  = Az1.*RAD;
-                Alt1 = Alt1.*RAD;
-                dAlt = Alt1 - Alt;
-                dAz  = Az1 - Az;
-            end
-            
-        end
-        
+                            
         function [Time, IsRise] = nextSunHorizon(JD, GeoPos, Args)
             % look for next Sun horizon crossing (including refraction)
             % Input  : - JD
@@ -1617,13 +1901,13 @@ classdef Scheduler < Component
             %          - A logical flag indicating if rise (true), or set
             %            (false).
             % Author : Eran Ofek (Jan 2022)
-            % Example: [Time, IsRise] = celestial.Targets.nextSunHorizon
+            % Example: [Time, IsRise] = telescope.Scheduler.nextSunHorizon
             
             arguments
                 JD           = celestial.time.julday;
                 GeoPos       = [35 32];
                 
-                Args.AltThreshold  = -0.83333;
+                Args.AltThreshold  = -0.83333;  % [deg]
                 Args.Step          = 10;    % [min]
             end
             
