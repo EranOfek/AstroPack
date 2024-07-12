@@ -6,9 +6,11 @@
 
 % Examples:
 %
-%   S = celestial.Scheduler;
+%   S = telescope.Scheduler;
 %   S.generateRegularGrid;
 %   S.insertColList('Priority',1)
+
+
 
 
 % This command will generate a list of 3 targets at some RA/Dec
@@ -72,11 +74,11 @@ classdef Scheduler < Component
                                 'LastJD',0,...
                                 'CadenceMethod', 1,...
                                 'StartJD',0, 'StopJD',Inf,...
-                                'MaxSunAlt',-11.5,...
                                 'MinMoonDist',-1,...
                                 'MinVisibility',2./24);
 
-        CadenceMethodMap = {"cycleAllNonZero"}
+        MaxSunAlt         = -11.5;
+        CadenceMethodMap  = {"cycleAllNonZero"}
         %CadenceArgs      = 
         AltConstraints  = [0 15; 90 15; 180 15; 270 15; 360 15];
         MoonConstraints = [0 0; 0.1 1; 0.2 1; 0.3 1; 0.4 2; 0.5 3; 0.6 5;0.7 10;0.8 15; 0.9 30; 1.0 30];
@@ -282,6 +284,40 @@ classdef Scheduler < Component
         
     end
 
+    methods (Static)   % utilities
+        function [RA,Dec]=radec2deg(RA, Dec)
+            % Convert scalar coordinates (hms, sexagesimal, ddeg)  to deg.
+            % Input  : - J2000 RA [H M S] or [deg] or sexagesimal.
+            %          - J2000 Dec [Sign D M S] or [deg] or sexagesimal.
+            % Output : - J2000 RA [deg].
+            %          - J2000 Dec [deg].
+            % Author : Eran Ofek (Jul 2024)
+            % Example: telescope.Scheduler.radec2deg(1,1)
+            
+            RAD = 180./pi;
+            
+            if ~isnumeric(RA)
+                RA = celestial.coo.convertdms(RA, 'SH', 'r');
+            else
+                if numel(RA)>1
+                    RA = celestial.coo.convertdms(RA, 'H', 'r');
+                else
+                    RA = RA./RAD;
+                end
+            end
+            if ~isnumeric(Dec)
+                Dec = celestial.coo.convertdms(Dec, 'SD', 'r');
+            else
+                if numel(Dec)>1
+                    Dec = celestial.coo.convertdms(Dec, 'D', 'r');
+                else
+                    Dec = Dec./RAD;
+                end
+            end
+        end
+    end
+    
+    
     methods % getter for coordinates and positions
         function [SunAz, SunAlt, DSunAz, DSunAlt, SunRA, SunDec, EqOfTime]=sun(Obj, JD)
             % Return Sun position and Az/Alt derivatives
@@ -340,24 +376,7 @@ classdef Scheduler < Component
             
             RAD = 180./pi;
             
-            if ~isnumeric(RA)
-                RA = celestial.coo.convertdms(RA, 'SH', 'r');
-            else
-                if numel(RA)>1
-                    RA = celestial.coo.convertdms(RA, 'H', 'r');
-                else
-                    RA = RA./RAD;
-                end
-            end
-            if ~isnumeric(Dec)
-                Dec = celestial.coo.convertdms(Dec, 'SD', 'r');
-            else
-                if numel(Dec)>1
-                    Dec = celestial.coo.convertdms(Dec, 'D', 'r');
-                else
-                    Dec = Dec./RAD;
-                end
-            end
+            [RA, Dec] = telescope.Scheduler.radec2deg(RA, Dec);
             
             Dist = celestial.coo.sphere_dist_fast(RA, Dec, Obj.RA./RAD, Obj.Dec./RAD);
             Dist = Dist.*RAD;
@@ -470,6 +489,44 @@ classdef Scheduler < Component
                         
         end
         
+        function [FlagCoo] = cooInField(Obj, RA, Dec, Args)
+            % Search for fields that contains a list of coordinates
+            % Input  : - A celestial.targets object.
+            %          - J2000 RA [H M S] or [deg] or sexagesimal.
+            %          - J2000 Dec [Sign D M S] or [deg] or sexagesimal.
+            %          * ...,key,val,...
+            %            'HalfSize' - Half size of box to search around
+            %                   each field. Default is [2.1 3.2] (deg).
+            % Output : - A vector of logical indicating if the targets in
+            %            the celestial.targets object contains one or the RA/Dec.
+            % Author : Eran Ofek (Mar 2023)
+            % Example: S.cooInField(100,10);
+           
+            arguments
+                Obj
+                RA     
+                Dec    
+                Args.HalfSize   = [2.1 3.2];  % deg
+            end
+            
+            RAD = 180./pi;
+            
+            [RA, Dec] = telescope.Scheduler.radec2deg(RA, Dec);
+            
+            RA   = RA./RAD;
+            Dec  = Dec./RAD;
+            
+            HalfSize  = Args.HalfSize./RAD;
+            
+            Nsrc = Obj.List.sizeCatalog;
+            FieldRA  = Obj.RA./RAD;
+            FieldDec = Obj.Dec./RAD;
+            FlagCoo  = false(Nsrc,1);
+            for Isrc=1:1:Nsrc
+                FlagCoo(Isrc) = celestial.coo.in_box(RA, Dec, [FieldRA(Isrc), FieldDec(Isrc)], HalfSize);
+            end
+            
+        end
     end
     
     methods % load lists and tables
@@ -541,7 +598,30 @@ classdef Scheduler < Component
     end
 
     methods % write lists and tables
-
+        function save(Obj, FileName)
+            % save the Targets object as a MAT file.
+            % Input  : - A Targets object.
+            %          - File name.
+            % Author : Eran Ofek (Jan 2022)
+            % Example: T=celestial.Targets;
+            %          T.generateTargetList('last');
+            %          T.write('try1.mat')
+            
+            arguments
+                Obj
+                FileName       = [];
+            end
+            
+            if isempty(FileName)
+               FileName = Obj.FileName;
+               if isempty(FileName)
+                   error('FileName must be provided');
+               end
+            end
+            
+            save('-v7.3', FileName, 'Obj');
+        end
+        
     end
 
     
@@ -599,8 +679,60 @@ classdef Scheduler < Component
     end
     
     
-
-
+    methods % visibility
+        function [FlagAll, Flag]=isVisible(Obj, JD, Args)
+            % Check if targets are visible given all their specified criteria
+            
+            
+            
+        end
+        
+        
+        function VisibilityTime = leftVisibilityTime(Obj, JD, Args)
+            % Left visibility time for all targets
+            % Input  : - Target object.
+            %          - JD. If empty use object JD. Default is [].
+            %          * see code
+            % Output : - Vector of left time for target visibility [day].
+            % Author : Eran Ofek (Jul 2024)
+            % Example: S=telescope.Scheduler;
+            %          S.generateRegularGrid;
+            %          [VisibilityTime] = S.leftVisibilityTime;
+            
+            arguments
+                Obj
+                JD       = [];
+                Args.TimeRes   = 2./1440;   % time resolution [day]
+            end
+            RAD     = 180./pi;
+            
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+            
+            [SunSetJD, IsRise] = celestial.Targets.nextSunHorizon(JD, Obj.GeoPos, 'AltThreshold', Obj.MaxSunAlt);
+            
+            Ntarget = Obj.List.sizeCatalog;
+            
+            if IsRise
+                VecJD = (JD:Args.TimeRes:SunSetJD).';
+                
+                Njd   = numel(VecJD);
+                VisibilityCounter = zeros(Ntarget,1);
+                VisibilityStatus  = true(Ntarget,1);  % become false after source is not visible for the first time
+                for Ijd=1:1:Njd
+                    [FlagAll] = isVisible(Obj, VecJD(Ijd), 'CheckVisibility',false);
+                    VisibilityStatus  = VisibilityStatus & FlagAll;
+                    VisibilityCounter = VisibilityCounter + FlagAll.*VisibilityStatus;
+                end
+                VisibilityTime = VisibilityCounter .* Args.TimeRes;
+            else
+                % night did not started yet
+                % set viaibility time to zero
+                VisibilityTime = zeros(Ntarget,1);
+            end
+        end
+    end
 
 
 
@@ -772,17 +904,7 @@ classdef Scheduler < Component
     end
 
     methods % read/write
-        function write(Obj, FileName)
-            % save the Targets object as a MAT file.
-            % Input  : - A Targets object.
-            %          - File name.
-            % Author : Eran Ofek (Jan 2022)
-            % Example: T=celestial.Targets;
-            %          T.generateTargetList('last');
-            %          T.write('try1.mat')
-            
-            save('-v7.3', FileName, 'Obj');
-        end
+        
         
         function writeFile(Obj, FileName)
             % save the Targets object in a txt file.
@@ -858,199 +980,16 @@ classdef Scheduler < Component
        
         
         
-        function [Flag] = cooInField(Obj, RA, Dec, Args)
-            % Search for fields that contains a list of coordinates
-            % Input  : - A celestial.targets object.
-            %          - A vector of RA [deg].
-            %          - A vectot of Dec [deg].
-            %          * ...,key,val,...
-            %            'HalfSize' - Half size of box to search around
-            %                   each field. Default is [2.1 3.2] (deg).
-            % Output : - A vector of logical indicating if the targets in
-            %            the celestial.targets object contains one or the RA/Dec.
-            % Author : Eran Ofek (Mar 2023)
-            % Example: T=celestial.Targets.generateTargetList('last');
-            %          Flag = T.cooInField(100,10, 'HalfSize',[2.1 3.2])
-           
-            arguments
-                Obj
-                RA     % [deg]
-                Dec    % [deg]
-                Args.HalfSize   = [2.1 3.2];  % deg
-            end
-            
-            RAD = 180./pi;
-            
-            RA   = RA./RAD;
-            Dec  = Dec./RAD;
-            
-            HalfSize  = Args.HalfSize./RAD;
-            
-            FieldsRA  = Obj.RA./RAD;
-            FieldsDec = Obj.Dec./RAD;
-            
-            Ntarget = numel(FieldsRA);
-            Flag    = false(Ntarget,1);
-            for Itarget=1:1:Ntarget
-                FlagCoo = celestial.coo.in_box(RA, Dec, [FieldsRA(Itarget), FieldsDec(Itarget)], HalfSize);
-                if any(FlagCoo)
-                    Flag(Itarget) = true;
-                end
-            end
-            
-        end
+        
     end
     
     methods % visibility
        
         
         
-        function Moon = moonCoo(Obj, JD)
-            % Return Moon phase/RA/Dec and geometric Az/Alt
-            % Input  : - Targets Sunobject.
-            %          - JD. Default is current UTC time.
-            % Output : - A structure with Moon:
-            %            .RA [deg]
-            %            .Dec [deg]
-            %            .Az [deg]
-            %            .Alt [deg]
-            %            .Illum  - illumination fraction.
-            %            .Phase [deg]
-            % Author : Eran Ofek (Jan 2022)
-            % Example: T.generateTargetList('last');
-            %          [Moon] = T.moonCoo
             
-            arguments
-                Obj
-                JD       = celestial.time.julday;
-            end
-            
-            RAD = 180./pi;
-                        
-            [RA, Dec] = celestial.SolarSys.mooncool(JD, Obj.GeoPos(1:2), 'b');
-            Moon.RA  = RA.*RAD;
-            Moon.Dec = Dec.*RAD;
-            LST     = celestial.time.lst(JD, Obj.GeoPos(1)./RAD, 'a').*360;  % [deg]
-            HA      = LST - RA;
-            [Az,Alt]= celestial.coo.hadec2azalt(HA./RAD, Moon.Dec./RAD, Obj.GeoPos(2)./RAD);
-            Moon.Az  = Az.*RAD;
-            Moon.Alt = Alt.*RAD;
-            
-            % Moon phase/illumination
-            [Moon.Illum, Moon.Phase] = celestial.SolarSys.moon_illum(JD);
-            Moon.Phase = Moon.Phase.*RAD;
-            
-        end
-        
-        
-        
-        function [Az, Alt, dAz, dAlt] = azalt(Obj, JD)
-            % get Az/Alt for target
-            % Input  : - Target object.
-            %          - JD. Default is current time.
-            % Output : - Az [deg]
-            %          - Alt [deg]
-            %          - dAz/dt [deg/s]
-            %          - dAlt/dt [deg/s]
-            % Author : Eran Ofek (Jan 2022)
-            % Example: T.generateTargetList('last');
-            %          [Az, Alt] = T.azalt
-            
-            arguments
-                Obj
-                JD       = celestial.time.julday;
-            end
-            SEC_IN_DAY = 86400;
-            RAD        = 180./pi;
-                   
-            LST     = celestial.time.lst(JD, Obj.GeoPos(1)./RAD, 'a').*360;  % [deg]
-            HA      = LST - Obj.RA;
-            [Az,Alt]= celestial.coo.hadec2azalt(HA./RAD, Obj.Dec./RAD, Obj.GeoPos(2)./RAD);
-            Az  = Az.*RAD;
-            Alt = Alt.*RAD;
-            
-            if nargout>2
-                JD1     = JD + 1./SEC_IN_DAY;
-                LST     = celestial.time.lst(JD1, Obj.GeoPos(1)./RAD, 'a').*360;  % [deg]
-                HA      = LST - Obj.RA;
-                [Az1,Alt1]= celestial.coo.hadec2azalt(HA./RAD, Obj.Dec./RAD, Obj.GeoPos(2)./RAD);
-                Az1  = Az1.*RAD;
-                Alt1 = Alt1.*RAD;
-                dAz  = Az1 - Az;
-                dAlt = Alt1 - Alt;
-            end
-        end
-            
-        function [HA, LST] = ha(Obj, JD)
-            % get HA and LST for target
-            % Input  : - Target object.
-            %          - JD. Default is current UTC time.
-            % Output : - HA [deg] in the ranfe -180 to 180 deg.
-            %          - LST [deg]
-            % Author : Eran Ofek (Jan 2022)
-            % Example: T.generateTargetList('last');
-            %          [HA, LST] = T.ha
-            
-            arguments
-                Obj
-                JD       = celestial.time.julday;
-            end
-            
-            RAD = 180./pi;
-                   
-            LST     = celestial.time.lst(JD, Obj.GeoPos(1)./RAD, 'a').*360;  % [deg]
-            HA      = LST - Obj.RA;
-            
-            % convert to -180 to 180 deg range:
-            HA = mod(HA, 360);
-            FlagL = HA>180;
-            HA(FlagL) = HA(FlagL) - 360;
-            
-        end
                 
-        function VisibilityTime = leftVisibilityTime(Obj, JD, Args)
-            % Left visibility time for all targets
-            % Input  : - Target object.
-            %          - JD. Default is current UTC time.
-            %          * see code
-            % Output : - Vector of left time for target visibility [day].
-            % Author : Eran Ofek (Jan 2022)
-            % Example: T=celestial.Targets;
-            %          T.generateTargetList('last');
-            %          [VisibilityTime] = leftVisibilityTime(T)
-            
-            arguments
-                Obj
-                JD              = celestial.time.julday;
-                Args.TimeRes    = 2./1440;   % [day]
-            end
-            
-            if isempty(JD)
-                JD     = celestial.time.julday;
-            end
-                        
-            [SunSetJD, IsRise] = celestial.Targets.nextSunHorizon(JD, Obj.GeoPos, 'AltThreshold', Obj.VisibilityArgs.SunAltLimit);
-            
-            Ntarget = numel(Obj.RA);
-            
-            if IsRise
-                VecJD = (JD:Args.TimeRes:SunSetJD).';
-                
-                Njd   = numel(VecJD);
-                VisibilityCounter = zeros(Ntarget,1);
-                VisibilityStatus  = true(Ntarget,1);  % become false after source is not visible for the first time
-                for Ijd=1:1:Njd
-                    [FlagAll] = isVisible(Obj, VecJD(Ijd), 'CheckVisibility',false);
-                    VisibilityStatus  = VisibilityStatus & FlagAll;
-                    VisibilityCounter = VisibilityCounter + FlagAll.*VisibilityStatus;
-                end
-                VisibilityTime = VisibilityCounter .* Args.TimeRes;
-            else
-                % night did not started yet
-                % set viaibility time to zero
-                VisibilityTime = zeros(Ntarget,1);
-            end
-        end
+        
         
         function [FlagAll, Flag] = isVisible(Obj, JD, Args)
             % Check if Target is visible according to all selection criteria
