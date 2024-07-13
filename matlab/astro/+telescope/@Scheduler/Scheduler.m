@@ -28,52 +28,24 @@
 %   S.isVisible
 %   S.leftVisibilityTime
 %
+%   % example for target selection and observations
+%   JD = 2451545.5
+%   S.initNightCounter;  % init NightCounter (set to 0 at begining of night)
+%   W = S.weight(JD)
+%   IsV = S.isVisible(JD);
+%   Priority = W.*IsV
+%   % select target for observation
+%   [~,TargetInd] = Priority;
+%   if IsV(TargetInd)==0
+%       error('No target to observe');
+%   end
+%
+%   % update counters and LastJD
+%   SincreaseCounter(TargetInd)
+%
+%   
 
-% This command will generate a list of 3 targets at some RA/Dec
-% the rest of the parameters will be taken from a default (see function
-% help)
-% T = celestial.Targets.createList('RA',[112 21 321].','Dec',[-21,22,3].');
-% 
-% You can overide the default using - e.g.,
-% T = celestial.Targets.createList('RA',[112 21 321].','Dec',[-21,22,3].','ExpTime',10);
-% or
-% T = celestial.Targets.createList('RA',[112 21 321].','Dec',[-21,22,3].','MaxNobs',[1 2 3].');
-% If scalar values are given then assume the same value for all targets
-%
-% To generate a list based on some all-sky fields:
-% T = celestial.Targets.generateTargetList('last');
-%
-% write a celestial.Targets as mat file
-% T.write('FileName.mat');
-% S.insertColList('Priority',1)
-%
-% Coordinate conversiona and information
-% (in all cases default time is now):
-% [Lon, Lat] = T.ecliptic;
-% [Lon, Lat] = T.galactic;
-% [MD, Moon] = T.moonDist(2451545);
-% [MD, Moon] = T.moonDist; % for current time
-% [Sun] = T.sunCoo;
-% [Moon] = T.moonCoo;
-% [Az, Alt, dAz, dAlt] = T.azalt;          
-% [HA, LST] = T.ha;
-% [Time, IsRise] = celestial.Targets.nextSunHorizon;      
-% [VisibilityTime] = leftVisibilityTime(T);
-% [FlagAll, Flag] = isVisible(T); 
-%
-% Search for fields that contains some coordinates:
-% Flag = T.cooInField(100,10, 'HalfSize',[2.1 3.2]);
-%
-% Calculate priority and select objects:
-% [~,~,Ind] = T.calcPriority(2451545.5,'fields_cont');
-%
-% Get the details RA/Dec, etc for selected targets, in Table, and structure
-% format:
-% [ResT, ResS] = T.getTarget(Ind);
-%
-% after an observation is done, to increase the global/night counters for
-% target: Ind.
-% T.updateCounter(Ind);
+
 
 
 classdef Scheduler < Component
@@ -85,18 +57,20 @@ classdef Scheduler < Component
         % units deg/days
         Defaults       = struct('MinAlt',15, 'MaxAlt',90, 'MaxHA',120,...
                                 'Nexp',20, 'ExpTime',20,...
+                                'BasePriority', 0.1,...
                                 'Priority', 0.1,...
                                 'NightCounter',0, 'GlobalCounter',0, 'MaxCounter',Inf,...
                                 'LastJD',0,...
                                 'CadenceMethod', 1,...
                                 'StartJD',0, 'StopJD',Inf,...
+                                'Cadence',1, 'WeightHigh',1.1, 'WeightLow',1.0, 'CadenceRiseTime',0.5, 'WeightDecayTime',10,...
+                                'NightCadence',1./24, 'NightWeightHigh',1.1, 'NightWeightLow',1.0, 'NightCadenceRiseTime',0.005, 'NightWeightDecayTime',-100,...
                                 'MinMoonDist',-1,...
-                                'MinVisibility',2./24,...
-                                'Cadence',1, 'NightCadence',1./24);
+                                'MinVisibility',2./24);
 
         MaxSunAlt         = -11.5;
         MinSunDist        = 30;
-        CadenceMethodMap  = {"continous", "periodic", "cycleAllNonZero"}
+        CadenceMethodMap  = {"periodic", "continous", "cycleAllNonZero"}
         %CadenceArgs      = 
         AltConstraints  = [0 15; 90 15; 180 15; 270 15; 360 15];
         MoonConstraints = [0 0; 0.1 1; 0.2 1; 0.3 1; 0.4 2; 0.5 3; 0.6 5;0.7 10;0.8 15; 0.9 30; 1.0 30];
@@ -121,6 +95,7 @@ classdef Scheduler < Component
     end
     
     properties (Dependent, Hidden)
+        FieldName
         LST
         HA
         EclLon
@@ -205,6 +180,12 @@ classdef Scheduler < Component
                     Obj.TotalExpTime = Val;
                 end
             end
+        end
+        
+        function Val=get.FieldName(Obj)
+            % Getter for FieldName
+            
+            Val = Obj.List.Catalog.(Obj.ColFieldName);
         end
         
         function Val=get.JD(Obj)
@@ -1057,7 +1038,7 @@ classdef Scheduler < Component
             arguments
                 Obj
                 JD             = [];
-                Args.TimeRes   = 2./1440;   % time resolution [day]
+                Args.TimeRes   = 5./1440;   % time resolution [day]
             end
             RAD     = 180./pi;
             
@@ -1091,13 +1072,18 @@ classdef Scheduler < Component
 
 
     methods % counters
-        function Obj=increaseCounter(Obj, Ind, CountersName)
+        function Obj=increaseCounter(Obj, Ind, LastJD, CountersName, ColLastJD)
             % Increase Global/Night counters for target
             % Input  : - Self.
             %          - Target index, or FieldName.
+            %          - Value for LastJD to update in table.
+            %            If empty, use current time.
+            %            If NaN, do not update.
+            %            Default is [].
             %          - Cell array of colun names containing counters to
             %            increase.
             %            Default is {'GlobalCounter', 'NightCounter'}.
+            %          - ColLastJD. Default is 'LastJD'.
             % Output : - Updated object.
             % Author : Eran Ofek (Jul 2024)
             % Example: S.increaseCounter("1")
@@ -1105,7 +1091,9 @@ classdef Scheduler < Component
             arguments
                 Obj
                 Ind
+                LastJD       = [];
                 CountersName = {'GlobalCounter', 'NightCounter'};
+                ColLastJD    = 'LastJD';
             end
                         
             if ~isnumeric(Ind)
@@ -1117,11 +1105,108 @@ classdef Scheduler < Component
                 Obj.List.Catalog.(CountersName{Ic})(Ind) = Obj.List.Catalog.(CountersName{Ic})(Ind) + 1;
             end
             
+            if isempty(LastJD)
+                LastJD = celestial.time.julday();
+            end
+            if ~isnan(LastJD)
+                Obj.List.Catalog.(ColLastJD)(Ind) = LastJD;
+            end
+            
         end
         
+        function Obj=initNightCounter(Obj)
+            % Set NightCounter to 0 for all targets
+           
+            Nsrc = Obj.List.sizeCatalog;
+            Obj.List.Catalog.NightCounter = zeros(Nsrc,1);
+        end
     end
 
+    
+    methods % targets selection
+        
+        function [Result,Struct]=getTarget(Obj, ObjectIndex)
+            % Get properties of selected targets by index or target name
+            % Input  : - A celestial.Targets object.
+            %          - Vector of indices, or cell array of target names.
+            % Output : - A table with the selected targets.
+            %          - A structure array with the selected targets.
+            % Author : Eran Ofek (Apr 2022)
+            % Example: T=celestial.Targets.generateTargetList('last');
+            %          [ResT, ResS] = T.getTarget(1:2)
 
+            arguments
+                Obj
+                ObjectIndex
+            end
+
+            if ~isnumeric(ObjectIndex)
+                % assume TargetName is provided
+                ObjectIndex = find(strcmp(Obj.FieldName,ObjectIndex));
+            end
+
+            Result = Obj.List.Catalog(ObjectIndex,:);
+            if nargout>1
+                Struct = table2struct(Result);
+            end
+        end
+    end
+    
+    methods % priority
+        function W=weight(Obj, JD, Args)
+            % Calculate priority weight (without visibility) for periodic cadence
+            % Input  : - Self.
+            %          - JD. If empty, use object JD.
+            %            Default is [].
+            %          * ...,key,val,...
+            %            See code.
+            % Output : - Cadene Weight (without visibility information)
+            % Author : Eran Ofek (Jul 2024)
+            % Example: S.weight
+           
+            arguments
+                Obj
+                JD      = [];
+                Args.ColLastJD  = 'LastJD';
+            end
+           
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+            
+            LastJD = Obj.List.Catalog.(Args.ColLastJD);
+            
+            Nsrc         = Obj.List.sizeCatalog;
+            NightCounter = Obj.List.Catalog.NightCounter;
+            
+            W            = zeros(Nsrc,1);
+            Fnc0         = NightCounter==0;
+            Inc0         = find(Fnc0);
+            In0          = find(~Fnc0);
+            
+            W(Inc0) = telescope.Scheduler.fermiExpWeight(JD-LastJD(Inc0), 'Cadence', Obj.List.Catalog.Cadence(Inc0),...
+                                                            'WeightHigh',Obj.List.Catalog.WeightHigh(Inc0),...
+                                                            'WeightLow',Obj.List.Catalog.WeightLow(Inc0),...
+                                                            'CadenceRiseTime',Obj.List.Catalog.CadenceRiseTime(Inc0),...
+                                                            'WeightDecayTime',Obj.List.Catalog.WeightDecayTime(Inc0));
+            
+            W(In0)  = telescope.Scheduler.fermiExpWeight(JD-LastJD(In0), 'Cadence', Obj.List.Catalog.NightCadence(In0),...
+                                                            'WeightHigh',Obj.List.Catalog.NightWeightHigh(In0),...
+                                                            'WeightLow',Obj.List.Catalog.NightWeightLow(In0),...
+                                                            'CadenceRiseTime',Obj.List.Catalog.NightCadenceRiseTime(In0),...
+                                                            'WeightDecayTime',Obj.List.Catalog.NightWeightDecayTime(In0));
+            
+            % Add BasePriority
+            W = W + Obj.List.Catalog.BasePriority;
+            
+        end
+    end
+    
+    
+    
+    
+    
+    
 
 
 
@@ -1135,13 +1220,7 @@ classdef Scheduler < Component
 
     
     methods % visibility
-       
-        
-        
-            
-                
-        
-        
+      
         function [FlagAll, Flag] = isVisible111(Obj, JD, Args)
             % Check if Target is visible according to all selection criteria
             %       Selection criteria include:
@@ -1285,7 +1364,7 @@ classdef Scheduler < Component
     end
     
     methods % weights and priority
-
+        
             
                             
         
@@ -1401,57 +1480,7 @@ classdef Scheduler < Component
                 
     end
     
-    methods % targets selection
-        
-        
-        
-        function Obj = updateCounter(Obj, ObjectIndex)
-            % Increase celestial.Targets counter by 1 for selected targets
-            % Input  : - A celestial.Targets object.
-            %          - A scalar or vector of targets indices, or target
-            %            names (as appear in the TargetName property).
-            % Output : - A celestial.Targets object, in which the
-            %            GlobalCounter and NightCounter for the selected
-            %            indices are increased by 1.
-            % Author : Eran Ofek (Mar 2023)
-            % Example: T=celestial.Targets.generateTargetList('last');
-            %          T.updateCounter(2);
-
-            if iscell(ObjectIndex) || ischar(ObjectIndex)
-                % Object index is a TargetName
-                ObjectIndex = find(strcmp(Obj.TargetName, ObjectIndex));
-            end
-            
-            Obj.Data.GlobalCounter(ObjectIndex) = Obj.Data.GlobalCounter(ObjectIndex) + 1;
-            Obj.Data.NightCounter(ObjectIndex) = Obj.Data.NightCounter(ObjectIndex) + 1;
-            
-        end
-        
-        function [Result,Struct]=getTarget(Obj, ObjectIndex)
-            % Get properties of selected targets by index or target name
-            % Input  : - A celestial.Targets object.
-            %          - Vector of indices, or cell array of target names.
-            % Output : - A table with the selected targets.
-            %          - A structure array with the selected targets.
-            % Example: T=celestial.Targets.generateTargetList('last');
-            %          [ResT, ResS] = T.getTarget(1:2)
-
-            arguments
-                Obj
-                ObjectIndex
-            end
-
-            if ischar(ObjectIndex)
-                % assume TargetName is provided
-                ObjectIndex = find(strcmp(Obj.TargetName,ObjectIndex));
-            end
-
-            Result = Obj.Data(ObjectIndex,:);
-            if nargout>1
-                Struct = table2struct(Result);
-            end
-        end
-    end
+    
     
     
     
@@ -1568,70 +1597,45 @@ classdef Scheduler < Component
             [RA, Dec] = celestial.SolarSys.earthShadowCoo(JD, Dist, Cell{:});
         end
         
-        function W=fermiExpWeight(Tnow,Tlast, Args)
+        function W=fermiExpWeight(T, Args)
             % fermi-rise exp-decay weight function for cadence priority
-            % Input  : - Time now.
-            %          - Time of last observation. Default is 0.
+            % Input  : - Time now - Time of last observations.
             %          * ...,key,val,...
-            %            'TimeCadence' - Cadence. Default is 0.7.
-            %            'WeightLevelHigh' - Max Weight following Fermi
+            %            'Cadence' - Cadence. Default is 0.7.
+            %            'WeightHigh' - Max Weight following Fermi
             %                   rise. Default is 1.1
-            %            'WeightLevelLow' - Min Weight following the exp.
+            %            'WeightLow' - Min Weight following the exp.
             %                   decay. Default is 1.
-            %            'FermiRiseTime' - Fermi rise time scale.
+            %            'CadenceRiseTime' - Fermi rise time scale.
             %                   Default is 0.5.
-            %            'ExpDecayTime' - Exp. decay time scale.
+            %            'WeightDecayTime' - Exp. decay time scale.
             %                   Default is 2.
             % Output : - Vector of weights.
             % Author : Eran Ofek (Dec 2022)
             % Example: t=(0:0.01:10)';
-            %          W=celestial.Targets.fermiExpWeight(t,0);
+            %          W=telescope.Scheduler.fermiExpWeight(t);
            
             arguments
-                Tnow
-                Tlast                 = 0;
-                Args.FermiCadence     = 0.7;
-                Args.WeightLevelHigh  = 1.1;
-                Args.WeightLevelLow   = 1.0;
-                Args.FermiRiseTime    = 0.5;
-                Args.ExpDecayTime     = 2;
+                T
+                Args.Cadence          = 0.7;  % Cadence
+                Args.WeightHigh       = 1.1;  % WeightHigh
+                Args.WeightLow        = 1.0;  % WeightLow
+                Args.CadenceRiseTime  = 0.5;  % CadenceRise
+                Args.WeightDecayTime  = 2; %-20;    % Use - for rising
             end
             
-            T = Tnow - Tlast;
+            Ones = ones(size(T));
+            Args.Cadence    = Args.Cadence.*Ones;
+            Args.WeightHigh = Args.WeightHigh.*Ones;
+            Args.WeightLow  = Args.WeightLow.*Ones;
+            Args.CadenceRiseTime = Args.CadenceRiseTime.*Ones;
+            Args.WeightDecayTime = Args.WeightDecayTime.*Ones;
+                        
+            W = Ones;
+            FlagR = T<Args.Cadence;
             
-            W = zeros(size(T));
-            FlagR = T<Args.FermiCadence;
-            
-            W(FlagR)  = Args.WeightLevelHigh./(1 + exp(-(T(FlagR)-Args.FermiCadence)./Args.FermiRiseTime));
-            W(~FlagR) = Args.WeightLevelLow + (Args.WeightLevelHigh-Args.WeightLevelLow).*exp(-(T(~FlagR)-Args.FermiCadence)./Args.ExpDecayTime);        
-            
-        end
-        
-        function W=stepWeight(Tnow, Tlast, Args)
-            % step weight function for cadence priority
-            % Input  : - Time now.
-            %          - Time of last observation. Default is 0.
-            %          * ...,key,val,...
-            %            'StepCadence' - Cadence. Default is 1/48.
-            %            'WeightLevelStep' - Weight following step
-            %                   rise. Default is 1
-            % Output : - Vector of weights.
-            % Author : Eran Ofek (Dec 2022)
-            % Example: t=(0:0.01:10)';
-            %          W=celestial.Targets.stepWeight(t,0);
-           
-            arguments
-                Tnow
-                Tlast
-                Args.StepCadence     = 1./48;
-                Args.WeightLevelStep = 1;
-            end
-            
-            T = Tnow - Tlast;
-            
-            W = zeros(size(T));
-            FlagS = T>Args.StepCadence;
-            W(FlagS) = Args.WeightLevelStep;
+            W(FlagR)  = Args.WeightHigh(FlagR)./(1 + exp(-(T(FlagR)-Args.Cadence(FlagR))./Args.CadenceRiseTime(FlagR)));
+            W(~FlagR) = Args.WeightLow(~FlagR) + (Args.WeightHigh(~FlagR)-Args.WeightLow(~FlagR)).*exp(-(T(~FlagR)-Args.Cadence(~FlagR))./Args.WeightDecayTime(~FlagR));        
             
         end
         
