@@ -29,19 +29,17 @@
 %   S.leftVisibilityTime
 %
 %   % example for target selection and observations
-%   JD = 2451545.5
+%   JD = 2451545.5;  % In real time JD should be []
 %   S.initNightCounter;  % init NightCounter (set to 0 at begining of night)
 %   W = S.weight(JD)
 %   IsV = S.isVisible(JD);
 %   Priority = W.*IsV
+%   % Instead:
 %   % select target for observation
-%   [~,TargetInd] = Priority;
-%   if IsV(TargetInd)==0
-%       error('No target to observe');
-%   end
+%   [TargetInd, Priority, Tbl, Struct] = S.selectTarget(JD);
 %
 %   % update counters and LastJD
-%   SincreaseCounter(TargetInd)
+%   S.increaseCounter(TargetInd)
 %
 %   
 
@@ -63,8 +61,9 @@ classdef Scheduler < Component
                                 'LastJD',0,...
                                 'CadenceMethod', 1,...
                                 'StartJD',0, 'StopJD',Inf,...
-                                'Cadence',1, 'WeightHigh',1.1, 'WeightLow',1.0, 'CadenceRiseTime',0.5, 'WeightDecayTime',10,...
-                                'NightCadence',1./24, 'NightWeightHigh',1.1, 'NightWeightLow',1.0, 'NightCadenceRiseTime',0.005, 'NightWeightDecayTime',-100,...
+                                'Cadence',0.7, 'WeightHigh',1.1, 'WeightLow',1.0, 'CadenceRiseTime',0.5, 'WeightDecayTime',10,...
+                                'NightCadence',1./24, 'NightWeightHigh',1.3, 'NightWeightLow',1.2, 'NightCadenceRiseTime',0.005, 'NightWeightDecayTime',-100,...
+                                'MaxNightN',8,...
                                 'MinMoonDist',-1,...
                                 'MinVisibility',2./24);
 
@@ -328,21 +327,21 @@ classdef Scheduler < Component
             RAD = 180./pi;
             
             if ~isnumeric(RA)
-                RA = celestial.coo.convertdms(RA, 'SH', 'r');
+                RA = celestial.coo.convertdms(RA, 'SH', 'd');
             else
                 if numel(RA)>1
-                    RA = celestial.coo.convertdms(RA, 'H', 'r');
+                    RA = celestial.coo.convertdms(RA, 'H', 'd');
                 else
-                    RA = RA./RAD;
+                    %RA = RA;
                 end
             end
             if ~isnumeric(Dec)
-                Dec = celestial.coo.convertdms(Dec, 'SD', 'r');
+                Dec = celestial.coo.convertdms(Dec, 'SD', 'd');
             else
                 if numel(Dec)>1
-                    Dec = celestial.coo.convertdms(Dec, 'D', 'r');
+                    Dec = celestial.coo.convertdms(Dec, 'D', 'd');
                 else
-                    Dec = Dec./RAD;
+                    %Dec = Dec;
                 end
             end
         end
@@ -463,7 +462,7 @@ classdef Scheduler < Component
             
             [RA, Dec] = telescope.Scheduler.radec2deg(RA, Dec);
             
-            Dist = celestial.coo.sphere_dist_fast(RA, Dec, Obj.RA./RAD, Obj.Dec./RAD);
+            Dist = celestial.coo.sphere_dist_fast(RA./RAD, Dec./RAD, Obj.RA./RAD, Obj.Dec./RAD);
             Dist = Dist.*RAD;
             
         end
@@ -613,6 +612,7 @@ classdef Scheduler < Component
             %            the celestial.targets object contains one or the RA/Dec.
             % Author : Eran Ofek (Mar 2023)
             % Example: S.cooInField(100,10);
+            %          find(S.cooInField(352.59,1.88))
            
             arguments
                 Obj
@@ -620,6 +620,8 @@ classdef Scheduler < Component
                 Dec    
                 Args.HalfSize   = [2.1 3.2];  % deg
             end
+            
+            
             
             RAD = 180./pi;
             
@@ -949,7 +951,7 @@ classdef Scheduler < Component
                     if isnan(NightCounter)
                         error('NightCounter is not available');
                     end
-                    Flag     = LeftTime>ColVal | NightCounter>0;
+                    Flag     = NightCounter>0 | (NightCounter==0 & LeftTime>ColVal);
                     
                 otherwise
                     % skip
@@ -1006,8 +1008,11 @@ classdef Scheduler < Component
             [~,Ncol] = Obj.List.sizeCatalog;
             for Icol=1:1:Ncol
                 ColName = Obj.List.ColNames{Icol};
-                if ~(Args.SkipMinVisibility && strcmp(ColName, 'MinVisibility'))
+                if Args.SkipMinVisibility && strcmp(ColName, 'MinVisibility')
+                    FlagsIn.(ColName) = true;
+                else
                     FlagsIn.(ColName) = Obj.applyColumnConstraints(ColName, [], JD);
+               
                 end
             end
             
@@ -1019,11 +1024,10 @@ classdef Scheduler < Component
             for Ifn=1:1:Nfn
                 Flag = Flag & FlagsIn.(FN{Ifn});
             end
-            
+            % [FlagsIn.SunDist, FlagsIn.Alt, FlagsIn.Moon, FlagsIn.MinAlt, FlagsIn.MaxAlt, FlagsIn.MaxHA, FlagsIn.StartJD, FlagsIn.MaxCounter, FlagsIn.MinMoonDist]
             
         end
-        
-        
+         
         function VisibilityTime = leftVisibilityTime(Obj, JD, Args)
             % Left visibility time for all targets
             % Input  : - Target object.
@@ -1124,7 +1128,6 @@ classdef Scheduler < Component
 
     
     methods % targets selection
-        
         function [Result,Struct]=getTarget(Obj, ObjectIndex)
             % Get properties of selected targets by index or target name
             % Input  : - A celestial.Targets object.
@@ -1149,6 +1152,84 @@ classdef Scheduler < Component
             if nargout>1
                 Struct = table2struct(Result);
             end
+        end
+    
+        function [TargetInd, Priority, Tbl, Struct] = selectTarget(Obj, JD, Args)
+            % Select best target for observation
+            %   Highest priority & isVisible.
+            %   If several targets with the same priority, select westward.
+            % Input  : - Self.
+            %          - JD. If empty, use object JD. Default is [].
+            %          * ...,key,val,...
+            %            'SelectMethod' - If several objects with the same
+            %                   priority, this is the selection method:
+            %                   'westward' - westward HA.
+            %                   'eastward' - eastward HA.
+            %                   'first' - first in list.
+            %                   Default is 'mindist'.
+            %            'IndPrev' - Index of previous observations.
+            %                   If empty, will get automatically based on
+            %                   the LastJD. Default is [].
+            % Output : - Target index in Obj.List.
+            %          - Vector of all target priority.
+            %          - Table with best target info.
+            %          - Structure with best target info.
+            % Author : Eran Ofek (Jul 2024)
+            % Example: [TargetInd, BestPriority, Tbl, Struct] = S.selectTarget;
+            
+            arguments
+                Obj
+                JD    = [];
+                Args.SelectMethod = 'mindist'; %'westward';
+                Args.IndPrev      = [];
+            end
+            RAD = 180./pi;
+            
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+            
+            W   = Obj.weight(JD);
+            [IsV,FlagsIn] = Obj.isVisible(JD);
+            Priority = W.*IsV;
+            % select target for observation
+            [MaxPriority] = max(Priority);
+            % if there are several targets with the same priority - select
+            % eastward
+            Iall = find(MaxPriority==Priority);
+            switch lower(Args.SelectMethod)
+                case 'westward'
+                    [~, IndMinHA] = max(Obj.HA(Iall));
+                case 'mindist'
+                    % select based on min distance to current position
+                    if isempty(Args.IndPrev)
+                        [~,IndPrev] = max(Obj.List.Catalog.LastJD);
+                    else
+                        IndPrev = Args.IndPrev;
+                    end
+                    Dist = celestial.coo.sphere_dist_fast(Obj.List.Catalog.RA(Iall)./RAD,...
+                                                          Obj.List.Catalog.Dec(Iall)./RAD,...
+                                                          Obj.List.Catalog.RA(IndPrev)./RAD,...
+                                                          Obj.List.Catalog.Dec(IndPrev)./RAD);
+                    [~,IndMinHA] = min(Dist);
+                    
+                case 'eastward'
+                    [~, IndMinHA] = min(Obj.HA(Iall));
+                case 'first'
+                    IndMinHA = 1;                    
+                otherwise
+                    error('Unknown SelectMethod option');
+            end
+            TargetInd = Iall(IndMinHA);
+            
+            if IsV(TargetInd)==0
+                TargetInd = [];  %('No target to observe');
+                Tbl       = [];
+                Struct    = [];
+            else
+                [Tbl,Struct]=getTarget(Obj, TargetInd);
+            end
+            
         end
     end
     
@@ -1184,6 +1265,9 @@ classdef Scheduler < Component
             Inc0         = find(Fnc0);
             In0          = find(~Fnc0);
             
+            if any((JD-LastJD)<0)
+                error('JD must be larger then LastJD');
+            end
             W(Inc0) = telescope.Scheduler.fermiExpWeight(JD-LastJD(Inc0), 'Cadence', Obj.List.Catalog.Cadence(Inc0),...
                                                             'WeightHigh',Obj.List.Catalog.WeightHigh(Inc0),...
                                                             'WeightLow',Obj.List.Catalog.WeightLow(Inc0),...
@@ -1196,292 +1280,114 @@ classdef Scheduler < Component
                                                             'CadenceRiseTime',Obj.List.Catalog.NightCadenceRiseTime(In0),...
                                                             'WeightDecayTime',Obj.List.Catalog.NightWeightDecayTime(In0));
             
+            MaxNC = Obj.List.Catalog.MaxNightN;
+            W(NightCounter>=MaxNC) = 0;
             % Add BasePriority
             W = W + Obj.List.Catalog.BasePriority;
             
         end
     end
     
-    
-    
-    
-    
-    
+    methods % simulations
+        function [TargetSt]=simulate(Obj, Args)
+            %
+            % Example: S = telescope.Scheduler;
+            %          S.generateRegularGrid;
+            %          S.simulate;
 
-
-
-
-
-
-    
-
-
-
-
-    
-    methods % visibility
-      
-        function [FlagAll, Flag] = isVisible111(Obj, JD, Args)
-            % Check if Target is visible according to all selection criteria
-            %       Selection criteria include:
-            %       In Dec range
-            %       Above Alt
-            %       Below AM
-            %       Above Alt(Az)
-            %       Sun below ALt
-            %       Moon Dist.
-            %       HA limits
-            % Input  : - A Targets object.
-            %          - JD. Default is current UTC time.
-            %          * see code
-            % Output : - A vector of logical (element per target)
-            %            indicating if the target is visible.
-            %          - Structure of specific flags.
-            % Author : Eran Ofek (Jan 2022)
-            % Example: T=celestial.Targets.generateTargetList('last');
-            %          [FlagAll, Flag] = isVisible(T)
-            
+           
             arguments
                 Obj
-                JD     = celestial.time.julday;
+                Args.Init logical  = true;
+                Args.StartJD    = 2451545.0;
+                Args.StopJD     = 2451545.0+10;
+                Args.TimeStep   = 440./86400;
+                Args.Verbose logical  = true;
+                Args.Plot logical     = true;
+            end
+            
+            if Args.Init
+                Obj.generateRegularGrid;
+            end
+            
+            Obj.UseRealTime = false;  % simulation mode
+            
+            VecJD = (Args.StartJD:Args.TimeStep:Args.StopJD).';
+            % calc Sun Alt to skip daytime
+            
+            [~,SunAlt] = Obj.sun(VecJD);
+            VecJD      = VecJD(SunAlt<Obj.MaxSunAlt);
+            Njd        = numel(VecJD);
+            
+            Ic         = 0;
+            Inc        = 0;
+            ColorV     = colororder;
+            Ncolor     = size(ColorV,1);
+            for Ijd=1:1:Njd
+                JD = VecJD(Ijd);
+                Obj.JD = JD;
                 
-                Args.MinVisibilityTime       = 1./24;  % [day]
-                
-                Args.CheckDec logical        = true;
-                Args.CheckAlt logical        = true;
-                Args.CheckAM logical         = true;
-                Args.CheckAzAlt logical      = true;
-                Args.CheckSun logical        = true;
-                Args.CheckMoon logical       = true;
-                Args.CheckHA logical         = true;
-                Args.CheckEcl logical        = true;
-                Args.CheckGal logical        = true;
-                Args.CheckVisibility logical = true;
-            end
-            
-            if isempty(JD)
-                JD     = celestial.time.julday;
-            end
-            
-            RAD = 180./pi;
-            
-            Ntarget = numel(Obj.RA);
-            
-            if Args.CheckDec
-                Flag.DecRange = Obj.Dec>=Obj.VisibilityArgs.DecRange(1) & Obj.Dec<=Obj.VisibilityArgs.DecRange(2);
-            else
-                Flag.DecRange = true;
-            end
-            
-            [HA, LST] = Obj.ha(JD);
-            [Az, Alt] = Obj.azalt(JD); 
-            
-            if Args.CheckHA
-                Flag.HA      = abs(HA) < Obj.VisibilityArgs.HALimit;
-            else
-                Flag.HA      = true;
-            end
-            
-            if Args.CheckAlt
-                Flag.Alt     = Alt>Obj.VisibilityArgs.AltLimit;
-            else
-                Flag.Alt     = true;
-            end
-            
-            if Args.CheckAM
-                AM           = celestial.coo.hardie((90-Alt)./RAD);
-                Flag.AM      = AM < Obj.VisibilityArgs.AMLimit;
-            else
-                Flag.AM      = true;
-            end
-            
-            if Args.CheckAzAlt
-                AltLimitOfAz = interp1(Obj.VisibilityArgs.AzAltLimit(:,1),Obj.VisibilityArgs.AzAltLimit(:,2), Az);
-                Flag.AzAlt   = Alt>AltLimitOfAz;
-            else
-                Flag.AzAlt   = true;
-            end
-            
-            if Args.CheckSun
-                Sun          = sunCoo(Obj, JD);
-                Flag.Sun     = Sun.Alt<Obj.VisibilityArgs.SunAltLimit;
-            else
-                Flag.Sun     = true;
-            end
-            
-            if Args.CheckMoon
-                [MoonDist, Moon] = moonDist(Obj, JD);
-                
-                if numel(Obj.VisibilityArgs.MoonDistLimit)==1
-                    Flag.Moon = MoonDist > Obj.VisibilityArgs.MoonDistLimit;
-                else
-                    DistLimitOfIllum = interp1(Obj.VisibilityArgs.MoonDistLimit(:,1), Obj.VisibilityArgs.MoonDistLimit(:,2), abs(Moon.Illum));
-                    Flag.Moon = MoonDist > DistLimitOfIllum;
+                if Ijd==1 || (JD-VecJD(Ijd-1))>0.1
+                    % begining of night 
+                    % init NightCounter (set to 0 at begining of night)
+                    Obj.initNightCounter;
+                    Inc = Inc + 1; % Night counter
                 end
-            else
-                Flag.Moon    = true;
-            end
-            
-            if Args.CheckEcl
-                [~, EclLat]   = Obj.ecliptic;
-                Nr = size(Obj.VisibilityArgs.EclipticRange,1);
-                Flag.Ecliptic = true(Ntarget,1);
-                for Ir=1:1:Nr
-                    Flag.Ecliptic = Flag.Ecliptic & (EclLat>Obj.VisibilityArgs.EclipticRange(Ir,1) & EclLat<Obj.VisibilityArgs.EclipticRange(Ir,2));
-                end
-            else
-                Flag.Ecliptic = true;
-            end
                 
-            if Args.CheckGal 
-                [~, GalLat]   = Obj.galactic;
-                Nr = size(Obj.VisibilityArgs.GalacticRange,1);
-                Flag.Galactic = true(Ntarget,1);
-                for Ir=1:1:Nr
-                    Flag.Galactic = Flag.Galactic & (GalLat>Obj.VisibilityArgs.GalacticRange(Ir,1) & GalLat<Obj.VisibilityArgs.GalacticRange(Ir,2));
-                end
-            else
-                Flag.Galactic = true;
-            end
-            
-            if Args.CheckVisibility
-                VisibilityTime  = leftVisibilityTime(Obj, JD);
-                Flag.Visibility = VisibilityTime > Args.MinVisibilityTime;
-            else
-                Flag.Visibility = true;
-            end
+       %problems:
+       %no cadence observations...
+       %night or over night...   
                 
-            
-            FlagFN = fieldnames(Flag);
-            FlagAll = true(Ntarget,1);
-            for Ifn=1:1:numel(FlagFN)
-                FlagAll = FlagAll & Flag.(FlagFN{Ifn});
-            end
-            
-            
-        end
-        
-    end
-    
-    methods % weights and priority
-        
-            
-                            
-        
-        function [Obj, P, Ind] = calcPriority(Obj, JD, CadenceMethod)
-            % Calculate priority for targets in celestial.Targets object.
-            %
-            % Example: T=celestial.Targets;
-            %          T.generateTargetList('last');
-            %          [T, Prio] = calcPriority(T, 2451545.5, 'west2east')
-            %
-            %          T=celestial.Targets.generateTargetList('last');
-            %          [lon,lat]=T.ecliptic; F=abs(lat)<5 & T.RA>100 & T.RA<110; T.MaxNobs(~F)=0; T.MaxNobs(F)=Inf;
-            %          [~,PP,Ind]=T.calcPriority(2451545.5,'cycle');
-            %          T.GlobalCounter(Ind(1))=T.GlobalCounter(Ind(1))+1;
-            %          [~,PP,Ind]=T.calcPriority(2451545.5,'cycle');
-            %          [~,PP,Ind]=T.calcPriority(2451545.5,'fields_cont');
-            
-            
-            arguments
-                Obj
-                JD                   = [];
-                CadenceMethod        = [];
-                %Args
-            end
-            SEC_DAY = 86400;
-
-            if isempty(JD)
-                JD                   = celestial.time.julday;
-            end
-            
-            if ~isempty(CadenceMethod)
-                Obj.CadenceMethod = CadenceMethod;
-            end
-            
-            if isempty(Obj.CadenceMethod)
-                error('CadenceMethod must be provided either as an argument or as Targets property');
-            end
-            
-            Ntarget = numel(Obj.RA);
-            
-            switch lower(Obj.CadenceMethod)
-                case 'fields_cont'
-                    % Given a list of selected fields - observe each field
-                    % continously for X hours during Y night
-                    
-                    [Obj, P, Ind] = Obj.cadence_fields_cont(JD);
-
-                case 'predefined'
-                    % observed according to predefined priority (order in
-                    % list if no priority given). Switch to next target
-                    % when MaxNobs reached.
-                    % implemented by Nora
-                    
-                    [Obj, P, Ind] = Obj.cadence_predefined(JD);
-                    
-                case 'highestsetting'
-                    % observe the highest field that has crossed the Meridian 
-                    % (= is setting), fields near pole don't have to be 
-                    % setting 
-                    % implemented by Nora in May 2023
-                    [Obj, P, Ind] = Obj.cadence_highest_setting(JD);
-                    
-                    
-                 case 'highest'
-                    % observe the highest field 
-                    % implemented by Nora in January 2023
-                    [Obj, P, Ind] = Obj.cadence_highest(JD);
-                   
-                    
-                case 'cycle'
-                    % observe according to predefined priority (order in
-                    % list if no priority given). Move to next field when
-                    % NperVisit reached.
-                    [Obj, P, Ind] = Obj.cadence_cycle(JD);
-                    
-                    
-                case 'survey'
-                    % prioritize target for survey with pre defined
-                    % cadence.
-                    % The survey have two cadences:
-                    % Main cadence time scale (e.g., 1 day)
-                    % Repitition time scale (e.g., 30 min)
-
-%                     W = zeros(size(t));
-%                     W(t<t0)  = (BaseW + ExtraW)./(1 + exp(-(t(t<t0)-t0)./Soft));
-%                     W(t>=t0) = BaseW + ExtraW.*exp(-(t(t>=t0)-t0)./Decay);
-% 
-%                     W = Obj.PriorityArgs.CadenceFun(t, Obj.PriorityArgs.CadeneFunArgs{:});
-                        
-                    
-                case 'west2east'
-                    % priortize targets by the left visibility time,
-                    % where the highest priority target is the one with the
-                    % shortest visibility time above the Obj.MinNightlyVisibility
-                    
-                    [Obj, P, Ind]=cadence_west2east(Obj, JD);
-                    
-                otherwise
-                    error('Unknown CadenceMethod option');
-            end
-            
-%             if nargout>1
-%                 P = Obj.Priority;
-%                 if nargout>2
-%                     % return also the indices of targets with priority>0 listed by priority
-%                     [SortedP,SI] = sort(P, 'descend');
-%                     Flag = SortedP>0;
-%                     Ind  = SI(Flag);
+                % select target for observation
+                [TargetInd, AllPriority, Tbl, Struct] = Obj.selectTarget(JD);
+                                
+                % Increase counters and update LastJD
+                Obj.increaseCounter(TargetInd, JD);
+                
+                % Update priority
+                Obj.List.Catalog.Priority = AllPriority;
+                
+%                 if TargetInd==424
+%                     % bug in MinVisibility - reject all based on
+%                     % MinVisibility...
+%                     'b'
 %                 end
-%             end
+                if Args.Verbose
+                    [~,SunAlt] = Obj.sun(JD);
+                    Time = convert.time(JD,'JD','StrDate');
+                    
+                    fprintf('Time=%s    SunAlt=%6.2f  TargetInd=%d  P=%7.3f\n', Time{1}, SunAlt, TargetInd, AllPriority(TargetInd));
+
+                end
+                
+                if Ijd==1 && Args.Plot
+                    axesm ('aitoff', 'Frame', 'on', 'Grid', 'on');
+                    hold on;
+                end
+                
+                if ~isempty(TargetInd)
+                    Ic = Ic + 1;
+                    TargetSt(Ic).TargetInd = TargetInd;
+                    TargetSt(Ic).RA  = Struct.RA;
+                    TargetSt(Ic).Dec = Struct.Dec;
+                    
+                    if Args.Plot
+                        Hp=plotm(TargetSt(Ic).Dec, TargetSt(Ic).RA,'.','MarkerSize',14);
+                        Hp.Color = ColorV(mod(Inc, Ncolor) + 1,:);
+                        drawnow;
+                    end
+                end
+            
+            
+                %if isempty(TargetInd)
+                %    'No Target'
+                %end
+                %'a';
+            end
+            
             
         end
-                
     end
-    
-    
-    
     
     
     
