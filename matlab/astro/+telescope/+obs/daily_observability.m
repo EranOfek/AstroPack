@@ -158,7 +158,7 @@ set(h,'FontSize',18);
 h=ylabel('Airmass                              ');
 set(h,'FontSize',18);
 
-h=text(min(JD)-0.01-0.06,3.0,'/  Moonlight sky-mag excess');
+h=text(min(JD)-0.01-0.06,1.7,'/  Moonlight sky-mag excess');
 set(h,'rotation',90,'Color',[0 0 1],'FontSize',14);
 
 set(gca,'XTick',JDtick','XTickLabel',UTtickL);
@@ -233,7 +233,7 @@ for AMTick=1:0.5:MaxY
    h=text(max(JD)+0.01,AMTick,AzLabel);
    set(h,'FontSize',12);
 end
-h=text(max(JD)+0.01+0.07,3.4,'Altitude, [^{o}]');
+h=text(max(JD)+0.01+0.07,1.4,'Altitude [^{o}]');
 set(h,'Rotation',90,'FontSize',18);
 
 Imid = round(length(MoonIllFrac).*0.5);

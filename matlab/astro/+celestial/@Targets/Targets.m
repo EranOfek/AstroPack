@@ -239,7 +239,12 @@ classdef Targets < Component
             %            'Index' - If empty, use serial numbers.
             %                   Default is [].
             %            'TargetName' - If empty, use celestial.Targets.radec2name
-            %                   to generate names. Default is [].
+            %                   to generate names, or simple indices. Default is [].
+            %            'TargetNameOpt' - Indicating on how to generate
+            %                   TargetName:
+            %                   'Name' - use celestial.Targets.radec2name
+            %                   'Index' - Use indices.
+            %                   Default is 'Index'.
             %            'DeltaRA' - Default is 0.
             %            'DeltaDec' - Default is 0.
             %            'ExpTime' - Default is 20.
@@ -258,6 +263,7 @@ classdef Targets < Component
                 Args.Dec           = [];
                 Args.Index         = [];
                 Args.TargetName    = [];
+                Args.TargetNameOpt = 'Index';  % 'Index'|'Name'
                 Args.DeltaRA       = 0;
                 Args.DeltaDec      = 0;
                 Args.ExpTime       = 20;
@@ -288,7 +294,14 @@ classdef Targets < Component
                         end
                     case 'TargetName'
                         if isempty(Args.(FN{If}))
-                            Args.(FN{If}) = celestial.Targets.radec2name(Args.RA, Args.Dec);
+                            switch lower(Args.TargetNameOpt)
+                                case 'name'
+                                    Args.(FN{If}) = string(celestial.Targets.radec2name(Args.RA, Args.Dec));
+                                case 'index'
+                                    Args.(FN{If}) = string(num2cell(Args.Index));
+                                otherwise
+                                    error('Unknown TargetNameOpt');
+                            end
                         end
                     otherwise
                         Args.(FN{If}) = Args.(FN{If}).*ones(Ntarget,1);
@@ -405,6 +418,8 @@ classdef Targets < Component
             fclose(FID);
             
         end
+        
+
         
         
             
