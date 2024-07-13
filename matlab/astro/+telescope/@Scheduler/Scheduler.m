@@ -1391,7 +1391,60 @@ classdef Scheduler < Component
     
     
     
-    
+    methods % plots
+        function dailyObservability(Obj, Ind, JD)
+            % Daily observability plot for target
+            % Input  : - Self.
+            %          - Target index.
+            %          - JD. If empty, use object JD. Default is [].
+            % Output : null
+            % Author : Eran Ofek (Jul 2024)
+            % Example: S.dailyObservability(1000)
+            
+            arguments
+                Obj
+                Ind
+                JD   = [];
+            end
+            RAD = 180./pi;
+            
+            if isempty(JD)
+                JD = Obj.JD;
+            else
+                if numel(JD)>1
+                    JD = celestial.time.julday(JD);
+                end
+            end
+                        
+            RA  = Obj.List.Catalog.RA(Ind)./RAD;
+            Dec = Obj.List.Catalog.Dec(Ind)./RAD;
+            telescope.obs.daily_observability(Obj.GeoPos(1:2)./RAD, JD, RA, Dec);
+        end
+        
+        function yearlyObservability(Obj, Ind, Year, AirMassLimit)
+            % Yearly observability plot for target
+            % Input  : - Self.
+            %          - Target index.
+            %          - Year. Default is 2024.
+            %          - AirMass limit. Default is 2.
+            % Output : null
+            % Author : Eran Ofek (Jul 2024)
+            % Example: S.yearlyObservability(1000)
+            
+            arguments
+                Obj
+                Ind
+                Year         = 2024;
+                AirMassLimit = 2;
+            end
+            RAD = 180./pi;            
+                        
+            RA  = Obj.List.Catalog.RA(Ind)./RAD;
+            Dec = Obj.List.Catalog.Dec(Ind)./RAD;
+            telescope.obs.yearly_observability(Year, [RA, Dec], Obj.GeoPos(1:2)./RAD, 0, AirMassLimit, 0);
+        end
+        
+    end
     
     
     methods (Static)  % static utilities
