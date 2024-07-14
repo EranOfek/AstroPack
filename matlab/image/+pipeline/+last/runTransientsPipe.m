@@ -39,14 +39,19 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         Args.SavePath = VisitPath;
         Args.Product = {'Image','Mask','Cat','PSF'};
         Args.WriteHeader = [true, false, true, false];
-        Args.SaveMergedCat logical = true;
+        Args.SaveMergedCat logical = false;
         Args.AddMeta logical = true;
         Args.SameTelOnly logical = true;
     end
 
     % Find New image coadds and load
-    Coadds = strcat(VisitPath,'/LAST*coadd_Image_1.fits');
-    New = AstroImage.readFileNamesObj(Coadds, Path = VisitPath);
+    
+    if isa(VisitPath, 'char')
+        Coadds = strcat(VisitPath,'/LAST*coadd_Image_1.fits');
+        New = AstroImage.readFileNamesObj(Coadds, Path = VisitPath);
+    elseif isa(VisitPath, 'AstroImage')
+        New = VisitPath;
+    end
 
     % Get path of reference images
     if ~isenv("LAST_REFIMGS")
