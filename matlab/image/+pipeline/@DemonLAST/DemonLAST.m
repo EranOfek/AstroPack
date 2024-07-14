@@ -2973,7 +2973,7 @@ classdef DemonLAST < Component
                                 % Transients detection
                                 try
                                     pipeline.last.runTransientsPipe(Coadd, 'SavePath',FN_Proc.genPath, 'SaveProducts',true);
-                                catch ME
+                                catch MEtran
                                     Msg{1} = sprintf('pipline.DemonLAST - Transients detection / Failed');
                                     Obj.writeLog(Msg, LogLevel.Info);
                                 end
