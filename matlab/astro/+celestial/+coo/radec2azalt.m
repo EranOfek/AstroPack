@@ -7,6 +7,7 @@ function [Az, Alt, AM, PA]=radec2azalt(JD, RA, Dec, Args)
     %            'GeoCoo' - Geodetic coordinates [Lon(deg), Lat(deg)]
     %            'InUnits'  - Input RA/Dec units. Default is 'deg'.
     %            'OutUnits' - Output Az/Alt units. Default is 'deg'.
+    %            'LSTType' - 'a' - apparent, or 'm' - mean. Default is 'a'.
     % Output : - Azimuth.
     %          - Altitude.
     %          - Hardie airmass.
@@ -21,7 +22,7 @@ function [Az, Alt, AM, PA]=radec2azalt(JD, RA, Dec, Args)
         Args.GeoCoo       = [];     % [deg deg km]
         Args.InUnits      = 'deg';
         Args.OutUnits     = 'deg';
-        
+        Args.LSTType      = 'a';
     end
     RAD = 180./pi;
 
@@ -32,7 +33,7 @@ function [Az, Alt, AM, PA]=radec2azalt(JD, RA, Dec, Args)
     InFactor  = convert.angular(Args.InUnits, 'rad');
     OutFactor = convert.angular('rad', Args.OutUnits);
 
-    LST = 2.*pi.*celestial.time.lst(JD, Args.GeoCoo(1)./RAD, 'a');  % [rad]
+    LST = 2.*pi.*celestial.time.lst(JD, Args.GeoCoo(1)./RAD, Args.LSTType);  % [rad]
     HA = LST - InFactor.*RA;   % [rad]
     Lat = Args.GeoCoo(2)./RAD;
     [Az,Alt] = celestial.coo.hadec2azalt(HA, Dec.*InFactor, Lat);

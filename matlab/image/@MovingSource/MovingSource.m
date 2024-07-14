@@ -424,7 +424,7 @@ classdef MovingSource < Component
                     Tmp = io.files.load2(FileName);
                 catch ME
                     % problem with loading file
-                    fprintf('Problem with loading file: %s',FileName);
+                    fprintf('Problem with loading file: %s\n',FileName);
                     Tmp = [];
                 end
                
