@@ -90,7 +90,10 @@ classdef Scheduler < Component
         RA
         Dec
         TotalExpTime
-    
+        NightVisibility
+        NightSunSet    = [];
+        NightSunRise   = [];
+        TimeRes        = 5./1440;
     end
     
     properties (Dependent, Hidden)
@@ -641,6 +644,7 @@ classdef Scheduler < Component
             end
             
         end
+                
     end
     
     methods % load lists and tables
@@ -1027,8 +1031,8 @@ classdef Scheduler < Component
             % [FlagsIn.SunDist, FlagsIn.Alt, FlagsIn.Moon, FlagsIn.MinAlt, FlagsIn.MaxAlt, FlagsIn.MaxHA, FlagsIn.StartJD, FlagsIn.MaxCounter, FlagsIn.MinMoonDist]
             
         end
-         
-        function VisibilityTime = leftVisibilityTime(Obj, JD, Args)
+        
+        function VisibilityTime = leftVisibilityTime(Obj, JD)
             % Left visibility time for all targets
             % Input  : - Target object.
             %          - JD. If empty use object JD. Default is [].
@@ -1042,9 +1046,11 @@ classdef Scheduler < Component
             arguments
                 Obj
                 JD             = [];
-                Args.TimeRes   = 5./1440;   % time resolution [day]
+                %Args.TimeRes   = 5./1440;   % time resolution [day]
             end
             RAD     = 180./pi;
+            
+            Args.TimeRes = Obj.TimeRes;  % Time resolution
             
             if isempty(JD)
                 JD = Obj.JD;
@@ -1072,6 +1078,39 @@ classdef Scheduler < Component
                 VisibilityTime = zeros(Ntarget,1);
             end
         end
+    
+        function Obj = popNightVisibility(Obj, JD)
+            % Populate the NightVisibility matrix indicating the visibility of each source
+            % as a function of time from SunSet to SunRise
+            
+            arguments
+                Obj
+                JD     = [];
+                
+            end
+            RAD = 180./pi;
+            
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+            
+            [SunTime]=celestial.SolarSys.sun_rise_set(JD, Obj.GeoPos./RAD, 0, 0);
+            SunRise = floor(JD) +0.5 + SunTime(4);
+            SunSet  = floor(JD) -0.5 + SunTime(6);
+            
+            VecJD = (SunSet:Obj.TimeRes:SunRise).';
+            Njd   = numel(VecJD);
+            Nsrc  = Obj.List.sizeCatalog;
+            
+            Obj.NightVis = false(Nsrc, Njd);
+            for Ijd=1:1:Njd
+                Obj.NightVis(:, Ijd) = Obj.isVisible(VecJD(Ijd));
+            end
+            Obj.NightSunSet  = SunSet;
+            Obj.NightSunRise = SunSet;
+            
+        end
+            
     end
 
 
@@ -1372,8 +1411,10 @@ classdef Scheduler < Component
                     TargetSt(Ic).Dec = Struct.Dec;
                     
                     if Args.Plot
+                        TargetNC = Obj.List.Catalog.NightCounter(TargetInd);
                         Hp=plotm(TargetSt(Ic).Dec, TargetSt(Ic).RA,'.','MarkerSize',14);
-                        Hp.Color = ColorV(mod(Inc, Ncolor) + 1,:);
+                        %Hp.Color = ColorV(mod(Inc, Ncolor) + 1,:);
+                        Hp.Color = ColorV(mod(TargetNC, Ncolor) + 1,:);
                         drawnow;
                     end
                 end
