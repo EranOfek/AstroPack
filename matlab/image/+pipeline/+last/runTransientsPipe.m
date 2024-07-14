@@ -8,12 +8,15 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
                        transients products. Default is false.
                 'SavePath' - Path to directory in which to save products in
                        case SaveProducts is true. Default is the VisitPath.
+                'RefPath' - Path to directory with images. If empty, 
+                       constructs assuming reference directory is 
+                       "/'machine_name'/data/references'. Default is ''.
                 'Product' - Products to be saved in case SaveProducts is
-                       true. Default is {'Image', 'Mask', 'Cat', 'PSF'}.
+                       true. Default is {'Cat'}.
                 'WriteHeader' - Array of bools indicating on whether to 
                        write a head for the products. Required by 
                        imProc.io.writeProduct and has to be the same length 
-                       as Product. Default is [true, false, true, false].
+                       as Product. Default is true.
                 'SaveMergedCat' - Bool on whether to save all produced
                        transients catalogs as a single merged catalog.
                        Default is true.
@@ -37,9 +40,10 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
 
         Args.SaveProducts logical = false;%true;
         Args.SavePath = VisitPath;
-        Args.Product = {'Image','Mask','Cat','PSF'};
-        Args.WriteHeader = [true, false, true, false];
-        Args.SaveMergedCat logical = false;
+        Args.RefPath = '';
+        Args.Product = {'Cat'};
+        Args.WriteHeader = true;
+        Args.SaveMergedCat logical = true;
         Args.AddMeta logical = true;
         Args.SameTelOnly logical = true;
     end
@@ -54,14 +58,11 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
     end
 
     % Get path of reference images
-    if ~isenv("LAST_REFIMGS")
-        error('Reference path not set.')
-    end
-
-    RefPath = getenv("LAST_REFIMGS");
-
-    if ~exist(RefPath,'dir')
-        error('Reference path not found.');
+    if isempty(Args.RefPath)
+        Computer = tools.os.get_computer;
+        RefPath = strcat('/',Computer,'/data/references');
+    else
+        RefPath = Args.RefPath;
     end
     
     % Find reference image for each new image
