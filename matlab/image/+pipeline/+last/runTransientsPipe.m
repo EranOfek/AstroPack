@@ -14,6 +14,9 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
                        write a head for the products. Required by 
                        imProc.io.writeProduct and has to be the same length 
                        as Product. Default is [true, false, true, false].
+                'SaveMergedCat' - Bool on whether to save all produced
+                       transients catalogs as a single merged catalog.
+                       Default is true.
                 'AddMeta' - Bool on whether to add some meta data to the
                        transients catalog, for e.g. mount, camera, croID data. 
                        Default is true.
@@ -36,6 +39,7 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         Args.SavePath = VisitPath;
         Args.Product = {'Image','Mask','Cat','PSF'};
         Args.WriteHeader = [true, false, true, false];
+        Args.SaveMergedCat logical = true;
         Args.AddMeta logical = true;
         Args.SameTelOnly logical = true;
     end
@@ -254,7 +258,7 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
 
     % If SaveProducts true, save desired products in desired path
     if Args.SaveProducts
-        for Iobj=1:1:Nobj
+        for Iobj=Nobj:-1:1
             FN = FileNames.generateFromFileName(AD(Iobj).New.ImageData.FileName);
             % Set AD name
             FNad = FN.copy();
@@ -266,6 +270,24 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
             [~,~,~]=imProc.io.writeProduct(AD(Iobj), FNad, ...
                 'Level', 'coadd.zogyD', 'Product', Args.Product,...
                 'WriteHeader',Args.WriteHeader,'Overwrite', true);
+
+            TranCat(Iobj) = AD(Iobj).CatData;
+        end
+
+        if Args.SaveMergedCat
+            FN = FileNames.generateFromFileName(AD(1).New.ImageData.FileName);
+            FN_merged = FN.copy();
+            FN_merged.Level = {'coadd.zogyD'};
+            FN_merged.CropID = 0;
+            FN_merged.Product = {'Cat'};
+            FN_merged.FullPath = Args.SavePath;
+
+            MergedTranCat = merge(TranCat);
+
+            [~,~,~]=imProc.io.writeProduct(MergedTranCat, FN_merged, ...
+                'Level', 'coadd.zogyD', 'Product', {'Cat'},...
+                'WriteHeader',false,'Overwrite', true, 'GetHeaderJD', false, ...
+                'CropID_FromIndex',false);
         end
     end
 
