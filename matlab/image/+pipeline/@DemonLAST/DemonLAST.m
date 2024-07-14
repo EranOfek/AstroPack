@@ -2977,7 +2977,7 @@ classdef DemonLAST < Component
                                     Msg{1} = sprintf('pipline.DemonLAST - Transients detection / Failed');
                                     Obj.writeLog(Msg, LogLevel.Info);
                                 end
-
+                                RunTime = etime(clock, Tstart);
                                 Msg{1} = sprintf('pipline.DemonLAST - Transients detection / RunTime: %.1f', RunTime);
                                 Obj.writeLog(Msg, LogLevel.Info);
                             end

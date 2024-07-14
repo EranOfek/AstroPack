@@ -52,7 +52,7 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
     
     if isa(VisitPath, 'char')
         Coadds = strcat(VisitPath,'/LAST*coadd_Image_1.fits');
-        New = AstroImage.readFileNamesObj(Coadds, Path = VisitPath);
+        New = AstroImage.readFileNamesObj(Coadds, 'Path',VisitPath);
     elseif isa(VisitPath, 'AstroImage')
         New = VisitPath;
     end
@@ -88,7 +88,7 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         end
 
         % Load ref image and ref image name
-        Ref = AstroImage.readFileNamesObj(RefFile{1}, Path=FieldRefPath);
+        Ref = AstroImage.readFileNamesObj(RefFile{1}, 'Path',FieldRefPath);
         FNrref = FileNames.generateFromFileName(Ref.ImageData.FileName);
 
         NewName = FN.genFile;
