@@ -2965,8 +2965,8 @@ classdef DemonLAST < Component
                             Obj.writeLog(Msg, LogLevel.Info);
 
 
-                            Args.DoTransientsDetection = false;
-                            if Args.DoTransientsDetection
+                            Args.DoTransientsDetection = true;
+                            if Args.DoTransientsDetection && strcmp(tools.os.get_computer, 'last01e')
                                 Msg{1} = sprintf('pipline.DemonLAST - Transients detection / group %d', Igroup);
                                 Obj.writeLog(Msg, LogLevel.Info);
     
