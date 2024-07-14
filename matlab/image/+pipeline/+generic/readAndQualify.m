@@ -1,12 +1,48 @@
-function [Status, AI, RawHeader] = readAndQualify(FilesList, Y, Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
+function [Status, AI, RawHeader] = readAndQualify(FilesList, Args)
+    % Read a set of images into AstroImage, update their headers, and check quality
+    %       This function performs the following steps:
+    %       1. Read images into AstroImage object.
+    %       2. Update the image headers.
+    %       3. Convert the images to single precision.
+    %       4. Add Software version to header.
+    %       5. Check image size.
+    %       6. Check image quality using imProc.stat.identifyBadImages
+    %       
+    % Input  : - A cell array of files list to upload, or an AstroImage
+    %            object with iamges.
     %          * ...,key,val,... 
-    % Output : - 
+    %            'ConfigFile'
+    %            'AstroImageReadArgs' - A cell array of optional arguments
+    %                   to pass to the AstroImage constructor. Default is {}.
+    %            'CCDSEC' - A CCDSEC array of the region to read. If empty,
+    %                   read entire image. Default is [].
+    %            'KeyProjName' - A keyword header name for the project name.
+    %                   If not empty, then read project name from file name
+    %                   (see FileNames convention) and add it to the header.
+    %                   Default is 'PROJNAME'.
+    %            'KeyFieldID' - Like KeyProjName, but for the FieldID.
+    %                   Default is 'FIELDID'.
+    %            'Convert2single' - A logical indicating if to cast the
+    %                   images to single precsion. Default is true.
+    %            'KeySoftVer' - An haeder keyword in which to store the
+    %                   pipeline version.
+    %                   Default is 'PIPEVER'.
+    %            'ImageSizeXY' - Required image size. If [X Y] image size
+    %                   is not equal to this image then the image will be declared
+    %                   as bad.
+    %                   Default is [6422 9600].
+    %            'MinNumGoodImages' - Minimum number of good images. If number
+    %                   of good images is smaller than this number, then the
+    %                   Status.Status output will be set to false.
+    % Output : - A ststus structure with the following fields:
+    %            .Status - A logical indicating if there are enough good
+    %                   images to continue.
+    %            .Msg - A cell array of messages with information about bad
+    %                   images.
+    %          - An AstroImage object with the good (only) images.
+    %          - An AstroHeader object with all the good images headers.
     % Author : Eran Ofek (2024 Jul) 
-    % Example: 
+    % Example: [Status, AI]=pipeline.generic.readAndQualify(FilesList)
 
     arguments
         FilesList
@@ -17,9 +53,10 @@ function [Status, AI, RawHeader] = readAndQualify(FilesList, Y, Args)
         Args.KeyProjName              = 'PROJNAME';  % If not empty, add project name from file name to header, only for filelists input
         Args.KeyFieldID               = 'FIELDID';
 
-        Args.BitDictionaryName        = BitDictionary('BitMask.Image.Default');   % BitDictionary or its name
+        %Args.BitDictionaryName        = BitDictionary('BitMask.Image.Default');   % BitDictionary or its name
 
         Args.Convert2single logical   = true;
+        Args.KeySoftVer               = 'PIPEVER';
 
         Args.ImageSizeXY              = [6422 9600];
         Args.MinNumGoodImages         = 10;
@@ -55,10 +92,15 @@ function [Status, AI, RawHeader] = readAndQualify(FilesList, Y, Args)
         end
     end
 
+    % update header with SoftVersion keyword
+    VerString = tools.git.getVersion;
+    AI.setKeyVal(Args.KeySoftVer,VerString);
 
-    if ~isa(Args.BitDictionaryName, 'BitDictionary')
-        Args.BitDictionaryName = BitDictionary(Args.BitDictionaryName);
-    end
+
+
+    %if ~isa(Args.BitDictionaryName, 'BitDictionary')
+    %    Args.BitDictionaryName = BitDictionary(Args.BitDictionaryName);
+    %end
 
     Nim = numel(AI);
 
@@ -66,10 +108,7 @@ function [Status, AI, RawHeader] = readAndQualify(FilesList, Y, Args)
         AI = AI.cast('single');
     end
 
-    if nargout>1
-        RawHeader = astroImage2AstroHeader(AI, 'CreateNewObj',true);
-    end
-
+    
     % check image size
     if ~isempty(Args.ImageSizeXY)
         [SizeY, SizeN] = AI.sizeImage;
@@ -77,6 +116,7 @@ function [Status, AI, RawHeader] = readAndQualify(FilesList, Y, Args)
     else
         Flag.Size = true(Nim,1);
     end
+
 
     % search for bad images
     [StatBadIm,~] = imProc.stat.identifyBadImages(AI, 'CCDSEC',Args.IdentifyBadImagesCCDSEC);
@@ -89,27 +129,22 @@ function [Status, AI, RawHeader] = readAndQualify(FilesList, Y, Args)
         Nbad = numel(Ibad);
         for Ib=1:1:Nbad
             Flag.Size(Ibad(Ib))
-            Status.Msg{Ib} = sprintf('Bad image File: %s  ',  FilesList{Ibad(Ib)});
+            Status.Msg{Ib} = sprintf('readAndQualify: Image rejected (Bad=%d, Size=%d) / %s  ',Flag.Good(Ibad(Ib)), Flag.Size(Ibad(Ib)), FilesList{Ibad(Ib)});
         end
 
     end
 
 
-    if sum(Flag.Good(:) & Flag.Size(:))>=Args.MinNumGoodImages
-        ...
-
-
-    AI = AI(~[Result.BadImageFlag]);
-        
-    if Nim==0
-        error('No good images found');
+    if sum(~FlagBad)>=Args.MinNumGoodImages
+        Status.Status = true;
+        AI = AI(~FlagBad);
+    else
+        AI = [];
+        Status.Status = false;
+        Status.Msg{end+1} = sprintf('readAndQualify: Not enough good images');
     end
-    
-    % update header with SoftVersion keyword
-    VerString = tools.git.getVersion;
-    AI.setKeyVal(Args.KeySoftVer,VerString);
 
-    
-
-
+    if nargout>2
+        RawHeader = astroImage2AstroHeader(AI, 'CreateNewObj',true);
+    end
 end
