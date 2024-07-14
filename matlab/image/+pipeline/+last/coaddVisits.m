@@ -44,6 +44,8 @@ function [CI, AI] = coaddVisits(In, Args)
 
         Args.StackMethod       = 'sigmaclip';      
         Args.StackArgs         = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
+
+        Args.FindSrc logical   = true;
     end
 
     % Construct paths for visits
@@ -91,11 +93,11 @@ function [CI, AI] = coaddVisits(In, Args)
         %CI(Icrop)   = imProc.stack.coaddW(AI(:,Icrop), 'StackMethod',Args.StackMethod, 'StackArgs',Args.StackArgs);
     end
 
-    if 1==0
-    CI=imProc.background.background(CI);                             
-    CI=imProc.sources.findMeasureSources(CI);
-    CI=imProc.astrometry.addCoordinates2catalog(CI,'OutUnits','deg');
-    CI=imProc.calib.photometricZP(CI);
+    if Args.FindSrc
+        CI=imProc.background.background(CI);                             
+        CI=imProc.sources.findMeasureSources(CI);
+        CI=imProc.astrometry.addCoordinates2catalog(CI,'OutUnits','deg');
+        CI=imProc.calib.photometricZP(CI);
     end
     
 end
