@@ -97,7 +97,9 @@ function [CI, AI] = coaddVisits(In, Args)
         CI=imProc.background.background(CI);                             
         CI=imProc.sources.findMeasureSources(CI);
         CI=imProc.astrometry.addCoordinates2catalog(CI,'OutUnits','deg');
+        CI = imProc.psf.populatePSF(CI);
         CI=imProc.calib.photometricZP(CI);
+        
     end
     
 end
