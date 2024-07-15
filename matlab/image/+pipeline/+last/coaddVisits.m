@@ -82,20 +82,32 @@ function [CI, AI] = coaddVisits(In, Args)
     end
 
     % need background and variance due to a bug in coadd:
-    %AI = imProc.background.background(AI);
-
+    AI = imProc.background.background(AI, 'SubSizeXY',[]);
+    [~,Back,Var]=imProc.stat.mean(AI);
+    
     % register and coadd
     for Icrop=1:1:Ncrop
         AI(:,Icrop) = imProc.transIm.interp2wcs(AI(:,Icrop),AI(1,Icrop));
         %AI(:,Icrop) = imProc.transIm.interp2wcs(AI(:,Icrop),AI(1,Icrop), 'DataProp',{'Image','Back','Var','Mask'});
 
-        CI(Icrop)   = imProc.stack.coadd(AI(:,Icrop), 'StackMethod',Args.StackMethod, 'StackArgs',Args.StackArgs);
-        %CI(Icrop)   = imProc.stack.coaddW(AI(:,Icrop), 'StackMethod',Args.StackMethod, 'StackArgs',Args.StackArgs);
+        NB = numel(AI(:,Icrop));
+        for IB=1:1:NB
+            AI(IB,Icrop).Back = Back(IB);
+            AI(IB,Icrop).Var  = Var(IB);
+        end
+        
+        
+        %CI(Icrop)   = imProc.stack.coadd(AI(:,Icrop), 'StackMethod',Args.StackMethod, 'StackArgs',Args.StackArgs, 'UseWeights',false);
+        CI(Icrop)   = imProc.stack.coaddW(AI(:,Icrop), 'StackMethod',Args.StackMethod, 'StackArgs',Args.StackArgs);
     end
 
+   % Args.FindSrc=false;
     if Args.FindSrc
-        CI=imProc.background.background(CI);                             
-        CI=imProc.sources.findMeasureSources(CI);
+        %
+        %CI=imProc.background.background(CI, 'BackFun',@median,'BackFunPar',{'omitnan'},'VarFun',@var,'VarFunPar',{'omitnan'}); 
+        CI.Back = imProc.stat.median(CI).*ones(size(CI.Image));
+        CI.Var = imProc.stat.rstd(CI).^2 .*ones(size(CI.Image));
+        CI=imProc.sources.findMeasureSources(CI,'AddFlags',false);
         CI=imProc.astrometry.addCoordinates2catalog(CI,'OutUnits','deg');
         CI = imProc.psf.populatePSF(CI);
         CI=imProc.calib.photometricZP(CI);
