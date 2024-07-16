@@ -380,7 +380,9 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                         ResFit(Iobj).LimMag = NaN;
                     else
                         %ParLimMagFit = polyfit(log10(SN), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag, Args.LimMagColor, ResFit(Iobj).MedC, ResFit(Iobj).MedW, ResFit(Iobj).MedW), 1);
-                        ParLimMagFit = polyfit(log10(SN), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag, Args.LimMagColor, ResFit(Iobj).MedC), 1);
+                        % select only positive S/N:
+                        Isn = find(SN>0);
+                        ParLimMagFit = polyfit(log10(SN(Isn)), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag(Isn), Args.LimMagColor, ResFit(Iobj).MedC), 1);
                         ResFit(Iobj).LimMag = polyval(ParLimMagFit, log10(Args.LimMagSN));
                     end
 

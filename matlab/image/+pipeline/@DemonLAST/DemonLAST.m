@@ -2963,6 +2963,26 @@ classdef DemonLAST < Component
                             RunTime = etime(clock, Tstart);
                             Msg{1} = sprintf('pipline.DemonLAST finished saving Asteroid data for group %d / RunTime: %.1f', Igroup, RunTime);
                             Obj.writeLog(Msg, LogLevel.Info);
+
+
+                            Args.DoTransientsDetection = false;
+                            if Args.DoTransientsDetection && strcmp(tools.os.get_computer, 'last01e')
+                                Msg{1} = sprintf('pipline.DemonLAST - Transients detection / group %d', Igroup);
+                                Obj.writeLog(Msg, LogLevel.Info);
+    
+                                % Transients detection
+                                try
+                                    pipeline.last.runTransientsPipe(Coadd, 'SavePath',FN_Proc.genPath, 'SaveProducts',true);
+                                catch MEtran
+                                    Msg{1} = sprintf('pipline.DemonLAST - Transients detection / Failed');
+                                    Obj.writeLog(Msg, LogLevel.Info);
+                                end
+                                RunTime = etime(clock, Tstart);
+                                Msg{1} = sprintf('pipline.DemonLAST - Transients detection / RunTime: %.1f', RunTime);
+                                Obj.writeLog(Msg, LogLevel.Info);
+                            end
+
+
                             
                             % if CoaddTransienst.sizeCatalog>0
                             %     [~,~,Status]=imProc.io.writeProduct(CoaddTransienst, FN_I, 'Product',{'TransientsCat'}, 'WriteHeader',[false],...

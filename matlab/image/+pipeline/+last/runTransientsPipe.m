@@ -8,12 +8,18 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
                        transients products. Default is false.
                 'SavePath' - Path to directory in which to save products in
                        case SaveProducts is true. Default is the VisitPath.
+                'RefPath' - Path to directory with images. If empty, 
+                       constructs assuming reference directory is 
+                       "/'machine_name'/data/references'. Default is ''.
                 'Product' - Products to be saved in case SaveProducts is
-                       true. Default is {'Image', 'Mask', 'Cat', 'PSF'}.
+                       true. Default is {'Cat'}.
                 'WriteHeader' - Array of bools indicating on whether to 
                        write a head for the products. Required by 
                        imProc.io.writeProduct and has to be the same length 
-                       as Product. Default is [true, false, true, false].
+                       as Product. Default is true.
+                'SaveMergedCat' - Bool on whether to save all produced
+                       transients catalogs as a single merged catalog.
+                       Default is true.
                 'AddMeta' - Bool on whether to add some meta data to the
                        transients catalog, for e.g. mount, camera, croID data. 
                        Default is true.
@@ -34,25 +40,29 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
 
         Args.SaveProducts logical = false;%true;
         Args.SavePath = VisitPath;
-        Args.Product = {'Image','Mask','Cat','PSF'};
-        Args.WriteHeader = [true, false, true, false];
+        Args.RefPath = '';
+        Args.Product = {'Cat'};
+        Args.WriteHeader = true;
+        Args.SaveMergedCat logical = true;
         Args.AddMeta logical = true;
         Args.SameTelOnly logical = true;
     end
 
     % Find New image coadds and load
-    Coadds = strcat(VisitPath,'/LAST*coadd_Image_1.fits');
-    New = AstroImage.readFileNamesObj(Coadds, Path = VisitPath);
-
-    % Get path of reference images
-    if ~isenv("LAST_REFIMGS")
-        error('Reference path not set.')
+    
+    if isa(VisitPath, 'char')
+        Coadds = strcat(VisitPath,'/LAST*coadd_Image_1.fits');
+        New = AstroImage.readFileNamesObj(Coadds, 'Path',VisitPath);
+    elseif isa(VisitPath, 'AstroImage')
+        New = VisitPath;
     end
 
-    RefPath = getenv("LAST_REFIMGS");
-
-    if ~exist(RefPath,'dir')
-        error('Reference path not found.');
+    % Get path of reference images
+    if isempty(Args.RefPath)
+        Computer = tools.os.get_computer;
+        RefPath = strcat('/',Computer,'/data/references');
+    else
+        RefPath = Args.RefPath;
     end
     
     % Find reference image for each new image
@@ -78,7 +88,7 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         end
 
         % Load ref image and ref image name
-        Ref = AstroImage.readFileNamesObj(RefFile{1}, Path=FieldRefPath);
+        Ref = AstroImage.readFileNamesObj(RefFile{1}, 'Path',FieldRefPath);
         FNrref = FileNames.generateFromFileName(Ref.ImageData.FileName);
 
         NewName = FN.genFile;
@@ -254,7 +264,7 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
 
     % If SaveProducts true, save desired products in desired path
     if Args.SaveProducts
-        for Iobj=1:1:Nobj
+        for Iobj=Nobj:-1:1
             FN = FileNames.generateFromFileName(AD(Iobj).New.ImageData.FileName);
             % Set AD name
             FNad = FN.copy();
@@ -263,9 +273,27 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
             AD(Iobj).ImageData.FileName = FNad.genFull{1};
 
            
-            [~,~,~]=imProc.io.writeProduct(AD(Iobj), FNad, ...
-                'Level', 'coadd.zogyD', 'Product', Args.Product,...
-                'WriteHeader',Args.WriteHeader,'Overwrite', true);
+%             [~,~,~]=imProc.io.writeProduct(AD(Iobj), FNad, ...
+%                 'Level', 'coadd.zogyD', 'Product', Args.Product,...
+%                 'WriteHeader',Args.WriteHeader,'Overwrite', true);
+
+            TranCat(Iobj) = AD(Iobj).CatData;
+        end
+
+        if Args.SaveMergedCat
+            FN = FileNames.generateFromFileName(AD(1).New.ImageData.FileName);
+            FN_merged = FN.copy();
+            FN_merged.Level = {'coadd.zogyD'};
+            FN_merged.CropID = 0;
+            FN_merged.Product = {'Cat'};
+            FN_merged.FullPath = Args.SavePath;
+
+            MergedTranCat = merge(TranCat);
+
+            [~,~,~]=imProc.io.writeProduct(MergedTranCat, FN_merged, ...
+                'Level', 'coadd.zogyD', 'Product', {'Cat'},...
+                'WriteHeader',false,'Overwrite', true, 'GetHeaderJD', false, ...
+                'CropID_FromIndex',false);
         end
     end
 
