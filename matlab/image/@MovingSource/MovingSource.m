@@ -1709,8 +1709,7 @@ classdef MovingSource < Component
             end
             
             Nstamp = numel(Obj.Stamps);
-            Nstep  = Nstamp./(Args.Ndisp-1) - 1;
-            StampVec = (1:Nstep:Nstamp);
+            StampVec = floor(linspace(1,Nstamp,Args.Ndisp));
             NstV     = numel(StampVec);
             for IstV=1:1:NstV
                 IndS = StampVec(IstV);
