@@ -5,11 +5,9 @@ function [OutTable] = prepVisitCat(Args)
     %            See code.
     % Output : - Table of all coadded sub images in all visits.
     % Author : Eran Ofek (2024 Jul) 
-    % Example: % first time:
-    %          pipeline.last.prepVisitCat('TouchFile','/home/eran/.prepVisitCat', 'UseTouchFile',false, 'UseStatus',true);
-    %          % second time
-    %          pipeline.last.prepVisitCat('UseTouchFile',false,'UseStatus',true);
-
+    % Example: 
+    %          OT=pipeline.last.prepVisitCat('UseTouchFile',false, 'UseStatus',true);
+    %          
 
     arguments
         Args.BasePath          = '/marvin';
