@@ -1,12 +1,14 @@
 function [OutTable] = prepVisitCat(Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
-    %          * ...,key,val,... 
-    % Output : - 
+    % Prepare a local catalog of visits, or update the visits catalog.
+    %     This will be obsolete when the DB will be ready
+    % Input  : * ...,key,val,... 
+    %            See code.
+    % Output : - Table of all coadded sub images in all visits.
     % Author : Eran Ofek (2024 Jul) 
-    % Example: pipeline.last.prepVisitCat
+    % Example: % first time:
+    %          pipeline.last.prepVisitCat('TouchFile','/home/eran/.prepVisitCat', 'UseTouchFile',false, 'UseStatus',true);
+    %          % second time
+    %          pipeline.last.prepVisitCat('UseTouchFile',false,'UseStatus',true);
 
 
     arguments
@@ -18,10 +20,10 @@ function [OutTable] = prepVisitCat(Args)
         Args.Nsub              = 24;
 
         Args.UseStatus logical = false; %true; %false;
-        Args.Msg               = 'prepVisitCatV4';
+        Args.Msg               = 'prepVisitCatV5';
 
         Args.TouchFile            = '/home/eran/.prepVisitCat';
-        Args.UseTouchFile logical = false;
+        Args.UseTouchFile logical = true;
         Args.CleanStatus logical  = false;
     end
 
@@ -55,7 +57,7 @@ function [OutTable] = prepVisitCat(Args)
         AllVisit = strings(Nmax,1);
         AllField = strings(Nmax,1);
     
-        
+        fprintf('Dir %d out of %d - %d new visits found\n', Idir, Ndir, numel(F));
         
     
     
