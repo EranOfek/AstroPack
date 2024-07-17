@@ -19,6 +19,7 @@ function [Result] = readMsgFile(FileName, Path)
     FullFileName = fullfile(Path, FileName);
     FID = fopen(FullFileName);
     I = 0;
+    Result = struct('TimeStamp','', 'Msg','', 'JD',NaN);
     while ~feof(FID)
         I = I + 1;
         L{I}=fgetl(FID);

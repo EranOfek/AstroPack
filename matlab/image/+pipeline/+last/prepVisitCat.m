@@ -18,7 +18,7 @@ function [OutTable] = prepVisitCat(Args)
         Args.Nsub              = 24;
 
         Args.UseStatus logical = false; %true; %false;
-        Args.Msg               = 'prepVisitCatV5';
+        Args.Msg               = 'prepVisitCatV6';
 
         Args.TouchFile            = '/home/eran/.prepVisitCat';
         Args.UseTouchFile logical = true;
