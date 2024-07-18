@@ -62,7 +62,7 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
         else
             Method = 'ode45';
         end
-        %Method = 'ode45';
+        Method = 'ode45';
         %Method = 'rknmex';
         %Method = 'rkn1210';
         %Method = 'rkn1210vec';
