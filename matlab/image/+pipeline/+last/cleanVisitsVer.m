@@ -1,10 +1,15 @@
-function [Result] = cleanVisitsVer(Args)
-    % Clean visits in LAST archive according to their version
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
-    %          * ...,key,val,... 
-    % Output : - 
+function cleanVisitsVer(Args)
+    % Clean visits in LAST archive according to their version (e.g., remove all non v0 versions')
+    % Input  : * ...,key,val,...
+    %            'BasePath' - Default is '/marvin/LAST.01.01.01'.
+    %            'Template' - File name to search in order to identify
+    %                   visits directories. Default is '.status'.
+    %            'Method' - On of the following options:
+    %                   'removeNon0' - will remove all visits with version
+    %                           different then 'v0'.
+    %                   Default is 'removeNon0'.
+    %
+    % Output : null
     % Author : Eran Ofek (2024 Jul) 
     % Example: pipeline.last.cleanVisitsVer
 

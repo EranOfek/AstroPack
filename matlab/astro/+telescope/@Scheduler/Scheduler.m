@@ -41,7 +41,8 @@
 %   % update counters and LastJD
 %   S.increaseCounter(TargetInd)
 %
-%   
+%   % simulations
+%   S.simulate
 
 
 

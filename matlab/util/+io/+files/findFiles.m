@@ -79,7 +79,7 @@ function [F] = findFiles(Template, Args)
     if isempty(Args.Newer)
         [Stat, Ans] = system(sprintf("find . %s %s %s %s %s",Extra, ExtraName, ExtraMod, ExtraMinSize, ExtraMaxSize));
     else
-        [Stat, Ans] = system(sprintf("find . %s %s %s %s %s -newer %s",Extra, ExtraName, ExtraMod, ExtraMinSize, ExtraMaxSize, NewerFile));
+        [Stat, Ans] = system(sprintf("find . %s %s %s %s %s -newer %s",Extra, ExtraName, ExtraMod, ExtraMinSize, ExtraMaxSize, Args.Newer));
     end
     
     %find . -not -path '*/.*' -type f -name '*some text*'
