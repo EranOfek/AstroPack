@@ -16,6 +16,9 @@ function [Status, AI, RawHeader] = readAndQualify(FilesList, Args)
     %                   to pass to the AstroImage constructor. Default is {}.
     %            'CCDSEC' - A CCDSEC array of the region to read. If empty,
     %                   read entire image. Default is [].
+    %            'identifyBadImagesArgs' - A cell array of additional
+    %                   parameters to pass to imProc.stat.identifyBadImages
+    %                   Default is {}.
     %            'KeyProjName' - A keyword header name for the project name.
     %                   If not empty, then read project name from file name
     %                   (see FileNames convention) and add it to the header.
@@ -49,6 +52,7 @@ function [Status, AI, RawHeader] = readAndQualify(FilesList, Args)
         Args.ConfigFile               = 'LAST.Pipeline.readAndQualify';
         Args.AstroImageReadArgs       = {};
         Args.CCDSEC                   = [];
+        Args.identifyBadImagesArgs    = {};
 
         Args.KeyProjName              = 'PROJNAME';  % If not empty, add project name from file name to header, only for filelists input
         Args.KeyFieldID               = 'FIELDID';
@@ -119,7 +123,7 @@ function [Status, AI, RawHeader] = readAndQualify(FilesList, Args)
 
 
     % search for bad images
-    [StatBadIm,~] = imProc.stat.identifyBadImages(AI, 'CCDSEC',Args.IdentifyBadImagesCCDSEC);
+    [StatBadIm,~] = imProc.stat.identifyBadImages(AI, 'CCDSEC',Args.IdentifyBadImagesCCDSEC, Args.identifyBadImagesArgs{:});
     Flag.Good = ~[StatBadIm.BadImageFlag];
 
     FlagBad = ~Flag.Size(:) & ~Flag.Good(:);
