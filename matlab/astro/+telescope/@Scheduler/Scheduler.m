@@ -1372,6 +1372,7 @@ classdef Scheduler < Component
                     % init NightCounter (set to 0 at begining of night)
                     Obj.initNightCounter;
                     Inc = Inc + 1; % Night counter
+                    %Inc
                 end
                 
        %problems:
@@ -1408,8 +1409,11 @@ classdef Scheduler < Component
                 if ~isempty(TargetInd)
                     Ic = Ic + 1;
                     TargetSt(Ic).TargetInd = TargetInd;
+                    TargetSt(Ic).JD  = JD;
                     TargetSt(Ic).RA  = Struct.RA;
                     TargetSt(Ic).Dec = Struct.Dec;
+                    [~,~,AM] = Obj.azalt(JD);
+                    [TargetSt(Ic).AM]  = AM(TargetInd);
                     
                     if Args.Plot
                         TargetNC = Obj.List.Catalog.NightCounter(TargetInd);
