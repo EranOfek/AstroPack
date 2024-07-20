@@ -5,18 +5,18 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     %            Alternatively, this can be asn AstroImage object
     %            containing the images.
     %          * ...,key,val,...
-    %          'DataDir'       : The directory containing the input images
-    %          'PixScale'      : [arcsec] The pixel scale (LAST by def.)
-    %          'Crop'          : X1 X2 Y1 Y2 margin sizes of the input images to be cropped out
-    %          'Method'        : pixel redistribution method on the mosaic image
-    %                            'redistribute' the signal between 4 neighbouring pixels of Image (default) 
-    %                            'direct' put all the signal into the nearest pixel (some pixels of the Image will be empty)
-    %          'Exposure'      : exposure time to be written into the header of the mosaic image
-    %          'ZP'            : zero point to be written into the header of the mosaic image
-    %          'LASTnaming'    : logical: whether the image file names are in the LAST convention form
-    %          'SizeMargin'    : number of margin pixels added to X and Y size of the mosaic image
-    %          'OutDir'        : output directory
-    %          'PlotBorders'   : whether to plot the sky region with original image stamps (diagnostic)
+    %          'DataDir' - The directory containing the input images
+    %          'PixScale' - [arcsec] The pixel scale (LAST by def.)
+    %          'Crop' - X1 X2 Y1 Y2 margin sizes of the input images to be cropped out
+    %          'Method' - pixel redistribution method on the mosaic image
+    %                   'redistribute' the signal between 4 neighbouring pixels of Image (default) 
+    %                   'direct' put all the signal into the nearest pixel (some pixels of the Image will be empty)
+    %          'Exposure' - exposure time to be written into the header of the mosaic image
+    %          'ZP'       - zero point to be written into the header of the mosaic image
+    %          'LASTnaming' - logical: whether the image file names are in the LAST convention form
+    %          'SizeMargin' - number of margin pixels added to X and Y size of the mosaic image
+    %          'OutDir'     - output directory
+    %          'PlotBorders' - whether to plot the sky region with original image stamps (diagnostic)
     %          
     % Output : - StitchedImage: an AstroImage containing a mosaic made of all the input images
     %          - AH: the header of the mosaic image containing the exposure, ZP and the WCS
