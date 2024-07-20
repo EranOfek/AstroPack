@@ -6,7 +6,7 @@ function [Result] = downloadAll(X, Y, Args)
     %          * ...,key,val,... 
     % Output : - 
     % Author : Eran Ofek (2024 Jul) 
-    % Example: 
+    % Example: VO.TNS.downloadAll
 
     arguments
         X
