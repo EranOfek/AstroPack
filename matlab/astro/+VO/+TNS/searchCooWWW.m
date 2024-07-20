@@ -61,13 +61,15 @@ function [Result] = searchCooWWW(RA, Dec, SearchRadius, Args)
         
         %LD_Path = sprintf('set LD_LIBRARY_PATH "%s"; ',getenv('LD_LIBRARY_PATH'));
         %LD_Path = sprintf('set LD_LIBRARY_PATH ""; ');%,getenv('LD_LIBRARY_PATH'));
+        
+        % Solution from: https://www.mathworks.com/matlabcentral/answers/1461849-why-does-running-the-unix-curl-command-from-within-matlab-result-in-an-error
         LD_Path = getenv('LD_LIBRARY_PATH');
         LD_Path = [LD_Path, ':', '/usr/lib/x86_64-linux-gnu'];  %/usr/local/MATLAB/R2021a/bin/glnxa64'];
         setenv('LD_LIBRARY_PATH',LD_Path);
         
         LD_Path = '';
-        %CommandStr = sprintf('%s curl -X POST -H ''user-agent: tns_marker{"tns_id":%d,"type": "%s", "name":"%s"}'' -d ''api_key=%s&data={"ra": "%s",  "dec": "%s", "radius": "%f", "units": "arcsec"}'' %s', LD_Path, TNS_ID, TNS_Type, TNS_Name, TNS_APIKEY, RA1, Dec1, SearchRadiusAS, TNS_Server);
-        CommandStr = sprintf('curl -X POST -H ''user-agent: tns_marker{"tns_id":%d,"type": "%s", "name":"%s"}'' -d ''api_key=%s&data={"ra": "%s",  "dec": "%s", "radius": "%f", "units": "arcsec"}'' %s', TNS_ID, TNS_Type, TNS_Name, TNS_APIKEY, RA1, Dec1, SearchRadiusAS, TNS_Server);
+        CommandStr = sprintf('%s curl -X POST -H ''user-agent: tns_marker{"tns_id":%d,"type": "%s", "name":"%s"}'' -d ''api_key=%s&data={"ra": "%s",  "dec": "%s", "radius": "%f", "units": "arcsec"}'' %s', LD_Path, TNS_ID, TNS_Type, TNS_Name, TNS_APIKEY, RA1, Dec1, SearchRadiusAS, TNS_Server);
+        CommandStr = sprintf('/usr/bin/curl -X POST -H ''user-agent: tns_marker{"tns_id":%d,"type": "%s", "name":"%s"}'' -d ''api_key=%s&data={"ra": "%s",  "dec": "%s", "radius": "%f", "units": "arcsec"}'' %s', TNS_ID, TNS_Type, TNS_Name, TNS_APIKEY, RA1, Dec1, SearchRadiusAS, TNS_Server);
         [Status, OutputJ] = system(CommandStr);
         
         JSt = jsondecode(OutputJ);
