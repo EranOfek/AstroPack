@@ -1250,7 +1250,8 @@ classdef AstroDiff < AstroImage
                 
                 Args.CreateNewObj logical   = true;
                 
-                Args.CropProp               = {'Z2','S','S2','Scorr','GaborSN'};
+                Args.CropProp               = {'ThresholdImage',...
+                    'Z2', 'S', 'S2', 'Scorr', 'GaborSN'};
             end
             
             NcropProp = numel(Args.CropProp);
