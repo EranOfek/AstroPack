@@ -58,15 +58,18 @@ classdef Scheduler < Component
                                 'Nexp',20, 'ExpTime',20,...
                                 'BasePriority', 0.1,...
                                 'Priority', 0.1,...
-                                'NightCounter',0, 'GlobalCounter',0, 'MaxCounter',Inf,...
+                                'NightCounter',0, 'MaxNightCounter',3, 'GlobalCounter',0, 'MaxCounter',Inf,...
                                 'LastJD',0,...
                                 'CadenceMethod', 1,...
                                 'StartJD',0, 'StopJD',Inf,...
                                 'Cadence',0.7, 'WeightHigh',1.1, 'WeightLow',1.0, 'CadenceRiseTime',0.5, 'WeightDecayTime',10,...
-                                'NightCadence',1./24, 'NightWeightHigh',1.3, 'NightWeightLow',1.2, 'NightCadenceRiseTime',0.005, 'NightWeightDecayTime',-100,...
+                                'NightCadence',1./24, 'NightWeightHigh',1.5, 'NightWeightLow',1.4, 'NightCadenceRiseTime',0.005, 'NightWeightDecayTime',-100,...
                                 'MaxNightN',8,...
                                 'MinMoonDist',-1,...
-                                'MinVisibility',2./24);
+                                'MinVisibility',2./24,...
+                                'ExtraPriorityHA',0.1, 'MinHA1',-2./24, 'MaxHA1', -1./24);
+                            % RangeHA1 - HA range in which ast obs of night
+                            % will get ExtraPriorityHA
 
         MaxSunAlt         = -11.5;
         MinSunDist        = 30;
@@ -1220,7 +1223,7 @@ classdef Scheduler < Component
             arguments
                 Obj
                 JD    = [];
-                Args.SelectMethod = 'mindist'; %'westward';
+                Args.SelectMethod = 'minam'; %'mindist'; %'westward';
                 Args.IndPrev      = [];
             end
             RAD = 180./pi;
@@ -1236,10 +1239,13 @@ classdef Scheduler < Component
             [MaxPriority] = max(Priority);
             % if there are several targets with the same priority - select
             % eastward
-            Iall = find(MaxPriority==Priority);
+            Iall = find(abs(MaxPriority-Priority)<0.001);
             switch lower(Args.SelectMethod)
                 case 'westward'
                     [~, IndMinHA] = max(Obj.HA(Iall));
+                case 'minam'
+                    [~,IndMinAM] = min(Obj.AirMass(Iall));
+                    IndMinHA = IndMinAM;
                 case 'mindist'
                     % select based on min distance to current position
                     if isempty(Args.IndPrev)
@@ -1324,6 +1330,16 @@ classdef Scheduler < Component
             W(NightCounter>=MaxNC) = 0;
             % Add BasePriority
             W = W + Obj.List.Catalog.BasePriority;
+                        
+            % Add extra priority to targets in HA range
+            % only if this is the first observation during the night
+            HA_Day  = Obj.HA./360;  % [day]
+            Flag_HA = HA_Day> Obj.List.Catalog.MinHA1 & HA_Day<Obj.List.Catalog.MaxHA1 & Obj.List.Catalog.NightCounter==0;
+            W(Flag_HA) = W(Flag_HA) + Obj.List.Catalog.ExtraPriorityHA(Flag_HA);
+            
+            % Check MaxNightCounter
+            Flag_MNC = Obj.List.Catalog.NightCounter>=Obj.List.Catalog.MaxNightCounter;
+            W(Flag_MNC) = Obj.List.Catalog.BasePriority(Flag_MNC);
             
         end
     end
