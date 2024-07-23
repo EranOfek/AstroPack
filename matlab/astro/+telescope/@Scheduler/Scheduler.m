@@ -55,6 +55,7 @@ classdef Scheduler < Component
         List AstroCatalog
         % units deg/days
         Defaults       = struct('MinAlt',15, 'MaxAlt',90, 'MaxHA',120,...
+                                'MountNum',NaN,...
                                 'Nexp',20, 'ExpTime',20,...
                                 'BasePriority', 0.1,...
                                 'Priority', 0.1,...
@@ -68,7 +69,10 @@ classdef Scheduler < Component
                                 'MinMoonDist',-1,...
                                 'MinVisibility',2./24,...
                                 'ExtraPriorityHA',0.1, 'MinHA1',-2./24, 'MaxHA1', -1./24);
-                            % RangeHA1 - HA range in which ast obs of night
+                            % MountNum - if NaN, can assign to any mount.
+                            %          - if number then assign only to the
+                            %          requested mount number.
+                            % [MinHA1, MaxHA1] - HA range in which ast obs of night
                             % will get ExtraPriorityHA
 
         MaxSunAlt         = -11.5;
@@ -972,6 +976,13 @@ classdef Scheduler < Component
         function [Flag, FlagsIn, Summary]=isVisible(Obj, JD, Args)
             % Check if targets are visible given all their specified criteria
             % Input  : - Self.
+            %          - JD. If empty, use object JD. Default is [].
+            %          * ...,key,val,...
+            %            'MountNum' - Mount number. If given, then choose
+            %                   only targts assigned to this specif mount.
+            %                   If empty, then ignore.
+            %                   Default is [].
+            %            'SkipMinVisibility' - Default is false.
             % Output : - A vector of flags (one per target) indicating if
             %            the targets are visible according to all criteria.
             %          - Structure containing vector of flags for each used
@@ -983,6 +994,7 @@ classdef Scheduler < Component
             arguments
                 Obj
                 JD    = [];
+                Args.MountNum                   = [];
                 Args.SkipMinVisibility logical  = false;
             end
             %RAD     = 180./pi;
@@ -1033,6 +1045,10 @@ classdef Scheduler < Component
                 Flag = Flag & FlagsIn.(FN{Ifn});
             end
             % [FlagsIn.SunDist, FlagsIn.Alt, FlagsIn.Moon, FlagsIn.MinAlt, FlagsIn.MaxAlt, FlagsIn.MaxHA, FlagsIn.StartJD, FlagsIn.MaxCounter, FlagsIn.MinMoonDist]
+            
+            if ~isempty(Args.MountNum)
+                Flag = Flag & (isnan(Obj.List.Catalog.MountNum) | Args.MountNum==Obj.List.Catalog.MountNum);
+            end
             
         end
         
@@ -1204,12 +1220,20 @@ classdef Scheduler < Component
             % Input  : - Self.
             %          - JD. If empty, use object JD. Default is [].
             %          * ...,key,val,...
+            %            'MountNum' - Mount number. If given, then will
+            %                   select only targets with the specific mount
+            %                   number, or NaN mount number.
+            %                   If not given (empty), then choose from all.
+            %                   Default is [].
             %            'SelectMethod' - If several objects with the same
             %                   priority, this is the selection method:
             %                   'westward' - westward HA.
             %                   'eastward' - eastward HA.
             %                   'first' - first in list.
-            %                   Default is 'mindist'.
+            %                   'mindist' - Min. angular distance to
+            %                           previous field.
+            %                   'minam' - Minimum airmass.
+            %                   Default is 'minam'.
             %            'IndPrev' - Index of previous observations.
             %                   If empty, will get automatically based on
             %                   the LastJD. Default is [].
@@ -1219,10 +1243,12 @@ classdef Scheduler < Component
             %          - Structure with best target info.
             % Author : Eran Ofek (Jul 2024)
             % Example: [TargetInd, BestPriority, Tbl, Struct] = S.selectTarget;
+            %          [TargetInd, BestPriority, Tbl, Struct] = S.selectTarget(2451545.5,'MountNum',1);
             
             arguments
                 Obj
                 JD    = [];
+                Args.MountNum     = [];
                 Args.SelectMethod = 'minam'; %'mindist'; %'westward';
                 Args.IndPrev      = [];
             end
@@ -1233,7 +1259,7 @@ classdef Scheduler < Component
             end
             
             W   = Obj.weight(JD);
-            [IsV,FlagsIn] = Obj.isVisible(JD);
+            [IsV,FlagsIn] = Obj.isVisible(JD, 'MountNum',Args.MountNum);
             Priority = W.*IsV;
             % select target for observation
             [MaxPriority] = max(Priority);
