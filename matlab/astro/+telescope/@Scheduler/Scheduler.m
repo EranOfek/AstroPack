@@ -131,6 +131,8 @@ classdef Scheduler < Component
         ColRA  = 'RA';
         ColDec = 'Dec';
         ColFieldName = 'FieldName';
+        
+        ColKeep = {'Priority','NightCounter','GlobalCounter','LastJD'}; 
     end
     
     methods % constructor
@@ -664,7 +666,7 @@ classdef Scheduler < Component
             %            telescope.Scheduler class object.
             % Output : - A table.
             % Author : Eran Ofek (Jul 2024)
-            % Example: Tbl=telescope.Scheduler.read('data.csv');
+            % Example: Tbl=telescope.Scheduler.read2table('data.csv');
            
             if ischar(Data) || isstring(Data)
                 if contains(Data,'.mat')
@@ -795,7 +797,55 @@ classdef Scheduler < Component
             
         end
     
-        %function Obj=loadAndUpdate(Obj, AddF
+        function Obj=loadTable(Obj, Data, Type)
+            % Read file (mat, csv) or data into a telescope.Scheduler
+            % object
+            % Input  : - A mat file or a csv file (with legal
+            %            telescope.Scheduler fields).
+            %            Alternatively, a table, an Astrocatalog, or
+            %            telescope.Scheduler class object.
+            % Output : - A table.
+            % Author : Eran Ofek (Jul 2024)
+            % Example: Tbl=telescope.Scheduler.read2table('data.csv');
+           
+            arguments
+                Obj
+                Data
+                Type    = 'merge';  %'replace'|'concat'|'merge'
+            end
+            
+            Tbl = telescope.Scheduler.read2table(Data);
+            switch lower(Type)
+                case 'replace'
+                    Obj.List.Catalog = Tbl;
+                case 'concat'
+                    Obj.List.Catalog = [Obj.List.Catalog; Tbl];
+                case 'merge'
+                    ExistFieldName = Obj.List.Catalog.(Obj.ColFieldName);
+                    NewFieldName   = Tbl.(Obj.ColFieldName);
+                    
+                    %returns the values in A that are not in B with no repetitions. C will be sorted.
+                    [~,Ic]    = setdiff(NewFieldName, ExistFieldName);
+                    
+                    [~,Ia,Ib] = intersect(NewFieldName, ExistFieldName);
+                    
+                    %Priority  NightCounter       GlobalCounter      LastJD 
+                    NcolKeep = numel(Obj.ColKeep);
+                    Val      = cell(NcolKeep,1);
+                    for IcolKeep=1:1:NcolKeep
+                        Val{IcolKeep} = Obj.List.Catalog.(Obj.ColKeep{IcolKeep})(Ib);
+                    end
+                    Obj.List.Catalog(Ib,:) = Tbl(Ia,:);
+                    for IcolKeep=1:1:NcolKeep
+                        Obj.List.Catalog.(Obj.ColKeep{IcolKeep})(Ib) = Val{IcolKeep};
+                    end
+                    Obj.List.Catalog = [Obj.List.Catalog; Tbl(Ic,:)];
+                    
+                otherwise
+                    error('Unknown Type option');
+            end
+            
+        end
         
     end
 
