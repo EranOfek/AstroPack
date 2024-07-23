@@ -770,38 +770,6 @@ classdef Scheduler < Component
 
         end
         
-        
-        function Obj=loadAndConcat(Obj, AddFileName, Args)
-            % Load a mat file containing a telescope.Scheduler object and concat to current object.
-            % Input  : - Self.
-            %          - FileName containing the object to concat.
-            %          * ...,key,val,...
-            %            'ErrorIfNotExist' - Default is false.
-            % Output : - An updated object.
-            % Author : Eran Ofek (Jul 2024)
-            
-            arguments
-                Obj
-                AddFileName = [];
-                Args.ErrorIfNotExist logical   = false;
-            end
-            
-            if isfile(AddFileName)
-                Tmp = io.files.load2(AddFileName);
-                if isa(Tmp, 'telescope.Scheduler')
-                    Obj.List.Catalog = [Obj.List.Catalog; Tmp.List.Catalog];
-                else
-                    error('FileName have unsupported type');
-                end
-            else
-                if Args.ErrorIfNotExist
-                    error('AddFileName %s does not exist',AddFileName);
-                end
-                    
-            end            
-            
-        end
-    
         function Obj=loadTable(Obj, Data, Type)
             % Read file (mat, csv) or data, and merge it into an existing telescope.Scheduler object
             %
