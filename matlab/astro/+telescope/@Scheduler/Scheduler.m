@@ -806,7 +806,7 @@ classdef Scheduler < Component
             %            telescope.Scheduler class object.
             % Output : - A table.
             % Author : Eran Ofek (Jul 2024)
-            % Example: Tbl=telescope.Scheduler.read2table('data.csv');
+            % Example: S=loadTable(S, 'data.csv', 'merge');
            
             arguments
                 Obj
