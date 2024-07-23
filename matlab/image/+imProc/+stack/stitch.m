@@ -7,7 +7,7 @@ function [StitchedImage, AH, RemappedXY] = stitch(InputImages, Args)
     %          * ...,key,val,...
     %          'DataDir' - The directory containing the input images
     %          'PixScale' - [arcsec] The pixel scale (LAST by def.)
-    %          'Crop' - X1 X2 Y1 Y2 margin sizes of the input images to be cropped out
+    %          'Crop' - vector [X1 X2 Y1 Y2] of margin sizes of the input images to be cropped out
     %          'Method' - pixel redistribution method on the mosaic image
     %                   'redistribute' the signal between 4 neighbouring pixels of Image (default) 
     %                   'direct' put all the signal into the nearest pixel (some pixels of the Image will be empty)
