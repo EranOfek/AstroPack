@@ -667,6 +667,11 @@ classdef Scheduler < Component
             % Output : - A table.
             % Author : Eran Ofek (Jul 2024)
             % Example: Tbl=telescope.Scheduler.read2table('data.csv');
+            %
+            %          S = telescope.Scheduler;
+            %          S.generateRegularGrid;
+            %          save S.mat S
+            %          Tbl = telescope.Scheduler.read2table('S.mat');
            
             if ischar(Data) || isstring(Data)
                 if contains(Data,'.mat')
@@ -798,15 +803,49 @@ classdef Scheduler < Component
         end
     
         function Obj=loadTable(Obj, Data, Type)
-            % Read file (mat, csv) or data into a telescope.Scheduler
-            % object
-            % Input  : - A mat file or a csv file (with legal
+            % Read file (mat, csv) or data, and merge it into an existing telescope.Scheduler object
+            %
+            % Input  : - Self. (main data)
+            %          - (secondary data) Data to merge with the main input.
+            %            A mat file or a csv file (with legal
             %            telescope.Scheduler fields).
             %            Alternatively, a table, an Astrocatalog, or
             %            telescope.Scheduler class object.
-            % Output : - A table.
+            %            In the 'merge' option the columns data defined in
+            %            the ColKeep property (e.g., 'GlobalCounter') will
+            %            be taken from the main input, and all the rest
+            %            from the data to merge.
+            %          - How to merge the lists. Options are:
+            %            'replace' - Replace the main data, with the
+            %                   secondary data.
+            %            'concat' - concat the secondary data at the end of
+            %                   the main data.
+            %            'merge' - Merge the primary and secondary data.
+            %                   Merging is done as follows:
+            %                   Field names that does not exist in the
+            %                   primary data, will be concat at the end.
+            %                   Field names that exist in the primary data
+            %                   will replace the primary data. However, for
+            %                   columns listed in the ColKeep property, the
+            %                   data in the primray will be kept.
+            %            'merge_replace' - like merge, but without keeping
+            %                   the primary data in the ColKeep columns.
+            %            Default is 'merge'.
+            %
+            % Output : - The updated object.
             % Author : Eran Ofek (Jul 2024)
             % Example: S=loadTable(S, 'data.csv', 'merge');
+            %          
+            %          S = telescope.Scheduler;
+            %          S.generateRegularGrid;
+            %          Tbl = S.List.Catalog(1:3,:);
+            %          S.List.Catalog.LastJD(1)=100;
+            %          S.List.Catalog.GlobalCounter(1:2)=5;
+            %          Tbl.BasePriority(1)=2;       
+            %          Tbl.FieldName(2)="M31";
+            %          Tbl.FieldName(3)="M15";
+            %          S1 = S.copy;
+            %          S1.loadTable(Tbl,'merge');
            
             arguments
                 Obj
@@ -839,6 +878,19 @@ classdef Scheduler < Component
                     for IcolKeep=1:1:NcolKeep
                         Obj.List.Catalog.(Obj.ColKeep{IcolKeep})(Ib) = Val{IcolKeep};
                     end
+                    Obj.List.Catalog = [Obj.List.Catalog; Tbl(Ic,:)];
+                    
+                case 'merge_replace'
+                    ExistFieldName = Obj.List.Catalog.(Obj.ColFieldName);
+                    NewFieldName   = Tbl.(Obj.ColFieldName);
+                    
+                    %returns the values in A that are not in B with no repetitions. C will be sorted.
+                    [~,Ic]    = setdiff(NewFieldName, ExistFieldName);
+                    
+                    [~,Ia,Ib] = intersect(NewFieldName, ExistFieldName);
+                    
+                    Obj.List.Catalog(Ib,:) = Tbl(Ia,:);
+                   
                     Obj.List.Catalog = [Obj.List.Catalog; Tbl(Ic,:)];
                     
                 otherwise
