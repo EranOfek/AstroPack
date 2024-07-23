@@ -175,14 +175,14 @@ classdef Scheduler < Component
            
             Obj.List = Tbl;
             
-            if Obj.List.isColumn(Obj.ColRA)
-                Obj.RA   = Obj.List.getCol(Obj.ColRA);
+            if tools.table.isColumn(Obj.List, Obj.ColRA)
+                Obj.RA   = Obj.List.(Obj.ColRA);
             end
-            if Obj.List.isColumn(Obj.ColDec)
-                Obj.Dec  = Obj.List.getCol(Obj.ColDec);
+            if tools.table.isColumn(Obj.List, Obj.ColDec)
+                Obj.Dec  = Obj.List.(Obj.ColDec);
             end
-            if Obj.List.isColumn('ExpTime') && Obj.List.isColumn('Nexp')
-                Val = Obj.List.getCol('ExpTime').*Obj.List.getCol('Nexp');
+            if tools.table.isColumn(Obj.List, 'ExpTime') && tools.table.isColumn(Obj.List, 'Nexp')
+                Val = Obj.List.('ExpTime').*Obj.List.('Nexp');
                 
                 if numel(unique(Val))==1
                     Obj.TotalExpTime = Val(1);
@@ -195,7 +195,7 @@ classdef Scheduler < Component
         function Val=get.FieldName(Obj)
             % Getter for FieldName
             
-            Val = Obj.List.Catalog.(Obj.ColFieldName);
+            Val = Obj.List.(Obj.ColFieldName);
         end
         
         function Val=get.JD(Obj)
@@ -212,14 +212,13 @@ classdef Scheduler < Component
             % getter for RA Dependent property
             
             if isempty(Obj.RA)
-                if isempty(Obj.List) || Obj.List.sizeCatalog==0
+                if isempty(Obj.List)
                     error('Catalog is empty');
                 end
-                ColInd = Obj.List.colname2ind(Obj.ColRA);
-                if isnan(ColInd)
+                if ~tools.table.isColum(Obj.List, Obj.ColRA)
                     error('can not find %s column in List',Obj.ColRA);
                 end
-                Obj.RA = Obj.List.Catalog(:,ColInd);
+                Obj.RA = Obj.List.(Obj.ColRA);
             end
             Val = Obj.RA;
         end
@@ -228,16 +227,16 @@ classdef Scheduler < Component
             % getter for Dec Dependent property
             
             if isempty(Obj.Dec)
-                if isempty(Obj.List) || Obj.List.sizeCatalog==0
+                if isempty(Obj.List)
                     error('Catalog is empty');
                 end
-                ColInd = Obj.List.colname2ind(Obj.ColDec);
-                if isnan(ColInd)
+                if ~tools.table.isColum(Obj.List, Obj.ColDec)
                     error('can not find %s column in List',Obj.ColDec);
                 end
-                Obj.Dec = Obj.List.Catalog(:,ColInd);
+                Obj.Dec = Obj.List.(Obj.ColDec);
             end
             Val = Obj.Dec;
+            
         end
         
         function Val=get.LST(Obj)
@@ -655,40 +654,6 @@ classdef Scheduler < Component
                 
     end
     
-    methods (Static)  % read files
-        function Tbl=read2table(Data)
-            % Read file (mat, csv) or data into a table object
-            % Input  : - A mat file or a csv file (with legal
-            %            telescope.Scheduler fields).
-            %            Alternatively, a table, an Astrocatalog, or
-            %            telescope.Scheduler class object.
-            % Output : - A table.
-            % Author : Eran Ofek (Jul 2024)
-            % Example: Tbl=telescope.Scheduler.read('data.csv');
-           
-            if ischar(Data) || isstring(Data)
-                if contains(Data,'.mat')
-                    % assume a mat file
-                    Data = io.files.load2(Data);
-                else
-                    % assume input is csv file
-                    Data = readtable(Data);
-                end
-            end
-            
-            switch class(Data)
-                case 'telescope.Scheduler'
-                    Tbl = Data.List.Table;
-                case 'AstroCatalog'
-                    Tbl = Data.Table;
-                case 'table'
-                    Tbl = Data;
-                otherwise
-                    error('Unknown data class');
-            end
-        end
-    end
-    
     methods % load lists and tables
         function Obj=injectDefaultColumns(Obj)
             % Inject or replace the column in List with the default values
@@ -763,7 +728,6 @@ classdef Scheduler < Component
 
         end
         
-        
         function Obj=loadAndConcat(Obj, AddFileName, Args)
             % Load a mat file containing a telescope.Scheduler object and concat to current object.
             % Input  : - Self.
@@ -794,9 +758,6 @@ classdef Scheduler < Component
             end            
             
         end
-    
-        %function Obj=loadAndUpdate(Obj, AddF
-        
     end
 
     methods % write lists and tables
