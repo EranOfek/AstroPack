@@ -23,14 +23,15 @@ function Flag=isempty_cell(Cell, UseMex, UseMP)
         UseMP logical    = true;      	% True: Use threading with OpenMP multi-threading library        
     end
 
-        % MATLAB implementation
-    if ~UseMex
+    % MATLAB implementation
+    if UseMex
+        % MEX implementation
+        Flag = tools.cell.mex.mex_isempty_cell(Cell, UseMP);
+    else
         Flag = cellfun(@isempty,Cell);
-        return;
     end
     
-        % MEX implementation
-    Flag = tools.cell.mex.mex_isempty_cell(Cell, UseMP);
+    
 end
 
     
