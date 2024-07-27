@@ -131,8 +131,6 @@ classdef Scheduler < Component
         ColRA  = 'RA';
         ColDec = 'Dec';
         ColFieldName = 'FieldName';
-        
-        ColKeep = {'Priority','NightCounter','GlobalCounter','LastJD'}; 
     end
     
     methods % constructor
@@ -177,14 +175,14 @@ classdef Scheduler < Component
            
             Obj.List = Tbl;
             
-            if Obj.List.isColumn(Obj.ColRA)
-                Obj.RA   = Obj.List.getCol(Obj.ColRA);
+            if tools.table.isColumn(Obj.List, Obj.ColRA)
+                Obj.RA   = Obj.List.(Obj.ColRA);
             end
-            if Obj.List.isColumn(Obj.ColDec)
-                Obj.Dec  = Obj.List.getCol(Obj.ColDec);
+            if tools.table.isColumn(Obj.List, Obj.ColDec)
+                Obj.Dec  = Obj.List.(Obj.ColDec);
             end
-            if Obj.List.isColumn('ExpTime') && Obj.List.isColumn('Nexp')
-                Val = Obj.List.getCol('ExpTime').*Obj.List.getCol('Nexp');
+            if tools.table.isColumn(Obj.List, 'ExpTime') && tools.table.isColumn(Obj.List, 'Nexp')
+                Val = Obj.List.('ExpTime').*Obj.List.('Nexp');
                 
                 if numel(unique(Val))==1
                     Obj.TotalExpTime = Val(1);
@@ -197,7 +195,7 @@ classdef Scheduler < Component
         function Val=get.FieldName(Obj)
             % Getter for FieldName
             
-            Val = Obj.List.Catalog.(Obj.ColFieldName);
+            Val = Obj.List.(Obj.ColFieldName);
         end
         
         function Val=get.JD(Obj)
@@ -214,14 +212,13 @@ classdef Scheduler < Component
             % getter for RA Dependent property
             
             if isempty(Obj.RA)
-                if isempty(Obj.List) || Obj.List.sizeCatalog==0
+                if isempty(Obj.List)
                     error('Catalog is empty');
                 end
-                ColInd = Obj.List.colname2ind(Obj.ColRA);
-                if isnan(ColInd)
+                if ~tools.table.isColum(Obj.List, Obj.ColRA)
                     error('can not find %s column in List',Obj.ColRA);
                 end
-                Obj.RA = Obj.List.Catalog(:,ColInd);
+                Obj.RA = Obj.List.(Obj.ColRA);
             end
             Val = Obj.RA;
         end
@@ -230,16 +227,16 @@ classdef Scheduler < Component
             % getter for Dec Dependent property
             
             if isempty(Obj.Dec)
-                if isempty(Obj.List) || Obj.List.sizeCatalog==0
+                if isempty(Obj.List)
                     error('Catalog is empty');
                 end
-                ColInd = Obj.List.colname2ind(Obj.ColDec);
-                if isnan(ColInd)
+                if ~tools.table.isColum(Obj.List, Obj.ColDec)
                     error('can not find %s column in List',Obj.ColDec);
                 end
-                Obj.Dec = Obj.List.Catalog(:,ColInd);
+                Obj.Dec = Obj.List.(Obj.ColDec);
             end
             Val = Obj.Dec;
+            
         end
         
         function Val=get.LST(Obj)
@@ -657,45 +654,6 @@ classdef Scheduler < Component
                 
     end
     
-    methods (Static)  % read files
-        function Tbl=read2table(Data)
-            % Read file (mat, csv) or data into a table object
-            % Input  : - A mat file or a csv file (with legal
-            %            telescope.Scheduler fields).
-            %            Alternatively, a table, an Astrocatalog, or
-            %            telescope.Scheduler class object.
-            % Output : - A table.
-            % Author : Eran Ofek (Jul 2024)
-            % Example: Tbl=telescope.Scheduler.read2table('data.csv');
-            %
-            %          S = telescope.Scheduler;
-            %          S.generateRegularGrid;
-            %          save S.mat S
-            %          Tbl = telescope.Scheduler.read2table('S.mat');
-           
-            if ischar(Data) || isstring(Data)
-                if contains(Data,'.mat')
-                    % assume a mat file
-                    Data = io.files.load2(Data);
-                else
-                    % assume input is csv file
-                    Data = readtable(Data);
-                end
-            end
-            
-            switch class(Data)
-                case 'telescope.Scheduler'
-                    Tbl = Data.List.Table;
-                case 'AstroCatalog'
-                    Tbl = Data.Table;
-                case 'table'
-                    Tbl = Data;
-                otherwise
-                    error('Unknown data class');
-            end
-        end
-    end
-    
     methods % load lists and tables
         function Obj=injectDefaultColumns(Obj)
             % Inject or replace the column in List with the default values
@@ -770,103 +728,36 @@ classdef Scheduler < Component
 
         end
         
-        function Obj=loadTable(Obj, Data, Type)
-            % Read file (mat, csv) or data, and merge it into an existing telescope.Scheduler object
-            %
-            % Input  : - Self. (main data)
-            %          - (secondary data) Data to merge with the main input.
-            %            A mat file or a csv file (with legal
-            %            telescope.Scheduler fields).
-            %            Alternatively, a table, an Astrocatalog, or
-            %            telescope.Scheduler class object.
-            %            In the 'merge' option the columns data defined in
-            %            the ColKeep property (e.g., 'GlobalCounter') will
-            %            be taken from the main input, and all the rest
-            %            from the data to merge.
-            %          - How to merge the lists. Options are:
-            %            'replace' - Replace the main data, with the
-            %                   secondary data.
-            %            'concat' - concat the secondary data at the end of
-            %                   the main data.
-            %            'merge' - Merge the primary and secondary data.
-            %                   Merging is done as follows:
-            %                   Field names that does not exist in the
-            %                   primary data, will be concat at the end.
-            %                   Field names that exist in the primary data
-            %                   will replace the primary data. However, for
-            %                   columns listed in the ColKeep property, the
-            %                   data in the primray will be kept.
-            %            'merge_replace' - like merge, but without keeping
-            %                   the primary data in the ColKeep columns.
-            %            Default is 'merge'.
-            %
-            % Output : - The updated object.
+        function Obj=loadAndConcat(Obj, AddFileName, Args)
+            % Load a mat file containing a telescope.Scheduler object and concat to current object.
+            % Input  : - Self.
+            %          - FileName containing the object to concat.
+            %          * ...,key,val,...
+            %            'ErrorIfNotExist' - Default is false.
+            % Output : - An updated object.
             % Author : Eran Ofek (Jul 2024)
-            % Example: S=loadTable(S, 'data.csv', 'merge');
-            %          
-            %          S = telescope.Scheduler;
-            %          S.generateRegularGrid;
-            %          Tbl = S.List.Catalog(1:3,:);
-            %          S.List.Catalog.LastJD(1)=100;
-            %          S.List.Catalog.GlobalCounter(1:2)=5;
-            %          Tbl.BasePriority(1)=2;       
-            %          Tbl.FieldName(2)="M31";
-            %          Tbl.FieldName(3)="M15";
-            %          S1 = S.copy;
-            %          S1.loadTable(Tbl,'merge');
-           
+            
             arguments
                 Obj
-                Data
-                Type    = 'merge';  %'replace'|'concat'|'merge'
+                AddFileName = [];
+                Args.ErrorIfNotExist logical   = false;
             end
             
-            Tbl = telescope.Scheduler.read2table(Data);
-            switch lower(Type)
-                case 'replace'
-                    Obj.List.Catalog = Tbl;
-                case 'concat'
-                    Obj.List.Catalog = [Obj.List.Catalog; Tbl];
-                case 'merge'
-                    ExistFieldName = Obj.List.Catalog.(Obj.ColFieldName);
-                    NewFieldName   = Tbl.(Obj.ColFieldName);
+            if isfile(AddFileName)
+                Tmp = io.files.load2(AddFileName);
+                if isa(Tmp, 'telescope.Scheduler')
+                    Obj.List.Catalog = [Obj.List.Catalog; Tmp.List.Catalog];
+                else
+                    error('FileName have unsupported type');
+                end
+            else
+                if Args.ErrorIfNotExist
+                    error('AddFileName %s does not exist',AddFileName);
+                end
                     
-                    %returns the values in A that are not in B with no repetitions. C will be sorted.
-                    [~,Ic]    = setdiff(NewFieldName, ExistFieldName);
-                    
-                    [~,Ia,Ib] = intersect(NewFieldName, ExistFieldName);
-                    
-                    %Priority  NightCounter       GlobalCounter      LastJD 
-                    NcolKeep = numel(Obj.ColKeep);
-                    Val      = cell(NcolKeep,1);
-                    for IcolKeep=1:1:NcolKeep
-                        Val{IcolKeep} = Obj.List.Catalog.(Obj.ColKeep{IcolKeep})(Ib);
-                    end
-                    Obj.List.Catalog(Ib,:) = Tbl(Ia,:);
-                    for IcolKeep=1:1:NcolKeep
-                        Obj.List.Catalog.(Obj.ColKeep{IcolKeep})(Ib) = Val{IcolKeep};
-                    end
-                    Obj.List.Catalog = [Obj.List.Catalog; Tbl(Ic,:)];
-                    
-                case 'merge_replace'
-                    ExistFieldName = Obj.List.Catalog.(Obj.ColFieldName);
-                    NewFieldName   = Tbl.(Obj.ColFieldName);
-                    
-                    %returns the values in A that are not in B with no repetitions. C will be sorted.
-                    [~,Ic]    = setdiff(NewFieldName, ExistFieldName);
-                    
-                    [~,Ia,Ib] = intersect(NewFieldName, ExistFieldName);
-                    
-                    Obj.List.Catalog(Ib,:) = Tbl(Ia,:);
-                   
-                    Obj.List.Catalog = [Obj.List.Catalog; Tbl(Ic,:)];
-                    
-                otherwise
-                    error('Unknown Type option');
-            end
+            end            
             
         end
-        
     end
 
     methods % write lists and tables

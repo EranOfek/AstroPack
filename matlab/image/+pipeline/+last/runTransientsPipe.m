@@ -12,11 +12,11 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
                        constructs assuming reference directory is 
                        "/'machine_name'/data/references'. Default is ''.
                 'Product' - Products to be saved in case SaveProducts is
-                       true. Default is {'Cat'}.
+                       true. Default is ''.
                 'WriteHeader' - Array of bools indicating on whether to 
                        write a head for the products. Required by 
                        imProc.io.writeProduct and has to be the same length 
-                       as Product. Default is true.
+                       as Product. Default is ''.
                 'SaveMergedCat' - Bool on whether to save all produced
                        transients catalogs as a single merged catalog.
                        Default is true.
@@ -41,8 +41,8 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         Args.SaveProducts logical = false;%true;
         Args.SavePath = VisitPath;
         Args.RefPath = '';
-        Args.Product = {'Cat'};
-        Args.WriteHeader = true;
+        Args.Product = '';
+        Args.WriteHeader = '';
         Args.SaveMergedCat logical = true;
         Args.AddMeta logical = true;
         Args.SameTelOnly logical = true;
@@ -50,9 +50,9 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
 
     % Find New image coadds and load
     
-    if isa(VisitPath, 'char')
+    if isa(VisitPath, 'char') || isa(VisitPath, 'string')
         Coadds = strcat(VisitPath,'/LAST*coadd_Image_1.fits');
-        New = AstroImage.readFileNamesObj(Coadds, 'Path',VisitPath);
+        New = AstroImage.readFileNamesObj(Coadds, 'Path', VisitPath);
     elseif isa(VisitPath, 'AstroImage')
         New = VisitPath;
     end
@@ -88,7 +88,7 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         end
 
         % Load ref image and ref image name
-        Ref = AstroImage.readFileNamesObj(RefFile{1}, 'Path',FieldRefPath);
+        Ref = AstroImage.readFileNamesObj(RefFile{1}, 'Path', FieldRefPath);
         FNrref = FileNames.generateFromFileName(Ref.ImageData.FileName);
 
         NewName = FN.genFile;
@@ -265,6 +265,13 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
     % If SaveProducts true, save desired products in desired path
     if Args.SaveProducts
         for Iobj=Nobj:-1:1
+
+            TranCat(Iobj) = AD(Iobj).CatData;
+
+            if isempty(Args.Product)
+                continue
+            end
+
             FN = FileNames.generateFromFileName(AD(Iobj).New.ImageData.FileName);
             % Set AD name
             FNad = FN.copy();
@@ -272,12 +279,10 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
             FNad.FullPath = Args.SavePath;
             AD(Iobj).ImageData.FileName = FNad.genFull{1};
 
-           
-%             [~,~,~]=imProc.io.writeProduct(AD(Iobj), FNad, ...
-%                 'Level', 'coadd.zogyD', 'Product', Args.Product,...
-%                 'WriteHeader',Args.WriteHeader,'Overwrite', true);
+            [~,~,~]=imProc.io.writeProduct(AD(Iobj), FNad, ...
+                'Level', 'coadd.zogyD', 'Product', Args.Product,...
+                'WriteHeader',Args.WriteHeader,'Overwrite', true);
 
-            TranCat(Iobj) = AD(Iobj).CatData;
         end
 
         if Args.SaveMergedCat
@@ -305,6 +310,7 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
     % Save cutouts
     % TODO: Structure file holding all of the cutouts can sometimes be 
     % several GB large. Investigate this issue.
+    
     %{
     if Args.SaveProducts
         FN = FileNames.generateFromFileName(AD(1).New.ImageData.FileName);
@@ -317,7 +323,8 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         FNtran.FullPath = Args.SavePath;
         TranCatFileName = FNtran.genFull{1};
         
-        %save(TranCatFileName,"ADc","-v7.3");
+        save(TranCatFileName,"ADc","-v7.3");
     end  
     %}
+    
 end
