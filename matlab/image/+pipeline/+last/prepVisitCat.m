@@ -7,7 +7,7 @@ function [OutTable] = prepVisitCat(Args)
     % Author : Eran Ofek (2024 Jul) 
     % Example: 
     %          OT=pipeline.last.prepVisitCat('UseTouchFile',false, 'UseStatus',true);
-    %          
+              
 
     arguments
         Args.BasePath          = '/marvin';
