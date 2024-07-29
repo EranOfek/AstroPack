@@ -1,4 +1,4 @@
-function Im=mfind_bin(X, Vals, UseMex, UseMP, Type)
+function Im=mfind_bin(X, Vals, UseMex, Type)
 % Binary search on a sorted vector running simolutnously on multiple values.
 % Package: tools.find
 % Description: Multiple value simolutanos binary search.
@@ -18,6 +18,7 @@ function Im=mfind_bin(X, Vals, UseMex, UseMP, Type)
 % Tested : Matlab R2014a
 %     By : Eran O. Ofek                    Jan 2015
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
+% Compilation: mex -R2018a CXXFLAGS="\$CXXFLAGS -fopenmp" LDFLAGS="\$LDFLAGS -fopenmp" mex_mfind_bin_double2.cpp
 % Example: X=sort(rand(1e6,1)); Vals=rand(1,1e5);
 %          Im=tools.find.mfind_bin(X,Vals)
 % Reference: cite Ofek (2014; ascl:1407.005)
@@ -28,7 +29,7 @@ arguments
     X                	            % Input array
     Vals                            % Input array
     UseMex logical   = false;      	% True: Use MEX implementation, False: Use MATLAB implementaion
-    UseMP logical    = true;      	% True: Use threading with OpenMP multi-threading library
+    %UseMP logical    = true;      	% True: Use threading with OpenMP multi-threading library
     Type             = []; 
 end
 
@@ -39,10 +40,12 @@ if UseMex
     end
 
     switch Type
-        case {'single'}
-            Im = tools.find.mex.mex_mfind_bin_single(X,Vals,UseMP);
-        case {'double'}
-            Im = tools.find.mex.mex_mfind_bin_double(X,Vals,UseMP);
+        case 'single'
+            %Im = tools.find.mex.mex_mfind_bin_single(X,Vals,UseMP);
+            Im = tools.find.mex.mex_mfind_bin_single(X,Vals);
+        case 'double'
+            %Im = tools.find.mex.mex_mfind_bin_double(X,Vals,UseMP);
+            Im = tools.find.mex.mex_mfind_bin_double(X,Vals);
         otherwise
             error('tools.find.mfind_bin - Unsupported data type');
     end
