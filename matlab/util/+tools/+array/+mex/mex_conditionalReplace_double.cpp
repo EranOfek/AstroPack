@@ -6,22 +6,18 @@ void applyOperation(double *M, const double *A, double B, double V, mwSize size)
     __m256d vecV = _mm256_set1_pd(V);
     
     mwSize i;
-    for (i = 0; i + 8 <= size; i += 8) {
-        // Load 8 elements from A and M
-        __m256d vecA1 = _mm256_loadu_pd(&A[i]);
-        __m256d vecA2 = _mm256_loadu_pd(&A[i + 4]);
+    for (i = 0; i + 4 <= size; i += 4) {
+        // Load 4 elements from A and M
+        __m256d vecA = _mm256_loadu_pd(&A[i]);
         
         // Compare A > B
-        __m256d mask1 = _mm256_cmp_pd(vecA1, vecB, _CMP_GT_OQ);
-        __m256d mask2 = _mm256_cmp_pd(vecA2, vecB, _CMP_GT_OQ);
+        __m256d mask = _mm256_cmp_pd(vecA, vecB, _CMP_GT_OQ);
         
         // Blend values
-        __m256d result1 = _mm256_blendv_pd(_mm256_loadu_pd(&M[i]), vecV, mask1);
-        __m256d result2 = _mm256_blendv_pd(_mm256_loadu_pd(&M[i + 4]), vecV, mask2);
+        __m256d result = _mm256_blendv_pd(_mm256_loadu_pd(&M[i]), vecV, mask);
         
         // Store result back to M
-        _mm256_storeu_pd(&M[i], result1);
-        _mm256_storeu_pd(&M[i + 4], result2);
+        _mm256_storeu_pd(&M[i], result);
     }
     
     // Process remaining elements
