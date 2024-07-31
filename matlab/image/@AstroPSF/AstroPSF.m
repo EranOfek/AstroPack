@@ -50,7 +50,7 @@ classdef AstroPSF < Component
         DataPSF           = [];    % parameters of a PSF-generating function or a data cube, where the first 2 dimensions are the PSF image stamp (X, Y)
         DataVar           = [];    % variance 
         Scale             = [1 1]; % pixel oversampling in X and Y (may be different) 
-        FunPSF            = [];    % PSF-generating function, e.g., Map = Fun(Data, X,Y, Color, Flux)
+        FunPSF            = {};    % a list of PSF-generating functions (additive components)
         FunPars           = {};    % PSF functions parameters
         DimName cell      = {'Wave', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'}; % the standard set of dimensions, but may be changed 
                             % NB: if the names here are changed, the dimension names a user provides to getPSF need to be changed accordingly 
