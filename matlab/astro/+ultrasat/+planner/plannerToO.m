@@ -14,7 +14,7 @@ function Result = plannerToO(AlertMapCSV, Args)
     arguments
         AlertMapCSV            = 'alert.csv'; 
         Args.ProbThresh        = 0.9; 
-        Args.MaxTargets        = 5;
+        Args.MaxTargets        = 4;
         Args.Cadence           = 3;
         Args.OutName           = 'ToOplan.json';
     end
@@ -25,9 +25,8 @@ function Result = plannerToO(AlertMapCSV, Args)
     % extract a region with probability over Args.ProbThresh 
     Map = Map(Map.PROBDENSITY > Args.ProbThresh,:);
     
-    % cut the region into targets 
-    Targets(1).Coo = [10, -80];
-    Targets(2).Coo = [11, -81];
+    % cover the region with targets
+    Targets = coverSky(Map);
     
     % replicate the targets according to the Cadence
     Targets = repmat(Targets, 1, Args.Cadence);
@@ -35,13 +34,19 @@ function Result = plannerToO(AlertMapCSV, Args)
     % schedule the targets
     Targets = schedulerToO(Targets);
     
-    % write the plans to a JSON file
-    
+    % write the plans to a JSON file     
     Result = jsonencode(Targets);
     
     FID = fopen(Args.OutName,'w'); 
     fprintf(FID,Result);
     fclose(FID);
+    
+end
+
+function Targets = coverSky(Map, Args)
+
+    Targets(1).Coo = [10, -80];
+    Targets(2).Coo = [11, -81];
     
 end
 
