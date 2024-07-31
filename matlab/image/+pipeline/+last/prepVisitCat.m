@@ -7,7 +7,7 @@ function [OutTable] = prepVisitCat(Args)
     % Author : Eran Ofek (2024 Jul) 
     % Example: 
     %          OT=pipeline.last.prepVisitCat('UseTouchFile',false, 'UseStatus',true);
-    %          
+              
 
     arguments
         Args.BasePath          = '/marvin';
@@ -72,7 +72,12 @@ function [OutTable] = prepVisitCat(Args)
 
             % Update status file
             if Args.UseStatus
-                StatFile = tools.timeStamp.readMsgFile('.status',F(I).folder);
+                try
+                    StatFile = tools.timeStamp.readMsgFile('.status',F(I).folder);
+                catch ME
+                    ME
+                    F(I).folder
+                end
             end
             if Args.UseStatus && any(contains({StatFile.Msg}, Args.Msg))
                 % already done - skip

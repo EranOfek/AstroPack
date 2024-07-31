@@ -6,7 +6,7 @@
 
 //===========================================================================
 // File:     mex_cutout.cpp
-// Author:
+// Author: Guy Nir
 // Bugfixes: Chen Tishler, Sep. 2022
 //
 //

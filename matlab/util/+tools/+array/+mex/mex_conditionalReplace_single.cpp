@@ -8,20 +8,16 @@ void applyOperation(float *M, const float *A, float B, float V, mwSize size) {
     mwSize i;
     for (i = 0; i + 8 <= size; i += 8) {
         // Load 8 elements from A and M
-        __m256 vecA1 = _mm256_loadu_ps(&A[i]);
-        __m256 vecA2 = _mm256_loadu_ps(&A[i + 4]);
+        __m256 vecA = _mm256_loadu_ps(&A[i]);
         
         // Compare A > B
-        __m256 mask1 = _mm256_cmp_ps(vecA1, vecB, _CMP_GT_OQ);
-        __m256 mask2 = _mm256_cmp_ps(vecA2, vecB, _CMP_GT_OQ);
+        __m256 mask = _mm256_cmp_ps(vecA, vecB, _CMP_GT_OQ);
         
         // Blend values
-        __m256 result1 = _mm256_blendv_ps(_mm256_loadu_ps(&M[i]), vecV, mask1);
-        __m256 result2 = _mm256_blendv_ps(_mm256_loadu_ps(&M[i + 4]), vecV, mask2);
+        __m256 result = _mm256_blendv_ps(_mm256_loadu_ps(&M[i]), vecV, mask);
         
         // Store result back to M
-        _mm256_storeu_ps(&M[i], result1);
-        _mm256_storeu_ps(&M[i + 4], result2);
+        _mm256_storeu_ps(&M[i], result);
     }
     
     // Process remaining elements
@@ -47,8 +43,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     float B = static_cast<float>(mxGetScalar(prhs[2]));
     float V = static_cast<float>(mxGetScalar(prhs[3]));
 
-    float *MData = static_cast<float*>(mxGetData(M));
-    const float *AData = static_cast<const float*>(mxGetData(A));
+    float *MData = reinterpret_cast<float *>(mxGetData(M));
+    const float *AData = reinterpret_cast<const float *>(mxGetData(A));
 
     mwSize size = mxGetNumberOfElements(A); // Get the total number of elements
 
