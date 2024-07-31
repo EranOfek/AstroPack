@@ -1,16 +1,19 @@
 function Result=mextractor(Obj, Args)
-    % 
+    % Matched filter extrcator
     % Example: imProc.sources.mextractor(AI)
 
     arguments
         Obj AstroImage
 
-        % back,var,PSF finding
+        % back,var
+        Args.backgroundArgs cell       = {};
+        
+        % PSF finding
         Args.populatePSFArgs cell      = {};
         Args.ThresholdPSF              = 20;
         Args.RangeSN                   = [50 1000];
         Args.InitPsf                   = @imUtil.kernel2.gauss
-        Args.InitPsfArgs cell          = {[0.1;2]};
+        Args.InitPsfArgs cell          = {[0.1;1.5]};
         
         % PSF fit
         Args.Threshold                 = [50 16.5 5]; % This also specifies the # of iterations
@@ -40,6 +43,11 @@ function Result=mextractor(Obj, Args)
     % populatePSF will:
     %   1. populate background
     %   2. populate variance
+    FlagBack = Obj.isemptyProperty('Back') | Obj.isemptyProperty('Var');
+    if any(Flagback)
+        Obj(FlagBack) = imProc.background.background(Obj(FlagBack), Args.backgroundArgs{:});
+    end
+    
     %   3. populate PSF
     [Result] = imProc.psf.populatePSF(Result, Args.populatePSFArgs{:},...
                                                       'ThresholdPSF',Args.ThresholdPSF,...
@@ -47,6 +55,8 @@ function Result=mextractor(Obj, Args)
                                                       'InitPsf',Args.InitPsf,...
                                                       'InitPsfArgs',Args.InitPsfArgs);
         
+                                                  
+    
     % find sources using PSF - multi teration
     Niter = numel(Args.Threshold);
     Nobj = numel(Obj);
@@ -55,7 +65,10 @@ function Result=mextractor(Obj, Args)
         for Iiter=1:1:Niter
             % re-measure background
             if Iiter>1 && Args.ReMeasBack
-
+                % Options:
+                % use imProc.background.background
+                % update variance
+                
             end
 
             % find sources

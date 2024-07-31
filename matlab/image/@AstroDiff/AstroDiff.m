@@ -1250,7 +1250,8 @@ classdef AstroDiff < AstroImage
                 
                 Args.CreateNewObj logical   = true;
                 
-                Args.CropProp               = {'Z2','S','S2','Scorr','GaborSN'};
+                Args.CropProp               = {'ThresholdImage',...
+                    'Z2', 'S', 'S2', 'Scorr', 'GaborSN'};
             end
             
             NcropProp = numel(Args.CropProp);
@@ -1457,7 +1458,8 @@ classdef AstroDiff < AstroImage
         % Inject artificial sources to the New/Ref images
         %   Will store original New/Ref images in the OrigImage property.
 
-    end    
+    end   
+    
     
     methods (Static) % Unit-Test
         Result = unitTest()
