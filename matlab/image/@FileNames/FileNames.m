@@ -12,7 +12,7 @@ classdef FileNames < Component
     % Path format (@Todo add from gdoc):
     % /base/data/YYYY/MM/DD/raw/ - contains all the science and calibration raw data
     %
-    % File name format: <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
+    % File name format: <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID.<TranIndex>>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
     % Example: 'USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_im_ver1.fits'
     
     properties       
