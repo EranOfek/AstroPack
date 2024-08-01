@@ -8,7 +8,7 @@ function match2Galaxies(Obj, Args)
                'GladeCatName' - Name of the GLADE catalog. Default is
                       'GLADEp'.
                'RadiusGlade' - Search radius for matching with GLADE.
-                      Default is 3.
+                      Default is 5.
                'RadiusGladeUnits' - Units of RadiusGlade. Default is
                       'arcsec'.
                'PGCCatName' - Name of the PGC catalog. Default is 'PGC'.
@@ -33,7 +33,7 @@ function match2Galaxies(Obj, Args)
         Obj
 
         Args.GladeCatName = 'GLADEp';
-        Args.RadiusGlade = 3;
+        Args.RadiusGlade = 5;
         Args.RadiusGladeUnits = 'arcsec';
 
         Args.PGCCatName = 'PGC';

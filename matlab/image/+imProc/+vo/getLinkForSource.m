@@ -39,7 +39,7 @@ function [Result] = getLinkForSource(Obj, Ind, LinkFunction, Args)
     end
     
     Nobj = numel(Obj);
-    for Iobj=1:1:Nobj
+    for Iobj=Nobj:-1:1
         if isa(Obj, 'AstroCatalog')
             [RA, Dec] = Obj(Iobj).getLonLat(Units);
         elseif isa(Obj, 'AstroImage') || isa(Obj, 'AstroDiff') || isa(Obj, 'AstroZOGY')
@@ -53,16 +53,16 @@ function [Result] = getLinkForSource(Obj, Ind, LinkFunction, Args)
         
         if numel(RA)==0
             Result(Iobj).Link = {};
-            Result(Obj).RA    = RA(Ind);
-            Result(Obj).Dec   = Dec(Ind);
+            Result(Iobj).RA    = NaN;
+            Result(Iobj).Dec   = NaN;
+        else
+            Result(Iobj).Link = LinkFunction(RA./RAD, Dec./RAD);
+            Result(Iobj).RA    = RA;
+            Result(Iobj).Dec   = Dec;            
         end
 
-        Link = LinkFunction(RA(Ind)./RAD, Dec(Ind)./RAD);
-        
-        if Args.OpenBrowser && numel(Link)==1
-            web(Link{1});
-        else
-            error('Link must contain exactly one URL');
+        if Args.OpenBrowser && numel(Result(Iobj).Link)==1
+            web(Result(Iobj).Link{1});
         end
     end
     

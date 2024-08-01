@@ -72,7 +72,7 @@ function [Result] = searchCooWWW(RA, Dec, SearchRadius, Args)
         CommandStr = sprintf('/usr/bin/curl -X POST -H ''user-agent: tns_marker{"tns_id":%d,"type": "%s", "name":"%s"}'' -d ''api_key=%s&data={"ra": "%s",  "dec": "%s", "radius": "%f", "units": "arcsec"}'' %s', TNS_ID, TNS_Type, TNS_Name, TNS_APIKEY, RA1, Dec1, SearchRadiusAS, TNS_Server);
         [Status, OutputJ] = system(CommandStr);
         
-        JSt = jsondecode(OutputJ);
+        JSt = jsondecode(strcat("{",extractAfter(OutputJ,"{")));
         Result = JSt.data.reply;
         
     end
