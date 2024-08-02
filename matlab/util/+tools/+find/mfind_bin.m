@@ -40,12 +40,12 @@ if UseMex
     end
 
     switch Type
-        case 'single'
-            %Im = tools.find.mex.mex_mfind_bin_single(X,Vals,UseMP);
-            Im = tools.find.mex.mex_mfind_bin_single(X,Vals);
         case 'double'
             %Im = tools.find.mex.mex_mfind_bin_double(X,Vals,UseMP);
             Im = tools.find.mex.mex_mfind_bin_double(X,Vals);
+        case 'single'
+            %Im = tools.find.mex.mex_mfind_bin_single(X,Vals,UseMP);
+            Im = tools.find.mex.mex_mfind_bin_single(X,Vals);
         otherwise
             error('tools.find.mfind_bin - Unsupported data type');
     end
