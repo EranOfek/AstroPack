@@ -3,6 +3,7 @@ function [D] = pitagoras(X, Y, UseMex)
     % Input  : - Array of X.
     %          - Array of Y.
     %          - A logical indicating if to use mex. Default is true.
+    %            For small arrays use false, for large arrays use true.
     % Output : - Pitaogrian distance : sqrt(X.^2+Y.^2)
     % Author : Eran Ofek (2024 Aug) 
     % Example: X=rand(1700,1700); Y=rand(1700,1700); X=single(X); Y=single(Y);
