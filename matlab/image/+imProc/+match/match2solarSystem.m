@@ -262,7 +262,6 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
                                                                              'OutUnitsDeg',true,...
                                                                              'Integration',Args.Integration);
                 
-                
             else
                 AstCat = Args.AstCat;
             end % if isempty(Args.AstCat) 
