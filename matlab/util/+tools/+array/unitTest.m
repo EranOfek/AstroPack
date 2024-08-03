@@ -1,6 +1,58 @@
 function Result = unitTest
     % Package Unit-Test
-	io.msgStyle(LogLevel.Test, '@start', 'tools.array test started');
+	
+    %io.msgStyle(LogLevel.Test, '@start', 'tools.array test started');
+
+    A=rand(1700,1700);
+    tic;for I=1:1:100
+        [S,N]=tools.array.sumInRange(A,0.25,0.75);
+    end
+    toc
+    tic;
+    for I=1:1:100
+        F=~isnan(A) & A>0.25 & A<0.75;
+        S1=sum(A(F),'all');
+        N1=sum(F,'all');
+    end
+    toc
+    
+    if abs([N1-N])>0
+        error('sumInRange is inconsistent (N)');
+    end
+    if abs(S1-S)>1e-4
+        error('sumInRange is inconsistent (Sum)');
+    end
+
+    % sum2InRange
+    [S2, S21, N, Mean, M2] = tools.array.sum2InRange(A, 0.25, 0.75);
+    
+    F   = ~isnan(A) & A>0.25 & A<0.75;
+    S2m = sum(A(F).^2,'all');
+    Sm  = sum(A(F),'all');
+    Nm  = sum(F,'all');
+    if abs(S2m-S2)>1e-7
+        error('sum2InRange inconsistent (S2)');
+    end
+    if abs(Sm./Nm - Mean)>10.*eps
+        error('sum2InRange inconsistent (mean)');
+    end
+    
+    tic;
+    for I=1:1:100
+        [S2,S,N]=tools.array.sum2InRange(A,0.25,0.75);
+    end
+    toc
+    tic;
+    for I=1:1:100
+        F=~isnan(A) & A>0.25 & A<0.75;
+        S1=sum(A(F),'all');
+        S2=sum(A(F).^2,'all');
+        N1=sum(F,'all');
+    end
+    toc
+ 
+
+
     
     Array = uint32([1 2 3; 2 3 4; 3 4 5]);
     Val = tools.array.bitor_array(Array,1,true);
