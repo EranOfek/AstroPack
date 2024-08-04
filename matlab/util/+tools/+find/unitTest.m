@@ -1,18 +1,25 @@
-% Package Unit-Test
-%
-% ### Requirements:
-%
-%
-%
-
-
 function Result = unitTest()
-    % Package Unit-Test   
-	io.msgStyle(LogLevel.Test, '@start', 'test started');
+    % unitTest for package: tools.find
+    % Example: tools.find.unitTest
+    
+    
+    A=single(rand(1000,1000));                                  
+    A(1000:2000)=single(1);
+    V=single(1);
+    tic;for J=1:1:1e3, IM=tools.find.mex.find_mex(A,V); end, toc
+    tic;for J=1:1:1e3, I=find(A==1); end, toc                   
+    if sum(abs(IM-I))>0
+        error('Error in tools,find.mex.find_mex');
+    end
+
+    
+    
+    
+	%io.msgStyle(LogLevel.Test, '@start', 'test started');
     
     % test_mfind_bin();
     
-	io.msgStyle(LogLevel.Test, '@passed', 'test passed');
+	%io.msgStyle(LogLevel.Test, '@passed', 'test passed');
 	Result = true;
 end
 
