@@ -3,11 +3,11 @@
 #include <omp.h>
 #include <immintrin.h> // For SIMD intrinsics
 
-// mex -O -largeArrayDims CXXFLAGS="\$CXXFLAGS -fopenmp -march=native" LDFLAGS="\$LDFLAGS -fopenmp" find_mex.cpp
+// mex -O -largeArrayDims CXXFLAGS="\$CXXFLAGS -fopenmp -march=native" LDFLAGS="\$LDFLAGS -fopenmp" findEqual.cpp
 
-// Input  : - Array
+// Input  : - Array (double, single, unit32)
 //          - Value
-// Output : - Indices found
+// Output : - Indices found (double)
 
 // Template for finding elements
 template <typename T>

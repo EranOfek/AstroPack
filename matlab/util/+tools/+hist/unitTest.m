@@ -35,6 +35,19 @@ function [Result] = unitTest()
     end
     end
     
+    % tools.hist.mex.histcounts1regular_mex
+    V=rand(1e4,1);        
+    E=(0:0.01:1);      
+    N=tools.hist.mex.histcounts1regular_mex(V,E);
+    N1=histcounts(V,E);
+    if sum(abs(N-N1))>0
+        error('histcounts1regular_mex inconsistent');
+    end
+    
+    tic;for I=1:1:1e4, N=tools.hist.mex.histcounts1regular_mex(V,E);end,toc
+    tic;for I=1:1:1e4, N=histcounts(V,E);end,toc                           
+
+
     
     
     Result = true;
