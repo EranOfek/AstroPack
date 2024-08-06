@@ -27,6 +27,12 @@ function sendTransientsAlert(ADc, Args)
 
     end
 
+    % Return if no transients candidates empty.
+    if isempty(ADc(1).Table)
+        disp('No transients found.');
+        return
+    end    
+
     % Get number of transient cutouts.
     Nadc = numel(ADc);
 
