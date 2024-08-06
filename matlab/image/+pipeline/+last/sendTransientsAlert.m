@@ -178,6 +178,10 @@ function sendTransientsAlert(ADc, Args)
 
         end
 
+        if LC_Point < 1
+            continue
+        end
+
         % If a non-detection is found, construct non-detection message.
         if LastUL_JD > 0
             LastUL_DT = celestial.time.jd2date(LastUL_JD,'H','YMD');
@@ -282,17 +286,17 @@ function sendTransientsAlert(ADc, Args)
         end
         
         % Get SlackBot token and transients channel id.
-        if ~isenv('SLACK_TRANSIENTS_CHANNEL')
-            warning('Slack transients channel environment variable not defined.');
-            return
-        end
-        ChannelID = getenv('SLACK_TRANSIENTS_CHANNEL');
 
-        if ~isenv('SLACK_BOT_TOKEN')
-            warning('Slack bot token environment variable not defined.');
+        ChannelID = getenv('SLACK_TRANSIENTS_CHANNEL');
+        SlackBotToken = getenv('SLACK_BOT_TOKEN');     
+
+        if isempty(ChannelID)
             return
         end
-        SlackBotToken = getenv('SLACK_BOT_TOKEN');        
+
+        if isempty(SlackBotToken)
+            return
+        end
 
         % Send slack alert.
         % Args.SaveProducts is true and image file exists, send image with
@@ -329,7 +333,7 @@ function sendTransientsAlert(ADc, Args)
         else
 
             % Post text only message to slack.
-            CMD = strcat('curl -d "text=',Msg,'" -d "channel=',ChannelID,'" -H "Authorization: Bearer ',SlackBotToken,'" -X POST https://slack.com/api/chat.postMessage');
+            CMD = strcat("curl -d 'text=",Msg,"' -d 'channel=",ChannelID,"' -H 'Authorization: Bearer ",SlackBotToken,"' -X POST https://slack.com/api/chat.postMessage");
             [~,~] = system(CMD);
         end
 
