@@ -145,6 +145,10 @@ function sendTransientsAlert(ADc, Args)
                 LC_MagErr(LC_Point) = TC_Row.getCol('MAGERR_PSF');
             % LC upper limits
             else
+                if ~TC.isColumn('FLAGS_TRANSIENT') || ~TC.isColumn('MOUNT')
+                    continue
+                end
+                
                 LC_UL = LC_UL + 1;
                 Query_Mount = TC.getCol('MOUNT');
                 Query_Cam = TC.getCol('CAM');
