@@ -6,13 +6,30 @@ function Result = unitTest()
     A=single(rand(1000,1000));                                  
     A(1000:2000)=single(1);
     V=single(1);
-    tic;for J=1:1:1e3, IM=tools.find.mex.find_mex(A,V); end, toc
+    tic;for J=1:1:1e3, IM=tools.find.mex.findEqual(A,V); end, toc
     tic;for J=1:1:1e3, I=find(A==1); end, toc                   
     if sum(abs(IM-I))>0
-        error('Error in tools,find.mex.find_mex');
+        error('Error in tools,find.mex.findEqual');
     end
 
+    A=single(rand(1000,1000));                                  
+    A(1000:2000)=single(1);
+    A(1e5) = 1.1;
+    V=single(1);
+    tic;for J=1:1:1e3, IM=tools.find.mex.findLargerFirst(A,V); end, toc
+    tic;for J=1:1:1e3, I=find(A>1,1); end, toc                   
+    if sum(abs(IM-I))>0
+        error('Error in tools,find.mex.findLargerFirst');
+    end
     
+    A=(rand(1000,1000));                                  
+    A(1e5) = -1;
+    V=(0);
+    tic;for J=1:1:1e3, IM=tools.find.mex.findSmallerFirst(A,V); end, toc
+    tic;for J=1:1:1e3, I=find(A<0,1); end, toc                   
+    if sum(abs(IM-I))>0
+        error('Error in tools,find.mex.findSmallerFirst');
+    end
     
     
 	%io.msgStyle(LogLevel.Test, '@start', 'test started');
