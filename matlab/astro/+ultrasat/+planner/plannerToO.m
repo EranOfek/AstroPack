@@ -16,9 +16,11 @@ function Result = plannerToO(AlertMapCSV, Args)
         Args.FOVradius         = 7;   % deg
         Args.CleanThresh       = 0.1; % cleaning probability [sr(-1)] 
         Args.ProbThresh        = 0.2; % the limiting probability per ULTRASAT pointing 
+        Args.ThresholdFAR      = 1.3e-7; % [s(-1)] ~ one false alarm in 3 months 
         Args.MaxTargets        = 4;
         Args.Cadence           = 3;
         Args.OutName           = 'ToOplan.json';
+        Args.ShowCoverageCurve = false; 
         Args.Verbosity         = 1;
         Args.DrawMaps logical  = true;
     end
@@ -36,10 +38,23 @@ function Result = plannerToO(AlertMapCSV, Args)
     % and extract some of the keywords
     FITSfile = strrep(AlertMapCSV, '.csv', '.fits');
     AH = AstroHeader(FITSfile,2);
-    Result.Object = AH.getVal('Object');
-    Result.Instrument = AH.getVal('Instrume');
-    Result.DateObs = AH.getVal('Date-Obs');
+    Result.Object = AH.getVal('Object'); 
+    Result.Instrument = AH.getVal('Instrume'); 
+    Result.DateObs = AH.getVal('Date-Obs'); 
+    Result.FAR = AH.getVal('FAR'); 
     
+    % filtering by the FAR 
+    if Result.FAR > Args.ThresholdFAR
+        Result.CoveredProb = 0;
+        Result.Ntarg   = 0;
+        Result.Targets = "";
+        if Args.Verbosity > 0
+            fprintf('FAR above the threshold \n');
+        end
+        return
+    end
+    
+    % 
     if Args.Verbosity > 1
         fprintf('Alert CSV source: %s \n',AlertMapCSV)           
         [Prob, Area] = sumProbability(Map0);
@@ -84,12 +99,28 @@ function Result = plannerToO(AlertMapCSV, Args)
     if Args.Verbosity > 1
         fprintf('The target area is covered with %d FOVs \n',Ntarg0)
     end
-        
+    
+    % sort the targets by covered probability (with no overlap treatment!)
+    [~, Ind] = sort([Targets0.Pr], 'descend'); 
+     
+    if Args.ShowCoverageCurve
+        It = 0;
+        Result.N50 = 0;
+        while It < Ntarg0 && Result.N50 < 1
+            It = It+1;
+            Targets = Targets0(Ind(1:It));  % select first It targets
+            TargCoo = cell2mat(arrayfun(@(x) x.Coo, Targets, 'UniformOutput', false)');
+            CoveredProb(It) = sumProbability(Map,'Targets',TargCoo,'FOVradius',Args.FOVradius);  
+            if CoveredProb(It) > 0.5 
+                Result.N50 = It;
+            end
+        end
+    end
+            
     % select no more than Args.MaxTargets targets with highest probability
     Result.Ntarg = min(Ntarg0,Args.MaxTargets);
-     
-    [~, Ind] = sort([Targets0.Pr], 'descend');
-    Targets = Targets0(Ind(1:Result.Ntarg));    
+    
+    Targets = Targets0(Ind(1:Result.Ntarg));   % take only first Result.Ntarg from the ordered list   
         
 %     Result.CoveredProb = sum([Targets.Pr]); %% This is not correct due to overlaps!
     TargCoo = cell2mat(arrayfun(@(x) x.Coo, Targets, 'UniformOutput', false)');
