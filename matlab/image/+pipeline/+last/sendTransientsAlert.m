@@ -1,4 +1,4 @@
-function sendTransientsAlert(ADc, Args)
+function [Status] = sendTransientsAlert(ADc, Args)
     %{
     Send an alert for each LAST transient candidate.
     Input   : - AstroDiff cutouts on transients.
@@ -12,6 +12,7 @@ function sendTransientsAlert(ADc, Args)
                 'BasePath' - Path under which telescope data can be found.
                        If empty, BasePath will be constructed assuming LAST
                        site infrastructure. Default is ''.
+    Output  : - Result message.
     Author  : Ruslan Konno (Aug 2024)
     Example : VisitPath = '/path/to/visit/dir'
               [AD, ADc] = runTransientsPipe(VisitPath)
@@ -27,9 +28,11 @@ function sendTransientsAlert(ADc, Args)
 
     end
 
+    Status = 'Uncontrolled exit.';
+
     % Return if no transients candidates empty.
     if isempty(ADc(1).Table)
-        disp('No transients found.');
+        Status = 'No transients found.';
         return
     end    
 
@@ -291,10 +294,12 @@ function sendTransientsAlert(ADc, Args)
         SlackBotToken = getenv('SLACK_BOT_TOKEN');     
 
         if isempty(ChannelID)
+            Status = 'ChannelID environment variable not set.';
             return
         end
 
         if isempty(SlackBotToken)
+            Status = 'SlackBot token environment variable not set.';
             return
         end
 
@@ -336,6 +341,8 @@ function sendTransientsAlert(ADc, Args)
             CMD = strcat("curl -d 'text=",Msg,"' -d 'channel=",ChannelID,"' -H 'Authorization: Bearer ",SlackBotToken,"' -X POST https://slack.com/api/chat.postMessage");
             [~,~] = system(CMD);
         end
+
+        Status = 'Succesful exit, alert(s) sent.';
 
     end
 end
