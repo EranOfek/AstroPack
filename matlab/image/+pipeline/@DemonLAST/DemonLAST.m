@@ -2974,7 +2974,7 @@ classdef DemonLAST < Component
                                 % Transients detection
                                 try
                                     [~,TransientCutouts, TranPipeStatus] = pipeline.last.runTransientsPipe(Coadd, 'SavePath',FN_Proc.genPath, 'RefPath',Obj.RefPath, 'SaveProducts',true);
-                                    Obj.writeLog(TranPipeStatus, LogLevel.Info);
+                                    Obj.writeLog(strcat('pipeline.DemonLAST / Transients - ', TranPipeStatus), LogLevel.Info);
                                 catch MEtran
                                     Msg{1} = sprintf('pipline.DemonLAST - Transients detection / Failed');
                                     Obj.writeLog(Msg, LogLevel.Info);
@@ -2987,7 +2987,7 @@ classdef DemonLAST < Component
                                     try
                                         TranAlertStatus = pipeline.last.sendTransientsAlert(TransientCutouts, 'SaveProducts', true, ...
                                                 'SavePath', FN_Proc.genPath);
-                                        Obj.writeLog(TranAlertStatus, LogLevel.Info);
+                                        Obj.writeLog(strcat('pipeline.DemonLAST / Alerts - ', TranAlertStatus), LogLevel.Info);
                                     catch MEtran
                                         Msg{1} = sprintf('pipline.DemonLAST - Transients alerting / Failed');
                                         Obj.writeLog(Msg, LogLevel.Info);
