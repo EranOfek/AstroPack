@@ -60,12 +60,16 @@ classdef extinctionMap < Component
         %         
         function Result = buildAveragedMap(Obj, Rad) 
             % get an averaged extinction map
+            % NB: this is a costly function, may take several minutes 
             arguments
                 Obj
-                Rad
+                Rad = 7; % [deg] averaging radius
             end
-            %
-%            Obj.AveragedMap = 
+            % convert the grid to the ecliptic coordinates
+            RAD = 180/pi;
+            [lambda, beta] = celestial.coo.convert_coo(Obj.Grid(:,1)/RAD,Obj.Grid(:,2)/RAD,'j2000.0','e');
+            lambda = lambda .* RAD; beta = beta .* RAD;
+            Obj.AveragedMap = celestial.grid.statSkyGrid('SkyPos',[lambda beta],'Rad',Rad);
             %
             Result = true;
         end
