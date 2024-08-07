@@ -72,7 +72,12 @@ function [AD, ADc, Status] = runTransientsPipe(VisitPath, Args)
     % Find reference image for each new image
     Nobj = numel(New);
 
+    % Track number of found reference images
     NRefsFound = 0;
+
+    % Initialize empty output arguments
+    AD = AstroZOGY();
+    ADc = AstroZOGY();
     
     for Iobj=Nobj:-1:1
         % Get name of new image and search for ref image via wildcards
@@ -95,7 +100,6 @@ function [AD, ADc, Status] = runTransientsPipe(VisitPath, Args)
             NRefsFound = NRefsFound + 1;
         end
     
-
         % Load ref image and ref image name
         Ref = AstroImage.readFileNamesObj(RefFile{1}, 'Path', FieldRefPath);
         FNrref = FileNames.generateFromFileName(Ref.ImageData.FileName);
@@ -115,13 +119,9 @@ function [AD, ADc, Status] = runTransientsPipe(VisitPath, Args)
         AD(Iobj) = AstroZOGY(New(Iobj), Ref);
     end
 
-    % If no AstroDiff is created, return
-    if ~exist('AD','var')
-        if NRefsFound < 1
-            Status = 'No reference images found.';
-        else
-            Status = 'Reference images found but no AstroDiffs constructed.';
-        end
+    % If no reference images found, return
+    if NRefsFound < 1
+        Status = 'No reference images found.';
         return;
     end
 
@@ -131,6 +131,7 @@ function [AD, ADc, Status] = runTransientsPipe(VisitPath, Args)
         Status = 'All AstroDiffs are empty.';
         return;
     end
+    
     AD = AD(:, NonEmptyCell);
     Nobj = numel(AD);
 
