@@ -50,15 +50,38 @@ function Result = unitTest
         N1=sum(F,'all');
     end
     toc
- 
-
-
-    
+     
     Array = uint32([1 2 3; 2 3 4; 3 4 5]);
     Val = tools.array.bitor_array(Array,1,true);
     if ~all(Val==[3 7 7])
         error('Error in tools.array.bitor_array');
     end
+    
+    % Test: tools.array.cropMat
+    Nsim = 1000;
+    for I=1:1:5
+        Array = uint16(rand(1700,1700));
+        CCDSEC=[101 ceil(rand(1,1).*1300+201),  201 ceil(rand(1,1).*1300+201)];
+        CCDSEC = [101 1600 101 1600];
+        tic;
+        for I=1:1:Nsim
+            SA2 = Array(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
+        end
+        T2=toc;
+        tic;
+        for I=1:1:Nsim
+            SA1 = tools.array.cropMat(Array, CCDSEC);
+        end
+        T1=toc;
+        
+        T1./T2
+        
+        if max(abs(SA1-SA2),[],'all')>0
+            error('cropMAT inconsistent');
+        end
+    end
+    
+    
     
     %test_onesExcept();
 
