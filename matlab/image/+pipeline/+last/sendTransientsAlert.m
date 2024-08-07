@@ -303,6 +303,23 @@ function [Status] = sendTransientsAlert(ADc, Args)
             return
         end
 
+        % Check if cURL is installed.
+        CheckCurl = system('command -v curl');
+        if CheckCurl
+            Status = 'cURL not installed.';
+            return
+        end
+
+        % Test connection
+        [~,ConnectTestOut] = system('curl -X POST https://slack.com/api/api.test');
+
+        ConnectTest = jsondecode(strcat("{",extractAfter(ConnectTestOut,"{")));
+
+        if ~ConnectTest.ok
+            Status = sprintf('Slack API error at connection test: %s', ConnectTest.error);
+            return
+        end
+
         % Send slack alert.
         % Args.SaveProducts is true and image file exists, send image with
         % slack alert. Otherwise send text alert only.
@@ -315,13 +332,18 @@ function [Status] = sendTransientsAlert(ADc, Args)
             % Request image host URL.
             CMD1 = strcat("curl -F files=@",Image_DirFilename," -F filename=",Image_Filename," -F token=",SlackBotToken," -F length=",Filesize," https://slack.com/api/files.getUploadURLExternal");
         
-            [~,CMDout] = system(CMD1);
+            [~,CMD1out] = system(CMD1);
         
             % Retrieve image host URL.
-            Response = jsondecode(strcat("{",extractAfter(CMDout,"{")));
+            Response1 = jsondecode(strcat("{",extractAfter(CMD1out,"{")));
+
+            if ~Response1.ok
+                Status = sprintf('Slack API error at host request: %s', Response1.error);
+                return
+            end
         
-            UploadUrl = Response.upload_url;
-            FileID = Response.file_id;
+            UploadUrl = Response1.upload_url;
+            FileID = Response1.file_id;
 
             % Upload image to host URL.
         
@@ -333,7 +355,14 @@ function [Status] = sendTransientsAlert(ADc, Args)
         
             CMD3 = strcat("curl -X POST -H 'Authorization: Bearer ",SlackBotToken,"' -H 'Content-Type: application/json' -d '",'{"files": [{"id":"',FileID,'", "title":"NewTransient"}], "channel_id": "',ChannelID,'", "initial_comment": "',Msg,'" }',"' https://slack.com/api/files.completeUploadExternal");
         
-            [~,~] = system(CMD3);
+            [~,CMD3out] = system(CMD3);
+
+            Response3 = jsondecode(strcat("{",extractAfter(CMD3out,"{")));
+
+            if ~Response3.ok
+                Status = sprintf('Slack API error at authorization: %s', Response3.error);
+                return
+            end
 
         else
 
