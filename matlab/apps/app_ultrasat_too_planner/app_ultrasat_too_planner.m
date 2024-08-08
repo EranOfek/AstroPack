@@ -14,8 +14,9 @@ function app_ultrasat_too_planner()
 
     % Set logfile name
 	fprintf('app_ultrasat_too_planner started, V0.01 (07/08/2024)\n');
-    LogFile.getSingleton('FileName', 'soc_snr_matlab');
+    LogFile.getSingleton('FileName', 'soc_too_planner_matlab');
 
+    % @Todo
     % Complete here code for 'isdeply' etc. from app_snr
     % ...
 
@@ -53,11 +54,11 @@ function Result = mainLoop()
     MsgLogger.setLogLevel(LogLevel.Debug, 'type', 'file');
     MsgLogger.setLogLevel(LogLevel.Debug, 'type', 'disp');            
     
-    io.msgLog(LogLevel.Test, 'SNR mainLoop started');
+    io.msgLog(LogLevel.Test, 'mainLoop started');
 
-    InputPath = fullfile(SOC_PATH, 'snr', 'input');
+    InputPath = fullfile(SOC_PATH, 'tooplanner', 'input');
 
-    % Create objcet
+    % Create FileProcessor object
     fp = FileProcessor('InputPath', InputPath, 'InputMask', '*.json');
     fp.ProcessFileFunc = @fileProcessorCallback;
     fp.EnableDelete = true;
@@ -70,7 +71,7 @@ function Result = mainLoop()
     % Note: Blocking function
     fp.process('DelaySec', 0.1);
     
-    io.msgStyle(LogLevel.Test, '@passed', 'SNR mainLoop passed');                          
+    io.msgStyle(LogLevel.Test, '@passed', 'mainLoop passed');                          
     Result = true;
 end
 
@@ -115,8 +116,8 @@ function Result = processItem(item)
                 ME = MException('SNR:process', 'Division by zero');
                 throw(ME);
             end
-        elseif strcmp(item.op, 'snr')            
-            out = processSnrJson(item.json_text);
+        elseif strcmp(item.op, 'tooplanner')            
+            out = processTooPlannerJson(item.json_text);
         else
             strcpy(out.message, 'MATLAB: unknown op');
         end
@@ -145,7 +146,7 @@ function fileProcessorCallback(FileName)
     io.msgLog(LogLevel.Info, 'JSON: %s', str);
     item = jsondecode(str);
    
-    % Process
+    % Do the processing
     try
         out = processItem(item);
     catch Ex
@@ -154,7 +155,8 @@ function fileProcessorCallback(FileName)
         out.result = -1;           
     end
 
-    % Write output JSON file
+    % Write output JSON file in same folder, first as '.tmp' file, then
+    % rename to output extension
     io.msgLog(LogLevel.Info, 'Out.message: %s, result: %d, json_text: %s', out.message, out.result, out.json_text);
     out_json = jsonencode(out);
     fid = fopen(TmpFileName, 'wt');
@@ -169,9 +171,11 @@ function fileProcessorCallback(FileName)
     end
 end
 
-%------------------------------------------------------------------------
+%========================================================================
 
-function Result = processSnrJson(json_text)
+%========================================================================
+
+function Result = processTooPlannerJson(json_text)
     % Process SNR
     % See ultrasat.git/python/prj/src/webapps/webapp_snr/rest_snr_server1.py
     %    
@@ -186,12 +190,12 @@ function Result = processSnrJson(json_text)
     snr_input = jsondecode(json_text);
             
     out = struct;
-    out.message = sprintf('MATLAB: processSnr started');
+    out.message = sprintf('MATLAB: processTooPlannerJson started');
     out.result = -1;
     out.json_text = '';
     
     % Do the actual SNR processing here
-    [snr_out, message] = doProcessSnr(snr_input);
+    [snr_out, message] = doProcessTooPlannerJson(snr_input);
     
     % Done
     out.message = message;
@@ -204,7 +208,7 @@ end
 
 %------------------------------------------------------------------------
 
-function [Result, Message] = doProcessSnr(Params)
+function [Result, Message] = doProcessTooPlannerJson(Params)
     % Process SNR
     % See ultrasat.git/python/prj/src/webapps/webapp_snr/rest_snr_server1.py
     
@@ -259,7 +263,7 @@ function [Result, Message] = doProcessSnr(Params)
         Result.message = sprintf("doProcessSnr: error: UG threw exception identifier='%s' with message='%s'", ex.identifier, ex.message);
     end
 
-    %
+    % Prepare output
     disp(Result);
     Message = Result.message;
     Result = rmfield(Result, 'message');
