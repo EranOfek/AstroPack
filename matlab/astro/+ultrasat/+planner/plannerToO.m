@@ -36,7 +36,12 @@ function Result = plannerToO(AlertMapCSV, Args)
     Result.Ntarg       = 0;
     Result.Targets     = "";
     Result.N50         = 0;
-    Result.N90         = 0;        
+    Result.N90         = 0;    
+    
+    % read some of the parameters from the FITS header:
+    AH = AstroHeader(strrep(AlertMapCSV, '.csv', '.fits'),2);
+    Result.Distmean = AH.getVal('Distmean');
+    Result.Diststd  = AH.getVal('Diststd');
     
     % read event parameters from a JSON file:
     Jdata = jsondecode(fileread(strrep(AlertMapCSV, '.csv', '.json')));
