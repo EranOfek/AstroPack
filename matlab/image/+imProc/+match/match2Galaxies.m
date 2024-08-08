@@ -96,19 +96,25 @@ function match2Galaxies(Obj, Args)
                 MidRA, MidDec, SearchRadiusGlade, ...
                 'RadiusUnits',Args.RadiusGladeUnits, 'OutType','AstroCatalog');
 
-        GladeCat.sortrows('Dec');
-
-        [GladeLon, GladeLat] = GladeCat.getLonLat('rad');
-
-        MatchResGlade = VO.search.search_sortedlat_multi( ...
-            [GladeLon, GladeLat], RA, Dec, -Args.RadiusGlade*Arcsec2Rad);
-
-        MatchesGlade = vertcat(MatchResGlade.Nmatch);
-        DistancesGlade = NaN(CatSize,1);
-
-        if any(MatchesGlade > 0)
-            DistancesGlade(MatchesGlade > 0) = arrayfun(@(a)min(a.Dist), ...
-                MatchResGlade(MatchesGlade > 0));
+        if GladeCat.sizeCatalog > 0
+        
+            GladeCat.sortrows('Dec');
+    
+            [GladeLon, GladeLat] = GladeCat.getLonLat('rad');
+    
+            MatchResGlade = VO.search.search_sortedlat_multi( ...
+                [GladeLon, GladeLat], RA, Dec, -Args.RadiusGlade*Arcsec2Rad);
+    
+            MatchesGlade = vertcat(MatchResGlade.Nmatch);
+            DistancesGlade = NaN(CatSize,1);
+    
+            if any(MatchesGlade > 0)
+                DistancesGlade(MatchesGlade > 0) = arrayfun(@(a)min(a.Dist), ...
+                    MatchResGlade(MatchesGlade > 0));
+            end
+        else
+            MatchesGlade = zeros(CatSize,1);
+            DistancesGlade = NaN(CatSize,1);
         end
        
         % PGC matches will be refined for roughly matched entries
@@ -120,19 +126,25 @@ function match2Galaxies(Obj, Args)
                 MidRA, MidDec, SearchRadiusPGC, ...
                 'RadiusUnits',Args.RadiusPGCUnits, 'OutType','AstroCatalog');
 
-        PGCCat.sortrows('Dec');
+        if PGCCat.sizeCatalog > 0
 
-        [PGCLon, PGCLat] = PGCCat.getLonLat('rad');
-        
-        MatchResPGC = VO.search.search_sortedlat_multi( ...
-            [PGCLon, PGCLat], RA, Dec, -Args.RadiusPGC*Arcsec2Rad);
-
-        MatchesPGC = vertcat(MatchResPGC.Nmatch);
-        DistancesPGC = NaN(CatSize,1);
-        
-        if any(MatchesPGC > 0)
-            DistancesPGC(MatchesPGC > 0) = arrayfun(@(a)min(a.Dist), ...
-                MatchResPGC(MatchesPGC > 0));
+            PGCCat.sortrows('Dec');
+    
+            [PGCLon, PGCLat] = PGCCat.getLonLat('rad');
+            
+            MatchResPGC = VO.search.search_sortedlat_multi( ...
+                [PGCLon, PGCLat], RA, Dec, -Args.RadiusPGC*Arcsec2Rad);
+    
+            MatchesPGC = vertcat(MatchResPGC.Nmatch);
+            DistancesPGC = NaN(CatSize,1);
+            
+            if any(MatchesPGC > 0)
+                DistancesPGC(MatchesPGC > 0) = arrayfun(@(a)min(a.Dist), ...
+                    MatchResPGC(MatchesPGC > 0));
+            end
+        else
+            MatchesPGC = zeros(CatSize,1);
+            DistancesPGC = NaN(CatSize,1);
         end
         
         % Skip entries that have no rough PGC matches
