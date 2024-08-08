@@ -1,4 +1,4 @@
-classdef extinctionMap < Component
+classdef extinctionMap < Component % will change for the PlannerTools class 
     % the class provides access to extinction maps
     % main functions:
     % -- extinctionMap (constructor)
