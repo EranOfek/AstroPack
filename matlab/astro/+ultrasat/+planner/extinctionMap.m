@@ -1,5 +1,9 @@
 classdef extinctionMap < Component
-    % 
+    % the class provides access to extinction maps
+    % main functions:
+    % -- extinctionMap (constructor)
+    % -- buildMap (filling the map properties of an object)
+    % -- plotMap (plotting the maps of an object)
     properties (SetAccess = public)
         Grid        
         Map         
@@ -7,7 +11,7 @@ classdef extinctionMap < Component
         MapOrigin = 'SFD98';
         CooType   = 'j2000.0';
         Filter    = 'ultrasat';
-        AveragingRadius = [];    % [deg] (if empty -- do not average) 
+        AveragingRadius = 7;     % [deg] 
     end
     % 
     methods % Obj constructor      
@@ -19,7 +23,9 @@ classdef extinctionMap < Component
             %          * ...,key,val,...
             % Output : -
             % Author : A.M. Krassilchtchikov (2024 Aug)
-            % Example:             
+            % Example: E = ultrasat.planner.extinctionMap         
+            %          E.buildMap
+            %          E.plotMap 
             arguments  
                 Args.MapOrigin         = 'SFD98';
                 Args.CooType           = 'j2000.0';
@@ -42,7 +48,7 @@ classdef extinctionMap < Component
         end        
     end
     %     
-    methods
+    methods %Map building and plotting 
         %
         function Result = buildMap(Obj, CooGrid) 
             % get an extinction map on some grid
@@ -58,24 +64,32 @@ classdef extinctionMap < Component
             Result = true;
         end
         %         
-        function Result = buildAveragedMap(Obj, Rad) 
-            % get an averaged extinction map
-            % NB: this is a costly function, may take several minutes 
+        function Result = buildAveragedMap(Obj, Args) 
+            % build an averaged extinction map
+            % NB: this is a costly function, may take several minutes !! 
             arguments
                 Obj
-                Rad = 7; % [deg] averaging radius
+                Args.Rad % [deg] averaging radius
+            end
+            %
+            if ~isempty(Args.Rad)
+                Rad = Args.Rad;
+            else
+                Rad = Obj.AveragingRadius;
             end
             % convert the grid to the ecliptic coordinates
             RAD = 180/pi;
             [lambda, beta] = celestial.coo.convert_coo(Obj.Grid(:,1)/RAD,Obj.Grid(:,2)/RAD,'j2000.0','e');
-            lambda = lambda .* RAD; beta = beta .* RAD;
+            lambda = lambda .* RAD; beta = beta .* RAD;            
+            % build the map
+            fprintf('Please, be patient, averaging may take several minutes...\n')
             Obj.AveragedMap = celestial.grid.statSkyGrid('SkyPos',[lambda beta],'Rad',Rad);
             %
             Result = true;
         end
         %
         function Result = plotMap(Obj, Args)
-            % plot the map built 
+            % plot the map built before  
             arguments
                 Obj
                 Args.Averaged = false;
