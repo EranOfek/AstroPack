@@ -1,4 +1,4 @@
-function [AD, ADc] = runTransientsPipe(VisitPath, Args)
+function [AD, ADc, Status] = runTransientsPipe(VisitPath, Args)
     %{
     Performs the subtraction and transient search algorithms using 
     AstroDiff on images within a visit directory. 
@@ -30,6 +30,7 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
                 by the algorithm.
               - AstroDiff cutouts around each single transients candidate 
                 which passes the flagging criteria.
+              - Result message
     Author  : Ruslan Konno (Jun 2024)
     Example : VisitPath = '/path/to/visit/dir'
               [AD, ADc] = runTransientsPipe(VisitPath)
@@ -47,6 +48,9 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         Args.AddMeta logical = true;
         Args.SameTelOnly logical = true;
     end
+
+    % Set default status.
+    Status = 'Uncontrolled exit.';
 
     % Find New image coadds and load
     
@@ -67,6 +71,13 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
     
     % Find reference image for each new image
     Nobj = numel(New);
+
+    % Track number of found reference images
+    NRefsFound = 0;
+
+    % Initialize empty output arguments
+    AD = AstroZOGY();
+    ADc = AstroZOGY();
     
     for Iobj=Nobj:-1:1
         % Get name of new image and search for ref image via wildcards
@@ -85,8 +96,10 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         if isempty(dir(RefFile{1}))
             warning('Reference image not found for image %s', FN.genFile{1});
             continue
+        else
+            NRefsFound = NRefsFound + 1;
         end
-
+    
         % Load ref image and ref image name
         Ref = AstroImage.readFileNamesObj(RefFile{1}, 'Path', FieldRefPath);
         FNrref = FileNames.generateFromFileName(Ref.ImageData.FileName);
@@ -98,6 +111,7 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         % image
         if convertCharsToStrings(NewName{1}) == convertCharsToStrings(RefName{1})
             warning('New image is reference image.');
+            NRefsFound = NRefsFound - 1;
             continue
         end
 
@@ -105,16 +119,19 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         AD(Iobj) = AstroZOGY(New(Iobj), Ref);
     end
 
-    % If no AstroDiff is created, return
-    if ~exist('AD','var')
+    % If no reference images found, return
+    if NRefsFound < 1
+        Status = 'No reference images found.';
         return;
     end
 
     % Remove empty AstroDiff objects and remember number of AstroDiffs
     NonEmptyCell = any(~cellfun('isempty',{AD(:).New}), 1);
     if ~any(NonEmptyCell)
+        Status = 'All AstroDiffs are empty.';
         return;
     end
+    
     AD = AD(:, NonEmptyCell);
     Nobj = numel(AD);
 
@@ -326,5 +343,13 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         save(TranCatFileName,"ADc","-v7.3");
     end  
     %}
+
+    NADc = numel(ADc);
+    if NADc == 1 && isempty(ADc(1).Table)
+        NADc = 0;
+    end
+    StatusCell = strcat('Succesful exit,',{' '}, ...
+        num2str(NADc),{' '},'transient(s) found.');
+    Status = StatusCell{1};
     
 end

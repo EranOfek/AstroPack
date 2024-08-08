@@ -13,7 +13,7 @@ function match2Galaxies(Obj, Args)
                       'arcsec'.
                'PGCCatName' - Name of the PGC catalog. Default is 'PGC'.
                'RadiusPGC' - Initial search radius for matching with PGC.
-                      Default is 60.
+                      Default is 300.
                'RadiusPGCUnits' - Units of RadiusPGC. Default is
                       'arcsec'.
                'ColNmatchName' - Name of appended column with number of 
@@ -37,7 +37,7 @@ function match2Galaxies(Obj, Args)
         Args.RadiusGladeUnits = 'arcsec';
 
         Args.PGCCatName = 'PGC';
-        Args.RadiusPGC = 60;
+        Args.RadiusPGC = 300;
         Args.RadiusPGCUnits = 'arcsec';
 
         Args.ColNmatchName = 'GAL_N';
@@ -46,7 +46,6 @@ function match2Galaxies(Obj, Args)
         Args.MergeCols logical = true;
 
     end
-
 
     % Make sure process is run on AstroCatalog object
     switch class(Obj)

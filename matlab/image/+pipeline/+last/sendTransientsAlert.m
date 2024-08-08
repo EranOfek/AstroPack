@@ -1,4 +1,4 @@
-function sendTransientsAlert(ADc, Args)
+function [Status] = sendTransientsAlert(ADc, Args)
     %{
     Send an alert for each LAST transient candidate.
     Input   : - AstroDiff cutouts on transients.
@@ -12,6 +12,7 @@ function sendTransientsAlert(ADc, Args)
                 'BasePath' - Path under which telescope data can be found.
                        If empty, BasePath will be constructed assuming LAST
                        site infrastructure. Default is ''.
+    Output  : - Result message.
     Author  : Ruslan Konno (Aug 2024)
     Example : VisitPath = '/path/to/visit/dir'
               [AD, ADc] = runTransientsPipe(VisitPath)
@@ -27,9 +28,11 @@ function sendTransientsAlert(ADc, Args)
 
     end
 
+    Status = 'Uncontrolled exit.';
+
     % Return if no transients candidates empty.
     if isempty(ADc(1).Table)
-        disp('No transients found.');
+        Status = 'No transients found.';
         return
     end    
 
@@ -291,10 +294,29 @@ function sendTransientsAlert(ADc, Args)
         SlackBotToken = getenv('SLACK_BOT_TOKEN');     
 
         if isempty(ChannelID)
+            Status = 'ChannelID environment variable not set.';
             return
         end
 
         if isempty(SlackBotToken)
+            Status = 'SlackBot token environment variable not set.';
+            return
+        end
+
+        % Check if cURL is installed.
+        CheckCurl = system('command -v curl');
+        if CheckCurl
+            Status = 'cURL not installed.';
+            return
+        end
+
+        % Test connection
+        [~,ConnectTestOut] = system('curl -X POST https://slack.com/api/api.test');
+
+        ConnectTest = jsondecode(strcat("{",extractAfter(ConnectTestOut,"{")));
+
+        if ~ConnectTest.ok
+            Status = sprintf('Slack API error at connection test: %s', ConnectTest.error);
             return
         end
 
@@ -310,13 +332,18 @@ function sendTransientsAlert(ADc, Args)
             % Request image host URL.
             CMD1 = strcat("curl -F files=@",Image_DirFilename," -F filename=",Image_Filename," -F token=",SlackBotToken," -F length=",Filesize," https://slack.com/api/files.getUploadURLExternal");
         
-            [~,CMDout] = system(CMD1);
+            [~,CMD1out] = system(CMD1);
         
             % Retrieve image host URL.
-            Response = jsondecode(strcat("{",extractAfter(CMDout,"{")));
+            Response1 = jsondecode(strcat("{",extractAfter(CMD1out,"{")));
+
+            if ~Response1.ok
+                Status = sprintf('Slack API error at host request: %s', Response1.error);
+                return
+            end
         
-            UploadUrl = Response.upload_url;
-            FileID = Response.file_id;
+            UploadUrl = Response1.upload_url;
+            FileID = Response1.file_id;
 
             % Upload image to host URL.
         
@@ -328,7 +355,14 @@ function sendTransientsAlert(ADc, Args)
         
             CMD3 = strcat("curl -X POST -H 'Authorization: Bearer ",SlackBotToken,"' -H 'Content-Type: application/json' -d '",'{"files": [{"id":"',FileID,'", "title":"NewTransient"}], "channel_id": "',ChannelID,'", "initial_comment": "',Msg,'" }',"' https://slack.com/api/files.completeUploadExternal");
         
-            [~,~] = system(CMD3);
+            [~,CMD3out] = system(CMD3);
+
+            Response3 = jsondecode(strcat("{",extractAfter(CMD3out,"{")));
+
+            if ~Response3.ok
+                Status = sprintf('Slack API error at authorization: %s', Response3.error);
+                return
+            end
 
         else
 
@@ -336,6 +370,8 @@ function sendTransientsAlert(ADc, Args)
             CMD = strcat("curl -d 'text=",Msg,"' -d 'channel=",ChannelID,"' -H 'Authorization: Bearer ",SlackBotToken,"' -X POST https://slack.com/api/chat.postMessage");
             [~,~] = system(CMD);
         end
+
+        Status = 'Succesful exit, alert(s) sent.';
 
     end
 end

@@ -1,173 +1,187 @@
-function [FWHM,Nstars]=fwhm_fromBank(Image,varargin)
-% Measure the FWHM of an image by cross corr. with a Gaussian template bank
-% Package: +imUtil.psf
-% Description: Measure the FWHM of an image by cross corr. with a Gaussian
-%              template bank and choose the best FWHM by the mode of most
-%              detection above some S/N.
-% Input  : - An image in matrix format.
-%          * list of ...,key,val,...
-%            'CCDSEC' - CCDSEC [Xmin Xmax Ymin Ymax] of region in which to
-%                   measure FWHM. If empty use entire image. Default is [].
-%            'HalfSize' - Image half size. If 'CCDSEC' is empty, and this
-%                   argument is provided, then run this program on centeral
-%                   image with this half size. Default is [].
-%            'MinSN' - Minimum S/N to use. Default is 50.
-%            'Background' - A background image. Default is [].
-%            'Variance'   - A variance image. Default is [].
-%            'SigmaVec'   - Vector of the Gaussian bank sigmas.
-%                           This should not include a sharp object (such a
-%                           sharp object is added by the code).
-%                           Default is logspace(0,2,5).
-%            'MinStars'   - Minimum numbre of stars needed to estimate
-%                           FWHM. Default is 5.
-%            'PixScale'   - Pixel scale ["/pix]. Default is 1.
-%            'Method'     - Method: 
-%                           'bisec' - Bi-sector search
-%                           'MaxNdet' - Choose the filter with the max
-%                                   number of detections.
-%                           'MaxNdetInterp' - Same as 'MaxNdet', but with
-%                                   interpolation over number of detections.
-%                           Default is 'bisec'.
-%            'MaxIter'    - Numbre of iterations for the 'bisec' method.
-%                           Default is 6.
-% Output : - FWHM [arcsec].
-%          - Number of stars used for estimating the FWHM.
-% Author : Eran Ofek (Mar 2021)
-% Example: FWHM=imUtil.psf.fwhm_fromBank(AI.Image);
+function [FWHM,Nstars]=fwhm_fromBank(Image,Args)
+    % Measure the FWHM of an image by cross corr. with a Gaussian template bank
+    % Package: +imUtil.psf
+    % Description: Measure the FWHM of an image by cross corr. with a Gaussian
+    %              template bank and choose the best FWHM by the mode of most
+    %              detection above some S/N.
+    % Input  : - An image in matrix format.
+    %          * list of ...,key,val,...
+    %            'CCDSEC' - CCDSEC [Xmin Xmax Ymin Ymax] of region in which to
+    %                   measure FWHM. If empty use entire image. Default is [].
+    %            'HalfSize' - Image half size. If 'CCDSEC' is empty, and this
+    %                   argument is provided, then run this program on centeral
+    %                   image with this half size. Default is [].
+    %            'MinSN' - Minimum S/N to use. Default is 50.
+    %            'Background' - A background image. Default is [].
+    %            'Variance'   - A variance image. Default is [].
+    %            'SigmaVec'   - Vector of the Gaussian bank sigmas.
+    %                           This should not include a sharp object (such a
+    %                           sharp object is added by the code).
+    %                           Default is logspace(0,2,5).
+    %            'KernelFun'  - Function handle for kernel function.
+    %                           Default is @imUtil.kernel2.gauss
+    %            'MinStars'   - Minimum numbre of stars needed to estimate
+    %                           FWHM. Default is 5.
+    %            'PixScale'   - Pixel scale ["/pix]. Default is 1.
+    %            'Method'     - Method: 
+    %                           'bisec' - Bi-sector search
+    %                           'MaxNdet' - Choose the filter with the max
+    %                                   number of detections.
+    %                           'MaxNdetInterp' - Same as 'MaxNdet', but with
+    %                                   interpolation over number of detections.
+    %                           Default is 'bisec'.
+    %            'MaxIter'    - Numbre of iterations for the 'bisec' method.
+    %                           Default is 6.
+    % Output : - FWHM [arcsec].
+    %          - Number of stars used for estimating the FWHM.
+    % Author : Eran Ofek (Mar 2021)
+    % Example: FWHM=imUtil.psf.fwhm_fromBank(AI.Image);
 
 
-InPar = inputParser;
-addOptional(InPar,'CCDSEC',[]); 
-addOptional(InPar,'HalfSize',[]); 
-addOptional(InPar,'MinSN',50); 
-addOptional(InPar,'Background',[]); 
-addOptional(InPar,'Variance',[]); 
-addOptional(InPar,'SigmaVec',logspace(0,2,5));
-addOptional(InPar,'MinStars',5);
-addOptional(InPar,'PixScale',1);  % "/pix
-addOptional(InPar,'Method','bisec');  % 10: 2.954; 20: 2.687; 40: 2.718; 80: 2.750; 160: 2.696; 320: 2.675
-addOptional(InPar,'MaxIter',6);  
-parse(InPar,varargin{:});
-InPar = InPar.Results;
-
-Image = single(Image);
-
-if ~isempty(InPar.CCDSEC)
-    Image = Image(InPar.CCDSEC(1,3):InPar.CCDSEC(1,4), InPar.CCDSEC(1,1):InPar.CCDSEC(1,2));
-    
-else
-    if ~isempty(InPar.HalfSize)
-        SizeIm   = size(Image);
-        CenterIm = floor(SizeIm.*0.5);
-        InPar.CCDSEC = [CenterIm(2)-InPar.HalfSize, CenterIm(2)+InPar.HalfSize, CenterIm(1)-InPar.HalfSize, CenterIm(1)+InPar.HalfSize];    
-        Image = Image(InPar.CCDSEC(1,3):InPar.CCDSEC(1,4), InPar.CCDSEC(1,1):InPar.CCDSEC(1,2));
+    arguments
+        Image
+        Args.CCDSEC       = [];
+        Args.HalfSize     = [];
+        Args.MinSN        = 50;
+        Args.Background   = [];
+        Args.Variance     = [];
+        Args.SigmaVec     = logspace(0,2,5).';
+        Args.KernelFun    = @imUtil.kernel2.gauss; % @imUtil.kernel2.gauss;
+        Args.MinStars     = 5;
+        Args.PixScale     = 1;
+        Args.Method       = 'bisec';
+        Args.MaxIter      = 6;
     end
-end
 
+    Image = single(Image);
 
-switch lower(InPar.Method)
-    case {'maxndet','maxndetinterp'}
-        % Choose the template that maximize the SN for the largest number
-        % of stars, ecluding the shaprpest star
-        
-        InPar.SigmaVec = [0.1; InPar.SigmaVec(:)];  % add a sharp object (always first) to bank of templates
+    if ~isempty(Args.CCDSEC)
+        Image = Image(Args.CCDSEC(1,3):Args.CCDSEC(1,4), Args.CCDSEC(1,1):Args.CCDSEC(1,2));
 
-        % filter image with filter bandk of gaussians with variable width
-        SN = imUtil.filter.filter2_snBank(Image,InPar.Background,InPar.Variance,@imUtil.kernel2.gauss,InPar.SigmaVec);
-        % Pos contains: [X,Y,SN,index]
-        [~,Pos,MaxIsn]=imUtil.image.local_maxima(SN,1,InPar.MinSN);
-
-        % remove sharp objects
-        Pos = Pos(Pos(:,4)~=1,:);
-
-        Nstars = size(Pos,1);
-
-        if Nstars<InPar.MinStars
-            FWHM = NaN;
-        else
-            
-            switch lower(InPar.Method)
-                case 'maxndet'
-                    % Choose the templates (FWHM) that has the maximum number of max-detections
-                    FWHM = 2.35.*InPar.PixScale.*InPar.SigmaVec(mode(Pos(:,4),'all'));
-                case 'maxndetinterp'
-                    % Choose the templates (FWHM) that has the maximum number of max-detections
-                    % but interplate over the number of max-detections for each templates
-                    Ntemp  = numel(InPar.SigmaVec);
-                    Ncount = histcounts(Pos(:,4),(0.5:1:Ntemp+0.5)').';
-                    LinSpace = (1:1:Ntemp)';
-                    Extram = tools.find.find_local_extremum(LinSpace, Ncount);
-                    Extram = Extram(Extram(:,3)<0,:);
-                    if isempty(Extram)
-                        FWHM = NaN;
-                    else
-                        [~,Imax]  = max(Extram(:,2));
-                        TempInd   = Extram(Imax,1);
-                        BestSigma = interp1(LinSpace, InPar.SigmaVec, TempInd, 'cubic');
-                        FWHM      = 2.35.*InPar.PixScale.*BestSigma;
-                    end
-                otherwise
-                    error('Unknown Method option');
-            end
+    else
+        if ~isempty(Args.HalfSize)
+            SizeIm   = size(Image);
+            CenterIm = floor(SizeIm.*0.5);
+            Args.CCDSEC = [CenterIm(2)-Args.HalfSize, CenterIm(2)+Args.HalfSize, CenterIm(1)-Args.HalfSize, CenterIm(1)+Args.HalfSize];    
+            Image = Image(Args.CCDSEC(1,3):Args.CCDSEC(1,4), Args.CCDSEC(1,1):Args.CCDSEC(1,2));
         end
-    case 'bisec'
-        % bi-sector method
-        
-        Nsigma   = numel(InPar.SigmaVec);
-        SigmaVec = [0.1; InPar.SigmaVec(:)];  % add a sharp object (always first) to bank of templates
-        
-        if isempty(InPar.Background) || isempty(InPar.Variance)
-            Med1 = median(Image,"all","omitnan");
-            
-            F1   = Image>(Med1 - 10.*sqrt(Med1)) & Image<(Med1 + 5.*sqrt(Med1));
-            Med2 = median(Image(F1), "all", "omitnan");
-            InPar.Background  = Med2;
-            InPar.Variance    = var(Image(F1), [], "all", "omitnan");
+    end
 
-            %[InPar.Background, InPar.Variance] =  imUtil.background.modeVar_LogHist(Image);
-        end
-        
-        Cont = true;
-        I = 0;
-        while Cont
-            I = I + 1;
-            %for I=1:1:InPar.MaxIter
+
+    switch lower(Args.Method)
+        case {'maxndet','maxndetinterp'}
+            % Choose the template that maximize the SN for the largest number
+            % of stars, ecluding the shaprpest star
+
+            Args.SigmaVec = [0.1; Args.SigmaVec(:)];  % add a sharp object (always first) to bank of templates
+
             % filter image with filter bandk of gaussians with variable width
-            
-            SN = imUtil.filter.filter2_snBank(Image, InPar.Background, InPar.Variance,@imUtil.kernel2.gauss, SigmaVec(:));
+            SN = imUtil.filter.filter2_snBank(Image, Args.Background, Args.Variance, Args.KernelFun, Args.SigmaVec);
             % Pos contains: [X,Y,SN,index]
-            [~,Pos,MaxIsn]=imUtil.image.local_maxima(SN, 1, InPar.MinSN);
+            [~,Pos,MaxIsn]=imUtil.image.local_maxima(SN,1,Args.MinSN);
 
             % remove sharp objects
             Pos = Pos(Pos(:,4)~=1,:);
 
             Nstars = size(Pos,1);
 
-            if Nstars<InPar.MinStars
-                Cont    = false;
-                BestInd = NaN;
+            if Nstars<Args.MinStars
+                FWHM = NaN;
             else
-                BestInd = mode(Pos(:,4),'all');
-                if I<InPar.MaxIter
-                    if BestInd>Nsigma
-                        SigmaVec(end+1) = SigmaVec(end) + SigmaVec(end) - SigmaVec(end-1);
-                    end
-                    SigmaVec = [0.1, logspace(log10(SigmaVec(BestInd-1)), log10(SigmaVec(BestInd+1)), Nsigma)];
+
+                switch lower(Args.Method)
+                    case 'maxndet'
+                        % Choose the templates (FWHM) that has the maximum number of max-detections
+                        FWHM = 2.35.*Args.PixScale.*Args.SigmaVec(mode(Pos(:,4),'all'));
+                    case 'maxndetinterp'
+                        % Choose the templates (FWHM) that has the maximum number of max-detections
+                        % but interplate over the number of max-detections for each templates
+                        Ntemp  = numel(Args.SigmaVec);
+                        Ncount = histcounts(Pos(:,4),(0.5:1:Ntemp+0.5)').';
+                        LinSpace = (1:1:Ntemp)';
+                        Extram = tools.find.find_local_extremum(LinSpace, Ncount);
+                        Extram = Extram(Extram(:,3)<0,:);
+                        if isempty(Extram)
+                            FWHM = NaN;
+                        else
+                            [~,Imax]  = max(Extram(:,2));
+                            TempInd   = Extram(Imax,1);
+                            BestSigma = interp1(LinSpace, Args.SigmaVec, TempInd, 'cubic');
+                            FWHM      = 2.35.*Args.PixScale.*BestSigma;
+                        end
+                    otherwise
+                        error('Unknown Method option');
                 end
             end
+        case 'bisec'
+            % bi-sector method
+
             
-            if I==InPar.MaxIter
-                Cont = false;
+            
+            Nsigma        = numel(Args.SigmaVec);
+            Args.SigmaVec = Args.SigmaVec(:);
+            
+            SigmaVec = [0.1; Args.SigmaVec];  % add a sharp object (always first) to bank of templates
+
+            if isempty(Args.Background) || isempty(Args.Variance)
+                Med1 = median(Image,"all","omitnan");
+
+                F1   = Image>(Med1 - 10.*sqrt(Med1)) & Image<(Med1 + 5.*sqrt(Med1));
+                Med2 = median(Image(F1), "all", "omitnan");
+                Args.Background  = Med2;
+                Args.Variance    = var(Image(F1), [], "all", "omitnan");
+
+                %[Args.Background, Args.Variance] =  imUtil.background.modeVar_LogHist(Image);
             end
-        end
-        
-        if isnan(BestInd)
-            FWHM = NaN;
-        else
-            FWHM = SigmaVec(BestInd).*2.35.*InPar.PixScale;
-        end
-        
-        
-    otherwise
-        error('Unknown Method option');
+
+            Cont = true;
+            I = 0;
+            while Cont
+                I = I + 1;
+                %for I=1:1:Args.MaxIter
+                % filter image with filter bandk of gaussians with variable width
+
+                
+                SN = imUtil.filter.filter2_snBank(Image, Args.Background, Args.Variance, Args.KernelFun, SigmaVec(:));
+                %SN = imUtil.filter.filter2_snBank(Image, Args.Background, Args.Variance, Args.KernelFun, SigmaVec);
+                % Pos contains: [X,Y,SN,index]
+                [~,Pos,MaxIsn]=imUtil.image.local_maxima(SN, 1, Args.MinSN);
+
+                % remove sharp objects
+                Pos = Pos(Pos(:,4)~=1,:);
+                %Pos = Pos(Pos(:,4)~=Nsigma+1,:);
+
+                Nstars = size(Pos,1);
+
+                if Nstars<Args.MinStars
+                    Cont    = false;
+                    BestInd = NaN;
+                else
+                    BestInd = mode(Pos(:,4),'all');
+                    if I<Args.MaxIter
+                        
+                        %SigmaVec(BestInd)
+                        if BestInd>Nsigma
+                            SigmaVec(end+1) = SigmaVec(end) + SigmaVec(end) - SigmaVec(end-1);
+                        end
+                        ShiftInd = 1;
+                        SigmaVec = [0.1, logspace(log10(SigmaVec(BestInd-ShiftInd)), log10(SigmaVec(BestInd+ShiftInd)), Nsigma)];
+                    end
+                end
+
+                if I==Args.MaxIter
+                    Cont = false;
+                end
+            end
+
+            if isnan(BestInd)
+                FWHM = NaN;
+            else
+                FWHM = SigmaVec(BestInd).*2.35.*Args.PixScale;
+            end
+
+
+        otherwise
+            error('Unknown Method option');
+    end
 end
