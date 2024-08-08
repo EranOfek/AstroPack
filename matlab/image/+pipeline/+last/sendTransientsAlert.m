@@ -275,11 +275,15 @@ function [Status] = sendTransientsAlert(ADc, Args)
             % Lightcurve
             nexttile([1 3]);
             errorbar(LC_JD, LC_Mag, LC_MagErr,'o');
-            hold on;
-            scatter(LC_UL_JD, LC_UL_Mag, 'v');
-            hold off;
+            XlimMin = -5;
+            if LC_UL > 0
+                hold on;
+                scatter(LC_UL_JD, LC_UL_Mag, 'v');
+                hold off;
+                XlimMin = max(-30,min(LC_UL_JD-5));
+            end
             set(gca, 'YDir','reverse');
-            xlim([max(-30,min(LC_UL_JD-5)) 5]);
+            xlim([XlimMin 5]);
             set(gca,'fontsize',14)
     
             % If Args.SaveProducts true, save image
