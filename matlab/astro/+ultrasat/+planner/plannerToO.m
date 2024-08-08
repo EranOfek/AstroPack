@@ -29,40 +29,40 @@ function Result = plannerToO(AlertMapCSV, Args)
     FOV = pi*7^2;     % deg(2)
     
     PD  = Args.ProbThresh * ( Sr / FOV ); % the limiting probability per sr (as on the original maps)
-
-    % read the alert map from a CSV file and filter out points < 0.1 sr(-1)
-    Map0 = readtable(AlertMapCSV);
-    Result.FileName = AlertMapCSV;
     
-    % read the header of the corresponding FITS file (or ask Chen to convert it beforehand?) 
-    % and extract some of the keywords
-    FITSfile = strrep(AlertMapCSV, '.csv', '.fits');
-    AH = AstroHeader(FITSfile,2);
-    Result.Object = AH.getVal('Object'); 
-    Result.Instrument = AH.getVal('Instrume'); 
-    Result.DateObs = AH.getVal('Date-Obs'); 
-    Result.FAR = AH.getVal('FAR'); 
+    % set the structure:
+    Result.FileName    = AlertMapCSV;
+    Result.CoveredProb = 0;
+    Result.Ntarg       = 0;
+    Result.Targets     = "";
+    Result.N50         = 0;
+    Result.N90         = 0;        
     
+    % read event parameters from a JSON file:
+    Jdata = jsondecode(fileread(strrep(AlertMapCSV, '.csv', '.json')));
+    Result.Superevent = Jdata.superevent_id;
+    Result.Instrument = Jdata.event.instruments;
+    Result.DateObs = Jdata.event.time;
+    Result.FAR = Jdata.event.far;    
+        
     % filtering by the FAR 
-    if Result.FAR > Args.ThresholdFAR
-        Result.CoveredProb = 0;
-        Result.Ntarg   = 0;
-        Result.Targets = "";
+    if Result.FAR > Args.ThresholdFAR         
         if Args.Verbosity > 0
             fprintf('FAR above the threshold \n');
         end
         return
     end
-    
-    % 
-    if Args.Verbosity > 1
-        fprintf('Alert CSV source: %s \n',AlertMapCSV)           
-        [Prob, Area] = sumProbability(Map0);
-        fprintf('Initial probability: %.2f on area of %.1f deg^2 \n',Prob,Area)
-    end
-    
-    Map1 = Map0(Map0.PROBDENSITY > Args.CleanThresh,:);
-    
+        
+    % read the alert map from a CSV file and filter out points < 0.1 sr(-1)
+    Map0 = readtable(AlertMapCSV);
+    Map1 = Map0(Map0.PROBDENSITY > Args.CleanThresh,:); 
+     
+        if Args.Verbosity > 1
+            fprintf('Alert CSV map: %s \n',AlertMapCSV)           
+            [Prob, Area] = sumProbability(Map0);
+            fprintf('Initial probability: %.2f on area of %.1f deg^2 \n',Prob,Area)
+        end
+
     [Prob, Area] = sumProbability(Map1);
     if Args.Verbosity > 0
         fprintf('Cleaned probability: %.2f on area of %.1f deg^2 \n',Prob,Area)
@@ -76,10 +76,7 @@ function Result = plannerToO(AlertMapCSV, Args)
         fprintf('Extracted probability: %.2f on area of %.1f deg^2 \n',Prob,Area)
     end
     
-    if Prob < 1e-6
-       Result.CoveredProb = 0;
-       Result.Ntarg   = 0;
-       Result.Targets = "";
+    if Prob < 1e-6      
        if Args.Verbosity > 0
            fprintf('No region above Args.ProbThresh found \n');
        end
@@ -96,9 +93,9 @@ function Result = plannerToO(AlertMapCSV, Args)
     Targets0 = coverSky(Map,'FOVradius',Args.FOVradius,'DrawMaps',Args.DrawMaps);
     Ntarg0   = size(Targets0,2);
     
-    if Args.Verbosity > 1
-        fprintf('The target area is covered with %d FOVs \n',Ntarg0)
-    end
+        if Args.Verbosity > 1
+            fprintf('The target area is covered with %d FOVs \n',Ntarg0)
+        end
     
     % sort the targets by covered probability (with no overlap treatment!)
     [~, Ind] = sort([Targets0.Pr], 'descend'); 
@@ -153,7 +150,7 @@ function Result = plannerToO(AlertMapCSV, Args)
     
 end
 
-%%% internal functions will be replaced later to calls to external tools
+%%% internal functions will be later replaced to calls to external tools
 
 function Targets = coverSky(Map, Args)
     %
