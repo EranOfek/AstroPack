@@ -1,0 +1,1 @@
+%classdef Validator < PlannerToolBase    properties(Access = public)           end    properties(Access = private)            end        methods  % Constructor        function Obj = Validator()        end    end    methods    end    methods(Static)        Result = debug()            % unitTest        Result = unitTest()            % unitTest    endend
