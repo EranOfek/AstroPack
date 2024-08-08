@@ -315,12 +315,19 @@ function [Status] = sendTransientsAlert(ADc, Args)
         end
 
         % Test connection
-        [~,ConnectTestOut] = system('curl -X POST https://slack.com/api/api.test');
+        [ConnectionTest1,~] = system('curl -D - "https://slack.com/api/api.test"');
+    
+        if (ConnectionTest1 > 0)
+            Status = sprintf('Slack API error at first connection test: %i', ConnectionTest1);
+            return
+        end
 
-        ConnectTest = jsondecode(strcat("{",extractAfter(ConnectTestOut,"{")));
+        [~,ConnectTest2Out] = system('curl -X POST https://slack.com/api/api.test');
 
-        if ~ConnectTest.ok
-            Status = sprintf('Slack API error at connection test: %s', ConnectTest.error);
+        ConnectionTest2 = jsondecode(strcat("{",extractAfter(ConnectTest2Out,"{")));
+
+        if ~ConnectionTest2.ok
+            Status = sprintf('Slack API error at second connection test: %s', ConnectionTest2.error);
             return
         end
 
