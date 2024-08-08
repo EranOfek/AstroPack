@@ -61,7 +61,7 @@ classdef extinctionMap < Component % will change for the PlannerTools class
                                                             'Filter',Obj.Filter, 'ExtMap',Obj.MapOrigin);
             Obj.Grid = [RA_grid Dec_grid];
 
-            Result = true;
+            Result.Status = true;
         end
         %         
         function Result = buildAveragedMap(Obj, Args) 
@@ -85,7 +85,7 @@ classdef extinctionMap < Component % will change for the PlannerTools class
             fprintf('Please, be patient, averaging may take several minutes...\n')
             Obj.AveragedMap = celestial.grid.statSkyGrid('SkyPos',[lambda beta],'Rad',Rad);
             %
-            Result = true;
+            Result.Status = true;
         end
         %
         function Result = plotMap(Obj, Args)
