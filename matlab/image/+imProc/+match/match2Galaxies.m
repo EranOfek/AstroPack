@@ -37,7 +37,7 @@ function match2Galaxies(Obj, Args)
         Args.RadiusGladeUnits = 'arcsec';
 
         Args.PGCCatName = 'PGC';
-        Args.RadiusPGC = 1;
+        Args.RadiusPGC = 300;
         Args.RadiusPGCUnits = 'arcsec';
 
         Args.ColNmatchName = 'GAL_N';
