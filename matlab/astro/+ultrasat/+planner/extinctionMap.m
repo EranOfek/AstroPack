@@ -95,6 +95,7 @@ classdef extinctionMap < Component % will change for the PlannerTools class
                 Args.Averaged = false;
                 Args.Limits   = [0, 1];
                 Args.FigureNum= 10;
+%                 Args.FromApp  = false;
             end
             %
             figure(Args.FigureNum)             
@@ -107,7 +108,8 @@ classdef extinctionMap < Component % will change for the PlannerTools class
             end
             xlabel 'RA, deg'; ylabel 'Dec, deg'
             %
-            Result = true;
+            Result.Status = true;
+%             Result.Map = [Obj.Grid Obj.Map]; 
         end
     end    
     %
