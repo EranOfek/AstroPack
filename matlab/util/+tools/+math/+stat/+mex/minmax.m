@@ -1,4 +1,4 @@
-% Calculate te min and max of an array of any dimension in one pass (fast mex)
+% Calculate the min and max of an array of any dimension in one pass (fast mex)
 % Input  : - An array (single or double)
 % Output : - Min.
 %          - Max.
