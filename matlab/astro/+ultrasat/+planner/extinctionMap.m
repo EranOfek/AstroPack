@@ -1,10 +1,10 @@
-classdef extinctionMap < Component % will change for the PlannerTools class 
+classdef extinctionMap < PlannerToolBase  
     % the class provides access to extinction maps
     % main functions:
     % -- extinctionMap (constructor)
     % -- buildMap (filling the map properties of an object)
     % -- plotMap (plotting the maps of an object)
-    properties (SetAccess = public)
+    properties (Access = public) 
         Grid        
         Map         
         AveragedMap 
@@ -13,8 +13,11 @@ classdef extinctionMap < Component % will change for the PlannerTools class
         Filter    = 'ultrasat';
         AveragingRadius = 7;     % [deg] 
     end
+    %
+    properties(Access = private)        
+    end
     % 
-    methods % Obj constructor      
+    methods % Constructor      
         function Obj = extinctionMap(Args)
             % One line description
             %     Optional detailed description
@@ -113,4 +116,11 @@ classdef extinctionMap < Component % will change for the PlannerTools class
         end
     end    
     %
+    methods(Static)
+        Result = debug()
+            % unitTest
+
+        Result = unitTest()
+            % unitTest
+    end
 end
