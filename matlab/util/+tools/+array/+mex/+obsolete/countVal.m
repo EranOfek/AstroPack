@@ -1,8 +1,8 @@
 function Result = countVal(Array, Val, UseNot, UseMex)
-    % Given an N-D Array, count the number of elements
-    % that are exactly equal to the value in Val.
-    % UseNot is an argument indicating if to count the number of 
-    % elements that are not equal Val.
+    % Given an N-D Array, count the number of elements that are exactly equal to the value in Val.
+    %   NOTE: matlab sum(Array==Val) is faster!
+    %   UseNot is an argument indicating if to count the number of 
+    %   elements that are not equal Val.
     % 
     % For example:
     % tools.array.countVal([1 2;3 NaN], NaN, true) will return 3
