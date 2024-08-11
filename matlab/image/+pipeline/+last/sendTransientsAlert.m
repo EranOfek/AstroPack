@@ -30,6 +30,12 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
     Status = 'Uncontrolled exit.';
 
+    http_proxy = getenv('http_proxy');
+    if isempty(http_proxy)
+        Status = 'HTTP proxy environment not found.';
+        return
+    end
+
     % Return if no transients candidates empty.
     if isempty(ADc(1).Table)
         Status = 'No transients found.';
