@@ -1,5 +1,6 @@
 function [Result] = interp2nearest_mex(X, Y, V, XI, YI)
     % Fast (mex) 2D nearest interpolation for output grid defined by row and column vectors.
+    %   BAD
     % Input  : - Matrix of X coordinates.
     %          - Matrix of Y coordinates.
     %          - Matrix of values to interpolate.
@@ -17,6 +18,9 @@ function [Result] = interp2nearest_mex(X, Y, V, XI, YI)
         XI
         YI
     end
+    
+    error('lilkely incorrect because assumes that the input grid is evenly spaced');
+    
     
     switch class(V)
         case 'uint32'

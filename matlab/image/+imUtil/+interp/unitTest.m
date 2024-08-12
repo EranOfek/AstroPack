@@ -20,7 +20,7 @@ function [Result] = unitTest()
     I1 = (5:1700-4)';
     I2 = (5:1700-4)';
 
-    
+    % imUtil.interp.interp2nearest_mex
     ZI  = interp2(MatX, MatY, V, XVI, YVI.','nearest');
     ZIm = imUtil.interp.interp2nearest_mex(MatX, MatY, V, XVI, YVI.');
     if max(abs(ZI-ZIm),[],'all')~=0
