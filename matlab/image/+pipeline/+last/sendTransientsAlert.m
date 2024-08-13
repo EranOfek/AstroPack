@@ -30,6 +30,12 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
     Status = 'Uncontrolled exit.';
 
+    http_proxy = getenv('http_proxy');
+    if isempty(http_proxy)
+        Status = 'HTTP proxy environment not found.';
+        return
+    end
+
     % Return if no transients candidates empty.
     if isempty(ADc(1).Table)
         Status = 'No transients found.';
@@ -275,11 +281,15 @@ function [Status] = sendTransientsAlert(ADc, Args)
             % Lightcurve
             nexttile([1 3]);
             errorbar(LC_JD, LC_Mag, LC_MagErr,'o');
-            hold on;
-            scatter(LC_UL_JD, LC_UL_Mag, 'v');
-            hold off;
+            XlimMin = -5;
+            if LC_UL > 0
+                hold on;
+                scatter(LC_UL_JD, LC_UL_Mag, 'v');
+                hold off;
+                XlimMin = max(-30,min(LC_UL_JD-5));
+            end
             set(gca, 'YDir','reverse');
-            xlim([max(-30,min(LC_UL_JD-5)) 5]);
+            xlim([XlimMin 5]);
             set(gca,'fontsize',14)
     
             % If Args.SaveProducts true, save image
@@ -311,12 +321,19 @@ function [Status] = sendTransientsAlert(ADc, Args)
         end
 
         % Test connection
-        [~,ConnectTestOut] = system('curl -X POST https://slack.com/api/api.test');
+        [ConnectionTest1,~] = system('curl -D - "https://slack.com/api/api.test"');
+    
+        if (ConnectionTest1 > 0)
+            Status = sprintf('Slack API error at first connection test: %i', ConnectionTest1);
+            return
+        end
 
-        ConnectTest = jsondecode(strcat("{",extractAfter(ConnectTestOut,"{")));
+        [~,ConnectTest2Out] = system('curl -X POST https://slack.com/api/api.test');
 
-        if ~ConnectTest.ok
-            Status = sprintf('Slack API error at connection test: %s', ConnectTest.error);
+        ConnectionTest2 = jsondecode(strcat("{",extractAfter(ConnectTest2Out,"{")));
+
+        if ~ConnectionTest2.ok
+            Status = sprintf('Slack API error at second connection test: %s', ConnectionTest2.error);
             return
         end
 
