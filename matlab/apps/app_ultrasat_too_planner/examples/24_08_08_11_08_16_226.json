@@ -1,0 +1,1 @@
+{"op": "snr", "json_text": "{\"ExpTime\":300,\"NumImages\":3,\"R\":1,\"Source\":\"PicklesModels\",\"PicklesModels\":\"A 0.0 V\",\"SnrMagnitude\":22,\"LimitingMagnitude\":5}", "x": 0.0, "y": 0.0, "use_matlab": true, "timeout": 10}
