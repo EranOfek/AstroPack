@@ -3,6 +3,19 @@ function Result = unitTest
 	
     %io.msgStyle(LogLevel.Test, '@start', 'tools.array test started');
 
+    % tools.array.mex.squeezeSumCubeMatNorm
+    MatXcen=rand(15,15);       
+    Norm=ones(1000,1);
+    WInt=imUtil.kernel2.gauss(ones(1000,1)+randn(1000,1));
+    tic;for I=1:10000, a=tools.array.mex.squeezeSumCubeMatNorm(WInt, MatXcen, Norm);end, toc
+    % Elapsed time is 0.689787 seconds.
+    tic;for I=1:10000, b=squeeze(sum(WInt.*MatXcen,[1 2],'omitnan')).*Norm; end, toc        
+    % Elapsed time is 1.020883 seconds.
+    if max(abs(a2-b))>(10.*eps)
+        error('squeezeSumCubeMatNorm inconsistent');
+    end
+    
+    
     A=rand(1700,1700);
     tic;for I=1:1:100
         [S,N]=tools.array.sumInRange(A,0.25,0.75);

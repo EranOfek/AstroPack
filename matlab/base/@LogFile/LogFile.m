@@ -107,6 +107,25 @@ classdef LogFile < handle
 
     methods
 
+        function setFileName(Obj, FileName)
+            % Set log file name
+            
+            % Close file if open
+            if ~isempty(Obj.Fid)
+                fclose(Obj.Fid);
+                Obj.Fid = [];
+            end
+
+            Obj.FileName = FileName;
+        end
+
+
+        function Result = getFileName(Obj)
+            % Return current log file name
+            Result = Obj.FileName;
+        end
+
+
         function Result = write(Obj, varargin)
             % Write text line to file
             % Input:   varargin - Any fprintf() arguments
