@@ -2986,7 +2986,7 @@ classdef DemonLAST < Component
                                     Obj.writeLog(Msg, LogLevel.Info);
                                     try
                                         TranAlertStatus = pipeline.last.sendTransientsAlert(TransientCutouts, 'SaveProducts', true, ...
-                                                'SavePath', FN_Proc.genPath);
+                                                'SavePath', FN_Proc.genPath,'UseLASTtools', true);
                                         Obj.writeLog(sprintf('pipeline.DemonLAST / Alerting - %s', TranAlertStatus), LogLevel.Info);
                                     catch MEtran
                                         Msg{1} = sprintf('pipeline.DemonLAST - Alerting / Failed');

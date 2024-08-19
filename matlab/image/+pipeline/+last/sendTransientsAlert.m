@@ -23,18 +23,13 @@ function [Status] = sendTransientsAlert(ADc, Args)
         ADc
 
         Args.SaveProducts logical = false;
+        Args.UseLASTtools logical = false;
         Args.SavePath = '';
         Args.BasePath = '';
 
     end
 
     Status = 'Uncontrolled exit.';
-
-    http_proxy = getenv('http_proxy');
-    if isempty(http_proxy)
-        Status = 'HTTP proxy environment not found.';
-        return
-    end
 
     % Return if no transients candidates empty.
     if isempty(ADc(1).Table)
@@ -66,7 +61,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         % Construct detection message
         Msg = strcat('New transient at', {' '},...
             DateString{1}, {' '},...
-            'and RA, Dec =',{' '},num2str(RA),',',num2str(Dec),{' '}, ...
+            'and RA, Dec =',{' '},sprintf('%.7f',RA),',',sprintf('%.7f',Dec),{' '}, ...
             'with a score of',{' '},sprintf('%.2f',Score),{' '},...
             'and magnitude of',{' '},sprintf('%.2f',Mag),'.');
 
@@ -298,6 +293,27 @@ function [Status] = sendTransientsAlert(ADc, Args)
             end
         end
         
+        % Use last-tools to send alerts
+        if Args.UseLASTtools
+            if ~isfile(Image_DirFilename)
+                Status='Alerting via last-tools requires a saved image, which does not exist.';
+                return
+            end
+            
+            Text_DirFilename = replace(Image_DirFilename,'.png','.txt');
+            fid = fopen(Text_DirFilename,'wt');
+            fprintf(fid, Msg{1});
+            fclose(fid);
+            CMD0 = strcat('last-transient-slack-alert --message-file',{' '},Text_DirFilename,' --image-file',{' '},Image_DirFilename);
+            [CMD0Status, CMD0Out] = system(CMD0{1});
+            if CMD0Status > 0
+                Status = sprint('Alerting via last-tools failed: %s', CMD0Out);
+                return
+            end
+            Status =  'Succesful exit, alert(s) sent.';
+            return
+        end
+        
         % Get SlackBot token and transients channel id.
 
         ChannelID = getenv('SLACK_TRANSIENTS_CHANNEL');
@@ -314,8 +330,8 @@ function [Status] = sendTransientsAlert(ADc, Args)
         end
 
         % Check if cURL is installed.
-        CheckCurl = system('command -v curl');
-        if CheckCurl
+        [~,CheckCurl] = system('command -v curl');
+        if isempty(CheckCurl)
             Status = 'cURL not installed.';
             return
         end
@@ -384,7 +400,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         else
 
             % Post text only message to slack.
-            CMD = strcat("curl -d 'text=",Msg,"' -d 'channel=",ChannelID,"' -H 'Authorization: Bearer ",SlackBotToken,"' -X POST https://slack.com/api/chat.postMessage");
+            CMD = strcat("curl -d 'text=",Msg{1},"' -d 'channel=",ChannelID,"' -H 'Authorization: Bearer ",SlackBotToken,"' -X POST https://slack.com/api/chat.postMessage");
             [~,~] = system(CMD);
         end
 
