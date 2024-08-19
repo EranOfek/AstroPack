@@ -11,7 +11,7 @@ classdef ExtinctionMaps < PlannerToolBase
         MapOrigin = 'SFD98';
         CooType   = 'j2000.0';
         Filter    = 'ultrasat';
-        AveragingRadius = 7;     % [deg] 
+        AveragingRadius = 7;     % [deg] l
     end
     %
     properties(Access = private)        
