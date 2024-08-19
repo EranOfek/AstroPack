@@ -1,5 +1,5 @@
 classdef ExtinctionMaps < PlannerToolBase  
-    % the class provides access to extinction maps
+    % the class provides access to sky extinction maps
     % main functions:
     % -- extinctionMap (constructor)
     % -- buildMap (filling the map properties of an object)
