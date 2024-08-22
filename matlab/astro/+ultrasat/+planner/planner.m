@@ -1,5 +1,5 @@
 function planner(Args)
-
+    % 
     arguments
         Args.MaxTargets     = 4;    % maximal number of ULTRASAT targets covering the object 
         Args.MinCoveredProb = 0.8;  % the minimal cumulative probability to be covered 
