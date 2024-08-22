@@ -10,20 +10,18 @@ function planner
         Result(Ialert) = ultrasat.planner.plannerToO(strcat(Alerts(Ialert).folder,'/',Alerts(Ialert).name),...
                         'MaxTargets',4,'ProbThresh',0.01,'DrawMaps',false,'Verbosity',0,'ShowCoverageCurve',1);
 %                         'MaxTargets',4,'ProbThresh',0.2,'DrawMaps',false,'Verbosity',0);
-        if Result(Ialert).Superevent(1) == 'M' || Result(Ialert).Superevent(1) == 'T' % filter out Mocks and Tests 
-            Ind(Ialert) = 0; 
-        else
-            Ind(Ialert) = 1;
-        end
     end
-    
-    R = Result(Ind > 0);
+        
+    R=Result([Result.Ntarg]>0);
+
+%     [R.Type " "]: "PRELIMINARY" "INITIAL" "UPDATE" "RETRACTED" 
+%     % of each R.Superevent keep only the latest? 
+%     SId = {R.Superevent}; 
+%     Time = [R.DateObs];
     
     fprintf('%d real events of %d total \n',numel(R),Nalerts);
     
-    subplot(2,2,1); histogram([R.CoveredProb])
-    subplot(2,2,2); histogram([R.Ntarg])
-    subplot(2,2,3); histogram([Result.CoveredProb])
-    subplot(2,2,4); histogram([Result.Ntarg])
-
+    subplot(2,1,1); histogram([R.CoveredProb])
+    subplot(2,1,2); histogram([R.Ntarg])
+    
 end

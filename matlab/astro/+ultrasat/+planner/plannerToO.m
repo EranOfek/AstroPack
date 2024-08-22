@@ -16,7 +16,7 @@ function Result = plannerToO(AlertMapCSV, Args)
         Args.FOVradius         = 7;   % deg
         Args.CleanThresh       = 0.1; % cleaning probability [sr(-1)] 
         Args.ProbThresh        = 0.2; % the limiting probability per ULTRASAT pointing 
-        Args.ThresholdFAR      = 1.3e-7; % [s(-1)] ~ one false alarm in 3 months  % 3.17e-9 -- 1 in 10 years 
+        Args.ThresholdFAR      = 3.17e-9; % [s(-1)] 1.3e-7 ~ one false alarm in 3 months  % 3.17e-9 -- 1 in 10 years 
         Args.MaxTargets        = 4;
         Args.Cadence           = 3;
         Args.OutName           = 'ToOplan.json';
@@ -35,8 +35,7 @@ function Result = plannerToO(AlertMapCSV, Args)
     Result.CoveredProb = 0;
     Result.Ntarg       = 0;
     Result.Targets     = "";
-    Result.N50         = 0;
-    Result.N90         = 0;    
+    Result.N50         = 0;    
     
     % read some of the parameters from the FITS header:
     AH = AstroHeader(strrep(AlertMapCSV, '.csv', '.fits'),2);
@@ -45,6 +44,7 @@ function Result = plannerToO(AlertMapCSV, Args)
     
     % read event parameters from a JSON file:
     Jdata = jsondecode(fileread(strrep(AlertMapCSV, '.csv', '.json')));
+    Result.Type = Jdata.alert_type;
     Result.Superevent = Jdata.superevent_id;
     Result.Instrument = Jdata.event.instruments;
     Result.DateObs = Jdata.event.time;
@@ -54,6 +54,14 @@ function Result = plannerToO(AlertMapCSV, Args)
     if Result.FAR > Args.ThresholdFAR         
         if Args.Verbosity > 0
             fprintf('FAR above the threshold \n');
+        end
+        return
+    end
+    
+    % filtering out mock and test alerts
+    if Result.Superevent(1) == 'M' || Result.Superevent(1) == 'T' % filter out Mocks and Tests             
+        if Args.Verbosity > 0
+            fprintf('Mock or test alert filtered out\n');
         end
         return
     end
@@ -96,7 +104,7 @@ function Result = plannerToO(AlertMapCSV, Args)
         
     % cover the region with targets
     Targets0 = coverSky(Map,'FOVradius',Args.FOVradius,'DrawMaps',Args.DrawMaps);
-    Ntarg0   = size(Targets0,2);
+    Ntarg0   = size(Targets0, 2);
     
         if Args.Verbosity > 1
             fprintf('The target area is covered with %d FOVs \n',Ntarg0)
