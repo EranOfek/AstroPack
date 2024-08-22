@@ -9,14 +9,15 @@ function Result = plannerToO(AlertMapCSV, Args)
     %        'Cadence'    - number of target exposures 
     % Output : - 
     % Author : A.M. Krassilchtchikov (2024 Jul) 
-    % Example: 
+    % Example:
+    % ultrasat.planner.plannerToO('~/ULTRASAT/SkyGrid/LVC/01/lvc_2024_04_01_00_40_58_000000.csv');
     %
     arguments
         AlertMapCSV            = '~/ULTRASAT/SkyGrid/LVC/01/lvc_2024_04_01_00_40_58_000000.csv'; 
         Args.FOVradius         = 7;   % deg
         Args.CleanThresh       = 0.1; % cleaning probability [sr(-1)] 
-        Args.ProbThresh        = 0.2; % the limiting probability per ULTRASAT pointing 
-        Args.MinCoveredProb    = 0.5; % the required minimal probability sum covered
+        Args.ProbThresh        = 0.2; % the limiting probability per ULTRASAT pointing (determines the maximal number of FOVs)
+        Args.MinCoveredProb    = 0.5; % the required minimal cumulative probability to be covered
         Args.ThresholdFAR      = 3.17e-9; % [s(-1)] 1.3e-7 ~ one false alarm in 3 months  % 3.17e-9 -- 1 in 10 years 
         Args.MaxTargets        = 4;
         Args.Cadence           = 3;
@@ -39,6 +40,7 @@ function Result = plannerToO(AlertMapCSV, Args)
     Result.Ntarg       = 0;
     Result.Targets     = "";
     Result.NCover      = 0;    
+    Result.CoveredArea = 0;
     
     % read some of the parameters from the FITS header:
     AH = AstroHeader(strrep(AlertMapCSV, '.csv', '.fits'),2);
@@ -51,6 +53,7 @@ function Result = plannerToO(AlertMapCSV, Args)
     Result.Superevent = Jdata.superevent_id;
     Result.Instrument = Jdata.event.instruments;
     Result.DateObs = Jdata.event.time;
+    Result.AlertTime = Jdata.time_created;
     Result.FAR = Jdata.event.far;    
         
     % filtering by the FAR value 
@@ -62,13 +65,13 @@ function Result = plannerToO(AlertMapCSV, Args)
     end
     
     % filtering out mock and test alerts
-    if Result.Superevent(1) == 'M' % filter out Mocks 
+    if ~Args.MockAlerts && Result.Superevent(1) == 'M' % filter out Mocks 
         if Args.Verbosity > 0
             fprintf('Mock alert filtered out\n');
         end
         return
     end
-    if Result.Superevent(1) == 'T' % filter out Tests             
+    if ~Args.TestAlerts && Result.Superevent(1) == 'T' % filter out Tests             
         if Args.Verbosity > 0
             fprintf('Test alert filtered out\n');
         end
@@ -129,15 +132,16 @@ function Result = plannerToO(AlertMapCSV, Args)
             It = It+1;
             Targets = Targets0(Ind(1:It));  % select first It targets
             TargCoo = cell2mat(arrayfun(@(x) x.Coo, Targets, 'UniformOutput', false)');
-            CoveredProb = sumProbability(Map,'Targets',TargCoo,'FOVradius',Args.FOVradius);  
+            [CoveredProb, CoveredArea] = sumProbability(Map,'Targets',TargCoo,'FOVradius',Args.FOVradius);  
             if CoveredProb > Args.MinCoveredProb 
                 Result.NCover = It;
+                Result.CoveredArea = CoveredArea;
             end
         end
     end
             
     % select no more than Args.MaxTargets targets with highest probability
-    Result.Ntarg = min(Ntarg0,Args.MaxTargets);
+    Result.Ntarg = min(Result.NCover,Args.MaxTargets);
     
     Targets = Targets0(Ind(1:Result.Ntarg));   % take only first Result.Ntarg from the ordered list   
         
