@@ -16,6 +16,7 @@ function Result = plannerToO(AlertMapCSV, Args)
         Args.FOVradius         = 7;   % deg
         Args.CleanThresh       = 0.1; % cleaning probability [sr(-1)] 
         Args.ProbThresh        = 0.2; % the limiting probability per ULTRASAT pointing 
+        Args.MinCoveredProb    = 0.5; % the required minimal probability sum covered
         Args.ThresholdFAR      = 3.17e-9; % [s(-1)] 1.3e-7 ~ one false alarm in 3 months  % 3.17e-9 -- 1 in 10 years 
         Args.MaxTargets        = 4;
         Args.Cadence           = 3;
@@ -23,6 +24,8 @@ function Result = plannerToO(AlertMapCSV, Args)
         Args.ShowCoverageCurve = false; 
         Args.Verbosity         = 1;
         Args.DrawMaps logical  = true;
+        Args.MockAlerts        = false;
+        Args.TestAlerts        = false;
     end
     
     Sr = (180/pi)^2;  % deg(2)
@@ -35,7 +38,7 @@ function Result = plannerToO(AlertMapCSV, Args)
     Result.CoveredProb = 0;
     Result.Ntarg       = 0;
     Result.Targets     = "";
-    Result.N50         = 0;    
+    Result.NCover      = 0;    
     
     % read some of the parameters from the FITS header:
     AH = AstroHeader(strrep(AlertMapCSV, '.csv', '.fits'),2);
@@ -50,7 +53,7 @@ function Result = plannerToO(AlertMapCSV, Args)
     Result.DateObs = Jdata.event.time;
     Result.FAR = Jdata.event.far;    
         
-    % filtering by the FAR 
+    % filtering by the FAR value 
     if Result.FAR > Args.ThresholdFAR         
         if Args.Verbosity > 0
             fprintf('FAR above the threshold \n');
@@ -59,9 +62,15 @@ function Result = plannerToO(AlertMapCSV, Args)
     end
     
     % filtering out mock and test alerts
-    if Result.Superevent(1) == 'M' || Result.Superevent(1) == 'T' % filter out Mocks and Tests             
+    if Result.Superevent(1) == 'M' % filter out Mocks 
         if Args.Verbosity > 0
-            fprintf('Mock or test alert filtered out\n');
+            fprintf('Mock alert filtered out\n');
+        end
+        return
+    end
+    if Result.Superevent(1) == 'T' % filter out Tests             
+        if Args.Verbosity > 0
+            fprintf('Test alert filtered out\n');
         end
         return
     end
@@ -110,19 +119,19 @@ function Result = plannerToO(AlertMapCSV, Args)
             fprintf('The target area is covered with %d FOVs \n',Ntarg0)
         end
     
-    % sort the targets by covered probability (with no overlap treatment!)
+    % sort the targets by covered probability (with no overlap treatment!) 
     [~, Ind] = sort([Targets0.Pr], 'descend'); 
      
     if Args.ShowCoverageCurve
         It = 0;
-        Result.N50 = 0;
-        while It < Ntarg0 && Result.N50 < 1
+        Result.NCover = 0;
+        while It < Ntarg0 && Result.NCover < 1
             It = It+1;
             Targets = Targets0(Ind(1:It));  % select first It targets
             TargCoo = cell2mat(arrayfun(@(x) x.Coo, Targets, 'UniformOutput', false)');
-            CoveredProb(It) = sumProbability(Map,'Targets',TargCoo,'FOVradius',Args.FOVradius);  
-            if CoveredProb(It) > 0.5 
-                Result.N50 = It;
+            CoveredProb = sumProbability(Map,'Targets',TargCoo,'FOVradius',Args.FOVradius);  
+            if CoveredProb > Args.MinCoveredProb 
+                Result.NCover = It;
             end
         end
     end

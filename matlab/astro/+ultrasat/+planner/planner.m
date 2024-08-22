@@ -21,7 +21,7 @@ function planner
     
     fprintf('%d real events of %d total \n',numel(R),Nalerts);
     
-    subplot(2,1,1); histogram([R.CoveredProb])
-    subplot(2,1,2); histogram([R.Ntarg])
+    subplot(2,1,1); histogram([R.CoveredProb]); xlabel 'Covered probability'
+    subplot(2,1,2); histogram([R.NCover]); xlabel 'Number of covering FOVs'
     
 end
