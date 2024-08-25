@@ -3,12 +3,12 @@ function planner(Args)
     arguments
         Args.MaxTargets     = 4;    % maximal number of ULTRASAT targets covering the object 
         Args.MinCoveredProb = 0.8;  % the minimal cumulative probability to be covered 
-        Args.ProbThresh     = 0.01; % the limiting probability per ULTRASAT pointing 
+        Args.ProbThresh     = 0.01; % the limiting (cleaning) probability per ULTRASAT pointing 
         Args.MockAlerts     = false;
     end
 
     % test ToO planner with the whole set of O4 alerts of April 1-14, 2024       
-    Alerts  = dir ('~/ULTRASAT/SkyGrid/LVC/*/*csv');
+    Alerts  = dir ('~/ULTRASAT/SkyGrid/LVC/202*/*/*/*csv');
     
     Nalerts = numel(Alerts);
         
