@@ -88,6 +88,12 @@ function Result = plannerToO(AlertMapCSV, Args)
         end
         return
     end
+    if Args.MockAlerts && Result.Superevent(1) == 'S' % filter out real events
+        if Args.Verbosity > 0
+            fprintf('Real alert filtered out\n');
+        end
+        return    
+    end 
         
     % read the alert map from a CSV file and filter out points < 0.1 sr(-1)
     Map0 = readtable(AlertMapCSV);
