@@ -43,10 +43,21 @@ function Result = plannerToO(AlertMapCSV, Args)
     Result.CoveredArea = 0;
     
     % read some of the parameters from the FITS header:
-    AH = AstroHeader(strrep(AlertMapCSV, '.csv', '.fits'),2);
-    Result.Distmean = AH.getVal('Distmean');
-    Result.Diststd  = AH.getVal('Diststd');
-    
+%     AH = AstroHeader(strrep(AlertMapCSV, '.csv', '.fits'),2);
+%     Result.Distmean = AH.getVal('Distmean');
+%     Result.Diststd  = AH.getVal('Diststd');
+           
+    Jdata = jsondecode(fileread(strrep(AlertMapCSV, '.csv', '.fits.json')));
+    try
+        Result.Distmean = Jdata.DISTMEAN;
+    catch
+        Result.Distmean = NaN;
+    end
+    try      
+        Result.Diststd  = Jdata.DISTSTD;        
+    catch
+        Result.Diststd  = NaN;
+    end
     % read event parameters from a JSON file:
     Jdata = jsondecode(fileread(strrep(AlertMapCSV, '.csv', '.json')));
     Result.Type = Jdata.alert_type;
@@ -253,7 +264,10 @@ function [SumProb, SumArea] = sumProbability(Map, Args)
                   256, 0.052455852825697924; ...
                   512, 0.013113963206424481; ...
                  1024, 0.0032784908016061202; ...
-                 2048, 0.0008196227004015301];
+                 2048, 0.0008196227004015301;...
+                 4096, 0.00020490567510038252; ...
+                 8192, 5.122641877509563e-05; ...
+                16384, 1.2806604693773907e-05];                 
 
     RAD  = 180/pi;   % deg
     SRAD = RAD*RAD;  % deg(2)

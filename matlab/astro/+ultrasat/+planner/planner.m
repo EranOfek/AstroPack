@@ -16,9 +16,14 @@ function planner(Args)
     
     for Ialert = 1:Nalerts
         fprintf('%d \n',Ialert); 
-        Result(Ialert) = ultrasat.planner.plannerToO(strcat(Alerts(Ialert).folder,'/',Alerts(Ialert).name),...
-                        'MaxTargets',Args.MaxTargets,'ProbThresh',Args.ProbThresh,'DrawMaps',false,...
-                        'Verbosity',0,'ShowCoverageCurve',1,'MinCoveredProb',Args.MinCoveredProb,'MockAlerts',Args.MockAlerts);
+        try
+            File = strcat(Alerts(Ialert).folder,'/',Alerts(Ialert).name);
+            Result(Ialert) = ultrasat.planner.plannerToO(File,...
+                'MaxTargets',Args.MaxTargets,'ProbThresh',Args.ProbThresh,'DrawMaps',false,...
+                'Verbosity',0,'ShowCoverageCurve',1,'MinCoveredProb',Args.MinCoveredProb,'MockAlerts',Args.MockAlerts);
+        catch ME
+            fprintf('Alert %d file %s: planner failed \n',Ialert,File)
+        end
     end
     
     toc
