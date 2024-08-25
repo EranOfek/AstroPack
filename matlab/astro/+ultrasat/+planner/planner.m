@@ -52,3 +52,41 @@ function planner(Args)
     subplot(2,1,2); plot(-7.5-log10([R.FAR]),[R.CoveredArea],'*'); xlabel 'lg(1/FAR), [lg(yr)]'; ylabel 'Area, sq. deg.'
     
 end
+
+function plot_results
+
+load('Res_240real_P0.8.mat')
+load('Res_240real_P0.9.mat')
+figure(1)
+hold on
+subplot(2,2,1)
+histogram([R_real_80.CoveredArea])
+subplot(2,2,3)
+histogram([R_real_90.CoveredArea])
+subplot(2,2,2)
+histogram([R_real_80.NCover])
+subplot(2,2,4)
+histogram([R_real_90.NCover])
+xlabel N_{exposures}
+subplot(2,2,3)
+xlabel 'Area (deg^2)'
+ylabel '90% coverage'
+subplot(2,2,1)
+ylabel '80% coverage'
+title '225 real alerts of LVC 04 (all types) 06.2023-08.2024'
+
+figure(2)
+title '225 real alerts of LVC 04 (all types) 06.2023-08.2024'
+subplot(2,2,1)
+plot(-7.5-log10([R_real_80.FAR]),[R_real_80.NCover],'*'); xlabel 'lg(1/FAR), [lg(yr)]'
+ylabel 'N_{exposures}'
+subplot(2,2,2)
+plot(-7.5-log10([R_real_90.FAR]),[R_real_90.NCover],'*'); xlabel 'lg(1/FAR), [lg(yr)]'
+subplot(2,2,4)
+plot(-7.5-log10([R_real_90.FAR]),[R_real_90.CoveredArea],'*'); xlabel 'lg(1/FAR), [lg(yr)]'
+subplot(2,2,3)
+plot(-7.5-log10([R_real_80.FAR]),[R_real_80.CoveredArea],'*'); xlabel 'lg(1/FAR), [lg(yr)]'
+ylabel '80% coverage'
+subplot(2,2,4)
+ylabel '90% coverage'
+end

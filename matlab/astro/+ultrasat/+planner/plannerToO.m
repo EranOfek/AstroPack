@@ -13,10 +13,10 @@ function Result = plannerToO(AlertMapCSV, Args)
     % ultrasat.planner.plannerToO('~/ULTRASAT/SkyGrid/LVC/01/lvc_2024_04_01_00_40_58_000000.csv');
     %
     arguments
-        AlertMapCSV            = '~/ULTRASAT/SkyGrid/LVC/01/lvc_2024_04_01_00_40_58_000000.csv'; 
+        AlertMapCSV            = '~/ULTRASAT/SkyGrid/LVC/2024/04/01/lvc_2024_04_01_00_40_58_000000.csv'; 
         Args.FOVradius         = 7;   % deg
         Args.CleanThresh       = 0.1; % cleaning probability [sr(-1)] 
-        Args.ProbThresh        = 0.2; % the limiting probability per ULTRASAT pointing (determines the maximal number of FOVs)
+        Args.ProbThresh        = 0.1; % the limiting probability per ULTRASAT pointing (determines the maximal number of FOVs)
         Args.MinCoveredProb    = 0.5; % the required minimal cumulative probability to be covered
         Args.ThresholdFAR      = 3.17e-9; % [s(-1)] 1.3e-7 ~ one false alarm in 3 months  % 3.17e-9 -- 1 in 10 years 
         Args.MaxTargets        = 4;
@@ -166,7 +166,10 @@ function Result = plannerToO(AlertMapCSV, Args)
     end
     
     % illustration:
-    if Args.DrawMaps
+    if Args.DrawMaps        
+        for Itarg = 1:Result.NCover
+            plot.skyCircles(Targets0(Ind(Itarg)).Coo(1),Targets0(Ind(Itarg)).Coo(2),'Rad',Args.FOVradius,'PlotOnMap',true,'Color','green');
+        end
         for Itarg = 1:Result.Ntarg
             plot.skyCircles(Targets(Itarg).Coo(1),Targets(Itarg).Coo(2),'Rad',Args.FOVradius,'PlotOnMap',true,'Color','red');
         end
