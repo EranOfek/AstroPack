@@ -65,6 +65,7 @@ classdef INPOP < Base
         Constant          = celestial.INPOP.readConstants;
     end
     
+    
     properties (Constant)
 %         ChebyFun cell     = {NaN,NaN, @celestial.INPOP.chebyshevFun2,...
 %                                        @celestial.INPOP.chebyshevFun3,...
@@ -87,6 +88,14 @@ classdef INPOP < Base
         ColTend           = 2;
         
     end
+    
+    properties (Hidden)
+        Tstart
+        Tend
+        Tmid
+        IndVec
+    end
+    
     
     methods % constructor
         function Obj = INPOP(Args)
@@ -626,6 +635,11 @@ classdef INPOP < Base
                     switch lower(Args.FileData)
                         case 'pos'
                             Obj.PosTables.(Object{Iobject}) = Table;
+                            
+                            Obj.Tstart.(Object{Iobject}) = Obj.PosTables.(Object{Iobject})(1:3:end, Obj.ColTstart);
+                            Obj.Tend.(Object{Iobject})   = Obj.PosTables.(Object{Iobject})(1:3:end, Obj.ColTend);
+                            Obj.Tmid.(Object{Iobject})   = 0.5.*(Obj.Tstart.(Object{Iobject}) + Obj.Tend.(Object{Iobject}));
+                            
                         case 'vel'
                             Obj.VelTables.(Object{Iobject}) = Table;
                         otherwise
@@ -789,9 +803,18 @@ classdef INPOP < Base
                 error('%s table for object %s is not loaded - use populateTables to load table', TableName, Object);
             end
             
-            Tstart = Obj.(TableName).(Object)(1:Args.Ncoo:end, Obj.ColTstart);
-            Tend   = Obj.(TableName).(Object)(1:Args.Ncoo:end, Obj.ColTend);
-            Tmid   = (Tstart + Tend).*0.5;
+            if Args.Ncoo==3
+                Tstart = Obj.Tstart.(Object);
+                Tend   = Obj.Tend.(Object);
+                Tmid   = Obj.Tmid.(Object);
+            else
+                Tstart = Obj.(TableName).(Object)(1:Args.Ncoo:end, Obj.ColTstart);
+                Tend   = Obj.(TableName).(Object)(1:Args.Ncoo:end, Obj.ColTend);
+                Tmid   = (Tstart + Tend).*0.5;
+            end
+            
+            
+            
             Tstep  = Tmid(2) - Tmid(1);
             Thstep = Tstep.*0.5;
             
@@ -801,7 +824,7 @@ classdef INPOP < Base
             % the XYZ coef. table...
             %IndJD        = interp1(Tmid, IndVec, JD, 'nearest','extrap');
             IndJD        = ceil((JD - Tstart(1))./Tstep);
-            ChebyOrder   = Ncol - Obj.ColTend;
+            %ChebyOrder   = Ncol - Obj.ColTend;
             
             
             Norder = Ncol - ColDataStart + 1;
@@ -825,14 +848,14 @@ classdef INPOP < Base
             end
             
             switch lower(Args.OutUnits)
+                case 'au'
+                    % au or au/day
+                    Pos = Pos .* (1./Obj.Constant.AU);
                 case 'km'
                     % do nothing [km, or km/day]
                 case 'cm'
                     % cm or cm/day
                     Pos = Pos.*1e5;
-                case 'au'
-                    % au or au/day
-                    Pos = Pos .* (1./Obj.Constant.AU);
                 otherwise
                     error('Unknown OutUnits option');
             end
