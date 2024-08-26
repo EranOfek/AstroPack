@@ -2,9 +2,12 @@ function planner(Args)
     % 
     arguments
         Args.MaxTargets     = 4;    % maximal number of ULTRASAT targets covering the object 
-        Args.MinCoveredProb = 0.8;  % the minimal cumulative probability to be covered 
+        Args.MinCoveredProb = 0.5;  % the minimal cumulative probability to be covered 
         Args.ProbThresh     = 0.01; % the limiting (cleaning) probability per ULTRASAT pointing 
         Args.MockAlerts     = false;
+        Args.UniqueOnly     = true;
+        Args.UpdateOnly     = false;
+        Args.UpdateInitial  = true;
     end
 
     % test ToO planner with the whole set of O4 alerts of April 1-14, 2024       
@@ -28,65 +31,91 @@ function planner(Args)
     
     toc
         
-    R=Result([Result.Ntarg]>0);
-
-%     [R.Type " "]: "PRELIMINARY" "INITIAL" "UPDATE" "RETRACTED" 
-%     % of each R.Superevent keep only the latest alert? 
-    SId = {R.Superevent};
-    JD = celestial.time.date2jd(celestial.time.str2date(strrep(strrep({R.AlertTime},'T',' '),'Z','.0Z')));
-    [uniqueSId, ~, idx] = unique(SId);
-    maxIndices = arrayfun(@(i) find(JD(idx == i) == max(JD(idx == i)), 1, 'first'), 1:numel(uniqueSId));
-%     R_unique = R(finalIndices);
-%     
+    % clean the structure 
+    R=Result([Result.NCover]>0);
+    
     fprintf('%d real events of %d total \n',numel(R),Nalerts);
+   
+    % of each R.Superevent keep only the latest alert
+    if Args.UniqueOnly
+        SId = {R.Superevent};
+        JD = celestial.time.date2jd(celestial.time.str2date(strrep(strrep({R.AlertTime},'T',' '),'Z','.0Z')));
+        [uniqueSId, ~, ~] = unique(SId);
+        maxIndices = zeros(1, numel(uniqueSId));
+        for i = 1:numel(uniqueSId)
+            % Get indices of structures with the current SId
+            currentIndices = find(strcmp(SId, uniqueSId{i}));
+            % Find the index of the structure with the maximum JD value
+            [~, maxIdx] = max(JD(currentIndices));
+            % Store the original index of this structure
+            maxIndices(i) = currentIndices(maxIdx);
+        end
+        R = R(maxIndices);
+    end
+    
+    % "EARLYWARNING" "PRELIMINARY" "INITIAL" "UPDATE" "RETRACTED" 
+    if Args.UpdateOnly
+        R = R(string({R.Type})=='UPDATE'); % keep only 'UPDATE' alerts
+    end
+    if Args.UpdateInitial
+        R = R(string({R.Type})=='UPDATE' | string({R.Type})=='INITIAL'); % keep only 'UPDATE' and 'INITIAL' alerts
+    end
+%     
+    % plots
     
     figure(1)
-    Lab = sprintf('Cumulative probability covered by <= %.0f FOVs',Args.MaxTargets);
-    subplot(2,1,1); histogram([R.CoveredProb]); xlabel(Lab)
-    Lab = sprintf('Number of FOVs required to cover P > %.2f',Args.MinCoveredProb);
-    subplot(2,1,2); histogram([R.NCover]); xlabel(Lab)
-    figure(2)
-    Lab = sprintf('Cumulative P >= %.2f',Args.MinCoveredProb);
-    title(Lab)
-    subplot(2,1,1); plot(-7.5-log10([R.FAR]),[R.NCover],'*'); xlabel 'lg(1/FAR), [lg(yr)]'; ylabel 'Number of FOVs'
-    subplot(2,1,2); plot(-7.5-log10([R.FAR]),[R.CoveredArea],'*'); xlabel 'lg(1/FAR), [lg(yr)]'; ylabel 'Area, sq. deg.'
+    T = sprintf('%d unique alerts of LVC 04 06/23-08/24',numel(R)); title(T)
+    subplot(2,1,1); histogram([R.NCover])
+    XL = sprintf('N_{exp} required to cover P > %.2f',Args.MinCoveredProb); xlabel(XL)
+    subplot(2,1,2); histogram([R.CoveredArea]);
+    XL = sprintf('area, > %.2f accumulated probability [deg^2]',Args.MinCoveredProb); xlabel(XL)     
+        
+       
+%     figure(1)
+%     Lab = sprintf('Cumulative probability covered by <= %.0f FOVs',Args.MaxTargets);
+%     subplot(2,1,1); histogram([R.CoveredProb]); xlabel(Lab)
+%     Lab = sprintf('Number of FOVs required to cover P > %.2f',Args.MinCoveredProb);
+%     subplot(2,1,2); histogram([R.NCover]); xlabel(Lab)
+%     figure(2)
+%     Lab = sprintf('Cumulative P >= %.2f',Args.MinCoveredProb);
+%     title(Lab)
+%     subplot(2,1,1); plot(-7.5-log10([R.FAR]),[R.NCover],'*'); xlabel 'lg(1/FAR), [lg(yr)]'; ylabel 'Number of FOVs'
+%     subplot(2,1,2); plot(-7.5-log10([R.FAR]),[R.CoveredArea],'*'); xlabel 'lg(1/FAR), [lg(yr)]'; ylabel 'Area, sq. deg.'
     
 end
-
-function plot_results
-
-load('Res_240real_P0.8.mat')
-load('Res_240real_P0.9.mat')
-figure(1)
-hold on
-subplot(2,2,1)
-histogram([R_real_80.CoveredArea])
-subplot(2,2,3)
-histogram([R_real_90.CoveredArea])
-subplot(2,2,2)
-histogram([R_real_80.NCover])
-subplot(2,2,4)
-histogram([R_real_90.NCover])
-xlabel N_{exposures}
-subplot(2,2,3)
-xlabel 'Area (deg^2)'
-ylabel '90% coverage'
-subplot(2,2,1)
-ylabel '80% coverage'
-title '225 real alerts of LVC 04 (all types) 06.2023-08.2024'
-
-figure(2)
-title '225 real alerts of LVC 04 (all types) 06.2023-08.2024'
-subplot(2,2,1)
-plot(-7.5-log10([R_real_80.FAR]),[R_real_80.NCover],'*'); xlabel 'lg(1/FAR), [lg(yr)]'
-ylabel 'N_{exposures}'
-subplot(2,2,2)
-plot(-7.5-log10([R_real_90.FAR]),[R_real_90.NCover],'*'); xlabel 'lg(1/FAR), [lg(yr)]'
-subplot(2,2,4)
-plot(-7.5-log10([R_real_90.FAR]),[R_real_90.CoveredArea],'*'); xlabel 'lg(1/FAR), [lg(yr)]'
-subplot(2,2,3)
-plot(-7.5-log10([R_real_80.FAR]),[R_real_80.CoveredArea],'*'); xlabel 'lg(1/FAR), [lg(yr)]'
-ylabel '80% coverage'
-subplot(2,2,4)
-ylabel '90% coverage'
-end
+% 
+% 
+% load('Res_240real_P0.8.mat')
+% load('Res_240real_P0.9.mat')
+% figure(1)
+% hold on
+% subplot(2,2,1)
+% histogram([R_real_80.CoveredArea])
+% subplot(2,2,3)
+% histogram([R_real_90.CoveredArea])
+% subplot(2,2,2)
+% histogram([R_real_80.NCover])
+% subplot(2,2,4)
+% histogram([R_real_90.NCover])
+% xlabel N_{exposures}
+% subplot(2,2,3)
+% xlabel 'Area (deg^2)'
+% ylabel '90% coverage'
+% subplot(2,2,1)
+% ylabel '80% coverage'
+% title '225 real alerts of LVC 04 (all types) 06.2023-08.2024'
+% 
+% figure(2)
+% title '225 real alerts of LVC 04 (all types) 06.2023-08.2024'
+% subplot(2,2,1)
+% plot(-7.5-log10([R_real_80.FAR]),[R_real_80.NCover],'*'); xlabel 'lg(1/FAR), [lg(yr)]'
+% ylabel 'N_{exposures}'
+% subplot(2,2,2)
+% plot(-7.5-log10([R_real_90.FAR]),[R_real_90.NCover],'*'); xlabel 'lg(1/FAR), [lg(yr)]'
+% subplot(2,2,4)
+% plot(-7.5-log10([R_real_90.FAR]),[R_real_90.CoveredArea],'*'); xlabel 'lg(1/FAR), [lg(yr)]'
+% subplot(2,2,3)
+% plot(-7.5-log10([R_real_80.FAR]),[R_real_80.CoveredArea],'*'); xlabel 'lg(1/FAR), [lg(yr)]'
+% ylabel '80% coverage'
+% subplot(2,2,4)
+% ylabel '90% coverage'
