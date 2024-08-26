@@ -173,7 +173,7 @@ Vec  = VecX;
 % no need to use meshgrid:
 [MatX,MatY] = meshgrid(Vec,Vec);
 %MatR        = sqrt(MatX.^2 + MatY.^2);
-MatR2       = MatX.^2 + MatY.^2;
+%MatR2       = MatX.^2 + MatY.^2;
 MatR2        = VecX.^2 + VecY(:).^2;
 
 %MatR        = sqrt(MatR2);
