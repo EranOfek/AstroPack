@@ -44,7 +44,9 @@ function planner(Args)
     if Args.UniqueOnly
         SId = {R.Superevent};
         JD = celestial.time.date2jd(celestial.time.str2date(strrep(strrep({R.AlertTime},'T',' '),'Z','.0Z')));
-        R.alertJD = JD;
+        for i = 1:numel(JD)
+            R(i).AlertJD = JD(i);
+        end
         [uniqueSId, ~, ~] = unique(SId);
         maxIndices = zeros(1, numel(uniqueSId));  minIndices = zeros(1, numel(uniqueSId));
         for i = 1:numel(uniqueSId)

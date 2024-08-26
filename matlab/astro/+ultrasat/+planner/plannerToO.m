@@ -41,6 +41,7 @@ function Result = plannerToO(AlertMapCSV, Args)
     Result.Targets     = "";
     Result.NCover      = 0;    
     Result.CoveredArea = 0;
+    Result.AlertJD     = 0;
     
     % read some of the parameters from the FITS header:
 %     AH = AstroHeader(strrep(AlertMapCSV, '.csv', '.fits'),2);
@@ -64,7 +65,7 @@ function Result = plannerToO(AlertMapCSV, Args)
     Result.Superevent = Jdata.superevent_id;
     Result.Instrument = Jdata.event.instruments;
     Result.DateObs = Jdata.event.time;
-    Result.AlertTime = Jdata.time_created;
+    Result.AlertTime = Jdata.time_created;    
     Result.FAR = Jdata.event.far;    
         
     % filtering by the FAR value 
