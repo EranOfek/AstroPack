@@ -2,7 +2,7 @@ function planner(Args)
     % 
     arguments
         Args.MaxTargets     = 4;    % maximal number of ULTRASAT targets covering the object 
-        Args.MinCoveredProb = 0.5;  % the minimal cumulative probability to be covered 
+        Args.MinCoveredProb = 0.8;  % the minimal cumulative probability to be covered 
         Args.ProbThresh     = 0.01; % the limiting (cleaning) probability per ULTRASAT pointing 
         Args.MockAlerts     = false;
         Args.UniqueOnly     = true;        

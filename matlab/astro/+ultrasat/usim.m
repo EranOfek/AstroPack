@@ -792,7 +792,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         save(OutObjName,'usimImage','-v7.3');
     end
            
-    % write the image to a FITS file    
+    % write the image to a FITS file 
+    % if you do not wish to write any files, use 'OutType','none'
     if strcmp( Args.OutType,'FITS') || strcmp( Args.OutType,'all')
                 
         OutFITSName = sprintf('%s%s%s%s%s%s%s','!',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'.fits');
