@@ -5,12 +5,11 @@ function planner(Args)
         Args.MinCoveredProb = 0.5;  % the minimal cumulative probability to be covered 
         Args.ProbThresh     = 0.01; % the limiting (cleaning) probability per ULTRASAT pointing 
         Args.MockAlerts     = false;
-        Args.UniqueOnly     = true;
-        Args.UpdateOnly     = false;
+        Args.UniqueOnly     = true;        
         Args.UpdateInitial  = true;
     end
 
-    % test ToO planner with the whole set of O4 alerts of April 1-14, 2024       
+    % test ToO planner with the whole set of O4 alerts        
     Alerts  = dir ('~/ULTRASAT/SkyGrid/LVC/202*/*/*/*csv');
     
     Nalerts = numel(Alerts);
@@ -35,42 +34,42 @@ function planner(Args)
     R=Result([Result.NCover]>0);
     
     fprintf('%d real events of %d total \n',numel(R),Nalerts);
+    
+    % Types: "EARLYWARNING" "PRELIMINARY" "INITIAL" "UPDATE" "RETRACTED"     
+    if Args.UpdateInitial
+        R = R(string({R.Type})=='UPDATE' | string({R.Type})=='INITIAL'); % keep only 'UPDATE' and 'INITIAL' alerts        
+    end
    
-    % of each R.Superevent keep only the latest alert
+    % of each R.Superevent keep only the first and the last alert
     if Args.UniqueOnly
         SId = {R.Superevent};
         JD = celestial.time.date2jd(celestial.time.str2date(strrep(strrep({R.AlertTime},'T',' '),'Z','.0Z')));
+        R.alertJD = JD;
         [uniqueSId, ~, ~] = unique(SId);
-        maxIndices = zeros(1, numel(uniqueSId));
+        maxIndices = zeros(1, numel(uniqueSId));  minIndices = zeros(1, numel(uniqueSId));
         for i = 1:numel(uniqueSId)
             % Get indices of structures with the current SId
             currentIndices = find(strcmp(SId, uniqueSId{i}));
             % Find the index of the structure with the maximum JD value
             [~, maxIdx] = max(JD(currentIndices));
+            [~, minIdx] = min(JD(currentIndices));
             % Store the original index of this structure
             maxIndices(i) = currentIndices(maxIdx);
+            minIndices(i) = currentIndices(minIdx);
         end
-        R = R(maxIndices);
-    end
-    
-    % "EARLYWARNING" "PRELIMINARY" "INITIAL" "UPDATE" "RETRACTED" 
-    if Args.UpdateOnly
-        R = R(string({R.Type})=='UPDATE'); % keep only 'UPDATE' alerts
-    end
-    if Args.UpdateInitial
-        R = R(string({R.Type})=='UPDATE' | string({R.Type})=='INITIAL'); % keep only 'UPDATE' and 'INITIAL' alerts
-    end
+        Rn = R(maxIndices);
+        R1 = R(minIndices);
+    end        
 %     
     % plots
     
     figure(1)
-    T = sprintf('%d unique alerts of LVC 04 06/23-08/24',numel(R)); title(T)
-    subplot(2,1,1); histogram([R.NCover])
+    T = sprintf('%d unique alerts of LVC 04 06/23-08/24',numel(Rn)); title(T)
+    subplot(2,1,1); histogram([Rn.NCover])
     XL = sprintf('N_{exp} required to cover P > %.2f',Args.MinCoveredProb); xlabel(XL)
-    subplot(2,1,2); histogram([R.CoveredArea]);
+    subplot(2,1,2); histogram([Rn.CoveredArea],'BinWidth',250);
     XL = sprintf('area, > %.2f accumulated probability [deg^2]',Args.MinCoveredProb); xlabel(XL)     
-        
-       
+              
 %     figure(1)
 %     Lab = sprintf('Cumulative probability covered by <= %.0f FOVs',Args.MaxTargets);
 %     subplot(2,1,1); histogram([R.CoveredProb]); xlabel(Lab)
