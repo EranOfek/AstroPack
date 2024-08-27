@@ -77,6 +77,8 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %            'SubPixShift' - Method for sub pixels hift before during photometry
 %                       with imUtil.sources.aperPhotCube.
 %                       Default is 'fft'.
+%            'UseMex' - Use MEX functionality for speedup.
+%                       Default is false.
 % Output  : - First moment information. 
 %             A structure with the following fields.
 %             .RoundX - Vector of roundex X position
@@ -138,6 +140,8 @@ arguments
     Args.CalcWeightedAper logical                      = false;
     %Args.SubPixShiftBeforePhot logical                 = false;
     Args.SubPixShift                                   = 'fft'; %'fft';   % 'fft' | 'lanczos' | 'none'
+    
+    Args.UseMex logical                                = false;
 end
 
 % make sure all the variables has the same type as the Image
@@ -194,7 +198,12 @@ if Args.SubBack || nargout>2
     BackCube = BackFilter.*Cube;
     % note - use NaN ignoring functions!
     Aper.AnnulusBack = squeeze(Args.BackFun(BackCube,Args.BackFunArgs{:}));
-    Aper.AnnulusStd  = squeeze(std(BackCube,0,[1 2],'omitnan'));
+    if Args.UseMex
+        [~,Aper.AnnulusStd] = tools.math.stat.mex.squeezeStdCube_Dim12(BackCube);
+    else
+        Aper.AnnulusStd  = squeeze(std(BackCube,0,[1 2],'omitnan'));
+    end
+    
 
     % subtract back
     if Args.SubBack
