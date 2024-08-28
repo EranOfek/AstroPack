@@ -3,6 +3,17 @@ function Result = unitTest
 	
     %io.msgStyle(LogLevel.Test, '@start', 'tools.array test started');
 
+    % tools.array.mex.squeezeSumAmultB_Dim12
+    A=rand(25,25,1000);
+    B=rand(25,25,1000);
+    Norm=rand(1000,1); 
+    tic;for I=1:1000, C=tools.array.mex.squeezeSumAmultB_Dim12(A,B,Norm);end, toc
+    tic;for I=1:1000, C1=squeeze(sum(A.*B,[1 2])).*Norm; end, toc                
+    if max(abs(C-C1))>1000.*eps
+        error('tools.array.mex.squeezeSumAmultB_Dim12 is inconsistent');
+    end
+
+    
     % tools.array.mex.squeezeSumCubeMatNorm
     MatXcen=rand(15,15);       
     Norm=ones(1000,1);

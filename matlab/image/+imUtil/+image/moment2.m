@@ -329,8 +329,13 @@ else
         WInt = W.*W_Max.*Cube; % Weighted intensity
         Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
 
-        DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
-        DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+        if Args.UseMex
+            DeltaX1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatXcen, Norm);
+            DeltaY1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatYcen, Norm);
+        else
+            DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
+            DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+        end
 
         if ~isempty(Args.MaxStep)
             DeltaX1 = sign(DeltaX1).*min(abs(DeltaX1), Args.MaxStep);
@@ -391,8 +396,13 @@ else
         
         Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
 
-        DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
-        DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+        if Args.UseMex
+            DeltaX1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatXcen, Norm);
+            DeltaY1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatYcen, Norm);
+        else
+            DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
+            DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+        end
 
         if ~isempty(Args.MaxStep)
             DeltaX1 = sign(DeltaX1).*min(abs(DeltaX1), Args.MaxStep);
