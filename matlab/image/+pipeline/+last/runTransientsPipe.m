@@ -192,13 +192,13 @@ function [AD, ADc, Status] = runTransientsPipe(VisitPath, Args)
     % Get asteroid catalogs for new and ref
     INPOP = celestial.INPOP;
     INPOP.populateAll;
-    OrbEl= celestial.OrbitalEl.loadSolarSystem('merge');
+    OrbElMerge= celestial.OrbitalEl.loadSolarSystem('merge');
 
     % Propogate catalog to new image epoch
     NewJulDay = median(arrayfun(@(x) x.New.julday,AD));
 
     [AstCat_new] = searchMinorPlanetsNearPosition(...
-        OrbEl, NewJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
+        OrbElMerge, NewJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
         'INPOP', INPOP, 'CooUnits','rad', 'SearchRadiusUnits','rad',...
         'QuickSearchBuffer', 500,'MagLimit', 21,...
         'RefEllipsoid','WGS84',...
@@ -218,7 +218,7 @@ function [AD, ADc, Status] = runTransientsPipe(VisitPath, Args)
     RefJulDay = median(arrayfun(@(x) x.Ref.julday,AD));
 
     [AstCat_ref] = searchMinorPlanetsNearPosition(...
-        OrbEl, RefJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
+        OrbElMerge, RefJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
         'INPOP', INPOP, 'CooUnits','rad', 'SearchRadiusUnits','rad',...
         'QuickSearchBuffer', 500,'MagLimit', 21,...
         'RefEllipsoid','WGS84',...
@@ -234,8 +234,120 @@ function [AD, ADc, Status] = runTransientsPipe(VisitPath, Args)
     %Clear for memory
     clear AstCat_ref;
     clear INPOP;
-    clear OrbEl;
+    clear OrbElMerge;
 
+    % Comet matching
+    
+    OrbElComet= celestial.OrbitalEl.loadSolarSystem('comet');
+
+    % Match Comet in new
+
+    [ComCat_new] = OrbElComet.searchMinorPlanetsNearPosition(...
+        NewJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
+        'CooUnits','rad', 'SearchRadiusUnits','rad',...
+        'OutUnitsDeg',true,'Integration', false);
+
+    % If comets within image, match to candidates
+
+    if size(ComCat_new.Catalog,1) > 0
+
+        ComCat_new.sortrows('Dec');
+    
+        [CometLon, CometLat] = ComCat_new.getLonLat('rad');
+        Rad2Arcsec = 206265;
+        Arcsec2Rad = 4.84814e-6;
+
+        for Iobj=1:1:Nobj
+            RADec = AD(Iobj).CatData.getLonLat('rad');
+            RA = RADec(:,1);
+            Dec = RADec(:,2);
+            ComMatches = VO.search.search_sortedlat_multi( ...
+                [CometLon, CometLat], RA, Dec, -90*Arcsec2Rad);
+            ComMatchsInd = find(vertcat(ComMatches.Nmatch) > 0);
+            NComMatches = numel(ComMatchsInd);
+
+            if NComMatches < 1
+                continue
+            end
+
+            MPDist_new = AD(Iobj).CatData.getCol('N_DistMP');
+            MPMag_new = AD(Iobj).CatData.getCol('N_MagMP');
+            for IComMatches = 1:1:NComMatches
+                IComMatchInd = ComMatchsInd(IComMatches);
+                OldDist = MPDist_new(IComMatchInd);
+                NewDist = min(ComMatches(IComMatchInd).Dist);
+                if isnan(OldDist) || (NewDist < OldDist)
+                    MPDist_new(IComMatchInd) = NewDist*Rad2Arcsec;
+                    Ind1 = ComMatches(IComMatchInd).Ind1;
+                    ComMags = ComCat_new.getCol('Mag');
+                    MPMag_new(IComMatchInd) = ComMags(Ind1);
+                end
+            end
+
+            % Update minor planet columns
+            AD(Iobj).CatData.replaceCol(MPDist_new,'N_DistMP');
+            AD(Iobj).CatData.replaceCol(MPMag_new,'N_MagMP');
+        end
+
+    end
+
+    %Clear for memory
+    clear ComCat_new;
+
+    % Match Comet in ref
+
+    [ComCat_ref] = OrbElComet.searchMinorPlanetsNearPosition(...
+        RefJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
+        'CooUnits','rad', 'SearchRadiusUnits','rad',...
+        'OutUnitsDeg',true,'Integration', false);
+
+    % If comets within image, match to candidates
+
+    if size(ComCat_ref.Catalog,1) > 0
+
+        ComCat_ref.sortrows('Dec');
+    
+        [CometLon, CometLat] = ComCat_ref.getLonLat('rad');
+        Rad2Arcsec = 206265;
+        Arcsec2Rad = 4.84814e-6;
+
+        for Iobj=1:1:Nobj
+            RADec = AD(Iobj).CatData.getLonLat('rad');
+            RA = RADec(:,1);
+            Dec = RADec(:,2);
+            ComMatches = VO.search.search_sortedlat_multi( ...
+                [CometLon, CometLat], RA, Dec, -90*Arcsec2Rad);
+            ComMatchsInd = find(vertcat(ComMatches.Nmatch) > 0);
+            NComMatches = numel(ComMatchsInd);
+
+            if NComMatches < 1
+                continue
+            end
+
+            MPDist_ref = AD(Iobj).CatData.getCol('R_DistMP');
+            MPMag_ref = AD(Iobj).CatData.getCol('R_MagMP');
+            for IComMatches = 1:1:NComMatches
+                IComMatchInd = ComMatchsInd(IComMatches);
+                OldDist = MPDist_ref(IComMatchInd);
+                NewDist = min(ComMatches(IComMatchInd).Dist);
+                if isnan(OldDist) || (NewDist < OldDist)
+                    MPDist_ref(IComMatchInd) = NewDist*Rad2Arcsec;
+                    Ind1 = ComMatches(IComMatchInd).Ind1;
+                    ComMags = ComCat_ref.getCol('Mag');
+                    MPMag_ref(IComMatchInd) = ComMags(Ind1);
+                end
+            end
+
+            % Update minor planet columns
+            AD(Iobj).CatData.replaceCol(MPDist_ref,'R_DistMP');
+            AD(Iobj).CatData.replaceCol(MPMag_ref,'R_MagMP');
+        end
+
+    end    
+
+    %Clear for memory
+    clear ComCat_ref;
+    
     % Measure transients
     AD.measureTransients;
     % Flag non transients

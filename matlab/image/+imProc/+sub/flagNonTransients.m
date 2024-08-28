@@ -156,6 +156,11 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagPeakValley logical = true;
         Args.PVDistThresh = 10;
+
+        Args.flagFocusing logical = false;
+        Args.FocusFWHMThreshSoft = 3.5;
+        Args.FocusFWHMThreshHard = 4.0;
+        Args.Focus2ndMomentThresh = 2.0;
         
         % --- AstroZOGY ---
         Args.flagScorr logical = true;
@@ -166,7 +171,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ignoreTranslient_NothingInRef = true;
         Args.ignoreTranslient_GalaxyNuclear = false;
         Args.TranslientGalaxyDistThresh = 1.0;
-        
+
     end
 
     Nobj = numel(Obj);
@@ -417,15 +422,31 @@ function TranCat = flagNonTransients(Obj, Args)
             
         end
 
-        if Args.flagPeakValley && Cat.isColumn('PVDist')
-            PVDist = Cat.getCol('PVDist');
+        if Args.flagPeakValley && Cat.isColumn('PV_DIST')
+            PVDist = Cat.getCol('PV_DIST');
             PeakValley = PVDist < Args.PVDistThresh;
 
             PVFlagged = PeakValley;
             TF_Flags = TF_Flags + PVFlagged.*2.^BD_TF.name2bit('PVDist');
 
         end
-                
+
+
+        if Args.flagFocusing
+            NFWHM = Obj(Iobj).New.PSFData.fwhm;
+
+            X2 = Cat.getCol('X2');
+            Y2 = Cat.getCol('Y2');
+            
+            FWHMFlaggedHard = ones(CatSize,1)*(NFWHM > Args.FocusFWHMThreshHard);
+            FWHMFlaggedSoft = ones(CatSize,1)*(NFWHM > Args.FocusFWHMThreshSoft);
+            SecondMomentFlagged = (X2 > Args.Focus2ndMomentThresh) | ...
+                (Y2 > Args.Focus2ndMomentThresh);
+            FocusFlagged = (FWHMFlaggedHard) | ...
+                (FWHMFlaggedSoft & SecondMomentFlagged);
+            TF_Flags = TF_Flags + FocusFlagged.*2.^BD_TF.name2bit('Focusing');
+        end
+              
         % ----- AstroZOGY -----
 
         if Args.flagScorr && Cat.isColumn('S_CORR')
