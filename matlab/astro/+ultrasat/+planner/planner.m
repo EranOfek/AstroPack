@@ -35,7 +35,7 @@ function planner(Args)
     
     fprintf('%d real events of %d total \n',numel(R),Nalerts);
     
-    save('R.mat','R')
+    save('R.mat','R') 
     
     % Types: "EARLYWARNING" "PRELIMINARY" "INITIAL" "UPDATE" "RETRACTED"     
     if Args.UpdateAndInitialOnly

@@ -194,8 +194,25 @@ function LCS_placement(Args)
     
     Vis = ultrasat.ULTRASAT_restricted_visibility(JD,Grid,'MinSunDist',(70)./RAD,'MinMoonDist',(34)./RAD,'MinEarthDist',(56)./RAD);
     
-    Limits = Vis.PowerLimits .* Vis.SunLimits .* Vis.MoonLimits .* Vis.EarthLimits;
+    LimitsCombined = Vis.PowerLimits .* Vis.SunLimits .* Vis.MoonLimits .* Vis.EarthLimits;
+    Limits2 =  Vis.PowerLimits .* Vis.SunLimits .* Vis.MoonLimits;  % observations only when the Sun is behind the Earth
+
+    Month = 30 / Args.TimeBin; % number of bins in a month
+    Nm    = 12;                % number of months
     
+    for iM = 1:Nm
+        bin1 = (iM-1)*Month+1; bin2 = iM*Month;
+        LimMonth(iM,:)  = prod(LimitsCombined(bin1:bin2,:));
+        LimMonth2(iM,:) = prod(Limits2(bin1:bin2,:));
+    end
+    
+    figure(2); subplot(1,2,1); imagesc(LimMonth); xlabel 'Field number'; ylabel 'Month number'; title 'full limits'; colorbar
+    subplot(1,2,2); imagesc(LimMonth2); xlabel 'Field number'; ylabel 'Month number'; title 'w/o Earth limits'; colorbar
+    
+    [(1:Nm)' sum(LimMonth2,2)] % number of fields visible in each month
+    
+    [(1:height(l))' sum(LimMonth2,1)] % number of months when each of the fields is visible
+            
 %     for IType = 1:NType     
 %         Limits = Vis.(LimitType{IType});
 % %         MaxLen.(LimitType{IType}) = uninterruptedLength(Limits, Np, Nt).* Args.TimeBin; % convert to [days]    
