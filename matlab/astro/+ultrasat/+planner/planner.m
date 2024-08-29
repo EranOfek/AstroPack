@@ -1,12 +1,12 @@
 function planner(Args)
     % 
     arguments
-        Args.MaxTargets     = 4;    % maximal number of ULTRASAT targets covering the object 
-        Args.MinCoveredProb = 0.8;  % the minimal cumulative probability to be covered 
-        Args.ProbThresh     = 0.01; % the limiting (cleaning) probability per ULTRASAT pointing 
+        Args.MaxTargets     = 4;              % maximal number of ULTRASAT targets covering the object 
+        Args.MinCoveredProb = [0.5 0.8 0.9];  % the minimal cumulative probability to be covered 
+        Args.ProbThresh     = 0.01;           % the limiting (cleaning) probability per ULTRASAT pointing 
         Args.MockAlerts     = false;
-        Args.UniqueOnly     = true;        
-        Args.UpdateInitial  = true;
+        Args.FirstAndLast   = true;        
+        Args.UpdateAndInitialOnly = false;
     end
 
     % test ToO planner with the whole set of O4 alerts        
@@ -31,17 +31,19 @@ function planner(Args)
     toc
         
     % clean the structure 
-    R=Result([Result.NCover]>0);
+    R = Result(arrayfun(@(x) x.NCover(1) > 0, Result));    
     
     fprintf('%d real events of %d total \n',numel(R),Nalerts);
     
+    save('R.mat','R')
+    
     % Types: "EARLYWARNING" "PRELIMINARY" "INITIAL" "UPDATE" "RETRACTED"     
-    if Args.UpdateInitial
+    if Args.UpdateAndInitialOnly
         R = R(string({R.Type})=='UPDATE' | string({R.Type})=='INITIAL'); % keep only 'UPDATE' and 'INITIAL' alerts        
     end
    
     % of each R.Superevent keep only the first and the last alert
-    if Args.UniqueOnly
+    if Args.FirstAndLast
         SId = {R.Superevent};
         JD = celestial.time.date2jd(celestial.time.str2date(strrep(strrep({R.AlertTime},'T',' '),'Z','.0Z')));
         for i = 1:numel(JD)

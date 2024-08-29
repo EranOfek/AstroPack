@@ -39,6 +39,7 @@ function Result = plannerToO(AlertMapCSV, Args)
     Result.CoveredProb = 0;
     Result.Ntarg       = 0;
     Result.Targets     = "";
+    Result.MinCoveredProb = Args.MinCoveredProb;
     Result.NCover      = 0;    
     Result.CoveredArea = 0;
     Result.AlertJD     = 0;
@@ -145,18 +146,25 @@ function Result = plannerToO(AlertMapCSV, Args)
      
     if Args.ShowCoverageCurve
         It = 0;
-        Result.NCover = 0;
-        while It < Ntarg0 && Result.NCover < 1
+        Nthresh = numel(Args.MinCoveredProb);        
+        Result.NCover(1:Nthresh) = 0;
+        Result.CoveredArea(1:Nthresh) = 0;
+        while It < Ntarg0 && Result.NCover(Nthresh) < 1
             It = It+1;
             Targets = Targets0(Ind(1:It));  % select first It targets
             TargCoo = cell2mat(arrayfun(@(x) x.Coo, Targets, 'UniformOutput', false)');
             [CoveredProb, CoveredArea] = sumProbability(Map,'Targets',TargCoo,'FOVradius',Args.FOVradius);  
-            if CoveredProb > Args.MinCoveredProb 
-                Result.NCover = It;
-                Result.CoveredArea = CoveredArea;
+            for i = 1:Nthresh
+            if CoveredProb > Args.MinCoveredProb(i) &&  Result.NCover(i) < 1 
+                Result.NCover(i) = It;
+                Result.CoveredArea(i) = CoveredArea;
+            end
             end
         end
     end
+    
+    return 
+    %%%%% !!!! TEMPORARY STOP FOR COLLECTING STATISTICS ONLY !!!!
             
     % select no more than Args.MaxTargets targets with highest probability
     Result.Ntarg = min(Result.NCover,Args.MaxTargets);
