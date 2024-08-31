@@ -1,12 +1,14 @@
 function M=conditionalReplace(M,A,B,V)
     % Perform an operation of the type: M(A>B)=V, where M and A are arrays, using mex.
+    %   Only effiennt for large array (in this case may be x5 times faster
+    %   than matlab).
     %   To compile the code use:
     %       mex -O CXXFLAGS="\$CXXFLAGS -mavx" mex_conditionalReplace_single.cpp
     %       mex -O CXXFLAGS="\$CXXFLAGS -mavx" mex_conditionalReplace_double.cpp
-    % Input  : - M
-    %          - A
-    %          - B
-    %          - V
+    % Input  : - M (array; single or double)
+    %          - A (array)
+    %          - B (scalar)
+    %          - V (scalar)
     % Output : - M
     % Author : Eran Ofek (Jul 2024)
     % Compilation :  mex CXXFLAGS='$CXXFLAGS -mavx' mex_conditionalReplace_double.cpp

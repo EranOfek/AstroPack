@@ -230,6 +230,7 @@ end
 % construct a window with maximal radiu
 W_Max = ones(size(MatR2),'like',Image);
 %W_Max = repmat(cast(1, 'like',Image), size(MatR2));  % no speed improvment
+% don't use: tools.array.conditionalReplace, because MatR2 array is small.
 W_Max(MatR2>MomRadius2) = 0;
 
 
