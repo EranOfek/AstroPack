@@ -29,7 +29,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
     RAD  = 180/pi;
     
     % High-cadence survey areas
-    HCS = [238, 60; 215, 60; 254, 64; 67, -59];
+    HCS = [215, 60; 254, 64; 67, -59];
    
     % read a reasonably dense equiareal grid in the equatorial coordinates
     Grid = readmatrix(Args.GridFile); RA = Grid(:,1); Dec = Grid(:,2); Np   = length(Grid);
@@ -39,6 +39,16 @@ function ULTRASAT_visibility_maps_LCS(Args)
     
     % read the All Sky grid of pointings
     AllSky = readtable(Args.AllSky); 
+    
+    % add some shift by by Dec:
+    ShiftDec = 30; % [deg]
+    for i=1:size(AllSky,1)
+        if AllSky.Var1(i) > ShiftDec
+            AllSky.Var1(i) = AllSky.Var1(i)-ShiftDec;
+        else
+            AllSky.Var1(i) = 360+AllSky.Var1(i)-ShiftDec;
+        end
+    end
     
     % make pole marks
 %     Poles = [0, -90; 0, 90];
@@ -86,6 +96,10 @@ function ULTRASAT_visibility_maps_LCS(Args)
             figure(1); hold on
             plot(List45.Var1,List45.Var2,'*','Color','black');
             plot(List180.Var1,List180.Var2,'*','Color','red');
+            
+            for i=1:3
+                plot.skyCircles(HCS(i,1), HCS(i,2), 'Rad', 7, 'Color','red');
+            end
 
     % now we turn on averaged extinction:        
     Averaged_extinction = celestial.grid.statSkyGrid('SkyPos',[lambda beta]);         
@@ -103,8 +117,8 @@ function ULTRASAT_visibility_maps_LCS(Args)
             plot(List180e.Var1,List180e.Var2,'*','Color','red');
             title 'max uninterruped visibility of 0.0-3.0 GMT window, days'
             
-            for i=1:4
-                plot.skyCircles(HCS(i,1), HCS(i,2), 'Rad', 7, 'Color', 'red');
+            for i=1:3
+                plot.skyCircles(HCS(i,1), HCS(i,2), 'Rad', 7, 'Color','red');
             end
                        
     % save the MaxLen structure and the equatorial grid in a matlab object
