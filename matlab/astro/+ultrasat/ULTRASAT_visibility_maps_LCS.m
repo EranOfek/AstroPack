@@ -214,6 +214,18 @@ function temp
     Lim = Vis.PowerLimits & Vis.SunLimits & Vis.MoonLimits; size(Lim)
     L2 = reshape(Lim,[12,180,12288]); size(L2)
     L3 = squeeze(prod(L2,1)); size(L3)
-    
-
+    MaxLen = uninterruptedLength(L3, 12288, 180); size(MaxLen)
+    histogram(MaxLen)
+    plot.ungridded_image(RA, Dec, MaxLen); caxis([40, 180]);
+    title 'max uninterruped visibility of 0.0-3.0 GMT window, days'
+    % now show fields available for each of the four 45-day periods":
+    % products of 1-45, 46-90, 91-135, 136-180 
+    Q(1,:) = prod(L3(1:45,:),1); 
+    Q(2,:) = prod(L3(46:90,:),1); 
+    Q(3,:) = prod(L3(91:135,:),1); 
+    Q(4,:) = prod(L3(136:180,:),1); 
+    figure(2); subplot(2,2,1); plot.ungridded_image(RA, Dec, Q(1,:));
+    subplot(2,2,2); plot.ungridded_image(RA, Dec, Q(2,:));
+    subplot(2,2,3); plot.ungridded_image(RA, Dec, Q(3,:));
+    subplot(2,2,4); plot.ungridded_image(RA, Dec, Q(4,:));
 end
