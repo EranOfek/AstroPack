@@ -8,12 +8,12 @@ function match2Galaxies(Obj, Args)
                'GladeCatName' - Name of the GLADE catalog. Default is
                       'GLADEp'.
                'RadiusGlade' - Search radius for matching with GLADE.
-                      Default is 3.
+                      Default is 5.
                'RadiusGladeUnits' - Units of RadiusGlade. Default is
                       'arcsec'.
                'PGCCatName' - Name of the PGC catalog. Default is 'PGC'.
                'RadiusPGC' - Initial search radius for matching with PGC.
-                      Default is 60.
+                      Default is 300.
                'RadiusPGCUnits' - Units of RadiusPGC. Default is
                       'arcsec'.
                'ColNmatchName' - Name of appended column with number of 
@@ -33,11 +33,11 @@ function match2Galaxies(Obj, Args)
         Obj
 
         Args.GladeCatName = 'GLADEp';
-        Args.RadiusGlade = 3;
+        Args.RadiusGlade = 5;
         Args.RadiusGladeUnits = 'arcsec';
 
         Args.PGCCatName = 'PGC';
-        Args.RadiusPGC = 60;
+        Args.RadiusPGC = 300;
         Args.RadiusPGCUnits = 'arcsec';
 
         Args.ColNmatchName = 'GAL_N';
@@ -47,17 +47,17 @@ function match2Galaxies(Obj, Args)
 
     end
 
-
     % Make sure process is run on AstroCatalog object
     switch class(Obj)
         case {'AstroImage','AstroZOGY'}
             ACObj = [Obj(:).CatData];
         case 'AstroCatalog'
             ACObj = Obj;
-            disp('hello2');
         otherwise
             warning('Object class not supported.')
     end
+
+    Arcsec2Rad = 4.84814e-6;
 
     Nobj = numel(ACObj);
     for Iobj=1:1:Nobj
@@ -73,42 +73,97 @@ function match2Galaxies(Obj, Args)
         GladeNCol = strcat(Args.ColNmatchName,'GLADE');
 
         PGCDistCol = strcat(Args.ColDistName,'PGC');
-        PGCNCol = strcat(Args.ColNmatchName,'PGC');        
-
-        % Rough match is final match for GLADE
-        imProc.match.match_catsHTM(ACObj(Iobj), Args.GladeCatName,...
-            'ColDistName', GladeDistCol,...
-            'ColNmatchName', GladeNCol, ...
-            'Radius', Args.RadiusGlade, 'RadiusUnits', Args.RadiusGladeUnits);
-
-        % PGC matches will be refined for roughly matched entries
-        % this considers extension of galaxies
-        imProc.match.match_catsHTM(ACObj(Iobj), Args.PGCCatName,...
-            'ColDistName', PGCDistCol,...
-            'ColNmatchName', PGCNCol, ...
-            'Radius', Args.RadiusPGC, 'RadiusUnits', Args.RadiusPGCUnits);
-        
-        Matches = ACObj(Iobj).getCol(PGCNCol);
-        Distances = ACObj(Iobj).getCol(PGCDistCol);
-
-        % Skip entries that have no rough PGC matches
-        if ~any(Matches>0)
-            if Args.MergeCols
-                ACObj(Iobj).deleteCol({PGCNCol,PGCDistCol});
-                ACObj(Iobj).replaceColNames({GladeNCol,GladeDistCol},...
-                    {Args.ColNmatchName,Args.ColDistName});
-            end
-            continue
-        end
+        PGCNCol = strcat(Args.ColNmatchName,'PGC');   
 
         RADec = ACObj(Iobj).getLonLat('rad');
 
         RA = RADec(:,1);
         Dec = RADec(:,2);
 
+        MidRA = median(RA);
+        MidDec = median(Dec);
+
+        MaxDist = max(celestial.coo.sphere_dist(RA, Dec,...
+            MidRA*ones(CatSize,1), MidDec*ones(CatSize,1)));
+    
+        MaxDistAngle = AstroAngle(MaxDist, 'rad');
+
+        SearchRadiusGlade = MaxDistAngle.convert(Args.RadiusGladeUnits).Angle...
+            + Args.RadiusGlade;
+
+        % Rough match is final match for GLADE
+        GladeCat = catsHTM.cone_search(Args.GladeCatName, ...
+                MidRA, MidDec, SearchRadiusGlade, ...
+                'RadiusUnits',Args.RadiusGladeUnits, 'OutType','AstroCatalog');
+
+        if GladeCat.sizeCatalog > 0
+        
+            GladeCat.sortrows('Dec');
+    
+            [GladeLon, GladeLat] = GladeCat.getLonLat('rad');
+    
+            MatchResGlade = VO.search.search_sortedlat_multi( ...
+                [GladeLon, GladeLat], RA, Dec, -Args.RadiusGlade*Arcsec2Rad);
+    
+            MatchesGlade = vertcat(MatchResGlade.Nmatch);
+            DistancesGlade = NaN(CatSize,1);
+    
+            if any(MatchesGlade > 0)
+                DistancesGlade(MatchesGlade > 0) = arrayfun(@(a)min(a.Dist), ...
+                    MatchResGlade(MatchesGlade > 0));
+            end
+        else
+            MatchesGlade = zeros(CatSize,1);
+            DistancesGlade = NaN(CatSize,1);
+        end
+       
+        % PGC matches will be refined for roughly matched entries
+        % this considers extension of galaxies
+
+        SearchRadiusPGC = MaxDistAngle.convert(Args.RadiusPGCUnits).Angle...
+            + Args.RadiusPGC;
+        PGCCat = catsHTM.cone_search(Args.PGCCatName, ...
+                MidRA, MidDec, SearchRadiusPGC, ...
+                'RadiusUnits',Args.RadiusPGCUnits, 'OutType','AstroCatalog');
+
+        if PGCCat.sizeCatalog > 0
+
+            PGCCat.sortrows('Dec');
+    
+            [PGCLon, PGCLat] = PGCCat.getLonLat('rad');
+            
+            MatchResPGC = VO.search.search_sortedlat_multi( ...
+                [PGCLon, PGCLat], RA, Dec, -Args.RadiusPGC*Arcsec2Rad);
+    
+            MatchesPGC = vertcat(MatchResPGC.Nmatch);
+            DistancesPGC = NaN(CatSize,1);
+            
+            if any(MatchesPGC > 0)
+                DistancesPGC(MatchesPGC > 0) = arrayfun(@(a)min(a.Dist), ...
+                    MatchResPGC(MatchesPGC > 0));
+            end
+        else
+            MatchesPGC = zeros(CatSize,1);
+            DistancesPGC = NaN(CatSize,1);
+        end
+        
+        % Skip entries that have no rough PGC matches
+        if ~any(MatchesPGC>0)
+            if Args.MergeCols
+                ACObj(Iobj).insertCol(MatchesGlade, Inf, Args.ColNmatchName);
+                ACObj(Iobj).insertCol(DistancesGlade, Inf, Args.ColDistName);
+            else
+                ACObj(Iobj).insertCol(MatchesGlade, Inf, GladeNCol);
+                ACObj(Iobj).insertCol(DistancesGlade, Inf, GladeDistCol);
+                ACObj(Iobj).insertCol(MatchesPGC, Inf, PGCNCol);
+                ACObj(Iobj).insertCol(DistancesPGC, Inf, PGCDistCol);
+            end
+            continue
+        end
+
         for Itran = 1:1:CatSize
 
-            if Matches(Itran) < 1
+            if MatchesPGC(Itran) < 1
                 continue
             end
     
@@ -126,33 +181,27 @@ function match2Galaxies(Obj, Args)
 
                 % Update matches
                 % If there are no matches, update nearest distance to NaN.
-                Matches(Itran) = sum(Dist<GalRadius);
+                MatchesPGC(Itran) = sum(Dist<GalRadius);
                 if isempty(Dist) || ~any(Dist<GalRadius)
-                    Distances(Itran) = NaN;
+                    DistancesPGC(Itran) = NaN;
                 end
             end 
 
         end
 
-        % Replace catalog entries with refined matches.
-        ACObj(Iobj).replaceCol(Matches, PGCNCol);
-        ACObj(Iobj).replaceCol(Distances, PGCDistCol);
-
         % If GLADE and PGC results should be merged, take the sum for
         % number of matches and the minimum between matched distances.
         if Args.MergeCols
-            MatchCol = ACObj(Iobj).getCol(GladeNCol)+...
-                ACObj(Iobj).getCol(PGCNCol);
-            ACObj(Iobj).insertCol(MatchCol, GladeNCol, Args.ColNmatchName);
-            ACObj(Iobj).deleteCol(GladeNCol);
-            ACObj(Iobj).deleteCol(PGCNCol);
-            
-            DistCol = min(ACObj(Iobj).getCol(GladeDistCol),...
-                ACObj(Iobj).getCol(PGCDistCol));
-            ACObj(Iobj).insertCol(DistCol, GladeDistCol, Args.ColDistName);
-            ACObj(Iobj).deleteCol(PGCDistCol);
-            ACObj(Iobj).deleteCol(GladeDistCol);
-        end
+            MatchesGal = MatchesGlade + MatchesPGC;
+            DistancesGal = min(DistancesGlade, DistancesPGC);
+            ACObj(Iobj).insertCol(MatchesGal, Inf, Args.ColNmatchName);
+            ACObj(Iobj).insertCol(DistancesGal, Inf, Args.ColDistName);
+        else
+            ACObj(Iobj).insertCol(MatchesGlade, Inf, GladeNCol);
+            ACObj(Iobj).insertCol(DistancesGlade, Inf, GladeDistCol);
+            ACObj(Iobj).insertCol(MatchesPGC, Inf, PGCNCol);
+            ACObj(Iobj).insertCol(DistancesPGC, Inf, PGCDistCol);
+        end        
 
     end
 

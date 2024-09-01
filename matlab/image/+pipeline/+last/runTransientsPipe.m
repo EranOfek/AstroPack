@@ -1,4 +1,4 @@
-function [AD, ADc] = runTransientsPipe(VisitPath, Args)
+function [AD, ADc, Status] = runTransientsPipe(VisitPath, Args)
     %{
     Performs the subtraction and transient search algorithms using 
     AstroDiff on images within a visit directory. 
@@ -30,6 +30,7 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
                 by the algorithm.
               - AstroDiff cutouts around each single transients candidate 
                 which passes the flagging criteria.
+              - Result message
     Author  : Ruslan Konno (Jun 2024)
     Example : VisitPath = '/path/to/visit/dir'
               [AD, ADc] = runTransientsPipe(VisitPath)
@@ -38,7 +39,7 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
     arguments
         VisitPath
 
-        Args.SaveProducts logical = false;%true;
+        Args.SaveProducts logical = false;
         Args.SavePath = VisitPath;
         Args.RefPath = '';
         Args.Product = '';
@@ -47,6 +48,9 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         Args.AddMeta logical = true;
         Args.SameTelOnly logical = true;
     end
+
+    % Set default status.
+    Status = 'Uncontrolled exit.';
 
     % Find New image coadds and load
     
@@ -67,6 +71,13 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
     
     % Find reference image for each new image
     Nobj = numel(New);
+
+    % Track number of found reference images
+    NRefsFound = 0;
+
+    % Initialize empty output arguments
+    AD = AstroZOGY();
+    ADc = AstroZOGY();
     
     for Iobj=Nobj:-1:1
         % Get name of new image and search for ref image via wildcards
@@ -85,8 +96,10 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         if isempty(dir(RefFile{1}))
             warning('Reference image not found for image %s', FN.genFile{1});
             continue
+        else
+            NRefsFound = NRefsFound + 1;
         end
-
+    
         % Load ref image and ref image name
         Ref = AstroImage.readFileNamesObj(RefFile{1}, 'Path', FieldRefPath);
         FNrref = FileNames.generateFromFileName(Ref.ImageData.FileName);
@@ -98,6 +111,7 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         % image
         if convertCharsToStrings(NewName{1}) == convertCharsToStrings(RefName{1})
             warning('New image is reference image.');
+            NRefsFound = NRefsFound - 1;
             continue
         end
 
@@ -105,16 +119,19 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         AD(Iobj) = AstroZOGY(New(Iobj), Ref);
     end
 
-    % If no AstroDiff is created, return
-    if ~exist('AD','var')
+    % If no reference images found, return
+    if NRefsFound < 1
+        Status = 'No reference images found.';
         return;
     end
 
     % Remove empty AstroDiff objects and remember number of AstroDiffs
     NonEmptyCell = any(~cellfun('isempty',{AD(:).New}), 1);
     if ~any(NonEmptyCell)
+        Status = 'All AstroDiffs are empty.';
         return;
     end
+    
     AD = AD(:, NonEmptyCell);
     Nobj = numel(AD);
 
@@ -175,13 +192,13 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
     % Get asteroid catalogs for new and ref
     INPOP = celestial.INPOP;
     INPOP.populateAll;
-    OrbEl= celestial.OrbitalEl.loadSolarSystem('merge');
+    OrbElMerge= celestial.OrbitalEl.loadSolarSystem('merge');
 
     % Propogate catalog to new image epoch
     NewJulDay = median(arrayfun(@(x) x.New.julday,AD));
 
     [AstCat_new] = searchMinorPlanetsNearPosition(...
-        OrbEl, NewJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
+        OrbElMerge, NewJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
         'INPOP', INPOP, 'CooUnits','rad', 'SearchRadiusUnits','rad',...
         'QuickSearchBuffer', 500,'MagLimit', 21,...
         'RefEllipsoid','WGS84',...
@@ -201,12 +218,12 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
     RefJulDay = median(arrayfun(@(x) x.Ref.julday,AD));
 
     [AstCat_ref] = searchMinorPlanetsNearPosition(...
-        OrbEl, RefJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
+        OrbElMerge, RefJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
         'INPOP', INPOP, 'CooUnits','rad', 'SearchRadiusUnits','rad',...
         'QuickSearchBuffer', 500,'MagLimit', 21,...
         'RefEllipsoid','WGS84',...
         'OutUnitsDeg',true,'Integration', true);
-
+    
     % Match MP in ref
     [~,~,AD] = imProc.match.match2solarSystem(AD, 'InCooUnits', 'deg', ...
                     'SourcesColDistName', 'R_DistMP', 'AstCat', AstCat_ref,...
@@ -217,8 +234,120 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
     %Clear for memory
     clear AstCat_ref;
     clear INPOP;
-    clear OrbEl;
+    clear OrbElMerge;
 
+    % Comet matching
+    
+    OrbElComet= celestial.OrbitalEl.loadSolarSystem('comet');
+
+    % Match Comet in new
+
+    [ComCat_new] = OrbElComet.searchMinorPlanetsNearPosition(...
+        NewJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
+        'CooUnits','rad', 'SearchRadiusUnits','rad',...
+        'OutUnitsDeg',true,'Integration', false);
+
+    % If comets within image, match to candidates
+
+    if size(ComCat_new.Catalog,1) > 0
+
+        ComCat_new.sortrows('Dec');
+    
+        [CometLon, CometLat] = ComCat_new.getLonLat('rad');
+        Rad2Arcsec = 206265;
+        Arcsec2Rad = 4.84814e-6;
+
+        for Iobj=1:1:Nobj
+            RADec = AD(Iobj).CatData.getLonLat('rad');
+            RA = RADec(:,1);
+            Dec = RADec(:,2);
+            ComMatches = VO.search.search_sortedlat_multi( ...
+                [CometLon, CometLat], RA, Dec, -90*Arcsec2Rad);
+            ComMatchsInd = find(vertcat(ComMatches.Nmatch) > 0);
+            NComMatches = numel(ComMatchsInd);
+
+            if NComMatches < 1
+                continue
+            end
+
+            MPDist_new = AD(Iobj).CatData.getCol('N_DistMP');
+            MPMag_new = AD(Iobj).CatData.getCol('N_MagMP');
+            for IComMatches = 1:1:NComMatches
+                IComMatchInd = ComMatchsInd(IComMatches);
+                OldDist = MPDist_new(IComMatchInd);
+                NewDist = min(ComMatches(IComMatchInd).Dist);
+                if isnan(OldDist) || (NewDist < OldDist)
+                    MPDist_new(IComMatchInd) = NewDist*Rad2Arcsec;
+                    Ind1 = ComMatches(IComMatchInd).Ind1;
+                    ComMags = ComCat_new.getCol('Mag');
+                    MPMag_new(IComMatchInd) = ComMags(Ind1);
+                end
+            end
+
+            % Update minor planet columns
+            AD(Iobj).CatData.replaceCol(MPDist_new,'N_DistMP');
+            AD(Iobj).CatData.replaceCol(MPMag_new,'N_MagMP');
+        end
+
+    end
+
+    %Clear for memory
+    clear ComCat_new;
+
+    % Match Comet in ref
+
+    [ComCat_ref] = OrbElComet.searchMinorPlanetsNearPosition(...
+        RefJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
+        'CooUnits','rad', 'SearchRadiusUnits','rad',...
+        'OutUnitsDeg',true,'Integration', false);
+
+    % If comets within image, match to candidates
+
+    if size(ComCat_ref.Catalog,1) > 0
+
+        ComCat_ref.sortrows('Dec');
+    
+        [CometLon, CometLat] = ComCat_ref.getLonLat('rad');
+        Rad2Arcsec = 206265;
+        Arcsec2Rad = 4.84814e-6;
+
+        for Iobj=1:1:Nobj
+            RADec = AD(Iobj).CatData.getLonLat('rad');
+            RA = RADec(:,1);
+            Dec = RADec(:,2);
+            ComMatches = VO.search.search_sortedlat_multi( ...
+                [CometLon, CometLat], RA, Dec, -90*Arcsec2Rad);
+            ComMatchsInd = find(vertcat(ComMatches.Nmatch) > 0);
+            NComMatches = numel(ComMatchsInd);
+
+            if NComMatches < 1
+                continue
+            end
+
+            MPDist_ref = AD(Iobj).CatData.getCol('R_DistMP');
+            MPMag_ref = AD(Iobj).CatData.getCol('R_MagMP');
+            for IComMatches = 1:1:NComMatches
+                IComMatchInd = ComMatchsInd(IComMatches);
+                OldDist = MPDist_ref(IComMatchInd);
+                NewDist = min(ComMatches(IComMatchInd).Dist);
+                if isnan(OldDist) || (NewDist < OldDist)
+                    MPDist_ref(IComMatchInd) = NewDist*Rad2Arcsec;
+                    Ind1 = ComMatches(IComMatchInd).Ind1;
+                    ComMags = ComCat_ref.getCol('Mag');
+                    MPMag_ref(IComMatchInd) = ComMags(Ind1);
+                end
+            end
+
+            % Update minor planet columns
+            AD(Iobj).CatData.replaceCol(MPDist_ref,'R_DistMP');
+            AD(Iobj).CatData.replaceCol(MPMag_ref,'R_MagMP');
+        end
+
+    end    
+
+    %Clear for memory
+    clear ComCat_ref;
+    
     % Measure transients
     AD.measureTransients;
     % Flag non transients
@@ -326,5 +455,13 @@ function [AD, ADc] = runTransientsPipe(VisitPath, Args)
         save(TranCatFileName,"ADc","-v7.3");
     end  
     %}
+
+    NADc = numel(ADc);
+    if NADc == 1 && isempty(ADc(1).Table)
+        NADc = 0;
+    end
+    StatusCell = strcat('Succesful exit,',{' '}, ...
+        num2str(NADc),{' '},'transient(s) found.');
+    Status = StatusCell{1};
     
 end

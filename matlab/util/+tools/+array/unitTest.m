@@ -1,12 +1,111 @@
 function Result = unitTest
     % Package Unit-Test
-	io.msgStyle(LogLevel.Test, '@start', 'tools.array test started');
+	
+    %io.msgStyle(LogLevel.Test, '@start', 'tools.array test started');
+
+    % tools.array.mex.squeezeSumAmultB_Dim12
+    A=rand(25,25,1000);
+    B=rand(25,25,1000);
+    Norm=rand(1000,1); 
+    tic;for I=1:1000, C=tools.array.mex.squeezeSumAmultB_Dim12(A,B,Norm);end, toc
+    tic;for I=1:1000, C1=squeeze(sum(A.*B,[1 2])).*Norm; end, toc                
+    if max(abs(C-C1))>1000.*eps
+        error('tools.array.mex.squeezeSumAmultB_Dim12 is inconsistent');
+    end
+
     
+    % tools.array.mex.squeezeSumCubeMatNorm
+    MatXcen=rand(15,15);       
+    Norm=ones(1000,1);
+    WInt=imUtil.kernel2.gauss(ones(1000,1)+randn(1000,1));
+    tic;for I=1:10000, a=tools.array.mex.squeezeSumCubeMatNorm(WInt, MatXcen, Norm);end, toc
+    % Elapsed time is 0.689787 seconds.
+    tic;for I=1:10000, b=squeeze(sum(WInt.*MatXcen,[1 2],'omitnan')).*Norm; end, toc        
+    % Elapsed time is 1.020883 seconds.
+    if max(abs(a2-b))>(10.*eps)
+        error('squeezeSumCubeMatNorm inconsistent');
+    end
+    
+    
+    A=rand(1700,1700);
+    tic;for I=1:1:100
+        [S,N]=tools.array.sumInRange(A,0.25,0.75);
+    end
+    toc
+    tic;
+    for I=1:1:100
+        F=~isnan(A) & A>0.25 & A<0.75;
+        S1=sum(A(F),'all');
+        N1=sum(F,'all');
+    end
+    toc
+    
+    if abs([N1-N])>0
+        error('sumInRange is inconsistent (N)');
+    end
+    if abs(S1-S)>1e-4
+        error('sumInRange is inconsistent (Sum)');
+    end
+
+    % sum2InRange
+    [S2, S21, N, Mean, M2] = tools.array.sum2InRange(A, 0.25, 0.75);
+    
+    F   = ~isnan(A) & A>0.25 & A<0.75;
+    S2m = sum(A(F).^2,'all');
+    Sm  = sum(A(F),'all');
+    Nm  = sum(F,'all');
+    if abs(S2m-S2)>1e-7
+        error('sum2InRange inconsistent (S2)');
+    end
+    if abs(Sm./Nm - Mean)>10.*eps
+        error('sum2InRange inconsistent (mean)');
+    end
+    
+    tic;
+    for I=1:1:100
+        [S2,S,N]=tools.array.sum2InRange(A,0.25,0.75);
+    end
+    toc
+    tic;
+    for I=1:1:100
+        F=~isnan(A) & A>0.25 & A<0.75;
+        S1=sum(A(F),'all');
+        S2=sum(A(F).^2,'all');
+        N1=sum(F,'all');
+    end
+    toc
+     
     Array = uint32([1 2 3; 2 3 4; 3 4 5]);
     Val = tools.array.bitor_array(Array,1,true);
     if ~all(Val==[3 7 7])
         error('Error in tools.array.bitor_array');
     end
+    
+    % Test: tools.array.cropMat
+    Nsim = 1000;
+    for I=1:1:5
+        Array = uint16(rand(1700,1700));
+        CCDSEC=[101 ceil(rand(1,1).*1300+201),  201 ceil(rand(1,1).*1300+201)];
+        CCDSEC = [101 1600 101 1600];
+        tic;
+        for I=1:1:Nsim
+            SA2 = Array(CCDSEC(3):CCDSEC(4), CCDSEC(1):CCDSEC(2));
+        end
+        T2=toc;
+        tic;
+        for I=1:1:Nsim
+            SA1 = tools.array.cropMat(Array, CCDSEC);
+        end
+        T1=toc;
+        
+        T1./T2
+        
+        if max(abs(SA1-SA2),[],'all')>0
+            error('cropMAT inconsistent');
+        end
+    end
+    
+    
     
     %test_onesExcept();
 

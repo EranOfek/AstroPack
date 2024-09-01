@@ -2823,7 +2823,7 @@ classdef DemonLAST < Component
 
 
                         % call visit pipeline                        
-                        Msg{1} = sprintf('pipline.DemonLAST executing pipeline for group %d - First image: %s',Igroup, RawImageList{1});
+                        Msg{1} = sprintf('pipeline.DemonLAST executing pipeline for group %d - First image: %s',Igroup, RawImageList{1});
                         Obj.writeLog(Msg, LogLevel.Info);
 
 
@@ -2865,7 +2865,7 @@ classdef DemonLAST < Component
                             tools.systemd.mex.notify_watchdog;
 
                             RunTime = etime(clock, Tstart);
-                            Msg{1} = sprintf('pipline.DemonLAST finished executing pipeline for group %d - start saving data / RunTime: %.1f', Igroup, RunTime);
+                            Msg{1} = sprintf('pipeline.DemonLAST finished executing pipeline for group %d - start saving data / RunTime: %.1f', Igroup, RunTime);
                             Obj.writeLog(Msg, LogLevel.Info);
                             
                             %CoaddTransienst = imProc.cat.searchExternalCatOrphans(Coadd);
@@ -2887,7 +2887,7 @@ classdef DemonLAST < Component
                             Obj.writeLog(Status, LogLevel.Info);
                             
                             RunTime = etime(clock, Tstart);
-                            Msg{1} = sprintf('pipline.DemonLAST finished saving PROC products group %d / RunTime: %.1f', Igroup, RunTime);
+                            Msg{1} = sprintf('pipeline.DemonLAST finished saving PROC products group %d / RunTime: %.1f', Igroup, RunTime);
                             Obj.writeLog(Msg, LogLevel.Info);
         
                             % the following call also update the Coadd.ImageData.FileName
@@ -2901,7 +2901,7 @@ classdef DemonLAST < Component
                             Obj.writeLog(Status, LogLevel.Info);
                                                         
                             RunTime = etime(clock, Tstart);
-                            Msg{1} = sprintf('pipline.DemonLAST finished saving COADD products group %d / RunTime: %.1f', Igroup, RunTime);
+                            Msg{1} = sprintf('pipeline.DemonLAST finished saving COADD products group %d / RunTime: %.1f', Igroup, RunTime);
                             Obj.writeLog(Msg, LogLevel.Info);
 
                             [~,~,Status]=imProc.io.writeProduct(MergedCat, FN_I, 'Product',{'Cat'}, 'WriteHeader',[false],...
@@ -2923,7 +2923,7 @@ classdef DemonLAST < Component
                             Obj.writeLog(Status, LogLevel.Info);
                             
                             RunTime = etime(clock, Tstart);
-                            Msg{1} = sprintf('pipline.DemonLAST finished saving Merged Cats and Matched sources for group %d / RunTime: %.1f', Igroup, RunTime);
+                            Msg{1} = sprintf('pipeline.DemonLAST finished saving Merged Cats and Matched sources for group %d / RunTime: %.1f', Igroup, RunTime);
                             Obj.writeLog(Msg, LogLevel.Info);
 
                             if ~isempty(ResultAsteroids)
@@ -2961,25 +2961,40 @@ classdef DemonLAST < Component
                             end
                             
                             RunTime = etime(clock, Tstart);
-                            Msg{1} = sprintf('pipline.DemonLAST finished saving Asteroid data for group %d / RunTime: %.1f', Igroup, RunTime);
+                            Msg{1} = sprintf('pipeline.DemonLAST finished saving Asteroid data for group %d / RunTime: %.1f', Igroup, RunTime);
                             Obj.writeLog(Msg, LogLevel.Info);
 
 
                             Args.DoTransientsDetection = true;
                             if Args.DoTransientsDetection 
                                 %&& strcmp(tools.os.get_computer, 'last01e')
-                                Msg{1} = sprintf('pipline.DemonLAST - Transients detection / group %d', Igroup);
+                                Msg{1} = sprintf('pipeline.DemonLAST - Transients detection / group %d', Igroup);
                                 Obj.writeLog(Msg, LogLevel.Info);
     
                                 % Transients detection
                                 try
-                                    pipeline.last.runTransientsPipe(Coadd, 'SavePath',FN_Proc.genPath, 'RefPath',Obj.RefPath, 'SaveProducts',true);
+                                    [~,TransientCutouts, TranPipeStatus] = pipeline.last.runTransientsPipe(Coadd, 'SavePath',FN_Proc.genPath, 'RefPath',Obj.RefPath, 'SaveProducts',true);
+                                    Obj.writeLog(sprintf('pipeline.DemonLAST / Transients - %s', TranPipeStatus), LogLevel.Info);
                                 catch MEtran
-                                    Msg{1} = sprintf('pipline.DemonLAST - Transients detection / Failed');
+                                    Msg{1} = sprintf('pipeline.DemonLAST - Transients detection / Failed');
                                     Obj.writeLog(Msg, LogLevel.Info);
                                 end
+
+                                Args.DoTransientsAlerting = false;
+                                if exist('TransientCutouts','var') && Args.DoTransientsAlerting
+                                    Msg{1} = sprintf('pipeline.DemonLAST - Alerting / group %d', Igroup);
+                                    Obj.writeLog(Msg, LogLevel.Info);
+                                    try
+                                        TranAlertStatus = pipeline.last.sendTransientsAlert(TransientCutouts, 'SaveProducts', true, ...
+                                                'SavePath', FN_Proc.genPath,'UseLASTtools', true);
+                                        Obj.writeLog(sprintf('pipeline.DemonLAST / Alerting - %s', TranAlertStatus), LogLevel.Info);
+                                    catch MEtran
+                                        Msg{1} = sprintf('pipeline.DemonLAST - Alerting / Failed');
+                                        Obj.writeLog(Msg, LogLevel.Info);
+                                    end
+                                end
                                 RunTime = etime(clock, Tstart);
-                                Msg{1} = sprintf('pipline.DemonLAST - Transients detection / RunTime: %.1f', RunTime);
+                                Msg{1} = sprintf('pipeline.DemonLAST - Transients / RunTime: %.1f', RunTime);
                                 Obj.writeLog(Msg, LogLevel.Info);
                             end
 
@@ -3010,7 +3025,7 @@ classdef DemonLAST < Component
                             % Insert pipeline products to the DB
                             if Args.Insert2DB 
                                 try                                    
-                                    Msg{1} = sprintf('pipline.DemonLAST started preparing DB data for group %d',Igroup);
+                                    Msg{1} = sprintf('pipeline.DemonLAST started preparing DB data for group %d',Igroup);
                                     Obj.writeLog(Msg, LogLevel.Info);
                                     if isempty(ADB) % && ( ~Args.DB_ImageBulk || ~Args.DB_CatalogBulk) % connect to DB
                                         ADB = db.AstroDb(Args.AstroDBArgs{:});

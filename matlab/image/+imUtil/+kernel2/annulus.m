@@ -4,6 +4,7 @@ function K=annulus(Radii,SizeXY,PosXY)
 % Input  : - (Radii) A two column matrix of [Inner Outer] radius of the
 %            annulus.
 %            If not provided then the default is [7 11].
+%            If only one column is provided, then the default is [Radii, Radii.*2]
 %          - Stamp size [X,Y]. Default is max(radii.*2+1)
 %          - [X,Y] Position of the annulus center in the stamp.
 %            Default is the ceil(stamp_size/2).
@@ -25,15 +26,27 @@ if nargin<3
     end
 end
 
+
+
 if isempty(SizeXY)
     SizeXY = ones(1,2).*(max(Radii(:)).*2 + 1);
+end
+SizeXY = floor(SizeXY);
+if SizeXY(1)./2==floor(SizeXY(1)./2)
+    % even
+    SizeXY = SizeXY + [1 1];
 end
 
 if isempty(PosXY)
     PosXY = ceil(SizeXY.*0.5);
 end
 
-Ntemp = size(Radii,1);
+[Ntemp, NcolR] = size(Radii);
+if NcolR==1
+    Radii = [Radii, 2.*Radii];
+end
+
+
 
 [MatX,MatY] = meshgrid( (1:1:SizeXY(1))-PosXY(1), (1:1:SizeXY(2))-PosXY(2) );
 MatR        = sqrt(MatX.^2 + MatY.^2);

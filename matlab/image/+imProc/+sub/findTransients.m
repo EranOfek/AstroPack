@@ -252,6 +252,7 @@ function TranCat=findTransients(AD, Args)
             TranCat(Iobj) = TranCat(Iobj).insertCol( ...
                 cell2mat({RA, Dec}), 'SCORE',...
                 {'RA', 'Dec'}, {'deg','deg'});
+
         end
 
         if Args.includeObsTime
@@ -302,7 +303,7 @@ function TranCat=findTransients(AD, Args)
             TranCat(Iobj) = TranCat(Iobj).insertCol(cast(MinDists,'double'), ...
                 'SCORE', {'PV_DIST'}, {''});
         end
-       
+  
     end
 
 end

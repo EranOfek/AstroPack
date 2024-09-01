@@ -232,8 +232,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 %     Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark + ...
 %                  Back.Cross + Back.Gain ) * sqrt(Exposure/300.) + Back.Readout * Args.Exposure(1); % NOT CORRECT
              
-    Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark + ...
-                 Back.Cross + Back.Gain + Back.Readout ) * Args.Exposure(1); 
+%     Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark + ...
+%                  Back.Cross + Back.Gain + Back.Readout ) * Args.Exposure(1);  % NOT CORRECT for small exposures
+             
+    Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark) * (Exposure/300.) ...
+                       + ( Back.Readout + Back.Cross + Back.Gain) * Args.Exposure(1); 
     
     %%%%%%%%%%%%%%%%%%%% load the matlab object with the ULTRASAT properties:
     I = Installer;
@@ -702,13 +705,14 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     NoiseLevel    = Back.Tot * ones(ImageSizeX,ImageSizeY,'single');   % already in [counts], see above
     SrcAndNoise   = ImageSrc .* Exposure + NoiseLevel; 
     
-%     ImageSrcNoise = poissrnd( SrcAndNoise, ImageSizeX, ImageSizeY);                             
-%     ImageBkg      = poissrnd( NoiseLevel, ImageSizeX, ImageSizeY);
-%     
-%     As the noise level is already quite high for typical exposures,
-%     we can use a faster normal distribution instead of the true Poisson distribution
-    ImageSrcNoise =  normrnd( SrcAndNoise, sqrt(SrcAndNoise), ImageSizeX, ImageSizeY);              
-    ImageBkg      =  normrnd( NoiseLevel,  sqrt(NoiseLevel),  ImageSizeX, ImageSizeY);
+    if Exposure < 300   % for short exposures one should use the true Poisson distribution
+        ImageSrcNoise = poissrnd( SrcAndNoise, ImageSizeX, ImageSizeY);
+        ImageBkg      = poissrnd( NoiseLevel, ImageSizeX, ImageSizeY);
+    else                % for longer exposures the noise level is already quite high, so 
+                        % we can use a faster normal distribution instead of the Poisson
+        ImageSrcNoise =  normrnd( SrcAndNoise, sqrt(SrcAndNoise), ImageSizeX, ImageSizeY);
+        ImageBkg      =  normrnd( NoiseLevel,  sqrt(NoiseLevel),  ImageSizeX, ImageSizeY);
+    end
                                  
                             fprintf(' done\n');                   
                             elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 

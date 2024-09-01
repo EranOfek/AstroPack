@@ -171,7 +171,7 @@ function Result = aperPhotCube(Cube, X, Y, Args)
         %Result.AperPhot(:,Iaper)   = squeeze(sum(Cube.*(MatR2 < AperRad2(Iaper)),[1 2],'omitnan'));
         Result.AperPhot(:,Iaper)    = squeeze(sum(Cube.*FlagPix,[1 2],'omitnan'));
     end
-    Result.AperPhotErr =  sqrt(Result.AnnulusBack.*Result.AperArea + Result.AperPhot);
+    Result.AperPhotErr =  sqrt(abs(Result.AnnulusBack.*Result.AperArea + Result.AperPhot));
     
     if Args.BoxPhot
         Result.BoxPhot = squeeze(sum(Cube,[1 2],'omitnan'));
