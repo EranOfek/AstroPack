@@ -211,7 +211,7 @@ function LCS_placement(Args)
     
     [(1:Nm)' sum(LimMonth2,2)] % number of fields visible in each month
     
-    [(1:height(l))' sum(LimMonth2,1)] % number of months when each of the fields is visible
+    [(1:height(l))' sum(LimMonth2,1)'] % number of months when each of the fields is visible
             
 %     for IType = 1:NType     
 %         Limits = Vis.(LimitType{IType});

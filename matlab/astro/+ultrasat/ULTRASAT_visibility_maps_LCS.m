@@ -12,174 +12,104 @@ function ULTRASAT_visibility_maps_LCS(Args)
     % Output: - the function produces multiple plots of ULTRASAT visibility
     %           maps with various sets of limits applied (see the LimitType
     %           list + extinction limits)
-    % Author: A.M. Krassilchtchikov (Jan 2024)
+    % Author: A.M. Krassilchtchikov (Sep 2024)
     % Example: ULTRASAT_visibility_maps('LimitingAlambda',0.5,'SaveMat',1);   
     arguments
-        Args.GridFile = '~/matlab/data/ULTRASAT/healpix_grid_nside_32_npix_12288_pixarea_3.357_deg.txt' 
+        Args.GridFile = '~/matlab/data/ULTRASAT/healpix_grid_nside_64_npix_49152_pixarea_0.839_deg.txt' 
         % 'healpix_grid_nside_32_npix_12288_pixarea_3.357_deg.txt'; 'healpix_grid_nside_64_npix_49152_pixarea_0.839_deg.txt';
-        % can be produced localy by > celestial.grid.make_healpix_grid(64)
+        %  can be produced localy by > celestial.grid.make_healpix_grid(64)
         Args.AllSky   = '~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_350_rep1.txt'; 
         Args.StartDate = '2028-01-01 00:00:00';
-        Args.NumDays   = 180; % [days]
+        Args.NumDays   =  540; % [days] % 540
         Args.TimeBin   = 0.01; % [days] 0.01 day = 864 s ~ 3 x 300 s  
-        Args.SaveMat logical = false; 
+        Args.SaveMat logical = true; 
         Args.LimitingAlambda = 1; % the limiting value of A_lambda (for the ULTRASAT band)
     end
     
     RAD  = 180/pi;
-    Tiny = 1e-6;
     
-    LimitType = {'SunLimits','MoonLimits','PowerLimits'};
-    NType = numel(LimitType);
-    
+    % High-cadence survey areas
+    HCS = [238, 60; 215, 60; 254, 64; 67, -59];
+   
     % read a reasonably dense equiareal grid in the equatorial coordinates
-    Grid = readmatrix(Args.GridFile); RA = Grid(:,1); Dec = Grid(:,2);
-    Np   = length(Grid);
+    Grid = readmatrix(Args.GridFile); RA = Grid(:,1); Dec = Grid(:,2); Np   = length(Grid);
     % convert the grid to the ecliptic coordinates
     [lambda,beta] = celestial.coo.convert_coo(RA./RAD,Dec./RAD,'j2000.0','e');
     lambda = lambda .* RAD; beta = beta .* RAD;
     
+    % read the All Sky grid of pointings
+    AllSky = readtable(Args.AllSky); 
+    
     % make pole marks
-    Poles = [0, -90; 0, 90];
-    [RA0,Dec0]  = celestial.coo.convert_coo(Poles(:,1)./RAD,Poles(:,2)./RAD,'e','j2000.0');
-    [lam0,bet0] = celestial.coo.convert_coo(Poles(:,1)./RAD,Poles(:,2)./RAD,'j2000.0','e');   
+%     Poles = [0, -90; 0, 90];
+%     [RA0,Dec0]  = celestial.coo.convert_coo(Poles(:,1)./RAD,Poles(:,2)./RAD,'e','j2000.0');
+%     [lam0,bet0] = celestial.coo.convert_coo(Poles(:,1)./RAD,Poles(:,2)./RAD,'j2000.0','e');   
     
-    % probe visibility for Args.TimeBin bins during Args.NumDays:
-    JD = celestial.time.julday(Args.StartDate) + (0:Args.TimeBin:Args.NumDays)';
-    Nt = length(JD);
-    
-    Vis = ultrasat.ULTRASAT_restricted_visibility(JD,Grid./RAD,'MinSunDist',(70)./RAD,'MinMoonDist',(34)./RAD,'MinEarthDist',(56)./RAD);
-    
-    for IType = 1:NType     
-        Limits = Vis.(LimitType{IType});
-        MaxLen.(LimitType{IType}) = uninterruptedLength(Limits, Np, Nt).* Args.TimeBin; % convert to [days]    
+    % build a list of night-time bins: NightBins bins every night from 0 to 3 UTC
+    NightBins = 12; % 12 x 0.01 day = 0.12 x 24 = 2.88 hr
+    l = zeros(1,NightBins*Args.NumDays);
+    for i=1:Args.NumDays
+        for j=1:NightBins
+            k = (i-1)*NightBins+j;
+            l(k) = (i-1)+(j-1).*Args.TimeBin;
+        end
     end
-   
-                %%%%%%% PLOTTING BLOCK   
-                Fig = figure('visible', 'off');
+    
+    JD = celestial.time.julday(Args.StartDate) + l;
+    
+    Vis = ultrasat.ULTRASAT_restricted_visibility(JD',Grid./RAD,'MinSunDist',(70)./RAD,'MinMoonDist',(34)./RAD,'MinEarthDist',(56)./RAD);
+    Lim = Vis.PowerLimits & Vis.SunLimits & Vis.MoonLimits; 
+    L2 = reshape(Lim,[NightBins,Args.NumDays,Np]); 
+    L3 = squeeze(prod(L2,1));                                % L3 is a whole-night scale list of visibility bins
+    MaxLen = uninterruptedLength(L3, Np, Args.NumDays); 
+    F = scatteredInterpolant(RA, Dec, MaxLen, 'linear', 'none');
+  
+%             % now show fields available for each of the four 45-day periods:
+%             % products of 1-45, 46-90, 91-135, 136-180 
+%             Q(1,:) = prod(L3(1:45,:),1);   Q(2,:) = prod(L3(46:90,:),1); 
+%             Q(3,:) = prod(L3(91:135,:),1); Q(4,:) = prod(L3(136:180,:),1); 
+%             figure(2); subplot(2,2,1); plot.ungridded_image(RA, Dec, Q(1,:));
+%             subplot(2,2,2); plot.ungridded_image(RA, Dec, Q(2,:));
+%             subplot(2,2,3); plot.ungridded_image(RA, Dec, Q(3,:));
+%             subplot(2,2,4); plot.ungridded_image(RA, Dec, Q(4,:));
+% 
+            figure(1); clf; plot.ungridded_image(RA, Dec, MaxLen); caxis([0, 180]);
+            title 'max uninterruped visibility of 0.0-3.0 GMT window, days'    
 
-                plot.ungridded_image(RA, Dec, MaxLen.SunLimits); caxis([0, 360]);
-                hold on; plot(RA0*RAD,Dec0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel 'RA, deg'; ylabel 'Dec, deg'; title 'Sun Limits: max(uninterrupted days)'; 
-                saveas(gcf, 'SunLimitsJ2000.jpg');
-                plot.ungridded_image(lambda, beta, MaxLen.SunLimits); caxis([0, 360]);
-                hold on; plot(lam0*RAD,bet0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel '\lambda, deg'; ylabel '\beta, deg'; title 'Sun Limits: max(uninterrupted days)'; 
-                saveas(gcf, 'SunLimitsEcl.jpg');
+    % find a sublist of AllSS pointings visible > 45 (180) days 
+    Lenp   = F(AllSky.Var1,AllSky.Var2);
+    List45 = AllSky(Lenp>45,:); List180 = AllSky(Lenp>180,:);
+    
+            fprintf('Pointings visible > 45  days: %d\n',size(List45,1));
+            fprintf('Pointings visible > 180 days: %d\n',size(List180,1));
+    
+            figure(1); hold on
+            plot(List45.Var1,List45.Var2,'*','Color','black');
+            plot(List180.Var1,List180.Var2,'*','Color','red');
 
-                plot.ungridded_image(RA, Dec, MaxLen.EarthLimits); caxis([0, 360]);
-                hold on; plot(RA0*RAD,Dec0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel 'RA, deg'; ylabel 'Dec, deg'; title 'Earth Limits: max(uninterrupted days)'; 
-                saveas(gcf, 'EarthLimitsJ2000.jpg');
-                plot.ungridded_image(lambda, beta, MaxLen.EarthLimits); caxis([0, 360]);
-                hold on; plot(lam0*RAD,bet0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel '\lambda, deg'; ylabel '\beta, deg'; title 'Earth Limits: max(uninterrupted days)'; 
-                saveas(gcf, 'EarthLimitsEcl.jpg');
-
-                plot.ungridded_image(RA, Dec, MaxLen.MoonLimits); caxis([0, 360]);
-                hold on; plot(RA0*RAD,Dec0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel 'RA, deg'; ylabel 'Dec, deg'; title 'Moon Limits: max(uninterrupted days)'; 
-                saveas(gcf, 'MoonLimitsJ2000.jpg');
-                plot.ungridded_image(lambda, beta, MaxLen.MoonLimits); caxis([0, 360]);
-                hold on; plot(lam0*RAD,bet0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel '\lambda, deg'; ylabel '\beta, deg'; title 'Moon Limits: max(uninterrupted days)'; 
-                saveas(gcf, 'MoonLimitsEcl.jpg');
-
-                plot.ungridded_image(RA, Dec, MaxLen.PowerLimits); caxis([0, 360]);
-                hold on; plot(RA0*RAD,Dec0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel 'RA, deg'; ylabel 'Dec, deg'; title 'Power Limits: max(uninterrupted days)'; 
-                saveas(gcf, 'PowerLimitsJ2000.jpg');
-                plot.ungridded_image(lambda, beta, MaxLen.PowerLimits); caxis([0, 360]);
-                hold on; plot(lam0*RAD,bet0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel '\lambda, deg'; ylabel '\beta, deg'; title 'Power Limits: max(uninterrupted days)'; 
-                saveas(gcf, 'PowerLimitsEcl.jpg');    
+    % now we turn on averaged extinction:        
+    Averaged_extinction = celestial.grid.statSkyGrid('SkyPos',[lambda beta]);         
+    Fext = scatteredInterpolant(RA, Dec, Averaged_extinction, 'linear', 'none');
+      
+    Extp   = Fext(AllSky.Var1,AllSky.Var2);
+    List45e = AllSky(Lenp>45 & Extp < 1,:); List180e = AllSky(Lenp>180 & Extp <1,:);
     
-    % combined constraints for the HCS:
+            fprintf('Low extinction pointings visible > 45  days: %d\n',size(List45e,1));
+            fprintf('Low extinction pointings visible > 180 days: %d\n',size(List180e,1));
     
-    Limits = Vis.PowerLimits .* Vis.SunLimits .* Vis.MoonLimits .* Vis.EarthLimits;
-    MaxLen.Combined = uninterruptedLength(Limits, Np, Nt).* Args.TimeBin; % convert to [days]
-        
-                %%%%%%% PLOTTING BLOCK
-                plot.ungridded_image(RA, Dec, MaxLen.Combined); caxis([0, 360]);
-                hold on; plot(RA0*RAD,Dec0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel 'RA, deg'; ylabel 'Dec, deg'; title 'Combined Limits: max(uninterrupted days)'; 
-                saveas(gcf, 'CombinedLimitsJ2000.jpg');
-                plot.ungridded_image(lambda, beta, MaxLen.Combined); caxis([0, 360]);
-                hold on; plot(lam0*RAD,bet0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel '\lambda, deg'; ylabel '\beta, deg'; title 'Combined Limits: max(uninterrupted days)'; 
-                saveas(gcf, 'CombinedLimitsEcl.jpg');
-
-    % account for the extinction limits 
-%     
-%     Alam = astro.extinction.extinctionGrid(Args.GridFile,'CooType','j2000.0','Filter','ultrasat','ExtMap','new','SaveMat',true);
-%     Averaged_extinction = celestial.grid.statSkyGrid('extinction_grid_j2000.0_ultrasat_AbsMapGont24.mat','SkyPos',[RA Dec])
-%     
-    Alam = astro.extinction.extinctionGrid(Args.GridFile,'CooType','j2000.0','Filter','ultrasat','ExtMap','SFD98','SaveMat',false);
-    
-    Averaged_extinction = celestial.grid.statSkyGrid('SkyPos',[lambda beta]);
-    
-    % exclude points where the extinction is above 1 
-    ExtinctionFlag = ones(Np,1); ExtinctionFlag( Alam > Args.LimitingAlambda ) = Tiny;  
-    MaxLen.CombinedLocalExtinct = MaxLen.Combined .* ExtinctionFlag;
-    
-    ExtinctionFlag = ones(Np,1); ExtinctionFlag( Averaged_extinction > Args.LimitingAlambda ) = Tiny;  
-    MaxLen.CombinedAverExtinct = MaxLen.Combined .* ExtinctionFlag;
-    
-                %%%%%%% PLOTTING BLOCK
-                plot.ungridded_image(RA, Dec, MaxLen.CombinedLocalExtinct); caxis([0, 360]);
-                hold on; plot(RA0*RAD,Dec0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel 'RA, deg'; ylabel 'Dec, deg'; title 'Combined + Extinction: max(uninterrupted days)'; 
-                saveas(gcf, 'CombinedLimitsLocalExtinctionJ2000.jpg');
-                plot.ungridded_image(lambda, beta, MaxLen.CombinedLocalExtinct); caxis([0, 360]);
-                hold on; plot(lam0*RAD,bet0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel '\lambda, deg'; ylabel '\beta, deg'; title 'Combined + Extinction: max(uninterrupted days)'; 
-                saveas(gcf, 'CombinedLimitsLocalExtinctionEcl.jpg');
-
-                plot.ungridded_image(RA, Dec, MaxLen.CombinedAverExtinct); caxis([0, 360]);
-                hold on; plot(RA0*RAD,Dec0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel 'RA, deg'; ylabel 'Dec, deg'; title 'Combined + Extinction: max(uninterrupted days)'; 
-                saveas(gcf, 'CombinedLimitsAverExtinctionJ2000.jpg');
-                plot.ungridded_image(lambda, beta, MaxLen.CombinedAverExtinct); caxis([0, 360]);
-                hold on; plot(lam0*RAD,bet0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel '\lambda, deg'; ylabel '\beta, deg'; title 'Combined + Extinction: max(uninterrupted days)'; 
-                saveas(gcf, 'CombinedLimitsAverExtinctionEcl.jpg');
-                
-                plot.ungridded_image(RA, Dec, Alam); caxis([0, 1]);
-                hold on; plot(RA0*RAD,Dec0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel 'RA, deg'; ylabel 'Dec, deg'; title 'Extinction (A_\lambda)'; 
-                saveas(gcf, 'AlamJ2000.jpg');
-                plot.ungridded_image(lambda, beta, Alam); caxis([0, 1]);
-                hold on; plot(lam0*RAD,bet0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel '\lambda, deg'; ylabel '\beta, deg'; title 'Extinction (A_\lambda)'; 
-                saveas(gcf, 'AlamEcl.jpg');
-                
-                plot.ungridded_image(RA, Dec, Averaged_extinction); caxis([0, 1]);
-                hold on; plot(RA0*RAD,Dec0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel 'RA, deg'; ylabel 'Dec, deg'; title 'Averaged Extinction (A_\lambda)'; 
-                saveas(gcf, 'Averaged_extinctionJ2000.jpg');
-                plot.ungridded_image(lambda, beta, Averaged_extinction); caxis([0, 1]);
-                hold on; plot(lam0*RAD,bet0*RAD,'ro', 'MarkerSize', 10); hold off
-                xlabel '\lambda, deg'; ylabel '\beta, deg'; title 'Averaged Extinction (A_\lambda)'; 
-                saveas(gcf, 'Averaged_extinctionEcl.jpg');
-    
-    % make a table of HCS-approved positions and read in the all-sky pointing map:
-    AllSky = readtable(Args.AllSky);
-    
-    Tab = table(Grid(:,1),Grid(:,2),MaxLen.CombinedAverExtinct,'VariableNames', {'RA', 'Dec', 'MaxLen'});
-    Tab180 = Tab(Tab.MaxLen > 180,:);
-    Tab360 = Tab(Tab.MaxLen > 360,:);
-    
-                figure(1); clf; hold on
-                plot(Tab180.RA,Tab180.Dec,'*','Color','blue')
-                plot(Tab360.RA,Tab360.Dec,'o','Color','green')        
-                plot(AllSky.Var1,AllSky.Var2,'*','Color','red')
-                hold off    
-                xlabel 'RA, deg'; ylabel 'Dec, deg';
-                title 'HCS constraints, Blue > 180 days, Green > 360 days';
-                
+            figure(2); plot.ungridded_image(RA, Dec, MaxLen .* (Averaged_extinction < 1)); caxis([0, 180]);
+            hold on
+            plot(List45e.Var1,  List45e.Var2,'*','Color','black');
+            plot(List180e.Var1,List180e.Var2,'*','Color','red');
+            title 'max uninterruped visibility of 0.0-3.0 GMT window, days'
+            
+            for i=1:4
+                plot.skyCircles(HCS(i,1), HCS(i,2), 'Rad', 7, 'Color', 'red');
+            end
+                       
     % save the MaxLen structure and the equatorial grid in a matlab object
     if Args.SaveMat
-        save('uninterruptedULTRASATvisibility.mat','MaxLen','Grid','Alam','Averaged_extinction');
+        save('LCS_visibility.mat','AllSky', 'Grid', 'MaxLen', 'Averaged_extinction');
     end
    
 end
@@ -200,32 +130,4 @@ function MaxLen = uninterruptedLength(Limits, Npos, Ntime)
             MaxLen(Ip) = max(MaxLen(Ip),Len);
         end
     end
-end
-
-function temp
-    for i=1:180
-        for j=1:12
-            k = (i-1)*12+j;
-            l(k) = (i-1)+(j-1)./100;
-        end
-    end
-    JD = celestial.time.julday(Args.StartDate) + l;
-    Vis = ultrasat.ULTRASAT_restricted_visibility(JD',Grid./RAD,'MinSunDist',(70)./RAD,'MinMoonDist',(34)./RAD,'MinEarthDist',(56)./RAD);
-    Lim = Vis.PowerLimits & Vis.SunLimits & Vis.MoonLimits; size(Lim)
-    L2 = reshape(Lim,[12,180,12288]); size(L2)
-    L3 = squeeze(prod(L2,1)); size(L3)
-    MaxLen = uninterruptedLength(L3, 12288, 180); size(MaxLen)
-    histogram(MaxLen)
-    plot.ungridded_image(RA, Dec, MaxLen); caxis([40, 180]);
-    title 'max uninterruped visibility of 0.0-3.0 GMT window, days'
-    % now show fields available for each of the four 45-day periods":
-    % products of 1-45, 46-90, 91-135, 136-180 
-    Q(1,:) = prod(L3(1:45,:),1); 
-    Q(2,:) = prod(L3(46:90,:),1); 
-    Q(3,:) = prod(L3(91:135,:),1); 
-    Q(4,:) = prod(L3(136:180,:),1); 
-    figure(2); subplot(2,2,1); plot.ungridded_image(RA, Dec, Q(1,:));
-    subplot(2,2,2); plot.ungridded_image(RA, Dec, Q(2,:));
-    subplot(2,2,3); plot.ungridded_image(RA, Dec, Q(3,:));
-    subplot(2,2,4); plot.ungridded_image(RA, Dec, Q(4,:));
 end
