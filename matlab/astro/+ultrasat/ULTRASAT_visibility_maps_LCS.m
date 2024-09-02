@@ -47,7 +47,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
             AllSky.Var1(i) = AllSky.Var1(i)-ShiftRA;
         else
             AllSky.Var1(i) = 360+AllSky.Var1(i)-ShiftRA;
-        end
+        end 
     end
     
     % make pole marks
