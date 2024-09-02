@@ -50,9 +50,9 @@ function ULTRASAT_visibility_maps_LCS(Args)
         end 
     end
     
-    % make pole marks
-%     Poles = [0, -90; 0, 90];
-%     [RA0,Dec0]  = celestial.coo.convert_coo(Poles(:,1)./RAD,Poles(:,2)./RAD,'e','j2000.0');
+    % make ecliptic pole marks
+    Poles = [0, -90; 0, 90];
+    [RA0,Dec0]  = celestial.coo.convert_coo(Poles(:,1)./RAD,Poles(:,2)./RAD,'e','j2000.0');
 %     [lam0,bet0] = celestial.coo.convert_coo(Poles(:,1)./RAD,Poles(:,2)./RAD,'j2000.0','e');   
     
     % build a list of night-time bins: NightBins bins every night from 0 to 3 UTC
@@ -98,8 +98,10 @@ function ULTRASAT_visibility_maps_LCS(Args)
             plot(List180.Var1,List180.Var2,'*','Color','red');
             
             for i=1:3
-                plot.skyCircles(HCS(i,1), HCS(i,2), 'Rad', 7, 'Color','red');
+                plot.skyCircles(HCS(i,1), HCS(i,2), 'Rad', 7, 'Color','red');                
             end
+            plot.skyCircles(RA0(1).*RAD,Dec0(1).*RAD,'Rad', 1,'Color','green')
+            plot.skyCircles(RA0(2).*RAD,Dec0(2).*RAD,'Rad', 1,'Color','green')
 
     % now we turn on averaged extinction:        
     Averaged_extinction = celestial.grid.statSkyGrid('SkyPos',[lambda beta]);         
@@ -120,6 +122,8 @@ function ULTRASAT_visibility_maps_LCS(Args)
             for i=1:3
                 plot.skyCircles(HCS(i,1), HCS(i,2), 'Rad', 7, 'Color','red');
             end
+            plot.skyCircles(RA0(1).*RAD,Dec0(1).*RAD,'Rad', 1,'Color','green')
+            plot.skyCircles(RA0(2).*RAD,Dec0(2).*RAD,'Rad', 1,'Color','green')
                        
     % save the MaxLen structure and the equatorial grid in a matlab object
     if Args.SaveMat
