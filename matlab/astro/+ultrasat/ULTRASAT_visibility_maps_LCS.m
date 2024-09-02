@@ -40,13 +40,13 @@ function ULTRASAT_visibility_maps_LCS(Args)
     % read the All Sky grid of pointings
     AllSky = readtable(Args.AllSky); 
     
-    % add some shift by by Dec:
-    ShiftDec = 30; % [deg]
+    % add some shift by by RA:
+    ShiftRA = 30; % [deg]
     for i=1:size(AllSky,1)
-        if AllSky.Var1(i) > ShiftDec
-            AllSky.Var1(i) = AllSky.Var1(i)-ShiftDec;
+        if AllSky.Var1(i) > ShiftRA
+            AllSky.Var1(i) = AllSky.Var1(i)-ShiftRA;
         else
-            AllSky.Var1(i) = 360+AllSky.Var1(i)-ShiftDec;
+            AllSky.Var1(i) = 360+AllSky.Var1(i)-ShiftRA;
         end
     end
     
