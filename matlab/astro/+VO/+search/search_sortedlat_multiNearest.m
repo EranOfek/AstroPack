@@ -40,7 +40,7 @@ arguments
     Radius
     DistFun function_handle      = @celestial.coo.sphere_dist_fast; %@celestial.coo.sphere_dist_fast_threshDist; %@celestial.coo.sphere_dist_fast;
     Args.DistFunArgs cell        = {}; %{4.8481e-5}; %{};
-    Args.UseMex logical          = false;
+    Args.UseMex logical          = true;
 end
 
 
@@ -56,11 +56,11 @@ Nlat  = numel(Lat); % number of latitudes to search
 Ilat  = [(1:1:Nlat).', (1:1:Nlat).'+Nlat];
 
 Ncat  = size(Cat,1);
-if Args.UseMex
-    Inear = uint32(binarySearch(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]));
-else
-    Inear = tools.find.mfind_bin(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]);
-end
+%if Args.UseMex
+%    Inear = uint32(binarySearch(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius]));
+%else
+Inear = tools.find.mfind_bin(Cat(:,Col.Lat),[Lat-Radius, Lat+Radius], Args.UseMex);
+%end
 
 % Inear(Ilat) is a two column matrix [low, high] index for each latitude
 % search
@@ -91,14 +91,15 @@ else
         %DiffLong = (Long(I) - Cat(Ilow(I):Ihigh(I),Col.Lon).*cos(Lat(I)));
         %if any(DiffLong<Radius) || any(abs(DiffLong)>(2.*pi-Radius))
             Dist  = DistFun(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat), Args.DistFunArgs{:});
-            FlagDist = Dist <= Radius;
+            %FlagDist = Dist <= Radius;
+            IndDist = find(Dist <= Radius);
         %else
         %    Dist  = nan(size(DiffLong));
         %    FlagDist = false(size(Dist));
         %end
         
-        IndI  = Ilow(I)-1+find(FlagDist);
-        DistI = Dist(FlagDist);
+        IndI  = Ilow(I)-1+IndDist;
+        DistI = Dist(IndDist);
         if ~isempty(DistI)
             [MinDist, MinInd] = min(DistI);
             %IndTable(I,1) = IndI(MinInd);   % VERIFY THIS???
