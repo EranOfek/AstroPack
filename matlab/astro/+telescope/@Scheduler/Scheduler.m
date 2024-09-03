@@ -1235,10 +1235,39 @@ classdef Scheduler < Component
                 Obj.NightVis(:, Ijd) = Obj.isVisible(VecJD(Ijd));
             end
             Obj.NightSunSet  = SunSet;
-            Obj.NightSunRise = SunSet;
+            Obj.NightSunRise = SunRise;
             
         end
             
+        function Result=timeSinceSunSet(Obj, JD)
+            % Time (days) since last Sunset.
+            % Input  : - self
+            %          - JD. Default is [].
+            % Output : - Time (days) since last Sunset.
+            % AUthor : Eran Ofek (Sep 2024)
+            % Example: TS.timeSinceSunSet
+
+            arguments
+                Obj
+                JD = [];
+            end
+            RAD = 180./pi;
+
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+            
+            VecJD = JD+(-1:0.005:1).';
+            [~, SunAlt] = Obj.sun(VecJD);
+            Ze = tools.find.find_local_zeros(VecJD,SunAlt);
+            Flag = Ze(:,1)<JD;
+            Ze  = Ze(Flag,:);
+            SetJD = Ze(find(Ze(:,2)<0,1,"last"),1);
+
+            Result = JD - SetJD;
+
+
+        end
     end
 
 
@@ -1285,11 +1314,55 @@ classdef Scheduler < Component
             
         end
         
-        function Obj=initNightCounter(Obj)
+        function Result=isNewNight(Obj, JD)
+            % Check if new night
+            % Input  : - self.
+            % Output : - true if new night.
+            % Author : Eran Ofek (Sep 2024)
+            % Example: S.isNewNight
+
+            arguments
+                Obj
+                JD = [];
+            end
+            RAD = 180./pi;
+
+            if isempty(JD)
+                JD = Obj.JD;
+            end
+            
+            TimeSinceLastSunSet = Obj.timeSinceSunSet(JD);
+            if TimeSinceLastSunSet>0.9
+                Result = true;
+            end
+
+        end
+
+        function Obj=initNightCounter(Obj, IsForce)
             % Set NightCounter to 0 for all targets
-           
-            Nsrc = Obj.List.sizeCatalog;
-            Obj.List.Catalog.NightCounter = zeros(Nsrc,1);
+            % Input  : - self
+            %          - Force initiate.
+            %            If true then initiate.
+            %            If false then initiate only if a new night.
+            %            Default is false.
+            % Output : - Updated object.
+            % Author : Eran Ofek (Sep 2024)
+
+            arguments
+                Obj
+                IsForce logical = true;
+            end
+
+            if IsForce
+                InitC = true;
+            else
+                InitC = Obj.isNewNight;
+            end
+
+            if InitC
+                Nsrc = Obj.List.sizeCatalog;
+                Obj.List.Catalog.NightCounter = zeros(Nsrc,1);
+            end
         end
     end
 
