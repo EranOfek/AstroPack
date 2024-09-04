@@ -6,48 +6,48 @@ function Result = unitTest()
     %%% create an artificial sky image 
     if false %%%% TEMPRORARILY SWITCH OFF
         
-    Nx = 1700; Ny = Nx;    
-    
-    MinMag = 6; MaxMag = 22; MagZP = 25;
-    MagBins = MinMag:0.1:MaxMag;    
-    
-    Nsrc = 0;
-    for Imag = 1:numel(MagBins)        
-        Nstars = round(10^(-12).*MagBins(Imag).^11.76);  % the empiric dependence has been measured from a LAST image 
-%         fprintf('%.1f %.0f\n', MagBins(Imag), Nstars);
-        for Istar = 1:Nstars
-            Nsrc = Nsrc + 1;
-            Mag(Nsrc)  = MagBins(Imag);
-            Flux(Nsrc) = 10^(0.4.*(MagZP-Mag(Nsrc)));
+        Nx = 1700; Ny = Nx;
+        
+        MinMag = 6; MaxMag = 22; MagZP = 25;
+        MagBins = MinMag:0.1:MaxMag;
+        
+        Nsrc = 0;
+        for Imag = 1:numel(MagBins)
+            Nstars = round(10^(-12).*MagBins(Imag).^11.76);  % the empiric dependence has been measured from a LAST image
+            %         fprintf('%.1f %.0f\n', MagBins(Imag), Nstars);
+            for Istar = 1:Nstars
+                Nsrc = Nsrc + 1;
+                Mag(Nsrc)  = MagBins(Imag);
+                Flux(Nsrc) = 10^(0.4.*(MagZP-Mag(Nsrc)));
+            end
         end
-    end
-    
-    fprintf('%d objects in the FOV\n', Nsrc);
-    
-    X1Y1 = Nx.* rand(Nsrc,2);
-    Oversample = 3;
-    for i = 1:Nsrc; PSF(:,:,i) = imUtil.kernel2.gauss([2 2 0],[25 25]) + 1e-2*rand(25,25); end
-    
-    % create a list of shifted and resampled fluxed PSF stamps
-    [CubePSF, XY] = imUtil.art.createSourceCube(PSF, X1Y1, Flux, 'Recenter', true, ...
-        'RecenterMethod','fft','Oversample', Oversample, 'PositivePSF', true);
-    
-    % create an empty image 
-    Image0 = rand(Nx,Ny);
-    
-    % fill the image with sources
-    ImageSrc = imUtil.art.addSources(Image0,CubePSF,XY,'Oversample',[],'Subtract',false);    
-    if sum(ImageSrc < 0) > 0
-        warning('Negative pixels');
-    end
-    
-    % add background with some spatial variations
-    Back = 200 .* (1 + 0.1*rand(Nx,Ny));    
-    ImageSrcBack = imUtil.art.addBackground(ImageSrc, Back, 'Subtract', false);
-    
-    % add noise
-    Image = imUtil.art.addNoise(ImageSrcBack,'normal');
-    
+        
+        fprintf('%d objects in the FOV\n', Nsrc);
+        
+        X1Y1 = Nx.* rand(Nsrc,2);
+        Oversample = 3;
+        for i = 1:Nsrc; PSF(:,:,i) = imUtil.kernel2.gauss([2 2 0],[25 25]) + 1e-2*rand(25,25); end
+        
+        % create a list of shifted and resampled fluxed PSF stamps
+        [CubePSF, XY] = imUtil.art.createSourceCube(PSF, X1Y1, Flux, 'Recenter', true, ...
+            'RecenterMethod','fft','Oversample', Oversample, 'PositivePSF', true);
+        
+        % create an empty image
+        Image0 = rand(Nx,Ny);
+        
+        % fill the image with sources
+        ImageSrc = imUtil.art.addSources(Image0,CubePSF,XY,'Oversample',[],'Subtract',false);
+        if sum(ImageSrc < 0) > 0
+            warning('Negative pixels');
+        end
+        
+        % add background with some spatial variations
+        Back = 200 .* (1 + 0.1*rand(Nx,Ny));
+        ImageSrcBack = imUtil.art.addBackground(ImageSrc, Back, 'Subtract', false);
+        
+        % add noise
+        Image = imUtil.art.addNoise(ImageSrcBack,'normal');
+        
     end
     
 %     Res = imUtil.sources.findSources(Image);

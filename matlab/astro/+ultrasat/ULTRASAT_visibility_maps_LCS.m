@@ -13,12 +13,13 @@ function ULTRASAT_visibility_maps_LCS(Args)
     %           maps with various sets of limits applied (see the LimitType
     %           list + extinction limits)
     % Author: A.M. Krassilchtchikov (Sep 2024)
-    % Example: ULTRASAT_visibility_maps('LimitingAlambda',0.5,'SaveMat',1);   
+    % Example: ultrasat.ULTRASAT_visibility_maps('LimitingAlambda',0.5,'SaveMat',1); 
+    %          ultrasat.ULTRASAT_visibility_maps_LCS('AllSky','~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_240_nonoverlapping.txt')
     arguments
         Args.GridFile = '~/matlab/data/ULTRASAT/healpix_grid_nside_64_npix_49152_pixarea_0.839_deg.txt' 
         % 'healpix_grid_nside_32_npix_12288_pixarea_3.357_deg.txt'; 'healpix_grid_nside_64_npix_49152_pixarea_0.839_deg.txt';
         %  can be produced localy by > celestial.grid.make_healpix_grid(64)
-        Args.AllSky   = '~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_350_rep1.txt'; 
+        Args.AllSky   = '~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_350_rep1.txt'; % '~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_240_nonoverlapping.txt'
         Args.StartDate = '2028-01-01 00:00:00';
         Args.NumDays   =  540; % [days] % 540
         Args.TimeBin   = 0.01; % [days] 0.01 day = 864 s ~ 3 x 300 s  
@@ -41,7 +42,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
     AllSky = readtable(Args.AllSky); 
     
     % add some shift by by RA:
-    ShiftRA = 30; % [deg]
+    ShiftRA = 40; % [deg]
     for i=1:size(AllSky,1)
         if AllSky.Var1(i) > ShiftRA
             AllSky.Var1(i) = AllSky.Var1(i)-ShiftRA;
