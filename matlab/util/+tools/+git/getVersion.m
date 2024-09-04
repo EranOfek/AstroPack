@@ -17,7 +17,8 @@ function VerString=getVersion(Args)
     
     HomePath = tools.os.get_userhome;
 
-    cd(sprintf('%s%s%s',HomePath,filesep,Args.Path));
+    cd(fileparts(mfilename('fullpath')));
+    %cd(sprintf('%s%s%s',HomePath,filesep,Args.Path));
 
     if Args.AddBranch
         [~,Str1] = system('git branch --show-current');

@@ -119,6 +119,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
         Args.PicklesDir = '~/matlab/data/spec/PicklesStellarSpec/';
         Args.Phoenix    = '~/matlab/data/spec/Phoenix/phoenix_mtl0_rescale10.mat';
+        
+        Args.FlatMatrix = [];                % an external model flat matrix can be input here 
     end
     
     % input format correction
@@ -232,8 +234,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 %     Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark + ...
 %                  Back.Cross + Back.Gain ) * sqrt(Exposure/300.) + Back.Readout * Args.Exposure(1); % NOT CORRECT
              
-    Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark + ...
-                 Back.Cross + Back.Gain + Back.Readout ) * Args.Exposure(1); 
+%     Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark + ...
+%                  Back.Cross + Back.Gain + Back.Readout ) * Args.Exposure(1);  % NOT CORRECT for small exposures
+             
+    Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark) * (Exposure/300.) ...
+                       + ( Back.Readout + Back.Cross + Back.Gain) * Args.Exposure(1); 
     
     %%%%%%%%%%%%%%%%%%%% load the matlab object with the ULTRASAT properties:
     I = Installer;
@@ -702,16 +707,26 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     NoiseLevel    = Back.Tot * ones(ImageSizeX,ImageSizeY,'single');   % already in [counts], see above
     SrcAndNoise   = ImageSrc .* Exposure + NoiseLevel; 
     
-%     ImageSrcNoise = poissrnd( SrcAndNoise, ImageSizeX, ImageSizeY);                             
-%     ImageBkg      = poissrnd( NoiseLevel, ImageSizeX, ImageSizeY);
-%     
-%     As the noise level is already quite high for typical exposures,
-%     we can use a faster normal distribution instead of the true Poisson distribution
-    ImageSrcNoise =  normrnd( SrcAndNoise, sqrt(SrcAndNoise), ImageSizeX, ImageSizeY);              
-    ImageBkg      =  normrnd( NoiseLevel,  sqrt(NoiseLevel),  ImageSizeX, ImageSizeY);
+    if Exposure < 300   % for short exposures one should use the true Poisson distribution
+        ImageSrcNoise = poissrnd( SrcAndNoise, ImageSizeX, ImageSizeY);
+        ImageBkg      = poissrnd( NoiseLevel, ImageSizeX, ImageSizeY);
+    else                % for longer exposures the noise level is already quite high, so 
+                        % we can use a faster normal distribution instead of the Poisson
+        ImageSrcNoise =  normrnd( SrcAndNoise, sqrt(SrcAndNoise), ImageSizeX, ImageSizeY);
+        ImageBkg      =  normrnd( NoiseLevel,  sqrt(NoiseLevel),  ImageSizeX, ImageSizeY);
+    end
                                  
                             fprintf(' done\n');                   
                             elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
+
+    %%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%  multiply by a model flat matrix (input)
+    
+    if ~isempty(Args.FlatMatrix)
+        ImageSrcNoise = ImageSrcNoise .* Args.FlatMatrix;
+    end
+    
+    %%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%  cut the saturated pixels (to be refined later) 
     
     Thresh        = FullWell * Args.Exposure(1);
@@ -777,7 +792,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         save(OutObjName,'usimImage','-v7.3');
     end
            
-    % write the image to a FITS file    
+    % write the image to a FITS file 
+    % if you do not wish to write any files, use 'OutType','none'
     if strcmp( Args.OutType,'FITS') || strcmp( Args.OutType,'all')
                 
         OutFITSName = sprintf('%s%s%s%s%s%s%s','!',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'.fits');
@@ -829,7 +845,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                     elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
                     tstop = datetime("now"); 
                     cprintf('hyper','%s%s%s\n','Simulation completed in ',tstop-tstart,...
-                                         ' , see the generated images')
+                                         ' , see the generated images')                                     
     %%%%%%%%%%%%%%%%%%%% post modeling checks (optional; in fact, should be done with another method)
     if Args.PostModelingFindSources
     %     
@@ -854,9 +870,14 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     end
 end
 
+
+
 %%%%%
-%%%%% internal functions (to be replaced by ones from the core AstroPack set)
+%%%%% internal functions (to be replaced later by ones from the core AstroPack set)
 %%%%%
+
+
+
 
 function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     % Make an artificial image with rotated and jitter-blurred source PSFs injected to the catalog positions     

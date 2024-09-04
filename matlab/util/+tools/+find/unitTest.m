@@ -2,6 +2,29 @@ function Result = unitTest()
     % unitTest for package: tools.find
     % Example: tools.find.unitTest
     
+
+    % tools.find.mfind_bin
+    X = rand(1e4,1);
+    X = sort(X);
+    Vals = rand(1,1e3);
+    I1 = tools.find.mfind_bin(X,Vals);
+    I2 = tools.find.mfind_bin(X,Vals,true);
+    if sum(I1~=I2)>0
+        error('tools.find.mfind_bin mex inconsistent');
+    end
+    X = rand(1e4,1);
+    X(1:100) = NaN;
+    X = sort(X);
+    Vals = rand(1,1e3);
+    I1 = tools.find.mfind_bin(X,Vals);
+    I2 = tools.find.mfind_bin(X,Vals,true);
+    if sum(I1~=I2)>0
+        error('tools.find.mfind_bin mex inconsistent');
+    end
+    
+    tic; for I=1:1000, I1 = tools.find.mfind_bin(X,Vals); end, toc
+    tic; for I=1:1000, I2 = tools.find.mfind_bin(X,Vals,true); end, toc
+
     
     A=single(rand(1000,1000));                                  
     A(1000:2000)=single(1);

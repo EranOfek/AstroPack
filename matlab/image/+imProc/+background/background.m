@@ -179,6 +179,10 @@ function Result = background(Obj, Args)
                 if Args.UseFastMedian
                     MedBack  = fast_median( Result(Iobj).(Args.BackProp).(Args.BackPropIn)(:));
                     MedVar  = fast_median( Result(Iobj).(Args.VarProp).(Args.VarPropIn)(:));
+
+                    % not good
+                    %MedBack = tools.math.stat.median1( Result(Iobj).(Args.BackProp).(Args.BackPropIn)(:) );
+                    %MedVar  = tools.math.stat.median1( Result(Iobj).(Args.VarProp).(Args.VarPropIn)(:) );
                 else
                     MedBack  = median( Result(Iobj).(Args.BackProp).(Args.BackPropIn), 'all');
                     MedVar  = median( Result(Iobj).(Args.VarProp).(Args.VarPropIn), 'all');

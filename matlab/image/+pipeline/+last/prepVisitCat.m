@@ -109,7 +109,7 @@ function [OutTable] = prepVisitCat(Args)
                     Ind = Ind + 1;
                     try
                         H = AstroHeader(Files(Ifiles).name);
-        
+        `
         
                         StH=H.getStructKey({'CROPID',...
                             'MIDJD', 'AVNCOADD', 'EXPTIME',...

@@ -61,7 +61,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         % Construct detection message
         Msg = strcat('New transient at', {' '},...
             DateString{1}, {' '},...
-            'and RA, Dec =',{' '},num2str(RA),',',num2str(Dec),{' '}, ...
+            'and RA, Dec =',{' '},sprintf('%.7f',RA),',',sprintf('%.7f',Dec),{' '}, ...
             'with a score of',{' '},sprintf('%.2f',Score),{' '},...
             'and magnitude of',{' '},sprintf('%.2f',Mag),'.');
 
@@ -304,7 +304,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
             fid = fopen(Text_DirFilename,'wt');
             fprintf(fid, Msg{1});
             fclose(fid);
-            CMD0 = strcat('last-transient-alert --message-file',{' '},Text_DirFilename,' --image-file',{' '},Image_DirFilename);
+            CMD0 = strcat('last-transient-slack-alert --message-file',{' '},Text_DirFilename,' --image-file',{' '},Image_DirFilename);
             [CMD0Status, CMD0Out] = system(CMD0{1});
             if CMD0Status > 0
                 Status = sprint('Alerting via last-tools failed: %s', CMD0Out);
@@ -330,8 +330,8 @@ function [Status] = sendTransientsAlert(ADc, Args)
         end
 
         % Check if cURL is installed.
-        CheckCurl = system('command -v curl');
-        if CheckCurl
+        [~,CheckCurl] = system('command -v curl');
+        if isempty(CheckCurl)
             Status = 'cURL not installed.';
             return
         end

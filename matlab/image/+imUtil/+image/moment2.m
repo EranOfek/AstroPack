@@ -77,6 +77,8 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %            'SubPixShift' - Method for sub pixels hift before during photometry
 %                       with imUtil.sources.aperPhotCube.
 %                       Default is 'fft'.
+%            'UseMex' - Use MEX functionality for speedup.
+%                       Default is false.
 % Output  : - First moment information. 
 %             A structure with the following fields.
 %             .RoundX - Vector of roundex X position
@@ -138,6 +140,8 @@ arguments
     Args.CalcWeightedAper logical                      = false;
     %Args.SubPixShiftBeforePhot logical                 = false;
     Args.SubPixShift                                   = 'fft'; %'fft';   % 'fft' | 'lanczos' | 'none'
+    
+    Args.UseMex logical                                = false;
 end
 
 % make sure all the variables has the same type as the Image
@@ -173,7 +177,7 @@ Vec  = VecX;
 % no need to use meshgrid:
 [MatX,MatY] = meshgrid(Vec,Vec);
 %MatR        = sqrt(MatX.^2 + MatY.^2);
-MatR2       = MatX.^2 + MatY.^2;
+%MatR2       = MatX.^2 + MatY.^2;
 MatR2        = VecX.^2 + VecY(:).^2;
 
 %MatR        = sqrt(MatR2);
@@ -194,7 +198,12 @@ if Args.SubBack || nargout>2
     BackCube = BackFilter.*Cube;
     % note - use NaN ignoring functions!
     Aper.AnnulusBack = squeeze(Args.BackFun(BackCube,Args.BackFunArgs{:}));
-    Aper.AnnulusStd  = squeeze(std(BackCube,0,[1 2],'omitnan'));
+    if Args.UseMex
+        [~,Aper.AnnulusStd] = tools.math.stat.mex.squeezeStdCube_Dim12(BackCube);
+    else
+        Aper.AnnulusStd  = squeeze(std(BackCube,0,[1 2],'omitnan'));
+    end
+    
 
     % subtract back
     if Args.SubBack
@@ -221,6 +230,7 @@ end
 % construct a window with maximal radiu
 W_Max = ones(size(MatR2),'like',Image);
 %W_Max = repmat(cast(1, 'like',Image), size(MatR2));  % no speed improvment
+% don't use: tools.array.conditionalReplace, because MatR2 array is small.
 W_Max(MatR2>MomRadius2) = 0;
 
 
@@ -310,18 +320,25 @@ else
 
         % construct a window with maximal radius
         %W_Max = ones(size(MatR2), 'like',Image); 
-        W_Max = repmat(cast(1, 'like',Image), size(MatR2));  % much faster
+        
         % slow
         %W_Max(MatR2>MomRadius2) = 0;
         % fast
-        W_Max = W_Max.*(MatR2<MomRadius2);
-
+        %W_Max = repmat(cast(1, 'like',Image), size(MatR2));  % much faster
+        %W_Max = W_Max.*(MatR2<MomRadius2);
+        % faster
+        W_Max = cast(1, 'like',Image).*(MatR2<MomRadius2);
 
         WInt = W.*W_Max.*Cube; % Weighted intensity
         Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
 
-        DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
-        DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+        if Args.UseMex
+            DeltaX1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatXcen, Norm);
+            DeltaY1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatYcen, Norm);
+        else
+            DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
+            DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+        end
 
         if ~isempty(Args.MaxStep)
             DeltaX1 = sign(DeltaX1).*min(abs(DeltaX1), Args.MaxStep);
@@ -382,8 +399,13 @@ else
         
         Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
 
-        DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
-        DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+        if Args.UseMex
+            DeltaX1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatXcen, Norm);
+            DeltaY1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatYcen, Norm);
+        else
+            DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
+            DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+        end
 
         if ~isempty(Args.MaxStep)
             DeltaX1 = sign(DeltaX1).*min(abs(DeltaX1), Args.MaxStep);

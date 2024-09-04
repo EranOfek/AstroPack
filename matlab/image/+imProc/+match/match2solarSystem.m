@@ -277,6 +277,10 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
                     Nline = Cat.sizeCatalog;
                     Obj_DistCol = nan(Nline,1);
                     insertCol(Cat, Obj_DistCol, Args.SourcesColDistPos, Args.SourcesColDistName, Args.SourcesColDistUnits);
+                    if Args.AddMag2Obj
+                        Obj_MagCol =  nan(Nline,1);
+                        insertCol(Cat, Obj_MagCol, Inf, {Args.ObjColMag}, {'mag'});
+                    end
                 end
 
             else
