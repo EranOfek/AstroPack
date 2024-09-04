@@ -146,7 +146,7 @@ function Result = FitRestoreSubtract(AI, Args)
        Args.VarMethod   = 'LogHist';
        Args.PreviousVar = [];
        
-       Args.MomRadius   = 4; % recommended MomRadius = 1.7 * FWHM ~ 3.8
+       Args.MomRadius   = 4; % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
        
        Args.Threshold   = 5;
        
@@ -189,7 +189,7 @@ function Result = FitRestoreSubtract(AI, Args)
     else
         AI.PSF = Args.PSF;        
     end
-    % model the PSF with an analytical function and replace the stamp
+    % model the PSF with an analytical function and replace the stamp if the fit is OK
     OPTIONS = optimoptions('lsqcurvefit','Algorithm','levenberg-marquardt');
     [AI.PSFData, BestFit,FitRes] = AI.PSFData.fitFunPSF('ReplaceStamp',false,...
         'Funs',{@imUtil.kernel2.gauss ,@imUtil.kernel2.gauss}, 'Par0',{[2 2 0],[1 1 0]}, 'Norm0',[1 1],...
