@@ -105,7 +105,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
             } else if (strcmp(method, "linear") == 0) {
                 ZI[j + i * nxi] = linearInterp(xi, yi, X, Y, V, nx, ny);
             } else if (strcmp(method, "cubic") == 0) {
-                ZI[j + i * nxi] = cubicInterp(xi, yi, X, Y, V, nx, ny);
+                ZI[j + i * nxi] = linearInterp(xi, yi, X, Y, V, nx, ny);
             } else {
                 mexErrMsgTxt("Unknown interpolation method.");
             }
