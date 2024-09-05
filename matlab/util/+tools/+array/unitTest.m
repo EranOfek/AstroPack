@@ -3,6 +3,17 @@ function Result = unitTest
 	
     %io.msgStyle(LogLevel.Test, '@start', 'tools.array test started');
 
+    % tools.array.mex.countNaN
+    A = rand(1700, 1700);
+    A(801:900) = NaN;
+    if tools.array.mex.countNaN(A)~=100
+        error('tools.array.mex.countNaN inconsistent');
+    end
+    tic; for I=1:1:1000, VV=sum(isnan(A)); end, toc
+    tic; for I=1:1:1000, VV=tools.array.mex.countNaN(A); end, toc
+    
+    
+    
     % tools.array.mex.squeezeSumAmultB_Dim12
     A=rand(25,25,1000);
     B=rand(25,25,1000);
