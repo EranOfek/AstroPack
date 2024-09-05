@@ -144,7 +144,7 @@ classdef MatchedSources < Component
     
     methods (Static) % static read
         function Obj = read(FileName, Args)
-            % OBSOLETE - read mat file or HDF5 file containing MatchedSources
+            % read mat file or HDF5 file containing MatchedSources
             %   Each dataset in the hdf5 file will be read into a matrix
             %   with the same name in the Data property.
             % Input  : - A file name.
@@ -227,7 +227,7 @@ classdef MatchedSources < Component
         end
         
         function Result = read_rdir(FileTemplate, Args)
-            % Read all MatchedSources files in a dir tree into a MatchedSources object.
+            % OBSOLETE - Read all MatchedSources files in a dir tree into a MatchedSources object.
             %   By default will read all Level=MergedMat files, recursivley
             %   from a tree of directories, into a MatchedSources object.
             %   If OrderPart argument is provided than will attempt to
@@ -391,6 +391,9 @@ classdef MatchedSources < Component
             %                   'FileName'.
             %            'FieldFolder' - The input structure field contains
             %                   the cell of folders. Default is 'Folder'.
+            %            'Fields' - A field, or cell array of fields to
+            %                   read from an HDF5 file. In the case of a
+            %                   mat file, all fields are read.
             % Output : - A MatchedSources object populated with the files.
             % Author : Eran Ofek (Nov 2023)
             % Example: L = MatchedSources.rdirMatchedSourcesSearch('CropID',[10]);
@@ -400,6 +403,7 @@ classdef MatchedSources < Component
                 List
                 Args.FieldFileName   = 'FileName';
                 Args.FieldFolder     = 'Folder';
+                Args.Fields          = [];
             end
 
             if iscell(List)
@@ -413,7 +417,7 @@ classdef MatchedSources < Component
                 Nfile = numel(ListSt(Ist).(Args.FieldFileName));
                 File = fullfile(ListSt(Ist).(Args.FieldFolder), ListSt(Ist).(Args.FieldFileName));
                 for Ifile=1:1:Nfile
-                    Result(Ifile) = MatchedSources.read(File{Ifile});
+                    Result(Ifile) = MatchedSources.read(File{Ifile}, 'Fields',Args.Fields);
                 end
             end
 
