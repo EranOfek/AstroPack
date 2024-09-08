@@ -328,7 +328,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     
     %%% make arrays of magnitudes and filters:
     
-    if numel(Args.Mag) > 1
+    if numel(Args.Mag) > 1 
         InMag = Args.Mag;
     else
         InMag = Args.Mag(1)*ones(NumSrc,1);
