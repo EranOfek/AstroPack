@@ -121,6 +121,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.Phoenix    = '~/matlab/data/spec/Phoenix/phoenix_mtl0_rescale10.mat';
         
         Args.FlatMatrix = [];                % an external model flat matrix can be input here 
+        
+        Args.AddCRStreaks logical = true;    % add CR streaks     
     end
     
     % input format correction
@@ -718,6 +720,20 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                  
                             fprintf(' done\n');                   
                             elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
+                            
+    %%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%  add CR streaks
+    
+    if Args.AddCRStreaks
+        if Args.Exposure(1) == 1
+            CRProb = 1e-2;
+            CRAmplitude = FullWell; % is it correct???
+            ImageCR = CRAmplitude .* ( rand(ImageSizeX, ImageSizeY) < CRProb );
+            ImageSrcNoise = ImageSrcNoise + ImageCR;
+        else
+            fprintf('NOTE: CR streaks are not included once multiple exposures are modelled..\n');
+        end
+    end    
 
     %%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%  multiply by a model flat matrix (input)
@@ -725,7 +741,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     if ~isempty(Args.FlatMatrix)
         ImageSrcNoise = ImageSrcNoise .* Args.FlatMatrix;
     end
-    
+        
     %%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%  cut the saturated pixels (to be refined later) 
     
