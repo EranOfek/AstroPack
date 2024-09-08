@@ -122,7 +122,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
         Args.FlatMatrix = [];                % an external model flat matrix can be input here 
         
-        Args.AddCRStreaks logical = true;    % add CR streaks     
+        Args.AddCRStreaks logical = false;   % add CR streaks     
     end
     
     % input format correction

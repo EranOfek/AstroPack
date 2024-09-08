@@ -3,6 +3,7 @@ classdef ExtinctionMaps < PlannerToolBase
     % main functions:
     % -- extinctionMap (constructor)
     % -- buildMap (filling the map properties of an object)
+    % -- buildAveragedMap (building an averaged map, may take much time) 
     % -- plotMap (plotting the maps of an object)
     properties (Access = public) 
         Grid        
