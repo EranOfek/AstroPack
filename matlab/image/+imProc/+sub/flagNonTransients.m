@@ -130,9 +130,9 @@ function TranCat = flagNonTransients(Obj, Args)
             'Hole', 'CR_DeltaHT', 'Negative'};
 
         Args.flagBadPix_Soft logical  = true;
-        Args.BadPix_Soft       = {{'HighRN', 6.0, 14.0}, {'SrcNoiseDominated', 6.0, 14.0}, ...
-            {'FlatHighStd',6.0, 14.0}, {'DarkHighVal', 6.0, 14.0},...
-            {'CoaddLessImages', 6.0, 14.0}};
+        Args.BadPix_Soft       = {{'HighRN', 6.5, 13.0}, {'SrcNoiseDominated', 6.5, 13.0}, ...
+            {'FlatHighStd',6.5, 13.0}, {'DarkHighVal', 6.5, 13.0},...
+            {'CoaddLessImages', 6.5, 13.0}};
 
         Args.flagSNR logical = true;
         Args.SNRThreshold = 5.0;
@@ -157,8 +157,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagPeakValley logical = true;
         Args.PVDistThresh = 10;
 
-        Args.flagFocusing logical = false;
-        Args.FocusFWHMThreshSoft = 3.5;
+        Args.flagFocusing logical = true;
+        Args.FocusFWHMThreshSoft = 3.0;
         Args.FocusFWHMThreshHard = 4.0;
         Args.Focus2ndMomentThresh = 2.0;
         

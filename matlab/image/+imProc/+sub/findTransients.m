@@ -303,6 +303,10 @@ function TranCat=findTransients(AD, Args)
             TranCat(Iobj) = TranCat(Iobj).insertCol(cast(MinDists,'double'), ...
                 'SCORE', {'PV_DIST'}, {''});
         end
+
+        if Args.includeSkyCoord
+            TranCat(Iobj).sortrows('Dec');
+        end
   
     end
 
