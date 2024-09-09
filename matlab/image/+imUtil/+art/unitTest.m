@@ -160,6 +160,8 @@ function Result = FitRestoreSubtract(AI, Args)
        
        Args.RemoveMasked  = false;  % seems like 'true' does not influence much ? 
        Args.RemovePSFCore = false;  % not decided on it yet
+       
+       Args.UseInterpolant = true;
     end
     % measure background and variance
     imProc.background.background(AI, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
@@ -220,10 +222,20 @@ function Result = FitRestoreSubtract(AI, Args)
 %     Res.ShiftedPSF = Res.ShiftedPSF./sum(Res.ShiftedPSF,[1 2]); % normalization
 
     % use Res.DX and Res.DY to create ShiftedPSF from an interpolation? 
-    % 
+    if Args.UseInterpolant        
+        F = griddedInterpolant(AI.PSF,'linear','previous'); %
+        Nx = size(AI.PSF,1);
+        [X, Y] = meshgrid(1:Nx);
+        ShiftedPSF = repmat(0,Nx,Nx,NumSrc);
+        for Isrc = 1:NumSrc
+            ShiftedPSF(:,:,Isrc)  = F(X+Res.DX(Isrc),Y+Res.DY(Isrc))';
+        end        
+    else
+        ShiftedPSF = Res.ShiftedPSF; 
+    end
 
     % construct and inject sources
-    [CubePSF, XY] = imUtil.art.createSourceCube(Res.ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, 'Recenter', false,'PositivePSF',true);
+    [CubePSF, XY] = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, 'Recenter', false,'PositivePSF',true);
     ImageSrc = imUtil.art.addSources(repmat(0,size(AI.Image)),CubePSF,XY,'Oversample',[],'Subtract',false);
 %     ImageSrcBack = imUtil.art.addBackground(ImageSrc, AI.Back, 'Subtract', false);    % for testing, do not use it further 
     % make a difference image    
