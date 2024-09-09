@@ -189,17 +189,18 @@ function Result = FitRestoreSubtract(AI, Args)
     else
         AI.PSF = Args.PSF;        
     end
+    
     % model the PSF with an analytical function and replace the stamp if the fit is OK
-    OPTIONS = optimoptions('lsqcurvefit','Algorithm','levenberg-marquardt');
-    [AI.PSFData, BestFit,FitRes] = AI.PSFData.fitFunPSF('ReplaceStamp',false,...
-        'Funs',{@imUtil.kernel2.gauss ,@imUtil.kernel2.gauss}, 'Par0',{[2 2 0],[1 1 0]}, 'Norm0',[1 1],...
-        'LsqOptions',OPTIONS);
-    if FitRes{1}.ExitFlag == 1 || FitRes{1}.ResNorm < 1e-4 
-        fprintf(['PSF fitting:' repmat('%.2f ', 1, 8) '\n'], FitRes{1}.Par); % testing
-        AI.PSF = BestFit{1};
-    else
-        fprintf('PSF fitting did not converge normally, the stamp is not renewed.\n');
-    end
+%     OPTIONS = optimoptions('lsqcurvefit','Algorithm','levenberg-marquardt');
+%     [AI.PSFData, BestFit,FitRes] = AI.PSFData.fitFunPSF('ReplaceStamp',false,...
+%         'Funs',{@imUtil.kernel2.gauss ,@imUtil.kernel2.gauss}, 'Par0',{[2 2 0],[1 1 0]}, 'Norm0',[1 1],...
+%         'LsqOptions',OPTIONS);
+%     if FitRes{1}.ExitFlag == 1 || FitRes{1}.ResNorm < 1e-4 
+%         fprintf(['PSF fitting:' repmat('%.2f ', 1, 8) '\n'], FitRes{1}.Par); % testing
+%         AI.PSF = BestFit{1};
+%     else
+%         fprintf('PSF fitting did not converge normally, the stamp is not renewed.\n');
+%     end
     
         % find sources once more with the measured PSF instead of a gaussian? 
 %     AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold,'ReCalcBack',false,...
@@ -217,6 +218,9 @@ function Result = FitRestoreSubtract(AI, Args)
 %     Res.ShiftedPSF = Res.ShiftedPSF .* (Res.ShiftedPSF > 0);
 %     sum(Res.ShiftedPSF,'all')./size(Res.ShiftedPSF,3) % ~ 1.0015 (average excess flux)!
 %     Res.ShiftedPSF = Res.ShiftedPSF./sum(Res.ShiftedPSF,[1 2]); % normalization
+
+    % use Res.DX and Res.DY to create ShiftedPSF from an interpolation? 
+    % 
 
     % construct and inject sources
     [CubePSF, XY] = imUtil.art.createSourceCube(Res.ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, 'Recenter', false,'PositivePSF',true);
