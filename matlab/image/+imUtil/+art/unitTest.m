@@ -233,6 +233,8 @@ function Result = FitRestoreSubtract(AI, Args)
     else
         ShiftedPSF = Res.ShiftedPSF; 
     end
+    
+    SPSF = imUtil.psf.suppressEdges(Res.ShiftedPSF, 'Fun',@imUtil.kernel2.cosbell, 'FunPars', [5, 8]);
 
     % construct and inject sources
     [CubePSF, XY] = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, 'Recenter', false,'PositivePSF',true);

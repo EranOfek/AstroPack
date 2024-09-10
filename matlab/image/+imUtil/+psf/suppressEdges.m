@@ -2,7 +2,7 @@ function PSF=suppressEdges(PSF, Args)
     % Multiply the PSF by edge suppressing function (e.g., cosbell).
     %   Useful in order to verify that the PSF is zero padded and
     %   approach zero smoothly.
-    %   See also: mUtil.psf.psf_zeroConverg
+    %   See also: imUtil.psf.psf_zeroConverge
     % Input  : - A PSF matrix.
     %          * ...,key,val,...
     %            'Fun' - A 2-D function that will multiply the PSF.
