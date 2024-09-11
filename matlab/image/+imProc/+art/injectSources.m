@@ -2,7 +2,7 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Args)
     % Inject/subtract source images at given pixel positions of an AstroImage
     %     AI can be a stack of objects
     % Input  : - a stack of AstroImages or make a new one 
-    %          - a 2-column matrix of exact (sub)pixel positions or an AstroCatalog  
+    %          - a 2-column matrix of exact (sub)pixel positions or an AstroCatalog (NB! X and Y coordinates should be transposed!) 
     %          - a vector of source fluxes or 1 flux value for all the sources
     %          - a cube or a cell array of PSF stamps or a single PSF stamp
     %          * ...,key,val,... 

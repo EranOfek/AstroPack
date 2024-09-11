@@ -162,6 +162,7 @@ function Result = FitRestoreSubtract(AI, Args)
        Args.RemovePSFCore = false;  % not decided on it yet
        
        Args.UseInterpolant = true;
+       Args.SuppressEdges  = false;
     end
     % measure background and variance
     imProc.background.background(AI, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
@@ -230,14 +231,19 @@ function Result = FitRestoreSubtract(AI, Args)
         for Isrc = 1:NumSrc
             ShiftedPSF(:,:,Isrc)  = F(X+Res.DX(Isrc),Y+Res.DY(Isrc))';
         end        
+        ShiftedPSF = ShiftedPSF./sum(ShiftedPSF,3); % renormalize
     else
         ShiftedPSF = Res.ShiftedPSF; 
     end
     
-    SPSF = imUtil.psf.suppressEdges(Res.ShiftedPSF, 'Fun',@imUtil.kernel2.cosbell, 'FunPars', [5, 8]);
+    if Args.SuppressEdges
+        SPSF = imUtil.psf.suppressEdges(ShiftedPSF, 'Fun',@imUtil.kernel2.cosbell, 'FunPars', [5, 8]);
+    else
+        SPSF = ShiftedPSF;
+    end
 
     % construct and inject sources
-    [CubePSF, XY] = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, 'Recenter', false,'PositivePSF',true);
+    [CubePSF, XY] = imUtil.art.createSourceCube(SPSF, [Res.RoundY Res.RoundX], Res.Flux, 'Recenter', false,'PositivePSF',true);
     ImageSrc = imUtil.art.addSources(repmat(0,size(AI.Image)),CubePSF,XY,'Oversample',[],'Subtract',false);
 %     ImageSrcBack = imUtil.art.addBackground(ImageSrc, AI.Back, 'Subtract', false);    % for testing, do not use it further 
     % make a difference image    
