@@ -36,7 +36,7 @@ function [ShiftedImage,NY,NX,Nr,Nc]=shift_fft(Image,DX,DY,NY,NX,Nr,Nc)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-Algo = 5;
+Algo = 3;
 
 
 if Algo==0
