@@ -161,15 +161,16 @@ function Result = FitRestoreSubtract(AI, Args)
        Args.RemoveMasked  = false;  % seems like 'true' does not influence much ? 
        Args.RemovePSFCore = false;  % not decided on it yet
        
-       Args.UseInterpolant = true;
-       Args.SuppressEdges  = false;
+       Args.UseInterpolant = false;
+       Args.SuppressEdges  = true;
+       Args.RedNoiseFactor = 1.3; % increase the variance due to the sources found at previous iterations by this factor 
     end
     % measure background and variance
     imProc.background.background(AI, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
     
 %     Result.Var = AI.Var;            % save the measured local variance for the next iteration(s) 
     if ~isempty(Args.PreviousVar)   % add the variance from the local sources from the previous iteration(s)
-        AI.Var = AI.Var + Args.PreviousVar;
+        AI.Var = AI.Var + Args.RedNoiseFactor .* Args.PreviousVar;
 %         AI.Var = max(AI.Var,Args.PreviousVar);
     end
         
