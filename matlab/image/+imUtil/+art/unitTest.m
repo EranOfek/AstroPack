@@ -117,12 +117,12 @@ function Result = unitTest()
 %     ds9(Res2(1).Diff,5)
 %     ds9(Res2(5).Diff,6)
        
-    DS9_new.regionWrite([AI1(1).CatData.Catalog(:,29) AI1(1).CatData.Catalog(:,30)],'FileName','~/LAST_346+79_lastit.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AI1(1).CatData.Catalog(:,29) AI1(1).CatData.Catalog(:,30)],'FileName','LAST_346+79_lastit.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
     DS9_new.regionWrite([AC1(1).Catalog(:,29) AC1(1).Catalog(:,30)],'FileName','LAST_346+79_it1.reg','Color','blue','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
     DS9_new.regionWrite([AC1(2).Catalog(:,29) AC1(2).Catalog(:,30)],'FileName','LAST_346+79_it2.reg','Color','red','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
     DS9_new.regionWrite([AC1(3).Catalog(:,29) AC1(3).Catalog(:,30)],'FileName','LAST_346+79_it3.reg','Color','green','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
     
-    DS9_new.regionWrite([AI2(1).CatData.Catalog(:,29) AI2(1).CatData.Catalog(:,30)],'FileName','~/LAST_303+41_lastit.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AI2(1).CatData.Catalog(:,29) AI2(1).CatData.Catalog(:,30)],'FileName','LAST_303+41_lastit.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
     DS9_new.regionWrite([AC2(1).Catalog(:,29) AC2(1).Catalog(:,30)],'FileName','LAST_303+41_it1.reg','Color','blue','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
     DS9_new.regionWrite([AC2(2).Catalog(:,29) AC2(2).Catalog(:,30)],'FileName','LAST_303+41_it2.reg','Color','red','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
     DS9_new.regionWrite([AC2(3).Catalog(:,29) AC2(3).Catalog(:,30)],'FileName','LAST_303+41_it3.reg','Color','green','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);

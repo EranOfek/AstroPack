@@ -127,7 +127,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
             plot.skyCircles(RA0(2).*RAD,Dec0(2).*RAD,'Rad', 1,'Color','green')
                        
     % save the MaxLen structure and the equatorial grid in a matlab object
-    if Args.SaveMat
+     if Args.SaveMat
         save('LCS_visibility.mat','AllSky', 'Grid', 'MaxLen', 'Averaged_extinction');
     end
    
