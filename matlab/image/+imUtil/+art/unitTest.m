@@ -83,10 +83,10 @@ function Result = unitTest()
         
     toc; tic;
     % a low-latitude (dense) field:
-%     fprintf('LAST subimage from a low-latitude field 275-16:\n');    
-%     AI2(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_275-16_crop22.fits');
-    fprintf('LAST subimage from a low-latitude field 303+41:\n');
-    AI2(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST.01.10.01_20230626.233722.753_clear_303+41_000_001_017_sci_coadd_Image_1.fits');
+    fprintf('LAST subimage from a low-latitude field 275-16:\n');    
+    AI2(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_275-16_crop22.fits');
+%     fprintf('LAST subimage from a low-latitude field 303+41:\n');
+%     AI2(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST.01.10.01_20230626.233722.753_clear_303+41_000_001_017_sci_coadd_Image_1.fits');
     Res2(1) = FitRestoreSubtract(AI2(1),'VarMethod','LogHist','Threshold', Thresh(1), 'MomRadius', 4,...
         'RemoveMasked', false, 'RemovePSFCore', false,...
         'BackPar',{'SubSizeXY',[128 128]}); % {'SubSizeXY','full'}
@@ -122,10 +122,10 @@ function Result = unitTest()
     DS9_new.regionWrite([AC1(2).Catalog(:,29) AC1(2).Catalog(:,30)],'FileName','LAST_346+79_it2.reg','Color','red','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
     DS9_new.regionWrite([AC1(3).Catalog(:,29) AC1(3).Catalog(:,30)],'FileName','LAST_346+79_it3.reg','Color','green','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
     
-    DS9_new.regionWrite([AI2(1).CatData.Catalog(:,29) AI2(1).CatData.Catalog(:,30)],'FileName','LAST_303+41_lastit.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
-    DS9_new.regionWrite([AC2(1).Catalog(:,29) AC2(1).Catalog(:,30)],'FileName','LAST_303+41_it1.reg','Color','blue','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
-    DS9_new.regionWrite([AC2(2).Catalog(:,29) AC2(2).Catalog(:,30)],'FileName','LAST_303+41_it2.reg','Color','red','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
-    DS9_new.regionWrite([AC2(3).Catalog(:,29) AC2(3).Catalog(:,30)],'FileName','LAST_303+41_it3.reg','Color','green','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AI2(1).CatData.Catalog(:,29) AI2(1).CatData.Catalog(:,30)],'FileName','LAST_275-16_lastit.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AC2(1).Catalog(:,29) AC2(1).Catalog(:,30)],'FileName','LAST_275-16_it1.reg','Color','blue','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AC2(2).Catalog(:,29) AC2(2).Catalog(:,30)],'FileName','LAST_275-16_it2.reg','Color','red','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AC2(3).Catalog(:,29) AC2(3).Catalog(:,30)],'FileName','LAST_275-16_it3.reg','Color','green','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
 
 %      S = readtable('~/LAST_275_16_sextractor_v2.cat','FileType','text','NumHeaderLines',14);
 %      DS9_new.regionWrite([S.Var2 S.Var3],'FileName','~/LAST_275_16_sextractor_v2.reg','Color','yellow','Marker','b','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
@@ -180,7 +180,7 @@ function Result = FitRestoreSubtract(AI, Args)
 %             'BackPar',{'BackFun',@median,'BackFunPar',{'all'},'VarFun',@imUtil.background.rvar,'SubSizeXY','full'});     
     %
     NumSrc = height(AI.Table);
-    fprintf('Iter. %d: bkg = %.0f, var = %.0f, Nobj: %d\n',...
+    fprintf('Iter. %d: mean bkg = %.0f, mean var = %.0f, Nobj: %d\n',...
         Args.Iteration,mean(AI.Back,'all'),mean(AI.Var,'all'),NumSrc);
     % insert a column with iteration number into the source catalog
     AI.CatData = insertCol(AI.CatData, repmat(Args.Iteration,1,NumSrc)', Inf, 'ITER', {''});
@@ -232,7 +232,7 @@ function Result = FitRestoreSubtract(AI, Args)
         for Isrc = 1:NumSrc
             ShiftedPSF(:,:,Isrc)  = F(X+Res.DX(Isrc),Y+Res.DY(Isrc))';
         end        
-        ShiftedPSF = ShiftedPSF./sum(ShiftedPSF,3); % renormalize
+        ShiftedPSF = ShiftedPSF./sum(ShiftedPSF,[1 2]); % renormalize
     else
         ShiftedPSF = Res.ShiftedPSF; 
     end
