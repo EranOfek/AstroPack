@@ -125,6 +125,13 @@ function ULTRASAT_visibility_maps_LCS(Args)
             end
             plot.skyCircles(RA0(1).*RAD,Dec0(1).*RAD,'Rad', 1,'Color','green')
             plot.skyCircles(RA0(2).*RAD,Dec0(2).*RAD,'Rad', 1,'Color','green')
+            
+            cd ~/'Dropbox (Weizmann Institute)'/Observation_planning/Field_selection/WGs_maps/
+            load('WG6/WG6_HETDEX_spring_contour.mat')
+            plot(WG6_HETDEX_spring_contour(:,1),WG6_HETDEX_spring_contour(:,2),'black');
+            cd ~/
+            xlabel '37/78 non-overlapping positions of 180/45 days visibility'
+                        
                        
     % save the MaxLen structure and the equatorial grid in a matlab object
      if Args.SaveMat
