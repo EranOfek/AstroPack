@@ -24,6 +24,11 @@ function Result = unitTest
     % assert(all(getCol(AC2, MagNames)==getCol(AC2,MagNamesNew),'all') ,'error in addMagCols');
     % 
     % AC2 = imProc.sources.addMagCols(AC2,"FluxCols",NamesFlux(IndFlux),"FluxErrCols",NamesFluxErr(IndFluxErr),"MagStr",MagNames,"MagErrStr",MagErrNames,"IsLuptitude",false);
+    
+    % testing multi-iteration PSF photometry 
+    AI  = AstroImage('LAST_346+79_crop10.fits');      
+    AI = imProc.sources.mextractor(AI);
+    height(AI.CatData.Catalog);
 
     cd(PWD)
 
