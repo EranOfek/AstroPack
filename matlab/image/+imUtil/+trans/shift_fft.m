@@ -1,4 +1,4 @@
-function [ShiftedImage,NY,NX,Nr,Nc]=shift_fft(Image,DX,DY,NY,NX,Nr,Nc)
+function [ShiftedImage,NY,NX,Nr,Nc,ShiftedImage_padded]=shift_fft(Image,DX,DY,NY,NX,Nr,Nc,Args)
 % Shift Image using the sub pixel Fourier shift theorem (sinc interp.)
 % Package: imUtil.image
 % Description: Shift an image using the FFT shift thorem. This works well
@@ -35,11 +35,20 @@ function [ShiftedImage,NY,NX,Nr,Nc]=shift_fft(Image,DX,DY,NY,NX,Nr,Nc)
 %          SI3   =imUtil.trans.shift_fft(PSF,[1.22;1.22],[-3.1;-3.1]);
 % Reliable: 2
 %--------------------------------------------------------------------------
+arguments
+    Image
+    DX
+    DY
+    NY
+    NX
+    Nr
+    Nc
+    Args.Algo                =  3;
+    Args.GaussianFilterSigma = 10;  % adjust the sigma for smoothness; lower sigma = smoother image
+                                    % Gaussian filtering is for Args.Algo = 5 only!
+end
 
-Algo = 3;
-
-
-if Algo==0
+if Args.Algo==0
     % new for cubes
     error('not working');
     
@@ -94,7 +103,7 @@ if Algo==0
     
     
     
-elseif Algo==1
+elseif Args.Algo==1
     % new
   
     [NY,NX] = size(Image);
@@ -147,7 +156,7 @@ elseif Algo==1
     end
     Nr = [];
     Nc = [];
-elseif Algo==2
+elseif Args.Algo==2
     % new / without the padding
   
     [NY,NX] = size(Image);
@@ -178,7 +187,7 @@ elseif Algo==2
     Nr = [];
     Nc = [];
     
-elseif Algo==3
+elseif Args.Algo==3
     % new / without the padding / for cube
   
     [NY,NX, Nim] = size(Image);  % must ask for Nim, otherwise wrong results
@@ -220,7 +229,7 @@ elseif Algo==3
     Nc = [];
     
     
-elseif Algo==4
+elseif Args.Algo==4
     % old
     
     %function [ShiftedImage,NY,NX,Nr,Nc]=image_shift_fft(Image,DX,DY,NY,NX,Nr,Nc)
@@ -259,7 +268,9 @@ elseif Algo==4
     ShiftedImage = abs(ShiftedImage) - MinVal;
     %ShiftedImage = ShiftedImage(NY1+1:2*NY1, NX1+1:2*NX1);
     
-elseif Algo == 5
+elseif Args.Algo == 5
+    % with a gaussian filter and insertion of zeros (padding) in the center of image
+    % in the frequency domain for dumping of parasite high frequency
     
     [NY,NX,Nim] = size(Image);
     
@@ -277,9 +288,8 @@ elseif Algo == 5
     PhaseShift = exp(-1i * 2 * pi * (u * DX / NX + v * DY / NY));
     Image_fft_shifted = Image_fft .* PhaseShift;
         
-    % Create a low-pass filter
-    Sigma  = 10;  % adjust the sigma for smoothness; lower sigma = smoother image
-    Filter = exp(-(u.^2 + v.^2) / (2 * Sigma^2)); % a Gaussian filter (properly normalized!)
+    % Create a low-pass filter   
+    Filter = exp(-(u.^2 + v.^2) / (2 * Args.GaussianFilterSigma^2)); % a Gaussian filter (properly normalized!)
     
     % Filter the shifted image (in the frequency domain):
     Image_fft_shifted_filtered = Image_fft_shifted .* Filter;
