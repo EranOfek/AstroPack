@@ -39,10 +39,10 @@ arguments
     Image
     DX
     DY
-    NY
-    NX
-    Nr
-    Nc
+    NY                       = [];
+    NX                       = [];
+    Nr                       = []; 
+    Nc                       = [];
     Args.Algo                =  3;
     Args.GaussianFilterSigma = 10;  % adjust the sigma for smoothness; lower sigma = smoother image
                                     % Gaussian filtering is for Args.Algo = 5 only!
