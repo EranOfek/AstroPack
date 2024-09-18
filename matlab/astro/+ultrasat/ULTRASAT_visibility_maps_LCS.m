@@ -19,7 +19,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
         Args.GridFile = '~/matlab/data/ULTRASAT/healpix_grid_nside_64_npix_49152_pixarea_0.839_deg.txt' 
         % 'healpix_grid_nside_32_npix_12288_pixarea_3.357_deg.txt'; 'healpix_grid_nside_64_npix_49152_pixarea_0.839_deg.txt';
         %  can be produced localy by > celestial.grid.make_healpix_grid(64)
-        Args.AllSky   = '~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_350_rep1.txt'; % '~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_240_nonoverlapping.txt'
+        Args.AllSky   = '~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_240_nonoverlapping.txt'; % '~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_350_rep1.txt'; 
         Args.StartDate = '2028-01-01 00:00:00';
         Args.NumDays   =  540; % [days] % 540
         Args.TimeBin   = 0.01; % [days] 0.01 day = 864 s ~ 3 x 300 s  
@@ -126,16 +126,16 @@ function ULTRASAT_visibility_maps_LCS(Args)
             plot.skyCircles(RA0(1).*RAD,Dec0(1).*RAD,'Rad', 1,'Color','green')
             plot.skyCircles(RA0(2).*RAD,Dec0(2).*RAD,'Rad', 1,'Color','green')
             
-            cd ~/'Dropbox (Weizmann Institute)'/Observation_planning/Field_selection/WGs_maps/
-            load('WG6/WG6_HETDEX_spring_contour.mat')
-            plot(WG6_HETDEX_spring_contour(:,1),WG6_HETDEX_spring_contour(:,2),'black');
-            cd ~/
+%             cd ~/'Dropbox (Weizmann Institute)'/Observation_planning/Field_selection/WGs_maps/
+%             load('WG6/WG6_HETDEX_spring_contour.mat')
+%             plot(WG6_HETDEX_spring_contour(:,1),WG6_HETDEX_spring_contour(:,2),'black');
+%             cd ~/
             xlabel '37/78 non-overlapping positions of 180/45 days visibility'
                         
                        
     % save the MaxLen structure and the equatorial grid in a matlab object
      if Args.SaveMat
-        save('LCS_visibility.mat','AllSky', 'Grid', 'MaxLen', 'Averaged_extinction');
+        save('LCS_visibility.mat','AllSky', 'Grid', 'MaxLen', 'Averaged_extinction','Extp','Lenp');
     end
    
 end
