@@ -1,36 +1,12 @@
-function Result=mextractor(Obj, Args)
+function [Result, SourceLess] = mextractor(Obj, Args)
     % Multi-iteration PSF fitting and source extractor 
-    % Example: imProc.sources.mextractor(AI)
+    % 
+    % Example: imProc.sources.mextractor(AI, 'Verbose', true)
     % 
     arguments
         Obj AstroImage
-                       
-        % PSF measurement:
-        Args.populatePSFArgs cell      = {'CropByQuantile',false};
-        Args.ThresholdPSF              = 20;
-        Args.RangeSN                   = [50 1000];
-        Args.InitPsf                   = @imUtil.kernel2.gauss
-        Args.InitPsfArgs cell          = {[0.1;1.0;1.5]};  % PSF measurements
-                
-        Args.UseInterpolant = false;
-        Args.SuppressEdges  = true;
-        
-        % source detection:
-        Args.ReCalcPSF logical         = false;       
-        Args.PsfFunPar cell            = {[0.1;1.0;1.5]};  % search for sources                 
-        Args.Threshold                 = [30 10 5]; % [50 16.5 5]; % this also specifies the # of iterations
-        
-%         Args.ThresholdDiffSN         = 0;
-        
-%         Args.PrelimPsf               = @imUtil.kernel2.gauss;
-%         Args.PrelimPsfArgs cell      = {[0.1 2]};
-%         Args.PrelimThreshold         = 30;
-%         Args.Conn                    = 8;
-%         Args.PrelimCleanSrc logical  = true;
-%         Args.PrelimCleanSrcArgs cell = {'ColSN_sharp',1, 'ColSN_psf',2, 'SNdiff',0, 'MinEdgeDist',15, 'RemoveBadSources',true};
-       
-        % background and variance measurement:
 
+        % background and variance measurement:
         Args.ReCalcBack  = true;
         Args.BackPar     = {'SubSizeXY',[128 128]}; % {'SubSizeXY',[]})
 
@@ -41,13 +17,42 @@ function Result=mextractor(Obj, Args)
 
 %         Args.ReMeasBack logical      = true;       
 %         Args.ReBack logical          = false; % remeasure if background exits 
-
-        Args.CreateNewObj logical    = false;               
-                       
-        % miscellaneous:
-        Args.RemoveMasked  = false;  % seems like 'true' does not influence much ?
-        Args.RemovePSFCore = false;  % not decided on it as of yet
+                
+        % PSF measurement:
+        Args.populatePSFArgs cell      = {'CropByQuantile',false};
+        Args.ThresholdPSF              = 20;
+        Args.RangeSN                   = [50 1000];
+        Args.InitPsf                   = @imUtil.kernel2.gauss
+        Args.InitPsfArgs cell          = {[0.1;1.0;1.5]};  % PSF measurements
+                
+        Args.UseInterpolant            = false;
+        Args.SuppressEdges             = true;
         
+        % source detection:        
+        Args.FindWithEmpiricalPSF logical = false;
+        Args.PsfFunPar cell            = {[0.1;1.0;1.5]};  % search for sources                 
+        Args.Threshold                 = [30 10 5]; % [50 16.5 5]; % in sigma, this also specifies the # of iterations        
+        
+        % source PSF fitting:
+        Args.ReCalcPSF logical         = false;       
+        
+%         Args.ThresholdDiffSN         = 0;
+        
+%         Args.PrelimPsf               = @imUtil.kernel2.gauss;
+%         Args.PrelimPsfArgs cell      = {[0.1 2]};
+%         Args.PrelimThreshold         = 30;
+%         Args.Conn                    = 8;
+%         Args.PrelimCleanSrc logical  = true;
+%         Args.PrelimCleanSrcArgs cell = {'ColSN_sharp',1, 'ColSN_psf',2, 'SNdiff',0, 'MinEdgeDist',15, 'RemoveBadSources',true};
+
+        % cleaning of the subtracted image:
+        
+        Args.RemoveMasked              = false;  % seems like 'true' does not influence the result much 
+        Args.RemovePSFCore             = false;  % not decided on it as of yet
+                              
+        % miscellaneous:
+        Args.CreateNewObj logical      = false;                           
+        Args.Verbose                   = false;        
     end
     
     % create a new copy
@@ -57,36 +62,38 @@ function Result=mextractor(Obj, Args)
         Result = Obj;
     end
     
-    % populate background and variance
+    % measure background and variance
     FlagBack = Obj.isemptyProperty('Back') | Obj.isemptyProperty('Var');
     if any(FlagBack)
         Obj(FlagBack) = imProc.background.background(Obj(FlagBack), Args.BackPar{:});
     end
     
-    % populate PSF
+    % measure PSF
     [Result] = imProc.psf.populatePSF(Result, Args.populatePSFArgs{:},...
                                                       'ThresholdPSF',Args.ThresholdPSF,...
                                                       'RangeSN',Args.RangeSN,...
                                                       'InitPsf',Args.InitPsf,...
                                                       'InitPsfArgs',Args.InitPsfArgs);
                                                               
-    % find sources using PSF - multi-iteration
+    % find and measure sources using multi-iteration PSF fitting
     Niter = numel(Args.Threshold);
-    Nobj  = numel(Obj);    
+    Nobj  = numel(Obj);   
+    SourceLess = repmat(AstroImage,1,Nobj);
     
     for Iobj=1:1:Nobj
         
-        AI              = Result(Iobj).copy;                 % this AI will be iterated 
-        Cat             = repmat(AstroCatalog,1,Niter);      % catalogs of each iteration 
+        AI              = Result(Iobj).copy;                                    % this AI will be iterated for each Obj
+        Cat             = repmat(AstroCatalog,1,Niter);                         % catalogs produced at each iter, merged afterwards
         SourceImage     = repmat(0,size(AI.Image,1),size(AI.Image,2),Niter);    % source image after each iteration
         SubtractedImage = repmat(0,size(AI.Image,1),size(AI.Image,2),Niter);    % subtracted image after each iteration
                
         for Iiter=1:1:Niter
             
-            % re-measure background at each iteration > 1           
-            if Iiter>1         % add the variance from the local sources from the previous iteration(s)
+            % re-measure background at each iteration > 1 and add source noise to the variance           
+            if Iiter>1        
                 imProc.background.background(AI, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
-                AI.Var = AI.Var + Args.RedNoiseFactor .* SourceImage(:,:,Iiter-1);
+                % add the variance from the local sources from all the previous iteration(s)
+                AI.Var = AI.Var + Args.RedNoiseFactor .* sum(SourceImage,3);
             end
 
 %             if Iiter>1 && Args.ReMeasBack                
@@ -95,11 +102,19 @@ function Result=mextractor(Obj, Args)
 %                 % update variance                
 %             end
             
-            % find sources (without background recalculation) and add them
-            % to the catalog (what if there are already some sources in the catalog?)
-            AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold(Iiter),'ReCalcBack',false,...
-                    'MomPar',{'MomRadius',Args.MomRadius(Iiter)},'PsfFunPar',Args.PsfFunPar); 
-
+            % find sources (without background recalculation) with the empirical PSF or with a set of Gaussians
+            if Args.FindWithEmpiricalPSF                
+                AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold(Iiter),'ReCalcBack',false,...
+                    'MomPar',{'MomRadius',Args.MomRadius(Iiter)},'Psf',AI.PSF,'FlagCR',false);
+                ColSN = 'SN_1';
+                % NB: 1. If 'Psf' is provided, this parameter overrides the PsfFun input argument
+                %     2. When a PSF stamp is used for source detection, the catalog does not contain SN_3, just SN_1 !                
+            else
+                AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold(Iiter),'ReCalcBack',false,...
+                    'MomPar',{'MomRadius',Args.MomRadius(Iiter)},'PsfFunPar',Args.PsfFunPar);
+                ColSN = 'SN_3';
+            end
+               
 %             % find sources
 %             ResSrc(Iobj,Iiter) = imUtil.sources.findSources(SubImage, 'Threshold',Args.Threshold(Iiter),...
 %                                                                       'Psf',Result(Iobj).PSFData.getPSF,...
@@ -117,8 +132,11 @@ function Result=mextractor(Obj, Args)
 %             % good stars are in ResSrc(Iobj,Iiter).XPEAK(FlagGood),YPEAK
           
             NumSrc = height(AI.CatData.Catalog);
-            fprintf('Iter. %d: mean bkg = %.0f, mean var = %.0f, Nobj: %d\n',...
-                Iiter,mean(AI.Back,'all'),mean(AI.Var,'all'),NumSrc);
+            
+                            if Args.Verbose
+                                fprintf('Iter. %d: mean bkg = %.0f, mean var = %.0f, Nobj: %d\n',...
+                                    Iiter,mean(AI.Back,'all'),mean(AI.Var,'all'),NumSrc);
+                            end
             
             % insert a column with iteration number into the source catalog
             AI.CatData = insertCol(AI.CatData, repmat(Iiter,1,NumSrc)', Inf, 'ITER', {''});
@@ -136,7 +154,7 @@ function Result=mextractor(Obj, Args)
 %                                                    'SN',ResSrc(Iobj,Iiter).SN);
             
             % fit the PSF to objects at the sub-pixel level and make PSF photometry
-            [AI, Res] = imProc.sources.psfFitPhot(AI);  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
+            [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN);  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
             
             % use interpolation or PSF shift + edge suppression
             if Args.UseInterpolant
@@ -159,6 +177,7 @@ function Result=mextractor(Obj, Args)
                                                                         'Recenter', false,'PositivePSF',true);
             SourceImage(:,:,Iiter)       = imUtil.art.addSources(repmat(0,size(AI.Image)),CubePSF,XY,...
                                                                         'Oversample',[],'Subtract',false);
+              
             SubtractedImage(:,:,Iiter)   = AI.Image - SourceImage(:,:,Iiter);  
             
             Cat(Iiter)                   = AI.CatData; 
@@ -169,7 +188,15 @@ function Result=mextractor(Obj, Args)
             
         end
         
+        % merge the catalogs of objects extracted at all the iterations
         Result(Iobj).CatData = merge(Cat);
+        % save a copy of the AI object with the image replaced by the final subtracted image
+        SourceLess(Iobj)       = Result(Iobj).copy;
+        SourceLess(Iobj).Image = SubtractedImage(:,:,Niter);
+        
+                            if Args.Verbose
+                                fprintf('Total %d objects extracted \n',height(Result(Iobj).CatData.Catalog));
+                            end
     end
     
     % Find diffraction spikes

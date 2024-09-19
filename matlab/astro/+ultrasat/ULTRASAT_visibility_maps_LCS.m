@@ -66,10 +66,12 @@ function ULTRASAT_visibility_maps_LCS(Args)
         end
     end
     
-    JD = celestial.time.julday(Args.StartDate) + l;
+    ConstShift = -4/360-1.44/24; % accounting for the 4W slot and centering the 2.88 hours' period
+    
+    JD = celestial.time.julday(Args.StartDate) + l - ConstShift;
     
     Vis = ultrasat.ULTRASAT_restricted_visibility(JD',Grid./RAD,'MinSunDist',(70)./RAD,'MinMoonDist',(34)./RAD,'MinEarthDist',(56)./RAD);
-    Lim = Vis.PowerLimits & Vis.SunLimits & Vis.MoonLimits; 
+    Lim = Vis.PowerLimits & Vis.SunLimits & Vis.MoonLimits & Vis.EarthLimits; 
     L2 = reshape(Lim,[NightBins,Args.NumDays,Np]); 
     L3 = squeeze(prod(L2,1));                                % L3 is a whole-night scale list of visibility bins
     MaxLen = uninterruptedLength(L3, Np, Args.NumDays); 
@@ -85,7 +87,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
 %             subplot(2,2,4); plot.ungridded_image(RA, Dec, Q(4,:));
 % 
             figure(1); clf; plot.ungridded_image(RA, Dec, MaxLen); caxis([0, 180]);
-            title 'max uninterruped visibility of 0.0-3.0 GMT window, days'    
+            title 'max uninterruped visibility of the 22:17-01:10 GMT window, days'    
 
     % find a sublist of AllSS pointings visible > 45 (180) days 
     Lenp   = F(AllSky.Var1,AllSky.Var2);
@@ -126,7 +128,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
             end
             plot(List45e.Var1,  List45e.Var2,'*','Color','green');
             plot(List180e.Var1,List180e.Var2,'*','Color','red');
-            title 'max uninterruped visibility of 0.0-3.0 GMT window, days'
+            title 'max uninterruped visibility of the 22:17-01:10 GMT window, days'
             
             for i=1:3
                 plot.skyCircles(HCS(i,1), HCS(i,2), 'Rad', 7, 'Color','red');
@@ -138,12 +140,12 @@ function ULTRASAT_visibility_maps_LCS(Args)
 %             load('WG6/WG6_HETDEX_spring_contour.mat')
 %             plot(WG6_HETDEX_spring_contour(:,1),WG6_HETDEX_spring_contour(:,2),'black');
 %             cd ~/
-            xlabel '37/78 non-overlapping positions of 180/45 days visibility'
+            xlabel '38/76 non-overlapping positions of 180/45 days visibility'
                         
                        
     % save the MaxLen structure and the equatorial grid in a matlab object
     if Args.SaveMat
-        save('LCS_visibility.mat','AllSky', 'Grid', 'MaxLen', 'Averaged_extinction','Extp','Lenp');
+        save('LCS_visibility.mat','AllSky', 'Grid', 'MaxLen', 'Averaged_extinction','Extp','Lenp','L2');
     end
    
 end
