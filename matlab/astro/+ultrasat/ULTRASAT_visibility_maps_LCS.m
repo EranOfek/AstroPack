@@ -76,6 +76,14 @@ function ULTRASAT_visibility_maps_LCS(Args)
     L3 = squeeze(prod(L2,1));                                % L3 is a whole-night scale list of visibility bins
     MaxLen = uninterruptedLength(L3, Np, Args.NumDays); 
     F = scatteredInterpolant(RA, Dec, MaxLen, 'linear', 'none');
+    
+    % a smaller subset 
+    Grid240 = [AllSky.Var1 AllSky.Var2];
+    Vis240  = ultrasat.ULTRASAT_restricted_visibility(JD',Grid240./RAD,'MinSunDist',(70)./RAD,'MinMoonDist',(34)./RAD,'MinEarthDist',(56)./RAD);
+    Lim240  = Vis240.PowerLimits & Vis240.SunLimits & Vis240.MoonLimits & Vis240.EarthLimits; 
+    L2_240  = reshape(Lim240,[NightBins,Args.NumDays,240]); 
+    L3_240  = squeeze(prod(L2_240,1));                       % L3 is a whole-night scale list of visibility bins
+
   
 %             % now show fields available for each of the four 45-day periods:
 %             % products of 1-45, 46-90, 91-135, 136-180 
@@ -145,7 +153,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
                        
     % save the MaxLen structure and the equatorial grid in a matlab object
     if Args.SaveMat
-        save('LCS_visibility.mat','AllSky', 'Grid', 'MaxLen', 'Averaged_extinction','Extp','Lenp','L2');
+        save('LCS_visibility.mat','AllSky', 'Grid', 'MaxLen', 'Averaged_extinction','Extp','Lenp','L2','L2_240','L3_240');
     end
    
 end

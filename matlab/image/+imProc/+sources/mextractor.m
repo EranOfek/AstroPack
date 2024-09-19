@@ -26,7 +26,6 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         Args.InitPsfArgs cell          = {[0.1;1.0;1.5]};  % PSF measurements
                 
         Args.UseInterpolant            = false;
-        Args.SuppressEdges             = true;
         
         % source detection:        
         Args.FindWithEmpiricalPSF logical = false;
@@ -176,13 +175,24 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, ...
                                                                         'Recenter', false,'PositivePSF',true);
             SourceImage(:,:,Iiter)       = imUtil.art.addSources(repmat(0,size(AI.Image)),CubePSF,XY,...
-                                                                        'Oversample',[],'Subtract',false);
-              
+                                                                        'Oversample',[],'Subtract',false);                                                                                          
             SubtractedImage(:,:,Iiter)   = AI.Image - SourceImage(:,:,Iiter);  
+            
+            % set pixels with Mask > 0 to the background values
+            if Args.RemoveMasked
+                Ind = AI.Mask > 0;
+                
+                SubtractedImage(:,:,Iiter) = AI.Back(Ind);
+            end
+            % exclude pixels with reconstructed source PSFs
+            if Args.RemovePSFCore
+                Ind = SourceImage(:,:,Iiter) > 0;
+                SubtractedImage(:,:,Iiter) = AI.Back(Ind); % need to be tested and improved to operate only on a 3x3 (5x5?) pixel core
+            end  
             
             Cat(Iiter)                   = AI.CatData; 
             
-            AI.Image                     = SubtractedImage(:,:,Iiter); % replace the subtracted image
+            AI.Image                     = SubtractedImage(:,:,Iiter); % replace the image with the subtracted image
             
             AI.CatData                   = []; % do we need to wipe out the catalog before the next iteration? 
             
