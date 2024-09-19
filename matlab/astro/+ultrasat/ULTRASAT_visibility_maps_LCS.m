@@ -95,6 +95,10 @@ function ULTRASAT_visibility_maps_LCS(Args)
             fprintf('Pointings visible > 180 days: %d\n',size(List180,1));
     
             figure(1); hold on
+            plot(AllSky.Var1,  AllSky.Var2,'*','Color','black');
+            for i=1:numel(AllSky.Var1)
+                plot.skyCircles(AllSky.Var1(i), AllSky.Var2(i), 'Rad', 7, 'Color','black');
+            end
             plot(List45.Var1,List45.Var2,'*','Color','black');
             plot(List180.Var1,List180.Var2,'*','Color','red');
             
