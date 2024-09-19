@@ -76,8 +76,8 @@ function Result=mextractor(Obj, Args)
     
     for Iobj=1:1:Nobj
         
-        AI              = Result(Iobj).copy;                 % this AI will be iterated
-        Cat             = repmat(AstroCatalog,1,Niter);      % catalogs of each iteration
+        AI              = Result(Iobj).copy;                 % this AI will be iterated 
+        Cat             = repmat(AstroCatalog,1,Niter);      % catalogs of each iteration 
         SourceImage     = repmat(0,size(AI.Image,1),size(AI.Image,2),Niter);    % source image after each iteration
         SubtractedImage = repmat(0,size(AI.Image,1),size(AI.Image,2),Niter);    % subtracted image after each iteration
                

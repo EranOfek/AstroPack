@@ -116,7 +116,11 @@ function ULTRASAT_visibility_maps_LCS(Args)
     
             figure(2); plot.ungridded_image(RA, Dec, MaxLen .* (Averaged_extinction < 1)); caxis([0, 180]);
             hold on
-            plot(List45e.Var1,  List45e.Var2,'*','Color','black');
+            plot(AllSky.Var1,  AllSky.Var2,'*','Color','black');
+            for i=1:numel(AllSky.Var1)
+                plot.skyCircles(AllSky.Var1(i), AllSky.Var2(i), 'Rad', 7, 'Color','black');
+            end
+            plot(List45e.Var1,  List45e.Var2,'*','Color','green');
             plot(List180e.Var1,List180e.Var2,'*','Color','red');
             title 'max uninterruped visibility of 0.0-3.0 GMT window, days'
             
