@@ -46,8 +46,8 @@ function [Result, SourceLess] = mextractor(Obj, Args)
 
         % cleaning of the subtracted image:
         
-        Args.RemoveMasked              = false;  % seems like 'true' does not influence the result much 
-        Args.RemovePSFCore             = false;  % not decided on it as of yet
+        Args.RemoveMasked              = true;   % the iput AI.Mask should be filled, but seems like this filter does not influence the result much ? 
+        Args.RemovePSFCore             = false;  % not decided if this is useful and correct
                               
         % miscellaneous:
         Args.CreateNewObj logical      = false;                           
@@ -155,7 +155,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             % fit the PSF to objects at the sub-pixel level and make PSF photometry
             [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN);  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
             
-            % use interpolation or PSF shift + edge suppression
+            % use either a) interpolation or b) FFT shift + edge suppression
             if Args.UseInterpolant
                 F = griddedInterpolant(AI.PSF,'linear','previous'); %
                 Nx = size(AI.PSF,1);
@@ -166,7 +166,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                 end
                 ShiftedPSF = ShiftedPSF./sum(ShiftedPSF,[1 2]); % renormalize
             else
-                ShiftedPSF = imUtil.psf.suppressEdges(Res.ShiftedPSF, 'Fun',@imUtil.kernel2.cosbell, 'FunPars', [5, 8]);
+                ShiftedPSF = imUtil.psf.suppressEdges(Res.ShiftedPSF, 'Fun',@imUtil.kernel2.cosbell, 'FunPars', [5, 8], 'Norm', true);
             end            
     
             % subtract sources:
@@ -176,23 +176,24 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                                                                         'Recenter', false,'PositivePSF',true);
             SourceImage(:,:,Iiter)       = imUtil.art.addSources(repmat(0,size(AI.Image)),CubePSF,XY,...
                                                                         'Oversample',[],'Subtract',false);                                                                                          
-            SubtractedImage(:,:,Iiter)   = AI.Image - SourceImage(:,:,Iiter);  
+            Subtracted                   = AI.Image - SourceImage(:,:,Iiter);  
             
             % set pixels with Mask > 0 to the background values
             if Args.RemoveMasked
-                Ind = AI.Mask > 0;
-                
-                SubtractedImage(:,:,Iiter) = AI.Back(Ind);
+                Ind = AI.Mask > 0;                
+                Subtracted(Ind) = AI.Back(Ind);
             end
             % exclude pixels with reconstructed source PSFs
             if Args.RemovePSFCore
                 Ind = SourceImage(:,:,Iiter) > 0;
-                SubtractedImage(:,:,Iiter) = AI.Back(Ind); % need to be tested and improved to operate only on a 3x3 (5x5?) pixel core
-            end  
-            
+                Subtracted(Ind) = AI.Back(Ind); % need to be tested and improved to operate only on a 3x3 (5x5?) pixel core
+            end              
+                        
             Cat(Iiter)                   = AI.CatData; 
             
-            AI.Image                     = SubtractedImage(:,:,Iiter); % replace the image with the subtracted image
+            AI.Image                     = Subtracted; % replace the image with the subtracted image
+            
+            SubtractedImage(:,:,Iiter)   = Subtracted;
             
             AI.CatData                   = []; % do we need to wipe out the catalog before the next iteration? 
             
@@ -202,7 +203,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         Result(Iobj).CatData = merge(Cat);
         % save a copy of the AI object with the image replaced by the final subtracted image
         SourceLess(Iobj)       = Result(Iobj).copy;
-        SourceLess(Iobj).Image = SubtractedImage(:,:,Niter);
+        SourceLess(Iobj).Image = SubtractedImage(:,:,Niter); % or just  = Subtracted ? 
         
                             if Args.Verbose
                                 fprintf('Total %d objects extracted \n',height(Result(Iobj).CatData.Catalog));
