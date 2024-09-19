@@ -26,10 +26,12 @@ function Result = unitTest
     % AC2 = imProc.sources.addMagCols(AC2,"FluxCols",NamesFlux(IndFlux),"FluxErrCols",NamesFluxErr(IndFluxErr),"MagStr",MagNames,"MagErrStr",MagErrNames,"IsLuptitude",false);
     
     % testing multi-iteration PSF photometry 
-    AI  = AstroImage('LAST_346+79_crop10.fits');      
-    AI = imProc.sources.mextractor(AI);
-    height(AI.CatData.Catalog);
-
+    AI  = [AstroImage('LAST_346+79_crop10.fits') AstroImage('LAST_275-16_crop22.fits')];      
+    [AI, SourceLess] = imProc.sources.mextractor(AI,'Verbose',true,'FindWithEmpiricalPSF',true);
+    
+    ds9(AI(1).Image,1); ds9(SourceLess(1).Image,2)
+    ds9(AI(2).Image,3); ds9(SourceLess(2).Image,4)
+        
     cd(PWD)
 
     Result = true;
