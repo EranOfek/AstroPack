@@ -44,8 +44,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
 %         Args.PrelimCleanSrc logical  = true;
 %         Args.PrelimCleanSrcArgs cell = {'ColSN_sharp',1, 'ColSN_psf',2, 'SNdiff',0, 'MinEdgeDist',15, 'RemoveBadSources',true};
 
-        % cleaning of the subtracted image:
-        
+        % cleaning of the subtracted image:        
         Args.RemoveMasked              = true;   % the iput AI.Mask should be filled, but seems like this filter does not influence the result much ? 
         Args.RemovePSFCore             = false;  % not decided if this is useful and correct
                               
@@ -195,9 +194,20 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             
             SubtractedImage(:,:,Iiter)   = Subtracted;
             
-            AI.CatData                   = []; % do we need to wipe out the catalog before the next iteration? 
+            % write region files with extracted objects 
+            RegName = sprintf('~/%s_it%d.reg',AI.getStructKey('OBJECT').OBJECT,Iiter);
+            if     Iiter == 1 
+                Clr = 'blue';
+            elseif Iiter == 2 
+                Clr = 'red';
+            elseif Iiter == 3 
+                Clr = 'green';
+            end
+            DS9_new.regionWrite([AI.CatData.getCol('X') AI.CatData.getCol('Y')],...
+                'FileName',RegName,'Color',Clr,'Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
             
-        end
+            AI.CatData = []; % do we need to wipe out the catalog before the next iteration?             
+        end 
         
         % merge the catalogs of objects extracted at all the iterations
         Result(Iobj).CatData = merge(Cat);

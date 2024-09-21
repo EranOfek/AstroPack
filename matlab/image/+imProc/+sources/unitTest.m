@@ -27,13 +27,17 @@ function Result = unitTest
     
     % testing multi-iteration PSF photometry 
     
-    AI  = [AstroImage('LAST_346+79_crop10.fits') AstroImage('LAST_275-16_crop22.fits')];  
+    Images = {'LAST_346+79_crop10.fits', 'LAST_275-16_crop22.fits'};
+    AI     = [AstroImage(Images{1}) AstroImage(Images{2})];  
 %     AI.Mask = % fill in the masks 
 
-    [AI, SourceLess] = imProc.sources.mextractor(AI,'Verbose',true,'FindWithEmpiricalPSF',true);
+    [AI, SourceLess] = imProc.sources.mextractor(AI,'Verbose',true,...
+                                                'FindWithEmpiricalPSF',false);
     
-    ds9(AI(1).Image,1); ds9(SourceLess(1).Image,2)
-    ds9(AI(2).Image,3); ds9(SourceLess(2).Image,4)
+    ds9(AI(1).Image,1); ds9.load_region('~/346+79_it1.reg'); ds9.load_region('~/346+79_it2.reg'); ds9.load_region('~/346+79_it3.reg')
+    ds9(SourceLess(1).Image,2) 
+    ds9(AI(2).Image,3); ds9.load_region('~/275-16_it1.reg'); ds9.load_region('~/275-16_it2.reg'); ds9.load_region('~/275-16_it3.reg')
+    ds9(SourceLess(2).Image,4)     
         
     cd(PWD)
 
