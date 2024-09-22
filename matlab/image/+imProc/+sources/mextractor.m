@@ -1,20 +1,27 @@
 function [Result, SourceLess] = mextractor(Obj, Args)
     % Multi-iteration PSF fitting and source extractor 
-    % 
-    % Example: imProc.sources.mextractor(AI, 'Verbose', true)
+    % Input:  - a stack of AstroImage objects with Proc or Coadd images and (optionally) filled masks
+    %         * ...,key,val,...
+    %         'BackPar'   - parameters of background estimation
+    %         'VarMethod' - variance estimation method
+    %         'RedNoiseFactor' - variance increase around found sources (for the next iterations)
+    %         'UseInterpolant' - (logical) interpolate the measured PSF (errors in flux estimation) or use FFT shifts (artifacts) 
+    % Output: - the input AI's with catalogs filled by the data on revealed and measured sources   
+    %         - (optional) same as above, but with AI.Image replaced by the sourceless image (result of consecutive subtractions)
+    % Example: AI = imProc.sources.mextractor(AI, 'Threshold', [30 10 5]);
     % 
     arguments
         Obj AstroImage
 
         % background and variance measurement:
-        Args.ReCalcBack  = true;
-        Args.BackPar     = {'SubSizeXY',[128 128]}; % {'SubSizeXY',[]})
+        Args.ReCalcBack                = true;
+        Args.BackPar                   = {'SubSizeXY',[128 128]}; % {'SubSizeXY',[]})
 
-        Args.VarMethod   = 'LogHist';             
-        Args.MomRadius   = [4 6 6]; % for each iteration % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
+        Args.VarMethod                 = 'LogHist';             
+        Args.MomRadius                 = [4 6 6];  % [pix] for each iteration % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
         
-        Args.RedNoiseFactor = 1.3; % increase the variance due to the sources found at previous iterations by this factor
-
+        Args.RedNoiseFactor            = 1.3; % increase the variance due to the sources found at previous iterations by this factor
+        Args.BackgroundFactor          = 1.0; % multiplication factor to the additive background due to the objects recovered at previous iterations
 %         Args.ReMeasBack logical      = true;       
 %         Args.ReBack logical          = false; % remeasure if background exits 
                 
@@ -23,7 +30,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         Args.ThresholdPSF              = 20;
         Args.RangeSN                   = [50 1000];
         Args.InitPsf                   = @imUtil.kernel2.gauss
-        Args.InitPsfArgs cell          = {[0.1;1.0;1.5]};  % PSF measurements
+        Args.InitPsfArgs cell          = {[0.1;1.0;1.5]};  
                 
         Args.UseInterpolant            = false;
         
@@ -50,7 +57,8 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                               
         % miscellaneous:
         Args.CreateNewObj logical      = false;                           
-        Args.Verbose                   = false;        
+        Args.Verbose logical           = false;  
+        Args.WriteDs9Regions logical   = false;
     end
     
     % create a new copy
@@ -90,8 +98,10 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             % re-measure background at each iteration > 1 and add source noise to the variance           
             if Iiter>1        
                 imProc.background.background(AI, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
-                % add the variance from the local sources from all the previous iteration(s)
-                AI.Var = AI.Var + Args.RedNoiseFactor .* sum(SourceImage,3);
+                % add local variance from the sources revealed at all the previous iteration(s)
+                AI.Var  = AI.Var  + Args.RedNoiseFactor   .* sum(SourceImage,3);
+                % add local background from the sources revealed at all the previous iteration(s):
+                AI.Back = AI.Back + Args.BackgroundFactor .* sum(SourceImage,3);
             end
 
 %             if Iiter>1 && Args.ReMeasBack                
@@ -195,16 +205,18 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             SubtractedImage(:,:,Iiter)   = Subtracted;
             
             % write region files with extracted objects 
-            RegName = sprintf('~/%s_it%d.reg',AI.getStructKey('OBJECT').OBJECT,Iiter);
-            if     Iiter == 1 
-                Clr = 'blue';
-            elseif Iiter == 2 
-                Clr = 'red';
-            elseif Iiter == 3 
-                Clr = 'green';
+            if Args.WriteDs9Regions
+                RegName = sprintf('~/%s_it%d.reg',AI.getStructKey('OBJECT').OBJECT,Iiter);
+                if     Iiter == 1
+                    Clr = 'blue';
+                elseif Iiter == 2
+                    Clr = 'red';
+                elseif Iiter == 3
+                    Clr = 'green';
+                end
+                DS9_new.regionWrite([AI.CatData.getCol('X') AI.CatData.getCol('Y')],...
+                    'FileName',RegName,'Color',Clr,'Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
             end
-            DS9_new.regionWrite([AI.CatData.getCol('X') AI.CatData.getCol('Y')],...
-                'FileName',RegName,'Color',Clr,'Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
             
             AI.CatData = []; % do we need to wipe out the catalog before the next iteration?             
         end 
