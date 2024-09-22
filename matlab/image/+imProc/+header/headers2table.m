@@ -4,17 +4,19 @@ function [Result] = headers2table(Obj, Args)
     %          * ...,key,val,... 
     % Output : - 
     % Author : Eran Ofek (2024 Sep) 
-    % Example: 
+    % Example: imProc.header.headers2table(AI)
 
     arguments
         Obj
-        Args.ColNameDic        = [];
+        Args.ColNameDic        = {};
        
         Args.OutType           = 'table';   % 'AstroCatalog' with table
     end
     
     if iscell(Args.ColNameDic) || isstring(Args.ColNameDic)
         ColName = Args.ColNameDic;
+        Ncol    = numel(ColName);
+        ColFun  = cell(Ncol,1);
     elseif isstruct(Args.ColNameDic)
         ColName = {Args.ColNameDic.ColName};
         if isfield(Args.ColNameDic, 'ColNameOut')
@@ -24,7 +26,7 @@ function [Result] = headers2table(Obj, Args)
             ColFun = {Args.ColNameDic.ColFun};
         end
     else
-        
+       
     end
     
     Ncol = numel(ColName);
@@ -33,7 +35,7 @@ function [Result] = headers2table(Obj, Args)
     
     Nobj = numel(Obj);
    
-    OutCell = cell(Nobj, NcolOut);
+    OutCell = cell(Nobj, Ncol);
     for Iobj=1:1:Nobj
         if isa(Obj, 'AstroImage')
             AH = Obj(Iobj).HeaderData;
@@ -42,13 +44,13 @@ function [Result] = headers2table(Obj, Args)
             AH = Obj(Iobj);
         end
         
-        for IcolIn=1:1:NcolIn
+        for Icol=1:1:Ncol
             Tmp = AH.getVal(ColName{Icol});
             if ~isempty(ColFun{Icol})
                 Tmp = ColFun{Icol}(Tmp);     
             end
             
-            OutCell(Iobj, IcolIn) = Tmp; 
+            OutCell{Iobj, Icol} = Tmp; 
         end
     end
     
