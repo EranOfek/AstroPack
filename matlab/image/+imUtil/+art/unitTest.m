@@ -26,14 +26,14 @@ function Result = unitTest()
         
         X1Y1 = Nx.* rand(Nsrc,2);
         Oversample = 3;
-        for i = 1:Nsrc; PSF(:,:,i) = imUtil.kernel2.gauss([2 2 0],[25 25]) + 1e-2*rand(25,25); end
+        for i = 1:Nsrc; PSF(:,:,i) = imUtil.kernel2.gauss([2 2 0],[25 25]) + 1e-4*rand(25,25); end
         
         % create a list of shifted and resampled fluxed PSF stamps
         [CubePSF, XY] = imUtil.art.createSourceCube(PSF, X1Y1, Flux, 'Recenter', true, ...
             'RecenterMethod','fft','Oversample', Oversample, 'PositivePSF', true);
         
         % create an empty image
-        Image0 = rand(Nx,Ny);
+        Image0 = repmat(0,Nx,Ny);
         
         % fill the image with sources
         ImageSrc = imUtil.art.addSources(Image0,CubePSF,XY,'Oversample',[],'Subtract',false);

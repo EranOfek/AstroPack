@@ -33,8 +33,7 @@ function Result = unitTest
 
     [AI, SourceLess] = imProc.sources.mextractor(AI,'Verbose',true,...
         'WriteDs9Regions',true,'FindWithEmpiricalPSF',true,...
-        'RedNoiseFactor',0.0,'BackgroundFactor',0.0); 
-    % NB: 1.3, 1.0 -- some of the obvious sources are not revealed, 1.3, 0.0 -- many spurious findings      
+        'RedNoiseFactor',10.0); % NB: 1.3 -- a number of spurious sources are found, while some of the obvious sources are not revealed 
     
     ds9(AI(1).Image,1); ds9.load_region('~/346+79_it1.reg'); ds9.load_region('~/346+79_it2.reg'); ds9.load_region('~/346+79_it3.reg')
     ds9(SourceLess(1).Image,2) 

@@ -21,7 +21,6 @@ function [Result, SourceLess] = mextractor(Obj, Args)
         Args.MomRadius                 = [4 6 6];  % [pix] for each iteration % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
         
         Args.RedNoiseFactor            = 1.3; % increase the variance due to the sources found at previous iterations by this factor
-        Args.BackgroundFactor          = 1.0; % multiplication factor to the additive background due to the objects recovered at previous iterations
 %         Args.ReMeasBack logical      = true;       
 %         Args.ReBack logical          = false; % remeasure if background exits 
                 
@@ -99,9 +98,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             if Iiter>1        
                 imProc.background.background(AI, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
                 % add local variance from the sources revealed at all the previous iteration(s)
-                AI.Var  = AI.Var  + Args.RedNoiseFactor   .* sum(SourceImage,3);
-                % add local background from the sources revealed at all the previous iteration(s):
-                AI.Back = AI.Back + Args.BackgroundFactor .* sum(SourceImage,3);
+                AI.Var  = AI.Var  + Args.RedNoiseFactor   .* sum(SourceImage,3);                
             end
 
 %             if Iiter>1 && Args.ReMeasBack                
