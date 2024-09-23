@@ -148,7 +148,7 @@ function ULTRASAT_visibility_maps_LCS(Args)
 %             load('WG6/WG6_HETDEX_spring_contour.mat')
 %             plot(WG6_HETDEX_spring_contour(:,1),WG6_HETDEX_spring_contour(:,2),'black');
 %             cd ~/
-            xlabel '38/76 non-overlapping positions of 180/45 days visibility'
+            xlabel '38/76 non-overlapping positions of max visibility > 180/45 days'
                         
                        
     % save the MaxLen structure and the equatorial grid in a matlab object

@@ -26,15 +26,21 @@ function [OptRoute, MinDist] = optimal_route(RA, Dec, Args)
     RA  = RA./RAD; Dec = Dec./RAD;
     Npoints  = numel(RA);
     
+    % matrix of distances
     DistMatr = zeros(Npoints);
     for i = 1:Npoints
         for j = i+1:Npoints
-            DistMatr(i,j) = celestial.coo.sphere_dist_fast(RA(i),Dec(i),RA(j),Dec(j));
+            DistMatr(i,j) = RAD.*celestial.coo.sphere_dist_fast(RA(i),Dec(i),RA(j),Dec(j));
             DistMatr(j,i) = DistMatr(i,j);
         end
     end
     
-    [OptRoute,MinDist] = tsp_ga([RA.*RAD Dec.*RAD], DistMatr.*RAD, Args.NGen, Args.NIt, Args.ShowProgress, Args.ShowResult);
+    % once provided the retargeting speed function (a non-linear function of distance?),
+    % we can convert the matrix of distances into the matrix of retargeting time 
+    Speed = 1;
+    TimeMatrix = DistMatr .* Speed;
+    
+    [OptRoute,MinDist] = tsp_ga([RA.*RAD Dec.*RAD], TimeMatrix, Args.NGen, Args.NIt, Args.ShowProgress, Args.ShowResult);
 end
 
 
