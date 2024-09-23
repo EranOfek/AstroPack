@@ -2,9 +2,34 @@ function [Result] = headers2table(Obj, Args)
     % Export headers in AstroHeader/AstroImage into a table.
     % Input  : - AstroHeader or AstroImage.
     %          * ...,key,val,... 
-    % Output : - 
+    %            'ColNameDic' - Either a cell array of header keywords to
+    %                   extract from headers and insert to output table, or
+    %                   a structure array with element per column to
+    %                   extract and the following fields:
+    %                   .ColName - Column name to extract.
+    %                   .ColFun - A function to apply to the extracted
+    %                           value. If empty, do not apply function.
+    %                           Default is empty.
+    %                   .ColNameOut - The column name in the output table.
+    %                           If empty, use input column name.
+    %                           Default is empty.
+    %                           If the ColFun returns more then one input,
+    %                           then this should be a cell array of output
+    %                           column names, per each one of the outputs.
+    %            'OutType' - Output type: 'table' | 'AstroCatalog'.
+    %                   Default is 'table'.
+    % Output : - A table or AstroCatalog with a table.
     % Author : Eran Ofek (2024 Sep) 
     % Example: imProc.header.headers2table(AI)
+    %          cd /marvin/LAST.01.01.01/2024/08/13/proc/000126v0/
+    %          AI=AstroImage.readFileNamesObj('LAST.01.01.01_20240814.000116.450_clear_1325_000_001_001_sci_coadd_Image_1.fits');
+    %          AI(2)=AstroImage.readFileNamesObj('LAST.01.01.01_20240814.000116.450_clear_1325_000_001_002_sci_coadd_Image_1.fits');
+    %          R=imProc.header.headers2table(AI,'ColNameDic',{'EXPTIME','CCDSEC','PH_MAGSY'})
+    %          St(1).ColName = 'EXPTIME';
+    %          St(2).ColName = 'CCDSEC'; St(2).ColFun = @imUtil.ccdsec.ccdsecStr2num; St(2).ColNameOut = {'XMIN','XMAX','YMIN','YMAX'};
+    %          St(3).ColName = 'PH_MAGSY'; St(3).ColNameOut = 'PH';
+    %          R=imProc.header.headers2table(AI,'ColNameDic',St)
+
 
     arguments
         Obj
@@ -17,13 +42,23 @@ function [Result] = headers2table(Obj, Args)
         ColName = Args.ColNameDic;
         Ncol    = numel(ColName);
         ColFun  = cell(Ncol,1);
+        ColNameOut = ColName;
     elseif isstruct(Args.ColNameDic)
         ColName = {Args.ColNameDic.ColName};
+        Ncol    = numel(ColName);
+        
         if isfield(Args.ColNameDic, 'ColNameOut')
             ColNameOut = {Args.ColNameDic.ColNameOut};
+            IcE = tools.cell.isempty_cell(ColNameOut);
+            ColNameOut(IcE) = ColName(IcE);
+
+        else
+            ColNameOut = ColName;
         end
         if isfield(Args.ColNameDic, 'ColFun')
             ColFun = {Args.ColNameDic.ColFun};
+        else
+            ColFun = cell(Ncol,1);
         end
     else
        
@@ -58,6 +93,7 @@ function [Result] = headers2table(Obj, Args)
     
     if all(tools.cell.isempty_cell(ColFun))
         OutTbl = TmpTbl;
+        OutTbl.Properties.VariableNames = ColNameOut;
     else
         OutTbl = table;
         IcolOut = 0;
@@ -68,11 +104,23 @@ function [Result] = headers2table(Obj, Args)
             else
                 % multiple columns - break
                 for IcolCol=1:1:NcolCol
-                    OutTbl.(ColNameOut{Icol}{IcolCol}) = Tmp.(ColName{Icol})(:,IcolCol);
+                    OutTbl.(ColNameOut{Icol}{IcolCol}) = TmpTbl.(ColName{Icol})(:,IcolCol);
                 end
             end
         end            
         
-    end    
+    end  
+
+    switch Args.OutType
+        case 'table'
+            % do notning
+            Result = OutTbl;
+        case 'AstroCatalog'
+            Result = AstroCatalog;
+            Result.Catalog = OutTbl;
+        otherwise
+            error('Unknown OutType option');
+    end
+
     
 end
