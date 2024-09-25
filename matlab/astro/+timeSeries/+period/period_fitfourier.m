@@ -1,4 +1,4 @@
-function [PS,Par,Stat]=period_fitfourier(Data,FreqVec,Harmon,PolyN)
+function [PS,Par,Stat]=period_fitfourier(Data,FreqVec,Args)
 % Fit a Fourier series to a time series
 % Package: timeSeries.period
 % Description: Fit a polynomial and fourier series as a function of
@@ -8,6 +8,9 @@ function [PS,Par,Stat]=period_fitfourier(Data,FreqVec,Harmon,PolyN)
 %                                         A_*sin(2*pi*f*T*H(2)) + ...
 %                                         A_*cos(2*pi*f*T*H(1)) +
 %                                         A_*cos(2*pi*f*T*H(2)) + ...
+%                                         Const_1*Flag1 + ...
+%              Here Const is a fitted additive constant to selected data
+%              points sorted by index.
 %              See period.m for a more flexiable function.
 % Input  : - Two column matrix containing the time series
 %            [Time, measurment] or [Time, measurment, error].
@@ -15,9 +18,20 @@ function [PS,Par,Stat]=period_fitfourier(Data,FreqVec,Harmon,PolyN)
 %            power spectrum.
 %            This is a column vector of frequencies at which to
 %            calculate the power spectrum.
-%          - Row vector of Harmonies to fit, e.g. [1 2 3].
-%            Default is [1 2].
-%          - Degree of polynomials to fit. Default is 1.
+%          * ...,key,val,...
+%            'Harmon' - Row vector of Harmonies to fit, e.g. [1 2 3].
+%                   Default is [1 2].
+%            'PolyN' - Row vector of polynomials degree to fit.
+%                   If empty, do not add polynomials. Default is [0].
+%            'Const' - This parameter allows to fit a different additive constant
+%                   for each group of data. The grousp are specifoed by
+%                   indexes of 1 to N. If empty, then do not fit such a
+%                   constant. Default is [].
+%            'Method' - Fitting method. 'lscov'|'slash'.
+%                   'slash' is twice as fast but do not return errors, and
+%                   do not use weights.
+%                   Default is 'lscov'
+%
 % Output : - Two columns matrix of the power spectrum equivalent
 %            [frequency, amplitude], where amplitude is the total amplitude
 %            of all the harmonies at a given frequency.
@@ -25,23 +39,26 @@ function [PS,Par,Stat]=period_fitfourier(Data,FreqVec,Harmon,PolyN)
 %            for each frequency.
 %            [1 T T^2 T^3,... sin(2*pi*f*H*T), ..., cos(2*pi*f*H*T),...]
 % Tested : Matlab 7.11
-%     By : Eran O. Ofek                    May 2011
+% Author : Eran Ofek (May 2011)
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [PS,Par,Stat]=timeSeries.period.period_fitfourier(Data,FreqVec,Harmon,PolyN)
+% Example: N=100; T = rand(N,1).*100; Data = [T, sin(2.*pi.*0.31.*T)+randn(N,1).*0.1];
+%          Const = 1 + (T>50); Data(:,2)=Data(:,2)+Const;
+%          FreqVec = timeSeries.period.getFreq(T);
+%          [PS,Par,Stat]=timeSeries.period.period_fitfourier(Data,FreqVec,'PolyN',[],'Const',Const);
+%          plot(FreqVec,Stat.Chi2)
+%          plot(FreqVec,PS)
 %----------------------------------------------------------------------------
 
-Def.Harmon  = [1 2];
-Def.PolyN   = 1;
-if (nargin==2)
-   Harmon = Def.Harmon;
-   PolyN  = Def.PolyN;
-elseif (nargin==3)
-   PolyN  = Def.PolyN;
-elseif (nargin==4)
-   % do nothing
-else
-    error('Illegal number of input arguments');
+arguments
+    Data
+    FreqVec
+    Args.Harmon = [1 2];
+    Args.PolyN  = [0];
+    Args.Const  = [];
+    Args.Method = 'lscov';
 end
+
+Args.PolyN = Args.PolyN(:).'; % make a row vector
 
 Col.T = 1;
 Col.M = 2;
@@ -52,39 +69,66 @@ N       = numel(T);
 Nf      = numel(FreqVec);
 
 % construct the design matrix:
-Hpoly = [];
-for Ip=0:1:PolyN
-   Hpoly = [Hpoly, T.^Ip];
+
+
+if numel(Args.Const)==N
+    % apply a different additive constant for each group specified by running index
+    % in Args.Const
+
+    MaxInd = max(Args.Const);
+    Hconst = zeros(N,MaxInd);
+    for Imi=1:1:MaxInd
+        Hconst(Args.Const==Imi, Imi) = 1;
+    end
+else
+    MaxInd = 0;
+    Hconst = [];
 end
-if (size(Data,2)==2),
+
+
+Hpoly = T.^(Args.PolyN);
+
+%for Ip=1:numel(0:1:Args.PolyN
+%   Hpoly = [Hpoly, T.^Ip];
+%end
+
+if (size(Data,2)==2)
    Data = [Data, ones(N,1)];
 end
 
 InvVar = 1./Data(:,Col.E).^2;   % inverse variance
 
-Stat.Npar = PolyN+1+length(Harmon).*2;
+Stat.Npar = numel(Args.PolyN) + length(Args.Harmon).*2 + MaxInd;
 Stat.Dof  = N - Stat.Npar;
 
 % fit harmonies for each frequency
-Chi2      = zeros(Nf,1);
-RMS       = zeros(Nf,1);
-Par.Par    = zeros(Nf,Stat.Npar);
-Par.Err = zeros(Nf,Stat.Npar);
+Stat.Chi2 = zeros(Nf,1);
+Stat.RMS  = zeros(Nf,1);
+Par.Par   = zeros(Nf,Stat.Npar);
+Par.Err   = zeros(Nf,Stat.Npar);
 
 for FreqInd=1:1:Nf
-   Hharm = [sin(2.*pi.*FreqVec(FreqInd).*(T*Harmon)),...
-            cos(2.*pi.*FreqVec(FreqInd).*(T*Harmon))];
+   Hharm = [sin(2.*pi.*FreqVec(FreqInd).*(T*Args.Harmon)),...
+            cos(2.*pi.*FreqVec(FreqInd).*(T*Args.Harmon))];
 
-   H = [Hpoly, Hharm];
-   [P,E] = lscov(H,Data(:,Col.M),InvVar);
+   H = [Hpoly, Hharm, Hconst];
+   switch lower(Args.Method)
+       case 'slash'
+           P = H\Data(:,Col.M);
+           E = nan(size(P));
+       case 'lscov'
+           [P,E] = lscov(H,Data(:,Col.M),InvVar);
+       otherwise
+           error('Unknown Method option');
+   end
    Resid = Data(:,2) - H*P;
    Stat.Chi2(FreqInd) = sum((Resid./Data(:,3)).^2);
-   Stat.RMS(FreqInd) = std(Resid);
+   Stat.RMS(FreqInd)  = std(Resid);
 
-   Par.Par(FreqInd,:)    = P.';
+   Par.Par(FreqInd,:) = P.';
    Par.Err(FreqInd,:) = E.';
 end
 
 % amplitude normalization
-PS = sqrt(sum(Par.Par(:,PolyN+1:end).^2,2));
+PS = sqrt(sum(Par.Par(:,Args.PolyN+1:end).^2,2));
 
