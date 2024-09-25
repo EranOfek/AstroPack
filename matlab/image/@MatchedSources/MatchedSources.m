@@ -2350,6 +2350,10 @@ classdef MatchedSources < Component
             %                   Columns are [Index of nearest source, within search radius, in
             %                    the AstroCatalog;
             %                   Distance; Total number of matches within radius].
+            %            .RA - Median RA for sources in MatchedSources.
+            %                   This is the RA that was searched in the
+            %                   AstroCatalog.
+            %            .Dec - Like .RA, but for Dec.
             % Example: 
             % cd /marvin/LAST.01.01.01/2024/09/01/proc/165437v0
             % MS=MatchedSources.read('LAST.01.01.01_20240901.165747.812_clear_Nagi1b_000_001_001_sci_merged_MergedMat_1.hdf5');
@@ -2392,15 +2396,16 @@ classdef MatchedSources < Component
                 CatRA       = CatRA.*FactorAI;
                 CatDec      = CatDec.*FactorAI;
     
-                RA  = mean(MS(Ims).Data.(Args.ColRA)).';
-                Dec = mean(MS(Ims).Data.(Args.ColDec)).';
+                RA  = median(MS(Ims).Data.(Args.ColRA), 1, 'omitnan').';
+                Dec = median(MS(Ims).Data.(Args.ColDec), 1, 'omitnan').';
                 RA  = RA.*FactorMS;
                 Dec = Dec.*FactorMS;
     
     
                 [Ind(Ims).IndTable, CatFlagNearest, CatFlagAll, IndInObj2] = VO.search.search_sortedlat_multiNearest([CatRA, CatDec],...
                                                         RA, Dec, SearchRadius, Args.DistFun, 'DistFunArgs',Args.DistFunArgs);
-                                                       
+                Ind(Ims).RA  = RA;
+                Ind(Ims).Dec = Dec;
                 
                 MatchedCat(Ims) = Cat.selectRows(Ind(Ims).IndTable(:,1), 'IgnoreNaN',false, 'CreateNewObj',true);
             end
