@@ -47,6 +47,10 @@ function Result = unitTest()
         
         % add noise
         Image = imUtil.art.addNoise(ImageSrcBack,'normal');
+               
+        OutFITSName = 'LAST_sim.fits';
+        FITS.write(Image, OutFITSName,... % 'Header',usimImage.HeaderData.Data,...
+                    'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);
         
     end
     
