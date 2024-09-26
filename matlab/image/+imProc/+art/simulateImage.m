@@ -4,6 +4,8 @@ function [SimAI, InjectedCat] = simulateImage(Args)
         %         * ...,key,val,... 
         %         'Size' - image size (overriden by an expicit Cat argument!)
         %         'Cat'  - input catalog [X Y] matrix
+        %         'Mag'  - input magnitudes (1 value or individual values)  
+        %         'Nsrc' - number of objects ([] be def.); if non-empty and numel(Args.Mag)=1, Mag is spawned according to this number
         %         'PSF'  - input PSF (can be a 2D matrix or a stack of 2D stamps with source number in the 3rd dimension)
         %         'MagZP'- photometric zero point
         %         'Back' - image background 
@@ -16,6 +18,8 @@ function [SimAI, InjectedCat] = simulateImage(Args)
         arguments
             Args.Size       = [1700 1700]; % image size [the default size is of a LAST subimage] 
             Args.Cat        = [];          % input catalog (source positions) 
+            Args.Mag        = [];          % input magnitudes (1 value or individual values)  
+            Args.Nsrc       = [];          % number of objects; if non-empty and numel(Args.Mag)=1, Mag is spawned according to this number
             Args.PSF        = [];          % input PSF stamp
             Args.MagZP      = 25;          % photometric zero point
             Args.Back       = 220;         % [cts] [the default number is for a dense field of LAST]
@@ -35,18 +39,30 @@ function [SimAI, InjectedCat] = simulateImage(Args)
             Ny = Nx;
         end
         
-        % source distribution by magnitude 
-        MinMag  = 11; MaxMag = 20; DeltaMag = 0.01;
-        Mags    = MinMag:DeltaMag:MaxMag;        
-        Nstars  = round(DeltaMag.*10.^(0.35.*Mags-2.1)); % 0.33 - 1.7 % this empiric dependence has been measured from a LAST subimage of a dense field
-        
-        Nsrc = 0;
-        for Imag = 1:numel(Mags)
-            for Istar = 1:Nstars(Imag)
-                Nsrc       = Nsrc + 1;
-                Mag(Nsrc)  = Mags(Imag);
+        if isempty(Args.Mag)            
+            % source distribution by optical magnitude (taken from LAST) 
+            MinMag  = 11; MaxMag = 20; DeltaMag = 0.01;
+            Mags    = MinMag:DeltaMag:MaxMag;
+            Nstars  = round(DeltaMag.*10.^(0.35.*Mags-2.1)); % 0.33 - 1.7 % this empiric dependence has been measured from a LAST subimage of a dense field
+            
+            Nsrc = 0;
+            for Imag = 1:numel(Mags)
+                for Istar = 1:Nstars(Imag)
+                    Nsrc       = Nsrc + 1;
+                    Mag(Nsrc)  = Mags(Imag);
+                end
+            end
+        else
+            if isempty(Args.Nsrc)
+                Nsrc = numel(Args.Mag);
+            else
+                Nsrc = Args.Nsrc;
+                if numel(Args.Mag) < 2
+                    Mag = repmat(Args.Mag,1,Nsrc);
+                end
             end
         end
+        
         Flux = 10.^(0.4.*(Args.MagZP-Mag));
         
         fprintf('%d objects in the FOV\n', Nsrc);
@@ -64,7 +80,7 @@ function [SimAI, InjectedCat] = simulateImage(Args)
         % add background with some spatial variations
         Back = Args.Back .* (1 + 0.1*rand(Nx,Ny));
         
-        [SimAI, InjectedCat] = imProc.art.injectSources(SimAI, Cat, PSF, Flux', ...
+        [SimAI, InjectedCat] = imProc.art.injectSources(SimAI, Cat, PSF, Flux', Mag',...
                                                         'UpdateCat', false, ...
                                                         'MagZP',Args.MagZP, ...
                                                         'PositivePSF', true, ...
