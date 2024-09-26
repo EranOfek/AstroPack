@@ -5,7 +5,7 @@ function Image = addSources(Image, SrcPSF, XY, Args)
     %          - a prepared cube or cell array of fluxed source PSFs whose scaling fits to that of the Image  
     %          - a prepared list of whole pixel positions   
     %          * ...,key,val,... 
-    %          'Size' - [X Y] a forced size of the resulting image [employed only if any(size(Image) < 2)]    
+    %          'ImSize' - [X Y] a forced size of the resulting image [employed only if any(size(Image) < 2)]    
     %          'Subtract' - whether to add or subtract the source images 
     %          'Oversample' - oversampling of the PSF stamps (1 value or a vector)
     %          'Method' - 'NS' -- use the old function of Noam Segev 
@@ -20,7 +20,7 @@ function Image = addSources(Image, SrcPSF, XY, Args)
         Image           
         SrcPSF          
         XY              = [];
-        Args.Size       = []; 
+        Args.ImSize     = []; 
         Args.Subtract   = false;
         Args.Oversample = [];
         Args.Method     = [];
@@ -77,7 +77,10 @@ function Image = addSources(Image, SrcPSF, XY, Args)
         ImSize(2) = max(XY(:,2)) + (MaxM-1)/2;        
     end        
         
-    % construct a source image    
+    % construct a source image  
+    if isempty(Image)
+        Image = repmat(0,ImSize);
+    end
     SrcImage = repmat(0,ImSize);     
     
     for Isrc = 1:Nsrc
@@ -123,7 +126,7 @@ function Image = addSources(Image, SrcPSF, XY, Args)
         end
     end
     
-    % add or subract the source image from the sky image:
+    % add or subract the source image from the sky image:    
     if Args.Subtract
         Image = Image - SrcImage;
     else

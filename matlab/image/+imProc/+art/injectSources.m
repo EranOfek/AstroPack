@@ -1,11 +1,13 @@
-function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Args)
+function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Mag, Args)
     % Inject/subtract source images at given pixel positions of an AstroImage
     %     AI can be a stack of objects
     % Input  : - a stack of AstroImages or make a new one 
     %          - a 2-column matrix of exact (sub)pixel positions or an AstroCatalog (NB! X and Y coordinates should be transposed!) 
+    %          - a cube or a cell array of PSF stamps or a single PSF stamp     
     %          - a vector of source fluxes or 1 flux value for all the sources
-    %          - a cube or a cell array of PSF stamps or a single PSF stamp
+    %          - a vector of magnitudes 
     %          * ...,key,val,... 
+    %        'ZP'       - photometric zero point
     %        'Subtract' - false (def.) - add sources, true - subtract sources
     %        'CreateNewObj' - false (def.) operate on the same AI or make a copy         
     %        'UpdateHeader' - add to the header information on the number of injected sources 
@@ -29,7 +31,9 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Args)
         AI0
         Cat
         PSF
-        Flux
+        Flux                          = [];
+        Mag                           = [];
+        Args.MagZP                    = 25;    % photometric zero point
         Args.Subtract     logical     = false;
         
         Args.CreateNewObj logical     = false;
@@ -52,7 +56,7 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Args)
     end  
     % make an empty AstroImage object if it does not exist
     if ~strcmpi(class(AI0),'astroimage')
-        warning('The input object is not AstroImage, using an empty one instead \n');
+        warning('The input object is not an AstroImage, using an empty one instead.. \n');
         AI0 = AstroImage();
     end
     % new object
@@ -60,23 +64,36 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Args)
         AI = AI0.copy;
     else
         AI = AI0;
-    end
+    end       
     % prepare fluxed source stamps
     if ismatrix(Cat)         
         Nsrc = size(Cat,1);
-        X1Y1 = Cat;   
+        X1Y1 = Cat;           
+         % Mag and Flux sanity checks
+         if isempty(Flux)
+             if ~isempty(Mag)
+                 Flux = 10.^(0.4.*(Args.MagZP-Mag));
+             else
+                 error('Insufficient input, either Mag or Flux should be given');
+             end
+         end
         if numel(Flux) < Nsrc
             Flux = repmat(Flux,1,Nsrc);
+        end        
+        if isempty(Mag)
+            Mag = convert.luptitude(Flux,10.^(0.4.*Args.MagZP));
         end
-        InjectedCat = AstroCatalog({[X1Y1(:,1) X1Y1(:,2) Flux]},'ColNames',{'X1','Y1','FLUX_APER_3'});
+        InjectedCat = AstroCatalog({[X1Y1(:,1) X1Y1(:,2) Flux Mag]},'ColNames',{'X1','Y1','FLUX_PSF','MAG_PSF'});
     elseif strcmpi(class(Cat),'astrocatalog')        
         InjectedCat = Cat;
 %         Nsrc = height(Cat.Table);
         X1Y1 = [Cat.Catalog.X Cat.Catalog.Y];
+        Flux = [Cat.Catalog.FLUX_PSF];
     end
     [CubePSF, XY] = imUtil.art.createSourceCube(PSF, X1Y1, Flux, ...
-        'Recenter', Args.Recenter, 'Oversample', Args.Oversample, ...
-        'RotAngle', Args.RotAngle, 'PositivePSF', Args.PositivePSF);
+                        'Recenter', Args.Recenter, 'Oversample', Args.Oversample, ...
+                        'RotAngle', Args.RotAngle, 'PositivePSF', Args.PositivePSF);
+
     % loop over input AI objects
     for Iobj = 1:numel(AI)
         % do the injection/subtraction and merge catalogs, if requested
