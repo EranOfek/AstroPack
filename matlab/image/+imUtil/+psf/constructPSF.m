@@ -242,6 +242,9 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         if isempty(Args.X) || isempty(Args.Y)
             error('For cube input X and Y must be provided');
         end
+        % if ~issorted(Args.Y)
+        %     error('Args.Y needed to be sorted');
+        % end
         [MatchedInd] = VO.search.search_sortedY_multi([Args.X, Args.Y], Args.X, Args.Y, Args.NighRadius);
         FlagGoodPsf    = FlagGoodPsf & ([MatchedInd.Nmatch]==1).';
     end
