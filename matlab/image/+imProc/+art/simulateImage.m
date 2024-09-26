@@ -13,7 +13,7 @@ function [SimAI, InjectedCat] = simulateImage(Args)
         % Output: - an AstroImage containing the simulated image 
         %         - the injected source catalog
         % Author: A.M. Krassilchtchikov (Sep 2024)
-        % Example: SimAI = imProc.art.simulateImage('WriteFiles',true);
+        % Example: [SimAI, SimCat] = imProc.art.simulateImage('WriteFiles',true);
         % 
         arguments
             Args.Size       = [1700 1700]; % image size [the default size is of a LAST subimage] 
@@ -69,7 +69,7 @@ function [SimAI, InjectedCat] = simulateImage(Args)
         
         % simulated source positions
         if isempty(Args.Cat)
-            Cat = [Nx.*rand(Nsrc,1), Ny.*rand(Nsrc,1)];
+            Cat = [Nx.*rand(Nsrc,1), Ny.*rand(Nsrc,1)]; 
         else
             Cat = Args.Cat;
         end
@@ -78,18 +78,22 @@ function [SimAI, InjectedCat] = simulateImage(Args)
         if ischar(Args.PSF)
             PSF = readmatrix(Args.PSF);
         else
-            PSF = Args.PSF;
+            PSF = Args.PSF; 
         end
                 
         % add background with some spatial variations
-        Back = Args.Back .* (1 + 0.1*rand(Nx,Ny));
+        Back = Args.Back .* (1 + 0.1*rand(Nx,Ny));  
         
-        [SimAI, InjectedCat] = imProc.art.injectSources(SimAI, Cat, PSF, Flux', Mag',...
-                                                        'UpdateCat', false, ...
-                                                        'MagZP',Args.MagZP, ...
-                                                        'PositivePSF', true, ...
-                                                        'Back', Back, ...
-                                                        'NoiseModel', 'normal');
+        % need to set an empty image
+        SimAI.Image = repmat(0,Nx,Ny);
+        
+        [SimAI, InjectedCat] = imProc.art.injectSources(SimAI, Cat, PSF, Flux', Mag',... 
+                                                        'UpdateCat', false, ... 
+                                                        'MagZP',Args.MagZP, ... 
+                                                        'PositivePSF', true, ... 
+                                                        'Back', Back, ... 
+                                                        'AddBackground',true,... 
+                                                        'NoiseModel', 'normal'); 
          % write disk files if requested 
          if Args.WriteFiles             
              DS9_new.regionWrite([Cat(:,1) Cat(:,2)],'FileName',Args.OutRegionName,'Color','cyan','Marker','s','Size',1,'Width',4,...
