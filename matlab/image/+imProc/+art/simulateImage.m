@@ -1,13 +1,20 @@
 function [SimAI, InjectedCat] = simulateImage(Args)
         % simulate a sky image from source PSF and magnitudes distribution  
-        % Input: - 
+        % Input:  - 
+        %         * ...,key,val,... 
+        %         'Size' - image size (overriden by an expicit Cat argument!)
+        %         'Cat'  - input catalog [X Y] matrix
+        %         'PSF'  - input PSF (can be a 2D matrix or a stack of 2D stamps with source number in the 3rd dimension)
+        %         'MagZP'- photometric zero point
+        %         'Back' - image background 
+        %         'WriteFiles' - logical (write output also to files)
         % Output: - an AstroImage containing the simulated image 
         %         - the injected source catalog
         % Author: A.M. Krassilchtchikov (Sep 2024)
-        % Example: SimAI = imProc.art.simulateImage;
+        % Example: SimAI = imProc.art.simulateImage('WriteFiles',true);
         % 
         arguments
-            Args.Size       = [1700 1700];% image size [the default size is of a LAST subimage] 
+            Args.Size       = [1700 1700]; % image size [the default size is of a LAST subimage] 
             Args.Cat        = [];          % input catalog (source positions) 
             Args.PSF        = [];          % input PSF stamp
             Args.MagZP      = 25;          % photometric zero point
