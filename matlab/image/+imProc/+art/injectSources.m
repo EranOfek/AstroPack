@@ -1,11 +1,13 @@
 function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Mag, Args)
     % Inject/subtract source images at given pixel positions of an AstroImage
     %     AI can be a stack of objects
+    %     NB: if both fluxes and magnitudes are given, only fluxes are employed,  
+    %         while magnitudes are left untouched! 
     % Input  : - a stack of AstroImages or make a new one 
     %          - a 2-column matrix of exact (sub)pixel positions or an AstroCatalog (NB! X and Y coordinates should be transposed!) 
     %          - a cube or a cell array of PSF stamps or a single PSF stamp     
     %          - a vector of source fluxes or 1 flux value for all the sources
-    %          - a vector of magnitudes 
+    %          - a vector of magnitudes or 1 magnitude for all the sources  
     %          * ...,key,val,... 
     %        'ZP'       - photometric zero point
     %        'Subtract' - false (def.) - add sources, true - subtract sources
@@ -39,7 +41,7 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Mag, Args)
         Args.CreateNewObj logical     = false;
         
         Args.UpdateHeader logical     = true;   
-        Args.UpdateCat    logical     = true;
+        Args.UpdateCat    logical     = false;
         
         Args.Oversample               = [];
         Args.RotAngle                 = [];
@@ -69,17 +71,17 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Mag, Args)
     if ismatrix(Cat)         
         Nsrc = size(Cat,1);
         X1Y1 = Cat;           
-         % Mag and Flux sanity checks
-         if isempty(Flux)
-             if ~isempty(Mag)
-                 Flux = 10.^(0.4.*(Args.MagZP-Mag));
-             else
-                 error('Insufficient input, either Mag or Flux should be given');
-             end
-         end
+        % Mag and Flux sanity checks and conversions 
+        if isempty(Flux)
+            if ~isempty(Mag)
+                Flux = 10.^(0.4.*(Args.MagZP-Mag));
+            else
+                error('Insufficient input, either Mag or Flux should be given');
+            end
+        end
         if numel(Flux) < Nsrc
             Flux = repmat(Flux,1,Nsrc);
-        end        
+        end
         if isempty(Mag)
             Mag = convert.luptitude(Flux,10.^(0.4.*Args.MagZP));
         end

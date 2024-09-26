@@ -1,7 +1,8 @@
-function SimAI = simulateImage(Args)
+function [SimAI, InjectedCat] = simulateImage(Args)
         % simulate a sky image from source PSF and magnitudes distribution  
         % Input: - 
-        % Output: - an AstroImage containing the simulated image and catalog
+        % Output: - an AstroImage containing the simulated image 
+        %         - the injected source catalog
         % Author: A.M. Krassilchtchikov (Sep 2024)
         % Example: SimAI = imProc.art.simulateImage;
         % 
@@ -11,6 +12,10 @@ function SimAI = simulateImage(Args)
             Args.PSF        = [];          % input PSF stamp
             Args.MagZP      = 25;          % photometric zero point
             Args.Back       = 220;         % [cts] [the default number is for a dense field of LAST]
+            Args.WriteFiles = false;       % write the FITS image and a source catalog region file
+            Args.OutRegionName = 'LAST_sim.reg'; % region file name
+            Args.OutImageName  = 'LAST_sim_image.fits'; % image file name
+            Args.OutArchName   = 'LAST_sim.mat'; % full archive file name
         end
         %
         SimAI = AstroImage;
@@ -53,45 +58,19 @@ function SimAI = simulateImage(Args)
         Back = Args.Back .* (1 + 0.1*rand(Nx,Ny));
         
         [SimAI, InjectedCat] = imProc.art.injectSources(SimAI, Cat, PSF, Flux', ...
+                                                        'UpdateCat', false, ...
                                                         'MagZP',Args.MagZP, ...
                                                         'PositivePSF', true, ...
                                                         'Back', Back, ...
                                                         'NoiseModel', 'normal');
-        
-%         SrcTab = table(X1Y1(:,1),X1Y1(:,2),Mag','VariableNames',{'X','Y','Mag'});
-%         writetable(SrcTab,'LAST_sim_catalog.txt');
-%         OutRegName  = 'LAST_sim.reg';
-%         DS9_new.regionWrite([X1Y1(:,1) X1Y1(:,2)],'FileName',OutRegName,'Color','cyan','Marker','s','Size',1,'Width',4,...
-%                                  'Precision','%.2f','PrintIndividualProp',0);    
-        
-%         SimAI.CatData = AstroCatalog(SrcTab);               
-        
-%         % create a list of shifted and resampled fluxed PSF stamps
-%         [CubePSF, XY] = imUtil.art.createSourceCube(PSF, X1Y1, Flux, 'Recenter', true, ...
-%             'RecenterMethod','fft','Oversample', [], 'PositivePSF', true);
-        
-%         % create an empty image
-%         Image0 = repmat(0,Nx,Ny);
-%         
-%         % fill the image with sources
-%         ImageSrc = imUtil.art.addSources(Image0,CubePSF,XY,'Oversample',[],'Subtract',false);
-%         if sum(ImageSrc < 0) > 0
-%             warning('Negative pixels');
-%         end
-%         
-% %         % add background with some spatial variations
-%         Back = Back0 .* (1 + 0.1*rand(Nx,Ny));
-%         ImageSrcBack = imUtil.art.addBackground(ImageSrc, Back, 'Subtract', false);
-%         
-%         % add noise
-%         Image = imUtil.art.addNoise(ImageSrcBack,'normal');
-%         
-%         SimAI.Image = Image;
-        
-%         OutFITSName = 'LAST_sim_image.fits';
-%         FITS.write(Image, OutFITSName,... % 'Header',usimImage.HeaderData.Data,...
-%                     'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);                      
-%                 
-%         save('LAST_sim.mat','SimAI');
-        
+         % write disk files if requested 
+         if Args.WriteFiles             
+             DS9_new.regionWrite([Cat(:,1) Cat(:,2)],'FileName',Args.OutRegionName,'Color','cyan','Marker','s','Size',1,'Width',4,...
+                 'Precision','%.2f','PrintIndividualProp',0);
+             
+             FITS.write(SimAI.Image, Args.OutImageName,... % 'Header',usimImage.HeaderData.Data,...
+                    'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);  
+                
+             save(Args.OutArchName,'SimAI','InjectedCat');                                
+         end                
 end
