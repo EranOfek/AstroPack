@@ -84,8 +84,9 @@ function [SimAI, InjectedCat] = simulateImage(Args)
         % add background with some spatial variations
         Back = Args.Back .* (1 + 0.1*rand(Nx,Ny));  
         
-        % need to set an empty image
+        % need to set up an empty image
         SimAI.Image = repmat(0,Nx,Ny);
+        SimAI.setKeyVal('OBJECT','Simulated');
         
         [SimAI, InjectedCat] = imProc.art.injectSources(SimAI, Cat, PSF, Flux', Mag',... 
                                                         'UpdateCat', false, ... 
@@ -99,7 +100,7 @@ function [SimAI, InjectedCat] = simulateImage(Args)
              DS9_new.regionWrite([Cat(:,1) Cat(:,2)],'FileName',Args.OutRegionName,'Color','cyan','Marker','s','Size',1,'Width',4,...
                  'Precision','%.2f','PrintIndividualProp',0);
              
-             FITS.write(SimAI.Image, Args.OutImageName,... % 'Header',usimImage.HeaderData.Data,...
+             FITS.write(SimAI.Image, Args.OutImageName,'Header',SimAI.HeaderData.Data,...
                     'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);  
                 
              save(Args.OutArchName,'SimAI','InjectedCat');                                
