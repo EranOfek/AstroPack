@@ -1,5 +1,5 @@
 function [SimAI, InjectedCat] = simulateImage(Args)
-        % simulate a sky image from source PSF and magnitudes distribution  
+        % simulate a sky image from source PSF and source magnitude distribution in the field 
         % Input:  - 
         %         * ...,key,val,... 
         %         'Size' - image size (overriden by an expicit Cat argument!)
@@ -20,7 +20,7 @@ function [SimAI, InjectedCat] = simulateImage(Args)
             Args.Cat        = [];          % input catalog (source positions) 
             Args.Mag        = [];          % input magnitudes (1 value or individual values)  
             Args.Nsrc       = [];          % number of objects; if non-empty and numel(Args.Mag)=1, Mag is spawned according to this number
-            Args.PSF        = [];          % input PSF stamp
+            Args.PSF        = 'LAST_PSF.txt';% input PSF: either a file name or stamp
             Args.MagZP      = 25;          % photometric zero point
             Args.Back       = 220;         % [cts] [the default number is for a dense field of LAST]
             Args.WriteFiles = false;       % write the FITS image and a source catalog region file
@@ -52,7 +52,7 @@ function [SimAI, InjectedCat] = simulateImage(Args)
                     Mag(Nsrc)  = Mags(Imag);
                 end
             end
-        else
+        else % read the source magnitudes from the input parameter  
             if isempty(Args.Nsrc)
                 Nsrc = numel(Args.Mag);
             else
@@ -75,7 +75,11 @@ function [SimAI, InjectedCat] = simulateImage(Args)
         end
         
         % read an empirical LAST PSF 
-        PSF = readmatrix('LAST_PSF.txt');
+        if ischar(Args.PSF)
+            PSF = readmatrix(Args.PSF);
+        else
+            PSF = Args.PSF;
+        end
                 
         % add background with some spatial variations
         Back = Args.Back .* (1 + 0.1*rand(Nx,Ny));
