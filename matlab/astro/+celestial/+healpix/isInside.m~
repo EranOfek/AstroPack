@@ -1,0 +1,94 @@
+function isInside = is_point_in_healpix(NSide, Index, Lon, Lat)
+    % Check if a given point (Lon, Lat) in radians is inside a specified HEALPix pixel
+    %
+    % Input:
+    %   NSide - HEALPix resolution parameter
+    %   Index - HEALPix pixel index
+    %   Lon   - Longitude of the point in radians
+    %   Lat   - Latitude of the point in radians
+    %
+    % Output:
+    %   isInside - True if the point is inside the specified HEALPix pixel, false otherwise
+    
+    % Obtain the corner coordinates of the HEALPix pixel
+    [CornerLons, CornerLats] = healpix_pixel_corners(NSide, Index);
+    
+    % Convert (Lon, Lat) and corner coordinates to Cartesian vectors
+    [X, Y, Z] = sph2cart(Lon, Lat);
+    PointVec = [X, Y, Z];
+    
+    CornerVecs = zeros(3, 4);
+    for i = 1:4
+        [Xc, Yc, Zc] = sph2cart(CornerLons(i), CornerLats(i));
+        CornerVecs(:, i) = [Xc; Yc; Zc];
+    end
+    
+    % Check if point is inside pixel using a vector cross product method
+    isInside = true;
+    for i = 1:4
+        % Compute the normal vector for the plane formed by two adjacent corners and the center
+        NextIdx = mod(i, 4) + 1;
+        NormalVec = cross(CornerVecs(:, i), CornerVecs(:, NextIdx));
+        
+        % Check if the point is on the inside side of this plane
+        if dot(NormalVec, PointVec) < 0
+            isInside = false;
+            return;
+        end
+    end
+end
+
+function [CornerLons, CornerLats] = healpix_pixel_corners(NSide, Pix)
+    % Calculates the corner coordinates of a given HEALPix pixel in the ring scheme
+    % 
+    % Input:
+    %   NSide - HEALPix resolution parameter
+    %   Pix   - Pixel index
+    %
+    % Output:
+    %   CornerLons - Array of longitudes (radians) of the pixel's corners
+    %   CornerLats - Array of latitudes (radians) of the pixel's corners
+
+    % Find the pixel's center coordinates
+    [CenterLon, CenterLat] = celestial.healpix.mex.pix2ang_ring(NSide, Pix);
+
+    % Calculate half the side length of a pixel in radians
+    PixelRadius = pi / (sqrt(3) * NSide);
+    
+    % Initialize arrays to store corner coordinates
+    CornerLons = zeros(1, 4);
+    CornerLats = zeros(1, 4);
+    
+    % Unit vectors for 4 corner shifts: right, up, left, down
+    CornerOffsets = [
+        +1, +1; % Top-right
+        -1, +1; % Top-left
+        -1, -1; % Bottom-left
+        +1, -1; % Bottom-right
+    ];
+    
+    % Calculate corner points by moving from the center
+    for k = 1:4
+        % Compute the corner's Cartesian vector
+        dLon = CornerOffsets(k, 1) * (PixelRadius / cos(CenterLat)); % Adjust longitude by cosine factor
+        dLat = CornerOffsets(k, 2) * PixelRadius;
+        
+        % Convert from (center lon/lat + delta) to actual lon/lat
+        CornerLons(k) = CenterLon + dLon;
+        CornerLats(k) = CenterLat + dLat;
+        
+        % Correct for wrapping around sphere
+        if CornerLons(k) > pi
+            CornerLons(k) = CornerLons(k) - 2 * pi;
+        elseif CornerLons(k) < -pi
+            CornerLons(k) = CornerLons(k) + 2 * pi;
+        end
+        
+        % Clamp latitudes to [-pi/2, +pi/2]
+        if CornerLats(k) > pi/2
+            CornerLats(k) = pi/2;
+        elseif CornerLats(k) < -pi/2
+            CornerLats(k) = -pi/2;
+        end
+    end
+end
