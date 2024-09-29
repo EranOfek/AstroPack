@@ -13,7 +13,7 @@ function [SimAI, InjectedCat] = simulateImage(Args)
         % Output: - an AstroImage containing the simulated image 
         %         - the injected source catalog
         % Author: A.M. Krassilchtchikov (Sep 2024)
-        % Example: SimAI = imProc.art.simulateImage('WriteFiles',true);
+        % Example: [SimAI, SimCat] = imProc.art.simulateImage('WriteFiles',true);
         % 
         arguments
             Args.Size       = [1700 1700]; % image size [the default size is of a LAST subimage] 
@@ -41,7 +41,7 @@ function [SimAI, InjectedCat] = simulateImage(Args)
         
         if isempty(Args.Mag)            
             % source distribution by optical magnitude (taken from LAST) 
-            MinMag  = 11; MaxMag = 20; DeltaMag = 0.01;
+            MinMag  = 11; MaxMag = 21; DeltaMag = 0.01;
             Mags    = MinMag:DeltaMag:MaxMag;
             Nstars  = round(DeltaMag.*10.^(0.35.*Mags-2.1)); % 0.33 - 1.7 % this empiric dependence has been measured from a LAST subimage of a dense field
             
@@ -69,7 +69,7 @@ function [SimAI, InjectedCat] = simulateImage(Args)
         
         % simulated source positions
         if isempty(Args.Cat)
-            Cat = [Nx.*rand(Nsrc,1), Ny.*rand(Nsrc,1)];
+            Cat = [Nx.*rand(Nsrc,1), Ny.*rand(Nsrc,1)]; 
         else
             Cat = Args.Cat;
         end
@@ -78,24 +78,29 @@ function [SimAI, InjectedCat] = simulateImage(Args)
         if ischar(Args.PSF)
             PSF = readmatrix(Args.PSF);
         else
-            PSF = Args.PSF;
+            PSF = Args.PSF; 
         end
                 
         % add background with some spatial variations
-        Back = Args.Back .* (1 + 0.1*rand(Nx,Ny));
+        Back = Args.Back .* (1 + 0.1*rand(Nx,Ny));  
         
-        [SimAI, InjectedCat] = imProc.art.injectSources(SimAI, Cat, PSF, Flux', Mag',...
-                                                        'UpdateCat', false, ...
-                                                        'MagZP',Args.MagZP, ...
-                                                        'PositivePSF', true, ...
-                                                        'Back', Back, ...
-                                                        'NoiseModel', 'normal');
+        % need to set up an empty image
+        SimAI.Image = repmat(0,Nx,Ny);
+        SimAI.setKeyVal('OBJECT','Simulated');
+        
+        [SimAI, InjectedCat] = imProc.art.injectSources(SimAI, Cat, PSF, Flux', Mag',... 
+                                                        'UpdateCat', false, ... 
+                                                        'MagZP',Args.MagZP, ... 
+                                                        'PositivePSF', true, ... 
+                                                        'Back', Back, ... 
+                                                        'AddBackground',true,... 
+                                                        'NoiseModel', 'normal'); 
          % write disk files if requested 
          if Args.WriteFiles             
              DS9_new.regionWrite([Cat(:,1) Cat(:,2)],'FileName',Args.OutRegionName,'Color','cyan','Marker','s','Size',1,'Width',4,...
                  'Precision','%.2f','PrintIndividualProp',0);
              
-             FITS.write(SimAI.Image, Args.OutImageName,... % 'Header',usimImage.HeaderData.Data,...
+             FITS.write(SimAI.Image, Args.OutImageName,'Header',SimAI.HeaderData.Data,...
                     'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);  
                 
              save(Args.OutArchName,'SimAI','InjectedCat');                                

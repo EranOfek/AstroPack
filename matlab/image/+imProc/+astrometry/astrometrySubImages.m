@@ -22,7 +22,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
     %            'CatName'
     %            'astrometryCoreArgs'
     %            'astrometryRefineArgs'
-    % Output : -
+    % Output : - 
     % Author : Eran Ofek (Aug 2021)
     % Example:
    
@@ -314,7 +314,7 @@ function [ResultRefineFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj,
 
                 ResultRefineFit(Iim).ParWCS = ResultFit(Iim).ParWCS;
                 ResultRefineFit(Iim).Tran   = ResultFit(Iim).Tran;
-                ResultRefineFit(Iim).ResFit = ResultFit(Iim).ResFit;
+                ResultRefineFit(Iim).ResFit = ResultFit(Iim).ResFit; % RMS errors are measured in [deg]
                 ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
                 
                 %Sucess(Iim) = ResultRefineFit(Iim).WCS.Success;

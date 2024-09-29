@@ -140,7 +140,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %                       transformation (after projection).
     %               'Res' - A structure array (per solution) with the best
     %                       fit transformation information, including rms and
-    %                       number of matches.
+    %                       number of matches. RMS errors are measured in [deg]
     %               'ErrorOnMean' - A vector of assymptoticRMS/sqrt(Ngood)
     %                       for each solution.
     %               'BestInd' - Index of solution with minimal ErrorOnMean.

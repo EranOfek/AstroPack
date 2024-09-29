@@ -270,7 +270,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
                                                                                                     'Tran',Args.Tran,...
                                                                                                     'CreateNewObj',false);
 
-            % add PSF FWHM to header - after astrometry, beacuse WCS is needed
+            % add PSF FWHM to header - after astrometry, because WCS is needed
             imProc.psf.fwhm(Coadd(Ifields));
            
             % photometric calibration
