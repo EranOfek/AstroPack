@@ -233,25 +233,45 @@ classdef AstroDiff < AstroImage
 
             arguments
                 Obj
-                Args.ReplaceVal  = 'back';  % or scalar
+                Args.ReplaceVal  = 'backdist';  % or scalar
             end
 
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 % New image
                 if ischar(Args.ReplaceVal)
-                    ValN = Obj(Iobj).BackN;
+                    switch lower(Args.ReplaceVal)
+                        case 'back'
+                            % Use mean of background
+                            ValN = Obj(Iobj).BackN;
+                            ValR = Obj(Iobj).BackR;
+                        case 'backdist'
+                            % Draw from a normal distribution with
+                            % mean = mean of background
+                            % std = std of background
+                            MeanN = Obj(Iobj).BackN;
+                            MeanR = Obj(Iobj).BackR;
+                            SigN = Obj(Iobj).SigmaN;
+                            SigR =  Obj(Iobj).SigmaR;
+
+                            [XSizeN,YSizeN] = Obj(Iobj).New.sizeImage();
+                            [XSizeR,YSizeR] = Obj(Iobj).Ref.sizeImage();
+                            SimBackN = normrnd(MeanN, SigN, [XSizeN,YSizeN]);
+                            SimBackR = normrnd(MeanR, SigR, [XSizeR,YSizeR]);
+
+                            NaNMaskN = isnan(Obj(Iobj).New.Image);
+                            NaNMaskR = isnan(Obj(Iobj).Ref.Image);
+
+                            Obj(Iobj).New.Image(NaNMaskN) = SimBackN(NaNMaskN);
+                            Obj(Iobj).Ref.Image(NaNMaskR) = SimBackR(NaNMaskR);
+                            continue
+                    end
                 else
                     ValN = Args.ReplaceVal;
-                end
-                Obj(Iobj).New = imProc.image.replaceVal(Obj(Iobj).New, NaN, ValN, 'CreateNewObj',false, 'UseOutRange',false);
-
-                % Ref image
-                if ischar(Args.ReplaceVal)
-                    ValR = Obj(Iobj).BackR;
-                else
                     ValR = Args.ReplaceVal;
                 end
+
+                Obj(Iobj).New = imProc.image.replaceVal(Obj(Iobj).New, NaN, ValN, 'CreateNewObj',false, 'UseOutRange',false);
                 Obj(Iobj).Ref = imProc.image.replaceVal(Obj(Iobj).Ref, NaN, ValR, 'CreateNewObj',false, 'UseOutRange',false);
             end
            
