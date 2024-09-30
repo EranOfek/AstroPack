@@ -1,5 +1,7 @@
-function [CornerLons, CornerLats] = pixelCorners(NSide, Pix, Type)
-    % Return healpix pixel corners.
+function [CornerLons, CornerLats] = pixBoundries(NSide, Pix, Type)
+    % Return healpix pixel boundries corners.
+    %   These are the north/south/east/west boundries and not the healpix
+    %   corners.
     % Input  : - Healpix Nside.
     %          - Pixel index.
     %          - Type: 'nested'|'ring'. Default is 'nested'.
@@ -8,7 +10,7 @@ function [CornerLons, CornerLats] = pixelCorners(NSide, Pix, Type)
     %          - A two column matrix, in which each line corresponds to the
     %            latitude corners of the corresponding pixel (radians).
     % Author : Eran Ofek (Sep 2024)
-    % Example: [Lon,Lat]=celestial.healpix.pixelCorners(16,[197;31],'nested')
+    % Example: [Lon,Lat]=celestial.healpix.pixBoundries(16,[197;31],'nested')
 
     arguments
         NSide
@@ -21,14 +23,8 @@ function [CornerLons, CornerLats] = pixelCorners(NSide, Pix, Type)
     N = numel(Pix);
 
     % Find the pixel's center coordinates
-    switch lower(Type)
-        case 'nested'
-            [CenterLon, CenterLat] = celestial.healpix.mex.pix2ang_nested(NSide, Pix);
-        case 'ring'
-            [CenterLon, CenterLat] = celestial.healpix.mex.pix2ang_ring(NSide, Pix);
-        otherwise
-            error('Unknown Type option');
-    end
+    [CenterLon, CenterLat] = celestial.healpix.pix2ang(Nside, Pix, 'Type',Type,'CooUnits','rad');
+    
 
     % Calculate half the side length of a pixel in radians
     PixelRadius = pi ./ (sqrt(3) .* NSide);

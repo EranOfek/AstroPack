@@ -1,7 +1,7 @@
 function IsInside = isInside(NSide, Index, Lon, Lat, Args)
     % Check if a given point (Lon, Lat) is inside a specified HEALPix pixel
     % Input  : - NSide (HEALPix resolution parameter)
-    %          - Healpix pixel index.
+    %          - Healpix pixel index (scalar).
     %          - Array of Longitude (default radians).
     %          - Array of Latitudes (default radians).
     %          * ...,key,val,...
@@ -10,11 +10,11 @@ function IsInside = isInside(NSide, Index, Lon, Lat, Args)
     % Output: - An array of logical flags indicating if the coordinates are
     %           inside the specific healpix pixel.
     % Author : Eran Ofek (Sep 2024)
-    % Example: celestial.healpix.isInside(16,197,1,1,'nested')
+    % Example: celestial.healpix.isInside(16,197,1,1,'Type','nested')
     
     arguments
         NSide
-        Index
+        Index(1,1)
         Lon
         Lat
         Args.Type     = 'nested';
@@ -29,9 +29,10 @@ function IsInside = isInside(NSide, Index, Lon, Lat, Args)
     Lon = Lon(:);
     Lat = Lat(:);
     N = numel(Lon);
-
+    %Npix = numel(Index);
+  
     % Obtain the corner coordinates of the HEALPix pixel
-    [CornerLons, CornerLats] = celestial.healpix.pixelCorners(NSide, Index, Args.Type);
+    [CornerLons, CornerLats] = celestial.healpix.pixBoundries(NSide, Index, Args.Type);
     
     % Convert (Lon, Lat) and corner coordinates to Cartesian vectors
     [X, Y, Z] = sph2cart(Lon, Lat, 1); % Using radius r = 1
@@ -39,8 +40,8 @@ function IsInside = isInside(NSide, Index, Lon, Lat, Args)
     
     CornerVecs = zeros(3, 4);
     for i = 1:4
-        [Xc, Yc, Zc] = sph2cart(CornerLons(i), CornerLats(i), 1);
-        CornerVecs(:, i) = [Xc; Yc; Zc];
+        [Xc, Yc, Zc] = sph2cart(CornerLons(:,i), CornerLats(:,i), 1);
+        CornerVecs(:, i,:) = [Xc; Yc; Zc];
     end
     
     % Check if point is inside pixel using a vector cross product method
