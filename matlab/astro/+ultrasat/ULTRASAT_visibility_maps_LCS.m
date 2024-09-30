@@ -145,33 +145,45 @@ function ULTRASAT_visibility_maps_LCS(Args)
 %             cd ~/
 
     cprintf('blue','4 x 45 days (= 180 days) from day 1 x 10 objects, unique over the 180 days period:\n');
-    [Route,AvDist,TargetLists] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',4,'UniqueSetArgs',...
+    [Route1,AvDist,TargetList1s] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',4,'UniqueSetArgs',...
                  {'StartDay',1,'PeriodLength',45,'FieldsPerPeriod',10,'AvLimit',1,'Unique',1});               
              for i=1:4
-                 fprintf('period %d: %d targets: ',i,numel(Route{i})); fprintf('%g ',Route{i}); fprintf('\n')                 
+                 fprintf('period %d: %d targets: ',i,numel(Route1{i})); fprintf('%g ',Route1{i}); fprintf('\n')                 
              end                 
     
     cprintf('blue','4 x 45 days (= 180 days) from day 181 x 10 objects, unique over the 180 days period:\n');
-    [Route,AvDist,TargetLists] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',4,'UniqueSetArgs',...
+    [Route2,AvDist,TargetLists2] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',4,'UniqueSetArgs',...
                  {'StartDay',181,'PeriodLength',45,'FieldsPerPeriod',10,'AvLimit',1,'Unique',1});  
              for i=1:4
-                 fprintf('period %d: %d targets: ',i,numel(Route{i})); fprintf('%g ',Route{i}); fprintf('\n')                 
+                 fprintf('period %d: %d targets: ',i,numel(Route2{i})); fprintf('%g ',Route2{i}); fprintf('\n')                 
              end       
     
+    fprintf('Total unique fields in 360 days: %d \n',numel(unique([Route1{:} Route2{:}])))
+    
     cprintf('blue','2 x 180 days (= 360 days) from day 1 x 40 objects, non-unique:\n');
-    [Route,AvDist,TargetLists] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',2,'UniqueSetArgs',...
+    [Route3,AvDist,TargetLists] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',2,'UniqueSetArgs',...
                  {'StartDay',1,'PeriodLength',180,'FieldsPerPeriod',40,'AvLimit',1,'Unique',0});                                      
              for i=1:2
-                 fprintf('period %d: %d targets: ',i,numel(Route{i})); fprintf('%g ',Route{i}); fprintf('\n')                 
+                 fprintf('period %d: %d targets: ',i,numel(Route3{i})); fprintf('%g ',Route3{i}); fprintf('\n')                 
              end       
     
     cprintf('blue','2 x 180 days (= 360 days) from day 90 x 40 objects, non-unique:\n');
-    [Route,AvDist,TargetLists] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',2,'UniqueSetArgs',...
+    [Route4,AvDist,TargetLists] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',2,'UniqueSetArgs',...
                  {'StartDay',90,'PeriodLength',180,'FieldsPerPeriod',40,'AvLimit',1,'Unique',0});                                      
              for i=1:2
-                 fprintf('period %d: %d targets: ',i,numel(Route{i})); fprintf('%g ',Route{i}); fprintf('\n')                 
-             end           
-                                               
+                 fprintf('period %d: %d targets: ',i,numel(Route4{i})); fprintf('%g ',Route4{i}); fprintf('\n')                 
+             end       
+             
+     % the number of 180-day long fields with a 360-days period:
+     A = L3_240 .* (Extp' < 1);
+     M2 = uninterruptedLength(A,240,360);
+     A180 = find(M2>179)
+     numel(A180)
+     Vis180 = L3_240(1:360,A180);
+     % number of such fields seen in each of the days:
+     Ob180  = sum(Vis180,2); figure; plot(Ob180);
+             
+             
     % save the MaxLen structure and the equatorial grid in a matlab object
     if Args.SaveMat
         save('LCS_visibility.mat','AllSky', 'Grid', 'MaxLen', 'Averaged_extinction','Extp','Lenp','L2','L2_240','L3_240');
