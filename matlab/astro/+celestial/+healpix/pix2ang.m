@@ -1,6 +1,5 @@
 function [PixLon, PixLat] = pix2ang(Nside, Pix, Args)
-    % One line description
-    %     Optional detailed description
+    % Return the lon/lat of the centers of the healpix pixels given their index.
     % Input  : - Nside (scalar).
     %          - An array of pixel indices.
     %          * ...,key,val,...
