@@ -5,5 +5,6 @@
 % Output : - A row vector of N integer (32 or 64 bits) in which the numbers
 %            are encoded. Each element correspond to one row in the second
 %            input argument.
+% Compilation: mex -O bitEncode.cpp
 % Author : Eran Ofek (2024 Sep) 
 % Example: a=tools.bit.bitEncode([32 32],[100 100; 100 200])
