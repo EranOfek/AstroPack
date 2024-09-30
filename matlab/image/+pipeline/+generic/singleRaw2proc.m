@@ -92,8 +92,8 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.identifyBadImagesArgs cell       = {};
         
         Args.BitDictionaryName                = 'BitMask.Image.Default';
-        Args.BitNameBadPix                  = {}; %{'NaN','Negative'};
-        Args.BitNameInterpolated            = 'Interpolated';
+        Args.BitNameBadPix                    = {}; %{'NaN','Negative'};
+        Args.BitNameInterpolated              = 'Interpolated';
                 
         Args.KeySoftVer                       = []; %'PIPEVER';  % if empty skip
         
@@ -158,7 +158,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.AddPSF logical                   = false;
         Args.constructPSFArgs cell            = {}; % can be, e.g. {'CropByQuantile',true,'Quantile',0.999}; 
         Args.PsfPhot logical                  = false;
-        Args.psfFitPhotArgs cell              = {};         
+        Args.psfFitPhotArgs cell              = {'FitRadius',3};         
         
         Args.SaveFileName                     = [];  % full path or ImagePath object
         Args.CreateNewObj logical             = false;

@@ -26,20 +26,24 @@ function ULTRASAT_visibility_maps_LCS(Args)
         Args.SaveMat logical = true; 
         Args.LimitingAlambda = 1; % the limiting value of A_lambda (for the ULTRASAT band)
     end
-    
-    RAD  = 180/pi;
+    %
+    RAD  = 180/pi; 
     
     % High-cadence survey areas
-    HCS = [215, 60; 254, 64; 67, -59];
+    HCS = [215, 60; 254, 64; 67, -59]; 
    
     % read a reasonably dense equiareal grid in the equatorial coordinates
-    Grid = readmatrix(Args.GridFile); RA = Grid(:,1); Dec = Grid(:,2); Np   = length(Grid);
+    Grid = readmatrix(Args.GridFile); RA = Grid(:,1); Dec = Grid(:,2); Np = length(Grid);
     % convert the grid to the ecliptic coordinates
     [lambda,beta] = celestial.coo.convert_coo(RA./RAD,Dec./RAD,'j2000.0','e');
     lambda = lambda .* RAD; beta = beta .* RAD;
     
     % read the All Sky grid of pointings
-    AllSky = readtable(Args.AllSky); 
+    AllSky = readtable(Args.AllSky); AllSky = sortrows(AllSky,2);
+    % convert the grid to the ecliptic coordinates
+    [l_all,b_all] = celestial.coo.convert_coo(AllSky.Var1./RAD,AllSky.Var2./RAD,'j2000.0','e');
+    l_all = l_all .* RAD; b_all = b_all .* RAD;
+    AllSkyEc = table(l_all,b_all,'VariableNames',{'Var1','Var2'});
     
     % add some shift by by RA:
     ShiftRA = 40; % [deg]
@@ -83,7 +87,6 @@ function ULTRASAT_visibility_maps_LCS(Args)
     Lim240  = Vis240.PowerLimits & Vis240.SunLimits & Vis240.MoonLimits & Vis240.EarthLimits; 
     L2_240  = reshape(Lim240,[NightBins,Args.NumDays,240]); 
     L3_240  = squeeze(prod(L2_240,1));                       % L3 is a whole-night scale list of visibility bins
-
   
 %             % now show fields available for each of the four 45-day periods:
 %             % products of 1-45, 46-90, 91-135, 136-180 
@@ -94,7 +97,9 @@ function ULTRASAT_visibility_maps_LCS(Args)
 %             subplot(2,2,3); plot.ungridded_image(RA, Dec, Q(3,:));
 %             subplot(2,2,4); plot.ungridded_image(RA, Dec, Q(4,:));
 % 
-            figure(1); clf; plot.ungridded_image(RA, Dec, MaxLen); caxis([0, 180]);
+%             figure(1); clf; plot.ungridded_image(RA, Dec, MaxLen); caxis([0, 180]);
+            figure(1); clf; plot.ungridded_image(lambda, beta, MaxLen); caxis([0, 180]);  % plot in ecliptic coordinates 
+            xlabel '\lambda, deg'; ylabel '\beta, deg' 
             title 'max uninterruped visibility of the 22:17-01:10 GMT window, days'    
 
     % find a sublist of AllSS pointings visible > 45 (180) days 
@@ -105,18 +110,20 @@ function ULTRASAT_visibility_maps_LCS(Args)
             fprintf('Pointings visible > 180 days: %d\n',size(List180,1));
     
             figure(1); hold on
-            plot(AllSky.Var1,  AllSky.Var2,'*','Color','black');
+%             plot(AllSkyEc.Var1,  AllSkyEc.Var2,'*','Color','black');
+   
             for i=1:numel(AllSky.Var1)
-                plot.skyCircles(AllSky.Var1(i), AllSky.Var2(i), 'Rad', 7, 'Color','black');
+                plot.skyCircles(AllSkyEc.Var1(i), AllSkyEc.Var2(i), 'Rad', 7, 'Color','black');
+                text(AllSkyEc.Var1(i), AllSkyEc.Var2(i), num2str(i), 'VerticalAlignment', 'middle', 'HorizontalAlignment', 'center');
             end
-            plot(List45.Var1,List45.Var2,'*','Color','black');
-            plot(List180.Var1,List180.Var2,'*','Color','red');
-            
-            for i=1:3
-                plot.skyCircles(HCS(i,1), HCS(i,2), 'Rad', 7, 'Color','red');                
-            end
-            plot.skyCircles(RA0(1).*RAD,Dec0(1).*RAD,'Rad', 1,'Color','green')
-            plot.skyCircles(RA0(2).*RAD,Dec0(2).*RAD,'Rad', 1,'Color','green')
+%             plot(List45.Var1,List45.Var2,'*','Color','black');
+%             plot(List180.Var1,List180.Var2,'*','Color','red');
+%             
+%             for i=1:3
+%                 plot.skyCircles(HCS(i,1), HCS(i,2), 'Rad', 7, 'Color','red');                
+%             end
+%             plot.skyCircles(RA0(1).*RAD,Dec0(1).*RAD,'Rad', 1,'Color','green')
+%             plot.skyCircles(RA0(2).*RAD,Dec0(2).*RAD,'Rad', 1,'Color','green')
 
     % now we turn on averaged extinction:        
     Averaged_extinction = celestial.grid.statSkyGrid('SkyPos',[lambda beta]);         
