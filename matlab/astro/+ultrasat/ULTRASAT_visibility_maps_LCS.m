@@ -20,10 +20,11 @@ function ULTRASAT_visibility_maps_LCS(Args)
         % 'healpix_grid_nside_32_npix_12288_pixarea_3.357_deg.txt'; 'healpix_grid_nside_64_npix_49152_pixarea_0.839_deg.txt';
         %  can be produced localy by > celestial.grid.make_healpix_grid(64)
         Args.AllSky   = '~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_240_nonoverlapping.txt'; % '~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_350_rep1.txt'; 
+        Args.AveragedExt ='~/matlab/data/ULTRASAT/aver_ext_hp49152.mat'; % averaged extinction on a 49152 healpix grid 
         Args.StartDate = '2028-01-01 00:00:00';
-        Args.NumDays   =  540; % [days] % 540
+        Args.NumDays   = 1096; % [days] % 540
         Args.TimeBin   = 0.01; % [days] 0.01 day = 864 s ~ 3 x 300 s  
-        Args.SaveMat logical = true; 
+        Args.SaveMat logical = false; 
         Args.LimitingAlambda = 1; % the limiting value of A_lambda (for the ULTRASAT band)
     end
     %
@@ -58,7 +59,6 @@ function ULTRASAT_visibility_maps_LCS(Args)
     % make ecliptic pole marks
     Poles = [0, -90; 0, 90];
     [RA0,Dec0]  = celestial.coo.convert_coo(Poles(:,1)./RAD,Poles(:,2)./RAD,'e','j2000.0');
-%     [lam0,bet0] = celestial.coo.convert_coo(Poles(:,1)./RAD,Poles(:,2)./RAD,'j2000.0','e');   
     
     % build a list of night-time bins: NightBins bins every night from 0 to 3 UTC
     NightBins = 12; % 12 x 0.01 day = 0.12 x 24 = 2.88 hr
@@ -81,41 +81,55 @@ function ULTRASAT_visibility_maps_LCS(Args)
     MaxLen = uninterruptedLength(L3, Np, Args.NumDays); 
     F = scatteredInterpolant(RA, Dec, MaxLen, 'linear', 'none');
     
+    % find a sublist of AllSS pointings visible > 45 (180) days 
+    Lenp   = F(AllSky.Var1,AllSky.Var2);
+    List45 = AllSky(Lenp>45,:); List180 = AllSky(Lenp>180,:);    
+        fprintf('Pointings visible > 45  days: %d\n',size(List45,1));
+        fprintf('Pointings visible > 180 days: %d\n',size(List180,1));
+        
+    % now we turn on averaged extinction (with R_aver = 7 deg)
+    
+    % recalculation takes much time:
+%     Averaged_extinction = celestial.grid.statSkyGrid('SkyPos',[lambda beta]);         
+    % so we read it from a prepared object:
+    load(Args.AveragedExt);
+    Fext    = scatteredInterpolant(RA, Dec, Averaged_extinction, 'linear', 'none');      
+    Extp    = Fext(AllSky.Var1,AllSky.Var2);
+    List45e = AllSky(Lenp>45 & Extp < 1,:); List180e = AllSky(Lenp>180 & Extp <1,:);
+        fprintf('Low extinction pointings visible > 45  days: %d\n',size(List45e,1));
+        fprintf('Low extinction pointings visible > 180 days: %d\n',size(List180e,1));
+
     % a smaller subset 
     Grid240 = [AllSky.Var1 AllSky.Var2];
     Vis240  = ultrasat.ULTRASAT_restricted_visibility(JD',Grid240./RAD,'MinSunDist',(70)./RAD,'MinMoonDist',(34)./RAD,'MinEarthDist',(56)./RAD);
     Lim240  = Vis240.PowerLimits & Vis240.SunLimits & Vis240.MoonLimits & Vis240.EarthLimits; 
     L2_240  = reshape(Lim240,[NightBins,Args.NumDays,240]); 
     L3_240  = squeeze(prod(L2_240,1));                       % L3 is a whole-night scale list of visibility bins
-  
-%             % now show fields available for each of the four 45-day periods:
-%             % products of 1-45, 46-90, 91-135, 136-180 
-%             Q(1,:) = prod(L3(1:45,:),1);   Q(2,:) = prod(L3(46:90,:),1); 
-%             Q(3,:) = prod(L3(91:135,:),1); Q(4,:) = prod(L3(136:180,:),1); 
-%             figure(2); subplot(2,2,1); plot.ungridded_image(RA, Dec, Q(1,:));
-%             subplot(2,2,2); plot.ungridded_image(RA, Dec, Q(2,:));
-%             subplot(2,2,3); plot.ungridded_image(RA, Dec, Q(3,:));
-%             subplot(2,2,4); plot.ungridded_image(RA, Dec, Q(4,:));
-% 
-%             figure(1); clf; plot.ungridded_image(RA, Dec, MaxLen); caxis([0, 180]);
-            figure(1); clf; plot.ungridded_image(lambda, beta, MaxLen); caxis([0, 180]);  % plot in ecliptic coordinates 
+          
+            figure(1); clf; hold on 
+            
+            subplot(1,2,1)
+            plot.ungridded_image(lambda, beta, MaxLen.* (Averaged_extinction < 1)); caxis([0, 180]);  % plot in ecliptic coordinates                          
+            set(gca, 'Position', [0.05, 0.06, 0.4, 0.9]);
             xlabel '\lambda, deg'; ylabel '\beta, deg' 
-            title 'max uninterruped visibility of the 22:17-01:10 GMT window, days'    
-
-    % find a sublist of AllSS pointings visible > 45 (180) days 
-    Lenp   = F(AllSky.Var1,AllSky.Var2);
-    List45 = AllSky(Lenp>45,:); List180 = AllSky(Lenp>180,:);
-    
-            fprintf('Pointings visible > 45  days: %d\n',size(List45,1));
-            fprintf('Pointings visible > 180 days: %d\n',size(List180,1));
-    
-            figure(1); hold on
-%             plot(AllSkyEc.Var1,  AllSkyEc.Var2,'*','Color','black');
-   
+            title 'max uninterruped visibility of the 22:17-01:10 GMT window, days'       
             for i=1:numel(AllSky.Var1)
                 plot.skyCircles(AllSkyEc.Var1(i), AllSkyEc.Var2(i), 'Rad', 7, 'Color','black');
                 text(AllSkyEc.Var1(i), AllSkyEc.Var2(i), num2str(i), 'VerticalAlignment', 'middle', 'HorizontalAlignment', 'center');
             end
+            
+            subplot(1,2,2)
+            plot.ungridded_image(RA, Dec, MaxLen.* (Averaged_extinction < 1)); caxis([0, 180]);
+            set(gca, 'Position', [0.55, 0.06, 0.4, 0.9]);
+            
+            xlabel 'RA, deg'; ylabel 'Dec, deg' 
+            for i=1:numel(AllSky.Var1)
+                plot.skyCircles(AllSky.Var1(i), AllSky.Var2(i), 'Rad', 7, 'Color','black');
+                text(AllSky.Var1(i), AllSky.Var2(i), num2str(i), 'VerticalAlignment', 'middle', 'HorizontalAlignment', 'center');
+            end
+
+%             plot(AllSky.Var1,  AllSky.Var2,'*','Color','black');   
+
 %             plot(List45.Var1,List45.Var2,'*','Color','black');
 %             plot(List180.Var1,List180.Var2,'*','Color','red');
 %             
@@ -123,41 +137,34 @@ function ULTRASAT_visibility_maps_LCS(Args)
 %                 plot.skyCircles(HCS(i,1), HCS(i,2), 'Rad', 7, 'Color','red');                
 %             end
 %             plot.skyCircles(RA0(1).*RAD,Dec0(1).*RAD,'Rad', 1,'Color','green')
-%             plot.skyCircles(RA0(2).*RAD,Dec0(2).*RAD,'Rad', 1,'Color','green')
-
-    % now we turn on averaged extinction:        
-    Averaged_extinction = celestial.grid.statSkyGrid('SkyPos',[lambda beta]);         
-    Fext = scatteredInterpolant(RA, Dec, Averaged_extinction, 'linear', 'none');
-      
-    Extp   = Fext(AllSky.Var1,AllSky.Var2);
-    List45e = AllSky(Lenp>45 & Extp < 1,:); List180e = AllSky(Lenp>180 & Extp <1,:);
-    
-            fprintf('Low extinction pointings visible > 45  days: %d\n',size(List45e,1));
-            fprintf('Low extinction pointings visible > 180 days: %d\n',size(List180e,1));
-    
-            figure(2); plot.ungridded_image(RA, Dec, MaxLen .* (Averaged_extinction < 1)); caxis([0, 180]);
-            hold on
-            plot(AllSky.Var1,  AllSky.Var2,'*','Color','black');
-            for i=1:numel(AllSky.Var1)
-                plot.skyCircles(AllSky.Var1(i), AllSky.Var2(i), 'Rad', 7, 'Color','black');
-            end
-            plot(List45e.Var1,  List45e.Var2,'*','Color','green');
-            plot(List180e.Var1,List180e.Var2,'*','Color','red');
-            title 'max uninterruped visibility of the 22:17-01:10 GMT window, days'
-            
-            for i=1:3
-                plot.skyCircles(HCS(i,1), HCS(i,2), 'Rad', 7, 'Color','red');
-            end
-            plot.skyCircles(RA0(1).*RAD,Dec0(1).*RAD,'Rad', 1,'Color','green')
-            plot.skyCircles(RA0(2).*RAD,Dec0(2).*RAD,'Rad', 1,'Color','green')
-            
+%             plot.skyCircles(RA0(2).*RAD,Dec0(2).*RAD,'Rad', 1,'Color','green')   
+                            
 %             cd ~/'Dropbox (Weizmann Institute)'/Observation_planning/Field_selection/WGs_maps/
 %             load('WG6/WG6_HETDEX_spring_contour.mat')
 %             plot(WG6_HETDEX_spring_contour(:,1),WG6_HETDEX_spring_contour(:,2),'black');
 %             cd ~/
-            xlabel '38/76 non-overlapping positions of max visibility > 180/45 days'
-                        
-                       
+
+    % 4 x 45 days (= 180 days) from day 1 x 10 objects, unique over the 180 days period
+    [Route,AvDist,TargetLists] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',4,'UniqueSetArgs',...
+                 {'StartDay',1,'PeriodLength',45,'FieldsPerPeriod',10,'AvLimit',1,'Unique',1});                                      
+    Route{:}
+    
+    % 4 x 45 days (= 180 days) from day 181 x 10 objects, unique over the 180 days period
+    [Route,AvDist,TargetLists] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',4,'UniqueSetArgs',...
+                 {'StartDay',181,'PeriodLength',45,'FieldsPerPeriod',10,'AvLimit',1,'Unique',1});                                      
+    Route{:}
+    
+    % 2 x 180 days (= 360 days) from day 1 x 40 objects, non-unique
+    [Route,AvDist,TargetLists] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',2,'UniqueSetArgs',...
+                 {'StartDay',1,'PeriodLength',180,'FieldsPerPeriod',40,'AvLimit',1,'Unique',0});                                      
+    Route{:}
+    
+    % 2 x 180 days (= 360 days) from day 90 x 40 objects, non-unique
+    [Route,AvDist,TargetLists] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',2,'UniqueSetArgs',...
+                 {'StartDay',90,'PeriodLength',180,'FieldsPerPeriod',40,'AvLimit',1,'Unique',0});                                      
+    Route{:}
+    
+                                               
     % save the MaxLen structure and the equatorial grid in a matlab object
     if Args.SaveMat
         save('LCS_visibility.mat','AllSky', 'Grid', 'MaxLen', 'Averaged_extinction','Extp','Lenp','L2','L2_240','L3_240');
@@ -182,3 +189,83 @@ function MaxLen = uninterruptedLength(Limits, Npos, Ntime)
         end
     end
 end
+
+function [Route, AvDist, TargetLists, NotUsed] = select_LCS_list(VisTable,Av_ext,AllSky,Args)    
+    % VisTable: M epochs x Np sky points (logical matrix)
+    % Av_ext: Np values
+    % AllSKY: Np points [RA, Dec] 
+
+%   RAD   = 180/pi;
+%   [l,b] = celestial.coo.convert_coo(AllSky.Var1./RAD,AllSky.Var2./RAD,'j2000.0','e');
+%   l = l .* RAD; b = b .* RAD;
+%   Av_ext = celestial.grid.statSkyGrid('SkyPos',[l b]);   
+    arguments
+        VisTable
+        Av_ext
+        AllSky
+        Args.NumPeriods     = 1;
+        Args.UniqueSetArgs  = {};
+        Args.ShowPlots      = false        
+    end
+
+    [Selected, NotUsed] = find_unique_set(VisTable,Av_ext,'NumPeriods',Args.NumPeriods,Args.UniqueSetArgs{:});
+    
+    for i = 1:Args.NumPeriods        
+        [OptRoute, MinDist] = telescope.obs.optimal_route(AllSky.Var1(Selected{i}), AllSky.Var2(Selected{i}),...
+                                'NIt',50,'ShowResult',Args.ShowPlots);
+        Route{i} = Selected{i}(OptRoute);
+        AvDist(i)= MinDist/numel(Selected{i}); % average distance per retargeting [deg]
+        TargetLists{i} = [AllSky.Var1(Route{i}) AllSky.Var2(Route{i})];
+    end
+    
+    Nmissed = numel(NotUsed);
+    if Nmissed > 0
+        fprintf('NB: %d fields were not used: \n',Nmissed);
+        fprintf('%g \n',NotUsed');
+    end
+    
+end
+
+function [Selected, NotUsed] = find_unique_set(VisTable,Av_ext,Args)
+    % select unique fields for NumPeriods of PeriodLength-day long epochs starting from StartDay
+    % according to the VisTable and Av < AvLimit 
+    arguments
+        VisTable
+        Av_ext
+        Args.StartDay        = 1;
+        Args.NumPeriods      = 4;
+        Args.PeriodLength    = 45;
+        Args.FieldsPerPeriod = 10;
+        Args.AvLimit         = 1;
+        Args.Unique          = true;
+    end
+    LowExt = Av_ext < Args.AvLimit;
+    Np     = size(VisTable,2);
+
+    HCS_fields = zeros(1,Np); HCS_fields(223:224) = 1; HCS_fields(19) = 1; % NB: these numbers will change with rotation along RA
+
+    Selected = cell(1,Args.NumPeriods);
+    for Iper = 1:Args.NumPeriods   % e.g, 4 periods of 45 days within a single 180 days period 
+        Day1 = (Iper-1)*Args.PeriodLength+Args.StartDay;
+        DayN =     Iper*Args.PeriodLength+Args.StartDay-1;
+        VisPeriod = prod(VisTable(Day1:DayN,:));        
+        % for each period find fields of visibility + low extinction, avoiding the HCS fields 
+        Flds{Iper} = find( VisPeriod .* LowExt' .* (1 - HCS_fields) > 0); 
+        % apply a greedy algorithm to build lists of globaly unique FieldsPerPeriod fields for each period        
+        for i = 1:numel(Flds{Iper})
+            Fld = Flds{Iper}(i);
+            if Args.Unique
+                if all(~cellfun(@(c) any(c == Fld), Selected)) && numel(Selected{Iper}) < Args.FieldsPerPeriod
+                    Selected{Iper} = [Selected{Iper} Fld];
+                end
+            else
+                if numel(Selected{Iper}) < Args.FieldsPerPeriod
+                    Selected{Iper} = [Selected{Iper} Fld];
+                end
+            end
+        end
+    end
+
+    NotUsed = setdiff([Flds{:}], [Selected{:}]);
+end
+
