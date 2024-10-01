@@ -121,9 +121,11 @@ for FreqInd=1:1:Nf
        otherwise
            error('Unknown Method option');
    end
-   Resid = Data(:,2) - H*P;
+   Stat.Ymodel        = H.*P;
+   Resid              = Data(:,2) - Stat.Ymodel;
    Stat.Chi2(FreqInd) = sum((Resid./Data(:,3)).^2);
    Stat.RMS(FreqInd)  = std(Resid);
+   
 
    Par.Par(FreqInd,:) = P.';
    Par.Err(FreqInd,:) = E.';
