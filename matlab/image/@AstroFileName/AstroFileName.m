@@ -1,7 +1,13 @@
-% ImagePath - A class for generating stand sgenFiltoring image/path names
+% AstroFileName - A class for generating stand sgenFiltoring image/path names
 %       for ULTRASAT and LAST.
 %
 % File name format: <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
+%
+%
+% Example:
+% A=AstroFileName;
+% A.ProjName = {'LAST',1,2,3};   % will convert to: "LAST.01.02.03"
+%
 
 
 classdef AstroFileName < Component
@@ -15,14 +21,17 @@ classdef AstroFileName < Component
     % File name format: <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID.<TranIndex>>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
     % Example: 'USAT_20210909.123456.789_clear_fld_cnt_ccdid_crop_sci_raw.sub_im_ver1.fits'
     
+    %properties (Dependent)
+    %    JD
+    %end
+    
     properties       
         % These fields are the input parameters for getPath() and getFileName()
         %<ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
-        ProjName            = ["LAST","01","01","01"];  % or {"LAST",1,2,3}
+        ProjName            = "LAST.01.01.01";
         
         Time                = [];
         JD
-
         Filter              = ["clear"];
         FieldID             = [""];
         Counter             = [];
@@ -36,6 +45,8 @@ classdef AstroFileName < Component
         
         
         %
+        Path                = "";
+        
         FullPath            = '';
         
         BasePath            = '/euler1/archive/LAST';
@@ -49,12 +60,14 @@ classdef AstroFileName < Component
     properties (Hidden)
         % Fields formatting
         %FormatFieldID   = '%06d';       % Used with FieldID
-        FormatCounter   = "%03d";       % Used with Counter        
+        FormatCounter   = "%03d";       % Used with Counter  
+        FormatFieldID   = "%d";
         FormatCCDID     = "%03d";       % Used with CCDID
         FormatCropID    = "%03d";       % Used with CropID
         FormatVersion   = "%d"; %'%03d';       % Used with Version
         
         FormatProjName  = "%02d";
+        FormatTime      = "yyyymmdd.HHMMSS.FFF";
     end
 
     properties (Hidden, SetAccess=protected, GetAccess=public)
@@ -65,6 +78,9 @@ classdef AstroFileName < Component
         ListType        = ["bias", "dark", "flat", "domeflat", "twflat", "skyflat", "fringe", "focus", "sci", "wave", "type" , "log"];
         ListLevel       = ["raw", "proc", "stack", "ref", "coadd", "merged", "calib", "junk", "proc.zogyD","coadd.zogyD"];
         ListProduct     = ["Image", "Back", "Var", "Exp", "Nim", "PSF", "Cat", "Spec", "Mask", "Evt", "MergedMat", "Asteroids","Pipeline", "TransientsCat"];
+        SEPERATOR       = "_";
+        FIELDS          = ["ProjName", "Time", "Filter", "FieldID", "Counter", "CCDID", "CropID", "Type", "Level", "Product", "Version", "FileType"];
+        
     end
     
     
@@ -142,14 +158,31 @@ classdef AstroFileName < Component
     end
     
     methods % setter/getters
-        
 
+     
+        
+%         function Val = get.JD(Obj)
+%             % Getter for JD
+%            
+%             Val = Obj.time2julday;
+%         end
+%         
+%         function Obj = set.JD(Obj, Val)
+%             % Setter for JD (will update Time)
+%            
+%             Obj.JD   = Val;
+%             
+%         end
+            
+            
+            
+        
         function Obj = set.Type(Obj, Val)
             % Setter for Type
             if ischar(Val) || iscell(Val)
                 Val = string(Val);
             end
-            Obj.Type = Val;
+            Obj.Type = Val(:);
             Obj.validateType;
         end
         function Obj = set.Level(Obj, Val)
@@ -157,7 +190,7 @@ classdef AstroFileName < Component
             if ischar(Val) || iscell(Val)
                 Val = string(Val);
             end
-            Obj.Level = Val;
+            Obj.Level = Val(:);
             Obj.validateLevel;
         end
         function Obj = set.Product(Obj, Val)
@@ -165,7 +198,7 @@ classdef AstroFileName < Component
             if ischar(Val) || iscell(Val)
                 Val = string(Val);
             end
-            Obj.Product = Val;
+            Obj.Product = Val(:);
             Obj.validateProduct;
         end
         
@@ -179,7 +212,7 @@ classdef AstroFileName < Component
             if iscell(Val)
                 Val = AstroFileName.formatCellProjName(Val, Obj.FormatProjName);
             end
-            Obj.ProjName = Val;
+            Obj.ProjName = Val(:);
         end
         
         function Obj = set.Filter(Obj, Val)
@@ -187,18 +220,78 @@ classdef AstroFileName < Component
             if ischar(Val) || iscell(Val)
                 Val = string(Val);
             end
-            Obj.Filter = Val;
+            Obj.Filter = Val(:);
         end
         
         function Obj = set.FieldID(Obj, Val)
             % Setter for FieldID
 
-            if isnumeric(FieldID)
-                Val = string(Val);
+            if isnumeric(Val)
+                Val = tools.string.sprintf2string(Obj.FormatFieldID, Val);
+            else
+                if ischar(Val) || iscell(Val)
+                    Val = string(Val);
+                end
             end
-            Obj.FieldID = Val;
+            Obj.FieldID = Val(:);
+            
         end
         
+        function Obj = set.Counter(Obj, Val)
+            % Setter for Counter
+           
+            if isnumeric(Val)
+                Val = tools.string.sprintf2string(Obj.FormatCounter, Val);
+            else
+                if ischar(Val) || iscell(Val)
+                    Val = string(Val);
+                end
+            end
+            Obj.Counter = Val(:);
+                
+        end
+        
+        function Obj = set.CCDID(Obj, Val)
+            % Setter for CCDID
+           
+            if isnumeric(Val)
+                Val = tools.string.sprintf2string(Obj.FormatCCDID, Val);
+            else
+                if ischar(Val) || iscell(Val)
+                    Val = string(Val);
+                end
+            end
+            Obj.CCDID = Val(:);
+                
+        end
+        
+        function Obj = set.CropID(Obj, Val)
+            % Setter for CropID
+           
+            if isnumeric(Val)
+                Val = tools.string.sprintf2string(Obj.FormatCropID, Val);
+            else
+                if ischar(Val) || iscell(Val)
+                    Val = string(Val);
+                end
+            end
+            Obj.CropID = Val(:);
+                
+        end
+        
+        function Obj = set.Version(Obj, Val)
+            % Setter for Version
+           
+            if isnumeric(Val)
+                Val = tools.string.sprintf2string(Obj.FormatVersion, Val);
+            else
+                if ischar(Val) || iscell(Val)
+                    Val = string(Val);
+                end
+            end
+            Obj.Version = Val(:);
+                
+        end
         
     end
       
@@ -227,6 +320,105 @@ classdef AstroFileName < Component
             end
         end
 
+        % DONE
+        function Result=parseString2literals(FileNameString, Seperator, SplitLast, SeperatorLast)
+            % Parse strings to array of literals
+            % Input  : - A string array, cell array or char array with file
+            %            names.
+            %          - Seperator. Default is "_".
+            %          - A logical indicating if to split the last literal
+            %            by dot and to sepearte it to Version
+            %            and FileType. Default is true.
+            %          - Seperator for last literal. Default is ".".
+            % Output : - A string array, in which each row corresponds to
+            %            file name and columns corresponds to literals.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: 
+            % A=AstroFileName.parseString2literals('LAST.01.10.01_20231214.233948.237_clear_074+55_020_001_021_sci_proc_PSF_1.fits')
+            
+            arguments
+                FileNameString
+                Seperator          = "_";
+                SplitLast logical  = true;
+                SeperatorLast      = ".";
+            end
+            
+            if iscell(FileNameString) || ischar(FileNameString)
+                FileNameString = string(FileNameString);
+            end
+            
+            Result = split(FileNameString(:), Seperator);
+            if SplitLast
+                Result = [Result(:,1:end-1), split(Result(:,end), SeperatorLast)];
+            end
+                
+        end
+        
+        % DONE
+        function [Result,Path]=parseString2AstroFileName(FileNameString, IsSinglePath, Seperator)
+            % Convert file names strings into an AstroFileName object.
+            % Input  : - A cell array, string array, or char array of file
+            %            names. Alternatively, a struct array which is the
+            %            output of the dir function.
+            %          - A logical indicating if to use a single path
+            %            (true), or path per file (false).
+            %            Default is true.
+            %          - Seperator. Default is "_".
+            % Output : - An AstroFileName object populated with the file
+            %            name literals.
+            %          - A string array of path. This is obtained only if
+            %            the first input is a structure array as returned by
+            %            the dir command.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: R=AstroFileName.parseString2AstroFileName(A)
+            
+            arguments
+                FileNameString
+                IsSinglePath logical = true;
+                Seperator            = "_";
+            end
+        
+            Result = AstroFileName;
+            if isstruct(FileNameString)
+                if IsSinglePath
+                    if isempty(FileNameString)
+                        Result.Path = "";
+                    else
+                        Result.Path = FileNameString(1).folder;
+                    end
+                else
+                    Result.Path = string({FileNameString.folder});
+                end
+                FileNameString = {FileNameString.name};
+            else
+                Result.Path = "";
+            end
+            
+            Literals = AstroFileName.parseString2literals(FileNameString, Seperator);
+            
+            if ~isempty(FileNameString)
+                Nfields = numel(Result.FIELDS);
+                for Ifield=1:1:Nfields
+                    Result.(Result.FIELDS(Ifield)) = Literals(:,Ifield);
+                end
+            end
+            
+        end
+        
+        % DONE
+        function Result=dir(varargin)
+            % dir like function that returns a populated AstroFileName object.
+            % Input  : - File template name.
+            % Output : - An AstroFileName object.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: R=AstroFileName.dir('LAST.01.*.fits')
+            
+            DirSt = dir(varargin{:});
+            Result = AstroFileName.parseString2AstroFileName(DirSt);
+            
+        end
+        
+        % Done
         function Result=getValFromFileName(File,Prop)
             % Get specific proprty from file name
             % Input  : - A char array containing a single file name.
@@ -241,6 +433,10 @@ classdef AstroFileName < Component
                 Prop  = 'JD';
             end
 
+            if ~(isstring(File) || ischar(File))
+                error('File must be char or string');
+            end
+                
             SplitName = regexp(File,'_','split');
             switch Prop
                 case 'ProjName'
@@ -288,137 +484,31 @@ classdef AstroFileName < Component
 
         end
 
-        function Obj=generateFromFileName(List, Args)
-            % Generate a FileNames object from a list of file names
-            %   Given file names which name structure obeys the
-            %   LAST-ULTRASAT file name convention.
-            % Input  : - A list of file names.
-            %            Either a char array or a cell array.
-            %            If the input is a char array, then the function
-            %            will use the io.files.filelist to search for all
-            %            existing files that have this name (wild cards are
-            %            allowed). In this case the file must exist.
-            %            If a cell array, then the file name in each element of
-            %            the cell will be used as is. In this case, the
-            %            file doesn't need to exist.
-            %          * ...,key,val,...
-            %            'FullPath' - Directory to populate FullPath, if true,
-            %                   then use current directory. If false or
-            %                   empty, use class default.
-            %                   Default is true.
-            %            'WarningIfEmpty' - A logical indicating if to
-            %                   print a warning in case the outpout FileNames
-            %                   object contains no files.
-            %                   Default is true.
-            %            'CheckExist' - A logical indicating if to check
-            %                   that all the files exist. Only operational when the
-            %                   input is a cell. If some files does not
-            %                   exist then the function will act according
-            %                   to the options in the 'DoNotExist'
-            %                   argument.
-            %                   Default is false.
-            %            'DoNotExist' - What to do in case a file doesn't
-            %                   exist: 'error'|'warnning'
-            %                   Default is 'error'.
-            %            'FullPathFromFileName' - If the user provided file
-            %                   name contains a path and this argument is
-            %                   true, then the FullPath property will be
-            %                   populated with the user-provided path.
-            %                   Default is false.
-            % Output : - A FileNames object containing the file names.
-            %          If you will use this with the char array option when
-            %          the file doesn't exist, then the returned structure
-            %          will contain no Time entries (i.e., FN.nfiles will
-            %          be zero).
-            % Author : Eran Ofek (Dec 2022)
-            % Example: FN=FileNames.generateFromFileName('LAST*.fits');
+        % Done
+        function Str = julday2timeString(JD)
+            % Convert JD to time string with format "yyyymmdd.HHMMSS.FFF"
+            % Input  : - JD
+            % Output : - String with time.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: AstroFileName.julday2timeString(2451545+[0 1])
             
-            
-            arguments
-                List
-                Args.FullPath                     = true;
-                Args.WarningIfEmpty logical       = true;
-                Args.CheckExist logical           = false;
-                Args.DoNotExist                   = 'error';
-                Args.FullPathFromFileName logical = false;
-            end
-                        
-            if ischar(List)
-                List = io.files.filelist(List, 'AddPath',false);
-            elseif iscell(List)
-                List = List;
-                if Args.CheckExist
-                    if ~all(isfile(List))
-                       switch lower(Args.DoNotExist)
-                           case 'error'
-                               Ierr = find(~isfile(List), 1);
-                               error('File name: %s does not exist',List{Ierr});
-                           case 'warnning'
-                               Ierr = find(~isfile(List), 1);
-                               warnning('File name: %s does not exist',List{Ierr});
-                           otherwise
-                               error('Unknown option for DoNotExist argument');
-                       end
-                    end
-                end
-            else
-                error('List must be either a char array or cell array');
+            Date = celestial.time.jd2date(JD(:),'H');
+            N = numel(JD);
+            Str = strings(N,1);
+            for I=1:1:N
+                Str(I)  = sprintf('%04d%02d%02d.%02d%02d%06.3f',Date(I,[3 2 1 4 5 6]));
             end
             
-            Obj = FileNames;
-            
-            if islogical(Args.FullPath)
-                if Args.FullPath
-                    Obj.FullPath = pwd;
-                end
-            elseif isempty(Args.FullPath)
-                % do nothing
-            else
-                Obj.FullPath = Args.FullPath;
-            end
-
-            Nlist = numel(List);
-            for Ilist=1:1:Nlist
-                SplitName = regexp(List{Ilist},'_','split');
-                if numel(SplitName)~=11
-                    error('Illegal file name - number of underline-seperators in file name %s is not 11',List{Ilist});
-                end
-                % make sure the first splitted term doesn't contain the
-                % path
-                %[SplitNameCell] = split(SplitName{1}, filesep);
-                [UserPath, Tmp1,Tmp2] = fileparts(SplitName{1});
-                SplitName{1} = sprintf('%s%s',Tmp1,Tmp2);
-                if Args.FullPathFromFileName && ~isempty(UserPath)
-                    Obj.FullPath = UserPath;
-                end
-                Obj.ProjName{Ilist} = SplitName{1}; %Cell{end};
-                Obj.Time{Ilist}     = SplitName{2};
-                Obj.Filter{Ilist}   = SplitName{3};
-                Obj.FieldID{Ilist}  = SplitName{4};
-                Obj.Counter(Ilist)  = str2double(SplitName{5});
-                Obj.CCDID(Ilist)    = str2double(SplitName{6});
-                Obj.CropID(Ilist)   = str2double(SplitName{7});
-                Obj.Type{Ilist}     = SplitName{8};
-                Obj.Level{Ilist}    = SplitName{9};
-                Obj.Product{Ilist}  = SplitName{10};
-                TmpSplit = split(SplitName{11},'.');
-                Obj.Version(Ilist)  = str2double(TmpSplit{1});
-                Obj.FileType{Ilist} = TmpSplit{2};
-                                
-            end
-            
-            if Args.WarningIfEmpty
-                if Obj.nfiles==0
-                    warning('No files matching the requested names were found - output FileNames object contain no files');
-                end
-            end
-
         end
     end
+    
+    
+    
     
     methods % utilities
 
 
+        % DONE
         function [Result,Flag]=validateType(Obj, ErrorIfWrong)
             % Validate Type property
             % Input  : - FileNames object.
@@ -447,6 +537,7 @@ classdef AstroFileName < Component
             
         end
         
+        % DONE
         function [Result,Flag]=validateLevel(Obj, ErrorIfWrong)
             % Validate Level property
             % Input  : - FileNames object.
@@ -475,6 +566,7 @@ classdef AstroFileName < Component
             
         end
         
+        % DONE
         function [Result,Flag]=validateProduct(Obj, ErrorIfWrong)
             % Validate Product property
             % Input  : - FileNames object.
@@ -503,6 +595,7 @@ classdef AstroFileName < Component
             
         end
         
+        % DONE
         function [Result, Flag] = validate(Obj, ErrorIfWrong)
             % Validate Product property
             % Input  : - FileNames object.
@@ -527,30 +620,57 @@ classdef AstroFileName < Component
             
         end
         
-        function JD = julday(Obj)
-            % Convert Time to JD
-            % Input  : - An FileNames object
-            % Output : - A vector of JD, one per time in object.
-            % Author : Eran Ofek (Dec 2022)
+        % DONE
+        function JD = julday(Obj, TimeFormat)
+            % Convert Time property to JD (not populating the JD property)
+            % Input  : - An AstroFileName object.
+            %          - A time format.
+            %            If empty, use the FormatTime property.
+            %            Default is [].
+            % Output : - JD
+            % Author : Eran Ofek (Oct 2024)
+            % Example: R.julday
             
-
-            if isempty(Obj.Time)
-                Obj.Time = [];
-                JD       = [];
-            else
-                if isnumeric(Obj.Time)
-                    JD = Obj.Time;
-                else
-                    FlagN   = cellfun(@ischar, Obj.Time,'UniformOutput',true);
-                    DateVec = convert.strFN2date(Obj.Time(FlagN));
-                    JD      = nan(numel(FlagN),1);
-                    JD(FlagN)  = celestial.time.julday(DateVec(:,[3 2 1 4 5 6]));
-                    %JD(~FlagN) = NaN;
-                end
+            arguments
+                Obj
+                TimeFormat = [];
             end
-                
+            
+            if isempty(TimeFormat)
+                TimeFormat = Obj.FormatTime;
+            end
+            
+            TimeMat = datevec(Obj.Time, TimeFormat);
+            JD = celestial.time.julday(TimeMat(:,[3 2 1 4 5 6]));
+            
         end
-
+        
+        % DONE
+        function Obj = julday2time(Obj, JD)
+            % Populate Time from JD
+            % Input  : - self.
+            %          - JD. If empty, then use JD property.
+            %            Default is [].
+            % Output : - An AstroFileName object with Time property
+            %            populated wtith time string corresponding to the JD.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: R.julday2time(2451545)
+            
+            arguments
+                Obj
+                JD    = [];
+            end
+            if isempty(JD)
+                JD = Obj.JD;
+            else
+                Obj.JD = JD;
+            end
+            
+            DateStr = AstroFileName.julday2timeString(JD);
+            Obj.Time = DateStr;
+        end
+            
+        % DONE
         function JD = juldayFun(Obj, Fun)
             % Apply a function on the JD of each element of a FileNames object.
             % Input  : - A FileNames object.
@@ -577,91 +697,40 @@ classdef AstroFileName < Component
 
 
         end
-
         
-        function Obj = jd2str(Obj)
-            % Convert JD in Time property to file name strings
-            % Input  : - An FileNames object.
-            % Output : - The FileNames object in which the Time property is
-            %            in file name string format: yyyymmdd.HHMMSS.FFF
-            % Author : Eran Ofek (Dec 2022)
-            
-            if isnumeric(Obj.Time)
-                N         = numel(Obj.Time);
-                FlagN     = isnan(Obj.Time);
-                Obj.Time(FlagN) = 2451545;
-                DateVec   = celestial.time.jd2date(Obj.Time, 'H');
-                DateArray = datestr(DateVec(:,[3 2 1 4 5 6]),'yyyymmdd.HHMMSS.FFF');
-                Str       = cell(N,1);
-                for I=1:1:N
-                    Str{I} = DateArray(I,:);
-                end
-                if sum(FlagN)>0
-                    IndN = find(FlagN);
-                    for In=1:1:numel(IndN)
-                        Str{IndN(In)} = NaN;
-                    end
-                end
-                Obj.Time = Str;
-            end
-        end
-        
-        function Result = getProp(Obj, Prop, Ind, Args)
-            % get property (all or single by index).
-            % Input  : - A FileNames object.
-            %          - Property to retrieve. Default is 'Time'.
-            %          - An index of element in array to retrieve
-            %            If empty, then get all, in array or cell array.
-            %            If scalar, then get a single element (not in
-            %            cell).
-            %            If scalar is larger than the number of elements,
-            %            then return the first element only.
-            %          * ...,key,val,...
-            %            'jd2str' - Default is true.
-            % Output : - Value.
-            % Author : Eran Ofek (Dec 2022)
-            
+        % DONE
+        function Result = getProp(Obj, Prop, Ind)
+            % Get specific property value and entry (index)
+            % Input  : - self.
+            %          - Property name.
+            %          - Index. If empty, get all. Default is [].
+            % Output : - Property value.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: R.getProp('Type',[])
+            %          R.getProp('Type',1)
+           
             arguments
                 Obj
-                Prop = 'Time';
-                Ind  = [];
-                Args.Jd2str logical  = true;
-                Args.CreateNewObj logical = true;
-            end
-
-            if Args.Jd2str && strcmp(Prop, 'Time')
-                if isnumeric(Obj.(Prop))
-                    Obj.jd2str;
-                end
+                Prop   = "Time";
+                Ind    = [];
             end
             
             if isempty(Ind)
                 Result = Obj.(Prop);
             else
-                if isempty(Obj.(Prop))
-                    Result = '';
-                else
-                    if iscell(Obj.(Prop))
-                        if Ind>numel(Obj.(Prop))
-                            Result = Obj.(Prop){1};
-                        else
-                            Result = Obj.(Prop){Ind};
-                        end
-                    elseif isnumeric(Obj.(Prop))
-                        if Ind>numel(Obj.(Prop))
-                            Result = Obj.(Prop)(1);
-                        else
-                            Result = Obj.(Prop)(Ind);
-                        end
-                    elseif ischar(Obj.(Prop))
-                        Result = Obj.(Prop);
-                    else
-                        error('Unknown FileNames property format');
-                    end
-                end
+                Result = Obj.(Prop)(Ind);
             end
             
         end
+        
+       
+        
+        
+        
+        
+        
+        
+        
         
         function DateDir = getDateDir(Obj, Ind, ReturnChar)
             % Return date directory name from file name properties
