@@ -169,41 +169,44 @@ function ULTRASAT_visibility_maps_LCS(Args)
     fprintf('Overall average slewing distance (deg): %.2f \n', mean([AvDist1 AvDist2]));
 %     fprintf('Mean Sun angle (deg): %.1f \n',mean(MeanSunAng(1:45,[Route1{1}]),[1 2]));
     
-    cprintf('blue','2 x 180 days (= 360 days) from day 1 x 40 objects, non-unique:\n');
-    [Route3,AvDist3,TargetLists3] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',2,'UniqueSetArgs',...
-                 {'StartDay',1,'PeriodLength',180,'FieldsPerPeriod',40,'AvLimit',1,'MeanSunAng',[],'Unique',0});                                      
-             for i=1:2
-                 fprintf('period %d: %d targets: ',i,numel(Route3{i})); fprintf('%g ',Route3{i}); fprintf('\n')                 
-             end       
-    
-    cprintf('blue','2 x 180 days (= 360 days) from day 90 x 40 objects, non-unique:\n');
-    [Route4,AvDist4,TargetLists4] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',2,'UniqueSetArgs',...
-                 {'StartDay',90,'PeriodLength',180,'FieldsPerPeriod',40,'AvLimit',1,'MeanSunAng',[],'Unique',0});                                      
-             for i=1:2
-                 fprintf('period %d: %d targets: ',i,numel(Route4{i})); fprintf('%g ',Route4{i}); fprintf('\n')                 
-             end       
-             
-     % the number of 180-day long fields with a 360-days period:
-     A = L3_240 .* (Extp' < 1);
-     M2 = uninterruptedLength(A,240,360);
-     A180 = find(M2>179); 
-     cprintf('blue','%d fields observable for 180 days within 360 days\n',numel(A180));
-     Vis180 = L3_240(1:360,A180);
-     % number of such fields seen in each of the days:
-     Ob180  = sum(Vis180,2); 
-                 if Args.MakePlots
-                     figure(2); plot(Ob180); ylabel 'Number of fields'
-                 end
+%     cprintf('blue','2 x 180 days (= 360 days) from day 1 x 40 objects, non-unique:\n');
+%     [Route3,AvDist3,TargetLists3] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',2,'UniqueSetArgs',...
+%                  {'StartDay',1,'PeriodLength',180,'FieldsPerPeriod',40,'AvLimit',1,'MeanSunAng',[],'Unique',0});                                      
+%              for i=1:2
+%                  fprintf('period %d: %d targets: ',i,numel(Route3{i})); fprintf('%g ',Route3{i}); fprintf('\n')                 
+%              end       
+%     
+%     cprintf('blue','2 x 180 days (= 360 days) from day 90 x 40 objects, non-unique:\n');
+%     [Route4,AvDist4,TargetLists4] = select_LCS_list(L3_240,Extp,AllSky,'NumPeriods',2,'UniqueSetArgs',...
+%                  {'StartDay',90,'PeriodLength',180,'FieldsPerPeriod',40,'AvLimit',1,'MeanSunAng',[],'Unique',0});                                      
+%              for i=1:2
+%                  fprintf('period %d: %d targets: ',i,numel(Route4{i})); fprintf('%g ',Route4{i}); fprintf('\n')                 
+%              end       
+%              
+%      % the number of 180-day long fields with a 360-days period:
+%      VisAbs = L3_240 .* (Extp' < 1);
+%      M2 = uninterruptedLength(VisAbs,240,360);
+%      A180 = find(M2>179); 
+%      cprintf('blue','%d fields observable for 180 days within 360 days\n',numel(A180));
+%      Vis180 = L3_240(1:360,A180);
+%      % number of such fields seen in each of the days:
+%      Ob180  = sum(Vis180,2); 
+%                  if Args.MakePlots
+%                      figure(2); plot(Ob180); ylabel 'Number of fields'
+%                  end
 
     % the number of 180-day-long fields observable on each of the days of a
-    % 2.5 year period from start + 180 days until end-180 days:
-    
-    List180_240 = uninterruptedLength(A, 240, Args.NumDays) > 180;
-    Nfields     = sum(A(:,List180_240),2);
+    % 2.5 year period from start + 180 days until end-180 days: 
+    cprintf('blue','2.5 years period from start+180 days until end-180 days, non-unique:\n');
+    VisAbs = L3_240 .* (Extp' < 1);
+    List180_240 = uninterruptedLength(VisAbs, 240, Args.NumDays) > 180;    
+    fprintf('Total number of 180-day fields in the list: %d \n',sum(List180_240));
+    Nfields     = sum(VisAbs(:,List180_240),2);
+    fprintf('Average daily number of observable 180-day fields: %.0f \n',mean(Nfields));
                 if Args.MakePlots
                     figure(3); plot(181:Args.NumDays-180,Nfields(181:Args.NumDays-180),'*');
                     xlabel 'Days from 01.01.2028'; ylabel 'Number of available 180-day long fields'
-                end
+                end    
              
     % save the MaxLen structure and the equatorial grid in a matlab object
     if Args.SaveMat
