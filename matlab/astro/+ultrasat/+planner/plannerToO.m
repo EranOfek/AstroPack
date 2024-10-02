@@ -27,6 +27,7 @@ function Result = plannerToO(AlertMapCSV, Args)
         Args.DrawMaps logical  = true;
         Args.MockAlerts        = false;
         Args.TestAlerts        = false;
+        Args.StatisticsOnly    = false;
     end
     
     Sr = (180/pi)^2;  % deg(2)
@@ -163,8 +164,10 @@ function Result = plannerToO(AlertMapCSV, Args)
         end
     end
     
-    return 
-    %%%%% !!!! TEMPORARY STOP FOR COLLECTING STATISTICS ONLY !!!!
+    if Args.StatisticsOnly
+        %%%%% !!!! TEMPORARY STOP FOR COLLECTING STATISTICS ONLY !!!!
+        return
+    end
             
     % select no more than Args.MaxTargets targets with highest probability
     Result.Ntarg = min(Result.NCover,Args.MaxTargets);
