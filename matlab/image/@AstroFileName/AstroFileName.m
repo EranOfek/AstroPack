@@ -42,17 +42,17 @@ classdef AstroFileName < Component
         Product             = ["Image"];
         Version             = [1];
         FileType            = ["fits"];
-        
+        %
+        SubDir              = "";
+        BasePath            = "/marvin";
+        BasePathRef         = "/marvin/ref";
         
         %
-        Path                = "";
+        Path                = [];
         
-        FullPath            = '';
-        
-        BasePath            = '/euler1/archive/LAST';
         BasePathIncludeProjName logical = true;
-        BasePathRef         = '/euler1/archive/LAST';
-        SubDir              = '';
+        AddSubDir logical               = true;
+        
         TimeZone            = 2;
         
     end
@@ -366,7 +366,7 @@ classdef AstroFileName < Component
                     if isempty(FileNameString)
                         Result.Path = "";
                     else
-                        Result.Path = FileNameString(1).folder;
+                        Result.Path = string(FileNameString(1).folder);
                     end
                 else
                     Result.Path = string({FileNameString.folder});
@@ -487,7 +487,7 @@ classdef AstroFileName < Component
     
     
     
-    methods % utilities
+    methods % validation
 
         % DONE
         function [Result,Flag]=validateType(Obj, ErrorIfWrong)
@@ -601,6 +601,9 @@ classdef AstroFileName < Component
             
         end
         
+    end
+    
+    methods % time utilities
         % DONE
         function JD = julday(Obj, TimeFormat)
             % Convert Time property to JD (not populating the JD property)
@@ -680,31 +683,141 @@ classdef AstroFileName < Component
         end
         
         % DONE
-        function Result = getProp(Obj, Prop, Ind)
+        function Result = getDateDir(Obj, Ind, Args)
+            % Get the date directory names for te file names.
+            %   The DateDir is the YYYY/MM/DD directory structure for
+            %   storing data.
+            % Input  : - self.
+            %          - Indices of lines (file names) for which to
+            %            generate DateDir. If empty, generate for all
+            %            lines. Default is 1.
+            %          * ...,key,val,...
+            %            'BreakToYMD' - If true then will break to [YYYY,
+            %                   MM, DD] strings. If false then return [YYYYMMDD]
+            %                   strings. Default is true.
+            %            'UseJD' - If true, then calculate the DateDir from the JD.
+            %                   Otherwise, cut it from the Time strings.
+            %                   Default is false.
+            % Output : - A string array of the YYYY, MM, DD directories.
+            %            If BreakToYMD is true, then the output have 3
+            %            columns, otherwise, one column.
+            % Author : Eran Ofek (Oct 2025)
+            % Example: A=AstroFileName.dir('LAST.01.*fits');
+            %          A.getDateDir([],'BreakToYMD',true, 'UseJD',true)
+            %          A.getDateDir(1)
+            
+            arguments
+                Obj
+                Ind                     = 1;
+                Args.BreakToYMD logical = true;
+                Args.UseJD logical      = false;
+            end
+            
+            if isempty(Ind)
+                Nfile = Obj.nFiles;
+                Ind   = (1:1:Nfile).';
+            end
+            Nind = numel(Ind);            
+            
+            if Args.UseJD
+                JD = Obj.julday;
+                JD = JD + Obj.TimeZone./24;
+                JD = floor(JD);
+                JD = JD(Ind);
+                Date = celestial.time.jd2date(JD);
+                
+                if Args.BreakToYMD
+                    Result = strings(Nind,3);
+                    for I=1:1:Nind
+                        Result(I,1) = sprintf("%04d", Date(I,3));
+                        Result(I,2) = sprintf("%02d", Date(I,2));
+                        Result(I,3) = sprintf("%02d", Date(I,1));
+                    end
+                else
+                    Result = strings(Nind,1);
+                    for I=1:1:Nind
+                        Result(I) = sprintf("%04d%02d%02d",Date(I,[3 2 1]));
+                    end
+                end
+            else
+                if Args.BreakToYMD
+                    Result = [extractBetween(Obj.Time(Ind), 1, 4), extractBetween(Obj.Time(Ind), 4, 5), extractBetween(Obj.Time(Ind), 6, 7)];
+                else
+                    Result = extractBefore(Obj.Time(Ind), 9);
+                end
+            end
+            
+        end
+            
+    end
+    
+    methods % utilities
+        
+        % DONE
+        function Result = getProp(Obj, Prop, Ind, Args)
             % Get specific property value and entry (index)
             % Input  : - self.
             %          - Property name.
             %          - Index. If empty, get all. Default is [].
+            %          * ...,key,val,...
+            %            'RepMat' - If true, then if the output string
+            %                   contains one element and the numbre of files
+            %                   (lines) in the object is >1, then the output will
+            %                   be replicated using repmat to contains the
+            %                   number of requested lines.
             % Output : - Property value.
             % Author : Eran Ofek (Oct 2024)
-            % Example: R.getProp('Type',[])
-            %          R.getProp('Type',1)
+            % Example: A=AstroFileName.dir('LAST.01.*fits');
+            %          A.getProp('Type',[])
+            %          A.getProp('Type',1)
+            %          A.getProp('Path',[], 'RepMat',true)
+            %          A.getProp('Path',1:2, 'RepMat',true)
+            %          A.getProp('Path',1:2, 'RepMat',false)
            
             arguments
                 Obj
-                Prop   = "Time";
-                Ind    = [];
+                Prop                 = "Time";
+                Ind                  = [];
+                Args.RepMat logical  = false;
             end
             
-            if isempty(Ind)
-                Result = Obj.(Prop);
+            if Args.RepMat
+                % make sure that the length of the property is exactly like
+                % Time
+                Nfile = Obj.nFiles;
+                if isempty(Ind)
+                    Ind = (1:1:Nfile).';
+                end
+                Nind = numel(Ind);
+                
+                Nprop = numel(Obj.(Prop));
+                if Nprop==1 && Nind>1
+                    % repmat
+                    Result = repmat(Obj.(Prop), Nind, 1);
+                else
+                    if Nprop==1
+                        Result = Obj.(Prop);
+                    else
+                        Result = Obj.(Prop)(Ind);
+                    end
+                end
+                
             else
-                Result = Obj.(Prop)(Ind);
+                if isempty(Ind)
+                    Result = Obj.(Prop);
+                else
+                    Nprop = numel(Obj.(Prop));
+                    if Nprop<max(Ind)
+                        Nind = numel(Ind);
+                        Result = repmat(Obj.(Prop), Nind, 1);
+                    else
+                        Result = Obj.(Prop)(Ind);
+                    end
+                end
             end
-            
         end
        
-        %
+        % DONE
         function Result = nFiles(Obj)
             % Return the number of files (times) in the object.
             % Input  : - self.
@@ -714,9 +827,11 @@ classdef AstroFileName < Component
 
             Result = numel(Obj.Time);
         end
+            
     end
 
     methods % generate file names and path
+        % DONE
         function Result=genFile(Obj, Ind, Args)
             % Generate file names from literals in AstroFileName object.
             %   Optionally, replace some literals with user provided
@@ -794,327 +909,217 @@ classdef AstroFileName < Component
 
         end
 
-    end
-
-
-
-        
-        
-        
-        
-        
-    methods
-
-        
-        function DateDir = getDateDir(Obj, Ind, ReturnChar)
-            % Return date directory name from file name properties
-            % Input  : - An FileNames object.
-            %          - Index of time in object for which to generate date
-            %            dir name. If empty, generate for all times.
-            %            Default is [].
-            %          - A logical indicating if to return a char array
-            %            instead of cell array. Default is false.
-            % Output : - A cell array of date directories for each file
-            %            time stamp.
-            % Author : Eran Ofek (Dec 2022)
+        % DONE
+        function Result=genRefPath(Obj, Ind)
+            % Generate RefPath (path for reference images)
+            % Input  : - self.
+            %          - Indices of lines (file names) for which to
+            %            generate ref image path. If empty, then generate
+            %            for all images. Default is 1.
+            % Output : - A string array of reference image path.
+            %            Construted from BasePathRef/FieldID.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: A=AstroFileName.dir('LAST.01.*fits');
+            %          A.genRefPath
+            %          A.genRefPath([])
             
             arguments
                 Obj
-                Ind   = [];
-                ReturnChar logical = false;
+                Ind    = 1;
             end
-            
-            JD = Obj.julday;
-            JD = JD + Obj.TimeZone./24;
-            JD = floor(JD);
-            Date = celestial.time.jd2date(JD);
             
             if isempty(Ind)
-                N = numel(JD);
-                DateDir = cell(N,1);
-                for I=1:1:N
-                    DateDir{I} = sprintf('%s%04d%s%02d%s%02d',filesep,Date(I,3), filesep,Date(I,2), filesep, Date(I,1));
-                end
+                Nfile = Obj.nFiles;
+                Ind   = (1:1:Nfile).';
+            end
+            Nind = numel(Ind);
+            if Nind>1
+                TmpBasePathRef = repmat(Obj.BasePathRef, Nind, 1);
             else
-                Date = Date(Ind,:);
-                DateDir = {sprintf('%s%04d%s%02d%s%02d',filesep,Date(3), filesep,Date(2), filesep, Date(1))};
+                TmpBasePathRef = Obj.BasePathRef;
             end
+            TmpFieldID = Obj.FieldID(Ind);
+            
+            Result = join([TmpBasePathRef, TmpFieldID], filesep);
+            
+        end
+        
+        % DONE
+        function Result=genPath(Obj, Ind, Args)
+            % Generate path for file names.
+            % Input  : - self.
+            %          - Indices of lines (file names) in the object.
+            %            If empty, then get all lines. Default is 1.
+            %          * ...,key,val,...
+            %            'PathType' - If the object "Path" property is
+            %                   populated, then the path will be retrieved
+            %                   from this property. Otherwise, will be
+            %                   work according to one of the following
+            %                   options:
+            %                   'proc' - Path of the form:
+            %                           /BasePath/ProjName/YYYY/MM/DD/proc/SubDir
+            %                   'raw' - Path of the form:
+            %                           /BasePath/ProjName/YYYY/MM/DD/raw
+            %                   'new'|'calib'|'failed' - Path of the form:
+            %                           /BasePath/ProjName/<new>
+            %                   'ref' - Get the reference images file names
+            %                           using genRefPath.
+            %                           Answer is of the form:
+            %                           /RefBasePath/FieldID
+            %                   Default is 'proc'.
+            %            'BasePathIncludeProjName' - A logical indicating
+            %                   if the path includes the ProjName string.
+            %                   If empty, then read it from the object
+            %                   property.
+            %                   Default is [].
+            %            'AddSubDir' - Like BasePathIncludeProjName but for
+            %                   adding the SubDir string. Default is [].
+            % Output : - A string array of path.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: A=AstroFileName.dir('LAST.01.*fits'); A.Path = [];
+            %          A.genPath;
+            %          A.genPath([])
+            %          A.genPath(1,'BasePathIncludeProjName',false);
+            %          A.genPath(1,'AddSubDir',false);
+            %          A.genPath([], 'PathType','raw')
+            %          A.genPath([], 'PathType','new')
+            %          A.genPath(1:2, 'PathType','calib')
+            %          A.genPath(3, 'PathType','failed')
+            %          A.genPath(3:4, 'PathType','ref')
+            %          A.genPath([], 'PathType','ref')
+           
+            arguments
+                Obj
+                Ind                   = 1;
+                Args.PathType         = 'proc';  % 'new'|'calib'|'failed'|'proc'|'raw'|'ref'
+                Args.BasePathIncludeProjName = [];
+                Args.AddSubDir               = [];
+            end
+            if isempty(Args.BasePathIncludeProjName)
+                BasePathIncludeProjName = Obj.BasePathIncludeProjName;
+            else
+                BasePathIncludeProjName = Args.BasePathIncludeProjName;
+            end
+            if isempty(Args.AddSubDir)
+                AddSubDir = Obj.AddSubDir;
+            else
+                AddSubDir = Args.AddSubDir;
+            end
+            
+            if isempty(Obj.Path)
+                % Construct Path based on available properties:
                 
-            if numel(DateDir)==1 && ReturnChar
-                DateDir = DateDir{1};
+                if isempty(Ind)
+                    Nfile = Obj.nFiles;
+                    Ind   = (1:1:Nfile).';
+                end
+                Nind = numel(Ind);
+                
+                switch lower(Args.PathType)
+                    case 'proc'                
+                        %BasePath/ProjName/YYYY/MM/DD/proc/visit
+                        YMD         = Obj.getDateDir(Ind, 'BreakToYMD',true, 'UseJD',false);
+                        ProjStr     = Obj.getProp("ProjName", Ind, 'RepMat',true);
+                        VisitStr    = Obj.getProp("SubDir", Ind, 'RepMat',true);
+                        BasePathStr = Obj.getProp("BasePath", Ind, 'RepMat',true);
+                       
+                        if BasePathIncludeProjName
+                            ProjStr     = Obj.getProp("ProjName", Ind, 'RepMat',true);
+                            if Args.AddSubDir
+                                Result = join([BasePathStr, ProjStr, YMD, repmat("proc", Nind, 1), VisitStr], filesep);
+                            else
+                                Result = join([BasePathStr, ProjStr, YMD, repmat("proc", Nind, 1)], filesep);
+                            end
+                                
+                        else
+                            if Args.AddSubDir
+                                Result = join([BasePathStr, YMD, repmat("proc", Nind, 1), VisitStr], filesep);
+                            else
+                                Result = join([BasePathStr, YMD, repmat("proc", Nind, 1)], filesep);
+                            end
+                        end
+                    case {'new','calib','failed'}
+                        %BasePath/ProjName/[new]
+                        StrPathType = string(Args.PathType);
+                        
+                        BasePathStr = Obj.getProp("BasePath", Ind, 'RepMat',true);
+                        
+                        if BasePathIncludeProjName
+                            ProjStr     = Obj.getProp("ProjName", Ind, 'RepMat',true);
+                            Result = join([BasePathStr, ProjStr, repmat(StrPathType, Nind, 1)], filesep);
+                        else
+                            Result = join([BasePathStr, repmat(StrPathType, Nind, 1)], filesep);
+                        end
+                    case 'raw'
+                        %BasePath/ProjName/YYYY/MM/DD/raw
+                        
+                        YMD         = Obj.getDateDir(Ind, 'BreakToYMD',true, 'UseJD',false);
+                        BasePathStr = Obj.getProp("BasePath", Ind, 'RepMat',true);
+                        
+                        if BasePathIncludeProjName
+                            ProjStr     = Obj.getProp("ProjName", Ind, 'RepMat',true);
+                            Result = join([BasePathStr, ProjStr, YMD, repmat("raw", Nind, 1)], filesep);
+                        else
+                            Result = join([BasePathStr, YMD, repmat("raw", Nind, 1)], filesep);
+                        end
+                    case 'ref'
+                        Result = Obj.genRefPath(Ind);
+                    otherwise
+                        error('Unknown PathType option');
+                end
+                
+                
+            else
+                % use Path in AstroFileName object
+                
+                Nfile = Obj.nFiles;
+                Npath = numel(Obj.Path);
+                if isempty(Ind)
+                    if Nfile==Npath
+                        Result = Obj.Path;
+                    else
+                        if Npath==1
+                            repmat(Obj.Path, Nfile, 1);
+                        else
+                            error('Npath not 1 and not Nfile');
+                        end
+                    end
+                else
+                    % Ind is provided
+                    Ind  = (1:1:Nfile).';
+                    Nind = numel(Ind);
+                    
+                    if Npath==1
+                        Result = repmat(Obj.Path, Nind, 1);
+                    else
+                        Result = Obj.Path(Ind);
+                    end
+                end
             end
+            
         end
     end
+
+    methods % SubDir utilities
+        % generate SubDir
+        
+        % generate next numeric SubDir
+        
+        
+    end
+
+    methods % header utilities        
+        % update header with properties info
+        
+    end
+        
+        
+        
+        
+      
     
     methods % file/path names
-        function FileName = genFile1(Obj, Ind, Args)
-            % Generate a cell array of file names from a FileNames object
-            % Input  : - An FileNames object.
-            %          - If empty, then will return all file names.
-            %            If scalar, then will return only the file name
-            %            that corresponds to the Ith time in the object.
-            %          * ..., key,val,...
-            %            'ReturnChar' - A logical indicating if to return a char array
-            %                   instead of cell array in case that a single file is
-            %                   returned. Default is false.
-            %            'Product' - If given (e.g., 'Image') will override
-            %                   Product name (but will not modify the
-            %                   object). Default is '';
-            %            'Level' - If given (e.g., 'proc') will override
-            %                   Level name (but will not modify the
-            %                   object). Default is '';
-            %            'IsLog' - A logical indicating if to generate a
-            %                   log file name. Default is false;
-            % Output : - A cell array of file names.
-            % Author : Eran Ofek (Dec 2022)
-        
-            arguments
-                Obj
-                Ind = [];
-                Args.ReturnChar logical = false;
-                Args.Product            = '';
-                Args.Level              = '';
-                Args.IsLog logical      = false;
-            end
-            
-            if isempty(Ind)
-                if ischar(Obj.Time)
-                    Ntime = 1;
-                else
-                    Ntime = numel(Obj.Time);
-                end
-            else
-                Ntime = 1;
-            end
-            
-            
-            FileName = cell(Ntime,1);
-            for Itime=1:1:Ntime
-                if ~isempty(Ind)
-                    Itime = Ind;
-                end
-                
-                if isempty(Args.Product)
-                    ProductStr = Obj.getProp('Product',Itime);
-                else
-                    ProductStr = Args.Product;
-                    if iscell(ProductStr)
-                        ProductStr = ProductStr{1};
-                    end
-                end
-
-                if Args.IsLog
-                    % generate log files
-                    OnlyDate    = Obj.getDateDir(1,true);
-                    OnlyDate    = strrep(OnlyDate, filesep, '');
-                    
-                    FileName{Itime} = sprintf('%s_%s_%s_%s_%s_%s_%s_%s_%s_%s_%s.%s',...
-                                            Obj.getProp('ProjName',Itime),...
-                                            OnlyDate,...
-                                            '',...
-                                            '',...
-                                            '',...
-                                            '',...
-                                            '',...
-                                            'log',...
-                                            '',...
-                                            ProductStr,...
-                                            '',...
-                                            'log');
-                else
-                                            
-                    FilterStr = Obj.getProp('Filter',Itime);
-                    if isnumeric(FilterStr)
-                        if isnan(FilterStr)
-                            FilterStr = '';
-                        else
-                            FilterStr = sprintf('%d',FilterStr);
-                        end
-                    end
-                    FieldIDStr = Obj.getProp('FieldID',Itime);
-                    if isnumeric(FieldIDStr) && ~isnan(FieldIDStr)
-                        if isnan(FieldIDStr)
-                            FieldIDStr = '';
-                        else
-                            FieldIDStr = sprintf(Obj.FormatFieldID,FieldIDStr);
-                        end
-                    end
-                    CounterStr = Obj.getProp('Counter',Itime);
-                    if isnumeric(CounterStr)
-                        if isnan(CounterStr)
-                            CounterStr = '';
-                        else
-                            CounterStr = sprintf(Obj.FormatCounter,CounterStr);
-                        end
-                    end
-                    CCDIDStr = Obj.getProp('CCDID',Itime);
-                    if isnumeric(CCDIDStr)
-                        if isnan(CCDIDStr)
-                            CCDIDStr = '';
-                        else
-                            CCDIDStr = sprintf(Obj.FormatCCDID,CCDIDStr);
-                        end
-                    end
-                    CropIDStr = Obj.getProp('CropID',Itime);
-                    if isnumeric(CropIDStr)
-                        if isnan(CropIDStr)
-                            CropIDStr = '';
-                        else
-                            CropIDStr = sprintf(Obj.FormatCropID,CropIDStr);
-                        end
-                    end
-                    VersionStr = Obj.getProp('Version',Itime);
-                    if isnumeric(VersionStr)
-                        VersionStr = sprintf(Obj.FormatVersion,VersionStr);
-                    end
-
-                    
-
-                    if isempty(Args.Level)
-                        LevelStr = Obj.getProp('Level',Itime);
-                    else
-                        LevelStr = Args.Level;
-                    end
-
-                    % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
-                    FileName{Itime} = sprintf('%s_%s_%s_%s_%s_%s_%s_%s_%s_%s_%s.%s',...
-                                                Obj.getProp('ProjName',Itime),...
-                                                Obj.getProp('Time',Itime),...
-                                                FilterStr,...
-                                                FieldIDStr,...
-                                                CounterStr,...
-                                                CCDIDStr,...
-                                                CropIDStr,...
-                                                Obj.getProp('Type',Itime),...
-                                                LevelStr,...
-                                                ProductStr,...
-                                                VersionStr,...
-                                                Obj.getProp('FileType',Itime));
-                end
-            end
-            if Args.ReturnChar && Ntime==1
-                FileName = FileName{1};
-            end
-            
-            
-        end
-        
-        function Path = genPath(Obj, Ind, Args)
-            % Generate path for FileNames object.
-            %       If the FullPath [property in the object is populated
-            %       than it is returned.
-            %       If FullPath or BasePath are given then they are used
-            %       but not propagated to the object.
-            % Input  : - A FileNames object.
-            %          - Index of time stamp in the object for which to
-            %            generate the path. If empty, then for all (slow).
-            %            Default is 1.
-            %          * ...,key,val,...
-            %            'ReturnChar' - A logical indicatibf if to return the path in a
-            %                   char array (true) or cell (false).
-            %                   Default is true.
-            %            'AddSubDir' - Add SubDir to path. Default is true.
-            %            'BasePath' - Base path to insert into the object
-            %                   BasePath property. If empty, use object default.
-            %                   Default is [].
-            %            'FullPath' - A full path to insert into the object
-            %                   FullPath property. If empty, use object default.
-            %                   Default is [].
-            %            'Level' - Image level. If empty, use object Level.
-            %                   Default is [].
-            % Output : - A path.
-            % Author : Eran Ofek (Dec 2022) 
-            
-            arguments
-                Obj(1,1)
-                Ind = 1;
-                Args.ReturnChar logical = true;
-                Args.AddSubDir logical  = true;
-                Args.BasePath = [];
-                Args.FullPath = [];
-                Args.Level    = [];
-
-            end
-            
-            if nfiles(Obj)==0
-                Path = {''};
-            else
-
-                if isempty(Ind)
-                    if ischar(Obj.Time)
-                        Ntime = 1;
-                    else
-                        Ntime = numel(Obj.Time);
-                    end
-                else
-                    Ntime = 1;
-                end
-                
-                if ~isempty(Args.BasePath)
-                    %Obj.BasePath = Args.BasePath;
-                    BasePath = Args.BasePath;
-                else
-                    BasePath = Obj.BasePath;
-                end
-    
-                if ~isempty(Args.FullPath)
-                    %Obj.FullPath = Args.FullPath;
-                    FullPath = Args.FullPath;
-                else
-                    FullPath = Obj.FullPath;
-                end
-                
-                if isempty(FullPath)
-                    Path = cell(Ntime,1);
-                    for Itime=1:1:Ntime
-                        if ~isempty(Ind)
-                            Itime = Ind;
-                        end
-    
-                        if isempty(Args.Level)
-                            % get Level from object:
-                            Level = getProp(Obj, 'Level', Itime);
-                        else
-                            % Level supplied by arguments
-                            Level = Args.Level;
-                        end
-    
-                        % /euler1/archive/LAST/<ProjName>/new
-                        % /euler1/archive/LAST/<ProjName>/2022/12/01/raw
-                        % /euler1/archive/LAST/<ProjName>/2022/12/01/proc
-                        % /euler1/archive/LAST/<ProjName>/2022/12/01/proc/1
-                        DateDir = getDateDir(Obj, Itime, true);
-                        if Obj.BasePathIncludeProjName
-                            % BasePath already include the ProjName
-                            Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
-                                            BasePath, filesep, ...
-                                            DateDir, filesep, ...
-                                            Level);
-                        else
-                            Path{Itime} = sprintf('%s%s%s%s%s%s%s%s',...
-                                            BasePath, filesep, ...
-                                            getProp(Obj, 'ProjName', Itime),...
-                                            DateDir, filesep, ...
-                                            Level);
-                        end
-    
-                        if Args.AddSubDir
-                            Path{Itime} = sprintf('%s%s%s',Path{Itime},filesep,...
-                                                           getProp(Obj, 'SubDir', Itime));
-                        end
-                    end
-    
-                else
-                    Path = {FullPath};
-                end
-            end
-
-            if Args.ReturnChar && numel(Path)==1
-                Path = Path{1};
-            end
-            
-        end
-        
+       
         function FullName = genFull(Obj, Ind, Args)
             % Generate a full path and file name for all files
             % Input  : - An FileNames object
