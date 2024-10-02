@@ -159,24 +159,6 @@ classdef AstroFileName < Component
     
     methods % setter/getters
 
-     
-        
-%         function Val = get.JD(Obj)
-%             % Getter for JD
-%            
-%             Val = Obj.time2julday;
-%         end
-%         
-%         function Obj = set.JD(Obj, Val)
-%             % Setter for JD (will update Time)
-%            
-%             Obj.JD   = Val;
-%             
-%         end
-            
-            
-            
-        
         function Obj = set.Type(Obj, Val)
             % Setter for Type
             if ischar(Val) || iscell(Val)
@@ -507,7 +489,6 @@ classdef AstroFileName < Component
     
     methods % utilities
 
-
         % DONE
         function [Result,Flag]=validateType(Obj, ErrorIfWrong)
             % Validate Type property
@@ -722,15 +703,108 @@ classdef AstroFileName < Component
             end
             
         end
-        
        
+        %
+        function Result = nFiles(Obj)
+            % Return the number of files (times) in the object.
+            % Input  : - self.
+            % Output : - Number of files (times).
+            % Author : Eran Ofek (Oct 2024)
+            % Example: nFiles(A)
+
+            Result = numel(Obj.Time);
+        end
+    end
+
+    methods % generate file names and path
+        function Result=genFile(Obj, Ind, Args)
+            % Generate file names from literals in AstroFileName object.
+            %   Optionally, replace some literals with user provided
+            %   strings.
+            % Input  : - self.
+            %          - Indices of lines (file names) in the AstroFileName
+            %            object for which to generate file names.
+            %            If empty, use all. Default is [].
+            %          * ...,key,val,...
+            %            * Any of the literals (e.g., 'ProjName',
+            %              'Time',...).
+            %               The user can provide a char array or string
+            %               array of literals to replace the ones in the
+            %               AstroFileName object (the object will not
+            %               change).
+            % Output : - A string array of file names.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: A=AstroFileName.dir('LAST*.fits');
+            %          A.genFile     % generate for all files
+            %          A.genFile(1:10)   % only first 10 files
+            %          A.genFile([],'Level','raw')  % replace Level to 'raw'
+            %          A.genFile([],'Level','raw','Version',2)  % replace Level to 'raw' and version to 2.
+
+            arguments
+                Obj
+                Ind            = [];
+                Args.ProjName  = [];
+                Args.Time      = [];
+                Args.Filter    = [];
+                Args.FieldID   = [];
+                Args.Counter   = [];
+                Args.CCDID     = [];
+                Args.CropID    = [];
+                Args.Type      = [];
+                Args.Level     = [];
+                Args.Product   = [];
+                Args.Version   = [];
+                Args.FileType  = [];
+            end
+            
+            Nfile = Obj.nFiles;
+            if isempty(Ind)
+                Ind = (1:1:Nfile).';
+            end
+            Nind = numel(Ind);
+
+            Nfields  = numel(Obj.FIELDS);
+            Literals = strings(Nind, Nfields);
+
+            % prepare an array of literals
+            % line per file, column per literal
+            for I=1:1:Nfields
+                % for each literal in file name
+                if isempty(Args.(Obj.FIELDS(I)))
+                    % use data from object
+                    TmpCol = Obj.(Obj.FIELDS(I));
+                else
+                    % use data from user input
+                    % convert to string if needed
+                    TmpCol = string(Args.(Obj.FIELDS(I)));
+                end
+
+                switch numel(TmpCol)
+                    case 1
+                        Tmp = repmat(TmpCol, Nind, 1);
+                    case 0
+                        Tmp = strings(Nind,1);
+                    otherwise
+                        Tmp = TmpCol(Ind);
+                end
+                Literals(:,I) = Tmp;
+            end
+
+            Result = join(Literals, Obj.SEPERATOR);
+
+        end
+
+    end
+
+
+
         
         
         
         
         
-        
-        
+    methods
+
         
         function DateDir = getDateDir(Obj, Ind, ReturnChar)
             % Return date directory name from file name properties
@@ -773,7 +847,7 @@ classdef AstroFileName < Component
     end
     
     methods % file/path names
-        function FileName = genFile(Obj, Ind, Args)
+        function FileName = genFile1(Obj, Ind, Args)
             % Generate a cell array of file names from a FileNames object
             % Input  : - An FileNames object.
             %          - If empty, then will return all file names.
@@ -790,7 +864,7 @@ classdef AstroFileName < Component
             %                   Level name (but will not modify the
             %                   object). Default is '';
             %            'IsLog' - A logical indicating if to generate a
-            %                   log file name. Default si false;
+            %                   log file name. Default is false;
             % Output : - A cell array of file names.
             % Author : Eran Ofek (Dec 2022)
         
