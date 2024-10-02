@@ -1,4 +1,4 @@
-function planner(Args)
+function collectAlertStatistics(Args)
     % 
     arguments
         Args.MaxTargets     = 4;              % maximal number of ULTRASAT targets covering the object 
@@ -22,7 +22,8 @@ function planner(Args)
             File = strcat(Alerts(Ialert).folder,'/',Alerts(Ialert).name);
             Result(Ialert) = ultrasat.planner.plannerToO(File,...
                 'MaxTargets',Args.MaxTargets,'ProbThresh',Args.ProbThresh,'DrawMaps',false,...
-                'Verbosity',0,'ShowCoverageCurve',1,'MinCoveredProb',Args.MinCoveredProb,'MockAlerts',Args.MockAlerts);
+                'Verbosity',0,'ShowCoverageCurve',1,'MinCoveredProb',Args.MinCoveredProb,'MockAlerts',Args.MockAlerts,...
+                'StatisticsOnly',1);
         catch ME
             fprintf('Alert %d file %s: planner failed \n',Ialert,File)
         end
