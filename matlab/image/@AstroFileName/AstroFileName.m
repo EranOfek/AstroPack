@@ -1079,14 +1079,14 @@ classdef AstroFileName < Component
                         Result = Obj.Path;
                     else
                         if Npath==1
-                            repmat(Obj.Path, Nfile, 1);
+                            Result = repmat(Obj.Path, Nfile, 1);
                         else
                             error('Npath not 1 and not Nfile');
                         end
                     end
                 else
                     % Ind is provided
-                    Ind  = (1:1:Nfile).';
+                    %Ind  = (1:1:Nfile).';
                     Nind = numel(Ind);
                     
                     if Npath==1
@@ -1100,8 +1100,91 @@ classdef AstroFileName < Component
         end
     end
 
-    methods % SubDir utilities
-        % generate SubDir
+    methods % SubDir (Visit) utilities
+        % DONE
+        function [Result, Obj] = generateSubDir(Obj, Args)
+            % Given an AstroFileName with all images belonging to visit, generate Visit (SubDir) dir name.
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            'Method' - Method for visit naming:
+            %                   'funjd' - run function (defined in 'FunJD')
+            %                           on JD vector, create
+            %                           an HHMMSS string and optionaly add
+            %                           version - e.g., '001223v1'.
+            %                           Version if HHMMSS already exist,
+            %                           then version will be advanced by
+            %                           one.
+            %                   'number' - Naming by running index.
+            %                           Will look for largest index, and
+            %                           advance by one.
+            %                   Default is 'funjd'.
+            %            'FunJD' - Function to apply on JD.
+            %                   Default is @min.
+            %            'AddVersion' - Add version to HHMMSS format.
+            %                   Default is true.
+            %            'UpdateSubDir' - Update AstroFileName object with
+            %                   the generated SubDir. Default is true.
+            %            'CreateDir' - Create the SubDir in the proper
+            %                   place. Default is false.
+            % Output : - SubDir (Visit) string.
+            %          - Updated AstroFileName object (with generated SubDir)
+            % Author : Eran Ofek (Oct 2024)
+            % Example: A.generateSubDir
+            
+            arguments
+                Obj
+                Args.Method               = 'funjd'
+                Args.FunJD                = @min;
+                Args.AddVersion logical   = true;  % for Method='funjd'
+                
+                Args.UpdateSubDir logical = true;
+                Args.CreateDir logical    = false;
+            end
+            
+            PWD = pwd;
+            PathAboveVisit = Obj.genPath(1, 'PathType','proc', 'AddSubDir',false);
+            cd(PathAboveList);
+            DirList = io.files.dirDir;
+            
+            switch lower(Args.Method)
+                case 'funjd'
+                    FJD = Args.FunJD(Obj.JD);
+                    HMS = celestial.time.jd2date(FJD, 'H');
+                    Result = sprintf('%02d%02d%02d',HMS(4:6));
+                    
+                    if Args.AddVersion
+                        % search existing StrHMS
+                        StrFolder = string({DirList.folder});
+                        FlagContain = contains(StrFolder, StrHMS);
+                        Tmp = regexp(StrFolder(FlagContain), '\d{6}v(\d+)', 'tokens');
+                        AllVersions = str2double(cellfun(@(x) x{1}{1}, Tmp, 'UniformOutput', false));
+                        MaxVersion  = max(AllVersions);
+                        
+                        if isempty(MaxVersion)
+                            MaxVersion = 0;
+                        end
+                        Result = sprintf("%sv%d",Result,MaxVersion+1);
+                    end
+                        
+                case 'number'
+                    MaxNumber = max(str2double({DirList.folder}));
+                    if isnan(MaxNumber)
+                        error('Max number is NaN');
+                    else
+                        Result    = sprintf("%d",MaxNumber+1);
+                    end
+            end   
+            
+            if Args.UpdateSubDir
+                Obj.SubDir = Result;
+            end
+            
+            if Args.CreateDir
+                mkdir(Result);
+            end
+            
+            cd(PWD);
+        end
         
         % generate next numeric SubDir
         
