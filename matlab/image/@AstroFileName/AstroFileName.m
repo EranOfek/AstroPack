@@ -1336,81 +1336,97 @@ classdef AstroFileName < Component
         end
     end
         
-        
-        
-        
-      
-    
-    
-    methods % search and utilities
+    methods % sort/select utilities
+        % DONE
         function Result = reorderEntries(Obj, Ind, Args)
-            % Reorder/select all the entries in FileNames object.
-            % Input  : - A FileNames object.
-            %          - Indices of entries as they should appear in the
-            %            output.
+            % Reorder lines/file names by index or flag.
+            % Input  : - self.
+            %          - A vector of lines indices, or logical flags of
+            %            entries to select.
             %          * ...,key,val,...
-            %            'PropToOrder' -  A cell array of properties to order.
-            %                   Default is: 
-            %                   {'ProjName','Time','Filter','FieldID','Counter','CCDID','CropID','Type','Level','Product','Version','FileType'}
-            %            'CreateNewObj' - Create a new copy.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the input object.
             %                   Default is false.
-            % Output : - A FileNames object in which the entries are in the
-            %            order specified in Indices.
-            % Author : Eran Ofek (Dec 2022)
+            % Output : - An AstroFileName with the selected entries.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: A=AstroFileName.dir('LAST.01.*fits');
+            %          A.reorderEntries(1:2);
             
             arguments
-                Obj
-                Ind
-                Args.PropToOrder = {'ProjName','Time','Filter','FieldID','Counter','CCDID','CropID','Type','Level','Product','Version','FileType'};
-                Args.CreateNewObj logical = false;
+                Obj(1,1)
+                Ind                        = [];
+                Args.CreateNewObj logical  = false;
             end
-            
+        
             if Args.CreateNewObj
                 Result = Obj.copy;
             else
                 Result = Obj;
             end
             
-            
-            NInd = numel(Ind);
-            Nf   = numel(Args.PropToOrder);
-            for If=1:1:Nf
-                if numel(Obj.(Args.PropToOrder{If}))==1
-                    % skip reorder
-                else
-                    %if numel(Obj.(Args.PropToOrder{If}))==NInd
-                        % reorder
-                    Result.(Args.PropToOrder{If}) = Obj.(Args.PropToOrder{If})(Ind);
-                    %else
-                    %    error('Number of entries in property %s must be either 1 or %d',Args.PropToOrder{If},NInd);
-                    %end
+            if ~isempty(Ind)
+                Nfield = numel(Obj.FIELDS);
+                for Ifield=1:1:Nfield
+                    Result.(Obj.FIELDS{Ifield}) = Obj.(Obj.FIELDS{Ifield})(Ind);
                 end
             end
             
         end
-        
-        function [Obj, SI] = sortByJD(Obj, Direction)
-            % Sort entries in FileNames object by JD
+    
+        % DONE
+        function [Obj, SI] = sortBy(Obj, Prop, Args)
+            % Sort entries in FileNames object by a property.
             % Input  : - A FileNames object (multi-element possible).
-            %          - Sort direction: 'ascend' (default), or 'descend'.
+            %          - Property to sort by. Default is 'JD'.
+            %          * ...,key,val,...
+            %            'Direction' - Sort direction: 'ascend' (default), or 'descend'.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the object. Default is false.
             % Output : - A FileNames object in which the entries are sorted
-            %            by JD.
-            %          - A vector of sorted indices.
-            % Author : Eran Ofek (Dec 2022)
+            %            by the selected property.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: A=AstroFileName.dir('LAST.01.*fits');
+            %          A.sortBy;                            
+            %          A.sortBy('Type');  
             
             arguments
                 Obj
-                Direction = 'ascend';
+                Prop                      = 'JD';
+                Args.Direction            = 'ascend';
+                Args.CreateNewObj logical = false;
             end
 
-            Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-                JD = Obj(Iobj).julday;
-                [~,SI] = sort(JD, Direction);
-                Obj(Iobj) = reorderEntries(Obj(Iobj), SI);
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
             end
             
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                switch Prop
+                    case 'JD'
+                        [~,SI] = sort(Obj(Iobj).julday);
+                    otherwise
+                        [~, SI] = sort(Obj(Iobj).getProp(Prop), Args.Direction);                
+                end
+                Obj(Iobj) = reorderEntries(Result(Iobj), SI, 'CreateNewObj',false);
+            end
         end
+        
+        % selectByProp(Obj, Prop, Val, Args)
+        
+        % selectByDate(Obj, MinJD, MaxJD, Args)
+    end
+        
+        
+      
+    
+    
+    methods % search and utilities
+     
+        
+        
 
         function [Obj, SI] = sortByFunJD(Obj, Direction, Fun)
             % Sort elements in FileNames object by mean/min JD of entries in each element.
