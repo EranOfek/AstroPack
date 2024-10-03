@@ -1212,10 +1212,7 @@ classdef AstroFileName < Component
             
             cd(PWD);
         end
-        
-        % generate next numeric SubDir
-        
-        
+                
     end
 
     methods % header utilities        
