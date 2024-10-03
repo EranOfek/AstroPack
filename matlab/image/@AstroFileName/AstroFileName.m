@@ -1384,6 +1384,8 @@ classdef AstroFileName < Component
             %                   a new copy of the object. Default is false.
             % Output : - A FileNames object in which the entries are sorted
             %            by the selected property.
+            %          - Sorted indices for the last element of the
+            %            AstroFileName object.
             % Author : Eran Ofek (Oct 2024)
             % Example: A=AstroFileName.dir('LAST.01.*fits');
             %          A.sortBy;                            
@@ -1414,9 +1416,111 @@ classdef AstroFileName < Component
             end
         end
         
-        % selectByProp(Obj, Prop, Val, Args)
+        % DONE
+        function [Obj, Flag] = selectByPropVal(Obj, Prop, Val, Args)
+            % Select lines/files names by property comparison with some value
+            %   The comparison is done using a user specified function
+            %   e.g., @strcmpi
+            % Input  : - self.
+            %          - Property name.
+            %          - Property value. Compare the property content with
+            %            this value using the 'Operator' function.
+            %          * ...,key,val,...
+            %            'Operator' - Comparison operator.
+            %                   (e.g., @strcmpi, @strcmp, @contains)
+            %                   Default is @strcmpi.
+            %            'SelectNot' - A logical indicating if to select
+            %                   lines that NOT follows the comparison criterion.
+            %                   Default is false (do not use NOT).
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the object. Default is false.
+            % Output : - An updated AstroFileName object, with the selected
+            %            lines/file names.
+            %          - For the last element in the AstroFileName, return
+            %            aslo the vector of flags of selected lines.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: A=AstroFileName.dir('LAST.01.*fits');
+            %          A.selectByPropVal('Product','Image')
+            %          A.selectByPropVal('Product','Image','SelectNot',true)
+            
+            arguments
+                Obj
+                Prop
+                Val
+                Args.Operator               = @strcmpi;
+                Args.SelectNot logical      = false;
+                Args.CreateNewObj logical   = false;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Flag   = Args.Operator(Result(Iobj).(Prop), Val);
+                if Args.SelectNot
+                    Flag = ~Flag;
+                end
+                Result(Iobj) = reorderEntries(Result(Iobj), Flag, 'CreateNewObj',false);
+            end
+            
+        end
         
-        % selectByDate(Obj, MinJD, MaxJD, Args)
+        % DONE
+        function [Result,Flag] = selectByDate(Obj, MinJD, MaxJD, Args)
+            % Select entries by JD in some range
+            % Input  : - A FileNames object.
+            %          - Min JD or date [D M Y H M S].
+            %          - Max JD or date.
+            %          * ...,key,val,...
+            %            'SelectNot' - Select files which are not the
+            %                   required val. Default is false.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the input object.
+            %                   Default is true.
+            % Output : - A FileNames object with the selected entries.
+            %          - A vector of logicals indicating the selected
+            %            entries, for the last element of the object.
+            % Author : Eran Ofek (Jan 2024)
+            % Example: A=AstroFileName.dir('LAST.01.*fits');
+            %          A.selectByDate([1 1 2000],[1 1 2020])
+            %          A.selectByDate(2451545, 2469900, 'SelectNot',true)
+            
+            arguments
+                Obj
+                MinJD                       = -Inf;
+                MaxJD                       = Inf;
+                Args.SelectNot logical   = false;   
+                Args.CreateNewObj logical   = true;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+        
+            if size(MinJD,2)>1
+                MinJD = celestial.time.julday(MinJD);
+            end
+            if size(MaxJD,2)>1
+                MaxJD = celestial.time.julday(MaxJD);
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                JD = Result.julday;
+                Flag = JD>MinJD & JD<MaxJD;
+                if Args.SelectNot
+                    Flag = ~Flag;
+                end
+                Result = reorderEntries(Result, Flag);
+            end
+        end
+
     end
         
         
@@ -1545,52 +1649,7 @@ classdef AstroFileName < Component
             Result = reorderEntries(Result, Flag);
         end
         
-        function [Result,Flag] = selectByDate(Obj, MinJD, MaxJD, Args)
-            % Select entries by JD in some range
-            % Input  : - A FileNames object.
-            %          - Min JD or date [D M Y H M S].
-            %          - Max JD or date.
-            %          * ...,key,val,...
-            %            'SelectNotVal' - Select files which are not the
-            %                   required val. Default is false.
-            %            'CreateNewObj' - A logical indicating if to create
-            %                   a new copy of the input object.
-            %                   Default is true.
-            % Output : - A FileNames object with the selected entries.
-            %          - A vector of logicals indicating the selected
-            %            entries.
-            % Author : Eran Ofek (Jan 2024)
-            
-            arguments
-                Obj
-                MinJD                       = -Inf;
-                MaxJD                       = Inf;
-                Args.SelectNotVal logical   = false;   
-                Args.CreateNewObj logical   = true;
-            end
-            
-            if Args.CreateNewObj
-                Result = Obj.copy;
-            else
-                Result = Obj;
-            end
         
-            if size(MinJD,2)>1
-                MinJD = celestial.time.julday(MinJD);
-            end
-            if size(MaxJD,2)>1
-                MaxJD = celestial.time.julday(MaxJD);
-            end
-
-            JD = Result.julday;
-            Flag = JD>MinJD & JD<MaxJD;
-            if Args.SelectNotVal
-                Flag = ~Flag;
-            end
-            
-            Result = reorderEntries(Result, Flag);
-        end
-
 
         function [Groups, Result] = groupByCounter(Obj, Args)
             % Group entries according to running counter groups.
