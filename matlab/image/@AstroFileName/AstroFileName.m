@@ -827,7 +827,27 @@ classdef AstroFileName < Component
 
             Result = numel(Obj.Time);
         end
+          
+        % DONE
+        function Result = isemptyFile(Obj)
+            % Check if all elements of FileNames object contain no files
+            % Input  : - An AstroFileName object.
+            % Output : - A vector of logical (per object element).
+            %            Contains true if the element contains no
+            %            lines/files.
+            % Author : Eran Ofek (May 2023)
+            % Exampe: A=AstroFileName.dir('LAST.01.*fits');
+            % A.isemptyFile
             
+            Nobj = numel(Obj);
+            Result = false(size(Obj));
+            for Iobj=1:1:Nobj
+                if Obj.nFiles==0
+                    Result(Iobj) = true;
+                end
+            end
+
+        end
     end
 
     methods % generate file names and path
@@ -1429,6 +1449,9 @@ classdef AstroFileName < Component
             %            'Operator' - Comparison operator.
             %                   (e.g., @strcmpi, @strcmp, @contains)
             %                   Default is @strcmpi.
+            %            'Str2Double' - Content property content to double
+            %                   (using str2double) before applying the
+            %                   operator. Default is false.
             %            'SelectNot' - A logical indicating if to select
             %                   lines that NOT follows the comparison criterion.
             %                   Default is false (do not use NOT).
@@ -1441,13 +1464,15 @@ classdef AstroFileName < Component
             % Author : Eran Ofek (Oct 2024)
             % Example: A=AstroFileName.dir('LAST.01.*fits');
             %          A.selectByPropVal('Product','Image')
-            %          A.selectByPropVal('Product','Image','SelectNot',true)
+            %          A.selectByPropVal('Product','Image', 'SelectNot',true)
+            %          A.selectByPropVal('Counter',1, 'Str2Double',true,'Operator',@eq)
             
             arguments
                 Obj
                 Prop
                 Val
                 Args.Operator               = @strcmpi;
+                Args.Str2Double logical     = false;
                 Args.SelectNot logical      = false;
                 Args.CreateNewObj logical   = false;
             end
@@ -1460,7 +1485,12 @@ classdef AstroFileName < Component
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                Flag   = Args.Operator(Result(Iobj).(Prop), Val);
+                if Args.Str2Double
+                    PropVal = str2double(Result(Iobj).(Prop));
+                else
+                    PropVal = Result(Iobj).(Prop);
+                end
+                Flag   = Args.Operator(PropVal, Val);
                 if Args.SelectNot
                     Flag = ~Flag;
                 end
@@ -2041,19 +2071,7 @@ classdef AstroFileName < Component
             I = Ind(I);
         end
         
-        function Result = isemptyFile(Obj)
-            % Check if all elements of FileNames object contain no files
-            % Input  : - A FileName object.
-            % Output : - Return true if no files in object.
-            % Author : Eran Ofek (May 2023)
-
-            if sum(Obj.nfiles)==0
-                Result = true;
-            else
-                Result = false;
-            end
-
-        end
+        
         
         
     end
