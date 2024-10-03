@@ -75,9 +75,9 @@ classdef AstroFileName < Component
     end
     
     properties (Hidden, Constant)
-        ListType        = ["bias", "dark", "flat", "domeflat", "twflat", "skyflat", "fringe", "focus", "sci", "wave", "type" , "log"];
-        ListLevel       = ["raw", "proc", "stack", "ref", "coadd", "merged", "calib", "junk", "proc.zogyD","coadd.zogyD"];
-        ListProduct     = ["Image", "Back", "Var", "Exp", "Nim", "PSF", "Cat", "Spec", "Mask", "Evt", "MergedMat", "Asteroids","Pipeline", "TransientsCat"];
+        ListType        = ["", "bias", "dark", "flat", "domeflat", "twflat", "skyflat", "fringe", "focus", "sci", "wave", "type" , "log"];
+        ListLevel       = ["", "raw", "proc", "stack", "ref", "coadd", "merged", "calib", "junk", "proc.zogyD","coadd.zogyD"];
+        ListProduct     = ["", "Image", "Back", "Var", "Exp", "Nim", "PSF", "Cat", "Spec", "Mask", "Evt", "MergedMat", "Asteroids","Pipeline", "TransientsCat"];
         SEPERATOR       = "_";
         FIELDS          = ["ProjName", "Time", "Filter", "FieldID", "Counter", "CCDID", "CropID", "Type", "Level", "Product", "Version", "FileType"];
         
@@ -1109,8 +1109,124 @@ classdef AstroFileName < Component
     end
 
     methods % header utilities        
-        % update header with properties info
         
+        % DONE
+        function AIH=write2header(Obj, AIH, Args)
+            % Update header with properties info
+            %   Given an AstroFileName with entries corresponding to input
+            %   Headers (either AstroHeader or AstroImage), for each
+            %   property in 'FieldsToUpdate', update the property value in
+            %   the header.
+            %   
+            % Input  : - self.
+            %          - An AstoHeader or AstroImage object.
+            %            The number of elements must be equal to the number
+            %            of files (lines) in the AstroFileName object.
+            %          * ...,key,val,...
+            %            'Fields' - A cell array or string array of
+            %                   properties in the AstroFuileName object.
+            %                   Each such property and its value will be
+            %                   inserted (replaced) in the corresponding
+            %                   header. The keywords name will be take as
+            %                   upper case.
+            %                   Default is AstroFileName.FIELDS.
+            % Output : - An updated AstroHeader/AstroImage object.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: A=AstroFileName.dir('LAST.01.*fits');
+            %          AI=AstroImage('LAST.01.*fits');
+            %          A.write2header(AI)
+            %          A.write2header(AI, 'Fields',{'SubDir'});
+           
+            arguments
+                Obj
+                AIH
+                Args.Fields = AstroFileName.FIELDS;
+            end
+            
+            Nfu = numel(Args.Fields);
+            
+            
+            Nfile = Obj.nFiles;
+            Nhead = numel(AIH);
+            if Nfile~=Nhead
+                error('Number of elements in header and AstroFileNames must be the same');
+            end
+            
+            for I=1:1:Nfile
+                if isa(AIH, 'AstroHeader')
+                    Head = AIH(I);
+                else
+                    % assume an AstroImagee
+                    Head = AIH(I).HeaderData;
+                end
+                
+                for Ifu=1:1:Nfu
+                    Key = Args.Fields{Ifu};
+                    Val = Obj.getProp(Key, Ifu);
+                    Head.replaceVal(upper(Key), Val{1});
+                end
+                
+                if isa(AIH, 'AstroHeader')
+                    AIH(I) = Head;
+                else
+                    AIH(I).HeaderData = Head;
+                end
+                
+            end
+            
+        end
+        
+        % DONE
+        function Result = readFromHeader(Obj, AIH, Args)
+            % Read AstroFileName properties from header.
+            % Input  : - An AstroFileName object (existing values will be
+            %            discarded).
+            %          - An AstroImage or AstroHeader object.
+            %          * ...,key,val,...
+            %            'Fields' - A cell array or string array of fields
+            %                   to read from header (uppre case will be
+            %                   taken).
+            %                   Default is AstroFileName.FIELDS.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object of the AstroFileName.
+            %                   Default is false.
+            % Output : - An updated AstroFileName object with its
+            %            properties taken from the headers.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: AI=AstroImage('LAST.01.*fits');
+            %          A=AstroFileName;
+            %          A.readFromHeader(AI)
+           
+            arguments
+                Obj
+                AIH
+                Args.Fields = AstroFileName.FIELDS;
+                Args.CreateNewObj logical   = false;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+        
+            Nfu = numel(Args.Fields);
+            
+            %Nfile = Obj.nFiles;
+            Nhead = numel(AIH);
+   
+            UpperFields = upper(Args.Fields);
+            St = AIH.getStructKey(UpperFields);
+                            
+            for I=1:1:Nfu
+                Result.(Args.Fields{I}) = strings(Nhead,1);
+                for Ihead=1:1:Nhead                  
+                    if ~isnan(St(Ihead).(UpperFields{I}))
+                        Result.(Args.Fields{I})(Ihead) = string(St(Ihead).(UpperFields{I}));
+                    end
+                end
+            end
+        end
     end
         
         
@@ -1270,7 +1386,7 @@ classdef AstroFileName < Component
     
     methods % Read/Write from Header
         
-        function Obj = readFromHeader(Obj, Input, DataProp)
+        function Obj = readFromHeaderOld(Obj, Input, DataProp)
             % Read FileNames parameters from header.
             % Input  : - An FileNames object.
             %          - AstroImage or AstroHeader.
@@ -1323,7 +1439,7 @@ classdef AstroFileName < Component
 
         end
         
-        function Input = writeToHeader(Obj, Input, KeysToWrite)
+        function Input = writeToHeaderOld(Obj, Input, KeysToWrite)
             % Write data to AstroHeader, DictKeyNames is used to get the
             % correct key names  
             % Input  : - A FileNames object.
