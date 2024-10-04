@@ -8,7 +8,60 @@
 % A=AstroFileName;
 % A.ProjName = {'LAST',1,2,3};   % will convert to: "LAST.01.02.03"
 %
-
+% % constructor:
+% A = AstroFileName([2 4]);  % create an empty object
+% % read all files in a directory according to file papptern:
+% A = AstroFileName('LAST.01.*fits','Path','.')
+% % read specific file names
+% A = AstroFileName("LAST.01.08.02_20240109.143054.460_clear_001+30_001_001_001_sci_raw_Image_1_fits")
+% read from a table:
+% T = table; T.CropID=[1 2].';
+% T.Product=["Image","PSF"].' ; T.JD=2451545+(0:1).';
+% A = AstroFileName(T)
+% A = AstroFileName(T, 'ReadJD',true, 'JD2Time',true)
+%
+% % time operations
+% A.julday    % get JD
+% % populate Time string from JD
+% A.julday2time
+% % select entry nearest to JD
+% [I,JD]=A.selectNearest2JD
+% % selected latest JD
+% [I,JD]=A.selectLastJD
+% A.sunAlt
+%
+% % number of files
+% A.nFiles
+%
+% A=AstroFileName('LAST.01.*fits','Path','.');
+%
+% % get property
+% A.getProp('Product')
+% A.getProp('Product',[1 2])
+%
+% % generate file names, path, products
+% A.genFile
+% A.genPath
+% A.genFull
+% A.genProduct
+%
+% % headers
+% A.write2header(AH)
+% A.readFromHeader(AH)
+% 
+% select and sort
+% A.sortBy('JD')
+% A.reorderEntries([2 1])
+% A.selectByPropVal('Type','raw')
+% A.selectByDate(2451545, 2460000)
+%
+% % grouping
+% A.groupByCounter
+% A.groupByTimeGaps
+%
+% % move/copy/delete images
+% A.moveImages
+%
 
 classdef AstroFileName < Component
     % Construct and parse (@Todo) image path used in storage, database, and headers.
