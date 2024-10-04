@@ -92,8 +92,12 @@ classdef AstroFileName < Component
             %           a string array, or char array of file names that will be parsed.
             %           If 'Method'='Template', then this is a file pattern
             %           to read from the 'Path' directory.
-            %           Alternativel, if this is a numeric array, then will
+            %           If this is a numeric array, then will
             %           create an AstroFileName object of this size.
+            %           If this is a table, then attempt to populate the
+            %           file names based on the table columns (e.g., if the
+            %           table have a 'CropID' column, then its content will
+            %           be stored in the AstroFileName CropID property).
             %          * ...,key,val,...
             %            'Path' - cd to this path prior to start the file
             %                   name ingestion (e.g., files location).
@@ -113,7 +117,15 @@ classdef AstroFileName < Component
             %                           a string array, or char array of
             %                           file names that will be parsed.
             %                   Default is 'Files'.
-            %           
+            %            'ReadJD' - If input is a table, then this is a
+            %                   logical indicating if to try and read a
+            %                   table column nmae JD, into the JD property.
+            %                   Default is true.
+            %            'JD2Time' - If input is a table and JD was read,
+            %                   then this is a logical indicating if to
+            %                   convert the JD into Time string.
+            %                   Default is false.
+            %
             % Output : - An AstroFileName object.
             % Author : Eran Ofek (Oct 2024)
             % Example: A = AstroFileName;
@@ -121,25 +133,53 @@ classdef AstroFileName < Component
             %          A = AstroFileName([2 3]);
             %          A = AstroFileName('LAST.01.*fits','Path','.')
             %          A = AstroFileName("LAST.01.08.02_20240109.143054.460_clear_001+30_001_001_001_sci_raw_Image_1_fits")
+            %          T = table; T.CropID=[1 2].';
+            %          T.Product=["Image","PSF"].' ; T.JD=2451545+(0:1).';
+            %          A = AstroFileName(T)
+            %          A = AstroFileName(T, 'ReadJD',true, 'JD2Time',true)
             
             arguments
                 Files       = 1;  
                 Args.Path   = [];
                 Args.Method = 'files';
+                Args.ReadJD logical  = true;
+                Args.JD2Time logical = false;
             end
             
             if ~isempty(Args.Path)
                 Args.Method = 'Template';
             end
             
-            if isnumeric(Files)                
+            if isnumeric(Files)   
+                % numeric input - create an empty AstroFileName object.
                 for I=1:1:prod(Files)
                     Obj(I).Time = "";
                 end
                 if numel(Files)>1
                     Obj = reshape(Obj, Files);
                 end
+            elseif istable(Files)
+                % Input is a table
+                
+                Fields = AstroFileName.FIELDS;
+                Nfield=numel(Fields);
+                for Ifield=1:1:Nfield
+                    if tools.table.isColumn(Files, Fields{Ifield})
+                        Obj.(Fields{Ifield}) = Files.(Fields{Ifield});
+                    end
+                end
+                if Args.ReadJD
+                    Field = 'JD';
+                    if tools.table.isColumn(Files, Field)
+                        Obj.(Field) = Files.(Field);
+                        if Args.JD2Time
+                            Obj.julday2time;
+                        end
+                    end
+                end
+                
             else
+                % Input is a string, char, cell
                 switch lower(Args.Method)
                     case 'files'
                         [Obj] = AstroFileName.parseString2AstroFileName(Files, true);
