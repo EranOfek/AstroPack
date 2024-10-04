@@ -136,3 +136,59 @@ function testCosinedVsRadResults(testCase)
 
     verifyEqual(testCase, resultCosined, resultRad, 'relTol', 1e-6);
 end
+
+
+
+
+function testDifferentEpochs(testCase)
+    % Test aberration for the same star at different Julian Dates (epochs)
+    
+    U1 = [1.5, 0.5];  % RA/Dec in radians
+    
+    JD1 = celestial.time.julday([1 1 2027]);  % Julian Date for Jan 1, 2023
+    JD2 = celestial.time.julday([1 7 2028]);  % Julian Date for July 1, 2023
+    
+    result1 = celestial.coo.aberration(U1, JD1);
+    result2 = celestial.coo.aberration(U1, JD2);
+    
+    % Verify that the results differ due to the different epochs
+    verifyNotEqual(testCase, result1, result2)%
+end
+
+
+function testVelocityAlignedWithStar(testCase)
+    % Test aberration when the observer's velocity is aligned with the star's motion
+    
+    inputRA = celestial.coo.convertdms([0 0 0], 'H', 'r');  % RA = 0°
+    inputDec = celestial.coo.convertdms([1 0 0 0], 'D', 'R'); % Dec = 0° (aligned with x-axis)
+    U1 = [inputRA, inputDec];
+    V = [30e3, 0, 0] * (24 * 60 * 60 / 1.496e11);  % Observer's velocity aligned with the star's direction
+    
+    result = celestial.coo.aberration(U1, V);
+    
+    % Verify result remains within valid bounds
+    verifyGreaterThanOrEqual(testCase, result(1), 0);
+    verifyLessThanOrEqual(testCase, result(1), 2 * pi);
+    verifyGreaterThanOrEqual(testCase, result(2), -pi/2);
+    verifyLessThanOrEqual(testCase, result(2), pi/2);
+
+
+end
+
+
+function testPolePosition(testCase)
+    % Test aberration for a star near the celestial pole (Dec = ±90°)
+    
+    inputRA = celestial.coo.convertdms([0 0 0], 'H', 'r');  % Arbitrary RA
+    inputDec = celestial.coo.convertdms([1 90 0 0], 'D', 'R');  % Dec = 90°
+    U1 = [inputRA, inputDec];
+    V = [30e3, 0, 0] * (24 * 60 * 60 / 1.496e11);  % Convert km/s to AU/day
+    
+    result = celestial.coo.aberration(U1, V);
+    
+    % Verify Dec remains within valid limits, RA can vary
+    verifyGreaterThanOrEqual(testCase, result(2), -pi/2);
+    verifyLessThanOrEqual(testCase, result(2), pi/2);
+    verifyGreaterThanOrEqual(testCase, result(2), -pi/2);
+    verifyLessThanOrEqual(testCase, result(2), pi/2);
+end
