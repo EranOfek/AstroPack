@@ -748,7 +748,122 @@ classdef AstroFileName < Component
             end
             
         end
+        
+        % DONE
+        function Result=validTimes(Obj)
+            % Return a vector of logical indicating if Time argument is valid
+            % Input  : - A single elemnent AstroFileName object.
+            % Output : - A vector of logical which length equal to the
+            %            number of file names. False if Time is NaN, [],
+            %            or 'NaN'.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: A=AstroFileName.dir('LAST.01.*fits');
+            %          A.validTimes
+
+            arguments
+                Obj(1,1)
+            end
+
+            N  = Obj.nFiles;
+            JD = Obj.julday;
+            if isempty(JD) || any(isnan(JD)) || N~=numel(JD)
+                Result = false;
+            else
+                Result = true;
+            end
+
+        end
+        
+        % DONE
+        function [SunAlt] = sunAlt(Obj, Args)
+            % Calculate Sun Altitude for images in an AstroFileName object
+            % Input  : - A single element AstroFileName object
+            %          * ...,key,val,...
+            %            'GeoPos' - Geodetic position [Lon, Lat] in deg.
+            %                   Default is [35 30].
+            % Output : - An array of Sun altitude (deg) for each image
+            %            entry.
+            % Author : Eran Ofek (May 2022)
+            % Example: A=AstroFileName.dir('LAST.01.*fits');
+            %          A.sunAlt
             
+            arguments
+                Obj(1,1)
+                Args.GeoPos    = [35 30];
+            end
+            
+            RAD = 180./pi;
+            
+            VecJD    = Obj.julday;
+            VecJD    = VecJD(:);
+            LST      = celestial.time.lst(VecJD, Args.GeoPos(1)./RAD);  % frac of day
+            [RA,Dec] = celestial.SolarSys.suncoo(VecJD, 'j'); % [rad]
+            HA       = LST.*2.*pi - RA;                       % [rad]
+            [SunAz,SunAlt] = celestial.coo.hadec2azalt(HA, Dec, Args.GeoPos(2)./RAD); % [rad]
+            SunAlt   = SunAlt.*RAD; 
+            
+        end
+        
+        % DONE
+        function [Ind, NearJD, Result]=selectNearest2JD(Obj, TargetJD)
+            % Return index of image which JD is nearest to some JD/date.
+            % Input  : - A single element AstroFileName object
+            %          - JD or date [D M Y [H M S]].
+            %            The function will select the file name with JD
+            %            nearest to this date.
+            %            If empty, use current JD.
+            %            Default is [].
+            % Output : - Index of image with nearest JD to TargetJD
+            %          - JD of image with nearest JD.
+            %          - A (new copy) FileNames object with the image with the nearest JD.
+            % Author : Eran Ofek (Mar 2023)
+            % Example: A=AstroFileName.dir('LAST.01.*fits');
+            %          A.selectNearest2JD(2451546)
+
+            
+            arguments
+                Obj(1,1)
+                TargetJD = [];
+            end
+            
+            if isempty(TargetJD)
+                TargetJD = celestial.time.julday;
+            else
+                if size(TargetJD,2)>2
+                    TargetJD = celestial.time.julday(TargetJD);
+                end
+            end
+            
+            JD = Obj.julday;
+            [~, Ind] = min(abs(JD-TargetJD));
+            NearJD   = JD(Ind);
+            
+            if nargout>2
+                Result = reorderEntries(Obj, Ind, 'CreateNewObj',true);
+            end
+        end
+        
+        % DONE
+        function [Ind, LastJD, DT, Result]=selectLastJD(Obj)
+            % Return index of image with largest JD
+            % Input  : - A single element AstroFileName object
+            % Output : - Index of image with largest JD
+            %          - JD of image with largest JD
+            %          - Time elpased since image with largest JD was taken
+            %            I.e., CurrentJD - LastJD [days].
+            %          - A FileNames object with the image with latest JD.
+            % Author : Eran Ofek (Mar 2023)
+            
+            JD = Obj.julday;
+            [LastJD, Ind] = max(JD);
+            if nargout>2
+                DT = celestial.time.julday - LastJD;
+            end
+            
+            if nargout>3
+                Result = reorderEntries(Obj, Ind, 'CreateNewObj',true);
+            end
+        end
     end
     
     methods % utilities
@@ -1552,142 +1667,16 @@ classdef AstroFileName < Component
         end
 
     end
-        
-        
-      
     
-    
-    methods % search and utilities
-     
-        
-        
-
-        function [Obj, SI] = sortByFunJD(Obj, Direction, Fun)
-            % Sort elements in FileNames object by mean/min JD of entries in each element.
-            % Input  : - A FileNames object (multi-element possible).
-            %          - Sort direction: 'ascend' (default), or 'descend'.
-            %          - Function. Default is @min.
-            % Output : - A FileNames object in which the entries are sorted
-            %            by JD.
-            %          - A vector of sorted indices.
-            % Author : Eran Ofek (Dec 2022)
-            
-            arguments
-                Obj
-                Direction = 'ascend';
-                Fun       = @min;
-            end
-
-            JD = Obj.juldayFun(Fun);
-            [~,SI] = sort(JD, Direction);
-            Obj = Obj(SI);
-            
-        end
-
-        function [SunAlt] = sunAlt(Obj, Args)
-            % Calculate Sun Altitude for images in FileNames object
-            % Input  : - An FileNames object
-            %          * ...,key,val,...
-            %            'GeoPos' - Geodetic position [Lon, Lat] in deg.
-            %                   Default is [35 30].
-            % Output : - An array of Sun altitude (deg) for each image
-            %            entry.
-            % Author : Eran Ofek (May 2022)
-            % Example: 
-            
-            arguments
-                Obj
-                Args.GeoPos    = [35 30];
-            end
-            
-            RAD = 180./pi;
-            
-            VecJD    = Obj.julday;
-            VecJD    = VecJD(:);
-            LST      = celestial.time.lst(VecJD, Args.GeoPos(1)./RAD);  % frac of day
-            [RA,Dec] = celestial.SolarSys.suncoo(VecJD, 'j'); % [rad]
-            HA       = LST.*2.*pi - RA;                       % [rad]
-            [SunAz,SunAlt] = celestial.coo.hadec2azalt(HA, Dec, Args.GeoPos(2)./RAD); % [rad]
-            SunAlt   = SunAlt.*RAD; 
-            
-        end
-        
-        function [Result,Flag] = selectBy(Obj, PropName, PropVal, Args)
-            % Select entries that have proprty value of some value or in some range.
-            % Input  : - A FileNames object.
-            %          - Property name by which to select entries.
-            %            Default is 'Product'.
-            %          - Value to select. This is either a char array of
-            %            property type (e.g., 'Image'),
-            %            a cell array of property values.
-            %            If a cell array then will select entries that are
-            %            equal to one of these property values.
-            %            Alternatively, a numeric scalar
-            %            or a numeric vector of [min max]. In the latter,
-            %            will select all values within range.
-            %          * ...,key,val,...
-            %            'SelectNotVal' - Select files which are not the
-            %                   required val. Default is false.
-            %            'CreateNewObj' - A logical indicating if to create
-            %                   a new copy of the input object.
-            %                   Default is true.
-            % Output : - A FileNames object with the selected entries.
-            %          - A vector of logicals indicating the selected
-            %            entries.
-            % Author : Eran Ofek (Dec 2022)
-            
-            arguments
-                Obj
-                PropName char               = 'Product';
-                PropVal                     = 'Image';
-                Args.SelectNotVal logical   = false;   
-                Args.CreateNewObj logical   = true;
-            end
-            
-            if Args.CreateNewObj
-                Result = Obj.copy;
-            else
-                Result = Obj;
-            end
-        
-            if ischar(PropVal) || iscell(PropVal)
-                if ~iscell(Obj.(PropName))
-                    error('PropName %s must contain a cell array',PropName);
-                end
-                Flag = ismember(Obj.(PropName), PropVal);
-            elseif isnumeric(PropVal)
-                if ~isnumeric(Obj.(PropName))
-                    error('PropName %s must contain a numeric array',PropName);
-                end
-                if numel(PropVal)==1
-                    % equal numeric value
-                    Flag = Obj.(PropName) == PropVal;
-                else
-                    % numeric value in range
-                    Flag = Obj.(PropName)>min(PropVal) & Obj.(PropName)<max(PropVal);
-                end
-            else
-                error('PropVal must be either a char array or numeric');
-            end
-            
-            if Args.SelectNotVal
-                Flag = ~Flag;
-            end
-
-            Nt     = numel(Obj.Time);
-            Flag   = Flag(:).' | false(1,Nt);
-            Result = reorderEntries(Result, Flag);
-        end
-        
-        
-
+    methods % grouping
+        % DONE
         function [Groups, Result] = groupByCounter(Obj, Args)
             % Group entries according to running counter groups.
-            %   Given the Counter entry in an FileNames object, create
+            %   Given the Counter entry in an AstroFileNames object, create
             %   groups of entries by running counter, only for groups that
             %   contains at least MinInGroup and not more than MaxInGroup
             %   entries.
-            % Input  : - A FileNames object.
+            % Input  : - A single element AstroFileName object.
             %            Note that after running this function the input
             %            object will be sorted by JD.
             %          * ...,key,val,...
@@ -1708,13 +1697,13 @@ classdef AstroFileName < Component
             %            .I2 - end index.
             %            .Ind - Vector of all indices.
             %            .N - Number of elements
-            %          - A FileNames object with multiple elements.
+            %          - An AstroFileName object with multiple elements.
             %            Each element corresponds to a FileNames object for
             %            each one of the groups.
             % Author : Eran Ofek (Dec 2022)
             
             arguments
-                Obj
+                Obj(1,1)
                 Args.MinInGroup             = 10;
                 Args.MaxInGroup             = 20;
                 Args.BasePath               = [];
@@ -1727,13 +1716,13 @@ classdef AstroFileName < Component
                 Result = Obj;
             end
 
-            if Obj.nfiles()==0
+            if Obj.nFiles()==0
                 % do nothing
                 Groups = [];
             else
-                Result     = Result.sortByJD;
+                Result     = Result.sortBy('JD');
                 JD         = Result.julday;
-                CounterVec = Result.Counter;
+                CounterVec = str2double(Result.Counter);
                 
                 Groups = tools.find.groupCounter(CounterVec, 'MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
                 
@@ -1749,10 +1738,11 @@ classdef AstroFileName < Component
             end
         end
         
+        % DONE
         function [Groups, Result] = groupByTimeGaps(Obj, Args)
             % Group FileNames images by groups seperated by some time gaps.
             %   The input object will be sorted by time.
-            % Input  : - A FileNames object.
+            % Input  : - A single element AstroFileName object.
             %          * ...,key,val,...
             %            'TimeGap' - The minimum time gaps between observations
             %                   that will result in sepeartion into a
@@ -1766,18 +1756,18 @@ classdef AstroFileName < Component
             %            .I2 - end index.
             %            .Ind - Vector of all indices.
             %            .N - Number of elements
-            %          - A FileNames object with element per group.
+            %          - A new copy of AstroFileName object with element per group.
             % Author : Eran Ofek (Apr 2023)
 
 
             arguments
-                Obj
+                Obj(1,1)
                 Args.TimeGap      = [1./24];  % smallest time gap [day]
                 Args.MinInGroup   = 5;
             end
 
             % sort FileNames object by JD
-            Obj = sortByJD(Obj);
+            Obj = sortBy(Obj, 'JD');
 
             JD = Obj.julday;
 
@@ -1817,104 +1807,42 @@ classdef AstroFileName < Component
 
         end
 
-        function [Ind, LastJD, DT, Result]=selectLastJD(Obj)
-            % Return index of image with largest JD
-            % Input  : - A FileNames object
-            % Output : - Index of image with largest JD
-            %          - JD of image with largest JD
-            %          - Time elpased since image with largest JD was taken
-            %            I.e., CurrentJD - LastJD [days].
-            %          - A FileNames object with the image with latest JD.
-            % Author : Eran Ofek (Mar 2023)
-            
-            JD = Obj.julday;
-            [LastJD, Ind] = max(JD);
-            if nargout>2
-                DT = celestial.time.julday - LastJD;
-            end
-            
-            if nargout>3
-                Result = reorderEntries(Obj, Ind, 'CreateNewObj',true);
-            end
-        end
         
-        function [Ind, NearJD, Result]=selectNearest2JD(Obj, TargetJD)
-            % Return index of image which JD is nearest to some JD/date.
-            % Input  : - A FileNames object
-            %          - JD or date [D M Y [H M S]].
-            %            The function will select the file name with JD
-            %            nearest to this date.
-            %            If empty, use current JD.
-            %            Default is [].
-            % Output : - Index of image with largest JD
-            %          - JD of image with nearest JD
-            %          - A (new copy) FileNames object with the image with latest JD.
-            % Author : Eran Ofek (Mar 2023)
-            % Example: F=FileNames; F.Time=2451545;
-            %          F.selectNearest2JD(2451546)
+    end
+        
+        
+      
+    
+    
+    methods % search and utilities
+     
+        
+        
 
+        function [Obj, SI] = sortByFunJD(Obj, Direction, Fun)
+            % Sort elements in FileNames object by mean/min JD of entries in each element.
+            % Input  : - A FileNames object (multi-element possible).
+            %          - Sort direction: 'ascend' (default), or 'descend'.
+            %          - Function. Default is @min.
+            % Output : - A FileNames object in which the entries are sorted
+            %            by JD.
+            %          - A vector of sorted indices.
+            % Author : Eran Ofek (Dec 2022)
             
             arguments
                 Obj
-                TargetJD = [];
+                Direction = 'ascend';
+                Fun       = @min;
             end
+
+            JD = Obj.juldayFun(Fun);
+            [~,SI] = sort(JD, Direction);
+            Obj = Obj(SI);
             
-            if isempty(TargetJD)
-                TargetJD = celestial.time.julday;
-            else
-                if size(TargetJD,2)>2
-                    TargetJD = celestial.time.julday(TargetJD);
-                end
-            end
-            
-            JD = Obj.julday;
-            [~, Ind] = min(abs(JD-TargetJD));
-            NearJD   = JD(Ind);
-            
-            if nargout>2
-                Result = reorderEntries(Obj, Ind, 'CreateNewObj',true);
-            end
         end
+
         
-        function Result=validTimes(Obj)
-            % Return a vector of logical indicating if Time argument is valid
-            % Input  : - A single elemnent FileNames object.
-            % Output : - A vector of logical which length equal to the
-            %            number of file names. False if Time is NaN, [],
-            %            or 'NaN'.
-            % Author : Eran Ofek (Sep 2023)
-
-            arguments
-                Obj(1,1)
-            end
-
-            if iscell(Obj.Time)
-                Nt = numel(Obj.Time);
-                Result = true(Nt,1);
-                for It=1:1:Nt
-                    if isempty(Obj.Time{It}) || any(isnan(Obj.Time{It})) || strcmpi(Obj.Time{It},'nan')
-                        Result(It) = false;
-                    end
-                end
-            else
-                Result = ~isnan(Obj.Time);
-            end
-
-        end
-
-        function Result=nfiles(Obj)
-            % Return number of files in a FileNames object
-            % Input  : - A FileNames object
-            % Output : - Number of files in each FileNames element.
-            % Author : Eran Ofek (Apr 2023)
-
-            Nobj = numel(Obj);
-            Result = zeros(size(Obj));
-            for Iobj=1:1:Nobj
-                Result(Iobj) = numel(Obj(Iobj).Time);
-            end
-        end
-
+        
         function moveImages(Obj, Args)
             % move/delete images specified by FileNames object
             % Input  : - A FileNames object.
@@ -2079,695 +2007,6 @@ classdef AstroFileName < Component
         
         
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        %%% OBSOLETE:
-        
-        % function Ind = getAllProductsFromImageName(Obj, FileName)
-        %     % Given an ImagePath and an image name (or index), return all the corresponding products 
-        %     % Input  : - An ImagePath object.
-        %     %          - A file name or an ImagePath element index.
-        %     % Output : - The indices in the ImagePath object of elements for
-        %     %            which the image name, with the exception of the
-        %     %            Product name, is identical to the input FileName.
-        %     % Author : Eran Ofek (Jan 2022)
-        %     % Example: IP = ImagePath;
-        %     %          FN  = IP.genFile;
-        %     %          FN1 = strrep(FN, '_Image_', '_Mask_');
-        %     %          IP.Filter = 'AA'; FN2 = IP.genFile;
-        %     %          F   = {FN, FN1, FN2};
-        %     %          IP  = ImagePath.parseFileName(F);
-        %     %          Ind = getAllProductsFromImageName(IP, FN)
-        % 
-        %     if ischar(FileName)
-        %         Ind = find(strcmp({Obj.FileName}, FileName));
-        %     else
-        %         % FileName is already an image index
-        %         if isinf(FileName)
-        %             Ind = numel(Obj);
-        %         else
-        %             Ind = FileName;
-        %         end
-        %     end
-        % 
-        %     Obj.genFile;
-        %     AllNames    = {Obj.FileName};
-        %     Splitted    = split(AllNames{Ind}, '_');
-        %     % Replace the Product name with '\w*'
-        %     Splitted{10} = '\w*';
-        %     Template     = tools.string.unsplit(Splitted, '_');
-        % 
-        %     Match = regexp(AllNames, Template, 'match');
-        %     Ind = find(~cellfun(@isempty, Match));
-        % 
-        % end
-        
-%         function [Ind, IndCounter] = getAllInCounterSeries(Obj, FileName, ModNumber)
-%             % Return indices of a series of images belonging to the same counter series (sorted by JD).
-%             % Given an ImagePath and a file name or an index of an element
-%             %   in ImagePath:
-%             %   sort by JD,
-%             %   search for the indices (in the sorted list) of all the
-%             %   images that belongs to the same counter series.
-%             %   For example, given a set of images with counter = [19    20     1     2     3     4] 
-%             %   and the last counter is an ancor, will return 3:6.
-%             % Input  : - An ImagePath object.
-%             %          - Either a file name, or an index of the image in
-%             %            the ImagePath object.
-%             %            If Inf then will set the index to the last element
-%             %            in ImagePath.
-%             %            If this is empty, then the output index will be
-%             %            empty.
-%             %          - A scalar. For the calculations the counter will be
-%             %            replace by the mod(Counter, This_Number).
-%             %            Default is Inf.
-%             % Output : - Indices of all the elements in the sorted
-%             %            ImagePath that belong to the series that contains
-%             %            the input image name. The input image name is
-%             %            always the last element in the series.
-%             %            NOTE that the ImagePath object will be sorted by
-%             %            JD.
-%             %          - Vector of image counters.
-%             % Author : Eran Ofek (Jan 2022)
-%             % Example: 
-% 
-%             arguments
-%                 Obj
-%                 FileName
-%                 ModNumber = Inf;
-%             end
-% 
-%             Obj.genFile;
-% 
-%             [~,SI] = Obj.sortByJD;
-%             if ischar(FileName)
-%                 Ind = find(strcmp({Obj.FileName}, FileName));
-%             else
-%                 % FileName is already an image index
-%                 if isinf(FileName)
-%                     Ind = numel(Obj);
-%                 else
-%                     %Ind = FileName;
-%                     Ind = SI(FileName);
-%                 end
-%             end
-% 
-%             if ~isempty(Ind)
-%                 AllCounter = mod([Obj(1:Ind).Counter], ModNumber+1);
-% 
-%                 AllCounter = [Inf, AllCounter, 0];
-%                 I = find(diff(AllCounter)<0, 2, 'last');
-%                 Ind = (I(1):I(2)-1);
-% 
-%                 IndCounter = [Obj(Ind).Counter];
-%             end
-%         end
-% 
-%         function Obj = setAllVal(Obj, Prop, Val)
-%             % Set the value of one of the properties in all the elements.
-%             % Input  : - An ImagePath object.
-%             %          - Property name.
-%             %          - Value to set.
-%             % Output : - The updated ImagePath object.
-%             % Author : Eran Ofek (Jan 2022)
-%             % Example: Obj = setAllVal(Obj, 'FormatCounter', '%d');
-% 
-%             Nobj = numel(Obj);
-%             for Iobj=1:1:Nobj
-%                 Obj(Iobj).(Prop) = Val;
-%             end
-%         end
-% 
-% 
-%     end
-% 
-%     methods % raed/write from stuct
-%         function Result = readFromStruct(Obj, st)
-%             % Read data from struct or DbRecord (common_image_path table)
-%             % Struct field names should match database fields
-%             Obj.Telescope       = st.tel;
-%             Obj.Node            = st.node;
-%             Obj.Mount           = st.mount;
-%             Obj.Camera          = st.camera;
-% 
-%             Obj.JD              = st.jd;
-%             Obj.TimeZone        = st.timezone;
-%             Obj.Filter          = st.filter;
-%             Obj.FieldID         = st.field_id;
-%             Obj.CropID          = st.crop_id;
-%             Obj.ImageType       = st.imtype;
-%             Obj.ImageLevel      = st.imlevel;
-%             Obj.ImageSubLevel   = st.imslevel;
-%             Obj.ImageProduct    = st.improd;
-%             Obj.ImageVer        = st.imver;
-%             Obj.FileType        = st.filetype;
-%             Result = true;
-%         end
-% 
-%         function st = writeToStruct(Obj)
-%             % Write data fields to struct (common_image_path table)            
-%             st = struct;
-%             st.tel      = Obj.Telescope;
-%             st.node     = Obj.Node;
-%             st.mount    = Obj.Mount;
-%             st.camera   = Obj.Camera;
-%             st.jd       = Obj.JD;
-%             st.timezone = Obj.TimeZone;
-%             st.filter   = Obj.Filter;
-%             st.field_id = Obj.FieldID;
-%             st.crop_id  = Obj.CropID;
-%             st.imtype   = Obj.ImageType;
-%             st.imlevel  = Obj.ImageLevel;
-%             st.imslevel = Obj.ImageSubLevel;
-%             st.improd   = Obj.ImageProduct;
-%             st.imver    = Obj.ImageVer;
-%             st.filetype = Obj.FileType;
-%         end        
-%     end
-% 
-% 
-%     methods % Helpers (for internal use)
-% 
-% 
-%     end    
-% 
-%     methods (Static) % Parsers
-% 
-%         %function Result = parsePath(Obj, Path)
-%         %    % Convert a string containing a path to a structure with all available information (e.g., date, type, level, fieldID, ProjName)
-%         %end
-% 
-% 
-%         function Obj = parseFileName(FileName)
-%             % Populate ImagePath object from file name.
-%             % Input  : - A file name, or a cell array of file names.
-%             % Output : - A populated ImagePath object based on the file
-%             %            name only.
-%             % Author : Eran Ofek (Jan 2022)
-%             % Example:
-%             % IP=ImagePath.parseFileName('LAST_20220118.193339.010_clear_____sci_raw_Image_1.fits')
-% 
-%             if ischar(FileName)
-%                 FileName = {FileName};
-%             end
-%             Nf = numel(FileName);
-% 
-%             Obj = ImagePath(Nf);
-%             for If=1:1:Nf
-%                 [Path, File, Ext]  = fileparts(FileName{If});
-%                 Obj(If).FileName = File;
-%                 Obj(If).FullName = FileName{If};
-%                 Obj(If).Path     = Path;
-% 
-%                 Obj(If).FileType = Ext(2:end);
-%                 Parts = split(File,'_');
-%                 % <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
-%                 Obj(If).ProjName = Parts{1};
-%                 if numel(Parts)>1
-%                     VecTime = datevec(Parts{2}, 'yyyymmdd.HHMMSS.FFF');
-%                     Obj(If).Time     = celestial.time.julday(VecTime([3 2 1 4 5 6]));
-%                 else
-%                     Obj(If).Time     = [];
-%                 end
-%                 if isempty(Parts{3})
-%                     Obj(If).Filter = '';
-%                 else
-%                     Obj(If).Filter   = Parts{3};
-%                 end
-%                 if isempty(Parts{4})
-%                     Obj(If).FieldID = '';
-%                 else
-%                     Obj(If).FieldID  = Parts{4};
-%                 end
-%                 Obj(If).Counter  = str2double(Parts{5});
-%                 Obj(If).CCDID    = Parts{6};
-%                 Obj(If).CropID   = Parts{7};
-%                 Obj(If).Type     = Parts{8};
-%                 PartsLevel   = split(Parts{9}, '.');
-%                 Obj(If).Level    = PartsLevel{1};
-%                 if numel(PartsLevel)>1
-%                     Obj(If).SubLevel = PartsLevel{2};
-%                 else
-%                     Obj(If).SubLevel = '';
-%                 end
-%                 Obj(If).Product  = Parts{10};
-%                 Obj(If).Version  = Parts{11};
-% 
-%             end
-%         end
-% 
-%         function [List, Flag] = selectByDate(Files, StartDate, EndDate)
-%             % Select files in some range of dates and times.
-%             % Input  : - A file name with possible wild cards, or a cell
-%             %            array of file names.
-%             %            Default is '*.fits'.
-%             %          - Start date (JD, [Y M D H M S], or date string).
-%             %            Default is -Inf.
-%             %            If empty, then select all.
-%             %          - End date (JD, [Y M D H M S], or date string).
-%             %            Default is Inf.
-%             % Output : - A list of selected files which dates is between
-%             %            the start and end dates.
-%             %          - A logical vector of selected files.
-%             % Author : Eran Ofek (Jun 2022)
-%             % Example: ImagePath.selectByDate('PTF*.fits');
-% 
-%             arguments
-%                 Files       = '*.fits';
-%                 StartDate   = -Inf;
-%                 EndDate     = Inf;
-%             end
-% 
-%             if ischar(Files)
-%                 List = io.files.filelist(Files);
-%             else
-%                 List = Files;
-%             end
-% 
-%             if isempty(StartDate)
-%                 % do nothing
-%                 Flag = [];
-%             else
-%                 if numel(StartDate)==1
-%                     StartJD = StartDate;
-%                 else
-%                     StartJD = celestial.time.julday(StartDate);
-%                 end
-%                 if numel(EndDate)==1
-%                     EndJD = EndDate;
-%                 else
-%                     EndJD = celestial.time.julday(EndDate);
-%                 end
-% 
-%                 IP = ImagePath.parseFileName(List);
-% 
-%                 Flag = [IP.Time]>StartJD & [IP.Time]<EndJD;
-%                 List = List(Flag);
-%             end
-%         end
-% 
-%         function [IP, List, Flag] = selectByProp(Files, PropVal, Prop, IsVal)
-%             % Select files with ImagePath format by some property (e.g., Type).
-%             % Input  : - If this is a char array than use io.files.filelist
-%             %            to generate a cell array of file names.
-%             %            Alternatively, this is a cell array of file names.
-%             %          - Image property value to select (or ignore).
-%             %            Default is {'sci','science'}.
-%             %          - Property name to select by (e.g., 'Type','Level').
-%             %            Default is 'Type'.
-%             %          - A logical flag indicating if to use files of
-%             %            the specified property value. If false, then
-%             %            ignore this value and select all the rest.
-%             %            Default is true.
-%             % Output : - An ImagePath pbject with the selected image.
-%             %          - A cell array of selected files.
-%             %          - A vector of logical flags indicating the selected
-%             %            files.
-%             % Author : Eran Ofek (Aug 2022)
-%             % Example: [IP,List] = ImagePath.selectByProp('LAST*.fits', {'focus'}, 'Type')
-%             % Example: [IP,List] = ImagePath.selectByProp('LAST*.fits', {'focus'}, 'Type',false)
-% 
-%             arguments
-%                 Files
-%                 PropVal              = {'sci','science'};
-%                 Prop                 = 'Type';
-%                 IsVal logical        = true;
-%             end
-% 
-%             if ischar(Files)
-%                 List = io.files.filelist(Files);
-%             else
-%                 List = Files;
-%             end
-% 
-%             IP   = ImagePath.parseFileName(List);
-%             Flag = ismember({IP.(Prop)}, PropVal);
-%             if ~IsVal
-%                 Flag = ~Flag;
-%             end
-% 
-%             IP   = IP(Flag);
-%             List = List(Flag);
-% 
-%         end
-% 
-% 
-%     end
-% 
-% 
-%     methods % write product
-%         function ObjIP = writeProduct(ObjIP, ObjProduct, Args)
-%             % Write an array of data prodicts to disk.
-%             % Input  : - An ImagePath object array.
-%             %          - A data product (e.g., an AstroImage). If this is
-%             %            an AstroImage then the number of elements must be
-%             %            equal to the number of elements in the first input
-%             %            argument.
-%             %          * ...,key,val,...
-%             %            'Save' - A logical indicating if to save the
-%             %                   products. Default is true.
-%             %            'SaveFields' - Fields to save.
-%             %                   Default is {'Image','Mask','Cat'}.
-%             %            'WriteFun' - Default is @write1.
-%             %                   Fun(Object, Name, Field, WriteFunArgs{:})
-%             %            'WriteFunArgs' - Cell array of arguments to pass
-%             %                   to the WriteFun.
-%             %                   Default is {'WriteMethodImages','Simple',
-%             %                   'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false}.
-%             %            'Product' - For a non AstroImage object. This is
-%             %                   the data type that will be written.
-%             %                   Default is 'Asteroids'.
-%             %            'Level' - Overide level. If empty, do not
-%             %                   override. Default is [].
-%             % Output : - The ImagePath object (without changes).
-%             % Author : Eran Ofek (Feb 2022)
-%             %
-% 
-%             arguments
-%                 ObjIP
-%                 ObjProduct
-%                 Args.Save
-%                 Args.SaveFields                = {'Image','Mask','Cat'};
-%                 Args.WriteFun function_handle  = @write1;
-%                 Args.WriteFunArgs cell         = {'WriteMethodImages','Simple','FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
-%                 Args.Product                   = 'Asteroids';   %'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat', 'Asteroids'
-%                 Args.Level                     = []; % override Level
-%                 Args.FileType                  = []; % override FileType
-%             end
-% 
-%             if Args.Save
-%                 % verify that directory exist
-%                 mkdir(ObjIP(1).genPath);
-% 
-%                 Nfield  = numel(Args.SaveFields);
-%                 Nprod   = numel(ObjProduct);
-%                 if isa(ObjProduct, 'AstroImage')
-%                     for Iprod=1:1:Nprod
-%                         if ~isempty(Args.Level)
-%                             ObjIP(Iprod).Level = Args.Level;
-%                         end
-%                         if ~isempty(Args.FileType)
-%                             ObjIP(Iprod).FileType = Args.FileType;
-%                         end
-%                         for Ifield=1:1:Nfield
-%                             ObjIP(Iprod).Product = Args.SaveFields{Ifield};
-%                             Args.WriteFun(ObjProduct(Iprod), ObjIP(Iprod).genFull, Args.SaveFields{Ifield}, Args.WriteFunArgs{:});
-%                         end
-%                     end
-%                 elseif isa(ObjProduct, 'AstroCatalog')
-%                     % save AstroCatalog
-%                     switch Args.SaveFields{1}
-%                         case 'Cat'
-%                             for Iprod=1:1:Nprod
-%                                 if ~isempty(Args.Level)
-%                                     ObjIP(Iprod).Level = Args.Level;
-%                                 end
-%                                 if ~isempty(Args.FileType)
-%                                     ObjIP(Iprod).FileType = Args.FileType;
-%                                 end
-%                                 ObjIP(Iprod).Product = 'Cat';
-%                                 Args.WriteFun(ObjProduct(Iprod), ObjIP(Iprod).genFull, Args.WriteFunArgs{:});
-%                             end
-%                     end
-%                 elseif isa(ObjProduct, 'MatchedSources')
-%                     % save MatchedSources
-%                     switch Args.SaveFields{1}
-%                         case 'Cat'
-%                             for Iprod=1:1:Nprod
-%                                 if ~isempty(Args.Level)
-%                                     ObjIP(Iprod).Level = Args.Level;
-%                                 end
-%                                 if ~isempty(Args.FileType)
-%                                     ObjIP(Iprod).FileType = Args.FileType;
-%                                 end
-%                                 ObjIP(Iprod).Product = 'MergedMat';
-%                                 Args.WriteFun(ObjProduct(Iprod), ObjIP(Iprod).genFull, Args.WriteFunArgs{:});
-%                             end
-%                     end
-%                 else
-%                     % save as MAT file
-%                     IP1 = ObjIP(1).copy;
-%                     IP1.Counter   = 0;
-%                     IP1.CropID    = 0;
-%                     IP1.Product   = Args.Product;
-%                     IP1.FileType  = 'mat';
-% 
-%                     save('-v7.3',IP1.genFull, 'ObjProduct');
-%                 end
-%             end
-%         end  
-% 
-%         function [Future, ObjIP] = saveProduct(ObjIP, ObjProduct, Args) 
-%             % Save product to disk
-%             % Input  : - An ImagePath object
-%             %          - An object to save (e.g., AstroImage)
-%             %          * ...,key,val,...
-%             %            'Save' - A logical indicating if to save the
-%             %                   pdoducts. Default is true.
-%             %            'ParEval' - Use parfeval. Default is false.
-%             %            'SaveFun' - A function handle which is a method of
-%             %                   the the object product used to save products.
-%             %                   Default is @write1.
-%             %            'SaveFunArgs' - A cell array of additional
-%             %                   arguments to pass to the 'SaveFun'.
-%             %                   Default is {'Image',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false}
-%             %            'PropFromHeader' - Attempt to populate the
-%             %                   ImagePath properties from the Header.
-%             %                   Default is true.
-%             %            'CropID_FromInd' - If true, then CropID is taken
-%             %                   from object element index. Default is false.
-%             %            'SetProp' - Pairs of additional ImagePath properties to
-%             %                   populated (key,val). This is overriding the
-%             %                   Header properties.
-%             %                   Default is {'Product','Image'}.
-%             %            'DataDirFromProjName' - Set DataDir value from
-%             %                   ProjName. Default is false.
-%             % Output : - A future object (for parfeval).
-%             %          - The updated ImagePath object.
-%             % Author : Eran Ofek (Jan 2022)
-% 
-% 
-%             arguments
-%                 ObjIP
-%                 ObjProduct
-%                 Args.Save logical              = true;
-%                 Args.ParEval logical           = false;
-%                 Args.SaveFun function_handle   = @write1;
-%                 Args.SaveFunArgs cell          = {'Image',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
-%                 Args.PropFromHeader logical    = true;
-%                 Args.CropID_FromInd logical    = false;
-%                 Args.SetProp cell              = {'Product','Image'};   % overide header
-%                 Args.DataDirFromProjName logical = false;
-%             end
-%             Future = [];
-%             if Args.Save
-% 
-%                 % FFU:
-%                 % create dir
-%                 % use parfeval
-% 
-%                 if Args.ParEval
-%                     Future = parfeval(@ImagePath.saveProductBlocking, 0, ObjIP, ObjProduct, 'SaveFun',Args.SaveFun, 'SaveFunArgs',Args.SaveFunArgs, 'PropFromHeader',Args.PropFromHeader, 'SetProp',Args.SetProp);
-%                 else
-%                     ObjIP = ImagePath.saveProductBlocking(ObjIP, ObjProduct,...
-%                                                          'SaveFun',Args.SaveFun,...
-%                                                          'SaveFunArgs',Args.SaveFunArgs,...
-%                                                          'PropFromHeader',Args.PropFromHeader,...
-%                                                          'CropID_FromInd',Args.CropID_FromInd,...
-%                                                          'SetProp',Args.SetProp,...
-%                                                          'DataDirFromProjName',Args.DataDirFromProjName);
-%                 end
-% 
-%             end
-%         end
-%     end
-% 
-%     methods (Static) % utilities
-%         function ObjIP = saveProductBlocking(ObjIP, ObjProduct, Args)
-%             % Save product to disk - utility blocking function
-%             %   This function is for the internal use by
-%             %   ImagePath/saveProduct
-%             % Input  : - A single-element ImagePath object.
-%             %          - Object product to save (e.g., an AstroImage)
-%             %          * ...,key,val,...
-%             %            'SaveFun' - Function handle for saving object
-%             %                   Default is @write1
-%             %            'SaveFunArgs' - A cell array of additional arguments to pass
-%             %                   to the SaveFun function.
-%             %                   Default is {'Image',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
-%             %            'PropFromHeader' - A logical indicating if to
-%             %                   popuAlate ImagePath properties from image header.
-%             %                   Default is true.
-%             %            'CropID_FromInd' - If true, then CropID is taken
-%             %                   from object element index. Default is false.
-%             %            'SetProp' - A cell array of pairs of additional
-%             %                   ImagePath properties to set (override
-%             %                   header). These are ...Prop,val,...
-%             %                   Default is  {'Product','Image'}
-%             %            'DataDirFromProjName' - Set DataDir value from
-%             %                   ProjName. Default is false.
-%             % Output : The updated ImagePath object.
-%             % Author : Eran Ofek (Jan 2022)
-%             % Example: 
-% 
-%             arguments
-%                 ObjIP(1,1) ImagePath
-%                 ObjProduct
-%                 Args.SaveFun function_handle   = @write1;
-%                 Args.SaveFunArgs cell          = {'Image',  'FileType','fits', 'WriteHeader',true, 'Append',false, 'OverWrite',true, 'WriteTime',false};
-%                 Args.PropFromHeader logical    = true;
-%                 Args.CropID_FromInd logical    = false;
-%                 Args.SetProp cell              = {'Product','Image'};   % overide header
-%                 Args.DataDirFromProjName logical = false;
-%             end
-% 
-%             NsetProp = numel(Args.SetProp);
-%             if (0.5.*NsetProp)~=floor(0.5.*NsetProp)
-%                 % odd number of SetProp
-%                 error('Number of elements in SetProp argument must be even (key,val)');
-%             end
-% 
-%             Nprod = numel(ObjProduct);
-%             for Iprod=1:1:Nprod
-%                 if Args.PropFromHeader
-%                     ObjIP.readFromHeader(ObjProduct(Iprod));  
-%                 end
-%                 for Iset=1:2:NsetProp
-%                     ObjIP.(Args.SetProp{Iset}) = Args.SetProp{Iset+1};
-%                 end
-%                 if Args.CropID_FromInd
-%                     ObjIP.CropID = Iprod;
-%                 end
-%                 if Args.DataDirFromProjName
-%                     ObjIP.DataDir = ObjIP.ProjName;
-%                 end
-% 
-%                 FullName = ObjIP.genFull;
-%                 if Iprod==1
-%                     % create Dir
-%                     Path = fileparts(FullName);
-%                     if ~isfolder(Path)
-%                         %exist(Path,'dir')==0
-%                         % create dir
-%                         mkdir(Path);
-%                     end
-%                 end
-% 
-%                 Args.SaveFun(ObjProduct(Iprod), FullName, Args.SaveFunArgs{:});
-%             end
-% 
-%         end
-% 
-% 
-% 
-%         function ObjIP = generateImagePathFromProduct(ObjProduct, Args)
-%             % Generate an ImagePath object from product (e.g., AstroImage)
-%             % Input  : - A product object (e.g., AstroImage).
-%             %          * ...,key,val,...
-%             %            'PropFromHeader' - A logical indicating if to
-%             %                   popuAlate ImagePath properties from image header.
-%             %                   Default is true.
-%             %            'CropID_FromInd' - If true, then CropID is taken
-%             %                   from object element index. Default is false.
-%             %            'SetProp' - A cell array of pairs of additional
-%             %                   ImagePath properties to set (override
-%             %                   header). These are ...Prop,val,...
-%             %                   Default is  {'Product','Image'}
-%             %            'DataDirFromProjName' - Set DataDir value from
-%             %                   ProjName. Default is false.
-%             % Output : - An ImagePath object populated based on product
-%             %            data.
-%             % Author : Eran Ofek (Feb 2022)
-%             % Example: IP = ImagePath.generateImagePathFromProduct(AllSI(1));
-% 
-%             arguments
-%                 ObjProduct
-%                 Args.PropFromHeader logical      = true;
-%                 Args.CropID_FromInd logical      = false;
-%                 Args.SetProp cell                = {'Product','Image'};   % overide header
-%                 Args.DataDirFromProjName logical = false;
-%                 Args.AutoSubDir logical          = true;
-%             end
-% 
-%             NsetProp = numel(Args.SetProp);
-%             if (0.5.*NsetProp)~=floor(0.5.*NsetProp)
-%                 % odd number of SetProp
-%                 error('Number of elements in SetProp argument must be even (key,val)');
-%             end            
-% 
-%             Nprod = numel(ObjProduct);
-%             ObjIP = ImagePath(Nprod);
-%             CopySubDirFromPrevious = false;
-%             for Iprod=1:1:Nprod
-%                 if Args.PropFromHeader
-%                     ObjIP(Iprod).readFromHeader(ObjProduct(Iprod));  
-%                 end
-%                 for Iset=1:2:NsetProp
-%                     ObjIP(Iprod).(Args.SetProp{Iset}) = Args.SetProp{Iset+1};
-%                 end
-%                 if Args.CropID_FromInd
-%                     ObjIP(Iprod).CropID = Iprod;
-%                 end
-%                 if Args.DataDirFromProjName
-%                     ObjIP(Iprod).DataDir = ObjIP.ProjName;
-%                 end
-% 
-%                 if Args.AutoSubDir && ~CopySubDirFromPrevious
-%                     % automatically set the SubDir directory : +1 to
-%                     % largest existing dir
-%                     FullPath = ObjIP(Iprod).genPath;
-%                     FullPath = strrep(FullPath,sprintf('%sNaN%s',filesep,filesep),'');
-% 
-%                     if isfolder(FullPath)
-%                         FL       = dir(FullPath);
-%                         Flag     = [FL.isdir]' & ~strcmp({FL.name}.','.') & ~strcmp({FL.name}.','..');
-%                         FL       = FL(Flag);
-%                         if isempty(FL)
-%                             % no dirs
-%                             ObjIP(Iprod).SubDir = '1';
-%                         else
-%                             Max = max(str2double({FL.name}));
-%                             if isnan(Max)
-%                                 ObjIP(Iprod).SubDir = '1';
-%                             else
-%                                 ObjIP(Iprod).SubDir = sprintf('%d',Max + 1);
-%                             end
-%                         end
-% 
-%                     else
-%                         ObjIP(Iprod).SubDir = '1';
-%                     end
-%                 else
-%                     if CopySubDirFromPrevious
-%                         ObjIP(Iprod).SubDir = ObjIP(Iprod-1).SubDir;
-%                     end
-%                 end
-% 
-% 
-% %                FullName = ObjIP.genFull;
-% %                 if Iprod==1
-% %                     % create Dir
-% %                     Path = fileparts(FullName);
-% %                     %if exist(Path,'dir')==0
-% %                     %    % create dir
-% %                     %    mkdir(Path);
-% %                     %end
-% %                 end
-%             end
-%         end
-% 
-%     end
             
     %----------------------------------------------------------------------
     % Unit test
