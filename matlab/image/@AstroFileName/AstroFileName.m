@@ -1811,41 +1811,12 @@ classdef AstroFileName < Component
     end
         
         
-      
-    
-    
-    methods % search and utilities
-     
+    methods % move, copy, delete files
         
-        
-
-        function [Obj, SI] = sortByFunJD(Obj, Direction, Fun)
-            % Sort elements in FileNames object by mean/min JD of entries in each element.
-            % Input  : - A FileNames object (multi-element possible).
-            %          - Sort direction: 'ascend' (default), or 'descend'.
-            %          - Function. Default is @min.
-            % Output : - A FileNames object in which the entries are sorted
-            %            by JD.
-            %          - A vector of sorted indices.
-            % Author : Eran Ofek (Dec 2022)
-            
-            arguments
-                Obj
-                Direction = 'ascend';
-                Fun       = @min;
-            end
-
-            JD = Obj.juldayFun(Fun);
-            [~,SI] = sort(JD, Direction);
-            Obj = Obj(SI);
-            
-        end
-
-        
-        
-        function moveImages(Obj, Args)
+         % DONE
+         function moveImages(Obj, Args)
             % move/delete images specified by FileNames object
-            % Input  : - A FileNames object.
+            % Input  : - A single element AstroFileName object.
             %          * ...,key,val,...
             %            'SrcPath' - The path name of the source files to
             %                   move or delete. If empty, then use current
@@ -1878,7 +1849,7 @@ classdef AstroFileName < Component
             % Author : Eran Ofek (Apr 2023)
 
             arguments
-                Obj
+                Obj(1,1)
                 Args.SrcPath      = []; % if empty, use pwd
                 Args.DestPath     = []; % if empty use genPath
                 Args.Operator     = 'move';   % 'move'|'delete'
@@ -1928,6 +1899,40 @@ classdef AstroFileName < Component
             end
         end
          
+    end
+      
+    
+    
+    methods % search and utilities
+     
+        
+        
+
+        function [Obj, SI] = sortByFunJD(Obj, Direction, Fun)
+            % Sort elements in FileNames object by mean/min JD of entries in each element.
+            % Input  : - A FileNames object (multi-element possible).
+            %          - Sort direction: 'ascend' (default), or 'descend'.
+            %          - Function. Default is @min.
+            % Output : - A FileNames object in which the entries are sorted
+            %            by JD.
+            %          - A vector of sorted indices.
+            % Author : Eran Ofek (Dec 2022)
+            
+            arguments
+                Obj
+                Direction = 'ascend';
+                Fun       = @min;
+            end
+
+            JD = Obj.juldayFun(Fun);
+            [~,SI] = sort(JD, Direction);
+            Obj = Obj(SI);
+            
+        end
+
+        
+        
+       
         function Obj=updateIfNotEmpty(Obj, Args)
             % Update FileNames properties if provided and not empty
             % Input  : - A FileNames object.
