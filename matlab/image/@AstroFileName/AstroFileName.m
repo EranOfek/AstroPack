@@ -86,41 +86,120 @@ classdef AstroFileName < Component
     
     methods % Constructor
        
-        function Obj = FileNames(Pars)
+        function Obj = AstroFileName(Files, Args)
             % Constructor for FileNames
-            % Input  : - Either a:
-            %            1. Scalar indicting the number of elements in the
-            %            empty ImagePath object that will be created.
-            %            2. A cell array of file nsmaes that will be
-            %            parsed.
-            %            3. A structure array returned from the dir
-            %            command.
-            % Output : - An ImagePath object.
-            % Author : Eran Ofek (Jan 2022)
-            % Example: IP = ImagePath(2);
-            %          IP = ImagePath({'LAST_20220118.193339.010_clear_____sci_raw_Image_1.fits'});
+            % Input : - If 'Method'='Files' then this is a cell array,
+            %           a string array, or char array of file names that will be parsed.
+            %           If 'Method'='Template', then this is a file pattern
+            %           to read from the 'Path' directory.
+            %           If this is a numeric array, then will
+            %           create an AstroFileName object of this size.
+            %           If this is a table, then attempt to populate the
+            %           file names based on the table columns (e.g., if the
+            %           table have a 'CropID' column, then its content will
+            %           be stored in the AstroFileName CropID property).
+            %          * ...,key,val,...
+            %            'Path' - cd to this path prior to start the file
+            %                   name ingestion (e.g., files location).
+            %                   If empty, then do not cd.
+            %                   If 'Path' is not empty, then 'Method' is
+            %                   overide to 'Template'.
+            %                   Default is [].
+            %            'Method' - Method to use for file names
+            %                   construction. Options are:
+            %                   'Template' - Use the first input argument
+            %                           as a template name (e.g.,
+            %                           'LAST.01*.fits). All files with the
+            %                           specified template will be searched
+            %                           in the 'Path' directory and upload
+            %                           as file names.
+            %                   'Files' - Treat the first input as a cell array,
+            %                           a string array, or char array of
+            %                           file names that will be parsed.
+            %                   Default is 'Files'.
+            %            'ReadJD' - If input is a table, then this is a
+            %                   logical indicating if to try and read a
+            %                   table column nmae JD, into the JD property.
+            %                   Default is true.
+            %            'JD2Time' - If input is a table and JD was read,
+            %                   then this is a logical indicating if to
+            %                   convert the JD into Time string.
+            %                   Default is false.
+            %
+            % Output : - An AstroFileName object.
+            % Author : Eran Ofek (Oct 2024)
+            % Example: A = AstroFileName;
+            %          A = AstroFileName(2);
+            %          A = AstroFileName([2 3]);
+            %          A = AstroFileName('LAST.01.*fits','Path','.')
+            %          A = AstroFileName("LAST.01.08.02_20240109.143054.460_clear_001+30_001_001_001_sci_raw_Image_1_fits")
+            %          T = table; T.CropID=[1 2].';
+            %          T.Product=["Image","PSF"].' ; T.JD=2451545+(0:1).';
+            %          A = AstroFileName(T)
+            %          A = AstroFileName(T, 'ReadJD',true, 'JD2Time',true)
             
             arguments
-                Pars = 1;
+                Files       = 1;  
+                Args.Path   = [];
+                Args.Method = 'files';
+                Args.ReadJD logical  = true;
+                Args.JD2Time logical = false;
             end
             
-            if iscell(Pars) || ischar(Pars)
-                % Pars is a list of image names
-                Obj = FileNames.generateFromFileName(Pars);
-
-            elseif isnumeric(Pars)
-                % length of ImagePath object
-                N = Pars;
-                for I=1:1:N
-                    Obj(I).ProjName = '';
+            if ~isempty(Args.Path)
+                Args.Method = 'Template';
+            end
+            
+            if isnumeric(Files)   
+                % numeric input - create an empty AstroFileName object.
+                for I=1:1:prod(Files)
+                    Obj(I).Time = "";
                 end
-            elseif isstruct(Pars)
-                List = fullfile({Pars.folder}, {Pars.name});
-                Obj = FileNames.generateFromFileName(List);
+                if numel(Files)>1
+                    Obj = reshape(Obj, Files);
+                end
+            elseif istable(Files)
+                % Input is a table
+                
+                Fields = AstroFileName.FIELDS;
+                Nfield=numel(Fields);
+                for Ifield=1:1:Nfield
+                    if tools.table.isColumn(Files, Fields{Ifield})
+                        Obj.(Fields{Ifield}) = Files.(Fields{Ifield});
+                    end
+                end
+                if Args.ReadJD
+                    Field = 'JD';
+                    if tools.table.isColumn(Files, Field)
+                        Obj.(Field) = Files.(Field);
+                        if Args.JD2Time
+                            Obj.julday2time;
+                        end
+                    end
+                end
+                
             else
-                error('Unknown option');
+                % Input is a string, char, cell
+                switch lower(Args.Method)
+                    case 'files'
+                        [Obj] = AstroFileName.parseString2AstroFileName(Files, true);
+                        
+                    case 'template'
+                        if ~isempty(Args.Path)
+                            PWD = pwd;
+                            cd(Args.Path);
+                        end
+                        
+                        Obj = AstroFileName.dir(Files);
+                        
+                        if ~isempty(Args.Path)
+                            cd(PWD);
+                        end
+                        
+                    otherwise
+                        error('Unknown Method option');
+                end
             end
-            
             
             % Load defaults from configuration
             % i.e.
@@ -325,19 +404,32 @@ classdef AstroFileName < Component
                 SeperatorLast      = ".";
             end
             
-            if iscell(FileNameString) || ischar(FileNameString)
-                FileNameString = string(FileNameString);
+            if ischar(FileNameString)
+                FileNameString = string(FileNameString).';
             end
             
+            if iscell(FileNameString)
+                FileNameString = string(FileNameString);
+            end
+            N = numel(FileNameString);
+            
             Result = split(FileNameString(:), Seperator);
+            if N==1
+                Result = Result.';
+            end
+                
             if SplitLast
-                Result = [Result(:,1:end-1), split(Result(:,end), SeperatorLast)];
+                if N==1
+                    Result = [Result(:,1:end-1), split(Result(:,end), SeperatorLast).'];
+                else
+                    Result = [Result(:,1:end-1), split(Result(:,end), SeperatorLast)];
+                end
             end
                 
         end
         
         % DONE
-        function [Result,Path]=parseString2AstroFileName(FileNameString, IsSinglePath, Seperator)
+        function [Result]=parseString2AstroFileName(FileNameString, IsSinglePath, Seperator)
             % Convert file names strings into an AstroFileName object.
             % Input  : - A cell array, string array, or char array of file
             %            names. Alternatively, a struct array which is the
@@ -348,9 +440,6 @@ classdef AstroFileName < Component
             %          - Seperator. Default is "_".
             % Output : - An AstroFileName object populated with the file
             %            name literals.
-            %          - A string array of path. This is obtained only if
-            %            the first input is a structure array as returned by
-            %            the dir command.
             % Author : Eran Ofek (Oct 2024)
             % Example: R=AstroFileName.parseString2AstroFileName(A)
             
@@ -1258,6 +1347,56 @@ classdef AstroFileName < Component
             Result = join([genPath(Obj, Ind, Args.genPathArgs{:}),...
                            genFile(Obj, Ind, Args.genFileArgs{:})], filesep);
             
+            
+        end
+    
+        % DONE
+        function Result = genProducts(Obj, Ind, Args)
+            % Given file names, generate all associated products
+            %   Associate products refer to 'Image','Mask','PSF','Cat'.
+            % Input  : - A single element AstroFileName object.
+            %          - Indices of lines (file names) in the object.
+            %            If empty, then get all lines. Default is [].
+            %          * ...,key,val,...
+            %            'OutProduct' - Output product names to generate.
+            %                   Default is ["Image", "Mask", "PSF", "Cat"]
+            %            'AddPath' - A logical indicating if to add the
+            %                   full path to the file name.
+            %                   Default is true.
+            % Output : - Given that Nfile is the number of requested files
+            %            (i.e., numel(Ind)), and Nprod is the number of
+            %            products, then return a Nfile X Nprod strings
+            %            array. Columns corresponds to different products
+            %            and rows to different file names.
+            % Author : Eran Ofek (Oct 2024).
+            % Example: A=AstroFileName.dir('LAST.01.*fits');
+            %          A.genProducts(1)
+            %          A.genProducts([])
+            %          A.genProducts(1:2, 'OutProduct',["PSF"]);
+            %          A.genProducts(1, 'AddPath',false)
+            
+            arguments
+                Obj(1,1)
+                Ind                  = [];
+                Args.OutProduct      = ["Image", "Mask", "PSF", "Cat"];
+                Args.AddPath logical = true;
+            end
+            
+            if isempty(Ind)
+                Nfile = Obj.nFiles;
+                Ind   = (1:1:Nfile).';
+            end
+            Nind = numel(Ind);
+            
+            Nprod = numel(Args.OutProduct);
+            Result = strings(Nind, Nprod);
+            for Iprod=1:1:Nprod
+                if Args.AddPath
+                    Result(:,Iprod) = genFull(Obj, Ind, 'genFileArgs', {'Product', Args.OutProduct{Iprod}});
+                else
+                    Result(:,Iprod) = genFile(Obj, Ind, 'Product', Args.OutProduct{Iprod});
+                end
+            end
             
         end
     end
