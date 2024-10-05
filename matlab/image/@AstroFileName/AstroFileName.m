@@ -20,15 +20,9 @@
 % A = AstroFileName(T)
 % A = AstroFileName(T, 'ReadJD',true, 'JD2Time',true)
 %
-% % time operations
-% A.julday    % get JD
-% % populate Time string from JD
-% A.julday2time
-% % select entry nearest to JD
-% [I,JD]=A.selectNearest2JD
-% % selected latest JD
-% [I,JD]=A.selectLastJD
-% A.sunAlt
+% % time operations A.julday    % get JD % populate Time string from JD
+% A.julday2time % select entry nearest to JD [I,JD]=A.selectNearest2JD %
+% selected latest JD [I,JD]=A.selectLastJD A.sunAlt
 %
 % % number of files
 % A.nFiles
@@ -93,7 +87,7 @@ classdef AstroFileName < Component
         Type                = ["sci"];
         Level               = ["raw"];
         Product             = ["Image"];
-        Version             = [1];
+        Version             = ["1"];
         FileType            = ["fits"];
         %
         SubDir              = "";
