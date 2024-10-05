@@ -37,7 +37,7 @@
 % A.genFile
 % A.genPath
 % A.genFull
-% A.genProduct
+% A.genProducts
 %
 % % headers
 % A.write2header(AH)
