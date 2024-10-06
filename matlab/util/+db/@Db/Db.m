@@ -365,9 +365,13 @@ classdef Db < Component
             
             if ischar(InputTable) || isstring(InputTable)
                 % Assume InputTable is a scv table
-                Command = sprintf("INSERT INTO %s FORMAT CSV FILE '%s'", TableName, TableName);
+                %Command = sprintf('INSERT INTO %s FORMAT CSV FILE ''%s'';', TableName, InputTable);
+                %[~,Error]   = Obj.query(Command, 'IsExec',true);
                 
-                [~,Error]   = Obj.query(Command, 'IsExec',true);
+                Command = sprintf('clickhouse-client --user=%s --password=%s --query="INSERT INTO %s FORMAT CSV" < %s',...
+                                  Obj.User, Obj.Password, TableName, InputTable);
+                [~,Error] = system(Command);
+                
             else
                 ColNames    = InputTable.Properties.VariableNames;
                 StrColNames = sprintf('%s, ',string(ColNames));
