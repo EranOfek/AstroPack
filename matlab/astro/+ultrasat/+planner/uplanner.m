@@ -6,13 +6,24 @@ classdef uplanner < Component
         EndTime
         Plan
         UniqTargList
-        SurvProp
-        AllSSProp
-%         TOOProp
-        MaxTargets      = [];
-        TOOProbMap      = [];
-        Scheduled       = [];
-        Validated       = [];
+        
+        % HCS, LCS
+        DailyWindow     
+        Cadence         
+        
+        % AllSS
+        AllSSHighLatThresh
+        HighLatVisits
+        LowLatVisits
+        EpochPerVisit           
+        DitherPattern
+        
+        % TOO
+        MaxTargets      
+        TOOProbMap      
+        
+        Scheduled       % date or empty
+        Validated       % date or empty
         Status          = 'draft';
     end
 
@@ -31,9 +42,6 @@ classdef uplanner < Component
                 Args.PlanColumns = {'TargInd','Tstart','JDstart','ExpTime','Tiles',...
                                     'MoonDist','SunDist','EarthDist','SlewDist','OverlapTargets'};
                 Args.TargColumns = {'RA', 'Dec', 'A_U', 'CalObj', 'RefImageIDs', 'ExtSurveys', 'FieldObj', 'Vis'};
-%                 Args.SurvColumns = {'DailyWindow', 'Cadence', 'EpochsPerVisit'};
-%                 Args.AllSSColumns= {'HighLatThresh', 'HighLatVisits', 'LowLatVisits', 'DitherPattern'};
-%                 Args.TOOColumns  = {'MaxTargets','ProbMapName'};
             end
             %
             if isempty(Args.Type)
@@ -49,11 +57,6 @@ classdef uplanner < Component
             %
             Obj.UniqTargList = table([],[],[],[],[],[],[],[],'VariableNames', Args.TargColumns);
             %
-%             Obj.SurvProp = table([],[],[],'VariableNames', Args.SurvColumns);
-            % 
-%             Obj.AllSSProp = table([],[],[],[],'VariableNames', Args.AllSSColumns);
-            %
-%             Obj.TOOProp = table([],[],'VariableNames', Args.TOOColumns);
         end
     end
     %
