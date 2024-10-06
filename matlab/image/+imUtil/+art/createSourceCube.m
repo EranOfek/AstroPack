@@ -77,7 +77,7 @@ function [CubePSF, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
             for Isrc = 1:Nsrc
                 EdgeFunPars = ceil( Args.FunEdgePars .* M{Isrc}(1) / 15);    % empiric, should somehow depend on M
                 SupressedEdges = Args.FunEdge( EdgeFunPars, size(PSF{Isrc}) ) .* PSF{Isrc};
-                SupressedEdges = SupressedEdges .* ( SupressedEdges > 0 );
+                SupressedEdges = SupressedEdges .* ( SupressedEdges > 0 ); 
                 PSF{Isrc} = SupressedEdges ./ sum(SupressedEdges,'all');     % renormalize
             end
         else
@@ -85,7 +85,7 @@ function [CubePSF, XY] = createSourceCube(PSF, X1Y1, Flux, Args)
             for Isrc = 1:Nsrc
                 EdgeFunPars = ceil( Args.FunEdgePars .* M / 15);             % empiric, should somehow depend on M
                 SupressedEdges = Args.FunEdge( EdgeFunPars, [M M] ) .* PSF(:,:,Isrc);
-                SupressedEdges = SupressedEdges .* ( SupressedEdges > 0 ); 
+                SupressedEdges = SupressedEdges .* ( SupressedEdges > 0 );
                 PSF(:,:,Isrc) = SupressedEdges ./ sum(SupressedEdges,'all'); % renormalize
             end
         end

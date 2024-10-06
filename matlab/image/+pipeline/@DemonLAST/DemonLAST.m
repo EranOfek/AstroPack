@@ -2549,7 +2549,7 @@ classdef DemonLAST < Component
                 Args.PauseNight        = 30;
 
                 % Save data products
-                Args.SaveEpochProduct  = {[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat','PSF'};,  % 'all'
+                Args.SaveEpochProduct  = {'Image','Mask','Cat','PSF'}; %{[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat','PSF'};,  % 'all'
                 Args.SaveVisitProduct  = {'Image','Mask','Cat','PSF'};      % 'all'
                 Args.SaveMergedCat     = true;
                 Args.SaveMergedMat     = true;
@@ -2847,7 +2847,7 @@ classdef DemonLAST < Component
 
 
                             % Instead of AI, it used to be: RawImageList
-                            tic;
+                             tic;
                             [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
                                                                        Args.multiRaw2procCoaddArgs{:},...
                                                                        'SubDir',NaN,...

@@ -144,7 +144,7 @@ classdef MatchedSources < Component
     
     methods (Static) % static read
         function Obj = read(FileName, Args)
-            % OBSOLETE - read mat file or HDF5 file containing MatchedSources
+            % read mat file or HDF5 file containing MatchedSources
             %   Each dataset in the hdf5 file will be read into a matrix
             %   with the same name in the Data property.
             % Input  : - A file name.
@@ -227,7 +227,7 @@ classdef MatchedSources < Component
         end
         
         function Result = read_rdir(FileTemplate, Args)
-            % Read all MatchedSources files in a dir tree into a MatchedSources object.
+            % OBSOLETE - Read all MatchedSources files in a dir tree into a MatchedSources object.
             %   By default will read all Level=MergedMat files, recursivley
             %   from a tree of directories, into a MatchedSources object.
             %   If OrderPart argument is provided than will attempt to
@@ -391,6 +391,9 @@ classdef MatchedSources < Component
             %                   'FileName'.
             %            'FieldFolder' - The input structure field contains
             %                   the cell of folders. Default is 'Folder'.
+            %            'Fields' - A field, or cell array of fields to
+            %                   read from an HDF5 file. In the case of a
+            %                   mat file, all fields are read.
             % Output : - A MatchedSources object populated with the files.
             % Author : Eran Ofek (Nov 2023)
             % Example: L = MatchedSources.rdirMatchedSourcesSearch('CropID',[10]);
@@ -400,6 +403,7 @@ classdef MatchedSources < Component
                 List
                 Args.FieldFileName   = 'FileName';
                 Args.FieldFolder     = 'Folder';
+                Args.Fields          = [];
             end
 
             if iscell(List)
@@ -413,7 +417,7 @@ classdef MatchedSources < Component
                 Nfile = numel(ListSt(Ist).(Args.FieldFileName));
                 File = fullfile(ListSt(Ist).(Args.FieldFolder), ListSt(Ist).(Args.FieldFileName));
                 for Ifile=1:1:Nfile
-                    Result(Ifile) = MatchedSources.read(File{Ifile});
+                    Result(Ifile) = MatchedSources.read(File{Ifile}, 'Fields',Args.Fields);
                 end
             end
 
@@ -2317,7 +2321,95 @@ classdef MatchedSources < Component
              
         end
 
-        
+        function [MatchedCat, Ind] = match2AstroCatalog(MS, AI, Args)
+            % Match sources in MatchedSources object to sources in AstroCatalog
+            %   Returns the nearest object in the AstroCatalog that are within the
+            %   search radius from each of the sources in the MatchedSources object.
+            % Input  : - self.
+            %          - An AstroImage (or AstroDiff, or AstroZOGY) containing AstroCatalog, or an
+            %            AstroCatalog object.
+            %            The number of elements must be 1 or identical to
+            %            that of the MatchedSources object.
+            %            Each MatchedSources element will be matched
+            %            against the corresponding (or the first) element
+            %            in the AstroCatalog.
+            %          * ...,key,val,...
+            %            'SearchRadius' - Search radius for matching.
+            %                       Default is 3.
+            %            'SearchUnits' - Search radius units.
+            %                       Default is 'arcsec'.
+            %            See code for additional arguments.
+            % Output : - An AstroCatalog object. Each element corresponds
+            %            to element in the MatchedSources input.
+            %            Each catalog contains entry for each one of the
+            %            sources in the MatchedSources object, with the
+            %            nearest source in the AStroCatalog.
+            %          - A structure array with the following fields:
+            %            .IndTable - A three column matrix with, one line
+            %                   per line in MatchedSources
+            %                   Columns are [Index of nearest source, within search radius, in
+            %                    the AstroCatalog;
+            %                   Distance; Total number of matches within radius].
+            %            .RA - Median RA for sources in MatchedSources.
+            %                   This is the RA that was searched in the
+            %                   AstroCatalog.
+            %            .Dec - Like .RA, but for Dec.
+            % Example: 
+            % cd /marvin/LAST.01.01.01/2024/09/01/proc/165437v0
+            % MS=MatchedSources.read('LAST.01.01.01_20240901.165747.812_clear_Nagi1b_000_001_001_sci_merged_MergedMat_1.hdf5');
+            % Cat=AstroCatalog('LAST.01.01.01_20240901.165427.767_clear_Nagi1b_000_001_001_sci_coadd_Cat_1.fits');
+            % R=MS.match2AstroCatalog(Cat);
+
+            arguments
+                MS
+                AI
+                Args.SearchRadius  = 3;
+                Args.SearchUnits   = 'arcsec';
+                Args.ColRA   = 'RA';
+                Args.ColDec  = 'Dec';
+                Args.UnitsMS = 'deg';
+                Args.UnitsAI = 'deg';
+                Args.DistFun function_handle      = @celestial.coo.sphere_dist_fast; %@celestial.coo.sphere_dist_fast_threshDist; %@celestial.coo.sphere_dist_fast;
+                Args.DistFunArgs cell        = {}; %{4.8481e-5}; %{};
+            end
+
+            FactorMS = convert.angular(Args.UnitsMS, 'rad');
+            FactorAI = convert.angular(Args.UnitsAI, 'rad');
+            SearchRadius = convert.angular(Args.SearchUnits, 'rad', Args.SearchRadius);
+
+            Nms = numel(MS);
+            Nai = numel(AI);
+            for Ims=1:1:Nms
+                Iai = min(Nai, Ims);
+
+                if isa(AI, 'AstroCatalog')
+                    Cat = AI(Iai);
+                else
+                    % assume an AstroImage
+                    Cat = AI(Iai).CatData;
+                end
+
+                CatRA  = Cat.getCol(Args.ColRA);
+                CatDec = Cat.getCol(Args.ColDec);
+                [CatDec,Is] = sort(CatDec);
+                CatRA       = CatRA(Is);
+                CatRA       = CatRA.*FactorAI;
+                CatDec      = CatDec.*FactorAI;
+    
+                RA  = median(MS(Ims).Data.(Args.ColRA), 1, 'omitnan').';
+                Dec = median(MS(Ims).Data.(Args.ColDec), 1, 'omitnan').';
+                RA  = RA.*FactorMS;
+                Dec = Dec.*FactorMS;
+    
+    
+                [Ind(Ims).IndTable, CatFlagNearest, CatFlagAll, IndInObj2] = VO.search.search_sortedlat_multiNearest([CatRA, CatDec],...
+                                                        RA, Dec, SearchRadius, Args.DistFun, 'DistFunArgs',Args.DistFunArgs);
+                Ind(Ims).RA  = RA;
+                Ind(Ims).Dec = Dec;
+                
+                MatchedCat(Ims) = Cat.selectRows(Ind(Ims).IndTable(:,1), 'IgnoreNaN',false, 'CreateNewObj',true);
+            end
+        end
         
     end
     

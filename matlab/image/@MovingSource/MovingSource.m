@@ -1107,7 +1107,7 @@ classdef MovingSource < Component
                         JD3 = max(VecJD);
                         JD2 = 0.5.*(JD1 + JD3);
 
-                        Result = celestial.pm.fitLinearProperMotion(VecJD(FlagNN), VecRA(FlagNN), VecDec(FlagNN));
+                        Result = celestial.pm.fitLinearProperMotion(VecJD(FlagNN), VecRA(FlagNN), VecDec(FlagNN), [], [], 'StdFunArgs',{1});
                         Iused = Result.IgoodList{1};
                         
                         CC    = 1;

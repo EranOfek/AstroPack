@@ -6,6 +6,7 @@ function Result = unitTest()
     %%% create an artificial sky image 
     if false %%%% TEMPRORARILY SWITCH OFF
         
+
     Nx = 1700; Ny = Nx;    
     
     MinMag = 6; MaxMag = 22; MagZP = 25;
@@ -47,6 +48,54 @@ function Result = unitTest()
     
     % add noise
     Image = imUtil.art.addNoise(ImageSrcBack,'normal');
+
+        Nx = 1700; Ny = Nx;
+        
+        MinMag = 6; MaxMag = 22; MagZP = 25;
+        MagBins = MinMag:0.1:MaxMag;
+        
+        Nsrc = 0;
+        for Imag = 1:numel(MagBins)
+            Nstars = round(10^(-12).*MagBins(Imag).^11.76);  % the empiric dependence has been measured from a LAST image
+            %         fprintf('%.1f %.0f\n', MagBins(Imag), Nstars);
+            for Istar = 1:Nstars
+                Nsrc = Nsrc + 1;
+                Mag(Nsrc)  = MagBins(Imag);
+                Flux(Nsrc) = 10^(0.4.*(MagZP-Mag(Nsrc)));
+            end
+        end
+        
+        fprintf('%d objects in the FOV\n', Nsrc);
+        
+        X1Y1 = Nx.* rand(Nsrc,2);
+        Oversample = 3;
+        for i = 1:Nsrc; PSF(:,:,i) = imUtil.kernel2.gauss([2 2 0],[25 25]) + 1e-4*rand(25,25); end
+        
+        % create a list of shifted and resampled fluxed PSF stamps
+        [CubePSF, XY] = imUtil.art.createSourceCube(PSF, X1Y1, Flux, 'Recenter', true, ...
+            'RecenterMethod','fft','Oversample', Oversample, 'PositivePSF', true);
+        
+        % create an empty image
+        Image0 = repmat(0,Nx,Ny);
+        
+        % fill the image with sources
+        ImageSrc = imUtil.art.addSources(Image0,CubePSF,XY,'Oversample',[],'Subtract',false);
+        if sum(ImageSrc < 0) > 0
+            warning('Negative pixels');
+        end
+        
+        % add background with some spatial variations
+        Back = 200 .* (1 + 0.1*rand(Nx,Ny));
+        ImageSrcBack = imUtil.art.addBackground(ImageSrc, Back, 'Subtract', false);
+        
+        % add noise
+        Image = imUtil.art.addNoise(ImageSrcBack,'normal');
+               
+        OutFITSName = 'LAST_sim.fits';
+        FITS.write(Image, OutFITSName,... % 'Header',usimImage.HeaderData.Data,...
+                    'DataType','single', 'Append',false,'OverWrite',true,'WriteTime',true);
+        
+    end
     
     end
     
@@ -83,10 +132,10 @@ function Result = unitTest()
         
     toc; tic;
     % a low-latitude (dense) field:
-%     fprintf('LAST subimage from a low-latitude field 275-16:\n');    
-%     AI2(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_275-16_crop22.fits');
-    fprintf('LAST subimage from a low-latitude field 303+41:\n');
-    AI2(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST.01.10.01_20230626.233722.753_clear_303+41_000_001_017_sci_coadd_Image_1.fits');
+    fprintf('LAST subimage from a low-latitude field 275-16:\n');    
+    AI2(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST_275-16_crop22.fits');
+%     fprintf('LAST subimage from a low-latitude field 303+41:\n');
+%     AI2(1)  = AstroImage('~/matlab/data/TestImages/unitTest/LAST.01.10.01_20230626.233722.753_clear_303+41_000_001_017_sci_coadd_Image_1.fits');
     Res2(1) = FitRestoreSubtract(AI2(1),'VarMethod','LogHist','Threshold', Thresh(1), 'MomRadius', 4,...
         'RemoveMasked', false, 'RemovePSFCore', false,...
         'BackPar',{'SubSizeXY',[128 128]}); % {'SubSizeXY','full'}
@@ -117,15 +166,15 @@ function Result = unitTest()
 %     ds9(Res2(1).Diff,5)
 %     ds9(Res2(5).Diff,6)
        
-    DS9_new.regionWrite([AI1(1).CatData.Catalog(:,29) AI1(1).CatData.Catalog(:,30)],'FileName','~/LAST_346+79_lastit.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
-    DS9_new.regionWrite([AC1(1).Catalog(:,29) AC1(1).Catalog(:,30)],'FileName','~/LAST_346+79_it1.reg','Color','blue','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
-    DS9_new.regionWrite([AC1(2).Catalog(:,29) AC1(2).Catalog(:,30)],'FileName','~/LAST_346+79_it2.reg','Color','red','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
-    DS9_new.regionWrite([AC1(3).Catalog(:,29) AC1(3).Catalog(:,30)],'FileName','~/LAST_346+79_it3.reg','Color','green','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AI1(1).CatData.Catalog(:,29) AI1(1).CatData.Catalog(:,30)],'FileName','LAST_346+79_lastit.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AC1(1).Catalog(:,29) AC1(1).Catalog(:,30)],'FileName','LAST_346+79_it1.reg','Color','blue','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AC1(2).Catalog(:,29) AC1(2).Catalog(:,30)],'FileName','LAST_346+79_it2.reg','Color','red','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AC1(3).Catalog(:,29) AC1(3).Catalog(:,30)],'FileName','LAST_346+79_it3.reg','Color','green','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
     
-    DS9_new.regionWrite([AI2(1).CatData.Catalog(:,29) AI2(1).CatData.Catalog(:,30)],'FileName','~/LAST_303+41_lastit.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
-    DS9_new.regionWrite([AC2(1).Catalog(:,29) AC2(1).Catalog(:,30)],'FileName','~/LAST_303+41_it1.reg','Color','blue','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
-    DS9_new.regionWrite([AC2(2).Catalog(:,29) AC2(2).Catalog(:,30)],'FileName','~/LAST_303+41_it2.reg','Color','red','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
-    DS9_new.regionWrite([AC2(3).Catalog(:,29) AC2(3).Catalog(:,30)],'FileName','~/LAST_303+41_it3.reg','Color','green','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AI2(1).CatData.Catalog(:,29) AI2(1).CatData.Catalog(:,30)],'FileName','LAST_275-16_lastit.reg','Color','cyan','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AC2(1).Catalog(:,29) AC2(1).Catalog(:,30)],'FileName','LAST_275-16_it1.reg','Color','blue','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AC2(2).Catalog(:,29) AC2(2).Catalog(:,30)],'FileName','LAST_275-16_it2.reg','Color','red','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
+    DS9_new.regionWrite([AC2(3).Catalog(:,29) AC2(3).Catalog(:,30)],'FileName','LAST_275-16_it3.reg','Color','green','Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
 
 %      S = readtable('~/LAST_275_16_sextractor_v2.cat','FileType','text','NumHeaderLines',14);
 %      DS9_new.regionWrite([S.Var2 S.Var3],'FileName','~/LAST_275_16_sextractor_v2.reg','Color','yellow','Marker','b','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
@@ -146,7 +195,7 @@ function Result = FitRestoreSubtract(AI, Args)
        Args.VarMethod   = 'LogHist';
        Args.PreviousVar = [];
        
-       Args.MomRadius   = 4; % recommended MomRadius = 1.7 * FWHM ~ 3.8
+       Args.MomRadius   = 4; % recommended MomRadius = 1.7 * FWHM ~ 3.8 (for LAST!)
        
        Args.Threshold   = 5;
        
@@ -160,13 +209,17 @@ function Result = FitRestoreSubtract(AI, Args)
        
        Args.RemoveMasked  = false;  % seems like 'true' does not influence much ? 
        Args.RemovePSFCore = false;  % not decided on it yet
+       
+       Args.UseInterpolant = false;
+       Args.SuppressEdges  = true;
+       Args.RedNoiseFactor = 1.3; % increase the variance due to the sources found at previous iterations by this factor 
     end
     % measure background and variance
     imProc.background.background(AI, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
     
 %     Result.Var = AI.Var;            % save the measured local variance for the next iteration(s) 
     if ~isempty(Args.PreviousVar)   % add the variance from the local sources from the previous iteration(s)
-        AI.Var = AI.Var + Args.PreviousVar;
+        AI.Var = AI.Var + Args.RedNoiseFactor .* Args.PreviousVar;
 %         AI.Var = max(AI.Var,Args.PreviousVar);
     end
         
@@ -176,7 +229,7 @@ function Result = FitRestoreSubtract(AI, Args)
 %             'BackPar',{'BackFun',@median,'BackFunPar',{'all'},'VarFun',@imUtil.background.rvar,'SubSizeXY','full'});     
     %
     NumSrc = height(AI.Table);
-    fprintf('Iter. %d: bkg = %.0f, var = %.0f, Nobj: %d\n',...
+    fprintf('Iter. %d: mean bkg = %.0f, mean var = %.0f, Nobj: %d\n',...
         Args.Iteration,mean(AI.Back,'all'),mean(AI.Var,'all'),NumSrc);
     % insert a column with iteration number into the source catalog
     AI.CatData = insertCol(AI.CatData, repmat(Args.Iteration,1,NumSrc)', Inf, 'ITER', {''});
@@ -209,12 +262,63 @@ function Result = FitRestoreSubtract(AI, Args)
     [R, P] = imUtil.psf.fitFunPSF(double(Res.ShiftedPSF(:,:,1)), 'Funs',{@imUtil.kernel2.gauss ,@imUtil.kernel2.gauss}, ...
         'Par0',{[2 2 0],[1 1 0]}, 'Norm0',[1 1], 'LsqOptions',OPTIONS); % add PosXY?         % 
     sqrt(R.ResNorm) % rms error ~ 8% ! 
+    
+    % model the PSF with an analytical function and replace the stamp if the fit is OK
+%     OPTIONS = optimoptions('lsqcurvefit','Algorithm','levenberg-marquardt');
+%     [AI.PSFData, BestFit,FitRes] = AI.PSFData.fitFunPSF('ReplaceStamp',false,...
+%         'Funs',{@imUtil.kernel2.gauss ,@imUtil.kernel2.gauss}, 'Par0',{[2 2 0],[1 1 0]}, 'Norm0',[1 1],...
+%         'LsqOptions',OPTIONS);
+%     if FitRes{1}.ExitFlag == 1 || FitRes{1}.ResNorm < 1e-4 
+%         fprintf(['PSF fitting:' repmat('%.2f ', 1, 8) '\n'], FitRes{1}.Par); % testing
+%         AI.PSF = BestFit{1};
+%     else
+%         fprintf('PSF fitting did not converge normally, the stamp is not renewed.\n');
+%     end
+    
+        % find sources once more with the measured PSF instead of a gaussian? 
+%     AI = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold,'ReCalcBack',false,...
+%         'MomPar',{'MomRadius',Args.MomRadius},'Psf',AI.PSF,'FlagCR',false); 
+    
+    % make PSF photometry
+    [AI, Res] = imProc.sources.psfFitPhot(AI);  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter   
+    
+%     % model the shifted PSFs?
+%     [R, P] = imUtil.psf.fitFunPSF(double(Res.ShiftedPSF(:,:,1)), 'Funs',{@imUtil.kernel2.gauss ,@imUtil.kernel2.gauss}, ...
+%         'Par0',{[2 2 0],[1 1 0]}, 'Norm0',[1 1], 'LsqOptions',OPTIONS); % add PosXY?         % 
+%     sqrt(R.ResNorm) % rms error ~ 8% ! 
+
+
     % null the negative values in the shifted PSF and renorm (?)
 %     Res.ShiftedPSF = Res.ShiftedPSF .* (Res.ShiftedPSF > 0);
 %     sum(Res.ShiftedPSF,'all')./size(Res.ShiftedPSF,3) % ~ 1.0015 (average excess flux)!
 %     Res.ShiftedPSF = Res.ShiftedPSF./sum(Res.ShiftedPSF,[1 2]); % normalization
+
     % construct and inject sources
     [CubePSF, XY] = imUtil.art.createSourceCube(Res.ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, 'Recenter', false,'PositivePSF',true);
+
+
+    % use Res.DX and Res.DY to create ShiftedPSF from an interpolation? 
+    if Args.UseInterpolant        
+        F = griddedInterpolant(AI.PSF,'linear','previous'); %
+        Nx = size(AI.PSF,1);
+        [X, Y] = meshgrid(1:Nx);
+        ShiftedPSF = repmat(0,Nx,Nx,NumSrc);
+        for Isrc = 1:NumSrc
+            ShiftedPSF(:,:,Isrc)  = F(X+Res.DX(Isrc),Y+Res.DY(Isrc))';
+        end        
+        ShiftedPSF = ShiftedPSF./sum(ShiftedPSF,[1 2]); % renormalize
+    else
+        ShiftedPSF = Res.ShiftedPSF; 
+    end
+    
+    if Args.SuppressEdges
+        SPSF = imUtil.psf.suppressEdges(ShiftedPSF, 'Fun',@imUtil.kernel2.cosbell, 'FunPars', [5, 8]);
+    else
+        SPSF = ShiftedPSF;
+    end
+
+    % construct and inject sources
+    [CubePSF, XY] = imUtil.art.createSourceCube(SPSF, [Res.RoundY Res.RoundX], Res.Flux, 'Recenter', false,'PositivePSF',true);
     ImageSrc = imUtil.art.addSources(repmat(0,size(AI.Image)),CubePSF,XY,'Oversample',[],'Subtract',false);
 %     ImageSrcBack = imUtil.art.addBackground(ImageSrc, AI.Back, 'Subtract', false);    % for testing, do not use it further 
     % make a difference image    

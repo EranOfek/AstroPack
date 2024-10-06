@@ -119,6 +119,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
         Args.PicklesDir = '~/matlab/data/spec/PicklesStellarSpec/';
         Args.Phoenix    = '~/matlab/data/spec/Phoenix/phoenix_mtl0_rescale10.mat';
+        
+        Args.FlatMatrix = [];                % an external model flat matrix can be input here 
+        
+        Args.AddCRStreaks logical = false;   % add CR streaks     
     end
     
     % input format correction
@@ -716,6 +720,29 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                  
                             fprintf(' done\n');                   
                             elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
+                            
+    %%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%  add CR streaks
+    
+    if Args.AddCRStreaks
+        if Args.Exposure(1) == 1
+            CRProb = 1e-2;
+            CRAmplitude = FullWell; % is it correct???
+            ImageCR = CRAmplitude .* ( rand(ImageSizeX, ImageSizeY) < CRProb );
+            ImageSrcNoise = ImageSrcNoise + ImageCR;
+        else
+            fprintf('NOTE: CR streaks are not included once multiple exposures are modelled..\n');
+        end
+    end    
+
+    %%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%  multiply by a model flat matrix (input)
+    
+    if ~isempty(Args.FlatMatrix)
+        ImageSrcNoise = ImageSrcNoise .* Args.FlatMatrix;
+    end
+        
+    %%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%  cut the saturated pixels (to be refined later) 
     
     Thresh        = FullWell * Args.Exposure(1);
@@ -781,7 +808,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         save(OutObjName,'usimImage','-v7.3');
     end
            
-    % write the image to a FITS file    
+    % write the image to a FITS file 
+    % if you do not wish to write any files, use 'OutType','none'
     if strcmp( Args.OutType,'FITS') || strcmp( Args.OutType,'all')
                 
         OutFITSName = sprintf('%s%s%s%s%s%s%s','!',Args.OutDir,'/',Args.OutName,'_tile',Args.Tile,'.fits');
@@ -833,7 +861,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                     elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); 
                     tstop = datetime("now"); 
                     cprintf('hyper','%s%s%s\n','Simulation completed in ',tstop-tstart,...
-                                         ' , see the generated images')
+                                         ' , see the generated images')                                     
     %%%%%%%%%%%%%%%%%%%% post modeling checks (optional; in fact, should be done with another method)
     if Args.PostModelingFindSources
     %     
@@ -858,9 +886,14 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     end
 end
 
+
+
 %%%%%
-%%%%% internal functions (to be replaced by ones from the core AstroPack set)
+%%%%% internal functions (to be replaced later by ones from the core AstroPack set)
 %%%%%
+
+
+
 
 function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     % Make an artificial image with rotated and jitter-blurred source PSFs injected to the catalog positions     

@@ -18,7 +18,7 @@ function Im=mfind_bin(X, Vals, UseMex, Type)
 % Tested : Matlab R2014a
 %     By : Eran O. Ofek                    Jan 2015
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Compilation: mex -R2018a CXXFLAGS="\$CXXFLAGS -fopenmp" LDFLAGS="\$LDFLAGS -fopenmp" mex_mfind_bin_double2.cpp
+% Compilation: mex -R2018a CXXFLAGS="\$CXXFLAGS -fopenmp" LDFLAGS="\$LDFLAGS -fopenmp" mex_mfind_bin_double.cpp
 % Example: X=sort(rand(1e6,1)); Vals=rand(1,1e5);
 %          Im=tools.find.mfind_bin(X,Vals)
 % Reference: cite Ofek (2014; ascl:1407.005)

@@ -24,7 +24,22 @@ function Result = unitTest
     % assert(all(getCol(AC2, MagNames)==getCol(AC2,MagNamesNew),'all') ,'error in addMagCols');
     % 
     % AC2 = imProc.sources.addMagCols(AC2,"FluxCols",NamesFlux(IndFlux),"FluxErrCols",NamesFluxErr(IndFluxErr),"MagStr",MagNames,"MagErrStr",MagErrNames,"IsLuptitude",false);
+    
+    % testing multi-iteration PSF photometry 
+    
+    Images = {'LAST_346+79_crop10.fits', 'LAST_275-16_crop22.fits'};
+    AI     = [AstroImage(Images{1}) AstroImage(Images{2})];  
+%     AI.Mask = % fill in the masks 
 
+    [AI, SourceLess] = imProc.sources.mextractor(AI,'Verbose',true,...
+        'WriteDs9Regions',true,'FindWithEmpiricalPSF',true,...
+        'RedNoiseFactor',10.0); % NB: 1.3 -- a number of spurious sources are found, while some of the obvious sources are not revealed 
+    
+    ds9(AI(1).Image,1); ds9.load_region('~/346+79_it1.reg'); ds9.load_region('~/346+79_it2.reg'); ds9.load_region('~/346+79_it3.reg')
+    ds9(SourceLess(1).Image,2) 
+    ds9(AI(2).Image,3); ds9.load_region('~/275-16_it1.reg'); ds9.load_region('~/275-16_it2.reg'); ds9.load_region('~/275-16_it3.reg')
+    ds9(SourceLess(2).Image,4)     
+        
     cd(PWD)
 
     Result = true;
