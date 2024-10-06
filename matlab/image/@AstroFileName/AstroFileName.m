@@ -178,6 +178,9 @@ classdef AstroFileName < Component
             %                   property. If empty, then use te FIELDS
             %                   property. Note that JD is not translated.
             %                   Default is [].
+            %            'JDCol' - If input is table or AstroCatalog,
+            %                   then this is the JD column name in the
+            %                   table. Default is 'JD'.
             %
             % Output : - An AstroFileName object.
             % Author : Eran Ofek (Oct 2024)
@@ -198,8 +201,10 @@ classdef AstroFileName < Component
                 Args.ReadJD logical  = true;
                 Args.JD2Time logical = false;
                 Args.TableCol        = [];
+                Args.JDCol           = 'JD'
             end
-            
+          
+
             if ~isempty(Args.Path)
                 Args.Method = 'Template';
             end
@@ -231,8 +236,8 @@ classdef AstroFileName < Component
                 end
                 if Args.ReadJD
                     Field = 'JD';
-                    if tools.table.isColumn(Files, Field)
-                        Obj.(Field) = Files.(Field);
+                    if tools.table.isColumn(Files, Args.JDCol)
+                        Obj.(Field) = Files.(Args.JDCol);
                         if Args.JD2Time
                             Obj.julday2time;
                         end
@@ -258,8 +263,8 @@ classdef AstroFileName < Component
                 end
                 if Args.ReadJD
                     Field = 'JD';
-                    if isColumn(Files, Field)
-                        Obj.(Field) = Files.getCol(Field);
+                    if isColumn(Files, Args.JDCol)
+                        Obj.(Field) = Files.getCol(Args.JDCol);
                         if Args.JD2Time
                             Obj.julday2time;
                         end
