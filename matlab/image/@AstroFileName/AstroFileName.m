@@ -141,7 +141,7 @@ classdef AstroFileName < Component
             %           to read from the 'Path' directory.
             %           If this is a numeric array, then will
             %           create an AstroFileName object of this size.
-            %           If this is a table, then attempt to populate the
+            %           If this is a table (or AstroCatalog), then attempt to populate the
             %           file names based on the table columns (e.g., if the
             %           table have a 'CropID' column, then its content will
             %           be stored in the AstroFileName CropID property).
@@ -172,6 +172,12 @@ classdef AstroFileName < Component
             %                   then this is a logical indicating if to
             %                   convert the JD into Time string.
             %                   Default is false.
+            %            'TableCol' - If input is table or AstroCatalog,
+            %                   then this is a cell array or strings array
+            %                   of column names corresponding to the FIELDS
+            %                   property. If empty, then use te FIELDS
+            %                   property. Note that JD is not translated.
+            %                   Default is [].
             %
             % Output : - An AstroFileName object.
             % Author : Eran Ofek (Oct 2024)
@@ -191,6 +197,7 @@ classdef AstroFileName < Component
                 Args.Method = 'files';
                 Args.ReadJD logical  = true;
                 Args.JD2Time logical = false;
+                Args.TableCol        = [];
             end
             
             if ~isempty(Args.Path)
@@ -207,18 +214,52 @@ classdef AstroFileName < Component
                 end
             elseif istable(Files)
                 % Input is a table
-                
+              
                 Fields = AstroFileName.FIELDS;
+                
+                if isempty(Args.TableCol)
+                    TableCol = Fields;
+                else
+                    TableCol = Args.TableCol;
+                end
+                
                 Nfield=numel(Fields);
                 for Ifield=1:1:Nfield
-                    if tools.table.isColumn(Files, Fields{Ifield})
-                        Obj.(Fields{Ifield}) = Files.(Fields{Ifield});
+                    if tools.table.isColumn(Files, TableCol{Ifield})
+                        Obj.(Fields{Ifield}) = Files.(TableCol{Ifield});
                     end
                 end
                 if Args.ReadJD
                     Field = 'JD';
                     if tools.table.isColumn(Files, Field)
                         Obj.(Field) = Files.(Field);
+                        if Args.JD2Time
+                            Obj.julday2time;
+                        end
+                    end
+                end
+                
+            elseif isa(Files, 'AstroCatalog')
+                % Input is an AstroCatalog
+              
+                Fields = AstroFileName.FIELDS;
+                
+                if isempty(Args.TableCol)
+                    TableCol = Fields;
+                else
+                    TableCol = Args.TableCol;
+                end
+                
+                Nfield=numel(Fields);
+                for Ifield=1:1:Nfield
+                    if isColumn(Files, TableCol{Ifield})
+                        Obj.(Fields{Ifield}) = Files.getCol(TableCol{Ifield});
+                    end
+                end
+                if Args.ReadJD
+                    Field = 'JD';
+                    if isColumn(Files, Field)
+                        Obj.(Field) = Files.getCol(Field);
                         if Args.JD2Time
                             Obj.julday2time;
                         end
